@@ -27,6 +27,20 @@ class Environment:
             return False
 
     @staticmethod
+    def get_renderer() -> str:
+        """Return renderer which can be ipython or browser."""
+        try:
+            import IPython  # pyright: ignore[reportUnknownVariableType]
+
+            ipy = (  # pyright: ignore[reportUnknownVariableType]
+                IPython.get_ipython()  # pyright: ignore[reportUnknownMemberType, reportPrivateImportUsage]
+            )
+            renderer = "ipython" if ipy else "browser"
+        except ImportError:
+            renderer = "browser"
+        return renderer
+
+    @staticmethod
     def initialize_llm_secrets(unique_id: str) -> str:
         """Inject the LLM API keys into the MAIDR instance."""
 

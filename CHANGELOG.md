@@ -1,6 +1,33 @@
 # CHANGELOG
 
 
+## v0.10.2 (2024-10-17)
+
+### Fixes
+
+* fix: address iframe resizing issue in jupyter notebooks (#124) ([`b437831`](https://github.com/xability/py_maidr/commit/b43783130eaa34df7d47efc57b0eb2a5819d9986))
+
+
+## v0.10.1 (2024-10-17)
+
+### Fixes
+
+* fix: correct import statement in maidr.py ([`e7d072a`](https://github.com/xability/py_maidr/commit/e7d072a3d94d573f06fd76c68cf57679f9c7584e))
+
+* fix: address dynamic resizing of iframes on ipython (#123) ([`3159fc1`](https://github.com/xability/py_maidr/commit/3159fc1f4ccfff081f001bf41eff7b949b95a3c4))
+
+
+## v0.10.0 (2024-10-15)
+
+### Code Style
+
+* style(example): replace `py-shiny` folder name with `shiny` ([`4bb9e77`](https://github.com/xability/py_maidr/commit/4bb9e7766a2dcdee1e8467750c14cbb891878074))
+
+### Features
+
+* feat(maidr.show): use tempfile for interactive sessions (#121) ([`ef668ee`](https://github.com/xability/py_maidr/commit/ef668ee2b9619883b3abbb6e9be3b9371b9372e6))
+
+
 ## v0.9.2 (2024-10-09)
 
 ### Documentation

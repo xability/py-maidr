@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import tempfile
 import uuid
+import webbrowser
 from typing import Literal
 
 from htmltools import HTML, HTMLDocument, Tag, tags
@@ -83,8 +86,11 @@ class Maidr:
             The renderer to use for the HTML preview.
         """
         html = self._create_html_tag()
-        if Environment.is_interactive_shell() and not Environment.is_notebook():
-            return html.show("browser")
+        _renderer = Environment.get_renderer()
+        if _renderer == "browser" or (
+            Environment.is_interactive_shell() and not Environment.is_notebook()
+        ):
+            return self._open_plot_in_browser()
         return html.show(renderer)
 
     def clear(self):
@@ -93,6 +99,18 @@ class Maidr:
     def destroy(self) -> None:
         del self._plots
         del self._fig
+
+    def _open_plot_in_browser(self) -> None:
+        """
+        Open the rendered HTML content using a temporary file
+        """
+        system_temp_dir = tempfile.gettempdir()
+        static_temp_dir = os.path.join(system_temp_dir, "maidr")
+        os.makedirs(static_temp_dir, exist_ok=True)
+
+        temp_file_path = os.path.join(static_temp_dir, "maidr_plot.html")
+        html_file_path = self.save_html(temp_file_path)
+        webbrowser.open(f"file://{html_file_path}")
 
     def _create_html_tag(self) -> Tag:
         """Create the MAIDR HTML using HTML tags."""
@@ -171,7 +189,46 @@ class Maidr:
             tags.script(maidr),
         )
 
+        def generate_iframe_script(unique_id: str) -> str:
+            resizing_script = f"""
+                function resizeIframe() {{
+                    let iframe = document.getElementById('{unique_id}');
+
+                    if (iframe && iframe.contentWindow && iframe.contentWindow.document) {{
+                        let iframeDocument = iframe.contentWindow.document;
+                        let brailleContainer = iframeDocument.getElementById('braille-input');
+
+                        iframe.style.height = 'auto';
+
+                        let height = iframeDocument.body.scrollHeight;
+                        if (brailleContainer && brailleContainer === iframeDocument.activeElement) {{
+                            height += 100;
+                        }}else{{
+                            height += 50
+                        }}
+
+                        iframe.style.height = (height) + 'px';
+                        iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+                    }}
+                }}
+                let iframe = document.getElementById('{unique_id}');
+                resizeIframe();
+                iframe.onload = function() {{
+                    resizeIframe();
+                    iframe.contentWindow.addEventListener('resize', resizeIframe);
+                }};
+                iframe.contentWindow.document.addEventListener('focusin', () => {{
+                    resizeIframe();
+                }});
+                iframe.contentWindow.document.addEventListener('focusout', () => {{
+                    resizeIframe();
+                }});
+            """
+            return resizing_script
+
         unique_id = "iframe_" + Maidr._unique_id()
+
+        resizing_script = generate_iframe_script(unique_id)
 
         # Embed the rendering into an iFrame for proper working of JS library.
         base_html = tags.iframe(
@@ -179,13 +236,10 @@ class Maidr:
             srcdoc=str(base_html.get_html_string()),
             width="100%",
             height="100%",
-            scrolling="auto",
-            style="background-color: #fff",
+            scrolling="no",
+            style="background-color: #fff; position: relative; border: none",
             frameBorder=0,
-            onload="""
-                this.style.height = this.contentWindow.document.body.scrollHeight +
-                100 + 'px';
-            """,
+            onload=resizing_script,
         )
 
         return base_html
