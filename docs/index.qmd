@@ -13,10 +13,10 @@ html-table-processing: none
 <hr style="color:transparent" />
 <br />
 
-_maidr: Inclusive Data Science for All
+_maidr: Data Insight for All
 </div>
 
-Are you blind or visually impaired person who wants to independently create and explore data visualizations by yourself? Are you a sighted person who wants to make your data visualizations more accessible to everyone? If so, **maidr** is for you!
+Are you eager to uncover new insights from data science but frustrated by visual-only data representations? Do you want to make your data visualizations accessible to everyone, including those who are blind or low-vision? If so, **maidr** is for you!
 
 **maidr** (pronounced as 'mader') is an accessible framework for multimodal data representation. With maidr, blind and sighted users can easily augment data visualizations into _touchable_ (Braille), _readable_ (text), _audible_ (sonification), and _conversational_ (AI) formats.
 
@@ -36,13 +36,13 @@ The following summarizes the key features and design principles of maidr:
 
 7. Reproducibility: maidr supports the generation of accessible data visualizations as part of the reproducible data science workflow with Quarto scientific publishing system. You can easily create accessible data representations within your reproducible reports, website blogs, slides, e-books, dashboards, and more.
 
-8. Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types.
+8. Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types. [Multi-figure and multi-layer visualizations are underway to support complex data visualizations.]
 
-Our core philosophy is to make data representation accessible to everyone, regardless of their abilities. We believe that everyone should have the opportunity to explore and understand data, and that accessibility should be a core part of the data science process.
+Our core philosophy is to make data science accessible to everyone, regardless of their visual dis/abilities. We believe that by making data visualizations accessible, we can empower blind and sighted users to work together on data science projects, share insights, and make data-driven decisions collaboratively.
 
 ## Let's Install
 
-The installation really couldn't be much easier. Use this:
+[Python 3.x](https://www.python.org/downloads/) is required to use **maidr**. After installing Python, you can install **maidr** using the following commands in your terminal:
 
 ```{.bash}
 # install the latest release from PyPI
@@ -53,30 +53,6 @@ pip install -U maidr
 # or install the development version from GitHub
 pip install -U git+https://github.com/xability/py_maidr.git
 ```
-
-
-## LLM Configuration for Interactive Shell
-
-To use OpenAI or Gemini Models along with the maidr library, follow the steps below:
-
-1. Signup and get the API Keys for OpenAI or Gemini Models.
-2. Add the keys to environment variables so that python binder can access the keys.
-   (Note: This only temporarily adds keys in environment variable, for persistent access you might want to add the export command to your shell configuration)
-
-##### Mac Configuration
-
-```bash
-export OPENAI_API_KEY="<< add you key here >>"
-export GEMINI_API_KEY="<< add you key here >>"
-```
-
-##### Windows Configuration
-
-```
-setx OPENAI_API_KEY "<< add you key here >>"
-setx GEMINI_API_KEY "<< add you key here >>"
-```
-
 
 ## Examples
 
@@ -90,10 +66,6 @@ setx GEMINI_API_KEY "<< add you key here >>"
 import matplotlib.pyplot as plt
 import maidr
 import seaborn as sns
-
-
-# Turn off interactive mode globally
-plt.ioff()
 
 
 # Load the penguins dataset
@@ -205,19 +177,18 @@ maidr.show(scatter_plot)
 
 ## Reactive Dashboard
 
-### Streamlit
+### Shiny
 
+```{=html}
+<iframe width="780" height="500" src="https://xabilitylab.shinyapps.io/a11y_dashboard/" title="Accessible Shiny Dashboard with maidr"></iframe>
+```
+
+### Streamlit
 
 ```{=html}
 <iframe width="780" height="500" src="https://maidr-dashboard.streamlit.app/" title="Accessible Streamlit Dashboard with maidr"></iframe>
 ```
 
-
-### Shiny
-
-```{=html}
-<iframe width="780" height="500" src="https://xabilitylab.shinyapps.io/plot_tutorial/" title="Accessible Shiny Dashboard with maidr"></iframe>
-```
 
 ## Interactive Computing (Jupyter Notebooks, Jupyter Labs, Google Colab)
 
@@ -227,6 +198,124 @@ Check out [this interactive notebook in Google Colab](https://colab.research.goo
 <iframe width="780" height="500" src="https://colab.research.google.com/drive/1In85HRpSLgOcLbLudSdfO3axYtkOlua1?usp=sharing" title="Interactive Computing with maidr in Google Colab"></iframe>
 ```
 
+## Keyboard Shortcuts
+
+                            <table>
+                                <caption class="sr-only">Keyboard Shortcuts</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Function</th>
+                                        <th scope="col">Key</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Move around plot</td>
+                                        <td>Arrow keys</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Go to the very left right up down</td>
+                                        <td>${
+                                          constants.control
+                                        } + Arrow key</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Select the first element</td>
+                                        <td>${constants.control} + ${
+    constants.home
+  }</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Select the last element</td>
+                                        <td>${constants.control} + ${
+    constants.end
+  }</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Toggle Braille Mode</td>
+                                        <td>b</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Toggle Text Mode</td>
+                                        <td>t</td>
+                                    </tr>
+                                                                        <tr>
+                                        <td>Toggle Sonification Mode</td>
+                                        <td>s</td>
+                                    </tr>
+                                                                                                            <tr>
+                                        <td>Toggle Review Mode</td>
+                                        <td>r</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Repeat current sound</td>
+                                        <td>Space</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Auto-play outward in direction of arrow</td>
+                                        <td>${
+                                          constants.control
+                                        } + Shift + Arrow key</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Auto-play inward in direction of arrow</td>
+                                        <td>${
+                                          constants.alt
+                                        } + Shift + Arrow key</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Stop Auto-play</td>
+                                        <td>${constants.control}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Auto-play speed up</td>
+                                        <td>Period (.)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Auto-play speed down</td>
+                                        <td>Comma (,)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Auto-play speed reset</td>
+                                        <td>Slash (/)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Check label for the title of current plot</td>
+                                        <td>l t</td>
+                                    </tr>
+                                                                            <td>Check label for the x axis of current plot</td>
+                                        <td>l x</td>
+                                    </tr>
+                                                                                                                <td>Check label for the y axis of current plot</td>
+                                        <td>l y</td>
+                                    </tr>
+                                                                                                                <td>Check label for the fill (z) axis of current plot</td>
+                                        <td>l f</td>
+                                    </tr>
+                                                                                                                <td>Check label for the subtitle of current plot</td>
+                                        <td>l s</td>
+                                    </tr>
+                                                                                                                <td>Check label for the caption of current plot</td>
+                                        <td>l c</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Toggle AI Chat View</td>
+                                        <td>${
+                                          constants.isMac
+                                            ? constants.alt
+                                            : constants.control
+                                        } + Shift + /</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Copy last chat message in AI Chat View</td>
+                                        <td>${constants.alt} + Shift + C</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Copy full chat history in AI Chat View</td>
+                                        <td>${constants.alt} + Shift + A</td>
+                                    </tr>
+                                </tbody>
+                            </table>
 
 
 ## Demo Video
