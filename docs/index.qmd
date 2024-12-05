@@ -4,6 +4,8 @@ jupyter: python3
 # aliases:
   # - ../index.html
 html-table-processing: none
+filters:
+  - line-highlight
 ---
 
 <div align="center">
@@ -54,18 +56,23 @@ pip install -U maidr
 pip install -U git+https://github.com/xability/py_maidr.git
 ```
 
-## Examples
+## Getting Started
 
+Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code.
+
+Simply import the `maidr` package and use the `maidr.show()` function to display your plots. **maidr** will automatically generate accessible versions of your plots in your default browser. You can then interact with the accessible versions using keyboard shortcuts (refer to @tbl-shortcuts).
 
 ### Bar Plot
 
 ```{python}
-# | warning: false
-# | fig-alt: Bar plot showing the average body mass of penguins by species
+#| warning: false
+#| fig-alt: Bar plot showing the average body mass of penguins by species
 
 import matplotlib.pyplot as plt
-import maidr
 import seaborn as sns
+
+# Just import maidr package #<<
+import maidr #<<
 
 
 # Load the penguins dataset
@@ -73,7 +80,9 @@ penguins = sns.load_dataset("penguins")
 
 # Create a bar plot showing the average body mass of penguins by species
 plt.figure(figsize=(10, 6))
-b_plot = sns.barplot(
+
+# Assign the plot to a variable #<<
+bar_plot = sns.barplot( #<<
     x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
 )
 plt.title("Average Body Mass of Penguins by Species")
@@ -81,7 +90,9 @@ plt.xlabel("Species")
 plt.ylabel("Body Mass (g)")
 
 # plt.show()
-maidr.show(b_plot)
+
+# Use maidr.show() to display your plot #<<
+maidr.show(bar_plot) #<<
 ```
 
 
@@ -91,6 +102,12 @@ maidr.show(b_plot)
 # | warning: false
 # | fig-alt: Histogram of petal lengths in the Iris dataset
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+
 # Load the Iris dataset
 iris = sns.load_dataset("iris")
 
@@ -99,14 +116,15 @@ petal_lengths = iris["petal_length"]
 
 # Plot a histogram of the petal lengths
 plt.figure(figsize=(10, 6))
-hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5)
+
+hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5) #<<
 
 plt.title("Petal Lengths in Iris Dataset")
 plt.xlabel("Petal Length (cm)")
 plt.ylabel("Frequency")
 
 # plt.show()
-maidr.show(hist_plot)
+maidr.show(hist_plot) #<<
 ```
 
 
@@ -115,8 +133,14 @@ maidr.show(hist_plot)
 ```{python}
 # | fig-alt: Line plot of tips vs total bill for Thursday
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+
 # Load the 'tips' dataset from seaborn
-tips = sns.load_dataset("tips")
+tips = sns.load_dataset("tips") #<<
 
 # Choose a specific subset of the dataset (e.g., data for 'Thursday')
 subset_data = tips[tips["day"] == "Thur"]
@@ -136,7 +160,7 @@ plt.xlabel("Total Bill")
 plt.ylabel("Tip")
 
 # plt.show()
-maidr.show(line_plot)
+maidr.show(line_plot) #<<
 ```
 
 
@@ -179,15 +203,15 @@ maidr.show(scatter_plot)
 
 ### Shiny
 
+Check out the following Shiny dashboard with maidr and its source code is available on [GitHub](https://github.com/xability/a11y_dashboard):
+
 ```{=html}
 <iframe width="780" height="500" src="https://xabilitylab.shinyapps.io/a11y_dashboard/" title="Accessible Shiny Dashboard with maidr"></iframe>
 ```
 
 ### Streamlit
 
-```{=html}
-<iframe width="780" height="500" src="https://maidr-dashboard.streamlit.app/" title="Accessible Streamlit Dashboard with maidr"></iframe>
-```
+Check out [this Streamlit dashboard](https://maidr-dashboard.streamlit.app/) with maidr, and its source code is available on [GitHub](https://github.com/xability/maidr_streamlit).
 
 
 ## Interactive Computing (Jupyter Notebooks, Jupyter Labs, Google Colab)
@@ -200,122 +224,34 @@ Check out [this interactive notebook in Google Colab](https://colab.research.goo
 
 ## Keyboard Shortcuts
 
-                            <table>
-                                <caption class="sr-only">Keyboard Shortcuts</caption>
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Function</th>
-                                        <th scope="col">Key</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Move around plot</td>
-                                        <td>Arrow keys</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Go to the very left right up down</td>
-                                        <td>${
-                                          constants.control
-                                        } + Arrow key</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Select the first element</td>
-                                        <td>${constants.control} + ${
-    constants.home
-  }</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Select the last element</td>
-                                        <td>${constants.control} + ${
-    constants.end
-  }</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Toggle Braille Mode</td>
-                                        <td>b</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Toggle Text Mode</td>
-                                        <td>t</td>
-                                    </tr>
-                                                                        <tr>
-                                        <td>Toggle Sonification Mode</td>
-                                        <td>s</td>
-                                    </tr>
-                                                                                                            <tr>
-                                        <td>Toggle Review Mode</td>
-                                        <td>r</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Repeat current sound</td>
-                                        <td>Space</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Auto-play outward in direction of arrow</td>
-                                        <td>${
-                                          constants.control
-                                        } + Shift + Arrow key</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Auto-play inward in direction of arrow</td>
-                                        <td>${
-                                          constants.alt
-                                        } + Shift + Arrow key</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Stop Auto-play</td>
-                                        <td>${constants.control}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Auto-play speed up</td>
-                                        <td>Period (.)</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Auto-play speed down</td>
-                                        <td>Comma (,)</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Auto-play speed reset</td>
-                                        <td>Slash (/)</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Check label for the title of current plot</td>
-                                        <td>l t</td>
-                                    </tr>
-                                                                            <td>Check label for the x axis of current plot</td>
-                                        <td>l x</td>
-                                    </tr>
-                                                                                                                <td>Check label for the y axis of current plot</td>
-                                        <td>l y</td>
-                                    </tr>
-                                                                                                                <td>Check label for the fill (z) axis of current plot</td>
-                                        <td>l f</td>
-                                    </tr>
-                                                                                                                <td>Check label for the subtitle of current plot</td>
-                                        <td>l s</td>
-                                    </tr>
-                                                                                                                <td>Check label for the caption of current plot</td>
-                                        <td>l c</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Toggle AI Chat View</td>
-                                        <td>${
-                                          constants.isMac
-                                            ? constants.alt
-                                            : constants.control
-                                        } + Shift + /</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Copy last chat message in AI Chat View</td>
-                                        <td>${constants.alt} + Shift + C</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Copy full chat history in AI Chat View</td>
-                                        <td>${constants.alt} + Shift + A</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+| Function | Key |
+|:---|:---|
+| Toggle Braille Mode | b |
+| Toggle Text Mode | t |
+| Toggle Sonification Mode | s |
+| Toggle Review Mode | r |
+| Move around plot | Arrow keys |
+| Go to the very left right up down | Ctrl + Arrow key |
+| Select the first element | Ctrl + Home |
+| Select the last element | Ctrl + End |
+| Repeat current sound | Space |
+| Auto-play outward in direction of arrow | Ctrl + Shift + Arrow key |
+| Auto-play inward in direction of arrow | Alt + Shift + Arrow key |
+| Stop Auto-play | Ctrl |
+| Auto-play speed up | Period (.) |
+| Auto-play speed down | Comma (,) |
+| Auto-play speed reset | Slash (/) |
+| Check label for the title of current plot | l t |
+| Check label for the x axis of current plot | l x |
+| Check label for the y axis of current plot | l y |
+| Check label for the fill (z) axis of current plot | l f |
+| Check label for the subtitle of current plot | l s |
+| Check label for the caption of current plot | l c |
+| Toggle AI Chat View | Ctrl + Shift + / |
+| Copy last chat message in AI Chat View | Alt + Shift + C |
+| Copy full chat history in AI Chat View | Alt + Shift + A |
+
+Table: Keyboard Shortcuts {#tbl-shortcuts}
 
 
 ## Demo Video
