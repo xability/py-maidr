@@ -1,6 +1,20 @@
 # CHANGELOG
 
 
+## v0.10.4 (2024-12-06)
+
+### Bug Fixes
+
+- Set QUARTO_PYTHON environment variable in docs workflow
+  ([#125](https://github.com/xability/py-maidr/pull/125),
+  [`532b687`](https://github.com/xability/py-maidr/commit/532b6872c8bcf91340a4737dedf7fa610d08b360))
+
+### Chores
+
+- Add CNAME file to redirect to py.maidr.ai
+  ([`0268394`](https://github.com/xability/py-maidr/commit/02683945f55dfa1e5ec9486c7513c3936de52fbe))
+
+
 ## v0.10.3 (2024-12-06)
 
 ### Bug Fixes
