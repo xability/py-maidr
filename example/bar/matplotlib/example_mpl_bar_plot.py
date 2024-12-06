@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
-import maidr
 import seaborn as sns
+
+import maidr
 
 # Load dataset
 tips = sns.load_dataset("tips")
@@ -13,5 +14,5 @@ plt.title("The Number of Tips by Day")
 plt.xlabel("Day")
 plt.ylabel("Count")
 
-plt.show()
+# plt.show()
 maidr.show(b_plot)

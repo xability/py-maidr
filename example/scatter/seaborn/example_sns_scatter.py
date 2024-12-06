@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-import maidr
 import seaborn as sns
 
+import maidr
 
 # Load the Iris dataset
 iris = sns.load_dataset("iris")
@@ -17,5 +17,5 @@ plt.xlabel("Sepal Length")
 plt.ylabel("Sepal Width")
 
 # Show the plot
-plt.show()
+# plt.show()
 maidr.show(scatter_plot)

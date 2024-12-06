@@ -1,7 +1,7 @@
-import maidr
 import matplotlib.pyplot as plt
 import numpy as np
 
+import maidr
 
 vegetables = [
     "cucumber",
@@ -53,5 +53,5 @@ for i in range(len(vegetables)):
 ax.set_title("Harvest of local farmers (in tons/year)")
 fig.tight_layout()
 
-plt.show()
+# plt.show()
 maidr.show(im)

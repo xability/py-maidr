@@ -2,6 +2,7 @@
 title: "Accessible Data Representation Demo"
 author: "JooYoung Seo"
 institute: "(x)Ability Design Lab"
+jupyter: python3
 format: html
 ---
 
@@ -11,7 +12,6 @@ format: html
 import matplotlib.pyplot as plt
 import maidr
 import seaborn as sns
-
 
 # Load the penguins dataset
 penguins = sns.load_dataset("penguins")
@@ -43,7 +43,7 @@ petal_lengths = iris["petal_length"]
 plt.figure(figsize=(10, 6))
 hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5)
 
-plt.title("Histogram of Petal Lengths in Iris Dataset")
+plt.title("Petal Lengths in Iris Dataset")
 plt.xlabel("Petal Length (cm)")
 plt.ylabel("Frequency")
 
@@ -71,7 +71,7 @@ line_plot = sns.lineplot(
     style="day",
     legend=False,
 )
-plt.title("Line Plot of Tips vs Total Bill (Thursday)")
+plt.title("Tips vs Total Bill (Thursday)")
 plt.xlabel("Total Bill")
 plt.ylabel("Tip")
 
@@ -89,7 +89,7 @@ glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Sco
 # Plot a heatmap
 plt.figure(figsize=(10, 8))
 heatmap = sns.heatmap(glue, annot=True, fill_label="Score")
-plt.title("Heatmap of Model Scores by Task")
+plt.title("Model Scores by Task")
 
 # Show the plot
 # plt.show()

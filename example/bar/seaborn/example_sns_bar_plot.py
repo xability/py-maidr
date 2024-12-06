@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-import maidr
 import seaborn as sns
 
+import maidr
 
 # Load the penguins dataset
 penguins = sns.load_dataset("penguins")
@@ -15,5 +15,5 @@ plt.title("Average Body Mass of Penguins by Species")
 plt.xlabel("Species")
 plt.ylabel("Body Mass (g)")
 
-plt.show()
+# plt.show()
 maidr.show(b_plot)

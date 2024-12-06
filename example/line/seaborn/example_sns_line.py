@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-import maidr
 import seaborn as sns
 
+import maidr
 
 # Load the 'tips' dataset from seaborn
 tips = sns.load_dataset("tips")
@@ -23,5 +23,5 @@ plt.title("Line Plot of Tips vs Total Bill (Thursday)")
 plt.xlabel("Total Bill")
 plt.ylabel("Tip")
 
-plt.show()
+# plt.show()
 maidr.show(line_plot)

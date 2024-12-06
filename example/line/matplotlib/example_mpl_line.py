@@ -1,7 +1,7 @@
-import maidr
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import maidr
 
 # Load the flights dataset from seaborn
 flights = sns.load_dataset("flights")
@@ -25,5 +25,5 @@ plt.xlabel("Year", fontsize=12)
 plt.ylabel("Total Passengers (Thousands)", fontsize=12)
 
 # Show the plot
-plt.show()
+# plt.show()
 maidr.show(line_plot)

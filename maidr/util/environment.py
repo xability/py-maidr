@@ -17,6 +17,30 @@ class Environment:
             return False
 
     @staticmethod
+    def is_notebook() -> bool:
+        """Return True if the environment is a Jupyter notebook."""
+        try:
+            from IPython import get_ipython  # type: ignore
+
+            return get_ipython() is not None and "ipykernel" in str(get_ipython())
+        except ImportError:
+            return False
+
+    @staticmethod
+    def get_renderer() -> str:
+        """Return renderer which can be ipython or browser."""
+        try:
+            import IPython  # pyright: ignore[reportUnknownVariableType]
+
+            ipy = (  # pyright: ignore[reportUnknownVariableType]
+                IPython.get_ipython()  # pyright: ignore[reportUnknownMemberType, reportPrivateImportUsage]
+            )
+            renderer = "ipython" if ipy else "browser"
+        except ImportError:
+            renderer = "browser"
+        return renderer
+
+    @staticmethod
     def initialize_llm_secrets(unique_id: str) -> str:
         """Inject the LLM API keys into the MAIDR instance."""
 

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-import maidr
 import seaborn as sns
 
+import maidr
 
 # Load the Iris dataset
 iris = sns.load_dataset("iris")
@@ -33,10 +33,10 @@ def boxplot(orientation: str, fig_num: int):
 
 # Create the vertical boxplot
 vert = boxplot(orientation="v", fig_num=1)
-plt.show()
+# plt.show()
 maidr.show(vert)
 
 # Create the vertical boxplot
 horz = boxplot(orientation="h", fig_num=2)
-plt.show()
+# plt.show()
 maidr.show(horz)

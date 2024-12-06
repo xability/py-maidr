@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-import maidr
 import seaborn as sns
 
+import maidr
 
 # Load the Iris dataset
 iris = sns.load_dataset("iris")
@@ -17,5 +17,5 @@ plt.title("Histogram of Petal Lengths in Iris Dataset")
 plt.xlabel("Petal Length (cm)")
 plt.ylabel("Frequency")
 
-plt.show()
+# plt.show()
 maidr.show(hist_plot)
