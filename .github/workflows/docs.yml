@@ -54,6 +54,7 @@ jobs:
         run: |
           cd docs
           poetry run quartodoc build --verbose
+          poetry run quartodoc interlinks
 
       - name: Render and Publish to GitHub Pages
         if: github.repository == 'xability/py_maidr'

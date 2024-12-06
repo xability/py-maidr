@@ -1,0 +1,279 @@
+---
+title: Welcome
+jupyter: python3
+# aliases:
+  # - ../index.html
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+<div align="center">
+
+<img src="https://xability.github.io/maidr/assets/logo.svg" width="350px" alt="A stylized MAIDR logo, with curved characters for M A, a hand pointing for an I, the D character, and R represented in braille."/>
+
+<hr style="color:transparent" />
+<br />
+
+_maidr: Data Insight for All_
+</div>
+
+Are you eager to uncover new insights from data science but frustrated by visual-only data representations? Do you want to make your data visualizations accessible to everyone, including those who are blind or low-vision? If so, **maidr** is for you!
+
+**maidr** (pronounced as 'mader') is an accessible framework for multimodal data representation. With maidr, blind and sighted users can easily augment data visualizations into _touchable_ (Braille), _readable_ (text), _audible_ (sonification), and _conversational_ (AI) formats.
+
+The following summarizes the key features and design principles of maidr:
+
+1. Accessibility: maidr is designed to be accessible to both blind and sighted users from the ground up. Beyond the passive consumption level, blind users can also independently create, modify, and share data visualizations with others.
+
+2. Inclusivity: maidr does not pursue a special version for blind users. Instead, it provides a unified interface that supports both visual and non-visual data exploration. This way, blind and sighted users can work together on the same data science projects.
+
+3. Integration: maidr seamlessly integrates with the popular and mainstream data science environments  (e.g., Python, pandas, and NumPy) as well as data visualization libraries in Python like **matplotlib** and **seaborn**.
+
+4. Unintrusiveness: maidr does not require changes to existing core data visualization code. Without needing to reconstruct an accessible version separately, you can just `import maidr` package and use `maidr.show()` to your plots. Blind and sighted users can use and share the same visualization codebase in their shared data science projects.
+
+5. Synchronization: maidr treats visualization as one of the multimodal data representations and ensures that all representations (e.g., visual, tactile, textual, audible) cursor and braille routing key positions are synchronized across different modalities.
+
+6. Reactivity: maidr supports widely adopted reactive and interactive computing including Jupyter Notebooks, Jupyter Labs, Google Colab, Streamlit dashboard, and Shiny dashboard. maidr also supports interactive computing inside code editors, such as Visual Studio Code.
+
+7. Reproducibility: maidr supports the generation of accessible data visualizations as part of the reproducible data science workflow with Quarto scientific publishing system. You can easily create accessible data representations within your reproducible reports, website blogs, slides, e-books, dashboards, and more.
+
+8. Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types. [Multi-figure and multi-layer visualizations are underway to support complex data visualizations.]
+
+Our core philosophy is to make data science accessible to everyone, regardless of their visual dis/abilities. We believe that by making data visualizations accessible, we can empower blind and sighted users to work together on data science projects, share insights, and make data-driven decisions collaboratively.
+
+## Installation
+
+[Python 3.x](https://www.python.org/downloads/) is required to use **maidr**. After installing Python, you can install **maidr** using the following commands in your terminal:
+
+```{.bash}
+# install the latest release from PyPI
+pip install -U maidr
+```
+
+```{.bash}
+# or install the development version from GitHub
+pip install -U git+https://github.com/xability/py_maidr.git
+```
+
+## Getting Started
+
+Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code.
+
+Simply import the `maidr` package and use the `maidr.show()` function to display your plots. **maidr** will automatically generate accessible versions of your plots in your default browser. You can then interact with the accessible versions using keyboard shortcuts (refer to @tbl-shortcuts).
+
+Check more examples in the py maidr galleries (@sec-examples).
+
+### Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Bar plot showing the average body mass of penguins by species
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Just import maidr package #<<
+import maidr #<<
+
+
+# Load the penguins dataset
+penguins = sns.load_dataset("penguins")
+
+# Create a bar plot showing the average body mass of penguins by species
+plt.figure(figsize=(10, 6))
+
+# Assign the plot to a variable #<<
+bar_plot = sns.barplot( #<<
+    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
+)
+plt.title("Average Body Mass of Penguins by Species")
+plt.xlabel("Species")
+plt.ylabel("Body Mass (g)")
+
+# plt.show()
+
+# Use maidr.show() to display your plot #<<
+maidr.show(bar_plot) #<<
+```
+
+
+### Histogram
+
+```{python}
+# | warning: false
+# | fig-alt: Histogram of petal lengths in the Iris dataset
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+
+# Load the Iris dataset
+iris = sns.load_dataset("iris")
+
+# Select the petal lengths
+petal_lengths = iris["petal_length"]
+
+# Plot a histogram of the petal lengths
+plt.figure(figsize=(10, 6))
+
+hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5) #<<
+
+plt.title("Petal Lengths in Iris Dataset")
+plt.xlabel("Petal Length (cm)")
+plt.ylabel("Frequency")
+
+# plt.show()
+maidr.show(hist_plot) #<<
+```
+
+
+### Line Plot
+
+```{python}
+# | fig-alt: Line plot of tips vs total bill for Thursday
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+
+# Load the 'tips' dataset from seaborn
+tips = sns.load_dataset("tips") #<<
+
+# Choose a specific subset of the dataset (e.g., data for 'Thursday')
+subset_data = tips[tips["day"] == "Thur"]
+
+# Create a line plot
+plt.figure(figsize=(10, 6))
+line_plot = sns.lineplot(
+    data=subset_data,
+    x="total_bill",
+    y="tip",
+    markers=True,
+    style="day",
+    legend=False,
+)
+plt.title("Tips vs Total Bill (Thursday)")
+plt.xlabel("Total Bill")
+plt.ylabel("Tip")
+
+# plt.show()
+maidr.show(line_plot) #<<
+```
+
+
+### Heat Map
+
+```{python}
+# Load an example dataset from seaborn
+glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Score")
+
+# Plot a heatmap
+plt.figure(figsize=(10, 8))
+heatmap = sns.heatmap(glue, annot=True, fill_label="Score")
+plt.title("Model Scores by Task")
+
+# Show the plot
+# plt.show()
+maidr.show(heatmap)
+```
+
+
+### Scatter Plot
+
+```{python}
+# Create a scatter plot
+scatter_plot = sns.scatterplot(
+    data=iris, x="sepal_length", y="sepal_width", hue="species"
+)
+
+# Adding title and labels (optional)
+plt.title("Iris Sepal Length vs Sepal Width")
+plt.xlabel("Sepal Length")
+plt.ylabel("Sepal Width")
+
+# Show the plot
+# plt.show()
+maidr.show(scatter_plot)
+```
+
+## Reactive Dashboard
+
+### Shiny
+
+Check out the following Shiny dashboard with maidr and its source code is available on [GitHub](https://github.com/xability/a11y_dashboard):
+
+```{=html}
+<iframe width="780" height="500" src="https://xabilitylab.shinyapps.io/a11y_dashboard/" title="Accessible Shiny Dashboard with maidr"></iframe>
+```
+
+### Streamlit
+
+Check out [this Streamlit dashboard](https://maidr-dashboard.streamlit.app/) with maidr, and its source code is available on [GitHub](https://github.com/xability/maidr_streamlit).
+
+
+## Interactive Computing (Jupyter Notebooks, Jupyter Labs, Google Colab)
+
+Check out [this interactive notebook in Google Colab](https://colab.research.google.com/drive/1In85HRpSLgOcLbLudSdfO3axYtkOlua1?usp=sharing):
+
+```{=html}
+<iframe width="780" height="500" src="https://colab.research.google.com/drive/1In85HRpSLgOcLbLudSdfO3axYtkOlua1?usp=sharing" title="Interactive Computing with maidr in Google Colab"></iframe>
+```
+
+## Keyboard Shortcuts
+
+| Function | Key |
+|:---|:---|
+| Toggle Braille Mode | b |
+| Toggle Text Mode | t |
+| Toggle Sonification Mode | s |
+| Toggle Review Mode | r |
+| Move around plot | Arrow keys |
+| Go to the very left right up down | Ctrl + Arrow key |
+| Select the first element | Ctrl + Home |
+| Select the last element | Ctrl + End |
+| Repeat current sound | Space |
+| Auto-play outward in direction of arrow | Ctrl + Shift + Arrow key |
+| Auto-play inward in direction of arrow | Alt + Shift + Arrow key |
+| Stop Auto-play | Ctrl |
+| Auto-play speed up | Period (.) |
+| Auto-play speed down | Comma (,) |
+| Auto-play speed reset | Slash (/) |
+| Check label for the title of current plot | l t |
+| Check label for the x axis of current plot | l x |
+| Check label for the y axis of current plot | l y |
+| Check label for the fill (z) axis of current plot | l f |
+| Check label for the subtitle of current plot | l s |
+| Check label for the caption of current plot | l c |
+| Toggle AI Chat View | Ctrl + Shift + / |
+| Copy last chat message in AI Chat View | Alt + Shift + C |
+| Copy full chat history in AI Chat View | Alt + Shift + A |
+
+Table: Keyboard Shortcuts {#tbl-shortcuts}
+
+
+## Demo Video
+
+{{< video https://youtu.be/NR2G4lNolf4 >}}
+
+
+If you encounter a bug, have usage questions, or want to share ideas to make this package better, please feel free to file an [issue](https://github.com/xability/py_maidr/issues).
+
+## Code of Conduct
+
+Please note that the **maidr** project is released with a [contributor code of conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).<br>By participating in this project you agree to abide by its terms.
+
+## 📄 License
+
+**maidr** is licensed under the GPL3 license.
+
+© [(x)Ability Design Lab](https://xability.github.io/).
+
+## 🏛️ Governance
+
+This project is primarily maintained by [JooYoung Seo](https://ischool.illinois.edu/people/jooyoung-seo) and [Saairam Venkatesh](https://github.com/SaaiVenkat).
+Other authors may occasionally assist with some of these duties.
