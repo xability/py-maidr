@@ -8,11 +8,11 @@ metadata-files:
 
 
 website:
-  title: "PyMAIDR"
+  title: "Py maidr"
 
-  site-url: https://xability.github.io/py_maidr/
-  repo-url: https://github.com/xability/py_maidr
-  issue-url: https://github.com/xability/py_maidr/issues/new/choose
+  site-url: https://xability.github.io/py-maidr/
+  repo-url: https://github.com/xability/py-maidr
+  issue-url: https://github.com/xability/py-maidr/issues/new/choose
   repo-actions: [issue]
 
   page-navigation: true
@@ -23,20 +23,18 @@ website:
     # logo: quarto.png
     logo-alt: "Maidr logo."
     logo-href: https://xability.github.io/py_maidr/
-    title: PyMAIDR
+    title: Py maidr
     collapse-below: lg
     left:
       - file: index.qmd
-        text: "Overview"
-      - file: get_started.qmd
-        text: ";;Get Started"
-      # - text: Examples
-        # file: examples/
+        text: "Welcome"
+      - file: examples.qmd
+        text: "Examples"
       - text: "API Reference"
         href: api/
     right:
       - icon: github
-        href: https://github.com/xability/py_maidr
+        href: https://github.com/xability/py-maidr
         aria-label: GitHub
 
 format:
@@ -106,135 +104,3 @@ quartodoc:
         Save a plot as an HTML file with `maidr.save_html()`.
       contents:
         - Maidr.save_html
-    #     - GT.tab_spanner
-    #     - GT.tab_stub
-    #     - GT.tab_stubhead
-    #     - GT.tab_source_note
-    #     - GT.tab_style
-    #     - GT.tab_options
-    # - title: Formatting column data
-    #   desc: >
-    #     Columns of data can be formatted with the `fmt_*()` methods. We can specify the rows of
-    #     these columns quite precisely with the `rows` argument. We get to apply these methods
-    #     exactly once to each data cell (last call wins). Need to do custom formatting? Use the
-    #     [`fmt()`](`great_tables.GT.fmt`) method and define your own formatter.
-    #   contents:
-    #     - GT.fmt_number
-    #     - GT.fmt_integer
-    #     - GT.fmt_percent
-    #     - GT.fmt_scientific
-    #     - GT.fmt_currency
-    #     - GT.fmt_bytes
-    #     - GT.fmt_roman
-    #     - GT.fmt_date
-    #     - GT.fmt_time
-    #     - GT.fmt_datetime
-    #     - GT.fmt_markdown
-    #     - GT.fmt_units
-    #     - GT.fmt_image
-    #     - GT.fmt_nanoplot
-    #     - GT.fmt
-    #     - GT.data_color
-    #     - GT.sub_missing
-    #     - GT.sub_zero
-    # - title: Modifying columns
-    #   desc: >
-    #     The `cols_*()` methods allow for modifications that act on entire columns. This includes
-    #     alignment of the data in columns ([`cols_align()`](`great_tables.GT.cols_align`)), hiding
-    #     columns from view ([`cols_hide()`](`great_tables.GT.cols_hide`)), re-labeling the column
-    #     labels ([`cols_label()`](`great_tables.GT.cols_label`)), and moving columns around (with the
-    #     `cols_move*()` methods).
-    #   contents:
-    #     - GT.cols_align
-    #     - GT.cols_width
-    #     - GT.cols_label
-    #     - GT.cols_move
-    #     - GT.cols_move_to_start
-    #     - GT.cols_move_to_end
-    #     - GT.cols_hide
-    # - title: Location Targeting and Styling Classes
-    #   desc: >
-    #     Location targeting is a powerful feature of **Great Tables**. It allows for the precise
-    #     selection of table locations for styling (using the
-    #     [`tab_style()`](`great_tables.GT.tab_style`) method). The styling classes allow for the
-    #     specification of the styling properties to be applied to the targeted locations.
-    #   contents:
-    #     - loc.body
-    #     - style.fill
-    #     - style.text
-    #     - style.borders
-    # - title: Helper functions
-    #   desc: >
-    #     An assortment of helper functions is available in the **Great Tables** package. The
-    #     [`md()`](`great_tables.md`) and [`html()`](`great_tables.html`) helper functions can used
-    #     during label creation with the [`tab_header()`](`great_tables.GT.tab_header`),
-    #     [`tab_spanner()`](`great_tables.GT.tab_spanner`),
-    #     [`tab_stubhead()`](`great_tables.GT.tab_stubhead`), and
-    #     [`tab_source_note()`](`great_tables.GT.tab_source_note`) methods.
-    #   contents:
-    #     - GT.with_id
-    #     - GT.with_locale
-    #     - md
-    #     - html
-    #     - from_column
-    #     - system_fonts
-    #     - define_units
-    #     - nanoplot_options
-    # - title: Table options
-    #   desc: >
-    #     With the `opt_*()` functions, we have an easy way to set commonly-used table options without
-    #     having to use `tab_options()` directly.
-    #   contents:
-    #     - GT.opt_align_table_header
-    #     - GT.opt_all_caps
-    #     - GT.opt_vertical_padding
-    #     - GT.opt_horizontal_padding
-    #     - GT.opt_table_outline
-    #     - GT.opt_table_font
-    #     - GT.opt_stylize
-    # - title: Export
-    #   desc: >
-    #     There may come a day when you need to export a table to some specific format. A great method
-    #     for that is `save()`, which allows us to save the table as a standalone image file. You can
-    #     also get the table code as an HTML fragment with the `as_raw_html()` method.
-    #   contents:
-    #     - GT.save
-    #     - GT.show
-    #     - GT.as_raw_html
-    # - title: Value formatting functions
-    #   desc: >
-    #     If you have single values (or lists of them) in need of formatting, we have a set of
-    #     `val_fmt_*()` functions that have been adapted from the corresponding `fmt_*()` methods.
-    #   contents:
-    #     - vals.fmt_number
-    #     - vals.fmt_integer
-    #     - vals.fmt_scientific
-    #     - vals.fmt_percent
-    #     - vals.fmt_currency
-    #     - vals.fmt_roman
-    #     - vals.fmt_bytes
-    #     - vals.fmt_date
-    #     - vals.fmt_time
-    #     - vals.fmt_markdown
-    # - title: Built in datasets
-    #   desc: >
-    #     The **Great Tables** package is equipped with sixteen datasets that come in all shapes and
-    #     sizes. Many examples thoughout the help docs use these datasets to quickly demonstrate the
-    #     awesome features of the package!
-    #   contents:
-    #     - data.countrypops
-    #     - data.sza
-    #     - data.gtcars
-    #     - data.sp500
-    #     - data.pizzaplace
-    #     - data.exibble
-    #     - data.towny
-    #     - data.peeps
-    #     - data.films
-    #     - data.metro
-    #     - data.gibraltar
-    #     - data.constants
-    #     - data.illness
-    #     - data.reactions
-    #     - data.photolysis
-    #     - data.nuclides
