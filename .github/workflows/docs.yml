@@ -52,6 +52,7 @@ jobs:
 
       - name: Run quartodoc
         run: |
+          source .venv/bin/activate
           cd docs
           poetry run quartodoc build --verbose
           poetry run quartodoc interlinks
