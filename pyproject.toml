@@ -42,17 +42,34 @@ numpy = ">=1.26"
 seaborn = ">=0.12"
 lxml = ">=5.1.0"
 htmltools = ">=0.5"
-jupyter = "^1.0.0"
 wrapt = "^1.16.0"
+
+# Optional dependencies
+jupyter = { version = ">=1.0.0", optional = true }
+shiny = { version = ">=1.0.0", optional = true }
+
+
+[tool.poetry.extras]
+datascience = ["jupyter"]
+dashboard = ["shiny"]
+all = ["datascience", "dashboard"]
+
+
+[tool.poetry.group.docs.dependencies]
+quartodoc = ">=0.7.5"
+
 
 [tool.poetry.group.dev.dependencies]
 black = "23.3.0"
 pre-commit = "^3.3.2"
 pytest = "^7.3.2"
-python-semantic-release = "^8.7.0"
 pytest-mock = "^3.12.0"
 tox = "^4.13.0"
-quartodoc = "^0.7.5"
+
+
+[tool.poetry.group.release.dependencies]
+python-semantic-release = "^8.7.0"
+
 
 [tool.black]
 line-length = 88
