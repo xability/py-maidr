@@ -57,7 +57,7 @@ jobs:
           poetry run quartodoc interlinks
 
       - name: Render and Publish to GitHub Pages
-        if: github.repository == 'xability/py_maidr'
+        if: github.repository == 'xability/py-maidr'
         uses: quarto-dev/quarto-actions/publish@v2
         with:
           target: gh-pages
