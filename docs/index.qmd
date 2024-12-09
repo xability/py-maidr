@@ -62,9 +62,9 @@ Making accessible data representation with **maidr** is easy and straightforward
 
 Simply import the `maidr` package and use the `maidr.show()` function to display your plots. **maidr** will automatically generate accessible versions of your plots in your default browser. You can then interact with the accessible versions using keyboard shortcuts (refer to @tbl-shortcuts).
 
-Check more examples in the py maidr galleries (@sec-examples).
+Check more examples in the [galleries](examples.qmd#sec-examples).
 
-### Bar Plot
+### Sample Bar Plot
 
 ```{python}
 #| warning: false
@@ -97,133 +97,6 @@ plt.ylabel("Body Mass (g)")
 maidr.show(bar_plot) #<<
 ```
 
-
-### Histogram
-
-```{python}
-# | warning: false
-# | fig-alt: Histogram of petal lengths in the Iris dataset
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-import maidr #<<
-
-
-# Load the Iris dataset
-iris = sns.load_dataset("iris")
-
-# Select the petal lengths
-petal_lengths = iris["petal_length"]
-
-# Plot a histogram of the petal lengths
-plt.figure(figsize=(10, 6))
-
-hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5) #<<
-
-plt.title("Petal Lengths in Iris Dataset")
-plt.xlabel("Petal Length (cm)")
-plt.ylabel("Frequency")
-
-# plt.show()
-maidr.show(hist_plot) #<<
-```
-
-
-### Line Plot
-
-```{python}
-# | fig-alt: Line plot of tips vs total bill for Thursday
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-import maidr #<<
-
-
-# Load the 'tips' dataset from seaborn
-tips = sns.load_dataset("tips") #<<
-
-# Choose a specific subset of the dataset (e.g., data for 'Thursday')
-subset_data = tips[tips["day"] == "Thur"]
-
-# Create a line plot
-plt.figure(figsize=(10, 6))
-line_plot = sns.lineplot(
-    data=subset_data,
-    x="total_bill",
-    y="tip",
-    markers=True,
-    style="day",
-    legend=False,
-)
-plt.title("Tips vs Total Bill (Thursday)")
-plt.xlabel("Total Bill")
-plt.ylabel("Tip")
-
-# plt.show()
-maidr.show(line_plot) #<<
-```
-
-
-### Heat Map
-
-```{python}
-# Load an example dataset from seaborn
-glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Score")
-
-# Plot a heatmap
-plt.figure(figsize=(10, 8))
-heatmap = sns.heatmap(glue, annot=True, fill_label="Score")
-plt.title("Model Scores by Task")
-
-# Show the plot
-# plt.show()
-maidr.show(heatmap)
-```
-
-
-### Scatter Plot
-
-```{python}
-# Create a scatter plot
-scatter_plot = sns.scatterplot(
-    data=iris, x="sepal_length", y="sepal_width", hue="species"
-)
-
-# Adding title and labels (optional)
-plt.title("Iris Sepal Length vs Sepal Width")
-plt.xlabel("Sepal Length")
-plt.ylabel("Sepal Width")
-
-# Show the plot
-# plt.show()
-maidr.show(scatter_plot)
-```
-
-## Reactive Dashboard
-
-### Shiny
-
-Check out the following Shiny dashboard with maidr and its source code is available on [GitHub](https://github.com/xability/a11y_dashboard):
-
-```{=html}
-<iframe width="780" height="500" src="https://xabilitylab.shinyapps.io/a11y_dashboard/" title="Accessible Shiny Dashboard with maidr"></iframe>
-```
-
-### Streamlit
-
-Check out [this Streamlit dashboard](https://maidr-dashboard.streamlit.app/) with maidr, and its source code is available on [GitHub](https://github.com/xability/maidr_streamlit).
-
-
-## Interactive Computing (Jupyter Notebooks, Jupyter Labs, Google Colab)
-
-Check out [this interactive notebook in Google Colab](https://colab.research.google.com/drive/1In85HRpSLgOcLbLudSdfO3axYtkOlua1?usp=sharing):
-
-```{=html}
-<iframe width="780" height="500" src="https://colab.research.google.com/drive/1In85HRpSLgOcLbLudSdfO3axYtkOlua1?usp=sharing" title="Interactive Computing with maidr in Google Colab"></iframe>
-```
-
 ## Keyboard Shortcuts
 
 | Function | Key |
@@ -254,12 +127,6 @@ Check out [this interactive notebook in Google Colab](https://colab.research.goo
 | Copy full chat history in AI Chat View | Alt + Shift + A |
 
 Table: Keyboard Shortcuts {#tbl-shortcuts}
-
-
-## Demo Video
-
-{{< video https://youtu.be/NR2G4lNolf4 >}}
-
 
 If you encounter a bug, have usage questions, or want to share ideas to make this package better, please feel free to file an [issue](https://github.com/xability/py-maidr/issues).
 
