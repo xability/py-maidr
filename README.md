@@ -22,3 +22,11 @@ pip install -U maidr
 pip install -U git+https://github.com/xability/py-maidr.git
 ```
 
+## User Guide
+
+Please visit the [user guide](https://xability.github.io/py-maidr/) page.
+
+
+## Example Code
+
+We provide [some example code](https://github.com/xability/py-maidr/blob/main/example) for using py-maidr with matplotlib, seaborn, Jupyter Notebook, Quarto, Shiny, and Streamlit.
