@@ -17,14 +17,14 @@ Simply import the `maidr` package and use the `maidr.show()` function to display
 ### Bar Plot
 
 ```{python}
-# | warning: false
-# | fig-alt: Bar plot showing the average body mass of penguins by species
+#| warning: false
+#| fig-alt: Bar plot showing the average body mass of penguins by species
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Just import maidr package #<<
-import maidr  # <<
+import maidr  #<<
 
 
 # Load the penguins dataset
@@ -34,7 +34,7 @@ penguins = sns.load_dataset("penguins")
 plt.figure(figsize=(6, 6))
 
 # Assign the plot to a variable #<<
-bar_plot = sns.barplot(  # <<
+bar_plot = sns.barplot(  #<<
     x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
 )
 plt.title("Average Body Mass of Penguins by Species")
@@ -44,7 +44,7 @@ plt.ylabel("Body Mass (g)")
 # plt.show()
 
 # Use maidr.show() to display your plot #<<
-maidr.show(bar_plot)  # <<
+maidr.show(bar_plot)  #<<
 ```
 
 
