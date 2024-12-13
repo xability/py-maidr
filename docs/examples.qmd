@@ -24,17 +24,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Just import maidr package #<<
-import maidr #<<
+import maidr  #<<
 
 
 # Load the penguins dataset
 penguins = sns.load_dataset("penguins")
 
 # Create a bar plot showing the average body mass of penguins by species
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(6, 6))
 
 # Assign the plot to a variable #<<
-bar_plot = sns.barplot( #<<
+bar_plot = sns.barplot(  #<<
     x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
 )
 plt.title("Average Body Mass of Penguins by Species")
@@ -44,7 +44,7 @@ plt.ylabel("Body Mass (g)")
 # plt.show()
 
 # Use maidr.show() to display your plot #<<
-maidr.show(bar_plot) #<<
+maidr.show(bar_plot)  #<<
 ```
 
 
@@ -67,7 +67,7 @@ iris = sns.load_dataset("iris")
 petal_lengths = iris["petal_length"]
 
 # Plot a histogram of the petal lengths
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(6, 6))
 
 hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5) #<<
 
@@ -98,8 +98,8 @@ tips = sns.load_dataset("tips") #<<
 subset_data = tips[tips["day"] == "Thur"]
 
 # Create a line plot
-plt.figure(figsize=(10, 6))
-line_plot = sns.lineplot(
+plt.figure(figsize=(6, 6))
+line_plot = sns.lineplot( #<<
     data=subset_data,
     x="total_bill",
     y="tip",
@@ -119,25 +119,39 @@ maidr.show(line_plot) #<<
 ### Heat Map
 
 ```{python}
+#| fig-alt: Heatmap of model scores by task
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
 # Load an example dataset from seaborn
 glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Score")
 
 # Plot a heatmap
-plt.figure(figsize=(10, 8))
-heatmap = sns.heatmap(glue, annot=True, fill_label="Score")
+plt.figure(figsize=(8, 8))
+heatmap = sns.heatmap(glue, annot=True, fill_label="Score") #<<
 plt.title("Model Scores by Task")
 
 # Show the plot
 # plt.show()
-maidr.show(heatmap)
+maidr.show(heatmap) #<<
 ```
 
 
 ### Scatter Plot
 
 ```{python}
+#| fig-alt: Scatter plot of Iris sepal length vs sepal width
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
 # Create a scatter plot
-scatter_plot = sns.scatterplot(
+scatter_plot = sns.scatterplot( #<<
     data=iris, x="sepal_length", y="sepal_width", hue="species"
 )
 
@@ -148,7 +162,7 @@ plt.ylabel("Sepal Width")
 
 # Show the plot
 # plt.show()
-maidr.show(scatter_plot)
+maidr.show(scatter_plot) #<<
 ```
 
 ## Reactive Dashboard
