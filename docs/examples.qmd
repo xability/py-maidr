@@ -99,7 +99,7 @@ subset_data = tips[tips["day"] == "Thur"]
 
 # Create a line plot
 plt.figure(figsize=(6, 6))
-line_plot = sns.lineplot(
+line_plot = sns.lineplot( #<<
     data=subset_data,
     x="total_bill",
     y="tip",
@@ -119,25 +119,39 @@ maidr.show(line_plot) #<<
 ### Heat Map
 
 ```{python}
+#| fig-alt: Heatmap of model scores by task
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
 # Load an example dataset from seaborn
 glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Score")
 
 # Plot a heatmap
 plt.figure(figsize=(8, 8))
-heatmap = sns.heatmap(glue, annot=True, fill_label="Score")
+heatmap = sns.heatmap(glue, annot=True, fill_label="Score") #<<
 plt.title("Model Scores by Task")
 
 # Show the plot
 # plt.show()
-maidr.show(heatmap)
+maidr.show(heatmap) #<<
 ```
 
 
 ### Scatter Plot
 
 ```{python}
+#| fig-alt: Scatter plot of Iris sepal length vs sepal width
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
 # Create a scatter plot
-scatter_plot = sns.scatterplot(
+scatter_plot = sns.scatterplot( #<<
     data=iris, x="sepal_length", y="sepal_width", hue="species"
 )
 
@@ -148,7 +162,7 @@ plt.ylabel("Sepal Width")
 
 # Show the plot
 # plt.show()
-maidr.show(scatter_plot)
+maidr.show(scatter_plot) #<<
 ```
 
 ## Reactive Dashboard
