@@ -45,7 +45,7 @@ jobs:
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
           poetry lock --no-update
-          poetry install
+          poetry install --only docs
 
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
