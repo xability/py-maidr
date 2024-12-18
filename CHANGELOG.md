@@ -1,6 +1,49 @@
 # CHANGELOG
 
 
+## v0.10.5 (2024-12-18)
+
+### Bug Fixes
+
+- Address an issue where is_notebook returns false in Google Colab
+  ([#127](https://github.com/xability/py-maidr/pull/127),
+  [`a50b4c1`](https://github.com/xability/py-maidr/commit/a50b4c1d5aa264731d4135e38b6f06eac0932e04))
+
+### Chores
+
+- Remove CNAME
+  ([`452a594`](https://github.com/xability/py-maidr/commit/452a594f65575b170748c8c7fc5a27164b7d3f36))
+
+- Update .gitignore to ignore all quarto_ipynb files
+  ([`9d47725`](https://github.com/xability/py-maidr/commit/9d477256e517309efc92eca03ebd369946fef655))
+
+### Continuous Integration
+
+- Update actions/cache to v4
+  ([`4cd8533`](https://github.com/xability/py-maidr/commit/4cd853384f3dc73e99991534813e69ba772dda4f))
+
+### Documentation
+
+- Add CNAME under docs directory
+  ([`54de423`](https://github.com/xability/py-maidr/commit/54de423e4ff73907b2616e5613185703389c6c50))
+
+- Adjust figure sizes and formatting in examples.qmd
+  ([#126](https://github.com/xability/py-maidr/pull/126),
+  [`5bf07f3`](https://github.com/xability/py-maidr/commit/5bf07f3019d42b336a7ffbc59652d42cd9fec5cd))
+
+- Simplify Google Colab link in examples.qmd
+  ([`229a3ac`](https://github.com/xability/py-maidr/commit/229a3acd2f707730c2dd197e305185ad96326545))
+
+- Update endpoint url in quartodoc
+  ([`9aa93b5`](https://github.com/xability/py-maidr/commit/9aa93b516309c477f3aaa0389139cf0d1d6430e2))
+
+- Update keyboard shortcuts for Windows, Linux, and Mac
+  ([`c1ff8c8`](https://github.com/xability/py-maidr/commit/c1ff8c8e8507ef42789aa18895b2982e15910a02))
+
+- Update README to include user guide and example pointers
+  ([`dd3fe56`](https://github.com/xability/py-maidr/commit/dd3fe56c7a19e2846b1912894938b9ba7ca04b3c))
+
+
 ## v0.10.4 (2024-12-06)
 
 ### Bug Fixes
@@ -28,6 +71,9 @@
   ([`2040c4a`](https://github.com/xability/py-maidr/commit/2040c4affbb81e5498ec7a2f624a4379d58d174f))
 
 ### Documentation
+
+- Update index.qmd to improve example clarity and remove unused plots
+  ([`783d7d8`](https://github.com/xability/py-maidr/commit/783d7d88afc95769dc2f361d33782ad76050ba0a))
 
 - Update quartodoc to include getting started and examples
   ([#110](https://github.com/xability/py-maidr/pull/110),
