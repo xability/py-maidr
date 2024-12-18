@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Any
+from typing import Any, Literal
 
 from htmltools import Tag
 from matplotlib.axes import Axes
@@ -20,6 +20,7 @@ def render(plot: Any) -> Tag:
 def show(plot: Any, renderer: Literal["auto", "ipython", "browser"] = "auto") -> object:
     ax = FigureManager.get_axes(plot)
     maidr = FigureManager.get_maidr(ax.get_figure())
+    print("IKDE ALO")
     return maidr.show(renderer)
 
 
