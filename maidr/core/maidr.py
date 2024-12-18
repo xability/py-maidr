@@ -89,6 +89,8 @@ class Maidr:
         print(html)
         _renderer = Environment.get_renderer()
         print(_renderer)
+        print(Environment.is_interactive_shell())
+        print(Environment.is_notebook())
         if _renderer == "browser" or (
             Environment.is_interactive_shell() and not Environment.is_notebook()
         ):
