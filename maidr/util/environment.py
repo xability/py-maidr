@@ -23,14 +23,12 @@ class Environment:
         try:
             from IPython import get_ipython  # type: ignore
 
-            return get_ipython() is not None and "ipykernel" in str(get_ipython())
+            return get_ipython() is not None and (
+                "ipykernel" in str(get_ipython())
+                or "google.colab" in str(get_ipython())
+            )
         except ImportError:
-            pass
-
-        if "google.colab" in sys.modules:
-            return True
-
-        return False
+            return False
 
     @staticmethod
     def get_renderer() -> str:
