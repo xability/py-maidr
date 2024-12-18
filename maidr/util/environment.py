@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 
 class Environment:
@@ -24,7 +25,12 @@ class Environment:
 
             return get_ipython() is not None and "ipykernel" in str(get_ipython())
         except ImportError:
-            return False
+            pass
+
+        if "google.colab" in sys.modules:
+            return True
+
+        return False
 
     @staticmethod
     def get_renderer() -> str:
