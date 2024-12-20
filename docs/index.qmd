@@ -42,6 +42,51 @@ The following summarizes the key features and design principles of maidr:
 
 Our core philosophy is to make data science accessible to everyone, regardless of their visual dis/abilities. We believe that by making data visualizations accessible, we can empower blind and sighted users to work together on data science projects, share insights, and make data-driven decisions collaboratively.
 
+
+## Supported Data Visualization Libraries
+
+We currently support the following data visualization libraries in Python:, and we are working on adding support for more libraries in the future:
+
+### Matplotlib
+
+* One-factor bar plot having one x (categorical) and one y (numerical/count) axis.
+
+* One distribution histogram having one x (numerical) and y (numerical/frequency) axis.
+
+* Single line plot having one x (numerical) and one y (numerical) axis.
+
+* Vertical box plot having one x (categorical) and one y (numerical) axis.
+
+* Horizontal box plot having one x (categorical) and one y (numerical) axis.
+
+    * Note: For box plots, the categorical variable can be either single-class or multi-class. We support both cases.
+
+* Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
+
+* Scatter plot having one x (numerical) and one y (numerical) axis.
+
+
+### Seaborn
+
+* `sns.barplot()`: One-factor bar plot having one x (categorical) and one y (numerical/count) axis.
+
+    * Note: We also support `sns.countplot()`
+
+* `sns.histplot()`: One distribution histogram having one x (numerical) and y (numerical/frequency) axis.
+
+* `sns.lineplot()`: Single line plot having one x (numerical) and one y (numerical) axis.
+
+* `sns.boxplot(..., orient="v")`: Vertical box plot having one x (categorical) and one y (numerical) axis.
+
+* `sns.boxplot(..., orient="h")`: Horizontal box plot having one x (categorical) and one y (numerical) axis.
+
+    * Note: For box plots, the categorical variable can be either single-class or multi-class. We support both cases.
+
+* `sns.heatmap()`: Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
+
+* `sns.scatterplot()`: Scatter plot having one x (numerical) and one y (numerical) axis.
+
+
 ## Installation
 
 [Python 3.x](https://www.python.org/downloads/) is required to use **maidr**. After installing Python, you can install **maidr** using the following commands in your terminal:
