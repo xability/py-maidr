@@ -253,7 +253,8 @@ window.Quarto = {
 </div>
 <p>Are you eager to uncover new insights from data science but frustrated by visual-only data representations? Do you want to make your data visualizations accessible to everyone, including those who are blind or low-vision? If so, <strong>maidr</strong> is for you!</p>
 <p><strong>maidr</strong> (pronounced as ‘mader’) is an accessible framework for multimodal data representation. With maidr, blind and sighted users can easily augment data visualizations into <em>touchable</em> (Braille), <em>readable</em> (text), <em>audible</em> (sonification), and <em>conversational</em> (AI) formats.</p>
-<p>The following summarizes the key features and design principles of maidr:</p>
+<p>To learn more about maidr framework and its scientific background, please visit <a href="https://github.com/xability/maidr">the original maidr JavaScript engine repo</a>.</p>
+<p>The following summarizes the key features and design principles of Py maidr:</p>
 <ol type="1">
 <li><p>Accessibility: maidr is designed to be accessible to both blind and sighted users from the ground up. Beyond the passive consumption level, blind users can also independently create, modify, and share data visualizations with others.</p></li>
 <li><p>Inclusivity: maidr does not pursue a special version for blind users. Instead, it provides a unified interface that supports both visual and non-visual data exploration. This way, blind and sighted users can work together on the same data science projects.</p></li>
@@ -265,7 +266,6 @@ window.Quarto = {
 <li><p>Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types. [Multi-figure and multi-layer visualizations are underway to support complex data visualizations.]</p></li>
 </ol>
 <p>Our core philosophy is to make data science accessible to everyone, regardless of their visual dis/abilities. We believe that by making data visualizations accessible, we can empower blind and sighted users to work together on data science projects, share insights, and make data-driven decisions collaboratively.</p>
-<p>To learn more about maidr framework and its scientific background, please visit <a href="https://github.com/xability/maidr">the original maidr engine repo</a>.</p>
 <section id="supported-data-visualization-libraries" class="level2">
 <h2 class="anchored" data-anchor-id="supported-data-visualization-libraries">Supported Data Visualization Libraries</h2>
 <p>We currently support the following data visualization libraries in Python:, and we are working on adding support for more libraries in the future:</p>
@@ -318,7 +318,7 @@ window.Quarto = {
 <p>Check more examples in the <a href="./examples.html#sec-examples">galleries</a>.</p>
 <section id="sample-bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="sample-bar-plot">Sample Bar Plot</h3>
-<div id="11a68935" class="cell" data-execution_count="1">
+<div id="cd71debc" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,5,14,15,24,25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -345,7 +345,7 @@ window.Quarto = {
 <span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Use maidr.show() to display your plot </span></span>
 <span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>maidr.show(bar_plot) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_253ac76c-6724-4747-ba32-58faad5fb175" srcdoc="<html>
+<iframe id="iframe_38cbe740-3169-461a-826b-479e1920b40a" srcdoc="<html>
   <head>
     <meta charset=&quot;UTF-8&quot;/>
     <title>MAIDR</title>
@@ -353,12 +353,12 @@ window.Quarto = {
     <script type=&quot;text/javascript&quot; src=&quot;https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js&quot;></script>
   </head>
   <body>
-    <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;97379028-f0ca-4f19-94bb-952a36dad1f9&quot;>
+    <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;13c23600-848f-4591-bd66-022f8654bcf6&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2024-12-20T02:56:16.805443</dc:date>
+    <dc:date>2024-12-20T03:13:33.372624</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -380,22 +380,22 @@ window.Quarto = {
     <path d=&quot;M 54 384.48  L 388.8 384.48  L 388.8 51.84  L 54 51.84  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
    <g id=&quot;patch_3&quot; maidr=&quot;true&quot;>
-    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#pd02d26f27d)&quot; style=&quot;fill: #7da9c7&quot; maidr=&quot;true&quot;/>
+    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#pfb64ecdae6)&quot; style=&quot;fill: #7da9c7&quot; maidr=&quot;true&quot;/>
    </g>
    <g id=&quot;patch_4&quot; maidr=&quot;true&quot;>
-    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#pd02d26f27d)&quot; style=&quot;fill: #4884af&quot; maidr=&quot;true&quot;/>
+    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#pfb64ecdae6)&quot; style=&quot;fill: #4884af&quot; maidr=&quot;true&quot;/>
    </g>
    <g id=&quot;patch_5&quot; maidr=&quot;true&quot;>
-    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#pd02d26f27d)&quot; style=&quot;fill: #3d5b70&quot; maidr=&quot;true&quot;/>
+    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#pfb64ecdae6)&quot; style=&quot;fill: #3d5b70&quot; maidr=&quot;true&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
      <g id=&quot;line2d_1&quot;>
       <defs>
-       <path id=&quot;m6ad12d4fc7&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m9ce38795b5&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m6ad12d4fc7&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m9ce38795b5&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -420,7 +420,7 @@ window.Quarto = {
     <g id=&quot;xtick_2&quot;>
      <g id=&quot;line2d_2&quot;>
       <g>
-       <use xlink:href=&quot;#m6ad12d4fc7&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m9ce38795b5&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -451,7 +451,7 @@ window.Quarto = {
     <g id=&quot;xtick_3&quot;>
      <g id=&quot;line2d_3&quot;>
       <g>
-       <use xlink:href=&quot;#m6ad12d4fc7&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m9ce38795b5&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -491,10 +491,10 @@ window.Quarto = {
     <g id=&quot;ytick_1&quot;>
      <g id=&quot;line2d_4&quot;>
       <defs>
-       <path id=&quot;mf8d33f8ca9&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m01aed9c3a0&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#mf8d33f8ca9&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m01aed9c3a0&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -510,7 +510,7 @@ window.Quarto = {
     <g id=&quot;ytick_2&quot;>
      <g id=&quot;line2d_5&quot;>
       <g>
-       <use xlink:href=&quot;#mf8d33f8ca9&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m01aed9c3a0&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -529,7 +529,7 @@ window.Quarto = {
     <g id=&quot;ytick_3&quot;>
      <g id=&quot;line2d_6&quot;>
       <g>
-       <use xlink:href=&quot;#mf8d33f8ca9&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m01aed9c3a0&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -548,7 +548,7 @@ window.Quarto = {
     <g id=&quot;ytick_4&quot;>
      <g id=&quot;line2d_7&quot;>
       <g>
-       <use xlink:href=&quot;#mf8d33f8ca9&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m01aed9c3a0&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -567,7 +567,7 @@ window.Quarto = {
     <g id=&quot;ytick_5&quot;>
      <g id=&quot;line2d_8&quot;>
       <g>
-       <use xlink:href=&quot;#mf8d33f8ca9&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m01aed9c3a0&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -586,7 +586,7 @@ window.Quarto = {
     <g id=&quot;ytick_6&quot;>
      <g id=&quot;line2d_9&quot;>
       <g>
-       <use xlink:href=&quot;#mf8d33f8ca9&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m01aed9c3a0&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -631,13 +631,13 @@ window.Quarto = {
     </g>
    </g>
    <g id=&quot;line2d_10&quot;>
-    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#pd02d26f27d)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#pfb64ecdae6)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;line2d_11&quot;>
-    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#pd02d26f27d)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#pfb64ecdae6)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;line2d_12&quot;>
-    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#pd02d26f27d)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#pfb64ecdae6)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;patch_6&quot;>
     <path d=&quot;M 54 384.48  L 54 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
@@ -706,7 +706,7 @@ window.Quarto = {
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;pd02d26f27d&quot;>
+  <clipPath id=&quot;pfb64ecdae6&quot;>
    <rect x=&quot;54&quot; y=&quot;51.84&quot; width=&quot;334.8&quot; height=&quot;332.64&quot;/>
   </clipPath>
  </defs>
@@ -736,12 +736,12 @@ let maidr = {
     5076.016260162602
   ],
   &quot;selector&quot;: &quot;path[maidr='true']&quot;,
-  &quot;id&quot;: &quot;97379028-f0ca-4f19-94bb-952a36dad1f9&quot;
+  &quot;id&quot;: &quot;13c23600-848f-4591-bd66-022f8654bcf6&quot;
 }
 </script>
 </html>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
                 function resizeIframe() {
-                    let iframe = document.getElementById('iframe_253ac76c-6724-4747-ba32-58faad5fb175');
+                    let iframe = document.getElementById('iframe_38cbe740-3169-461a-826b-479e1920b40a');
 
                     if (iframe &amp;&amp; iframe.contentWindow &amp;&amp; iframe.contentWindow.document) {
                         let iframeDocument = iframe.contentWindow.document;
@@ -760,7 +760,7 @@ let maidr = {
                         iframe.style.width = iframeDocument.body.scrollWidth + 'px';
                     }
                 }
-                let iframe = document.getElementById('iframe_253ac76c-6724-4747-ba32-58faad5fb175');
+                let iframe = document.getElementById('iframe_38cbe740-3169-461a-826b-479e1920b40a');
                 resizeIframe();
                 iframe.onload = function() {
                     resizeIframe();
