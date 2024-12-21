@@ -58,12 +58,15 @@
   "git.enableSmartCommit": true,
   "git.smartCommitChanges": "all",
   "git.postCommitCommand": "sync",
-  "conventionalCommits.scopes": [
-    ".vscode"
-  ],
+  "conventionalCommits.scopes": [".vscode"],
   "github.copilot.chat.codeGeneration.instructions": [
     {
       "file": ".vscode/copilot_instruction.md"
+    }
+  ],
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Use conventional commit message format."
     }
   ]
 }
