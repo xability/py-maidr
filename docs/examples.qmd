@@ -139,6 +139,33 @@ plt.title("Model Scores by Task")
 maidr.show(heatmap) #<<
 ```
 
+### Box Plot
+
+* **Note**: Visual highlight feature has not been implemented in the box plot yet.
+
+```{python}
+#| fig-alt: Box plot of petal length by species from the Iris dataset
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from seaborn import load_dataset
+
+import maidr #<<
+
+# Load the iris dataset
+iris = load_dataset("iris")
+
+# Create the horizontal boxplot
+horz_box_plot = sns.boxplot(x="petal_length", y="species", data=iris, orient="h") #<<
+plt.ylabel("Species")
+plt.xlabel("Petal Length")
+plt.title("Petal Length by Species from Iris Dataset")
+# plt.show()
+
+# Show the plot
+maidr.show(horz_box_plot) #<<
+```
 
 ### Scatter Plot
 
