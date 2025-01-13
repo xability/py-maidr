@@ -48,7 +48,7 @@ jobs:
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
           poetry lock --no-update
-          poetry install
+          poetry install --with dev,release
           python -m pip install pytest-github-actions-annotate-failures
 
       - name: Run tests
