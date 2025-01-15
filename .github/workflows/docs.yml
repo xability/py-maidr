@@ -44,7 +44,6 @@ jobs:
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry lock --no-update
           poetry install
 
       - name: Set up Quarto
