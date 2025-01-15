@@ -60,7 +60,6 @@ jobs:
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry lock --no-update
           poetry install
           python -m pip install pytest-github-actions-annotate-failures
 
