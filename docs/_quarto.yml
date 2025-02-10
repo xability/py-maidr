@@ -2,12 +2,17 @@ project:
   type: website
   output-dir: _site
 
-website:
-  title: "PyMAIDR"
 
-  site-url: https://xability.github.io/py_maidr/
-  repo-url: https://github.com/xability/py_maidr
-  issue-url: https://github.com/xability/py_maidr/issues/new/choose
+metadata-files:
+  - api/_sidebar.yml
+
+
+website:
+  title: "Py maidr"
+
+  site-url: https://py.maidr.ai/
+  repo-url: https://github.com/xability/py-maidr
+  issue-url: https://github.com/xability/py-maidr/issues/new/choose
   repo-actions: [issue]
 
   page-navigation: true
@@ -17,19 +22,19 @@ website:
     background: light
     # logo: quarto.png
     logo-alt: "Maidr logo."
-    logo-href: https://xability.github.io/py_maidr/
-    title: PyMAIDR
+    logo-href: https://py.maidr.ai/
+    title: Py maidr
     collapse-below: lg
     left:
-      - text: "Overview"
-        href: _index.qmd
-      - text: "Get Started"
-        href: _get_started.qmd
+      - file: index.qmd
+        text: "Welcome"
+      - file: examples.qmd
+        text: "Examples"
       - text: "API Reference"
-        href: api/core/index.qmd
+        href: api/
     right:
       - icon: github
-        href: https://github.com/xability/maidr
+        href: https://github.com/xability/py-maidr
         aria-label: GitHub
 
 format:
@@ -37,34 +42,69 @@ format:
     theme: cosmo
     css: styles.css
     toc: true
+    link-external-icon: true
+    link-external-newwindow: true
+    link-external-filter: ’^(?:http:|https:)’
+
+
+# quartodoc:
+#   package: maidr
+#   dir: api
+#   sidebar: _sidebar.yml
+#   style: pkgdown
+#   title: "PyMAIDR"
+#   renderer:
+#     style: markdown
+# #  sections:
+# #    - title: Plot API
+# #      desc: ""
+# #      contents:
+# #        - bar
+# #        - box
+# #        - count
+# #        - heat
+# #        - hist
+# #        - line
+# #        - scatter
+# #
+#    - title: Maidr API
+# #      desc: ""
+# #      package: maidr.core
+# #      contents:
+# #        - Maidr.render
+# #        - Maidr.show
+# #        - Maidr.save_html
+
+
+filters:
+  - interlinks
+  - line-highlight
+
+
+interlinks:
+  fast: true
+  sources:
+    numpy:
+      url: https://numpy.org/doc/stable/
+    python:
+      url: https://docs.python.org/3/
 
 quartodoc:
   package: maidr
-  dir: api/core
-  sidebar: _sidebar.yml
+  dir: api
+  title: API Reference
   style: pkgdown
-  title: "PyMAIDR"
-  renderer:
-    style: markdown
-#  sections:
-#    - title: Plot API
-#      desc: ""
-#      contents:
-#        - bar
-#        - box
-#        - count
-#        - heat
-#        - hist
-#        - line
-#        - scatter
-#
-#    - title: Maidr API
-#      desc: ""
-#      package: maidr.core
-#      contents:
-#        - Maidr.render
-#        - Maidr.show
-#        - Maidr.save_html
-
-
-
+  dynamic: true
+  render_interlinks: true
+  sections:
+    - title: Displaying an accessible and interactive plot with multimodal formats
+      desc: >
+        Plots genereated by **Matplotlib** or **Seaborn** can be displayed in MAIDR format in default browser.
+        Input plot object as an argument in `maidr.show()`.
+      contents:
+        - Maidr.show
+    - title: Saving a maidr plot as an HTML file
+      desc: >
+        Save a plot as an HTML file with `maidr.save_html()`.
+      contents:
+        - Maidr.save_html

@@ -1,0 +1,279 @@
+---
+title: Example Gallery
+jupyter: python3
+# aliases:
+  # - ../index.html
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+## Example Gallery {#sec-examples}
+
+Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code.
+
+Simply import the `maidr` package and use the `maidr.show()` function to display your plots. **maidr** will automatically generate accessible versions of your plots in your default browser. You can then interact with the accessible versions using keyboard shortcuts (refer to @tbl-shortcuts).
+
+### Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Bar plot showing the average body mass of penguins by species
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Just import maidr package #<<
+import maidr  #<<
+
+
+# Load the penguins dataset
+penguins = sns.load_dataset("penguins")
+
+# Create a bar plot showing the average body mass of penguins by species
+plt.figure(figsize=(6, 6))
+
+# Assign the plot to a variable #<<
+bar_plot = sns.barplot(  #<<
+    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
+)
+plt.title("Average Body Mass of Penguins by Species")
+plt.xlabel("Species")
+plt.ylabel("Body Mass (g)")
+
+# plt.show()
+
+# Use maidr.show() to display your plot #<<
+maidr.show(bar_plot)  #<<
+```
+
+
+### Histogram
+
+```{python}
+# | warning: false
+# | fig-alt: Histogram of petal lengths in the Iris dataset
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+
+# Load the Iris dataset
+iris = sns.load_dataset("iris")
+
+# Select the petal lengths
+petal_lengths = iris["petal_length"]
+
+# Plot a histogram of the petal lengths
+plt.figure(figsize=(6, 6))
+
+hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5) #<<
+
+plt.title("Petal Lengths in Iris Dataset")
+plt.xlabel("Petal Length (cm)")
+plt.ylabel("Frequency")
+
+# plt.show()
+maidr.show(hist_plot) #<<
+```
+
+
+### Line Plot
+
+```{python}
+# | fig-alt: Line plot of tips vs total bill for Thursday
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+
+# Load the 'tips' dataset from seaborn
+tips = sns.load_dataset("tips") #<<
+
+# Choose a specific subset of the dataset (e.g., data for 'Thursday')
+subset_data = tips[tips["day"] == "Thur"]
+
+# Create a line plot
+plt.figure(figsize=(6, 6))
+line_plot = sns.lineplot( #<<
+    data=subset_data,
+    x="total_bill",
+    y="tip",
+    markers=True,
+    style="day",
+    legend=False,
+)
+plt.title("Tips vs Total Bill (Thursday)")
+plt.xlabel("Total Bill")
+plt.ylabel("Tip")
+
+# plt.show()
+maidr.show(line_plot) #<<
+```
+
+
+### Heat Map
+
+```{python}
+#| fig-alt: Heatmap of model scores by task
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Load an example dataset from seaborn
+glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Score")
+
+# Plot a heatmap
+plt.figure(figsize=(8, 8))
+heatmap = sns.heatmap(glue, annot=True, fill_label="Score") #<<
+plt.title("Model Scores by Task")
+
+# Show the plot
+# plt.show()
+maidr.show(heatmap) #<<
+```
+
+### Box Plot
+
+* **Note**: Visual highlight feature has not been implemented in the box plot yet.
+
+```{python}
+#| fig-alt: Box plot of petal length by species from the Iris dataset
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from seaborn import load_dataset
+
+import maidr #<<
+
+# Load the iris dataset
+iris = load_dataset("iris")
+
+# Create the horizontal boxplot
+horz_box_plot = sns.boxplot(x="petal_length", y="species", data=iris, orient="h") #<<
+plt.ylabel("Species")
+plt.xlabel("Petal Length")
+plt.title("Petal Length by Species from Iris Dataset")
+# plt.show()
+
+# Show the plot
+maidr.show(horz_box_plot) #<<
+```
+
+### Scatter Plot
+
+```{python}
+#| fig-alt: Scatter plot of Iris sepal length vs sepal width
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Create a scatter plot
+scatter_plot = sns.scatterplot( #<<
+    data=iris, x="sepal_length", y="sepal_width", hue="species"
+)
+
+# Adding title and labels (optional)
+plt.title("Iris Sepal Length vs Sepal Width")
+plt.xlabel("Sepal Length")
+plt.ylabel("Sepal Width")
+
+# Show the plot
+# plt.show()
+maidr.show(scatter_plot) #<<
+```
+
+## Reactive Dashboard
+
+### Shiny
+
+Check out [a reactive Shiny dashboard example with maidr](https://xabilitylab.shinyapps.io/a11y_dashboard/) and its source code is available on [GitHub](https://github.com/xability/a11y_dashboard).
+
+### Streamlit
+
+Check out [this Streamlit dashboard](https://0193dbe9-1a63-183e-ba7f-b62075dd1d71.share.connect.posit.cloud/) with maidr, and its source code is available on [GitHub](https://github.com/xability/maidr_streamlit).
+
+    * Note: `Streamlit` framework has some "Unlabeled 0 Button" which does not have to do with our maidr package. This issue needs to be addressed by the `Streamlit` team.
+
+## Interactive Computing (Jupyter Notebooks, Jupyter Labs, Google Colab)
+
+Check out [this interactive notebook in Google Colab](https://colab.research.google.com/drive/1In85HRpSLgOcLbLudSdfO3axYtkOlua1?usp=sharing).
+
+## Other Examples
+
+We provide [some example code](https://github.com/xability/py-maidr/blob/main/example) for using py-maidr with matplotlib, seaborn, Jupyter Notebook, Quarto, Shiny, and Streamlit.
+
+## Keyboard Shortcuts and Controls
+
+To interact with the plots using maidr, follow these steps:
+
+1. Press the **Tab** key to focus on the plot element.
+2. Use the **arrow keys** to move around the plot.
+3. Press **B** to toggle Braille mode.
+4. Press **T** to toggle Text mode.
+5. Press **S** to toggle Sonification (tones) mode.
+6. Press **R** to toggle Review mode.
+
+Below is a detailed list of keyboard shortcuts for various functions:
+
+| Function | Windows and Linux Key | Mac Key |
+|:---|:---|:---|
+| Toggle Braille Mode | b | b |
+| Toggle Text Mode | t | t |
+| Toggle Sonification Mode | s | s |
+| Toggle Review Mode | r | r |
+| Move around plot | Arrow keys | Arrow keys |
+| Go to the very left right up down | Ctrl + Arrow key | CMD + Arrow key |
+| Select the first element | Ctrl + Home | CMD + Home |
+| Select the last element | Ctrl + End | CMD + End |
+| Repeat current sound | Space | Space |
+| Auto-play outward in direction of arrow | Ctrl + Shift + Arrow key | CMD + Shift + Arrow key |
+| Auto-play inward in direction of arrow | Alt + Shift + Arrow key | Option + Shift + Arrow key |
+| Stop Auto-play | Ctrl | Ctrl |
+| Auto-play speed up | Period (.) | Period (.) |
+| Auto-play speed down | Comma (,) | Comma (,) |
+| Auto-play speed reset | Slash (/) | Slash (/) |
+| Check label for the title of current plot | l t | l t |
+| Check label for the x axis of current plot | l x | l x |
+| Check label for the y axis of current plot | l y | l y |
+| Check label for the fill (z) axis of current plot | l f | l f |
+| Check label for the subtitle of current plot | l s | l s |
+| Check label for the caption of current plot | l c | l c |
+| Toggle AI Chat View | Ctrl + Shift + / | Option + Shift + / |
+| Copy last chat message in AI Chat View | Alt + Shift + C | Option + Shift + C |
+| Copy full chat history in AI Chat View | Alt + Shift + A | Option + Shift + A |
+
+Table: Keyboard Shortcuts {#tbl-shortcuts}
+
+
+## Demo Video
+
+{{< video https://youtu.be/NR2G4lNolf4 >}}
+
+## Bug Report
+
+If you encounter a bug, have usage questions, or want to share ideas to make this package better, please feel free to file an [issue](https://github.com/xability/py-maidr/issues).
+
+## Code of Conduct
+
+Please note that the **maidr** project is released with a [contributor code of conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).<br>By participating in this project you agree to abide by its terms.
+
+## 📄 License
+
+**maidr** is licensed under the GPL3 license.
+
+© [(x)Ability Design Lab](https://xability.github.io/).
+
+## 🏛️ Governance
+
+This project is primarily maintained by [JooYoung Seo](https://ischool.illinois.edu/people/jooyoung-seo) and [Saairam Venkatesh](https://github.com/SaaiVenkat).
+Other authors may occasionally assist with some of these duties.

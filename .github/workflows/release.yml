@@ -38,7 +38,7 @@ jobs:
           installer-parallel: true
 
       - name: Load cached venv
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         id: cached-poetry-dependencies
         with:
           path: .venv
@@ -47,7 +47,6 @@ jobs:
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry lock --no-update
           poetry install
           python -m pip install pytest-github-actions-annotate-failures
 
@@ -86,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     concurrency: push
     needs: [test, lint, commit-lint]
-    if: github.repository == 'xability/py_maidr'
+    if: github.repository == 'xability/py-maidr'
     environment:
       name: pypi
       url: https://pypi.org/project/maidr/

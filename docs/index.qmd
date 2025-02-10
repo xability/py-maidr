@@ -1,0 +1,375 @@
+---
+title: Welcome
+jupyter: python3
+# aliases:
+  # - ../index.html
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+<div align="center">
+
+<img src="https://xability.github.io/maidr/assets/logo.svg" width="350px" alt="A stylized MAIDR logo, with curved characters for M A, a hand pointing for an I, the D character, and R represented in braille."/>
+
+<hr style="color:transparent" />
+<br />
+
+_maidr: Data Insight for All_
+</div>
+
+Are you eager to uncover new insights from data science but frustrated by visual-only data representations? Do you want to make your data visualizations accessible to everyone, including those who are blind or low-vision? If so, **maidr** is for you!
+
+**maidr** (pronounced as 'mader') is an accessible framework for multimodal data representation. With maidr, blind and sighted users can easily augment data visualizations into _touchable_ (Braille), _readable_ (text), _audible_ (sonification), and _conversational_ (AI) formats.
+
+To learn more about maidr framework and its scientific background, please visit [the original maidr JavaScript engine repo](https://github.com/xability/maidr).
+
+The following summarizes the key features and design principles of Py maidr:
+
+1. Accessibility: maidr is designed to be accessible to both blind and sighted users from the ground up. Beyond the passive consumption level, blind users can also independently create, modify, and share data visualizations with others.
+
+2. Inclusivity: maidr does not pursue a special version for blind users. Instead, it provides a unified interface that supports both visual and non-visual data exploration. This way, blind and sighted users can work together on the same data science projects.
+
+3. Integration: maidr seamlessly integrates with the popular and mainstream data science environments  (e.g., Python, pandas, and NumPy) as well as data visualization libraries in Python like **matplotlib** and **seaborn**.
+
+4. Unintrusiveness: maidr does not require changes to existing core data visualization code. Without needing to reconstruct an accessible version separately, you can just `import maidr` package and use `maidr.show()` to your plots. Blind and sighted users can use and share the same visualization codebase in their shared data science projects.
+
+5. Synchronization: maidr treats visualization as one of the multimodal data representations and ensures that all representations (e.g., visual, tactile, textual, audible) cursor and braille routing key positions are synchronized across different modalities.
+
+6. Reactivity: maidr supports widely adopted reactive and interactive computing including Jupyter Notebooks, Jupyter Labs, Google Colab, Streamlit dashboard, and Shiny dashboard. maidr also supports interactive computing inside code editors, such as Visual Studio Code.
+
+7. Reproducibility: maidr supports the generation of accessible data visualizations as part of the reproducible data science workflow with [Quarto scientific publishing system](https://quarto.org/). You can easily create accessible data representations within your reproducible reports, website blogs, slides, e-books, dashboards, and more.
+
+8. Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types. [Multi-figure and multi-layer visualizations are underway to support complex data visualizations.]
+
+Our core philosophy is to make data science accessible to everyone, regardless of their visual dis/abilities. We believe that by making data visualizations accessible, we can empower blind and sighted users to work together on data science projects, share insights, and make data-driven decisions collaboratively.
+
+## Supported Data Visualization Libraries
+
+We currently support the following data visualization libraries in Python:, and we are working on adding support for more libraries in the future:
+
+### Matplotlib
+
+* One-factor bar plot having one x (categorical) and one y (numerical/count) axis.
+
+* One distribution histogram having one x (numerical) and y (numerical/frequency) axis.
+
+* Single line plot having one x (numerical) and one y (numerical) axis.
+
+* Vertical box plot having one x (categorical) and one y (numerical) axis.
+
+* Horizontal box plot having one x (numerical) and one y (categorical) axis.
+
+    * Note: For box plots, the categorical variable can be either single-class or multi-class. We support both cases.
+
+* Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
+
+* Scatter plot having one x (numerical) and one y (numerical) axis.
+
+
+### Seaborn
+
+* `sns.barplot()`: One-factor bar plot having one x (categorical) and one y (numerical/count) axis.
+
+    * Note: We also support `sns.countplot()`
+
+* `sns.histplot()`: One distribution histogram having one x (numerical) and y (numerical/frequency) axis.
+
+* `sns.lineplot()`: Single line plot having one x (numerical) and one y (numerical) axis.
+
+* `sns.boxplot(..., orient="v")`: Vertical box plot having one x (categorical) and one y (numerical) axis.
+
+* `sns.boxplot(..., orient="h")`: Horizontal box plot having one x (numerical) and one y (categorical) axis.
+
+    * Note: For box plots, the categorical variable can be either single-class or multi-class. We support both cases.
+
+* `sns.heatmap()`: Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
+
+* `sns.scatterplot()`: Scatter plot having one x (numerical) and one y (numerical) axis.
+
+
+## Installation
+
+[Python 3.x](https://www.python.org/downloads/) is required to use **maidr**. After installing Python, you can install **maidr** using the following commands in your terminal:
+
+```{.bash}
+# install the latest release from PyPI
+pip install -U maidr
+```
+
+```{.bash}
+# or install the development version from GitHub
+pip install -U git+https://github.com/xability/py-maidr.git
+```
+
+## Getting Started
+
+Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code.
+
+Simply import the `maidr` package and use the `maidr.show()` function to display your plots. **maidr** will automatically generate accessible versions of your plots in your default browser. You can then interact with the accessible versions using keyboard shortcuts (refer to @tbl-shortcuts).
+
+Check more examples in the [galleries](examples.qmd#sec-examples).
+
+### Sample Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Bar plot showing the average body mass of penguins by species
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Just import maidr package #<<
+import maidr #<<
+
+
+# Load the penguins dataset
+penguins = sns.load_dataset("penguins")
+
+# Create a bar plot showing the average body mass of penguins by species
+plt.figure(figsize=(6, 6))
+
+# Assign the plot to a variable #<<
+bar_plot = sns.barplot( #<<
+    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
+)
+plt.title("Average Body Mass of Penguins by Species")
+plt.xlabel("Species")
+plt.ylabel("Body Mass (g)")
+
+# plt.show()
+
+# Use maidr.show() to display your plot #<<
+maidr.show(bar_plot) #<<
+
+# Uncomment the following line to save and share the accessible version of your plot with others!
+# maidr.save_html(bar_plot, "output.html") #<<
+```
+
+## Keyboard Shortcuts and Controls
+
+To interact with the plots using maidr, follow these steps:
+
+1. Press the **Tab** key to focus on the plot element.
+2. Use the **arrow keys** to move around the plot.
+3. Press **B** to toggle Braille mode.
+4. Press **T** to toggle Text mode.
+5. Press **S** to toggle Sonification (tones) mode.
+6. Press **R** to toggle Review mode.
+
+Below is a detailed list of keyboard shortcuts for various functions:
+
+| Function | Windows and Linux Key | Mac Key |
+|:---|:---|:---|
+| Toggle Braille Mode | b | b |
+| Toggle Text Mode | t | t |
+| Toggle Sonification Mode | s | s |
+| Toggle Review Mode | r | r |
+| Move around plot | Arrow keys | Arrow keys |
+| Go to the very left right up down | Ctrl + Arrow key | CMD + Arrow key |
+| Select the first element | Ctrl + Home | CMD + Home |
+| Select the last element | Ctrl + End | CMD + End |
+| Repeat current sound | Space | Space |
+| Auto-play outward in direction of arrow | Ctrl + Shift + Arrow key | CMD + Shift + Arrow key |
+| Auto-play inward in direction of arrow | Alt + Shift + Arrow key | Option + Shift + Arrow key |
+| Stop Auto-play | Ctrl | Ctrl |
+| Auto-play speed up | Period (.) | Period (.) |
+| Auto-play speed down | Comma (,) | Comma (,) |
+| Auto-play speed reset | Slash (/) | Slash (/) |
+| Check label for the title of current plot | l t | l t |
+| Check label for the x axis of current plot | l x | l x |
+| Check label for the y axis of current plot | l y | l y |
+| Check label for the fill (z) axis of current plot | l f | l f |
+| Check label for the subtitle of current plot | l s | l s |
+| Check label for the caption of current plot | l c | l c |
+| Toggle AI Chat View | Ctrl + Shift + / | Option + Shift + / |
+| Copy last chat message in AI Chat View | Alt + Shift + C | Option + Shift + C |
+| Copy full chat history in AI Chat View | Alt + Shift + A | Option + Shift + A |
+
+Table: Keyboard Shortcuts {#tbl-shortcuts}
+
+
+## Braille Generation
+
+maidr incorporates a Braille mode that represents the plot using Braille symbols. This allows users with visual impairments to explore and interact with the plot using a refreshable Braille display. To achieve this, our system translates the plot's visual elements and data points into a corresponding tactile representation using Braille patterns. For different plot types, such as barplot, boxplot, heatmap, and scatterplot, maidr employs unique encoding strategies tailored to effectively convey the data distribution, patterns, and trends. These tactile encodings range from using distinct Braille characters to represent value ranges, to employing characters that visually resemble the corresponding sections of a plot. By providing a comprehensive Braille representation for various plot types, maidr enables users with visual impairments to gain a deeper understanding of the underlying data and its insights.
+
+### Bar Plot
+
+In the Braille representation of a barplot, data values are encoded as Braille characters based on their relative magnitude within the plot. Low values are denoted by Braille characters that have dots only along the bottom, while high values are indicated by characters that have dots along the top. Given the four height levels of Braille, the encoding is as follows:
+
+- ⣀ represents values 0 to 25%
+- ⠤ represents the 25% to 50%
+- ⠒ represents the 50% to 75%
+- ⠉ represents the 75% to 100%
+
+This tactile encoding allows users to easily differentiate between the various value ranges in the barplot, facilitating their understanding of the data distribution and its underlying trends.
+
+### Histogram
+
+The braille representation of a histogram is the same as that of a barplot.
+
+### Line Plot
+
+In the Braille representation of a lineplot, braille is nearly identical to the above barplot: data values are encoded as Braille characters based on their relative magnitude within the plot. Low values are denoted by Braille characters that have dots only along the bottom, while high values are indicated by characters that have dots higher up.
+
+### Heatmap
+
+In the Braille representation of a heatmap, values are depicted based on their relative magnitude within the plot, much like the approach used for barplots and scatterplots. Low values are denoted by Braille characters with dots only along the bottom, high values are represented by characters filled with dots, and blank or null values are indicated by empty spaces. With three height levels of Braille, the encoding is as follows:
+
+- ⠤ represents values from 0% to 33%
+- ⠒ represents values from 33% to 66%
+- ⠉ represents values from 66% to 100%
+- "⠀" (braille space) represents null or empty values
+- "⢳" represents a row separator
+
+### Box Plot
+
+The Braille representation of a boxplot employs Braille characters that visually resemble the corresponding sections of the boxplot. An example of such braille may look like ⠂ ⠒⠒⠒⠒⠒⠒⠿⠸⠿⠒ . The size of each section is denoted by the number of Braille characters used. The sections are encoded as follows:
+
+- ⠂ represents lower outlier and upper outlier(s)
+- ⠒ represents the left or right whiskers
+- ⠿ represents the second or third quartiles
+- ⠸⠇ represents the 50% midpoint (median)
+- blank spaces represent empty spaces
+
+We also impose some overarching rules:
+
+1. Each section must be represented with at least 1 braille character, assuming they have some positive length.
+2. Differences or equalities in whiskers and quartiles must be upheld. That is, if the min and max whisker are of equal length, they must have the same number of braille characters, or if they're different, the number of characters must be different.
+3. Zero length sections, such as outliers and the median, are always represented by a set character. ⠂ in the case of outliers, ⠸⠇ in the case of the median.
+
+This tactile encoding enables users to discern the various components of the boxplot, allowing them to comprehend the data distribution, detect outliers, and identify central tendencies and dispersion within the dataset.
+
+To generate the braille, we use an algorithm that generates a distribution of characters based on a given proportional distribution and a specified total number of characters in the user's braille display. This can be described mathematically as follows:
+
+$$
+c_i = \text{round}(n \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
+$$
+
+$$
+c_i = \text{round}((n - C) \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
+$$
+
+Where
+
+- n: Total number of characters (integer)
+- C: Total number of length 0 characters to offset the total characters (outliers and median) (integer)
+- p_i: Proportional distribution of each category i, where i ∈ {1, 2, 3, ..., k} (real numbers, 0 ≤ p_i ≤ 1, and the sum of all p_i equals 1)
+- c_i: Number of characters for each category i (integer)
+
+The process is as follows in the code:
+
+1. We first convert our data set for a particular boxplot to an array of lengths.
+2. We then assign the single required character to each section.
+3. We also note connected sections, such as min and max.
+4. We then normalize and allocate all remaining characters according to their proportional distribution, making sure to add extra characters where needed to keep differences or equalities.
+
+As an example, consider a boxplot with the following distribution: [10, 0, 20, 40, 30, 0, 30, 60, 50, 30, 0, 10, 0], with types [blank space, outlier, larger blank space, large min whisker, moderate sized lower quartile, the median, moderate sized upper quartile, another larger max whisker, a large blank space, an outlier, a small blank space, then another outlier], and a braille display length of 33. We would produce braille that looks like so:
+
+⠂ ⠒⠒⠒⠒⠿⠿⠿⠸⠇⠿⠿⠿⠒⠒⠒⠒⠒⠒ ⠂ ⠂
+
+### Scatter Plot
+
+* Note: The line layer in py maidr has not been implemented yet. The following is a placeholder for the future implementation.
+
+In the Braille representation of a scatterplot, the encoding is performed only for the line layer (layer 2). The method is similar to that used for barplots, wherein data values are represented as Braille characters based on their relative magnitude within the plot. Low values are denoted by dots along the bottom, while high values are indicated by dots along the top. With four height levels of Braille, the encoding is as follows:
+
+- ⣀ represents values from 0% to 25%
+- ⠤ represents values from 25% to 50%
+- ⠒ represents values from 50% to 75%
+- ⠉ represents values from 75% to 100%
+
+### Segmented Bar Plots
+
+* Note: The segmented bar plot in py maidr has not been implemented yet. The following is a placeholder for the future implementation.
+
+Stacked bar, dodged bar, and normalized stacked bar all share the same system:
+
+In the braille representation of segmented bar plots, braille depends on where you are. There are typically multiple levels to a segmented bar plot, and as you move (Up and Down arrow keys) between levels, the braille changes to represent your current level. At the top, there is also a Summary pseudo level of all levels added together, and a Combined pseudo level of each level separately.
+
+- Regular level: Braille appears similar to a bar plot, with braille values corresponding to the magnitude of the level's value for this point.
+- Summary level: Same as regular level, but values now reflect the combined magnitude of all levels' values for this point.
+- Combined level: Similar to heatmap, where there are groups of magnitudes for each point separated by a ⢳ character. The first group has braille characters for each level for the first point, then a separator, then the second group has braille characters for each level in the second point, then a separator, and so on.
+
+## Getting Refreshable Braille Display Loaner
+
+If you are a blind user and do not have a refreshable Braille display, you can request a loaner from the National Library Service (NLS) for the Blind and Print Disabled. Please follow our instruction on [how to request an NLS eReader Braille Display](https://xabilitylab.ischool.illinois.edu/braille-display).
+
+
+## Instruction on How to Verify and Use the AI Feature in py-maidr
+
+We provide AI API keys only to alpha testers who have shared their email addresses through our survey form. If you are not an alpha tester, you can still use the AI feature by manually providing your own AI API keys in the Help menu.
+
+### For Alpha Testers
+
+1. Activate the maidr plot by pressing the **Tab** key or clicking on the plot area.
+
+2. In the interactive plot area, press **H** to open the Help menu.
+
+3. Locate the text field labeled **"Enter your email address"**.
+
+4. Type your email address in the text field.
+   *Note: The email address must match the one you provided in the survey form.*
+
+5. Press **Enter** to submit your email address.
+
+6. Wait for the confirmation message to appear on the screen.
+
+7. Press **Enter** to close the confirmation message.
+
+8. Select up to two AI models from the checkboxes. Supported models include:
+   - OpenAI GPT-4o
+   - Google Gemini 2.0 Flash Experimental
+   - Anthropic Claude 3.5 Sonnet
+
+* **Note**: All provided models are the latest versions.
+
+9. Click the **Save and Close** button.
+
+10. Check your email inbox for a verification email from `maidr.ai`.
+
+11. Open the verification email and click on the verification link.
+
+12. Once verified, return to the interactive plot area and press **Ctrl+Shift+/** (forward slash) or **Alt+Shift+/** (on Mac) to open the AI modal. You can now chat with the selected AI models about your plot.
+
+* **Note**: The AI Chat modal is togglable. Use the same key combination to switch between the plot and the AI Chat modal.
+
+### For All Other Users
+
+You can manually provide your own AI API keys in the Help menu. These keys are not saved and are only used for the current session. This means you will need to re-enter your API keys each time you open the app.
+
+1. Activate the maidr plot by pressing the **Tab** key or clicking on the plot area.
+
+2. In the interactive plot area, press **H** to open the Help menu.
+
+3. Select up to two AI models from the checkboxes. Supported models include:
+   - OpenAI GPT-4o
+   - Google Gemini 2.0 Flash Experimental
+   - Anthropic Claude 3.5 Sonnet
+* **Note**: All provided models are the latest versions.
+
+4. Enter your API keys in the respective text fields.
+
+5. Click the **Save and Close** button.
+
+6. Return to the interactive plot area and press **Ctrl+Shift+/** (forward slash) or **Alt+Shift+/** (on Mac) to open the AI modal. You can now chat with the selected AI models about your plot.
+* **Note**: The AI Chat modal is togglable. Use the same key combination to switch between the plot and the AI Chat modal.
+
+## Bug Report
+
+If you encounter a bug, have usage questions, or want to share ideas to make this package better, please feel free to file an [issue](https://github.com/xability/py-maidr/issues).
+
+## Code of Conduct
+
+Please note that the **maidr** project is released with a [contributor code of conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).<br>By participating in this project you agree to abide by its terms.
+
+## 📄 License
+
+**maidr** is licensed under the GPL3 license.
+
+© [(x)Ability Design Lab](https://xability.github.io/).
+
+## 🏛️ Governance
+
+This project is primarily maintained by [JooYoung Seo](https://ischool.illinois.edu/people/jooyoung-seo) and [Saairam Venkatesh](https://github.com/SaaiVenkat).
+Other authors may occasionally assist with some of these duties.
