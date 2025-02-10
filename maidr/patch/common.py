@@ -4,6 +4,7 @@ import warnings
 from typing import Any
 
 from maidr.core.context_manager import ContextManager
+from maidr.core.enum.plot_type import PlotType
 from maidr.core.figure_manager import FigureManager
 
 
@@ -19,6 +20,11 @@ def common(plot_type, wrapped, _, args, kwargs) -> Any:
     with ContextManager.set_internal_context():
         # Patch the plotting function.
         plot = wrapped(*args, **kwargs)
+
+    if "bottom" in kwargs:
+        bottom = kwargs.pop("bottom")
+        if bottom is not None:
+            plot_type = PlotType.STACKED
 
     # Extract the data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)
