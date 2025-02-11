@@ -4,7 +4,6 @@ import warnings
 from typing import Any
 
 from maidr.core.context_manager import ContextManager
-from maidr.core.enum.plot_type import PlotType
 from maidr.core.figure_manager import FigureManager
 
 
