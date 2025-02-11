@@ -21,11 +21,6 @@ def common(plot_type, wrapped, _, args, kwargs) -> Any:
         # Patch the plotting function.
         plot = wrapped(*args, **kwargs)
 
-    if "bottom" in kwargs:
-        bottom = kwargs.pop("bottom")
-        if bottom is not None:
-            plot_type = PlotType.STACKED
-
     # Extract the data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)
     FigureManager.create_maidr(ax, plot_type)

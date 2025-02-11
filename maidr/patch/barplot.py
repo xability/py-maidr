@@ -9,7 +9,13 @@ from maidr.patch.common import common
 
 
 def bar(wrapped, instance, args, kwargs) -> Axes | BarContainer:
-    return common(PlotType.BAR, wrapped, instance, args, kwargs)
+    plot_type = PlotType.BAR
+    if "bottom" in kwargs:
+        bottom = kwargs.get("bottom")
+        if bottom is not None:
+            plot_type = PlotType.STACKED
+
+    return common(plot_type, wrapped, instance, args, kwargs)
 
 
 # Patch matplotlib functions.
