@@ -1,6 +1,81 @@
 # CHANGELOG
 
 
+## v0.10.6 (2025-02-11)
+
+### Bug Fixes
+
+- Stacked bar plot with new api ([#132](https://github.com/xability/py-maidr/pull/132),
+  [`003be7c`](https://github.com/xability/py-maidr/commit/003be7cc1c4fbaa7d24df61ab85b1273cfe8f663))
+
+### Chores
+
+- Add instructions for conventional commit message format in VSCode settings
+  ([`7940ce6`](https://github.com/xability/py-maidr/commit/7940ce654035ec51ee6d2342d6f29d2c2d8e822e))
+
+### Continuous Integration
+
+- Remove --no-update execution from poetry setup in ci and docs action
+  ([#131](https://github.com/xability/py-maidr/pull/131),
+  [`17c4bc1`](https://github.com/xability/py-maidr/commit/17c4bc1e2095a232cc47178b154926fdd306cb51))
+
+- Update poetry.lock to adhere to v2.0.0 ([#129](https://github.com/xability/py-maidr/pull/129),
+  [`d8a695e`](https://github.com/xability/py-maidr/commit/d8a695e70481fe55c084de71fdd29716053fb6ff))
+
+- Update virtualenv to higher than 20.26.6 ([#128](https://github.com/xability/py-maidr/pull/128),
+  [`a3052e1`](https://github.com/xability/py-maidr/commit/a3052e1a5e793950731cd31c7e5ec2707ba15e0b))
+
+### Documentation
+
+- Add box plot example to documentation with note on visual highlight feature
+  ([`4ad7362`](https://github.com/xability/py-maidr/commit/4ad7362d93529a7c5537e982e9275684f91cb99a))
+
+- Add Braille generation section with detailed encoding for various plot types
+  ([`62f4c07`](https://github.com/xability/py-maidr/commit/62f4c077807dd3575da04c18fcb443f10b251629))
+
+- Add link to original maidr engine repository for additional context
+  ([`bf71a01`](https://github.com/xability/py-maidr/commit/bf71a010b1a1c204f0a34b3b651b83724b0ce8c4))
+
+- Add link to Quarto scientific publishing system in reproducibility section
+  ([`c177c78`](https://github.com/xability/py-maidr/commit/c177c789373aa9c4399e523966204afcd69e4dcb))
+
+- Add note about "Unlabeled 0 Button" issue in Streamlit dashboard example
+  ([`12e35b7`](https://github.com/xability/py-maidr/commit/12e35b7853dff76d20815040029202f249dc8bee))
+
+- Add note to save and share accessible version of plot
+  ([`7a05f2b`](https://github.com/xability/py-maidr/commit/7a05f2b62fa12ba52c005c98806c265e881793bb))
+
+- Add section on requesting refreshable Braille display loaners
+  ([`e4efd56`](https://github.com/xability/py-maidr/commit/e4efd56766bfc9202972b371375016dd244b2f2a))
+
+- Add supported data visualization libraries section to documentation
+  ([`2f2b78e`](https://github.com/xability/py-maidr/commit/2f2b78e6685e2a6d7abc40d1e78739967fab872e))
+
+- Correct axis description for horizontal box plot in documentation
+  ([`ddd5e4c`](https://github.com/xability/py-maidr/commit/ddd5e4c9df620c1c707a296c5034a8f7768ad588))
+
+- Enable external link icons and new window behavior in Quarto configuration
+  ([`671e1c3`](https://github.com/xability/py-maidr/commit/671e1c3ee3cbec5ac0f2786ff0ecff507a748bcf))
+
+- Enhance documentation for Shiny and AI feature usage
+  ([`212f709`](https://github.com/xability/py-maidr/commit/212f709d487368133fe778b23440547cee180a49))
+
+- Enhance note formatting for clarity in AI model and chat modal sections
+  ([`dad1389`](https://github.com/xability/py-maidr/commit/dad138916bb5cb1c9cd5362f0ce7364c20457d68))
+
+- Update introduction to include link to original maidr engine repository
+  ([`5cbd7a0`](https://github.com/xability/py-maidr/commit/5cbd7a0ffe8aa19a78babf4cd069e4266a56bf31))
+
+- Update keyboard shortcuts section with detailed controls for maidr interaction
+  ([`dd3b79f`](https://github.com/xability/py-maidr/commit/dd3b79f633cb3c84125567c025d95aa169d0f0cf))
+
+- Update save function name for bar plot in documentation
+  ([`ead96c1`](https://github.com/xability/py-maidr/commit/ead96c17a99296d56e49b437139d808c3444b921))
+
+- Update Streamlit dashboard link in examples.qmd
+  ([`4c2bcc1`](https://github.com/xability/py-maidr/commit/4c2bcc1f1c0b1afa460465a44d03ae0204467041))
+
+
 ## v0.10.5 (2024-12-18)
 
 ### Bug Fixes
@@ -525,9 +600,7 @@ Bumps [black](https://github.com/psf/black) from 23.3.0 to 24.3.0. - [Release
   [Changelog](https://github.com/psf/black/blob/main/CHANGES.md) -
   [Commits](https://github.com/psf/black/compare/23.3.0...24.3.0)
 
---- updated-dependencies: - dependency-name: black dependency-type: direct:development
-
-...
+--- updated-dependencies: - dependency-name: black dependency-type: direct:development ...
 
 Signed-off-by: dependabot[bot] <support@github.com>
 
