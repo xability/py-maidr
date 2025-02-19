@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.11.0 (2025-02-19)
+
+### Chores
+
+- Update project metadata in pyproject.toml for version 0.10.6
+  ([`3f3dcc1`](https://github.com/xability/py-maidr/commit/3f3dcc11b7f616654b23e9f01242e39aa93f1dbc))
+
+- Update VSCode window title format to include activeEditorState
+  ([`6b84d53`](https://github.com/xability/py-maidr/commit/6b84d53bde194ed9564fa17e17fef723b9636718))
+
+### Features
+
+- Add dodged bar plot support along with an matplotlib example
+  ([#136](https://github.com/xability/py-maidr/pull/136),
+  [`81197ce`](https://github.com/xability/py-maidr/commit/81197cef9f32746a53545713c63bfb8963b25c27))
+
+
 ## v0.10.6 (2025-02-11)
 
 ### Bug Fixes
