@@ -144,6 +144,8 @@ class Maidr:
         for element in tree_svg.iter(tag="{http://www.w3.org/2000/svg}svg"):
             if "id" not in element.attrib:
                 element.attrib["id"] = Maidr._unique_id()
+            if "maidr" not in element.attrib:
+                element.attrib["maidr"] = json.dumps(self._flatten_maidr(), indent=2)
             root_svg = element
             self._set_maidr_id(element.attrib["id"])
             break
@@ -186,7 +188,6 @@ class Maidr:
             tags.body(
                 tags.div(plot),
             ),
-            tags.script(maidr),
         )
 
         def generate_iframe_script(unique_id: str) -> str:
