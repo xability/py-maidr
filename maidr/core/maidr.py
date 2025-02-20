@@ -142,10 +142,15 @@ class Maidr:
         root_svg = None
         # Find the `svg` tag and set unique id if not present else use it.
         for element in tree_svg.iter(tag="{http://www.w3.org/2000/svg}svg"):
+            _id = Maidr._unique_id()
+            self._set_maidr_id(_id)
             if "id" not in element.attrib:
-                element.attrib["id"] = Maidr._unique_id()
+                element.attrib["id"] = _id
+            if "maidr-data" not in element.attrib:
+                element.attrib["maidr-data"] = json.dumps(
+                    self._flatten_maidr(), indent=2
+                )
             root_svg = element
-            self._set_maidr_id(element.attrib["id"])
             break
 
         svg_buffer = io.StringIO()  # Reset the buffer
@@ -186,7 +191,6 @@ class Maidr:
             tags.body(
                 tags.div(plot),
             ),
-            tags.script(maidr),
         )
 
         def generate_iframe_script(unique_id: str) -> str:
