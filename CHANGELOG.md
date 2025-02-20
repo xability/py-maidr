@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.12.0 (2025-02-20)
+
+### Chores
+
+- **vscode**: Add Copilot instructions and update VSCode settings for code generation
+  ([`27f96fc`](https://github.com/xability/py-maidr/commit/27f96fc3351971fc9dc70c5ea03bb2ecf0e71084))
+
+### Features
+
+- Add 'maidr-data' attribute to SVG elements ([#138](https://github.com/xability/py-maidr/pull/138),
+  [`25d2ee3`](https://github.com/xability/py-maidr/commit/25d2ee31d6f21054d6c3b907edcc194fd7370028))
+
+
 ## v0.11.0 (2025-02-19)
 
 ### Chores
