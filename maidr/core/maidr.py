@@ -9,7 +9,6 @@ import webbrowser
 from typing import Literal
 
 from htmltools import HTML, HTMLDocument, Tag, tags
-from IPython.display import Javascript, display
 from lxml import etree
 from matplotlib.figure import Figure
 
@@ -94,8 +93,6 @@ class Maidr:
             Environment.is_interactive_shell() and not Environment.is_notebook()
         ):
             return self._open_plot_in_browser()
-        if Environment.is_notebook():
-            Javascript("Jupyter.keyboard_manager.disable();")
         return html.show(renderer)
 
     def clear(self):
@@ -192,6 +189,7 @@ class Maidr:
     @staticmethod
     def _inject_plot(plot: HTML, maidr: str, maidr_id) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
+
         script_check = f"""
             function initializeMaidr(maidrId) {{
                 if (window.init) {{
@@ -220,5 +218,62 @@ class Maidr:
             tags.script(script_check, type="text/javascript"),
             tags.div(plot),
         )
+
+        # Render the plot inside an iframe if in a Jupyter notebook Or Google Colab
+        if Environment.is_notebook():
+
+            unique_id = "iframe_" + Maidr._unique_id()
+
+            def generate_iframe_script(unique_id: str) -> str:
+                resizing_script = f"""
+                    function resizeIframe() {{
+                        let iframe = document.getElementById('{unique_id}');
+                        if (
+                            iframe && iframe.contentWindow &&
+                            iframe.contentWindow.document
+                        ) {{
+                            let iframeDocument = iframe.contentWindow.document;
+                            let brailleContainer =
+                                iframeDocument.getElementById('braille-input');
+                            iframe.style.height = 'auto';
+                            let height = iframeDocument.body.scrollHeight;
+                            if (brailleContainer &&
+                                brailleContainer === iframeDocument.activeElement
+                            ) {{
+                                height += 100;
+                            }}else{{
+                                height += 50
+                            }}
+                            iframe.style.height = (height) + 'px';
+                            iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+                        }}
+                    }}
+                    let iframe = document.getElementById('{unique_id}');
+                    resizeIframe();
+                    iframe.onload = function() {{
+                        resizeIframe();
+                        iframe.contentWindow.addEventListener('resize', resizeIframe);
+                    }};
+                    iframe.contentWindow.document.addEventListener('focusin', () => {{
+                        resizeIframe();
+                    }});
+                    iframe.contentWindow.document.addEventListener('focusout', () => {{
+                        resizeIframe();
+                    }});
+                """
+                return resizing_script
+
+            resizing_script = generate_iframe_script(unique_id)
+
+            base_html = tags.iframe(
+                id=unique_id,
+                srcdoc=str(base_html.get_html_string()),
+                width="100%",
+                height="100%",
+                scrolling="no",
+                style="background-color: #fff; position: relative; border: none",
+                frameBorder=0,
+                onload=resizing_script,
+            )
 
         return base_html
