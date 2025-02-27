@@ -221,7 +221,6 @@ class Maidr:
 
         # Render the plot inside an iframe if in a Jupyter notebook Or Google Colab
         if Environment.is_notebook():
-
             unique_id = "iframe_" + Maidr._unique_id()
 
             def generate_iframe_script(unique_id: str) -> str:
