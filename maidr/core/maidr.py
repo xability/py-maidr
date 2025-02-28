@@ -219,8 +219,11 @@ class Maidr:
             tags.div(plot),
         )
 
-        # Render the plot inside an iframe if in a Jupyter notebook Or Google Colab
-        if Environment.is_notebook():
+        is_quarto = os.getenv("IS_QUARTO") == "True"
+
+        # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
+        # or VSCode notebook. No need for iframe if this is a Quarto document.
+        if Environment.is_notebook() and not is_quarto:
             unique_id = "iframe_" + Maidr._unique_id()
 
             def generate_iframe_script(unique_id: str) -> str:
