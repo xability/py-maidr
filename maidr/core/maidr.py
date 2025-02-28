@@ -202,11 +202,13 @@ class Maidr:
                 script.type = 'text/javascript';
                 script.src = 'https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js';
                 script.addEventListener('load', function() {{
-                    initializeMaidr("{maidr_id}");
+                    window.init("{maidr_id}");
                 }});
                 document.head.appendChild(script);
             }} else {{
-                initializeMaidr("{maidr_id}");
+                document.addEventListener('DOMContentLoaded', function (e) {{
+                    window.init("{maidr_id}");
+                }});
             }}
         """
 
