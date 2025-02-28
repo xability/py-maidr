@@ -13,6 +13,7 @@ from lxml import etree
 from matplotlib.figure import Figure
 
 from maidr.core.context_manager import HighlightContextManager
+from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
 from maidr.util.environment import Environment
 
@@ -42,6 +43,7 @@ class Maidr:
         """Create a new Maidr for the given ``matplotlib.figure.Figure``."""
         self._fig = fig
         self._plots = []
+        self.maidr_id = None
 
     @property
     def fig(self) -> Figure:
@@ -119,8 +121,11 @@ class Maidr:
             svg = self._get_svg()
         maidr = f"\nlet maidr = {json.dumps(self._flatten_maidr(), indent=2)}\n"
 
+        # In SVG we will replace maidr=id with the unique id.
+        svg = svg.replace('maidr="true"', f'maidr="{self.maidr_id}"')
+
         # Inject plot's svg and MAIDR structure into html tag.
-        return Maidr._inject_plot(svg, maidr)
+        return Maidr._inject_plot(svg, maidr, self.maidr_id)
 
     def _create_html_doc(self) -> HTMLDocument:
         """Create an HTML document from Tag objects."""
@@ -129,6 +134,14 @@ class Maidr:
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
         maidr = [plot.schema for plot in self._plots]
+
+        # Replace the selector having maidr='true' with maidr={self.maidr_id}
+        for plot in maidr:
+            if MaidrKey.SELECTOR in plot:
+                plot[MaidrKey.SELECTOR] = plot[MaidrKey.SELECTOR].replace(
+                    "maidr='true'", f"maidr='{self.maidr_id}'"
+                )
+
         return maidr if len(maidr) != 1 else maidr[0]
 
     def _get_svg(self) -> HTML:
@@ -164,6 +177,7 @@ class Maidr:
 
     def _set_maidr_id(self, maidr_id: str) -> None:
         """Set a unique identifier to each ``MaidrPlot``."""
+        self.maidr_id = maidr_id
         for maidr in self._plots:
             maidr.set_id(maidr_id)
 
@@ -173,77 +187,95 @@ class Maidr:
         return str(uuid.uuid4())
 
     @staticmethod
-    def _inject_plot(plot: HTML, maidr: str) -> Tag:
+    def _inject_plot(plot: HTML, maidr: str, maidr_id) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
-        base_html = tags.html(
-            tags.head(
-                tags.meta(charset="UTF-8"),
-                tags.title("MAIDR"),
-                tags.link(
-                    rel="stylesheet",
-                    href="https://cdn.jsdelivr.net/npm/maidr/dist/maidr_style.min.css",
-                ),
-                tags.script(
-                    type="text/javascript",
-                    src="https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js",
-                ),
-            ),
-            tags.body(
-                tags.div(plot),
-            ),
-        )
 
-        def generate_iframe_script(unique_id: str) -> str:
-            resizing_script = f"""
-                function resizeIframe() {{
-                    let iframe = document.getElementById('{unique_id}');
-
-                    if (iframe && iframe.contentWindow && iframe.contentWindow.document) {{
-                        let iframeDocument = iframe.contentWindow.document;
-                        let brailleContainer = iframeDocument.getElementById('braille-input');
-
-                        iframe.style.height = 'auto';
-
-                        let height = iframeDocument.body.scrollHeight;
-                        if (brailleContainer && brailleContainer === iframeDocument.activeElement) {{
-                            height += 100;
-                        }}else{{
-                            height += 50
-                        }}
-
-                        iframe.style.height = (height) + 'px';
-                        iframe.style.width = iframeDocument.body.scrollWidth + 'px';
-                    }}
+        script_check = f"""
+            function initializeMaidr(maidrId) {{
+                if (window.init) {{
+                    window.init(maidrId);
                 }}
-                let iframe = document.getElementById('{unique_id}');
-                resizeIframe();
-                iframe.onload = function() {{
-                    resizeIframe();
-                    iframe.contentWindow.addEventListener('resize', resizeIframe);
-                }};
-                iframe.contentWindow.document.addEventListener('focusin', () => {{
-                    resizeIframe();
+            }}
+
+            if (!document.querySelector('script[src="https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js"]')) {{
+                var script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = 'https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js';
+                script.addEventListener('load', function() {{
+                    initializeMaidr("{maidr_id}");
                 }});
-                iframe.contentWindow.document.addEventListener('focusout', () => {{
-                    resizeIframe();
-                }});
-            """
-            return resizing_script
+                document.head.appendChild(script);
+            }} else {{
+                initializeMaidr("{maidr_id}");
+            }}
+        """
 
-        unique_id = "iframe_" + Maidr._unique_id()
-
-        resizing_script = generate_iframe_script(unique_id)
-
-        # Embed the rendering into an iFrame for proper working of JS library.
-        base_html = tags.iframe(
-            id=unique_id,
-            srcdoc=str(base_html.get_html_string()),
-            width="100%",
-            height="100%",
-            scrolling="no",
-            style="background-color: #fff; position: relative; border: none",
-            frameBorder=0,
-            onload=resizing_script,
+        base_html = tags.div(
+            tags.link(
+                rel="stylesheet",
+                href="https://cdn.jsdelivr.net/npm/maidr/dist/maidr_style.min.css",
+            ),
+            tags.script(script_check, type="text/javascript"),
+            tags.div(plot),
         )
+
+        is_quarto = os.getenv("IS_QUARTO") == "True"
+
+        # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
+        # or VSCode notebook. No need for iframe if this is a Quarto document.
+        if Environment.is_notebook() and not is_quarto:
+            unique_id = "iframe_" + Maidr._unique_id()
+
+            def generate_iframe_script(unique_id: str) -> str:
+                resizing_script = f"""
+                    function resizeIframe() {{
+                        let iframe = document.getElementById('{unique_id}');
+                        if (
+                            iframe && iframe.contentWindow &&
+                            iframe.contentWindow.document
+                        ) {{
+                            let iframeDocument = iframe.contentWindow.document;
+                            let brailleContainer =
+                                iframeDocument.getElementById('braille-input');
+                            iframe.style.height = 'auto';
+                            let height = iframeDocument.body.scrollHeight;
+                            if (brailleContainer &&
+                                brailleContainer === iframeDocument.activeElement
+                            ) {{
+                                height += 100;
+                            }}else{{
+                                height += 50
+                            }}
+                            iframe.style.height = (height) + 'px';
+                            iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+                        }}
+                    }}
+                    let iframe = document.getElementById('{unique_id}');
+                    resizeIframe();
+                    iframe.onload = function() {{
+                        resizeIframe();
+                        iframe.contentWindow.addEventListener('resize', resizeIframe);
+                    }};
+                    iframe.contentWindow.document.addEventListener('focusin', () => {{
+                        resizeIframe();
+                    }});
+                    iframe.contentWindow.document.addEventListener('focusout', () => {{
+                        resizeIframe();
+                    }});
+                """
+                return resizing_script
+
+            resizing_script = generate_iframe_script(unique_id)
+
+            base_html = tags.iframe(
+                id=unique_id,
+                srcdoc=str(base_html.get_html_string()),
+                width="100%",
+                height="100%",
+                scrolling="no",
+                style="background-color: #fff; position: relative; border: none",
+                frameBorder=0,
+                onload=resizing_script,
+            )
 
         return base_html

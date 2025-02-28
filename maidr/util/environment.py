@@ -30,6 +30,17 @@ class Environment:
             return False
 
     @staticmethod
+    def is_vscode_notebook() -> bool:
+        """Return True if the environment is a VSCode notebook."""
+        try:
+            if "VSCODE_PID" in os.environ or "VSCODE_JUPYTER" in os.environ:
+                return True
+            else:
+                return False
+        except ImportError:
+            return False
+
+    @staticmethod
     def get_renderer() -> str:
         """Return renderer which can be ipython or browser."""
         try:
