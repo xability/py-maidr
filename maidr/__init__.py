@@ -1,4 +1,4 @@
-__version__ = "0.12.1"
+__version__ = "0.12.2"
 
 from .core import Maidr
 from .core.enum import PlotType

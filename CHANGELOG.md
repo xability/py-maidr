@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.12.2 (2025-02-28)
+
+### Bug Fixes
+
+- Update initialization method to use window.init on DOMContentLoaded
+  ([#140](https://github.com/xability/py-maidr/pull/140),
+  [`8bfd8fd`](https://github.com/xability/py-maidr/commit/8bfd8fdfbb0f027d8e91645b6cc056c9c65ad9bf))
+
+
 ## v0.12.1 (2025-02-28)
 
 ### Bug Fixes
