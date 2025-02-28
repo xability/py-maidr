@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.12.1 (2025-02-28)
+
+### Bug Fixes
+
+- Remove iframe in support of iframeless rendering
+  ([#139](https://github.com/xability/py-maidr/pull/139),
+  [`cf7cc26`](https://github.com/xability/py-maidr/commit/cf7cc265edfdeb54e28c869f7a14a88203cf95d7))
+
+
 ## v0.12.0 (2025-02-20)
 
 ### Chores
