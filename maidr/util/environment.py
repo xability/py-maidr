@@ -4,7 +4,6 @@ from typing import Literal
 
 
 class Environment:
-
     _engine = "js"
 
     @classmethod
