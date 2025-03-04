@@ -6,6 +6,7 @@ from matplotlib.container import BarContainer
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
+from maidr.util.environment import Environment
 from maidr.util.mixin import (
     ContainerExtractorMixin,
     DictMergerMixin,
@@ -18,18 +19,34 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         super().__init__(ax, PlotType.BAR)
 
     def _extract_axes_data(self) -> dict:
+        engine = Environment.get_engine()
+
         base_schema = super()._extract_axes_data()
-        bar_ax_schema = {
-            MaidrKey.X: {
-                MaidrKey.LEVEL: self.extract_level(self.ax),
-            },
-        }
+        bar_ax_schema = {}
+        if engine == "js":
+            bar_ax_schema = {
+                MaidrKey.X: {
+                    MaidrKey.LEVEL: self.extract_level(self.ax),
+                },
+            }
         return self.merge_dict(base_schema, bar_ax_schema)
 
     def _extract_plot_data(self) -> list:
+        engine = Environment.get_engine()
         plot = self.extract_container(self.ax, BarContainer, include_all=True)
         data = self._extract_bar_container_data(plot)
-
+        levels = self.extract_level(self.ax)
+        if engine == "ts":
+            formattedData = []
+            combined_data = (
+                zip(levels, data) if plot[0].orientation == "vertical" else zip(levels, data)  # type: ignore
+            )
+            if len(data) != len(plot):  # type: ignore
+                for x, y in combined_data:  # type: ignore
+                    formattedData.append({"x": x, "y": y})
+                return formattedData
+            if len(formattedData) == 0:
+                raise ExtractionError(self.type, plot)
         if data is None:
             raise ExtractionError(self.type, plot)
 

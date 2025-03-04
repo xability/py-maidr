@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Any
+from typing import Any, Literal
 
 from htmltools import Tag
 from matplotlib.axes import Axes
@@ -9,6 +9,7 @@ from matplotlib.container import BarContainer
 from maidr.core import Maidr
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.util.environment import Environment
 
 
 def render(plot: Any) -> Tag:
@@ -39,3 +40,7 @@ def stacked(plot: Axes | BarContainer) -> Maidr:
 def close(plot: Any) -> None:
     ax = FigureManager.get_axes(plot)
     FigureManager.destroy(ax.get_figure())
+
+
+def set_engine(engine: Literal["js", "ts"] = "js"):
+    Environment._set_engine(engine=engine)

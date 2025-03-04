@@ -1,5 +1,6 @@
 __version__ = "0.12.2"
 
+from .api import close, render, save_html, set_engine, show, stacked
 from .core import Maidr
 from .core.enum import PlotType
 from .patch import (
@@ -12,7 +13,6 @@ from .patch import (
     lineplot,
     scatterplot,
 )
-from .api import close, render, save_html, show, stacked
 
 __all__ = [
     "close",

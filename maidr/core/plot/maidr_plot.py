@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
+from maidr.util.environment import Environment
 
 
 class MaidrPlot(ABC):
@@ -65,6 +67,9 @@ class MaidrPlot(ABC):
 
     def _extract_axes_data(self) -> dict:
         """Extract the plot's axes data"""
+        engine = Environment.get_engine()
+        if engine == "ts":
+            return {MaidrKey.X: self.ax.get_xlabel(), MaidrKey.Y: self.ax.get_ylabel()}
         return {
             MaidrKey.X: {
                 MaidrKey.LABEL: self.ax.get_xlabel(),
