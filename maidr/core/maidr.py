@@ -195,7 +195,7 @@ class Maidr:
 
         engine = Environment.get_engine()
 
-        MAIDR_TS_CDN_URL = ""  # Have to update this once we have the CDN URL
+        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr-ts/dist/maidr.js"
 
         maidr_js_script = f"""
             if (!document.querySelector('script[src="https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js"]')) {{
