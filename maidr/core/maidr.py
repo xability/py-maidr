@@ -207,9 +207,7 @@ class Maidr:
                 }});
                 document.head.appendChild(script);
             }} else {{
-                document.addEventListener('DOMContentLoaded', function (e) {{
-                    window.init("{maidr_id}");
-                }});
+                window.init("{maidr_id}");
             }}
         """
 
