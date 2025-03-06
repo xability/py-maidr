@@ -78,7 +78,10 @@ class Maidr:
         html = self._create_html_doc()
         return html.save_html(file, libdir=lib_dir, include_version=include_version)
 
-    def show(self, renderer: Literal["auto", "ipython", "browser"] = "auto") -> object:
+    def show(
+        self,
+        renderer: Literal["auto", "ipython", "browser"] = "auto",
+    ) -> object:
         """
         Preview the HTML content using the specified renderer.
 
@@ -190,13 +193,11 @@ class Maidr:
     def _inject_plot(plot: HTML, maidr: str, maidr_id) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
 
-        script_check = f"""
-            function initializeMaidr(maidrId) {{
-                if (window.init) {{
-                    window.init(maidrId);
-                }}
-            }}
+        engine = Environment.get_engine()
 
+        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr-ts/dist/maidr.js"
+
+        maidr_js_script = f"""
             if (!document.querySelector('script[src="https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js"]')) {{
                 var script = document.createElement('script');
                 script.type = 'text/javascript';
@@ -210,12 +211,31 @@ class Maidr:
             }}
         """
 
+        maidr_ts_script = f"""
+            if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
+            {{
+                var script = document.createElement('script');
+                script.type = 'module';
+                script.src = '{MAIDR_TS_CDN_URL}';
+                script.addEventListener('load', function() {{
+                    window.main();
+                }});
+                document.head.appendChild(script);
+            }} else {{
+                document.addEventListener('DOMContentLoaded', function (e) {{
+                    window.main();
+                }});
+            }}
+        """
+
+        script = maidr_js_script if engine == "js" else maidr_ts_script
+
         base_html = tags.div(
             tags.link(
                 rel="stylesheet",
                 href="https://cdn.jsdelivr.net/npm/maidr/dist/maidr_style.min.css",
             ),
-            tags.script(script_check, type="text/javascript"),
+            tags.script(script, type="text/javascript"),
             tags.div(plot),
         )
 
@@ -223,7 +243,10 @@ class Maidr:
 
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
-        if Environment.is_notebook() and not is_quarto:
+        # For TypeScript we will use iframe by default for now
+        if (Environment.is_notebook() and not is_quarto) or (
+            engine == "ts" and Environment.is_notebook()
+        ):
             unique_id = "iframe_" + Maidr._unique_id()
 
             def generate_iframe_script(unique_id: str) -> str:
