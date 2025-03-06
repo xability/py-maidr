@@ -6,6 +6,7 @@ from matplotlib.lines import Line2D
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
+from maidr.util.environment import Environment
 from maidr.util.mixin import LineExtractorMixin
 
 
@@ -19,6 +20,9 @@ class LinePlot(MaidrPlot, LineExtractorMixin):
     def _extract_plot_data(self) -> list[dict]:
         plot = self.extract_line(self.ax)
         data = self._extract_line_data(plot)
+        engine = Environment.get_engine()
+        if engine == "ts":
+            data = [data]
 
         if data is None:
             raise ExtractionError(self.type, plot)

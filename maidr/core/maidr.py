@@ -44,6 +44,7 @@ class Maidr:
         self._fig = fig
         self._plots = []
         self.maidr_id = None
+        self.selector_id = Maidr._unique_id()
 
     @property
     def fig(self) -> Figure:
@@ -125,7 +126,7 @@ class Maidr:
         maidr = f"\nlet maidr = {json.dumps(self._flatten_maidr(), indent=2)}\n"
 
         # In SVG we will replace maidr=id with the unique id.
-        svg = svg.replace('maidr="true"', f'maidr="{self.maidr_id}"')
+        svg = svg.replace('maidr="true"', f'maidr="{self.selector_id}"')
 
         # Inject plot's svg and MAIDR structure into html tag.
         return Maidr._inject_plot(svg, maidr, self.maidr_id)
@@ -142,7 +143,7 @@ class Maidr:
         for plot in maidr:
             if MaidrKey.SELECTOR in plot:
                 plot[MaidrKey.SELECTOR] = plot[MaidrKey.SELECTOR].replace(
-                    "maidr='true'", f"maidr='{self.maidr_id}'"
+                    "maidr='true'", f"maidr='{self.selector_id}'"
                 )
 
         return maidr if len(maidr) != 1 else maidr[0]
