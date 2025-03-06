@@ -244,7 +244,9 @@ class Maidr:
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
         # For TypeScript we will use iframe by default for now
-        if (Environment.is_notebook() and not is_quarto) or engine == "ts":
+        if (Environment.is_notebook() and not is_quarto) or (
+            engine == "ts" and Environment.is_notebook()
+        ):
             unique_id = "iframe_" + Maidr._unique_id()
 
             def generate_iframe_script(unique_id: str) -> str:
