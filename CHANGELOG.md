@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.12.3 (2025-03-06)
+
+### Bug Fixes
+
+- Address pyshiny initialization in maidr ([#142](https://github.com/xability/py-maidr/pull/142),
+  [`c22fff6`](https://github.com/xability/py-maidr/commit/c22fff61b407e87c2e17c59d26a945422625f6e7))
+
+
 ## v0.12.2 (2025-02-28)
 
 ### Bug Fixes
