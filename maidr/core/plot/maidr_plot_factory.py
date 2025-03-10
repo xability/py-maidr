@@ -39,7 +39,7 @@ class MaidrPlotFactory:
         elif PlotType.HIST == plot_type:
             return HistPlot(ax)
         elif PlotType.LINE == plot_type:
-            return LinePlot(ax)
+            return LinePlot(ax, **kwargs)
         elif PlotType.SCATTER == plot_type:
             return ScatterPlot(ax)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
