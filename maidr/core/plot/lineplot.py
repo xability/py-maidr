@@ -11,7 +11,7 @@ from maidr.util.mixin import LineExtractorMixin
 
 
 class LinePlot(MaidrPlot, LineExtractorMixin):
-    def __init__(self, ax: Axes, **kwargs) -> None:
+    def __init__(self, ax: Axes) -> None:
         super().__init__(ax, PlotType.LINE)
 
     def _get_selector(self) -> str:

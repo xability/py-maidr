@@ -40,7 +40,7 @@ class Maidr:
         Displays the rendered HTML content in the specified rendering context.
     """
 
-    def __init__(self, fig: Figure, plot_type: PlotType) -> None:
+    def __init__(self, fig: Figure, plot_type: PlotType = PlotType.LINE) -> None:
         """Create a new Maidr for the given ``matplotlib.figure.Figure``."""
         self._fig = fig
         self._plots = []
