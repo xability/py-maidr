@@ -26,9 +26,9 @@ y3 = np.array([3, 1, 4, 6, 5, 2, 4, 5])
 plt.figure(figsize=(10, 6))
 
 # Plot multiple lines with different styles and markers
-lineplot = plt.plot(x, y1, "bo-", label="Series 1", linewidth=2, markersize=8)
-lineplot = plt.plot(x, y2, "rs--", label="Series 2", linewidth=2, markersize=8)
-lineplot = plt.plot(x, y3, "g^:", label="Series 3", linewidth=2, markersize=8)
+lineplot = plt.plot(x, y1, "bo-", linewidth=2, markersize=8)
+lineplot = plt.plot(x, y2, "rs--", linewidth=2, markersize=8)
+lineplot = plt.plot(x, y3, "g^:", linewidth=2, markersize=8)
 
 # lineplot = plt.plot(x, y1, "bo-", label="Series 1", linewidth=2, markersize=8)
 

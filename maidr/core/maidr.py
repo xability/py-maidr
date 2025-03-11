@@ -139,7 +139,7 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
-        if self.plot_type == PlotType.MULTILINE:
+        if self.plot_type == PlotType.LINE:
             self._plots = [self._plots[0]]
         maidr = [plot.schema for plot in self._plots]
 

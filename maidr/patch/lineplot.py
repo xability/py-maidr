@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import inspect
-
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -30,21 +28,7 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     Axes | list[Line2D]
         The result of the wrapped function after processing
     """
-    plot_type = PlotType.LINE
-
-    # Check if this is matplotlib's plot with a label (multiline)
-    if "label" in kwargs:
-        plot_type = PlotType.MULTILINE
-
-    if "hue" in kwargs:
-        plot_type = PlotType.MULTILINE
-    # Check for multiple y columns case
-    elif "data" in kwargs and "y" in kwargs:
-        # If y is a list or contains multiple columns, it's a multiline plot
-        y_param = kwargs.get("y")
-        if isinstance(y_param, list) and len(y_param) > 1:
-            plot_type = PlotType.MULTILINE
-    return common(plot_type, wrapped, instance, args, kwargs)
+    return common(PlotType.LINE, wrapped, instance, args, kwargs)
 
 
 # Patch matplotlib function.
