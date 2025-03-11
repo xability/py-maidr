@@ -8,7 +8,7 @@ from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.histogram import HistPlot
-from maidr.core.plot.lineplot import LinePlot
+from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 
@@ -39,7 +39,7 @@ class MaidrPlotFactory:
         elif PlotType.HIST == plot_type:
             return HistPlot(ax)
         elif PlotType.LINE == plot_type:
-            return LinePlot(ax)
+            return MultiLinePlot(ax)
         elif PlotType.SCATTER == plot_type:
             return ScatterPlot(ax)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:

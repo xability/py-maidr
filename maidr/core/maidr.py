@@ -14,6 +14,7 @@ from matplotlib.figure import Figure
 
 from maidr.core.context_manager import HighlightContextManager
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.util.environment import Environment
 
@@ -39,12 +40,13 @@ class Maidr:
         Displays the rendered HTML content in the specified rendering context.
     """
 
-    def __init__(self, fig: Figure) -> None:
+    def __init__(self, fig: Figure, plot_type: PlotType = PlotType.LINE) -> None:
         """Create a new Maidr for the given ``matplotlib.figure.Figure``."""
         self._fig = fig
         self._plots = []
         self.maidr_id = None
         self.selector_id = Maidr._unique_id()
+        self.plot_type = plot_type
 
     @property
     def fig(self) -> Figure:
@@ -137,6 +139,8 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
+        if self.plot_type == PlotType.LINE:
+            self._plots = [self._plots[0]]
         maidr = [plot.schema for plot in self._plots]
 
         # Replace the selector having maidr='true' with maidr={self.maidr_id}
