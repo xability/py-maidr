@@ -61,7 +61,6 @@ class FigureManager:
         maidr = cls._get_maidr(ax.get_figure(), plot_type)
         plot = MaidrPlotFactory.create(ax, plot_type, **kwargs)
         maidr.plots.append(plot)
-        print(maidr.plots)
         return maidr
 
     @classmethod

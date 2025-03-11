@@ -12,7 +12,6 @@ def common(plot_type, wrapped, _, args, kwargs) -> Any:
     warnings.filterwarnings("ignore")
 
     # Don't proceed if the call is made internally by the patched function.
-    print(ContextManager.is_internal_context())
     if ContextManager.is_internal_context():
         return wrapped(*args, **kwargs)
 
