@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.15.0 (2025-03-11)
+
+### Features
+
+- Support multiline plot in maidr-ts ([#144](https://github.com/xability/py-maidr/pull/144),
+  [`3f2cf85`](https://github.com/xability/py-maidr/commit/3f2cf85be773949f5fbe874781c14851a9e27f62))
+
+
 ## v0.14.0 (2025-03-10)
 
 ### Features
