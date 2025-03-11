@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.14.0 (2025-03-10)
+
+### Features
+
+- Support py-maidr lineplot on maidr-ts ([#143](https://github.com/xability/py-maidr/pull/143),
+  [`d03e240`](https://github.com/xability/py-maidr/commit/d03e240598872b04103e88f20444320749bc15e6))
+
+
+## v0.13.0 (2025-03-06)
+
+### Features
+
+- Add typescript maidr engine support for bar plot
+  ([#141](https://github.com/xability/py-maidr/pull/141),
+  [`0e21779`](https://github.com/xability/py-maidr/commit/0e21779a414335327dc41c0df8c6147a0cd341cc))
+
+
 ## v0.12.3 (2025-03-06)
 
 ### Bug Fixes
