@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Any
+
 import threading
+from typing import Any
 
 from matplotlib.artist import Artist
 from matplotlib.axes import Axes
@@ -57,17 +58,17 @@ class FigureManager:
             raise ValueError(f"No figure found for axis: {ax}.")
 
         # Add plot to the Maidr object associated with the plot's figure.
-        maidr = cls._get_maidr(ax.get_figure())
+        maidr = cls._get_maidr(ax.get_figure(), plot_type)
         plot = MaidrPlotFactory.create(ax, plot_type, **kwargs)
         maidr.plots.append(plot)
-
+        print(maidr.plots)
         return maidr
 
     @classmethod
-    def _get_maidr(cls, fig: Figure) -> Maidr:
+    def _get_maidr(cls, fig: Figure, plot_type: PlotType) -> Maidr:
         """Retrieve or create a Maidr instance for the given Figure."""
         if fig not in cls.figs.keys():
-            cls.figs[fig] = Maidr(fig)
+            cls.figs[fig] = Maidr(fig, plot_type)
         return cls.figs[fig]
 
     @classmethod

@@ -9,10 +9,10 @@ from maidr.patch.common import common
 
 
 def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
-    optional_args = {}
+    plot_type = PlotType.LINE
     if "label" in kwargs:
-        optional_args["label"] = kwargs["label"]
-    return common(PlotType.LINE, wrapped, instance, args, optional_args)
+        plot_type = PlotType.MULTILINE
+    return common(plot_type, wrapped, instance, args, kwargs)
 
 
 # Patch matplotlib function.

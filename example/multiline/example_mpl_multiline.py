@@ -3,6 +3,8 @@ import numpy as np
 
 import maidr
 
+# import maidr
+
 """
 Creates a multiline plot showing basic data trends.
 
@@ -28,11 +30,12 @@ lineplot = plt.plot(x, y1, "bo-", label="Series 1", linewidth=2, markersize=8)
 lineplot = plt.plot(x, y2, "rs--", label="Series 2", linewidth=2, markersize=8)
 lineplot = plt.plot(x, y3, "g^:", label="Series 3", linewidth=2, markersize=8)
 
+# lineplot = plt.plot(x, y1, "bo-", label="Series 1", linewidth=2, markersize=8)
+
 # Customize the plot
 plt.title("Basic Multiline Plot")
 plt.xlabel("X values")
 plt.ylabel("Y values")
-plt.grid(True)
 plt.legend()
 
 # Display the plot

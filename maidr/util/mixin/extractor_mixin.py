@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Any
 
 from matplotlib.axes import Axes
@@ -63,6 +64,16 @@ class LineExtractorMixin:
         # Since the upstream MaidrJS library currently supports only the last plot line,
         # `maidr` package supports the same.
         return ax.get_lines()[-1]
+
+    @staticmethod
+    def extract_lines(ax: Axes) -> list[Line2D] | None:
+        """Retrieve the last line object from Axes, if available."""
+        if ax is None or ax.get_lines() is None:
+            return None
+
+        # Since the upstream MaidrJS library currently supports only the last plot line,
+        # `maidr` package supports the same.
+        return ax.get_lines()
 
 
 class CollectionExtractorMixin:

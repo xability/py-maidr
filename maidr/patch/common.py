@@ -6,14 +6,13 @@ from typing import Any
 from maidr.core.context_manager import ContextManager
 from maidr.core.figure_manager import FigureManager
 
-maidrs = []
-
 
 def common(plot_type, wrapped, _, args, kwargs) -> Any:
     # Suppress warnings not to confuse screen-reader users
     warnings.filterwarnings("ignore")
 
     # Don't proceed if the call is made internally by the patched function.
+    print(ContextManager.is_internal_context())
     if ContextManager.is_internal_context():
         return wrapped(*args, **kwargs)
 
@@ -24,10 +23,6 @@ def common(plot_type, wrapped, _, args, kwargs) -> Any:
 
     # Extract the data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)
-    if len(maidrs) == 0:
-        maidr = FigureManager.create_maidr(ax, plot_type, **kwargs)
-        maidrs.append(maidr)
-    else:
-        print(maidrs[0])
+    FigureManager.create_maidr(ax, plot_type, **kwargs)
 
     return plot
