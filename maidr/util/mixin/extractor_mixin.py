@@ -67,7 +67,7 @@ class LineExtractorMixin:
 
     @staticmethod
     def extract_lines(ax: Axes) -> list[Line2D] | None:
-        """Retrieve the last line object from Axes, if available."""
+        """Retrieve all line objects from Axes, if available."""
         if ax is None or ax.get_lines() is None:
             return None
 

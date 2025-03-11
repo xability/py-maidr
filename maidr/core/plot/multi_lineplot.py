@@ -19,9 +19,6 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
     def _extract_plot_data(self) -> list[dict]:
         plot = self.extract_lines(self.ax)
         data = self._extract_line_data(plot)
-        engine = Environment.get_engine()
-        if engine == "ts":
-            data = [data]
 
         if data is None:
             raise ExtractionError(self.type, plot)
@@ -66,6 +63,6 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 for x, y in line.get_xydata()  # type: ignore
             ]
 
-            all_line_data.extend(line_data)
+            all_line_data.append(line_data)
 
         return all_line_data if all_line_data else None
