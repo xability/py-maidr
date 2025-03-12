@@ -149,8 +149,9 @@ class Maidr:
                 plot[MaidrKey.SELECTOR] = plot[MaidrKey.SELECTOR].replace(
                     "maidr='true'", f"maidr='{self.selector_id}'"
                 )
-
-        # return maidr if len(maidr) != 1 else maidr[0]
+        engine = Environment.get_engine()
+        if engine == "js":
+            return maidr if len(maidr) != 1 else maidr[0]
         return {
             "id": Maidr._unique_id(),
             "panels": [[{"id": Maidr._unique_id(), "layers": maidr}]],
