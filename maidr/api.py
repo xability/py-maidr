@@ -25,7 +25,7 @@ def show(plot: Any, renderer: Literal["auto", "ipython", "browser"] = "auto") ->
         for axes in ax:
             maidr = FigureManager.get_maidr(axes.get_figure())
             htmls.append(maidr.render())
-        htmls[-1].show(renderer)
+        return htmls[-1].show(renderer)
     else:
         maidr = FigureManager.get_maidr(ax.get_figure())
         return maidr.show(renderer)

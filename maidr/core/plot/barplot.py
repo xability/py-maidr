@@ -38,8 +38,8 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         levels = self.extract_level(self.ax)
         if engine == "ts":
             formatted_data = []
-            combined_data = (
-                zip(levels, data) if plot[0].orientation == "vertical" else zip(levels, data)  # type: ignore
+            combined_data = list(
+                zip(levels, data) if plot[0].orientation == "vertical" else zip(data, levels)  # type: ignore
             )
             if combined_data:  # type: ignore
                 for x, y in combined_data:  # type: ignore

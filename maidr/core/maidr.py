@@ -139,7 +139,7 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
-        if self.plot_type == PlotType.LINE or self.plot_type == PlotType.DODGED:
+        if self.plot_type in (PlotType.LINE, PlotType.DODGED, PlotType.STACKED):
             self._plots = [self._plots[0]]
         maidr = [plot.schema for plot in self._plots]
 
@@ -205,8 +205,8 @@ class Maidr:
 
         engine = Environment.get_engine()
 
-        # MAIDR_TS_CDN_URL = "http://localhost:8000/maidr.js" # DEMO URL
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr-ts/dist/maidr.js"
+        MAIDR_TS_CDN_URL = "http://localhost:8080/maidr.js"  # DEMO URL
+        # MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr-ts/dist/maidr.js"
 
         maidr_js_script = f"""
             if (!document.querySelector('script[src="https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js"]')) {{
