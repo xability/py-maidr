@@ -20,31 +20,16 @@ def render(plot: Any) -> Tag:
 
 def show(plot: Any, renderer: Literal["auto", "ipython", "browser"] = "auto") -> object:
     ax = FigureManager.get_axes(plot)
-    htmls = []
-    if type(ax) is list:
-        for axes in ax:
-            maidr = FigureManager.get_maidr(axes.get_figure())
-            htmls.append(maidr.render())
-        htmls[-1].show(renderer)
-    else:
-        maidr = FigureManager.get_maidr(ax.get_figure())
-        return maidr.show(renderer)
+    maidr = FigureManager.get_maidr(ax.get_figure())
+    return maidr.show(renderer)
 
 
 def save_html(
     plot: Any, file: str, *, lib_dir: str | None = "lib", include_version: bool = True
 ) -> str:
     ax = FigureManager.get_axes(plot)
-    htmls = []
-    if type(ax) is list:
-        for axes in ax:
-            maidr = FigureManager.get_maidr(axes.get_figure())
-            htmls.append(maidr.render())
-        htmls[-1].save_html(file, libdir=lib_dir, include_version=include_version)
-        return htmls[-1]
-    else:
-        maidr = FigureManager.get_maidr(ax.get_figure())
-        return maidr.save_html(file, lib_dir=lib_dir, include_version=include_version)
+    maidr = FigureManager.get_maidr(ax.get_figure())
+    return maidr.save_html(file, lib_dir=lib_dir, include_version=include_version)
 
 
 def stacked(plot: Axes | BarContainer) -> Maidr:
