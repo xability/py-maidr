@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.16.0 (2025-03-12)
+
+### Features
+
+- Support multilayer plot using maidr-ts
+  ([`a697c73`](https://github.com/xability/py-maidr/commit/a697c739601538368c807ae280dde0fc13072a20))
+
+
 ## v0.15.0 (2025-03-11)
 
 ### Features
