@@ -154,7 +154,7 @@ class Maidr:
             return maidr if len(maidr) != 1 else maidr[0]
         return {
             "id": Maidr._unique_id(),
-            "panels": [[{"id": Maidr._unique_id(), "layers": maidr}]],
+            "subplots": [[{"id": Maidr._unique_id(), "layers": maidr}]],
         }
 
     def _get_svg(self) -> HTML:
