@@ -205,8 +205,8 @@ class Maidr:
 
         engine = Environment.get_engine()
 
-        MAIDR_TS_CDN_URL = "http://localhost:8080/maidr.js"  # DEMO URL
-        # MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr-ts/dist/maidr.js"
+        # MAIDR_TS_CDN_URL = "http://localhost:8080/maidr.js"  # DEMO URL
+        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr-ts/dist/maidr.js"
 
         maidr_js_script = f"""
             if (!document.querySelector('script[src="https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js"]')) {{
