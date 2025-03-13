@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.16.1 (2025-03-13)
+
+### Bug Fixes
+
+- Prevent appending empty line data in MultiLinePlot
+  ([#146](https://github.com/xability/py-maidr/pull/146),
+  [`9e4217d`](https://github.com/xability/py-maidr/commit/9e4217df037176d0e44b5c03f086c915425f5d20))
+
+
 ## v0.16.0 (2025-03-12)
 
 ### Features
