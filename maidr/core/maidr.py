@@ -139,7 +139,7 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
-        if self.plot_type == PlotType.LINE:
+        if self.plot_type in (PlotType.LINE, PlotType.DODGED, PlotType.STACKED):
             self._plots = [self._plots[0]]
         maidr = [plot.schema for plot in self._plots]
 
@@ -149,8 +149,13 @@ class Maidr:
                 plot[MaidrKey.SELECTOR] = plot[MaidrKey.SELECTOR].replace(
                     "maidr='true'", f"maidr='{self.selector_id}'"
                 )
-
-        return maidr if len(maidr) != 1 else maidr[0]
+        engine = Environment.get_engine()
+        if engine == "js":
+            return maidr if len(maidr) != 1 else maidr[0]
+        return {
+            "id": Maidr._unique_id(),
+            "subplots": [[{"id": Maidr._unique_id(), "layers": maidr}]],
+        }
 
     def _get_svg(self) -> HTML:
         """Extract the chart SVG from ``matplotlib.figure.Figure``."""
@@ -200,6 +205,7 @@ class Maidr:
 
         engine = Environment.get_engine()
 
+        # MAIDR_TS_CDN_URL = "http://localhost:8080/maidr.js"  # DEMO URL
         MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr-ts/dist/maidr.js"
 
         maidr_js_script = f"""
