@@ -96,7 +96,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 }
                 for x, y in line.get_xydata()  # type: ignore
             ]
-
-            all_line_data.append(line_data)
+            if len(line_data) > 0:
+                all_line_data.append(line_data)
 
         return all_line_data if all_line_data else None
