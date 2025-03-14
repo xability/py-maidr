@@ -41,6 +41,9 @@ class MaidrPlot(ABC):
         self.ax = ax
         self._support_highlighting = True
         self._elements = []
+        ss = self.ax.get_subplotspec()
+        self.row_index = ss.rowspan.start
+        self.col_index = ss.colspan.start
 
         # MAIDR data
         self.type = plot_type

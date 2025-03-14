@@ -45,9 +45,36 @@ class LevelExtractorMixin:
 
         level = None
         if MaidrKey.X == key:
-            level = [label.get_text() for label in ax.get_xticklabels()]
+            ticks = ax.get_xticks()
+            labels = [label.get_text() for label in ax.get_xticklabels()]
+
+            if hasattr(ax, "dataLim") and ax.dataLim.width != 0:
+                # Use the actual data limits rather than padded view limits
+                data_x_min, data_x_max = ax.dataLim.x0, ax.dataLim.x0 + ax.dataLim.width
+                # Filter tick labels to only those within the actual data range
+                valid_indices = [
+                    i for i, pos in enumerate(ticks) if data_x_min <= pos <= data_x_max
+                ]
+                labels = [labels[i] for i in valid_indices if i < len(labels)]
+
+            level = labels
         elif MaidrKey.Y == key:
-            level = [label.get_text() for label in ax.get_yticklabels()]
+            ticks = ax.get_yticks()
+            labels = [label.get_text() for label in ax.get_yticklabels()]
+
+            if hasattr(ax, "dataLim") and ax.dataLim.height != 0:
+                # Use the actual data limits rather than padded view limits
+                data_y_min, data_y_max = (
+                    ax.dataLim.y0,
+                    ax.dataLim.y0 + ax.dataLim.height,
+                )
+                # Filter tick labels to only those within the actual data range
+                valid_indices = [
+                    i for i, pos in enumerate(ticks) if data_y_min <= pos <= data_y_max
+                ]
+                labels = [labels[i] for i in valid_indices if i < len(labels)]
+
+            level = labels
         elif MaidrKey.FILL == key:
             level = [container.get_label() for container in ax.containers]
 

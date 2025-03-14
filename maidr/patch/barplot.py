@@ -52,16 +52,18 @@ def bar(
         bottom = kwargs.get("bottom")
         if bottom is not None:
             plot_type = PlotType.STACKED
-    elif args:
-        x = args[0]
-        is_numeric = False
-        if isinstance(x, np.ndarray) and np.issubdtype(x.dtype, np.number):
-            is_numeric = True
-        elif isinstance(x, (list, tuple)) and x and isinstance(x[0], Number):
-            is_numeric = True
-        if is_numeric:
-            plot_type = PlotType.DODGED
+    else:
+        if len(args) >= 3:
+            real_width = args[2]
+        else:
+            real_width = kwargs.get("width", 0.8)
 
+        align = kwargs.get("align", "center")
+
+        if (isinstance(real_width, (int, float)) and float(real_width) < 0.8) or (
+            align == "edge"
+        ):
+            plot_type = PlotType.DODGED
     return common(plot_type, wrapped, instance, args, kwargs)
 
 
