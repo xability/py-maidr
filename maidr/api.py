@@ -21,7 +21,7 @@ def render(plot: Any) -> Tag:
 def show(plot: Any, renderer: Literal["auto", "ipython", "browser"] = "auto") -> object:
     ax = FigureManager.get_axes(plot)
     htmls = []
-    if type(ax) is list:
+    if isinstance(ax, list):
         for axes in ax:
             maidr = FigureManager.get_maidr(axes.get_figure())
             htmls.append(maidr.render())
@@ -36,7 +36,7 @@ def save_html(
 ) -> str:
     ax = FigureManager.get_axes(plot)
     htmls = []
-    if type(ax) is list:
+    if isinstance(ax, list):
         for axes in ax:
             maidr = FigureManager.get_maidr(axes.get_figure())
             htmls.append(maidr.render())

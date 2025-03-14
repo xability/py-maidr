@@ -46,7 +46,7 @@ axs[1].set_ylabel("Values")
 
 # Third panel: Bar plot
 axs[2].bar(categories_2, values_2, color="blue", alpha=0.7)
-axs[2].set_title("Bar Plo 2: Random Values")
+axs[2].set_title("Bar Plot 2: Random Values")
 axs[2].set_xlabel("Categories")
 axs[2].set_ylabel("Values")
 
