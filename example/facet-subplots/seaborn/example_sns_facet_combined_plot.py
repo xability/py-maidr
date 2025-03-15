@@ -111,8 +111,7 @@ def create_complex_facet_plot(data: pd.DataFrame) -> None:
     """
     Creates a complex facet plot with bar plots and line plots in the same figure.
 
-    This function creates a figure with three bar plots sharing one axis and
-    three line plots sharing another axis, all in a single figure.
+    Only the leftmost plot in each row shows axes, while other plots have hidden axes.
 
     Parameters
     ----------
@@ -162,9 +161,13 @@ def create_complex_facet_plot(data: pd.DataFrame) -> None:
         axes[0, i].set_ylim(0, y_max)
         axes[0, i].set_title(f"{region} Region")
 
-        # Only show y-label for the first plot to avoid redundancy
+        # Hide axes for all but the first plot in the row
         if i > 0:
             axes[0, i].set_ylabel("")
+            # Hide y-axis ticks and labels for non-first plots
+            axes[0, i].tick_params(axis="y", which="both", left=False, labelleft=False)
+            # Keep grid lines for visual continuity
+            axes[0, i].grid(axis="y", linestyle="-", alpha=0.2)
 
     # ------ LINE PLOTS (BOTTOM ROW) ------
     line_data = (
@@ -193,11 +196,18 @@ def create_complex_facet_plot(data: pd.DataFrame) -> None:
         axes[1, i].set_title(f"{category} Category")
         axes[1, i].set_xticks([2020, 2021, 2022])
         axes[1, i].set_xticklabels(["2020", "2021", "2022"])
-        axes[1, i].set_xlabel("Year")
 
-        # Only show y-label for the first plot to avoid redundancy
-        if i > 0:
+        # Only show axis labels and ticks for the first plot in row
+        if i == 0:
+            axes[1, i].set_xlabel("Year")
+            axes[1, i].set_ylabel("Profit")
+        else:
             axes[1, i].set_ylabel("")
+            axes[1, i].set_xlabel("Year")
+            # Hide y-axis ticks and labels
+            axes[1, i].tick_params(axis="y", which="both", left=False, labelleft=False)
+            # Keep grid lines for visual continuity
+            axes[1, i].grid(axis="y", linestyle="-", alpha=0.2)
 
     fig.text(
         0.5,
@@ -227,5 +237,4 @@ def create_complex_facet_plot(data: pd.DataFrame) -> None:
 # Generate sample data
 df = create_sample_data()
 
-# Create the complex facet plot
 create_complex_facet_plot(df)
