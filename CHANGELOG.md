@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.17.0 (2025-03-18)
+
+### Features
+
+- Support multilayer plot using maidr-ts ([#145](https://github.com/xability/py-maidr/pull/145),
+  [`74218fb`](https://github.com/xability/py-maidr/commit/74218fb7faf934938746e797ffe53c093d7d6a5a))
+
+
+## v0.16.1 (2025-03-13)
+
+### Bug Fixes
+
+- Prevent appending empty line data in MultiLinePlot
+  ([#146](https://github.com/xability/py-maidr/pull/146),
+  [`9e4217d`](https://github.com/xability/py-maidr/commit/9e4217df037176d0e44b5c03f086c915425f5d20))
+
+
 ## v0.16.0 (2025-03-12)
 
 ### Features
