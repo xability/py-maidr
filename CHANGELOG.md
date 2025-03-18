@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.18.0 (2025-03-18)
+
+### Features
+
+- Support subplots in py-maidr using maidr-ts
+  ([#147](https://github.com/xability/py-maidr/pull/147),
+  [`5349f63`](https://github.com/xability/py-maidr/commit/5349f630c74bf348bba1cae373d06bf14c2424f5))
+
+
 ## v0.17.0 (2025-03-18)
 
 ### Features
