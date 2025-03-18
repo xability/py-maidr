@@ -6,7 +6,7 @@ import os
 import tempfile
 import uuid
 import webbrowser
-from typing import Literal
+from typing import Any, Literal
 
 from htmltools import HTML, HTMLDocument, Tag, tags
 from lxml import etree
@@ -139,23 +139,66 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
-        if self.plot_type in (PlotType.LINE, PlotType.DODGED, PlotType.STACKED):
-            self._plots = [self._plots[0]]
-        maidr = [plot.schema for plot in self._plots]
-
-        # Replace the selector having maidr='true' with maidr={self.maidr_id}
-        for plot in maidr:
-            if MaidrKey.SELECTOR in plot:
-                plot[MaidrKey.SELECTOR] = plot[MaidrKey.SELECTOR].replace(
-                    "maidr='true'", f"maidr='{self.selector_id}'"
-                )
+        # To support legacy JS Engine we will just return the format in this way
+        # but soon enough this should be deprecated and when we will completely
+        # transition to TypeScript :)
         engine = Environment.get_engine()
         if engine == "js":
+            if self.plot_type in (PlotType.LINE, PlotType.DODGED, PlotType.STACKED):
+                self._plots = [self._plots[0]]
+            maidr = [plot.schema for plot in self._plots]
+            for plot in maidr:
+                if MaidrKey.SELECTOR in plot:
+                    plot[MaidrKey.SELECTOR] = plot[MaidrKey.SELECTOR].replace(
+                        "maidr='true'", f"maidr='{self.selector_id}'"
+                    )
             return maidr if len(maidr) != 1 else maidr[0]
-        return {
-            "id": Maidr._unique_id(),
-            "subplots": [[{"id": Maidr._unique_id(), "layers": maidr}]],
-        }
+
+        # Now let's start building the maidr object for the newer TypeScript engine
+
+        plot_schemas = []
+
+        for plot in self._plots:
+            schema = plot.schema
+            if MaidrKey.SELECTOR in schema:
+                schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
+                    "maidr='true'", f"maidr='{self.selector_id}'"
+                )
+            plot_schemas.append(
+                {
+                    "schema": schema,
+                    "row": getattr(plot, "row_index", 0),
+                    "col": getattr(plot, "col_index", 0),
+                }
+            )
+
+        max_row = max([plot.get("row", 0) for plot in plot_schemas], default=0)
+        max_col = max([plot.get("col", 0) for plot in plot_schemas], default=0)
+
+        subplot_grid: list[list[dict[str, str | list[Any]]]] = [
+            [{} for _ in range(max_col + 1)] for _ in range(max_row + 1)
+        ]
+
+        position_groups = {}
+        for plot in plot_schemas:
+            pos = (plot.get("row", 0), plot.get("col", 0))
+            if pos not in position_groups:
+                position_groups[pos] = []
+            position_groups[pos].append(plot["schema"])
+
+        for (row, col), layers in position_groups.items():
+            if subplot_grid[row][col]:
+                subplot_grid[row][col]["layers"].append(layers)
+            else:
+                subplot_grid[row][col] = {"id": Maidr._unique_id(), "layers": layers}
+
+        for i in range(len(subplot_grid)):
+            subplot_grid[i] = [
+                cell if cell is not None else {"id": Maidr._unique_id(), "layers": []}
+                for cell in subplot_grid[i]
+            ]
+
+        return {"id": Maidr._unique_id(), "subplots": subplot_grid}
 
     def _get_svg(self) -> HTML:
         """Extract the chart SVG from ``matplotlib.figure.Figure``."""

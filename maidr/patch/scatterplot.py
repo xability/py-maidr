@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import wrapt
-
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
 
