@@ -78,7 +78,19 @@ class LevelExtractorMixin:
         elif MaidrKey.FILL == key:
             level = [container.get_label() for container in ax.containers]
 
+        if len(level) == 0:  # type: ignore
+            level = LevelExtractorMixin.extract_shared_xtick_labels(ax)
+
         return level
+
+    @staticmethod
+    def extract_shared_xtick_labels(ax):
+        siblings = ax.get_shared_x_axes().get_siblings(ax)
+        for shared_ax in siblings:
+            labels = [label.get_text() for label in shared_ax.get_xticklabels()]
+            if any(labels):
+                return labels
+        return []
 
 
 class LineExtractorMixin:

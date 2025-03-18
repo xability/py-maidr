@@ -92,7 +92,9 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 {
                     MaidrKey.X: float(x),
                     MaidrKey.Y: float(y),
-                    MaidrKey.FILL: line.get_label(),
+                    MaidrKey.FILL: (
+                        line.get_label() if line.get_label() != "_child0" else ""
+                    ),
                 }
                 for x, y in line.get_xydata()  # type: ignore
             ]
