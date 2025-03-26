@@ -35,7 +35,7 @@ class MaidrKey(str, Enum):
     LABELS = "labels"
 
     # Histogram plot keys.
-    X_MIN = "xmin"
-    X_MAX = "xmax"
-    Y_MIN = "ymin"
-    Y_MAX = "ymax"
+    X_MIN = "xMin"
+    X_MAX = "xMax"
+    Y_MIN = "yMin"
+    Y_MAX = "yMax"
