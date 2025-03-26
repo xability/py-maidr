@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy.ma as ma
-
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
 
@@ -36,8 +35,12 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
 
         return [
             {
-                MaidrKey.X: float(x),
-                MaidrKey.Y: float(y),
+                "points": [
+                    {
+                        MaidrKey.X: float(x),
+                        MaidrKey.Y: float(y),
+                    }
+                    for x, y in ma.getdata(plot.get_offsets())
+                ]
             }
-            for x, y in ma.getdata(plot.get_offsets())
         ]
