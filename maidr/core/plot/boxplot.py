@@ -138,22 +138,6 @@ class BoxPlot(
         box_orientation = {MaidrKey.ORIENTATION: self._orientation}
         return DictMergerMixin.merge_dict(base_schema, box_orientation)
 
-    def _extract_axes_data(self) -> dict:
-        base_ax_schema = super()._extract_axes_data()
-        if self._orientation == "vert":
-            box_ax_schema = {
-                MaidrKey.X: {
-                    MaidrKey.LEVEL: self.extract_level(self.ax, MaidrKey.X),
-                },
-            }
-        else:
-            box_ax_schema = {
-                MaidrKey.Y: {
-                    MaidrKey.LEVEL: self.extract_level(self.ax, MaidrKey.Y),
-                }
-            }
-        return self.merge_dict(base_ax_schema, box_ax_schema)
-
     def _extract_plot_data(self) -> list:
         data = self._extract_bxp_maidr(self._bxp_stats)
 
@@ -171,17 +155,27 @@ class BoxPlot(
         caps = self._bxp_extractor.extract_caps(bxp_stats["caps"])
         medians = self._bxp_extractor.extract_medians(bxp_stats["medians"])
         outliers = self._bxp_extractor.extract_outliers(bxp_stats["fliers"], caps)
+        levels = (
+            self.extract_level(self.ax, MaidrKey.X)
+            if self._orientation == "vert"
+            else self.extract_level(self.ax, MaidrKey.Y)
+        )
+        if levels is None:
+            levels = []
 
-        for whisker, cap, median, outlier in zip(whiskers, caps, medians, outliers):
+        for whisker, cap, median, outlier, level in zip(
+            whiskers, caps, medians, outliers, levels
+        ):
             bxp_maidr.append(
                 {
-                    MaidrKey.LOWER_OUTLIER.value: outlier["lower_outlier"],
+                    MaidrKey.LOWER_OUTLIER.value: outlier[MaidrKey.LOWER_OUTLIER.value],
                     MaidrKey.MIN.value: cap["min"],
                     MaidrKey.Q1.value: whisker["q1"],
                     MaidrKey.Q2.value: median,
                     MaidrKey.Q3.value: whisker["q3"],
                     MaidrKey.MAX.value: cap["max"],
-                    MaidrKey.UPPER_OUTLIER.value: outlier["upper_outlier"],
+                    MaidrKey.UPPER_OUTLIER.value: outlier[MaidrKey.UPPER_OUTLIER.value],
+                    MaidrKey.FILL.value: level,
                 }
             )
 

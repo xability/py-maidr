@@ -3,6 +3,8 @@ import seaborn as sns
 
 import maidr
 
+maidr.set_engine("ts")
+
 # Load the Iris dataset
 iris = sns.load_dataset("iris")
 
