@@ -1,6 +1,17 @@
 # CHANGELOG
 
 
+## v0.19.0 (2025-03-27)
+
+### Features
+
+- Support histogram plot using maidr-ts ([#150](https://github.com/xability/py-maidr/pull/150),
+  [`bcc7269`](https://github.com/xability/py-maidr/commit/bcc726932d8fda6c55a46f94303637c619749a81))
+
+- Support scatter plot using maidr-ts ([#149](https://github.com/xability/py-maidr/pull/149),
+  [`b7223c8`](https://github.com/xability/py-maidr/commit/b7223c8d6f57276300bf3cb2e864a6e200108da9))
+
+
 ## v0.18.0 (2025-03-18)
 
 ### Features
