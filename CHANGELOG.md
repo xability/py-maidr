@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.19.1 (2025-03-27)
+
+### Bug Fixes
+
+- Address type hints for _extract_line_data method in MultiLinePlot
+  ([#152](https://github.com/xability/py-maidr/pull/152),
+  [`c91425c`](https://github.com/xability/py-maidr/commit/c91425c4dd6e3c701a3b2692ec4bdc39d3d6ddaf))
+
+
 ## v0.19.0 (2025-03-27)
 
 ### Features
