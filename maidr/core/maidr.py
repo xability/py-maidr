@@ -160,10 +160,18 @@ class Maidr:
 
         for plot in self._plots:
             schema = plot.schema
+
             if MaidrKey.SELECTOR in schema:
-                schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
-                    "maidr='true'", f"maidr='{self.selector_id}'"
-                )
+                if isinstance(schema[MaidrKey.SELECTOR], str):
+                    schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
+                        "maidr='true'", f"maidr='{self.selector_id}'"
+                    )
+                if isinstance(schema[MaidrKey.SELECTOR], list):
+                    for i in range(len(schema[MaidrKey.SELECTOR])):
+                        schema[MaidrKey.SELECTOR][i] = schema[MaidrKey.SELECTOR][
+                            i
+                        ].replace("maidr='true'", f"maidr='{self.selector_id}'")
+
             plot_schemas.append(
                 {
                     "schema": schema,

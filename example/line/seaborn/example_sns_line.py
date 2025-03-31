@@ -3,6 +3,8 @@ import seaborn as sns
 
 import maidr
 
+maidr.set_engine("ts")
+
 # Load the 'tips' dataset from seaborn
 tips = sns.load_dataset("tips")
 
