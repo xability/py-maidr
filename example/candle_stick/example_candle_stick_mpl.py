@@ -193,6 +193,35 @@ def generate_sample_data(
     }
 
 
+def save_data_to_csv(data: Dict[str, List], filename: str = "stock_data.csv") -> None:
+    """
+    Save stock market data to a CSV file.
+
+    Parameters
+    ----------
+    data : Dict[str, List]
+        Dictionary containing stock data with keys like 'Date', 'Open', 'High', etc.
+    filename : str, optional
+        Name of the CSV file to save data to, by default "stock_data.csv"
+
+    Returns
+    -------
+    None
+        Function writes data to the specified file but does not return anything
+
+    Examples
+    --------
+    >>> data = generate_sample_data(start_date="2021-01-01", end_date="2021-01-10")
+    >>> save_data_to_csv(data, "my_stock_data.csv")
+    """
+    # Convert the dictionary to a pandas DataFrame
+    df = pd.DataFrame(data)
+
+    # Save the DataFrame to a CSV file
+    df.to_csv(filename, index=False)
+    print(f"Data saved to {filename}")
+
+
 if __name__ == "__main__":
     data = generate_sample_data(
         start_date="2021-01-01",
@@ -200,6 +229,8 @@ if __name__ == "__main__":
         start_price=100.0,
         volatility=0.015,
     )
+
+    save_data_to_csv(data, "stock_data.csv")
 
     fig, ax = generate_candlestick_chart(
         data, output_file="candle_stick.svg", show_volume=False
