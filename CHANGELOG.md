@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.20.0 (2025-04-08)
+
+### Features
+
+- Support boxplot using maidr-ts ([#151](https://github.com/xability/py-maidr/pull/151),
+  [`ce42413`](https://github.com/xability/py-maidr/commit/ce4241335e34939afc18073d64966aff228dc9ed))
+
+
 ## v0.19.1 (2025-03-27)
 
 ### Bug Fixes
