@@ -1,3 +1,5 @@
+from typing import List, Union
+
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
@@ -59,7 +61,9 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
 
         return data
 
-    def _extract_line_data(self, plot: list[Line2D] | None) -> list[dict] | None:
+    def _extract_line_data(
+        self, plot: Union[List[Line2D], None]
+    ) -> Union[List[dict], None]:
         """
         Extract data from multiple line objects.
 
@@ -98,7 +102,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 }
                 for x, y in line.get_xydata()  # type: ignore
             ]
-
-            all_line_data.append(line_data)
+            if len(line_data) > 0:
+                all_line_data.append(line_data)
 
         return all_line_data if all_line_data else None

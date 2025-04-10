@@ -1,6 +1,60 @@
 # CHANGELOG
 
 
+## v0.20.0 (2025-04-08)
+
+### Features
+
+- Support boxplot using maidr-ts ([#151](https://github.com/xability/py-maidr/pull/151),
+  [`ce42413`](https://github.com/xability/py-maidr/commit/ce4241335e34939afc18073d64966aff228dc9ed))
+
+
+## v0.19.1 (2025-03-27)
+
+### Bug Fixes
+
+- Address type hints for _extract_line_data method in MultiLinePlot
+  ([#152](https://github.com/xability/py-maidr/pull/152),
+  [`c91425c`](https://github.com/xability/py-maidr/commit/c91425c4dd6e3c701a3b2692ec4bdc39d3d6ddaf))
+
+
+## v0.19.0 (2025-03-27)
+
+### Features
+
+- Support histogram plot using maidr-ts ([#150](https://github.com/xability/py-maidr/pull/150),
+  [`bcc7269`](https://github.com/xability/py-maidr/commit/bcc726932d8fda6c55a46f94303637c619749a81))
+
+- Support scatter plot using maidr-ts ([#149](https://github.com/xability/py-maidr/pull/149),
+  [`b7223c8`](https://github.com/xability/py-maidr/commit/b7223c8d6f57276300bf3cb2e864a6e200108da9))
+
+
+## v0.18.0 (2025-03-18)
+
+### Features
+
+- Support subplots in py-maidr using maidr-ts
+  ([#147](https://github.com/xability/py-maidr/pull/147),
+  [`5349f63`](https://github.com/xability/py-maidr/commit/5349f630c74bf348bba1cae373d06bf14c2424f5))
+
+
+## v0.17.0 (2025-03-18)
+
+### Features
+
+- Support multilayer plot using maidr-ts ([#145](https://github.com/xability/py-maidr/pull/145),
+  [`74218fb`](https://github.com/xability/py-maidr/commit/74218fb7faf934938746e797ffe53c093d7d6a5a))
+
+
+## v0.16.1 (2025-03-13)
+
+### Bug Fixes
+
+- Prevent appending empty line data in MultiLinePlot
+  ([#146](https://github.com/xability/py-maidr/pull/146),
+  [`9e4217d`](https://github.com/xability/py-maidr/commit/9e4217df037176d0e44b5c03f086c915425f5d20))
+
+
 ## v0.16.0 (2025-03-12)
 
 ### Features

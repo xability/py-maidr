@@ -22,20 +22,20 @@ class MaidrKey(str, Enum):
     TITLE = "title"
 
     # Box plot keys.
-    LOWER_OUTLIER = "lower_outlier"
+    LOWER_OUTLIER = "lowerOutliers"
     MIN = "min"
     MAX = "max"
     Q1 = "q1"
     Q2 = "q2"
     Q3 = "q3"
-    UPPER_OUTLIER = "upper_outlier"
+    UPPER_OUTLIER = "upperOutliers"
 
     # Grouped bar and heatmap plot keys.
     FILL = "fill"
     LABELS = "labels"
 
     # Histogram plot keys.
-    X_MIN = "xmin"
-    X_MAX = "xmax"
-    Y_MIN = "ymin"
-    Y_MAX = "ymax"
+    X_MIN = "xMin"
+    X_MAX = "xMax"
+    Y_MIN = "yMin"
+    Y_MAX = "yMax"
