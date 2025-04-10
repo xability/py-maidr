@@ -7,6 +7,7 @@ from matplotlib.collections import PathCollection
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
+from maidr.util.environment import Environment
 from maidr.util.mixin import CollectionExtractorMixin
 
 
@@ -14,8 +15,10 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
     def __init__(self, ax: Axes) -> None:
         super().__init__(ax, PlotType.SCATTER)
 
-    def _get_selector(self) -> str:
-        return "g[maidr='true'] > use"
+    def _get_selector(self) -> str | list[str]:
+        if Environment.get_engine() == "js":
+            return "g[maidr='true'] > use"
+        return ["g[maidr='true'] > use"]
 
     def _extract_plot_data(self) -> list[dict]:
         plot = self.extract_collection(self.ax, PathCollection)
@@ -35,12 +38,8 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
 
         return [
             {
-                "points": [
-                    {
-                        MaidrKey.X: float(x),
-                        MaidrKey.Y: float(y),
-                    }
-                    for x, y in ma.getdata(plot.get_offsets())
-                ]
+                MaidrKey.X: float(x),
+                MaidrKey.Y: float(y),
             }
+            for x, y in ma.getdata(plot.get_offsets())
         ]
