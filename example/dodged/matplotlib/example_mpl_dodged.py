@@ -14,6 +14,8 @@ import numpy as np
 
 import maidr
 
+maidr.set_engine("ts")
+
 species: tuple[str, str, str] = (
     "Adelie\n $\\mu=3700.66g$",
     "Chinstrap\n $\\mu=3733.09g$",
@@ -39,6 +41,7 @@ for offset, (category, counts) in zip(offsets, weight_counts.items()):
 # Set x-axis labels and title
 ax.set_xticks(x)
 ax.set_xticklabels(species)
+ax.set_xlabel("Species")
 ax.set_title("Dodged Bar Plot: Penguin Weight Counts")
 ax.legend(loc="upper right")
 

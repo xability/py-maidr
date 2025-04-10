@@ -3,6 +3,8 @@ import seaborn as sns
 
 import maidr
 
+maidr.set_engine("ts")
+
 # Load the Titanic dataset
 titanic = sns.load_dataset("titanic")
 

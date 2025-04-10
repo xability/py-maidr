@@ -23,13 +23,9 @@ class GroupedBarPlot(
     def _extract_axes_data(self) -> dict:
         base_ax_schema = super()._extract_axes_data()
         grouped_ax_schema = {
-            MaidrKey.X.value: {
-                MaidrKey.LEVEL.value: self.extract_level(self.ax, MaidrKey.X),
-            },
-            MaidrKey.FILL.value: {
-                MaidrKey.LABEL.value: "Fill",
-                MaidrKey.LEVEL.value: self.extract_level(self.ax, MaidrKey.FILL),
-            },
+            MaidrKey.X.value: self.ax.get_xlabel(),
+            MaidrKey.Y.value: self.ax.get_ylabel(),
+            MaidrKey.FILL.value: self.extract_level(self.ax, MaidrKey.FILL),
         }
         return self.merge_dict(base_ax_schema, grouped_ax_schema)
 
@@ -54,14 +50,15 @@ class GroupedBarPlot(
         for container in plot:
             if len(x_level) != len(container.patches):
                 return None
-
+            container_data = []
             for x, y in zip(x_level, container.patches):
-                data.append(
+                container_data.append(
                     {
                         MaidrKey.X.value: x,
                         MaidrKey.FILL.value: container.get_label(),
                         MaidrKey.Y.value: float(y.get_height()),
                     }
                 )
+            data.append(container_data)
 
         return data

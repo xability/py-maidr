@@ -3,7 +3,7 @@ import seaborn as sns
 
 import maidr
 
-# maidr.set_engine("ts")
+maidr.set_engine("ts")
 
 # Load the flights dataset from seaborn
 flights = sns.load_dataset("flights")
