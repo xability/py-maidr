@@ -5,12 +5,13 @@ class MaidrKey(str, Enum):
     # Maidr info keys.
     ID = "id"
     ORIENTATION = "orientation"
-    SELECTOR = "selector"
+    SELECTOR = "selectors"
     TYPE = "type"
 
     # Plot data keys.
     AXES = "axes"
     DATA = "data"
+    POINTS = "points"
     LEVEL = "level"
     X = "x"
     Y = "y"

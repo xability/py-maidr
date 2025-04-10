@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy.ma as ma
-
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
 from matplotlib.collections import QuadMesh
@@ -36,23 +35,24 @@ class HeatPlot(
     def _extract_axes_data(self) -> dict:
         base_ax_schema = super()._extract_axes_data()
         heat_ax_schema = {
-            MaidrKey.X: {
-                MaidrKey.LEVEL: self.extract_level(self.ax, MaidrKey.X),
-            },
-            MaidrKey.Y: {
-                MaidrKey.LEVEL: self.extract_level(self.ax, MaidrKey.Y),
-            },
+            MaidrKey.X: self.ax.get_xlabel(),
+            MaidrKey.Y: self.ax.get_ylabel(),
+            MaidrKey.FILL: self._fill_label,
         }
         return self.merge_dict(base_ax_schema, heat_ax_schema)
 
-    def _extract_plot_data(self) -> list[list]:
+    def _extract_plot_data(self) -> dict:
         plot = self.extract_scalar_mappable(self.ax)
         data = self._extract_scalar_mappable_data(plot)
 
         if data is None:
             raise ExtractionError(self.type, plot)
 
-        return data
+        return {
+            MaidrKey.POINTS: data,
+            MaidrKey.X: self.extract_level(self.ax, MaidrKey.X),
+            MaidrKey.Y: self.extract_level(self.ax, MaidrKey.Y),
+        }
 
     def _extract_scalar_mappable_data(
         self, sm: ScalarMappable | None
