@@ -4,7 +4,7 @@ from typing import Literal
 
 
 class Environment:
-    _engine = "js"
+    _engine = "ts"
 
     @classmethod
     def _set_engine(cls, engine: Literal["js", "ts"]) -> None:
