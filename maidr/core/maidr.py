@@ -162,6 +162,7 @@ class Maidr:
 
         for i, plot in enumerate(self._plots):
             schema = plot.schema
+
             if MaidrKey.SELECTOR in schema:
                 if isinstance(schema[MaidrKey.SELECTOR], str):
                     schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
