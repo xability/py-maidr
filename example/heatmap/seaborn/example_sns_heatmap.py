@@ -3,6 +3,7 @@ import seaborn as sns
 
 import maidr
 
+maidr.set_engine("ts")
 # Load an example dataset from seaborn
 glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Score")
 
