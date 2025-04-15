@@ -11,6 +11,7 @@ class MaidrKey(str, Enum):
     # Plot data keys.
     AXES = "axes"
     DATA = "data"
+    POINTS = "points"
     LEVEL = "level"
     X = "x"
     Y = "y"
