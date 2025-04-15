@@ -42,8 +42,8 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
     def __init__(self, ax: Axes, **kwargs):
         super().__init__(ax, PlotType.LINE)
 
-    def _get_selector(self) -> str:
-        return "g[maidr='true'] > path"
+    def _get_selector(self) -> list[str]:
+        return ["g[maidr='true'] > path"]
 
     def _extract_plot_data(self) -> list[dict]:
         plot = self.extract_lines(self.ax)
