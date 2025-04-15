@@ -156,6 +156,9 @@ class Maidr:
 
         # Now let's start building the maidr object for the newer TypeScript engine
 
+        if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
+            self._plots = [self._plots[0]]
+
         plot_schemas = []
 
         for plot in self._plots:
