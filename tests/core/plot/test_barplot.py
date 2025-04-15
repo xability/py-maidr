@@ -33,7 +33,7 @@ def test_bar_plot_data(plot_fixture, lib):
 def test_sns_count_plot_data(plot_fixture):
     expected_maidr_data = {
         MaidrKey.TYPE: PlotType.BAR,
-        MaidrKey.SELECTOR: "path[maidr='true']",
+        MaidrKey.SELECTOR: "g[maidr='true'] > path",
         MaidrKey.TITLE: f"Test seaborn count title",
         MaidrKey.AXES: {
             MaidrKey.X: {
