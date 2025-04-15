@@ -1,24 +1,28 @@
 from __future__ import annotations
 
-import wrapt
+import uuid
 
+import wrapt
+from matplotlib.backends.backend_svg import XMLWriter
 from matplotlib.collections import PathCollection, QuadMesh
+from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
-from matplotlib.backends.backend_svg import XMLWriter
 
 from maidr.core.context_manager import HighlightContextManager
 
 
 @wrapt.patch_function_wrapper(XMLWriter, "start")
-def inject_maidr_attribute(wrapped, _, args, kwargs):
-    if HighlightContextManager.is_maidr_element():
-        kwargs["maidr"] = "true"
+def inject_maidr_attribute(wrapped, instance, args, kwargs):
+    if HighlightContextManager.is_maidr_element(kwargs.get("id")):
+        kwargs["maidr"] = HighlightContextManager.get_selector_id(kwargs.get("id"))
     return wrapped(*args, **kwargs)
 
 
 def tag_elements(wrapped, instance, args, kwargs):
-    with HighlightContextManager.set_maidr_element(instance):
+    id = str(uuid.uuid4())
+    instance.set_gid(id)
+    with HighlightContextManager.set_maidr_element(instance, id):
         return wrapped(*args, **kwargs)
 
 

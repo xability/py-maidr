@@ -66,7 +66,7 @@ class MaidrPlot(ABC):
 
     def _get_selector(self) -> str:
         """Return the CSS selector for highlighting elements."""
-        return "path[maidr='true']"
+        return "g[maidr='true'] > path"
 
     def _extract_axes_data(self) -> dict:
         """Extract the plot's axes data"""

@@ -1,17 +1,16 @@
-from maidr.core.enum.maidr_key import MaidrKey
-from maidr.core.enum.plot_type import PlotType
-from maidr.core.plot.barplot import BarPlot
-
 import pytest
 
 from maidr.core.enum.library import Library
+from maidr.core.enum.maidr_key import MaidrKey
+from maidr.core.enum.plot_type import PlotType
+from maidr.core.plot.barplot import BarPlot
 
 
 @pytest.mark.parametrize("lib", [Library.MATPLOTLIB, Library.SEABORN])
 def test_bar_plot_data(plot_fixture, lib):
     expected_maidr_data = {
         MaidrKey.TYPE: PlotType.BAR,
-        MaidrKey.SELECTOR: "path[maidr='true']",
+        MaidrKey.SELECTOR: "g[maidr='true'] > path",
         MaidrKey.TITLE: f"Test {lib.value} bar title",
         MaidrKey.AXES: {
             MaidrKey.X: {
@@ -34,7 +33,7 @@ def test_bar_plot_data(plot_fixture, lib):
 def test_sns_count_plot_data(plot_fixture):
     expected_maidr_data = {
         MaidrKey.TYPE: PlotType.BAR,
-        MaidrKey.SELECTOR: "path[maidr='true']",
+        MaidrKey.SELECTOR: "g[maidr='true'] > path",
         MaidrKey.TITLE: f"Test seaborn count title",
         MaidrKey.AXES: {
             MaidrKey.X: {
