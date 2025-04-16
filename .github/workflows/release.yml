@@ -61,11 +61,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check format with black
-        uses: psf/black@stable
+      - name: Check format with ruff
+        uses: astral-sh/ruff-action@v3
         with:
-          options: "--diff --check --color --verbose"
-          version: "23.3.0"
+          args: "--check --diff"
+          version: "latest"
 
   commit-lint:
     runs-on: ubuntu-latest
