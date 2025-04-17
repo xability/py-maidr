@@ -18,7 +18,7 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
     def _get_selector(self) -> str | list[str]:
         if Environment.get_engine() == "js":
             return "g[maidr='true'] > use"
-        return ["g[maidr='true'] > use"]
+        return ["g[maidr='true'] > g > use"]
 
     def _extract_plot_data(self) -> list[dict]:
         plot = self.extract_collection(self.ax, PathCollection)
