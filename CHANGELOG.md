@@ -1,6 +1,21 @@
 # CHANGELOG
 
 
+## v0.21.0 (2025-04-15)
+
+### Features
+
+- Update py-maidr backend to use latest maidr-ts engine
+  ([#158](https://github.com/xability/py-maidr/pull/158),
+  [`16a8f3e`](https://github.com/xability/py-maidr/commit/16a8f3e47cdc4e70ea814aab444486ed8e068b3d))
+
+BREAKING CHANGE: Using Maidr TS Engine by default, deprecating the JS engine.
+
+### Breaking Changes
+
+- Using Maidr TS Engine by default, deprecating the JS engine.
+
+
 ## v0.20.0 (2025-04-08)
 
 ### Features

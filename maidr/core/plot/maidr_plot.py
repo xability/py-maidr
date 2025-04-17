@@ -66,7 +66,7 @@ class MaidrPlot(ABC):
 
     def _get_selector(self) -> str:
         """Return the CSS selector for highlighting elements."""
-        return "path[maidr='true']"
+        return "g[maidr='true'] > path"
 
     def extract_shared_xlabel(self, ax, y_threshold=0.2):
         # First, try to get an xlabel from any shared axes.

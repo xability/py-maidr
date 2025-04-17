@@ -3,6 +3,8 @@ import numpy as np
 
 import maidr
 
+maidr.set_engine("ts")
+
 species = (
     "Adelie\nMean = 3700.66g",
     "Chinstrap\nMean = 3733.09g",

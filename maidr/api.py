@@ -20,12 +20,10 @@ def render(plot: Any) -> Tag:
 
 def show(plot: Any, renderer: Literal["auto", "ipython", "browser"] = "auto") -> object:
     ax = FigureManager.get_axes(plot)
-    htmls = []
     if isinstance(ax, list):
         for axes in ax:
             maidr = FigureManager.get_maidr(axes.get_figure())
-            htmls.append(maidr.render())
-        return htmls[-1].show(renderer)
+        return maidr.show(renderer)
     else:
         maidr = FigureManager.get_maidr(ax.get_figure())
         return maidr.show(renderer)

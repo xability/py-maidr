@@ -71,7 +71,6 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         # if len(plot) != len(level):
         #     return None
 
-        # Tag the elements for highlighting.
         self._elements.extend(plot)
 
         return [float(patch.get_height()) for patch in plot]

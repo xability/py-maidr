@@ -11,6 +11,7 @@ from typing import Any, Literal
 from htmltools import HTML, HTMLDocument, Tag, tags
 from lxml import etree
 from matplotlib.figure import Figure
+from matplotlib.patches import Rectangle
 
 from maidr.core.context_manager import HighlightContextManager
 from maidr.core.enum.maidr_key import MaidrKey
@@ -45,7 +46,7 @@ class Maidr:
         self._fig = fig
         self._plots = []
         self.maidr_id = None
-        self.selector_id = Maidr._unique_id()
+        self.selector_ids = []
         self.plot_type = plot_type
 
     @property
@@ -123,12 +124,14 @@ class Maidr:
     def _create_html_tag(self) -> Tag:
         """Create the MAIDR HTML using HTML tags."""
         tagged_elements = [element for plot in self._plots for element in plot.elements]
-        with HighlightContextManager.set_maidr_elements(tagged_elements):
+        selector_ids = []
+        for i, plot in enumerate(self._plots):
+            for _ in plot.elements:
+                selector_ids.append(self.selector_ids[i])
+
+        with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
             svg = self._get_svg()
         maidr = f"\nlet maidr = {json.dumps(self._flatten_maidr(), indent=2)}\n"
-
-        # In SVG we will replace maidr=id with the unique id.
-        svg = svg.replace('maidr="true"', f'maidr="{self.selector_id}"')
 
         # Inject plot's svg and MAIDR structure into html tag.
         return Maidr._inject_plot(svg, maidr, self.maidr_id)
@@ -147,23 +150,30 @@ class Maidr:
             if self.plot_type in (PlotType.LINE, PlotType.DODGED, PlotType.STACKED):
                 self._plots = [self._plots[0]]
             maidr = [plot.schema for plot in self._plots]
-            for plot in maidr:
-                if MaidrKey.SELECTOR in plot:
-                    plot[MaidrKey.SELECTOR] = plot[MaidrKey.SELECTOR].replace(
-                        "maidr='true'", f"maidr='{self.selector_id}'"
-                    )
+
             return maidr if len(maidr) != 1 else maidr[0]
 
         # Now let's start building the maidr object for the newer TypeScript engine
 
+        if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
+            self._plots = [self._plots[0]]
+
         plot_schemas = []
 
-        for plot in self._plots:
+        for i, plot in enumerate(self._plots):
             schema = plot.schema
+
             if MaidrKey.SELECTOR in schema:
-                schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
-                    "maidr='true'", f"maidr='{self.selector_id}'"
-                )
+                if isinstance(schema[MaidrKey.SELECTOR], str):
+                    schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
+                        "maidr='true'", f"maidr='{self.selector_ids[i]}'"
+                    )
+                if isinstance(schema[MaidrKey.SELECTOR], list):
+                    for j in range(len(schema[MaidrKey.SELECTOR])):
+                        schema[MaidrKey.SELECTOR][j] = schema[MaidrKey.SELECTOR][
+                            j
+                        ].replace("maidr='true'", f"maidr='{self.selector_ids[i]}'")
+
             plot_schemas.append(
                 {
                     "schema": schema,
@@ -211,10 +221,6 @@ class Maidr:
         root_svg = None
         # Find the `svg` tag and set unique id if not present else use it.
         for element in tree_svg.iter(tag="{http://www.w3.org/2000/svg}svg"):
-            _id = Maidr._unique_id()
-            self._set_maidr_id(_id)
-            if "id" not in element.attrib:
-                element.attrib["id"] = _id
             if "maidr-data" not in element.attrib:
                 element.attrib["maidr-data"] = json.dumps(
                     self._flatten_maidr(), indent=2
