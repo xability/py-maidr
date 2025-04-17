@@ -1,20 +1,9 @@
 import json
 import os
-from typing import Literal
 
 
 class Environment:
     _engine = "ts"
-
-    @classmethod
-    def _set_engine(cls, engine: Literal["js", "ts"]) -> None:
-        """Set the engine to use for the MAIDR instance."""
-        cls._engine = engine
-
-    @classmethod
-    def get_engine(cls) -> str:
-        """Get the engine to use for the MAIDR instance."""
-        return cls._engine
 
     @staticmethod
     def is_interactive_shell() -> bool:
