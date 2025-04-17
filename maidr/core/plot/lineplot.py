@@ -42,7 +42,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
     def __init__(self, ax: Axes, **kwargs):
         super().__init__(ax, PlotType.LINE)
 
-    def _get_selector(self) -> str | list[str]:
+    def _get_selector(self) -> Union[str, List[str]]:
         if Environment.get_engine() == "js":
             return "g[maidr='true'] > path"
         return ["g[maidr='true'] > path"]
