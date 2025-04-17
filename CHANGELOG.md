@@ -1,6 +1,31 @@
 # CHANGELOG
 
 
+## v0.22.0 (2025-04-17)
+
+### Bug Fixes
+
+- Replace caching for Poetry dependencies in CI workflow
+  ([#164](https://github.com/xability/py-maidr/pull/164),
+  [`d719156`](https://github.com/xability/py-maidr/commit/d719156171a6d788290a01c0393db95bcc1b6090))
+
+- Streamline Python setup in Quarto CI
+  ([`2621e1e`](https://github.com/xability/py-maidr/commit/2621e1e0ffcbe3d11677807e310b69ef4d33f33e))
+
+- Update Python setup step and improve Poetry installation in release workflow
+  ([`3dc9f1e`](https://github.com/xability/py-maidr/commit/3dc9f1e81b0cdb46e9e822e557c278a92792104e))
+
+- Update selector logic in ScatterPlot for correct element targeting
+  ([#162](https://github.com/xability/py-maidr/pull/162),
+  [`4c763af`](https://github.com/xability/py-maidr/commit/4c763af538875ed97c55a15a444152f1afd1eaa4))
+
+### Features
+
+- Support highlight in dodged and stacked bar plot using maidr-ts
+  ([#161](https://github.com/xability/py-maidr/pull/161),
+  [`04c874c`](https://github.com/xability/py-maidr/commit/04c874cf9683e0ac10ba4a40df04aa13ef1d5bf5))
+
+
 ## v0.21.0 (2025-04-15)
 
 ### Features
