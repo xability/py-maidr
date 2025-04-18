@@ -142,19 +142,6 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
-        # To support legacy JS Engine we will just return the format in this way
-        # but soon enough this should be deprecated and when we will completely
-        # transition to TypeScript :)
-        engine = Environment.get_engine()
-        if engine == "js":
-            if self.plot_type in (PlotType.LINE, PlotType.DODGED, PlotType.STACKED):
-                self._plots = [self._plots[0]]
-            maidr = [plot.schema for plot in self._plots]
-
-            return maidr if len(maidr) != 1 else maidr[0]
-
-        # Now let's start building the maidr object for the newer TypeScript engine
-
         if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
             self._plots = [self._plots[0]]
 
@@ -251,27 +238,10 @@ class Maidr:
     @staticmethod
     def _inject_plot(plot: HTML, maidr: str, maidr_id) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
-
-        engine = Environment.get_engine()
-
         # MAIDR_TS_CDN_URL = "http://localhost:8080/maidr.js"  # DEMO URL
         MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr-ts/dist/maidr.js"
 
-        maidr_js_script = f"""
-            if (!document.querySelector('script[src="https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js"]')) {{
-                var script = document.createElement('script');
-                script.type = 'text/javascript';
-                script.src = 'https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js';
-                script.addEventListener('load', function() {{
-                    window.init("{maidr_id}");
-                }});
-                document.head.appendChild(script);
-            }} else {{
-                window.init("{maidr_id}");
-            }}
-        """
-
-        maidr_ts_script = f"""
+        script = f"""
             if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
             {{
                 var script = document.createElement('script');
@@ -288,8 +258,6 @@ class Maidr:
             }}
         """
 
-        script = maidr_js_script if engine == "js" else maidr_ts_script
-
         base_html = tags.div(
             tags.link(
                 rel="stylesheet",
@@ -299,14 +267,12 @@ class Maidr:
             tags.div(plot),
         )
 
-        is_quarto = os.getenv("IS_QUARTO") == "True"
+        # is_quarto = os.getenv("IS_QUARTO") == "True"
 
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
         # For TypeScript we will use iframe by default for now
-        if (Environment.is_notebook() and not is_quarto) or (
-            engine == "ts" and Environment.is_notebook()
-        ):
+        if Environment.is_notebook():
             unique_id = "iframe_" + Maidr._unique_id()
 
             def generate_iframe_script(unique_id: str) -> str:

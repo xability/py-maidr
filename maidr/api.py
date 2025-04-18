@@ -53,7 +53,3 @@ def stacked(plot: Axes | BarContainer) -> Maidr:
 def close(plot: Any) -> None:
     ax = FigureManager.get_axes(plot)
     FigureManager.destroy(ax.get_figure())
-
-
-def set_engine(engine: Literal["js", "ts"] = "js"):
-    Environment._set_engine(engine=engine)
