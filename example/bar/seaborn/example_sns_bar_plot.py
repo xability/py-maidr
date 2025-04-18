@@ -3,8 +3,6 @@ import seaborn as sns
 
 import maidr
 
-maidr.set_engine("ts")
-
 # Load the penguins dataset
 penguins = sns.load_dataset("penguins")
 

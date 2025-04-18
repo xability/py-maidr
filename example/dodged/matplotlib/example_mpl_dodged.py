@@ -14,8 +14,6 @@ import numpy as np
 
 import maidr
 
-maidr.set_engine("ts")
-
 species: tuple[str, str, str] = (
     "Adelie\n $\\mu=3700.66g$",
     "Chinstrap\n $\\mu=3733.09g$",

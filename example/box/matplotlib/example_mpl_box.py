@@ -3,8 +3,6 @@ import numpy as np
 
 import maidr
 
-maidr.set_engine("ts")
-
 # Generating random data for three different groups
 data_group1 = np.random.normal(100, 10, 200)
 data_group2 = np.random.normal(90, 20, 200)

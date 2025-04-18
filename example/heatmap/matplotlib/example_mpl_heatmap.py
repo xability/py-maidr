@@ -3,8 +3,6 @@ import numpy as np
 
 import maidr
 
-maidr.set_engine("ts")
-
 vegetables = [
     "cucumber",
     "tomato",

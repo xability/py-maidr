@@ -13,8 +13,7 @@ connected by lines of different styles and colors using seaborn's
 lineplot function.
 
 """
-# Set maidr engine
-maidr.set_engine("ts")
+
 
 # Create sample data points
 x = np.array([1, 2, 3, 4, 5, 6, 7, 8])

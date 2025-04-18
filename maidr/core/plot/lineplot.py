@@ -43,20 +43,11 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         super().__init__(ax, PlotType.LINE)
 
     def _get_selector(self) -> Union[str, List[str]]:
-        if Environment.get_engine() == "js":
-            return "g[maidr='true'] > path"
         return ["g[maidr='true'] > path"]
 
     def _extract_plot_data(self) -> list[dict]:
         plot = self.extract_lines(self.ax)
         data = self._extract_line_data(plot)
-        engine = Environment.get_engine()
-        if engine == "js":
-            if len(data) > 1:
-                raise Exception(
-                    "MultiLine Plot not supported in JS. Use TypeScript Engine for this plot!"
-                )
-            data = data[0]
 
         if data is None:
             raise ExtractionError(self.type, plot)

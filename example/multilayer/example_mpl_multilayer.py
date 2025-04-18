@@ -17,7 +17,7 @@ Examples
 >>> isinstance(fig, plt.Figure)
 True
 """
-maidr.set_engine("ts")
+
 # Generate sample data
 x = np.arange(5)
 bar_data = np.array([3, 5, 2, 7, 3])
