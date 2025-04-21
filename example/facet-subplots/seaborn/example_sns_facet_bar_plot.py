@@ -6,8 +6,6 @@ import seaborn as sns
 
 import maidr
 
-maidr.set_engine("ts")
-
 
 def create_sample_data() -> pd.DataFrame:
     """

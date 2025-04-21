@@ -13,8 +13,6 @@ import numpy as np
 
 import maidr
 
-maidr.set_engine("ts")
-
 categories = ["A", "B", "C", "D", "E"]
 
 np.random.seed(42)

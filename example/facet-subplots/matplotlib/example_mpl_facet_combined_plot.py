@@ -12,8 +12,6 @@ import numpy as np
 
 import maidr
 
-maidr.set_engine("ts")
-
 
 def generate_simple_data(
     num_rows: int = 3, num_points: int = 5
