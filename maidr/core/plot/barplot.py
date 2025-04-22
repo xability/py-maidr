@@ -51,8 +51,8 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         if len(level) == 0:  # type: ignore
             level = ["" for _ in range(len(plot))]  # type: ignore
 
-        # if len(plot) != len(level):
-        #     return None
+        if len(plot) != len(level):
+            return None
 
         self._elements.extend(plot)
 
