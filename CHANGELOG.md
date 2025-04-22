@@ -1,6 +1,32 @@
 # CHANGELOG
 
 
+## v0.22.1 (2025-04-22)
+
+### Bug Fixes
+
+- Remove redundant _child0 label as a fill parameter for line plot
+  ([#169](https://github.com/xability/py-maidr/pull/169),
+  [`e543890`](https://github.com/xability/py-maidr/commit/e543890af0a89b38561a8760292cd996adadac22))
+
+Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>
+
+### Documentation
+
+- Add quartodoc examples for multiline, subplots, dodged bar plot, stacked …
+  ([#168](https://github.com/xability/py-maidr/pull/168),
+  [`5a2235a`](https://github.com/xability/py-maidr/commit/5a2235ac3da0372f3e17ddde35adc45c1dfd60b7))
+
+### Refactoring
+
+- Clean up example gallery examples
+  ([`337a653`](https://github.com/xability/py-maidr/commit/337a65346aca82f4805bbbac850d1ef9e6146702))
+
+- Remove legacy JS engine support and related code
+  ([#165](https://github.com/xability/py-maidr/pull/165),
+  [`e7fcae8`](https://github.com/xability/py-maidr/commit/e7fcae88b3555e98539b8844168209d9c3b0e9b8))
+
+
 ## v0.22.0 (2025-04-17)
 
 ### Bug Fixes
