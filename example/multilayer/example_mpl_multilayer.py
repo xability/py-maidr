@@ -52,6 +52,4 @@ ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left")
 # Adjust layout
 fig.tight_layout()
 
-# plt.show()
 maidr.show(fig)
-# maidr.save_html(fig, "multi-layer.html")
