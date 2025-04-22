@@ -3,8 +3,6 @@ import numpy as np
 
 import maidr
 
-# import maidr
-
 """
 Creates a multiline plot showing basic data trends.
 

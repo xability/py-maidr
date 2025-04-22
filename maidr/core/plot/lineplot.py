@@ -7,7 +7,6 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.exception.extraction_error import ExtractionError
-from maidr.util.environment import Environment
 from maidr.util.mixin.extractor_mixin import LineExtractorMixin
 
 
@@ -85,11 +84,15 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             self._elements.append(line)
 
             # Extract data from this line
+
+            label: str = line.get_label()  # type: ignore
             line_data = [
                 {
                     MaidrKey.X: float(x),
                     MaidrKey.Y: float(y),
-                    MaidrKey.FILL: line.get_label(),
+                    # Replace labels starting with '_child' with an empty string to exclude
+                    # internal or non-relevant labels from being used as identifiers.
+                    MaidrKey.FILL: (label if not label.startswith("_child") else ""),
                 }
                 for x, y in line.get_xydata()  # type: ignore
             ]
