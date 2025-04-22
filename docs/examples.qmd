@@ -192,6 +192,223 @@ plt.ylabel("Sepal Width")
 maidr.show(scatter_plot) #<<
 ```
 
+### Dodged Bar Plot
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+species: tuple[str, str, str] = (
+    "Adelie\n $\\mu=3700.66g$",
+    "Chinstrap\n $\\mu=3733.09g$",
+    "Gentoo\n $\\mu=5076.02g$",
+)
+weight_counts: dict[str, np.ndarray] = {
+    "Below": np.array([70, 31, 58]),
+    "Above": np.array([82, 37, 66]),
+}
+
+x: np.ndarray = np.arange(len(species))
+total_groups: int = len(weight_counts)
+width: float = 0.35
+
+fig, ax = plt.subplots() #<<
+
+offsets: list[float] = [(-width / 2) + i * width for i in range(total_groups)]
+
+for offset, (category, counts) in zip(offsets, weight_counts.items()):
+    positions = x + offset
+    p = ax.bar(positions, counts, width, label=category) #<<
+
+# Set x-axis labels and title
+ax.set_xticks(x)
+ax.set_xticklabels(species)
+ax.set_xlabel("Species")
+ax.set_title("Dodged Bar Plot: Penguin Weight Counts")
+ax.legend(loc="upper right")
+
+# Show plot using maidr.show
+maidr.show(p) #<<
+```
+
+### Stacked Bar Plot
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+species = (
+    "Adelie\nMean = 3700.66g",
+    "Chinstrap\nMean = 3733.09g",
+    "Gentoo\nMean = 5076.02g",
+)
+weight_counts = {
+    "Below": np.array([70, 31, 58]),
+    "Above": np.array([82, 37, 66]),
+}
+width = 0.5
+
+fig, ax = plt.subplots()
+
+bottom = np.zeros(3)
+
+for boolean, weight_count in weight_counts.items():
+    p = ax.bar(species, weight_count, width, label=boolean, bottom=bottom) #<<
+    bottom += weight_count
+
+ax.set_xlabel("Species of Penguins")
+ax.set_ylabel("Average Body Mass")
+
+ax.set_title("Number of penguins with above average body mass")
+ax.legend(loc="upper right")
+
+maidr.show(p) #<<
+```
+
+### Multi-layered Plots
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+import maidr #<<
+
+# Generate sample data
+x = np.arange(5)
+bar_data = np.array([3, 5, 2, 7, 3])
+line_data = np.array([10, 8, 12, 14, 9])
+
+# Create a figure and a set of subplots
+fig, ax1 = plt.subplots(figsize=(8, 5)) #<<
+
+# Create the bar chart on the first y-axis
+ax1.bar(x, bar_data, color="skyblue", label="Bar Data")
+ax1.set_xlabel("X values")
+ax1.set_ylabel("Bar values", color="blue")
+ax1.tick_params(axis="y", labelcolor="blue")
+
+# Create a second y-axis sharing the same x-axis
+ax2 = ax1.twinx()
+
+# Create the line chart on the second y-axis
+ax2.plot(x, line_data, color="red", marker="o", linestyle="-", label="Line Data")
+ax2.set_xlabel("X values")
+ax2.set_ylabel("Line values", color="red")
+ax2.tick_params(axis="y", labelcolor="red")
+
+# Add title and legend
+plt.title("Multilayer Plot Example")
+
+# Add legends for both axes
+lines1, labels1 = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left")
+
+# Adjust layout
+fig.tight_layout()
+
+maidr.show(fig) #<<
+```
+
+### Subplots
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+import maidr #<<
+
+# Set the plotting style
+sns.set_theme(style="whitegrid")
+
+# Data for line plot
+x_line = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+y_line = np.array([2, 4, 1, 5, 3, 7, 6, 8])
+line_data = {"x": x_line, "y": y_line}
+
+# Data for first bar plot
+categories = ["A", "B", "C", "D", "E"]
+values = np.random.rand(5) * 10
+bar_data = {"categories": categories, "values": values}
+
+# Data for second bar plot
+categories_2 = ["A", "B", "C", "D", "E"]
+values_2 = np.random.randn(5) * 100
+bar_data_2 = {"categories": categories_2, "values": values_2}
+
+# Create a figure with 3 subplots arranged vertically
+fig, axs = plt.subplots(3, 1, figsize=(6, 12)) #<<
+
+# First panel: Line plot using seaborn
+sns.lineplot(x="x", y="y", data=line_data, color="blue", linewidth=2, ax=axs[0])
+axs[0].set_title("Line Plot: Random Data")
+axs[0].set_xlabel("X-axis")
+axs[0].set_ylabel("Values")
+
+# Second panel: Bar plot using seaborn
+sns.barplot(
+    x="categories", y="values", data=bar_data, color="green", alpha=0.7, ax=axs[1]
+)
+axs[1].set_title("Bar Plot: Random Values")
+axs[1].set_xlabel("Categories")
+axs[1].set_ylabel("Values")
+
+# Third panel: Bar plot using seaborn
+sns.barplot(
+    x="categories", y="values", data=bar_data_2, color="blue", alpha=0.7, ax=axs[2]
+)
+axs[2].set_title("Bar Plot 2: Random Values")  # Fixed the typo in the title
+axs[2].set_xlabel("Categories")
+axs[2].set_ylabel("Values")
+
+# Adjust layout to prevent overlap
+plt.tight_layout()
+
+# Display the figure
+maidr.show(fig) #<<
+```
+
+### Multiline Plot
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
+import maidr #<<
+# Create sample data points
+x = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+y1 = np.array([2, 4, 1, 5, 3, 7, 6, 8])
+y2 = np.array([1, 3, 5, 2, 4, 6, 8, 7])
+y3 = np.array([3, 1, 4, 6, 5, 2, 4, 5])
+
+# Convert to pandas DataFrame for seaborn
+data = pd.DataFrame(
+    {
+        "x": np.tile(x, 3),
+        "y": np.concatenate([y1, y2, y3]),
+        "series": np.repeat(["Series 1", "Series 2", "Series 3"], len(x)),
+    }
+)
+
+# Create the plot
+plt.figure(figsize=(6, 6))
+
+# Use seaborn lineplot for multiple lines
+lineplot = sns.lineplot(
+    x="x", y="y", hue="series", style="series", markers=True, dashes=True, data=data
+)
+
+# Customize the plot
+plt.title("Seaborn Multiline Plot")
+plt.xlabel("X values")
+plt.ylabel("Y values")
+
+# Display the plot using maidr
+maidr.show(lineplot) #<<
+
+```
+
 ## Reactive Dashboard
 
 ### Shiny
