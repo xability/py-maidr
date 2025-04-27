@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-import maidr
+# import maidr
 
 
 def generate_category_data(
@@ -76,7 +76,7 @@ def plot_dodged_bar_seaborn(
     ax.set_xlabel("Category")
     ax.set_ylabel("Count")
     ax.legend(title="Above Mean")
-    maidr.show(ax)
+    # maidr.show(ax)
 
 
 def test() -> None:
@@ -86,6 +86,3 @@ def test() -> None:
     means = (10, 20, 30, 40, 50)
     df = generate_category_data(100_000, means, scale=5.0, seed=42)
     plot_dodged_bar_seaborn(df, means)
-
-
-test()

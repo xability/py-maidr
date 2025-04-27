@@ -162,3 +162,21 @@ python3 -m pyperf timeit \
     --warmups 3 \
     --processes 1 \
     "test()"
+
+python3 -m pyperf timeit \
+    --name "example_seaborn_dodged" \
+    --setup "from benchmarks.dodged.example_seaborn_dodged import test" \
+    --loops 1 \
+    --values 1000 \
+    --warmups 3 \
+    --processes 1 \
+    "test()"
+
+python3 -m pyperf timeit \
+    --name "example_sns_multilayer" \
+    --setup "from benchmarks.multilayer.example_sns_multilayer import test" \
+    --loops 1 \
+    --values 100 \
+    --warmups 3 \
+    --processes 1 \
+    "test()"
