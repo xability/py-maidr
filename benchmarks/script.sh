@@ -176,7 +176,7 @@ python3 -m pyperf timeit \
     --name "example_sns_multilayer" \
     --setup "from benchmarks.multilayer.example_sns_multilayer import test" \
     --loops 1 \
-    --values 100 \
+    --values 1000 \
     --warmups 3 \
     --processes 1 \
     "test()"
