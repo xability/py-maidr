@@ -20,8 +20,10 @@ def inject_maidr_attribute(wrapped, instance, args, kwargs):
 
 
 def tag_elements(wrapped, instance, args, kwargs):
-    id = str(uuid.uuid4())
-    instance.set_gid(id)
+    id = str(instance.get_gid())
+    if not id.startswith("maidr-"):
+        id = "maidr-" + str(uuid.uuid4())
+        instance.set_gid(id)
     with HighlightContextManager.set_maidr_element(instance, id):
         return wrapped(*args, **kwargs)
 
