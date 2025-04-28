@@ -64,6 +64,9 @@ def bar(
             align == "edge"
         ):
             plot_type = PlotType.DODGED
+    if "dodge" in kwargs:
+        plot_type = PlotType.DODGED
+
     return common(plot_type, wrapped, instance, args, kwargs)
 
 
