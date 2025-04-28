@@ -11,7 +11,6 @@ from typing import Any, Literal
 from htmltools import HTML, HTMLDocument, Tag, tags
 from lxml import etree
 from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
 
 from maidr.core.context_manager import HighlightContextManager
 from maidr.core.enum.maidr_key import MaidrKey
@@ -272,7 +271,7 @@ class Maidr:
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
         # For TypeScript we will use iframe by default for now
-        if Environment.is_notebook():
+        if Environment.is_notebook() or Environment.is_shiny():
             unique_id = "iframe_" + Maidr._unique_id()
 
             def generate_iframe_script(unique_id: str) -> str:
