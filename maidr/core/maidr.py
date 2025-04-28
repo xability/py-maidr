@@ -123,7 +123,19 @@ class Maidr:
 
     def _create_html_tag(self) -> Tag:
         """Create the MAIDR HTML using HTML tags."""
-        tagged_elements = [element for plot in self._plots for element in plot.elements]
+        tagged_elements: list[Any] = [
+            element
+            for plot in self._plots
+            if getattr(plot, "type", None) == PlotType.BOX
+            for element in plot.elements
+        ]
+        box_plots = [
+            plot for plot in self._plots if getattr(plot, "type", None) == PlotType.BOX
+        ]
+        tagged_elements_for_box = []
+        for plot in box_plots:
+            tagged_elements_for_box.extend(plot.elements)
+
         selector_ids = []
         for i, plot in enumerate(self._plots):
             for _ in plot.elements:

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import uuid
+from itertools import chain
+
 from matplotlib.axes import Axes
+from matplotlib.collections import PathCollection
+from matplotlib.lines import Line2D
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
@@ -119,6 +124,40 @@ class BoxPlotExtractor:
         return data
 
 
+class BoxPlotElementsExtractor:
+    def __init__(self, orientation: str = "vert"):
+        self.orientation = orientation
+
+    def extract_whiskers(self, whiskers: list) -> list[dict]:
+        return self._extract_extremes(whiskers, MaidrKey.Q1, MaidrKey.Q3)
+
+    def extract_caps(self, caps: list) -> list[dict]:
+        return self._extract_extremes(caps, MaidrKey.MIN, MaidrKey.MAX)
+
+    def _extract_extremes(
+        self, extremes: list, start_key: MaidrKey, end_key: MaidrKey
+    ) -> list[dict]:
+        elements = []
+
+        for start, end in zip(extremes[::2], extremes[1::2]):
+            elements.append(
+                {
+                    start_key.value: start,
+                    end_key.value: end,
+                }
+            )
+
+        return elements
+
+    def extract_outliers(self, fliers: list, caps: list) -> list[dict]:
+        elements = []
+
+        for outlier, _ in zip(fliers, caps):
+            elements.append(outlier)
+
+        return elements
+
+
 class BoxPlot(
     MaidrPlot,
     ContainerExtractorMixin,
@@ -131,7 +170,10 @@ class BoxPlot(
         self._bxp_stats = kwargs.pop("bxp_stats", None)
         self._orientation = kwargs.pop("orientation", "vert")
         self._bxp_extractor = BoxPlotExtractor(orientation=self._orientation)
-        self._support_highlighting = False
+        self._bxp_elements_extractor = BoxPlotElementsExtractor(
+            orientation=self._orientation
+        )
+        self._support_highlighting = True
 
     def render(self) -> dict:
         base_schema = super().render()
@@ -150,11 +192,14 @@ class BoxPlot(
         if bxp_stats is None:
             return None
 
-        bxp_maidr = []
         whiskers = self._bxp_extractor.extract_whiskers(bxp_stats["whiskers"])
         caps = self._bxp_extractor.extract_caps(bxp_stats["caps"])
         medians = self._bxp_extractor.extract_medians(bxp_stats["medians"])
         outliers = self._bxp_extractor.extract_outliers(bxp_stats["fliers"], caps)
+        caps_elements = self._bxp_elements_extractor.extract_caps(bxp_stats["caps"])
+
+        bxp_maidr = []
+
         levels = (
             self.extract_level(self.ax, MaidrKey.X)
             if self._orientation == "vert"
@@ -162,6 +207,22 @@ class BoxPlot(
         )
         if levels is None:
             levels = []
+
+        _pairs = [(e["min"], e["max"]) for e in caps_elements if e]
+
+        if _pairs:
+            mins, maxs = map(list, zip(*_pairs))
+        else:
+            mins, maxs = [], []
+
+        elements_map = {}
+
+        for element in chain(mins, maxs, bxp_stats["medians"], bxp_stats["boxes"]):
+            gid = str(uuid.uuid4())
+            element.set_gid(gid)
+            elements_map[gid] = element
+
+        self._elements.append(elements_map)
 
         for whisker, cap, median, outlier, level in zip(
             whiskers, caps, medians, outliers, levels
