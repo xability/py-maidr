@@ -32,6 +32,16 @@ class Environment:
             return False
 
     @staticmethod
+    def is_shiny() -> bool:
+        """Return True if the environment is a Shiny app."""
+        try:
+            import shiny
+
+            return shiny.__name__ == "shiny"
+        except ImportError:
+            return False
+
+    @staticmethod
     def is_vscode_notebook() -> bool:
         """Return True if the environment is a VSCode notebook."""
         try:
