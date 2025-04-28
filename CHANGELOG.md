@@ -1,6 +1,18 @@
 # CHANGELOG
 
 
+## v0.22.2 (2025-04-28)
+
+### Bug Fixes
+
+- Ensure dodge plot type is correctly set in seaborn
+  ([#172](https://github.com/xability/py-maidr/pull/172),
+  [`2d43c9b`](https://github.com/xability/py-maidr/commit/2d43c9bda5744249555e4e214736ff0395d8d3ae))
+
+- Shiny app maidr render issue
+  ([`17f431d`](https://github.com/xability/py-maidr/commit/17f431de3584f3cc7951f8fd395e62c4206f7a67))
+
+
 ## v0.22.1 (2025-04-22)
 
 ### Bug Fixes
