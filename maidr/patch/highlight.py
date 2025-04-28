@@ -5,7 +5,6 @@ import uuid
 import wrapt
 from matplotlib.backends.backend_svg import XMLWriter
 from matplotlib.collections import PathCollection, QuadMesh
-from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 

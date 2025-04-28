@@ -90,7 +90,8 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 {
                     MaidrKey.X: float(x),
                     MaidrKey.Y: float(y),
-                    # Replace labels starting with '_child' with an empty string to exclude
+                    # Replace labels starting with '_child'
+                    # with an empty string to exclude
                     # internal or non-relevant labels from being used as identifiers.
                     MaidrKey.FILL: (label if not label.startswith("_child") else ""),
                 }

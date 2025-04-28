@@ -36,9 +36,9 @@ def boxplot(is_vert: bool):
 
 
 # # Create the vertical boxplot
-# vert = boxplot(is_vert=True)
-# # plt.show()
-# maidr.show(vert)
+vert = boxplot(is_vert=True)
+# plt.show()
+maidr.show(vert)
 
 # Create the horizontal boxplot
 horz = boxplot(is_vert=False)

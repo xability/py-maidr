@@ -176,23 +176,24 @@ class BoxPlot(
             "max": [],
             "median": [],
             "boxes": [],
+            "outliers": [],
         }
 
     def _get_selector(self) -> list[dict]:
-        mins, maxs, medians, boxes = self.elements_map.values()
+        mins, maxs, medians, boxes, outliers = self.elements_map.values()
         selector = []
-        for min, max, median, box in zip(mins, maxs, medians, boxes):
+        for min, max, median, box, outlier in zip(mins, maxs, medians, boxes, outliers):
             selector.append(
                 {
-                    MaidrKey.LOWER_OUTLIER.value: [],
+                    MaidrKey.LOWER_OUTLIER.value: ["g[id=" + outlier + "] > g > use"],
                     MaidrKey.MIN.value: "g[id=" + min + "] > path",
                     MaidrKey.MAX.value: "g[id=" + max + "] > path",
                     MaidrKey.Q2.value: "g[id=" + median + "] > path",
                     MaidrKey.IQ.value: "g[id=" + box + "] > path",
-                    MaidrKey.UPPER_OUTLIER.value: [],
+                    MaidrKey.UPPER_OUTLIER.value: ["g[id=" + outlier + "] > g > use"],
                 }
             )
-        return selector
+        return selector if self._orientation == "vert" else list(reversed(selector))
 
     def render(self) -> dict:
         base_schema = super().render()
@@ -217,9 +218,6 @@ class BoxPlot(
         outliers = self._bxp_extractor.extract_outliers(bxp_stats["fliers"], caps)
 
         caps_elements = self._bxp_elements_extractor.extract_caps(bxp_stats["caps"])
-        outliers_elements = self._bxp_elements_extractor.extract_outliers(
-            bxp_stats["fliers"], caps_elements
-        )
         bxp_maidr = []
 
         levels = (
@@ -263,11 +261,11 @@ class BoxPlot(
             self.elements_map["boxes"].append(gid)
             elements.append(element)
 
-        # for element in outliers_elements:
-        #     gid = "maidr-" + str(uuid.uuid4())
-        #     element.set_gid(gid)
-        #     self.elements_map["lowerOutliers"].append(gid)
-        #     elements.append(element)
+        for element in bxp_stats["fliers"]:
+            gid = "maidr-" + str(uuid.uuid4())
+            element.set_gid(gid)
+            self.elements_map["outliers"].append(gid)
+            elements.append(element)
 
         self._elements.extend(elements)
 
