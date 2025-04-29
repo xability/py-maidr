@@ -68,9 +68,30 @@ class MaidrPlot(ABC):
         """Return the CSS selector for highlighting elements."""
         return "g[maidr='true'] > path"
 
+    def extract_shared_xlabel(self, ax, y_threshold=0.2):
+        # First, try to get an xlabel from any shared axes.
+        siblings = ax.get_shared_x_axes().get_siblings(ax)
+        for shared_ax in siblings:
+            xlabel = shared_ax.get_xlabel()
+            if xlabel:  # if non-empty
+                return xlabel
+
+        for text in ax.figure.texts:
+            if text.get_position()[1] < y_threshold:
+                label = text.get_text().strip()
+                if label:
+                    return label
+
+        return ""
+
     def _extract_axes_data(self) -> dict:
         """Extract the plot's axes data"""
-        return {MaidrKey.X: self.ax.get_xlabel(), MaidrKey.Y: self.ax.get_ylabel()}
+        x_labels = self.ax.get_xlabel()
+        if not x_labels:
+            x_labels = self.extract_shared_xlabel(self.ax)
+        if not x_labels:
+            x_labels = "X"
+        return {MaidrKey.X: x_labels, MaidrKey.Y: self.ax.get_ylabel()}
 
     @abstractmethod
     def _extract_plot_data(self) -> list | dict:
