@@ -1,6 +1,36 @@
 # CHANGELOG
 
 
+## v0.23.1 (2025-04-29)
+
+### Bug Fixes
+
+- **stacked barplot**: Address an issue where fill label is not working
+  ([#175](https://github.com/xability/py-maidr/pull/175),
+  [`a4c36f2`](https://github.com/xability/py-maidr/commit/a4c36f2924f3afaa099d10cdc9e759f6d2d479b7))
+
+
+## v0.23.0 (2025-04-29)
+
+### Features
+
+- Support facet plot in py-maidr using maidr-ts
+  ([#148](https://github.com/xability/py-maidr/pull/148),
+  [`d6d6b9a`](https://github.com/xability/py-maidr/commit/d6d6b9a06ad281ec567952d3e9b7f243a1664b8f))
+
+
+## v0.22.2 (2025-04-28)
+
+### Bug Fixes
+
+- Ensure dodge plot type is correctly set in seaborn
+  ([#172](https://github.com/xability/py-maidr/pull/172),
+  [`2d43c9b`](https://github.com/xability/py-maidr/commit/2d43c9bda5744249555e4e214736ff0395d8d3ae))
+
+- Shiny app maidr render issue
+  ([`17f431d`](https://github.com/xability/py-maidr/commit/17f431de3584f3cc7951f8fd395e62c4206f7a67))
+
+
 ## v0.22.1 (2025-04-22)
 
 ### Bug Fixes
