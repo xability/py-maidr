@@ -48,6 +48,8 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         # Flatten all the `list[BarContainer]` to `list[Patch]`.
         plot = [patch for container in plot for patch in container.patches]
         level = self.extract_level(self.ax)
+        if len(level) == 0:  # type: ignore
+            level = ["" for _ in range(len(plot))]  # type: ignore
 
         if len(plot) != len(level):
             return None
