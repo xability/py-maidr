@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.23.0 (2025-04-29)
+
+### Features
+
+- Support facet plot in py-maidr using maidr-ts
+  ([#148](https://github.com/xability/py-maidr/pull/148),
+  [`d6d6b9a`](https://github.com/xability/py-maidr/commit/d6d6b9a06ad281ec567952d3e9b7f243a1664b8f))
+
+
 ## v0.22.2 (2025-04-28)
 
 ### Bug Fixes
