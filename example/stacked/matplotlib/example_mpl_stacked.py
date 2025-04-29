@@ -25,7 +25,7 @@ for boolean, weight_count in weight_counts.items():
 ax.set_xlabel("Species of Penguins")
 ax.set_ylabel("Average Body Mass")
 
-ax.set_title("Number of penguins with above average body mass")
+ax.set_title("Penguins with above or below average body mass")
 ax.legend(loc="upper right")
 
 maidr.show(p)
