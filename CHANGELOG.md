@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.25.0 (2025-05-01)
+
+### Features
+
+- Update MAIDR CDN URLs for JavaScript and CSS files
+  ([`2b31712`](https://github.com/xability/py-maidr/commit/2b31712bbb81812fbe239bc46a547694128ac8fc))
+
+
 ## v0.24.0 (2025-05-01)
 
 ### Features
