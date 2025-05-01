@@ -35,7 +35,7 @@ def boxplot(is_vert: bool):
     return bp
 
 
-# Create the vertical boxplot
+# # Create the vertical boxplot
 vert = boxplot(is_vert=True)
 # plt.show()
 maidr.show(vert)

@@ -5,7 +5,6 @@ import uuid
 import wrapt
 from matplotlib.backends.backend_svg import XMLWriter
 from matplotlib.collections import PathCollection, QuadMesh
-from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -20,8 +19,10 @@ def inject_maidr_attribute(wrapped, instance, args, kwargs):
 
 
 def tag_elements(wrapped, instance, args, kwargs):
-    id = str(uuid.uuid4())
-    instance.set_gid(id)
+    id = str(instance.get_gid())
+    if not id.startswith("maidr-"):
+        id = "maidr-" + str(uuid.uuid4())
+        instance.set_gid(id)
     with HighlightContextManager.set_maidr_element(instance, id):
         return wrapped(*args, **kwargs)
 

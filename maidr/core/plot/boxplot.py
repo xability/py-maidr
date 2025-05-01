@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
@@ -119,6 +121,40 @@ class BoxPlotExtractor:
         return data
 
 
+class BoxPlotElementsExtractor:
+    def __init__(self, orientation: str = "vert"):
+        self.orientation = orientation
+
+    def extract_whiskers(self, whiskers: list) -> list[dict]:
+        return self._extract_extremes(whiskers, MaidrKey.Q1, MaidrKey.Q3)
+
+    def extract_caps(self, caps: list) -> list[dict]:
+        return self._extract_extremes(caps, MaidrKey.MIN, MaidrKey.MAX)
+
+    def _extract_extremes(
+        self, extremes: list, start_key: MaidrKey, end_key: MaidrKey
+    ) -> list[dict]:
+        elements = []
+
+        for start, end in zip(extremes[::2], extremes[1::2]):
+            elements.append(
+                {
+                    start_key.value: start,
+                    end_key.value: end,
+                }
+            )
+
+        return elements
+
+    def extract_outliers(self, fliers: list, caps: list):
+        elements = []
+
+        for outlier, _ in zip(fliers, caps):
+            elements.append(outlier)
+
+        return elements
+
+
 class BoxPlot(
     MaidrPlot,
     ContainerExtractorMixin,
@@ -131,7 +167,33 @@ class BoxPlot(
         self._bxp_stats = kwargs.pop("bxp_stats", None)
         self._orientation = kwargs.pop("orientation", "vert")
         self._bxp_extractor = BoxPlotExtractor(orientation=self._orientation)
-        self._support_highlighting = False
+        self._bxp_elements_extractor = BoxPlotElementsExtractor(
+            orientation=self._orientation
+        )
+        self._support_highlighting = True
+        self.elements_map = {
+            "min": [],
+            "max": [],
+            "median": [],
+            "boxes": [],
+            "outliers": [],
+        }
+
+    def _get_selector(self) -> list[dict]:
+        mins, maxs, medians, boxes, outliers = self.elements_map.values()
+        selector = []
+        for min, max, median, box, outlier in zip(mins, maxs, medians, boxes, outliers):
+            selector.append(
+                {
+                    MaidrKey.LOWER_OUTLIER.value: ["g[id=" + outlier + "] > g > use"],
+                    MaidrKey.MIN.value: "g[id=" + min + "] > path",
+                    MaidrKey.MAX.value: "g[id=" + max + "] > path",
+                    MaidrKey.Q2.value: "g[id=" + median + "] > path",
+                    MaidrKey.IQ.value: "g[id=" + box + "] > path",
+                    MaidrKey.UPPER_OUTLIER.value: ["g[id=" + outlier + "] > g > use"],
+                }
+            )
+        return selector if self._orientation == "vert" else list(reversed(selector))
 
     def render(self) -> dict:
         base_schema = super().render()
@@ -150,11 +212,14 @@ class BoxPlot(
         if bxp_stats is None:
             return None
 
-        bxp_maidr = []
         whiskers = self._bxp_extractor.extract_whiskers(bxp_stats["whiskers"])
         caps = self._bxp_extractor.extract_caps(bxp_stats["caps"])
         medians = self._bxp_extractor.extract_medians(bxp_stats["medians"])
         outliers = self._bxp_extractor.extract_outliers(bxp_stats["fliers"], caps)
+
+        caps_elements = self._bxp_elements_extractor.extract_caps(bxp_stats["caps"])
+        bxp_maidr = []
+
         levels = (
             self.extract_level(self.ax, MaidrKey.X)
             if self._orientation == "vert"
@@ -162,6 +227,47 @@ class BoxPlot(
         )
         if levels is None:
             levels = []
+
+        _pairs = [(e["min"], e["max"]) for e in caps_elements if e]
+
+        if _pairs:
+            mins, maxs = map(list, zip(*_pairs))
+        else:
+            mins, maxs = [], []
+
+        elements = []
+
+        for element in mins:
+            gid = "maidr-" + str(uuid.uuid4())
+            element.set_gid(gid)
+            self.elements_map["min"].append(gid)
+            elements.append(element)
+
+        for element in maxs:
+            gid = "maidr-" + str(uuid.uuid4())
+            element.set_gid(gid)
+            self.elements_map["max"].append(gid)
+            elements.append(element)
+
+        for element in bxp_stats["medians"]:
+            gid = "maidr-" + str(uuid.uuid4())
+            element.set_gid(gid)
+            self.elements_map["median"].append(gid)
+            elements.append(element)
+
+        for element in bxp_stats["boxes"]:
+            gid = "maidr-" + str(uuid.uuid4())
+            element.set_gid(gid)
+            self.elements_map["boxes"].append(gid)
+            elements.append(element)
+
+        for element in bxp_stats["fliers"]:
+            gid = "maidr-" + str(uuid.uuid4())
+            element.set_gid(gid)
+            self.elements_map["outliers"].append(gid)
+            elements.append(element)
+
+        self._elements.extend(elements)
 
         for whisker, cap, median, outlier, level in zip(
             whiskers, caps, medians, outliers, levels

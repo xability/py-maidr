@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.24.0 (2025-05-01)
+
+### Features
+
+- Support box-plot highlight ([#174](https://github.com/xability/py-maidr/pull/174),
+  [`3c065b8`](https://github.com/xability/py-maidr/commit/3c065b8bc21d10f33b06d35e5ec526d2225be491))
+
+
 ## v0.23.1 (2025-04-29)
 
 ### Bug Fixes
