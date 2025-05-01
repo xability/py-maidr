@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.25.1 (2025-05-01)
+
+### Bug Fixes
+
+- Address figures are duplicated in jupyter notebook and quarto doc
+  ([#177](https://github.com/xability/py-maidr/pull/177),
+  [`12e5eef`](https://github.com/xability/py-maidr/commit/12e5eefc45847c705089ce0930c8739cd7394a57))
+
+
 ## v0.25.0 (2025-05-01)
 
 ### Features
