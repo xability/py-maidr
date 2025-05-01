@@ -30,6 +30,8 @@ class MaidrKey(str, Enum):
     Q2 = "q2"
     Q3 = "q3"
     UPPER_OUTLIER = "upperOutliers"
+    IQ = "iq"
+    MEDIAN = "median"
 
     # Grouped bar and heatmap plot keys.
     FILL = "fill"
