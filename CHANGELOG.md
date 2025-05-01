@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.25.2 (2025-05-01)
+
+### Bug Fixes
+
+- Update logo image URLs
+  ([`b22389f`](https://github.com/xability/py-maidr/commit/b22389fbe307d0c37881b08acdaf47db374dfa47))
+
+
 ## v0.25.1 (2025-05-01)
 
 ### Bug Fixes
