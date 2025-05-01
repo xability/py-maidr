@@ -103,7 +103,7 @@ class Maidr:
         ):
             return self._open_plot_in_browser()
         if clear_fig:
-            plt.close()
+            self.fig.clf()
         return html.show(renderer)
 
     def clear(self):
