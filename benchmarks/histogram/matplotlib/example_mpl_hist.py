@@ -62,6 +62,7 @@ def test():
         va="top",
         bbox=dict(boxstyle="round", fc="white", alpha=0.8),
     )
+    plt.close()
 
     # Display the histogram through maidr
     # maidr.show(hist_plot)
