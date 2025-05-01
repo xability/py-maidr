@@ -8,6 +8,7 @@ import uuid
 import webbrowser
 from typing import Any, Literal
 
+import matplotlib.pyplot as plt
 from htmltools import HTML, HTMLDocument, Tag, tags
 from lxml import etree
 from matplotlib.figure import Figure
@@ -21,7 +22,8 @@ from maidr.util.environment import Environment
 
 class Maidr:
     """
-    A class to handle the rendering and interaction of matplotlib figures with additional metadata.
+    A class to handle the rendering and interaction
+    of matplotlib figures with additional metadata.
 
     Attributes
     ----------
@@ -84,6 +86,7 @@ class Maidr:
     def show(
         self,
         renderer: Literal["auto", "ipython", "browser"] = "auto",
+        clear_fig: bool = True,
     ) -> object:
         """
         Preview the HTML content using the specified renderer.
@@ -99,6 +102,8 @@ class Maidr:
             Environment.is_interactive_shell() and not Environment.is_notebook()
         ):
             return self._open_plot_in_browser()
+        if clear_fig:
+            plt.close()
         return html.show(renderer)
 
     def clear(self):
