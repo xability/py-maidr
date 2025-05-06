@@ -18,14 +18,13 @@ class GroupedBarPlot(
 ):
     def __init__(self, ax: Axes, plot_type: PlotType, **kwargs) -> None:
         super().__init__(ax, plot_type)
-        self._support_highlighting = False
 
     def _extract_axes_data(self) -> dict:
         base_ax_schema = super()._extract_axes_data()
         grouped_ax_schema = {
             MaidrKey.X.value: self.ax.get_xlabel(),
             MaidrKey.Y.value: self.ax.get_ylabel(),
-            MaidrKey.FILL.value: self.extract_level(self.ax, MaidrKey.FILL),
+            MaidrKey.FILL.value: self.ax.get_title(),
         }
         return self.merge_dict(base_ax_schema, grouped_ax_schema)
 
@@ -46,6 +45,10 @@ class GroupedBarPlot(
 
         x_level = self.extract_level(self.ax)
         data = []
+
+        self._elements.extend(
+            [patch for container in plot for patch in container.patches]
+        )
 
         for container in plot:
             if len(x_level) != len(container.patches):

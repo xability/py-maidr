@@ -15,9 +15,6 @@ import maidr
 # Set the plotting style
 sns.set_theme(style="whitegrid")
 
-# Set the maidr engine
-maidr.set_engine("ts")
-
 # Data for line plot
 x_line = np.array([1, 2, 3, 4, 5, 6, 7, 8])
 y_line = np.array([2, 4, 1, 5, 3, 7, 6, 8])

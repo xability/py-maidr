@@ -3,9 +3,6 @@ import seaborn as sns
 
 import maidr
 
-# To use maidr's typescript build set the following command to use maidr ts
-maidr.set_engine("ts")
-
 # Load dataset
 tips = sns.load_dataset("tips")
 

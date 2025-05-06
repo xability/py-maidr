@@ -3,8 +3,6 @@ import numpy as np
 
 import maidr
 
-maidr.set_engine("ts")
-
 species = (
     "Adelie\nMean = 3700.66g",
     "Chinstrap\nMean = 3733.09g",
@@ -27,7 +25,7 @@ for boolean, weight_count in weight_counts.items():
 ax.set_xlabel("Species of Penguins")
 ax.set_ylabel("Average Body Mass")
 
-ax.set_title("Number of penguins with above average body mass")
+ax.set_title("Penguins with above or below average body mass")
 ax.legend(loc="upper right")
 
 maidr.show(p)

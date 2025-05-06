@@ -3,8 +3,6 @@ import numpy as np
 
 import maidr
 
-# import maidr
-
 """
 Creates a multiline plot showing basic data trends.
 
@@ -15,7 +13,7 @@ Returns
 -------
 None
 """
-maidr.set_engine("ts")
+
 # Create sample data points
 x = np.array([1, 2, 3, 4, 5, 6, 7, 8])
 y1 = np.array([2, 4, 1, 5, 3, 7, 6, 8])

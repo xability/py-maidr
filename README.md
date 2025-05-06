@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://github.com/xability/maidr/blob/main/logo/logo.svg" width="350px" alt="A stylized MAIDR logo, with curved characters for M A, a hand pointing for an I, the D character, and R represented in braille."/>
+<img src="https://raw.githubusercontent.com/xability/maidr/main/docs/logo/logo.svg" width="350px" alt="A stylized MAIDR logo, with curved characters for M A, a hand pointing for an I, the D character, and R represented in braille."/>
 
 <hr style="color:transparent" />
 <br />

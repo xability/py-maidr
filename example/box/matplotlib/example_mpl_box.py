@@ -3,8 +3,6 @@ import numpy as np
 
 import maidr
 
-maidr.set_engine("ts")
-
 # Generating random data for three different groups
 data_group1 = np.random.normal(100, 10, 200)
 data_group2 = np.random.normal(90, 20, 200)
@@ -37,7 +35,7 @@ def boxplot(is_vert: bool):
     return bp
 
 
-# Create the vertical boxplot
+# # Create the vertical boxplot
 vert = boxplot(is_vert=True)
 # plt.show()
 maidr.show(vert)
