@@ -22,23 +22,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install and configure Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: poetry
+
+      - name: Install UV
+        run: |
+          # Install UV using the official installation script
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Setup UV environment
+        run: |
+          # Create and activate virtual environment
+          uv venv .venv
+          source .venv/bin/activate
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry install
+          # Install project and its dependencies with development extras
+          uv pip install -e ".[dev]"
+          # Ensure quartodoc is installed
+          uv pip install "quartodoc>=0.7.5,<0.8"
 
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
@@ -46,8 +54,8 @@ jobs:
       - name: Run quartodoc
         run: |
           cd docs
-          poetry run quartodoc build --verbose
-          poetry run quartodoc interlinks
+          quartodoc build --verbose
+          quartodoc interlinks
 
       - name: Render and Publish to GitHub Pages
         if: github.repository == 'xability/py-maidr'
