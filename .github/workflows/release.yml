@@ -24,30 +24,37 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install and configure Poetry
-        uses: snok/install-poetry@v1
-        with:
-            virtualenvs-create: true
-            virtualenvs-in-project: true
-            installer-parallel: true
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         id: setup-python
         with:
           python-version: ${{ matrix.python-version }}
-          cache: poetry
+          cache: 'uv'
+
+      - name: Install UV
+        run: |
+          # Install UV using the official installation script
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Setup UV environment
+        run: |
+          # Create and activate virtual environment
+          uv venv .venv
+          source .venv/bin/activate
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry install
-          python -m pip install pytest-github-actions-annotate-failures
+          # Install project and test dependencies
+          uv pip install -e .
+          uv pip install pytest pytest-github-actions-annotate-failures
 
       - name: Run tests
         id: tests
         run: |
-          poetry run pytest -vvv
+          pytest -vvv
 
   lint:
     runs-on: ubuntu-latest
@@ -55,11 +62,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check format with black
-        uses: psf/black@stable
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          options: "--diff --check --color --verbose"
-          version: "23.3.0"
+          python-version: "3.12"
+
+      - name: Install UV
+        run: |
+          # Install UV
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Black
+        run: |
+          # Install specific version of Black using UV
+          uv pip install black==23.3.0
+
+      - name: Check format with black
+        run: |
+          # Run Black formatter check
+          black --diff --check --color --verbose .
 
   commit-lint:
     runs-on: ubuntu-latest
@@ -93,6 +115,22 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.ref_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"  # Using latest stable Python for release
+
+      - name: Install UV
+        run: |
+          # Install UV for package management
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          # Install build dependencies using UV
+          uv pip install python-semantic-release build twine
 
       - name: Python Semantic Release
         id: release
