@@ -6,15 +6,15 @@ import numpy as np
 import pandas as pd
 from mplfinance.original_flavor import candlestick_ohlc
 
+import maidr
+
 
 def generate_candlestick_chart(
     data_dict: Dict[str, List],
-    output_file: str = "candle_stick.svg",
     width: float = 0.6,
     colorup: str = "g",
     colordown: str = "r",
     title: str = "Stock Price Candlestick Chart",
-    show_volume: bool = False,
 ) -> Tuple[plt.Figure, plt.Axes]:  # type: ignore
     """
     Generate and save a candlestick chart from OHLC (Open, High, Low, Close) data.
@@ -58,51 +58,35 @@ def generate_candlestick_chart(
         raise ValueError("All arrays in data_dict must be of the same length")
 
     df = pd.DataFrame(data_dict)
+    # Convert 'Date' column to datetime objects
     df["Date"] = pd.to_datetime(df["Date"])
+    # Convert dates to matplotlib date numbers
     df["Date_num"] = df["Date"].apply(mdates.date2num)  # type: ignore
 
+    # Prepare OHLC data in the format required by candlestick_ohlc
     ohlc = df[["Date_num", "Open", "High", "Low", "Close"]].values
 
-    if show_volume and "Volume" in data_dict:
-        fig, (ax1, ax2) = plt.subplots(
-            2, 1, figsize=(12, 8), gridspec_kw={"height_ratios": [3, 1]}, sharex=True
-        )
+    # Create a figure and an axes
+    fig, ax = plt.subplots(figsize=(12, 6))
 
-        candlestick_ohlc(
-            ax1, ohlc, width=width, colorup=colorup, colordown=colordown, alpha=0.8
-        )
+    # Plot the candlestick chart
+    candlestick_ohlc(
+        ax, ohlc, width=width, colorup=colorup, colordown=colordown, alpha=0.8
+    )
 
-        ax1.xaxis_date()
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    # Format the x-axis to display dates
+    ax.xaxis_date()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
 
-        ax1.grid(True, linestyle="--", alpha=0.6)
-        ax1.set_title(title, fontsize=14)
-        ax1.set_ylabel("Price", fontsize=12)
+    # Add grid, title, and labels
+    ax.grid(True, linestyle="--", alpha=0.6)
+    ax.set_title(title, fontsize=14)
+    ax.set_xlabel("Date", fontsize=12)
+    ax.set_ylabel("Price", fontsize=12)
 
-        ax2.bar(df["Date_num"], df["Volume"], width=width, color="blue", alpha=0.4)
-        ax2.set_ylabel("Volume", fontsize=12)
-        ax2.set_xlabel("Date", fontsize=12)
-        ax2.grid(True, linestyle="--", alpha=0.4)
-
-        plt.xticks(rotation=45)
-        ax = ax1
-    else:
-        fig, ax = plt.subplots(figsize=(12, 6))
-        candlestick_ohlc(
-            ax, ohlc, width=width, colorup=colorup, colordown=colordown, alpha=0.8
-        )
-
-        ax.xaxis_date()
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-        plt.xticks(rotation=45)
-
-        ax.grid(True, linestyle="--", alpha=0.6)
-        ax.set_title(title, fontsize=14)
-        ax.set_xlabel("Date", fontsize=12)
-        ax.set_ylabel("Price", fontsize=12)
-
+    # Adjust layout to prevent labels from overlapping
     plt.tight_layout()
-    plt.savefig(output_file)
 
     return fig, ax
 
@@ -194,26 +178,6 @@ def generate_sample_data(
 
 
 def save_data_to_csv(data: Dict[str, List], filename: str = "stock_data.csv") -> None:
-    """
-    Save stock market data to a CSV file.
-
-    Parameters
-    ----------
-    data : Dict[str, List]
-        Dictionary containing stock data with keys like 'Date', 'Open', 'High', etc.
-    filename : str, optional
-        Name of the CSV file to save data to, by default "stock_data.csv"
-
-    Returns
-    -------
-    None
-        Function writes data to the specified file but does not return anything
-
-    Examples
-    --------
-    >>> data = generate_sample_data(start_date="2021-01-01", end_date="2021-01-10")
-    >>> save_data_to_csv(data, "my_stock_data.csv")
-    """
     # Convert the dictionary to a pandas DataFrame
     df = pd.DataFrame(data)
 
@@ -222,25 +186,16 @@ def save_data_to_csv(data: Dict[str, List], filename: str = "stock_data.csv") ->
     print(f"Data saved to {filename}")
 
 
-if __name__ == "__main__":
-    data = generate_sample_data(
-        start_date="2021-01-01",
-        end_date="2021-03-31",
-        start_price=100.0,
-        volatility=0.015,
-    )
+data = generate_sample_data(
+    start_date="2021-01-01",
+    end_date="2021-03-31",
+    start_price=100.0,
+    volatility=0.015,
+)
 
-    save_data_to_csv(data, "stock_data.csv")
-
-    fig, ax = generate_candlestick_chart(
-        data, output_file="candle_stick.svg", show_volume=False
-    )
-    print(f"Generated basic candlestick chart with {len(data['Date'])} trading days.")
-
-    fig, ax = generate_candlestick_chart(
-        data,
-        output_file="candle_stick_with_volume.svg",
-        show_volume=True,
-        title="Stock Price with Volume",
-    )
-    print("Generated candlestick chart with volume.")
+fig, ax = generate_candlestick_chart(
+    data,
+    title="Stock Price with Volume",
+)
+# plt.show()
+maidr.show(fig)
