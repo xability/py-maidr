@@ -8,6 +8,7 @@ import uuid
 import webbrowser
 from typing import Any, Literal
 
+import matplotlib.pyplot as plt
 from htmltools import HTML, HTMLDocument, Tag, tags
 from lxml import etree
 from matplotlib.figure import Figure
@@ -21,7 +22,8 @@ from maidr.util.environment import Environment
 
 class Maidr:
     """
-    A class to handle the rendering and interaction of matplotlib figures with additional metadata.
+    A class to handle the rendering and interaction
+    of matplotlib figures with additional metadata.
 
     Attributes
     ----------
@@ -45,7 +47,7 @@ class Maidr:
         self._fig = fig
         self._plots = []
         self.maidr_id = None
-        self.selector_id = Maidr._unique_id()
+        self.selector_ids = []
         self.plot_type = plot_type
 
     @property
@@ -84,6 +86,7 @@ class Maidr:
     def show(
         self,
         renderer: Literal["auto", "ipython", "browser"] = "auto",
+        clear_fig: bool = True,
     ) -> object:
         """
         Preview the HTML content using the specified renderer.
@@ -99,6 +102,8 @@ class Maidr:
             Environment.is_interactive_shell() and not Environment.is_notebook()
         ):
             return self._open_plot_in_browser()
+        if clear_fig:
+            plt.close()
         return html.show(renderer)
 
     def clear(self):
@@ -122,13 +127,18 @@ class Maidr:
 
     def _create_html_tag(self) -> Tag:
         """Create the MAIDR HTML using HTML tags."""
-        tagged_elements = [element for plot in self._plots for element in plot.elements]
-        with HighlightContextManager.set_maidr_elements(tagged_elements):
+        tagged_elements: list[Any] = [
+            element for plot in self._plots for element in plot.elements
+        ]
+
+        selector_ids = []
+        for i, plot in enumerate(self._plots):
+            for _ in plot.elements:
+                selector_ids.append(self.selector_ids[i])
+
+        with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
             svg = self._get_svg()
         maidr = f"\nlet maidr = {json.dumps(self._flatten_maidr(), indent=2)}\n"
-
-        # In SVG we will replace maidr=id with the unique id.
-        svg = svg.replace('maidr="true"', f'maidr="{self.selector_id}"')
 
         # Inject plot's svg and MAIDR structure into html tag.
         return Maidr._inject_plot(svg, maidr, self.maidr_id)
@@ -139,31 +149,25 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
-        # To support legacy JS Engine we will just return the format in this way
-        # but soon enough this should be deprecated and when we will completely
-        # transition to TypeScript :)
-        engine = Environment.get_engine()
-        if engine == "js":
-            if self.plot_type in (PlotType.LINE, PlotType.DODGED, PlotType.STACKED):
-                self._plots = [self._plots[0]]
-            maidr = [plot.schema for plot in self._plots]
-            for plot in maidr:
-                if MaidrKey.SELECTOR in plot:
-                    plot[MaidrKey.SELECTOR] = plot[MaidrKey.SELECTOR].replace(
-                        "maidr='true'", f"maidr='{self.selector_id}'"
-                    )
-            return maidr if len(maidr) != 1 else maidr[0]
-
-        # Now let's start building the maidr object for the newer TypeScript engine
+        if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
+            self._plots = [self._plots[0]]
 
         plot_schemas = []
 
-        for plot in self._plots:
+        for i, plot in enumerate(self._plots):
             schema = plot.schema
-            if MaidrKey.SELECTOR in schema:
-                schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
-                    "maidr='true'", f"maidr='{self.selector_id}'"
-                )
+
+            if MaidrKey.SELECTOR in schema and plot.type != PlotType.BOX:
+                if isinstance(schema[MaidrKey.SELECTOR], str):
+                    schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
+                        "maidr='true'", f"maidr='{self.selector_ids[i]}'"
+                    )
+                if isinstance(schema[MaidrKey.SELECTOR], list):
+                    for j in range(len(schema[MaidrKey.SELECTOR])):
+                        schema[MaidrKey.SELECTOR][j] = schema[MaidrKey.SELECTOR][
+                            j
+                        ].replace("maidr='true'", f"maidr='{self.selector_ids[i]}'")
+
             plot_schemas.append(
                 {
                     "schema": schema,
@@ -211,10 +215,6 @@ class Maidr:
         root_svg = None
         # Find the `svg` tag and set unique id if not present else use it.
         for element in tree_svg.iter(tag="{http://www.w3.org/2000/svg}svg"):
-            _id = Maidr._unique_id()
-            self._set_maidr_id(_id)
-            if "id" not in element.attrib:
-                element.attrib["id"] = _id
             if "maidr-data" not in element.attrib:
                 element.attrib["maidr-data"] = json.dumps(
                     self._flatten_maidr(), indent=2
@@ -245,27 +245,10 @@ class Maidr:
     @staticmethod
     def _inject_plot(plot: HTML, maidr: str, maidr_id) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
-
-        engine = Environment.get_engine()
-
         # MAIDR_TS_CDN_URL = "http://localhost:8080/maidr.js"  # DEMO URL
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr-ts/dist/maidr.js"
+        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr/dist/maidr.js"
 
-        maidr_js_script = f"""
-            if (!document.querySelector('script[src="https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js"]')) {{
-                var script = document.createElement('script');
-                script.type = 'text/javascript';
-                script.src = 'https://cdn.jsdelivr.net/npm/maidr/dist/maidr.min.js';
-                script.addEventListener('load', function() {{
-                    window.init("{maidr_id}");
-                }});
-                document.head.appendChild(script);
-            }} else {{
-                window.init("{maidr_id}");
-            }}
-        """
-
-        maidr_ts_script = f"""
+        script = f"""
             if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
             {{
                 var script = document.createElement('script');
@@ -282,25 +265,21 @@ class Maidr:
             }}
         """
 
-        script = maidr_js_script if engine == "js" else maidr_ts_script
-
         base_html = tags.div(
             tags.link(
                 rel="stylesheet",
-                href="https://cdn.jsdelivr.net/npm/maidr/dist/maidr_style.min.css",
+                href="https://cdn.jsdelivr.net/npm/maidr/dist/maidr_style.css",
             ),
             tags.script(script, type="text/javascript"),
             tags.div(plot),
         )
 
-        is_quarto = os.getenv("IS_QUARTO") == "True"
+        # is_quarto = os.getenv("IS_QUARTO") == "True"
 
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
         # For TypeScript we will use iframe by default for now
-        if (Environment.is_notebook() and not is_quarto) or (
-            engine == "ts" and Environment.is_notebook()
-        ):
+        if Environment.is_notebook() or Environment.is_shiny():
             unique_id = "iframe_" + Maidr._unique_id()
 
             def generate_iframe_script(unique_id: str) -> str:

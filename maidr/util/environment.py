@@ -1,20 +1,9 @@
 import json
 import os
-from typing import Literal
 
 
 class Environment:
-    _engine = "js"
-
-    @classmethod
-    def _set_engine(cls, engine: Literal["js", "ts"]) -> None:
-        """Set the engine to use for the MAIDR instance."""
-        cls._engine = engine
-
-    @classmethod
-    def get_engine(cls) -> str:
-        """Get the engine to use for the MAIDR instance."""
-        return cls._engine
+    _engine = "ts"
 
     @staticmethod
     def is_interactive_shell() -> bool:
@@ -39,6 +28,16 @@ class Environment:
                 "ipykernel" in str(get_ipython())
                 or "google.colab" in str(get_ipython())
             )
+        except ImportError:
+            return False
+
+    @staticmethod
+    def is_shiny() -> bool:
+        """Return True if the environment is a Shiny app."""
+        try:
+            import shiny
+
+            return shiny.__name__ == "shiny"
         except ImportError:
             return False
 

@@ -39,6 +39,7 @@ for offset, (category, counts) in zip(offsets, weight_counts.items()):
 # Set x-axis labels and title
 ax.set_xticks(x)
 ax.set_xticklabels(species)
+ax.set_xlabel("Species")
 ax.set_title("Dodged Bar Plot: Penguin Weight Counts")
 ax.legend(loc="upper right")
 

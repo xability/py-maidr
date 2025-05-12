@@ -35,12 +35,12 @@ def boxplot(is_vert: bool):
     return bp
 
 
-# Create the vertical boxplot
+# # Create the vertical boxplot
 vert = boxplot(is_vert=True)
 # plt.show()
 maidr.show(vert)
 
-# Create the vertical boxplot
+# Create the horizontal boxplot
 horz = boxplot(is_vert=False)
 # plt.show()
 maidr.show(horz)

@@ -1,6 +1,143 @@
 # CHANGELOG
 
 
+## v0.25.2 (2025-05-01)
+
+### Bug Fixes
+
+- Update logo image URLs
+  ([`b22389f`](https://github.com/xability/py-maidr/commit/b22389fbe307d0c37881b08acdaf47db374dfa47))
+
+
+## v0.25.1 (2025-05-01)
+
+### Bug Fixes
+
+- Address figures are duplicated in jupyter notebook and quarto doc
+  ([#177](https://github.com/xability/py-maidr/pull/177),
+  [`12e5eef`](https://github.com/xability/py-maidr/commit/12e5eefc45847c705089ce0930c8739cd7394a57))
+
+
+## v0.25.0 (2025-05-01)
+
+### Features
+
+- Update MAIDR CDN URLs for JavaScript and CSS files
+  ([`2b31712`](https://github.com/xability/py-maidr/commit/2b31712bbb81812fbe239bc46a547694128ac8fc))
+
+
+## v0.24.0 (2025-05-01)
+
+### Features
+
+- Support box-plot highlight ([#174](https://github.com/xability/py-maidr/pull/174),
+  [`3c065b8`](https://github.com/xability/py-maidr/commit/3c065b8bc21d10f33b06d35e5ec526d2225be491))
+
+
+## v0.23.1 (2025-04-29)
+
+### Bug Fixes
+
+- **stacked barplot**: Address an issue where fill label is not working
+  ([#175](https://github.com/xability/py-maidr/pull/175),
+  [`a4c36f2`](https://github.com/xability/py-maidr/commit/a4c36f2924f3afaa099d10cdc9e759f6d2d479b7))
+
+
+## v0.23.0 (2025-04-29)
+
+### Features
+
+- Support facet plot in py-maidr using maidr-ts
+  ([#148](https://github.com/xability/py-maidr/pull/148),
+  [`d6d6b9a`](https://github.com/xability/py-maidr/commit/d6d6b9a06ad281ec567952d3e9b7f243a1664b8f))
+
+
+## v0.22.2 (2025-04-28)
+
+### Bug Fixes
+
+- Ensure dodge plot type is correctly set in seaborn
+  ([#172](https://github.com/xability/py-maidr/pull/172),
+  [`2d43c9b`](https://github.com/xability/py-maidr/commit/2d43c9bda5744249555e4e214736ff0395d8d3ae))
+
+- Shiny app maidr render issue
+  ([`17f431d`](https://github.com/xability/py-maidr/commit/17f431de3584f3cc7951f8fd395e62c4206f7a67))
+
+
+## v0.22.1 (2025-04-22)
+
+### Bug Fixes
+
+- Remove redundant _child0 label as a fill parameter for line plot
+  ([#169](https://github.com/xability/py-maidr/pull/169),
+  [`e543890`](https://github.com/xability/py-maidr/commit/e543890af0a89b38561a8760292cd996adadac22))
+
+Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>
+
+### Documentation
+
+- Add quartodoc examples for multiline, subplots, dodged bar plot, stacked …
+  ([#168](https://github.com/xability/py-maidr/pull/168),
+  [`5a2235a`](https://github.com/xability/py-maidr/commit/5a2235ac3da0372f3e17ddde35adc45c1dfd60b7))
+
+### Refactoring
+
+- Clean up example gallery examples
+  ([`337a653`](https://github.com/xability/py-maidr/commit/337a65346aca82f4805bbbac850d1ef9e6146702))
+
+- Remove legacy JS engine support and related code
+  ([#165](https://github.com/xability/py-maidr/pull/165),
+  [`e7fcae8`](https://github.com/xability/py-maidr/commit/e7fcae88b3555e98539b8844168209d9c3b0e9b8))
+
+
+## v0.22.0 (2025-04-17)
+
+### Bug Fixes
+
+- Replace caching for Poetry dependencies in CI workflow
+  ([#164](https://github.com/xability/py-maidr/pull/164),
+  [`d719156`](https://github.com/xability/py-maidr/commit/d719156171a6d788290a01c0393db95bcc1b6090))
+
+- Streamline Python setup in Quarto CI
+  ([`2621e1e`](https://github.com/xability/py-maidr/commit/2621e1e0ffcbe3d11677807e310b69ef4d33f33e))
+
+- Update Python setup step and improve Poetry installation in release workflow
+  ([`3dc9f1e`](https://github.com/xability/py-maidr/commit/3dc9f1e81b0cdb46e9e822e557c278a92792104e))
+
+- Update selector logic in ScatterPlot for correct element targeting
+  ([#162](https://github.com/xability/py-maidr/pull/162),
+  [`4c763af`](https://github.com/xability/py-maidr/commit/4c763af538875ed97c55a15a444152f1afd1eaa4))
+
+### Features
+
+- Support highlight in dodged and stacked bar plot using maidr-ts
+  ([#161](https://github.com/xability/py-maidr/pull/161),
+  [`04c874c`](https://github.com/xability/py-maidr/commit/04c874cf9683e0ac10ba4a40df04aa13ef1d5bf5))
+
+
+## v0.21.0 (2025-04-15)
+
+### Features
+
+- Update py-maidr backend to use latest maidr-ts engine
+  ([#158](https://github.com/xability/py-maidr/pull/158),
+  [`16a8f3e`](https://github.com/xability/py-maidr/commit/16a8f3e47cdc4e70ea814aab444486ed8e068b3d))
+
+BREAKING CHANGE: Using Maidr TS Engine by default, deprecating the JS engine.
+
+### Breaking Changes
+
+- Using Maidr TS Engine by default, deprecating the JS engine.
+
+
+## v0.20.0 (2025-04-08)
+
+### Features
+
+- Support boxplot using maidr-ts ([#151](https://github.com/xability/py-maidr/pull/151),
+  [`ce42413`](https://github.com/xability/py-maidr/commit/ce4241335e34939afc18073d64966aff228dc9ed))
+
+
 ## v0.19.1 (2025-03-27)
 
 ### Bug Fixes

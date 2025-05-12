@@ -9,7 +9,6 @@ from matplotlib.container import BarContainer
 from maidr.core import Maidr
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.util.environment import Environment
 
 
 def render(plot: Any) -> Tag:
@@ -18,17 +17,19 @@ def render(plot: Any) -> Tag:
     return maidr.render()
 
 
-def show(plot: Any, renderer: Literal["auto", "ipython", "browser"] = "auto") -> object:
+def show(
+    plot: Any,
+    renderer: Literal["auto", "ipython", "browser"] = "auto",
+    clear_fig: bool = True,
+) -> object:
     ax = FigureManager.get_axes(plot)
-    htmls = []
     if isinstance(ax, list):
         for axes in ax:
             maidr = FigureManager.get_maidr(axes.get_figure())
-            htmls.append(maidr.render())
-        return htmls[-1].show(renderer)
+        return maidr.show(renderer)
     else:
         maidr = FigureManager.get_maidr(ax.get_figure())
-        return maidr.show(renderer)
+        return maidr.show(renderer, clear_fig=clear_fig)
 
 
 def save_html(
@@ -55,7 +56,3 @@ def stacked(plot: Axes | BarContainer) -> Maidr:
 def close(plot: Any) -> None:
     ax = FigureManager.get_axes(plot)
     FigureManager.destroy(ax.get_figure())
-
-
-def set_engine(engine: Literal["js", "ts"] = "js"):
-    Environment._set_engine(engine=engine)

@@ -32,7 +32,7 @@ harvest = np.array(
         [1.3, 1.2, 0.0, 0.0, 0.0, 3.2, 5.1],
         [0.1, 2.0, 0.0, 1.4, 0.0, 1.9, 6.3],
     ]
-)
+)  # type: ignore
 
 fig, ax = plt.subplots()
 im = ax.imshow(harvest, fill_label="Harvest")
@@ -41,6 +41,8 @@ im.get_array()
 # Show all ticks and label them with the respective list entries
 ax.set_xticks(np.arange(len(farmers)), labels=farmers)
 ax.set_yticks(np.arange(len(vegetables)), labels=vegetables)
+ax.set_xlabel("Farmers")
+ax.set_ylabel("Vegetables")
 
 # Rotate the tick labels and set their alignment.
 plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")

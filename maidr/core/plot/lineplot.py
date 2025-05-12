@@ -7,7 +7,6 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.exception.extraction_error import ExtractionError
-from maidr.util.environment import Environment
 from maidr.util.mixin.extractor_mixin import LineExtractorMixin
 
 
@@ -42,19 +41,12 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
     def __init__(self, ax: Axes, **kwargs):
         super().__init__(ax, PlotType.LINE)
 
-    def _get_selector(self) -> str:
-        return "g[maidr='true'] > path"
+    def _get_selector(self) -> Union[str, List[str]]:
+        return ["g[maidr='true'] > path"]
 
     def _extract_plot_data(self) -> list[dict]:
         plot = self.extract_lines(self.ax)
         data = self._extract_line_data(plot)
-        engine = Environment.get_engine()
-        if engine == "js":
-            if len(data) > 1:
-                raise Exception(
-                    "MultiLine Plot not supported in JS. Use TypeScript Engine for this plot!"
-                )
-            data = data[0]
 
         if data is None:
             raise ExtractionError(self.type, plot)
@@ -92,11 +84,16 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             self._elements.append(line)
 
             # Extract data from this line
+
+            label: str = line.get_label()  # type: ignore
             line_data = [
                 {
                     MaidrKey.X: float(x),
                     MaidrKey.Y: float(y),
-                    MaidrKey.FILL: line.get_label(),
+                    # Replace labels starting with '_child'
+                    # with an empty string to exclude
+                    # internal or non-relevant labels from being used as identifiers.
+                    MaidrKey.FILL: (label if not label.startswith("_child") else ""),
                 }
                 for x, y in line.get_xydata()  # type: ignore
             ]

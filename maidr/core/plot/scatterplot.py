@@ -14,8 +14,8 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
     def __init__(self, ax: Axes) -> None:
         super().__init__(ax, PlotType.SCATTER)
 
-    def _get_selector(self) -> str:
-        return "g[maidr='true'] > use"
+    def _get_selector(self) -> str | list[str]:
+        return ["g[maidr='true'] > g > use"]
 
     def _extract_plot_data(self) -> list[dict]:
         plot = self.extract_collection(self.ax, PathCollection)
@@ -35,12 +35,8 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
 
         return [
             {
-                "points": [
-                    {
-                        MaidrKey.X: float(x),
-                        MaidrKey.Y: float(y),
-                    }
-                    for x, y in ma.getdata(plot.get_offsets())
-                ]
+                MaidrKey.X: float(x),
+                MaidrKey.Y: float(y),
             }
+            for x, y in ma.getdata(plot.get_offsets())
         ]

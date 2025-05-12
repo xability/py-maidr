@@ -77,8 +77,9 @@ class HighlightContextManager:
     _instance = None
     _lock = threading.Lock()
 
-    _maidr_element = contextvars.ContextVar("_maidr_element", default=False)
-    _elements = contextvars.ContextVar("elements", default=[])
+    elements = {}
+    elements_to_highlight = []
+    selector_ids = []
 
     def __new__(cls):
         if not cls._instance:
@@ -88,31 +89,34 @@ class HighlightContextManager:
         return cls._instance
 
     @classmethod
-    def is_maidr_element(cls):
-        return cls._maidr_element.get()
+    def is_maidr_element(cls, id):
+        return id in cls.elements
+
+    @classmethod
+    def get_selector_id(cls, id):
+        return cls.elements[id]
 
     @classmethod
     @contextlib.contextmanager
-    def set_maidr_element(cls, element):
-        if element not in cls._elements.get():
+    def set_maidr_element(cls, element, id):
+        if element not in cls.elements_to_highlight:
             yield
             return
 
-        token_maidr_element = cls._maidr_element.set(True)
         try:
+            cls.elements[id] = cls.selector_ids[
+                cls.elements_to_highlight.index(element)
+            ]
             yield
         finally:
-            cls._maidr_element.reset(token_maidr_element)
-            # Remove element from the context list after tagging
-            new_elements = cls._elements.get().copy()
-            new_elements.remove(element)
-            cls._elements.set(new_elements)
+            del cls.elements[id]
 
     @classmethod
     @contextlib.contextmanager
-    def set_maidr_elements(cls, elements: list):
-        token_paths = cls._elements.set(elements)
+    def set_maidr_elements(cls, elements: list, selector_ids: list):
+        cls.elements_to_highlight = elements
+        cls.selector_ids = selector_ids
         try:
             yield
         finally:
-            cls._elements.reset(token_paths)
+            cls.elements_to_highlight.clear()

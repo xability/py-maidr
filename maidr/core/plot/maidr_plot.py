@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
-from maidr.util.environment import Environment
 
 
 class MaidrPlot(ABC):
@@ -26,7 +25,8 @@ class MaidrPlot(ABC):
     type : PlotType
         The specific type of the plot.
     _schema : dict
-        A dictionary containing structured data about the plot, including type, title, axes labels, and data.
+        A dictionary containing structured data about the plot, including type, title,
+        axes labels, and data.
 
     Methods
     -------
@@ -66,21 +66,32 @@ class MaidrPlot(ABC):
 
     def _get_selector(self) -> str:
         """Return the CSS selector for highlighting elements."""
-        return "path[maidr='true']"
+        return "g[maidr='true'] > path"
+
+    def extract_shared_xlabel(self, ax, y_threshold=0.2):
+        # First, try to get an xlabel from any shared axes.
+        siblings = ax.get_shared_x_axes().get_siblings(ax)
+        for shared_ax in siblings:
+            xlabel = shared_ax.get_xlabel()
+            if xlabel:  # if non-empty
+                return xlabel
+
+        for text in ax.figure.texts:
+            if text.get_position()[1] < y_threshold:
+                label = text.get_text().strip()
+                if label:
+                    return label
+
+        return ""
 
     def _extract_axes_data(self) -> dict:
         """Extract the plot's axes data"""
-        engine = Environment.get_engine()
-        if engine == "ts":
-            return {MaidrKey.X: self.ax.get_xlabel(), MaidrKey.Y: self.ax.get_ylabel()}
-        return {
-            MaidrKey.X: {
-                MaidrKey.LABEL: self.ax.get_xlabel(),
-            },
-            MaidrKey.Y: {
-                MaidrKey.LABEL: self.ax.get_ylabel(),
-            },
-        }
+        x_labels = self.ax.get_xlabel()
+        if not x_labels:
+            x_labels = self.extract_shared_xlabel(self.ax)
+        if not x_labels:
+            x_labels = "X"
+        return {MaidrKey.X: x_labels, MaidrKey.Y: self.ax.get_ylabel()}
 
     @abstractmethod
     def _extract_plot_data(self) -> list | dict:

@@ -17,7 +17,7 @@ Examples
 >>> isinstance(fig, plt.Figure)
 True
 """
-maidr.set_engine("ts")
+
 # Generate sample data
 x = np.arange(5)
 bar_data = np.array([3, 5, 2, 7, 3])
@@ -52,6 +52,4 @@ ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left")
 # Adjust layout
 fig.tight_layout()
 
-# plt.show()
 maidr.show(fig)
-# maidr.save_html(fig, "multi-layer.html")
