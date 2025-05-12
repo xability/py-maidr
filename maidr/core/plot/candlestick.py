@@ -223,41 +223,6 @@ class CandlestickPlot(MaidrPlot):
                 high_price = max(open_price, close_price)
                 low_price = min(open_price, close_price)
 
-            # Extract volume data if volume axis (self.axes[1]) exists
-            volume: float | None = None
-            if len(self.axes) > 1 and self.axes[1]:
-                ax_volume: Axes = self.axes[1]
-                # Volume is usually a bar chart (Rectangles in
-                # PatchCollection or individual patches)
-                volume_rects_to_check: list[Rectangle] = []
-                for collection in ax_volume.collections:
-                    if isinstance(collection, PatchCollection):
-                        for (
-                            patch
-                        ) in collection:  # Iterate through patches in the collection
-                            if isinstance(patch, Rectangle):
-                                volume_rects_to_check.append(patch)
-                for patch in ax_volume.patches:  # Also check individual patches
-                    if (
-                        isinstance(patch, Rectangle)
-                        and patch not in volume_rects_to_check
-                    ):
-                        volume_rects_to_check.append(patch)
-
-                for vol_rect in volume_rects_to_check:
-                    vol_x_left = vol_rect.get_x()
-                    vol_width = vol_rect.get_width()
-                    vol_x_center_num = vol_x_left + vol_width / 2.0
-
-                    # Match with candlestick's x_center_num using a tolerance
-                    if abs(vol_x_center_num - x_center_num) < (
-                        width * 0.5
-                    ):  # Wider tolerance for volume bar matching
-                        volume = (
-                            vol_rect.get_height()
-                        )  # Volume is the height of the bar
-                        break
-
             plot_data.append(
                 {
                     "value": date_str,
@@ -265,7 +230,7 @@ class CandlestickPlot(MaidrPlot):
                     "high": high_price,
                     "low": low_price,
                     "close": close_price,
-                    "volume": volume,
+                    "volume": 0,
                 }
             )
 
