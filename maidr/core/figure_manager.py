@@ -48,18 +48,22 @@ class FigureManager:
         return cls._instance
 
     @classmethod
-    def create_maidr(cls, ax: Axes, plot_type: PlotType, **kwargs) -> Maidr:
+    def create_maidr(
+        cls, axes: Axes | list[Axes], plot_type: PlotType, **kwargs
+    ) -> Maidr:
         """Create a Maidr instance for the given Axes and plot type, and adds a plot to it."""
-        if ax is None:
+        if axes is None:
             raise ValueError("No plot found.")
         if plot_type is None:
             raise ValueError("No plot type found.")
+        if isinstance(axes, list):
+            ax = axes[0]
         if ax.get_figure() is None:
             raise ValueError(f"No figure found for axis: {ax}.")
 
         # Add plot to the Maidr object associated with the plot's figure.
         maidr = cls._get_maidr(ax.get_figure(), plot_type)
-        plot = MaidrPlotFactory.create(ax, plot_type, **kwargs)
+        plot = MaidrPlotFactory.create(axes, plot_type, **kwargs)
         maidr.plots.append(plot)
         maidr.selector_ids.append(Maidr._unique_id())
         return maidr

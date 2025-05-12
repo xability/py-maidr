@@ -6,6 +6,7 @@ from .core.enum import PlotType
 from .patch import (
     barplot,
     boxplot,
+    candlestick,
     clear,
     heatmap,
     highlight,

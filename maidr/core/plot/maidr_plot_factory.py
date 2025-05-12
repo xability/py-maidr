@@ -5,6 +5,7 @@ from matplotlib.axes import Axes
 from maidr.core.enum import PlotType
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxplot import BoxPlot
+from maidr.core.plot.candlestick import CandlestickPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.histogram import HistPlot
@@ -29,7 +30,11 @@ class MaidrPlotFactory:
     """
 
     @staticmethod
-    def create(ax: Axes, plot_type: PlotType, **kwargs) -> MaidrPlot:
+    def create(axes: Axes | list[Axes], plot_type: PlotType, **kwargs) -> MaidrPlot:
+
+        if isinstance(axes, list):
+            ax = axes[0]
+
         if PlotType.BAR == plot_type or PlotType.COUNT == plot_type:
             return BarPlot(ax)
         elif PlotType.BOX == plot_type:
@@ -44,5 +49,7 @@ class MaidrPlotFactory:
             return ScatterPlot(ax)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
             return GroupedBarPlot(ax, plot_type, **kwargs)
+        elif plot_type == PlotType.CANDLESTICK:
+            return CandlestickPlot(axes, **kwargs)
         else:
             raise TypeError(f"Unsupported plot type: {plot_type}.")
