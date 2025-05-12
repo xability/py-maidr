@@ -5,8 +5,16 @@ import maidr
 
 # Generating random data for three different groups
 data_group1 = np.random.normal(100, 10, 200)
+# Add high outliers to data_group1
+data_group1 = np.append(data_group1, [150, 160, 155])
+
 data_group2 = np.random.normal(90, 20, 200)
+# Add low outliers to data_group2
+data_group2 = np.append(data_group2, [10, 5, 15])
+
 data_group3 = np.random.normal(80, 30, 200)
+# Add both high and low outliers to data_group3
+data_group3 = np.append(data_group3, [180, 190, 0, -10])
 
 # Combine these different datasets into a list
 data_to_plot = [data_group1, data_group2, data_group3]
