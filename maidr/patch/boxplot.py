@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import wrapt
-
 from matplotlib.axes import Axes
 
-from maidr.core.context_manager import ContextManager, BoxplotContextManager
+from maidr.core.context_manager import BoxplotContextManager, ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 
