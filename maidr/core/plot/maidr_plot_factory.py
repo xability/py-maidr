@@ -31,7 +31,6 @@ class MaidrPlotFactory:
 
     @staticmethod
     def create(axes: Axes | list[Axes], plot_type: PlotType, **kwargs) -> MaidrPlot:
-
         if isinstance(axes, list):
             ax = axes[0]
 

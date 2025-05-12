@@ -8,7 +8,6 @@ from maidr.core.figure_manager import FigureManager
 
 
 def candlestick(wrapped, instance, args, kwargs) -> list[Rectangle]:
-
     with ContextManager.set_internal_context():
         # Patch the plotting function.
         plot = wrapped(*args, **kwargs)
