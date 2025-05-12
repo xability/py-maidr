@@ -204,10 +204,10 @@ class BoxPlot(
                     MaidrKey.LOWER_OUTLIER.value: [
                         f"g[id='{outlier}'] > g > :nth-child(-n+{lower_outliers_count} of use:not([visibility='hidden']))"
                     ],
-                    MaidrKey.MIN.value: "g[id=" + min + "] > path",
-                    MaidrKey.MAX.value: "g[id=" + max + "] > path",
-                    MaidrKey.Q2.value: "g[id=" + median + "] > path",
-                    MaidrKey.IQ.value: "g[id=" + box + "] > path",
+                    MaidrKey.MIN.value: f"g[id='{min}'] > path",
+                    MaidrKey.MAX.value: f"g[id='{max}'] > path",
+                    MaidrKey.Q2.value: f"g[id='{median}'] > path",
+                    MaidrKey.IQ.value: f"g[id='{box}'] > path",
                     MaidrKey.UPPER_OUTLIER.value: [
                         f"g[id='{outlier}'] > g > :nth-child(n+{lower_outliers_count + 1} of use:not([visibility='hidden']))"
                     ],
