@@ -33,6 +33,8 @@ class MaidrPlotFactory:
     def create(axes: Axes | list[Axes], plot_type: PlotType, **kwargs) -> MaidrPlot:
         if isinstance(axes, list):
             ax = axes[0]
+        else:
+            ax = axes
 
         if PlotType.BAR == plot_type or PlotType.COUNT == plot_type:
             return BarPlot(ax)

@@ -58,6 +58,8 @@ class FigureManager:
             raise ValueError("No plot type found.")
         if isinstance(axes, list):
             ax = axes[0]
+        else:
+            ax = axes
         if ax.get_figure() is None:
             raise ValueError(f"No figure found for axis: {ax}.")
 
