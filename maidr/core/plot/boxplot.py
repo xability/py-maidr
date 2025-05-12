@@ -201,7 +201,6 @@ class BoxPlot(
         ):
             selector.append(
                 {
-                    # MaidrKey.LOWER_OUTLIER.value: ["g[id=" + outlier + "] > g > use"],
                     MaidrKey.LOWER_OUTLIER.value: [
                         f"g[id='{outlier}'] > g > :nth-child(-n+{lower_outliers_count} of use:not([visibility='hidden']))"
                     ],
