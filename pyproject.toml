@@ -43,14 +43,20 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Visualization",
 ]
 dependencies = [
-    "matplotlib>=3.8",
     "numpy>=1.26",
-    "seaborn>=0.12",
     "lxml>=5.1.0",
     "htmltools>=0.5",
-    "jupyter>=1.0.0,<2",
     "wrapt>=1.16.0,<2",
     "virtualenv>=20.26.6,<21",
+]
+
+[project.optional-dependencies]
+visualization = [
+    "matplotlib>=3.8",
+    "seaborn>=0.12",
+]
+jupyter = [
+    "jupyter>=1.0.0,<2",
 ]
 
 [project.urls]
