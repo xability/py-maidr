@@ -57,8 +57,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install -e .
-          uv pip install pytest pytest-mock pytest-github-actions-annotate-failures
+          uv pip install -e ".[test]"
+          uv pip install pytest-github-actions-annotate-failures
 
       - name: Run tests
         id: tests
