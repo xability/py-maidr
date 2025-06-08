@@ -58,5 +58,7 @@ class SmoothPlot(MaidrPlot):
             None,
         )
         self._elements.append(regression_line)
+        if regression_line is None:
+            raise ExtractionError(PlotType.SMOOTH, self.ax)
         xydata = np.asarray(regression_line.get_xydata())
         return [[{MaidrKey.X: float(x), MaidrKey.Y: float(y)} for x, y in xydata]]
