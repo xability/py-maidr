@@ -23,4 +23,3 @@ plt.ylabel("Sepal Width")
 # Show the plot
 # plt.show()
 maidr.show(regplot)
-
