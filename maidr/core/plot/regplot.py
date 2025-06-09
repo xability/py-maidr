@@ -28,11 +28,14 @@ class SmoothPlot(MaidrPlot):
             The matplotlib axes object containing the regression line.
         """
         super().__init__(ax, PlotType.SMOOTH)
+        self._smooth_gid = None
 
     def _get_selector(self):
         """
         Return the CSS selector for highlighting the regression line in the SVG output.
         """
+        if self._smooth_gid:
+            return [f"g[id='{self._smooth_gid}'] path"]
         return ["g[id^='maidr-'] path"]
 
     def _extract_plot_data(self):
@@ -57,8 +60,9 @@ class SmoothPlot(MaidrPlot):
             ),
             None,
         )
-        self._elements.append(regression_line)
         if regression_line is None:
             raise ExtractionError(PlotType.SMOOTH, self.ax)
+        self._elements.append(regression_line)
+        self._smooth_gid = regression_line.get_gid()
         xydata = np.asarray(regression_line.get_xydata())
         return [[{MaidrKey.X: float(x), MaidrKey.Y: float(y)} for x, y in xydata]]

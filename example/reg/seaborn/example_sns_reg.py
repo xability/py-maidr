@@ -1,25 +1,25 @@
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 import maidr
 
-# Load the Iris dataset
-iris = sns.load_dataset("iris")
+np.random.seed(0)
+x = np.linspace(0, 10, 100)
+y = np.sin(x) + 0.3 * np.random.randn(100)
 
-# --- Seaborn regplot example with regression line ---
-# Create a regplot with a regression line (and optionally lowess smoothing)
-regplot = sns.regplot(
-    data=iris,
-    x="sepal_length",
-    y="sepal_width",
+plt.figure(figsize=(6, 4))
+plot = sns.regplot(
+    x=x,
+    y=y,
     lowess=True,
-    scatter_kws={"color": "gray"},
-    line_kws={"color": "red"},
+    scatter_kws={"s": 30, "alpha": 0.6},
+    line_kws={"color": "red", "lw": 2},
 )
-plt.title("Iris Sepal Length vs Sepal Width with Regression Line (LOWESS)")
-plt.xlabel("Sepal Length")
-plt.ylabel("Sepal Width")
 
-# Show the plot
-# plt.show()
-maidr.show(regplot)
+plt.xlabel("x")
+plt.ylabel("y")
+plt.title("Scatterplot with LOESS (Seaborn)")
+plt.tight_layout()
+
+# Show the plot using maidr instead of plt.show()
+maidr.show(plot)
