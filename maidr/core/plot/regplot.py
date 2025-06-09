@@ -6,6 +6,7 @@ from maidr.exception.extraction_error import ExtractionError
 import numpy as np
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.util.regression_line_utils import find_regression_line
 
 
 class SmoothPlot(MaidrPlot):
@@ -47,19 +48,7 @@ class SmoothPlot(MaidrPlot):
         list
             A list of lists containing dictionaries with X and Y coordinates, or an empty list if no regression line is present.
         """
-        from matplotlib.lines import Line2D
-
-        regression_line = next(
-            (
-                artist
-                for artist in self.ax.get_children()
-                if isinstance(artist, Line2D)
-                and artist.get_label() not in (None, "", "_nolegend_")
-                and artist.get_xydata() is not None
-                and np.asarray(artist.get_xydata()).size > 0
-            ),
-            None,
-        )
+        regression_line = find_regression_line(self.ax)
         if regression_line is None:
             raise ExtractionError(PlotType.SMOOTH, self.ax)
         self._elements.append(regression_line)

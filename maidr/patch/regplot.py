@@ -9,6 +9,7 @@ import numpy as np
 from maidr.core.context_manager import ContextManager
 import uuid
 from maidr.core.enum.smooth_keywords import SMOOTH_KEYWORDS
+from maidr.util.regression_line_utils import find_regression_line
 
 
 def regplot(wrapped, instance, args, kwargs) -> Axes:
@@ -25,17 +26,7 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
             ax = wrapped(*args, **kwargs)
     axes = ax if isinstance(ax, Axes) else ax.axes if hasattr(ax, "axes") else None
     if axes is not None:
-        regression_line = next(
-            (
-                artist
-                for artist in axes.get_children()
-                if isinstance(artist, Line2D)
-                and artist.get_label() not in (None, "", "_nolegend_")
-                and artist.get_xydata() is not None
-                and np.asarray(artist.get_xydata()).size > 0
-            ),
-            None,
-        )
+        regression_line = find_regression_line(axes)
         if regression_line is not None:
             # ---
             # Assign a unique gid to the regression line if not already set.
