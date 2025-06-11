@@ -12,6 +12,7 @@ from .patch import (
     histogram,
     lineplot,
     scatterplot,
+    regplot,
 )
 
 __all__ = [
