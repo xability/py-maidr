@@ -37,31 +37,33 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Install and configure Poetry
-        uses: snok/install-poetry@v1
-        with:
-            virtualenvs-create: true
-            virtualenvs-in-project: true
-            installer-parallel: true
-
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         id: setup-python
         with:
           python-version: ${{ matrix.python-version }}
-          cache: poetry
 
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Setup UV environment
+        run: |
+          uv venv .venv
+          source .venv/bin/activate
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
         run: |
-          poetry install
-          python -m pip install pytest-github-actions-annotate-failures
+          uv pip install -e ".[test]"
+          uv pip install pytest-github-actions-annotate-failures
 
       - name: Run tests
         id: tests
         run: |
-          poetry run pytest -vvv
+          pytest -vvv
 
   lint:
     runs-on: ubuntu-latest
@@ -69,12 +71,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check format with black
-        uses: psf/black@stable
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          options: "--diff --check --color --verbose"
-          version: "23.3.0"
+          python-version: "3.12"
 
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Setup UV environment
+        run: |
+          # Create and activate virtual environment
+          uv venv .venv
+          source .venv/bin/activate
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+
+      - name: Install Black
+        run: |
+          uv pip install black==23.3.0
+
+      - name: Check format with black
+        run: |
+          black --diff --check --color --verbose .
 
   commit-lint:
     runs-on: ubuntu-latest
