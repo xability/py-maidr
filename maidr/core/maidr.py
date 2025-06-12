@@ -246,7 +246,7 @@ class Maidr:
     def _inject_plot(plot: HTML, maidr: str, maidr_id) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
         # MAIDR_TS_CDN_URL = "http://localhost:8080/maidr.js"  # DEMO URL
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@3.11.4/dist/maidr.js"
+        MAIDR_TS_CDN_URL = "http://localhost:8888/tree/maidr/core/maidr.js"
 
         script = f"""
             if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))

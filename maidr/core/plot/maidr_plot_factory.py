@@ -8,6 +8,7 @@ from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.histogram import HistPlot
+from maidr.core.plot.kdeplot import KdePlot
 from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.core.plot.scatterplot import ScatterPlot
@@ -44,5 +45,7 @@ class MaidrPlotFactory:
             return ScatterPlot(ax)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
             return GroupedBarPlot(ax, plot_type, **kwargs)
+        elif PlotType.SMOOTH == plot_type:
+            return KdePlot(ax, **kwargs)
         else:
             raise TypeError(f"Unsupported plot type: {plot_type}.")
