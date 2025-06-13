@@ -46,6 +46,6 @@ class MaidrPlotFactory:
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
             return GroupedBarPlot(ax, plot_type, **kwargs)
         elif PlotType.SMOOTH == plot_type:
-            return SmoothPlot(ax)
+            return SmoothPlot(ax, **kwargs)
         else:
             raise TypeError(f"Unsupported plot type: {plot_type}.")

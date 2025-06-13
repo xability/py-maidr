@@ -14,8 +14,7 @@ from maidr.util.regression_line_utils import find_regression_line
 
 def regplot(wrapped, instance, args, kwargs) -> Axes:
     """
-    Wrapper function for seaborn.regplot.
-    Register a scatter plot (if present) and, if present, a smooth plot for the regression line.
+    Patch seaborn.regplot to register SCATTER and SMOOTH layers for MAIDR.
     """
     scatter = kwargs.get("scatter", True)
     if scatter:
@@ -49,6 +48,9 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
 
 
 def patched_plot(wrapped, instance, args, kwargs):
+    """
+    Patch matplotlib Axes.plot to register SMOOTH layers for MAIDR if the label matches SMOOTH_KEYWORDS.
+    """
     # Call the original plot function
     lines = wrapped(*args, **kwargs)
     # lines can be a list of Line2D objects

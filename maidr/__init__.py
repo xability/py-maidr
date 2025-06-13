@@ -13,6 +13,7 @@ from .patch import (
     lineplot,
     scatterplot,
     regplot,
+    kdeplot,
 )
 
 __all__ = [
