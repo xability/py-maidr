@@ -40,7 +40,7 @@ def save_html(
     if isinstance(ax, list):
         for axes in ax:
             maidr = FigureManager.get_maidr(axes.get_figure())
-            htmls.append(maidr.render())
+            htmls.append(maidr._create_html_tag(use_iframe=False))
         htmls[-1].save_html(file, libdir=lib_dir, include_version=include_version)
         return htmls[-1]
     else:
