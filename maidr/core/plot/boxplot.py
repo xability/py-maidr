@@ -178,19 +178,39 @@ class BoxPlot(
             "boxes": [],
             "outliers": [],
         }
+        self.lower_outliers_count = []
 
     def _get_selector(self) -> list[dict]:
         mins, maxs, medians, boxes, outliers = self.elements_map.values()
         selector = []
-        for min, max, median, box, outlier in zip(mins, maxs, medians, boxes, outliers):
+
+        for (
+            min,
+            max,
+            median,
+            box,
+            outlier,
+            lower_outliers_count,
+        ) in zip(
+            mins,
+            maxs,
+            medians,
+            boxes,
+            outliers,
+            self.lower_outliers_count,
+        ):
             selector.append(
                 {
-                    MaidrKey.LOWER_OUTLIER.value: ["g[id=" + outlier + "] > g > use"],
-                    MaidrKey.MIN.value: "g[id=" + min + "] > path",
-                    MaidrKey.MAX.value: "g[id=" + max + "] > path",
-                    MaidrKey.Q2.value: "g[id=" + median + "] > path",
-                    MaidrKey.IQ.value: "g[id=" + box + "] > path",
-                    MaidrKey.UPPER_OUTLIER.value: ["g[id=" + outlier + "] > g > use"],
+                    MaidrKey.LOWER_OUTLIER.value: [
+                        f"g[id='{outlier}'] > g > :nth-child(-n+{lower_outliers_count} of use:not([visibility='hidden']))"
+                    ],
+                    MaidrKey.MIN.value: f"g[id='{min}'] > path",
+                    MaidrKey.MAX.value: f"g[id='{max}'] > path",
+                    MaidrKey.Q2.value: f"g[id='{median}'] > path",
+                    MaidrKey.IQ.value: f"g[id='{box}'] > path",
+                    MaidrKey.UPPER_OUTLIER.value: [
+                        f"g[id='{outlier}'] > g > :nth-child(n+{lower_outliers_count + 1} of use:not([visibility='hidden']))"
+                    ],
                 }
             )
         return selector if self._orientation == "vert" else list(reversed(selector))
@@ -216,6 +236,9 @@ class BoxPlot(
         caps = self._bxp_extractor.extract_caps(bxp_stats["caps"])
         medians = self._bxp_extractor.extract_medians(bxp_stats["medians"])
         outliers = self._bxp_extractor.extract_outliers(bxp_stats["fliers"], caps)
+
+        for outlier in outliers:
+            self.lower_outliers_count.append(len(outlier[MaidrKey.LOWER_OUTLIER.value]))
 
         caps_elements = self._bxp_elements_extractor.extract_caps(bxp_stats["caps"])
         bxp_maidr = []
