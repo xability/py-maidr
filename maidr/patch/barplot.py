@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from numbers import Number
 from typing import Any, Callable, Dict, Tuple, Union
 
-import numpy as np
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
