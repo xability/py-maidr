@@ -5,8 +5,16 @@ import maidr
 
 # Generating random data for three different groups
 data_group1 = np.random.normal(100, 10, 200)
+# Add outliers to data_group1
+data_group1 = np.append(data_group1, [150, 160, 50, 40])
+
 data_group2 = np.random.normal(90, 20, 200)
+# Add outliers to data_group2
+data_group2 = np.append(data_group2, [180, 190, 10, 20])
+
 data_group3 = np.random.normal(80, 30, 200)
+# Add outliers to data_group3
+data_group3 = np.append(data_group3, [200, 210, -10, -20])
 
 # Combine these different datasets into a list
 data_to_plot = [data_group1, data_group2, data_group3]
@@ -20,6 +28,16 @@ def boxplot(is_vert: bool):
     colors = ["lightblue", "lightgreen", "tan"]
     for patch, color in zip(bp["boxes"], colors):
         patch.set_facecolor(color)
+
+    # Color outliers
+    outlier_color = "red"
+    for flier in bp["fliers"]:
+        flier.set(
+            marker="o",
+            markerfacecolor=outlier_color,
+            markeredgecolor=outlier_color,
+            alpha=0.5,
+        )
 
     if is_vert:
         plt.xticks(ticks=[1, 2, 3], labels=["Group 1", "Group 2", "Group 3"])
