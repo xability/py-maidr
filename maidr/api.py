@@ -41,8 +41,9 @@ def save_html(
         for axes in ax:
             maidr = FigureManager.get_maidr(axes.get_figure())
             htmls.append(maidr._create_html_doc(use_iframe=False))
-        htmls[-1].save_html(file, libdir=lib_dir, include_version=include_version)
-        return htmls[-1]
+        return htmls[-1].save_html(
+            file, libdir=lib_dir, include_version=include_version
+        )
     else:
         maidr = FigureManager.get_maidr(ax.get_figure())
         return maidr.save_html(file, lib_dir=lib_dir, include_version=include_version)
