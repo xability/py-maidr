@@ -1,4 +1,4 @@
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 from .api import close, render, save_html, show, stacked
 from .core import Maidr
