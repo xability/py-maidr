@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 import io
 import json
 import os
@@ -12,12 +14,13 @@ import matplotlib.pyplot as plt
 from htmltools import HTML, HTMLDocument, Tag, tags
 from lxml import etree
 from matplotlib.figure import Figure
+from maidr.core.enum.plot_type import PlotType
 
 from maidr.core.context_manager import HighlightContextManager
 from maidr.core.enum.maidr_key import MaidrKey
-from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.util.environment import Environment
+from maidr.util.dedup_utils import deduplicate_smooth_and_line
 
 
 class Maidr:
@@ -155,6 +158,22 @@ class Maidr:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
         if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
             self._plots = [self._plots[0]]
+        # Deduplicate: if any SMOOTH plots exist, remove LINE plots
+        self._plots = deduplicate_smooth_and_line(self._plots)
+
+        unique_gids = set()
+        deduped_plots = []
+        for plot in self._plots:
+            if getattr(plot, "type", None) == PlotType.SMOOTH:
+                gid = getattr(plot, "_smooth_gid", None)
+                if gid and gid in unique_gids:
+                    continue
+                if gid:
+                    unique_gids.add(gid)
+                deduped_plots.append(plot)
+            else:
+                deduped_plots.append(plot)
+        self._plots = deduped_plots
 
         plot_schemas = []
 
@@ -249,15 +268,17 @@ class Maidr:
     @staticmethod
     def _inject_plot(plot: HTML, maidr: str, maidr_id, use_iframe: bool = True) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
-        # MAIDR_TS_CDN_URL = "http://localhost:8080/maidr.js"  # DEMO URL
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@3.11.4/dist/maidr.js"
+        # MAIDR_TS_CDN_URL = "http://localhost:8888/tree/maidr/core/maidr.js"  # DEMO URL
+        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
+        # Append a query parameter (using TIMESTAMP) to bust the cache (so that the latest (non-cached) version is always loaded).
+        TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
 
         script = f"""
-            if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
+            if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}?v={TIMESTAMP}"]'))
             {{
                 var script = document.createElement('script');
                 script.type = 'module';
-                script.src = '{MAIDR_TS_CDN_URL}';
+                script.src = '{MAIDR_TS_CDN_URL}?v={TIMESTAMP}';
                 script.addEventListener('load', function() {{
                     window.main();
                 }});

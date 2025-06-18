@@ -11,6 +11,7 @@ from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.core.plot.scatterplot import ScatterPlot
+from maidr.core.plot.regplot import SmoothPlot
 
 
 class MaidrPlotFactory:
@@ -44,5 +45,7 @@ class MaidrPlotFactory:
             return ScatterPlot(ax)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
             return GroupedBarPlot(ax, plot_type, **kwargs)
+        elif PlotType.SMOOTH == plot_type:
+            return SmoothPlot(ax, **kwargs)
         else:
             raise TypeError(f"Unsupported plot type: {plot_type}.")
