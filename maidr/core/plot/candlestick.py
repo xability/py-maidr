@@ -2,7 +2,6 @@ import matplotlib.dates as mdates
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection, PatchCollection
-from matplotlib.colors import to_rgba
 from matplotlib.patches import Rectangle
 
 from maidr.core.enum.plot_type import PlotType
@@ -233,7 +232,7 @@ class CandlestickPlot(MaidrPlot):
                     "volume": 0,
                 }
             )
-
+        self._elements.extend(body_rectangles)
         return plot_data
 
     def _extract_axes_data(self) -> dict:
