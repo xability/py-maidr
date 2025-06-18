@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 import io
 import json
 import os
@@ -14,13 +12,12 @@ import matplotlib.pyplot as plt
 from htmltools import HTML, HTMLDocument, Tag, tags
 from lxml import etree
 from matplotlib.figure import Figure
-from maidr.core.enum.plot_type import PlotType
 
 from maidr.core.context_manager import HighlightContextManager
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.util.environment import Environment
-from maidr.util.dedup_utils import deduplicate_smooth_and_line
 
 
 class Maidr:
@@ -65,7 +62,7 @@ class Maidr:
 
     def render(self) -> Tag:
         """Return the maidr plot inside an iframe."""
-        return self._create_html_tag(use_iframe=True)
+        return self._create_html_tag()
 
     def save_html(
         self, file: str, *, lib_dir: str | None = "lib", include_version: bool = True
@@ -83,9 +80,7 @@ class Maidr:
         include_version : bool, default=True
             Whether to include the version number in the dependency folder name.
         """
-        html = self._create_html_doc(
-            use_iframe=False
-        )  # Always use direct HTML for saving
+        html = self._create_html_doc()
         return html.save_html(file, libdir=lib_dir, include_version=include_version)
 
     def show(
@@ -101,7 +96,7 @@ class Maidr:
         renderer : Literal["auto", "ipython", "browser"], default="auto"
             The renderer to use for the HTML preview.
         """
-        html = self._create_html_tag(use_iframe=True)  # Always use iframe for display
+        html = self._create_html_tag()
         _renderer = Environment.get_renderer()
         if _renderer == "browser" or (
             Environment.is_interactive_shell() and not Environment.is_notebook()
@@ -127,12 +122,10 @@ class Maidr:
         os.makedirs(static_temp_dir, exist_ok=True)
 
         temp_file_path = os.path.join(static_temp_dir, "maidr_plot.html")
-        html_file_path = self.save_html(
-            temp_file_path
-        )  # This will use use_iframe=False
+        html_file_path = self.save_html(temp_file_path)
         webbrowser.open(f"file://{html_file_path}")
 
-    def _create_html_tag(self, use_iframe: bool = True) -> Tag:
+    def _create_html_tag(self) -> Tag:
         """Create the MAIDR HTML using HTML tags."""
         tagged_elements: list[Any] = [
             element for plot in self._plots for element in plot.elements
@@ -148,32 +141,16 @@ class Maidr:
         maidr = f"\nlet maidr = {json.dumps(self._flatten_maidr(), indent=2)}\n"
 
         # Inject plot's svg and MAIDR structure into html tag.
-        return Maidr._inject_plot(svg, maidr, self.maidr_id, use_iframe)
+        return Maidr._inject_plot(svg, maidr, self.maidr_id)
 
-    def _create_html_doc(self, use_iframe: bool = True) -> HTMLDocument:
+    def _create_html_doc(self) -> HTMLDocument:
         """Create an HTML document from Tag objects."""
-        return HTMLDocument(self._create_html_tag(use_iframe), lang="en")
+        return HTMLDocument(self._create_html_tag(), lang="en")
 
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
         if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
             self._plots = [self._plots[0]]
-        # Deduplicate: if any SMOOTH plots exist, remove LINE plots
-        self._plots = deduplicate_smooth_and_line(self._plots)
-
-        unique_gids = set()
-        deduped_plots = []
-        for plot in self._plots:
-            if getattr(plot, "type", None) == PlotType.SMOOTH:
-                gid = getattr(plot, "_smooth_gid", None)
-                if gid and gid in unique_gids:
-                    continue
-                if gid:
-                    unique_gids.add(gid)
-                deduped_plots.append(plot)
-            else:
-                deduped_plots.append(plot)
-        self._plots = deduped_plots
 
         plot_schemas = []
 
@@ -266,19 +243,17 @@ class Maidr:
         return str(uuid.uuid4())
 
     @staticmethod
-    def _inject_plot(plot: HTML, maidr: str, maidr_id, use_iframe: bool = True) -> Tag:
+    def _inject_plot(plot: HTML, maidr: str, maidr_id) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
-        # MAIDR_TS_CDN_URL = "http://localhost:8888/tree/maidr/core/maidr.js"  # DEMO URL
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
-        # Append a query parameter (using TIMESTAMP) to bust the cache (so that the latest (non-cached) version is always loaded).
-        TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
+        # MAIDR_TS_CDN_URL = "http://localhost:8080/maidr.js"  # DEMO URL
+        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@3.11.4/dist/maidr.js"
 
         script = f"""
-            if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}?v={TIMESTAMP}"]'))
+            if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
             {{
                 var script = document.createElement('script');
                 script.type = 'module';
-                script.src = '{MAIDR_TS_CDN_URL}?v={TIMESTAMP}';
+                script.src = '{MAIDR_TS_CDN_URL}';
                 script.addEventListener('load', function() {{
                     window.main();
                 }});
@@ -304,7 +279,7 @@ class Maidr:
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
         # For TypeScript we will use iframe by default for now
-        if use_iframe and (Environment.is_notebook() or Environment.is_shiny()):
+        if Environment.is_notebook() or Environment.is_shiny():
             unique_id = "iframe_" + Maidr._unique_id()
 
             def generate_iframe_script(unique_id: str) -> str:

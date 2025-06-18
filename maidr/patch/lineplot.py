@@ -6,7 +6,6 @@ from matplotlib.lines import Line2D
 
 from maidr.core.enum import PlotType
 from maidr.patch.common import common
-from maidr.core.enum.smooth_keywords import SMOOTH_KEYWORDS
 
 
 def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:

@@ -22,7 +22,6 @@ def common(plot_type, wrapped, _, args, kwargs) -> Any:
 
     # Extract the data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)
-    kwargs.pop("ax", None)
-    FigureManager.create_maidr(ax, plot_type, **kwargs)
+    FigureManager.create_maidr(ax, plot_type)
 
     return plot
