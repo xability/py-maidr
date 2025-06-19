@@ -5,6 +5,7 @@ from matplotlib.axes import Axes
 from maidr.core.enum import PlotType
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxplot import BoxPlot
+from maidr.core.plot.candlestick import CandlestickPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.histogram import HistPlot
@@ -30,22 +31,37 @@ class MaidrPlotFactory:
     """
 
     @staticmethod
-    def create(ax: Axes, plot_type: PlotType, **kwargs) -> MaidrPlot:
-        if PlotType.BAR == plot_type or PlotType.COUNT == plot_type:
-            return BarPlot(ax)
+    def create(ax: Axes | list[Axes], plot_type: PlotType, **kwargs) -> MaidrPlot:
+        if isinstance(ax, list):
+            single_ax = ax[0]
+        else:
+            single_ax = ax
+
+        if plot_type == PlotType.CANDLESTICK:
+            if isinstance(ax, list):
+                # If ax is a list of lists, flatten it
+                if ax and isinstance(ax[0], list):
+                    axes = ax[0]  # Take the first inner list
+                else:
+                    axes = ax  # Use the list as-is
+            else:
+                axes = [ax]  # Wrap single axes in list
+            return CandlestickPlot(axes, **kwargs)
+        elif PlotType.BAR == plot_type or PlotType.COUNT == plot_type:
+            return BarPlot(single_ax)
         elif PlotType.BOX == plot_type:
-            return BoxPlot(ax, **kwargs)
+            return BoxPlot(single_ax, **kwargs)
         elif PlotType.HEAT == plot_type:
-            return HeatPlot(ax, **kwargs)
+            return HeatPlot(single_ax, **kwargs)
         elif PlotType.HIST == plot_type:
-            return HistPlot(ax)
+            return HistPlot(single_ax)
         elif PlotType.LINE == plot_type:
-            return MultiLinePlot(ax)
+            return MultiLinePlot(single_ax)
         elif PlotType.SCATTER == plot_type:
-            return ScatterPlot(ax)
+            return ScatterPlot(single_ax)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
-            return GroupedBarPlot(ax, plot_type, **kwargs)
+            return GroupedBarPlot(single_ax, plot_type, **kwargs)
         elif PlotType.SMOOTH == plot_type:
-            return SmoothPlot(ax, **kwargs)
+            return SmoothPlot(single_ax, **kwargs)
         else:
             raise TypeError(f"Unsupported plot type: {plot_type}.")
