@@ -96,10 +96,13 @@ jobs:
 
       - name: Python Semantic Release
         id: release
-        uses: python-semantic-release/python-semantic-release@master
+        uses: python-semantic-release/python-semantic-release@v9.21.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          verbosity: 2
+          verbosity: 3
+          changelog: true
+          commit: true
+          push: true
 
       # see https://docs.pypi.org/trusted-publishers/
       - name: Publish package distributions to PyPI
