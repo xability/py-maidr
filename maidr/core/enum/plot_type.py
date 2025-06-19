@@ -14,3 +14,4 @@ class PlotType(str, Enum):
     SCATTER = "point"
     STACKED = "stacked_bar"
     SMOOTH = "smooth"
+    CANDLESTICK = "candlestick"

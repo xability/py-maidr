@@ -99,7 +99,7 @@ jobs:
         uses: python-semantic-release/python-semantic-release@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          root_options: "-vv"
+          verbosity: 2
 
       # see https://docs.pypi.org/trusted-publishers/
       - name: Publish package distributions to PyPI
