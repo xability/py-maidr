@@ -15,6 +15,7 @@ def generate_candlestick_chart(
     colorup: str = "g",
     colordown: str = "r",
     title: str = "Stock Price Candlestick Chart",
+    show_volume: bool = True,
 ) -> Tuple[plt.Figure, plt.Axes]:  # type: ignore
     """
     Generate and save a candlestick chart from OHLC (Open, High, Low, Close) data.
@@ -35,7 +36,7 @@ def generate_candlestick_chart(
     title : str, optional
         Title for the chart, by default "Stock Price Candlestick Chart"
     show_volume : bool, optional
-        Whether to display volume data in a subplot, by default False
+        Whether to display volume data as a line on the same plot, by default True
 
     Returns
     -------
@@ -49,7 +50,8 @@ def generate_candlestick_chart(
     >>>     "Open": [100, 102],
     >>>     "High": [105, 106],
     >>>     "Low": [99, 101],
-    >>>     "Close": [104, 105]
+    >>>     "Close": [104, 105],
+    >>>     "Volume": [100000, 120000]
     >>> }
     >>> fig, ax = generate_candlestick_chart(data)
     """
@@ -73,6 +75,28 @@ def generate_candlestick_chart(
     candlestick_ohlc(
         ax, ohlc, width=width, colorup=colorup, colordown=colordown, alpha=0.8
     )
+
+    # Add volume as a line on the same plot if requested
+    if show_volume and "Volume" in data_dict:
+        # Create a secondary y-axis for volume
+        ax2 = ax.twinx()
+
+        # Plot volume as a line
+        ax2.plot(
+            df["Date_num"],
+            df["Volume"],
+            color="blue",
+            linewidth=1,
+            alpha=0.7,
+            label="Volume",
+        )
+
+        # Set volume axis properties
+        ax2.set_ylabel("Volume")
+        ax2.tick_params(axis="y")
+
+        # Add volume legend
+        ax2.legend(loc="upper right")
 
     # Format the x-axis to display dates
     ax.xaxis_date()
@@ -197,5 +221,6 @@ fig, ax = generate_candlestick_chart(
     data,
     title="Stock Price with Volume",
 )
+
 # plt.show()
 maidr.show(fig)
