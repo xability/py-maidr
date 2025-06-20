@@ -66,24 +66,16 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         return selectors
 
     def _extract_plot_data(self) -> Union[List[List[dict]], None]:
-        plot = self.extract_lines(self.ax)
-        data = self._extract_line_data(plot)
+        data = self._extract_line_data()
 
         if data is None:
-            raise ExtractionError(self.type, plot)
+            raise ExtractionError(self.type, None)
 
         return data
 
-    def _extract_line_data(
-        self, plot: Union[List[Line2D], None]
-    ) -> Union[List[List[dict]], None]:
+    def _extract_line_data(self) -> Union[List[List[dict]], None]:
         """
         Extract data from all line objects and return as separate arrays.
-
-        Parameters
-        ----------
-        plot : list[Line2D] | None
-            List of Line2D objects to extract data from.
 
         Returns
         -------
@@ -91,11 +83,11 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             List of lists, where each inner list contains dictionaries with x,y coordinates
             and line identifiers for one line, or None if the plot data is invalid.
         """
-        if plot is None or len(plot) == 0:
+        all_lines = self.ax.get_lines()
+        if not all_lines:
             return None
 
         all_lines_data = []
-        all_lines = self.ax.get_lines()
 
         for line in all_lines:
             xydata = line.get_xydata()
