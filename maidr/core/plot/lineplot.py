@@ -65,7 +65,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
 
         return selectors
 
-    def _extract_plot_data(self) -> list:
+    def _extract_plot_data(self) -> Union[List[List[dict]], None]:
         plot = self.extract_lines(self.ax)
         data = self._extract_line_data(plot)
 
