@@ -51,9 +51,13 @@ class PlotDetectionUtils:
             return True
 
         # Check Line2D objects for mplfinance attributes
-        for line in ax.get_lines():
-            if isinstance(line, Line2D) and hasattr(line, "_maidr_date_nums"):
-                return True
+        try:
+            for line in ax.get_lines():
+                if isinstance(line, Line2D) and hasattr(line, "_maidr_date_nums"):
+                    return True
+        except (AttributeError, TypeError):
+            # Handle cases where ax doesn't have get_lines() method (e.g., Mock objects)
+            pass
 
         return False
 
