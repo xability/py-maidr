@@ -42,8 +42,13 @@ class MaidrPlot(ABC):
         self._support_highlighting = True
         self._elements = []
         ss = self.ax.get_subplotspec()
-        self.row_index = ss.rowspan.start
-        self.col_index = ss.colspan.start
+        # Handle cases where subplotspec is None (dynamically created axes)
+        if ss is not None:
+            self.row_index = ss.rowspan.start
+            self.col_index = ss.colspan.start
+        else:
+            self.row_index = 0
+            self.col_index = 0
 
         # MAIDR data
         self.type = plot_type

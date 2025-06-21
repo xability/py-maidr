@@ -15,6 +15,7 @@ from .patch import (
     scatterplot,
     regplot,
     kdeplot,
+    mplfinance,
 )
 
 __all__ = [

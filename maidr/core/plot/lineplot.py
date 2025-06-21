@@ -8,6 +8,7 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.exception.extraction_error import ExtractionError
 from maidr.util.mixin.extractor_mixin import LineExtractorMixin
+import uuid
 
 
 class MultiLinePlot(MaidrPlot, LineExtractorMixin):
@@ -42,62 +43,75 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         super().__init__(ax, PlotType.LINE)
 
     def _get_selector(self) -> Union[str, List[str]]:
-        return ["g[maidr='true'] > path"]
+        # Return selectors for all lines that have data
+        all_lines = self.ax.get_lines()
+        if not all_lines:
+            return ["g[maidr='true'] > path"]
 
-    def _extract_plot_data(self) -> list[dict]:
-        plot = self.extract_lines(self.ax)
-        data = self._extract_line_data(plot)
+        selectors = []
+        for line in all_lines:
+            # Only create selectors for lines that have data (same logic as _extract_line_data)
+            xydata = line.get_xydata()
+            if xydata is None or not xydata.size:  # type: ignore
+                continue
+            gid = line.get_gid()
+            if gid:
+                selectors.append(f"g[id='{gid}'] path")
+            else:
+                selectors.append("g[maidr='true'] > path")
+
+        if not selectors:
+            return ["g[maidr='true'] > path"]
+
+        return selectors
+
+    def _extract_plot_data(self) -> Union[List[List[dict]], None]:
+        data = self._extract_line_data()
 
         if data is None:
-            raise ExtractionError(self.type, plot)
+            raise ExtractionError(self.type, None)
 
         return data
 
-    def _extract_line_data(
-        self, plot: Union[List[Line2D], None]
-    ) -> Union[List[dict], None]:
+    def _extract_line_data(self) -> Union[List[List[dict]], None]:
         """
-        Extract data from multiple line objects.
-
-        Parameters
-        ----------
-        plot : list[Line2D] | None
-            List of Line2D objects to extract data from.
+        Extract data from all line objects and return as separate arrays.
 
         Returns
         -------
-        list[dict] | None
-            List of dictionaries containing x,y coordinates and line identifiers,
-            or None if the plot data is invalid.
+        list[list[dict]] | None
+            List of lists, where each inner list contains dictionaries with x,y coordinates
+            and line identifiers for one line, or None if the plot data is invalid.
         """
-        if plot is None or len(plot) == 0:
+        all_lines = self.ax.get_lines()
+        if not all_lines:
             return None
 
-        all_line_data = []
+        all_lines_data = []
 
-        # Process each line in the plot
-        for i, line in enumerate(plot):
-            if line.get_xydata() is None:
+        for line in all_lines:
+            xydata = line.get_xydata()
+            if xydata is None or not xydata.size:  # type: ignore
                 continue
 
-            # Tag the element for highlighting
             self._elements.append(line)
 
-            # Extract data from this line
+            # Assign unique GID to each line if not already set
+            if line.get_gid() is None:
+                unique_gid = f"maidr-{uuid.uuid4()}"
+                line.set_gid(unique_gid)
 
             label: str = line.get_label()  # type: ignore
             line_data = [
                 {
                     MaidrKey.X: float(x),
                     MaidrKey.Y: float(y),
-                    # Replace labels starting with '_child'
-                    # with an empty string to exclude
-                    # internal or non-relevant labels from being used as identifiers.
                     MaidrKey.FILL: (label if not label.startswith("_child") else ""),
                 }
                 for x, y in line.get_xydata()  # type: ignore
             ]
-            if len(line_data) > 0:
-                all_line_data.append(line_data)
 
-        return all_line_data if all_line_data else None
+            if line_data:
+                all_lines_data.append(line_data)
+
+        return all_lines_data if all_lines_data else None
