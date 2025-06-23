@@ -1,6 +1,80 @@
 # CHANGELOG
 
 
+## v1.2.2 (2025-06-23)
+
+### Bug Fixes
+
+- Address multiline plot highlight ([#201](https://github.com/xability/py-maidr/pull/201),
+  [`7d541e3`](https://github.com/xability/py-maidr/commit/7d541e3425894bb8470e3d528794ee1301cf91ba))
+
+### Continuous Integration
+
+- Address `CHANGELOG.md` update issue ([#200](https://github.com/xability/py-maidr/pull/200),
+  [`d8a6540`](https://github.com/xability/py-maidr/commit/d8a65407af1373ed40c3ad70fe128ea31ba0d066))
+
+
+## v1.2.1 (2025-06-19)
+
+### Bug Fixes
+
+- Address semantic release deprecation warning
+  ([#196](https://github.com/xability/py-maidr/pull/196),
+  [`b223bd1`](https://github.com/xability/py-maidr/commit/b223bd1247712e2cf61b920572f5818b3a2b10bb))
+
+### Chores
+
+- Revert semantic release plugin change ([#197](https://github.com/xability/py-maidr/pull/197),
+  [`eda9f09`](https://github.com/xability/py-maidr/commit/eda9f09ee7a281616cb8918f5ba4308b3eff6724))
+
+
+## v1.2.0 (2025-06-19)
+
+### Features
+
+- Support candlestick chart ([#195](https://github.com/xability/py-maidr/pull/195),
+  [`a5bd8f5`](https://github.com/xability/py-maidr/commit/a5bd8f5e4f547a1f97a6f25025ae43c1d1291dab))
+
+Co-authored-by: Daksh Pokar <dakshp2@illinois.edu>
+
+Co-authored-by: JooYoung Seo <jseo1005@illinois.edu>
+
+
+## v1.1.0 (2025-06-18)
+
+### Bug Fixes
+
+- Address iframe tag issue in `save_html()` ([#192](https://github.com/xability/py-maidr/pull/192),
+  [`97b3432`](https://github.com/xability/py-maidr/commit/97b3432d8ee6ceb7ba32d12462079c8f880e50e7))
+
+- **boxplot**: Enhance outlier handling by separting outliers
+  ([#180](https://github.com/xability/py-maidr/pull/180),
+  [`102df14`](https://github.com/xability/py-maidr/commit/102df14a05d62dfe1b3a171d1a50ffbf2ecc8210))
+
+Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>
+
+### Features
+
+- Add density layer support in kde and hist plot
+  ([#189](https://github.com/xability/py-maidr/pull/189),
+  [`d2cab63`](https://github.com/xability/py-maidr/commit/d2cab632c6519741fbb0e97e3a160a0c1e55cf50))
+
+Co-authored-by: JooYoung Seo <jseo1005@illinois.edu>
+
+
+## v1.0.0 (2025-06-11)
+
+### Bug Fixes
+
+- Change maidrjs version ([#187](https://github.com/xability/py-maidr/pull/187),
+  [`e0bc7f0`](https://github.com/xability/py-maidr/commit/e0bc7f0f496d49b93d1d6f936dd6580584939845))
+
+### Documentation
+
+- **user guide**: Update keyboard shortcuts following new design
+  ([`6495734`](https://github.com/xability/py-maidr/commit/64957340a394c8c0b6cfc7223cfb1deb1e7d582f))
+
+
 ## v0.25.2 (2025-05-01)
 
 ### Bug Fixes
