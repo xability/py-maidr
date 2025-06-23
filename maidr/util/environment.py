@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 
 class Environment:
@@ -24,10 +25,19 @@ class Environment:
         try:
             from IPython import get_ipython  # type: ignore
 
-            return get_ipython() is not None and (
-                "ipykernel" in str(get_ipython())
-                or "google.colab" in str(get_ipython())
-            )
+            ipy = get_ipython()
+            if ipy is not None:
+                # Check for Pyodide/JupyterLite specific indicators
+                ipy_str = str(ipy).lower()
+                if "pyodide" in ipy_str or "jupyterlite" in ipy_str:
+                    return True
+                # Check for other notebook indicators
+                if "ipykernel" in str(ipy) or "google.colab" in str(ipy):
+                    return True
+                # Check for Pyodide platform
+                if sys.platform == "emscripten":
+                    return True
+            return False
         except ImportError:
             return False
 
@@ -61,10 +71,19 @@ class Environment:
             ipy = (  # pyright: ignore[reportUnknownVariableType]
                 IPython.get_ipython()  # pyright: ignore[reportUnknownMemberType, reportPrivateImportUsage]
             )
-            renderer = "ipython" if ipy else "browser"
+            if ipy is not None:
+                # Check for Pyodide/JupyterLite
+                ipy_str = str(ipy).lower()
+                if "pyodide" in ipy_str or "jupyterlite" in ipy_str:
+                    return "ipython"
+                # Check for Pyodide platform
+                if sys.platform == "emscripten":
+                    return "ipython"
+                return "ipython"
+            else:
+                return "browser"
         except ImportError:
-            renderer = "browser"
-        return renderer
+            return "browser"
 
     @staticmethod
     def initialize_llm_secrets(unique_id: str) -> str:

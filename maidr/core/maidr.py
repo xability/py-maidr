@@ -8,7 +8,7 @@ import os
 import tempfile
 import uuid
 import webbrowser
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import matplotlib.pyplot as plt
 from htmltools import HTML, HTMLDocument, Tag, tags
@@ -102,14 +102,20 @@ class Maidr:
             The renderer to use for the HTML preview.
         """
         html = self._create_html_tag(use_iframe=True)  # Always use iframe for display
-        _renderer = Environment.get_renderer()
-        if _renderer == "browser" or (
-            Environment.is_interactive_shell() and not Environment.is_notebook()
-        ):
+
+        # Use the passed renderer parameter, fallback to auto-detection
+        if renderer == "auto":
+            _renderer = cast(Literal["ipython", "browser"], Environment.get_renderer())
+        else:
+            _renderer = renderer
+
+        # Only try browser opening if explicitly requested as browser and not in notebook
+        if _renderer == "browser" and not Environment.is_notebook():
             return self._open_plot_in_browser()
+
         if clear_fig:
             plt.close()
-        return html.show(renderer)
+        return html.show(_renderer)
 
     def clear(self):
         self._plots = []
