@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.3.0 (2025-06-23)
+
+### Features
+
+- Support Pyodide ([#204](https://github.com/xability/py-maidr/pull/204),
+  [`3aeae97`](https://github.com/xability/py-maidr/commit/3aeae97a79e1d5ce4dc59e4b361e5ff68a3a95f6))
+
+
 ## v1.2.2 (2025-06-23)
 
 ### Bug Fixes
