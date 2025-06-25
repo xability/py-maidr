@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from matplotlib.axes import Axes
-
 from maidr.core.enum import PlotType
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxplot import BoxPlot
@@ -13,6 +12,9 @@ from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
+from maidr.core.plot.mplfinance_barplot import MplfinanceBarPlot
+from maidr.core.plot.mplfinance_lineplot import MplfinanceLinePlot
+from maidr.util.plot_detection import PlotDetectionUtils
 
 
 class MaidrPlotFactory:
@@ -38,17 +40,13 @@ class MaidrPlotFactory:
             single_ax = ax
 
         if plot_type == PlotType.CANDLESTICK:
-            if isinstance(ax, list):
-                # If ax is a list of lists, flatten it
-                if ax and isinstance(ax[0], list):
-                    axes = ax[0]  # Take the first inner list
-                else:
-                    axes = ax  # Use the list as-is
-            else:
-                axes = [ax]  # Wrap single axes in list
+            axes = PlotDetectionUtils.get_candlestick_axes(ax)
             return CandlestickPlot(axes, **kwargs)
         elif PlotType.BAR == plot_type or PlotType.COUNT == plot_type:
-            return BarPlot(single_ax)
+            if PlotDetectionUtils.is_mplfinance_bar_plot(**kwargs):
+                return MplfinanceBarPlot(single_ax, **kwargs)
+            else:
+                return BarPlot(single_ax)
         elif PlotType.BOX == plot_type:
             return BoxPlot(single_ax, **kwargs)
         elif PlotType.HEAT == plot_type:
@@ -56,7 +54,10 @@ class MaidrPlotFactory:
         elif PlotType.HIST == plot_type:
             return HistPlot(single_ax)
         elif PlotType.LINE == plot_type:
-            return MultiLinePlot(single_ax)
+            if PlotDetectionUtils.is_mplfinance_line_plot(single_ax, **kwargs):
+                return MplfinanceLinePlot(single_ax, **kwargs)
+            else:
+                return MultiLinePlot(single_ax, **kwargs)
         elif PlotType.SCATTER == plot_type:
             return ScatterPlot(single_ax)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:

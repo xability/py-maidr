@@ -486,6 +486,33 @@ plt.tight_layout(rect=(0.08, 0.08, 0.98, 0.95))
 maidr.show(fig) #<<
 ```
 
+### Candlestick Chart
+
+```{python}
+#| warning: false
+#| fig-alt: Candlestick chart showing stock price movements with volume
+
+import mplfinance as mpf
+import pandas as pd
+
+import maidr #<<
+
+# Load the sample data
+daily = pd.read_csv("../example/candle_stick/volcandat.csv", index_col=0, parse_dates=True)
+
+# Create the candlestick chart with moving averages and volume
+fig, ax = mpf.plot(
+    daily,
+    type="candle",
+    mav=(3, 6, 9),
+    volume=True,
+    returnfig=True
+) #<<
+
+# Display with maidr
+maidr.show(ax) #<<
+```
+
 ## Reactive Dashboard
 
 ### Shiny
