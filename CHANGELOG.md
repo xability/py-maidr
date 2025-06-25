@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.4.0 (2025-06-25)
+
+### Features
+
+- Support `mpl.plot()` for candlestick plots ([#203](https://github.com/xability/py-maidr/pull/203),
+  [`0653747`](https://github.com/xability/py-maidr/commit/06537475a39b318590a191bbe9523306d8da16c3))
+
+
 ## v1.3.0 (2025-06-23)
 
 ### Features
