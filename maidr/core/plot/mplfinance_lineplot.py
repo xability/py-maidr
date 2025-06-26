@@ -23,12 +23,6 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
 
     def __init__(self, ax: Axes, **kwargs):
         super().__init__(ax, PlotType.LINE)
-        # Store custom title
-        self._title = kwargs.get("title", None)
-
-    def set_title(self, title: str) -> None:
-        """Set a custom title for this moving average line plot."""
-        self._title = title
 
     def _get_selector(self) -> Union[str, List[str]]:
         """Return selectors for all lines that have data."""

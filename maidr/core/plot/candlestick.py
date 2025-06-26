@@ -42,19 +42,12 @@ class CandlestickPlot(MaidrPlot):
         self._maidr_body_collection = kwargs.get("_maidr_body_collection", None)
         self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
 
-        # Store title from mplfinance kwargs
-        self._title = kwargs.get("title", None)
-
         # Store the GID for proper selector generation
         self._maidr_gid = None
         if self._maidr_body_collection:
             self._maidr_gid = self._maidr_body_collection.get_gid()
         elif self._maidr_wick_collection:
             self._maidr_gid = self._maidr_wick_collection.get_gid()
-
-    def set_title(self, title: str) -> None:
-        """Set a custom title for this candlestick plot."""
-        self._title = title
 
     def _extract_plot_data(self) -> list[dict]:
         """Extract candlestick data from the plot."""

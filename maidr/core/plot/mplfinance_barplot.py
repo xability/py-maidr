@@ -31,7 +31,6 @@ class MplfinanceBarPlot(
         # Store date numbers for volume bars (from mplfinance)
         self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
         # Store custom title
-        self._title = kwargs.get("title", None)
 
     def set_title(self, title: str) -> None:
         """Set a custom title for this volume bar plot."""
