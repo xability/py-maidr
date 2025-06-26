@@ -2,8 +2,11 @@
 SMOOTH_KEYWORDS = [
     "smooth",
     "lowess",
+    "loess",
     "regression",
     "linear regression",
+    "linear fit",
+    "fit",
     "kde",
     "density",
     "gaussian",
