@@ -124,8 +124,7 @@ class MplfinanceBarPlot(
         """Initialize the MAIDR schema dictionary with basic plot information."""
         from maidr.core.enum.maidr_key import MaidrKey
 
-        # Use hardcoded title first, then custom title, then axis title
-        title = "Volume Bar Plot" or self._title or self.ax.get_title()
+        title = "Volume Bar Plot"
 
         maidr_schema = {
             MaidrKey.TYPE: self.type,

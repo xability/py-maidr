@@ -109,7 +109,14 @@ class CandlestickPlot(MaidrPlot):
         return []
 
     def _extract_axes_data(self) -> dict:
-        """Extract the plot's axes data including labels."""
+        """
+        Extract the plot's axes data including labels.
+
+        Returns
+        -------
+        dict
+            Dictionary containing x and y axis labels.
+        """
         x_labels = self.ax.get_xlabel()
         if not x_labels:
             x_labels = self.extract_shared_xlabel(self.ax)
@@ -131,8 +138,7 @@ class CandlestickPlot(MaidrPlot):
 
     def render(self) -> dict:
         """Initialize the MAIDR schema dictionary with basic plot information."""
-        # Use hardcoded title first, then custom title, then axis title
-        title = "Candlestick Chart" or self._title or self.ax.get_title()
+        title = "Candlestick Chart"
 
         maidr_schema = {
             MaidrKey.TYPE: self.type,
