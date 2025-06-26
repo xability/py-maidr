@@ -153,8 +153,8 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
 
     def render(self) -> dict:
         """Initialize the MAIDR schema dictionary with basic plot information."""
-        # Use custom title, axis title, or default
-        title = self._title or self.ax.get_title() or "Moving Averages Line Plot"
+        # Use hardcoded title first, then custom title, then axis title
+        title = "Moving Averages Line Plot" or self._title or self.ax.get_title()
 
         maidr_schema = {
             MaidrKey.TYPE: self.type,

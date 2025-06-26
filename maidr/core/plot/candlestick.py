@@ -131,8 +131,8 @@ class CandlestickPlot(MaidrPlot):
 
     def render(self) -> dict:
         """Initialize the MAIDR schema dictionary with basic plot information."""
-        # Use custom title, axis title, or default
-        title = self._title or self.ax.get_title() or "Candlestick Chart"
+        # Use hardcoded title first, then custom title, then axis title
+        title = "Candlestick Chart" or self._title or self.ax.get_title()
 
         maidr_schema = {
             MaidrKey.TYPE: self.type,
