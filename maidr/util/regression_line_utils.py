@@ -1,11 +1,11 @@
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 import numpy as np
-from typing import List
+from typing import List, Union
 from maidr.core.enum.smooth_keywords import SMOOTH_KEYWORDS
 
 
-def find_regression_line(axes: Axes) -> Line2D | None:
+def find_regression_line(axes: Axes) -> Union[Line2D, None]:
     """
     Helper to find the regression line (Line2D) in the given axes.
     """
