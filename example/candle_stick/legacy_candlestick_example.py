@@ -1,3 +1,18 @@
+"""
+LEGACY CANDLESTICK EXAMPLE
+==========================
+
+This example demonstrates how to create candlestick charts using the legacy
+matplotlib approach with mplfinance.original_flavor.candlestick_ohlc.
+
+This is the OLD way of creating candlestick charts before mplfinance.plot()
+became the standard approach. It requires manual data preparation and
+matplotlib date conversion.
+
+For modern candlestick charts with MAIDR support, see:
+mplfinance_candlestick_example.py
+"""
+
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib.dates as mdates
@@ -94,6 +109,8 @@ def generate_candlestick_chart(
         # Set volume axis properties
         ax2.set_ylabel("Volume")
         ax2.tick_params(axis="y")
+        ax2.set_title("Volume Chart")
+        ax2.title.set_visible(False)
 
         # Add volume legend
         ax2.legend(loc="upper right")
@@ -217,10 +234,8 @@ data = generate_sample_data(
     volatility=0.015,
 )
 
-fig, ax = generate_candlestick_chart(
-    data,
-    title="Stock Price with Volume",
-)
+fig, ax = generate_candlestick_chart(data)
 
 # plt.show()
+
 maidr.show(fig)
