@@ -23,6 +23,12 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
 
     def __init__(self, ax: Axes, **kwargs):
         super().__init__(ax, PlotType.LINE)
+        # Store custom title
+        self._title = kwargs.get("title", None)
+
+    def set_title(self, title: str) -> None:
+        """Set a custom title for this moving average line plot."""
+        self._title = title
 
     def _get_selector(self) -> Union[str, List[str]]:
         """Return selectors for all lines that have data."""
@@ -144,3 +150,21 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
             Date string in YYYY-MM-DD format
         """
         return MplfinanceDataExtractor._convert_date_num_to_string(x_value)
+
+    def render(self) -> dict:
+        """Initialize the MAIDR schema dictionary with basic plot information."""
+        # Use custom title, axis title, or default
+        title = self._title or self.ax.get_title() or "Moving Averages Line Plot"
+
+        maidr_schema = {
+            MaidrKey.TYPE: self.type,
+            MaidrKey.TITLE: title,
+            MaidrKey.AXES: self._extract_axes_data(),
+            MaidrKey.DATA: self._extract_plot_data(),
+        }
+
+        # Include selector only if the plot supports highlighting.
+        if self._support_highlighting:
+            maidr_schema[MaidrKey.SELECTOR] = self._get_selector()
+
+        return maidr_schema

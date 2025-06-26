@@ -1,15 +1,24 @@
+from __future__ import annotations
+
 import matplotlib.dates as mdates
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
 
-from maidr.core.enum.plot_type import PlotType
-from maidr.core.plot.maidr_plot import MaidrPlot
+from maidr.core.enum import PlotType
+from maidr.core.plot import MaidrPlot
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.util.mplfinance_utils import MplfinanceDataExtractor
 
 
 class CandlestickPlot(MaidrPlot):
+    """
+    Specialized candlestick plot class for mplfinance OHLC data.
+
+    This class handles the extraction and processing of candlestick data from mplfinance
+    plots, including proper date conversion and data validation.
+    """
+
     def __init__(self, axes: list[Axes], **kwargs) -> None:
         """
         Initialize the CandlestickPlot.
@@ -33,12 +42,19 @@ class CandlestickPlot(MaidrPlot):
         self._maidr_body_collection = kwargs.get("_maidr_body_collection", None)
         self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
 
+        # Store title from mplfinance kwargs
+        self._title = kwargs.get("title", None)
+
         # Store the GID for proper selector generation
         self._maidr_gid = None
         if self._maidr_body_collection:
             self._maidr_gid = self._maidr_body_collection.get_gid()
         elif self._maidr_wick_collection:
             self._maidr_gid = self._maidr_wick_collection.get_gid()
+
+    def set_title(self, title: str) -> None:
+        """Set a custom title for this candlestick plot."""
+        self._title = title
 
     def _extract_plot_data(self) -> list[dict]:
         """Extract candlestick data from the plot."""
@@ -93,7 +109,13 @@ class CandlestickPlot(MaidrPlot):
         return []
 
     def _extract_axes_data(self) -> dict:
-        return {}
+        """Extract the plot's axes data including labels."""
+        x_labels = self.ax.get_xlabel()
+        if not x_labels:
+            x_labels = self.extract_shared_xlabel(self.ax)
+        if not x_labels:
+            x_labels = "X"
+        return {MaidrKey.X: x_labels, MaidrKey.Y: self.ax.get_ylabel()}
 
     def _get_selector(self) -> str:
         """Return the CSS selector for highlighting candlestick elements in the SVG output."""
@@ -109,9 +131,12 @@ class CandlestickPlot(MaidrPlot):
 
     def render(self) -> dict:
         """Initialize the MAIDR schema dictionary with basic plot information."""
+        # Use custom title, axis title, or default
+        title = self._title or self.ax.get_title() or "Candlestick Chart"
+
         maidr_schema = {
             MaidrKey.TYPE: self.type,
-            MaidrKey.TITLE: self.ax.get_title(),
+            MaidrKey.TITLE: title,
             MaidrKey.AXES: self._extract_axes_data(),
             MaidrKey.DATA: self._extract_plot_data(),
         }
