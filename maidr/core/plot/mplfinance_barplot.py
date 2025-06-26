@@ -30,6 +30,11 @@ class MplfinanceBarPlot(
         self._custom_patches = kwargs.get("_maidr_patches", None)
         # Store date numbers for volume bars (from mplfinance)
         self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
+        # Store custom title
+
+    def set_title(self, title: str) -> None:
+        """Set a custom title for this volume bar plot."""
+        self._title = title
 
     def _extract_plot_data(self) -> list:
         """Extract data from mplfinance volume patches."""
@@ -113,3 +118,22 @@ class MplfinanceBarPlot(
         # Use the standard working selector that gets replaced with UUID by Maidr class
         # This works for both original bar plots and mplfinance volume bars
         return "g[maidr='true'] > path"
+
+    def render(self) -> dict:
+        """Initialize the MAIDR schema dictionary with basic plot information."""
+        from maidr.core.enum.maidr_key import MaidrKey
+
+        title = "Volume Bar Plot"
+
+        maidr_schema = {
+            MaidrKey.TYPE: self.type,
+            MaidrKey.TITLE: title,
+            MaidrKey.AXES: self._extract_axes_data(),
+            MaidrKey.DATA: self._extract_plot_data(),
+        }
+
+        # Include selector only if the plot supports highlighting.
+        if self._support_highlighting:
+            maidr_schema[MaidrKey.SELECTOR] = self._get_selector()
+
+        return maidr_schema

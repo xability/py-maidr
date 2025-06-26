@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+import urllib.request
+import urllib.error
+import json
 
 import io
 import json
@@ -22,6 +25,11 @@ from maidr.core.plot import MaidrPlot
 from maidr.util.environment import Environment
 from maidr.util.dedup_utils import deduplicate_smooth_and_line
 
+# Module-level cache for version to avoid repeated API calls
+_MAIDR_VERSION_CACHE: str | None = None
+_MAIDR_VERSION_CACHE_TIME: float = 0.0
+_MAIDR_CACHE_DURATION = 3600  # Cache for 1 hour
+
 
 class Maidr:
     """
@@ -34,6 +42,8 @@ class Maidr:
         The matplotlib figure associated with this instance.
     _plots : list[MaidrPlot]
         A list of MaidrPlot objects which hold additional plot-specific configurations.
+    _cached_version : str | None
+        Cached version of maidr from npm registry to avoid repeated API calls.
 
     Methods
     -------
@@ -272,19 +282,76 @@ class Maidr:
         return str(uuid.uuid4())
 
     @staticmethod
+    def _get_latest_maidr_version() -> str:
+        """
+        Query the npm registry API to get the latest version of maidr with caching.
+
+        Returns
+        -------
+        str
+            The latest version of maidr from npm registry, or 'latest' as fallback.
+        """
+        import time
+
+        global _MAIDR_VERSION_CACHE, _MAIDR_VERSION_CACHE_TIME
+
+        # Check if version fetching is disabled via environment variable
+        if os.getenv("MAIDR_DISABLE_VERSION_FETCH", "").lower() in ("true", "1", "yes"):
+            return "latest"
+
+        current_time = time.time()
+
+        # Check if we have a valid cached version
+        if (
+            _MAIDR_VERSION_CACHE is not None
+            and current_time - _MAIDR_VERSION_CACHE_TIME < _MAIDR_CACHE_DURATION
+        ):
+            return _MAIDR_VERSION_CACHE
+
+        try:
+            # Query npm registry API for maidr package
+            with urllib.request.urlopen(
+                "https://registry.npmjs.org/maidr/latest", timeout=5  # 5 second timeout
+            ) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode("utf-8"))
+                    version = data.get("version", "latest")
+
+                    # Cache the successful result
+                    _MAIDR_VERSION_CACHE = version
+                    _MAIDR_VERSION_CACHE_TIME = current_time
+
+                    return version
+
+        except Exception:
+            # Any error - just use latest
+            pass
+
+        # Fallback to 'latest' if API call fails
+        return "latest"
+
+    @staticmethod
+    def clear_version_cache() -> None:
+        """Clear the cached version to force a fresh API call on next request."""
+        global _MAIDR_VERSION_CACHE, _MAIDR_VERSION_CACHE_TIME
+        _MAIDR_VERSION_CACHE = None
+        _MAIDR_VERSION_CACHE_TIME = 0.0
+
+    @staticmethod
     def _inject_plot(plot: HTML, maidr: str, maidr_id, use_iframe: bool = True) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
-        # MAIDR_TS_CDN_URL = "http://localhost:8888/tree/maidr/core/maidr.js"  # DEMO URL
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
-        # Append a query parameter (using TIMESTAMP) to bust the cache (so that the latest (non-cached) version is always loaded).
-        TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
+        # Get the latest version from npm registry
+        latest_version = Maidr._get_latest_maidr_version()
+        MAIDR_TS_CDN_URL = (
+            f"https://cdn.jsdelivr.net/npm/maidr@{latest_version}/dist/maidr.js"
+        )
 
         script = f"""
-            if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}?v={TIMESTAMP}"]'))
+            if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
             {{
                 var script = document.createElement('script');
                 script.type = 'module';
-                script.src = '{MAIDR_TS_CDN_URL}?v={TIMESTAMP}';
+                script.src = '{MAIDR_TS_CDN_URL}';
                 script.addEventListener('load', function() {{
                     window.main();
                 }});
@@ -299,7 +366,7 @@ class Maidr:
         base_html = tags.div(
             tags.link(
                 rel="stylesheet",
-                href="https://cdn.jsdelivr.net/npm/maidr/dist/maidr_style.css",
+                href=f"https://cdn.jsdelivr.net/npm/maidr@{latest_version}/dist/maidr_style.css",
             ),
             tags.script(script, type="text/javascript"),
             tags.div(plot),

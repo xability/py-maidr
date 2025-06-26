@@ -23,6 +23,7 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
 
     def __init__(self, ax: Axes, **kwargs):
         super().__init__(ax, PlotType.LINE)
+        self._line_titles = []  # Store line titles separately
 
     def _get_selector(self) -> Union[str, List[str]]:
         """Return selectors for all lines that have data."""
@@ -46,6 +47,65 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
             return ["g[maidr='true'] > path"]
 
         return selectors
+
+    def _extract_axes_data(self) -> dict:
+        """
+        Extract axis labels for the plot.
+
+        Returns
+        -------
+        dict
+            Dictionary containing x and y axis labels with custom y-label for moving averages.
+        """
+        x_labels = self.ax.get_xlabel()
+        if not x_labels:
+            x_labels = self.extract_shared_xlabel(self.ax)
+        if not x_labels:
+            x_labels = "Date"
+
+        # Get the period from the first line for y-axis label
+        ma_period = self._extract_moving_average_period()
+        y_label = (
+            f"{ma_period}-day mav price ($)"
+            if ma_period
+            else "Moving Average Price ($)"
+        )
+
+        return {MaidrKey.X: x_labels, MaidrKey.Y: y_label}
+
+    def _extract_moving_average_periods(self) -> List[str]:
+        """
+        Extract all moving average periods from the _maidr_ma_period attributes set by the mplfinance patch.
+
+        Returns
+        -------
+        List[str]
+            List of moving average periods (e.g., ["3", "6", "30"]).
+        """
+        all_lines = self.ax.get_lines()
+        periods = []
+        for line in all_lines:
+            # Get the period that was stored by the mplfinance patch
+            ma_period = getattr(line, "_maidr_ma_period", None)
+            if ma_period is not None:
+                periods.append(str(ma_period))
+
+        # Remove duplicates and sort
+        periods = sorted(list(set(periods)))
+
+        return periods
+
+    def _extract_moving_average_period(self) -> str:
+        """
+        Extract the moving average period from the _maidr_ma_period attribute set by the mplfinance patch.
+
+        Returns
+        -------
+        str
+            The moving average period (e.g., "3", "6", "30") or empty string if no period found.
+        """
+        periods = self._extract_moving_average_periods()
+        return periods[0] if periods else ""
 
     def _extract_plot_data(self) -> Union[List[List[dict]], None]:
         """Extract data from mplfinance moving average lines."""
@@ -91,6 +151,17 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
                 line.set_gid(unique_gid)
 
             label: str = line.get_label()  # type: ignore
+
+            # Get the period for this specific line
+            ma_period = getattr(line, "_maidr_ma_period", None)
+
+            # Create title for this line
+            line_title = (
+                f"{ma_period}-Day Moving Average Line Plot"
+                if ma_period
+                else "Moving Average Line Plot"
+            )
+
             line_data = []
 
             # Check if this line has date numbers from mplfinance
@@ -117,12 +188,22 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
                 point_data = {
                     MaidrKey.X: x_value,
                     MaidrKey.Y: float(y),
-                    MaidrKey.FILL: (label if not label.startswith("_child") else ""),
                 }
                 line_data.append(point_data)
 
             if line_data:
-                all_lines_data.append(line_data)
+                # Create line data with title, axes, and points structure
+                line_with_metadata = {
+                    "title": line_title,
+                    "axes": {
+                        "x": "Date",
+                        "y": f"{ma_period}-day mav price ($)"
+                        if ma_period
+                        else "Moving Average Price ($)",
+                    },
+                    "points": line_data,
+                }
+                all_lines_data.append(line_with_metadata)
 
         return all_lines_data if all_lines_data else None
 
@@ -144,3 +225,49 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
             Date string in YYYY-MM-DD format
         """
         return MplfinanceDataExtractor._convert_date_num_to_string(x_value)
+
+    def _extract_line_titles(self) -> List[str]:
+        """
+        Extract titles for all moving average lines.
+
+        Returns
+        -------
+        List[str]
+            List of titles for each line.
+        """
+        all_lines = self.ax.get_lines()
+        titles = []
+
+        for line in all_lines:
+            ma_period = getattr(line, "_maidr_ma_period", None)
+            title = (
+                f"{ma_period}-Day Moving Average Line Plot"
+                if ma_period
+                else "Moving Average Line Plot"
+            )
+            titles.append(title)
+
+        return titles
+
+    def render(self) -> dict:
+        """Initialize the MAIDR schema dictionary with basic plot information."""
+        # Use the first line's period for the main title
+        ma_period = self._extract_moving_average_period()
+        title = (
+            f"{ma_period}-Day Moving Averages Line Plot"
+            if ma_period
+            else "Moving Averages Line Plot"
+        )
+
+        maidr_schema = {
+            MaidrKey.TYPE: self.type,
+            MaidrKey.TITLE: title,
+            MaidrKey.AXES: self._extract_axes_data(),
+            MaidrKey.DATA: self._extract_plot_data(),
+        }
+
+        # Include selector only if the plot supports highlighting.
+        if self._support_highlighting:
+            maidr_schema[MaidrKey.SELECTOR] = self._get_selector()
+
+        return maidr_schema

@@ -8,7 +8,6 @@ from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
 from maidr.patch.common import common
 from maidr.core.context_manager import ContextManager
-from maidr.util.mplfinance_utils import MplfinanceDataExtractor
 
 
 def mplfinance_plot_patch(wrapped, instance, args, kwargs):
@@ -149,6 +148,9 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
 
                 # Map NaN count to likely moving average period
                 estimated_period = nan_count + 1
+
+                # Store the period directly on the line for easy access
+                setattr(line, "_maidr_ma_period", estimated_period)
 
                 # Create a better label for the line
                 label = str(line.get_label())
