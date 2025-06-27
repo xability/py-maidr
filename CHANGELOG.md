@@ -1,6 +1,16 @@
 # CHANGELOG
 
 
+## v1.4.3 (2025-06-27)
+
+### Bug Fixes
+
+- Address bugs in candlestick & line plots ([#207](https://github.com/xability/py-maidr/pull/207),
+  [`0883878`](https://github.com/xability/py-maidr/commit/088387880e17abb3e9d72f937dd59c62193f8cb3))
+
+Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>
+
+
 ## v1.4.2 (2025-06-27)
 
 ### Bug Fixes
