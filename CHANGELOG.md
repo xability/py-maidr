@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.4.2 (2025-06-27)
+
+### Bug Fixes
+
+- Address reg plot multi-line detection ([#206](https://github.com/xability/py-maidr/pull/206),
+  [`9ef8607`](https://github.com/xability/py-maidr/commit/9ef86070d52c9897b6237593a0138f3076b5321c))
+
+
 ## v1.4.1 (2025-06-26)
 
 ### Bug Fixes
