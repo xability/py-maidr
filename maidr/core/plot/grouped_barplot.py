@@ -24,7 +24,6 @@ class GroupedBarPlot(
         grouped_ax_schema = {
             MaidrKey.X.value: self.ax.get_xlabel(),
             MaidrKey.Y.value: self.ax.get_ylabel(),
-            MaidrKey.FILL.value: self.ax.get_title(),
         }
         return self.merge_dict(base_ax_schema, grouped_ax_schema)
 
@@ -44,6 +43,9 @@ class GroupedBarPlot(
             return None
 
         x_level = self.extract_level(self.ax)
+        if x_level is None:
+            return None
+
         data = []
 
         self._elements.extend(
