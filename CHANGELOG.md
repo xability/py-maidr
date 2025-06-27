@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.4.1 (2025-06-26)
+
+### Bug Fixes
+
+- Add label & title for `mpl.plot()` ([#205](https://github.com/xability/py-maidr/pull/205),
+  [`07cfe0b`](https://github.com/xability/py-maidr/commit/07cfe0b3014a065868358b490166fc784229d239))
+
+
 ## v1.4.0 (2025-06-25)
 
 ### Features
