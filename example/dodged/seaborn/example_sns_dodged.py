@@ -24,9 +24,9 @@ def plot_dodged_bar() -> None:
     """
     # Define species names and corresponding weight count arrays
     species: tuple[str, str, str] = (
-        "Adelie\n(μ=3700.66g)",
-        "Chinstrap\n(μ=3733.09g)",
-        "Gentoo\n(μ=5076.02g)",
+        "Adelie",
+        "Chinstrap",
+        "Gentoo",
     )
     weight_counts: dict[str, np.ndarray] = {
         "Below": np.array([70, 31, 58]),

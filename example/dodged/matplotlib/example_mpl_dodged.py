@@ -15,9 +15,9 @@ import numpy as np
 import maidr
 
 species: tuple[str, str, str] = (
-    "Adelie\n $\\mu=3700.66g$",
-    "Chinstrap\n $\\mu=3733.09g$",
-    "Gentoo\n $\\mu=5076.02g$",
+    "Adelie",
+    "Chinstrap",
+    "Gentoo",
 )
 weight_counts: dict[str, np.ndarray] = {
     "Below": np.array([70, 31, 58]),

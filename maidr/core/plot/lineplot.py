@@ -87,9 +87,14 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         if not all_lines:
             return None
 
+        # Try to get series names from legend
+        legend_labels = []
+        if self.ax.legend_ is not None:
+            legend_labels = [text.get_text() for text in self.ax.legend_.get_texts()]
+
         all_lines_data = []
 
-        for line in all_lines:
+        for i, line in enumerate(all_lines):
             xydata = line.get_xydata()
             if xydata is None or not xydata.size:  # type: ignore
                 continue
@@ -102,11 +107,19 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 line.set_gid(unique_gid)
 
             label: str = line.get_label()  # type: ignore
+
+            # Try to get the series name from legend labels
+            line_type = ""
+            if legend_labels and i < len(legend_labels):
+                line_type = legend_labels[i]
+            elif not label.startswith("_child"):
+                line_type = label
+
             line_data = [
                 {
                     MaidrKey.X: float(x),
                     MaidrKey.Y: float(y),
-                    MaidrKey.FILL: (label if not label.startswith("_child") else ""),
+                    **({"fill": line_type} if line_type else {}),
                 }
                 for x, y in line.get_xydata()  # type: ignore
             ]
