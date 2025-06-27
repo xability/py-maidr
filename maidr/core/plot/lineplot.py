@@ -119,7 +119,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 {
                     MaidrKey.X: float(x),
                     MaidrKey.Y: float(y),
-                    **({"fill": line_type} if line_type else {}),
+                    **({MaidrKey.FILL: line_type} if line_type else {}),
                 }
                 for x, y in line.get_xydata()  # type: ignore
             ]
