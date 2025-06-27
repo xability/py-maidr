@@ -5,11 +5,10 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
 from maidr.patch.common import common
-import numpy as np
 from maidr.core.context_manager import ContextManager
 import uuid
 from maidr.core.enum.smooth_keywords import SMOOTH_KEYWORDS
-from maidr.util.regression_line_utils import find_regression_line
+from maidr.util.regression_line_utils import find_smooth_lines_by_label
 
 
 def regplot(wrapped, instance, args, kwargs) -> Axes:
@@ -23,27 +22,34 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
         # Prevent any MAIDR layer registration during plotting when scatter=False
         with ContextManager.set_internal_context():
             ax = wrapped(*args, **kwargs)
+
     axes = ax if isinstance(ax, Axes) else ax.axes if hasattr(ax, "axes") else None
     if axes is not None:
-        regression_line = find_regression_line(axes)
-        if regression_line is not None:
-            # ---
-            # Assign a unique gid to the regression line if not already set.
-            # This is necessary because the SVG output may contain many <g> and <path> tags,
-            # and only the regression line should be uniquely selectable for accessibility and highlighting.
-            # By setting a unique gid, we ensure the backend and frontend can generate a reliable selector
-            # (e.g., g[id='maidr-...'] path) that matches only the intended regression line.
-            # ---
-            if regression_line.get_gid() is None:
+        # Find and register all smooth lines
+        smooth_lines = find_smooth_lines_by_label(axes)
+        for line in smooth_lines:
+            # If line doesn't have a gid yet, assign one and register
+            if line.get_gid() is None:
                 new_gid = f"maidr-{uuid.uuid4()}"
-                regression_line.set_gid(new_gid)
-            common(
-                PlotType.SMOOTH,
-                lambda *a, **k: ax,
-                instance,
-                args,
-                dict(kwargs, regression_line=regression_line),
-            )
+                line.set_gid(new_gid)
+                common(
+                    PlotType.SMOOTH,
+                    lambda *a, **k: ax,
+                    instance,
+                    args,
+                    dict(kwargs, regression_line=line),
+                )
+            else:
+                # Even if it has a gid, register it as a smooth layer
+                # This handles the case where patched_plot already assigned a gid
+                common(
+                    PlotType.SMOOTH,
+                    lambda *a, **k: ax,
+                    instance,
+                    args,
+                    dict(kwargs, regression_line=line),
+                )
+
     return ax
 
 
@@ -53,7 +59,8 @@ def patched_plot(wrapped, instance, args, kwargs):
     """
     # Call the original plot function
     lines = wrapped(*args, **kwargs)
-    # lines can be a list of Line2D objects
+
+    # Check each line for smooth keywords and register if found
     for line in lines:
         if isinstance(line, Line2D):
             label = line.get_label() or ""
@@ -72,6 +79,7 @@ def patched_plot(wrapped, instance, args, kwargs):
                     args,
                     dict(kwargs, regression_line=line),
                 )
+
     return lines
 
 
