@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.4.4 (2025-07-01)
+
+### Bug Fixes
+
+- Revert maidr-version npmjs fetch ([#208](https://github.com/xability/py-maidr/pull/208),
+  [`969ee31`](https://github.com/xability/py-maidr/commit/969ee317c8fe47f204133ea685665e05b266c6d7))
+
+
 ## v1.4.3 (2025-06-27)
 
 ### Bug Fixes
