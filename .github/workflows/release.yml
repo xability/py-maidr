@@ -5,7 +5,7 @@ on:
 
   push:
     branches:
-      - '**'
+      - main
 
 permissions:
   contents: read
@@ -107,29 +107,22 @@ jobs:
           commit: true
           push: true
 
-      # see https://docs.pypi.org/trusted-publishers/
       - name: Build and publish package distributions to PyPI
         id: pypi-publish
         # NOTE: DO NOT wrap the conditional in ${{ }} as it will always evaluate to true.
         # See https://github.com/actions/runner/issues/1173
         if: steps.release.outputs.released == 'true'
         run: |
-          echo "🔨 Building package with uv build..."
           uv build
-          echo "✅ Build completed successfully"
-          echo "📦 Build artifacts:"
-          ls -la dist/
-          echo "📊 Package info:"
-          uv run python -c "import tomllib; print('Package version:', tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
-          echo "🚫 NOOP: Skipping PyPI publish for testing"
-          echo "Would normally publish to: https://pypi.org/project/maidr/"
+          uv publish
 
       - name: Publish package distributions to GitHub Releases
         id: github-release
         # NOTE: DO NOT wrap the conditional in ${{ }} as it will always evaluate to true.
         # See https://github.com/actions/runner/issues/1173
         if: steps.release.outputs.released == 'true'
-        run: |
-          echo "🚫 NOOP: Skipping GitHub Releases publish for testing"
-          echo "Would normally publish tag: ${{ steps.release.outputs.tag }}"
-          echo "Would normally publish to: https://github.com/xability/py-maidr/releases"
+        uses: python-semantic-release/upload-to-gh-release@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.release.outputs.tag }}
+          root_options: "-vv"
