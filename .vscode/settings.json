@@ -1,26 +1,32 @@
 {
   "window.title": "${activeEditorState}${separator}${activeRepositoryBranchName} ${dirty}${activeEditorShort}${separator}${rootName}${separator}${profileName}${separator}${appName}",
-  "python.experiments.optInto": ["pythonREPLSmartSend"],
   "python.terminal.activateEnvironment": true,
   "python.languageServer": "Pylance",
   "python.analysis.completeFunctionParens": true,
   "python.analysis.autoImportCompletions": true,
   "python.analysis.typeCheckingMode": "basic",
-  "python.formatting.provider": "none",
+  "ruff.nativeServer": "on",
   "[python]": {
     "editor.tabSize": 4,
     "editor.formatOnType": true,
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.codeActionsOnSave": {
-      "source.organizeImports": "explicit"
-    }
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    },
+    "editor.defaultFormatter": "charliermarsh.ruff"
   },
   "isort.args": ["--profile", "black"],
   "black-formatter.showNotifications": "always",
   "flake8.args": ["--max-line-length=88"],
   "python.formatting.blackArgs": ["--line-length", "88"],
   "black-formatter.args": ["--line-length", "88"],
+  "notebook.defaultFormatter": "charliermarsh.ruff",
+  "notebook.formatOnSave.enabled": true,
+  "notebook.codeActionsOnSave": {
+    "notebook.source.fixAll": "explicit",
+    "notebook.source.organizeImports": "explicit"
+  },
   "files.exclude": {
     "**/__pycache__": true,
     "build/**": true
