@@ -5,7 +5,7 @@ on:
 
   push:
     branches:
-      - main
+      - '**'
 
 permissions:
   contents: read
@@ -169,3 +169,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.release.outputs.tag }}
           root_options: "-vv"
+
+      - name: NOOP (skip actual release)
+        run: echo "Skipping release for test purposes"
