@@ -5,7 +5,7 @@ on:
 
   push:
     branches:
-      - main
+      - '**'
 
 permissions:
   contents: read
@@ -80,15 +80,13 @@ jobs:
           echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
           echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
 
-      - name: Install Black
+      - name: Install Ruff
         run: |
-          # Install specific version of Black using UV
-          uv pip install black==23.3.0
+          uv pip install ruff==0.3.4
 
-      - name: Check format with black
+      - name: Check format with ruff
         run: |
-          # Run Black formatter check
-          black --diff --check --color --verbose .
+          ruff check --diff .
 
   commit-lint:
     runs-on: ubuntu-latest
@@ -155,17 +153,21 @@ jobs:
         # NOTE: DO NOT wrap the conditional in ${{ }} as it will always evaluate to true.
         # See https://github.com/actions/runner/issues/1173
         if: steps.release.outputs.released == 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          verbose: true
+        run: |
+          echo "NOOP: Skipping PyPI publish for testing"
+          # uses: pypa/gh-action-pypi-publish@release/v1
+          # with:
+          #   verbose: true
 
       - name: Publish package distributions to GitHub Releases
         id: github-release
         # NOTE: DO NOT wrap the conditional in ${{ }} as it will always evaluate to true.
         # See https://github.com/actions/runner/issues/1173
         if: steps.release.outputs.released == 'true'
-        uses: python-semantic-release/upload-to-gh-release@main
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ steps.release.outputs.tag }}
-          root_options: "-vv"
+        run: |
+          echo "NOOP: Skipping GitHub Releases publish for testing"
+          # uses: python-semantic-release/upload-to-gh-release@main
+          # with:
+          #   github_token: ${{ secrets.GITHUB_TOKEN }}
+          #   tag: ${{ steps.release.outputs.tag }}
+          #   root_options: "-vv"

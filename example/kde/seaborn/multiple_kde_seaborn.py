@@ -4,6 +4,7 @@ Multiple KDE overlays with Seaborn and MAIDR
 This example demonstrates how to plot multiple kernel density estimates (KDEs) for different groups using Seaborn,
 with MAIDR integration for interactive accessibility and exploration.
 """
+
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt

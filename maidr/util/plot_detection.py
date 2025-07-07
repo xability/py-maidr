@@ -4,7 +4,7 @@ Utility functions for detecting plot types and determining appropriate plot clas
 
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
-from typing import Dict, Any, List, Union
+from typing import List, Union
 
 
 class PlotDetectionUtils:
@@ -109,7 +109,7 @@ class PlotDetectionUtils:
 
     @staticmethod
     def get_candlestick_axes(
-        ax: Union[Axes, List[Axes], List[List[Axes]]]
+        ax: Union[Axes, List[Axes], List[List[Axes]]],
     ) -> List[Axes]:
         """
         Extract and normalize axes for candlestick plots.

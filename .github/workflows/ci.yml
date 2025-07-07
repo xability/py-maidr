@@ -89,13 +89,13 @@ jobs:
           echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
           echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
 
-      - name: Install Black
+      - name: Install Ruff
         run: |
-          uv pip install black==23.3.0
+          uv pip install ruff==0.3.4
 
-      - name: Check format with black
+      - name: Check format with ruff
         run: |
-          black --diff --check --color --verbose .
+          ruff check --diff .
 
   commit-lint:
     runs-on: ubuntu-latest

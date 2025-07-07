@@ -4,6 +4,7 @@ Multiple KDE overlays with Matplotlib/Scipy and MAIDR
 This example demonstrates how to plot multiple kernel density estimates (KDEs) for different groups using
 raw Matplotlib and Scipy, with MAIDR integration for interactive accessibility and exploration.
 """
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde

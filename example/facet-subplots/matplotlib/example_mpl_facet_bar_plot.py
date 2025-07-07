@@ -7,7 +7,6 @@ containing bar plots that share the same axes, creating a facet plot.
 Each panel represents data for a different category or condition.
 """
 
-
 import matplotlib.pyplot as plt
 import numpy as np
 
