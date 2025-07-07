@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: |
           # Install project and its dependencies with development extras
-          uv pip install -e ".[dev]"
+          uv pip install -e ".[dev,visualization,test]"
           # Ensure quartodoc is installed
           uv pip install "quartodoc>=0.7.5,<0.8"
 
