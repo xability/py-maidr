@@ -37,33 +37,17 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        id: setup-python
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install UV
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Setup UV environment
-        run: |
-          uv venv .venv
-          source .venv/bin/activate
-          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
-          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
-
-      - name: Install dependencies
-        run: |
-          uv pip install -e ".[test]"
-          uv pip install pytest-github-actions-annotate-failures
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
 
       - name: Run tests
         id: tests
-        run: |
-          pytest -vvv
+        run: uv run pytest -vvv
 
   lint:
     runs-on: ubuntu-latest
@@ -71,31 +55,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
 
-      - name: Install UV
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Setup UV environment
-        run: |
-          # Create and activate virtual environment
-          uv venv .venv
-          source .venv/bin/activate
-          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
-          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
-
-      - name: Install Ruff
-        run: |
-          uv pip install ruff==0.3.4
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
 
       - name: Check format with ruff
-        run: |
-          ruff check --diff .
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "check --diff"
+          version: "0.3.4"
 
   commit-lint:
     runs-on: ubuntu-latest
