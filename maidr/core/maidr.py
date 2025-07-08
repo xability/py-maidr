@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
-import urllib.request
-import urllib.error
 import json
 
 import io
-import json
 import os
 import tempfile
 import uuid
@@ -259,7 +255,9 @@ class Maidr:
         svg_buffer = io.StringIO()  # Reset the buffer
         svg_buffer.write(
             etree.tostring(
-                root_svg, pretty_print=True, encoding="unicode"  # type: ignore
+                root_svg,
+                pretty_print=True,
+                encoding="unicode",  # type: ignore
             )
         )
 
@@ -280,7 +278,7 @@ class Maidr:
     def _inject_plot(plot: HTML, maidr: str, maidr_id, use_iframe: bool = True) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
         # Get the latest version from npm registry
-        MAIDR_TS_CDN_URL = f"https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
+        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
 
         script = f"""
             if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
@@ -302,7 +300,7 @@ class Maidr:
         base_html = tags.div(
             tags.link(
                 rel="stylesheet",
-                href=f"https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css",
+                href="https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css",
             ),
             tags.script(script, type="text/javascript"),
             tags.div(plot),

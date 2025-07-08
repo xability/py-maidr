@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import matplotlib.dates as mdates
-import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
 

@@ -1,7 +1,6 @@
 from typing import List, Union
 
 from matplotlib.axes import Axes
-from matplotlib.lines import Line2D
 import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
