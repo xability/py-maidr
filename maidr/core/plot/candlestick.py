@@ -39,6 +39,7 @@ class CandlestickPlot(MaidrPlot):
         self._maidr_wick_collection = kwargs.get("_maidr_wick_collection", None)
         self._maidr_body_collection = kwargs.get("_maidr_body_collection", None)
         self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
+        self._maidr_original_data = kwargs.get("_maidr_original_data", None)  # Store original data
 
         # Store the GID for proper selector generation
         self._maidr_gid = None
@@ -62,16 +63,16 @@ class CandlestickPlot(MaidrPlot):
             self._elements = [body_collection, wick_collection]
 
             # Use the utility class to extract data
-            return MplfinanceDataExtractor.extract_candlestick_data(
-                body_collection, wick_collection, self._maidr_date_nums
+            data = MplfinanceDataExtractor.extract_candlestick_data(
+                body_collection, wick_collection, self._maidr_date_nums, self._maidr_original_data
             )
+            return data
 
         # Fallback to original detection method
         if not self.axes:
             return []
 
         ax_ohlc = self.axes[0]
-        candles = []
 
         # Look for Rectangle patches (original_flavor candlestick)
         body_rectangles = []
@@ -93,9 +94,10 @@ class CandlestickPlot(MaidrPlot):
                     rect.set_gid(self._maidr_gid)
 
             # Use the utility class to extract data
-            return MplfinanceDataExtractor.extract_rectangle_candlestick_data(
-                body_rectangles, self._maidr_date_nums
+            data = MplfinanceDataExtractor.extract_rectangle_candlestick_data(
+                body_rectangles, self._maidr_date_nums, self._maidr_original_data
             )
+            return data
 
         return []
 
@@ -131,11 +133,14 @@ class CandlestickPlot(MaidrPlot):
         """Initialize the MAIDR schema dictionary with basic plot information."""
         title = "Candlestick Chart"
 
+        # Extract the plot data
+        plot_data = self._extract_plot_data()
+
         maidr_schema = {
             MaidrKey.TYPE: self.type,
             MaidrKey.TITLE: title,
             MaidrKey.AXES: self._extract_axes_data(),
-            MaidrKey.DATA: self._extract_plot_data(),
+            MaidrKey.DATA: plot_data,
         }
 
         # Include selector only if the plot supports highlighting.

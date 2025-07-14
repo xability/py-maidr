@@ -32,7 +32,7 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
     if not (isinstance(result, tuple) and len(result) >= 2):
         return result if original_returnfig else None
 
-    fig, axes = result[0], result[1]
+    _, axes = result[0], result[1]
     ax_list = axes if isinstance(axes, list) else [axes]
 
     # Enhanced axis identification using content-based detection
@@ -92,6 +92,7 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
                 _maidr_wick_collection=wick_collection,
                 _maidr_body_collection=body_collection,
                 _maidr_date_nums=date_nums,
+                _maidr_original_data=data,
             )
             common(
                 PlotType.CANDLESTICK,
