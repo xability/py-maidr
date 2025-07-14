@@ -97,11 +97,6 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
-      - name: Recreate virtual environment to fix symlink issues
-        run: |
-          uv venv --force
-          uv sync --locked --all-extras --dev
-
       - name: Python Semantic Release
         id: release
         uses: python-semantic-release/python-semantic-release@v9.21.0
@@ -118,8 +113,6 @@ jobs:
         # See https://github.com/actions/runner/issues/1173
         if: steps.release.outputs.released == 'true'
         run: |
-          uv venv --force
-          uv sync --locked --all-extras --dev
           uv build
           uv publish
 
