@@ -113,7 +113,8 @@ jobs:
         # See https://github.com/actions/runner/issues/1173
         if: steps.release.outputs.released == 'true'
         run: |
-          uv build
+          # Use a clean environment for building
+          uv build --no-cache
           uv publish
 
       - name: Publish package distributions to GitHub Releases
