@@ -5,7 +5,8 @@ Utility functions for handling mplfinance-specific data extraction and processin
 import matplotlib.dates as mdates
 import numpy as np
 from matplotlib.patches import Rectangle
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional, Tuple, Any, Union
+import pandas as pd
 
 
 class MplfinanceDataExtractor:
@@ -62,7 +63,7 @@ class MplfinanceDataExtractor:
         body_collection: Any,
         wick_collection: Any,
         date_nums: Optional[List[float]] = None,
-        original_data: Optional[Any] = None,
+        original_data: Optional[Union[pd.DataFrame, pd.Series, dict]] = None,
     ) -> List[dict]:
         """
         Extract candlestick data from mplfinance collections.
@@ -75,8 +76,8 @@ class MplfinanceDataExtractor:
             LineCollection containing candlestick wicks
         date_nums : Optional[List[float]], default=None
             List of matplotlib date numbers corresponding to the candles
-        original_data : Optional[Any], default=None
-            Original DataFrame with OHLC data for accurate bull/bear classification
+        original_data : Optional[Union[pd.DataFrame, pd.Series, dict]], default=None
+            Original DataFrame/Series/dict with OHLC data for accurate bull/bear classification
 
         Returns
         -------
@@ -145,7 +146,7 @@ class MplfinanceDataExtractor:
     def extract_rectangle_candlestick_data(
         body_rectangles: List[Rectangle],
         date_nums: Optional[List[float]] = None,
-        original_data: Optional[Any] = None,
+        original_data: Optional[Union[pd.DataFrame, pd.Series, dict]] = None,
     ) -> List[dict]:
         """
         Extract candlestick data from Rectangle patches (original_flavor).
@@ -156,8 +157,8 @@ class MplfinanceDataExtractor:
             List of Rectangle patches representing candlestick bodies
         date_nums : Optional[List[float]], default=None
             List of matplotlib date numbers corresponding to the candles
-        original_data : Optional[Any], default=None
-            Original DataFrame with OHLC data for accurate bull/bear classification
+        original_data : Optional[Union[pd.DataFrame, pd.Series, dict]], default=None
+            Original DataFrame/Series/dict with OHLC data for accurate bull/bear classification
 
         Returns
         -------
@@ -227,7 +228,11 @@ class MplfinanceDataExtractor:
         return candles
 
     @staticmethod
-    def _determine_bull_bear_from_data(original_data: Any, index: int, date_str: str) -> bool:
+    def _determine_bull_bear_from_data(
+        original_data: Optional[Union[pd.DataFrame, pd.Series, dict]],
+        index: int,
+        date_str: str
+    ) -> bool:
         """
         Determine if a candle is bullish (up) or bearish (down) using original OHLC data.
 
@@ -235,8 +240,8 @@ class MplfinanceDataExtractor:
 
         Parameters
         ----------
-        original_data : Any
-            Original DataFrame with OHLC data
+        original_data : Optional[Union[pd.DataFrame, pd.Series, dict]]
+            Original DataFrame/Series/dict with OHLC data
         index : int
             Index of the candle
         date_str : str
