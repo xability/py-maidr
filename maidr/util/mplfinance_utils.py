@@ -5,7 +5,8 @@ Utility functions for handling mplfinance-specific data extraction and processin
 import matplotlib.dates as mdates
 import numpy as np
 from matplotlib.patches import Rectangle
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional, Tuple, Any, Union
+import pandas as pd
 
 
 class MplfinanceDataExtractor:
@@ -62,6 +63,7 @@ class MplfinanceDataExtractor:
         body_collection: Any,
         wick_collection: Any,
         date_nums: Optional[List[float]] = None,
+        original_data: Optional[Union[pd.DataFrame, pd.Series, dict]] = None,
     ) -> List[dict]:
         """
         Extract candlestick data from mplfinance collections.
@@ -74,6 +76,8 @@ class MplfinanceDataExtractor:
             LineCollection containing candlestick wicks
         date_nums : Optional[List[float]], default=None
             List of matplotlib date numbers corresponding to the candles
+        original_data : Optional[Union[pd.DataFrame, pd.Series, dict]], default=None
+            Original DataFrame/Series/dict with OHLC data for accurate bull/bear classification
 
         Returns
         -------
@@ -85,7 +89,6 @@ class MplfinanceDataExtractor:
 
         candles = []
         paths = body_collection.get_paths()
-        face_colors = body_collection.get_facecolor()
 
         for i, path in enumerate(paths):
             if len(path.vertices) >= 4:
@@ -109,8 +112,10 @@ class MplfinanceDataExtractor:
                         x_center
                     )
 
-                # Determine if this is an up or down candle based on color
-                is_up = MplfinanceDataExtractor._is_up_candle(face_colors, i)
+                # Determine if this is an up or down candle using original data
+                is_up = MplfinanceDataExtractor._determine_bull_bear_from_data(
+                    original_data, i, date_str
+                )
 
                 # Extract OHLC values
                 (
@@ -132,13 +137,16 @@ class MplfinanceDataExtractor:
                     "close": round(close_val, 2),
                     "volume": 0,  # Volume is handled separately
                 }
+
                 candles.append(candle_data)
 
         return candles
 
     @staticmethod
     def extract_rectangle_candlestick_data(
-        body_rectangles: List[Rectangle], date_nums: Optional[List[float]] = None
+        body_rectangles: List[Rectangle],
+        date_nums: Optional[List[float]] = None,
+        original_data: Optional[Union[pd.DataFrame, pd.Series, dict]] = None,
     ) -> List[dict]:
         """
         Extract candlestick data from Rectangle patches (original_flavor).
@@ -149,6 +157,8 @@ class MplfinanceDataExtractor:
             List of Rectangle patches representing candlestick bodies
         date_nums : Optional[List[float]], default=None
             List of matplotlib date numbers corresponding to the candles
+        original_data : Optional[Union[pd.DataFrame, pd.Series, dict]], default=None
+            Original DataFrame/Series/dict with OHLC data for accurate bull/bear classification
 
         Returns
         -------
@@ -180,10 +190,11 @@ class MplfinanceDataExtractor:
 
             y_bottom = rect.get_y()
             height = rect.get_height()
-            face_color = rect.get_facecolor()
 
-            # Determine if this is an up or down candle based on color
-            is_up_candle = MplfinanceDataExtractor._is_up_candle_from_color(face_color)
+            # Determine if this is an up or down candle using original data
+            is_up_candle = MplfinanceDataExtractor._determine_bull_bear_from_data(
+                original_data, i, date_str
+            )
 
             # Extract OHLC values from rectangle
             (
@@ -211,9 +222,64 @@ class MplfinanceDataExtractor:
                 "close": round(close_price, 2),
                 "volume": 0,
             }
+
             candles.append(candle_data)
 
         return candles
+
+    @staticmethod
+    def _determine_bull_bear_from_data(
+        original_data: Optional[Union[pd.DataFrame, pd.Series, dict]],
+        index: int,
+        date_str: str
+    ) -> bool:
+        """
+        Determine if a candle is bullish (up) or bearish (down) using original OHLC data.
+
+        This is the most robust method as it uses the actual data rather than colors.
+
+        Parameters
+        ----------
+        original_data : Optional[Union[pd.DataFrame, pd.Series, dict]]
+            Original DataFrame/Series/dict with OHLC data
+        index : int
+            Index of the candle
+        date_str : str
+            Date string for the candle
+
+        Returns
+        -------
+        bool
+            True if bullish (close > open), False if bearish (close < open)
+        """
+        # Default to bullish if no data available
+        if original_data is None:
+            return True
+
+        try:
+            # Try to access the original data
+            if hasattr(original_data, 'iloc'):
+                # It's a pandas DataFrame/Series
+                if index < len(original_data):
+                    row = original_data.iloc[index]
+                    if 'Close' in row and 'Open' in row:
+                        is_bullish = row['Close'] > row['Open']
+                        return is_bullish
+
+            elif hasattr(original_data, '__getitem__'):
+                # It's a dictionary or similar
+                if 'Close' in original_data and 'Open' in original_data:
+                    closes = original_data['Close']
+                    opens = original_data['Open']
+                    if index < len(closes) and index < len(opens):
+                        is_bullish = closes[index] > opens[index]
+                        return is_bullish
+
+        except (KeyError, IndexError, AttributeError):
+            pass
+
+        # Fallback to bullish if data access fails
+        return True  # Default to bullish
 
     @staticmethod
     def clean_axis_label(label: str) -> str:
@@ -268,7 +334,7 @@ class MplfinanceDataExtractor:
 
                     date_dt = pd.to_datetime(date_num, unit="D")
                     return date_dt.strftime("%Y-%m-%d")
-                except:
+                except (ValueError, TypeError):
                     pass
         except (ValueError, TypeError, OverflowError):
             pass
@@ -319,66 +385,6 @@ class MplfinanceDataExtractor:
 
         # Use the utility class for date conversion
         return MplfinanceDataExtractor._convert_date_num_to_string(x_center_num)
-
-    @staticmethod
-    def _is_up_candle(face_colors: Any, index: int) -> bool:
-        """
-        Determine if a candle is up based on face color.
-
-        Parameters
-        ----------
-        face_colors : Any
-            Face colors from the collection
-        index : int
-            Index of the candle
-
-        Returns
-        -------
-        bool
-            True if up candle, False if down candle
-        """
-        is_up = True  # Default to up candle
-        if hasattr(face_colors, "__len__") and len(face_colors) > index:
-            color = (
-                face_colors[index]
-                if hasattr(face_colors[index], "__len__")
-                else face_colors
-            )
-            if isinstance(color, (list, tuple, np.ndarray)):
-                if len(color) >= 3:
-                    # Dark colors typically indicate down candles
-                    if color[0] < 0.5 and color[1] < 0.5 and color[2] < 0.5:
-                        is_up = False
-        return is_up
-
-    @staticmethod
-    def _is_up_candle_from_color(face_color: Any) -> bool:
-        """
-        Determine if a candle is up based on face color (for Rectangle patches).
-
-        Parameters
-        ----------
-        face_color : Any
-            Face color of the rectangle
-
-        Returns
-        -------
-        bool
-            True if up candle, False if down candle
-        """
-        try:
-            if (
-                isinstance(face_color, (list, tuple, np.ndarray))
-                and len(face_color) >= 3
-            ):
-                # Green colors typically indicate up candles
-                if face_color[1] > face_color[0]:
-                    return True
-                else:
-                    return False
-        except (TypeError, IndexError):
-            pass
-        return True  # Default to up candle
 
     @staticmethod
     def _extract_ohlc_from_rectangle(
