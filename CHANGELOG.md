@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v1.4.5 (2025-07-14)
+
+### Bug Fixes
+
+- **candlestick**: Address bull and bear logic gap
+  ([#210](https://github.com/xability/py-maidr/pull/210),
+  [`77308c5`](https://github.com/xability/py-maidr/commit/77308c5a1b055523db972a3c33fd977ac6bd0c80))
+
+### Build System
+
+- Migrate to uv from poetry ([#209](https://github.com/xability/py-maidr/pull/209),
+  [`2d36e42`](https://github.com/xability/py-maidr/commit/2d36e422fdf449215bd9e416ac33cae405f9e85b))
+
+Co-authored-by: Krishna Anandan Ganesan <krishna1729atom@gmail.com>
+
+Co-authored-by: JooYoung Seo <jseo1005@illinois.edu>
+
+
 ## v1.4.4 (2025-07-01)
 
 ### Bug Fixes
