@@ -1,6 +1,29 @@
 # CHANGELOG
 
 
+## v1.4.6 (2025-07-15)
+
+### Bug Fixes
+
+- Address release issue ([#215](https://github.com/xability/py-maidr/pull/215),
+  [`c03a55c`](https://github.com/xability/py-maidr/commit/c03a55ca2b1343e96524137181a6ef1c5f2da733))
+
+- Address semantic-release config in pyproject.toml
+  ([#213](https://github.com/xability/py-maidr/pull/213),
+  [`0735fea`](https://github.com/xability/py-maidr/commit/0735feacd89bb8ee47475a6456e6a7f08878c332))
+
+- Semantic relase with uv build validation ([#214](https://github.com/xability/py-maidr/pull/214),
+  [`cbaebd9`](https://github.com/xability/py-maidr/commit/cbaebd920bea8feca82f64a4a3f7e81cf1ba077b))
+
+### Continuous Integration
+
+- Fix release gh wf ([#211](https://github.com/xability/py-maidr/pull/211),
+  [`ae679a5`](https://github.com/xability/py-maidr/commit/ae679a529f98642a9165278b985cfd4f110565d3))
+
+- Semantic release poetry to uv ([#212](https://github.com/xability/py-maidr/pull/212),
+  [`b300d1c`](https://github.com/xability/py-maidr/commit/b300d1ca3d83418b0f7dde8e341783d41fbc567e))
+
+
 ## v1.4.5 (2025-07-14)
 
 ### Bug Fixes
