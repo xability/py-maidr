@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.4.7 (2025-07-15)
+
+### Bug Fixes
+
+- Address versioning updates ([#216](https://github.com/xability/py-maidr/pull/216),
+  [`4b236e4`](https://github.com/xability/py-maidr/commit/4b236e4bb0299f6adbe7e8bfcae9b3db93ecce41))
+
+
 ## v1.4.6 (2025-07-15)
 
 ### Bug Fixes
