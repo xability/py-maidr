@@ -93,7 +93,7 @@ commit_parser = "conventional"
 logging_use_named_masks = false
 major_on_zero = false
 tag_format = "v{version}"
-version_variables = ["maidr/__init__.py:__version__"]
+version_variables = ["maidr/__init__.py:__version__", "pyproject.toml:project.version"]
 
 [tool.semantic_release.branches.main]
 match = "(main|master)"
