@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.4.8 (2025-07-15)
+
+### Bug Fixes
+
+- Adress pyproject versioning ([#217](https://github.com/xability/py-maidr/pull/217),
+  [`fd7c2ca`](https://github.com/xability/py-maidr/commit/fd7c2ca53c20c9262b470ff050cfd8c320ad5e3a))
+
+
 ## v1.4.7 (2025-07-15)
 
 ### Bug Fixes
