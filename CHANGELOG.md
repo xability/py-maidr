@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v1.4.9 (2025-07-25)
+
+### Bug Fixes
+
+- Add layer id for layers ([#220](https://github.com/xability/py-maidr/pull/220),
+  [`3a50a5c`](https://github.com/xability/py-maidr/commit/3a50a5c97dfbfa7c4c17d6856080c9ad8e3ad65c))
+
+### Continuous Integration
+
+- Remove redundant github releases ([#218](https://github.com/xability/py-maidr/pull/218),
+  [`6a3874a`](https://github.com/xability/py-maidr/commit/6a3874acf92f4c8bad95ee2b8f10065df55ef25a))
+
+- Sync uv.lock ([#219](https://github.com/xability/py-maidr/pull/219),
+  [`bbfbc31`](https://github.com/xability/py-maidr/commit/bbfbc314553f944ef102e1e0d2fa5741f05701c2))
+
+
 ## v1.4.8 (2025-07-15)
 
 ### Bug Fixes
