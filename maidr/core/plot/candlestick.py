@@ -131,20 +131,11 @@ class CandlestickPlot(MaidrPlot):
 
     def render(self) -> dict:
         """Initialize the MAIDR schema dictionary with basic plot information."""
-        title = "Candlestick Chart"
-
-        # Extract the plot data
-        plot_data = self._extract_plot_data()
-
-        maidr_schema = {
-            MaidrKey.TYPE: self.type,
-            MaidrKey.TITLE: title,
-            MaidrKey.AXES: self._extract_axes_data(),
-            MaidrKey.DATA: plot_data,
-        }
-
+        base_schema = super().render()
+        base_schema[MaidrKey.TITLE] = "Candlestick Chart"
+        base_schema[MaidrKey.AXES] = self._extract_axes_data()
+        base_schema[MaidrKey.DATA] = self._extract_plot_data()
         # Include selector only if the plot supports highlighting.
         if self._support_highlighting:
-            maidr_schema[MaidrKey.SELECTOR] = self._get_selector()
-
-        return maidr_schema
+            base_schema[MaidrKey.SELECTOR] = self._get_selector()
+        return base_schema

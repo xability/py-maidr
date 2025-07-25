@@ -179,18 +179,10 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
         return periods[0] if periods else ""
 
     def render(self) -> dict:
-        """Initialize the MAIDR schema dictionary with basic plot information."""
-        title = "Moving Average Line Plot"
-
-        maidr_schema = {
-            MaidrKey.TYPE: self.type,
-            MaidrKey.TITLE: title,
-            MaidrKey.AXES: self._extract_axes_data(),
-            MaidrKey.DATA: self._extract_plot_data(),
-        }
-
-        # Include selector only if the plot supports highlighting.
+        base_schema = super().render()
+        base_schema[MaidrKey.TITLE] = "Moving Average Line Plot"
+        base_schema[MaidrKey.AXES] = self._extract_axes_data()
+        base_schema[MaidrKey.DATA] = self._extract_plot_data()
         if self._support_highlighting:
-            maidr_schema[MaidrKey.SELECTOR] = self._get_selector()
-
-        return maidr_schema
+            base_schema[MaidrKey.SELECTOR] = self._get_selector()
+        return base_schema
