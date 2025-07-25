@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
+# uuid is used to generate unique identifiers for each plot layer in the MAIDR schema.
 import uuid
 
 
@@ -56,7 +57,11 @@ class MaidrPlot(ABC):
         self._schema = {}
 
     def render(self) -> dict:
-        """Initialize the MAIDR schema dictionary with basic plot information."""
+        """
+        Generate the MAIDR schema for this plot layer, including a unique id for layer identification.
+        """
+        # Generate a unique UUID for this layer to ensure each plot layer can be distinctly identified
+        # in the MAIDR frontend. This supports robust layer switching.
         maidr_schema = {
             MaidrKey.ID: str(uuid.uuid4()),
             MaidrKey.TYPE: self.type,
