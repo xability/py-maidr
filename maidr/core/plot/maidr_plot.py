@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
+import uuid
 
 
 class MaidrPlot(ABC):
@@ -57,6 +58,7 @@ class MaidrPlot(ABC):
     def render(self) -> dict:
         """Initialize the MAIDR schema dictionary with basic plot information."""
         maidr_schema = {
+            MaidrKey.ID: str(uuid.uuid4()),
             MaidrKey.TYPE: self.type,
             MaidrKey.TITLE: self.ax.get_title(),
             MaidrKey.AXES: self._extract_axes_data(),
