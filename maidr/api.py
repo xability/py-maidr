@@ -13,8 +13,13 @@ from maidr.core.figure_manager import FigureManager
 
 def render(plot: Any) -> Tag:
     ax = FigureManager.get_axes(plot)
-    maidr = FigureManager.get_maidr(ax.get_figure())
-    return maidr.render()
+    if isinstance(ax, list):
+        for axes in ax:
+            maidr = FigureManager.get_maidr(axes.get_figure())
+        return maidr.render()
+    else:
+        maidr = FigureManager.get_maidr(ax.get_figure())
+        return maidr.render()
 
 
 def show(
