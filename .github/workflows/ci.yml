@@ -42,6 +42,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Check lockfile sync
+        run: |
+          if ! uv lock --check; then
+            echo "Error: Lockfile is out of sync with pyproject.toml"
+            echo "Please run 'uv lock' locally and commit the changes"
+            exit 1
+          fi
+
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
@@ -59,6 +67,14 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
+
+      - name: Check lockfile sync
+        run: |
+          if ! uv lock --check; then
+            echo "Error: Lockfile is out of sync with pyproject.toml"
+            echo "Please run 'uv lock' locally and commit the changes"
+            exit 1
+          fi
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
