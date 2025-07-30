@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v1.4.10 (2025-07-30)
+
+### Bug Fixes
+
+- **candlestick**: Address rendering error ([#222](https://github.com/xability/py-maidr/pull/222),
+  [`af14bec`](https://github.com/xability/py-maidr/commit/af14bec9c25163c2c3b7b86d3e97e038db2f667b))
+
+### Continuous Integration
+
+- Sync lock ([#223](https://github.com/xability/py-maidr/pull/223),
+  [`d8dedf7`](https://github.com/xability/py-maidr/commit/d8dedf73f3001f484a747dd943856fb1e0383e68))
+
+
 ## v1.4.9 (2025-07-25)
 
 ### Bug Fixes
