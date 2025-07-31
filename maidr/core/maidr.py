@@ -142,7 +142,11 @@ class Maidr:
             
             wsl_distro_name = Environment.get_wsl_distro_name()
             url = f"file://wsl$/{wsl_distro_name}{html_file_path}"
-            subprocess.run(['explorer.exe', url])
+            try:
+                subprocess.run(['explorer.exe', url])
+            except Exception as e:
+                print(f"Failed to open URL using explorer.exe: {e}")
+                print(f"Visit: {url}")
         else:
             webbrowser.open(f"file://{html_file_path}")
 
