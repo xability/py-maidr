@@ -8,8 +8,9 @@ class Environment:
 
     @staticmethod
     def is_flask() -> bool:
+        """Return True if the environment is a flask app."""
         try:
-            from     flask import has_app_context
+            from flask import has_app_context
             return has_app_context()
         except ImportError:
             return False
