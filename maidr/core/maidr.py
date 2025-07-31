@@ -137,7 +137,14 @@ class Maidr:
         html_file_path = self.save_html(
             temp_file_path
         )  # This will use use_iframe=False
-        webbrowser.open(f"file://{html_file_path}")
+        if Environment.is_wsl():
+            import subprocess
+            
+            wsl_distro_name = Environment.get_wsl_distro_name()
+            url = f"file://wsl$/{wsl_distro_name}{html_file_path}"
+            subprocess.run(['explorer.exe', url])
+        else:
+            webbrowser.open(f"file://{html_file_path}")
 
     def _create_html_tag(self, use_iframe: bool = True) -> Tag:
         """Create the MAIDR HTML using HTML tags."""

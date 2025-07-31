@@ -20,6 +20,22 @@ class Environment:
             return False
 
     @staticmethod
+    def is_wsl() -> bool:
+        """Return True if the environment is wsl."""
+        try:
+            with open('/proc/version', 'r') as f:
+                version_info = f.read().lower()
+                if 'microsoft' in version_info or 'wsl' in version_info:
+                    return True
+        except FileNotFoundError:
+            pass
+        return False
+
+    @staticmethod
+    def get_wsl_distro_name() -> str:
+        return os.environ.get('WSL_DISTRO_NAME', '')
+
+    @staticmethod
     def is_notebook() -> bool:
         """Return True if the environment is a Jupyter notebook."""
         try:
