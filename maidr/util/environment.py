@@ -7,6 +7,14 @@ class Environment:
     _engine = "ts"
 
     @staticmethod
+    def is_flask() -> bool:
+        try:
+            from     flask import has_app_context
+            return has_app_context()
+        except ImportError:
+            return False
+
+    @staticmethod
     def is_interactive_shell() -> bool:
         """Return True if the environment is an interactive shell."""
         try:
