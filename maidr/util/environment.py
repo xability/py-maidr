@@ -12,7 +12,9 @@ class Environment:
         Check if the current environment is a Flask application.
 
         This method detects Flask applications by checking if Flask's app context
-        is available using `flask.has_app_context()`.
+        is available using `flask.has_app_context()`. The app context is Flask's
+        way of tracking the current application state and is only available when
+        code is running within a Flask application.
 
         Returns
         -------
@@ -26,9 +28,20 @@ class Environment:
         False  # When not in a Flask app
         """
         try:
+            # Import Flask's has_app_context function
             from flask import has_app_context
+
+            # has_app_context() returns True only when code is running within
+            # a Flask application context. This is Flask's built-in mechanism
+            # for detecting if the current execution environment is a Flask app.
+            #
+            # The app context is automatically created by Flask when:
+            # - A Flask app is running (app.run())
+            # - Code is executed within a Flask request context
+            # - The app context is manually pushed
             return has_app_context()
         except ImportError:
+            # Flask is not installed, so we're definitely not in a Flask app
             return False
 
     @staticmethod
