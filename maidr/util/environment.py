@@ -8,7 +8,23 @@ class Environment:
 
     @staticmethod
     def is_flask() -> bool:
-        """Return True if the environment is a flask app."""
+        """
+        Check if the current environment is a Flask application.
+
+        This method detects Flask applications by checking if Flask's app context
+        is available using `flask.has_app_context()`.
+
+        Returns
+        -------
+        bool
+            True if the environment is a Flask application, False otherwise.
+
+        Examples
+        --------
+        >>> from maidr.util.environment import Environment
+        >>> Environment.is_flask()
+        False  # When not in a Flask app
+        """
         try:
             from flask import has_app_context
             return has_app_context()
