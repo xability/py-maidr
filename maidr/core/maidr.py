@@ -139,14 +139,49 @@ class Maidr:
         )  # This will use use_iframe=False
         if Environment.is_wsl():
             import subprocess
-            
+
             wsl_distro_name = Environment.get_wsl_distro_name()
+
+            # Validate that WSL distro name is available
+            if not wsl_distro_name:
+                raise ValueError(
+                    "WSL_DISTRO_NAME environment variable is not set or is empty. "
+                )
+
             url = f"file://wsl$/{wsl_distro_name}{html_file_path}"
+
+            # Try to open the file in Windows Explorer using explorer.exe
+            # This is the WSL-specific way to open files in Windows
             try:
-                subprocess.run(['explorer.exe', url])
+                # Use subprocess.run with timeout to prevent hanging
+                result = subprocess.run(
+                    ['explorer.exe', url],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"explorer.exe failed with return code: {result.returncode}. "
+                        f"Error output: {result.stderr}. "
+                        f"URL: {url}"
+                    )
+
+            except subprocess.TimeoutExpired:
+                raise TimeoutError(
+                    f"explorer.exe timed out while trying to open: {url}"
+                )
+            except FileNotFoundError:
+                raise FileNotFoundError(
+                    f"explorer.exe not found. This might not be a WSL environment. "
+                    f"URL: {url}"
+                )
             except Exception as e:
-                print(f"Failed to open URL using explorer.exe: {e}")
-                print(f"Visit: {url}")
+                raise RuntimeError(
+                    f"Failed to open URL using explorer.exe: {e}. "
+                    f"URL: {url}"
+                )
         else:
             webbrowser.open(f"file://{html_file_path}")
 

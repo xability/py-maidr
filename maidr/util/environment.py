@@ -63,7 +63,24 @@ class Environment:
             return False
     @staticmethod
     def is_wsl() -> bool:
-        """Return True if the environment is WSL."""
+        """
+        Check if the current environment is WSL (Windows Subsystem for Linux).
+
+        This method detects WSL environments by reading the `/proc/version` file
+        and checking for 'microsoft' or 'wsl' keywords in the version string.
+        WSL environments typically contain these identifiers in their kernel version.
+
+        Returns
+        -------
+        bool
+            True if the environment is WSL, False otherwise.
+
+        Examples
+        --------
+        >>> from maidr.util.environment import Environment
+        >>> Environment.is_wsl()
+        False  # When not in WSL
+        """
         try:
             with open('/proc/version', 'r') as f:
                 version_info = f.read().lower()
@@ -75,7 +92,25 @@ class Environment:
 
     @staticmethod
     def get_wsl_distro_name() -> str:
-        """Return a string containing the WSL distro name if set else emtpy string."""
+        """
+        Get the WSL distribution name from environment variables.
+
+        This method retrieves the WSL distribution name from the `WSL_DISTRO_NAME`
+        environment variable, which is automatically set by WSL when running
+        in a WSL environment.
+
+        Returns
+        -------
+        str
+            The WSL distribution name (e.g., 'Ubuntu-20.04', 'Debian') if set,
+            otherwise an empty string.
+
+        Examples
+        --------
+        >>> from maidr.util.environment import Environment
+        >>> Environment.get_wsl_distro_name()
+        ''  # When not in WSL or WSL_DISTRO_NAME not set
+        """
         return os.environ.get('WSL_DISTRO_NAME', '')
 
     @staticmethod
