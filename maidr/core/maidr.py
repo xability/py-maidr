@@ -146,42 +146,40 @@ class Maidr:
             if not wsl_distro_name:
                 raise ValueError(
                     "WSL_DISTRO_NAME environment variable is not set or is empty. "
+                    "Cannot construct WSL file URL. Please ensure you are running in a WSL environment."
                 )
+
+            # Ensure html_file_path starts with a slash for proper WSL URL construction
+            if not html_file_path.startswith('/'):
+                html_file_path = '/' + html_file_path
 
             url = f"file://wsl$/{wsl_distro_name}{html_file_path}"
 
-            # Try to open the file in Windows Explorer using explorer.exe
-            # This is the WSL-specific way to open files in Windows
-            try:
-                # Use subprocess.run with timeout to prevent hanging
-                result = subprocess.run(
-                    ['explorer.exe', url],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-
-                if result.returncode != 0:
-                    raise RuntimeError(
-                        f"explorer.exe failed with return code: {result.returncode}. "
-                        f"Error output: {result.stderr}. "
-                        f"URL: {url}"
+            # Try to open the file in Windows using explorer.exe with robust path detection
+            explorer_path = Environment.find_explorer_path()
+            if explorer_path:
+                try:
+                    result = subprocess.run(
+                        [explorer_path, url],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
                     )
 
-            except subprocess.TimeoutExpired:
-                raise TimeoutError(
-                    f"explorer.exe timed out while trying to open: {url}"
-                )
-            except FileNotFoundError:
-                raise FileNotFoundError(
-                    f"explorer.exe not found. This might not be a WSL environment. "
-                    f"URL: {url}"
-                )
-            except Exception as e:
-                raise RuntimeError(
-                    f"Failed to open URL using explorer.exe: {e}. "
-                    f"URL: {url}"
-                )
+                    if result.returncode == 0:
+                        return
+                    else:
+                        # Fall back to webbrowser.open() if explorer.exe fails
+                        webbrowser.open(url)
+
+                except subprocess.TimeoutExpired:
+                    webbrowser.open(url)
+                except Exception:
+                    # Fall back to webbrowser.open() if explorer.exe fails
+                    webbrowser.open(url)
+            else:
+                webbrowser.open(url)
+
         else:
             webbrowser.open(f"file://{html_file_path}")
 

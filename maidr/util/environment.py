@@ -114,6 +114,44 @@ class Environment:
         return os.environ.get('WSL_DISTRO_NAME', '')
 
     @staticmethod
+    def find_explorer_path() -> str | None:
+        """
+        Find the correct path to explorer.exe in WSL environment.
+
+        This method checks if explorer.exe is available in the PATH
+        and returns the path if found.
+
+        Returns
+        -------
+        str | None
+            The path to explorer.exe if found, None otherwise.
+
+        Examples
+        --------
+        >>> from maidr.util.environment import Environment
+        >>> Environment.find_explorer_path()
+        '/mnt/c/Windows/explorer.exe'  # When found
+        """
+        import subprocess
+
+        # Check if explorer.exe is in PATH
+        try:
+            result = subprocess.run(
+                ['which', 'explorer.exe'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except Exception:
+            pass
+
+        return None
+
+
+
+    @staticmethod
     def get_renderer() -> str:
         """Return renderer which can be ipython or browser."""
         try:
