@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from typing import Union
 
 
 class Environment:
@@ -114,7 +115,7 @@ class Environment:
         return os.environ.get('WSL_DISTRO_NAME', '')
 
     @staticmethod
-    def find_explorer_path() -> str | None:
+    def find_explorer_path() -> Union[str, None]:
         """
         Find the correct path to explorer.exe in WSL environment.
 
