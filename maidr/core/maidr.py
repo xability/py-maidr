@@ -7,6 +7,8 @@ import os
 import tempfile
 import uuid
 import webbrowser
+import subprocess
+from pathlib import Path
 from typing import Any, Literal, cast
 
 import matplotlib.pyplot as plt
@@ -137,7 +139,48 @@ class Maidr:
         html_file_path = self.save_html(
             temp_file_path
         )  # This will use use_iframe=False
-        webbrowser.open(f"file://{html_file_path}")
+        if Environment.is_wsl():
+            wsl_distro_name = Environment.get_wsl_distro_name()
+
+            # Validate that WSL distro name is available
+            if not wsl_distro_name:
+                raise ValueError(
+                    "WSL_DISTRO_NAME environment variable is not set or is empty. "
+                    "Cannot construct WSL file URL. Please ensure you are running in a WSL environment."
+                )
+
+            # Ensure html_file_path is an absolute POSIX path for proper WSL URL construction
+            html_file_path = Path(html_file_path).resolve().as_posix()
+
+            url = f"file://wsl$/{wsl_distro_name}{html_file_path}"
+
+            # Try to open the file in Windows using explorer.exe with robust path detection
+            explorer_path = Environment.find_explorer_path()
+            if explorer_path:
+                try:
+                    result = subprocess.run(
+                        [explorer_path, url],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+
+                    if result.returncode == 0:
+                        return
+                    else:
+                        # Fall back to webbrowser.open() if explorer.exe fails
+                        webbrowser.open(url)
+
+                except subprocess.TimeoutExpired:
+                    webbrowser.open(url)
+                except Exception:
+                    # Fall back to webbrowser.open() if explorer.exe fails
+                    webbrowser.open(url)
+            else:
+                webbrowser.open(url)
+
+        else:
+            webbrowser.open(f"file://{html_file_path}")
 
     def _create_html_tag(self, use_iframe: bool = True) -> Tag:
         """Create the MAIDR HTML using HTML tags."""
