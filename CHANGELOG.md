@@ -1,6 +1,20 @@
 # CHANGELOG
 
 
+## v1.6.0 (2025-08-04)
+
+### Continuous Integration
+
+- Update uv.lock ([#227](https://github.com/xability/py-maidr/pull/227),
+  [`f162971`](https://github.com/xability/py-maidr/commit/f162971f4e2585e055de3c837ce9342b292cb378))
+
+### Features
+
+- Add WSL compatibility for opening HTML files
+  ([#224](https://github.com/xability/py-maidr/pull/224),
+  [`2f2a899`](https://github.com/xability/py-maidr/commit/2f2a899b1df4137db94aeb843099ee6f0df952f0))
+
+
 ## v1.5.0 (2025-08-04)
 
 ### Features
