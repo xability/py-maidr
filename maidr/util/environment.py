@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 from typing import Union
 
@@ -133,8 +134,6 @@ class Environment:
         >>> Environment.find_explorer_path()
         '/mnt/c/Windows/explorer.exe'  # When found
         """
-        import subprocess
-
         # Check if explorer.exe is in PATH
         try:
             result = subprocess.run(

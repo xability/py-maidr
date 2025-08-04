@@ -7,6 +7,8 @@ import os
 import tempfile
 import uuid
 import webbrowser
+import subprocess
+from pathlib import Path
 from typing import Any, Literal, cast
 
 import matplotlib.pyplot as plt
@@ -138,8 +140,6 @@ class Maidr:
             temp_file_path
         )  # This will use use_iframe=False
         if Environment.is_wsl():
-            import subprocess
-
             wsl_distro_name = Environment.get_wsl_distro_name()
 
             # Validate that WSL distro name is available
@@ -149,9 +149,8 @@ class Maidr:
                     "Cannot construct WSL file URL. Please ensure you are running in a WSL environment."
                 )
 
-            # Ensure html_file_path starts with a slash for proper WSL URL construction
-            if not html_file_path.startswith('/'):
-                html_file_path = '/' + html_file_path
+            # Ensure html_file_path is an absolute POSIX path for proper WSL URL construction
+            html_file_path = Path(html_file_path).resolve().as_posix()
 
             url = f"file://wsl$/{wsl_distro_name}{html_file_path}"
 
