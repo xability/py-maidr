@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v1.5.0 (2025-08-04)
+
+### Features
+
+- Detect if running in a flask app and render in an iframe
+  ([#225](https://github.com/xability/py-maidr/pull/225),
+  [`dcd0e0f`](https://github.com/xability/py-maidr/commit/dcd0e0fb1f7a995e4eb2578e9f67cc31e45171ea))
+
+
 ## v1.4.10 (2025-07-30)
 
 ### Bug Fixes
