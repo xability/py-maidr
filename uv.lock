@@ -1675,7 +1675,7 @@ wheels = [
 
 [[package]]
 name = "maidr"
-version = "1.5.0"
+version = "1.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "htmltools" },
@@ -1684,7 +1684,6 @@ dependencies = [
     { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "numpy", version = "2.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "virtualenv" },
     { name = "wrapt" },
 ]
 
@@ -1739,7 +1738,6 @@ requires-dist = [
     { name = "seaborn", marker = "extra == 'test'", specifier = ">=0.12" },
     { name = "seaborn", marker = "extra == 'visualization'", specifier = ">=0.12" },
     { name = "statsmodels", marker = "extra == 'visualization'", specifier = ">=0.14.4" },
-    { name = "virtualenv", specifier = ">=20.26.6,<21" },
     { name = "wrapt", specifier = ">=1.16.0,<2" },
 ]
 provides-extras = ["visualization", "jupyter", "test"]
