@@ -7,6 +7,7 @@ import numpy as np
 from maidr.core.enum import PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.exception import ExtractionError
 from maidr.util.mplfinance_utils import MplfinanceDataExtractor
 
 
@@ -180,7 +181,7 @@ class CandlestickPlot(MaidrPlot):
                 except Exception:
                     pass
             if N is None:
-                N = 10  # fallback
+                raise ExtractionError(PlotType.CANDLESTICK, self._maidr_wick_collection)
 
             selectors = {
                 "body": f"g[id='{self._maidr_body_gid}'] > path",
