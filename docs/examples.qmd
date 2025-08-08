@@ -163,6 +163,59 @@ plt.ylabel("Frequency")
 maidr.show(hist_plot) #<<
 ```
 
+### KDE (Kernel Density Estimation) Plots
+
+```{python}
+#| warning: false
+#| fig-alt: KDE plot showing probability density distribution
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+import maidr #<<
+
+# Generate sample data
+np.random.seed(42)
+data = np.random.randn(500)
+
+# Create a KDE plot
+plt.figure(figsize=(6, 6))
+kde_plot = sns.kdeplot(data, fill=True, color="blue") #<<
+
+plt.title("KDE Plot of Random Data")
+plt.xlabel("Value")
+plt.ylabel("Density")
+
+# plt.show()
+maidr.show(kde_plot) #<<
+```
+
+### Count Plots
+
+```{python}
+#| warning: false
+#| fig-alt: Count plot showing frequency of categorical data
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Load the Titanic dataset
+titanic = sns.load_dataset("titanic")
+
+# Create a count plot
+plt.figure(figsize=(6, 6))
+count_plot = sns.countplot(x="class", data=titanic, palette="viridis") #<<
+
+plt.title("Passenger Class Distribution on the Titanic")
+plt.xlabel("Passenger Class")
+plt.ylabel("Count")
+
+# plt.show()
+maidr.show(count_plot) #<<
+```
 
 ### Line Plots
 
@@ -319,6 +372,40 @@ plt.ylabel("Sepal Width")
 # Show the plot
 # plt.show()
 maidr.show(scatter_plot) #<<
+```
+
+### Regression Plots
+
+```{python}
+#| warning: false
+#| fig-alt: Regression plot with scatter points and fitted line
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+import maidr #<<
+
+# Generate sample data
+np.random.seed(42)
+x = np.linspace(0, 10, 50)
+y = 2 * x + 1 + np.random.normal(0, 2, 50)
+
+# Create a regression plot
+plt.figure(figsize=(6, 6))
+reg_plot = sns.regplot(
+    x=x,
+    y=y,
+    scatter_kws={"s": 50, "alpha": 0.7},
+    line_kws={"color": "red", "lw": 2},
+) #<<
+
+plt.title("Regression Plot with Fitted Line")
+plt.xlabel("X values")
+plt.ylabel("Y values")
+
+# plt.show()
+maidr.show(reg_plot) #<<
 ```
 
 ### Multi-Layered Plots
