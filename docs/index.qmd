@@ -52,19 +52,17 @@ We currently support the following data visualization libraries in Python:, and 
 
 * One-factor bar plot having one x (categorical) and one y (numerical/count) axis.
 
-* Stacked bar plot with multiple data series stacked vertically.
+* Stacked bar plot having one x (categorical) and one y (numerical/count) axis with multiple data series stacked vertically.
 
-* Dodged (grouped) bar plot with multiple data series displayed side-by-side.
+* Dodged (grouped) bar plot having one x (categorical) and one y (numerical/count) axis with multiple data series displayed side-by-side.
 
 * One distribution histogram having one x (numerical) and y (numerical/frequency) axis.
 
+* KDE (Kernel Density Estimation) plot having one x (numerical) and one y (density) axis showing probability density curves.
+
 * Single line plot having one x (numerical) and one y (numerical) axis.
 
-* Multi-line plot with multiple data series on the same axes.
-
-* KDE (Kernel Density Estimation) plot showing probability density curves.
-
-* Regression plot with scatter points and fitted regression line.
+* Multi-line plot having one x (numerical) and one y (numerical) axis with multiple data series on the same axes.
 
 * Vertical box plot having one x (categorical) and one y (numerical) axis.
 
@@ -76,28 +74,28 @@ We currently support the following data visualization libraries in Python:, and 
 
 * Scatter plot having one x (numerical) and one y (numerical) axis.
 
-* Candlestick chart for financial data visualization (using mplfinance).
+* Regression plot having one x (numerical) and one y (numerical) axis with scatter points and fitted regression line.
 
-* Multi-layered plots combining different plot types on the same figure.
+* Candlestick chart having one x (time/date) and four y (numerical) axes (open, high, low, close) for financial data visualization (using mplfinance).
 
-* Multi-panel plots (subplots) with multiple charts in a grid layout.
+* Multi-layered plots combining different plot types on the same figure with shared axes.
 
-* Facet plots showing the same chart type across different data subsets.
+* Multi-panel plots (subplots) with multiple charts in a grid layout having independent axes.
+
+* Facet plots showing the same chart type across different data subsets with shared axis scales.
 
 
 ### Seaborn
 
 * `sns.barplot()`: One-factor bar plot having one x (categorical) and one y (numerical/count) axis.
 
-* `sns.countplot()`: Count plot showing the frequency of categorical data.
+* `sns.countplot()`: Count plot having one x (categorical) and one y (count) axis showing the frequency of categorical data.
 
 * `sns.histplot()`: One distribution histogram having one x (numerical) and y (numerical/frequency) axis.
 
+* `sns.kdeplot()`: KDE (Kernel Density Estimation) plot having one x (numerical) and one y (density) axis showing probability density curves.
+
 * `sns.lineplot()`: Single line plot having one x (numerical) and one y (numerical) axis.
-
-* `sns.kdeplot()`: KDE (Kernel Density Estimation) plot showing probability density curves.
-
-* `sns.regplot()`: Regression plot with scatter points and fitted regression line.
 
 * `sns.boxplot(..., orient="v")`: Vertical box plot having one x (categorical) and one y (numerical) axis.
 
@@ -109,9 +107,11 @@ We currently support the following data visualization libraries in Python:, and 
 
 * `sns.scatterplot()`: Scatter plot having one x (numerical) and one y (numerical) axis.
 
+* `sns.regplot()`: Regression plot having one x (numerical) and one y (numerical) axis with scatter points and fitted regression line.
+
 ### Additional Libraries
 
-* **mplfinance**: Candlestick charts for financial data with support for moving averages and volume data.
+* **mplfinance**: Candlestick charts having one x (time/date) and four y (numerical) axes (open, high, low, close) for financial data with support for moving averages and volume data.
 
 
 ## Installation
