@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.32">
+<meta name="generator" content="quarto-1.7.33">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -71,7 +71,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-37eea08aefeeee20ff55810ff984fec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="site_libs/bootstrap/bootstrap-b4cf7ad5a2ed40f582671c867a1b0b99.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -196,6 +196,7 @@ window.Quarto = {
   <ul class="collapse">
   <li><a href="#matplotlib" id="toc-matplotlib" class="nav-link" data-scroll-target="#matplotlib">Matplotlib</a></li>
   <li><a href="#seaborn" id="toc-seaborn" class="nav-link" data-scroll-target="#seaborn">Seaborn</a></li>
+  <li><a href="#additional-libraries" id="toc-additional-libraries" class="nav-link" data-scroll-target="#additional-libraries">Additional Libraries</a></li>
   </ul></li>
   <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a></li>
   <li><a href="#getting-started" id="toc-getting-started" class="nav-link" data-scroll-target="#getting-started">Getting Started</a>
@@ -266,7 +267,7 @@ window.Quarto = {
 <li><p>Synchronization: maidr treats visualization as one of the multimodal data representations and ensures that all representations (e.g., visual, tactile, textual, audible) cursor and braille routing key positions are synchronized across different modalities.</p></li>
 <li><p>Reactivity: maidr supports widely adopted reactive and interactive computing including Jupyter Notebooks, Jupyter Labs, Google Colab, Streamlit dashboard, and Shiny dashboard. maidr also supports interactive computing inside code editors, such as Visual Studio Code.</p></li>
 <li><p>Reproducibility: maidr supports the generation of accessible data visualizations as part of the reproducible data science workflow with <a href="https://quarto.org/">Quarto scientific publishing system</a>. You can easily create accessible data representations within your reproducible reports, website blogs, slides, e-books, dashboards, and more.</p></li>
-<li><p>Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types. [Multi-figure and multi-layer visualizations are underway to support complex data visualizations.]</p></li>
+<li><p>Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types. Multi-figure and multi-layer visualizations are also supported.</p></li>
 </ol>
 <p>Our core philosophy is to make data science accessible to everyone, regardless of their visual dis/abilities. We believe that by making data visualizations accessible, we can empower blind and sighted users to work together on data science projects, share insights, and make data-driven decisions collaboratively.</p>
 <section id="supported-data-visualization-libraries" class="level2">
@@ -276,8 +277,12 @@ window.Quarto = {
 <h3 class="anchored" data-anchor-id="matplotlib">Matplotlib</h3>
 <ul>
 <li><p>One-factor bar plot having one x (categorical) and one y (numerical/count) axis.</p></li>
+<li><p>Stacked bar plot having one x (categorical) and one y (numerical/count) axis with multiple data series stacked vertically.</p></li>
+<li><p>Dodged (grouped) bar plot having one x (categorical) and one y (numerical/count) axis with multiple data series displayed side-by-side.</p></li>
 <li><p>One distribution histogram having one x (numerical) and y (numerical/frequency) axis.</p></li>
+<li><p>KDE (Kernel Density Estimation) plot having one x (numerical) and one y (density) axis showing probability density curves.</p></li>
 <li><p>Single line plot having one x (numerical) and one y (numerical) axis.</p></li>
+<li><p>Multi-line plot having one x (numerical) and one y (numerical) axis with multiple data series on the same axes.</p></li>
 <li><p>Vertical box plot having one x (categorical) and one y (numerical) axis.</p></li>
 <li><p>Horizontal box plot having one x (numerical) and one y (categorical) axis.</p>
 <ul>
@@ -285,16 +290,20 @@ window.Quarto = {
 </ul></li>
 <li><p>Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.</p></li>
 <li><p>Scatter plot having one x (numerical) and one y (numerical) axis.</p></li>
+<li><p>Regression plot having one x (numerical) and one y (numerical) axis with scatter points and fitted regression line.</p></li>
+<li><p>Candlestick chart having one x (time/date) and four y (numerical) axes (open, high, low, close) for financial data visualization (using mplfinance).</p></li>
+<li><p>Multi-layered plots combining different plot types on the same figure with shared axes.</p></li>
+<li><p>Multi-panel plots (subplots) with multiple charts in a grid layout having independent axes.</p></li>
+<li><p>Facet plots showing the same chart type across different data subsets with shared axis scales.</p></li>
 </ul>
 </section>
 <section id="seaborn" class="level3">
 <h3 class="anchored" data-anchor-id="seaborn">Seaborn</h3>
 <ul>
-<li><p><code>sns.barplot()</code>: One-factor bar plot having one x (categorical) and one y (numerical/count) axis.</p>
-<ul>
-<li>Note: We also support <code>sns.countplot()</code></li>
-</ul></li>
+<li><p><code>sns.barplot()</code>: One-factor bar plot having one x (categorical) and one y (numerical/count) axis.</p></li>
+<li><p><code>sns.countplot()</code>: Count plot having one x (categorical) and one y (count) axis showing the frequency of categorical data.</p></li>
 <li><p><code>sns.histplot()</code>: One distribution histogram having one x (numerical) and y (numerical/frequency) axis.</p></li>
+<li><p><code>sns.kdeplot()</code>: KDE (Kernel Density Estimation) plot having one x (numerical) and one y (density) axis showing probability density curves.</p></li>
 <li><p><code>sns.lineplot()</code>: Single line plot having one x (numerical) and one y (numerical) axis.</p></li>
 <li><p><code>sns.boxplot(..., orient="v")</code>: Vertical box plot having one x (categorical) and one y (numerical) axis.</p></li>
 <li><p><code>sns.boxplot(..., orient="h")</code>: Horizontal box plot having one x (numerical) and one y (categorical) axis.</p>
@@ -303,6 +312,13 @@ window.Quarto = {
 </ul></li>
 <li><p><code>sns.heatmap()</code>: Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.</p></li>
 <li><p><code>sns.scatterplot()</code>: Scatter plot having one x (numerical) and one y (numerical) axis.</p></li>
+<li><p><code>sns.regplot()</code>: Regression plot having one x (numerical) and one y (numerical) axis with scatter points and fitted regression line.</p></li>
+</ul>
+</section>
+<section id="additional-libraries" class="level3">
+<h3 class="anchored" data-anchor-id="additional-libraries">Additional Libraries</h3>
+<ul>
+<li><strong>mplfinance</strong>: Candlestick charts having one x (time/date) and four y (numerical) axes (open, high, low, close) for financial data with support for moving averages and volume data.</li>
 </ul>
 </section>
 </section>
@@ -321,7 +337,7 @@ window.Quarto = {
 <p>Check more examples in the <a href="./examples.html#sec-examples">galleries</a>.</p>
 <section id="sample-bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="sample-bar-plot">Sample Bar Plot</h3>
-<div id="7a276226" class="cell" data-execution_count="1">
+<div id="c6129c74" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,5,14,15,24,25,28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -351,7 +367,7 @@ window.Quarto = {
 <span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Uncomment the following line to save and share the accessible version of your plot with others!</span></span>
 <span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="co"># maidr.save_html(bar_plot, "output.html") </span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_8d970758-5cae-44ea-8dcd-ffd1350e6551" srcdoc="<div>
+<iframe id="iframe_b3a15052-c34a-4377-9ffa-54050fac4a87" srcdoc="<div>
   <link rel=&quot;stylesheet&quot; href=&quot;https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css&quot;/>
   <script type=&quot;text/javascript&quot;>
             if (!document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js&quot;]'))
@@ -369,12 +385,12 @@ window.Quarto = {
                 });
             }
         </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; maidr-data=&quot;{&amp;#10;  &amp;quot;id&amp;quot;: &amp;quot;0238622c-8966-4084-a3d9-98cb8ed8f6c0&amp;quot;,&amp;#10;  &amp;quot;subplots&amp;quot;: [&amp;#10;    [&amp;#10;      {&amp;#10;        &amp;quot;id&amp;quot;: &amp;quot;d5098d54-e972-4bc2-86ab-963ed90b4915&amp;quot;,&amp;#10;        &amp;quot;layers&amp;quot;: [&amp;#10;          {&amp;#10;            &amp;quot;id&amp;quot;: &amp;quot;0be28530-0f62-443c-8014-696e07577b35&amp;quot;,&amp;#10;            &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;,&amp;#10;            &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;,&amp;#10;            &amp;quot;axes&amp;quot;: {&amp;#10;              &amp;quot;x&amp;quot;: &amp;quot;Species&amp;quot;,&amp;#10;              &amp;quot;y&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;&amp;#10;            },&amp;#10;            &amp;quot;data&amp;quot;: [&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3700.662251655629&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3733.0882352941176&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 5076.016260162602&amp;#10;              }&amp;#10;            ],&amp;#10;            &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='e4a9c62f-78f5-45fd-aae0-1ce6b447fe22'] &amp;gt; path&amp;quot;&amp;#10;          }&amp;#10;        ]&amp;#10;      }&amp;#10;    ]&amp;#10;  ]&amp;#10;}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; maidr-data=&quot;{&amp;#10;  &amp;quot;id&amp;quot;: &amp;quot;483df0c5-aab8-463b-9019-4c8f34726dab&amp;quot;,&amp;#10;  &amp;quot;subplots&amp;quot;: [&amp;#10;    [&amp;#10;      {&amp;#10;        &amp;quot;id&amp;quot;: &amp;quot;9c8159a7-e49c-400c-b178-33f651a2a9f8&amp;quot;,&amp;#10;        &amp;quot;layers&amp;quot;: [&amp;#10;          {&amp;#10;            &amp;quot;id&amp;quot;: &amp;quot;b2efc39b-717d-428b-b28b-c7fcd0abf7d6&amp;quot;,&amp;#10;            &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;,&amp;#10;            &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;,&amp;#10;            &amp;quot;axes&amp;quot;: {&amp;#10;              &amp;quot;x&amp;quot;: &amp;quot;Species&amp;quot;,&amp;#10;              &amp;quot;y&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;&amp;#10;            },&amp;#10;            &amp;quot;data&amp;quot;: [&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3700.662251655629&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3733.0882352941176&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 5076.016260162602&amp;#10;              }&amp;#10;            ],&amp;#10;            &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='db57745a-5af1-4630-90b3-2ed23fa5e26c'] &amp;gt; path&amp;quot;&amp;#10;          }&amp;#10;        ]&amp;#10;      }&amp;#10;    ]&amp;#10;  ]&amp;#10;}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2025-08-05T16:22:41.679708</dc:date>
+    <dc:date>2025-08-08T18:22:52.173438</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -388,30 +404,30 @@ window.Quarto = {
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-1d220d23-4c64-4d98-855b-9a9d13dd25a3&quot;>
+  <g id=&quot;maidr-f0476464-3b3b-4791-9140-faede58e7477&quot;>
    <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-be02d770-00fe-4075-ab6e-3bbfd39fdc03&quot;>
+   <g id=&quot;maidr-52b30c7d-d35e-4171-b92f-742062f81b17&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  L 388.8 51.84  L 54 51.84  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
-   <g id=&quot;maidr-bb80945c-96ad-4d78-8e94-cb60a93419fc&quot; maidr=&quot;e4a9c62f-78f5-45fd-aae0-1ce6b447fe22&quot;>
-    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#p170324ba28)&quot; style=&quot;fill: #7da9c7&quot;/>
+   <g id=&quot;maidr-35520907-6867-41da-98e2-be62fed5f2f0&quot; maidr=&quot;db57745a-5af1-4630-90b3-2ed23fa5e26c&quot;>
+    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#p3119805f36)&quot; style=&quot;fill: #7da9c7&quot;/>
    </g>
-   <g id=&quot;maidr-8706511d-a2eb-4306-9004-029f88a53df1&quot; maidr=&quot;e4a9c62f-78f5-45fd-aae0-1ce6b447fe22&quot;>
-    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#p170324ba28)&quot; style=&quot;fill: #4884af&quot;/>
+   <g id=&quot;maidr-6ce60e25-acf9-416b-913e-a8ee90b334e3&quot; maidr=&quot;db57745a-5af1-4630-90b3-2ed23fa5e26c&quot;>
+    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#p3119805f36)&quot; style=&quot;fill: #4884af&quot;/>
    </g>
-   <g id=&quot;maidr-23911624-ef08-41bf-988f-abd7201df3b5&quot; maidr=&quot;e4a9c62f-78f5-45fd-aae0-1ce6b447fe22&quot;>
-    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#p170324ba28)&quot; style=&quot;fill: #3d5b70&quot;/>
+   <g id=&quot;maidr-ae4c99c5-df76-4bee-8393-bf619c6d92c3&quot; maidr=&quot;db57745a-5af1-4630-90b3-2ed23fa5e26c&quot;>
+    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#p3119805f36)&quot; style=&quot;fill: #3d5b70&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-45fe3f47-b008-44e7-b6d3-43c2aebf76fe&quot;>
+     <g id=&quot;maidr-c75cc444-0eed-4a13-95ec-c47e377c2bb5&quot;>
       <defs>
-       <path id=&quot;m9305a49c9f&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;md2aa476289&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m9305a49c9f&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#md2aa476289&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -434,9 +450,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-c2f406d2-242c-4d70-9322-45c96df44137&quot;>
+     <g id=&quot;maidr-e4142d94-5e22-42d8-bbbe-275893b2ef96&quot;>
       <g>
-       <use xlink:href=&quot;#m9305a49c9f&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#md2aa476289&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -465,9 +481,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-20bf46ef-c9ce-46e3-a8fd-7f9c7b3e55c2&quot;>
+     <g id=&quot;maidr-a1508eaa-1ae6-4a2b-b291-7ae54aaf7c09&quot;>
       <g>
-       <use xlink:href=&quot;#m9305a49c9f&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#md2aa476289&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -505,12 +521,12 @@ window.Quarto = {
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-2bda844d-b1d5-4867-a4d2-9b91965607ca&quot;>
+     <g id=&quot;maidr-4157fc4e-eca8-40f6-9d24-f529854a4a15&quot;>
       <defs>
-       <path id=&quot;m2b252d7a3e&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m36380a3218&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m2b252d7a3e&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m36380a3218&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -524,9 +540,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-56751a06-bf45-4161-9261-5a5fe72fb4a8&quot;>
+     <g id=&quot;maidr-2d6c9c29-fec8-4171-a4e6-b107aea879f1&quot;>
       <g>
-       <use xlink:href=&quot;#m2b252d7a3e&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m36380a3218&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -543,9 +559,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-90badc4d-6fec-457a-9ad1-6a8165b59e38&quot;>
+     <g id=&quot;maidr-23bbf022-90ac-4f4b-9f1e-c20b8127d001&quot;>
       <g>
-       <use xlink:href=&quot;#m2b252d7a3e&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m36380a3218&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -562,9 +578,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-b9bbf285-6148-453e-92e1-f2ad6768f7cd&quot;>
+     <g id=&quot;maidr-ebfb02b6-d74a-4232-bde3-278d1f746944&quot;>
       <g>
-       <use xlink:href=&quot;#m2b252d7a3e&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m36380a3218&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -581,9 +597,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-b823d716-e9fe-4a5d-b820-53a5687274f5&quot;>
+     <g id=&quot;maidr-a8de5d0c-1802-48b8-bffa-ad7db00f9a0b&quot;>
       <g>
-       <use xlink:href=&quot;#m2b252d7a3e&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m36380a3218&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -600,9 +616,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-a7e828f6-572c-42c7-b8dc-05c8f2a6446f&quot;>
+     <g id=&quot;maidr-882b678e-83a1-4515-9db9-e68f094b78bb&quot;>
       <g>
-       <use xlink:href=&quot;#m2b252d7a3e&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m36380a3218&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -646,25 +662,25 @@ window.Quarto = {
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-c765b504-c186-4a2c-aedf-dc1656878a3f&quot;>
-    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#p170324ba28)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-bae3e607-a28f-466b-b517-b41906fbe48f&quot;>
+    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#p3119805f36)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-ab6263fc-18d0-411e-96db-1a7d94599f9f&quot;>
-    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#p170324ba28)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-075da602-0b8e-40a3-b712-fe8af3ad6218&quot;>
+    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#p3119805f36)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-ed1cba66-cf4e-4dd7-917a-e72106176fc0&quot;>
-    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#p170324ba28)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-1b07eb41-a6fd-4586-b9f4-9e6ffdeff5e5&quot;>
+    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#p3119805f36)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-3b3e1aac-90f8-45a2-bfc8-f557967219e7&quot;>
+   <g id=&quot;maidr-be65e1bd-4e21-4925-940a-15ecc2ca8b04&quot;>
     <path d=&quot;M 54 384.48  L 54 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-e18959e8-f991-4013-a4a2-3b246902b48f&quot;>
+   <g id=&quot;maidr-971f3841-ca63-403e-b031-b40399604db4&quot;>
     <path d=&quot;M 388.8 384.48  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-a079dce3-6875-4eed-bfa6-d6904aaad6b3&quot;>
+   <g id=&quot;maidr-e8967e54-96ad-46f4-98de-a554d0da26e7&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-f5ecfad1-65f0-4f4b-87f2-0b2313c58ef6&quot;>
+   <g id=&quot;maidr-78a99adf-4134-401b-baa6-e16e7434fc48&quot;>
     <path d=&quot;M 54 51.84  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_12&quot;>
@@ -722,7 +738,7 @@ window.Quarto = {
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;p170324ba28&quot;>
+  <clipPath id=&quot;p3119805f36&quot;>
    <rect x=&quot;54&quot; y=&quot;51.84&quot; width=&quot;334.8&quot; height=&quot;332.64&quot;/>
   </clipPath>
  </defs>
@@ -730,7 +746,7 @@ window.Quarto = {
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
                     function resizeIframe() {
-                        let iframe = document.getElementById('iframe_8d970758-5cae-44ea-8dcd-ffd1350e6551');
+                        let iframe = document.getElementById('iframe_b3a15052-c34a-4377-9ffa-54050fac4a87');
                         if (
                             iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                             iframe.contentWindow.document
@@ -751,7 +767,7 @@ window.Quarto = {
                             iframe.style.width = iframeDocument.body.scrollWidth + 'px';
                         }
                     }
-                    let iframe = document.getElementById('iframe_8d970758-5cae-44ea-8dcd-ffd1350e6551');
+                    let iframe = document.getElementById('iframe_b3a15052-c34a-4377-9ffa-54050fac4a87');
                     resizeIframe();
                     iframe.onload = function() {
                         resizeIframe();
