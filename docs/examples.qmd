@@ -49,6 +49,33 @@ plt.ylabel("Body Mass (g)")
 maidr.show(bar_plot)  #<<
 ```
 
+
+### Count Plots
+
+```{python}
+#| warning: false
+#| fig-alt: Count plot showing frequency of categorical data
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Load the Titanic dataset
+titanic = sns.load_dataset("titanic")
+
+# Create a count plot
+plt.figure(figsize=(6, 6))
+count_plot = sns.countplot(x="class", data=titanic, palette="viridis") #<<
+
+plt.title("Passenger Class Distribution on the Titanic")
+plt.xlabel("Passenger Class")
+plt.ylabel("Count")
+
+# plt.show()
+maidr.show(count_plot) #<<
+```
+
 #### Vertical Stacked Bar Plot
 
 ```{python}
@@ -191,32 +218,6 @@ plt.ylabel("Density")
 maidr.show(kde_plot) #<<
 ```
 
-### Count Plots
-
-```{python}
-#| warning: false
-#| fig-alt: Count plot showing frequency of categorical data
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-import maidr #<<
-
-# Load the Titanic dataset
-titanic = sns.load_dataset("titanic")
-
-# Create a count plot
-plt.figure(figsize=(6, 6))
-count_plot = sns.countplot(x="class", data=titanic, palette="viridis") #<<
-
-plt.title("Passenger Class Distribution on the Titanic")
-plt.xlabel("Passenger Class")
-plt.ylabel("Count")
-
-# plt.show()
-maidr.show(count_plot) #<<
-```
-
 ### Line Plots
 
 #### Single Line Plot
@@ -322,8 +323,6 @@ maidr.show(heatmap) #<<
 ```
 
 ### Box Plot
-
-* **Note**: Visual highlight feature has not been implemented in the box plot yet.
 
 ```{python}
 #| fig-alt: Box plot of petal length by species from the Iris dataset
