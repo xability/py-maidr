@@ -83,9 +83,10 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
         )
 
         if wick_collection and body_collection:
-            gid = f"maidr-{uuid.uuid4()}"
-            wick_collection.set_gid(gid)
-            body_collection.set_gid(gid)
+            wick_gid = f"maidr-{uuid.uuid4()}"
+            body_gid = f"maidr-{uuid.uuid4()}"
+            wick_collection.set_gid(wick_gid)
+            body_collection.set_gid(body_gid)
 
             candlestick_kwargs = dict(
                 kwargs,
@@ -93,6 +94,8 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
                 _maidr_body_collection=body_collection,
                 _maidr_date_nums=date_nums,
                 _maidr_original_data=data,
+                _maidr_wick_gid=wick_gid,
+                _maidr_body_gid=body_gid,
             )
             common(
                 PlotType.CANDLESTICK,
