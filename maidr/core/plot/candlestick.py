@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+from typing import Union, Dict
 from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
 import numpy as np
@@ -56,7 +58,24 @@ class CandlestickPlot(MaidrPlot):
             self._maidr_wick_gid = self._maidr_gid
 
     def _extract_plot_data(self) -> list[dict]:
-        """Extract candlestick data from the plot."""
+        """
+        Extract candlestick data from the plot.
+
+        This method processes candlestick plots from both modern (mplfinance.plot) and
+        legacy (original_flavor) pipelines, extracting OHLC data and setting up
+        highlighting elements and GIDs.
+
+        Returns
+        -------
+        list[dict]
+            List of dictionaries containing candlestick data with keys:
+            - 'value': Date string
+            - 'open': Opening price (float)
+            - 'high': High price (float)
+            - 'low': Low price (float)
+            - 'close': Closing price (float)
+            - 'volume': Volume (float, typically 0 for candlestick-only plots)
+        """
 
         # Get the custom collections from kwargs
         body_collection = self._maidr_body_collection
@@ -96,8 +115,6 @@ class CandlestickPlot(MaidrPlot):
 
             # Generate a GID for highlighting if none exists
             if not self._maidr_gid:
-                import uuid
-
                 self._maidr_gid = f"maidr-{uuid.uuid4()}"
                 # Set GID on all rectangles
                 for rect in body_rectangles:
@@ -122,7 +139,6 @@ class CandlestickPlot(MaidrPlot):
                     continue
             if wick_lines:
                 if not getattr(self, "_maidr_wick_gid", None):
-                    import uuid
                     self._maidr_wick_gid = f"maidr-{uuid.uuid4()}"
                 for line in wick_lines:
                     line.set_gid(self._maidr_wick_gid)
@@ -151,7 +167,7 @@ class CandlestickPlot(MaidrPlot):
             x_labels = "X"
         return {MaidrKey.X: x_labels, MaidrKey.Y: self.ax.get_ylabel()}
 
-    def _get_selector(self):
+    def _get_selector(self) -> Union[str, Dict[str, str]]:
         """Return selectors for highlighting candlestick elements.
 
         - Modern path (collections present): return a dict with separate selectors for body, wickLow, wickHigh
