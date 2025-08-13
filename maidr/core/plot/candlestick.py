@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import uuid
+from typing import Union, Dict
 from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
+import numpy as np
 
 from maidr.core.enum import PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.exception import ExtractionError
 from maidr.util.mplfinance_utils import MplfinanceDataExtractor
 
 
@@ -41,23 +45,48 @@ class CandlestickPlot(MaidrPlot):
         self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
         self._maidr_original_data = kwargs.get("_maidr_original_data", None)  # Store original data
 
-        # Store the GID for proper selector generation
+        # Store the GID for proper selector generation (legacy/shared)
         self._maidr_gid = None
+        # Modern-path separate gids for body and wick
+        self._maidr_body_gid = None
+        self._maidr_wick_gid = None
         if self._maidr_body_collection:
             self._maidr_gid = self._maidr_body_collection.get_gid()
+            self._maidr_body_gid = self._maidr_gid
         elif self._maidr_wick_collection:
             self._maidr_gid = self._maidr_wick_collection.get_gid()
+            self._maidr_wick_gid = self._maidr_gid
 
     def _extract_plot_data(self) -> list[dict]:
-        """Extract candlestick data from the plot."""
+        """
+        Extract candlestick data from the plot.
+
+        This method processes candlestick plots from both modern (mplfinance.plot) and
+        legacy (original_flavor) pipelines, extracting OHLC data and setting up
+        highlighting elements and GIDs.
+
+        Returns
+        -------
+        list[dict]
+            List of dictionaries containing candlestick data with keys:
+            - 'value': Date string
+            - 'open': Opening price (float)
+            - 'high': High price (float)
+            - 'low': Low price (float)
+            - 'close': Closing price (float)
+            - 'volume': Volume (float, typically 0 for candlestick-only plots)
+        """
 
         # Get the custom collections from kwargs
         body_collection = self._maidr_body_collection
         wick_collection = self._maidr_wick_collection
 
         if body_collection and wick_collection:
-            # Store the GID from the body collection for highlighting
-            self._maidr_gid = body_collection.get_gid()
+            # Store the GIDs from the collections (modern path)
+            self._maidr_body_gid = body_collection.get_gid()
+            self._maidr_wick_gid = wick_collection.get_gid()
+            # Keep legacy gid filled for backward compatibility
+            self._maidr_gid = self._maidr_body_gid or self._maidr_wick_gid
 
             # Use the original collections for highlighting
             self._elements = [body_collection, wick_collection]
@@ -86,12 +115,33 @@ class CandlestickPlot(MaidrPlot):
 
             # Generate a GID for highlighting if none exists
             if not self._maidr_gid:
-                import uuid
-
                 self._maidr_gid = f"maidr-{uuid.uuid4()}"
                 # Set GID on all rectangles
                 for rect in body_rectangles:
                     rect.set_gid(self._maidr_gid)
+            # Keep a dedicated body gid for legacy dict selectors
+            self._maidr_body_gid = getattr(self, "_maidr_body_gid", None) or self._maidr_gid
+
+            # Assign a shared gid to wick Line2D (vertical 2-point lines) on the same axis
+            wick_lines = []
+            for line in ax_ohlc.get_lines():
+                try:
+                    xydata = line.get_xydata()
+                    if xydata is None:
+                        continue
+                    xy_arr = np.asarray(xydata)
+                    if xy_arr.ndim == 2 and xy_arr.shape[0] == 2 and xy_arr.shape[1] >= 2:
+                        x0 = float(xy_arr[0, 0])
+                        x1 = float(xy_arr[1, 0])
+                        if abs(x0 - x1) < 1e-10:
+                            wick_lines.append(line)
+                except Exception:
+                    continue
+            if wick_lines:
+                if not getattr(self, "_maidr_wick_gid", None):
+                    self._maidr_wick_gid = f"maidr-{uuid.uuid4()}"
+                for line in wick_lines:
+                    line.set_gid(self._maidr_wick_gid)
 
             # Use the utility class to extract data
             data = MplfinanceDataExtractor.extract_rectangle_candlestick_data(
@@ -117,17 +167,57 @@ class CandlestickPlot(MaidrPlot):
             x_labels = "X"
         return {MaidrKey.X: x_labels, MaidrKey.Y: self.ax.get_ylabel()}
 
-    def _get_selector(self) -> str:
-        """Return the CSS selector for highlighting candlestick elements in the SVG output."""
-        # Use the stored GID if available, otherwise fall back to generic selector
-        if self._maidr_gid:
-            # Use the full GID as the id attribute (since that's what's in the SVG)
-            selector = (
-                f"g[id='{self._maidr_gid}'] > path, g[id='{self._maidr_gid}'] > rect"
-            )
-        else:
-            selector = "g[maidr='true'] > path, g[maidr='true'] > rect"
-        return selector
+    def _get_selector(self) -> Union[str, Dict[str, str]]:
+        """Return selectors for highlighting candlestick elements.
+
+        - Modern path (collections present): return a dict with separate selectors for body, wickLow, wickHigh
+        - Legacy path: return a dict with body and shared wick selectors (no open/close keys)
+        """
+        # Modern path: build structured selectors using separate gids
+        if self._maidr_body_collection and self._maidr_wick_collection and self._maidr_body_gid and self._maidr_wick_gid:
+            # Determine candle count N
+            N = None
+            if self._maidr_original_data is not None:
+                try:
+                    N = len(self._maidr_original_data)
+                except Exception:
+                    N = None
+            if N is None and hasattr(self._maidr_wick_collection, "get_paths"):
+                try:
+                    wick_paths = len(list(self._maidr_wick_collection.get_paths()))
+                    if wick_paths % 2 == 0 and wick_paths > 0:
+                        N = wick_paths // 2
+                except Exception:
+                    pass
+            if N is None and hasattr(self._maidr_body_collection, "get_paths"):
+                try:
+                    body_paths = len(list(self._maidr_body_collection.get_paths()))
+                    if body_paths > 0:
+                        N = body_paths
+                except Exception:
+                    pass
+            if N is None:
+                raise ExtractionError(PlotType.CANDLESTICK, self._maidr_wick_collection)
+
+            selectors = {
+                "body": f"g[id='{self._maidr_body_gid}'] > path",
+                "wickLow": f"g[id='{self._maidr_wick_gid}'] > path:nth-child(-n+{N})",
+                "wickHigh": f"g[id='{self._maidr_wick_gid}'] > path:nth-child(n+{N + 1})",
+            }
+            return selectors
+
+        # Legacy path: build shared-id selectors; omit open/close
+        legacy_selectors = {}
+        if getattr(self, "_maidr_body_gid", None) or self._maidr_gid:
+            body_gid = getattr(self, "_maidr_body_gid", None) or self._maidr_gid
+            legacy_selectors["body"] = f"g[id='{body_gid}'] > path"
+        if getattr(self, "_maidr_wick_gid", None):
+            legacy_selectors["wick"] = f"g[id='{self._maidr_wick_gid}'] > path"
+        if legacy_selectors:
+            return legacy_selectors
+
+        # Fallback
+        return "g[maidr='true'] > path, g[maidr='true'] > rect"
 
     def render(self) -> dict:
         """Initialize the MAIDR schema dictionary with basic plot information."""
