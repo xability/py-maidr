@@ -1,6 +1,32 @@
 # CHANGELOG
 
 
+## v1.6.1 (2025-08-13)
+
+### Bug Fixes
+
+- Add new selector logic for candlestick plots
+  ([#231](https://github.com/xability/py-maidr/pull/231),
+  [`66cd73a`](https://github.com/xability/py-maidr/commit/66cd73adb04f77c0b83fd6e2d9cf757ee909bd69))
+
+### Continuous Integration
+
+- Remove virtualenv dependecny ([#228](https://github.com/xability/py-maidr/pull/228),
+  [`b8e1423`](https://github.com/xability/py-maidr/commit/b8e1423c2ecd073bd1037466f68577242872df6b))
+
+### Documentation
+
+- Update user manual to reflect all supported plot types with proper technical descriptions
+  ([#230](https://github.com/xability/py-maidr/pull/230),
+  [`bae1163`](https://github.com/xability/py-maidr/commit/bae116322cb580f5c528da2857a7ca3ec2a655a7))
+
+Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>
+
+Co-authored-by: jooyoungseo <19754711+jooyoungseo@users.noreply.github.com>
+
+Co-authored-by: JooYoung Seo <jseo1005@illinois.edu>
+
+
 ## v1.6.0 (2025-08-04)
 
 ### Continuous Integration
