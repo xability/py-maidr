@@ -31,6 +31,10 @@ class MplfinanceBarPlot(
         self._custom_patches = kwargs.get("_maidr_patches", None)
         # Store date numbers for volume bars (from mplfinance)
         self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
+
+        # Store datetime converter if available
+        self._maidr_datetime_converter = kwargs.get("_maidr_datetime_converter", None)
+
         # Store custom title
 
     def set_title(self, title: str) -> None:
@@ -48,6 +52,13 @@ class MplfinanceBarPlot(
         )
         data = self._extract_bar_container_data(plot)
         levels = self.extract_level(self.ax)
+
+        # Ensure we have valid data and levels before processing
+        if data is None or levels is None:
+            if data is None:
+                raise ExtractionError(self.type, plot)
+            return []
+
         formatted_data = []
         combined_data = list(
             zip(levels, data)
@@ -78,7 +89,13 @@ class MplfinanceBarPlot(
         # Set elements for highlighting (use the patches directly)
         self._elements = sorted_patches
 
-        # Use the utility class to extract data
+        # Use datetime converter for enhanced data extraction
+        if self._maidr_datetime_converter is not None:
+            data = self._maidr_datetime_converter.extract_volume_data(self.ax)
+            if data:  # Only use if successful
+                return [{"x": item[0], "y": item[1]} for item in data]
+
+        # Fallback to existing logic
         return MplfinanceDataExtractor.extract_volume_data(
             sorted_patches, self._maidr_date_nums
         )

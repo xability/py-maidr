@@ -23,6 +23,9 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
     def __init__(self, ax: Axes, **kwargs):
         super().__init__(ax, PlotType.LINE)
 
+        # Store datetime converter if available
+        self._maidr_datetime_converter = kwargs.get("_maidr_datetime_converter", None)
+
     def _get_selector(self) -> Union[str, List[str]]:
         """Return selectors for all lines that have data."""
         all_lines = self.ax.get_lines()
@@ -101,10 +104,15 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
                 if np.isnan(x) or np.isnan(y) or np.isinf(x) or np.isinf(y):
                     continue
 
-                # Handle x-value conversion - could be string (date) or numeric
-                if isinstance(x, str):
-                    x_value = x  # Keep string as-is (for dates)
+                # Use datetime converter for enhanced data extraction
+                datetime_converter = getattr(line, "_maidr_datetime_converter", None) or self._maidr_datetime_converter
+                if datetime_converter is not None:
+                    # Convert x-coordinate (matplotlib index) to formatted datetime
+                    x_value = datetime_converter.get_formatted_datetime(int(round(x)))
+                    if x_value is None:
+                        x_value = float(x)  # Fallback to numeric
                 else:
+                    # Fallback to existing logic
                     # Check if we have date numbers from mplfinance
                     if date_nums is not None and i < len(date_nums):
                         # Use the date number to convert to date string

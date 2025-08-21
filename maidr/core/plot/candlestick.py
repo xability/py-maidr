@@ -44,6 +44,7 @@ class CandlestickPlot(MaidrPlot):
         self._maidr_body_collection = kwargs.get("_maidr_body_collection", None)
         self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
         self._maidr_original_data = kwargs.get("_maidr_original_data", None)  # Store original data
+        self._maidr_datetime_converter = kwargs.get("_maidr_datetime_converter", None)
 
         # Store the GID for proper selector generation (legacy/shared)
         self._maidr_gid = None
@@ -91,63 +92,64 @@ class CandlestickPlot(MaidrPlot):
             # Use the original collections for highlighting
             self._elements = [body_collection, wick_collection]
 
-            # Use the utility class to extract data
-            data = MplfinanceDataExtractor.extract_candlestick_data(
-                body_collection, wick_collection, self._maidr_date_nums, self._maidr_original_data
-            )
-            return data
+            # Use datetime converter for enhanced data extraction
+            if self._maidr_datetime_converter is not None:
+                data = self._maidr_datetime_converter.extract_candlestick_data(
+                    self.axes[0], wick_collection, body_collection
+                )
+                return data
 
-        # Fallback to original detection method
-        if not self.axes:
-            return []
+            # Fallback to original detection method
+            if not self.axes:
+                return []
 
-        ax_ohlc = self.axes[0]
+            ax_ohlc = self.axes[0]
 
-        # Look for Rectangle patches (original_flavor candlestick)
-        body_rectangles = []
-        for patch in ax_ohlc.patches:
-            if isinstance(patch, Rectangle):
-                body_rectangles.append(patch)
+            # Look for Rectangle patches (original_flavor candlestick)
+            body_rectangles = []
+            for patch in ax_ohlc.patches:
+                if isinstance(patch, Rectangle):
+                    body_rectangles.append(patch)
 
-        if body_rectangles:
-            # Set elements for highlighting
-            self._elements = body_rectangles
+            if body_rectangles:
+                # Set elements for highlighting
+                self._elements = body_rectangles
 
-            # Generate a GID for highlighting if none exists
-            if not self._maidr_gid:
-                self._maidr_gid = f"maidr-{uuid.uuid4()}"
-                # Set GID on all rectangles
-                for rect in body_rectangles:
-                    rect.set_gid(self._maidr_gid)
-            # Keep a dedicated body gid for legacy dict selectors
-            self._maidr_body_gid = getattr(self, "_maidr_body_gid", None) or self._maidr_gid
+                # Generate a GID for highlighting if none exists
+                if not self._maidr_gid:
+                    self._maidr_gid = f"maidr-{uuid.uuid4()}"
+                    # Set GID on all rectangles
+                    for rect in body_rectangles:
+                        rect.set_gid(self._maidr_gid)
+                # Keep a dedicated body gid for legacy dict selectors
+                self._maidr_body_gid = getattr(self, "_maidr_body_gid", None) or self._maidr_gid
 
-            # Assign a shared gid to wick Line2D (vertical 2-point lines) on the same axis
-            wick_lines = []
-            for line in ax_ohlc.get_lines():
-                try:
-                    xydata = line.get_xydata()
-                    if xydata is None:
+                # Assign a shared gid to wick Line2D (vertical 2-point lines) on the same axis
+                wick_lines = []
+                for line in ax_ohlc.get_lines():
+                    try:
+                        xydata = line.get_xydata()
+                        if xydata is None:
+                            continue
+                        xy_arr = np.asarray(xydata)
+                        if xy_arr.ndim == 2 and xy_arr.shape[0] == 2 and xy_arr.shape[1] >= 2:
+                            x0 = float(xy_arr[0, 0])
+                            x1 = float(xy_arr[1, 0])
+                            if abs(x0 - x1) < 1e-10:
+                                wick_lines.append(line)
+                    except Exception:
                         continue
-                    xy_arr = np.asarray(xydata)
-                    if xy_arr.ndim == 2 and xy_arr.shape[0] == 2 and xy_arr.shape[1] >= 2:
-                        x0 = float(xy_arr[0, 0])
-                        x1 = float(xy_arr[1, 0])
-                        if abs(x0 - x1) < 1e-10:
-                            wick_lines.append(line)
-                except Exception:
-                    continue
-            if wick_lines:
-                if not getattr(self, "_maidr_wick_gid", None):
-                    self._maidr_wick_gid = f"maidr-{uuid.uuid4()}"
-                for line in wick_lines:
-                    line.set_gid(self._maidr_wick_gid)
+                if wick_lines:
+                    if not getattr(self, "_maidr_wick_gid", None):
+                        self._maidr_wick_gid = f"maidr-{uuid.uuid4()}"
+                    for line in wick_lines:
+                        line.set_gid(self._maidr_wick_gid)
 
-            # Use the utility class to extract data
-            data = MplfinanceDataExtractor.extract_rectangle_candlestick_data(
-                body_rectangles, self._maidr_date_nums, self._maidr_original_data
-            )
-            return data
+                # Use the utility class to extract data
+                data = MplfinanceDataExtractor.extract_rectangle_candlestick_data(
+                    body_rectangles, self._maidr_date_nums, self._maidr_original_data
+                )
+                return data
 
         return []
 

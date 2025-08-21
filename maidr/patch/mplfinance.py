@@ -8,6 +8,7 @@ from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
 from maidr.patch.common import common
 from maidr.core.context_manager import ContextManager
+from maidr.util.datetime_conversion import create_datetime_converter
 
 
 def mplfinance_plot_patch(wrapped, instance, args, kwargs):
@@ -53,25 +54,36 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
         elif volume_ax is None and "volume" in ax.get_ylabel().lower():
             volume_ax = ax
 
-    # Try to extract date numbers from the data
+    # Try to extract date numbers from the data (existing logic preserved)
     date_nums = None
     data = None
+    datetime_converter = None
+
     if len(args) > 0:
         data = args[0]
     elif "data" in kwargs:
         data = kwargs["data"]
 
     if data is not None:
+        # Existing date_nums logic (preserved)
         if hasattr(data, "Date_num"):
             date_nums = list(data["Date_num"])
         elif hasattr(data, "index"):
             # fallback: use index if it's a DatetimeIndex
             try:
                 import matplotlib.dates as mdates
-
                 date_nums = [mdates.date2num(d) for d in data.index]
             except Exception:
                 pass
+
+        # Create datetime converter for DatetimeIndex data
+        if hasattr(data, "index") and hasattr(data.index, "dtype"):
+            if "datetime" in str(data.index.dtype).lower():
+                datetime_converter = create_datetime_converter(data)
+
+                # Use enhanced converter's date_nums for mplfinance compatibility
+                if date_nums is None and hasattr(datetime_converter, 'date_nums'):
+                    date_nums = datetime_converter.date_nums
 
     # Process and register the Candlestick plot
     if price_ax:
@@ -97,6 +109,10 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
                 _maidr_wick_gid=wick_gid,
                 _maidr_body_gid=body_gid,
             )
+
+            # Add datetime converter
+            if datetime_converter is not None:
+                candlestick_kwargs["_maidr_datetime_converter"] = datetime_converter
             common(
                 PlotType.CANDLESTICK,
                 lambda *a, **k: price_ax,
@@ -129,6 +145,11 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
                 _maidr_patches=volume_patches,
                 _maidr_date_nums=date_nums,
             )
+
+            # Add datetime converter
+            if datetime_converter is not None:
+                bar_kwargs["_maidr_datetime_converter"] = datetime_converter  # type: ignore
+
             common(PlotType.BAR, lambda *a, **k: volume_ax, instance, args, bar_kwargs)
 
     # Process and register Moving Averages as LINE plots
@@ -196,6 +217,10 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
             if date_nums is not None:
                 setattr(line, "_maidr_date_nums", date_nums)
 
+            # Store datetime converter
+            if datetime_converter is not None:
+                setattr(line, "_maidr_datetime_converter", datetime_converter)
+
             # Ensure GID is set for highlighting
             if line.get_gid() is None:
                 gid = f"maidr-{uuid.uuid4()}"
@@ -207,6 +232,11 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
         # Register all valid lines as a single LINE plot
         if valid_lines:
             line_kwargs = dict(kwargs)
+
+            # Add datetime converter
+            if datetime_converter is not None:
+                line_kwargs["_maidr_datetime_converter"] = datetime_converter
+
             common(PlotType.LINE, lambda *a, **k: price_ax, instance, args, line_kwargs)
 
     if not original_returnfig:
