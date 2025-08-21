@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.7.0 (2025-08-21)
+
+### Features
+
+- Format date in candlestick ([#234](https://github.com/xability/py-maidr/pull/234),
+  [`ffe03f7`](https://github.com/xability/py-maidr/commit/ffe03f7a2368ef33a4266692e7b652daafa14a30))
+
+
 ## v1.6.1 (2025-08-13)
 
 ### Bug Fixes
