@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import numpy as np
 from typing import Any
 
 from matplotlib.axes import Axes
@@ -113,6 +112,59 @@ class LineExtractorMixin:
         # Since the upstream MaidrJS library currently supports only the last plot line,
         # `maidr` package supports the same.
         return ax.get_lines()
+
+    @staticmethod
+    def extract_line_data_with_categorical_labels(ax: Axes, line: Line2D) -> list[tuple] | None:
+        """
+        Extract line data with proper handling of categorical x-axis labels.
+
+        Parameters
+        ----------
+        ax : Axes
+            The matplotlib axes object
+        line : Line2D
+            The line object to extract data from
+
+        Returns
+        -------
+        list[tuple] | None
+            List of (x, y) tuples where x values are categorical labels if available,
+            or numeric values if no categorical labels are found
+        """
+        if ax is None or line is None:
+            return None
+
+        xydata = line.get_xydata()
+        if xydata is None:
+            return None
+
+        # Convert to numpy array for easier handling
+        xy_array = np.asarray(xydata)
+        if xy_array.size == 0:
+            return None
+
+        # Extract x-axis labels for categorical data
+        x_labels = LevelExtractorMixin.extract_level(ax, MaidrKey.X)
+
+        # If we have categorical labels, map numeric coordinates to labels
+        if x_labels:
+            result = []
+            for i in range(xy_array.shape[0]):
+                x, y = xy_array[i]
+                # Map numeric x-coordinate to categorical label if available
+                if isinstance(x, (int, float)) and 0 <= int(x) < len(x_labels):
+                    x_value = x_labels[int(x)]
+                else:
+                    x_value = float(x)
+                result.append((x_value, float(y)))
+            return result
+        else:
+            # No categorical labels, return numeric values
+            result = []
+            for i in range(xy_array.shape[0]):
+                x, y = xy_array[i]
+                result.append((float(x), float(y)))
+            return result
 
 
 class CollectionExtractorMixin:

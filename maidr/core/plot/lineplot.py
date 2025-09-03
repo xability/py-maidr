@@ -114,13 +114,18 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             elif not label.startswith("_child"):
                 line_type = label
 
+            # Use the new method to extract data with categorical labels
+            line_coords = LineExtractorMixin.extract_line_data_with_categorical_labels(self.ax, line)
+            if line_coords is None:
+                continue
+
             line_data = [
                 {
-                    MaidrKey.X: float(x),
-                    MaidrKey.Y: float(y),
+                    MaidrKey.X: x,
+                    MaidrKey.Y: y,
                     **({MaidrKey.FILL: line_type} if line_type else {}),
                 }
-                for x, y in line.get_xydata()  # type: ignore
+                for x, y in line_coords
             ]
 
             if line_data:
