@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.7.1 (2025-09-03)
+
+### Bug Fixes
+
+- Address categorical x-values in line plot ([#236](https://github.com/xability/py-maidr/pull/236),
+  [`d4e0eea`](https://github.com/xability/py-maidr/commit/d4e0eea6e558fc6540eb9500b82dedb339f739b4))
+
+
 ## v1.7.0 (2025-08-21)
 
 ### Features
