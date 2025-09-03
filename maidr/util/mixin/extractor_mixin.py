@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any
+from typing import Any, List, Optional
 
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
@@ -37,7 +37,7 @@ class ContainerExtractorMixin:
 
 class LevelExtractorMixin:
     @staticmethod
-    def extract_level(ax: Axes, key: MaidrKey = MaidrKey.X) -> list[str] | None:
+    def extract_level(ax: Axes, key: MaidrKey = MaidrKey.X) -> Optional[List[str]]:
         """Retrieve label texts from Axes based on the specified Maidr key."""
         if ax is None:
             return None
@@ -94,7 +94,7 @@ class LevelExtractorMixin:
 
 class LineExtractorMixin:
     @staticmethod
-    def extract_line(ax: Axes) -> Line2D | None:
+    def extract_line(ax: Axes) -> Optional[Line2D]:
         """Retrieve the last line object from Axes, if available."""
         if ax is None or ax.get_lines() is None:
             return None
@@ -104,7 +104,7 @@ class LineExtractorMixin:
         return ax.get_lines()[-1]
 
     @staticmethod
-    def extract_lines(ax: Axes) -> list[Line2D] | None:
+    def extract_lines(ax: Axes) -> Optional[List[Line2D]]:
         """Retrieve all line objects from Axes, if available."""
         if ax is None or ax.get_lines() is None:
             return None
@@ -114,7 +114,7 @@ class LineExtractorMixin:
         return ax.get_lines()
 
     @staticmethod
-    def extract_line_data_with_categorical_labels(ax: Axes, line: Line2D) -> list[tuple] | None:
+    def extract_line_data_with_categorical_labels(ax: Axes, line: Line2D) -> Optional[List[tuple]]:
         """
         Extract line data with proper handling of categorical x-axis labels.
 
@@ -185,7 +185,7 @@ class CollectionExtractorMixin:
 
 class ScalarMappableExtractorMixin:
     @staticmethod
-    def extract_scalar_mappable(ax: Axes) -> ScalarMappable | None:
+    def extract_scalar_mappable(ax: Axes) -> Optional[ScalarMappable]:
         """Retrieve the first collection ScalarMappable from an Axes object."""
         if ax is None or ax.get_children() is None:
             return None
