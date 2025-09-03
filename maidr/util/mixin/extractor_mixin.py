@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple, Union
 
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
@@ -114,7 +114,7 @@ class LineExtractorMixin:
         return ax.get_lines()
 
     @staticmethod
-    def extract_line_data_with_categorical_labels(ax: Axes, line: Line2D) -> Optional[List[tuple]]:
+    def extract_line_data_with_categorical_labels(ax: Axes, line: Line2D) -> Optional[List[Tuple[Union[str, float], float]]]:
         """
         Extract line data with proper handling of categorical x-axis labels.
 
@@ -127,7 +127,7 @@ class LineExtractorMixin:
 
         Returns
         -------
-        list[tuple] | None
+        Optional[List[Tuple[Union[str, float], float]]]
             List of (x, y) tuples where x values are categorical labels if available,
             or numeric values if no categorical labels are found
         """
@@ -149,8 +149,7 @@ class LineExtractorMixin:
         # If we have categorical labels, map numeric coordinates to labels
         if x_labels:
             result = []
-            for i in range(xy_array.shape[0]):
-                x, y = xy_array[i]
+            for x, y in xy_array:
                 # Map numeric x-coordinate to categorical label if available
                 if isinstance(x, (int, float)) and 0 <= int(x) < len(x_labels):
                     x_value = x_labels[int(x)]
@@ -160,11 +159,7 @@ class LineExtractorMixin:
             return result
         else:
             # No categorical labels, return numeric values
-            result = []
-            for i in range(xy_array.shape[0]):
-                x, y = xy_array[i]
-                result.append((float(x), float(y)))
-            return result
+            return [(float(x), float(y)) for x, y in xy_array]
 
 
 class CollectionExtractorMixin:
