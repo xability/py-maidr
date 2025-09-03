@@ -1,6 +1,5 @@
-from __future__ import annotations
-
-from typing import Any
+import numpy as np
+from typing import Any, List, Optional, Tuple, Union
 
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
@@ -38,7 +37,7 @@ class ContainerExtractorMixin:
 
 class LevelExtractorMixin:
     @staticmethod
-    def extract_level(ax: Axes, key: MaidrKey = MaidrKey.X) -> list[str] | None:
+    def extract_level(ax: Axes, key: MaidrKey = MaidrKey.X) -> Optional[List[str]]:
         """Retrieve label texts from Axes based on the specified Maidr key."""
         if ax is None:
             return None
@@ -95,7 +94,7 @@ class LevelExtractorMixin:
 
 class LineExtractorMixin:
     @staticmethod
-    def extract_line(ax: Axes) -> Line2D | None:
+    def extract_line(ax: Axes) -> Optional[Line2D]:
         """Retrieve the last line object from Axes, if available."""
         if ax is None or ax.get_lines() is None:
             return None
@@ -105,7 +104,7 @@ class LineExtractorMixin:
         return ax.get_lines()[-1]
 
     @staticmethod
-    def extract_lines(ax: Axes) -> list[Line2D] | None:
+    def extract_lines(ax: Axes) -> Optional[List[Line2D]]:
         """Retrieve all line objects from Axes, if available."""
         if ax is None or ax.get_lines() is None:
             return None
@@ -113,6 +112,54 @@ class LineExtractorMixin:
         # Since the upstream MaidrJS library currently supports only the last plot line,
         # `maidr` package supports the same.
         return ax.get_lines()
+
+    @staticmethod
+    def extract_line_data_with_categorical_labels(ax: Axes, line: Line2D) -> Optional[List[Tuple[Union[str, float], float]]]:
+        """
+        Extract line data with proper handling of categorical x-axis labels.
+
+        Parameters
+        ----------
+        ax : Axes
+            The matplotlib axes object
+        line : Line2D
+            The line object to extract data from
+
+        Returns
+        -------
+        Optional[List[Tuple[Union[str, float], float]]]
+            List of (x, y) tuples where x values are categorical labels if available,
+            or numeric values if no categorical labels are found
+        """
+        if ax is None or line is None:
+            return None
+
+        xydata = line.get_xydata()
+        if xydata is None:
+            return None
+
+        # Convert to numpy array for easier handling
+        xy_array = np.asarray(xydata)
+        if xy_array.size == 0:
+            return None
+
+        # Extract x-axis labels for categorical data
+        x_labels = LevelExtractorMixin.extract_level(ax, MaidrKey.X)
+
+        # If we have categorical labels, map numeric coordinates to labels
+        if x_labels:
+            result = []
+            for x, y in xy_array:
+                # Map numeric x-coordinate to categorical label if available
+                if isinstance(x, (int, float)) and 0 <= int(x) < len(x_labels):
+                    x_value = x_labels[int(x)]
+                else:
+                    x_value = float(x)
+                result.append((x_value, float(y)))
+            return result
+        else:
+            # No categorical labels, return numeric values
+            return [(float(x), float(y)) for x, y in xy_array]
 
 
 class CollectionExtractorMixin:
@@ -133,7 +180,7 @@ class CollectionExtractorMixin:
 
 class ScalarMappableExtractorMixin:
     @staticmethod
-    def extract_scalar_mappable(ax: Axes) -> ScalarMappable | None:
+    def extract_scalar_mappable(ax: Axes) -> Optional[ScalarMappable]:
         """Retrieve the first collection ScalarMappable from an Axes object."""
         if ax is None or ax.get_children() is None:
             return None
