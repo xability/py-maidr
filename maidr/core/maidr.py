@@ -299,6 +299,7 @@ class Maidr:
         svg_buffer.write(
             etree.tostring(
                 root_svg,
+                pretty_print=True,
                 encoding="unicode",  # type: ignore
             )
         )
