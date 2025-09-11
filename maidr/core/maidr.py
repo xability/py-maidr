@@ -299,7 +299,6 @@ class Maidr:
         svg_buffer.write(
             etree.tostring(
                 root_svg,
-                pretty_print=True,
                 encoding="unicode",  # type: ignore
             )
         )
@@ -321,7 +320,8 @@ class Maidr:
     def _inject_plot(plot: HTML, maidr: str, maidr_id, use_iframe: bool = True) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
         # Get the latest version from npm registry
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
+        #MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
+        MAIDR_TS_CDN_URL = "http://localhost:8888/tree/maidr/core/maidr.js"
 
         script = f"""
             if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
@@ -387,12 +387,6 @@ class Maidr:
                         resizeIframe();
                         iframe.contentWindow.addEventListener('resize', resizeIframe);
                     }};
-                    iframe.contentWindow.document.addEventListener('focusin', () => {{
-                        resizeIframe();
-                    }});
-                    iframe.contentWindow.document.addEventListener('focusout', () => {{
-                        resizeIframe();
-                    }});
                 """
                 return resizing_script
 
