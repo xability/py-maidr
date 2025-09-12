@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.34">
+<meta name="generator" content="quarto-1.8.24">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -58,7 +58,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="site_libs/quarto-nav/headroom.min.js"></script>
 <script src="site_libs/clipboard/clipboard.min.js"></script>
 <script src="site_libs/quarto-search/autocomplete.umd.js"></script>
@@ -67,14 +67,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <meta name="quarto:offset" content="./">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-c8ad9e5dbd60b7b70b38521ab19b7da4.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dc55a5b9e770e841cd82e46aadbfb9b0.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-c4f3a08e70260739b56dd0d8f062e40f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-f15bfd38f6268d3425167166debef9aa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <link href="site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
@@ -103,7 +104,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
@@ -121,7 +122,7 @@ const typesetMath = (el) => {
     var macros = [];
     for (var i = 0; i < mathElements.length; i++) {
       var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN") {
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
         window.katex.render(texText.data, mathElements[i], {
           displayMode: mathElements[i].classList.contains('display'),
           throwOnError: false,
@@ -147,6 +148,8 @@ window.Quarto = {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
+    <a href="https://py.maidr.ai/" class="navbar-brand navbar-brand-logo">
+    </a>
     <a class="navbar-brand" href="https://py.maidr.ai/">
     <span class="navbar-title">Py maidr</span>
     </a>
@@ -325,10 +328,10 @@ window.Quarto = {
 <section id="installation" class="level2">
 <h2 class="anchored" data-anchor-id="installation">Installation</h2>
 <p><a href="https://www.python.org/downloads/">Python 3.x</a> is required to use <strong>maidr</strong>. After installing Python, you can install <strong>maidr</strong> using the following commands in your terminal:</p>
-<div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># install the latest release from PyPI</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-U</span> maidr</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># or install the development version from GitHub</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-U</span> git+https://github.com/xability/py-maidr.git</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># install the latest release from PyPI</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-U</span> maidr</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># or install the development version from GitHub</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-U</span> git+https://github.com/xability/py-maidr.git</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="getting-started" class="level2">
 <h2 class="anchored" data-anchor-id="getting-started">Getting Started</h2>
@@ -337,8 +340,8 @@ window.Quarto = {
 <p>Check more examples in the <a href="./examples.html#sec-examples">galleries</a>.</p>
 <section id="sample-bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="sample-bar-plot">Sample Bar Plot</h3>
-<div id="effb930b" class="cell" data-execution_count="1">
-<div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,5,14,15,24,25,28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<div id="e64b6659" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,5,14,15,24,25,28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Just import maidr package </span></span>
@@ -365,9 +368,9 @@ window.Quarto = {
 <span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>maidr.show(bar_plot) </span>
 <span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Uncomment the following line to save and share the accessible version of your plot with others!</span></span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="co"># maidr.save_html(bar_plot, "output.html") </span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="co"># maidr.save_html(bar_plot, "output.html") </span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_c648784a-96f7-4600-bbb3-334bed96f3b8" srcdoc="<div>
+<iframe id="iframe_1cb9b0a2-b270-4144-b37d-7ab298032594" srcdoc="<div>
   <link rel=&quot;stylesheet&quot; href=&quot;https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css&quot;/>
   <script type=&quot;text/javascript&quot;>
             if (!document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js&quot;]'))
@@ -385,12 +388,12 @@ window.Quarto = {
                 });
             }
         </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; maidr-data=&quot;{&amp;#10;  &amp;quot;id&amp;quot;: &amp;quot;4e97ab49-42e3-4aad-82fc-8020b212e8f4&amp;quot;,&amp;#10;  &amp;quot;subplots&amp;quot;: [&amp;#10;    [&amp;#10;      {&amp;#10;        &amp;quot;id&amp;quot;: &amp;quot;90f982e7-e1ac-47f5-b077-87c0cf876b0c&amp;quot;,&amp;#10;        &amp;quot;layers&amp;quot;: [&amp;#10;          {&amp;#10;            &amp;quot;id&amp;quot;: &amp;quot;813f022c-6691-4970-84a8-33f94fb078cc&amp;quot;,&amp;#10;            &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;,&amp;#10;            &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;,&amp;#10;            &amp;quot;axes&amp;quot;: {&amp;#10;              &amp;quot;x&amp;quot;: &amp;quot;Species&amp;quot;,&amp;#10;              &amp;quot;y&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;&amp;#10;            },&amp;#10;            &amp;quot;data&amp;quot;: [&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3700.662251655629&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3733.0882352941176&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 5076.016260162602&amp;#10;              }&amp;#10;            ],&amp;#10;            &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='3eebc9ee-38da-46ef-8a03-53998ebbfc89'] &amp;gt; path&amp;quot;&amp;#10;          }&amp;#10;        ]&amp;#10;      }&amp;#10;    ]&amp;#10;  ]&amp;#10;}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; maidr-data=&quot;{&amp;#10;  &amp;quot;id&amp;quot;: &amp;quot;a7a7fa2c-1659-4548-94e1-2986f0e54ec5&amp;quot;,&amp;#10;  &amp;quot;subplots&amp;quot;: [&amp;#10;    [&amp;#10;      {&amp;#10;        &amp;quot;id&amp;quot;: &amp;quot;a7f54739-505a-42a5-b0ee-fa08facadedd&amp;quot;,&amp;#10;        &amp;quot;layers&amp;quot;: [&amp;#10;          {&amp;#10;            &amp;quot;id&amp;quot;: &amp;quot;db9b666f-c9bb-4845-8aac-ad75980e863a&amp;quot;,&amp;#10;            &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;,&amp;#10;            &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;,&amp;#10;            &amp;quot;axes&amp;quot;: {&amp;#10;              &amp;quot;x&amp;quot;: &amp;quot;Species&amp;quot;,&amp;#10;              &amp;quot;y&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;&amp;#10;            },&amp;#10;            &amp;quot;data&amp;quot;: [&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3700.662251655629&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3733.0882352941176&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 5076.016260162602&amp;#10;              }&amp;#10;            ],&amp;#10;            &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='bc28b5cb-5593-4a40-b153-71e3f51b7bc1'] &amp;gt; path&amp;quot;&amp;#10;          }&amp;#10;        ]&amp;#10;      }&amp;#10;    ]&amp;#10;  ]&amp;#10;}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2025-09-03T23:13:32.835397</dc:date>
+    <dc:date>2025-09-12T14:54:09.335027</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -404,30 +407,30 @@ window.Quarto = {
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-5eaac5d9-a2bf-47c9-b74b-53432beaa73d&quot;>
+  <g id=&quot;maidr-848d8637-ed71-4d78-9172-0e070e450a2d&quot;>
    <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-2ddcf368-ef53-4c03-847e-af006fd4ee28&quot;>
+   <g id=&quot;maidr-db350751-29d8-40da-9464-8ee26f595b29&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  L 388.8 51.84  L 54 51.84  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
-   <g id=&quot;maidr-f895be56-3b48-4ed3-8f1e-192e6c0ee2c1&quot; maidr=&quot;3eebc9ee-38da-46ef-8a03-53998ebbfc89&quot;>
-    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#pa8bf6ee49f)&quot; style=&quot;fill: #7da9c7&quot;/>
+   <g id=&quot;maidr-c3ba99c2-0868-4036-9448-c7693bf76861&quot; maidr=&quot;bc28b5cb-5593-4a40-b153-71e3f51b7bc1&quot;>
+    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#p9eefbcc8f3)&quot; style=&quot;fill: #7da9c7&quot;/>
    </g>
-   <g id=&quot;maidr-7de24d5c-57fe-4977-b6f8-ca46ec70cb59&quot; maidr=&quot;3eebc9ee-38da-46ef-8a03-53998ebbfc89&quot;>
-    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#pa8bf6ee49f)&quot; style=&quot;fill: #4884af&quot;/>
+   <g id=&quot;maidr-6f7b5345-c90e-4539-8a25-c6a507dc59ec&quot; maidr=&quot;bc28b5cb-5593-4a40-b153-71e3f51b7bc1&quot;>
+    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#p9eefbcc8f3)&quot; style=&quot;fill: #4884af&quot;/>
    </g>
-   <g id=&quot;maidr-868ca26e-df62-4139-9a76-86654e1e9fca&quot; maidr=&quot;3eebc9ee-38da-46ef-8a03-53998ebbfc89&quot;>
-    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#pa8bf6ee49f)&quot; style=&quot;fill: #3d5b70&quot;/>
+   <g id=&quot;maidr-5725d2ee-7bc5-4824-9890-287697096712&quot; maidr=&quot;bc28b5cb-5593-4a40-b153-71e3f51b7bc1&quot;>
+    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#p9eefbcc8f3)&quot; style=&quot;fill: #3d5b70&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-d0692109-1ae3-4140-b0a1-74cc2900d0f8&quot;>
+     <g id=&quot;maidr-14576101-170a-4c0a-8b24-28e0d7c1936d&quot;>
       <defs>
-       <path id=&quot;ma39f9802df&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;ma04a1ba29c&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#ma39f9802df&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#ma04a1ba29c&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -450,9 +453,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-861653ca-eaee-43a2-89fb-96ec6a713927&quot;>
+     <g id=&quot;maidr-0552b3c0-0925-4498-95fc-af16a2ecef21&quot;>
       <g>
-       <use xlink:href=&quot;#ma39f9802df&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#ma04a1ba29c&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -481,9 +484,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-f4c82801-7097-4b28-a12c-874cc45b6eb3&quot;>
+     <g id=&quot;maidr-34d0c84f-c782-44a5-b3f4-264ba3a1cba2&quot;>
       <g>
-       <use xlink:href=&quot;#ma39f9802df&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#ma04a1ba29c&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -521,12 +524,12 @@ window.Quarto = {
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-94f3e456-340e-4ee6-a112-94c21e72efa2&quot;>
+     <g id=&quot;maidr-85bce36e-b327-460e-af7c-08236d29e7ed&quot;>
       <defs>
-       <path id=&quot;m9216564771&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m8f46be9c87&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m9216564771&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m8f46be9c87&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -540,9 +543,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-7d6593eb-217b-45ca-87b0-e442cebc3871&quot;>
+     <g id=&quot;maidr-5f61e066-3430-40c6-9a61-4450be13dc35&quot;>
       <g>
-       <use xlink:href=&quot;#m9216564771&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m8f46be9c87&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -559,9 +562,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-a84e1e64-da62-46fb-a965-1d43fccb7dc6&quot;>
+     <g id=&quot;maidr-486801ce-9546-4967-8fba-2fa786a5060c&quot;>
       <g>
-       <use xlink:href=&quot;#m9216564771&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m8f46be9c87&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -578,9 +581,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-b181f9b1-c785-4418-a76f-103a553d21b3&quot;>
+     <g id=&quot;maidr-f3415373-c74c-495e-a652-b0f6986e6c13&quot;>
       <g>
-       <use xlink:href=&quot;#m9216564771&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m8f46be9c87&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -597,9 +600,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-e25387bc-7de2-48fc-b376-56c25ffc425c&quot;>
+     <g id=&quot;maidr-0cf1c56b-efb1-4d67-a261-0293a2c353ea&quot;>
       <g>
-       <use xlink:href=&quot;#m9216564771&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m8f46be9c87&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -616,9 +619,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-020f2e47-ee43-43d0-9567-9ab0308f3953&quot;>
+     <g id=&quot;maidr-8f3f1a73-f32b-45ba-90c6-d8f1163fd7fa&quot;>
       <g>
-       <use xlink:href=&quot;#m9216564771&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m8f46be9c87&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -662,25 +665,25 @@ window.Quarto = {
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-fd8064cc-f7fe-4858-9d6a-0931e2c41901&quot;>
-    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#pa8bf6ee49f)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-715d3925-7211-4892-ac30-a6870e81f57b&quot;>
+    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#p9eefbcc8f3)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-dae640fd-6bbf-4b5e-bd90-e3c1ff39204c&quot;>
-    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#pa8bf6ee49f)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-c0ce713d-60e6-404a-b2d2-4389f8150542&quot;>
+    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#p9eefbcc8f3)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-0a5cb765-feba-4fd9-976d-5e6d764f13c3&quot;>
-    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#pa8bf6ee49f)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-f2292ebe-eff7-47d2-898c-c5df2e52cea0&quot;>
+    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#p9eefbcc8f3)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-8fa556be-1132-45e5-b2f0-f2aad5314831&quot;>
+   <g id=&quot;maidr-cd7c26f9-d684-4f72-acca-0ac724b14090&quot;>
     <path d=&quot;M 54 384.48  L 54 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-7d9e97d2-204c-4420-8a0f-8404826f3ee5&quot;>
+   <g id=&quot;maidr-cc550085-6bb1-4aed-a4d6-9eeab006f9d2&quot;>
     <path d=&quot;M 388.8 384.48  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-e3b3d605-1c12-41ee-8693-a917f221bc0b&quot;>
+   <g id=&quot;maidr-220520a8-f9df-48f6-ae7a-5084b757d967&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-b1a17263-7812-4480-91a3-62b8f6e40382&quot;>
+   <g id=&quot;maidr-dff136d6-4a72-46a3-88b3-4d6466d0901c&quot;>
     <path d=&quot;M 54 51.84  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_12&quot;>
@@ -738,7 +741,7 @@ window.Quarto = {
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;pa8bf6ee49f&quot;>
+  <clipPath id=&quot;p9eefbcc8f3&quot;>
    <rect x=&quot;54&quot; y=&quot;51.84&quot; width=&quot;334.8&quot; height=&quot;332.64&quot;/>
   </clipPath>
  </defs>
@@ -746,39 +749,72 @@ window.Quarto = {
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
                     function resizeIframe() {
-                        let iframe = document.getElementById('iframe_c648784a-96f7-4600-bbb3-334bed96f3b8');
+                        let iframe = document.getElementById('iframe_1cb9b0a2-b270-4144-b37d-7ab298032594');
                         if (
                             iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                             iframe.contentWindow.document
                         ) {
                             let iframeDocument = iframe.contentWindow.document;
-                            let brailleContainer =
-                                iframeDocument.getElementById('braille-input');
+                            // Detect braille textarea by dynamic id prefix
+                            let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                            // Detect review input container by class name
+                            let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
                             iframe.style.height = 'auto';
                             let height = iframeDocument.body.scrollHeight;
-                            if (brailleContainer &amp;&amp;
-                                brailleContainer === iframeDocument.activeElement
-                            ) {
+                            // Consider braille active if it or any descendant has focus
+                            let isBrailleActive = brailleContainer &amp;&amp; (
+                                brailleContainer === iframeDocument.activeElement ||
+                                (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                            );
+                            // Consider review input active if it or any descendant has focus
+                            let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                                reviewInputContainer === iframeDocument.activeElement ||
+                                (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                            );
+                            // (logs removed)
+                            if (isBrailleActive) {
                                 height += 100;
-                            }else{
-                                height += 50
+                            } else if (isReviewInputActive) {
+                                height += 50;
+                            } else {
+                                height += 50;
                             }
                             iframe.style.height = (height) + 'px';
                             iframe.style.width = iframeDocument.body.scrollWidth + 'px';
                         }
                     }
-                    let iframe = document.getElementById('iframe_c648784a-96f7-4600-bbb3-334bed96f3b8');
+                    let iframe = document.getElementById('iframe_1cb9b0a2-b270-4144-b37d-7ab298032594');
                     resizeIframe();
                     iframe.onload = function() {
                         resizeIframe();
                         iframe.contentWindow.addEventListener('resize', resizeIframe);
                     };
-                    iframe.contentWindow.document.addEventListener('focusin', () => {
-                        resizeIframe();
-                    });
-                    iframe.contentWindow.document.addEventListener('focusout', () => {
-                        resizeIframe();
-                    });
+                    // Delegate focus events for braille textarea (by id prefix)
+                    iframe.contentWindow.document.addEventListener('focusin', (e) => {
+                        try {
+                            const t = e &amp;&amp; e.target ? e.target : null;
+                            if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+                        } catch (_) { resizeIframe(); }
+                    }, true);
+                    iframe.contentWindow.document.addEventListener('focusout', (e) => {
+                        try {
+                            const t = e &amp;&amp; e.target ? e.target : null;
+                            if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+                        } catch (_) { resizeIframe(); }
+                    }, true);
+                    // Delegate focus events for review input container (by class name)
+                    iframe.contentWindow.document.addEventListener('focusin', (e) => {
+                        try {
+                            const t = e &amp;&amp; e.target ? e.target : null;
+                            if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+                        } catch (_) { resizeIframe(); }
+                    }, true);
+                    iframe.contentWindow.document.addEventListener('focusout', (e) => {
+                        try {
+                            const t = e &amp;&amp; e.target ? e.target : null;
+                            if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+                        } catch (_) { resizeIframe(); }
+                    }, true);
                 "></iframe>
 </div>
 </div>
@@ -1188,13 +1224,14 @@ c_i = \text{round}((n - C) \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy
