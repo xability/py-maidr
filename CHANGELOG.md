@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.7.2 (2025-09-12)
+
+### Bug Fixes
+
+- Prevent iframe resizing when modal is open ([#237](https://github.com/xability/py-maidr/pull/237),
+  [`89a4253`](https://github.com/xability/py-maidr/commit/89a42537a32025b286b8089b7f4b21b7c409c4e4))
+
+
 ## v1.7.1 (2025-09-03)
 
 ### Bug Fixes
