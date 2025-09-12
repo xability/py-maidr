@@ -366,16 +366,29 @@ class Maidr:
                             iframe.contentWindow.document
                         ) {{
                             let iframeDocument = iframe.contentWindow.document;
-                            let brailleContainer =
-                                iframeDocument.getElementById('braille-input');
+                            // Detect braille textarea by dynamic id prefix
+                            let brailleContainer = iframeDocument.querySelector('[id^="maidr-braille-textarea"]');
+                            // Detect review input container by class name
+                            let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
                             iframe.style.height = 'auto';
                             let height = iframeDocument.body.scrollHeight;
-                            if (brailleContainer &&
-                                brailleContainer === iframeDocument.activeElement
-                            ) {{
+                            // Consider braille active if it or any descendant has focus
+                            let isBrailleActive = brailleContainer && (
+                                brailleContainer === iframeDocument.activeElement ||
+                                (typeof brailleContainer.contains === 'function' && brailleContainer.contains(iframeDocument.activeElement))
+                            );
+                            // Consider review input active if it or any descendant has focus
+                            let isReviewInputActive = reviewInputContainer && (
+                                reviewInputContainer === iframeDocument.activeElement ||
+                                (typeof reviewInputContainer.contains === 'function' && reviewInputContainer.contains(iframeDocument.activeElement))
+                            );
+                            // (logs removed)
+                            if (isBrailleActive) {{
                                 height += 100;
-                            }}else{{
-                                height += 50
+                            }} else if (isReviewInputActive) {{
+                                height += 50;
+                            }} else {{
+                                height += 50;
                             }}
                             iframe.style.height = (height) + 'px';
                             iframe.style.width = iframeDocument.body.scrollWidth + 'px';
@@ -387,12 +400,32 @@ class Maidr:
                         resizeIframe();
                         iframe.contentWindow.addEventListener('resize', resizeIframe);
                     }};
-                    iframe.contentWindow.document.addEventListener('focusin', () => {{
-                        resizeIframe();
-                    }});
-                    iframe.contentWindow.document.addEventListener('focusout', () => {{
-                        resizeIframe();
-                    }});
+                    // Delegate focus events for braille textarea (by id prefix)
+                    iframe.contentWindow.document.addEventListener('focusin', (e) => {{
+                        try {{
+                            const t = e && e.target ? e.target : null;
+                            if (t && typeof t.id === 'string' && t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+                        }} catch (_) {{ resizeIframe(); }}
+                    }}, true);
+                    iframe.contentWindow.document.addEventListener('focusout', (e) => {{
+                        try {{
+                            const t = e && e.target ? e.target : null;
+                            if (t && typeof t.id === 'string' && t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+                        }} catch (_) {{ resizeIframe(); }}
+                    }}, true);
+                    // Delegate focus events for review input container (by class name)
+                    iframe.contentWindow.document.addEventListener('focusin', (e) => {{
+                        try {{
+                            const t = e && e.target ? e.target : null;
+                            if (t && t.classList && t.classList.contains('maidr-review-input')) resizeIframe();
+                        }} catch (_) {{ resizeIframe(); }}
+                    }}, true);
+                    iframe.contentWindow.document.addEventListener('focusout', (e) => {{
+                        try {{
+                            const t = e && e.target ? e.target : null;
+                            if (t && t.classList && t.classList.contains('maidr-review-input')) resizeIframe();
+                        }} catch (_) {{ resizeIframe(); }}
+                    }}, true);
                 """
                 return resizing_script
 
