@@ -80,9 +80,9 @@ def show(
 
 
 def save_html(
-    file: str,
-    plot: Any | None = None, 
+    plot: Any | None = None,
     *, 
+    file: str,
     lib_dir: str | None = "lib", 
     include_version: bool = True
 ) -> str:
@@ -91,10 +91,10 @@ def save_html(
 
     Parameters
     ----------
-    file : str
-        The file path where to save the HTML.
     plot : Any or None, optional
         The plot object to save. If None, uses the current matplotlib figure.
+    file : str
+        The file path where to save the HTML.
     lib_dir : str or None, default "lib"
         Directory name for libraries.
     include_version : bool, default True
