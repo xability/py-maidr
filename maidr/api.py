@@ -11,7 +11,26 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 
 
-def render(plot: Any) -> Tag:
+def render(plot: Any | None = None) -> Tag:
+    """
+    Render a MAIDR plot to HTML.
+
+    Parameters
+    ----------
+    plot : Any or None, optional
+        The plot object to render. If None, uses the current matplotlib figure.
+
+    Returns
+    -------
+    htmltools.Tag
+        The rendered HTML representation of the plot.
+    """
+    if plot is None:
+        # Lazy import matplotlib.pyplot when needed
+        import matplotlib.pyplot as plt
+        
+        plot = plt.gcf()
+    
     ax = FigureManager.get_axes(plot)
     if isinstance(ax, list):
         for axes in ax:
@@ -23,10 +42,33 @@ def render(plot: Any) -> Tag:
 
 
 def show(
-    plot: Any,
+    plot: Any | None = None,
     renderer: Literal["auto", "ipython", "browser"] = "auto",
     clear_fig: bool = True,
 ) -> object:
+    """
+    Display a MAIDR plot.
+
+    Parameters
+    ----------
+    plot : Any or None, optional
+        The plot object to display. If None, uses the current matplotlib figure.
+    renderer : {"auto", "ipython", "browser"}, default "auto"
+        The renderer to use for display.
+    clear_fig : bool, default True
+        Whether to clear the figure after displaying.
+
+    Returns
+    -------
+    object
+        The display result.
+    """
+    if plot is None:
+        # Lazy import matplotlib.pyplot when needed
+        import matplotlib.pyplot as plt
+        
+        plot = plt.gcf()
+    
     ax = FigureManager.get_axes(plot)
     if isinstance(ax, list):
         for axes in ax:
@@ -38,8 +80,37 @@ def show(
 
 
 def save_html(
-    plot: Any, file: str, *, lib_dir: str | None = "lib", include_version: bool = True
+    file: str,
+    plot: Any | None = None, 
+    *, 
+    lib_dir: str | None = "lib", 
+    include_version: bool = True
 ) -> str:
+    """
+    Save a MAIDR plot as HTML file.
+
+    Parameters
+    ----------
+    file : str
+        The file path where to save the HTML.
+    plot : Any or None, optional
+        The plot object to save. If None, uses the current matplotlib figure.
+    lib_dir : str or None, default "lib"
+        Directory name for libraries.
+    include_version : bool, default True
+        Whether to include version information.
+
+    Returns
+    -------
+    str
+        The path to the saved HTML file.
+    """
+    if plot is None:
+        # Lazy import matplotlib.pyplot when needed
+        import matplotlib.pyplot as plt
+        
+        plot = plt.gcf()
+    
     ax = FigureManager.get_axes(plot)
     htmls = []
     if isinstance(ax, list):
@@ -59,6 +130,20 @@ def stacked(plot: Axes | BarContainer) -> Maidr:
     return FigureManager.create_maidr(ax, PlotType.STACKED)
 
 
-def close(plot: Any) -> None:
+def close(plot: Any | None = None) -> None:
+    """
+    Close a MAIDR plot and clean up resources.
+
+    Parameters
+    ----------
+    plot : Any or None, optional
+        The plot object to close. If None, uses the current matplotlib figure.
+    """
+    if plot is None:
+        # Lazy import matplotlib.pyplot when needed
+        import matplotlib.pyplot as plt
+        
+        plot = plt.gcf()
+    
     ax = FigureManager.get_axes(plot)
     FigureManager.destroy(ax.get_figure())
