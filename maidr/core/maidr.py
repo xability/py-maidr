@@ -206,8 +206,25 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
+        # Handle DODGED/STACKED plots: only keep one plot per subplot position
+        # because GroupedBarPlot extracts all containers from the axes itself
         if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
-            self._plots = [self._plots[0]]
+            # Group plots by their subplot position (row, col)
+            subplot_plots = {}
+            for plot in self._plots:
+                pos = (getattr(plot, "row_index", 0), getattr(plot, "col_index", 0))
+                if pos not in subplot_plots:
+                    subplot_plots[pos] = []
+                subplot_plots[pos].append(plot)
+            
+            # For each subplot position, keep only the first plot
+            # The GroupedBarPlot will extract all containers from that axes
+            merged_plots = []
+            for pos, plots in subplot_plots.items():
+                if plots:  # Keep only the first plot for each subplot position
+                    merged_plots.append(plots[0])
+            
+            self._plots = merged_plots
         # Deduplicate: if any SMOOTH plots exist, remove LINE plots
         self._plots = deduplicate_smooth_and_line(self._plots)
 
