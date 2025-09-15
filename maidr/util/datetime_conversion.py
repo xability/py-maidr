@@ -3,6 +3,7 @@ import numpy as np
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime
 
+
 class DatetimeConverter:
     """
     Enhanced datetime converter that automatically detects time periods
@@ -58,7 +59,9 @@ class DatetimeConverter:
     >>> print(formatted_hourly)  # Output: "Jan 15 2024 09:00"
     """
 
-    def __init__(self, data: pd.DataFrame, datetime_format: Optional[str] = None) -> None:
+    def __init__(
+        self, data: pd.DataFrame, datetime_format: Optional[str] = None
+    ) -> None:
         """
         Initialize the DatetimeConverter.
 
@@ -120,7 +123,7 @@ class DatetimeConverter:
         # Calculate average time difference between consecutive data points
         time_diffs = []
         for i in range(1, len(self.data)):
-            diff = self.data.index[i] - self.data.index[i-1]
+            diff = self.data.index[i] - self.data.index[i - 1]
             time_diffs.append(diff.total_seconds())
 
         avg_diff_seconds = np.mean(time_diffs)
@@ -155,7 +158,7 @@ class DatetimeConverter:
             "day": "Daily data",
             "week": "Weekly data",
             "month": "Monthly data",
-            "unknown": "Unknown time period"
+            "unknown": "Unknown time period",
         }
         return period_descriptions.get(self.time_period, "Unknown time period")
 
@@ -236,6 +239,7 @@ class DatetimeConverter:
         """
         try:
             import matplotlib.dates as mdates
+
             date_nums = []
             for d in self.data.index:
                 try:
@@ -247,7 +251,9 @@ class DatetimeConverter:
         except Exception:
             return []
 
-    def extract_candlestick_data(self, ax, wick_collection=None, body_collection=None) -> List[Dict[str, Any]]:
+    def extract_candlestick_data(
+        self, ax, wick_collection=None, body_collection=None
+    ) -> List[Dict[str, Any]]:
         """
         Extract candlestick data with proper datetime formatting using original DataFrame.
 
@@ -273,33 +279,40 @@ class DatetimeConverter:
         datetime values using the enhanced datetime conversion logic.
         """
         candles = []
-        if not hasattr(self.data, 'Open') or not hasattr(self.data, 'High') or not hasattr(self.data, 'Low') or not hasattr(self.data, 'Close'):
+        if (
+            not hasattr(self.data, "Open")
+            or not hasattr(self.data, "High")
+            or not hasattr(self.data, "Low")
+            or not hasattr(self.data, "Close")
+        ):
             return candles
 
         for i in range(len(self.data)):
             try:
-                open_price = self.data.iloc[i]['Open']
-                high_price = self.data.iloc[i]['High']
-                low_price = self.data.iloc[i]['Low']
-                close_price = self.data.iloc[i]['Close']
-                volume = self.data.iloc[i].get('Volume', 0.0)
+                open_price = self.data.iloc[i]["Open"]
+                high_price = self.data.iloc[i]["High"]
+                low_price = self.data.iloc[i]["Low"]
+                close_price = self.data.iloc[i]["Close"]
+                volume = self.data.iloc[i].get("Volume", 0.0)
 
                 formatted_datetime = self.get_formatted_datetime(i)
 
                 candle_data = {
-                    'value': formatted_datetime or f"datetime_{i:03d}",
-                    'open': float(open_price),
-                    'high': float(high_price),
-                    'low': float(low_price),
-                    'close': float(close_price),
-                    'volume': float(volume)
+                    "value": formatted_datetime or f"datetime_{i:03d}",
+                    "open": float(open_price),
+                    "high": float(high_price),
+                    "low": float(low_price),
+                    "close": float(close_price),
+                    "volume": float(volume),
                 }
                 candles.append(candle_data)
             except (KeyError, IndexError, ValueError):
                 continue
         return candles
 
-    def extract_moving_average_data(self, ax, line_index: int = 0) -> List[Tuple[str, float]]:
+    def extract_moving_average_data(
+        self, ax, line_index: int = 0
+    ) -> List[Tuple[str, float]]:
         """
         Extract moving average data with proper datetime formatting and NaN filtering.
 
@@ -364,10 +377,10 @@ class DatetimeConverter:
         datetime values using the enhanced datetime conversion logic.
         """
         volume_data = []
-        if hasattr(self.data, 'Volume'):
+        if hasattr(self.data, "Volume"):
             for i in range(len(self.data)):
                 try:
-                    volume = self.data.iloc[i]['Volume']
+                    volume = self.data.iloc[i]["Volume"]
                     if pd.isna(volume) or volume <= 0:
                         continue
                     formatted_datetime = self.get_formatted_datetime(i)
@@ -377,7 +390,9 @@ class DatetimeConverter:
         return volume_data
 
 
-def create_datetime_converter(data: pd.DataFrame, datetime_format: Optional[str] = None) -> DatetimeConverter:
+def create_datetime_converter(
+    data: pd.DataFrame, datetime_format: Optional[str] = None
+) -> DatetimeConverter:
     """
     Factory function to create a DatetimeConverter instance.
 

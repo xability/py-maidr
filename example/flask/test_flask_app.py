@@ -1,5 +1,6 @@
 import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend for Flask
+
+matplotlib.use("Agg")  # Use non-interactive backend for Flask
 
 from flask import Flask
 import matplotlib.pyplot as plt
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-@app.route('/')
+
+@app.route("/")
 def index():
     # Log environment detection
     logger.info("=== Environment Detection ===")
@@ -34,8 +36,12 @@ def index():
     logger.info(f"flask_detected: {flask_detected}")
     logger.info(f"notebook_detected: {notebook_detected}")
     logger.info(f"shiny_detected: {shiny_detected}")
-    logger.info("Condition: use_iframe and (flask_detected or notebook_detected or shiny_detected)")
-    logger.info(f"Result: {use_iframe and (flask_detected or notebook_detected or shiny_detected)}")
+    logger.info(
+        "Condition: use_iframe and (flask_detected or notebook_detected or shiny_detected)"
+    )
+    logger.info(
+        f"Result: {use_iframe and (flask_detected or notebook_detected or shiny_detected)}"
+    )
 
     # Load the penguins dataset
     penguins = sns.load_dataset("penguins")
@@ -65,7 +71,8 @@ def index():
     # Return the maidr HTML directly
     return str(maidr_html)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     logger.info("Starting Flask app with logging...")
     logger.info("Visit http://localhost:5002 to see the maidr plot in Flask")
-    app.run(debug=False, host='0.0.0.0', port=5002)
+    app.run(debug=False, host="0.0.0.0", port=5002)

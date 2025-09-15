@@ -40,7 +40,7 @@ class FigureManager:
     """
 
     figs = {}
-    
+
     # Define plot type priority order (higher numbers take precedence)
     PLOT_TYPE_PRIORITY = {
         PlotType.BAR: 1,
@@ -117,7 +117,7 @@ class FigureManager:
             maidr = cls.figs[fig]
             current_priority = cls.PLOT_TYPE_PRIORITY.get(maidr.plot_type, 0)
             new_priority = cls.PLOT_TYPE_PRIORITY.get(plot_type, 0)
-            
+
             if new_priority > current_priority:
                 maidr.plot_type = plot_type
         return cls.figs[fig]

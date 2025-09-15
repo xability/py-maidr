@@ -101,6 +101,7 @@ class Environment:
                 return False
         except ImportError:
             return False
+
     @staticmethod
     def is_wsl() -> bool:
         """
@@ -122,9 +123,9 @@ class Environment:
         False  # When not in WSL
         """
         try:
-            with open('/proc/version', 'r') as f:
+            with open("/proc/version", "r") as f:
                 version_info = f.read().lower()
-                if 'microsoft' in version_info or 'wsl' in version_info:
+                if "microsoft" in version_info or "wsl" in version_info:
                     return True
         except FileNotFoundError:
             pass
@@ -151,7 +152,7 @@ class Environment:
         >>> Environment.get_wsl_distro_name()
         ''  # When not in WSL or WSL_DISTRO_NAME not set
         """
-        return os.environ.get('WSL_DISTRO_NAME', '')
+        return os.environ.get("WSL_DISTRO_NAME", "")
 
     @staticmethod
     def find_explorer_path() -> Union[str, None]:
@@ -175,10 +176,7 @@ class Environment:
         # Check if explorer.exe is in PATH
         try:
             result = subprocess.run(
-                ['which', 'explorer.exe'],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["which", "explorer.exe"], capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
                 return result.stdout.strip()
@@ -186,8 +184,6 @@ class Environment:
             pass
 
         return None
-
-
 
     @staticmethod
     def get_renderer() -> str:

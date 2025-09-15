@@ -160,10 +160,7 @@ class Maidr:
             if explorer_path:
                 try:
                     result = subprocess.run(
-                        [explorer_path, url],
-                        capture_output=True,
-                        text=True,
-                        timeout=10
+                        [explorer_path, url], capture_output=True, text=True, timeout=10
                     )
 
                     if result.returncode == 0:
@@ -208,16 +205,16 @@ class Maidr:
     def _merge_plots_by_subplot_position(self) -> list[MaidrPlot]:
         """
         Merge plots by their subplot position, keeping only the first plot per position.
-        
+
         For DODGED and STACKED plot types, multiple plots on the same subplot
         should be merged into a single plot since GroupedBarPlot extracts all
         containers from the axes itself.
-        
+
         Returns
         -------
         list[MaidrPlot]
             List of plots with one plot per unique subplot position.
-            
+
         Examples
         --------
         If we have plots at positions [(0,0), (0,0), (0,1), (1,0)],
@@ -225,21 +222,20 @@ class Maidr:
         """
         # Group plots by their subplot position (row, col) using defaultdict
         subplot_groups: dict[tuple[int, int], list[MaidrPlot]] = defaultdict(list)
-        
+
         for plot in self._plots:
             # Get subplot position, defaulting to (0, 0) if not set
-            position = (
-                getattr(plot, "row_index", 0), 
-                getattr(plot, "col_index", 0)
-            )
+            position = (getattr(plot, "row_index", 0), getattr(plot, "col_index", 0))
             subplot_groups[position].append(plot)
-        
+
         # Keep only the first plot for each subplot position
         # The GroupedBarPlot will extract all containers from that axes
         merged_plots: list[MaidrPlot] = []
         for position_plots in subplot_groups.values():
-            merged_plots.append(position_plots[0])  # Each list is guaranteed to have at least one plot
-        
+            merged_plots.append(
+                position_plots[0]
+            )  # Each list is guaranteed to have at least one plot
+
         return merged_plots
 
     def _flatten_maidr(self) -> dict | list[dict]:
@@ -248,7 +244,7 @@ class Maidr:
         # because GroupedBarPlot extracts all containers from the axes itself
         if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
             self._plots = self._merge_plots_by_subplot_position()
-    
+
         # Deduplicate: if any SMOOTH plots exist, remove LINE plots
         self._plots = deduplicate_smooth_and_line(self._plots)
 
@@ -395,7 +391,11 @@ class Maidr:
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
         # For TypeScript we will use iframe by default for now
-        if use_iframe and (Environment.is_flask() or Environment.is_notebook() or Environment.is_shiny()):
+        if use_iframe and (
+            Environment.is_flask()
+            or Environment.is_notebook()
+            or Environment.is_shiny()
+        ):
             unique_id = "iframe_" + Maidr._unique_id()
 
             def generate_iframe_script(unique_id: str) -> str:
