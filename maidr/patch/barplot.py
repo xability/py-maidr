@@ -60,8 +60,7 @@ def bar(
     else:
         # Check for seaborn-specific dodged plot indicators first
         # This handles seaborn.barplot with hue and dodge=True
-        if ("hue" in kwargs and kwargs.get("dodge", False)) or \
-           ("hue" in kwargs and kwargs.get("dodge") is not False):
+        if "hue" in kwargs and kwargs.get("dodge"):
             plot_type = PlotType.DODGED
         else:
             # Extract width and align parameters
@@ -172,10 +171,10 @@ def _has_numeric_grouping_pattern(x_positions: Any) -> bool:
     >>> _has_numeric_grouping_pattern([0, 1, 2])        # False - simple numeric
     """
     try:
-        # Convert to list if needed
-        if hasattr(x_positions, '__iter__') and not isinstance(x_positions, str):
+        # Convert to list if possible (duck typing)
+        try:
             positions = list(x_positions)
-        else:
+        except TypeError:
             return False
             
         # If all positions are strings, it's categorical (not dodged)

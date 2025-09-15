@@ -25,6 +25,8 @@ class FigureManager:
     figs : dict
         A dictionary that maps matplotlib Figure objects to their corresponding
         Maidr instances.
+    PLOT_TYPE_PRIORITY : dict
+        Defines the priority order for plot types. Higher numbers take precedence.
 
     Methods
     -------
@@ -38,6 +40,21 @@ class FigureManager:
     """
 
     figs = {}
+    
+    # Define plot type priority order (higher numbers take precedence)
+    PLOT_TYPE_PRIORITY = {
+        PlotType.BAR: 1,
+        PlotType.STACKED: 2,
+        PlotType.DODGED: 2,  # DODGED and STACKED have same priority
+        PlotType.LINE: 1,
+        PlotType.SCATTER: 1,
+        PlotType.HIST: 1,
+        PlotType.BOX: 1,
+        PlotType.HEAT: 1,
+        PlotType.COUNT: 1,
+        PlotType.SMOOTH: 1,
+        PlotType.CANDLESTICK: 1,
+    }
 
     _instance = None
     _lock = threading.Lock()
@@ -97,10 +114,11 @@ class FigureManager:
             cls.figs[fig] = Maidr(fig, plot_type)
         else:
             # Update plot type if the new type has higher priority
-            # DODGED and STACKED plots take priority over BAR plots
             maidr = cls.figs[fig]
-            if (plot_type in (PlotType.DODGED, PlotType.STACKED) and
-                    maidr.plot_type == PlotType.BAR):
+            current_priority = cls.PLOT_TYPE_PRIORITY.get(maidr.plot_type, 0)
+            new_priority = cls.PLOT_TYPE_PRIORITY.get(plot_type, 0)
+            
+            if new_priority > current_priority:
                 maidr.plot_type = plot_type
         return cls.figs[fig]
 

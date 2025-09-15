@@ -238,8 +238,7 @@ class Maidr:
         # The GroupedBarPlot will extract all containers from that axes
         merged_plots: list[MaidrPlot] = []
         for position_plots in subplot_groups.values():
-            if position_plots:  # Ensure list is not empty
-                merged_plots.append(position_plots[0])
+            merged_plots.append(position_plots[0])  # Each list is guaranteed to have at least one plot
         
         return merged_plots
 
