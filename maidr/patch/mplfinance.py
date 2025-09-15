@@ -72,6 +72,7 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
             # fallback: use index if it's a DatetimeIndex
             try:
                 import matplotlib.dates as mdates
+
                 date_nums = [mdates.date2num(d) for d in data.index]
             except Exception:
                 pass
@@ -82,7 +83,7 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
                 datetime_converter = create_datetime_converter(data)
 
                 # Use enhanced converter's date_nums for mplfinance compatibility
-                if date_nums is None and hasattr(datetime_converter, 'date_nums'):
+                if date_nums is None and hasattr(datetime_converter, "date_nums"):
                     date_nums = datetime_converter.date_nums
 
     # Process and register the Candlestick plot

@@ -115,7 +115,9 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 line_type = label
 
             # Use the new method to extract data with categorical labels
-            line_coords = LineExtractorMixin.extract_line_data_with_categorical_labels(self.ax, line)
+            line_coords = LineExtractorMixin.extract_line_data_with_categorical_labels(
+                self.ax, line
+            )
             if line_coords is None:
                 continue
 

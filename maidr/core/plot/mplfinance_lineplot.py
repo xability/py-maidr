@@ -105,7 +105,10 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
                     continue
 
                 # Use datetime converter for enhanced data extraction
-                datetime_converter = getattr(line, "_maidr_datetime_converter", None) or self._maidr_datetime_converter
+                datetime_converter = (
+                    getattr(line, "_maidr_datetime_converter", None)
+                    or self._maidr_datetime_converter
+                )
                 if datetime_converter is not None:
                     # Convert x-coordinate (matplotlib index) to formatted datetime
                     x_value = datetime_converter.get_formatted_datetime(int(round(x)))

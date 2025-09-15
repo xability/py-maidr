@@ -114,7 +114,9 @@ class LineExtractorMixin:
         return ax.get_lines()
 
     @staticmethod
-    def extract_line_data_with_categorical_labels(ax: Axes, line: Line2D) -> Optional[List[Tuple[Union[str, float], float]]]:
+    def extract_line_data_with_categorical_labels(
+        ax: Axes, line: Line2D
+    ) -> Optional[List[Tuple[Union[str, float], float]]]:
         """
         Extract line data with proper handling of categorical x-axis labels.
 
