@@ -1,6 +1,21 @@
 # CHANGELOG
 
 
+## v1.7.3 (2025-09-15)
+
+### Bug Fixes
+
+- Ensure all subplots are accessible and improve dodged plot detection
+  ([#242](https://github.com/xability/py-maidr/pull/242),
+  [`979b971`](https://github.com/xability/py-maidr/commit/979b9713d07be8bc9046056e7f1c0519336ddd22))
+
+Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>
+
+Co-authored-by: jooyoungseo <19754711+jooyoungseo@users.noreply.github.com>
+
+Co-authored-by: JooYoung Seo <jseo1005@illinois.edu>
+
+
 ## v1.7.2 (2025-09-12)
 
 ### Bug Fixes
