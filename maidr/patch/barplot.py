@@ -19,7 +19,8 @@ def bar(
     This function patches the bar plotting functions to identify whether the
     plot should be rendered as a normal, stacked, or dodged bar plot.
     It uses the 'bottom' keyword to identify stacked bar plots. For dodged plots,
-    it now uses more robust detection logic that considers both width and context
+    it first checks for seaborn-specific indicators (hue parameter with dodge=True),
+    then uses robust detection logic that considers both width and context
     to avoid misclassifying simple bar plots with narrow widths as dodged plots.
 
     Parameters
@@ -33,6 +34,7 @@ def bar(
         For a dodged plot, the first argument (x positions) should be numeric.
     kwargs : dict
         Keyword arguments passed to the original function.
+        For seaborn plots, may contain 'hue' and 'dodge' parameters.
 
     Returns
     -------
@@ -41,7 +43,10 @@ def bar(
 
     Examples
     --------
-    >>> # For a dodged (grouped) bar plot, pass numeric x positions:
+    >>> # For a seaborn dodged (grouped) bar plot:
+    >>> sns.barplot(data=df, x='category', y='value', hue='group', dodge=True)
+    
+    >>> # For a manual dodged (grouped) bar plot, pass numeric x positions:
     >>> x_positions = np.arange(3)
     >>> ax.bar(x_positions, heights, width, label='Group')  # Dodged bar plot.
     """
@@ -53,22 +58,28 @@ def bar(
         if bottom is not None:
             plot_type = PlotType.STACKED
     else:
-        # Extract width and align parameters
-        if len(args) >= 3:
-            real_width = args[2]
-        else:
-            real_width = kwargs.get("width", 0.8)
-
-        align = kwargs.get("align", "center")
-
-        # More robust dodged plot detection: consider multiple factors
-        # Only classify as DODGED if there are strong indicators of grouping
-        should_be_dodged = _should_classify_as_dodged(
-            instance, real_width, align, args, kwargs
-        )
-        
-        if should_be_dodged:
+        # Check for seaborn-specific dodged plot indicators first
+        # This handles seaborn.barplot with hue and dodge=True
+        if ("hue" in kwargs and kwargs.get("dodge", False)) or \
+           ("hue" in kwargs and kwargs.get("dodge") is not False):
             plot_type = PlotType.DODGED
+        else:
+            # Extract width and align parameters
+            if len(args) >= 3:
+                real_width = args[2]
+            else:
+                real_width = kwargs.get("width", 0.8)
+
+            align = kwargs.get("align", "center")
+
+            # More robust dodged plot detection: consider multiple factors
+            # Only classify as DODGED if there are strong indicators of grouping
+            should_be_dodged = _should_classify_as_dodged(
+                instance, real_width, align, args, kwargs
+            )
+            
+            if should_be_dodged:
+                plot_type = PlotType.DODGED
 
     return common(plot_type, wrapped, instance, args, kwargs)
 

@@ -72,9 +72,33 @@ class FigureManager:
 
     @classmethod
     def _get_maidr(cls, fig: Figure, plot_type: PlotType) -> Maidr:
-        """Retrieve or create a Maidr instance for the given Figure."""
+        """
+        Retrieve or create a Maidr instance for the given Figure.
+        
+        If a Maidr instance already exists for the figure, update its plot type
+        if the new plot type has higher priority (DODGED/STACKED > BAR).
+        
+        Parameters
+        ----------
+        fig : Figure
+            The matplotlib figure to get or create a Maidr instance for.
+        plot_type : PlotType
+            The plot type to set or update for the Maidr instance.
+            
+        Returns
+        -------
+        Maidr
+            The Maidr instance associated with the figure.
+        """
         if fig not in cls.figs.keys():
             cls.figs[fig] = Maidr(fig, plot_type)
+        else:
+            # Update plot type if the new type has higher priority
+            # DODGED and STACKED plots take priority over BAR plots
+            maidr = cls.figs[fig]
+            if (plot_type in (PlotType.DODGED, PlotType.STACKED) and 
+                maidr.plot_type == PlotType.BAR):
+                maidr.plot_type = plot_type
         return cls.figs[fig]
 
     @classmethod
