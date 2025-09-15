@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
+
 # uuid is used to generate unique identifiers for each plot layer in the MAIDR schema.
 import uuid
 

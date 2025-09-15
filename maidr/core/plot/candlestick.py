@@ -43,7 +43,9 @@ class CandlestickPlot(MaidrPlot):
         self._maidr_wick_collection = kwargs.get("_maidr_wick_collection", None)
         self._maidr_body_collection = kwargs.get("_maidr_body_collection", None)
         self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
-        self._maidr_original_data = kwargs.get("_maidr_original_data", None)  # Store original data
+        self._maidr_original_data = kwargs.get(
+            "_maidr_original_data", None
+        )  # Store original data
         self._maidr_datetime_converter = kwargs.get("_maidr_datetime_converter", None)
 
         # Store the GID for proper selector generation (legacy/shared)
@@ -122,7 +124,9 @@ class CandlestickPlot(MaidrPlot):
                     for rect in body_rectangles:
                         rect.set_gid(self._maidr_gid)
                 # Keep a dedicated body gid for legacy dict selectors
-                self._maidr_body_gid = getattr(self, "_maidr_body_gid", None) or self._maidr_gid
+                self._maidr_body_gid = (
+                    getattr(self, "_maidr_body_gid", None) or self._maidr_gid
+                )
 
                 # Assign a shared gid to wick Line2D (vertical 2-point lines) on the same axis
                 wick_lines = []
@@ -132,7 +136,11 @@ class CandlestickPlot(MaidrPlot):
                         if xydata is None:
                             continue
                         xy_arr = np.asarray(xydata)
-                        if xy_arr.ndim == 2 and xy_arr.shape[0] == 2 and xy_arr.shape[1] >= 2:
+                        if (
+                            xy_arr.ndim == 2
+                            and xy_arr.shape[0] == 2
+                            and xy_arr.shape[1] >= 2
+                        ):
                             x0 = float(xy_arr[0, 0])
                             x1 = float(xy_arr[1, 0])
                             if abs(x0 - x1) < 1e-10:
@@ -176,7 +184,12 @@ class CandlestickPlot(MaidrPlot):
         - Legacy path: return a dict with body and shared wick selectors (no open/close keys)
         """
         # Modern path: build structured selectors using separate gids
-        if self._maidr_body_collection and self._maidr_wick_collection and self._maidr_body_gid and self._maidr_wick_gid:
+        if (
+            self._maidr_body_collection
+            and self._maidr_wick_collection
+            and self._maidr_body_gid
+            and self._maidr_wick_gid
+        ):
             # Determine candle count N
             N = None
             if self._maidr_original_data is not None:

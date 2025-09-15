@@ -231,7 +231,7 @@ class MplfinanceDataExtractor:
     def _determine_bull_bear_from_data(
         original_data: Optional[Union[pd.DataFrame, pd.Series, dict]],
         index: int,
-        date_str: str
+        date_str: str,
     ) -> bool:
         """
         Determine if a candle is bullish (up) or bearish (down) using original OHLC data.
@@ -258,19 +258,19 @@ class MplfinanceDataExtractor:
 
         try:
             # Try to access the original data
-            if hasattr(original_data, 'iloc'):
+            if hasattr(original_data, "iloc"):
                 # It's a pandas DataFrame/Series
                 if index < len(original_data):
                     row = original_data.iloc[index]
-                    if 'Close' in row and 'Open' in row:
-                        is_bullish = row['Close'] > row['Open']
+                    if "Close" in row and "Open" in row:
+                        is_bullish = row["Close"] > row["Open"]
                         return is_bullish
 
-            elif hasattr(original_data, '__getitem__'):
+            elif hasattr(original_data, "__getitem__"):
                 # It's a dictionary or similar
-                if 'Close' in original_data and 'Open' in original_data:
-                    closes = original_data['Close']
-                    opens = original_data['Open']
+                if "Close" in original_data and "Open" in original_data:
+                    closes = original_data["Close"]
+                    opens = original_data["Open"]
                     if index < len(closes) and index < len(opens):
                         is_bullish = closes[index] > opens[index]
                         return is_bullish

@@ -15,20 +15,24 @@ from maidr.core.plot import MaidrPlotFactory
 
 class FigureManager:
     """
-    Manages creation and retrieval of Maidr instances associated with matplotlib figures.
+    Manages creation and retrieval of Maidr instances associated with figures.
 
-    This class provides methods to manage Maidr objects which facilitate the organization and
-    manipulation of plots within matplotlib figures.
+    This class provides methods to manage Maidr objects which facilitate the
+    organization and manipulation of plots within matplotlib figures.
 
     Attributes
     ----------
     figs : dict
-        A dictionary that maps matplotlib Figure objects to their corresponding Maidr instances.
+        A dictionary that maps matplotlib Figure objects to their corresponding
+        Maidr instances.
+    PLOT_TYPE_PRIORITY : dict
+        Defines the priority order for plot types. Higher numbers take precedence.
 
     Methods
     -------
     create_maidr(ax, plot_type, **kwargs)
-        Creates a Maidr instance for the given Axes and plot type, and adds a plot to it.
+        Creates a Maidr instance for the given Axes and plot type, and adds a
+        plot to it.
     _get_maidr(fig)
         Retrieves or creates a Maidr instance associated with the given Figure.
     get_axes(artist)
@@ -37,6 +41,21 @@ class FigureManager:
 
     figs = {}
 
+    # Define plot type priority order (higher numbers take precedence)
+    PLOT_TYPE_PRIORITY = {
+        PlotType.BAR: 1,
+        PlotType.STACKED: 2,
+        PlotType.DODGED: 2,  # DODGED and STACKED have same priority
+        PlotType.LINE: 1,
+        PlotType.SCATTER: 1,
+        PlotType.HIST: 1,
+        PlotType.BOX: 1,
+        PlotType.HEAT: 1,
+        PlotType.COUNT: 1,
+        PlotType.SMOOTH: 1,
+        PlotType.CANDLESTICK: 1,
+    }
+
     _instance = None
     _lock = threading.Lock()
 
@@ -44,14 +63,15 @@ class FigureManager:
         if not cls._instance:
             with cls._lock:
                 if not cls._instance:
-                    cls._instance = super(FigureManager, cls).__new__()
+                    cls._instance = super(FigureManager, cls).__new__(cls)
         return cls._instance
 
     @classmethod
     def create_maidr(
         cls, axes: Axes | list[Axes], plot_type: PlotType, **kwargs
     ) -> Maidr:
-        """Create a Maidr instance for the given Axes and plot type, and adds a plot to it."""
+        """Create a Maidr instance for the given Axes and plot type, and
+        adds a plot to it."""
         if axes is None:
             raise ValueError("No plot found.")
         if plot_type is None:
@@ -72,9 +92,34 @@ class FigureManager:
 
     @classmethod
     def _get_maidr(cls, fig: Figure, plot_type: PlotType) -> Maidr:
-        """Retrieve or create a Maidr instance for the given Figure."""
+        """
+        Retrieve or create a Maidr instance for the given Figure.
+
+        If a Maidr instance already exists for the figure, update its plot type
+        if the new plot type has higher priority (DODGED/STACKED > BAR).
+
+        Parameters
+        ----------
+        fig : Figure
+            The matplotlib figure to get or create a Maidr instance for.
+        plot_type : PlotType
+            The plot type to set or update for the Maidr instance.
+
+        Returns
+        -------
+        Maidr
+            The Maidr instance associated with the figure.
+        """
         if fig not in cls.figs.keys():
             cls.figs[fig] = Maidr(fig, plot_type)
+        else:
+            # Update plot type if the new type has higher priority
+            maidr = cls.figs[fig]
+            current_priority = cls.PLOT_TYPE_PRIORITY.get(maidr.plot_type, 0)
+            new_priority = cls.PLOT_TYPE_PRIORITY.get(plot_type, 0)
+
+            if new_priority > current_priority:
+                maidr.plot_type = plot_type
         return cls.figs[fig]
 
     @classmethod
