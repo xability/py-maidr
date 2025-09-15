@@ -11,6 +11,28 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 
 
+def _get_plot_or_current(plot: Any | None) -> Any:
+    """
+    Get the plot object or current matplotlib figure if plot is None.
+    
+    Parameters
+    ----------
+    plot : Any or None
+        The plot object. If None, returns the current matplotlib figure.
+        
+    Returns
+    -------
+    Any
+        The plot object or current matplotlib figure.
+    """
+    if plot is None:
+        # Lazy import matplotlib.pyplot when needed
+        import matplotlib.pyplot as plt
+        
+        return plt.gcf()
+    return plot
+
+
 def render(plot: Any | None = None) -> Tag:
     """
     Render a MAIDR plot to HTML.
@@ -25,11 +47,7 @@ def render(plot: Any | None = None) -> Tag:
     htmltools.Tag
         The rendered HTML representation of the plot.
     """
-    if plot is None:
-        # Lazy import matplotlib.pyplot when needed
-        import matplotlib.pyplot as plt
-        
-        plot = plt.gcf()
+    plot = _get_plot_or_current(plot)
     
     ax = FigureManager.get_axes(plot)
     if isinstance(ax, list):
@@ -63,11 +81,7 @@ def show(
     object
         The display result.
     """
-    if plot is None:
-        # Lazy import matplotlib.pyplot when needed
-        import matplotlib.pyplot as plt
-        
-        plot = plt.gcf()
+    plot = _get_plot_or_current(plot)
     
     ax = FigureManager.get_axes(plot)
     if isinstance(ax, list):
@@ -105,11 +119,7 @@ def save_html(
     str
         The path to the saved HTML file.
     """
-    if plot is None:
-        # Lazy import matplotlib.pyplot when needed
-        import matplotlib.pyplot as plt
-        
-        plot = plt.gcf()
+    plot = _get_plot_or_current(plot)
     
     ax = FigureManager.get_axes(plot)
     htmls = []
@@ -139,11 +149,7 @@ def close(plot: Any | None = None) -> None:
     plot : Any or None, optional
         The plot object to close. If None, uses the current matplotlib figure.
     """
-    if plot is None:
-        # Lazy import matplotlib.pyplot when needed
-        import matplotlib.pyplot as plt
-        
-        plot = plt.gcf()
+    plot = _get_plot_or_current(plot)
     
     ax = FigureManager.get_axes(plot)
     FigureManager.destroy(ax.get_figure())
