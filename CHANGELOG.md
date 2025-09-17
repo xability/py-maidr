@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v1.8.0 (2025-09-17)
+
+### Features
+
+- Remove maidr.show params ([#244](https://github.com/xability/py-maidr/pull/244),
+  [`493cf57`](https://github.com/xability/py-maidr/commit/493cf5713068b1514b4836e46763c3619a51dd23))
+
+### Refactoring
+
+- **maidr.api**: Improve lazy figure detection, eliminate code duplication, and resolve merge
+  conflicts ([#241](https://github.com/xability/py-maidr/pull/241),
+  [`15a966e`](https://github.com/xability/py-maidr/commit/15a966ea2ca9170ddf8bc28634705fb6233a1d58))
+
+Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>
+
+Co-authored-by: jooyoungseo <19754711+jooyoungseo@users.noreply.github.com>
+
+
 ## v1.7.3 (2025-09-15)
 
 ### Bug Fixes
