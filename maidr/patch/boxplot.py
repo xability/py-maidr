@@ -20,7 +20,16 @@ def mpl_box(wrapped, _, args, kwargs) -> dict:
     with ContextManager.set_internal_context():
         # Patch `ax.boxplot()` and `ax.bxp()`.
         plot = wrapped(*args, **kwargs)
-
+    # Automatically style outliers for better visibility
+    if "fliers" in plot:
+        outlier_color = "red"
+        for flier in plot["fliers"]:
+            flier.set(
+                marker="o",
+                markerfacecolor=outlier_color,
+                markeredgecolor=outlier_color,
+                alpha=0.5,
+            )
     # Set the orientation of the boxplot
     if not kwargs.get("vert", True):
         orientation = "horz"
@@ -44,7 +53,18 @@ def sns_box(wrapped, _, args, kwargs) -> Axes:
         # Patch `ax.boxplot()` and `ax.bxp()`.
         plot = wrapped(*args, **kwargs)
         bxp_container = bxp_context
-
+    # Automatically style outliers for better visibility in seaborn plots
+    print("DEBUG: Applying outlier styling in seaborn boxplot patch")
+    bxp_stats = bxp_container.bxp_stats()
+    if bxp_stats and "fliers" in bxp_stats:
+        outlier_color = "red"
+        for flier in bxp_stats["fliers"]:
+            flier.set(
+                marker="o",
+                markerfacecolor=outlier_color,
+                markeredgecolor=outlier_color,
+                alpha=0.5,
+            )
     # Set the orientation of the boxplot
     if bxp_container.orientation() == "y" or bxp_container.orientation() == "h":
         orientation = "horz"
