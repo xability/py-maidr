@@ -79,12 +79,34 @@ class GroupedBarPlot(
         """
         Extract hue categories from the axes legend.
 
-        This method looks at the legend to get the actual category names
+        This method reads the legend text elements from the axes legend,
+        trims whitespace from each text, and returns a list of cleaned
+        category names. This is used to get the actual category names
+        instead of using the generic container labels like '_container0', '_container1'.
+
+        Parameters
+        ----------
+        None
+            This method uses the instance's axes object.
 
         Returns
         -------
         list[str]
-            List of hue category names from the legend, or empty list if no legend found.
+            List of trimmed hue category names from the legend.
+            Returns empty list if no legend is found or if legend has no text elements.
+
+        Examples
+        --------
+        >>> # For a seaborn barplot with hue='category' and legend showing 'Below', 'Above'
+        >>> plot = GroupedBarPlot(ax, PlotType.DODGED)
+        >>> categories = plot._extract_hue_categories_from_legend()
+        >>> print(categories)
+        ['Below', 'Above']
+
+        >>> # If no legend exists
+        >>> categories = plot._extract_hue_categories_from_legend()
+        >>> print(categories)
+        []
         """
         legend = self.ax.get_legend()
         if legend is None:
@@ -95,8 +117,8 @@ class GroupedBarPlot(
         if not legend_texts:
             return []
 
-        # Extract text content from legend elements
-        hue_categories = [text.get_text() for text in legend_texts]
+        # Extract text content from legend elements and trim whitespace
+        hue_categories = [text.get_text().strip() for text in legend_texts]
 
         # Filter out empty strings and return
-        return [category for category in hue_categories if category.strip()]
+        return [category for category in hue_categories if category]
