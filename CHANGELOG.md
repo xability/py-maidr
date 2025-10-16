@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v1.8.1 (2025-10-16)
+
+### Bug Fixes
+
+- Address container label issue in seaborn dodged plots
+  ([#256](https://github.com/xability/py-maidr/pull/256),
+  [`3b09039`](https://github.com/xability/py-maidr/commit/3b09039ba33a10903797559a27d53869ba6b9d2f))
+
+
 ## v1.8.0 (2025-09-17)
 
 ### Features
