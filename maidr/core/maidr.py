@@ -210,11 +210,11 @@ class Maidr:
 
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
             svg = self._get_svg(embed_data=data_in_svg, schema=schema)
-        maidr = (
-            f"\nvar maidr = {json.dumps(schema, indent=2)}\n"
-            if not data_in_svg
-            else None
-        )
+
+        # Generate external payload if data is not embedded in SVG
+        maidr = None
+        if not data_in_svg:
+            maidr = f"\nvar maidr = {json.dumps(schema, indent=2)}\n"
 
         # Inject plot's svg and MAIDR structure into html tag.
         return Maidr._inject_plot(svg, maidr, self.maidr_id, use_iframe)
