@@ -312,7 +312,10 @@ class Maidr:
                 for cell in subplot_grid[i]
             ]
 
-        return {"id": Maidr._unique_id(), "subplots": subplot_grid}
+        return {
+            "id": Maidr._unique_id(),
+            "subplots": subplot_grid,
+        }
 
     def _get_svg(self) -> HTML:
         """Extract the chart SVG from ``matplotlib.figure.Figure``."""
