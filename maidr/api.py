@@ -14,12 +14,12 @@ from maidr.core.figure_manager import FigureManager
 def _get_plot_or_current(plot: Any | None) -> Any:
     """
     Get the plot object or current matplotlib figure if plot is None.
-    
+
     Parameters
     ----------
     plot : Any or None
         The plot object. If None, returns the current matplotlib figure.
-        
+
     Returns
     -------
     Any
@@ -28,7 +28,7 @@ def _get_plot_or_current(plot: Any | None) -> Any:
     if plot is None:
         # Lazy import matplotlib.pyplot when needed
         import matplotlib.pyplot as plt
-        
+
         return plt.gcf()
     return plot
 
@@ -48,7 +48,7 @@ def render(plot: Any | None = None) -> Tag:
         The rendered HTML representation of the plot.
     """
     plot = _get_plot_or_current(plot)
-    
+
     ax = FigureManager.get_axes(plot)
     if isinstance(ax, list):
         for axes in ax:
@@ -82,7 +82,7 @@ def show(
         The display result.
     """
     plot = _get_plot_or_current(plot)
-    
+
     ax = FigureManager.get_axes(plot)
     if isinstance(ax, list):
         for axes in ax:
@@ -95,10 +95,11 @@ def show(
 
 def save_html(
     plot: Any | None = None,
-    *, 
+    *,
     file: str,
-    lib_dir: str | None = "lib", 
-    include_version: bool = True
+    lib_dir: str | None = "lib",
+    include_version: bool = True,
+    data_in_svg: bool = True,
 ) -> str:
     """
     Save a MAIDR plot as HTML file.
@@ -120,19 +121,21 @@ def save_html(
         The path to the saved HTML file.
     """
     plot = _get_plot_or_current(plot)
-    
+
     ax = FigureManager.get_axes(plot)
     htmls = []
     if isinstance(ax, list):
         for axes in ax:
             maidr = FigureManager.get_maidr(axes.get_figure())
-            htmls.append(maidr._create_html_doc(use_iframe=False))
+            htmls.append(maidr._create_html_doc(use_iframe=False, data_in_svg=data_in_svg))
         return htmls[-1].save_html(
             file, libdir=lib_dir, include_version=include_version
         )
     else:
         maidr = FigureManager.get_maidr(ax.get_figure())
-        return maidr.save_html(file, lib_dir=lib_dir, include_version=include_version)
+        return maidr.save_html(
+            file, lib_dir=lib_dir, include_version=include_version, data_in_svg=data_in_svg
+        )
 
 
 def stacked(plot: Axes | BarContainer) -> Maidr:
@@ -150,6 +153,6 @@ def close(plot: Any | None = None) -> None:
         The plot object to close. If None, uses the current matplotlib figure.
     """
     plot = _get_plot_or_current(plot)
-    
+
     ax = FigureManager.get_axes(plot)
     FigureManager.destroy(ax.get_figure())

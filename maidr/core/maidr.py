@@ -72,7 +72,12 @@ class Maidr:
         return self._create_html_tag(use_iframe=True)
 
     def save_html(
-        self, file: str, *, lib_dir: str | None = "lib", include_version: bool = True
+        self,
+        file: str,
+        *,
+        lib_dir: str | None = "lib",
+        include_version: bool = True,
+        data_in_svg: bool = True,
     ) -> str:
         """
         Save the HTML representation of the figure with MAIDR to a file.
@@ -88,7 +93,7 @@ class Maidr:
             Whether to include the version number in the dependency folder name.
         """
         html = self._create_html_doc(
-            use_iframe=False
+            use_iframe=False, data_in_svg=data_in_svg
         )  # Always use direct HTML for saving
         return html.save_html(file, libdir=lib_dir, include_version=include_version)
 
@@ -180,8 +185,17 @@ class Maidr:
         else:
             webbrowser.open(f"file://{html_file_path}")
 
-    def _create_html_tag(self, use_iframe: bool = True) -> Tag:
-        """Create the MAIDR HTML using HTML tags."""
+    def _create_html_tag(self, use_iframe: bool = True, data_in_svg: bool = True) -> Tag:
+        """Create the MAIDR HTML using HTML tags.
+
+        Parameters
+        ----------
+        use_iframe : bool, default=True
+            Whether to render the plot inside an iframe (for notebooks and similar envs).
+        data_in_svg : bool, default=True
+            If True, the MAIDR JSON is embedded in the root <svg> under attribute 'maidr'.
+            If False, a <script>var maidr = {...}</script> tag is injected instead.
+        """
         tagged_elements: list[Any] = [
             element for plot in self._plots for element in plot.elements
         ]
@@ -191,16 +205,31 @@ class Maidr:
             for _ in plot.elements:
                 selector_ids.append(self.selector_ids[i])
 
+        # Build schema once so id stays consistent across SVG and global var
+        schema = self._flatten_maidr()
+
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
-            svg = self._get_svg()
-        maidr = f"\nlet maidr = {json.dumps(self._flatten_maidr(), indent=2)}\n"
+            svg = self._get_svg(embed_data=data_in_svg, schema=schema)
+        maidr = (
+            f"\nvar maidr = {json.dumps(schema, indent=2)}\n"
+            if not data_in_svg
+            else None
+        )
 
         # Inject plot's svg and MAIDR structure into html tag.
         return Maidr._inject_plot(svg, maidr, self.maidr_id, use_iframe)
 
-    def _create_html_doc(self, use_iframe: bool = True) -> HTMLDocument:
-        """Create an HTML document from Tag objects."""
-        return HTMLDocument(self._create_html_tag(use_iframe), lang="en")
+    def _create_html_doc(self, use_iframe: bool = True, data_in_svg: bool = True) -> HTMLDocument:
+        """Create an HTML document from Tag objects.
+
+        Parameters
+        ----------
+        use_iframe : bool, default=True
+            Whether to render the plot inside an iframe (for notebooks and similar envs).
+        data_in_svg : bool, default=True
+            See _create_html_tag for details on payload placement strategy.
+        """
+        return HTMLDocument(self._create_html_tag(use_iframe, data_in_svg), lang="en")
 
     def _merge_plots_by_subplot_position(self) -> list[MaidrPlot]:
         """
@@ -317,8 +346,18 @@ class Maidr:
             "subplots": subplot_grid,
         }
 
-    def _get_svg(self) -> HTML:
-        """Extract the chart SVG from ``matplotlib.figure.Figure``."""
+    def _get_svg(self, embed_data: bool = True, schema: dict | None = None) -> HTML:
+        """Extract the chart SVG from ``matplotlib.figure.Figure``.
+
+        Parameters
+        ----------
+        embed_data : bool, default=True
+            If True, embed the MAIDR JSON schema as an attribute named 'maidr' on
+            the root <svg> element. If False, do not embed JSON in the SVG.
+        schema : dict | None, default=None
+            If provided, this schema will be used (ensuring a consistent id across
+            the page). If None, a new schema will be generated.
+        """
         svg_buffer = io.StringIO()
         self._fig.savefig(svg_buffer, format="svg")
         str_svg = svg_buffer.getvalue()
@@ -326,12 +365,14 @@ class Maidr:
         etree.register_namespace("svg", "http://www.w3.org/2000/svg")
         tree_svg = etree.fromstring(str_svg.encode(), parser=None)
         root_svg = None
-        # Find the `svg` tag and set unique id if not present else use it.
+        # Find the `svg` tag and optionally embed MAIDR data.
         for element in tree_svg.iter(tag="{http://www.w3.org/2000/svg}svg"):
-            if "maidr-data" not in element.attrib:
-                element.attrib["maidr-data"] = json.dumps(
-                    self._flatten_maidr(), indent=2
-                )
+            current_schema = schema if schema is not None else self._flatten_maidr()
+            # Ensure SVG id matches schema id in both modes
+            if isinstance(current_schema, dict) and "id" in current_schema:
+                element.attrib["id"] = str(current_schema["id"])  # ensure match
+            if embed_data:
+                element.attrib["maidr"] = json.dumps(current_schema, indent=2)
             root_svg = element
             break
 
@@ -358,36 +399,41 @@ class Maidr:
         return str(uuid.uuid4())
 
     @staticmethod
-    def _inject_plot(plot: HTML, maidr: str, maidr_id, use_iframe: bool = True) -> Tag:
+    def _inject_plot(plot: HTML, maidr: str | None, maidr_id, use_iframe: bool = True) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
         # Get the latest version from npm registry
         MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
 
         script = f"""
-            if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
-            {{
-                var script = document.createElement('script');
-                script.type = 'module';
-                script.src = '{MAIDR_TS_CDN_URL}';
-                script.addEventListener('load', function() {{
-                    window.main();
-                }});
-                document.head.appendChild(script);
-            }} else {{
-                document.addEventListener('DOMContentLoaded', function (e) {{
-                    window.main();
-                }});
-            }}
+            (function() {{
+                var existing = document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]');
+                if (!existing) {{
+                    var s = document.createElement('script');
+                    s.src = '{MAIDR_TS_CDN_URL}';
+                    s.onload = function() {{ if (window.main) window.main(); }};
+                    document.head.appendChild(s);
+                }} else {{
+                    if (document.readyState === 'loading') {{
+                        document.addEventListener('DOMContentLoaded', function() {{ if (window.main) window.main(); }});
+                    }} else {{
+                        if (window.main) window.main();
+                    }}
+                }}
+            }})();
         """
 
-        base_html = tags.div(
+        children = [
             tags.link(
                 rel="stylesheet",
                 href="https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css",
-            ),
-            tags.script(script, type="text/javascript"),
-            tags.div(plot),
-        )
+            )
+        ]
+        if maidr is not None:
+            children.append(tags.script(maidr, type="text/javascript"))
+        children.append(tags.script(script, type="text/javascript"))
+        children.append(tags.div(plot))
+
+        base_html = tags.div(*children)
 
         # is_quarto = os.getenv("IS_QUARTO") == "True"
 
