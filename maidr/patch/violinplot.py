@@ -6,11 +6,220 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
 import numpy as np
+import pandas as pd
 
 from maidr.core.context_manager import BoxplotContextManager, ContextManager
-from maidr.core.enum import PlotType
+from maidr.core.enum import PlotType, MaidrKey
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot import MaidrPlot
 from maidr.patch.common import common
+
+
+class ViolinBoxPlot(MaidrPlot):
+    """
+    Custom plot class for violin box plots that directly provides box plot data.
+    """
+    
+    def __init__(self, ax, box_data, orientation="vert"):
+        super().__init__(ax, PlotType.BOX)
+        self.box_data = box_data
+        self.orientation = orientation
+        
+    def _extract_plot_data(self):
+        """Return the box plot data directly."""
+        return self.box_data
+        
+    def render(self):
+        """Generate the MAIDR schema for this violin box plot."""
+        maidr_schema = {
+            MaidrKey.ID: str(uuid.uuid4()),
+            MaidrKey.TYPE: self.type,
+            MaidrKey.TITLE: self.ax.get_title(),
+            MaidrKey.AXES: self._extract_axes_data(),
+            MaidrKey.DATA: self._extract_plot_data(),
+            MaidrKey.ORIENTATION: self.orientation,
+        }
+        return maidr_schema
+
+
+def calculate_box_stats_from_violin_data(data, orientation="vert"):
+    """
+    Calculate box plot statistics (Q1, Q2, Q3, IQR, min, max) from violin plot data.
+    
+    Parameters:
+    -----------
+    data : array-like
+        The data used to create the violin plot
+    orientation : str
+        "vert" for vertical violin plots, "horz" for horizontal
+        
+    Returns:
+    --------
+    dict : Box plot statistics with keys: q1, q2, q3, iqr, min, max
+    """
+    if data is None or len(data) == 0:
+        return None
+        
+    # Convert to numpy array and remove NaN values
+    data_array = np.asarray(data)
+    data_clean = data_array[~np.isnan(data_array)]
+    
+    if len(data_clean) == 0:
+        return None
+    
+    # Calculate quartiles
+    q1 = np.percentile(data_clean, 25)
+    q2 = np.percentile(data_clean, 50)  # median
+    q3 = np.percentile(data_clean, 75)
+    
+    # Calculate IQR
+    iqr = q3 - q1
+    
+    # Calculate whiskers (1.5 * IQR rule)
+    lower_whisker = q1 - 1.5 * iqr
+    upper_whisker = q3 + 1.5 * iqr
+    
+    # Find actual min/max within whisker range
+    data_within_whiskers = data_clean[(data_clean >= lower_whisker) & (data_clean <= upper_whisker)]
+    
+    if len(data_within_whiskers) > 0:
+        min_val = np.min(data_within_whiskers)
+        max_val = np.max(data_within_whiskers)
+    else:
+        min_val = np.min(data_clean)
+        max_val = np.max(data_clean)
+    
+    return {
+        MaidrKey.Q1.value: float(q1),
+        MaidrKey.Q2.value: float(q2),
+        MaidrKey.Q3.value: float(q3),
+        MaidrKey.IQ.value: float(iqr),
+        MaidrKey.MIN.value: float(min_val),
+        MaidrKey.MAX.value: float(max_val)
+    }
+
+
+def create_violin_box_elements(ax, box_stats, orientation="vert"):
+    """
+    Create box plot elements (lines) for violin plot based on calculated statistics.
+    
+    Parameters:
+    -----------
+    ax : matplotlib.axes.Axes
+        The axes object
+    box_stats : dict
+        Box plot statistics from calculate_box_stats_from_violin_data
+    orientation : str
+        "vert" for vertical violin plots, "horz" for horizontal
+        
+    Returns:
+    --------
+    dict : Box plot elements with keys: boxes, medians, whiskers, caps, fliers
+    """
+    if box_stats is None:
+        return {"boxes": [], "medians": [], "whiskers": [], "caps": [], "fliers": []}
+    
+    # Get the center position for the violin (assuming single violin)
+    if orientation == "vert":
+        # For vertical violin, center on x-axis
+        x_center = 0  # or get from violin position
+        y_min = box_stats[MaidrKey.MIN.value]
+        y_max = box_stats[MaidrKey.MAX.value]
+        y_q1 = box_stats[MaidrKey.Q1.value]
+        y_q2 = box_stats[MaidrKey.Q2.value]
+        y_q3 = box_stats[MaidrKey.Q3.value]
+        
+        # Create box (Q1 to Q3)
+        box_width = 0.4  # Adjust as needed
+        box_x = [x_center - box_width/2, x_center + box_width/2, x_center + box_width/2, x_center - box_width/2, x_center - box_width/2]
+        box_y = [y_q1, y_q1, y_q3, y_q3, y_q1]
+        
+        # Create median line
+        median_line = Line2D([x_center - box_width/2, x_center + box_width/2], [y_q2, y_q2], 
+                           color='black', linewidth=1)
+        
+        # Create whiskers (vertical lines)
+        whisker_width = 0.1
+        lower_whisker = Line2D([x_center, x_center], [y_min, y_q1], color='black', linewidth=1)
+        upper_whisker = Line2D([x_center, x_center], [y_q3, y_max], color='black', linewidth=1)
+        
+        # Create caps (horizontal lines at whisker ends)
+        cap_length = 0.2
+        lower_cap = Line2D([x_center - cap_length/2, x_center + cap_length/2], [y_min, y_min], color='black', linewidth=1)
+        upper_cap = Line2D([x_center - cap_length/2, x_center + cap_length/2], [y_max, y_max], color='black', linewidth=1)
+        
+    else:
+        # For horizontal violin, center on y-axis
+        y_center = 0  # or get from violin position
+        x_min = box_stats[MaidrKey.MIN.value]
+        x_max = box_stats[MaidrKey.MAX.value]
+        x_q1 = box_stats[MaidrKey.Q1.value]
+        x_q2 = box_stats[MaidrKey.Q2.value]
+        x_q3 = box_stats[MaidrKey.Q3.value]
+        
+        # Create box (Q1 to Q3)
+        box_height = 0.4  # Adjust as needed
+        box_x = [x_q1, x_q1, x_q3, x_q3, x_q1]
+        box_y = [y_center - box_height/2, y_center + box_height/2, y_center + box_height/2, y_center - box_height/2, y_center - box_height/2]
+        
+        # Create median line
+        median_line = Line2D([x_q2, x_q2], [y_center - box_height/2, y_center + box_height/2], 
+                           color='black', linewidth=1)
+        
+        # Create whiskers (horizontal lines)
+        whisker_height = 0.1
+        lower_whisker = Line2D([x_min, x_q1], [y_center, y_center], color='black', linewidth=1)
+        upper_whisker = Line2D([x_q3, x_max], [y_center, y_center], color='black', linewidth=1)
+        
+        # Create caps (vertical lines at whisker ends)
+        cap_length = 0.2
+        lower_cap = Line2D([x_min, x_min], [y_center - cap_length/2, y_center + cap_length/2], color='black', linewidth=1)
+        upper_cap = Line2D([x_max, x_max], [y_center - cap_length/2, y_center + cap_length/2], color='black', linewidth=1)
+    
+    # Add elements to the plot
+    ax.add_line(median_line)
+    ax.add_line(lower_whisker)
+    ax.add_line(upper_whisker)
+    ax.add_line(lower_cap)
+    ax.add_line(upper_cap)
+    
+    return {
+        "boxes": [],  # No box polygon for violin plots
+        "medians": [median_line],
+        "whiskers": [lower_whisker, upper_whisker],
+        "caps": [lower_cap, upper_cap],
+        "fliers": []  # No outliers for now
+    }
+
+
+def create_violin_box_data(box_stats, level="Violin"):
+    """
+    Create proper box plot data structure for violin plot.
+    
+    Parameters:
+    -----------
+    box_stats : dict
+        Box plot statistics from calculate_box_stats_from_violin_data
+    level : str
+        Level/fill value for the box plot data
+        
+    Returns:
+    --------
+    list : Box plot data in the format expected by MAIDR
+    """
+    if box_stats is None:
+        return []
+    
+    return [{
+        MaidrKey.FILL.value: level,
+        MaidrKey.MIN.value: box_stats[MaidrKey.MIN.value],
+        MaidrKey.Q1.value: box_stats[MaidrKey.Q1.value],
+        MaidrKey.Q2.value: box_stats[MaidrKey.Q2.value],
+        MaidrKey.Q3.value: box_stats[MaidrKey.Q3.value],
+        MaidrKey.MAX.value: box_stats[MaidrKey.MAX.value],
+        MaidrKey.LOWER_OUTLIER.value: [],  # No outliers for violin plots
+        MaidrKey.UPPER_OUTLIER.value: [],  # No outliers for violin plots
+    }]
 
 
 @wrapt.patch_function_wrapper("seaborn", "violinplot")
@@ -75,230 +284,56 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
 
     # Register box plot layer if we have box stats
     if has_box_stats:
-        # If bxp_stats were captured, validate they have meaningful data
-        # Check if bxp_stats exists AND has at least one non-empty list
-        has_valid_bxp_stats = False
-        if bxp_stats:
-            # Check if any list has elements
-            if (len(bxp_stats.get("boxes", [])) > 0 or 
-                len(bxp_stats.get("medians", [])) > 0 or 
-                len(bxp_stats.get("whiskers", [])) > 0 or 
-                len(bxp_stats.get("caps", [])) > 0):
-                has_valid_bxp_stats = True
+        print(f"[DEBUG] Attempting to register BOX layer for violin plot")
         
-        if has_valid_bxp_stats:
-            # Ensure all required lists exist (even if empty)
-            boxes = bxp_stats.get("boxes", [])
-            medians = bxp_stats.get("medians", [])
-            whiskers = bxp_stats.get("whiskers", [])
-            caps = bxp_stats.get("caps", [])
-            fliers = bxp_stats.get("fliers", [])
+        # Extract the original data from the violin plot arguments
+        # This is a simplified approach - in practice, you'd need to extract from the actual data
+        violin_data = None
+        if len(args) > 0:
+            violin_data = args[0]  # First argument is usually the data
+        elif 'y' in kwargs:
+            violin_data = kwargs['y']
+        elif 'x' in kwargs:
+            violin_data = kwargs['x']
+        
+        print(f"[DEBUG] Extracted violin data: {type(violin_data)}, length: {len(violin_data) if violin_data is not None else 'None'}")
+        
+        if violin_data is not None:
+            # Calculate box plot statistics from the violin data
+            box_stats = calculate_box_stats_from_violin_data(violin_data, orientation_str)
+            print(f"[DEBUG] Calculated box stats: {box_stats}")
             
-            # Register if we have at least one type of box plot element
-            # Box polygons are optional (newer seaborn may not create them)
-            # Whiskers and caps should be in pairs, but allow if empty
-            has_any_elements = (
-                len(boxes) > 0 or
-                len(medians) > 0 or
-                len(whiskers) > 0 or
-                len(caps) > 0
-            )
-            
-            # If whiskers or caps exist, ensure they're properly paired
-            whiskers_paired = len(whiskers) == 0 or len(whiskers) % 2 == 0
-            caps_paired = len(caps) == 0 or len(caps) % 2 == 0
-            
-            if has_any_elements and whiskers_paired and caps_paired:
-                print(f"[DEBUG] Attempting to register BOX layer with captured stats")
+            if box_stats is not None:
+                # Create box plot elements
+                box_elements = create_violin_box_elements(ax, box_stats, orientation_str)
+                print(f"[DEBUG] Created box elements: {len(box_elements['medians'])} medians, "
+                      f"{len(box_elements['whiskers'])} whiskers, {len(box_elements['caps'])} caps")
+                
+                # Create proper box plot data structure for MAIDR
+                box_data = create_violin_box_data(box_stats, "Violin")
+                print(f"[DEBUG] Created box data: {box_data}")
+                
+                # Create custom violin box plot and add it to MAIDR
                 try:
-                    # Register box plot layer using captured bxp_stats
-                    FigureManager.create_maidr(
-                        ax, PlotType.BOX, bxp_stats=bxp_stats, orientation=orientation_str
-                    )
-                    print(f"[DEBUG] ✓ BOX layer registered successfully")
+                    # Get the MAIDR instance for this figure
+                    maidr_instance = FigureManager._get_maidr(ax.get_figure(), PlotType.SMOOTH)
+                    
+                    # Create our custom violin box plot
+                    violin_box_plot = ViolinBoxPlot(ax, box_data, orientation_str)
+                    
+                    # Add it to the MAIDR instance
+                    maidr_instance.plots.append(violin_box_plot)
+                    maidr_instance.selector_ids.append(str(uuid.uuid4()))
+                    
+                    print(f"[DEBUG] ✓ BOX layer registered successfully for violin plot")
                 except Exception as e:
-                    # If registration fails, fall through to manual extraction
                     print(f"[DEBUG] ✗ BOX registration failed: {e}")
                     import traceback
                     traceback.print_exc()
-                    pass
+            else:
+                print(f"[DEBUG] Could not calculate box stats from violin data")
         else:
-            print(f"[DEBUG] bxp_stats is empty/dict, using fallback extraction")
-            try:
-                # Fallback: Robust line-based extraction of box plot elements
-                # Strategy: Identify medians, whiskers, and caps from Line2D objects
-                # using peak-to-peak ranges and relative positioning
-                
-                box_polys = []
-                median_lines = []
-                whisker_lines = []
-                cap_lines = []
-                
-                # Optional: Try to find box polygons (but don't rely on them)
-                # Identify violin polygons to exclude them
-                violin_poly_ids = set()
-                for collection in ax.collections:
-                    if isinstance(collection, PolyCollection):
-                        if hasattr(collection, "get_paths") and collection.get_paths():
-                            path = collection.get_paths()[0]
-                            if len(path.vertices) > 10:
-                                if collection.get_gid():
-                                    violin_poly_ids.add(collection.get_gid())
-                
-                # Extract box polygons (optional - may not exist in newer seaborn)
-                for collection in ax.collections:
-                    if isinstance(collection, PolyCollection):
-                        if hasattr(collection, "get_paths") and collection.get_paths():
-                            path = collection.get_paths()[0]
-                            if 4 <= len(path.vertices) <= 10:
-                                if collection.get_gid() not in violin_poly_ids:
-                                    box_polys.append(collection)
-                
-                for artist in ax.artists:
-                    if isinstance(artist, PolyCollection):
-                        if hasattr(artist, "get_paths") and artist.get_paths():
-                            path = artist.get_paths()[0]
-                            if 4 <= len(path.vertices) <= 10:
-                                if artist.get_gid() not in violin_poly_ids:
-                                    box_polys.append(artist)
-                
-                # Extract and classify lines using robust peak-to-peak ranges
-                all_lines = [line for line in ax.get_lines() if isinstance(line, Line2D)]
-                print(f"[DEBUG] Found {len(all_lines)} total Line2D objects")
-                
-                if len(all_lines) == 0:
-                    # No lines found, skip registration
-                    print(f"[DEBUG] No lines found, skipping box plot registration")
-                else:
-                    # Get axes ranges for relative threshold calculation
-                    xlim = ax.get_xlim()
-                    ylim = ax.get_ylim()
-                    x_range = abs(xlim[1] - xlim[0]) if xlim[1] != xlim[0] else 1
-                    y_range = abs(ylim[1] - ylim[0]) if ylim[1] != ylim[0] else 1
-                    
-                    # Calculate ranges for each line using np.ptp (peak-to-peak)
-                    for idx, line in enumerate(all_lines):
-                        xdata = np.asarray(line.get_xdata())
-                        ydata = np.asarray(line.get_ydata())
-                        
-                        if len(xdata) < 2 or len(ydata) < 2:
-                            print(f"[DEBUG] Line {idx}: skipping (insufficient data points)")
-                            continue
-                        
-                        dx = np.ptp(xdata)  # peak-to-peak x range
-                        dy = np.ptp(ydata)  # peak-to-peak y range
-                        
-                        print(f"[DEBUG] Line {idx}: dx={dx:.2f} ({dx/x_range*100:.1f}% of x_range), "
-                              f"dy={dy:.2f} ({dy/y_range*100:.1f}% of y_range), "
-                              f"x_range={x_range:.2f}, y_range={y_range:.2f}")
-                        
-                        # Use relative thresholds (robust to scale)
-                        # For single violin plots, x_range can be near zero, so use absolute minimum
-                        x_rel_threshold = max(x_range * 0.02, 0.1)  # At least 0.1 units
-                        y_rel_threshold = max(y_range * 0.02, 0.1)  # At least 0.1 units
-                        
-                        if orientation_str == "vert":
-                            # Vertical orientation: whiskers are vertical, medians/caps are horizontal
-                            
-                            # Median: long horizontal line (perpendicular to whiskers)
-                            # For single violin: dx can be very small (≈0), but dy should be tiny
-                            # Condition: very small y-range (< 2% or < 0.5 units), and points in same y
-                            if dy < max(y_rel_threshold, 0.5) and len(ydata) >= 2:
-                                # Check if it's horizontal: y values are nearly constant
-                                if not any(id(line) == id(m) for m in median_lines):
-                                    median_lines.append(line)
-                                    print(f"[DEBUG] Line {idx}: Classified as MEDIAN (dy={dy:.2f})")
-                            # Whisker: long vertical line (aligned with value axis)
-                            # Condition: very small x-range (< 2% or < 0.1 units), large y-range (> 10% of y_range)
-                            elif dx < max(x_rel_threshold, 0.1):
-                                whisker_thresh_y = max(y_rel_threshold * 5, y_range * 0.1)
-                                if dy > whisker_thresh_y:
-                                    if not any(id(line) == id(w) for w in whisker_lines):
-                                        whisker_lines.append(line)
-                                        print(f"[DEBUG] Line {idx}: Classified as WHISKER (dx={dx:.2f}, dy={dy:.2f})")
-                            # Cap: short horizontal segment at whisker ends
-                            # Condition: small y-range (< 2% or < 0.5 units), small x-range
-                            elif dy < max(y_rel_threshold, 0.5) and dx > 0.05 and dx < max(x_range * 0.2, 1.0):
-                                if not any(id(line) == id(c) for c in cap_lines):
-                                    cap_lines.append(line)
-                                    print(f"[DEBUG] Line {idx}: Classified as CAP (dx={dx:.2f}, dy={dy:.2f})")
-                            else:
-                                print(f"[DEBUG] Line {idx}: Not classified (dx={dx:.2f}, dy={dy:.2f}, "
-                                      f"x_range={x_range:.2f}, y_range={y_range:.2f})")
-                        else:
-                            # Horizontal orientation: mirrored conditions
-                            # Median: long vertical line
-                            if dx < x_rel_threshold and dy > y_rel_threshold * 3:
-                                if not any(id(line) == id(m) for m in median_lines):
-                                    median_lines.append(line)
-                            # Whisker: long horizontal line
-                            elif dy < y_rel_threshold and dx > x_rel_threshold * 5:
-                                if not any(id(line) == id(w) for w in whisker_lines):
-                                    whisker_lines.append(line)
-                            # Cap: short vertical segment
-                            elif dx < x_rel_threshold and 0 < dy < y_range * 0.2:
-                                if not any(id(line) == id(c) for c in cap_lines):
-                                    cap_lines.append(line)
-                    
-                    # Register if we found at least medians OR (whiskers + caps)
-                    # Box polygons are optional
-                    print(f"[DEBUG] Classified lines: {len(median_lines)} medians, "
-                          f"{len(whisker_lines)} whiskers, {len(cap_lines)} caps, "
-                          f"{len(box_polys)} box polygons")
-                    has_medians = len(median_lines) > 0
-                    has_whiskers_and_caps = (len(whisker_lines) >= 2) and (len(cap_lines) >= 2)
-                    
-                    # Ensure whiskers and caps are properly paired (even counts)
-                    # BoxPlotExtractor expects pairs: [lower, upper, lower, upper, ...]
-                    paired_whiskers = whisker_lines[:len(whisker_lines)//2*2] if len(whisker_lines) >= 2 else []
-                    paired_caps = cap_lines[:len(cap_lines)//2*2] if len(cap_lines) >= 2 else []
-                    
-                    print(f"[DEBUG] Registration check: has_medians={has_medians}, "
-                          f"has_whiskers_and_caps={has_whiskers_and_caps}, has_box_polys={len(box_polys) > 0}, "
-                          f"paired_whiskers={len(paired_whiskers)}")
-                    
-                    if has_medians or has_whiskers_and_caps or box_polys:
-                        
-                        # Construct bxp_stats - allow empty boxes (common in newer seaborn)
-                        constructed_stats = {
-                            "boxes": box_polys,
-                            "medians": median_lines,
-                            "whiskers": paired_whiskers,
-                            "caps": paired_caps,
-                            "fliers": []
-                        }
-                        
-                        # Only register if we have meaningful data
-                        # Need at least: medians OR (paired whiskers + paired caps)
-                        can_register = (
-                            len(median_lines) > 0 or
-                            (len(paired_whiskers) >= 2 and len(paired_caps) >= 2) or
-                            len(box_polys) > 0
-                        )
-                        
-                        if can_register:
-                            print(f"[DEBUG] Attempting to register BOX layer with fallback stats: "
-                                  f"boxes={len(box_polys)}, medians={len(median_lines)}, "
-                                  f"whiskers={len(paired_whiskers)}, caps={len(paired_caps)}")
-                            try:
-                                # Register box plot with extracted elements
-                                FigureManager.create_maidr(
-                                    ax, PlotType.BOX, bxp_stats=constructed_stats, orientation=orientation_str
-                                )
-                                print(f"[DEBUG] ✓ BOX layer registered successfully (fallback)")
-                            except Exception as e:
-                                # If registration fails (e.g., extraction error), continue
-                                # This allows the smooth layer to still be registered
-                                print(f"[DEBUG] ✗ BOX registration failed (fallback): {e}")
-                                import traceback
-                                traceback.print_exc()
-                                pass
-                        else:
-                            print(f"[DEBUG] Cannot register: no valid box plot elements found")
-            except Exception as e:
-                print(f"[DEBUG] Fallback extraction failed: {e}")
-                import traceback
-                traceback.print_exc()
+            print(f"[DEBUG] Could not extract violin data for box plot calculation")
 
     # Register KDE (violin shape) as SMOOTH layer
     # Violin plots create filled polygons for the KDE distribution
