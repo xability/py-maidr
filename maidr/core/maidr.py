@@ -361,19 +361,14 @@ class Maidr:
         MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
 
         script = f"""
+            // ES modules execute automatically, no need to call window.main()
+            // The maidr.js module will auto-initialize on load
             if (!document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]'))
             {{
                 var script = document.createElement('script');
                 script.type = 'module';
                 script.src = '{MAIDR_TS_CDN_URL}';
-                script.addEventListener('load', function() {{
-                    window.main();
-                }});
                 document.head.appendChild(script);
-            }} else {{
-                document.addEventListener('DOMContentLoaded', function (e) {{
-                    window.main();
-                }});
             }}
         """
 

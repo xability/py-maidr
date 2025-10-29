@@ -5,8 +5,8 @@ import maidr
 # Load sample dataset
 tips = sns.load_dataset("tips")
 
-# Create a single violin plot
-v = sns.violinplot(y=tips["total_bill"])
+# Create a single violin plot with box plot elements
+v = sns.violinplot(y=tips["total_bill"], inner='box')
 
 # Customize the plot
 plt.title("Distribution of Total Bill")
