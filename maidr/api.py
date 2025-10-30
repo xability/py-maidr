@@ -115,9 +115,7 @@ def save_html(
     include_version : bool, default True
         Whether to include version information.
     data_in_svg : bool, default True
-        Controls where the MAIDR JSON payload is placed in the HTML.
-        - True: Embed JSON in the root <svg> element as attribute 'maidr'.
-        - False: Inject a <script>var maidr = {...}</script> tag before loading the library.
+        Controls where the MAIDR JSON payload is placed in the HTML or SVG.
 
     Returns
     -------

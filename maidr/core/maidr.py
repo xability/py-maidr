@@ -91,6 +91,8 @@ class Maidr:
             (relative to the file's directory).
         include_version : bool, default=True
             Whether to include the version number in the dependency folder name.
+        data_in_svg : bool, default=True
+            Controls where the MAIDR JSON payload is placed in the output HTML or SVG.
         """
         html = self._create_html_doc(
             use_iframe=False, data_in_svg=data_in_svg
