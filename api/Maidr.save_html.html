@@ -178,7 +178,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="maidr.Maidr.save_html" class="level1">
 <h1>Maidr.save_html</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Maidr.save_html(<span class="bu">file</span>, <span class="op">*</span>, lib_dir<span class="op">=</span><span class="st">'lib'</span>, include_version<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Maidr.save_html(<span class="bu">file</span>, <span class="op">*</span>, lib_dir<span class="op">=</span><span class="st">'lib'</span>, include_version<span class="op">=</span><span class="va">True</span>, data_in_svg<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Save the HTML representation of the figure with MAIDR to a file.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
@@ -208,6 +208,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>include_version</td>
 <td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a></td>
 <td>Whether to include the version number in the dependency folder name.</td>
+<td><code>True</code></td>
+</tr>
+<tr class="even">
+<td>data_in_svg</td>
+<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a></td>
+<td>Controls where the MAIDR JSON payload is placed in the output HTML or SVG.</td>
 <td><code>True</code></td>
 </tr>
 </tbody>
