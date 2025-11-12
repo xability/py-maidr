@@ -5,6 +5,7 @@ import uuid
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
+from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
 
@@ -20,10 +21,97 @@ class ViolinBoxPlot(MaidrPlot):
     Custom plot class for violin box plots that directly provides box plot data.
     """
     
-    def __init__(self, ax, box_data, orientation="vert"):
+    def __init__(self, ax, box_data, orientation="vert", elements_info=None, box_elements_list=None):
         super().__init__(ax, PlotType.BOX)
         self.box_data = box_data
         self.orientation = orientation
+        self._support_highlighting = True
+        # Initialize elements_map similar to BoxPlot
+        self.elements_map = {
+            "min": [],
+            "max": [],
+            "median": [],
+            "boxes": [],
+            "outliers": [],
+        }
+        self.lower_outliers_count = []
+        
+        # Store element references for proper tracking (similar to BoxPlot)
+        # These elements must be in self._elements for the highlighting system to work
+        # The highlighting system collects elements from plot.elements and registers them
+        # when they're drawn, so they get the 'maidr' attribute in the SVG
+        if box_elements_list:
+            self._elements.extend(box_elements_list)
+            print(f"[DEBUG] Added {len(box_elements_list)} elements to ViolinBoxPlot._elements")
+        
+        # Store element info if provided
+        if elements_info:
+            self._store_elements_info(elements_info)
+        
+    def _store_elements_info(self, elements_info):
+        """Store element IDs from elements_info into elements_map."""
+        # elements_info is a list of dicts, one per violin/box
+        # Each dict has: min_gid, max_gid, median_gid, box_gid (optional)
+        for elem_info in elements_info:
+            if "min_gid" in elem_info:
+                self.elements_map["min"].append(elem_info["min_gid"])
+            if "max_gid" in elem_info:
+                self.elements_map["max"].append(elem_info["max_gid"])
+            if "median_gid" in elem_info:
+                self.elements_map["median"].append(elem_info["median_gid"])
+            if "box_gid" in elem_info:
+                self.elements_map["boxes"].append(elem_info["box_gid"])
+            else:
+                # If no box_gid, use median_gid as fallback (for IQR selector)
+                if "median_gid" in elem_info:
+                    self.elements_map["boxes"].append(elem_info["median_gid"])
+            # Outliers are empty for violin plots
+            self.elements_map["outliers"].append("")
+            self.lower_outliers_count.append(0)
+        
+    def _get_selector(self) -> list[dict]:
+        """Return selectors for boxplot elements, similar to BoxPlot._get_selector()."""
+        mins, maxs, medians, boxes, outliers = self.elements_map.values()
+        selector = []
+        
+        for (
+            min_gid,
+            max_gid,
+            median_gid,
+            box_gid,
+            outlier_gid,
+            lower_outliers_count,
+        ) in zip(
+            mins,
+            maxs,
+            medians,
+            boxes,
+            outliers,
+            self.lower_outliers_count,
+        ):
+            selector_dict = {}
+            
+            # For violin plots, elements are Line2D which become paths in SVG
+            # The GID is set on the Line2D element using set_gid()
+            # Use the EXACT same selector format as regular boxplots: g[id='...'] > path
+            # This matches how matplotlib structures boxplot elements in SVG
+            # If Line2D elements aren't wrapped in groups, we may need to wrap them manually
+            # or use a different element type that gets wrapped automatically
+            if min_gid:
+                selector_dict[MaidrKey.MIN.value] = f"g[id='{min_gid}'] > path"
+            if max_gid:
+                selector_dict[MaidrKey.MAX.value] = f"g[id='{max_gid}'] > path"
+            if median_gid:
+                selector_dict[MaidrKey.Q2.value] = f"g[id='{median_gid}'] > path"
+            if box_gid:
+                selector_dict[MaidrKey.IQ.value] = f"g[id='{box_gid}'] > path"
+            # Outliers are empty for violin plots
+            selector_dict[MaidrKey.LOWER_OUTLIER.value] = []
+            selector_dict[MaidrKey.UPPER_OUTLIER.value] = []
+            
+            selector.append(selector_dict)
+        
+        return selector if self.orientation == "vert" else list(reversed(selector))
         
     def _extract_plot_data(self):
         """Return the box plot data directly."""
@@ -39,6 +127,9 @@ class ViolinBoxPlot(MaidrPlot):
             MaidrKey.DATA: self._extract_plot_data(),
             MaidrKey.ORIENTATION: self.orientation,
         }
+        # Add selectors if we have element IDs
+        if self.elements_map["min"] or self.elements_map["max"] or self.elements_map["median"]:
+            maidr_schema[MaidrKey.SELECTOR] = self._get_selector()
         return maidr_schema
 
 
@@ -99,9 +190,10 @@ def calculate_box_stats_from_violin_data(data, orientation="vert"):
     }
 
 
-def create_violin_box_elements(ax, box_stats, orientation="vert"):
+def create_violin_box_elements(ax, box_stats, orientation="vert", x_position=0):
     """
     Create box plot elements (lines) for violin plot based on calculated statistics.
+    Assigns GIDs to elements for highlighting.
     
     Parameters:
     -----------
@@ -114,25 +206,33 @@ def create_violin_box_elements(ax, box_stats, orientation="vert"):
         
     Returns:
     --------
-    dict : Box plot elements with keys: boxes, medians, whiskers, caps, fliers
+    tuple : (elements_dict, elements_info_dict)
+        elements_dict: Box plot elements with keys: boxes, medians, whiskers, caps, fliers
+        elements_info_dict: Dict with GIDs for selectors: min_gid, max_gid, median_gid
     """
     if box_stats is None:
-        return {"boxes": [], "medians": [], "whiskers": [], "caps": [], "fliers": []}
+        return ({"boxes": [], "medians": [], "whiskers": [], "caps": [], "fliers": []}, {})
     
-    # Get the center position for the violin (assuming single violin)
+    # Get the center position for the violin
     if orientation == "vert":
-        # For vertical violin, center on x-axis
-        x_center = 0  # or get from violin position
+        # For vertical violin, center on x-axis at the specified position
+        x_center = x_position
         y_min = box_stats[MaidrKey.MIN.value]
         y_max = box_stats[MaidrKey.MAX.value]
         y_q1 = box_stats[MaidrKey.Q1.value]
         y_q2 = box_stats[MaidrKey.Q2.value]
         y_q3 = box_stats[MaidrKey.Q3.value]
         
-        # Create box (Q1 to Q3)
+        # Create box (Q1 to Q3) - IQR rectangle
         box_width = 0.4  # Adjust as needed
-        box_x = [x_center - box_width/2, x_center + box_width/2, x_center + box_width/2, x_center - box_width/2, x_center - box_width/2]
-        box_y = [y_q1, y_q1, y_q3, y_q3, y_q1]
+        box_rect = Rectangle(
+            (x_center - box_width/2, y_q1),  # bottom-left corner
+            box_width,  # width
+            y_q3 - y_q1,  # height (Q3 - Q1)
+            linewidth=1,
+            edgecolor='black',
+            facecolor='none'
+        )
         
         # Create median line
         median_line = Line2D([x_center - box_width/2, x_center + box_width/2], [y_q2, y_q2], 
@@ -149,18 +249,24 @@ def create_violin_box_elements(ax, box_stats, orientation="vert"):
         upper_cap = Line2D([x_center - cap_length/2, x_center + cap_length/2], [y_max, y_max], color='black', linewidth=1)
         
     else:
-        # For horizontal violin, center on y-axis
-        y_center = 0  # or get from violin position
+        # For horizontal violin, center on y-axis at the specified position
+        y_center = x_position  # For horizontal, x_position is actually y_position
         x_min = box_stats[MaidrKey.MIN.value]
         x_max = box_stats[MaidrKey.MAX.value]
         x_q1 = box_stats[MaidrKey.Q1.value]
         x_q2 = box_stats[MaidrKey.Q2.value]
         x_q3 = box_stats[MaidrKey.Q3.value]
         
-        # Create box (Q1 to Q3)
+        # Create box (Q1 to Q3) - IQR rectangle
         box_height = 0.4  # Adjust as needed
-        box_x = [x_q1, x_q1, x_q3, x_q3, x_q1]
-        box_y = [y_center - box_height/2, y_center + box_height/2, y_center + box_height/2, y_center - box_height/2, y_center - box_height/2]
+        box_rect = Rectangle(
+            (x_q1, y_center - box_height/2),  # bottom-left corner
+            x_q3 - x_q1,  # width (Q3 - Q1)
+            box_height,  # height
+            linewidth=1,
+            edgecolor='black',
+            facecolor='none'
+        )
         
         # Create median line
         median_line = Line2D([x_q2, x_q2], [y_center - box_height/2, y_center + box_height/2], 
@@ -176,20 +282,45 @@ def create_violin_box_elements(ax, box_stats, orientation="vert"):
         lower_cap = Line2D([x_min, x_min], [y_center - cap_length/2, y_center + cap_length/2], color='black', linewidth=1)
         upper_cap = Line2D([x_max, x_max], [y_center - cap_length/2, y_center + cap_length/2], color='black', linewidth=1)
     
+    # Assign GIDs to elements for highlighting
+    min_gid = f"maidr-{uuid.uuid4()}"
+    max_gid = f"maidr-{uuid.uuid4()}"
+    median_gid = f"maidr-{uuid.uuid4()}"
+    box_gid = f"maidr-{uuid.uuid4()}"
+    
+    lower_cap.set_gid(min_gid)
+    upper_cap.set_gid(max_gid)
+    median_line.set_gid(median_gid)
+    box_rect.set_gid(box_gid)
+    
+    # Also set GIDs on whiskers for completeness (though they're not used in selectors)
+    lower_whisker.set_gid(f"maidr-{uuid.uuid4()}")
+    upper_whisker.set_gid(f"maidr-{uuid.uuid4()}")
+    
     # Add elements to the plot
+    ax.add_patch(box_rect)  # Add box rectangle first
     ax.add_line(median_line)
     ax.add_line(lower_whisker)
     ax.add_line(upper_whisker)
     ax.add_line(lower_cap)
     ax.add_line(upper_cap)
     
-    return {
-        "boxes": [],  # No box polygon for violin plots
+    elements_dict = {
+        "boxes": [box_rect],  # Box rectangle for IQR
         "medians": [median_line],
         "whiskers": [lower_whisker, upper_whisker],
         "caps": [lower_cap, upper_cap],
         "fliers": []  # No outliers for now
     }
+    
+    elements_info = {
+        "min_gid": min_gid,
+        "max_gid": max_gid,
+        "median_gid": median_gid,
+        "box_gid": box_gid,  # Box GID for IQR highlighting
+    }
+    
+    return (elements_dict, elements_info)
 
 
 def create_violin_box_data(box_stats, level="Violin"):
@@ -317,9 +448,18 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                 # Multiple violins - calculate stats for each group
                 print(f"[DEBUG] Multiple violins detected, calculating box stats per group")
                 all_box_data = []
+                all_elements_info = []
+                all_box_elements = []  # Collect all elements for tracking
                 
                 # Group data by x values
-                for group_name, group_data in data_df.groupby(x_col):
+                # Get unique groups and their order to determine positions
+                # IMPORTANT: Iterate in the order of unique_groups to ensure data and selectors match
+                unique_groups = data_df[x_col].unique()
+                group_positions = {group: idx for idx, group in enumerate(unique_groups)}
+                
+                # Iterate through groups in the order they appear (matching visual order)
+                for group_idx, group_name in enumerate(unique_groups):
+                    group_data = data_df[data_df[x_col] == group_name]
                     group_y_values = group_data[y_col].dropna().values
                     if len(group_y_values) > 0:
                         group_box_stats = calculate_box_stats_from_violin_data(group_y_values, orientation_str)
@@ -327,7 +467,21 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                             # Create box plot data for this group
                             group_box_data = create_violin_box_data(group_box_stats, str(group_name))
                             all_box_data.extend(group_box_data)
-                            print(f"[DEBUG] Calculated box stats for group '{group_name}': {group_box_stats}")
+                            
+                            # Create box plot elements for this group
+                            # Position elements at the correct x position for this violin
+                            # The violin positions are typically at 0, 1, 2, ... for each group
+                            group_pos = group_positions.get(group_name, group_idx)
+                            box_elements, elements_info = create_violin_box_elements(ax, group_box_stats, orientation_str, x_position=group_pos)
+                            all_elements_info.append(elements_info)
+                            
+                            # Collect elements for tracking
+                            if box_elements:
+                                all_box_elements.extend(box_elements.get("boxes", []) + 
+                                                       box_elements.get("medians", []) + 
+                                                       box_elements.get("whiskers", []) + 
+                                                       box_elements.get("caps", []))
+                            print(f"[DEBUG] Calculated box stats for group '{group_name}' (index {group_idx}): {group_box_stats}")
                 
                 if all_box_data:
                     print(f"[DEBUG] Created box data for {len(all_box_data)} groups")
@@ -336,8 +490,10 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                         # Get the MAIDR instance for this figure
                         maidr_instance = FigureManager._get_maidr(ax.get_figure(), PlotType.SMOOTH)
                         
-                        # Create our custom violin box plot
-                        violin_box_plot = ViolinBoxPlot(ax, all_box_data, orientation_str)
+                        # Create our custom violin box plot with element info for selectors
+                        violin_box_plot = ViolinBoxPlot(ax, all_box_data, orientation_str, 
+                                                       elements_info=all_elements_info,
+                                                       box_elements_list=all_box_elements)
                         
                         # Add it to the MAIDR instance
                         maidr_instance.plots.append(violin_box_plot)
@@ -381,9 +537,10 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
         
         if box_stats is not None:
             # Create box plot elements
-            box_elements = create_violin_box_elements(ax, box_stats, orientation_str)
+            box_elements, elements_info = create_violin_box_elements(ax, box_stats, orientation_str)
             print(f"[DEBUG] Created box elements: {len(box_elements['medians'])} medians, "
                   f"{len(box_elements['whiskers'])} whiskers, {len(box_elements['caps'])} caps")
+            print(f"[DEBUG] Element GIDs: min={elements_info.get('min_gid')}, max={elements_info.get('max_gid')}, median={elements_info.get('median_gid')}")
             
             # Create proper box plot data structure for MAIDR
             box_data = create_violin_box_data(box_stats, "Violin")
@@ -394,8 +551,20 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                 # Get the MAIDR instance for this figure
                 maidr_instance = FigureManager._get_maidr(ax.get_figure(), PlotType.SMOOTH)
                 
-                # Create our custom violin box plot
-                violin_box_plot = ViolinBoxPlot(ax, box_data, orientation_str)
+                # Collect elements for tracking
+                # These must be the actual matplotlib artist objects (Line2D, Rectangle, etc.)
+                # that were added to the axes, so they can be registered with HighlightContextManager
+                box_elements_list = (box_elements.get("boxes", []) + 
+                                   box_elements.get("medians", []) + 
+                                   box_elements.get("whiskers", []) + 
+                                   box_elements.get("caps", []))
+                print(f"[DEBUG] Collected {len(box_elements_list)} box elements for tracking")
+                print(f"[DEBUG] Element types: {[type(e).__name__ for e in box_elements_list]}")
+                
+                # Create our custom violin box plot with element info for selectors
+                violin_box_plot = ViolinBoxPlot(ax, box_data, orientation_str, 
+                                               elements_info=[elements_info],
+                                               box_elements_list=box_elements_list)
                 
                 # Add it to the MAIDR instance
                 maidr_instance.plots.append(violin_box_plot)
