@@ -442,9 +442,9 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
     
     # Extract the y column from the DataFrame if we have it
     if data_df is not None and isinstance(data_df, pd.DataFrame):
-        if y_col and isinstance(y_col, str) and y_col in data_df.columns:
+        if y_col is not None and isinstance(y_col, str) and y_col in data_df.columns:
             # Check if we have multiple groups (x parameter exists)
-            if x_col and isinstance(x_col, str) and x_col in data_df.columns:
+            if x_col is not None and isinstance(x_col, str) and x_col in data_df.columns:
                 # Multiple violins - calculate stats for each group
                 print(f"[DEBUG] Multiple violins detected, calculating box stats per group")
                 all_box_data = []
@@ -507,16 +507,26 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
             else:
                 # Single violin - use all y values
                 violin_data = data_df[y_col].dropna().values
-        elif x_col and orientation_str == "horz":
+        elif x_col is not None and orientation_str == "horz":
             # For horizontal plots, x is the numeric column
             if isinstance(x_col, str) and x_col in data_df.columns:
                 violin_data = data_df[x_col].dropna().values
     else:
         # Fallback: try to get data directly
-        if y_col:
-            violin_data = y_col
-        elif x_col:
-            violin_data = x_col
+        if y_col is not None:
+            # Handle pandas Series - check if it's not empty
+            if isinstance(y_col, pd.Series):
+                if not y_col.empty:
+                    violin_data = y_col
+            else:
+                violin_data = y_col
+        elif x_col is not None:
+            # Handle pandas Series - check if it's not empty
+            if isinstance(x_col, pd.Series):
+                if not x_col.empty:
+                    violin_data = x_col
+            else:
+                violin_data = x_col
         elif len(args) > 0:
             violin_data = args[0]
     
