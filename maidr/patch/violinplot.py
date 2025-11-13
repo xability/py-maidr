@@ -446,45 +446,94 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
             # Check if we have multiple groups (x parameter exists)
             if x_col is not None and isinstance(x_col, str) and x_col in data_df.columns:
                 # Multiple violins - calculate stats for each group
-                print(f"[DEBUG] Multiple violins detected, calculating box stats per group")
                 all_box_data = []
                 all_elements_info = []
                 all_box_elements = []  # Collect all elements for tracking
                 
-                # Group data by x values
-                # Get unique groups and their order to determine positions
-                # IMPORTANT: Iterate in the order of unique_groups to ensure data and selectors match
-                unique_groups = data_df[x_col].unique()
+                # Get the actual visual order from the axes tick labels (matches seaborn's display order)
+                # This is critical to ensure box plot data matches the visual violin order
+                if orientation_str == "vert":
+                    tick_labels = [label.get_text() for label in ax.get_xticklabels()]
+                    tick_positions = ax.get_xticks()
+                else:
+                    tick_labels = [label.get_text() for label in ax.get_yticklabels()]
+                    tick_positions = ax.get_yticks()
+                
+                # Match tick positions to groups and sort by position to ensure correct visual order
+                position_group_pairs = []
+                if tick_labels and len(tick_labels) > 0 and len(tick_positions) == len(tick_labels):
+                    # Create pairs of (position, group) for each tick
+                    for tick_pos, tick_label in zip(tick_positions, tick_labels):
+                        # Try to find matching group in the data
+                        for group in data_df[x_col].unique():
+                            if str(group) == str(tick_label) or str(group) == tick_label:
+                                position_group_pairs.append((tick_pos, group))
+                                break
+                
+                # If we couldn't match all, create pairs from unique() order
+                if len(position_group_pairs) != len(tick_positions):
+                    unique_groups_list = list(data_df[x_col].unique())
+                    if len(tick_positions) == len(unique_groups_list):
+                        position_group_pairs = list(zip(tick_positions, unique_groups_list))
+                    else:
+                        # Fallback: use sequential positions
+                        if orientation_str == "vert":
+                            fallback_positions = list(range(len(unique_groups_list)))
+                        else:
+                            fallback_positions = list(range(len(unique_groups_list)))
+                        position_group_pairs = list(zip(fallback_positions, unique_groups_list))
+                
+                # Sort by position to ensure left-to-right (or bottom-to-top) order
+                position_group_pairs.sort(key=lambda x: x[0])
+                
+                # Extract groups in sorted order
+                unique_groups = [group for _, group in position_group_pairs]
+                sorted_tick_positions = [pos for pos, _ in position_group_pairs]
+                
+                # Create mapping: tick position -> group name
+                position_to_group = {pos: group for pos, group in position_group_pairs}
+                
                 group_positions = {group: idx for idx, group in enumerate(unique_groups)}
                 
-                # Iterate through groups in the order they appear (matching visual order)
-                for group_idx, group_name in enumerate(unique_groups):
+                # Create a position-indexed dictionary to ensure correct ordering
+                # This ensures box plot data and selectors match by position index
+                position_indexed_data = {}
+                for group_idx, (tick_pos, group_name) in enumerate(position_group_pairs):
                     group_data = data_df[data_df[x_col] == group_name]
                     group_y_values = group_data[y_col].dropna().values
                     if len(group_y_values) > 0:
                         group_box_stats = calculate_box_stats_from_violin_data(group_y_values, orientation_str)
                         if group_box_stats is not None:
-                            # Create box plot data for this group
-                            group_box_data = create_violin_box_data(group_box_stats, str(group_name))
-                            all_box_data.extend(group_box_data)
-                            
-                            # Create box plot elements for this group
-                            # Position elements at the correct x position for this violin
-                            # The violin positions are typically at 0, 1, 2, ... for each group
-                            group_pos = group_positions.get(group_name, group_idx)
-                            box_elements, elements_info = create_violin_box_elements(ax, group_box_stats, orientation_str, x_position=group_pos)
-                            all_elements_info.append(elements_info)
-                            
-                            # Collect elements for tracking
-                            if box_elements:
-                                all_box_elements.extend(box_elements.get("boxes", []) + 
-                                                       box_elements.get("medians", []) + 
-                                                       box_elements.get("whiskers", []) + 
-                                                       box_elements.get("caps", []))
-                            print(f"[DEBUG] Calculated box stats for group '{group_name}' (index {group_idx}): {group_box_stats}")
+                            position_indexed_data[group_idx] = {
+                                'tick_pos': tick_pos,
+                                'group_name': group_name,
+                                'box_stats': group_box_stats
+                            }
+                
+                # Now iterate through sorted positions to create data and elements in correct order
+                for group_idx in sorted(position_indexed_data.keys()):
+                    item = position_indexed_data[group_idx]
+                    tick_pos = item['tick_pos']
+                    group_name = item['group_name']
+                    group_box_stats = item['box_stats']
+                    
+                    # Create box plot data for this group
+                    group_box_data = create_violin_box_data(group_box_stats, str(group_name))
+                    all_box_data.extend(group_box_data)
+                    
+                    # Create box plot elements for this group
+                    # Use the actual tick position to ensure correct placement
+                    box_elements, elements_info = create_violin_box_elements(ax, group_box_stats, orientation_str, x_position=tick_pos)
+                    all_elements_info.append(elements_info)
+                    
+                    # Collect elements for tracking
+                    if box_elements:
+                        all_box_elements.extend(box_elements.get("boxes", []) + 
+                                               box_elements.get("medians", []) + 
+                                               box_elements.get("whiskers", []) + 
+                                               box_elements.get("caps", []))
                 
                 if all_box_data:
-                    print(f"[DEBUG] Created box data for {len(all_box_data)} groups")
                     # Create custom violin box plot and add it to MAIDR
                     try:
                         # Get the MAIDR instance for this figure
@@ -498,10 +547,7 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                         # Add it to the MAIDR instance
                         maidr_instance.plots.append(violin_box_plot)
                         maidr_instance.selector_ids.append(str(uuid.uuid4()))
-                        
-                        print(f"[DEBUG] ✓ BOX layer registered successfully for violin plot with {len(all_box_data)} groups")
                     except Exception as e:
-                        print(f"[DEBUG] ✗ BOX registration failed: {e}")
                         import traceback
                         traceback.print_exc()
             else:
@@ -592,7 +638,6 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
 
     # Register KDE (violin shape) as SMOOTH layer
     # Violin plots create filled polygons for the KDE distribution
-    print(f"[DEBUG] Looking for violin polygons (KDE shapes)...")
     violin_polys = []
     for collection in ax.collections:
         if isinstance(collection, PolyCollection):
@@ -605,26 +650,97 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
 
     # Register each violin shape as a SMOOTH layer
     # Follow the same pattern as histogram: register each element using common()
-    print(f"[DEBUG] Found {len(violin_polys)} violin polygon(s)")
     
     # Get group names if available (for multiple violins)
+    # Match violin polygons to groups by their x-position (for vertical) or y-position (for horizontal)
+    # Use the same position-based matching as box plot data to ensure consistent ordering
     group_names = None
+    violin_poly_with_positions = []
+    
     if data_df is not None and isinstance(data_df, pd.DataFrame):
         if x_col is not None and isinstance(x_col, str) and x_col in data_df.columns:
-            unique_groups = data_df[x_col].unique()
-            group_names = [str(g) for g in unique_groups]
-            print(f"[DEBUG] Extracted group names: {group_names}")
-        else:
-            print(f"[DEBUG] Could not extract group names: x_col={x_col}, data_df columns={data_df.columns.tolist() if hasattr(data_df, 'columns') else 'N/A'}")
-    else:
-        print(f"[DEBUG] No data_df available for group name extraction")
+            # Get tick positions and labels to match polygons (same as box plot data)
+            if orientation_str == "vert":
+                tick_labels = [label.get_text() for label in ax.get_xticklabels()]
+                tick_positions = ax.get_xticks()
+            else:
+                tick_labels = [label.get_text() for label in ax.get_yticklabels()]
+                tick_positions = ax.get_yticks()
+            
+            # Create mapping: tick position -> group name (same logic as box plot data)
+            position_to_group = {}
+            position_group_pairs_smooth = []
+            if tick_labels and len(tick_labels) > 0 and len(tick_positions) == len(tick_labels):
+                for pos, tick_label in zip(tick_positions, tick_labels):
+                    # Find matching group in the data
+                    for group in data_df[x_col].unique():
+                        if str(group) == str(tick_label) or str(group) == tick_label:
+                            position_to_group[pos] = str(group)
+                            position_group_pairs_smooth.append((pos, str(group)))
+                            break
+            
+            # Sort by position to match box plot data order
+            if position_group_pairs_smooth:
+                position_group_pairs_smooth.sort(key=lambda x: x[0])
+                position_to_group = {pos: group for pos, group in position_group_pairs_smooth}
+            
+            # Match each violin polygon to its group by position
+            sorted_tick_pos_list = sorted(position_to_group.keys()) if position_to_group else []
+            
+            for violin_poly in violin_polys:
+                path = violin_poly.get_paths()[0]
+                vertices = np.asarray(path.vertices)
+                
+                # Get the center x-position (for vertical) or y-position (for horizontal)
+                if orientation_str == "vert":
+                    # For vertical: use the x-coordinate (center of violin)
+                    poly_position = np.mean(vertices[:, 0])
+                else:
+                    # For horizontal: use the y-coordinate (center of violin)
+                    poly_position = np.mean(vertices[:, 1])
+                
+                # Find the nearest tick position from sorted list
+                if sorted_tick_pos_list:
+                    nearest_tick_pos = min(sorted_tick_pos_list, key=lambda x: abs(x - poly_position))
+                    group_name = position_to_group.get(nearest_tick_pos, None)
+                else:
+                    group_name = None
+                
+                violin_poly_with_positions.append((poly_position, group_name, violin_poly))
+            
+            # Sort by position to match visual order (left-to-right for vertical, bottom-to-top for horizontal)
+            violin_poly_with_positions.sort(key=lambda x: x[0])
+            
+            # Extract group names in the sorted order (matches box plot data order)
+            group_names = [item[1] for item in violin_poly_with_positions if item[1] is not None]
+            
+            # Fallback if we couldn't match all
+            if not group_names or len(group_names) != len(violin_polys):
+                if tick_labels and len(tick_labels) > 0:
+                    group_names = []
+                    for tick_label in tick_labels:
+                        for group in data_df[x_col].unique():
+                            if str(group) == str(tick_label) or str(group) == tick_label:
+                                group_names.append(str(group))
+                                break
+                if not group_names or len(group_names) != len(violin_polys):
+                    group_names = [str(g) for g in data_df[x_col].unique()]
+                    violin_poly_with_positions = [(i, group_names[i] if i < len(group_names) else None, poly) 
+                                                   for i, poly in enumerate(violin_polys)]
     
-    for i, violin_poly in enumerate(violin_polys):
-        print(f"[DEBUG] Registering SMOOTH layer {i+1}/{len(violin_polys)}")
+    # Use sorted polygons if we matched them, otherwise use original order
+    if violin_poly_with_positions:
+        sorted_violin_polys = [item[2] for item in violin_poly_with_positions]
+    else:
+        sorted_violin_polys = violin_polys
+        if group_names is None and data_df is not None and x_col is not None:
+            group_names = [str(g) for g in data_df[x_col].unique()]
+    
+    for i, violin_poly in enumerate(sorted_violin_polys):
         if violin_poly.get_gid() is None:
             gid = f"maidr-{uuid.uuid4()}"
             violin_poly.set_gid(gid)
-            violin_poly.set_label(f"Violin {gid}")  # Set label for identification
+            violin_poly.set_label(f"Violin {gid}")
 
         # Extract the boundary of the polygon
         path = violin_poly.get_paths()[0]
@@ -638,17 +754,13 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
         # Ensure the line data is accessible via get_xydata()
         kde_line.set_data(boundary[:, 0], boundary[:, 1])
 
-        # Get the group name for this violin (match by index if available)
+        # Get the group name for this violin (from sorted order, matches box plot data order)
         violin_fill = None
         if group_names and i < len(group_names):
             violin_fill = group_names[i]
-            print(f"[DEBUG] Using group name '{violin_fill}' for violin {i+1}")
         elif len(violin_polys) == 1:
             # Single violin case
             violin_fill = "Violin"
-            print(f"[DEBUG] Single violin case, using default fill 'Violin'")
-        else:
-            print(f"[DEBUG] Warning: No group name found for violin {i+1}, group_names={group_names}, i={i}")
 
         # Register as SMOOTH layer using common() pattern (like histogram does)
         # Use lambda to return the axes since plot is already created
