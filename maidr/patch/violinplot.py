@@ -606,6 +606,19 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
     # Register each violin shape as a SMOOTH layer
     # Follow the same pattern as histogram: register each element using common()
     print(f"[DEBUG] Found {len(violin_polys)} violin polygon(s)")
+    
+    # Get group names if available (for multiple violins)
+    group_names = None
+    if data_df is not None and isinstance(data_df, pd.DataFrame):
+        if x_col is not None and isinstance(x_col, str) and x_col in data_df.columns:
+            unique_groups = data_df[x_col].unique()
+            group_names = [str(g) for g in unique_groups]
+            print(f"[DEBUG] Extracted group names: {group_names}")
+        else:
+            print(f"[DEBUG] Could not extract group names: x_col={x_col}, data_df columns={data_df.columns.tolist() if hasattr(data_df, 'columns') else 'N/A'}")
+    else:
+        print(f"[DEBUG] No data_df available for group name extraction")
+    
     for i, violin_poly in enumerate(violin_polys):
         print(f"[DEBUG] Registering SMOOTH layer {i+1}/{len(violin_polys)}")
         if violin_poly.get_gid() is None:
@@ -625,6 +638,18 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
         # Ensure the line data is accessible via get_xydata()
         kde_line.set_data(boundary[:, 0], boundary[:, 1])
 
+        # Get the group name for this violin (match by index if available)
+        violin_fill = None
+        if group_names and i < len(group_names):
+            violin_fill = group_names[i]
+            print(f"[DEBUG] Using group name '{violin_fill}' for violin {i+1}")
+        elif len(violin_polys) == 1:
+            # Single violin case
+            violin_fill = "Violin"
+            print(f"[DEBUG] Single violin case, using default fill 'Violin'")
+        else:
+            print(f"[DEBUG] Warning: No group name found for violin {i+1}, group_names={group_names}, i={i}")
+
         # Register as SMOOTH layer using common() pattern (like histogram does)
         # Use lambda to return the axes since plot is already created
         common(
@@ -638,6 +663,7 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                 violin_poly=violin_poly,
                 poly_gid=violin_poly.get_gid(),
                 is_polycollection=True,
+                violin_fill=violin_fill,  # Pass the category name
             ),
             )
 

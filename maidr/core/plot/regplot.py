@@ -34,6 +34,7 @@ class SmoothPlot(MaidrPlot):
         self._regression_line = kwargs.get("regression_line", None)
         self._poly_gid = kwargs.get("poly_gid", None)
         self._is_polycollection = kwargs.get("is_polycollection", False)
+        self._violin_fill = kwargs.get("violin_fill", None)  # Category name for violin plots
 
     def _get_selector(self):
         """
@@ -116,13 +117,26 @@ class SmoothPlot(MaidrPlot):
                 # Add all points at this y-level with density
                 for idx in y_indices:
                     if idx not in processed_indices:
-                        result.append({
+                        point_data = {
                             MaidrKey.X: float(x_data[idx]),
                             MaidrKey.Y: float(y_data[idx]),
                             "svg_x": float(x_svg[idx]),
                             "svg_y": float(y_svg[idx]),
                             "density": density,
-                        })
+                        }
+                        # Add fill (category name) if available for violin plots
+                        if self._violin_fill:
+                            point_data[MaidrKey.FILL.value] = self._violin_fill
+                            # Also set it as "fill" directly to ensure it's accessible
+                            point_data["fill"] = self._violin_fill
+                            # Debug: log first point to verify fill is set
+                            if len(result) == 0:
+                                print(f"[DEBUG] SmoothPlot: Setting fill='{self._violin_fill}' in point data")
+                        else:
+                            # Debug: log if fill is missing
+                            if len(result) == 0:
+                                print(f"[DEBUG] SmoothPlot: WARNING - _violin_fill is None, fill will not be set")
+                        result.append(point_data)
                         processed_indices.add(idx)
             
             return [result]
