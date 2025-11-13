@@ -24,3 +24,13 @@ print("Showing with MAIDR...")
 # Show with MAIDR accessibility
 maidr.show(v)
 
+
+# Save to maidr/examples directory
+import os
+script_dir = os.path.dirname(os.path.abspath(__file__))
+examples_dir = os.path.join(script_dir, "..", "maidr", "examples")
+os.makedirs(examples_dir, exist_ok=True)
+html_path = os.path.join(examples_dir, "fourth_violin_plot.html")
+html_path = maidr.save_html(v, file=html_path)
+print(f"HTML saved to: {html_path}")
+
