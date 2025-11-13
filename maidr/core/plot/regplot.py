@@ -129,13 +129,6 @@ class SmoothPlot(MaidrPlot):
                             point_data[MaidrKey.FILL.value] = self._violin_fill
                             # Also set it as "fill" directly to ensure it's accessible
                             point_data["fill"] = self._violin_fill
-                            # Debug: log first point to verify fill is set
-                            if len(result) == 0:
-                                print(f"[DEBUG] SmoothPlot: Setting fill='{self._violin_fill}' in point data")
-                        else:
-                            # Debug: log if fill is missing
-                            if len(result) == 0:
-                                print(f"[DEBUG] SmoothPlot: WARNING - _violin_fill is None, fill will not be set")
                         result.append(point_data)
                         processed_indices.add(idx)
             

@@ -42,7 +42,6 @@ class ViolinBoxPlot(MaidrPlot):
         # when they're drawn, so they get the 'maidr' attribute in the SVG
         if box_elements_list:
             self._elements.extend(box_elements_list)
-            print(f"[DEBUG] Added {len(box_elements_list)} elements to ViolinBoxPlot._elements")
         
         # Store element info if provided
         if elements_info:
@@ -377,8 +376,6 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
     inner = kwargs.get("inner", None)
     has_box_stats = inner in ("box", "quartiles", "quart")
 
-    print(f"[DEBUG] inner={inner}, has_box_stats={has_box_stats}")
-
     # Execute the original violinplot and capture box plot stats if present
     bxp_stats = None
     if has_box_stats:
@@ -389,21 +386,14 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
             
             # Check if box plot stats were captured
             captured_stats = bxp_context.bxp_stats()
-            print(f"[DEBUG] Captured bxp_stats: boxes={len(captured_stats.get('boxes', []))}, "
-                  f"medians={len(captured_stats.get('medians', []))}, "
-                  f"whiskers={len(captured_stats.get('whiskers', []))}, "
-                  f"caps={len(captured_stats.get('caps', []))}")
             if (captured_stats.get("boxes") or captured_stats.get("medians") or 
                 captured_stats.get("whiskers") or captured_stats.get("caps")):
                 bxp_stats = captured_stats
-                print(f"[DEBUG] Using captured bxp_stats")
                 if bxp_context.orientation():
                     orientation_str = (
                         "horz" if bxp_context.orientation() in ("h", "y", "horz") 
                         else "vert"
                     )
-            else:
-                print(f"[DEBUG] Captured stats empty, will use fallback")
     else:
         # If no box stats expected, use regular internal context
         with ContextManager.set_internal_context():
@@ -415,7 +405,6 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
 
     # Always register box plot layer by calculating stats from raw data
     # This works regardless of whether inner='box' is set
-    print(f"[DEBUG] Attempting to register BOX layer for violin plot")
     
     # Extract the original data from the violin plot arguments
     # Handle seaborn API: x="col1", y="col2", data=df
@@ -437,8 +426,6 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
         x_col = kwargs['x']
     if 'y' in kwargs:
         y_col = kwargs['y']
-    
-    print(f"[DEBUG] Extracted violin data: x_col={x_col}, y_col={y_col}, has_data={data_df is not None}")
     
     # Extract the y column from the DataFrame if we have it
     if data_df is not None and isinstance(data_df, pd.DataFrame):
@@ -585,22 +572,15 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
     
     # Handle single violin case (no grouping)
     if violin_data is not None and isinstance(violin_data, (np.ndarray, list, pd.Series)):
-        print(f"[DEBUG] Single violin detected, extracted violin data: {type(violin_data)}, length: {len(violin_data)}")
-        
         # Calculate box plot statistics from the violin data
         box_stats = calculate_box_stats_from_violin_data(violin_data, orientation_str)
-        print(f"[DEBUG] Calculated box stats: {box_stats}")
         
         if box_stats is not None:
             # Create box plot elements
             box_elements, elements_info = create_violin_box_elements(ax, box_stats, orientation_str)
-            print(f"[DEBUG] Created box elements: {len(box_elements['medians'])} medians, "
-                  f"{len(box_elements['whiskers'])} whiskers, {len(box_elements['caps'])} caps")
-            print(f"[DEBUG] Element GIDs: min={elements_info.get('min_gid')}, max={elements_info.get('max_gid')}, median={elements_info.get('median_gid')}")
             
             # Create proper box plot data structure for MAIDR
             box_data = create_violin_box_data(box_stats, "Violin")
-            print(f"[DEBUG] Created box data: {box_data}")
             
             # Create custom violin box plot and add it to MAIDR
             try:
@@ -614,8 +594,6 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                                    box_elements.get("medians", []) + 
                                    box_elements.get("whiskers", []) + 
                                    box_elements.get("caps", []))
-                print(f"[DEBUG] Collected {len(box_elements_list)} box elements for tracking")
-                print(f"[DEBUG] Element types: {[type(e).__name__ for e in box_elements_list]}")
                 
                 # Create our custom violin box plot with element info for selectors
                 violin_box_plot = ViolinBoxPlot(ax, box_data, orientation_str, 
@@ -625,16 +603,9 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                 # Add it to the MAIDR instance
                 maidr_instance.plots.append(violin_box_plot)
                 maidr_instance.selector_ids.append(str(uuid.uuid4()))
-                
-                print(f"[DEBUG] ✓ BOX layer registered successfully for violin plot")
             except Exception as e:
-                print(f"[DEBUG] ✗ BOX registration failed: {e}")
                 import traceback
                 traceback.print_exc()
-        else:
-            print(f"[DEBUG] Could not calculate box stats from violin data")
-    elif violin_data is None:
-        print(f"[DEBUG] Could not extract violin data for box plot calculation")
 
     # Register KDE (violin shape) as SMOOTH layer
     # Violin plots create filled polygons for the KDE distribution
