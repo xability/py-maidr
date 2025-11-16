@@ -238,7 +238,7 @@ def create_violin_box_elements(ax, box_stats, orientation="vert", x_position=0):
                            color='black', linewidth=1)
         
         # Create whiskers (vertical lines)
-        whisker_width = 0.1
+        _whisker_width = 0.1  # kept for potential future customization
         lower_whisker = Line2D([x_center, x_center], [y_min, y_q1], color='black', linewidth=1)
         upper_whisker = Line2D([x_center, x_center], [y_q3, y_max], color='black', linewidth=1)
         
@@ -272,7 +272,7 @@ def create_violin_box_elements(ax, box_stats, orientation="vert", x_position=0):
                            color='black', linewidth=1)
         
         # Create whiskers (horizontal lines)
-        whisker_height = 0.1
+        _whisker_height = 0.1  # kept for potential future customization
         lower_whisker = Line2D([x_min, x_q1], [y_center, y_center], color='black', linewidth=1)
         upper_whisker = Line2D([x_q3, x_max], [y_center, y_center], color='black', linewidth=1)
         
@@ -377,7 +377,7 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
     has_box_stats = inner in ("box", "quartiles", "quart")
 
     # Execute the original violinplot and capture box plot stats if present
-    bxp_stats = None
+    _bxp_stats = None
     if has_box_stats:
         # Use BoxplotContextManager to capture bxp stats when box plot is created
         with BoxplotContextManager.set_internal_context() as bxp_context:
@@ -388,7 +388,7 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
             captured_stats = bxp_context.bxp_stats()
             if (captured_stats.get("boxes") or captured_stats.get("medians") or 
                 captured_stats.get("whiskers") or captured_stats.get("caps")):
-                bxp_stats = captured_stats
+                _bxp_stats = captured_stats
                 if bxp_context.orientation():
                     orientation_str = (
                         "horz" if bxp_context.orientation() in ("h", "y", "horz") 
@@ -475,12 +475,12 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                 
                 # Extract groups in sorted order
                 unique_groups = [group for _, group in position_group_pairs]
-                sorted_tick_positions = [pos for pos, _ in position_group_pairs]
+                _sorted_tick_positions = [pos for pos, _ in position_group_pairs]
                 
                 # Create mapping: tick position -> group name
                 position_to_group = {pos: group for pos, group in position_group_pairs}
                 
-                group_positions = {group: idx for idx, group in enumerate(unique_groups)}
+                _group_positions = {group: idx for idx, group in enumerate(unique_groups)}
                 
                 # Create a position-indexed dictionary to ensure correct ordering
                 # This ensures box plot data and selectors match by position index
@@ -534,7 +534,7 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                         # Add it to the MAIDR instance
                         maidr_instance.plots.append(violin_box_plot)
                         maidr_instance.selector_ids.append(str(uuid.uuid4()))
-                    except Exception as e:
+                    except Exception:
                         import traceback
                         traceback.print_exc()
             else:
@@ -603,7 +603,7 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                 # Add it to the MAIDR instance
                 maidr_instance.plots.append(violin_box_plot)
                 maidr_instance.selector_ids.append(str(uuid.uuid4()))
-            except Exception as e:
+            except Exception:
                 import traceback
                 traceback.print_exc()
 
