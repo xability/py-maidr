@@ -18,10 +18,101 @@ from maidr.patch.common import common
 
 class ViolinBoxPlot(MaidrPlot):
     """
-    Custom plot class for violin box plots that directly provides box plot data.
+    Custom plot class for violin/box plots that directly exposes box
+    statistics for MAIDR's accessibility pipeline.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The matplotlib `Axes` object to plot on.
+    box_data : list of dict
+        Pre-computed box plot statistics for each group.
+    orientation : {"vert", "horz"}, optional
+        Orientation of the plot; ``"vert"`` for vertical (default) or
+        ``"horz"`` for horizontal.
+    elements_info : list of dict, optional
+        List of dictionaries containing element IDs for min, max, median,
+        and box, used for building accessibility selectors.
+    box_elements_list : list, optional
+        List of matplotlib artist objects that should be tracked for
+        highlighting and interaction.
+
+    Attributes
+    ----------
+    box_data : list of dict
+        The box plot data used to render the plot.
+    orientation : str
+        Orientation of the plot (``"vert"`` or ``"horz"``).
+    elements_map : dict
+        Mapping of element types (e.g., ``"min"``, ``"max"``, ``"median"``,
+        ``"boxes"``, ``"outliers"``) to their corresponding element IDs.
+    lower_outliers_count : list of int
+        Count of lower outliers for each box; always zero for violin plots.
+    _support_highlighting : bool
+        Flag indicating whether this plot supports MAIDR highlighting.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from maidr.patch.violinplot import ViolinBoxPlot
+    >>> fig, ax = plt.subplots()
+    >>> box_data = [{"fill": "Group A", "min": 1.0, "q1": 2.0, "q2": 3.0, "q3": 4.0, "max": 5.0}]
+    >>> plot = ViolinBoxPlot(ax, box_data, orientation="vert")
+    >>> plot.render()
     """
-    
-    def __init__(self, ax, box_data, orientation="vert", elements_info=None, box_elements_list=None):
+
+    def __init__(
+        self,
+        ax: Axes,
+        box_data: list[dict],
+        orientation: str = "vert",
+        elements_info: list[dict] | None = None,
+        box_elements_list: list | None = None,
+    ) -> None:
+        """
+        Initialize a `ViolinBoxPlot` instance.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The matplotlib `Axes` object to plot on.
+        box_data : list of dict
+            Pre-computed box plot statistics for each group.
+        orientation : {"vert", "horz"}, optional
+            Orientation of the plot; ``"vert"`` for vertical (default) or
+            ``"horz"`` for horizontal.
+        elements_info : list of dict, optional
+            List of dictionaries containing element IDs for min, max, median,
+            and box, used for building accessibility selectors.
+        box_elements_list : list, optional
+            List of matplotlib artist objects that should be tracked for
+            highlighting and interaction.
+
+        Attributes
+        ----------
+        box_data : list of dict
+            The box plot data used to render the plot.
+        orientation : str
+            Orientation of the plot (``"vert"`` or ``"horz"``).
+        elements_map : dict
+            Mapping of element types (e.g., ``"min"``, ``"max"``, ``"median"``,
+            ``"boxes"``, ``"outliers"``) to their corresponding element IDs.
+        lower_outliers_count : list of int
+            Count of lower outliers for each box; always zero for violin plots.
+        _support_highlighting : bool
+            Flag indicating whether this plot supports MAIDR highlighting.
+        _elements : list
+            List of matplotlib elements for highlighting.
+
+        Examples
+        --------
+        >>> import matplotlib.pyplot as plt
+        >>> from maidr.patch.violinplot import ViolinBoxPlot
+        >>> fig, ax = plt.subplots()
+        >>> box_data = [{"fill": "Group A", "min": 1.0, "q1": 2.0, "q2": 3.0, "q3": 4.0, "max": 5.0}]
+        >>> plot = ViolinBoxPlot(ax, box_data, orientation="vert")
+        >>> plot.render()
+        """
         super().__init__(ax, PlotType.BOX)
         self.box_data = box_data
         self.orientation = orientation
@@ -47,8 +138,51 @@ class ViolinBoxPlot(MaidrPlot):
         if elements_info:
             self._store_elements_info(elements_info)
         
-    def _store_elements_info(self, elements_info):
-        """Store element IDs from elements_info into elements_map."""
+    def _store_elements_info(self, elements_info: list[dict[str, str]]) -> None:
+        """
+        Store element IDs from elements_info into elements_map.
+
+        Parameters
+        ----------
+        elements_info : list of dict of str
+            List of dictionaries, one per violin/box. Each dictionary should
+            contain the following keys:
+            - ``'min_gid'`` : str, optional
+                Element ID for the minimum value (lower cap).
+            - ``'max_gid'`` : str, optional
+                Element ID for the maximum value (upper cap).
+            - ``'median_gid'`` : str, optional
+                Element ID for the median line.
+            - ``'box_gid'`` : str, optional
+                Element ID for the box (IQR rectangle). If not provided,
+                ``median_gid`` is used as a fallback.
+
+            Example:
+                [
+                    {
+                        'min_gid': 'maidr-123',
+                        'max_gid': 'maidr-456',
+                        'median_gid': 'maidr-789',
+                        'box_gid': 'maidr-abc'
+                    },
+                    {
+                        'min_gid': 'maidr-def',
+                        'max_gid': 'maidr-ghi',
+                        'median_gid': 'maidr-jkl'
+                    }
+                ]
+
+        Returns
+        -------
+        None
+            This method updates ``self.elements_map`` and
+            ``self.lower_outliers_count`` in place and does not return anything.
+
+        Notes
+        -----
+        For violin plots, outliers are always empty, so ``outliers`` entries
+        are set to empty strings and ``lower_outliers_count`` is set to 0.
+        """
         # elements_info is a list of dicts, one per violin/box
         # Each dict has: min_gid, max_gid, median_gid, box_gid (optional)
         for elem_info in elements_info:
@@ -69,7 +203,47 @@ class ViolinBoxPlot(MaidrPlot):
             self.lower_outliers_count.append(0)
         
     def _get_selector(self) -> list[dict]:
-        """Return selectors for boxplot elements, similar to BoxPlot._get_selector()."""
+        """
+        Return selectors for boxplot elements, similar to BoxPlot._get_selector().
+
+        Returns
+        -------
+        list of dict
+            A list of dictionaries, one per box/violin, each containing CSS
+            selectors for highlighting plot elements. Each dictionary may contain:
+            - ``'min'`` : str, optional
+                CSS selector for the minimum value (lower cap) element.
+                Format: ``"g[id='...'] > path"``
+            - ``'max'`` : str, optional
+                CSS selector for the maximum value (upper cap) element.
+                Format: ``"g[id='...'] > path"``
+            - ``'q2'`` : str, optional
+                CSS selector for the median line element.
+                Format: ``"g[id='...'] > path"``
+            - ``'iq'`` : str, optional
+                CSS selector for the box (IQR rectangle) element.
+                Format: ``"g[id='...'] > path"``
+            - ``'lowerOutliers'`` : list
+                List of lower outlier selectors (always empty for violin plots).
+            - ``'upperOutliers'`` : list
+                List of upper outlier selectors (always empty for violin plots).
+
+            The list order matches the visual order of violins/boxes, adjusted
+            for plot orientation (reversed for horizontal plots).
+
+        Examples
+        --------
+        >>> selectors = plot._get_selector()
+        >>> selectors[0]
+        {
+            'min': "g[id='maidr-123'] > path",
+            'max': "g[id='maidr-456'] > path",
+            'q2': "g[id='maidr-789'] > path",
+            'iq': "g[id='maidr-abc'] > path",
+            'lowerOutliers': [],
+            'upperOutliers': []
+        }
+        """
         mins, maxs, medians, boxes, outliers = self.elements_map.values()
         selector = []
         
@@ -112,12 +286,89 @@ class ViolinBoxPlot(MaidrPlot):
         
         return selector if self.orientation == "vert" else list(reversed(selector))
         
-    def _extract_plot_data(self):
-        """Return the box plot data directly."""
+    def _extract_plot_data(self) -> list[dict]:
+        """
+        Return the box plot data directly.
+
+        Returns
+        -------
+        list of dict
+            A list of dictionaries, one per violin/box, each containing box plot
+            statistics. Each dictionary contains the following keys:
+            - ``'fill'`` : str
+                The group/category name for this violin/box.
+            - ``'min'`` : float
+                The minimum value (lower whisker end).
+            - ``'q1'`` : float
+                The first quartile (Q1) value.
+            - ``'q2'`` : float
+                The median (Q2) value.
+            - ``'q3'`` : float
+                The third quartile (Q3) value.
+            - ``'max'`` : float
+                The maximum value (upper whisker end).
+            - ``'lowerOutliers'`` : list
+                List of lower outlier values (always empty for violin plots).
+            - ``'upperOutliers'`` : list
+                List of upper outlier values (always empty for violin plots).
+
+        Examples
+        --------
+        >>> plot = ViolinBoxPlot(ax, box_data, orientation="vert")
+        >>> data = plot._extract_plot_data()
+        >>> data[0]
+        {
+            'fill': 'Group A',
+            'min': 1.0,
+            'q1': 2.0,
+            'q2': 3.0,
+            'q3': 4.0,
+            'max': 5.0,
+            'lowerOutliers': [],
+            'upperOutliers': []
+        }
+        """
         return self.box_data
         
-    def render(self):
-        """Generate the MAIDR schema for this violin box plot."""
+    def render(self) -> dict:
+        """
+        Generate the MAIDR schema for this violin box plot.
+
+        Returns
+        -------
+        dict
+            Dictionary representing the MAIDR schema for the violin box plot.
+            Contains the following keys:
+            - ``'id'`` : str
+                Unique identifier (UUID) for the plot.
+            - ``'type'`` : str
+                Plot type identifier (typically ``'box'`` for box plot layers).
+            - ``'title'`` : str
+                Title of the plot, extracted from the axes.
+            - ``'axes'`` : dict
+                Dictionary containing axes information (labels, limits, etc.).
+            - ``'data'`` : list of dict
+                Box plot data for each violin/box group. See
+                :meth:`_extract_plot_data` for structure details.
+            - ``'orientation'`` : str
+                Orientation of the plot (``'vert'`` for vertical or
+                ``'horz'`` for horizontal).
+            - ``'selectors'`` : list of dict, optional
+                List of CSS selectors for highlighting plot elements. Only
+                present if element IDs are available. See :meth:`_get_selector`
+                for structure details.
+
+        Examples
+        --------
+        >>> plot = ViolinBoxPlot(ax, box_data, orientation="vert")
+        >>> schema = plot.render()
+        >>> schema['type']
+        'box'
+        >>> schema['orientation']
+        'vert'
+        >>> 'selectors' in schema
+        True
+        """
         maidr_schema = {
             MaidrKey.ID: str(uuid.uuid4()),
             MaidrKey.TYPE: self.type,
@@ -132,20 +383,55 @@ class ViolinBoxPlot(MaidrPlot):
         return maidr_schema
 
 
-def calculate_box_stats_from_violin_data(data, orientation="vert"):
+def calculate_box_stats_from_violin_data(
+    data: np.ndarray | list[float] | pd.Series,
+    orientation: str = "vert",
+) -> dict[str, float] | None:
     """
     Calculate box plot statistics (Q1, Q2, Q3, IQR, min, max) from violin plot data.
-    
-    Parameters:
-    -----------
-    data : array-like
-        The data used to create the violin plot
-    orientation : str
-        "vert" for vertical violin plots, "horz" for horizontal
-        
-    Returns:
+
+    Parameters
+    ----------
+    data : np.ndarray or list of float or pd.Series
+        The data used to create the violin plot. Can be a numpy array, list of
+        floats, or pandas Series. NaN values are automatically removed.
+    orientation : str, default "vert"
+        Orientation of the violin plot. ``"vert"`` for vertical violin plots
+        or ``"horz"`` for horizontal. Note: This parameter is currently not
+        used in the calculation but is kept for API consistency.
+
+    Returns
+    -------
+    dict of str to float or None
+        Box plot statistics dictionary with the following keys:
+        - ``'q1'`` : float
+            First quartile (25th percentile).
+        - ``'q2'`` : float
+            Median (50th percentile).
+        - ``'q3'`` : float
+            Third quartile (75th percentile).
+        - ``'iqr'`` : float
+            Interquartile range (Q3 - Q1).
+        - ``'min'`` : float
+            Minimum value within whisker range (Q1 - 1.5*IQR to Q3 + 1.5*IQR).
+            Falls back to actual minimum if no data within whiskers.
+        - ``'max'`` : float
+            Maximum value within whisker range (Q1 - 1.5*IQR to Q3 + 1.5*IQR).
+            Falls back to actual maximum if no data within whiskers.
+
+        Returns ``None`` if input data is empty, None, or contains only NaN values.
+
+    Examples
     --------
-    dict : Box plot statistics with keys: q1, q2, q3, iqr, min, max
+    >>> import numpy as np
+    >>> data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    >>> stats = calculate_box_stats_from_violin_data(data)
+    >>> stats['q1']
+    3.25
+    >>> stats['q2']
+    5.5
+    >>> stats['iqr']
+    4.5
     """
     if data is None or len(data) == 0:
         return None
@@ -189,25 +475,74 @@ def calculate_box_stats_from_violin_data(data, orientation="vert"):
     }
 
 
-def create_violin_box_elements(ax, box_stats, orientation="vert", x_position=0):
+def create_violin_box_elements(
+    ax: Axes,
+    box_stats: dict[str, float] | None,
+    orientation: str = "vert",
+    x_position: float = 0,
+) -> tuple[dict[str, list], dict[str, str]]:
     """
     Create box plot elements (lines) for violin plot based on calculated statistics.
     Assigns GIDs to elements for highlighting.
-    
-    Parameters:
-    -----------
+
+    Parameters
+    ----------
     ax : matplotlib.axes.Axes
-        The axes object
-    box_stats : dict
-        Box plot statistics from calculate_box_stats_from_violin_data
-    orientation : str
-        "vert" for vertical violin plots, "horz" for horizontal
+        The matplotlib Axes object to add the box plot elements to.
+    box_stats : dict of str to float or None
+        Box plot statistics from :func:`calculate_box_stats_from_violin_data`.
+        Must contain keys: ``'min'``, ``'max'``, ``'q1'``, ``'q2'``, ``'q3'``.
+        If ``None``, returns empty elements.
+    orientation : str, default "vert"
+        Orientation of the violin plot. ``"vert"`` for vertical violin plots
+        or ``"horz"`` for horizontal violin plots.
+    x_position : float, default 0
+        The x-coordinate (for vertical) or y-coordinate (for horizontal) position
+        where the box plot elements should be centered.
+
+    Returns
+    -------
+    tuple of (dict, dict)
+        A tuple containing two dictionaries:
         
-    Returns:
+        **elements_dict** : dict of str to list
+            Dictionary containing matplotlib artist objects organized by type:
+            - ``'boxes'`` : list of Rectangle
+                List containing the IQR box rectangle (Q1 to Q3).
+            - ``'medians'`` : list of Line2D
+                List containing the median line.
+            - ``'whiskers'`` : list of Line2D
+                List containing lower and upper whisker lines.
+            - ``'caps'`` : list of Line2D
+                List containing lower and upper cap lines (at whisker ends).
+            - ``'fliers'`` : list
+                List of outlier markers (always empty for violin plots).
+        
+        **elements_info** : dict of str to str
+            Dictionary containing element IDs (GIDs) for CSS selectors:
+            - ``'min_gid'`` : str
+                Element ID for the minimum value (lower cap).
+            - ``'max_gid'`` : str
+                Element ID for the maximum value (upper cap).
+            - ``'median_gid'`` : str
+                Element ID for the median line.
+            - ``'box_gid'`` : str
+                Element ID for the box (IQR rectangle).
+
+        If ``box_stats`` is ``None``, returns empty dictionaries.
+
+    Examples
     --------
-    tuple : (elements_dict, elements_info_dict)
-        elements_dict: Box plot elements with keys: boxes, medians, whiskers, caps, fliers
-        elements_info_dict: Dict with GIDs for selectors: min_gid, max_gid, median_gid
+    >>> import matplotlib.pyplot as plt
+    >>> fig, ax = plt.subplots()
+    >>> box_stats = {'min': 1.0, 'q1': 2.0, 'q2': 3.0, 'q3': 4.0, 'max': 5.0}
+    >>> elements_dict, elements_info = create_violin_box_elements(
+    ...     ax, box_stats, orientation="vert", x_position=1.0
+    ... )
+    >>> 'boxes' in elements_dict
+    True
+    >>> 'min_gid' in elements_info
+    True
     """
     if box_stats is None:
         return ({"boxes": [], "medians": [], "whiskers": [], "caps": [], "fliers": []}, {})
@@ -238,7 +573,6 @@ def create_violin_box_elements(ax, box_stats, orientation="vert", x_position=0):
                            color='black', linewidth=1)
         
         # Create whiskers (vertical lines)
-        _whisker_width = 0.1  # kept for potential future customization
         lower_whisker = Line2D([x_center, x_center], [y_min, y_q1], color='black', linewidth=1)
         upper_whisker = Line2D([x_center, x_center], [y_q3, y_max], color='black', linewidth=1)
         
@@ -272,7 +606,6 @@ def create_violin_box_elements(ax, box_stats, orientation="vert", x_position=0):
                            color='black', linewidth=1)
         
         # Create whiskers (horizontal lines)
-        _whisker_height = 0.1  # kept for potential future customization
         lower_whisker = Line2D([x_min, x_q1], [y_center, y_center], color='black', linewidth=1)
         upper_whisker = Line2D([x_q3, x_max], [y_center, y_center], color='black', linewidth=1)
         
@@ -322,20 +655,69 @@ def create_violin_box_elements(ax, box_stats, orientation="vert", x_position=0):
     return (elements_dict, elements_info)
 
 
-def create_violin_box_data(box_stats, level="Violin"):
+def create_violin_box_data(
+    box_stats: dict[str, float] | None,
+    level: str = "Violin",
+) -> list[dict]:
     """
     Create proper box plot data structure for violin plot.
-    
-    Parameters:
-    -----------
-    box_stats : dict
-        Box plot statistics from calculate_box_stats_from_violin_data
-    level : str
-        Level/fill value for the box plot data
-        
-    Returns:
+
+    Parameters
+    ----------
+    box_stats : dict of str to float or None
+        Box plot statistics from :func:`calculate_box_stats_from_violin_data`.
+        Must contain keys: ``'min'``, ``'max'``, ``'q1'``, ``'q2'``, ``'q3'``.
+        If ``None``, returns an empty list.
+    level : str, default "Violin"
+        Level/fill value (group/category name) for the box plot data.
+        This is used as the ``'fill'`` key in the returned dictionary.
+
+    Returns
+    -------
+    list of dict
+        A list containing a single dictionary with box plot data in the format
+        expected by MAIDR. The dictionary contains the following keys:
+        - ``'fill'`` : str
+            The group/category name (from ``level`` parameter).
+        - ``'min'`` : float
+            Minimum value (lower whisker end).
+        - ``'q1'`` : float
+            First quartile (Q1) value.
+        - ``'q2'`` : float
+            Median (Q2) value.
+        - ``'q3'`` : float
+            Third quartile (Q3) value.
+        - ``'max'`` : float
+            Maximum value (upper whisker end).
+        - ``'lowerOutliers'`` : list
+            List of lower outlier values (always empty for violin plots).
+        - ``'upperOutliers'`` : list
+            List of upper outlier values (always empty for violin plots).
+
+        Returns an empty list if ``box_stats`` is ``None``.
+
+    Examples
     --------
-    list : Box plot data in the format expected by MAIDR
+    >>> stats = {
+    ...     'min': 1.0,
+    ...     'q1': 2.0,
+    ...     'q2': 3.0,
+    ...     'q3': 4.0,
+    ...     'max': 5.0
+    ... }
+    >>> create_violin_box_data(stats, level="Group A")
+    [{
+        'fill': 'Group A',
+        'min': 1.0,
+        'q1': 2.0,
+        'q2': 3.0,
+        'q3': 4.0,
+        'max': 5.0,
+        'lowerOutliers': [],
+        'upperOutliers': []
+    }]
+    >>> create_violin_box_data(None)
+    []
     """
     if box_stats is None:
         return []
@@ -356,9 +738,62 @@ def create_violin_box_data(box_stats, level="Violin"):
 def sns_violin(wrapped, instance, args, kwargs) -> Axes:
     """
     Patch seaborn.violinplot to register BOX and SMOOTH (KDE) layers for MAIDR.
-    A violin plot consists of a KDE (density distribution) as smooth curves.
-    Always registers BOX layer with min, max, median, Q1, Q3 statistics
-    calculated from the raw data, regardless of whether inner='box' is set.
+
+    This function wraps seaborn.violinplot to automatically register violin plots
+    with MAIDR's accessibility pipeline. A violin plot consists of a KDE (density
+    distribution) as smooth curves. This wrapper always registers a BOX layer
+    with min, max, median, Q1, Q3 statistics calculated from the raw data,
+    regardless of whether ``inner='box'`` is set.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        The original seaborn.violinplot function being wrapped.
+    instance : Any
+        The bound instance if patching a method, otherwise None. For function
+        patches, this is typically None.
+    args : tuple
+        Positional arguments passed to seaborn.violinplot. These are the same
+        arguments that would be passed to the original function (e.g., data,
+        x, y, etc.).
+    kwargs : dict
+        Keyword arguments passed to seaborn.violinplot. These include all
+        standard seaborn.violinplot parameters such as ``data``, ``x``, ``y``,
+        ``orient``, ``inner``, etc.
+
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The matplotlib Axes object containing the violin plot. This is the
+        same return value as the original seaborn.violinplot function.
+
+    Notes
+    -----
+    This wrapper function is automatically applied when the module is imported.
+    After importing, all calls to ``seaborn.violinplot`` will automatically
+    register the plot with MAIDR. The wrapper handles:
+    - Extracting box plot statistics from violin plot data
+    - Creating box plot elements for highlighting
+    - Registering both BOX and SMOOTH (KDE) layers with MAIDR
+    - Matching violin polygons to their corresponding groups/categories
+
+    Examples
+    --------
+    >>> import seaborn as sns
+    >>> import pandas as pd
+    >>> # The patch is applied automatically on import
+    >>> import maidr.patch.violinplot  # noqa: F401
+    >>> 
+    >>> # Create sample data
+    >>> df = pd.DataFrame({
+    ...     'category': ['A', 'A', 'B', 'B', 'A', 'B'],
+    ...     'value': [1, 2, 3, 4, 5, 6]
+    ... })
+    >>> 
+    >>> # Call seaborn.violinplot - automatically registered with MAIDR
+    >>> ax = sns.violinplot(data=df, x='category', y='value')
+    >>> type(ax)
+    <class 'matplotlib.axes._axes.Axes'>
     """
     # Track if we're in internal context to avoid recursion
     if BoxplotContextManager.is_internal_context() or ContextManager.is_internal_context():
@@ -376,24 +811,19 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
     inner = kwargs.get("inner", None)
     has_box_stats = inner in ("box", "quartiles", "quart")
 
-    # Execute the original violinplot and capture box plot stats if present
-    _bxp_stats = None
+    # Execute the original violinplot
     if has_box_stats:
-        # Use BoxplotContextManager to capture bxp stats when box plot is created
+        # Use BoxplotContextManager to capture orientation when box plot is created
         with BoxplotContextManager.set_internal_context() as bxp_context:
             BoxplotContextManager.set_bxp_orientation(orientation)
             plot = wrapped(*args, **kwargs)
             
-            # Check if box plot stats were captured
-            captured_stats = bxp_context.bxp_stats()
-            if (captured_stats.get("boxes") or captured_stats.get("medians") or 
-                captured_stats.get("whiskers") or captured_stats.get("caps")):
-                _bxp_stats = captured_stats
-                if bxp_context.orientation():
-                    orientation_str = (
-                        "horz" if bxp_context.orientation() in ("h", "y", "horz") 
-                        else "vert"
-                    )
+            # Update orientation from captured context if available
+            if bxp_context.orientation():
+                orientation_str = (
+                    "horz" if bxp_context.orientation() in ("h", "y", "horz") 
+                    else "vert"
+                )
     else:
         # If no box stats expected, use regular internal context
         with ContextManager.set_internal_context():
@@ -475,12 +905,9 @@ def sns_violin(wrapped, instance, args, kwargs) -> Axes:
                 
                 # Extract groups in sorted order
                 unique_groups = [group for _, group in position_group_pairs]
-                _sorted_tick_positions = [pos for pos, _ in position_group_pairs]
                 
                 # Create mapping: tick position -> group name
                 position_to_group = {pos: group for pos, group in position_group_pairs}
-                
-                _group_positions = {group: idx for idx, group in enumerate(unique_groups)}
                 
                 # Create a position-indexed dictionary to ensure correct ordering
                 # This ensures box plot data and selectors match by position index

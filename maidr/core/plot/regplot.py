@@ -28,13 +28,25 @@ class SmoothPlot(MaidrPlot):
         ----------
         ax : Axes
             The matplotlib axes object containing the regression line.
+        **kwargs
+            Additional keyword arguments:
+            - ``regression_line`` : matplotlib.lines.Line2D, optional
+                Pre-extracted regression line. If not provided, will be
+                extracted from the axes.
+            - ``poly_gid`` : str, optional
+                Group ID for PolyCollection elements (used for violin plots).
+            - ``is_polycollection`` : bool, default False
+                Whether this plot represents a PolyCollection (e.g., violin plot).
+            - ``violin_fill`` : str, optional
+                Category/group name for violin plots. Used as the fill value
+                in the plot data.
         """
         super().__init__(ax, PlotType.SMOOTH)
         self._smooth_gid = None
         self._regression_line = kwargs.get("regression_line", None)
         self._poly_gid = kwargs.get("poly_gid", None)
         self._is_polycollection = kwargs.get("is_polycollection", False)
-        self._violin_fill = kwargs.get("violin_fill", None)  # Category name for violin plots
+        self._violin_fill = kwargs.get("violin_fill", None)
 
     def _get_selector(self):
         """
@@ -54,9 +66,53 @@ class SmoothPlot(MaidrPlot):
 
         Returns
         -------
-        list
-            A list of lists containing dictionaries with X and Y coordinates, and SVG coordinates.
-            For violin plots, includes "density" field representing horizontal width.
+        list of list of dict
+            A list of lists containing dictionaries with coordinate data. Each inner list
+            represents a series of points. Each dictionary contains:
+            - ``'x'`` : float
+                X coordinate in data space.
+            - ``'y'`` : float
+                Y coordinate in data space.
+            - ``'svg_x'`` : float
+                X coordinate in SVG space.
+            - ``'svg_y'`` : float
+                Y coordinate in SVG space.
+            - ``'density'`` : float, optional
+                Horizontal width at this y-value (only for violin plots).
+                Represents the density distribution width.
+            - ``'fill'`` : str, optional
+                Category/group name (only for violin plots when ``violin_fill`` is set).
+
+        Notes
+        -----
+        Density calculations are only performed when the internal attribute
+        ``_is_polycollection`` is set to ``True`` (e.g., for violin plots). In this case:
+        - The output dictionaries will include a ``'density'`` field representing the
+          horizontal width at each y-value.
+        - Points at the same y-level are grouped together, and density is calculated
+          as the difference between the maximum and minimum x-values at that y-level.
+        - If ``_violin_fill`` is set, the ``'fill'`` field will be included in each
+          point dictionary.
+        
+        For regular smooth plots (regression lines), density is not calculated and
+        the output contains only x, y, svg_x, and svg_y coordinates.
+
+        Examples
+        --------
+        >>> import matplotlib.pyplot as plt
+        >>> from maidr.core.plot.regplot import SmoothPlot
+        >>> fig, ax = plt.subplots()
+        >>> # Regular smooth plot (regression line)
+        >>> plot = SmoothPlot(ax)
+        >>> data = plot._extract_plot_data()
+        >>> data[0][0].keys()
+        dict_keys(['x', 'y', 'svg_x', 'svg_y'])
+        >>> 
+        >>> # Violin plot (PolyCollection)
+        >>> plot = SmoothPlot(ax, is_polycollection=True, violin_fill="Group A")
+        >>> data = plot._extract_plot_data()
+        >>> data[0][0].keys()
+        dict_keys(['x', 'y', 'svg_x', 'svg_y', 'density', 'fill'])
         """
         regression_line = (
             self._regression_line
