@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.9.0 (2025-10-31)
+
+### Features
+
+- Add data_in_svg parameter for save_html ([#257](https://github.com/xability/py-maidr/pull/257),
+  [`17d65ee`](https://github.com/xability/py-maidr/commit/17d65eee06ac3209ef3a91ebd623a5a6d0b16e79))
+
+
 ## v1.8.1 (2025-10-16)
 
 ### Bug Fixes
