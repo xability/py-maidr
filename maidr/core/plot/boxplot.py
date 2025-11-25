@@ -100,6 +100,18 @@ class BoxPlotExtractor:
     def extract_outliers(self, fliers: list, caps: list) -> list[dict]:
         data = []
 
+        # Handle empty fliers - return empty outlier dicts for each cap
+        if not fliers:
+            # Return one empty outlier dict per cap (one per box)
+            for cap in caps:
+                data.append(
+                    {
+                        MaidrKey.LOWER_OUTLIER.value: [],
+                        MaidrKey.UPPER_OUTLIER.value: [],
+                    }
+                )
+            return data
+
         for outlier, cap in zip(fliers, caps):
             outlier_fn = (
                 outlier.get_ydata if self.orientation == "vert" else outlier.get_xdata
@@ -184,6 +196,31 @@ class BoxPlot(
         mins, maxs, medians, boxes, outliers = self.elements_map.values()
         selector = []
 
+        # zip stops at shortest list - ensure all lists have matching length
+        num_boxes = len(boxes)
+        
+        # Safety check: if critical elements are missing, can't create selectors
+        # This is primarily for synthetic box plots (like violin plots) where caps might not be extracted
+        if num_boxes == 0:
+            return []
+        
+        # Ensure outliers list matches (should have one entry per box, even if empty dict)
+        if len(outliers) != num_boxes:
+            # Pad outliers if needed
+            while len(outliers) < num_boxes:
+                outliers.append(None)
+        
+        # Ensure lower_outliers_count matches
+        while len(self.lower_outliers_count) < num_boxes:
+            self.lower_outliers_count.append(0)
+        
+        # Check if min/max caps were extracted - if not, we can't create selectors
+        # Regular box plots should always have these, but synthetic ones might not
+        if len(mins) != num_boxes or len(maxs) != num_boxes:
+            # If min/max caps weren't extracted, can't create selectors
+            # This prevents errors but returns empty selectors (silent failure)
+            return []
+
         for (
             min,
             max,
@@ -240,6 +277,9 @@ class BoxPlot(
         for outlier in outliers:
             self.lower_outliers_count.append(len(outlier[MaidrKey.LOWER_OUTLIER.value]))
 
+        # Extract cap elements (Line2D objects) for GID assignment
+        # caps_elements should be a list of dicts: [{"min": Line2D, "max": Line2D}, ...]
+        # Each dict contains the actual matplotlib Line2D objects (not values)
         caps_elements = self._bxp_elements_extractor.extract_caps(bxp_stats["caps"])
         bxp_maidr = []
 
@@ -251,11 +291,21 @@ class BoxPlot(
         if levels is None:
             levels = []
 
-        _pairs = [(e["min"], e["max"]) for e in caps_elements if e]
+        # Ensure levels has enough elements for all boxes (pad with fallback if needed)
+        num_boxes = len(bxp_stats["boxes"])
+        if len(levels) < num_boxes:
+            # Pad with fallback labels
+            levels = list(levels) + [f"Group {i+1}" for i in range(len(levels), num_boxes)]
 
-        if _pairs:
+        # Extract min and max cap Line2D objects from caps_elements
+        # caps_elements format: [{"min": Line2D_obj, "max": Line2D_obj}, ...]
+        _pairs = [(e["min"], e["max"]) for e in caps_elements if e and "min" in e and "max" in e]
+
+        if _pairs and len(_pairs) == num_boxes:
             mins, maxs = map(list, zip(*_pairs))
         else:
+            # If caps weren't extracted correctly, we can't create selectors
+            # This should not happen if caps were created properly
             mins, maxs = [], []
 
         elements = []
@@ -292,9 +342,13 @@ class BoxPlot(
 
         self._elements.extend(elements)
 
-        for whisker, cap, median, outlier, level in zip(
-            whiskers, caps, medians, outliers, levels
+        for i, (whisker, cap, median, outlier) in enumerate(
+            zip(whiskers, caps, medians, outliers)
         ):
+            # Get level for this box (already padded to match num_boxes, but safe fallback)
+            level = levels[i] if i < len(levels) else f"Group {i+1}"
+            fill_value = str(level) if level else f"Group {i+1}"
+            
             bxp_maidr.append(
                 {
                     MaidrKey.LOWER_OUTLIER.value: outlier[MaidrKey.LOWER_OUTLIER.value],
@@ -304,7 +358,7 @@ class BoxPlot(
                     MaidrKey.Q3.value: whisker["q3"],
                     MaidrKey.MAX.value: cap["max"],
                     MaidrKey.UPPER_OUTLIER.value: outlier[MaidrKey.UPPER_OUTLIER.value],
-                    MaidrKey.FILL.value: level,
+                    MaidrKey.FILL.value: fill_value,
                 }
             )
 
