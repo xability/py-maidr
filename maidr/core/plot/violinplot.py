@@ -351,3 +351,165 @@ class SyntheticBoxPlotBuilder:
             "fliers": [],
         }
 
+
+class ViolinLayerExtractor:
+    """Utility class for extracting and registering violin plot layers (KDE and box) with MAIDR."""
+
+    @staticmethod
+    def extract_and_register_kde_layer(
+        plot_ax: Axes, ax: Axes, instance: Any, args: tuple, kwargs: dict
+    ) -> None:
+        """
+        Extract and register KDE layer (all violin shapes as one SMOOTH layer).
+
+        This is always done for violin plots. Extracts PolyCollection objects,
+        creates Line2D boundaries, assigns unique GIDs, and registers with MAIDR.
+
+        Parameters
+        ----------
+        plot_ax : Axes
+            The matplotlib axes containing the violin plot
+        ax : Axes
+            The axes object to return (for common() function)
+        instance : Any
+            The instance from the patch wrapper
+        args : tuple
+            Positional arguments from the patch wrapper
+        kwargs : dict
+            Keyword arguments from the patch wrapper
+        """
+        from maidr.core.enum import PlotType
+        from maidr.patch.common import common
+        import uuid
+        import numpy as np
+        from matplotlib.lines import Line2D
+        from matplotlib.collections import PolyCollection
+
+        # Extract and register KDE layer (all violin shapes as one SMOOTH layer)
+        kde_polys = [c for c in plot_ax.collections if isinstance(c, PolyCollection)]
+        if kde_polys:
+            kde_lines = []
+            unique_poly_gids = []  # Store unique GIDs for each PolyCollection
+
+            # Create Line2D boundaries for each PolyCollection and assign unique GID
+            for poly in kde_polys:
+                paths = poly.get_paths()
+                if paths:
+                    # Get the boundary vertices from the first path
+                    boundary = paths[0].vertices
+                    boundary = np.asarray(boundary)
+                    kde_line = Line2D(boundary[:, 0], boundary[:, 1])
+
+                    # Assign a unique GID to each PolyCollection and its corresponding Line2D
+                    # Use standard format: maidr-{uuid} (consistent with other plot types)
+                    unique_gid = f"maidr-{uuid.uuid4()}"
+                    kde_line.set_gid(unique_gid)
+                    poly.set_gid(unique_gid)
+                    kde_lines.append(kde_line)
+                    unique_poly_gids.append(unique_gid)  # Store unique GID
+
+            # Register all KDE shapes as a single SMOOTH layer
+            if kde_lines:
+                # Use the first line as the primary regression_line for SmoothPlot
+                # but pass all lines so SmoothPlot can extract data from all
+                common(
+                    PlotType.SMOOTH,
+                    lambda *a, **k: ax,
+                    instance,
+                    args,
+                    dict(
+                        kwargs,
+                        regression_line=kde_lines[0],
+                        poly_gids=unique_poly_gids,  # Pass all unique GIDs for selector generation
+                        is_polycollection=True,
+                        violin_kde_lines=kde_lines,  # Pass all lines for data extraction
+                        poly_collections=kde_polys,  # Pass PolyCollections for GID tagging
+                        violin_layer="kde",  # Mark as violin KDE layer
+                    ),
+                )
+
+    @staticmethod
+    def extract_and_register_box_layer(
+        plot_ax: Axes, args: tuple, kwargs: dict, orientation: str
+    ) -> None:
+        """
+        Extract and register box layer when inner='box' or inner='boxplot'.
+
+        Extracts data, computes box plot statistics, creates synthetic artists,
+        and registers with MAIDR's BoxPlot class.
+
+        Parameters
+        ----------
+        plot_ax : Axes
+            The matplotlib axes containing the violin plot
+        args : tuple
+            Positional arguments from the patch wrapper
+        kwargs : dict
+            Keyword arguments from the patch wrapper
+        orientation : str
+            Orientation string: "vert" for vertical, "horz" for horizontal
+        """
+        from maidr.core.figure_manager import FigureManager
+        from maidr.core.enum import PlotType
+
+        # Extract data for box plot statistics
+        groups, values = ViolinDataExtractor.extract(args, kwargs)
+        if groups and values:
+            # Compute box plot statistics for each group
+            stats_list = [ViolinBoxStatsCalculator.compute(v) for v in values]
+
+            # Filter out empty-data stats
+            valid_pairs = [
+                (stats, group)
+                for stats, group in zip(stats_list, groups)
+                if stats is not None
+            ]
+
+            if valid_pairs:
+                stats_list_valid, groups_valid = zip(*valid_pairs)
+                stats_list_valid = list(stats_list_valid)
+                groups_valid = list(groups_valid)
+
+                # Extract true violin positions from rendered plot
+                positions = ViolinPositionExtractor.extract_positions(
+                    plot_ax, len(groups_valid), orientation
+                )
+                positions = ViolinPositionExtractor.match_to_groups(
+                    plot_ax, groups_valid, positions, orientation
+                )
+
+                # Determine vertical orientation
+                vert = orientation == "vert"
+
+                # Build synthetic bxp_stats with matplotlib artist objects
+                bxp_stats = SyntheticBoxPlotBuilder.build(stats_list_valid, vert, positions)
+
+                # Add synthetic artists to axes so they appear in SVG with GIDs
+                # These need to be in the axes for SVG rendering. We make them transparent
+                # since the violin plot already shows the box plot (when inner='box')
+                # Using alpha=0 instead of visible=False ensures they're still rendered in SVG
+                for box in bxp_stats["boxes"]:
+                    plot_ax.add_patch(box)
+                    box.set_alpha(0.0)  # Transparent but still in SVG
+
+                for median in bxp_stats["medians"]:
+                    plot_ax.add_line(median)
+                    median.set_alpha(0.0)
+
+                for whisker in bxp_stats["whiskers"]:
+                    plot_ax.add_line(whisker)
+                    whisker.set_alpha(0.0)
+
+                for cap in bxp_stats["caps"]:
+                    plot_ax.add_line(cap)
+                    cap.set_alpha(0.0)
+
+                # Register box layer with MAIDR
+                FigureManager.create_maidr(
+                    plot_ax,
+                    PlotType.BOX,
+                    bxp_stats=bxp_stats,
+                    orientation=orientation,
+                    violin_layer="box",
+                )
+

@@ -333,7 +333,14 @@ class Maidr:
 
         for (row, col), layers in position_groups.items():
             if subplot_grid[row][col]:
-                subplot_grid[row][col]["layers"].append(layers)
+                has_violin_layers = any(
+                    layer.get("violinLayer") is not None 
+                    for layer in layers
+                )
+                if has_violin_layers:
+                    subplot_grid[row][col]["layers"].append(layers)
+                else:
+                    subplot_grid[row][col]["layers"].append(layers)
             else:
                 subplot_grid[row][col] = {"id": Maidr._unique_id(), "layers": layers}
 

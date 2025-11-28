@@ -174,7 +174,8 @@ class BoxPlot(
     DictMergerMixin,
 ):
     def __init__(self, ax: Axes, **kwargs) -> None:
-        super().__init__(ax, PlotType.BOX)
+        self._violin_layer = kwargs.pop("violin_layer", None)
+        super().__init__(ax, PlotType.BOX, **kwargs)
 
         self._bxp_stats = kwargs.pop("bxp_stats", None)
         self._orientation = kwargs.pop("orientation", "vert")
@@ -255,7 +256,11 @@ class BoxPlot(
     def render(self) -> dict:
         base_schema = super().render()
         box_orientation = {MaidrKey.ORIENTATION: self._orientation}
-        return DictMergerMixin.merge_dict(base_schema, box_orientation)
+        schema = DictMergerMixin.merge_dict(base_schema, box_orientation)
+        # Include violinLayer metadata if present (for violin plots)
+        if self._violin_layer is not None:
+            schema["violinLayer"] = self._violin_layer
+        return schema
 
     def _extract_plot_data(self) -> list:
         data = self._extract_bxp_maidr(self._bxp_stats)
