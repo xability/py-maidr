@@ -81,6 +81,16 @@ class ViolinDataExtractor:
                 values = [np.asarray(d).flatten() for d in data]
                 return groups, values
 
+        # Case 5 – y=array (direct array/list passed as y parameter, single violin)
+        # This handles cases like sns.violinplot(y=array_data, ...)
+        if y is not None and not isinstance(y, str) and isinstance(y, (list, tuple, np.ndarray)):
+            return ["Violin"], [np.asarray(y).flatten()]
+
+        # Case 6 – x=array (direct array/list passed as x parameter, single violin)
+        # This handles cases like sns.violinplot(x=array_data, ...)
+        if x is not None and not isinstance(x, str) and isinstance(x, (list, tuple, np.ndarray)):
+            return ["Violin"], [np.asarray(x).flatten()]
+
         return [], []
 
 
@@ -161,7 +171,7 @@ class ViolinPositionExtractor:
     @staticmethod
     def extract_positions(ax: Axes, num_groups: int, orientation: str) -> List[float]:
         """
-        Extract seaborn's real violin center positions from Rectangle artists.
+        Extract seaborn's real violin center positions from Rectangle artists or PolyCollection.
 
         Parameters
         ----------
@@ -180,24 +190,90 @@ class ViolinPositionExtractor:
         positions = []
 
         if orientation == "vert":
+            # Try to extract from Rectangle artists first (multi-violin plots)
             for child in ax.get_children():
                 if isinstance(child, Rectangle):
                     w, h = child.get_width(), child.get_height()
                     # Violin internal rectangles tend to be narrow and tall-ish
                     if 0.05 < w < 1.2 and h > 0:
                         positions.append(child.get_x() + w / 2)
+            
+            # If no rectangles found, try to extract from PolyCollection (violin shapes)
+            # or use X-axis tick positions
+            if not positions:
+                # For single violin plots, check PolyCollection or PathPatch
+                from matplotlib.collections import PolyCollection
+                from matplotlib.patches import PathPatch
+                for child in ax.get_children():
+                    if isinstance(child, (PolyCollection, PathPatch)):
+                        # Try to get center X position from vertices/path
+                        if isinstance(child, PolyCollection):
+                            verts = child.get_paths()[0].vertices if child.get_paths() else None
+                        else:  # PathPatch
+                            verts = child.get_path().vertices if hasattr(child.get_path(), 'vertices') else None
+                        
+                        if verts is not None and len(verts) > 0:
+                            # Get X coordinate from vertices (assume symmetric violin)
+                            x_coords = verts[:, 0]
+                            if len(x_coords) > 0:
+                                center_x = (x_coords.min() + x_coords.max()) / 2
+                                positions.append(float(center_x))
+                                break
+                
+                # Fallback to X-axis tick positions
+                if not positions:
+                    x_ticks = ax.get_xticks()
+                    if len(x_ticks) > 0:
+                        # Use first tick position for single violin
+                        positions = [float(x_ticks[0])]
+                    else:
+                        # Last resort: use 0 for single violin
+                        positions = [0.0]
         else:
+            # Horizontal orientation (similar logic but for Y-axis)
             for child in ax.get_children():
                 if isinstance(child, Rectangle):
                     w, h = child.get_width(), child.get_height()
                     if 0.05 < h < 1.2 and w > 0:
                         positions.append(child.get_y() + h / 2)
+            
+            if not positions:
+                from matplotlib.collections import PolyCollection
+                from matplotlib.patches import PathPatch
+                for child in ax.get_children():
+                    if isinstance(child, (PolyCollection, PathPatch)):
+                        if isinstance(child, PolyCollection):
+                            verts = child.get_paths()[0].vertices if child.get_paths() else None
+                        else:
+                            verts = child.get_path().vertices if hasattr(child.get_path(), 'vertices') else None
+                        
+                        if verts is not None and len(verts) > 0:
+                            y_coords = verts[:, 1]
+                            if len(y_coords) > 0:
+                                center_y = (y_coords.min() + y_coords.max()) / 2
+                                positions.append(float(center_y))
+                                break
+                
+                if not positions:
+                    y_ticks = ax.get_yticks()
+                    if len(y_ticks) > 0:
+                        positions = [float(y_ticks[0])]
+                    else:
+                        positions = [0.0]
 
         positions = sorted(set(positions))
 
         if len(positions) < num_groups:
-            # fallback
-            return [i + 1 for i in range(num_groups)]
+            # fallback - use tick positions or default
+            if orientation == "vert":
+                x_ticks = ax.get_xticks()
+                if len(x_ticks) >= num_groups:
+                    return [float(x_ticks[i]) for i in range(num_groups)]
+            else:
+                y_ticks = ax.get_yticks()
+                if len(y_ticks) >= num_groups:
+                    return [float(y_ticks[i]) for i in range(num_groups)]
+            return [float(i) for i in range(num_groups)]
 
         return positions[:num_groups]
 
@@ -396,9 +472,16 @@ class ViolinLayerExtractor:
                 paths = poly.get_paths()
                 if paths:
                     # Get the boundary vertices from the first path
+                    # PolyCollection vertices are in data coordinates
                     boundary = paths[0].vertices
                     boundary = np.asarray(boundary)
+                    
+                    # Create Line2D with data coordinates
+                    # The Line2D will store the data coordinates directly
                     kde_line = Line2D(boundary[:, 0], boundary[:, 1])
+                    
+                    # Ensure the axes is set for proper coordinate transforms
+                    kde_line.axes = plot_ax
 
                     # Assign a unique GID to each PolyCollection and its corresponding Line2D
                     # Use standard format: maidr-{uuid} (consistent with other plot types)
@@ -410,6 +493,11 @@ class ViolinLayerExtractor:
 
             # Register all KDE shapes as a single SMOOTH layer
             if kde_lines:
+                # Extract X axis categorical labels for mapping numeric coordinates to labels
+                from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
+                from maidr.core.enum.maidr_key import MaidrKey
+                x_levels = LevelExtractorMixin.extract_level(plot_ax, MaidrKey.X)
+                
                 # Use the first line as the primary regression_line for SmoothPlot
                 # but pass all lines so SmoothPlot can extract data from all
                 common(
@@ -425,6 +513,7 @@ class ViolinLayerExtractor:
                         violin_kde_lines=kde_lines,  # Pass all lines for data extraction
                         poly_collections=kde_polys,  # Pass PolyCollections for GID tagging
                         violin_layer="kde",  # Mark as violin KDE layer
+                        x_levels=x_levels,  # Pass X axis categorical labels for mapping
                     ),
                 )
 
@@ -477,12 +566,77 @@ class ViolinLayerExtractor:
                 positions = ViolinPositionExtractor.match_to_groups(
                     plot_ax, groups_valid, positions, orientation
                 )
+                
+                # For single violin plots, ensure we use the actual violin center position
+                # Extract from PolyCollection if available (more accurate than Rectangle fallback)
+                if len(groups_valid) == 1 and len(positions) == 1:
+                    from matplotlib.collections import PolyCollection
+                    from matplotlib.patches import PathPatch
+                    
+                    # Try PolyCollection first (seaborn violin plots)
+                    for child in plot_ax.get_children():
+                        if isinstance(child, PolyCollection) and child.get_paths():
+                            # Get vertices from the first path (violin shape)
+                            verts = child.get_paths()[0].vertices
+                            if verts is not None and len(verts) > 0:
+                                if orientation == "vert":
+                                    x_coords = verts[:, 0]
+                                    if len(x_coords) > 0:
+                                        center_x = (x_coords.min() + x_coords.max()) / 2
+                                        positions[0] = float(center_x)
+                                        break
+                                else:  # horizontal
+                                    y_coords = verts[:, 1]
+                                    if len(y_coords) > 0:
+                                        center_y = (y_coords.min() + y_coords.max()) / 2
+                                        positions[0] = float(center_y)
+                                        break
+                    
+                    # Fallback: try PathPatch (if PolyCollection not found)
+                    if positions[0] == 0.0 or (positions[0] == 1.0 and len(positions) == 1):
+                        for child in plot_ax.get_children():
+                            if isinstance(child, PathPatch):
+                                path = child.get_path()
+                                if hasattr(path, 'vertices') and path.vertices is not None:
+                                    verts = path.vertices
+                                    if len(verts) > 0:
+                                        if orientation == "vert":
+                                            x_coords = verts[:, 0]
+                                            if len(x_coords) > 0:
+                                                center_x = (x_coords.min() + x_coords.max()) / 2
+                                                positions[0] = float(center_x)
+                                                break
+                                        else:  # horizontal
+                                            y_coords = verts[:, 1]
+                                            if len(y_coords) > 0:
+                                                center_y = (y_coords.min() + y_coords.max()) / 2
+                                                positions[0] = float(center_y)
+                                                break
 
                 # Determine vertical orientation
                 vert = orientation == "vert"
 
                 # Build synthetic bxp_stats with matplotlib artist objects
                 bxp_stats = SyntheticBoxPlotBuilder.build(stats_list_valid, vert, positions)
+
+                # Assign GIDs to synthetic artists BEFORE adding to axes
+                # This ensures BoxPlot can properly extract them for selector generation
+                import uuid as uuid_module
+                for box in bxp_stats["boxes"]:
+                    if not box.get_gid():
+                        box.set_gid(f"maidr-{uuid_module.uuid4()}")
+                
+                for median in bxp_stats["medians"]:
+                    if not median.get_gid():
+                        median.set_gid(f"maidr-{uuid_module.uuid4()}")
+                
+                for whisker in bxp_stats["whiskers"]:
+                    if not whisker.get_gid():
+                        whisker.set_gid(f"maidr-{uuid_module.uuid4()}")
+                
+                for cap in bxp_stats["caps"]:
+                    if not cap.get_gid():
+                        cap.set_gid(f"maidr-{uuid_module.uuid4()}")
 
                 # Add synthetic artists to axes so they appear in SVG with GIDs
                 # These need to be in the axes for SVG rendering. We make them transparent
