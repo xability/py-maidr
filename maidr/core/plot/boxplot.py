@@ -59,7 +59,40 @@ class BoxPlotExtractor:
         self.orientation = orientation
 
     def extract_whiskers(self, whiskers: list) -> list[dict]:
-        return self._extract_extremes(whiskers, MaidrKey.Q1, MaidrKey.Q3)
+        """
+        Extract Q1 and Q3 from whiskers.
+        
+        Both matplotlib and synthetic box plots structure whiskers as:
+        - Lower whisker: [MIN, Q1] (from minimum to first quartile)
+        - Upper whisker: [Q3, MAX] (from third quartile to maximum)
+        
+        Therefore, we extract Q1 from the END point of the lower whisker
+        and Q3 from the START point of the upper whisker.
+        """
+        data = []
+
+        for wmin, wmax in zip(whiskers[::2], whiskers[1::2]):
+            # Lower whisker: wmin goes from MIN to Q1
+            # Upper whisker: wmax goes from Q3 to MAX
+            wmin_fn = wmin.get_ydata if self.orientation == "vert" else wmin.get_xdata
+            wmax_fn = wmax.get_ydata if self.orientation == "vert" else wmax.get_xdata
+
+            # Get the END point of lower whisker (Q1) - last point
+            wmin_data = wmin_fn()
+            q1_value = float(wmin_data[-1])  # Last point is Q1
+
+            # Get the START point of upper whisker (Q3) - first point
+            wmax_data = wmax_fn()
+            q3_value = float(wmax_data[0])  # First point is Q3
+
+            data.append(
+                {
+                    MaidrKey.Q1.value: q1_value,
+                    MaidrKey.Q3.value: q3_value,
+                }
+            )
+
+        return data
 
     def extract_caps(self, caps: list) -> list[dict]:
         return self._extract_extremes(caps, MaidrKey.MIN, MaidrKey.MAX)

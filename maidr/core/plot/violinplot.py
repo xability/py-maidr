@@ -130,10 +130,17 @@ class ViolinBoxStatsCalculator:
                 MaidrKey.UPPER_OUTLIER.value: [],
             }
 
-        # Calculate quartiles
-        q1 = float(np.percentile(values, 25))
-        q2 = float(np.percentile(values, 50))
-        q3 = float(np.percentile(values, 75))
+        # Calculate quartiles matching matplotlib/seaborn's boxplot method
+        # Matplotlib uses np.percentile with interpolation='linear' (default)
+        # Sort values first for clarity (numpy.percentile does this internally)
+        sorted_values = np.sort(values)
+        
+        # Calculate quartiles using numpy.percentile
+        # numpy.percentile uses linear interpolation by default, matching matplotlib
+        # This is the standard method used by matplotlib's boxplot
+        q1 = float(np.percentile(sorted_values, 25))
+        q2 = float(np.percentile(sorted_values, 50))
+        q3 = float(np.percentile(sorted_values, 75))
         iqr = q3 - q1
 
         # Calculate Tukey fences (1.5 * IQR rule)
