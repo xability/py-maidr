@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from matplotlib.axes import Axes
+from scipy import interpolate
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.exception.extraction_error import ExtractionError
 import numpy as np
@@ -96,8 +98,6 @@ class SmoothPlot(MaidrPlot):
                 
                 # Interpolate Y values to a common grid (y_common) and calculate widths
                 # For violin plots, we interpolate to regularly spaced Y values
-                from scipy import interpolate
-                
                 y_unique = sorted(set(y_data))
                 if len(y_unique) < 2:
                     # Not enough points for interpolation, use original data
@@ -202,7 +202,6 @@ class SmoothPlot(MaidrPlot):
                         all_lines_data.append(interpolated_data)
                     except (ValueError, np.linalg.LinAlgError):
                         # Fallback: use original data with grouping method for width
-                        from collections import defaultdict
                         y_to_x_coords = defaultdict(list)
                         for x, y in zip(x_data, y_data):
                             if not (np.isnan(x) or np.isnan(y)):

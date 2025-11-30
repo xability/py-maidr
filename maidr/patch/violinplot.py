@@ -27,10 +27,39 @@ from maidr.core.plot.violinplot import (
 def patch_violinplot(wrapped, instance, args, kwargs):
     """
     Patch for seaborn.violinplot to extract and register KDE and box plot layers with MAIDR.
-    
+
+    This wrapper function intercepts calls to seaborn.violinplot and automatically
+    extracts and registers the KDE (kernel density estimation) and box plot layers
+    with MAIDR for accessible navigation.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        The original seaborn.violinplot function to be patched.
+    instance : Any
+        The bound instance if the function is a method, otherwise None.
+    args : tuple
+        Positional arguments passed to seaborn.violinplot.
+    kwargs : dict
+        Keyword arguments passed to seaborn.violinplot.
+
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The Axes object containing the violin plot.
+
+    Examples
+    --------
+    >>> import seaborn as sns
+    >>> import maidr.patch.violinplot  # Patch is applied automatically
+    >>> ax = sns.violinplot(data=[1, 2, 3, 4])
+    >>> # The KDE and box plot layers are registered with MAIDR.
+
+    Notes
+    -----
     Detects and registers:
-    - SMOOTH layer: All violin shapes (PolyCollection) as KDE layer
-    - BOX layer: Box plot statistics when inner='box' or inner='boxplot'
+        - SMOOTH layer: All violin shapes (PolyCollection) as KDE layer
+        - BOX layer: Box plot statistics when inner='box' or inner='boxplot'
     """
     if ContextManager.is_internal_context():
         return wrapped(*args, **kwargs)

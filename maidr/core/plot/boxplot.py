@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import warnings
 
 from matplotlib.axes import Axes
 
@@ -136,7 +137,7 @@ class BoxPlotExtractor:
         # Handle empty fliers - return empty outlier dicts for each cap
         if not fliers:
             # Return one empty outlier dict per cap (one per box)
-            for cap in caps:
+            for _ in caps:
                 data.append(
                     {
                         MaidrKey.LOWER_OUTLIER.value: [],
@@ -252,7 +253,14 @@ class BoxPlot(
         # Regular box plots should always have these, but synthetic ones might not
         if len(mins) != num_boxes or len(maxs) != num_boxes:
             # If min/max caps weren't extracted, can't create selectors
-            # This prevents errors but returns empty selectors (silent failure)
+            warnings.warn(
+                f"Unable to extract min/max caps for box plot selectors. "
+                f"Expected {num_boxes} caps but found {len(mins)} min caps and {len(maxs)} max caps. "
+                f"This may occur with synthetic box plots (e.g., violin plots). "
+                f"Returning empty selectors.",
+                UserWarning,
+                stacklevel=2
+            )
             return []
 
         for (

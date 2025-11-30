@@ -11,6 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
+from matplotlib.collections import PolyCollection
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle, PathPatch
 from matplotlib import path as mpath
@@ -20,7 +21,31 @@ from maidr.core.enum import MaidrKey
 
 
 class ViolinDataExtractor:
-    """Utility class for extracting raw data from seaborn violinplot arguments."""
+    """
+    Extracts raw data groups and values from seaborn violinplot arguments.
+
+    This utility class provides a static method to parse positional and keyword arguments
+    passed to seaborn's violinplot function, returning the group names and corresponding
+    data arrays for each violin in the plot. It supports DataFrame inputs with optional
+    grouping and ordering via `x`, `y`, and `hue` parameters.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> from maidr.core.plot.violinplot import ViolinDataExtractor
+    >>> df = pd.DataFrame({
+    ...     "group": ["A", "A", "B", "B"],
+    ...     "value": [1.2, 2.3, 3.4, 4.5]
+    ... })
+    >>> args = ()
+    >>> kwargs = {"data": df, "x": "group", "y": "value"}
+    >>> groups, values = ViolinDataExtractor.extract(args, kwargs)
+    >>> print(groups)
+    ['A', 'B']
+    >>> print([v.tolist() for v in values])
+    [[1.2, 2.3], [3.4, 4.5]]
+    """
 
     @staticmethod
     def extract(args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> Tuple[List[str], List[np.ndarray]]:
@@ -124,7 +149,27 @@ class ViolinDataExtractor:
 
 
 class ViolinBoxStatsCalculator:
-    """Utility class for computing Tukey box plot statistics from raw data."""
+    """
+    Utility class for computing Tukey box plot statistics from raw data.
+
+    This class provides a static method to compute Tukey-style box plot statistics
+    (Q1, median, Q3, min, max) from a given array of values. The statistics are
+    returned in a dictionary using MaidrKey keys, matching matplotlib's conventions.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from maidr.core.plot.violinplot import ViolinBoxStatsCalculator
+    >>> from maidr.core.enum import MaidrKey
+    >>> data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    >>> stats = ViolinBoxStatsCalculator.compute(data)
+    >>> print(stats[MaidrKey.Q1.value])
+    3.0
+    >>> print(stats[MaidrKey.Q2.value])
+    5.0
+    >>> print(stats[MaidrKey.Q3.value])
+    7.0
+    """
 
     @staticmethod
     def compute(values: np.ndarray) -> Dict[str, Any]:
@@ -202,7 +247,33 @@ class ViolinBoxStatsCalculator:
 
 
 class ViolinPositionExtractor:
-    """Utility class for extracting violin plot positions from rendered axes."""
+    """
+    Extracts violin plot center positions from rendered matplotlib axes.
+
+    This utility class provides methods to determine the center positions of violins
+    in a seaborn or matplotlib violin plot, given the axes, number of groups, and orientation.
+    It supports both vertical and horizontal orientations and can match positions to group
+    names based on tick labels.
+
+    Methods
+    -------
+    extract_positions(ax, num_groups, orientation)
+        Extracts the center positions of violins from the axes.
+    match_to_groups(ax, groups, positions, orientation)
+        Matches positions to groups based on tick labels to ensure correct ordering.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> import seaborn as sns
+    >>> import numpy as np
+    >>> from maidr.core.plot.violinplot import ViolinPositionExtractor
+    >>> data = [np.random.normal(size=100) for _ in range(3)]
+    >>> ax = sns.violinplot(data=data, orient="v")
+    >>> positions = ViolinPositionExtractor.extract_positions(ax, num_groups=3, orientation="vert")
+    >>> print(positions)
+    [0.0, 1.0, 2.0]
+    """
 
     @staticmethod
     def extract_positions(ax: Axes, num_groups: int, orientation: str) -> List[float]:
@@ -238,8 +309,6 @@ class ViolinPositionExtractor:
             # or use X-axis tick positions
             if not positions:
                 # For single violin plots, check PolyCollection or PathPatch
-                from matplotlib.collections import PolyCollection
-                from matplotlib.patches import PathPatch
                 for child in ax.get_children():
                     if isinstance(child, (PolyCollection, PathPatch)):
                         # Try to get center X position from vertices/path
@@ -274,8 +343,6 @@ class ViolinPositionExtractor:
                         positions.append(child.get_y() + h / 2)
             
             if not positions:
-                from matplotlib.collections import PolyCollection
-                from matplotlib.patches import PathPatch
                 for child in ax.get_children():
                     if isinstance(child, (PolyCollection, PathPatch)):
                         if isinstance(child, PolyCollection):
@@ -371,11 +438,78 @@ class ViolinPositionExtractor:
 
 
 class SyntheticBoxPlotBuilder:
-    """Utility class for building synthetic box plot artist objects from statistics."""
+    """
+    Utility class for building synthetic box plot artist objects from statistics.
+
+    This class provides static methods to construct synthetic box plot artists
+    (such as rectangles and lines) from precomputed box plot statistics. It is
+    useful for programmatically generating box plot visuals when the underlying
+    data is not directly available, or when custom rendering is required.
+
+    Methods
+    -------
+    build(stats_list, vert, positions)
+        Build synthetic box plot artists from statistics.
+    _rect_to_pathpatch(rect)
+        Convert a Rectangle to a PathPatch for compatibility with set_gid.
+
+    Examples
+    --------
+    >>> from maidr.core.plot.violinplot import SyntheticBoxPlotBuilder
+    >>> from maidr.core.enum import MaidrKey
+    >>> stats_list = [
+    ...     {
+    ...         MaidrKey.MIN.value: 2.0,
+    ...         MaidrKey.Q1.value: 3.0,
+    ...         MaidrKey.Q2.value: 5.0,
+    ...         MaidrKey.Q3.value: 7.0,
+    ...         MaidrKey.MAX.value: 8.0,
+    ...         MaidrKey.LOWER_OUTLIER.value: [],
+    ...         MaidrKey.UPPER_OUTLIER.value: [],
+    ...     },
+    ...     {
+    ...         MaidrKey.MIN.value: 3.0,
+    ...         MaidrKey.Q1.value: 4.0,
+    ...         MaidrKey.Q2.value: 6.0,
+    ...         MaidrKey.Q3.value: 8.0,
+    ...         MaidrKey.MAX.value: 9.0,
+    ...         MaidrKey.LOWER_OUTLIER.value: [],
+    ...         MaidrKey.UPPER_OUTLIER.value: [],
+    ...     }
+    ... ]
+    >>> positions = [0.0, 1.0]
+    >>> artists = SyntheticBoxPlotBuilder.build(stats_list, vert=True, positions=positions)
+    >>> # artists['boxes'], artists['medians'], etc. now contain matplotlib artist objects
+    >>> print(list(artists.keys()))
+    ['boxes', 'medians', 'whiskers', 'caps', 'fliers']
+    """
 
     @staticmethod
     def _rect_to_pathpatch(rect: Rectangle) -> PathPatch:
-        """Convert Rectangle to PathPatch (has set_gid method)."""
+        """
+        Convert a matplotlib Rectangle to a PathPatch.
+
+        This is useful for creating a PathPatch from a Rectangle, which allows
+        additional methods such as `set_gid` to be used for identification.
+
+        Parameters
+        ----------
+        rect : Rectangle
+            A matplotlib.patches.Rectangle instance to convert.
+
+        Returns
+        -------
+        PathPatch
+            A PathPatch object representing the same rectangle.
+
+        Examples
+        --------
+        >>> from matplotlib.patches import Rectangle
+        >>> rect = Rectangle((0, 0), 1, 2)
+        >>> patch = SyntheticBoxPlotBuilder._rect_to_pathpatch(rect)
+        >>> isinstance(patch, PathPatch)
+        True
+        """
         x, y = rect.get_xy()
         w, h = rect.get_width(), rect.get_height()
 
