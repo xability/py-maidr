@@ -48,14 +48,43 @@ class ViolinDataExtractor:
         # Case 1 — DataFrame with x & y
         if isinstance(df, pd.DataFrame) and isinstance(x, str) and isinstance(y, str):
             groups, values = [], []
+            
+            # Check if order parameter is specified (for x or hue)
+            x_order = kwargs.get("order", None)
+            hue_order = kwargs.get("hue_order", None) if hue else None
+            
             if hue is None:
-                for g, gdf in df.groupby(x, observed=False):
-                    groups.append(str(g))
-                    values.append(gdf[y].dropna().values)
+                # Extract groups in the specified order (if provided), otherwise use groupby order
+                if x_order is not None:
+                    # Respect the order parameter - extract groups in the specified order
+                    for g in x_order:
+                        gdf = df[df[x] == g]
+                        if not gdf.empty:
+                            groups.append(str(g))
+                            values.append(gdf[y].dropna().values)
+                else:
+                    # No order specified - use groupby order
+                    for g, gdf in df.groupby(x, observed=False):
+                        groups.append(str(g))
+                        values.append(gdf[y].dropna().values)
             else:
-                for (gx, gh), gdf in df.groupby([x, hue], observed=False):
-                    groups.append(f"{gx}_{gh}")
-                    values.append(gdf[y].dropna().values)
+                # With hue - need to handle both x_order and hue_order
+                if x_order is not None or hue_order is not None:
+                    # Build ordered combinations
+                    x_categories = x_order if x_order is not None else df[x].unique()
+                    h_categories = hue_order if hue_order is not None else df[hue].unique()
+                    
+                    for gx in x_categories:
+                        for gh in h_categories:
+                            gdf = df[(df[x] == gx) & (df[hue] == gh)]
+                            if not gdf.empty:
+                                groups.append(f"{gx}_{gh}")
+                                values.append(gdf[y].dropna().values)
+                else:
+                    # No order specified - use groupby order
+                    for (gx, gh), gdf in df.groupby([x, hue], observed=False):
+                        groups.append(f"{gx}_{gh}")
+                        values.append(gdf[y].dropna().values)
             return groups, values
 
         # Case 2 – DataFrame, only y ⇒ single violin
@@ -287,23 +316,27 @@ class ViolinPositionExtractor:
     @staticmethod
     def match_to_groups(ax: Axes, groups: List[str], positions: List[float], orientation: str) -> List[float]:
         """
-        Try matching positions to tick labels for safer ordering.
+        Match positions to groups based on tick labels to ensure correct ordering.
+        
+        This ensures that when groups are extracted in a specific order (e.g., from the 'order'
+        parameter), the positions are matched correctly to match the visual order of violins
+        on the plot.
 
         Parameters
         ----------
         ax : Axes
             Matplotlib axes object
         groups : List[str]
-            List of group names
+            List of group names (should be in the same order as tick labels)
         positions : List[float]
-            List of extracted positions
+            List of extracted positions (may be in different order)
         orientation : str
             Orientation: "vert" for vertical, "horz" for horizontal
 
         Returns
         -------
         List[float]
-            List of matched positions, or original positions if matching fails
+            List of matched positions in the order of groups, or original positions if matching fails
         """
         if orientation == "vert":
             tick_labels = [t.get_text() for t in ax.get_xticklabels()]
@@ -312,18 +345,29 @@ class ViolinPositionExtractor:
             tick_labels = [t.get_text() for t in ax.get_yticklabels()]
             tick_positions = ax.get_yticks()
 
+        # If we have the same number of groups and tick labels, match positions based on tick labels
+        # tick_positions from ax.get_xticks()/get_yticks() are already in the correct visual order
+        # matching the tick_labels order
         if len(tick_labels) == len(groups):
             matched = []
             for group in groups:
                 try:
-                    idx = tick_labels.index(group)
-                    matched.append(tick_positions[idx])
+                    # Find the index of this group in tick_labels (which respects the 'order' parameter)
+                    tick_idx = tick_labels.index(group)
+                    # tick_positions are already in the correct order matching tick_labels
+                    # Use tick_positions directly as they represent the actual visual positions
+                    matched.append(float(tick_positions[tick_idx]))
                 except ValueError:
+                    # Group not found in tick labels - skip
                     pass
+            
+            # If we successfully matched all groups, return matched positions
             if len(matched) == len(groups):
                 return matched
-
-        return positions[:len(groups)]
+        
+        # Fallback: if matching failed, use extracted positions as-is
+        # But limit to the number of groups we have
+        return positions[:len(groups)] if positions else []
 
 
 class SyntheticBoxPlotBuilder:
