@@ -200,7 +200,7 @@ class SmoothPlot(MaidrPlot):
                             })
                         
                         all_lines_data.append(interpolated_data)
-                    except (ValueError, np.linalg.LinAlgError) as e:
+                    except (ValueError, np.linalg.LinAlgError):
                         # Fallback: use original data with grouping method for width
                         from collections import defaultdict
                         y_to_x_coords = defaultdict(list)

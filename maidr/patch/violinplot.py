@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 import numpy as np
 import wrapt
-from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
 from matplotlib.patches import PathPatch
@@ -44,7 +43,7 @@ def patch_violinplot(wrapped, instance, args, kwargs):
 
     # Determine orientation
     orient = kwargs.get("orient", "v")
-    vert = not (orient in ("h", "horizontal", "y"))
+    vert = orient not in ("h", "horizontal", "y")
     orientation = "vert" if vert else "horz"
 
     # ===== DETECT AND REGISTER SMOOTH (KDE) LAYER =====
