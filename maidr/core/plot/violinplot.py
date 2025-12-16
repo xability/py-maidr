@@ -174,7 +174,7 @@ class ViolinBoxStatsCalculator:
     @staticmethod
     def compute(values: np.ndarray) -> Dict[str, Any]:
         """
-        Compute Tukey box stats matching matplotlib's method.
+        Compute Tukey box stats matching matplotlib/seaborn's boxplot method.
 
         Returns box plot statistics: Q1, Q2 (median), Q3, min, max.
         Note: min == Q1 (or max == Q3) can occur when there are no outliers
@@ -208,7 +208,7 @@ class ViolinBoxStatsCalculator:
         # Matplotlib uses np.percentile with interpolation='linear' (default)
         # Sort values first for clarity (numpy.percentile does this internally)
         sorted_values = np.sort(values)
-        
+
         # Calculate quartiles using numpy.percentile
         # numpy.percentile uses linear interpolation by default, matching matplotlib
         # This is the standard method used by matplotlib's boxplot
@@ -235,6 +235,49 @@ class ViolinBoxStatsCalculator:
 
         # Note: min_val may equal q1 when all values are >= q1 (within fence)
         # This is correct - the cap and box edge will overlap visually
+        return {
+            MaidrKey.MIN.value: min_val,
+            MaidrKey.Q1.value: q1,
+            MaidrKey.Q2.value: q2,
+            MaidrKey.Q3.value: q3,
+            MaidrKey.MAX.value: max_val,
+            MaidrKey.LOWER_OUTLIER.value: [],
+            MaidrKey.UPPER_OUTLIER.value: [],
+        }
+
+    @staticmethod
+    def compute_full_range(values: np.ndarray) -> Dict[str, Any]:
+        """
+        Compute box statistics for violin plots using full data range for min/max.
+
+        MIN and MAX are taken from the actual data extrema (no Tukey clipping),
+        while quartiles (Q1, Q2, Q3) still follow the standard percentile
+        definition. This is useful for Matplotlib violin plots where we want
+        the extrema to match Series.describe() style summaries.
+        """
+        values = np.asarray(values)
+        values = values[~np.isnan(values)]
+
+        if len(values) == 0:
+            return {
+                MaidrKey.MIN.value: 0.0,
+                MaidrKey.Q1.value: 0.0,
+                MaidrKey.Q2.value: 0.0,
+                MaidrKey.Q3.value: 0.0,
+                MaidrKey.MAX.value: 0.0,
+                MaidrKey.LOWER_OUTLIER.value: [],
+                MaidrKey.UPPER_OUTLIER.value: [],
+            }
+
+        sorted_values = np.sort(values)
+
+        q1 = float(np.percentile(sorted_values, 25))
+        q2 = float(np.percentile(sorted_values, 50))
+        q3 = float(np.percentile(sorted_values, 75))
+
+        min_val = float(sorted_values[0])
+        max_val = float(sorted_values[-1])
+
         return {
             MaidrKey.MIN.value: min_val,
             MaidrKey.Q1.value: q1,
@@ -304,36 +347,30 @@ class ViolinPositionExtractor:
                     # Violin internal rectangles tend to be narrow and tall-ish
                     if 0.05 < w < 1.2 and h > 0:
                         positions.append(child.get_x() + w / 2)
-            
-            # If no rectangles found, try to extract from PolyCollection (violin shapes)
-            # or use X-axis tick positions
+            # If no rectangles found, try to extract from all PolyCollections/PathPatches
             if not positions:
-                # For single violin plots, check PolyCollection or PathPatch
                 for child in ax.get_children():
                     if isinstance(child, (PolyCollection, PathPatch)):
-                        # Try to get center X position from vertices/path
                         if isinstance(child, PolyCollection):
-                            verts = child.get_paths()[0].vertices if child.get_paths() else None
+                            paths = child.get_paths()
+                            verts = paths[0].vertices if paths else None
                         else:  # PathPatch
-                            verts = child.get_path().vertices if hasattr(child.get_path(), 'vertices') else None
-                        
+                            path = child.get_path()
+                            verts = path.vertices if hasattr(path, "vertices") else None
                         if verts is not None and len(verts) > 0:
-                            # Get X coordinate from vertices (assume symmetric violin)
                             x_coords = verts[:, 0]
                             if len(x_coords) > 0:
                                 center_x = (x_coords.min() + x_coords.max()) / 2
                                 positions.append(float(center_x))
-                                break
-                
-                # Fallback to X-axis tick positions
+                # Fallback to X-axis tick positions only if no centers were found
                 if not positions:
                     x_ticks = ax.get_xticks()
                     if len(x_ticks) > 0:
-                        # Use first tick position for single violin
-                        positions = [float(x_ticks[0])]
+                        # Use first N tick positions as approximate centers
+                        positions = [float(x_ticks[i]) for i in range(min(len(x_ticks), num_groups))]
                     else:
-                        # Last resort: use 0 for single violin
-                        positions = [0.0]
+                        # Last resort: use sequential indices
+                        positions = [float(i) for i in range(num_groups)]
         else:
             # Horizontal orientation (similar logic but for Y-axis)
             for child in ax.get_children():
@@ -341,28 +378,27 @@ class ViolinPositionExtractor:
                     w, h = child.get_width(), child.get_height()
                     if 0.05 < h < 1.2 and w > 0:
                         positions.append(child.get_y() + h / 2)
-            
+
             if not positions:
                 for child in ax.get_children():
                     if isinstance(child, (PolyCollection, PathPatch)):
                         if isinstance(child, PolyCollection):
-                            verts = child.get_paths()[0].vertices if child.get_paths() else None
+                            paths = child.get_paths()
+                            verts = paths[0].vertices if paths else None
                         else:
-                            verts = child.get_path().vertices if hasattr(child.get_path(), 'vertices') else None
-                        
+                            path = child.get_path()
+                            verts = path.vertices if hasattr(path, "vertices") else None
                         if verts is not None and len(verts) > 0:
                             y_coords = verts[:, 1]
                             if len(y_coords) > 0:
                                 center_y = (y_coords.min() + y_coords.max()) / 2
                                 positions.append(float(center_y))
-                                break
-                
                 if not positions:
                     y_ticks = ax.get_yticks()
                     if len(y_ticks) > 0:
-                        positions = [float(y_ticks[0])]
+                        positions = [float(y_ticks[i]) for i in range(min(len(y_ticks), num_groups))]
                     else:
-                        positions = [0.0]
+                        positions = [float(i) for i in range(num_groups)]
 
         positions = sorted(set(positions))
 
