@@ -34,6 +34,7 @@ def _register_violin_layers(
     enable_box_layer: bool,
     box_violin_layer: str | None,
     use_full_range_extrema: bool = False,
+    violin_options: dict | None = None,
 ) -> None:
     """Shared logic to register KDE (SMOOTH) and box (BOX) layers for violin plots.
 
@@ -221,6 +222,7 @@ def _register_violin_layers(
         bxp_stats=bxp_stats,
         orientation=orientation,
         violin_layer=box_violin_layer,
+        violin_options=violin_options,
     )
 
 
@@ -244,6 +246,11 @@ def mpl_violinplot(wrapped, instance, args, kwargs):
     vert = kwargs.get("vert", True)
     orientation = "vert" if vert else "horz"
 
+    # Respect Matplotlib's defaults unless user overrides them explicitly.
+    show_means = kwargs.get("showmeans", False)
+    show_medians = kwargs.get("showmedians", False)
+    show_extrema = kwargs.get("showextrema", True)
+
     # For Matplotlib, always compute and register box statistics from the data
     _register_violin_layers(
         plot_ax,
@@ -254,6 +261,11 @@ def mpl_violinplot(wrapped, instance, args, kwargs):
         enable_box_layer=True,
         box_violin_layer="mpl_violin",
         use_full_range_extrema=True,
+        violin_options={
+            "showMeans": bool(show_means),
+            "showMedians": bool(show_medians),
+            "showExtrema": bool(show_extrema),
+        },
     )
 
     return plot
@@ -324,6 +336,7 @@ def patch_violinplot(wrapped, instance, args, kwargs):
         enable_box_layer=enable_box_layer,
         box_violin_layer="sns_violin",
         use_full_range_extrema=False,
+        violin_options=None,
     )
 
     return ax

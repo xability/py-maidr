@@ -209,6 +209,9 @@ class BoxPlot(
 ):
     def __init__(self, ax: Axes, **kwargs) -> None:
         self._violin_layer = kwargs.pop("violin_layer", None)
+        # Optional violin options (used for Matplotlib violin plots)
+        # Keys: showMeans, showMedians, showExtrema
+        self._violin_options = kwargs.pop("violin_options", None)
         super().__init__(ax, PlotType.BOX, **kwargs)
 
         self._bxp_stats = kwargs.pop("bxp_stats", None)
@@ -317,6 +320,9 @@ class BoxPlot(
         # Include violinLayer metadata if present (for violin plots)
         if self._violin_layer is not None:
             schema["violinLayer"] = self._violin_layer
+        # Pass through violinOptions so the client can respect showMeans/showMedians flags
+        if self._violin_options is not None:
+            schema["violinOptions"] = self._violin_options
         return schema
 
     def _extract_plot_data(self) -> list:
