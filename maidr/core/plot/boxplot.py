@@ -222,13 +222,19 @@ class BoxPlot(
             "min": [],
             "max": [],
             "median": [],
+            "mean": [],
             "boxes": [],
             "outliers": [],
         }
         self.lower_outliers_count = []
 
     def _get_selector(self) -> list[dict]:
-        mins, maxs, medians, boxes, outliers = self.elements_map.values()
+        mins = self.elements_map["min"]
+        maxs = self.elements_map["max"]
+        medians = self.elements_map["median"]
+        means = self.elements_map.get("mean", [])
+        boxes = self.elements_map["boxes"]
+        outliers = self.elements_map["outliers"]
         selector = []
 
         # zip stops at shortest list - ensure all lists have matching length
@@ -263,35 +269,45 @@ class BoxPlot(
             )
             return []
 
+        # Ensure means list matches (optional – pad with None)
+        if len(means) != num_boxes:
+            while len(means) < num_boxes:
+                means.append(None)
+
         for (
-            min,
-            max,
-            median,
-            box,
-            outlier,
+            min_gid,
+            max_gid,
+            median_gid,
+            mean_gid,
+            box_gid,
+            outlier_gid,
             lower_outliers_count,
         ) in zip(
             mins,
             maxs,
             medians,
+            means,
             boxes,
             outliers,
             self.lower_outliers_count,
         ):
-            selector.append(
-                {
-                    MaidrKey.LOWER_OUTLIER.value: [
-                        f"g[id='{outlier}'] > g > :nth-child(-n+{lower_outliers_count} of use:not([visibility='hidden']))"
-                    ],
-                    MaidrKey.MIN.value: f"g[id='{min}'] > path",
-                    MaidrKey.MAX.value: f"g[id='{max}'] > path",
-                    MaidrKey.Q2.value: f"g[id='{median}'] > path",
-                    MaidrKey.IQ.value: f"g[id='{box}'] > path",
-                    MaidrKey.UPPER_OUTLIER.value: [
-                        f"g[id='{outlier}'] > g > :nth-child(n+{lower_outliers_count + 1} of use:not([visibility='hidden']))"
-                    ],
-                }
-            )
+            selector_entry: dict[str, object] = {
+                MaidrKey.LOWER_OUTLIER.value: [
+                    f"g[id='{outlier_gid}'] > g > :nth-child(-n+{lower_outliers_count} of use:not([visibility='hidden']))"
+                ],
+                MaidrKey.MIN.value: f"g[id='{min_gid}'] > path",
+                MaidrKey.MAX.value: f"g[id='{max_gid}'] > path",
+                MaidrKey.Q2.value: f"g[id='{median_gid}'] > path",
+                MaidrKey.IQ.value: f"g[id='{box_gid}'] > path",
+                MaidrKey.UPPER_OUTLIER.value: [
+                    f"g[id='{outlier_gid}'] > g > :nth-child(n+{lower_outliers_count + 1} of use:not([visibility='hidden']))"
+                ],
+            }
+            # Mean selector is optional; only present when a mean line was created
+            if mean_gid is not None:
+                selector_entry[MaidrKey.MEAN.value] = f"g[id='{mean_gid}'] > path"
+
+            selector.append(selector_entry)
         return selector if self._orientation == "vert" else list(reversed(selector))
 
     def render(self) -> dict:
@@ -319,6 +335,7 @@ class BoxPlot(
         caps = self._bxp_extractor.extract_caps(bxp_stats["caps"])
         medians = self._bxp_extractor.extract_medians(bxp_stats["medians"])
         outliers = self._bxp_extractor.extract_outliers(bxp_stats["fliers"], caps)
+        stats_list = bxp_stats.get("stats_list")
 
         for outlier in outliers:
             self.lower_outliers_count.append(len(outlier[MaidrKey.LOWER_OUTLIER.value]))
@@ -374,6 +391,13 @@ class BoxPlot(
             self.elements_map["median"].append(gid)
             elements.append(element)
 
+        # Optional mean elements
+        for element in bxp_stats.get("means", []):
+            gid = "maidr-" + str(uuid.uuid4())
+            element.set_gid(gid)
+            self.elements_map["mean"].append(gid)
+            elements.append(element)
+
         for element in bxp_stats["boxes"]:
             gid = "maidr-" + str(uuid.uuid4())
             element.set_gid(gid)
@@ -395,17 +419,24 @@ class BoxPlot(
             level = levels[i] if i < len(levels) else f"Group {i+1}"
             fill_value = str(level) if level else f"Group {i+1}"
             
-            bxp_maidr.append(
-                {
-                    MaidrKey.LOWER_OUTLIER.value: outlier[MaidrKey.LOWER_OUTLIER.value],
-                    MaidrKey.MIN.value: cap["min"],
-                    MaidrKey.Q1.value: whisker["q1"],
-                    MaidrKey.Q2.value: median,
-                    MaidrKey.Q3.value: whisker["q3"],
-                    MaidrKey.MAX.value: cap["max"],
-                    MaidrKey.UPPER_OUTLIER.value: outlier[MaidrKey.UPPER_OUTLIER.value],
-                    MaidrKey.FILL.value: fill_value,
-                }
-            )
+            # Optional mean value – only present for plots that provide it (e.g., Matplotlib violins)
+            mean_value = None
+            if stats_list and i < len(stats_list):
+                mean_value = stats_list[i].get(MaidrKey.MEAN.value)
+
+            record = {
+                MaidrKey.LOWER_OUTLIER.value: outlier[MaidrKey.LOWER_OUTLIER.value],
+                MaidrKey.MIN.value: cap["min"],
+                MaidrKey.Q1.value: whisker["q1"],
+                MaidrKey.Q2.value: median,
+                MaidrKey.Q3.value: whisker["q3"],
+                MaidrKey.MAX.value: cap["max"],
+                MaidrKey.UPPER_OUTLIER.value: outlier[MaidrKey.UPPER_OUTLIER.value],
+                MaidrKey.FILL.value: fill_value,
+            }
+            if mean_value is not None:
+                record[MaidrKey.MEAN.value] = mean_value
+
+            bxp_maidr.append(record)
 
         return bxp_maidr if self._orientation == "vert" else list(reversed(bxp_maidr))

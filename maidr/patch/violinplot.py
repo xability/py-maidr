@@ -167,6 +167,8 @@ def _register_violin_layers(
 
     # Build synthetic bxp_stats
     bxp_stats = SyntheticBoxPlotBuilder.build(stats_list_valid, vert, positions)
+    # Attach raw stats (including mean) so BoxPlot can use them when building schema
+    bxp_stats["stats_list"] = stats_list_valid
 
     # Assign GIDs to synthetic artists
     for box in bxp_stats["boxes"]:
@@ -201,6 +203,11 @@ def _register_violin_layers(
     for cap in bxp_stats["caps"]:
         plot_ax.add_line(cap)
         cap.set_alpha(0.0)
+
+    # Add synthetic mean lines (if present) as fully transparent artists
+    for mean in bxp_stats.get("means", []):
+        plot_ax.add_line(mean)
+        mean.set_alpha(0.0)
 
     # Register box layer
     FigureManager.create_maidr(

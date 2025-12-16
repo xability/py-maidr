@@ -235,12 +235,14 @@ class ViolinBoxStatsCalculator:
 
         # Note: min_val may equal q1 when all values are >= q1 (within fence)
         # This is correct - the cap and box edge will overlap visually
+        mean_val = float(np.mean(sorted_values))
         return {
             MaidrKey.MIN.value: min_val,
             MaidrKey.Q1.value: q1,
             MaidrKey.Q2.value: q2,
             MaidrKey.Q3.value: q3,
             MaidrKey.MAX.value: max_val,
+            MaidrKey.MEAN.value: mean_val,
             MaidrKey.LOWER_OUTLIER.value: [],
             MaidrKey.UPPER_OUTLIER.value: [],
         }
@@ -274,6 +276,7 @@ class ViolinBoxStatsCalculator:
         q1 = float(np.percentile(sorted_values, 25))
         q2 = float(np.percentile(sorted_values, 50))
         q3 = float(np.percentile(sorted_values, 75))
+        mean_val = float(np.mean(sorted_values))
 
         min_val = float(sorted_values[0])
         max_val = float(sorted_values[-1])
@@ -284,6 +287,7 @@ class ViolinBoxStatsCalculator:
             MaidrKey.Q2.value: q2,
             MaidrKey.Q3.value: q3,
             MaidrKey.MAX.value: max_val,
+            MaidrKey.MEAN.value: mean_val,
             MaidrKey.LOWER_OUTLIER.value: [],
             MaidrKey.UPPER_OUTLIER.value: [],
         }
@@ -589,7 +593,7 @@ class SyntheticBoxPlotBuilder:
             Dictionary with keys: "boxes", "medians", "whiskers", "caps", "fliers"
             matching the format expected by matplotlib's bxp_stats
         """
-        boxes, medians, whiskers, caps = [], [], [], []
+        boxes, medians, whiskers, caps, means = [], [], [], [], []
         halfwidth = 0.25
 
         for stats, center in zip(stats_list, positions):
@@ -640,11 +644,26 @@ class SyntheticBoxPlotBuilder:
                 cmax = Line2D([stats[MaidrKey.MAX.value], stats[MaidrKey.MAX.value]], [center - capw, center + capw])
             caps.extend([cmin, cmax])
 
+            # --- mean (optional) ---
+            if MaidrKey.MEAN.value in stats:
+                if vert:
+                    mean_line = Line2D(
+                        [center - halfwidth, center + halfwidth],
+                        [stats[MaidrKey.MEAN.value], stats[MaidrKey.MEAN.value]],
+                    )
+                else:
+                    mean_line = Line2D(
+                        [stats[MaidrKey.MEAN.value], stats[MaidrKey.MEAN.value]],
+                        [center - halfwidth, center + halfwidth],
+                    )
+                means.append(mean_line)
+
         return {
             "boxes": boxes,
             "medians": medians,
             "whiskers": whiskers,
             "caps": caps,
             "fliers": [],
+            "means": means,
         }
 
