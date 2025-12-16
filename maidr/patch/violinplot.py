@@ -117,13 +117,18 @@ def _register_violin_layers(
     stats_list_valid = list(stats_list_valid)
     groups_valid = list(groups_valid)
 
-    # Extract true violin positions from rendered plot
-    positions = ViolinPositionExtractor.extract_positions(
-        plot_ax, len(groups_valid), orientation
-    )
-    positions = ViolinPositionExtractor.match_to_groups(
-        plot_ax, groups_valid, positions, orientation
-    )
+    # Extract true violin positions from rendered plot.
+    # For Matplotlib violins, positions correspond directly to 1..N tick locations,
+    # so we can rely on sequential indices to avoid subtle ordering issues.
+    if box_violin_layer == "mpl_violin":
+        positions = [float(i + 1) for i in range(len(groups_valid))]
+    else:
+        positions = ViolinPositionExtractor.extract_positions(
+            plot_ax, len(groups_valid), orientation
+        )
+        positions = ViolinPositionExtractor.match_to_groups(
+            plot_ax, groups_valid, positions, orientation
+        )
 
     # For single violin plots, ensure we use the actual violin center position
     if len(groups_valid) == 1 and len(positions) == 1:

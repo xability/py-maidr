@@ -353,6 +353,11 @@ class BoxPlot(
         )
         if levels is None:
             levels = []
+        else:
+            # Filter out empty/whitespace tick labels to keep levels aligned with boxes.
+            # This helps when Matplotlib leaves an unlabeled tick (e.g., at 0) in addition
+            # to the category ticks at 1..N.
+            levels = [lvl for lvl in levels if str(lvl).strip() != ""]
 
         # Ensure levels has enough elements for all boxes (pad with fallback if needed)
         num_boxes = len(bxp_stats["boxes"])
