@@ -429,19 +429,45 @@ class BoxPlot(
             # Get level for this box (already padded to match num_boxes, but safe fallback)
             level = levels[i] if i < len(levels) else f"Group {i+1}"
             fill_value = str(level) if level else f"Group {i+1}"
-            
+
             # Optional mean value – only present for plots that provide it (e.g., Matplotlib violins)
             mean_value = None
             if stats_list and i < len(stats_list):
                 mean_value = stats_list[i].get(MaidrKey.MEAN.value)
 
+            # For Matplotlib violin plots, round numeric values to 4 decimal places
+            def _round(v: float | int | None) -> float | int | None:
+                if v is None:
+                    return None
+                try:
+                    return round(float(v), 4)
+                except (TypeError, ValueError):
+                    return v
+
+            is_mpl_violin = self._violin_layer == "mpl_violin"
+
+            if is_mpl_violin:
+                min_val = _round(cap["min"])
+                q1_val = _round(whisker["q1"])
+                q2_val = _round(median)
+                q3_val = _round(whisker["q3"])
+                max_val = _round(cap["max"])
+                if mean_value is not None:
+                    mean_value = _round(mean_value)  # type: ignore[assignment]
+            else:
+                min_val = cap["min"]
+                q1_val = whisker["q1"]
+                q2_val = median
+                q3_val = whisker["q3"]
+                max_val = cap["max"]
+
             record = {
                 MaidrKey.LOWER_OUTLIER.value: outlier[MaidrKey.LOWER_OUTLIER.value],
-                MaidrKey.MIN.value: cap["min"],
-                MaidrKey.Q1.value: whisker["q1"],
-                MaidrKey.Q2.value: median,
-                MaidrKey.Q3.value: whisker["q3"],
-                MaidrKey.MAX.value: cap["max"],
+                MaidrKey.MIN.value: min_val,
+                MaidrKey.Q1.value: q1_val,
+                MaidrKey.Q2.value: q2_val,
+                MaidrKey.Q3.value: q3_val,
+                MaidrKey.MAX.value: max_val,
                 MaidrKey.UPPER_OUTLIER.value: outlier[MaidrKey.UPPER_OUTLIER.value],
                 MaidrKey.FILL.value: fill_value,
             }
