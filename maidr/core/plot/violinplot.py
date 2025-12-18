@@ -171,6 +171,9 @@ class ViolinBoxStatsCalculator:
     7.0
     """
 
+    # Statistical constants for box plot calculations
+    TUKEY_FENCE_MULTIPLIER = 1.5  # Standard multiplier for Tukey fence calculation (1.5 * IQR)
+
     @staticmethod
     def compute(values: np.ndarray) -> Dict[str, Any]:
         """
@@ -200,6 +203,7 @@ class ViolinBoxStatsCalculator:
                 MaidrKey.Q2.value: 0.0,
                 MaidrKey.Q3.value: 0.0,
                 MaidrKey.MAX.value: 0.0,
+                MaidrKey.MEAN.value: 0.0,
                 MaidrKey.LOWER_OUTLIER.value: [],
                 MaidrKey.UPPER_OUTLIER.value: [],
             }
@@ -217,9 +221,9 @@ class ViolinBoxStatsCalculator:
         q3 = float(np.percentile(sorted_values, 75))
         iqr = q3 - q1
 
-        # Calculate Tukey fences (1.5 * IQR rule)
-        lw = q1 - 1.5 * iqr  # Lower fence
-        uw = q3 + 1.5 * iqr  # Upper fence
+        # Calculate Tukey fences (TUKEY_FENCE_MULTIPLIER * IQR rule)
+        lw = q1 - self.TUKEY_FENCE_MULTIPLIER * iqr  # Lower fence
+        uw = q3 + self.TUKEY_FENCE_MULTIPLIER * iqr  # Upper fence
 
         # Find values within fences (non-outliers)
         clipped = values[(values >= lw) & (values <= uw)]
@@ -267,6 +271,7 @@ class ViolinBoxStatsCalculator:
                 MaidrKey.Q2.value: 0.0,
                 MaidrKey.Q3.value: 0.0,
                 MaidrKey.MAX.value: 0.0,
+                MaidrKey.MEAN.value: 0.0,
                 MaidrKey.LOWER_OUTLIER.value: [],
                 MaidrKey.UPPER_OUTLIER.value: [],
             }
@@ -308,19 +313,11 @@ class ViolinPositionExtractor:
         Extracts the center positions of violins from the axes.
     match_to_groups(ax, groups, positions, orientation)
         Matches positions to groups based on tick labels to ensure correct ordering.
-
-    Examples
-    --------
-    >>> import matplotlib.pyplot as plt
-    >>> import seaborn as sns
-    >>> import numpy as np
-    >>> from maidr.core.plot.violinplot import ViolinPositionExtractor
-    >>> data = [np.random.normal(size=100) for _ in range(3)]
-    >>> ax = sns.violinplot(data=data, orient="v")
-    >>> positions = ViolinPositionExtractor.extract_positions(ax, num_groups=3, orientation="vert")
-    >>> print(positions)
-    [0.0, 1.0, 2.0]
     """
+
+    # Thresholds for detecting violin internal rectangles
+    VIOLIN_RECT_MIN_WIDTH = 0.05  # Exclude very thin artifacts
+    VIOLIN_RECT_MAX_WIDTH = 1.2   # Exclude wide non-violin elements
 
     @staticmethod
     def extract_positions(ax: Axes, num_groups: int, orientation: str) -> List[float]:
@@ -349,7 +346,9 @@ class ViolinPositionExtractor:
                 if isinstance(child, Rectangle):
                     w, h = child.get_width(), child.get_height()
                     # Violin internal rectangles tend to be narrow and tall-ish
-                    if 0.05 < w < 1.2 and h > 0:
+                    # Width threshold: > 0.05 to exclude very thin artifacts, < 1.2 to exclude wide elements
+                    # Height threshold: > 0 to ensure valid rectangles (matplotlib sometimes creates zero-height ones)
+                    if ViolinPositionExtractor.VIOLIN_RECT_MIN_WIDTH < w < ViolinPositionExtractor.VIOLIN_RECT_MAX_WIDTH and h > 0:
                         positions.append(child.get_x() + w / 2)
             # If no rectangles found, try to extract from all PolyCollections/PathPatches
             if not positions:
@@ -380,7 +379,10 @@ class ViolinPositionExtractor:
             for child in ax.get_children():
                 if isinstance(child, Rectangle):
                     w, h = child.get_width(), child.get_height()
-                    if 0.05 < h < 1.2 and w > 0:
+                    # Apply same dimension thresholds as vertical orientation
+                    # Height threshold: > 0.05 to exclude very thin artifacts, < 1.2 to exclude wide elements
+                    # Width threshold: > 0 to ensure valid rectangles
+                    if ViolinPositionExtractor.VIOLIN_RECT_MIN_WIDTH < h < ViolinPositionExtractor.VIOLIN_RECT_MAX_WIDTH and w > 0:
                         positions.append(child.get_y() + h / 2)
 
             if not positions:
@@ -524,6 +526,10 @@ class SyntheticBoxPlotBuilder:
     ['boxes', 'medians', 'whiskers', 'caps', 'fliers']
     """
 
+    # Box plot rendering constants
+    BOX_HALF_WIDTH = 0.25  # Half-width of box rectangles as fraction of inter-box distance
+    CAP_WIDTH_MULTIPLIER = 0.4  # Multiplier for cap width relative to box half-width
+
     @staticmethod
     def _rect_to_pathpatch(rect: Rectangle) -> PathPatch:
         """
@@ -594,7 +600,7 @@ class SyntheticBoxPlotBuilder:
             matching the format expected by matplotlib's bxp_stats
         """
         boxes, medians, whiskers, caps, means = [], [], [], [], []
-        halfwidth = 0.25
+        halfwidth = SyntheticBoxPlotBuilder.BOX_HALF_WIDTH
 
         for stats, center in zip(stats_list, positions):
             # --- box rectangle ---
@@ -635,7 +641,7 @@ class SyntheticBoxPlotBuilder:
             whiskers.extend([wmin, wmax])
 
             # --- caps ---
-            capw = halfwidth * 0.4
+            capw = halfwidth * SyntheticBoxPlotBuilder.CAP_WIDTH_MULTIPLIER
             if vert:
                 cmin = Line2D([center - capw, center + capw], [stats[MaidrKey.MIN.value], stats[MaidrKey.MIN.value]])
                 cmax = Line2D([center - capw, center + capw], [stats[MaidrKey.MAX.value], stats[MaidrKey.MAX.value]])

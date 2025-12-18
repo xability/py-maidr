@@ -36,4 +36,3 @@ ax.set_ylabel("Price (USD)")
 print("Showing with MAIDR...")
 maidr.show(ax)
 
-

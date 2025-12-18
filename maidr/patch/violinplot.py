@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 import numpy as np
 import wrapt
+from typing import Any, Callable
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
@@ -26,9 +27,9 @@ from maidr.core.plot.violinplot import (
 
 def _register_violin_layers(
     plot_ax: Axes,
-    instance,
-    args,
-    kwargs,
+    instance: Any,
+    args: tuple,
+    kwargs: dict,
     *,
     orientation: str,
     enable_box_layer: bool,
@@ -38,6 +39,41 @@ def _register_violin_layers(
 ) -> None:
     """Shared logic to register KDE (SMOOTH) and box (BOX) layers for violin plots.
 
+    This function handles the common data extraction and MAIDR layer registration
+    for both seaborn.violinplot and matplotlib.axes.Axes.violinplot. It extracts
+    the underlying data, computes appropriate statistics, and registers the layers
+    with MAIDR for accessible navigation.
+
+    Parameters
+    ----------
+    plot_ax : matplotlib.axes.Axes
+        The matplotlib axes object where the violin plot is rendered.
+    instance : Any
+        The violin plot instance (matplotlib Axes for matplotlib plots,
+        seaborn module for seaborn plots).
+    args : tuple
+        Positional arguments passed to the original violin plot function.
+    kwargs : dict
+        Keyword arguments passed to the original violin plot function.
+    orientation : str
+        Plot orientation, either "vert" (vertical) or "horz" (horizontal).
+    enable_box_layer : bool
+        Whether to register the box plot layer in addition to the KDE layer.
+    box_violin_layer : str or None
+        Violin layer type for box plots ("mpl_violin" for matplotlib,
+        "seaborn_violin" for seaborn, or None).
+    use_full_range_extrema : bool, default False
+        If True, use full data range for min/max instead of Tukey clipping.
+    violin_options : dict or None
+        Additional options for violin plot rendering (showmeans, showmedians, etc.).
+
+    Returns
+    -------
+    None
+        This function modifies the MAIDR context but doesn't return a value.
+
+    Notes
+    -----
     Used for both seaborn.violinplot and matplotlib.axes.Axes.violinplot so we can
     reuse the same data extraction and statistics logic.
     """
@@ -227,7 +263,7 @@ def _register_violin_layers(
 
 
 @wrapt.patch_function_wrapper(Axes, "violinplot")
-def mpl_violinplot(wrapped, instance, args, kwargs):
+def mpl_violinplot(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> Any:
     """
     Patch for matplotlib.axes.Axes.violinplot to extract and register KDE and
     box statistics with MAIDR.
@@ -272,7 +308,7 @@ def mpl_violinplot(wrapped, instance, args, kwargs):
 
 
 @wrapt.patch_function_wrapper("seaborn", "violinplot")
-def patch_violinplot(wrapped, instance, args, kwargs):
+def patch_violinplot(wrapped: Callable, instance: Any, args: tuple, kwargs: dict) -> Any:
     """
     Patch for seaborn.violinplot to extract and register KDE and box plot layers with MAIDR.
 
