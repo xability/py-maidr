@@ -435,7 +435,8 @@ class BoxPlot(
             if stats_list and i < len(stats_list):
                 mean_value = stats_list[i].get(MaidrKey.MEAN.value)
 
-            # For Matplotlib violin plots, round numeric values to 4 decimal places
+            # For violin plots, round numeric values to 4 decimal places
+            # This applies to all violin plots (library-agnostic)
             def _round(v: float | int | None) -> float | int | None:
                 if v is None:
                     return None
@@ -444,9 +445,11 @@ class BoxPlot(
                 except (TypeError, ValueError):
                     return v
 
-            is_mpl_violin = self._violin_layer == "mpl_violin"
+            # Check if this is ANY violin plot (library-agnostic)
+            # Regular box plots have _violin_layer = None
+            is_violin_plot = self._violin_layer is not None
 
-            if is_mpl_violin:
+            if is_violin_plot:
                 min_val = _round(cap["min"])
                 q1_val = _round(whisker["q1"])
                 q2_val = _round(median)

@@ -10,6 +10,7 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.util.regression_line_utils import find_regression_line
 from maidr.util.svg_utils import data_to_svg_coords
+from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
 
 
 class SmoothPlot(MaidrPlot):
@@ -82,6 +83,34 @@ class SmoothPlot(MaidrPlot):
         # Handle violin plot case: multiple KDE lines in one layer
         if self._violin_kde_lines is not None:
             all_lines_data = []
+            
+            # For violin plots, ALWAYS extract categorical labels at render time
+            # (when maidr.show() is called). This is critical because:
+            # 1. ax.violinplot() is called first, at which point tick labels are just numeric positions
+            # 2. User typically calls ax.set_xticklabels() AFTER violinplot()
+            # 3. maidr.render() is called last, when the correct labels are finally available
+            # So we must ignore self._x_levels (captured at patch time) and re-extract here
+            
+            x_levels = None  # Always start fresh for violin plots
+            
+            # Strategy 1: Get tick labels directly from axis
+            # This is the most reliable method when ax.set_xticklabels() has been called
+            try:
+                raw_labels = [label.get_text() for label in self.ax.get_xticklabels()]
+                x_levels = [lvl for lvl in raw_labels if str(lvl).strip() != ""]
+            except Exception:
+                x_levels = None
+            
+            # Strategy 2: If no labels found, try extract_level as fallback
+            if not x_levels:
+                x_levels = LevelExtractorMixin.extract_level(self.ax, MaidrKey.X)
+                if x_levels:
+                    x_levels = [lvl for lvl in x_levels if str(lvl).strip() != ""]
+            
+            # Strategy 3: Fallback to original patch-time values if nothing else works
+            if not x_levels:
+                x_levels = self._x_levels
+            
             for idx, kde_line in enumerate(self._violin_kde_lines):
                 self._elements.append(kde_line)
                 if self._smooth_gid is None:
@@ -93,8 +122,8 @@ class SmoothPlot(MaidrPlot):
                 # Map numeric X coordinates to categorical labels if available
                 # For violin plots, each row (violin) corresponds to one categorical X value
                 x_categorical_label = None
-                if self._x_levels and idx < len(self._x_levels):
-                    x_categorical_label = self._x_levels[idx]
+                if x_levels and idx < len(x_levels):
+                    x_categorical_label = x_levels[idx]
                 
                 # Interpolate Y values to a common grid (y_common) and calculate widths
                 # For violin plots, we interpolate to regularly spaced Y values
