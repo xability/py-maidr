@@ -39,7 +39,7 @@ class MaidrPlot(ABC):
         Sets a unique identifier for the plot in the schema.
     """
 
-    def __init__(self, ax: Axes, plot_type: PlotType) -> None:
+    def __init__(self, ax: Axes, plot_type: PlotType, **kwargs) -> None:
         # graphic object
         self.ax = ax
         self._support_highlighting = True

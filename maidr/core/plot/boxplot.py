@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import warnings
 
 from matplotlib.axes import Axes
 
@@ -59,7 +60,40 @@ class BoxPlotExtractor:
         self.orientation = orientation
 
     def extract_whiskers(self, whiskers: list) -> list[dict]:
-        return self._extract_extremes(whiskers, MaidrKey.Q1, MaidrKey.Q3)
+        """
+        Extract Q1 and Q3 from whiskers.
+        
+        Both matplotlib and synthetic box plots structure whiskers as:
+        - Lower whisker: [MIN, Q1] (from minimum to first quartile)
+        - Upper whisker: [Q3, MAX] (from third quartile to maximum)
+        
+        Therefore, we extract Q1 from the END point of the lower whisker
+        and Q3 from the START point of the upper whisker.
+        """
+        data = []
+
+        for wmin, wmax in zip(whiskers[::2], whiskers[1::2]):
+            # Lower whisker: wmin goes from MIN to Q1
+            # Upper whisker: wmax goes from Q3 to MAX
+            wmin_fn = wmin.get_ydata if self.orientation == "vert" else wmin.get_xdata
+            wmax_fn = wmax.get_ydata if self.orientation == "vert" else wmax.get_xdata
+
+            # Get the END point of lower whisker (Q1) - last point
+            wmin_data = wmin_fn()
+            q1_value = float(wmin_data[-1])  # Last point is Q1
+
+            # Get the START point of upper whisker (Q3) - first point
+            wmax_data = wmax_fn()
+            q3_value = float(wmax_data[0])  # First point is Q3
+
+            data.append(
+                {
+                    MaidrKey.Q1.value: q1_value,
+                    MaidrKey.Q3.value: q3_value,
+                }
+            )
+
+        return data
 
     def extract_caps(self, caps: list) -> list[dict]:
         return self._extract_extremes(caps, MaidrKey.MIN, MaidrKey.MAX)
@@ -99,6 +133,18 @@ class BoxPlotExtractor:
 
     def extract_outliers(self, fliers: list, caps: list) -> list[dict]:
         data = []
+
+        # Handle empty fliers - return empty outlier dicts for each cap
+        if not fliers:
+            # Return one empty outlier dict per cap (one per box)
+            for _ in caps:
+                data.append(
+                    {
+                        MaidrKey.LOWER_OUTLIER.value: [],
+                        MaidrKey.UPPER_OUTLIER.value: [],
+                    }
+                )
+            return data
 
         for outlier, cap in zip(fliers, caps):
             outlier_fn = (
@@ -162,7 +208,11 @@ class BoxPlot(
     DictMergerMixin,
 ):
     def __init__(self, ax: Axes, **kwargs) -> None:
-        super().__init__(ax, PlotType.BOX)
+        self._violin_layer = kwargs.pop("violin_layer", None)
+        # Optional violin options (used for Matplotlib violin plots)
+        # Keys: showMeans, showMedians, showExtrema
+        self._violin_options = kwargs.pop("violin_options", None)
+        super().__init__(ax, PlotType.BOX, **kwargs)
 
         self._bxp_stats = kwargs.pop("bxp_stats", None)
         self._orientation = kwargs.pop("orientation", "vert")
@@ -175,50 +225,105 @@ class BoxPlot(
             "min": [],
             "max": [],
             "median": [],
+            "mean": [],
             "boxes": [],
             "outliers": [],
         }
         self.lower_outliers_count = []
 
     def _get_selector(self) -> list[dict]:
-        mins, maxs, medians, boxes, outliers = self.elements_map.values()
+        mins = self.elements_map["min"]
+        maxs = self.elements_map["max"]
+        medians = self.elements_map["median"]
+        means = self.elements_map.get("mean", [])
+        boxes = self.elements_map["boxes"]
+        outliers = self.elements_map["outliers"]
         selector = []
 
+        # zip stops at shortest list - ensure all lists have matching length
+        num_boxes = len(boxes)
+        
+        # Safety check: if critical elements are missing, can't create selectors
+        # This is primarily for synthetic box plots (like violin plots) where caps might not be extracted
+        if num_boxes == 0:
+            return []
+        
+        # Ensure outliers list matches (should have one entry per box, even if empty dict)
+        if len(outliers) != num_boxes:
+            # Pad outliers if needed
+            while len(outliers) < num_boxes:
+                outliers.append(None)
+        
+        # Ensure lower_outliers_count matches
+        while len(self.lower_outliers_count) < num_boxes:
+            self.lower_outliers_count.append(0)
+        
+        # Check if min/max caps were extracted - if not, we can't create selectors
+        # Regular box plots should always have these, but synthetic ones might not
+        if len(mins) != num_boxes or len(maxs) != num_boxes:
+            # If min/max caps weren't extracted, can't create selectors
+            warnings.warn(
+                f"Unable to extract min/max caps for box plot selectors. "
+                f"Expected {num_boxes} caps but found {len(mins)} min caps and {len(maxs)} max caps. "
+                f"This may occur with synthetic box plots (e.g., violin plots). "
+                f"Returning empty selectors.",
+                UserWarning,
+                stacklevel=2
+            )
+            return []
+
+        # Ensure means list matches (optional – pad with None)
+        if len(means) != num_boxes:
+            while len(means) < num_boxes:
+                means.append(None)
+
         for (
-            min,
-            max,
-            median,
-            box,
-            outlier,
+            min_gid,
+            max_gid,
+            median_gid,
+            mean_gid,
+            box_gid,
+            outlier_gid,
             lower_outliers_count,
         ) in zip(
             mins,
             maxs,
             medians,
+            means,
             boxes,
             outliers,
             self.lower_outliers_count,
         ):
-            selector.append(
-                {
-                    MaidrKey.LOWER_OUTLIER.value: [
-                        f"g[id='{outlier}'] > g > :nth-child(-n+{lower_outliers_count} of use:not([visibility='hidden']))"
-                    ],
-                    MaidrKey.MIN.value: f"g[id='{min}'] > path",
-                    MaidrKey.MAX.value: f"g[id='{max}'] > path",
-                    MaidrKey.Q2.value: f"g[id='{median}'] > path",
-                    MaidrKey.IQ.value: f"g[id='{box}'] > path",
-                    MaidrKey.UPPER_OUTLIER.value: [
-                        f"g[id='{outlier}'] > g > :nth-child(n+{lower_outliers_count + 1} of use:not([visibility='hidden']))"
-                    ],
-                }
-            )
+            selector_entry: dict[str, object] = {
+                MaidrKey.LOWER_OUTLIER.value: [
+                    f"g[id='{outlier_gid}'] > g > :nth-child(-n+{lower_outliers_count} of use:not([visibility='hidden']))"
+                ],
+                MaidrKey.MIN.value: f"g[id='{min_gid}'] > path",
+                MaidrKey.MAX.value: f"g[id='{max_gid}'] > path",
+                MaidrKey.Q2.value: f"g[id='{median_gid}'] > path",
+                MaidrKey.IQ.value: f"g[id='{box_gid}'] > path",
+                MaidrKey.UPPER_OUTLIER.value: [
+                    f"g[id='{outlier_gid}'] > g > :nth-child(n+{lower_outliers_count + 1} of use:not([visibility='hidden']))"
+                ],
+            }
+            # Mean selector is optional; only present when a mean line was created
+            if mean_gid is not None:
+                selector_entry[MaidrKey.MEAN.value] = f"g[id='{mean_gid}'] > path"
+
+            selector.append(selector_entry)
         return selector if self._orientation == "vert" else list(reversed(selector))
 
     def render(self) -> dict:
         base_schema = super().render()
         box_orientation = {MaidrKey.ORIENTATION: self._orientation}
-        return DictMergerMixin.merge_dict(base_schema, box_orientation)
+        schema = DictMergerMixin.merge_dict(base_schema, box_orientation)
+        # Include violinLayer metadata if present (for violin plots)
+        if self._violin_layer is not None:
+            schema["violinLayer"] = self._violin_layer
+        # Pass through violinOptions so the client can respect showMeans/showMedians flags
+        if self._violin_options is not None:
+            schema["violinOptions"] = self._violin_options
+        return schema
 
     def _extract_plot_data(self) -> list:
         data = self._extract_bxp_maidr(self._bxp_stats)
@@ -236,10 +341,14 @@ class BoxPlot(
         caps = self._bxp_extractor.extract_caps(bxp_stats["caps"])
         medians = self._bxp_extractor.extract_medians(bxp_stats["medians"])
         outliers = self._bxp_extractor.extract_outliers(bxp_stats["fliers"], caps)
+        stats_list = bxp_stats.get("stats_list")
 
         for outlier in outliers:
             self.lower_outliers_count.append(len(outlier[MaidrKey.LOWER_OUTLIER.value]))
 
+        # Extract cap elements (Line2D objects) for GID assignment
+        # caps_elements should be a list of dicts: [{"min": Line2D, "max": Line2D}, ...]
+        # Each dict contains the actual matplotlib Line2D objects (not values)
         caps_elements = self._bxp_elements_extractor.extract_caps(bxp_stats["caps"])
         bxp_maidr = []
 
@@ -250,12 +359,27 @@ class BoxPlot(
         )
         if levels is None:
             levels = []
+        else:
+            # Filter out empty/whitespace tick labels to keep levels aligned with boxes.
+            # This helps when Matplotlib leaves an unlabeled tick (e.g., at 0) in addition
+            # to the category ticks at 1..N.
+            levels = [lvl for lvl in levels if str(lvl).strip() != ""]
 
-        _pairs = [(e["min"], e["max"]) for e in caps_elements if e]
+        # Ensure levels has enough elements for all boxes (pad with fallback if needed)
+        num_boxes = len(bxp_stats["boxes"])
+        if len(levels) < num_boxes:
+            # Pad with fallback labels
+            levels = list(levels) + [f"Group {i+1}" for i in range(len(levels), num_boxes)]
 
-        if _pairs:
+        # Extract min and max cap Line2D objects from caps_elements
+        # caps_elements format: [{"min": Line2D_obj, "max": Line2D_obj}, ...]
+        _pairs = [(e["min"], e["max"]) for e in caps_elements if e and "min" in e and "max" in e]
+
+        if _pairs and len(_pairs) == num_boxes:
             mins, maxs = map(list, zip(*_pairs))
         else:
+            # If caps weren't extracted correctly, we can't create selectors
+            # This should not happen if caps were created properly
             mins, maxs = [], []
 
         elements = []
@@ -278,6 +402,13 @@ class BoxPlot(
             self.elements_map["median"].append(gid)
             elements.append(element)
 
+        # Optional mean elements
+        for element in bxp_stats.get("means", []):
+            gid = "maidr-" + str(uuid.uuid4())
+            element.set_gid(gid)
+            self.elements_map["mean"].append(gid)
+            elements.append(element)
+
         for element in bxp_stats["boxes"]:
             gid = "maidr-" + str(uuid.uuid4())
             element.set_gid(gid)
@@ -292,20 +423,60 @@ class BoxPlot(
 
         self._elements.extend(elements)
 
-        for whisker, cap, median, outlier, level in zip(
-            whiskers, caps, medians, outliers, levels
+        for i, (whisker, cap, median, outlier) in enumerate(
+            zip(whiskers, caps, medians, outliers)
         ):
-            bxp_maidr.append(
-                {
-                    MaidrKey.LOWER_OUTLIER.value: outlier[MaidrKey.LOWER_OUTLIER.value],
-                    MaidrKey.MIN.value: cap["min"],
-                    MaidrKey.Q1.value: whisker["q1"],
-                    MaidrKey.Q2.value: median,
-                    MaidrKey.Q3.value: whisker["q3"],
-                    MaidrKey.MAX.value: cap["max"],
-                    MaidrKey.UPPER_OUTLIER.value: outlier[MaidrKey.UPPER_OUTLIER.value],
-                    MaidrKey.FILL.value: level,
-                }
-            )
+            # Get level for this box (already padded to match num_boxes, but safe fallback)
+            level = levels[i] if i < len(levels) else f"Group {i+1}"
+            fill_value = str(level) if level else f"Group {i+1}"
+
+            # Optional mean value – only present for plots that provide it (e.g., Matplotlib violins)
+            mean_value = None
+            if stats_list and i < len(stats_list):
+                mean_value = stats_list[i].get(MaidrKey.MEAN.value)
+
+            # For violin plots, round numeric values to 4 decimal places
+            # This applies to all violin plots (library-agnostic)
+            def _round(v: float | int | None) -> float | int | None:
+                if v is None:
+                    return None
+                try:
+                    return round(float(v), 4)
+                except (TypeError, ValueError):
+                    return v
+
+            # Check if this is ANY violin plot (library-agnostic)
+            # Regular box plots have _violin_layer = None
+            is_violin_plot = self._violin_layer is not None
+
+            if is_violin_plot:
+                min_val = _round(cap["min"])
+                q1_val = _round(whisker["q1"])
+                q2_val = _round(median)
+                q3_val = _round(whisker["q3"])
+                max_val = _round(cap["max"])
+                if mean_value is not None:
+                    mean_value = _round(mean_value)  # type: ignore[assignment]
+            else:
+                min_val = cap["min"]
+                q1_val = whisker["q1"]
+                q2_val = median
+                q3_val = whisker["q3"]
+                max_val = cap["max"]
+
+            record = {
+                MaidrKey.LOWER_OUTLIER.value: outlier[MaidrKey.LOWER_OUTLIER.value],
+                MaidrKey.MIN.value: min_val,
+                MaidrKey.Q1.value: q1_val,
+                MaidrKey.Q2.value: q2_val,
+                MaidrKey.Q3.value: q3_val,
+                MaidrKey.MAX.value: max_val,
+                MaidrKey.UPPER_OUTLIER.value: outlier[MaidrKey.UPPER_OUTLIER.value],
+                MaidrKey.FILL.value: fill_value,
+            }
+            if mean_value is not None:
+                record[MaidrKey.MEAN.value] = mean_value
+
+            bxp_maidr.append(record)
 
         return bxp_maidr if self._orientation == "vert" else list(reversed(bxp_maidr))

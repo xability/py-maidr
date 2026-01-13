@@ -26,6 +26,7 @@ class MaidrKey(str, Enum):
     LOWER_OUTLIER = "lowerOutliers"
     MIN = "min"
     MAX = "max"
+    MEAN = "mean"
     Q1 = "q1"
     Q2 = "q2"
     Q3 = "q3"
