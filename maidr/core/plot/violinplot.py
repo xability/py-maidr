@@ -221,9 +221,9 @@ class ViolinBoxStatsCalculator:
         q3 = float(np.percentile(sorted_values, 75))
         iqr = q3 - q1
 
-        # Calculate Tukey fences (TUKEY_FENCE_MULTIPLIER * IQR rule)
-        lw = q1 - self.TUKEY_FENCE_MULTIPLIER * iqr  # Lower fence
-        uw = q3 + self.TUKEY_FENCE_MULTIPLIER * iqr  # Upper fence
+        # Calculate Tukey fences (1.5 * IQR rule - standard Tukey fence multiplier)
+        lw = q1 - ViolinBoxStatsCalculator.TUKEY_FENCE_MULTIPLIER * iqr  # Lower fence
+        uw = q3 + ViolinBoxStatsCalculator.TUKEY_FENCE_MULTIPLIER * iqr  # Upper fence
 
         # Find values within fences (non-outliers)
         clipped = values[(values >= lw) & (values <= uw)]
