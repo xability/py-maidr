@@ -6,18 +6,16 @@ from datetime import datetime
 
 class DatetimeConverter:
     """
-    Enhanced datetime converter that automatically detects time periods
-    and provides intelligent date/time formatting for mplfinance plots.
+    Datetime converter for mplfinance plots.
 
-    This utility automatically detects the time period of financial data and formats
-    datetime values consistently for screen reader accessibility and visual clarity.
+    This utility provides datetime value conversion for financial data visualization.
 
     Parameters
     ----------
     data : pd.DataFrame
         DataFrame with DatetimeIndex containing financial data.
     datetime_format : str, optional
-        Custom datetime format string. If None, automatic format detection is used.
+        Custom datetime format string (currently unused, kept for compatibility).
 
     Attributes
     ----------
@@ -49,14 +47,14 @@ class DatetimeConverter:
     >>>
     >>> # Get formatted datetime
     >>> formatted = converter.get_formatted_datetime(0)
-    >>> print(formatted)  # Output: "Jan 15 2024"
+    >>> print(formatted)  # Output: "2024-01-15 00:00:00"
     >>>
     >>> # For time-based data
     >>> hourly_dates = pd.date_range('2024-01-15 09:00:00', periods=3, freq='H')
     >>> df_hourly = pd.DataFrame({'Open': [3050, 3078, 3080]}, index=hourly_dates)
     >>> converter_hourly = create_datetime_converter(df_hourly)
     >>> formatted_hourly = converter_hourly.get_formatted_datetime(0)
-    >>> print(formatted_hourly)  # Output: "Jan 15 2024 09:00"
+    >>> print(formatted_hourly)  # Output: "2024-01-15 09:00:00"
     """
 
     def __init__(
@@ -164,9 +162,7 @@ class DatetimeConverter:
 
     def get_formatted_datetime(self, index: int) -> Optional[str]:
         """
-        Get formatted datetime string for given index using consistent formatting.
-
-        Always includes year for screen reader accessibility.
+        Get datetime string for given index.
 
         Parameters
         ----------
@@ -176,13 +172,13 @@ class DatetimeConverter:
         Returns
         -------
         str or None
-            Formatted datetime string or None if index is invalid.
+            Datetime string or None if index is invalid.
 
         Examples
         --------
         >>> converter = create_datetime_converter(df)
         >>> formatted = converter.get_formatted_datetime(0)
-        >>> print(formatted)  # "Jan 15 2024" for daily data
+        >>> print(formatted)  # "2024-01-15 00:00:00"
         """
         if index not in self.date_mapping:
             return None
@@ -192,7 +188,7 @@ class DatetimeConverter:
 
     def _format_datetime_custom(self, dt: datetime) -> str:
         """
-        Consistent datetime formatting with year always included.
+        Format datetime as-is using ISO format.
 
         Parameters
         ----------
@@ -202,24 +198,15 @@ class DatetimeConverter:
         Returns
         -------
         str
-            Formatted datetime string with consistent pattern.
+            Formatted datetime string in ISO format.
 
         Notes
         -----
-        Formatting rules:
-        - Daily data: "Jan 15 2024"
-        - Time-based data: "Jan 15 2024 09:00" or "Jan 15 2024 09:00:30"
-        - Seconds are only shown when they are non-zero for cleaner display.
+        Returns the datetime as a string without smart formatting.
+        Output format is "YYYY-MM-DD HH:MM:SS" (e.g., "2024-01-15 00:00:00").
         """
-        if self.time_period in ["minute", "intraday", "hour"]:
-            # Time-based data: include time with optional seconds
-            if dt.second == 0:
-                return dt.strftime("%b %d %Y %H:%M")
-            else:
-                return dt.strftime("%b %d %Y %H:%M:%S")
-        else:
-            # Daily/weekly/monthly data: just date
-            return dt.strftime("%b %d %Y")
+        # Return string representation of datetime
+        return str(dt)
 
     @property
     def date_nums(self) -> List[float]:
