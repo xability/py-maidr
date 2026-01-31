@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v1.10.0 (2026-01-31)
+
+### Features
+
+- Remove candlestick formatting and add ylabel to dodged plots
+  ([#260](https://github.com/xability/py-maidr/pull/260),
+  [`70b2626`](https://github.com/xability/py-maidr/commit/70b2626bb31e109e8cdb29051f809fe03bfb6275))
+
+
 ## v1.9.0 (2025-10-31)
 
 ### Features
