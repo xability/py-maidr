@@ -92,7 +92,7 @@ class MplfinanceDataExtractor:
         Returns
         -------
         str
-            Date string in YYYY-MM-DD format or fallback index
+            Date string representation (e.g., "2024-01-15 00:00:00") or fallback index
         """
         try:
             # Check if this looks like a matplotlib date number (typically > 700000)
