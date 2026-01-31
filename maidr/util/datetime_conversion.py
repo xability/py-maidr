@@ -192,7 +192,7 @@ class DatetimeConverter:
 
     def _format_datetime_custom(self, dt: datetime) -> str:
         """
-        Consistent datetime formatting with year always included.
+        Format datetime as-is using ISO format.
 
         Parameters
         ----------
@@ -202,24 +202,16 @@ class DatetimeConverter:
         Returns
         -------
         str
-            Formatted datetime string with consistent pattern.
+            Formatted datetime string in ISO format.
 
         Notes
         -----
-        Formatting rules:
-        - Daily data: "Jan 15 2024"
-        - Time-based data: "Jan 15 2024 09:00" or "Jan 15 2024 09:00:30"
-        - Seconds are only shown when they are non-zero for cleaner display.
+        Returns the datetime in its original ISO format without smart formatting.
+        - Date-only data: "2024-01-15"
+        - Time-based data: "2024-01-15 09:00:00"
         """
-        if self.time_period in ["minute", "intraday", "hour"]:
-            # Time-based data: include time with optional seconds
-            if dt.second == 0:
-                return dt.strftime("%b %d %Y %H:%M")
-            else:
-                return dt.strftime("%b %d %Y %H:%M:%S")
-        else:
-            # Daily/weekly/monthly data: just date
-            return dt.strftime("%b %d %Y")
+        # Return ISO format string representation
+        return str(dt)
 
     @property
     def date_nums(self) -> List[float]:

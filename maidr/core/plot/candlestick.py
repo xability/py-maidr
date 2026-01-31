@@ -1,24 +1,21 @@
 from __future__ import annotations
 
-import uuid
 from typing import Union, Dict
 from matplotlib.axes import Axes
-from matplotlib.patches import Rectangle
-import numpy as np
+import pandas as pd
 
 from maidr.core.enum import PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.exception import ExtractionError
-from maidr.util.mplfinance_utils import MplfinanceDataExtractor
 
 
 class CandlestickPlot(MaidrPlot):
     """
     Specialized candlestick plot class for mplfinance OHLC data.
 
-    This class handles the extraction and processing of candlestick data from mplfinance
-    plots, including proper date conversion and data validation.
+    This class extracts candlestick data directly from the original DataFrame
+    without any formatting or transformation.
     """
 
     def __init__(self, axes: list[Axes], **kwargs) -> None:
@@ -34,23 +31,17 @@ class CandlestickPlot(MaidrPlot):
             Additional keyword arguments.
         """
         self.axes = axes
-        # Ensure there's at least one axis for the superclass init
         if not axes:
             raise ValueError("Axes list cannot be empty.")
         super().__init__(axes[0], PlotType.CANDLESTICK)
 
-        # Store custom collections passed from mplfinance patch
+        # Store collections passed from mplfinance patch
         self._maidr_wick_collection = kwargs.get("_maidr_wick_collection", None)
         self._maidr_body_collection = kwargs.get("_maidr_body_collection", None)
-        self._maidr_date_nums = kwargs.get("_maidr_date_nums", None)
-        self._maidr_original_data = kwargs.get(
-            "_maidr_original_data", None
-        )  # Store original data
-        self._maidr_datetime_converter = kwargs.get("_maidr_datetime_converter", None)
+        self._maidr_original_data = kwargs.get("_maidr_original_data", None)
 
-        # Store the GID for proper selector generation (legacy/shared)
+        # Store the GID for selector generation
         self._maidr_gid = None
-        # Modern-path separate gids for body and wick
         self._maidr_body_gid = None
         self._maidr_wick_gid = None
         if self._maidr_body_collection:
@@ -62,104 +53,82 @@ class CandlestickPlot(MaidrPlot):
 
     def _extract_plot_data(self) -> list[dict]:
         """
-        Extract candlestick data from the plot.
-
-        This method processes candlestick plots from both modern (mplfinance.plot) and
-        legacy (original_flavor) pipelines, extracting OHLC data and setting up
-        highlighting elements and GIDs.
+        Extract candlestick data directly from the original DataFrame.
 
         Returns
         -------
         list[dict]
             List of dictionaries containing candlestick data with keys:
-            - 'value': Date string
+            - 'value': Date string (raw from DataFrame index)
             - 'open': Opening price (float)
             - 'high': High price (float)
             - 'low': Low price (float)
             - 'close': Closing price (float)
-            - 'volume': Volume (float, typically 0 for candlestick-only plots)
+            - 'volume': Volume (float)
         """
-
-        # Get the custom collections from kwargs
         body_collection = self._maidr_body_collection
         wick_collection = self._maidr_wick_collection
 
         if body_collection and wick_collection:
-            # Store the GIDs from the collections (modern path)
+            # Store the GIDs from the collections
             self._maidr_body_gid = body_collection.get_gid()
             self._maidr_wick_gid = wick_collection.get_gid()
-            # Keep legacy gid filled for backward compatibility
             self._maidr_gid = self._maidr_body_gid or self._maidr_wick_gid
 
             # Use the original collections for highlighting
             self._elements = [body_collection, wick_collection]
 
-            # Use datetime converter for enhanced data extraction
-            if self._maidr_datetime_converter is not None:
-                data = self._maidr_datetime_converter.extract_candlestick_data(
-                    self.axes[0], wick_collection, body_collection
-                )
-                return data
-
-            # Fallback to original detection method
-            if not self.axes:
-                return []
-
-            ax_ohlc = self.axes[0]
-
-            # Look for Rectangle patches (original_flavor candlestick)
-            body_rectangles = []
-            for patch in ax_ohlc.patches:
-                if isinstance(patch, Rectangle):
-                    body_rectangles.append(patch)
-
-            if body_rectangles:
-                # Set elements for highlighting
-                self._elements = body_rectangles
-
-                # Generate a GID for highlighting if none exists
-                if not self._maidr_gid:
-                    self._maidr_gid = f"maidr-{uuid.uuid4()}"
-                    # Set GID on all rectangles
-                    for rect in body_rectangles:
-                        rect.set_gid(self._maidr_gid)
-                # Keep a dedicated body gid for legacy dict selectors
-                self._maidr_body_gid = (
-                    getattr(self, "_maidr_body_gid", None) or self._maidr_gid
-                )
-
-                # Assign a shared gid to wick Line2D (vertical 2-point lines) on the same axis
-                wick_lines = []
-                for line in ax_ohlc.get_lines():
-                    try:
-                        xydata = line.get_xydata()
-                        if xydata is None:
-                            continue
-                        xy_arr = np.asarray(xydata)
-                        if (
-                            xy_arr.ndim == 2
-                            and xy_arr.shape[0] == 2
-                            and xy_arr.shape[1] >= 2
-                        ):
-                            x0 = float(xy_arr[0, 0])
-                            x1 = float(xy_arr[1, 0])
-                            if abs(x0 - x1) < 1e-10:
-                                wick_lines.append(line)
-                    except Exception:
-                        continue
-                if wick_lines:
-                    if not getattr(self, "_maidr_wick_gid", None):
-                        self._maidr_wick_gid = f"maidr-{uuid.uuid4()}"
-                    for line in wick_lines:
-                        line.set_gid(self._maidr_wick_gid)
-
-                # Use the utility class to extract data
-                data = MplfinanceDataExtractor.extract_rectangle_candlestick_data(
-                    body_rectangles, self._maidr_date_nums, self._maidr_original_data
-                )
-                return data
+            # Extract data directly from DataFrame
+            if self._maidr_original_data is not None and isinstance(
+                self._maidr_original_data, pd.DataFrame
+            ):
+                return self._extract_from_dataframe(self._maidr_original_data)
 
         return []
+
+    def _extract_from_dataframe(self, df: pd.DataFrame) -> list[dict]:
+        """
+        Extract candlestick data directly from DataFrame without any formatting.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame with OHLC data and DatetimeIndex.
+
+        Returns
+        -------
+        list[dict]
+            List of candlestick data dictionaries with raw values.
+        """
+        candles = []
+
+        for i in range(len(df)):
+            try:
+                # Get date directly from index - raw representation
+                date_value = str(df.index[i])
+
+                # Get OHLC values directly from DataFrame columns
+                open_price = float(df.iloc[i]["Open"])
+                high_price = float(df.iloc[i]["High"])
+                low_price = float(df.iloc[i]["Low"])
+                close_price = float(df.iloc[i]["Close"])
+
+                # Get volume if available, otherwise 0
+                volume = float(df.iloc[i].get("Volume", 0.0))
+
+                candle_data = {
+                    "value": date_value,
+                    "open": open_price,
+                    "high": high_price,
+                    "low": low_price,
+                    "close": close_price,
+                    "volume": volume,
+                }
+                candles.append(candle_data)
+            except (KeyError, IndexError, ValueError, TypeError):
+                continue
+
+        return candles
 
     def _extract_axes_data(self) -> dict:
         """
