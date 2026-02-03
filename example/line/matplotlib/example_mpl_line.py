@@ -16,14 +16,19 @@ flights_wide["Total"] = flights_wide.sum(axis=1)
 flights_wide.reset_index(inplace=True)
 
 # Plot the total number of passengers per year
-plt.figure(figsize=(14, 7))
-line_plot = plt.plot(flights_wide["year"], flights_wide["Total"], marker="o")
+fig, ax = plt.subplots(figsize=(14, 7))
+line_plot = ax.plot(flights_wide["year"], flights_wide["Total"], marker="o")
 
 # Adding title and labels
-plt.title("Total Passengers per Year\nFrom the Flights Dataset", fontsize=16)
-plt.xlabel("Year", fontsize=12)
-plt.ylabel("Total Passengers (Thousands)", fontsize=12)
+ax.set_title("Total Passengers per Year\nFrom the Flights Dataset", fontsize=16)
+ax.set_xlabel("Year", fontsize=12)
+ax.set_ylabel("Total Passengers (Thousands)", fontsize=12)
 
-# Show the plot
-# plt.show()
+# Add axis formatters for better screen reader output
+# Y-axis: Number format with thousands separator
+ax.yaxis.set_major_formatter("{x:,.2f}")
+
+# X-axis: Display year as integer (no decimals)
+ax.xaxis.set_major_formatter("{x:.0f}")
+
 maidr.show(line_plot)

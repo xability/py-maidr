@@ -47,9 +47,10 @@ class CandlestickPlot(MaidrPlot):
         if self._maidr_body_collection:
             self._maidr_gid = self._maidr_body_collection.get_gid()
             self._maidr_body_gid = self._maidr_gid
-        elif self._maidr_wick_collection:
-            self._maidr_gid = self._maidr_wick_collection.get_gid()
-            self._maidr_wick_gid = self._maidr_gid
+        if self._maidr_wick_collection:
+            self._maidr_wick_gid = self._maidr_wick_collection.get_gid()
+            if not self._maidr_gid:
+                self._maidr_gid = self._maidr_wick_gid
 
     def _extract_plot_data(self) -> list[dict]:
         """
@@ -147,11 +148,7 @@ class CandlestickPlot(MaidrPlot):
         return {MaidrKey.X: x_labels, MaidrKey.Y: self.ax.get_ylabel()}
 
     def _get_selector(self) -> Union[str, Dict[str, str]]:
-        """Return selectors for highlighting candlestick elements.
-
-        - Modern path (collections present): return a dict with separate selectors for body, wickLow, wickHigh
-        - Legacy path: return a dict with body and shared wick selectors (no open/close keys)
-        """
+        """Return selectors for highlighting candlestick elements."""
         # Modern path: build structured selectors using separate gids
         if (
             self._maidr_body_collection
@@ -190,12 +187,12 @@ class CandlestickPlot(MaidrPlot):
             }
             return selectors
 
-        # Legacy path: build shared-id selectors; omit open/close
+        # Legacy path
         legacy_selectors = {}
-        if getattr(self, "_maidr_body_gid", None) or self._maidr_gid:
-            body_gid = getattr(self, "_maidr_body_gid", None) or self._maidr_gid
+        if self._maidr_body_gid or self._maidr_gid:
+            body_gid = self._maidr_body_gid or self._maidr_gid
             legacy_selectors["body"] = f"g[id='{body_gid}'] > path"
-        if getattr(self, "_maidr_wick_gid", None):
+        if self._maidr_wick_gid:
             legacy_selectors["wick"] = f"g[id='{self._maidr_wick_gid}'] > path"
         if legacy_selectors:
             return legacy_selectors
@@ -207,9 +204,12 @@ class CandlestickPlot(MaidrPlot):
         """Initialize the MAIDR schema dictionary with basic plot information."""
         base_schema = super().render()
         base_schema[MaidrKey.TITLE] = "Candlestick Chart"
-        base_schema[MaidrKey.AXES] = self._extract_axes_data()
+        # Update axes labels while preserving format from parent
+        axes_data = self._extract_axes_data()
+        if MaidrKey.AXES in base_schema and MaidrKey.FORMAT in base_schema[MaidrKey.AXES]:
+            axes_data[MaidrKey.FORMAT] = base_schema[MaidrKey.AXES][MaidrKey.FORMAT]
+        base_schema[MaidrKey.AXES] = axes_data
         base_schema[MaidrKey.DATA] = self._extract_plot_data()
-        # Include selector only if the plot supports highlighting.
         if self._support_highlighting:
             base_schema[MaidrKey.SELECTOR] = self._get_selector()
         return base_schema
