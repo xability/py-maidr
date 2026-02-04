@@ -5,12 +5,13 @@ from abc import ABC, abstractmethod
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
+from maidr.util.mixin import FormatExtractorMixin
 
 # uuid is used to generate unique identifiers for each plot layer in the MAIDR schema.
 import uuid
 
 
-class MaidrPlot(ABC):
+class MaidrPlot(ABC, FormatExtractorMixin):
     """
     Abstract base class for plots managed by the MAIDR system.
 
@@ -61,13 +62,21 @@ class MaidrPlot(ABC):
         """
         Generate the MAIDR schema for this plot layer, including a unique id for layer identification.
         """
+        # Extract axes data first
+        axes_data = self._extract_axes_data()
+
+        # Extract and include format configuration inside axes if available.
+        format_config = self.extract_format(self.ax)
+        if format_config:
+            axes_data[MaidrKey.FORMAT] = format_config
+
         # Generate a unique UUID for this layer to ensure each plot layer can be distinctly identified
         # in the MAIDR frontend. This supports robust layer switching.
         maidr_schema = {
             MaidrKey.ID: str(uuid.uuid4()),
             MaidrKey.TYPE: self.type,
             MaidrKey.TITLE: self.ax.get_title(),
-            MaidrKey.AXES: self._extract_axes_data(),
+            MaidrKey.AXES: axes_data,
             MaidrKey.DATA: self._extract_plot_data(),
         }
 

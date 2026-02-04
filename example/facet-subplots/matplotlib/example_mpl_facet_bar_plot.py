@@ -55,6 +55,10 @@ fig.text(
 # Add a common title
 fig.suptitle("Facet Plot: Bar Charts by Condition", fontsize=16)
 
+# Add number formatters for better screen reader output
+for ax in axs:
+    ax.yaxis.set_major_formatter("{x:.1f}")
+
 # Adjust layout
 plt.tight_layout(rect=(0.08, 0.08, 0.98, 0.95))
 

@@ -15,7 +15,7 @@ import maidr
 np.random.seed(42)
 data = np.random.normal(loc=1, scale=2, size=300)
 
-plt.figure(figsize=(8, 5))
+fig, ax = plt.subplots(figsize=(8, 5))
 
 # Define x range for the plot
 x = np.linspace(data.min() - 2, data.max() + 2, 200)
@@ -24,14 +24,21 @@ x = np.linspace(data.min() - 2, data.max() + 2, 200)
 kde = gaussian_kde(data)
 
 # Plot single KDE
-plt.plot(x, kde(x), label="Sample Data KDE", color="blue", linewidth=2)
+ax.plot(x, kde(x), label="Sample Data KDE", color="blue", linewidth=2)
 
-plt.title("Single KDE Plot with Matplotlib/Scipy")
-plt.xlabel("Value")
-plt.ylabel("Density")
-plt.legend()
-plt.grid(True, alpha=0.3)
+ax.set_title("Single KDE Plot with Matplotlib/Scipy")
+ax.set_xlabel("Value")
+ax.set_ylabel("Density")
+ax.legend()
+ax.grid(True, alpha=0.3)
+
+# Add number formatters for better screen reader output
+# X-axis: values with one decimal
+ax.xaxis.set_major_formatter("{x:.1f}")
+# Y-axis: density values with three decimals
+ax.yaxis.set_major_formatter("{x:.3f}")
+
 plt.tight_layout()
 
 # Show with MAIDR for interactive accessibility
-maidr.show(plt.gcf())
+maidr.show(fig)

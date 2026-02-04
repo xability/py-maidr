@@ -10,7 +10,7 @@ tips = sns.load_dataset("tips")
 subset_data = tips[tips["day"] == "Thur"]
 
 # Create a line plot
-plt.figure(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(10, 6))
 line_plot = sns.lineplot(
     data=subset_data,
     x="total_bill",
@@ -18,10 +18,15 @@ line_plot = sns.lineplot(
     markers=True,
     style="day",
     legend=False,
+    ax=ax,
 )
-plt.title("Line Plot of Tips vs Total Bill (Thursday)")
-plt.xlabel("Total Bill")
-plt.ylabel("Tip")
+ax.set_title("Line Plot of Tips vs Total Bill (Thursday)")
+ax.set_xlabel("Total Bill")
+ax.set_ylabel("Tip")
 
-# plt.show()
+# Add currency formatters for better screen reader output
+# Both axes show dollar amounts
+ax.xaxis.set_major_formatter("${x:.2f}")
+ax.yaxis.set_major_formatter("${x:.2f}")
+
 maidr.show(line_plot)

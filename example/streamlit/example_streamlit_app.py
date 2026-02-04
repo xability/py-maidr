@@ -35,7 +35,7 @@ fig_height = st.sidebar.slider("Figure height", min_value=3, max_value=10, value
 filtered_tips = tips[tips["day"].isin(selected_days)]
 
 # Create the plot based on user selection
-plt.figure(figsize=(fig_width, fig_height))
+fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
 plot = None
 
@@ -44,17 +44,24 @@ if plot_type == "Bar Plot":
     day_counts = filtered_tips["day"].value_counts()
 
     # Create a bar plot with Matplotlib
-    plot = plt.bar(day_counts.index, day_counts.values)
-    plt.title("Number of Tips by Day")
-    plt.xlabel("Day")
-    plt.ylabel("Count")
+    plot = ax.bar(day_counts.index, day_counts.values)
+    ax.set_title("Number of Tips by Day")
+    ax.set_xlabel("Day")
+    ax.set_ylabel("Count")
+
+    # Add number formatter for better screen reader output
+    ax.yaxis.set_major_formatter("{x:.0f}")
 
 elif plot_type == "Scatter Plot":
     # Scatter plot of total_bill vs. tip
-    plot = plt.scatter(filtered_tips["total_bill"], filtered_tips["tip"], alpha=0.7)
-    plt.title("Scatter Plot of Total Bill vs. Tip")
-    plt.xlabel("Total Bill")
-    plt.ylabel("Tip")
+    plot = ax.scatter(filtered_tips["total_bill"], filtered_tips["tip"], alpha=0.7)
+    ax.set_title("Scatter Plot of Total Bill vs. Tip")
+    ax.set_xlabel("Total Bill")
+    ax.set_ylabel("Tip")
+
+    # Add currency formatters for better screen reader output
+    ax.xaxis.set_major_formatter("${x:.2f}")
+    ax.yaxis.set_major_formatter("${x:.2f}")
 
 # Display the plot using Streamlit
 components.html(

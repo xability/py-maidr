@@ -40,8 +40,13 @@ for offset, (category, counts) in zip(offsets, weight_counts.items()):
 ax.set_xticks(x)
 ax.set_xticklabels(species)
 ax.set_xlabel("Species")
+ax.set_ylabel("Count")
 ax.set_title("Dodged Bar Plot: Penguin Weight Counts")
 ax.legend(loc="upper right")
+
+# Add number formatter to y-axis for better screen reader output
+# Count values as integers (no decimals)
+ax.yaxis.set_major_formatter("{x:.0f}")
 
 # Show plot using maidr.show
 maidr.show(p)

@@ -48,6 +48,14 @@ axs[2].set_title("Bar Plot 2: Random Values")
 axs[2].set_xlabel("Categories")
 axs[2].set_ylabel("Values")
 
+# Add number formatters for better screen reader output
+# Line plot: integers
+axs[0].xaxis.set_major_formatter("{x:.0f}")
+axs[0].yaxis.set_major_formatter("{x:.0f}")
+# Bar plots: one decimal
+axs[1].yaxis.set_major_formatter("{x:.1f}")
+axs[2].yaxis.set_major_formatter("{x:.1f}")
+
 # Adjust layout to prevent overlap
 plt.tight_layout()
 

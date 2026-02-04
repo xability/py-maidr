@@ -47,15 +47,19 @@ def index():
     penguins = sns.load_dataset("penguins")
 
     # Create a bar plot showing the average body mass of penguins by species
-    plt.figure(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(10, 6))
 
     # Create the bar plot and assign to variable
     bar_plot = sns.barplot(
-        x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
+        x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d", ax=ax
     )
-    plt.title("Average Body Mass of Penguins by Species")
-    plt.xlabel("Species")
-    plt.ylabel("Body Mass (g)")
+    ax.set_title("Average Body Mass of Penguins by Species")
+    ax.set_xlabel("Species")
+    ax.set_ylabel("Body Mass (g)")
+
+    # Add number formatter for better screen reader output
+    # Body mass values with thousands separator
+    ax.yaxis.set_major_formatter("{x:,.0f}")
 
     # Use the user-facing API: maidr.render() with plot object
     logger.info("=== Using maidr.render() API ===")

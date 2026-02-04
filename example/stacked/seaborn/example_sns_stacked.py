@@ -27,6 +27,10 @@ def plot():
     plt.ylabel("Number of Passengers")
     plt.xticks(rotation=0)
 
+    # Add number formatter to y-axis for better screen reader output
+    # Count values as integers (no decimals)
+    stacked.yaxis.set_major_formatter("{x:.0f}")
+
     return stacked
 
 

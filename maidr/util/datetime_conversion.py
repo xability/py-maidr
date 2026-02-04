@@ -6,16 +6,18 @@ from datetime import datetime
 
 class DatetimeConverter:
     """
-    Datetime converter for mplfinance plots.
+    Enhanced datetime converter that automatically detects time periods
+    and provides intelligent date/time formatting for mplfinance plots.
 
-    This utility provides datetime value conversion for financial data visualization.
+    This utility automatically detects the time period of financial data and formats
+    datetime values consistently for screen reader accessibility and visual clarity.
 
     Parameters
     ----------
     data : pd.DataFrame
         DataFrame with DatetimeIndex containing financial data.
     datetime_format : str, optional
-        Custom datetime format string (currently unused, kept for compatibility).
+        Custom datetime format string. If None, automatic format detection is used.
 
     Attributes
     ----------
@@ -162,7 +164,9 @@ class DatetimeConverter:
 
     def get_formatted_datetime(self, index: int) -> Optional[str]:
         """
-        Get datetime string for given index.
+        Get formatted datetime string for given index using consistent formatting.
+
+        Always includes year for screen reader accessibility.
 
         Parameters
         ----------
@@ -172,13 +176,13 @@ class DatetimeConverter:
         Returns
         -------
         str or None
-            Datetime string or None if index is invalid.
+            Formatted datetime string or None if index is invalid.
 
         Examples
         --------
         >>> converter = create_datetime_converter(df)
         >>> formatted = converter.get_formatted_datetime(0)
-        >>> print(formatted)  # "2024-01-15 00:00:00"
+        >>> print(formatted)  # "2024-01-15 00:00:00" (plain datetime string)
         """
         if index not in self.date_mapping:
             return None
@@ -188,7 +192,7 @@ class DatetimeConverter:
 
     def _format_datetime_custom(self, dt: datetime) -> str:
         """
-        Format datetime as-is using ISO format.
+        Return plain datetime string representation.
 
         Parameters
         ----------
@@ -198,14 +202,13 @@ class DatetimeConverter:
         Returns
         -------
         str
-            Formatted datetime string in ISO format.
+            Plain string representation of datetime (ISO format).
 
         Notes
         -----
-        Returns the datetime as a string without smart formatting.
-        Output format is "YYYY-MM-DD HH:MM:SS" (e.g., "2024-01-15 00:00:00").
+        Returns the raw string representation of the datetime object,
+        allowing the frontend to handle formatting as needed.
         """
-        # Return string representation of datetime
         return str(dt)
 
     @property

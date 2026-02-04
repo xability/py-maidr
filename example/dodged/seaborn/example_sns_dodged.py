@@ -66,6 +66,10 @@ def plot_dodged_bar() -> None:
     ax.set_title("Seaborn Dodged Bar Plot: Penguin Weight Counts")
     ax.legend(title="Category", loc="upper right")
 
+    # Add number formatter to y-axis for better screen reader output
+    # Count values as integers (no decimals)
+    ax.yaxis.set_major_formatter("{x:.0f}")
+
     # Render the plot
     maidr.show(p)
 
