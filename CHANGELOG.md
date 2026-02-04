@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.11.0 (2026-02-04)
+
+### Features
+
+- Include format configuration from plot api ([#262](https://github.com/xability/py-maidr/pull/262),
+  [`59eb82f`](https://github.com/xability/py-maidr/commit/59eb82f880d370eab4cf437e22dee3cd4856158c))
+
+
 ## v1.10.0 (2026-01-31)
 
 ### Features
