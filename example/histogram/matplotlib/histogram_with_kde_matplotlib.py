@@ -29,6 +29,13 @@ ax.set_title("Histogram with KDE Overlay (Matplotlib)")
 ax.set_xlabel("Value")
 ax.set_ylabel("Density")
 ax.legend(title="Legend")
+
+# Add number formatters for better screen reader output
+# X-axis: values with one decimal
+ax.xaxis.set_major_formatter("{x:.1f}")
+# Y-axis: density values with three decimals
+ax.yaxis.set_major_formatter("{x:.3f}")
+
 plt.tight_layout()
 
 # Show with MAIDR for interactive accessibility

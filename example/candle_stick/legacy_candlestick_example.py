@@ -126,6 +126,13 @@ def generate_candlestick_chart(
     ax.set_xlabel("Date", fontsize=12)
     ax.set_ylabel("Price", fontsize=12)
 
+    # Add number formatters for better screen reader output
+    # Price axis: currency format
+    ax.yaxis.set_major_formatter("${x:.2f}")
+    # Volume axis (if present): integer with thousands separator
+    if show_volume and "Volume" in data_dict:
+        ax2.yaxis.set_major_formatter("{x:,.0f}")
+
     # Adjust layout to prevent labels from overlapping
     plt.tight_layout()
 

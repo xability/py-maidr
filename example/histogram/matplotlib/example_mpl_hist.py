@@ -10,10 +10,16 @@ iris = sns.load_dataset("iris")
 data = iris["petal_length"]
 
 # Create the histogram plot
-_, _, hist_plot = plt.hist(data, bins=20, edgecolor="black")
-plt.title("Histogram of Petal Lengths in Iris Dataset")
-plt.xlabel("Petal Length (cm)")
-plt.ylabel("Frequency")
+fig, ax = plt.subplots()
+_, _, hist_plot = ax.hist(data, bins=20, edgecolor="black")
+ax.set_title("Histogram of Petal Lengths in Iris Dataset")
+ax.set_xlabel("Petal Length (cm)")
+ax.set_ylabel("Frequency")
 
-# plt.show()
+# Add number formatters for better screen reader output
+# X-axis: measurements in cm with one decimal
+ax.xaxis.set_major_formatter("{x:.1f}")
+# Y-axis: frequency counts as integers
+ax.yaxis.set_major_formatter("{x:.0f}")
+
 maidr.show(hist_plot)

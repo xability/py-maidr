@@ -22,8 +22,8 @@ data_to_plot = [data_group1, data_group2, data_group3]
 
 # Create the boxplot
 def boxplot(is_vert: bool):
-    plt.figure()
-    bp = plt.boxplot(data_to_plot, patch_artist=True, vert=is_vert)
+    fig, ax = plt.subplots()
+    bp = ax.boxplot(data_to_plot, patch_artist=True, vert=is_vert)
 
     colors = ["lightblue", "lightgreen", "tan"]
     for patch, color in zip(bp["boxes"], colors):
@@ -40,15 +40,21 @@ def boxplot(is_vert: bool):
         )
 
     if is_vert:
-        plt.xticks(ticks=[1, 2, 3], labels=["Group 1", "Group 2", "Group 3"])
-        plt.title("Vertical Box Plot Example")
-        plt.xlabel("Group")
-        plt.ylabel("Values")
+        ax.set_xticks([1, 2, 3])
+        ax.set_xticklabels(["Group 1", "Group 2", "Group 3"])
+        ax.set_title("Vertical Box Plot Example")
+        ax.set_xlabel("Group")
+        ax.set_ylabel("Values")
+        # Add number formatter to value axis for better screen reader output
+        ax.yaxis.set_major_formatter("{x:.1f}")
     else:
-        plt.yticks(ticks=[1, 2, 3], labels=["Group 1", "Group 2", "Group 3"])
-        plt.title("Horizontal Box Plot Example")
-        plt.ylabel("Group")
-        plt.xlabel("Values")
+        ax.set_yticks([1, 2, 3])
+        ax.set_yticklabels(["Group 1", "Group 2", "Group 3"])
+        ax.set_title("Horizontal Box Plot Example")
+        ax.set_ylabel("Group")
+        ax.set_xlabel("Values")
+        # Add number formatter to value axis for better screen reader output
+        ax.xaxis.set_major_formatter("{x:.1f}")
 
     return bp
 

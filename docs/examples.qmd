@@ -33,17 +33,18 @@ import maidr  #<<
 penguins = sns.load_dataset("penguins")
 
 # Create a bar plot showing the average body mass of penguins by species
-plt.figure(figsize=(6, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 # Assign the plot to a variable #<<
 bar_plot = sns.barplot(  #<<
-    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
+    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d", ax=ax
 )
-plt.title("Average Body Mass of Penguins by Species")
-plt.xlabel("Species")
-plt.ylabel("Body Mass (g)")
+ax.set_title("Average Body Mass of Penguins by Species")
+ax.set_xlabel("Species")
+ax.set_ylabel("Body Mass (g)")
 
-# plt.show()
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:,.0f}")
 
 # Use maidr.show() to display your plot #<<
 maidr.show(bar_plot)  #<<
@@ -65,14 +66,16 @@ import maidr #<<
 titanic = sns.load_dataset("titanic")
 
 # Create a count plot
-plt.figure(figsize=(6, 6))
-count_plot = sns.countplot(x="class", data=titanic, palette="viridis") #<<
+fig, ax = plt.subplots(figsize=(6, 6))
+count_plot = sns.countplot(x="class", data=titanic, palette="viridis", ax=ax) #<<
 
-plt.title("Passenger Class Distribution on the Titanic")
-plt.xlabel("Passenger Class")
-plt.ylabel("Count")
+ax.set_title("Passenger Class Distribution on the Titanic")
+ax.set_xlabel("Passenger Class")
+ax.set_ylabel("Count")
 
-# plt.show()
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:.0f}")
+
 maidr.show(count_plot) #<<
 ```
 
@@ -111,6 +114,9 @@ ax.set_ylabel("Average Body Mass")
 
 ax.set_title("Number of penguins with above average body mass")
 ax.legend(loc="upper right")
+
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:.0f}")
 
 maidr.show(p) #<<
 ```
@@ -156,6 +162,9 @@ ax.set_ylabel("Weight")
 ax.set_title("Dodged Bar Plot: Penguin Weight Counts")
 ax.legend(loc="upper right")
 
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:.0f}")
+
 # Show plot using maidr.show
 maidr.show(p) #<<
 ```
@@ -179,15 +188,18 @@ iris = sns.load_dataset("iris")
 petal_lengths = iris["petal_length"]
 
 # Plot a histogram of the petal lengths
-plt.figure(figsize=(6, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
-hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5) #<<
+hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5, ax=ax) #<<
 
-plt.title("Petal Lengths in Iris Dataset")
-plt.xlabel("Petal Length (cm)")
-plt.ylabel("Frequency")
+ax.set_title("Petal Lengths in Iris Dataset")
+ax.set_xlabel("Petal Length (cm)")
+ax.set_ylabel("Frequency")
 
-# plt.show()
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.0f}")
+
 maidr.show(hist_plot) #<<
 ```
 
@@ -208,14 +220,17 @@ np.random.seed(42)
 data = np.random.randn(500)
 
 # Create a KDE plot
-plt.figure(figsize=(6, 6))
-kde_plot = sns.kdeplot(data, fill=True, color="blue") #<<
+fig, ax = plt.subplots(figsize=(6, 6))
+kde_plot = sns.kdeplot(data, color="blue", ax=ax) #<<
 
-plt.title("KDE Plot of Random Data")
-plt.xlabel("Value")
-plt.ylabel("Density")
+ax.set_title("KDE Plot of Random Data")
+ax.set_xlabel("Value")
+ax.set_ylabel("Density")
 
-# plt.show()
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.3f}")
+
 maidr.show(kde_plot) #<<
 ```
 
@@ -239,7 +254,7 @@ tips = sns.load_dataset("tips") #<<
 subset_data = tips[tips["day"] == "Thur"]
 
 # Create a line plot
-plt.figure(figsize=(6, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 line_plot = sns.lineplot( #<<
     data=subset_data,
     x="total_bill",
@@ -247,12 +262,16 @@ line_plot = sns.lineplot( #<<
     markers=True,
     style="day",
     legend=False,
+    ax=ax,
 )
-plt.title("Tips vs Total Bill (Thursday)")
-plt.xlabel("Total Bill")
-plt.ylabel("Tip")
+ax.set_title("Tips vs Total Bill (Thursday)")
+ax.set_xlabel("Total Bill")
+ax.set_ylabel("Tip")
 
-# plt.show()
+# Add currency formatters for better screen reader output
+ax.xaxis.set_major_formatter("${x:.2f}")
+ax.yaxis.set_major_formatter("${x:.2f}")
+
 maidr.show(line_plot) #<<
 ```
 
@@ -283,17 +302,21 @@ data = pd.DataFrame(
 )
 
 # Create the plot
-plt.figure(figsize=(6, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 # Use seaborn lineplot for multiple lines
 lineplot = sns.lineplot(
-    x="x", y="y", hue="series", style="series", markers=True, dashes=True, data=data
+    x="x", y="y", hue="series", style="series", markers=True, dashes=True, data=data, ax=ax
 )
 
 # Customize the plot
-plt.title("Seaborn Multiline Plot")
-plt.xlabel("X values")
-plt.ylabel("Y values")
+ax.set_title("Seaborn Multiline Plot")
+ax.set_xlabel("X values")
+ax.set_ylabel("Y values")
+
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.0f}")
+ax.yaxis.set_major_formatter("{x:.0f}")
 
 # Display the plot using maidr
 maidr.show(lineplot) #<<
@@ -314,9 +337,14 @@ import maidr #<<
 glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Score")
 
 # Plot a heatmap
-plt.figure(figsize=(8, 8))
-heatmap = sns.heatmap(glue, annot=True, fill_label="Score") #<<
-plt.title("Model Scores by Task")
+fig, ax = plt.subplots(figsize=(8, 8))
+heatmap = sns.heatmap(glue, annot=True, fill_label="Score", ax=ax) #<<
+ax.set_title("Model Scores by Task")
+
+# Add number formatter for colorbar for better screen reader output
+cbar = heatmap.collections[0].colorbar
+if cbar:
+    cbar.ax.yaxis.set_major_formatter("{x:.1f}")
 
 # Show the plot
 # plt.show()
@@ -339,11 +367,14 @@ import maidr #<<
 iris = load_dataset("iris")
 
 # Create the horizontal boxplot
-horz_box_plot = sns.boxplot(x="petal_length", y="species", data=iris, orient="h") #<<
-plt.ylabel("Species")
-plt.xlabel("Petal Length")
-plt.title("Petal Length by Species from Iris Dataset")
-# plt.show()
+fig, ax = plt.subplots()
+horz_box_plot = sns.boxplot(x="petal_length", y="species", data=iris, orient="h", ax=ax) #<<
+ax.set_ylabel("Species")
+ax.set_xlabel("Petal Length (cm)")
+ax.set_title("Petal Length by Species from Iris Dataset")
+
+# Add number formatter for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
 
 # Show the plot
 maidr.show(horz_box_plot) #<<
@@ -360,17 +391,21 @@ import seaborn as sns
 import maidr #<<
 
 # Create a scatter plot
+fig, ax = plt.subplots()
 scatter_plot = sns.scatterplot( #<<
-    data=iris, x="sepal_length", y="sepal_width", hue="species"
+    data=iris, x="sepal_length", y="sepal_width", hue="species", ax=ax
 )
 
-# Adding title and labels (optional)
-plt.title("Iris Sepal Length vs Sepal Width")
-plt.xlabel("Sepal Length")
-plt.ylabel("Sepal Width")
+# Adding title and labels
+ax.set_title("Iris Sepal Length vs Sepal Width")
+ax.set_xlabel("Sepal Length (cm)")
+ax.set_ylabel("Sepal Width (cm)")
+
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.1f}")
 
 # Show the plot
-# plt.show()
 maidr.show(scatter_plot) #<<
 ```
 
@@ -392,19 +427,23 @@ x = np.linspace(0, 10, 50)
 y = 2 * x + 1 + np.random.normal(0, 2, 50)
 
 # Create a regression plot
-plt.figure(figsize=(6, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 reg_plot = sns.regplot(
     x=x,
     y=y,
     scatter_kws={"s": 50, "alpha": 0.7},
     line_kws={"color": "red", "lw": 2},
+    ax=ax,
 ) #<<
 
-plt.title("Regression Plot with Fitted Line")
-plt.xlabel("X values")
-plt.ylabel("Y values")
+ax.set_title("Regression Plot with Fitted Line")
+ax.set_xlabel("X values")
+ax.set_ylabel("Y values")
 
-# plt.show()
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.2f}")
+
 maidr.show(reg_plot) #<<
 ```
 
@@ -447,6 +486,11 @@ plt.title("Multilayer Plot Example")
 lines1, labels1 = ax1.get_legend_handles_labels()
 lines2, labels2 = ax2.get_legend_handles_labels()
 ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left")
+
+# Add number formatters for better screen reader output
+ax1.xaxis.set_major_formatter("{x:.0f}")
+ax1.yaxis.set_major_formatter("{x:.0f}")
+ax2.yaxis.set_major_formatter("{x:.0f}")
 
 # Adjust layout
 fig.tight_layout()
@@ -508,6 +552,12 @@ axs[2].set_title("Bar Plot 2: Random Values")  # Fixed the typo in the title
 axs[2].set_xlabel("Categories")
 axs[2].set_ylabel("Values")
 
+# Add number formatters for better screen reader output
+axs[0].xaxis.set_major_formatter("{x:.0f}")
+axs[0].yaxis.set_major_formatter("{x:.0f}")
+axs[1].yaxis.set_major_formatter("{x:.1f}")
+axs[2].yaxis.set_major_formatter("{x:.1f}")
+
 # Adjust layout to prevent overlap
 plt.tight_layout()
 
@@ -567,6 +617,10 @@ fig.text(
 # Add a common title
 fig.suptitle("Facet Plot: Bar Charts by Condition", fontsize=16)
 
+# Add number formatters for better screen reader output
+for ax in axs:
+    ax.yaxis.set_major_formatter("{x:.1f}")
+
 # Adjust layout
 plt.tight_layout(rect=(0.08, 0.08, 0.98, 0.95))
 
@@ -581,6 +635,7 @@ maidr.show(fig) #<<
 
 import mplfinance as mpf
 import pandas as pd
+import matplotlib.dates as mdates
 
 import maidr #<<
 
@@ -588,17 +643,26 @@ import maidr #<<
 daily = pd.read_csv("../example/candle_stick/volcandat.csv", index_col=0, parse_dates=True)
 
 # Create the candlestick chart with moving averages and volume
-fig, ax = mpf.plot(
+fig, axlist = mpf.plot(
     daily,
     type="candle",
     volume=True,
     mav = (3,6,9),
     returnfig=True,
-    ylabel="Price ($)",
+    ylabel="Price",
     ylabel_lower="Volume",
     xlabel="Date",
     title="Stock Price with Volume",
 )  #<<
+
+# Add formatters for better screen reader output
+# Price axis - Currency format
+axlist[0].yaxis.set_major_formatter("${x:,.2f}")
+# Date axis - Custom date format like "Nov 18, 2016"
+axlist[0].xaxis.set_major_formatter(mdates.DateFormatter("%b %d, %Y"))
+# Volume axis - Integer with thousands separator
+axlist[2].yaxis.set_major_formatter("{x:,.0f}")
+
 fig.tight_layout()
 
 # Display with maidr

@@ -16,6 +16,6 @@ ax.set_ylabel("Count")
 
 # Add number formatter to y-axis for better screen reader output
 # This formats values with no decimal places (integer counts)
-ax.yaxis.set_major_formatter("{x:.0f}")
+ax.yaxis.set_major_formatter("{x:.2f}")
 
 maidr.show(b_plot)
