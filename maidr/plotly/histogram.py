@@ -47,7 +47,6 @@ class PlotlyHistogramPlot(PlotlyPlot):
 
         xbins = self._trace.get("xbins", None)
         if xbins is not None and "size" in xbins:
-            # Compute bin count from size
             x = np.array(self._trace.get("x", []), dtype=float)
             if len(x) > 0:
                 size = float(xbins["size"])

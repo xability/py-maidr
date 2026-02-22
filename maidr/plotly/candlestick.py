@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
@@ -10,6 +12,19 @@ class PlotlyCandlestickPlot(PlotlyPlot):
 
     def __init__(self, trace: dict, layout: dict) -> None:
         super().__init__(trace, layout, PlotType.CANDLESTICK)
+
+    @staticmethod
+    def _to_native(val: Any) -> Any:
+        """Convert numpy scalars to native Python types.
+
+        Extends the base implementation to coerce numeric values to float.
+        """
+        if hasattr(val, "item"):
+            return val.item()
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return val
 
     def render(self) -> dict:
         base = super().render()
@@ -37,28 +52,12 @@ class PlotlyCandlestickPlot(PlotlyPlot):
             data.append(
                 {
                     "value": str(x[i]) if i < len(x) else "",
-                    "open": _to_native(open_vals[i])
-                    if i < len(open_vals)
-                    else 0,
-                    "high": _to_native(high_vals[i])
-                    if i < len(high_vals)
-                    else 0,
-                    "low": _to_native(low_vals[i])
-                    if i < len(low_vals)
-                    else 0,
-                    "close": _to_native(close_vals[i])
+                    "open": self._to_native(open_vals[i]) if i < len(open_vals) else 0,
+                    "high": self._to_native(high_vals[i]) if i < len(high_vals) else 0,
+                    "low": self._to_native(low_vals[i]) if i < len(low_vals) else 0,
+                    "close": self._to_native(close_vals[i])
                     if i < len(close_vals)
                     else 0,
                 }
             )
         return data
-
-
-def _to_native(val):
-    """Convert numpy scalars to native Python types."""
-    if hasattr(val, "item"):
-        return val.item()
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return val

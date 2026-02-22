@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
@@ -62,13 +64,13 @@ class PlotlyBoxPlot(PlotlyPlot):
 
         return []
 
-    def _extract_grouped(self, x, y) -> list[dict]:
+    def _extract_grouped(self, x: list[Any], y: list[Any]) -> list[dict]:
         """Extract stats grouped by x categories."""
         x = list(x)
         y = list(y)
         # Preserve order of appearance
         categories = list(dict.fromkeys(x))
-        groups = {cat: [] for cat in categories}
+        groups: dict[Any, list] = {cat: [] for cat in categories}
         for xi, yi in zip(x, y):
             groups[xi].append(yi)
 
@@ -87,8 +89,12 @@ class PlotlyBoxPlot(PlotlyPlot):
         lower_fence = q1 - 1.5 * iqr
         upper_fence = q3 + 1.5 * iqr
 
-        min_val = float(np.min(arr[arr >= lower_fence])) if np.any(arr >= lower_fence) else q1
-        max_val = float(np.max(arr[arr <= upper_fence])) if np.any(arr <= upper_fence) else q3
+        min_val = (
+            float(np.min(arr[arr >= lower_fence])) if np.any(arr >= lower_fence) else q1
+        )
+        max_val = (
+            float(np.max(arr[arr <= upper_fence])) if np.any(arr <= upper_fence) else q3
+        )
 
         lower_outliers = sorted(float(v) for v in arr[arr < lower_fence])
         upper_outliers = sorted(float(v) for v in arr[arr > upper_fence])
@@ -105,10 +111,3 @@ class PlotlyBoxPlot(PlotlyPlot):
         if label:
             result[MaidrKey.FILL.value] = label
         return result
-
-    @staticmethod
-    def _to_native(val):
-        """Convert numpy scalars to native Python types."""
-        if hasattr(val, "item"):
-            return val.item()
-        return val

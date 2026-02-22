@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from abc import ABC, abstractmethod
+from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
@@ -21,13 +22,30 @@ class PlotlyPlot(ABC):
         The type of the plot to be created, as defined in the PlotType enum.
     """
 
-    def __init__(
-        self, trace: dict, layout: dict, plot_type: PlotType
-    ) -> None:
+    def __init__(self, trace: dict, layout: dict, plot_type: PlotType) -> None:
         self._trace = trace
         self._layout = layout
         self.type = plot_type
         self._schema: dict = {}
+
+    @staticmethod
+    def _to_native(val: Any) -> Any:
+        """Convert numpy scalars to native Python types.
+
+        Parameters
+        ----------
+        val : Any
+            The value to convert.
+
+        Returns
+        -------
+        Any
+            A native Python type if the input was a numpy scalar,
+            otherwise the original value.
+        """
+        if hasattr(val, "item"):
+            return val.item()
+        return val
 
     def render(self) -> dict:
         """Generate the MAIDR schema for this plot layer."""

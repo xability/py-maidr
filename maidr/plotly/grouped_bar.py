@@ -45,18 +45,11 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
             for xv, yv in zip(x_vals, y_vals):
                 group.append(
                     {
-                        MaidrKey.X.value: _to_native(xv),
+                        MaidrKey.X.value: self._to_native(xv),
                         MaidrKey.FILL.value: str(fill),
-                        MaidrKey.Y.value: _to_native(yv),
+                        MaidrKey.Y.value: self._to_native(yv),
                     }
                 )
             data.append(group)
 
         return data
-
-
-def _to_native(val):
-    """Convert numpy scalars to native Python types."""
-    if hasattr(val, "item"):
-        return val.item()
-    return val

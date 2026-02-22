@@ -36,16 +36,16 @@ class PlotlyPlotFactory:
 
             return PlotlyBarPlot(trace, layout)
 
-        if trace_type == "scatter" or trace_type == "scattergl":
+        if trace_type in ("scatter", "scattergl"):
             mode = trace.get("mode", "markers")
             if "lines" in mode and "markers" not in mode:
                 from maidr.plotly.line import PlotlyLinePlot
 
                 return PlotlyLinePlot(trace, layout)
-            else:
-                from maidr.plotly.scatter import PlotlyScatterPlot
 
-                return PlotlyScatterPlot(trace, layout)
+            from maidr.plotly.scatter import PlotlyScatterPlot
+
+            return PlotlyScatterPlot(trace, layout)
 
         if trace_type == "box":
             from maidr.plotly.box import PlotlyBoxPlot

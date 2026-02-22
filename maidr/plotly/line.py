@@ -27,10 +27,3 @@ class PlotlyLinePlot(PlotlyPlot):
             line_data.append(point)
 
         return [line_data]
-
-    @staticmethod
-    def _to_native(val):
-        """Convert numpy scalars to native Python types."""
-        if hasattr(val, "item"):
-            return val.item()
-        return val

@@ -39,11 +39,7 @@ def plotly_scatter_fig():
 def plotly_line_fig():
     """Create a simple Plotly line chart."""
     fig = go.Figure(
-        data=[
-            go.Scatter(
-                x=[1, 2, 3], y=[10, 20, 15], mode="lines", name="Series A"
-            )
-        ],
+        data=[go.Scatter(x=[1, 2, 3], y=[10, 20, 15], mode="lines", name="Series A")],
         layout=go.Layout(
             title="Test Line Chart",
             xaxis=dict(title="Time"),

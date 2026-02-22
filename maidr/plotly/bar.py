@@ -15,23 +15,7 @@ class PlotlyBarPlot(PlotlyPlot):
         x = self._trace.get("x", [])
         y = self._trace.get("y", [])
 
-        orientation = self._trace.get("orientation", "v")
-
-        if orientation == "h":
-            # Horizontal bar: x holds values, y holds categories
-            return [
-                {MaidrKey.X: self._to_native(xv), MaidrKey.Y: self._to_native(yv)}
-                for xv, yv in zip(x, y)
-            ]
-
         return [
             {MaidrKey.X: self._to_native(xv), MaidrKey.Y: self._to_native(yv)}
             for xv, yv in zip(x, y)
         ]
-
-    @staticmethod
-    def _to_native(val):
-        """Convert numpy scalars to native Python types."""
-        if hasattr(val, "item"):
-            return val.item()
-        return val

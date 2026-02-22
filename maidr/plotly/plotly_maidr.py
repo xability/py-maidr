@@ -53,12 +53,8 @@ class PlotlyMaidr:
             from maidr.core.enum.plot_type import PlotType
             from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
 
-            plot_type = (
-                PlotType.DODGED if barmode == "group" else PlotType.STACKED
-            )
-            self._plots.append(
-                PlotlyGroupedBarPlot(bar_traces, layout, plot_type)
-            )
+            plot_type = PlotType.DODGED if barmode == "group" else PlotType.STACKED
+            self._plots.append(PlotlyGroupedBarPlot(bar_traces, layout, plot_type))
 
             # Process remaining non-bar traces normally
             for trace in traces:
@@ -146,9 +142,7 @@ class PlotlyMaidr:
         loads the MAIDR JS library which reads the schema and provides
         sonification, braille, and keyboard navigation.
         """
-        maidr_js = (
-            "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
-        )
+        maidr_js = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
         return f"""
         (function() {{
             var maidrSchema = {json.dumps(schema, indent=2)};
@@ -199,9 +193,7 @@ class PlotlyMaidr:
         plotly_div = self._get_plotly_html()
         init_script = self._build_init_script(schema)
 
-        maidr_css = (
-            "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css"
-        )
+        maidr_css = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css"
 
         base_html = tags.div(
             tags.link(rel="stylesheet", href=maidr_css),
@@ -253,9 +245,7 @@ class PlotlyMaidr:
             width="100%",
             height="100%",
             scrolling="no",
-            style=(
-                "background-color: #fff; position: relative; border: none"
-            ),
+            style=("background-color: #fff; position: relative; border: none"),
             frameBorder=0,
             onload=resizing_script,
         )
@@ -270,8 +260,6 @@ class PlotlyMaidr:
         static_temp_dir = os.path.join(system_temp_dir, "maidr")
         os.makedirs(static_temp_dir, exist_ok=True)
 
-        temp_file_path = os.path.join(
-            static_temp_dir, "maidr_plotly_plot.html"
-        )
+        temp_file_path = os.path.join(static_temp_dir, "maidr_plotly_plot.html")
         html_file_path = self.save_html(temp_file_path)
         webbrowser.open(f"file://{html_file_path}")

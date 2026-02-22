@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
@@ -10,6 +12,22 @@ class PlotlyHeatmapPlot(PlotlyPlot):
 
     def __init__(self, trace: dict, layout: dict) -> None:
         super().__init__(trace, layout, PlotType.HEAT)
+
+    @staticmethod
+    def _to_native(val: Any) -> Any:
+        """Convert numpy scalars to native Python types.
+
+        Extends the base implementation to also convert numeric strings
+        and non-numpy numeric types to floats.
+        """
+        if hasattr(val, "item"):
+            return val.item()
+        if isinstance(val, str):
+            return val
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return val
 
     def _extract_plot_data(self) -> dict:
         z = self._trace.get("z", [])
@@ -45,15 +63,3 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         if fill_label:
             base[MaidrKey.FILL] = fill_label
         return base
-
-    @staticmethod
-    def _to_native(val):
-        """Convert numpy scalars to native Python types."""
-        if hasattr(val, "item"):
-            return val.item()
-        if isinstance(val, str):
-            return val
-        try:
-            return float(val)
-        except (TypeError, ValueError):
-            return val

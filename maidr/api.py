@@ -25,10 +25,11 @@ def _is_plotly_figure(obj: Any) -> bool:
     bool
         True if the object is a Plotly figure.
     """
-    return type(obj).__module__.startswith("plotly.")
+    module = getattr(type(obj), "__module__", "")
+    return module.startswith("plotly.")
 
 
-def _get_plotly_maidr(fig: Any):
+def _get_plotly_maidr(fig: Any) -> Any:
     """
     Create a PlotlyMaidr instance from a Plotly figure.
 
