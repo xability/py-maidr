@@ -24,7 +24,7 @@ fig = go.Figure(
     layout=go.Layout(
         title="Total Passengers per Year",
         xaxis=dict(title="Year"),
-        yaxis=dict(title="Total Passengers (Thousands)"),
+        yaxis=dict(title="Total Passengers (Thousands)", tickformat=",.0f"),
     ),
 )
 

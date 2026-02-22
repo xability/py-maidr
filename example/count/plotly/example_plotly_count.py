@@ -14,7 +14,7 @@ fig = go.Figure(
     layout=go.Layout(
         title="Penguin Species Count",
         xaxis=dict(title="Species"),
-        yaxis=dict(title="Count"),
+        yaxis=dict(title="Count", tickformat=".0f"),
     ),
 )
 

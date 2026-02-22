@@ -20,6 +20,7 @@ fig.add_trace(go.Histogram(x=data.tolist(), nbinsx=30, histnorm="probability den
 fig.add_trace(go.Scatter(x=x_range.tolist(), y=kde_values.tolist(), mode="lines",
                          name="KDE", line=dict(color="red", width=2)))
 fig.update_layout(title="Histogram with KDE Overlay",
-                  xaxis_title="Value", yaxis_title="Density")
+                  xaxis=dict(title="Value", tickformat=".1f"),
+                  yaxis=dict(title="Density", tickformat=".3f"))
 
 maidr.show(fig)

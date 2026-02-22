@@ -23,7 +23,7 @@ fig.add_trace(
 fig.update_layout(
     title="Vertical Box Plot",
     xaxis=dict(title="Group"),
-    yaxis=dict(title="Values"),
+    yaxis=dict(title="Values", tickformat=".1f"),
 )
 
 maidr.show(fig)

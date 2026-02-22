@@ -31,7 +31,7 @@ fig.add_trace(
 
 fig.update_layout(
     title="Horizontal Box Plot",
-    xaxis=dict(title="Values"),
+    xaxis=dict(title="Values", tickformat=".1f"),
     yaxis=dict(title="Group"),
 )
 

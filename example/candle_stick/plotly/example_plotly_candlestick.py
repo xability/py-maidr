@@ -14,8 +14,8 @@ fig = go.Figure(
     ],
     layout=go.Layout(
         title="Stock Price (Candlestick)",
-        xaxis=dict(title="Date"),
-        yaxis=dict(title="Price ($)"),
+        xaxis=dict(title="Date", type="date"),
+        yaxis=dict(title="Price ($)", tickprefix="$", tickformat=",.2f"),
     ),
 )
 

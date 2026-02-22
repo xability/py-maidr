@@ -19,8 +19,8 @@ fig = go.Figure(
     ],
     layout=go.Layout(
         title="Iris Dataset: Sepal Length vs Sepal Width",
-        xaxis=dict(title="Sepal Length (cm)"),
-        yaxis=dict(title="Sepal Width (cm)"),
+        xaxis=dict(title="Sepal Length (cm)", tickformat=".1f"),
+        yaxis=dict(title="Sepal Width (cm)", tickformat=".1f"),
     ),
 )
 

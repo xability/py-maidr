@@ -17,7 +17,7 @@ fig = go.Figure(
     layout=go.Layout(
         title="Penguin Count by Island (Stacked)",
         xaxis=dict(title="Island"),
-        yaxis=dict(title="Count"),
+        yaxis=dict(title="Count", tickformat=".0f"),
         barmode="stack",
     ),
 )

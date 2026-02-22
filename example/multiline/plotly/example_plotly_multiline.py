@@ -26,7 +26,7 @@ fig = go.Figure(
     layout=go.Layout(
         title="Sales Trends by Product",
         xaxis=dict(title="Year"),
-        yaxis=dict(title="Sales (units)"),
+        yaxis=dict(title="Sales (units)", tickformat=",.0f"),
     ),
 )
 

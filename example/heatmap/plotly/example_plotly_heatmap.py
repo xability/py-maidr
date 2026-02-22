@@ -40,7 +40,7 @@ fig = go.Figure(
             z=harvest.tolist(),
             x=farmers,
             y=vegetables,
-            colorbar=dict(title="Tons/Year"),
+            colorbar=dict(title="Tons/Year", tickformat=".1f"),
         )
     ],
     layout=go.Layout(

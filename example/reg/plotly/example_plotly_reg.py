@@ -19,6 +19,7 @@ fig.add_trace(go.Scatter(x=x.tolist(), y=y.tolist(), mode="markers",
 fig.add_trace(go.Scatter(x=x.tolist(), y=trend_y.tolist(), mode="lines",
                          name="Regression", line=dict(color="red", width=2)))
 fig.update_layout(title="Scatter Plot with Regression Line",
-                  xaxis_title="X", yaxis_title="Y")
+                  xaxis=dict(title="X", tickformat=".1f"),
+                  yaxis=dict(title="Y", tickformat=".2f"))
 
 maidr.show(fig)

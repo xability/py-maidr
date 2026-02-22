@@ -12,7 +12,7 @@ fig = go.Figure(
     layout=go.Layout(
         title="Average Body Mass by Species and Sex",
         xaxis=dict(title="Species"),
-        yaxis=dict(title="Body Mass (g)"),
+        yaxis=dict(title="Body Mass (g)", tickformat=",.0f"),
         barmode="group",
     ),
 )

@@ -20,8 +20,8 @@ fig = go.Figure(
     ],
     layout=go.Layout(
         title="Histogram of Petal Lengths in Iris Dataset",
-        xaxis=dict(title="Petal Length (cm)"),
-        yaxis=dict(title="Frequency"),
+        xaxis=dict(title="Petal Length (cm)", tickformat=".1f"),
+        yaxis=dict(title="Frequency", tickformat=".0f"),
     ),
 )
 

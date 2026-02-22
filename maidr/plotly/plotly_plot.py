@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from abc import ABC, abstractmethod
 from typing import Any
@@ -73,7 +74,7 @@ class PlotlyPlot(ABC):
         return str(title) if title else ""
 
     def _extract_axes_data(self) -> dict:
-        """Extract the axes labels from the layout."""
+        """Extract axes labels and format configuration from the layout."""
         xaxis = self._layout.get("xaxis", {})
         yaxis = self._layout.get("yaxis", {})
 
@@ -85,10 +86,87 @@ class PlotlyPlot(ABC):
         if isinstance(y_label, dict):
             y_label = y_label.get("text", "")
 
-        return {
+        axes_data: dict = {
             MaidrKey.X: str(x_label) if x_label else "X",
             MaidrKey.Y: str(y_label) if y_label else "Y",
         }
+
+        format_config = self._extract_format(xaxis, yaxis)
+        if format_config:
+            axes_data[MaidrKey.FORMAT] = format_config
+
+        return axes_data
+
+    @staticmethod
+    def _extract_format(
+        xaxis: dict, yaxis: dict
+    ) -> dict[str, dict[str, Any]] | None:
+        """Extract format configuration from Plotly axis settings.
+
+        Parses ``tickformat``, ``tickprefix``, and ``ticksuffix`` from
+        each axis and converts to MAIDR-compatible format dicts.
+        """
+        result: dict[str, dict[str, Any]] = {}
+
+        x_fmt = PlotlyPlot._parse_axis_format(xaxis)
+        if x_fmt:
+            result["x"] = x_fmt
+
+        y_fmt = PlotlyPlot._parse_axis_format(yaxis)
+        if y_fmt:
+            result["y"] = y_fmt
+
+        return result if result else None
+
+    @staticmethod
+    def _parse_axis_format(axis: dict) -> dict[str, Any] | None:
+        """Parse a single Plotly axis dict into a MAIDR format config.
+
+        Handles Plotly's d3-format ``tickformat`` strings as well as
+        ``tickprefix`` / ``ticksuffix`` for currency and percent.
+        """
+        tickformat = axis.get("tickformat", "")
+        prefix = axis.get("tickprefix", "")
+        suffix = axis.get("ticksuffix", "")
+
+        # Check for date axis type even without tickformat/prefix/suffix
+        if not tickformat and not prefix and not suffix:
+            if axis.get("type") == "date":
+                return {"type": "date", "dateFormat": None}
+            return None
+
+        # Currency via prefix ($, €, £, ¥)
+        currency_map = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY"}
+        for symbol, code in currency_map.items():
+            if symbol in prefix or symbol in tickformat:
+                decimals = _extract_decimals(tickformat)
+                return {"type": "currency", "decimals": decimals, "currency": code}
+
+        # Percent via suffix or tickformat
+        if suffix == "%" or (tickformat and "%" in tickformat):
+            decimals = _extract_decimals(tickformat)
+            return {"type": "percent", "decimals": decimals}
+
+        # Scientific notation
+        if tickformat and re.search(r"\.?\d*[eE]", tickformat):
+            decimals = _extract_decimals(tickformat)
+            return {"type": "scientific", "decimals": decimals}
+
+        # Number with comma separator
+        if tickformat and "," in tickformat:
+            decimals = _extract_decimals(tickformat)
+            return {"type": "number", "decimals": decimals}
+
+        # Fixed decimal (e.g., ".2f")
+        match = re.search(r"\.(\d+)f", tickformat) if tickformat else None
+        if match:
+            return {"type": "fixed", "decimals": int(match.group(1))}
+
+        # Date format
+        if axis.get("type") == "date":
+            return {"type": "date", "dateFormat": tickformat or None}
+
+        return None
 
     @abstractmethod
     def _extract_plot_data(self) -> list | dict:
@@ -101,3 +179,11 @@ class PlotlyPlot(ABC):
         if not self._schema:
             self._schema = self.render()
         return self._schema
+
+
+def _extract_decimals(fmt: str) -> int | None:
+    """Extract decimal places from a d3-format / Plotly tickformat string."""
+    if not fmt:
+        return None
+    match = re.search(r"\.(\d+)", fmt)
+    return int(match.group(1)) if match else None
