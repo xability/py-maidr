@@ -8,11 +8,11 @@ from maidr.plotly.plotly_plot import PlotlyPlot
 class PlotlyScatterPlot(PlotlyPlot):
     """Extract data from a Plotly scatter trace with mode='markers'."""
 
-    def __init__(self, trace: dict, layout: dict) -> None:
-        super().__init__(trace, layout, PlotType.SCATTER)
+    def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
+        super().__init__(trace, layout, PlotType.SCATTER, **kwargs)
 
     def _get_selector(self) -> str:
-        return ".trace.scatter .point"
+        return f"{self._subplot_css_prefix()}.trace.scatter .point"
 
     def _extract_plot_data(self) -> list[dict]:
         x = self._trace.get("x", [])

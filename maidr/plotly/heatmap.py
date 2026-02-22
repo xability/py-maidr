@@ -10,11 +10,11 @@ from maidr.plotly.plotly_plot import PlotlyPlot
 class PlotlyHeatmapPlot(PlotlyPlot):
     """Extract data from a Plotly heatmap trace."""
 
-    def __init__(self, trace: dict, layout: dict) -> None:
-        super().__init__(trace, layout, PlotType.HEAT)
+    def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
+        super().__init__(trace, layout, PlotType.HEAT, **kwargs)
 
     def _get_selector(self) -> str:
-        return ".heatmaplayer"
+        return f"{self._subplot_css_prefix()}.heatmaplayer"
 
     @staticmethod
     def _to_native(val: Any) -> Any:

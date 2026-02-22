@@ -8,11 +8,11 @@ from maidr.plotly.plotly_plot import PlotlyPlot
 class PlotlyLinePlot(PlotlyPlot):
     """Extract data from a Plotly scatter trace with mode='lines'."""
 
-    def __init__(self, trace: dict, layout: dict) -> None:
-        super().__init__(trace, layout, PlotType.LINE)
+    def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
+        super().__init__(trace, layout, PlotType.LINE, **kwargs)
 
     def _get_selector(self) -> str:
-        return ".trace.scatter path.js-line"
+        return f"{self._subplot_css_prefix()}.trace.scatter path.js-line"
 
     def _extract_plot_data(self) -> list[list[dict]]:
         x = self._trace.get("x", [])

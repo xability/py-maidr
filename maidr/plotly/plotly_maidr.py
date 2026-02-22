@@ -5,6 +5,7 @@ import os
 import tempfile
 import uuid
 import webbrowser
+from collections import defaultdict
 from typing import Any, Literal
 
 from htmltools import HTML, HTMLDocument, Tag, tags
@@ -34,10 +35,68 @@ class PlotlyMaidr:
         self.maidr_id = str(uuid.uuid4())
         self._extract_plots()
 
+    @staticmethod
+    def _trace_axis_ref(trace: dict) -> tuple[str, str]:
+        """Return layout axis keys for a trace.
+
+        Plotly traces reference their subplot axes via ``xaxis`` and
+        ``yaxis`` fields containing values like ``"x"``, ``"x2"``,
+        ``"y3"``, etc.  This converts them to layout keys such as
+        ``"xaxis"``, ``"xaxis2"``, ``"yaxis3"``.
+        """
+        xref = trace.get("xaxis", "x")
+        yref = trace.get("yaxis", "y")
+
+        # "x" -> "xaxis", "x2" -> "xaxis2"
+        x_key = "xaxis" + xref[1:] if xref else "xaxis"
+        y_key = "yaxis" + yref[1:] if yref else "yaxis"
+
+        return x_key, y_key
+
+    @staticmethod
+    def _subplot_grid_position(
+        layout: dict, xaxis_name: str, yaxis_name: str
+    ) -> tuple[int, int]:
+        """Determine subplot grid position from axis domain values.
+
+        Plotly's ``make_subplots`` assigns each axis a ``domain`` property
+        that specifies its fractional position within the figure.  This
+        method collects all unique domain start values to compute row/col
+        indices.
+        """
+        # Collect all x-axis domain starts and y-axis domain starts
+        x_starts: set[float] = set()
+        y_starts: set[float] = set()
+
+        for key, val in layout.items():
+            if key.startswith("xaxis") and isinstance(val, dict):
+                domain = val.get("domain", [0, 1])
+                x_starts.add(round(domain[0], 6))
+            if key.startswith("yaxis") and isinstance(val, dict):
+                domain = val.get("domain", [0, 1])
+                y_starts.add(round(domain[0], 6))
+
+        # Sort: x left-to-right gives columns, y top-to-bottom gives rows
+        # y domains: higher start = higher on page = lower row index
+        sorted_x = sorted(x_starts)
+        sorted_y = sorted(y_starts, reverse=True)
+
+        # Get this axis's domain start
+        xaxis = layout.get(xaxis_name, {})
+        yaxis = layout.get(yaxis_name, {})
+        x_start = round(xaxis.get("domain", [0, 1])[0], 6)
+        y_start = round(yaxis.get("domain", [0, 1])[0], 6)
+
+        col = sorted_x.index(x_start) if x_start in sorted_x else 0
+        row = sorted_y.index(y_start) if y_start in sorted_y else 0
+
+        return row, col
+
     def _extract_plots(self) -> None:
         """Extract PlotlyPlot instances from all traces in the figure.
 
-        Applies merging rules that mirror the matplotlib pipeline:
+        Groups traces by their subplot position (axis pair), then applies
+        merging rules within each group:
 
         * Multiple bar traces with ``barmode='group'`` or ``'stack'`` are
           merged into a single :class:`PlotlyGroupedBarPlot`.
@@ -49,56 +108,93 @@ class PlotlyMaidr:
         fig_dict = self._fig.to_dict()
         layout = fig_dict.get("layout", {})
         traces = fig_dict.get("data", [])
-
-        bar_traces = [t for t in traces if t.get("type") == "bar"]
         barmode = layout.get("barmode", "group")
 
-        line_traces = [
-            t
-            for t in traces
-            if t.get("type") in ("scatter", "scattergl")
-            and "lines" in t.get("mode", "")
-            and "markers" not in t.get("mode", "")
-        ]
-
-        # Track which traces are handled by merge rules
-        merged: set[int] = set()
-
-        # Grouped / stacked bars
-        if len(bar_traces) > 1 and barmode in ("group", "stack"):
-            from maidr.core.enum.plot_type import PlotType
-            from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
-
-            plot_type = (
-                PlotType.DODGED if barmode == "group" else PlotType.STACKED
-            )
-            self._plots.append(
-                PlotlyGroupedBarPlot(bar_traces, layout, plot_type)
-            )
-            merged.update(id(t) for t in bar_traces)
-
-        # Multi-line: merge multiple lines-only traces into one layer
-        if len(line_traces) > 1:
-            from maidr.plotly.multiline import PlotlyMultiLinePlot
-
-            self._plots.append(PlotlyMultiLinePlot(line_traces, layout))
-            merged.update(id(t) for t in line_traces)
-
-        # Multi-box: merge multiple box traces into one layer
-        box_traces = [t for t in traces if t.get("type") == "box"]
-        if len(box_traces) > 1:
-            from maidr.plotly.multibox import PlotlyMultiBoxPlot
-
-            self._plots.append(PlotlyMultiBoxPlot(box_traces, layout))
-            merged.update(id(t) for t in box_traces)
-
-        # Process remaining traces normally
+        # Group traces by their subplot axis pair
+        axis_groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
         for trace in traces:
-            if id(trace) in merged:
-                continue
-            plot = PlotlyPlotFactory.create(trace, layout)
-            if plot is not None:
+            axis_pair = self._trace_axis_ref(trace)
+            axis_groups[axis_pair].append(trace)
+
+        # Process each subplot group independently
+        for (xaxis_name, yaxis_name), group_traces in axis_groups.items():
+            axis_kwargs = {
+                "xaxis_name": xaxis_name,
+                "yaxis_name": yaxis_name,
+            }
+            row, col = self._subplot_grid_position(
+                layout, xaxis_name, yaxis_name
+            )
+
+            bar_traces = [
+                t for t in group_traces if t.get("type") == "bar"
+            ]
+            line_traces = [
+                t
+                for t in group_traces
+                if t.get("type") in ("scatter", "scattergl")
+                and "lines" in t.get("mode", "")
+                and "markers" not in t.get("mode", "")
+            ]
+            box_traces = [
+                t for t in group_traces if t.get("type") == "box"
+            ]
+
+            merged: set[int] = set()
+
+            # Grouped / stacked bars
+            if len(bar_traces) > 1 and barmode in ("group", "stack"):
+                from maidr.core.enum.plot_type import PlotType
+                from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
+
+                plot_type = (
+                    PlotType.DODGED
+                    if barmode == "group"
+                    else PlotType.STACKED
+                )
+                plot = PlotlyGroupedBarPlot(
+                    bar_traces, layout, plot_type, **axis_kwargs
+                )
+                plot.row_index = row
+                plot.col_index = col
                 self._plots.append(plot)
+                merged.update(id(t) for t in bar_traces)
+
+            # Multi-line
+            if len(line_traces) > 1:
+                from maidr.plotly.multiline import PlotlyMultiLinePlot
+
+                plot = PlotlyMultiLinePlot(
+                    line_traces, layout, **axis_kwargs
+                )
+                plot.row_index = row
+                plot.col_index = col
+                self._plots.append(plot)
+                merged.update(id(t) for t in line_traces)
+
+            # Multi-box
+            if len(box_traces) > 1:
+                from maidr.plotly.multibox import PlotlyMultiBoxPlot
+
+                plot = PlotlyMultiBoxPlot(
+                    box_traces, layout, **axis_kwargs
+                )
+                plot.row_index = row
+                plot.col_index = col
+                self._plots.append(plot)
+                merged.update(id(t) for t in box_traces)
+
+            # Remaining traces
+            for trace in group_traces:
+                if id(trace) in merged:
+                    continue
+                plot = PlotlyPlotFactory.create(
+                    trace, layout, **axis_kwargs
+                )
+                if plot is not None:
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
 
     def render(self) -> Tag:
         """Return the maidr plot inside an iframe."""
@@ -138,19 +234,54 @@ class PlotlyMaidr:
         del self._fig
 
     def _flatten_maidr(self) -> dict:
-        """Build the MAIDR schema from all extracted plots."""
-        layers = [plot.schema for plot in self._plots]
+        """Build the MAIDR schema from all extracted plots.
+
+        Groups plots by their ``(row_index, col_index)`` position to
+        construct a subplot grid matching the Plotly figure layout.
+        """
+        # Collect schemas with their grid positions
+        plot_entries = []
+        for plot in self._plots:
+            plot_entries.append(
+                {
+                    "schema": plot.schema,
+                    "row": plot.row_index,
+                    "col": plot.col_index,
+                }
+            )
+
+        max_row = max((e["row"] for e in plot_entries), default=0)
+        max_col = max((e["col"] for e in plot_entries), default=0)
+
+        # Build the grid
+        subplot_grid: list[list[dict]] = [
+            [{} for _ in range(max_col + 1)] for _ in range(max_row + 1)
+        ]
+
+        # Group by position
+        position_groups: dict[tuple[int, int], list[dict]] = defaultdict(list)
+        for entry in plot_entries:
+            pos = (entry["row"], entry["col"])
+            position_groups[pos].append(entry["schema"])
+
+        for (row, col), layers in position_groups.items():
+            subplot_grid[row][col] = {
+                "id": str(uuid.uuid4()),
+                "layers": layers,
+            }
+
+        # Fill empty cells
+        for r in range(len(subplot_grid)):
+            for c in range(len(subplot_grid[r])):
+                if not subplot_grid[r][c]:
+                    subplot_grid[r][c] = {
+                        "id": str(uuid.uuid4()),
+                        "layers": [],
+                    }
 
         return {
             "id": self.maidr_id,
-            "subplots": [
-                [
-                    {
-                        "id": str(uuid.uuid4()),
-                        "layers": layers,
-                    }
-                ]
-            ],
+            "subplots": subplot_grid,
         }
 
     def _get_plotly_html(self) -> str:

@@ -23,13 +23,14 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         traces: list[dict],
         layout: dict,
         plot_type: PlotType,
+        **kwargs: str,
     ) -> None:
         # Use the first trace for base class init (title / axes)
-        super().__init__(traces[0], layout, plot_type)
+        super().__init__(traces[0], layout, plot_type, **kwargs)
         self._traces = traces
 
     def _get_selector(self) -> str:
-        return ".trace.bars .point > path"
+        return f"{self._subplot_css_prefix()}.trace.bars .point > path"
 
     def _extract_plot_data(self) -> list[list[dict]]:
         """Return grouped bar data as a list-of-lists.

@@ -10,11 +10,11 @@ from maidr.plotly.plotly_plot import PlotlyPlot
 class PlotlyHistogramPlot(PlotlyPlot):
     """Extract data from a Plotly histogram trace."""
 
-    def __init__(self, trace: dict, layout: dict) -> None:
-        super().__init__(trace, layout, PlotType.HIST)
+    def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
+        super().__init__(trace, layout, PlotType.HIST, **kwargs)
 
     def _get_selector(self) -> str:
-        return ".trace.bars .point > path"
+        return f"{self._subplot_css_prefix()}.trace.bars .point > path"
 
     def _extract_plot_data(self) -> list[dict]:
         x = self._trace.get("x", None)

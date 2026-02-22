@@ -20,12 +20,12 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         The Plotly figure layout.
     """
 
-    def __init__(self, traces: list[dict], layout: dict) -> None:
-        super().__init__(traces[0], layout, PlotType.LINE)
+    def __init__(self, traces: list[dict], layout: dict, **kwargs: str) -> None:
+        super().__init__(traces[0], layout, PlotType.LINE, **kwargs)
         self._traces = traces
 
     def _get_selector(self) -> str:
-        return ".trace.scatter path.js-line"
+        return f"{self._subplot_css_prefix()}.trace.scatter path.js-line"
 
     def _extract_plot_data(self) -> list[list[dict]]:
         """Return multi-line data as a list-of-lists.

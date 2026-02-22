@@ -23,10 +23,22 @@ class PlotlyPlot(ABC):
         The type of the plot to be created, as defined in the PlotType enum.
     """
 
-    def __init__(self, trace: dict, layout: dict, plot_type: PlotType) -> None:
+    def __init__(
+        self,
+        trace: dict,
+        layout: dict,
+        plot_type: PlotType,
+        *,
+        xaxis_name: str = "xaxis",
+        yaxis_name: str = "yaxis",
+    ) -> None:
         self._trace = trace
         self._layout = layout
         self.type = plot_type
+        self._xaxis_name = xaxis_name
+        self._yaxis_name = yaxis_name
+        self.row_index: int = 0
+        self.col_index: int = 0
         self._schema: dict = {}
 
     @staticmethod
@@ -62,21 +74,76 @@ class PlotlyPlot(ABC):
             schema[MaidrKey.SELECTOR] = selector
         return schema
 
+    def _subplot_css_prefix(self) -> str:
+        """Return a CSS prefix that scopes selectors to this subplot.
+
+        Plotly renders each subplot inside a ``<g class="subplot xy">``
+        (or ``x2y2``, ``x3y3``, …) element.  This method converts the
+        stored axis names into the corresponding CSS selector prefix so
+        that selectors only match elements within a single subplot.
+        """
+        # "xaxis" -> "x", "xaxis2" -> "x2", "xaxis3" -> "x3"
+        x_ref = self._xaxis_name.replace("xaxis", "x")
+        y_ref = self._yaxis_name.replace("yaxis", "y")
+        subplot_id = f"{x_ref}{y_ref}"
+        return f".subplot.{subplot_id} "
+
     def _get_selector(self) -> str:
         """Return a CSS selector for Plotly SVG elements."""
         return ""
 
     def _get_title(self) -> str:
-        """Extract the plot title from the layout."""
+        """Extract the plot title from the layout.
+
+        For subplots created with ``make_subplots(subplot_titles=...)``,
+        Plotly stores the per-subplot titles as annotations.  This method
+        matches annotations to the current subplot's y-axis domain so
+        each subplot gets its own title instead of the figure-level one.
+        """
+        subplot_title = self._get_subplot_annotation_title()
+        if subplot_title:
+            return subplot_title
+
         title = self._layout.get("title", "")
         if isinstance(title, dict):
             return title.get("text", "")
         return str(title) if title else ""
 
+    def _get_subplot_annotation_title(self) -> str | None:
+        """Find the annotation that serves as this subplot's title.
+
+        Plotly ``make_subplots`` places title annotations at the top of
+        each subplot's y-axis domain.  This matches annotations by
+        checking if their ``y`` position is near the top of this
+        subplot's y-axis domain.
+        """
+        annotations = self._layout.get("annotations", [])
+        if not annotations:
+            return None
+
+        yaxis = self._layout.get(self._yaxis_name, {})
+        xaxis = self._layout.get(self._xaxis_name, {})
+        y_domain = yaxis.get("domain", [0, 1])
+        x_domain = xaxis.get("domain", [0, 1])
+        y_top = y_domain[1]
+        x_mid = (x_domain[0] + x_domain[1]) / 2
+
+        for ann in annotations:
+            if ann.get("xref") != "paper" or ann.get("yref") != "paper":
+                continue
+            ann_y = ann.get("y", 0)
+            ann_x = ann.get("x", 0)
+            # Subplot title annotations sit just above the y-domain top
+            if abs(ann_y - y_top) < 0.05 and abs(ann_x - x_mid) < 0.1:
+                text = ann.get("text", "")
+                if text:
+                    return text
+        return None
+
     def _extract_axes_data(self) -> dict:
         """Extract axes labels and format configuration from the layout."""
-        xaxis = self._layout.get("xaxis", {})
-        yaxis = self._layout.get("yaxis", {})
+        xaxis = self._layout.get(self._xaxis_name, {})
+        yaxis = self._layout.get(self._yaxis_name, {})
 
         x_label = xaxis.get("title", "")
         if isinstance(x_label, dict):

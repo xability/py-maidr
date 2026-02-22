@@ -10,8 +10,8 @@ from maidr.plotly.plotly_plot import PlotlyPlot
 class PlotlyCandlestickPlot(PlotlyPlot):
     """Extract data from a Plotly candlestick trace."""
 
-    def __init__(self, trace: dict, layout: dict) -> None:
-        super().__init__(trace, layout, PlotType.CANDLESTICK)
+    def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
+        super().__init__(trace, layout, PlotType.CANDLESTICK, **kwargs)
 
     @staticmethod
     def _to_native(val: Any) -> Any:
@@ -27,7 +27,7 @@ class PlotlyCandlestickPlot(PlotlyPlot):
             return val
 
     def _get_selector(self) -> str:
-        return ".trace.boxes .point"
+        return f"{self._subplot_css_prefix()}.trace.boxes .point"
 
     def render(self) -> dict:
         base = super().render()

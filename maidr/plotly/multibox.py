@@ -23,8 +23,8 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         The Plotly figure layout.
     """
 
-    def __init__(self, traces: list[dict], layout: dict) -> None:
-        super().__init__(traces[0], layout, PlotType.BOX)
+    def __init__(self, traces: list[dict], layout: dict, **kwargs: str) -> None:
+        super().__init__(traces[0], layout, PlotType.BOX, **kwargs)
         self._traces = traces
 
     def _get_selector(self) -> list[dict]:
@@ -39,9 +39,10 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         for i in range(len(self._traces)):
             # nth-child targets the Nth trace inside .boxlayer
             n = i + 1
-            box_sel = f".boxlayer > g:nth-child({n}) > path.box"
+            prefix = self._subplot_css_prefix()
+            box_sel = f"{prefix}.boxlayer > g:nth-child({n}) > path.box"
             outlier_sel = (
-                f".boxlayer > g:nth-child({n}) .points > path.point"
+                f"{prefix}.boxlayer > g:nth-child({n}) .points > path.point"
             )
             selectors.append(
                 {

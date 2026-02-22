@@ -12,13 +12,14 @@ from maidr.plotly.plotly_plot import PlotlyPlot
 class PlotlyBoxPlot(PlotlyPlot):
     """Extract data from a Plotly box trace."""
 
-    def __init__(self, trace: dict, layout: dict) -> None:
-        super().__init__(trace, layout, PlotType.BOX)
+    def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
+        super().__init__(trace, layout, PlotType.BOX, **kwargs)
 
     def _get_selector(self) -> list[dict]:
         """Return structured selector for one box."""
-        box_sel = ".boxlayer > g:nth-child(1) > path.box"
-        outlier_sel = ".boxlayer > g:nth-child(1) .points > path.point"
+        prefix = self._subplot_css_prefix()
+        box_sel = f"{prefix}.boxlayer > g:nth-child(1) > path.box"
+        outlier_sel = f"{prefix}.boxlayer > g:nth-child(1) .points > path.point"
         return [
             {
                 "lowerOutliers": [outlier_sel],
