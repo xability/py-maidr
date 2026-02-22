@@ -1,5 +1,9 @@
 __version__ = "1.11.0"
 
+import matplotlib
+
+matplotlib.use("module://maidr.backend")
+
 from .api import close, render, save_html, show, stacked
 from .core import Maidr
 from .core.enum import PlotType
