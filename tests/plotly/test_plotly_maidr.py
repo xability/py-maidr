@@ -110,10 +110,17 @@ class TestPlotlyMaidr:
         pm = PlotlyMaidr(plotly_candlestick_fig)
         assert len(pm._plots) == 1
 
-    def test_multiline_creates_multiple_line_plots(self, plotly_multiline_fig):
+    def test_multiline_merged_into_single_plot(self, plotly_multiline_fig):
+        """Multiple line traces are merged into one PlotlyMultiLinePlot."""
+        from maidr.plotly.multiline import PlotlyMultiLinePlot
+
         pm = PlotlyMaidr(plotly_multiline_fig)
-        # Each line trace becomes a separate plot
-        assert len(pm._plots) == 2
+        assert len(pm._plots) == 1
+        assert isinstance(pm._plots[0], PlotlyMultiLinePlot)
+
+        # Data should be list-of-lists with both lines
+        data = pm._plots[0].schema["data"]
+        assert len(data) == 2  # two lines
 
     def test_single_bar_not_grouped(self, plotly_bar_fig):
         """A single bar trace should remain a regular BarPlot, not grouped."""

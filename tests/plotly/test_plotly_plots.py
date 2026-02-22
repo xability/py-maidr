@@ -12,6 +12,7 @@ from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
 from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
 from maidr.plotly.candlestick import PlotlyCandlestickPlot
+from maidr.plotly.multiline import PlotlyMultiLinePlot
 
 
 class TestPlotlyBarPlot:
@@ -290,3 +291,30 @@ class TestPlotlyCandlestickPlot:
 
         assert schema[MaidrKey.AXES][MaidrKey.X] == "Date"
         assert schema[MaidrKey.AXES][MaidrKey.Y] == "Price"
+
+
+class TestPlotlyMultiLinePlot:
+    def test_merges_traces_into_list_of_lists(self):
+        traces = [
+            {"type": "scatter", "mode": "lines", "x": [1, 2], "y": [10, 20], "name": "A"},
+            {"type": "scatter", "mode": "lines", "x": [1, 2], "y": [5, 15], "name": "B"},
+        ]
+        plot = PlotlyMultiLinePlot(traces, {})
+        data = plot._extract_plot_data()
+
+        assert len(data) == 2
+        assert len(data[0]) == 2
+        assert data[0][0][MaidrKey.X] == 1
+        assert data[0][0][MaidrKey.FILL] == "A"
+        assert data[1][0][MaidrKey.FILL] == "B"
+
+    def test_single_layer_schema(self):
+        traces = [
+            {"type": "scatter", "mode": "lines", "x": [1], "y": [2], "name": "L1"},
+            {"type": "scatter", "mode": "lines", "x": [1], "y": [3], "name": "L2"},
+        ]
+        plot = PlotlyMultiLinePlot(traces, {})
+        schema = plot.schema
+
+        assert schema[MaidrKey.TYPE] == PlotType.LINE
+        assert len(schema[MaidrKey.DATA]) == 2

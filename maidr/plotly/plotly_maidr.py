@@ -37,9 +37,12 @@ class PlotlyMaidr:
     def _extract_plots(self) -> None:
         """Extract PlotlyPlot instances from all traces in the figure.
 
-        When multiple bar traces exist and ``barmode`` is ``'group'``
-        (dodged) or ``'stack'`` (stacked), they are merged into a single
-        :class:`PlotlyGroupedBarPlot` instead of individual bar plots.
+        Applies merging rules that mirror the matplotlib pipeline:
+
+        * Multiple bar traces with ``barmode='group'`` or ``'stack'`` are
+          merged into a single :class:`PlotlyGroupedBarPlot`.
+        * Multiple scatter/lines traces are merged into a single
+          :class:`PlotlyMultiLinePlot` (matching ``MultiLinePlot``).
         """
         fig_dict = self._fig.to_dict()
         layout = fig_dict.get("layout", {})
@@ -48,26 +51,44 @@ class PlotlyMaidr:
         bar_traces = [t for t in traces if t.get("type") == "bar"]
         barmode = layout.get("barmode", "group")
 
-        # Detect grouped / stacked bars
+        line_traces = [
+            t
+            for t in traces
+            if t.get("type") in ("scatter", "scattergl")
+            and "lines" in t.get("mode", "")
+            and "markers" not in t.get("mode", "")
+        ]
+
+        # Track which traces are handled by merge rules
+        merged: set[int] = set()
+
+        # Grouped / stacked bars
         if len(bar_traces) > 1 and barmode in ("group", "stack"):
             from maidr.core.enum.plot_type import PlotType
             from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
 
-            plot_type = PlotType.DODGED if barmode == "group" else PlotType.STACKED
-            self._plots.append(PlotlyGroupedBarPlot(bar_traces, layout, plot_type))
+            plot_type = (
+                PlotType.DODGED if barmode == "group" else PlotType.STACKED
+            )
+            self._plots.append(
+                PlotlyGroupedBarPlot(bar_traces, layout, plot_type)
+            )
+            merged.update(id(t) for t in bar_traces)
 
-            # Process remaining non-bar traces normally
-            for trace in traces:
-                if trace.get("type") == "bar":
-                    continue
-                plot = PlotlyPlotFactory.create(trace, layout)
-                if plot is not None:
-                    self._plots.append(plot)
-        else:
-            for trace in traces:
-                plot = PlotlyPlotFactory.create(trace, layout)
-                if plot is not None:
-                    self._plots.append(plot)
+        # Multi-line: merge multiple lines-only traces into one layer
+        if len(line_traces) > 1:
+            from maidr.plotly.multiline import PlotlyMultiLinePlot
+
+            self._plots.append(PlotlyMultiLinePlot(line_traces, layout))
+            merged.update(id(t) for t in line_traces)
+
+        # Process remaining traces normally
+        for trace in traces:
+            if id(trace) in merged:
+                continue
+            plot = PlotlyPlotFactory.create(trace, layout)
+            if plot is not None:
+                self._plots.append(plot)
 
     def render(self) -> Tag:
         """Return the maidr plot inside an iframe."""
