@@ -13,6 +13,9 @@ class PlotlyHeatmapPlot(PlotlyPlot):
     def __init__(self, trace: dict, layout: dict) -> None:
         super().__init__(trace, layout, PlotType.HEAT)
 
+    def _get_selector(self) -> str:
+        return ".heatmaplayer"
+
     @staticmethod
     def _to_native(val: Any) -> Any:
         """Convert numpy scalars to native Python types.

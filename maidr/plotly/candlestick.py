@@ -26,6 +26,9 @@ class PlotlyCandlestickPlot(PlotlyPlot):
         except (ValueError, TypeError):
             return val
 
+    def _get_selector(self) -> str:
+        return ".trace.boxes .point"
+
     def render(self) -> dict:
         base = super().render()
         base[MaidrKey.TITLE] = self._get_title() or "Candlestick Chart"

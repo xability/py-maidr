@@ -13,6 +13,9 @@ class PlotlyHistogramPlot(PlotlyPlot):
     def __init__(self, trace: dict, layout: dict) -> None:
         super().__init__(trace, layout, PlotType.HIST)
 
+    def _get_selector(self) -> str:
+        return ".trace.bars .point > path"
+
     def _extract_plot_data(self) -> list[dict]:
         x = self._trace.get("x", None)
         if x is None:

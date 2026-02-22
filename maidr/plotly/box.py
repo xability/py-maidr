@@ -15,6 +15,9 @@ class PlotlyBoxPlot(PlotlyPlot):
     def __init__(self, trace: dict, layout: dict) -> None:
         super().__init__(trace, layout, PlotType.BOX)
 
+    def _get_selector(self) -> str:
+        return ".trace.boxes .point"
+
     def _extract_plot_data(self) -> list[dict]:
         # Plotly box traces can have pre-computed stats or raw data
         if self._has_precomputed_stats():

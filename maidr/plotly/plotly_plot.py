@@ -49,13 +49,21 @@ class PlotlyPlot(ABC):
 
     def render(self) -> dict:
         """Generate the MAIDR schema for this plot layer."""
-        return {
+        schema = {
             MaidrKey.ID: str(uuid.uuid4()),
             MaidrKey.TYPE: self.type,
             MaidrKey.TITLE: self._get_title(),
             MaidrKey.AXES: self._extract_axes_data(),
             MaidrKey.DATA: self._extract_plot_data(),
         }
+        selector = self._get_selector()
+        if selector:
+            schema[MaidrKey.SELECTOR] = selector
+        return schema
+
+    def _get_selector(self) -> str:
+        """Return a CSS selector for Plotly SVG elements."""
+        return ""
 
     def _get_title(self) -> str:
         """Extract the plot title from the layout."""

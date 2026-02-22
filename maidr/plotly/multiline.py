@@ -24,6 +24,9 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         super().__init__(traces[0], layout, PlotType.LINE)
         self._traces = traces
 
+    def _get_selector(self) -> str:
+        return ".trace.scatter path.js-line"
+
     def _extract_plot_data(self) -> list[list[dict]]:
         """Return multi-line data as a list-of-lists.
 

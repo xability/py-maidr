@@ -28,6 +28,9 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         super().__init__(traces[0], layout, plot_type)
         self._traces = traces
 
+    def _get_selector(self) -> str:
+        return ".trace.bars .point > path"
+
     def _extract_plot_data(self) -> list[list[dict]]:
         """Return grouped bar data as a list-of-lists.
 

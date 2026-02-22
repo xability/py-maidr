@@ -11,6 +11,9 @@ class PlotlyLinePlot(PlotlyPlot):
     def __init__(self, trace: dict, layout: dict) -> None:
         super().__init__(trace, layout, PlotType.LINE)
 
+    def _get_selector(self) -> str:
+        return ".trace.scatter path.js-line"
+
     def _extract_plot_data(self) -> list[list[dict]]:
         x = self._trace.get("x", [])
         y = self._trace.get("y", [])

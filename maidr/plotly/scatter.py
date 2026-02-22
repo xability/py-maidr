@@ -11,6 +11,9 @@ class PlotlyScatterPlot(PlotlyPlot):
     def __init__(self, trace: dict, layout: dict) -> None:
         super().__init__(trace, layout, PlotType.SCATTER)
 
+    def _get_selector(self) -> str:
+        return ".trace.scatter .point"
+
     def _extract_plot_data(self) -> list[dict]:
         x = self._trace.get("x", [])
         y = self._trace.get("y", [])
