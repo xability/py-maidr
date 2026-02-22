@@ -114,6 +114,16 @@ class PlotlyMaidr:
         """Try to render SVG via kaleido. Returns None on failure."""
         try:
             svg_bytes = self._fig.to_image(format="svg")
+            # Eagerly stop kaleido's background Chrome process so it does
+            # not linger until the Python interpreter shuts down, which
+            # causes "Wait expired, Browser is being closed by watchdog"
+            # warnings on Windows.
+            try:
+                import kaleido
+
+                kaleido.stop_sync_server()
+            except Exception:
+                pass
             if isinstance(svg_bytes, bytes):
                 return svg_bytes.decode("utf-8")
             return svg_bytes
