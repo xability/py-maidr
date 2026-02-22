@@ -122,6 +122,34 @@ class TestPlotlyMaidr:
         data = pm._plots[0].schema["data"]
         assert len(data) == 2  # two lines
 
+    def test_multibox_merged_into_single_plot(self):
+        """Multiple box traces are merged into one PlotlyMultiBoxPlot."""
+        import plotly.graph_objects as go
+        from maidr.plotly.multibox import PlotlyMultiBoxPlot
+
+        fig = go.Figure()
+        fig.add_trace(go.Box(y=[1, 2, 3, 4, 5], name="A"))
+        fig.add_trace(go.Box(y=[2, 3, 4, 5, 6], name="B"))
+        fig.add_trace(go.Box(y=[3, 4, 5, 6, 7], name="C"))
+
+        pm = PlotlyMaidr(fig)
+        assert len(pm._plots) == 1
+        assert isinstance(pm._plots[0], PlotlyMultiBoxPlot)
+
+        data = pm._plots[0].schema["data"]
+        assert len(data) == 3
+        assert data[0]["fill"] == "A"
+        assert data[1]["fill"] == "B"
+        assert data[2]["fill"] == "C"
+
+    def test_single_box_not_merged(self, plotly_box_fig):
+        """A single box trace should remain a regular PlotlyBoxPlot."""
+        from maidr.plotly.box import PlotlyBoxPlot
+
+        pm = PlotlyMaidr(plotly_box_fig)
+        assert len(pm._plots) == 1
+        assert isinstance(pm._plots[0], PlotlyBoxPlot)
+
     def test_single_bar_not_grouped(self, plotly_bar_fig):
         """A single bar trace should remain a regular BarPlot, not grouped."""
         from maidr.plotly.bar import PlotlyBarPlot

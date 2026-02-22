@@ -43,6 +43,8 @@ class PlotlyMaidr:
           merged into a single :class:`PlotlyGroupedBarPlot`.
         * Multiple scatter/lines traces are merged into a single
           :class:`PlotlyMultiLinePlot` (matching ``MultiLinePlot``).
+        * Multiple box traces are merged into a single
+          :class:`PlotlyMultiBoxPlot` (matching ``BoxPlot``).
         """
         fig_dict = self._fig.to_dict()
         layout = fig_dict.get("layout", {})
@@ -81,6 +83,14 @@ class PlotlyMaidr:
 
             self._plots.append(PlotlyMultiLinePlot(line_traces, layout))
             merged.update(id(t) for t in line_traces)
+
+        # Multi-box: merge multiple box traces into one layer
+        box_traces = [t for t in traces if t.get("type") == "box"]
+        if len(box_traces) > 1:
+            from maidr.plotly.multibox import PlotlyMultiBoxPlot
+
+            self._plots.append(PlotlyMultiBoxPlot(box_traces, layout))
+            merged.update(id(t) for t in box_traces)
 
         # Process remaining traces normally
         for trace in traces:
