@@ -30,6 +30,22 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
     def _get_selector(self) -> str:
         return ".trace.boxes > path.box"
 
+    def _is_horizontal(self) -> bool:
+        """Detect if box traces are horizontal."""
+        for trace in self._traces:
+            if trace.get("orientation") == "h":
+                return True
+            if trace.get("x") is not None and trace.get("y") is None:
+                return True
+        return False
+
+    def render(self) -> dict:
+        schema = super().render()
+        schema[MaidrKey.ORIENTATION] = (
+            "horiz" if self._is_horizontal() else "vert"
+        )
+        return schema
+
     def _extract_plot_data(self) -> list[dict]:
         """Return box stats for all traces as a flat list."""
         all_boxes: list[dict] = []

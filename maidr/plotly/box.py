@@ -18,6 +18,20 @@ class PlotlyBoxPlot(PlotlyPlot):
     def _get_selector(self) -> str:
         return ".trace.boxes > path.box"
 
+    def _is_horizontal(self) -> bool:
+        """Detect if this box trace is horizontal."""
+        if self._trace.get("orientation") == "h":
+            return True
+        # Plotly uses x for horizontal when y is absent
+        return self._trace.get("x") is not None and self._trace.get("y") is None
+
+    def render(self) -> dict:
+        schema = super().render()
+        schema[MaidrKey.ORIENTATION] = (
+            "horiz" if self._is_horizontal() else "vert"
+        )
+        return schema
+
     def _extract_plot_data(self) -> list[dict]:
         # Plotly box traces can have pre-computed stats or raw data
         if self._has_precomputed_stats():
