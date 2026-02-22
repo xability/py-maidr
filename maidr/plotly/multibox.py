@@ -27,8 +27,33 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         super().__init__(traces[0], layout, PlotType.BOX)
         self._traces = traces
 
-    def _get_selector(self) -> str:
-        return ".trace.boxes > path.box"
+    def _get_selector(self) -> list[dict]:
+        """Return structured per-box selectors matching MAIDR JS format.
+
+        Each box gets a dict with keys for each part (min, max, q2, iq,
+        lowerOutliers, upperOutliers).  Plotly draws the entire box as a
+        single ``path.box``, so all stat keys point to the same element.
+        Outliers are in ``g.points > path.point``.
+        """
+        selectors = []
+        for i in range(len(self._traces)):
+            # nth-child targets the Nth trace inside .boxlayer
+            n = i + 1
+            box_sel = f".boxlayer > g:nth-child({n}) > path.box"
+            outlier_sel = (
+                f".boxlayer > g:nth-child({n}) .points > path.point"
+            )
+            selectors.append(
+                {
+                    "lowerOutliers": [outlier_sel],
+                    "min": box_sel,
+                    "max": box_sel,
+                    "q2": box_sel,
+                    "iq": box_sel,
+                    "upperOutliers": [outlier_sel],
+                }
+            )
+        return selectors
 
     def _is_horizontal(self) -> bool:
         """Detect if box traces are horizontal."""

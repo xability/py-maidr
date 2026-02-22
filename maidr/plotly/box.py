@@ -15,8 +15,20 @@ class PlotlyBoxPlot(PlotlyPlot):
     def __init__(self, trace: dict, layout: dict) -> None:
         super().__init__(trace, layout, PlotType.BOX)
 
-    def _get_selector(self) -> str:
-        return ".trace.boxes > path.box"
+    def _get_selector(self) -> list[dict]:
+        """Return structured selector for one box."""
+        box_sel = ".boxlayer > g:nth-child(1) > path.box"
+        outlier_sel = ".boxlayer > g:nth-child(1) .points > path.point"
+        return [
+            {
+                "lowerOutliers": [outlier_sel],
+                "min": box_sel,
+                "max": box_sel,
+                "q2": box_sel,
+                "iq": box_sel,
+                "upperOutliers": [outlier_sel],
+            }
+        ]
 
     def _is_horizontal(self) -> bool:
         """Detect if this box trace is horizontal."""
