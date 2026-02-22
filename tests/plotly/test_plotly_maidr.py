@@ -9,10 +9,6 @@ import plotly.graph_objects as go  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
 
-# Minimal valid SVG for mocking to_image
-_MOCK_SVG = b'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100"/></svg>'
-
-
 class TestPlotlyMaidr:
     """Integration tests for PlotlyMaidr."""
 
@@ -50,18 +46,25 @@ class TestPlotlyMaidr:
         assert len(schema["subplots"][0]) == 1
         assert "layers" in schema["subplots"][0][0]
 
-    def test_render_returns_tag(self, plotly_bar_fig, mocker):
-        mocker.patch.object(
-            plotly_bar_fig, "to_image", return_value=_MOCK_SVG
-        )
+    def test_render_returns_tag(self, plotly_bar_fig):
         pm = PlotlyMaidr(plotly_bar_fig)
         tag = pm.render()
         assert tag is not None
 
-    def test_save_html(self, plotly_bar_fig, tmp_path, mocker):
-        mocker.patch.object(
-            plotly_bar_fig, "to_image", return_value=_MOCK_SVG
-        )
+    def test_render_contains_plotly_js(self, plotly_bar_fig):
+        pm = PlotlyMaidr(plotly_bar_fig)
+        tag = pm.render()
+        html_str = str(tag.get_html_string())
+        assert "plotly" in html_str.lower()
+
+    def test_render_contains_maidr_schema(self, plotly_bar_fig):
+        pm = PlotlyMaidr(plotly_bar_fig)
+        tag = pm.render()
+        html_str = str(tag.get_html_string())
+        assert "maidrSchema" in html_str
+        assert "maidr.js" in html_str
+
+    def test_save_html(self, plotly_bar_fig, tmp_path):
         pm = PlotlyMaidr(plotly_bar_fig)
         output = tmp_path / "test_plotly.html"
         result = pm.save_html(str(output))

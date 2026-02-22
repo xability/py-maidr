@@ -7,7 +7,7 @@ import uuid
 import webbrowser
 from typing import Any, Literal
 
-from htmltools import HTML, HTMLDocument, Tag
+from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.plotly.plotly_plot import PlotlyPlot
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
@@ -17,6 +17,10 @@ from maidr.util.environment import Environment
 class PlotlyMaidr:
     """
     Handles rendering Plotly figures as accessible MAIDR HTML.
+
+    Preserves the full Plotly interactive experience (hover, zoom, pan,
+    click events) while layering MAIDR accessibility features (sonification,
+    braille, data table) on top via the MAIDR JS library.
 
     Parameters
     ----------
@@ -94,99 +98,139 @@ class PlotlyMaidr:
             ],
         }
 
-    def _get_svg(self) -> HTML:
-        """Generate SVG from the Plotly figure.
+    def _get_plotly_html(self) -> str:
+        """Get Plotly's interactive HTML div.
 
-        Uses kaleido for high-fidelity SVG rendering when available.
-        Falls back to a placeholder SVG if kaleido fails (e.g. Chrome
-        not installed). The MAIDR accessibility features work either way
-        since they are driven by the JSON schema, not the SVG graphic.
+        Returns the chart as an interactive HTML fragment that includes
+        plotly.js from CDN.  This preserves all native Plotly features
+        (hover, zoom, pan, click events, etc.).
+        """
+        return self._fig.to_html(
+            full_html=False,
+            include_plotlyjs="cdn",
+        )
+
+    def _build_init_script(self, schema: dict) -> str:
+        """Build JS that bridges Plotly's SVG with MAIDR.
+
+        After Plotly renders its chart into the DOM as an SVG, this script
+        injects the MAIDR schema as an attribute on that SVG element, then
+        loads the MAIDR JS library which reads the schema and provides
+        sonification, braille, and keyboard navigation.
+        """
+        maidr_js = (
+            "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
+        )
+        return f"""
+        (function() {{
+            var maidrSchema = {json.dumps(schema, indent=2)};
+
+            function initMaidr() {{
+                var svg = document.querySelector('svg.main-svg');
+                if (!svg) {{
+                    requestAnimationFrame(initMaidr);
+                    return;
+                }}
+                svg.setAttribute('id', maidrSchema.id);
+                svg.setAttribute('maidr', JSON.stringify(maidrSchema));
+
+                var existing = document.querySelector(
+                    'script[src="{maidr_js}"]'
+                );
+                if (!existing) {{
+                    var s = document.createElement('script');
+                    s.src = '{maidr_js}';
+                    s.onload = function() {{
+                        if (window.main) window.main();
+                    }};
+                    document.head.appendChild(s);
+                }} else if (window.main) {{
+                    window.main();
+                }}
+            }}
+
+            if (document.readyState === 'loading') {{
+                document.addEventListener('DOMContentLoaded', initMaidr);
+            }} else {{
+                requestAnimationFrame(initMaidr);
+            }}
+        }})();
+        """
+
+    def _create_html_tag(self, use_iframe: bool = True) -> Tag:
+        """Create HTML with interactive Plotly chart and MAIDR accessibility.
+
+        The output includes:
+
+        1. MAIDR CSS for accessibility UI styling
+        2. The interactive Plotly chart (plotly.js loaded from CDN)
+        3. A bridge script that waits for Plotly to render, injects the
+           MAIDR schema into the SVG, and loads MAIDR JS
         """
         schema = self._flatten_maidr()
-        svg_str = self._render_svg_with_kaleido()
+        plotly_div = self._get_plotly_html()
+        init_script = self._build_init_script(schema)
 
-        if svg_str is not None:
-            return self._inject_schema_into_svg(svg_str, schema)
-
-        return self._build_fallback_svg(schema)
-
-    def _render_svg_with_kaleido(self) -> str | None:
-        """Try to render SVG via kaleido. Returns None on failure."""
-        try:
-            svg_bytes = self._fig.to_image(format="svg")
-            # Eagerly stop kaleido's background Chrome process so it does
-            # not linger until the Python interpreter shuts down, which
-            # causes "Wait expired, Browser is being closed by watchdog"
-            # warnings on Windows.
-            try:
-                import kaleido
-
-                kaleido.stop_sync_server()
-            except Exception:
-                pass
-            if isinstance(svg_bytes, bytes):
-                return svg_bytes.decode("utf-8")
-            return svg_bytes
-        except Exception:
-            return None
-
-    def _inject_schema_into_svg(self, svg_str: str, schema: dict) -> HTML:
-        """Parse a kaleido SVG and inject the MAIDR schema."""
-        from lxml import etree
-
-        tree = etree.fromstring(svg_str.encode(), parser=None)
-
-        ns = {"svg": "http://www.w3.org/2000/svg"}
-        svg_elem = tree if tree.tag.endswith("svg") else tree.find(".//svg:svg", ns)
-        if svg_elem is None:
-            svg_elem = tree
-
-        svg_elem.attrib["id"] = str(schema["id"])
-        svg_elem.attrib["maidr"] = json.dumps(schema, indent=2)
-
-        result = etree.tostring(svg_elem, pretty_print=True, encoding="unicode")
-        return HTML(result)
-
-    def _build_fallback_svg(self, schema: dict) -> HTML:
-        """Build a minimal SVG with the MAIDR schema embedded.
-
-        This is used when kaleido/Chrome is unavailable. The MAIDR JS
-        library reads the schema from the ``maidr`` attribute, so
-        sonification, braille, and text description still work.
-        """
-        title = ""
-        for plot in self._plots:
-            title = plot._get_title()
-            if title:
-                break
-
-        escaped_schema = json.dumps(schema, indent=2).replace("&", "&amp;").replace(
-            "<", "&lt;"
-        ).replace(">", "&gt;").replace('"', "&quot;")
-
-        svg = (
-            f'<svg xmlns="http://www.w3.org/2000/svg" '
-            f'id="{schema["id"]}" '
-            f'width="800" height="450" '
-            f'maidr="{escaped_schema}" '
-            f'role="img" aria-label="{title}">'
-            f"<rect width='800' height='450' fill='#f8f9fa' />"
-            f"<text x='400' y='225' text-anchor='middle' "
-            f"font-size='16' fill='#333'>{title}</text>"
-            f"</svg>"
+        maidr_css = (
+            "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css"
         )
-        return HTML(svg)
 
-    def _create_html_tag(
-        self, use_iframe: bool = True
-    ) -> Tag:
-        """Create the MAIDR HTML tag with embedded SVG and scripts."""
-        svg = self._get_svg()
+        base_html = tags.div(
+            tags.link(rel="stylesheet", href=maidr_css),
+            tags.div(HTML(plotly_div)),
+            tags.script(init_script, type="text/javascript"),
+        )
 
-        # Reuse the static _inject_plot from the core Maidr class
-        from maidr.core.maidr import Maidr
+        if use_iframe and (
+            Environment.is_flask()
+            or Environment.is_notebook()
+            or Environment.is_shiny()
+        ):
+            base_html = self._wrap_in_iframe(base_html)
 
-        return Maidr._inject_plot(svg, None, self.maidr_id, use_iframe)
+        return base_html
+
+    def _wrap_in_iframe(self, html_tag: Tag) -> Tag:
+        """Wrap the HTML tag in an auto-resizing iframe for notebooks."""
+        unique_id = "iframe_" + str(uuid.uuid4())
+
+        resizing_script = f"""
+            function resizeIframe() {{
+                let iframe = document.getElementById('{unique_id}');
+                if (
+                    iframe && iframe.contentWindow &&
+                    iframe.contentWindow.document
+                ) {{
+                    iframe.style.height = 'auto';
+                    let height =
+                        iframe.contentWindow.document.body.scrollHeight + 50;
+                    iframe.style.height = height + 'px';
+                    iframe.style.width =
+                        iframe.contentWindow.document.body.scrollWidth + 'px';
+                }}
+            }}
+            let iframe = document.getElementById('{unique_id}');
+            resizeIframe();
+            iframe.onload = function() {{
+                resizeIframe();
+                iframe.contentWindow.addEventListener(
+                    'resize', resizeIframe
+                );
+            }};
+        """
+
+        return tags.iframe(
+            id=unique_id,
+            srcdoc=str(html_tag.get_html_string()),
+            width="100%",
+            height="100%",
+            scrolling="no",
+            style=(
+                "background-color: #fff; position: relative; border: none"
+            ),
+            frameBorder=0,
+            onload=resizing_script,
+        )
 
     def _create_html_doc(self, use_iframe: bool = True) -> HTMLDocument:
         """Create a full HTML document."""
@@ -198,6 +242,8 @@ class PlotlyMaidr:
         static_temp_dir = os.path.join(system_temp_dir, "maidr")
         os.makedirs(static_temp_dir, exist_ok=True)
 
-        temp_file_path = os.path.join(static_temp_dir, "maidr_plotly_plot.html")
+        temp_file_path = os.path.join(
+            static_temp_dir, "maidr_plotly_plot.html"
+        )
         html_file_path = self.save_html(temp_file_path)
         webbrowser.open(f"file://{html_file_path}")
