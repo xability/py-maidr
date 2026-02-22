@@ -35,15 +35,43 @@ class PlotlyMaidr:
         self._extract_plots()
 
     def _extract_plots(self) -> None:
-        """Extract PlotlyPlot instances from all traces in the figure."""
+        """Extract PlotlyPlot instances from all traces in the figure.
+
+        When multiple bar traces exist and ``barmode`` is ``'group'``
+        (dodged) or ``'stack'`` (stacked), they are merged into a single
+        :class:`PlotlyGroupedBarPlot` instead of individual bar plots.
+        """
         fig_dict = self._fig.to_dict()
         layout = fig_dict.get("layout", {})
         traces = fig_dict.get("data", [])
 
-        for trace in traces:
-            plot = PlotlyPlotFactory.create(trace, layout)
-            if plot is not None:
-                self._plots.append(plot)
+        bar_traces = [t for t in traces if t.get("type") == "bar"]
+        barmode = layout.get("barmode", "group")
+
+        # Detect grouped / stacked bars
+        if len(bar_traces) > 1 and barmode in ("group", "stack"):
+            from maidr.core.enum.plot_type import PlotType
+            from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
+
+            plot_type = (
+                PlotType.DODGED if barmode == "group" else PlotType.STACKED
+            )
+            self._plots.append(
+                PlotlyGroupedBarPlot(bar_traces, layout, plot_type)
+            )
+
+            # Process remaining non-bar traces normally
+            for trace in traces:
+                if trace.get("type") == "bar":
+                    continue
+                plot = PlotlyPlotFactory.create(trace, layout)
+                if plot is not None:
+                    self._plots.append(plot)
+        else:
+            for trace in traces:
+                plot = PlotlyPlotFactory.create(trace, layout)
+                if plot is not None:
+                    self._plots.append(plot)
 
     def render(self) -> Tag:
         """Return the maidr plot inside an iframe."""

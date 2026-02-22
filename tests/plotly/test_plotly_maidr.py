@@ -87,3 +87,38 @@ class TestPlotlyMaidr:
         pm = PlotlyMaidr(fig)
         # Pie is unsupported and skipped
         assert len(pm._plots) == 1
+
+    def test_dodged_bar_detection(self, plotly_dodged_fig):
+        from maidr.core.enum.plot_type import PlotType
+        from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
+
+        pm = PlotlyMaidr(plotly_dodged_fig)
+        assert len(pm._plots) == 1
+        assert isinstance(pm._plots[0], PlotlyGroupedBarPlot)
+        assert pm._plots[0].type == PlotType.DODGED
+
+    def test_stacked_bar_detection(self, plotly_stacked_fig):
+        from maidr.core.enum.plot_type import PlotType
+        from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
+
+        pm = PlotlyMaidr(plotly_stacked_fig)
+        assert len(pm._plots) == 1
+        assert isinstance(pm._plots[0], PlotlyGroupedBarPlot)
+        assert pm._plots[0].type == PlotType.STACKED
+
+    def test_candlestick_fig(self, plotly_candlestick_fig):
+        pm = PlotlyMaidr(plotly_candlestick_fig)
+        assert len(pm._plots) == 1
+
+    def test_multiline_creates_multiple_line_plots(self, plotly_multiline_fig):
+        pm = PlotlyMaidr(plotly_multiline_fig)
+        # Each line trace becomes a separate plot
+        assert len(pm._plots) == 2
+
+    def test_single_bar_not_grouped(self, plotly_bar_fig):
+        """A single bar trace should remain a regular BarPlot, not grouped."""
+        from maidr.plotly.bar import PlotlyBarPlot
+
+        pm = PlotlyMaidr(plotly_bar_fig)
+        assert len(pm._plots) == 1
+        assert isinstance(pm._plots[0], PlotlyBarPlot)

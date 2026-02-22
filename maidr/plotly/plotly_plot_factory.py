@@ -62,4 +62,9 @@ class PlotlyPlotFactory:
 
             return PlotlyHistogramPlot(trace, layout)
 
+        if trace_type == "candlestick":
+            from maidr.plotly.candlestick import PlotlyCandlestickPlot
+
+            return PlotlyCandlestickPlot(trace, layout)
+
         return None

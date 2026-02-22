@@ -9,6 +9,7 @@ from maidr.plotly.line import PlotlyLinePlot
 from maidr.plotly.box import PlotlyBoxPlot
 from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
+from maidr.plotly.candlestick import PlotlyCandlestickPlot
 
 
 class TestPlotlyPlotFactory:
@@ -64,6 +65,19 @@ class TestPlotlyPlotFactory:
         plot = PlotlyPlotFactory.create(trace, {})
         assert isinstance(plot, PlotlyHistogramPlot)
         assert plot.type == PlotType.HIST
+
+    def test_candlestick_trace(self):
+        trace = {
+            "type": "candlestick",
+            "x": ["2024-01-02"],
+            "open": [100],
+            "high": [110],
+            "low": [90],
+            "close": [105],
+        }
+        plot = PlotlyPlotFactory.create(trace, {})
+        assert isinstance(plot, PlotlyCandlestickPlot)
+        assert plot.type == PlotType.CANDLESTICK
 
     def test_unsupported_trace_returns_none(self):
         trace = {"type": "pie", "values": [1, 2, 3]}

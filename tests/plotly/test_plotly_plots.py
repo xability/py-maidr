@@ -3,12 +3,15 @@ from __future__ import annotations
 import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.bar import PlotlyBarPlot
 from maidr.plotly.scatter import PlotlyScatterPlot
 from maidr.plotly.line import PlotlyLinePlot
 from maidr.plotly.box import PlotlyBoxPlot
 from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
+from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
+from maidr.plotly.candlestick import PlotlyCandlestickPlot
 
 
 class TestPlotlyBarPlot:
@@ -200,3 +203,90 @@ class TestPlotlyHistogramPlot:
         data = plot._extract_plot_data()
 
         assert len(data) == 5
+
+
+class TestPlotlyGroupedBarPlot:
+    def test_dodged_bar_data(self):
+        traces = [
+            {"type": "bar", "x": ["A", "B"], "y": [10, 20], "name": "G1"},
+            {"type": "bar", "x": ["A", "B"], "y": [15, 25], "name": "G2"},
+        ]
+        layout = {"barmode": "group"}
+        plot = PlotlyGroupedBarPlot(traces, layout, PlotType.DODGED)
+        data = plot._extract_plot_data()
+
+        assert len(data) == 2
+        assert len(data[0]) == 2
+        assert data[0][0] == {"x": "A", "fill": "G1", "y": 10}
+        assert data[1][1] == {"x": "B", "fill": "G2", "y": 25}
+
+    def test_stacked_bar_data(self):
+        traces = [
+            {"type": "bar", "x": ["X", "Y"], "y": [5, 10], "name": "S1"},
+            {"type": "bar", "x": ["X", "Y"], "y": [3, 7], "name": "S2"},
+        ]
+        layout = {"barmode": "stack"}
+        plot = PlotlyGroupedBarPlot(traces, layout, PlotType.STACKED)
+        data = plot._extract_plot_data()
+
+        assert len(data) == 2
+        assert plot.type == PlotType.STACKED
+
+    def test_schema_type(self):
+        traces = [
+            {"type": "bar", "x": ["A"], "y": [1], "name": "G1"},
+            {"type": "bar", "x": ["A"], "y": [2], "name": "G2"},
+        ]
+        plot = PlotlyGroupedBarPlot(traces, {}, PlotType.DODGED)
+        assert plot.schema[MaidrKey.TYPE] == PlotType.DODGED
+
+
+class TestPlotlyCandlestickPlot:
+    def test_extract_data(self):
+        trace = {
+            "type": "candlestick",
+            "x": ["2024-01-02", "2024-01-03"],
+            "open": [150.0, 152.5],
+            "high": [155.0, 156.0],
+            "low": [148.0, 149.0],
+            "close": [152.5, 148.0],
+        }
+        plot = PlotlyCandlestickPlot(trace, {})
+        data = plot._extract_plot_data()
+
+        assert len(data) == 2
+        assert data[0]["value"] == "2024-01-02"
+        assert data[0]["open"] == 150.0
+        assert data[0]["high"] == 155.0
+        assert data[0]["low"] == 148.0
+        assert data[0]["close"] == 152.5
+
+    def test_schema_title_default(self):
+        trace = {
+            "type": "candlestick",
+            "x": ["2024-01-02"],
+            "open": [100],
+            "high": [110],
+            "low": [90],
+            "close": [105],
+        }
+        plot = PlotlyCandlestickPlot(trace, {})
+        schema = plot.schema
+
+        assert schema[MaidrKey.TITLE] == "Candlestick Chart"
+        assert schema[MaidrKey.TYPE] == PlotType.CANDLESTICK
+
+    def test_axes_defaults(self):
+        trace = {
+            "type": "candlestick",
+            "x": ["2024-01-02"],
+            "open": [100],
+            "high": [110],
+            "low": [90],
+            "close": [105],
+        }
+        plot = PlotlyCandlestickPlot(trace, {})
+        schema = plot.schema
+
+        assert schema[MaidrKey.AXES][MaidrKey.X] == "Date"
+        assert schema[MaidrKey.AXES][MaidrKey.Y] == "Price"
