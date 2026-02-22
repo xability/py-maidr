@@ -28,7 +28,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         self._traces = traces
 
     def _get_selector(self) -> str:
-        return ".trace.boxes .point"
+        return ".trace.boxes > path.box"
 
     def _extract_plot_data(self) -> list[dict]:
         """Return box stats for all traces as a flat list."""
@@ -49,9 +49,10 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 all_boxes.extend(self._extract_grouped(x, y))
                 continue
 
-            # Single box from y data
-            if y is not None:
-                arr = np.array(y, dtype=float)
+            # Single box — data may be in y (vertical) or x (horizontal)
+            data = y if y is not None else x
+            if data is not None:
+                arr = np.array(data, dtype=float)
                 all_boxes.append(self._compute_stats(arr, label=name))
 
         return all_boxes

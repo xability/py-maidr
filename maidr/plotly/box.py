@@ -16,7 +16,7 @@ class PlotlyBoxPlot(PlotlyPlot):
         super().__init__(trace, layout, PlotType.BOX)
 
     def _get_selector(self) -> str:
-        return ".trace.boxes .point"
+        return ".trace.boxes > path.box"
 
     def _extract_plot_data(self) -> list[dict]:
         # Plotly box traces can have pre-computed stats or raw data
@@ -52,7 +52,11 @@ class PlotlyBoxPlot(PlotlyPlot):
         return results
 
     def _extract_from_raw_data(self) -> list[dict]:
-        """Compute box plot statistics from raw data."""
+        """Compute box plot statistics from raw data.
+
+        Handles both vertical (data in ``y``) and horizontal (data in
+        ``x``) orientations.
+        """
         y = self._trace.get("y", None)
         x = self._trace.get("x", None)
 
@@ -60,10 +64,13 @@ class PlotlyBoxPlot(PlotlyPlot):
         if x is not None and y is not None:
             return self._extract_grouped(x, y)
 
-        # Single box from y data
-        if y is not None:
-            arr = np.array(y, dtype=float)
-            return [self._compute_stats(arr, label=self._trace.get("name", ""))]
+        # Single box — data may be in y (vertical) or x (horizontal)
+        data = y if y is not None else x
+        if data is not None:
+            arr = np.array(data, dtype=float)
+            return [
+                self._compute_stats(arr, label=self._trace.get("name", ""))
+            ]
 
         return []
 
