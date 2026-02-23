@@ -1,6 +1,34 @@
 # CHANGELOG
 
 
+## v1.11.1 (2026-02-23)
+
+### Bug Fixes
+
+- Use UTF-8 encoding when saving HTML on Windows
+  ([#266](https://github.com/xability/py-maidr/pull/266),
+  [`a97e4c1`](https://github.com/xability/py-maidr/commit/a97e4c1ede879ad4e11b430a03c5b9042ad4e9f2))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Chores
+
+- Add agent documentation for code reviewer, linter, patch expert, pr reviewer, test runner, and
+  test writer
+  ([`c7887a4`](https://github.com/xability/py-maidr/commit/c7887a4f8f31b81d77ce7b39e832814ad01ba829))
+
+- Add MCP configuration files for GitHub and Playwright
+  ([`b1537b3`](https://github.com/xability/py-maidr/commit/b1537b32b73ff25c8b22236609459f8974a92625))
+
+### Continuous Integration
+
+- Update uv.lock to match pyproject.toml v1.11.0
+  ([#265](https://github.com/xability/py-maidr/pull/265),
+  [`cb44939`](https://github.com/xability/py-maidr/commit/cb44939a50fc438467bda864dc6ede148b8b493b))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v1.11.0 (2026-02-04)
 
 ### Features
