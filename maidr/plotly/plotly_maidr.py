@@ -252,6 +252,7 @@ class PlotlyMaidr:
 
         max_row = max((e["row"] for e in plot_entries), default=0)
         max_col = max((e["col"] for e in plot_entries), default=0)
+        is_multi_subplot = max_row > 0 or max_col > 0
 
         # Build the grid
         subplot_grid: list[list[dict]] = [
@@ -265,10 +266,14 @@ class PlotlyMaidr:
             position_groups[pos].append(entry["schema"])
 
         for (row, col), layers in position_groups.items():
-            subplot_grid[row][col] = {
+            cell: dict = {
                 "id": str(uuid.uuid4()),
                 "layers": layers,
             }
+            if is_multi_subplot:
+                selector_id = f"axes_{uuid.uuid4()}"
+                cell["selector"] = f'g[id="{selector_id}"]'
+            subplot_grid[row][col] = cell
 
         # Fill empty cells
         for r in range(len(subplot_grid)):
@@ -300,23 +305,143 @@ class PlotlyMaidr:
         """Build JS that bridges Plotly's SVG with MAIDR.
 
         After Plotly renders its chart into the DOM as an SVG, this script
-        injects the MAIDR schema as an attribute on that SVG element, then
-        loads the MAIDR JS library which reads the schema and provides
-        sonification, braille, and keyboard navigation.
+        injects the MAIDR schema into the SVG element and loads the MAIDR
+        JS library.  The SVG stays inside the Plotly container so that all
+        native Plotly interactions (hover, zoom, pan, click) continue to
+        work.  CSS overrides prevent MAIDR's ``<article><figure>`` wrapper
+        from collapsing inside the Plotly container.
         """
         maidr_js = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
         return f"""
         (function() {{
             var maidrSchema = {json.dumps(schema, indent=2)};
 
+            var _maidrDone = false;
             function initMaidr() {{
+                if (_maidrDone) return;
                 var svg = document.querySelector('svg.main-svg');
                 if (!svg) {{
                     requestAnimationFrame(initMaidr);
                     return;
                 }}
+                _maidrDone = true;
+
                 svg.setAttribute('id', maidrSchema.id);
+
+                // Wrap Plotly bglayer rects in <g> elements for subplot
+                // highlighting.  MAIDR JS detects multi-plot via
+                // g[id^="axes_"] and highlights the selected subplot
+                // by applying stroke to the first rect/path child.
+                // We wrap the ORIGINAL Plotly rects (which have visible
+                // fill) so the stroke border appears on the filled
+                // background, not an invisible overlay.
+                var bglayer = svg.querySelector('.bglayer');
+                if (bglayer && !bglayer.hasAttribute('data-maidr')) {{
+                    bglayer.setAttribute('data-maidr', '1');
+                    var bgRects = Array.from(
+                        bglayer.querySelectorAll(':scope > rect')
+                    );
+                    // Deduplicate rects by position and sort row-major
+                    var posSeen = {{}};
+                    var uniqueRects = [];
+                    for (var k = 0; k < bgRects.length; k++) {{
+                        var posKey = bgRects[k].getAttribute('x') + ',' +
+                                     bgRects[k].getAttribute('y');
+                        if (!posSeen[posKey]) {{
+                            posSeen[posKey] = true;
+                            uniqueRects.push(bgRects[k]);
+                        }}
+                    }}
+                    uniqueRects.sort(function(a, b) {{
+                        var ay = parseFloat(a.getAttribute('y') || '0');
+                        var by = parseFloat(b.getAttribute('y') || '0');
+                        if (Math.abs(ay - by) > 1) return ay - by;
+                        return parseFloat(a.getAttribute('x') || '0') -
+                               parseFloat(b.getAttribute('x') || '0');
+                    }});
+                    // Extract selector IDs from schema (row-major order)
+                    var selectorIds = [];
+                    var subplots = maidrSchema.subplots || [];
+                    for (var r = 0; r < subplots.length; r++) {{
+                        for (var c = 0; c < subplots[r].length; c++) {{
+                            var sel = subplots[r][c].selector;
+                            if (sel) {{
+                                var m = sel.match(/id="([^"]+)"/);
+                                if (m) selectorIds.push(m[1]);
+                            }}
+                        }}
+                    }}
+                    // Wrap each unique rect in a <g> with the subplot ID
+                    var ns = 'http://www.w3.org/2000/svg';
+                    for (
+                        var i = 0;
+                        i < Math.min(uniqueRects.length, selectorIds.length);
+                        i++
+                    ) {{
+                        var rect = uniqueRects[i];
+                        var g = document.createElementNS(ns, 'g');
+                        g.setAttribute('id', selectorIds[i]);
+                        rect.parentNode.insertBefore(g, rect);
+                        g.appendChild(rect);
+                    }}
+
+                    // MAIDR JS clones each <g> as a hidden backup and
+                    // applies stroke to the clone.  Mirror stroke
+                    // changes from hidden clones to visible originals.
+                    new MutationObserver(function(muts) {{
+                        muts.forEach(function(mut) {{
+                            if (mut.type !== 'attributes') return;
+                            var t = mut.target;
+                            var pg = t.closest(
+                                'g[id^="axes_"][visibility="hidden"]'
+                            );
+                            if (!pg) return;
+                            var vis = bglayer.querySelector(
+                                'g[id="' + pg.id +
+                                '"]:not([visibility])'
+                            );
+                            if (!vis) return;
+                            var vr = vis.querySelector('rect');
+                            if (!vr) return;
+                            var s = t.getAttribute('stroke');
+                            if (s) {{
+                                vr.setAttribute('stroke', s);
+                                vr.setAttribute(
+                                    'stroke-width',
+                                    t.getAttribute('stroke-width') || '4'
+                                );
+                            }} else {{
+                                vr.removeAttribute('stroke');
+                                vr.removeAttribute('stroke-width');
+                            }}
+                        }});
+                    }}).observe(bglayer, {{
+                        attributes: true,
+                        attributeFilter: ['stroke', 'stroke-width'],
+                        subtree: true,
+                    }});
+                }}
+
                 svg.setAttribute('maidr', JSON.stringify(maidrSchema));
+
+                // Inject CSS so MAIDR's article/figure wrapper does not
+                // collapse inside the Plotly container.  Plotly's main SVG
+                // is position:absolute inside a position:relative
+                // .svg-container, so the wrapper must also be positioned
+                // and sized to contain it.
+                var style = document.createElement('style');
+                style.textContent =
+                    '.svg-container > article {{' +
+                    '  position: relative !important;' +
+                    '  width: 100% !important;' +
+                    '  height: 100% !important;' +
+                    '}}' +
+                    '.svg-container > article > figure {{' +
+                    '  position: relative !important;' +
+                    '  width: 100% !important;' +
+                    '  height: 100% !important;' +
+                    '}}';
+                document.head.appendChild(style);
 
                 var existing = document.querySelector(
                     'script[src="{maidr_js}"]'
