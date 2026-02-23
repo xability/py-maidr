@@ -97,7 +97,25 @@ class Maidr:
         html = self._create_html_doc(
             use_iframe=False, data_in_svg=data_in_svg
         )  # Always use direct HTML for saving
-        return html.save_html(file, libdir=lib_dir, include_version=include_version)
+
+        # Write the HTML ourselves with explicit UTF-8 encoding to avoid
+        # UnicodeEncodeError on Windows where the default encoding (e.g.
+        # cp1252) cannot represent characters like U+2212 (minus sign).
+        destdir = str(Path(file).resolve().parent)
+        if lib_dir:
+            dep_destdir = os.path.join(destdir, lib_dir)
+        else:
+            dep_destdir = destdir
+
+        rendered = html.render(
+            lib_prefix=lib_dir, include_version=include_version
+        )
+        for dep in rendered["dependencies"]:
+            dep.copy_to(dep_destdir, include_version=include_version)
+
+        with open(file, "w", encoding="utf-8") as f:
+            f.write(rendered["html"])
+        return file
 
     def show(
         self,
