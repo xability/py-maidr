@@ -11,6 +11,43 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 
 
+def _is_plotly_figure(obj: Any) -> bool:
+    """
+    Check if an object is a Plotly figure without importing plotly at top level.
+
+    Parameters
+    ----------
+    obj : Any
+        The object to check.
+
+    Returns
+    -------
+    bool
+        True if the object is a Plotly figure.
+    """
+    module = getattr(type(obj), "__module__", "")
+    return module.startswith("plotly.")
+
+
+def _get_plotly_maidr(fig: Any) -> Any:
+    """
+    Create a PlotlyMaidr instance from a Plotly figure.
+
+    Parameters
+    ----------
+    fig : plotly.graph_objects.Figure
+        The Plotly figure.
+
+    Returns
+    -------
+    PlotlyMaidr
+        The PlotlyMaidr instance for the given figure.
+    """
+    from maidr.plotly import PlotlyMaidr
+
+    return PlotlyMaidr(fig)
+
+
 def _get_plot_or_current(plot: Any | None) -> Any:
     """
     Get the plot object or current matplotlib figure if plot is None.
@@ -47,6 +84,9 @@ def render(plot: Any | None = None) -> Tag:
     htmltools.Tag
         The rendered HTML representation of the plot.
     """
+    if plot is not None and _is_plotly_figure(plot):
+        return _get_plotly_maidr(plot).render()
+
     plot = _get_plot_or_current(plot)
 
     ax = FigureManager.get_axes(plot)
@@ -81,6 +121,9 @@ def show(
     object
         The display result.
     """
+    if plot is not None and _is_plotly_figure(plot):
+        return _get_plotly_maidr(plot).show(renderer)
+
     plot = _get_plot_or_current(plot)
 
     ax = FigureManager.get_axes(plot)
@@ -122,6 +165,11 @@ def save_html(
     str
         The path to the saved HTML file.
     """
+    if plot is not None and _is_plotly_figure(plot):
+        return _get_plotly_maidr(plot).save_html(
+            file, lib_dir=lib_dir, include_version=include_version
+        )
+
     plot = _get_plot_or_current(plot)
 
     ax = FigureManager.get_axes(plot)
@@ -154,6 +202,10 @@ def close(plot: Any | None = None) -> None:
     plot : Any or None, optional
         The plot object to close. If None, uses the current matplotlib figure.
     """
+    if plot is not None and _is_plotly_figure(plot):
+        # For Plotly figures, no FigureManager cleanup needed
+        return
+
     plot = _get_plot_or_current(plot)
 
     ax = FigureManager.get_axes(plot)
