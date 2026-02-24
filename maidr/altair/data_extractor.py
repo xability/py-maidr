@@ -37,12 +37,14 @@ def extract_chart_data(spec: dict) -> dict:
     axes = _extract_axes(encoding, plot_type)
     data = _extract_data_for_type(plot_type, spec, df, encoding, transforms)
 
+    selector = _get_selector_template(plot_type)
+
     schema: dict[str, Any] = {
         MaidrKey.TYPE: plot_type.value,
         MaidrKey.TITLE: title,
         MaidrKey.AXES: axes,
         MaidrKey.DATA: data,
-        MaidrKey.SELECTOR: "",
+        MaidrKey.SELECTOR: selector,
     }
 
     # Add labels for heatmap
@@ -559,3 +561,27 @@ def _to_str_or_num(val: Any) -> str | float | int:
         return round(f, 4)
     except (ValueError, TypeError):
         return str(val)
+
+
+# Placeholder that gets replaced with a real UUID during SVG injection.
+SELECTOR_PLACEHOLDER = "__MAIDR_ID__"
+
+
+def _get_selector_template(plot_type: PlotType) -> str | list:
+    """Return a selector template for the given plot type.
+
+    The placeholder ``__MAIDR_ID__`` is replaced with an actual UUID when
+    ``AltairMaidr._inject_selectors`` processes the SVG.
+    """
+    base = f"g[maidr='{SELECTOR_PLACEHOLDER}'] > path"
+    if plot_type in (PlotType.BAR, PlotType.HIST, PlotType.STACKED, PlotType.DODGED):
+        return base
+    if plot_type == PlotType.SCATTER:
+        return [base]
+    if plot_type in (PlotType.LINE, PlotType.SMOOTH):
+        return [base]
+    if plot_type == PlotType.HEAT:
+        return base
+    if plot_type == PlotType.BOX:
+        return ""
+    return base
