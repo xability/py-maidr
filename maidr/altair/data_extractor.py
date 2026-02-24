@@ -53,7 +53,6 @@ def extract_chart_data(spec: dict) -> dict:
     # Add orientation for box plots
     if plot_type == PlotType.BOX:
         x_type = encoding.get("x", {}).get("type", "")
-        y_type = encoding.get("y", {}).get("type", "")
         if x_type == "quantitative":
             schema[MaidrKey.ORIENTATION] = "horiz"
         else:
@@ -62,9 +61,7 @@ def extract_chart_data(spec: dict) -> dict:
     return schema
 
 
-def _detect_plot_type(
-    mark: str, encoding: dict, transforms: list
-) -> PlotType:
+def _detect_plot_type(mark: str, encoding: dict, transforms: list) -> PlotType:
     """Detect the MAIDR PlotType from mark, encoding, and transforms."""
     if mark == "boxplot":
         return PlotType.BOX
@@ -315,7 +312,6 @@ def _extract_box_data(df: pd.DataFrame, encoding: dict) -> list[dict]:
     x_field = get_encoding_field(encoding, "x")
     y_field = get_encoding_field(encoding, "y")
     x_type = encoding.get("x", {}).get("type", "")
-    y_type = encoding.get("y", {}).get("type", "")
 
     if df.empty:
         return []
@@ -350,12 +346,8 @@ def _extract_box_data(df: pd.DataFrame, encoding: dict) -> list[dict]:
         whisker_low = float(np.min(values[values >= q1 - 1.5 * iqr]))
         whisker_high = float(np.max(values[values <= q3 + 1.5 * iqr]))
 
-        lower_outliers = sorted(
-            [float(v) for v in values if v < whisker_low]
-        )
-        upper_outliers = sorted(
-            [float(v) for v in values if v > whisker_high]
-        )
+        lower_outliers = sorted([float(v) for v in values if v < whisker_low])
+        upper_outliers = sorted([float(v) for v in values if v > whisker_high])
 
         entry = {
             MaidrKey.LOWER_OUTLIER: lower_outliers,
@@ -374,9 +366,7 @@ def _extract_box_data(df: pd.DataFrame, encoding: dict) -> list[dict]:
     return result
 
 
-def _extract_grouped_bar_data(
-    df: pd.DataFrame, encoding: dict
-) -> list[list[dict]]:
+def _extract_grouped_bar_data(df: pd.DataFrame, encoding: dict) -> list[list[dict]]:
     """Extract stacked or dodged bar data."""
     x_field = get_encoding_field(encoding, "x")
     y_field = get_encoding_field(encoding, "y")
@@ -460,11 +450,7 @@ def _compute_density(
     from scipy.stats import gaussian_kde
 
     field = transform.get("density", "")
-    as_fields = transform.get("as", [field, "density"])
     groupby = transform.get("groupby", [])
-
-    x_name = as_fields[0] if len(as_fields) > 0 else field
-    y_name = as_fields[1] if len(as_fields) > 1 else "density"
 
     if field not in df.columns:
         return [[]]
@@ -478,9 +464,7 @@ def _compute_density(
             if len(values) < 2:
                 continue
             kde = gaussian_kde(values)
-            x_range = np.linspace(
-                float(values.min()) - 1, float(values.max()) + 1, 200
-            )
+            x_range = np.linspace(float(values.min()) - 1, float(values.max()) + 1, 200)
             y_range = kde(x_range)
             line_data = [
                 {
@@ -496,9 +480,7 @@ def _compute_density(
         if len(values) < 2:
             return [[]]
         kde = gaussian_kde(values)
-        x_range = np.linspace(
-            float(values.min()) - 1, float(values.max()) + 1, 200
-        )
+        x_range = np.linspace(float(values.min()) - 1, float(values.max()) + 1, 200)
         y_range = kde(x_range)
         line_data = [
             {

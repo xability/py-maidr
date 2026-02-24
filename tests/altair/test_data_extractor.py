@@ -5,10 +5,10 @@ import pandas as pd
 import pytest
 
 altair = pytest.importorskip("altair")
-import altair as alt
+import altair as alt  # noqa: E402
 
-from maidr.altair.data_extractor import extract_chart_data
-from maidr.core.enum import PlotType
+from maidr.altair.data_extractor import extract_chart_data  # noqa: E402
+from maidr.core.enum import PlotType  # noqa: E402
 
 
 class TestBarDataExtraction:
@@ -69,11 +69,7 @@ class TestLineDataExtraction:
                 "series": ["A", "A", "A", "B", "B", "B"],
             }
         )
-        chart = (
-            alt.Chart(df)
-            .mark_line()
-            .encode(x="x:Q", y="y:Q", color="series:N")
-        )
+        chart = alt.Chart(df).mark_line().encode(x="x:Q", y="y:Q", color="series:N")
         spec = chart.to_dict()
 
         result = extract_chart_data(spec)
@@ -93,11 +89,7 @@ class TestHeatmapDataExtraction:
                 "value": [1.0, 2.0, 3.0, 4.0],
             }
         )
-        chart = (
-            alt.Chart(df)
-            .mark_rect()
-            .encode(x="x:N", y="y:N", color="value:Q")
-        )
+        chart = alt.Chart(df).mark_rect().encode(x="x:N", y="y:N", color="value:Q")
         spec = chart.to_dict()
 
         result = extract_chart_data(spec)
@@ -143,11 +135,7 @@ class TestBoxPlotDataExtraction:
                 + list(np.random.normal(20, 3, 50)),
             }
         )
-        chart = (
-            alt.Chart(df)
-            .mark_boxplot()
-            .encode(x="species:N", y="value:Q")
-        )
+        chart = alt.Chart(df).mark_boxplot().encode(x="species:N", y="value:Q")
         spec = chart.to_dict()
 
         result = extract_chart_data(spec)

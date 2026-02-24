@@ -15,7 +15,6 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.altair.data_extractor import extract_chart_data
-from maidr.altair.utils import get_mark_type
 from maidr.util.environment import Environment
 
 
@@ -55,9 +54,7 @@ class AltairMaidr:
         else:
             dep_destdir = destdir
 
-        rendered = html.render(
-            lib_prefix=lib_dir, include_version=include_version
-        )
+        rendered = html.render(lib_prefix=lib_dir, include_version=include_version)
         for dep in rendered["dependencies"]:
             dep.copy_to(dep_destdir, include_version=include_version)
 
@@ -73,9 +70,7 @@ class AltairMaidr:
         html = self._create_html_tag(use_iframe=True)
 
         if renderer == "auto":
-            _renderer = cast(
-                Literal["ipython", "browser"], Environment.get_renderer()
-            )
+            _renderer = cast(Literal["ipython", "browser"], Environment.get_renderer())
         else:
             _renderer = renderer
 
@@ -104,13 +99,9 @@ class AltairMaidr:
     def _create_html_doc(
         self, use_iframe: bool = True, data_in_svg: bool = True
     ) -> HTMLDocument:
-        return HTMLDocument(
-            self._create_html_tag(use_iframe, data_in_svg), lang="en"
-        )
+        return HTMLDocument(self._create_html_tag(use_iframe, data_in_svg), lang="en")
 
-    def _get_svg(
-        self, embed_data: bool = True, schema: dict | None = None
-    ) -> HTML:
+    def _get_svg(self, embed_data: bool = True, schema: dict | None = None) -> HTML:
         """Generate SVG from the Altair chart using vl-convert-python."""
         try:
             import vl_convert as vlc
@@ -129,9 +120,7 @@ class AltairMaidr:
         tree_svg = etree.fromstring(svg_str.encode(), parser=None)
 
         root_svg = None
-        for element in tree_svg.iter(
-            tag="{http://www.w3.org/2000/svg}svg"
-        ):
+        for element in tree_svg.iter(tag="{http://www.w3.org/2000/svg}svg"):
             current_schema = schema if schema is not None else self._flatten_maidr()
             if isinstance(current_schema, dict) and "id" in current_schema:
                 element.attrib["id"] = str(current_schema["id"])
@@ -144,9 +133,7 @@ class AltairMaidr:
             # Fallback: use the raw SVG
             return HTML(svg_str)
 
-        return HTML(
-            etree.tostring(root_svg, pretty_print=True, encoding="unicode")
-        )
+        return HTML(etree.tostring(root_svg, pretty_print=True, encoding="unicode"))
 
     def _flatten_maidr(self) -> dict:
         """Build the MAIDR JSON schema from the Vega-Lite spec."""
@@ -158,9 +145,7 @@ class AltairMaidr:
             # Empty chart
             return {
                 "id": self._maidr_id,
-                "subplots": [
-                    [{"id": str(uuid.uuid4()), "layers": []}]
-                ],
+                "subplots": [[{"id": str(uuid.uuid4()), "layers": []}]],
             }
 
         if len(specs) == 1 and specs[0]["row"] == 0 and specs[0]["col"] == 0:
@@ -168,9 +153,7 @@ class AltairMaidr:
             layers = [s["schema"] for s in specs]
             return {
                 "id": self._maidr_id,
-                "subplots": [
-                    [{"id": str(uuid.uuid4()), "layers": layers}]
-                ],
+                "subplots": [[{"id": str(uuid.uuid4()), "layers": layers}]],
             }
 
         # Multi-chart: build grid
@@ -178,10 +161,7 @@ class AltairMaidr:
         max_col = max(s["col"] for s in specs)
 
         subplot_grid = [
-            [
-                {"id": str(uuid.uuid4()), "layers": []}
-                for _ in range(max_col + 1)
-            ]
+            [{"id": str(uuid.uuid4()), "layers": []} for _ in range(max_col + 1)]
             for _ in range(max_row + 1)
         ]
 
@@ -190,9 +170,7 @@ class AltairMaidr:
 
         return {"id": self._maidr_id, "subplots": subplot_grid}
 
-    def _collect_unit_specs(
-        self, spec: dict, row: int = 0, col: int = 0
-    ) -> list[dict]:
+    def _collect_unit_specs(self, spec: dict, row: int = 0, col: int = 0) -> list[dict]:
         """Recursively collect unit specs from potentially composite charts.
 
         Returns a list of dicts with keys: schema, row, col.
@@ -212,17 +190,13 @@ class AltairMaidr:
         # Horizontal concatenation: {"hconcat": [...]}
         if "hconcat" in spec:
             for i, sub in enumerate(spec["hconcat"]):
-                results.extend(
-                    self._collect_unit_specs(sub, row=row, col=col + i)
-                )
+                results.extend(self._collect_unit_specs(sub, row=row, col=col + i))
             return results
 
         # Vertical concatenation: {"vconcat": [...]}
         if "vconcat" in spec:
             for i, sub in enumerate(spec["vconcat"]):
-                results.extend(
-                    self._collect_unit_specs(sub, row=row + i, col=col)
-                )
+                results.extend(self._collect_unit_specs(sub, row=row + i, col=col))
             return results
 
         # General concatenation: {"concat": [...]}
@@ -274,9 +248,7 @@ class AltairMaidr:
         if Environment.is_wsl():
             wsl_distro_name = Environment.get_wsl_distro_name()
             if not wsl_distro_name:
-                raise ValueError(
-                    "WSL_DISTRO_NAME environment variable is not set."
-                )
+                raise ValueError("WSL_DISTRO_NAME environment variable is not set.")
             html_file_path = Path(html_file_path).resolve().as_posix()
             url = f"file://wsl$/{wsl_distro_name}{html_file_path}"
 
@@ -308,9 +280,7 @@ class AltairMaidr:
 
         This mirrors ``Maidr._inject_plot()`` from the matplotlib pathway.
         """
-        MAIDR_TS_CDN_URL = (
-            "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
-        )
+        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
 
         script = f"""
             (function() {{

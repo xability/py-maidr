@@ -1,6 +1,5 @@
 """Tests for AltairMaidr end-to-end."""
 
-import json
 import os
 import tempfile
 
@@ -8,10 +7,10 @@ import pandas as pd
 import pytest
 
 altair = pytest.importorskip("altair")
-import altair as alt
+import altair as alt  # noqa: E402
 
-from maidr.altair import AltairMaidr, is_altair_chart
-from maidr.api import _is_altair_chart
+from maidr.altair import AltairMaidr, is_altair_chart  # noqa: E402
+from maidr.api import _is_altair_chart  # noqa: E402
 
 
 class TestIsAltairChart:
