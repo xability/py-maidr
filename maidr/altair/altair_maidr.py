@@ -148,6 +148,13 @@ class AltairMaidr:
         with ``role-mark`` in their class), assigns a unique ``maidr`` UUID
         to each, and replaces the ``__MAIDR_ID__`` placeholder in the
         corresponding schema layer's ``selectors`` field.
+
+        For line mark groups, the path ``d`` attribute is normalised so
+        that coordinates use spaces instead of commas (maidr.js expects
+        space-separated values).
+
+        For box plots, per-stat selector dicts are built from the multiple
+        SVG mark groups that compose the box plot.
         """
         ns = "{http://www.w3.org/2000/svg}"
 
@@ -172,15 +179,19 @@ class AltairMaidr:
         while group_idx < len(mark_groups) and layer_idx < len(layers):
             layer = layers[layer_idx]
             sel = layer.get(MaidrKey.SELECTOR, "")
+            layer_type = layer.get(MaidrKey.TYPE, "")
 
-            # Determine how many mark groups this layer consumes.
+            # --- Box plots: build per-stat selector dicts ---
+            if layer_type == "box":
+                group_idx = _inject_box_selectors(mark_groups, group_idx, layer, ns)
+                layer_idx += 1
+                continue
+
+            # --- List selector (scatter/line/smooth) ---
             if isinstance(sel, list) and len(sel) > 0:
-                # List selector (line / scatter): one selector string per
-                # mark group.  For multiline, expand the list.
                 new_selectors: list[str] = []
                 first_template = sel[0] if sel else ""
 
-                # Count consecutive mark groups that match the same mark type
                 first_cls = mark_groups[group_idx].attrib.get("class", "")
                 mark_type_token = _extract_mark_class(first_cls)
                 n_consumed = 0
@@ -189,17 +200,9 @@ class AltairMaidr:
                     peek_cls = mark_groups[peek].attrib.get("class", "")
                     if _extract_mark_class(peek_cls) != mark_type_token:
                         break
-                    # Check we haven't wandered into the next layer's groups
-                    # by also checking that the next layer (if any) hasn't
-                    # already been assigned.
-                    if n_consumed > 0 and layer_idx + 1 < len(layers):
-                        # For multiline, all groups share the same mark type
-                        pass
                     n_consumed += 1
                     peek += 1
 
-                # If the layer data has multiple sub-arrays (multiline),
-                # consume that many groups.
                 layer_data = layer.get(MaidrKey.DATA, [])
                 if (
                     isinstance(layer_data, list)
@@ -215,8 +218,16 @@ class AltairMaidr:
                     mg = mark_groups[group_idx + i]
                     maidr_id = str(uuid.uuid4())
                     mg.attrib["maidr"] = maidr_id
-                    resolved = first_template.replace(SELECTOR_PLACEHOLDER, maidr_id)
+                    resolved = first_template.replace(
+                        SELECTOR_PLACEHOLDER, maidr_id
+                    )
                     new_selectors.append(resolved)
+
+                    # Normalise line path d-attrs: replace
+                    # commas with spaces so maidr.js can parse
+                    # the coordinates.
+                    if "mark-line" in mg.attrib.get("class", ""):
+                        _normalise_path_d(mg, ns)
 
                 layer[MaidrKey.SELECTOR] = new_selectors
                 group_idx += n_to_use
@@ -230,32 +241,7 @@ class AltairMaidr:
                 group_idx += 1
 
             else:
-                # Empty or unsupported selector (e.g. box plots) – skip
-                # but still consume one mark group so alignment stays correct.
-                # Box plots in Vega-Lite generate multiple mark groups for
-                # whiskers/boxes/medians; skip them all.
-                layer_type = layer.get(MaidrKey.TYPE, "")
-                if layer_type == "box":
-                    # Consume all box-related mark groups
-                    while group_idx < len(mark_groups):
-                        cls = mark_groups[group_idx].attrib.get("class", "")
-                        if "layer_" in cls or "role-mark" in cls:
-                            # Check if this is still a box component
-                            if any(
-                                tok in cls
-                                for tok in (
-                                    "mark-rect",
-                                    "mark-rule",
-                                    "mark-symbol",
-                                )
-                            ):
-                                group_idx += 1
-                            else:
-                                break
-                        else:
-                            break
-                else:
-                    group_idx += 1
+                group_idx += 1
 
             layer_idx += 1
 
@@ -613,3 +599,146 @@ def _extract_mark_class(class_str: str) -> str:
         if token.startswith("mark-"):
             return token
     return ""
+
+
+def _normalise_path_d(group: Any, ns: str) -> None:
+    """Replace commas with spaces in SVG path ``d`` attributes.
+
+    Vega-Lite emits ``M0,200L75,100`` but maidr.js expects
+    ``M0 200L75 100`` (space-separated coordinates).
+    """
+    import re
+
+    for path in group.iter(f"{ns}path"):
+        d = path.attrib.get("d", "")
+        if "," in d:
+            path.attrib["d"] = re.sub(r",", " ", d)
+
+
+def _inject_box_selectors(
+    mark_groups: list,
+    group_idx: int,
+    layer: dict,
+    ns: str,
+) -> int:
+    """Build per-stat selector dicts for box plot layers.
+
+    Vega-Lite box plots produce multiple mark groups in order:
+    - Outlier points (mark-symbol): ``layer_N_layer_0_marks``
+    - Lower whiskers (mark-rule): ``layer_N_layer_1_layer_0_marks``
+    - Upper whiskers (mark-rule): ``layer_N_layer_1_layer_1_marks``
+    - Box rectangles (mark-rect): ``layer_N+1_layer_0_marks``
+    - Median lines (mark-rect): ``layer_N+1_layer_1_marks``
+
+    maidr.js expects a ``BoxSelector`` interface per box::
+
+        {lowerOutliers: string[], min: string, iq: string,
+         q2: string, max: string, upperOutliers: string[]}
+
+    Returns the updated group_idx.
+    """
+    # Collect all consecutive box-related mark groups
+    box_groups: list[tuple[str, Any]] = []
+    while group_idx < len(mark_groups):
+        cls = mark_groups[group_idx].attrib.get("class", "")
+        if "role-mark" in cls and any(
+            tok in cls for tok in ("mark-rect", "mark-rule", "mark-symbol")
+        ):
+            box_groups.append((cls, mark_groups[group_idx]))
+            group_idx += 1
+        else:
+            break
+
+    # Classify groups by their mark type and layer position
+    outlier_group = None
+    lower_whisker_group = None
+    upper_whisker_group = None
+    box_rect_group = None
+    median_group = None
+
+    rule_groups: list[Any] = []
+    rect_groups: list[Any] = []
+
+    for cls, g in box_groups:
+        if "mark-symbol" in cls:
+            outlier_group = g
+        elif "mark-rule" in cls:
+            rule_groups.append(g)
+        elif "mark-rect" in cls:
+            rect_groups.append(g)
+
+    # Rules: first = lower whiskers, second = upper whiskers
+    if len(rule_groups) >= 2:
+        lower_whisker_group = rule_groups[0]
+        upper_whisker_group = rule_groups[1]
+    elif len(rule_groups) == 1:
+        lower_whisker_group = rule_groups[0]
+
+    # Rects: first = box body, second = median line
+    if len(rect_groups) >= 2:
+        box_rect_group = rect_groups[0]
+        median_group = rect_groups[1]
+    elif len(rect_groups) == 1:
+        box_rect_group = rect_groups[0]
+
+    # Assign stable maidr UUIDs to each group (once, not per-box)
+    outlier_id = None
+    lower_whisker_id = None
+    upper_whisker_id = None
+    box_rect_id = None
+    median_id = None
+
+    if outlier_group is not None:
+        outlier_id = str(uuid.uuid4())
+        outlier_group.attrib["maidr"] = outlier_id
+    if lower_whisker_group is not None:
+        lower_whisker_id = str(uuid.uuid4())
+        lower_whisker_group.attrib["maidr"] = lower_whisker_id
+    if upper_whisker_group is not None:
+        upper_whisker_id = str(uuid.uuid4())
+        upper_whisker_group.attrib["maidr"] = upper_whisker_id
+    if box_rect_group is not None:
+        box_rect_id = str(uuid.uuid4())
+        box_rect_group.attrib["maidr"] = box_rect_id
+    if median_group is not None:
+        median_id = str(uuid.uuid4())
+        median_group.attrib["maidr"] = median_id
+
+    # Build selector dicts (one per box/category)
+    n_boxes = len(layer.get(MaidrKey.DATA, []))
+    selectors: list[dict] = []
+
+    for box_idx in range(n_boxes):
+        sel_dict: dict[str, Any] = {}
+        nth = box_idx + 1  # 1-indexed for CSS nth-child
+
+        # lowerOutliers and upperOutliers must be arrays
+        sel_dict[MaidrKey.LOWER_OUTLIER] = []
+        sel_dict[MaidrKey.UPPER_OUTLIER] = []
+
+        if lower_whisker_id is not None:
+            sel_dict[MaidrKey.MIN] = (
+                f"g[maidr='{lower_whisker_id}'] > :nth-child({nth})"
+            )
+
+        if box_rect_id is not None:
+            # "iq" targets the box rect; maidr.js creates Q1/Q3 lines
+            # from bounding box edges
+            sel_dict[MaidrKey.IQ] = (
+                f"g[maidr='{box_rect_id}'] > :nth-child({nth})"
+            )
+
+        if median_id is not None:
+            sel_dict[MaidrKey.Q2] = (
+                f"g[maidr='{median_id}'] > :nth-child({nth})"
+            )
+
+        if upper_whisker_id is not None:
+            sel_dict[MaidrKey.MAX] = (
+                f"g[maidr='{upper_whisker_id}'] > :nth-child({nth})"
+            )
+
+        selectors.append(sel_dict)
+
+    layer[MaidrKey.SELECTOR] = selectors
+    return group_idx
