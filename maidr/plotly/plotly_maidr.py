@@ -427,21 +427,116 @@ class PlotlyMaidr:
                 // Inject CSS so MAIDR's article/figure wrapper does not
                 // collapse inside the Plotly container.  Plotly's main SVG
                 // is position:absolute inside a position:relative
-                // .svg-container, so the wrapper must also be positioned
-                // and sized to contain it.
+                // .svg-container.  MAIDR wraps via a display:contents div,
+                // so we use descendant selectors (not child selectors).
                 var style = document.createElement('style');
                 style.textContent =
-                    '.svg-container > article {{' +
-                    '  position: relative !important;' +
-                    '  width: 100% !important;' +
-                    '  height: 100% !important;' +
+                    '.svg-container {{' +
+                    '  overflow: visible !important;' +
                     '}}' +
-                    '.svg-container > article > figure {{' +
+                    '.svg-container article[id^="maidr-article"] {{' +
                     '  position: relative !important;' +
                     '  width: 100% !important;' +
-                    '  height: 100% !important;' +
+                    '}}' +
+                    '.svg-container article[id^="maidr-article"] > figure {{' +
+                    '  position: relative !important;' +
+                    '  width: 100% !important;' +
+                    '}}' +
+                    '.plotly-graph-div {{' +
+                    '  overflow: visible !important;' +
+                    '}}' +
+                    '.svg-container:focus-within {{' +
+                    '  outline: 2px solid #4A90D9;' +
+                    '  outline-offset: 2px;' +
+                    '}}' +
+                    'figure[id^="maidr-figure"] > div[tabindex="0"]:focus {{' +
+                    '  outline: none !important;' +
                     '}}';
                 document.head.appendChild(style);
+
+                // After MAIDR JS wraps the SVG, the SVG remains
+                // position:absolute (Plotly default) so it has zero
+                // height in normal flow.  react-container renders at
+                // y=0, hidden behind the chart.
+                //
+                // MAIDR defers Controller creation until focus-in, so
+                // react-container only appears AFTER the user focuses
+                // the plot.  Use a MutationObserver to detect when it
+                // appears and apply padding-top to push it below the
+                // chart.
+                function fixPlotLayout() {{
+                    var rc = document.querySelector(
+                        'div[id^="react-container-"]'
+                    );
+                    var svgEl = document.querySelector('svg.main-svg');
+                    if (rc && svgEl) {{
+                        var h = svgEl.getAttribute('height') ||
+                                svgEl.getBoundingClientRect().height;
+                        if (h) {{
+                            rc.style.paddingTop = parseFloat(h) + 'px';
+                            requestAnimationFrame(function() {{
+                                try {{
+                                    window.dispatchEvent(
+                                        new Event('resize')
+                                    );
+                                }} catch (_) {{}}
+                            }});
+                        }}
+                    }}
+                }}
+
+                function setupLayoutObserver() {{
+                    var article = document.querySelector(
+                        'article[id^="maidr-article"]'
+                    );
+                    if (!article) {{
+                        requestAnimationFrame(setupLayoutObserver);
+                        return;
+                    }}
+                    new MutationObserver(function() {{
+                        fixPlotLayout();
+                    }}).observe(article, {{
+                        childList: true,
+                        subtree: true,
+                    }});
+                }}
+
+                // Plotly's modebar (toolbar buttons in top-right) sits
+                // as a sibling of MAIDR's wrapper inside .svg-container.
+                // Remove it from keyboard tab order and accessibility
+                // tree so Tab goes directly to MAIDR's focusable div.
+                function fixModebarTabOrder() {{
+                    var modebar = document.querySelector(
+                        '.modebar-container'
+                    );
+                    if (!modebar) return;
+                    modebar.setAttribute('aria-hidden', 'true');
+                    modebar.setAttribute('tabindex', '-1');
+                    var focusable = modebar.querySelectorAll(
+                        'a, button, input, [tabindex]'
+                    );
+                    for (var i = 0; i < focusable.length; i++) {{
+                        focusable[i].setAttribute('tabindex', '-1');
+                    }}
+                }}
+
+                // Plotly renders overlay SVGs that capture mouse events.
+                // After MAIDR wraps svg.main-svg, these overlays are
+                // siblings outside the MAIDR wrapper.  Clicking the chart
+                // hits the overlay, not MAIDR's div[tabindex=0].  Fix:
+                // capture-phase click handler that forwards focus.
+                function setupClickToFocus() {{
+                    var container = document.querySelector(
+                        '.plotly-graph-div'
+                    ) || document.querySelector('.svg-container');
+                    if (!container) return;
+                    container.addEventListener('click', function() {{
+                        var wrapper = document.querySelector(
+                            'figure[id^="maidr-figure"] > div[tabindex="0"]'
+                        );
+                        if (wrapper) wrapper.focus();
+                    }}, true);
+                }}
 
                 var existing = document.querySelector(
                     'script[src="{maidr_js}"]'
@@ -450,11 +545,19 @@ class PlotlyMaidr:
                     var s = document.createElement('script');
                     s.src = '{maidr_js}';
                     s.onload = function() {{
-                        if (window.main) window.main();
+                        requestAnimationFrame(function() {{
+                            setupLayoutObserver();
+                            setupClickToFocus();
+                            fixModebarTabOrder();
+                        }});
                     }};
                     document.head.appendChild(s);
-                }} else if (window.main) {{
-                    window.main();
+                }} else {{
+                    requestAnimationFrame(function() {{
+                        setupLayoutObserver();
+                        setupClickToFocus();
+                        fixModebarTabOrder();
+                    }});
                 }}
             }}
 
@@ -498,31 +601,116 @@ class PlotlyMaidr:
         return base_html
 
     def _wrap_in_iframe(self, html_tag: Tag) -> Tag:
-        """Wrap the HTML tag in an auto-resizing iframe for notebooks."""
+        """Wrap the HTML tag in an auto-resizing iframe for notebooks.
+
+        Mirrors the focus-delegation logic from :class:`maidr.core.Maidr`
+        so that braille and review inputs resize the iframe correctly and
+        keyboard focus flows into the iframe content.
+        """
         unique_id = "iframe_" + str(uuid.uuid4())
 
         resizing_script = f"""
             function resizeIframe() {{
-                let iframe = document.getElementById('{unique_id}');
+                var iframe = document.getElementById('{unique_id}');
                 if (
-                    iframe && iframe.contentWindow &&
-                    iframe.contentWindow.document
-                ) {{
-                    iframe.style.height = 'auto';
-                    let height =
-                        iframe.contentWindow.document.body.scrollHeight + 50;
-                    iframe.style.height = height + 'px';
-                    iframe.style.width =
-                        iframe.contentWindow.document.body.scrollWidth + 'px';
+                    !iframe || !iframe.contentWindow ||
+                    !iframe.contentWindow.document
+                ) return;
+
+                var doc = iframe.contentWindow.document;
+                var body = doc.body;
+                var de = doc.documentElement;
+                if (!body) return;
+
+                // Start with standard DOM measurements.
+                var height = Math.max(
+                    body.scrollHeight || 0,
+                    body.offsetHeight || 0,
+                    de.scrollHeight || 0,
+                    de.offsetHeight || 0,
+                    de.clientHeight || 0
+                );
+
+                // Plotly's .svg-container has overflow:visible, so
+                // MAIDR text below the chart is NOT included in
+                // scrollHeight (CSS spec).  Scan MAIDR elements to
+                // find the lowest bottom edge.
+                var selectors = [
+                    '#maidr-text-container',
+                    '[id^="react-container-"]',
+                    '[id^="maidr-braille-textarea"]',
+                    '[id^="maidr-review-input"]'
+                ];
+                for (var i = 0; i < selectors.length; i++) {{
+                    var el = doc.querySelector(selectors[i]);
+                    if (el) {{
+                        var rect = el.getBoundingClientRect();
+                        var bottom = rect.bottom +
+                            (iframe.contentWindow.scrollY || 0);
+                        if (bottom > height) {{
+                            height = bottom;
+                        }}
+                    }}
                 }}
+
+                // Buffer for braille/review active states.
+                var braille = doc.querySelector(
+                    '[id^="maidr-braille-textarea"]'
+                );
+                var review = doc.querySelector(
+                    '[id^="maidr-review-input"]'
+                );
+                var isBrailleActive = braille && (
+                    braille === doc.activeElement ||
+                    braille.contains(doc.activeElement)
+                );
+                var isReviewActive = review && (
+                    review === doc.activeElement ||
+                    review.contains(doc.activeElement)
+                );
+                if (isBrailleActive) {{
+                    height += 100;
+                }} else if (isReviewActive) {{
+                    height += 50;
+                }} else {{
+                    height += 50;
+                }}
+
+                iframe.style.height = height + 'px';
             }}
-            let iframe = document.getElementById('{unique_id}');
+
+            var iframe = document.getElementById('{unique_id}');
             resizeIframe();
             iframe.onload = function() {{
                 resizeIframe();
                 iframe.contentWindow.addEventListener(
                     'resize', resizeIframe
                 );
+
+                // MutationObserver: detect react-container appearing
+                // on first focus and other DOM changes.
+                try {{
+                    var _raf = 0;
+                    new MutationObserver(function() {{
+                        cancelAnimationFrame(_raf);
+                        _raf = requestAnimationFrame(function() {{
+                            resizeIframe();
+                        }});
+                    }}).observe(
+                        iframe.contentWindow.document.body,
+                        {{ childList: true, subtree: true, attributes: true }}
+                    );
+                }} catch (_) {{}}
+
+                // Focus events for braille/review buffer changes.
+                try {{
+                    iframe.contentWindow.document.addEventListener(
+                        'focusin', function() {{ resizeIframe(); }}, true
+                    );
+                    iframe.contentWindow.document.addEventListener(
+                        'focusout', function() {{ resizeIframe(); }}, true
+                    );
+                }} catch (_) {{}}
             }};
         """
 
