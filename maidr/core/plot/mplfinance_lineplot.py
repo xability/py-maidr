@@ -192,7 +192,11 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
     def render(self) -> dict:
         base_schema = super().render()
         base_schema[MaidrKey.TITLE] = "Moving Average Line Plot"
-        base_schema[MaidrKey.AXES] = self._extract_axes_data()
+        # Update axes labels while preserving format from parent
+        axes_data = self._extract_axes_data()
+        if MaidrKey.AXES in base_schema and MaidrKey.FORMAT in base_schema[MaidrKey.AXES]:
+            axes_data[MaidrKey.FORMAT] = base_schema[MaidrKey.AXES][MaidrKey.FORMAT]
+        base_schema[MaidrKey.AXES] = axes_data
         base_schema[MaidrKey.DATA] = self._extract_plot_data()
         if self._support_highlighting:
             base_schema[MaidrKey.SELECTOR] = self._get_selector()

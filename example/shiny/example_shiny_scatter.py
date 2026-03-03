@@ -41,6 +41,12 @@ def server(inp, _, __):
         ax.set_title(f"Iris {inp.y_var()} vs {inp.x_var()}")
         ax.set_xlabel(inp.x_var().replace("_", " ").title())
         ax.set_ylabel(inp.y_var().replace("_", " ").title())
+
+        # Add number formatters for better screen reader output
+        # Measurements in cm with one decimal
+        ax.xaxis.set_major_formatter("{x:.1f}")
+        ax.yaxis.set_major_formatter("{x:.1f}")
+
         return s_plot
 
 

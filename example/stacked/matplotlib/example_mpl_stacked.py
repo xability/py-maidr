@@ -28,4 +28,8 @@ ax.set_ylabel("Average Body Mass")
 ax.set_title("Penguins with above or below average body mass")
 ax.legend(loc="upper right")
 
+# Add number formatter to y-axis for better screen reader output
+# Count values as integers (no decimals)
+ax.yaxis.set_major_formatter("{x:.0f}")
+
 maidr.show(p)

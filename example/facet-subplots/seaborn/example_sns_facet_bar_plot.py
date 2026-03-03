@@ -84,6 +84,10 @@ def create_facet_bar_plot(data: pd.DataFrame) -> None:
     plt.subplots_adjust(top=0.9)
     g.figure.suptitle("Sales by Region for Different Products", fontsize=16)
 
+    # Add number formatters for better screen reader output
+    for ax in g.axes.flat:
+        ax.yaxis.set_major_formatter("{x:.0f}")
+
     # Show the plot
     maidr.show(g.figure)
 

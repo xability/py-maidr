@@ -105,6 +105,13 @@ def create_facet_plot(
     # Add a global title
     fig.suptitle("Facet Plot Example with Shared Y-Axes", fontsize=16, y=0.98)
 
+    # Add number formatters for better screen reader output
+    for row in range(num_rows):
+        axs[row, 0].xaxis.set_major_formatter("{x:.0f}")
+        axs[row, 0].yaxis.set_major_formatter("{x:.1f}")
+        axs[row, 1].xaxis.set_major_formatter("{x:.0f}")
+        axs[row, 1].yaxis.set_major_formatter("{x:.1f}")
+
     # Adjust spacing between subplots
     plt.tight_layout()
 

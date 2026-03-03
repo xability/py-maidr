@@ -228,6 +228,15 @@ def create_complex_facet_plot(data: pd.DataFrame) -> None:
         y=1.05,
     )
 
+    # Add number formatters for better screen reader output
+    # Top row: sales with thousands separator
+    for i in range(3):
+        axes[0, i].yaxis.set_major_formatter("{x:,.0f}")
+    # Bottom row: profit with thousands separator, years as integers
+    for i in range(3):
+        axes[1, i].xaxis.set_major_formatter("{x:.0f}")
+        axes[1, i].yaxis.set_major_formatter("{x:,.0f}")
+
     # Display the plot
     maidr.show(fig)
 

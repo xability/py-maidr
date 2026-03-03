@@ -31,17 +31,22 @@ data = pd.DataFrame(
 )
 
 # Create the plot
-plt.figure(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(10, 6))
 
 # Use seaborn lineplot for multiple lines
 lineplot = sns.lineplot(
-    x="x", y="y", hue="series", style="series", markers=True, dashes=True, data=data
+    x="x", y="y", hue="series", style="series", markers=True, dashes=True, data=data, ax=ax
 )
 
 # Customize the plot
-plt.title("Seaborn Multiline Plot")
-plt.xlabel("X values")
-plt.ylabel("Y values")
+ax.set_title("Seaborn Multiline Plot")
+ax.set_xlabel("X values")
+ax.set_ylabel("Y values")
+
+# Add number formatters for better screen reader output
+# Both axes show integer values
+ax.xaxis.set_major_formatter("{x:.0f}")
+ax.yaxis.set_major_formatter("{x:.0f}")
 
 # Display the plot using maidr
 maidr.show(lineplot)

@@ -7,36 +7,38 @@ import maidr
 iris = sns.load_dataset("iris")
 
 
-def boxplot(orientation: str, fig_num: int):
-    # Start a new figure
-    plt.figure(num=fig_num)
+def boxplot(orientation: str):
+    # Create figure and axes
+    fig, ax = plt.subplots()
 
     # Create box plot
     if orientation == "v":
         box_plot = sns.boxplot(
-            x="species", y="petal_length", data=iris, orient=orientation
+            x="species", y="petal_length", data=iris, orient=orientation, ax=ax
         )
-        plt.xlabel("Species")
-        plt.ylabel("Petal Length (cm)")
+        ax.set_xlabel("Species")
+        ax.set_ylabel("Petal Length (cm)")
+        # Add number formatter to value axis for better screen reader output
+        ax.yaxis.set_major_formatter("{x:.1f}")
     else:
         box_plot = sns.boxplot(
-            x="petal_length", y="species", data=iris, orient=orientation
+            x="petal_length", y="species", data=iris, orient=orientation, ax=ax
         )
-        plt.ylabel("Species")
-        plt.xlabel("Petal Length (cm)")
+        ax.set_ylabel("Species")
+        ax.set_xlabel("Petal Length (cm)")
+        # Add number formatter to value axis for better screen reader output
+        ax.xaxis.set_major_formatter("{x:.1f}")
 
     # Adding labels and title
-    plt.title("Box Plot of Petal Length by Iris Species")
+    ax.set_title("Box Plot of Petal Length by Iris Species")
 
     return box_plot
 
 
 # Create the vertical boxplot
-vert = boxplot(orientation="v", fig_num=1)
-# plt.show()
+vert = boxplot(orientation="v")
 maidr.show(vert)
 
-# Create the vertical boxplot
-horz = boxplot(orientation="h", fig_num=2)
-# plt.show()
+# Create the horizontal boxplot
+horz = boxplot(orientation="h")
 maidr.show(horz)

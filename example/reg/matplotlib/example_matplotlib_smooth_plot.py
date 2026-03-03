@@ -20,6 +20,11 @@ ax.set_xlabel("x")
 ax.set_ylabel("y")
 ax.set_title("Matplotlib: Scatter with LOWESS Smooth Line")
 ax.legend()
+
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.2f}")
+
 plt.tight_layout()
 
 # Show with MAIDR (if available)

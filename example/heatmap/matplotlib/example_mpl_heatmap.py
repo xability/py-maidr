@@ -44,6 +44,10 @@ ax.set_yticks(np.arange(len(vegetables)), labels=vegetables)
 ax.set_xlabel("Farmers")
 ax.set_ylabel("Vegetables")
 
+# Add colorbar with formatter for better screen reader output
+cbar = fig.colorbar(im, ax=ax)
+cbar.ax.yaxis.set_major_formatter("{x:.1f}")  # Harvest values in tons
+
 # Rotate the tick labels and set their alignment.
 plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 

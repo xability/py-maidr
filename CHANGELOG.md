@@ -1,6 +1,51 @@
 # CHANGELOG
 
 
+## v1.11.1 (2026-02-23)
+
+### Bug Fixes
+
+- Use UTF-8 encoding when saving HTML on Windows
+  ([#266](https://github.com/xability/py-maidr/pull/266),
+  [`a97e4c1`](https://github.com/xability/py-maidr/commit/a97e4c1ede879ad4e11b430a03c5b9042ad4e9f2))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Chores
+
+- Add agent documentation for code reviewer, linter, patch expert, pr reviewer, test runner, and
+  test writer
+  ([`c7887a4`](https://github.com/xability/py-maidr/commit/c7887a4f8f31b81d77ce7b39e832814ad01ba829))
+
+- Add MCP configuration files for GitHub and Playwright
+  ([`b1537b3`](https://github.com/xability/py-maidr/commit/b1537b32b73ff25c8b22236609459f8974a92625))
+
+### Continuous Integration
+
+- Update uv.lock to match pyproject.toml v1.11.0
+  ([#265](https://github.com/xability/py-maidr/pull/265),
+  [`cb44939`](https://github.com/xability/py-maidr/commit/cb44939a50fc438467bda864dc6ede148b8b493b))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+
+## v1.11.0 (2026-02-04)
+
+### Features
+
+- Include format configuration from plot api ([#262](https://github.com/xability/py-maidr/pull/262),
+  [`59eb82f`](https://github.com/xability/py-maidr/commit/59eb82f880d370eab4cf437e22dee3cd4856158c))
+
+
+## v1.10.0 (2026-01-31)
+
+### Features
+
+- Remove candlestick formatting and add ylabel to dodged plots
+  ([#260](https://github.com/xability/py-maidr/pull/260),
+  [`70b2626`](https://github.com/xability/py-maidr/commit/70b2626bb31e109e8cdb29051f809fe03bfb6275))
+
+
 ## v1.9.0 (2025-10-31)
 
 ### Features

@@ -7,14 +7,18 @@ import maidr
 iris = sns.load_dataset("iris")
 
 # Plot sepal_length vs sepal_width
-plt.figure(figsize=(10, 6))  # Optional: Sets the figure size
-scatter_plot = plt.scatter(
+fig, ax = plt.subplots(figsize=(10, 6))
+scatter_plot = ax.scatter(
     iris["sepal_length"], iris["sepal_width"], c="blue", label="Iris Data Points"
 )
-plt.title("Iris Dataset: Sepal Length vs Sepal Width")  # Title of the plot
-plt.xlabel("Sepal Length (cm)")  # X-axis label
-plt.ylabel("Sepal Width (cm)")  # Y-axis label
-plt.legend()  # Shows the legend
+ax.set_title("Iris Dataset: Sepal Length vs Sepal Width")
+ax.set_xlabel("Sepal Length (cm)")
+ax.set_ylabel("Sepal Width (cm)")
+ax.legend()
 
-# plt.show()
+# Add number formatters for better screen reader output
+# Measurements in cm with one decimal
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.1f}")
+
 maidr.show(scatter_plot)
