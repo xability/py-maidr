@@ -380,6 +380,86 @@ ax.xaxis.set_major_formatter("{x:.1f}")
 maidr.show(horz_box_plot) #<<
 ```
 
+### Violin Plot
+
+#### Seaborn Violin Plot
+
+```{python}
+#| fig-alt: Violin plot of diamond price distribution by cut quality
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Load the diamonds dataset
+diamonds = sns.load_dataset("diamonds")
+
+# Create violin plot comparing price across cut quality
+v = sns.violinplot(  #<<
+    x="cut",            # 5 categories
+    y="price",          # numeric values
+    data=diamonds,
+    inner="box",        # show box plot inside violin
+    palette="Set2",     # distinct colors
+)
+
+# Customize the plot
+plt.title("Diamond Price Distribution by Cut Quality")
+plt.xlabel("Cut Quality")
+plt.ylabel("Price (USD)")
+
+# Add number formatter for better screen reader output
+plt.gca().yaxis.set_major_formatter("{x:,.0f}")
+
+# Show the plot
+maidr.show(v) #<<
+```
+
+#### Matplotlib Violin Plot
+
+```{python}
+#| fig-alt: Violin plot of diamond price distribution by cut quality using matplotlib
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Load dataset
+diamonds = sns.load_dataset("diamonds")
+
+# Prepare data grouped by cut (5 categories)
+groups = []
+values = []
+for cut, gdf in diamonds.groupby("cut", observed=False):
+    groups.append(cut)
+    values.append(gdf["price"].dropna().values)
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# Matplotlib violin plot with mean, median, and extrema
+violins = ax.violinplot(  #<<
+    values,
+    showmeans=True,
+    showmedians=True,
+    showextrema=True,
+)
+
+# Set x-ticks to match group labels
+ax.set_xticks(range(1, len(groups) + 1))
+ax.set_xticklabels(groups)
+
+ax.set_title("Diamond Price Distribution by Cut Quality (Matplotlib Violin)")
+ax.set_xlabel("Cut Quality")
+ax.set_ylabel("Price (USD)")
+
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:,.0f}")
+
+maidr.show(ax) #<<
+```
+
 ### Scatter Plot
 
 ```{python}

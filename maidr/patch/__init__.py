@@ -12,4 +12,5 @@ from . import (
     regplot,
     kdeplot,
     mplfinance,
+    violinplot,
 )
