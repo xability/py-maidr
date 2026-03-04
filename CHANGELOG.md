@@ -1,6 +1,55 @@
 # CHANGELOG
 
 
+## v1.12.0 (2026-03-04)
+
+### Bug Fixes
+
+- Install uv in semantic-release build command
+  ([`dea1114`](https://github.com/xability/py-maidr/commit/dea1114663de2b04f7e5dbd86f6c6d8816814245))
+
+### Chores
+
+- Fix logo image URLs ([#269](https://github.com/xability/py-maidr/pull/269),
+  [`c1467c3`](https://github.com/xability/py-maidr/commit/c1467c33313d53b44b934d5290c8d8a2a85031a1))
+
+- Retrigger release
+  ([`2189279`](https://github.com/xability/py-maidr/commit/2189279597df037acbc0b81b6638e8ca55f5d5d6))
+
+- Update uv.lock to match pyproject.toml v1.11.1
+  ([`a91fb86`](https://github.com/xability/py-maidr/commit/a91fb86a9e4d2ce3c553d955fdb522744ccf4543))
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Continuous Integration
+
+- Add claude code reviews ([#272](https://github.com/xability/py-maidr/pull/272),
+  [`a5e9f66`](https://github.com/xability/py-maidr/commit/a5e9f66ee3a1ef0b18fd4fb8a45a42905f7a6d9a))
+
+- Add devcontainer and copilot-setup-steps configuration
+  ([#271](https://github.com/xability/py-maidr/pull/271),
+  [`3cd75d3`](https://github.com/xability/py-maidr/commit/3cd75d3d1e43ef9054cfd717e0e9ccd1a5d200ba))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+- Install claude github app ([#273](https://github.com/xability/py-maidr/pull/273),
+  [`5b38610`](https://github.com/xability/py-maidr/commit/5b38610c3c646b05f53c5e1ed0b61a3b4ec29755))
+
+- Sync uv.lock during semantic-release version bump
+  ([#270](https://github.com/xability/py-maidr/pull/270),
+  [`716b658`](https://github.com/xability/py-maidr/commit/716b658a1b880c00948877414038cb2c0b203ce5))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Features
+
+- Implement violin plot support with dual-layer registration
+  ([#259](https://github.com/xability/py-maidr/pull/259),
+  [`3abaf17`](https://github.com/xability/py-maidr/commit/3abaf175ba2a458e11cf10628a71a06d8c98f41e))
+
+Authored-by: nk46-cloud <nk46@illinois.edu>
+
+
 ## v1.11.1 (2026-02-23)
 
 ### Bug Fixes
