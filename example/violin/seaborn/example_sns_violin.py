@@ -5,8 +5,6 @@ import maidr
 # Load dataset
 diamonds = sns.load_dataset("diamonds")
 
-print("Creating violin plot with 5 violins...")
-
 # Create violin plot comparing price across cut quality
 v = sns.violinplot(
     x="cut",            # 5 categories
@@ -21,5 +19,4 @@ plt.title("Diamond Price Distribution by Cut Quality")
 plt.xlabel("Cut Quality")
 plt.ylabel("Price (USD)")
 
-print("Showing with MAIDR...")
 maidr.show(v)

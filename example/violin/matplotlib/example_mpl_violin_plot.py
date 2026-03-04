@@ -6,8 +6,6 @@ import maidr
 # Load dataset (same as seaborn example to keep behavior comparable)
 diamonds = sns.load_dataset("diamonds")
 
-print("Creating Matplotlib violin plot with 5 violins...")
-
 # Prepare data grouped by cut (5 categories)
 groups = []
 values = []
@@ -33,6 +31,5 @@ ax.set_title("Diamond Price Distribution by Cut Quality (Matplotlib Violin)")
 ax.set_xlabel("Cut Quality")
 ax.set_ylabel("Price (USD)")
 
-print("Showing with MAIDR...")
 maidr.show(ax)
 

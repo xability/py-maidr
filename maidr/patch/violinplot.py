@@ -1,378 +1,255 @@
+"""Monkey-patches for ``seaborn.violinplot`` and ``Axes.violinplot``.
+
+Registers two MAIDR layers per violin plot:
+
+* **VIOLIN_BOX** — box-plot summary statistics computed from the raw data,
+  with CSS selectors pointing at the existing inner-box artists.
+* **VIOLIN_KDE** — the KDE density curves (PolyCollection outlines).
+"""
+
 from __future__ import annotations
 
 import uuid
+from typing import Any, Callable
+
 import numpy as np
 import wrapt
-from typing import Any, Callable
 from matplotlib.axes import Axes
-from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
-from matplotlib.patches import PathPatch
+from matplotlib.lines import Line2D
 
-from maidr.core.enum import PlotType
-from maidr.patch.common import common
 from maidr.core.context_manager import ContextManager
-from maidr.core.figure_manager import FigureManager
-from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
+from maidr.core.enum import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
-
-# Import utility classes (data extraction only, no registration)
-from maidr.core.plot.violinplot import (
-    ViolinDataExtractor,
-    ViolinBoxStatsCalculator,
-    ViolinPositionExtractor,
-    SyntheticBoxPlotBuilder,
-)
+from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.violinplot import ViolinDataExtractor
+from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
 
 
-def _register_violin_layers(
-    plot_ax: Axes,
-    instance: Any,
-    args: tuple,
-    kwargs: dict,
-    *,
-    orientation: str,
-    enable_box_layer: bool,
-    box_violin_layer: str | None,
-    use_full_range_extrema: bool = False,
-    violin_options: dict | None = None,
-) -> None:
-    """Shared logic to register KDE (SMOOTH) and box (BOX) layers for violin plots.
-
-    This function handles the common data extraction and MAIDR layer registration
-    for both seaborn.violinplot and matplotlib.axes.Axes.violinplot. It extracts
-    the underlying data, computes appropriate statistics, and registers the layers
-    with MAIDR for accessible navigation.
-
-    Parameters
-    ----------
-    plot_ax : matplotlib.axes.Axes
-        The matplotlib axes object where the violin plot is rendered.
-    instance : Any
-        The violin plot instance (matplotlib Axes for matplotlib plots,
-        seaborn module for seaborn plots).
-    args : tuple
-        Positional arguments passed to the original violin plot function.
-    kwargs : dict
-        Keyword arguments passed to the original violin plot function.
-    orientation : str
-        Plot orientation, either "vert" (vertical) or "horz" (horizontal).
-    enable_box_layer : bool
-        Whether to register the box plot layer in addition to the KDE layer.
-    box_violin_layer : str or None
-        Violin layer type for box plots ("mpl_violin" for matplotlib,
-        "seaborn_violin" for seaborn, or None).
-    use_full_range_extrema : bool, default False
-        If True, use full data range for min/max instead of Tukey clipping.
-    violin_options : dict or None
-        Additional options for violin plot rendering (showmeans, showmedians, etc.).
-
-    Returns
-    -------
-    None
-        This function modifies the MAIDR context but doesn't return a value.
-
-    Notes
-    -----
-    Used for both seaborn.violinplot and matplotlib.axes.Axes.violinplot so we can
-    reuse the same data extraction and statistics logic.
-    """
-    vert = orientation == "vert"
-
-    # ===== DETECT AND REGISTER SMOOTH (KDE) LAYER =====
-    kde_polys = [c for c in plot_ax.collections if isinstance(c, PolyCollection)]
-    if kde_polys:
-        kde_lines = []
-        unique_poly_gids = []
-
-        # Create Line2D boundaries for each PolyCollection and assign unique GID
-        for poly in kde_polys:
-            paths = poly.get_paths()
-            if paths:
-                boundary = paths[0].vertices
-                boundary = np.asarray(boundary)
-
-                kde_line = Line2D(boundary[:, 0], boundary[:, 1])
-                kde_line.axes = plot_ax
-
-                unique_gid = f"maidr-{uuid.uuid4()}"
-                kde_line.set_gid(unique_gid)
-                poly.set_gid(unique_gid)
-                kde_lines.append(kde_line)
-                unique_poly_gids.append(unique_gid)
-
-        # Register KDE layer as SMOOTH
-        if kde_lines:
-            x_levels = LevelExtractorMixin.extract_level(plot_ax, MaidrKey.X)
-
-            common(
-                PlotType.SMOOTH,
-                # For both seaborn and matplotlib we already have the axes;
-                # the wrapped function simply returns it so FigureManager can use it.
-                lambda *a, **k: plot_ax,
-                instance,
-                args,
-                dict(
-                    kwargs,
-                    regression_line=kde_lines[0],
-                    poly_gids=unique_poly_gids,
-                    is_polycollection=True,
-                    violin_kde_lines=kde_lines,
-                    poly_collections=kde_polys,
-                    violin_layer="kde",
-                    x_levels=x_levels,
-                ),
-            )
-
-    # ===== DETECT AND REGISTER BOX LAYER =====
-    if not enable_box_layer:
-        return
-
-    # Extract data for box plot statistics
-    groups, values = ViolinDataExtractor.extract(args, kwargs)
-
-    if not (groups and values):
-        return
-
-    # Compute box plot statistics for each group
-    if use_full_range_extrema:
-        stats_list = [ViolinBoxStatsCalculator.compute_full_range(v) for v in values]
-    else:
-        stats_list = [ViolinBoxStatsCalculator.compute(v) for v in values]
-
-    # Filter out empty-data stats
-    valid_pairs = [
-        (stats, group)
-        for stats, group in zip(stats_list, groups)
-        if stats is not None
-    ]
-
-    if not valid_pairs:
-        return
-
-    stats_list_valid, groups_valid = zip(*valid_pairs)
-    stats_list_valid = list(stats_list_valid)
-    groups_valid = list(groups_valid)
-
-    # Extract true violin positions from rendered plot.
-    # For Matplotlib violins, positions correspond directly to 1..N tick locations,
-    # so we can rely on sequential indices to avoid subtle ordering issues.
-    if box_violin_layer == "mpl_violin":
-        positions = [float(i + 1) for i in range(len(groups_valid))]
-    else:
-        positions = ViolinPositionExtractor.extract_positions(
-            plot_ax, len(groups_valid), orientation
-        )
-        positions = ViolinPositionExtractor.match_to_groups(
-            plot_ax, groups_valid, positions, orientation
-        )
-
-    # For single violin plots, ensure we use the actual violin center position
-    if len(groups_valid) == 1 and len(positions) == 1:
-        for child in plot_ax.get_children():
-            if isinstance(child, PolyCollection) and child.get_paths():
-                verts = child.get_paths()[0].vertices
-                if verts is not None and len(verts) > 0:
-                    if orientation == "vert":
-                        x_coords = verts[:, 0]
-                        if len(x_coords) > 0:
-                            center_x = (x_coords.min() + x_coords.max()) / 2
-                            positions[0] = float(center_x)
-                            break
-                    else:  # horizontal
-                        y_coords = verts[:, 1]
-                        if len(y_coords) > 0:
-                            center_y = (y_coords.min() + y_coords.max()) / 2
-                            positions[0] = float(center_y)
-                            break
-
-        # Fallback: try PathPatch
-        if positions[0] == 0.0 or (positions[0] == 1.0 and len(positions) == 1):
-            for child in plot_ax.get_children():
-                if isinstance(child, PathPatch):
-                    path = child.get_path()
-                    if hasattr(path, "vertices") and path.vertices is not None:
-                        verts = path.vertices
-                        if len(verts) > 0:
-                            if orientation == "vert":
-                                x_coords = verts[:, 0]
-                                if len(x_coords) > 0:
-                                    center_x = (x_coords.min() + x_coords.max()) / 2
-                                    positions[0] = float(center_x)
-                                    break
-                            else:  # horizontal
-                                y_coords = verts[:, 1]
-                                if len(y_coords) > 0:
-                                    center_y = (y_coords.min() + y_coords.max()) / 2
-                                    positions[0] = float(center_y)
-                                    break
-
-    # Build synthetic bxp_stats
-    bxp_stats = SyntheticBoxPlotBuilder.build(stats_list_valid, vert, positions)
-    # Attach raw stats (including mean) so BoxPlot can use them when building schema
-    bxp_stats["stats_list"] = stats_list_valid
-
-    # Assign GIDs to synthetic artists
-    for box in bxp_stats["boxes"]:
-        if not box.get_gid():
-            box.set_gid(f"maidr-{uuid.uuid4()}")
-
-    for median in bxp_stats["medians"]:
-        if not median.get_gid():
-            median.set_gid(f"maidr-{uuid.uuid4()}")
-
-    for whisker in bxp_stats["whiskers"]:
-        if not whisker.get_gid():
-            whisker.set_gid(f"maidr-{uuid.uuid4()}")
-
-    for cap in bxp_stats["caps"]:
-        if not cap.get_gid():
-            cap.set_gid(f"maidr-{uuid.uuid4()}")
-
-    # Add synthetic artists to axes (transparent for SVG rendering)
-    for box in bxp_stats["boxes"]:
-        plot_ax.add_patch(box)
-        box.set_alpha(0.0)
-
-    for median in bxp_stats["medians"]:
-        plot_ax.add_line(median)
-        median.set_alpha(0.0)
-
-    for whisker in bxp_stats["whiskers"]:
-        plot_ax.add_line(whisker)
-        whisker.set_alpha(0.0)
-
-    for cap in bxp_stats["caps"]:
-        plot_ax.add_line(cap)
-        cap.set_alpha(0.0)
-
-    # Add synthetic mean lines (if present) as fully transparent artists
-    for mean in bxp_stats.get("means", []):
-        plot_ax.add_line(mean)
-        mean.set_alpha(0.0)
-
-    # Register box layer
-    FigureManager.create_maidr(
-        plot_ax,
-        PlotType.BOX,
-        bxp_stats=bxp_stats,
-        orientation=orientation,
-        violin_layer=box_violin_layer,
-        violin_options=violin_options,
-    )
-
-
-@wrapt.patch_function_wrapper(Axes, "violinplot")
-def mpl_violinplot(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> Any:
-    """
-    Patch for matplotlib.axes.Axes.violinplot to extract and register KDE and
-    box statistics with MAIDR.
-    """
-    # Don't proceed if the call is made internally by the patched function.
-    if ContextManager.is_internal_context():
-        return wrapped(*args, **kwargs)
-
-    # Render the original Matplotlib violin plot
-    with ContextManager.set_internal_context():
-        plot = wrapped(*args, **kwargs)
-
-    plot_ax: Axes = instance
-
-    # Determine orientation from Matplotlib's 'vert' argument (default True -> vertical)
-    vert = kwargs.get("vert", True)
-    orientation = "vert" if vert else "horz"
-
-    # Respect Matplotlib's defaults unless user overrides them explicitly.
-    show_means = kwargs.get("showmeans", False)
-    show_medians = kwargs.get("showmedians", False)
-    show_extrema = kwargs.get("showextrema", True)
-
-    # For Matplotlib, always compute and register box statistics from the data
-    _register_violin_layers(
-        plot_ax,
-        instance,
-        args,
-        kwargs,
-        orientation=orientation,
-        enable_box_layer=True,
-        box_violin_layer="mpl_violin",
-        use_full_range_extrema=True,
-        violin_options={
-            "showMeans": bool(show_means),
-            "showMedians": bool(show_medians),
-            "showExtrema": bool(show_extrema),
-        },
-    )
-
-    return plot
-
-
+# ======================================================================
+# Seaborn
+# ======================================================================
 @wrapt.patch_function_wrapper("seaborn", "violinplot")
-def patch_violinplot(wrapped: Callable, instance: Any, args: tuple, kwargs: dict) -> Any:
-    """
-    Patch for seaborn.violinplot to extract and register KDE and box plot layers with MAIDR.
-
-    This wrapper function intercepts calls to seaborn.violinplot and automatically
-    extracts and registers the KDE (kernel density estimation) and box plot layers
-    with MAIDR for accessible navigation.
-
-    Parameters
-    ----------
-    wrapped : Callable
-        The original seaborn.violinplot function to be patched.
-    instance : Any
-        The bound instance if the function is a method, otherwise None.
-    args : tuple
-        Positional arguments passed to seaborn.violinplot.
-    kwargs : dict
-        Keyword arguments passed to seaborn.violinplot.
-
-    Returns
-    -------
-    matplotlib.axes.Axes
-        The Axes object containing the violin plot.
-
-    Examples
-    --------
-    >>> import seaborn as sns
-    >>> import maidr.patch.violinplot  # Patch is applied automatically
-    >>> ax = sns.violinplot(data=[1, 2, 3, 4])
-    >>> # The KDE and box plot layers are registered with MAIDR.
-
-    Notes
-    -----
-    Detects and registers:
-        - SMOOTH layer: All violin shapes (PolyCollection) as KDE layer
-        - BOX layer: Box plot statistics when inner='box' or inner='boxplot'
-    """
+def patch_violinplot(
+    wrapped: Callable, instance: Any, args: tuple, kwargs: dict
+) -> Any:
+    """Intercept ``seaborn.violinplot`` and register box + KDE layers."""
     if ContextManager.is_internal_context():
         return wrapped(*args, **kwargs)
 
-    # Original rendering - always execute
+    # Snapshot existing Line2D objects so we can detect new ones later.
+    pre_ax = kwargs.get("ax", None)
+    lines_before: set[int] = (
+        {id(line) for line in pre_ax.lines} if pre_ax is not None else set()
+    )
+
     with ContextManager.set_internal_context():
         ax = wrapped(*args, **kwargs)
 
     plot_ax = kwargs.get("ax", ax) or ax
 
-    # Determine orientation
     orient = kwargs.get("orient", "v")
-    vert = orient not in ("h", "horizontal", "y")
-    orientation = "vert" if vert else "horz"
+    orientation = "horz" if orient in ("h", "horizontal", "y") else "vert"
 
-    # For seaborn, only register box layer when inner='box' or inner='boxplot'
     inner = kwargs.get("inner", "box")
-    enable_box_layer = inner in ("box", "boxplot")
+    if inner in ("box", "boxplot"):
+        # Identify the Line2D objects seaborn added for the inner box.
+        new_lines = [line for line in plot_ax.lines if id(line) not in lines_before]
+        sns_box_lines = _classify_sns_box_lines(new_lines, orientation)
 
-    _register_violin_layers(
-        plot_ax,
-        instance,
-        args,
-        kwargs,
-        orientation=orientation,
-        enable_box_layer=enable_box_layer,
-        box_violin_layer="sns_violin",
-        use_full_range_extrema=False,
-        violin_options=None,
-    )
+        _register_box_layer(
+            plot_ax,
+            args,
+            kwargs,
+            orientation,
+            use_full_range=False,
+            violin_options=None,
+            sns_box_lines=sns_box_lines,
+        )
+
+    _register_kde_layer(plot_ax, args, kwargs, orientation)
 
     return ax
+
+
+# ======================================================================
+# Matplotlib
+# ======================================================================
+@wrapt.patch_function_wrapper(Axes, "violinplot")
+def mpl_violinplot(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> Any:
+    """Intercept ``Axes.violinplot`` and register box + KDE layers."""
+    if ContextManager.is_internal_context():
+        return wrapped(*args, **kwargs)
+
+    with ContextManager.set_internal_context():
+        plot = wrapped(*args, **kwargs)
+
+    plot_ax: Axes = instance
+    orientation = "vert" if kwargs.get("vert", True) else "horz"
+
+    violin_options = {
+        "showMean": bool(kwargs.get("showmeans", False)),
+        "showMedian": bool(kwargs.get("showmedians", False)),
+        "showExtrema": bool(kwargs.get("showextrema", True)),
+    }
+
+    # Collect LineCollection artists from the return dict.
+    mpl_artists: dict = {}
+    for key in ("cmins", "cmaxes", "cbars", "cmedians", "cmeans"):
+        if key in plot:
+            mpl_artists[key] = plot[key]
+
+    _register_box_layer(
+        plot_ax,
+        args,
+        kwargs,
+        orientation,
+        use_full_range=True,
+        violin_options=violin_options,
+        mpl_artists=mpl_artists,
+    )
+
+    _register_kde_layer(plot_ax, args, kwargs, orientation)
+
+    return plot
+
+
+# ======================================================================
+# Layer registration helpers
+# ======================================================================
+def _register_kde_layer(
+    plot_ax: Axes, args: tuple, kwargs: dict, orientation: str
+) -> None:
+    """Detect PolyCollections on *plot_ax* and register a VIOLIN_KDE layer."""
+    kde_polys = [c for c in plot_ax.collections if isinstance(c, PolyCollection)]
+    if not kde_polys:
+        return
+
+    kde_lines: list[Line2D] = []
+    poly_gids: list[str] = []
+
+    for poly in kde_polys:
+        paths = poly.get_paths()
+        if not paths:
+            continue
+        boundary = np.asarray(paths[0].vertices)
+        line = Line2D(boundary[:, 0], boundary[:, 1])
+        line.axes = plot_ax
+
+        gid = f"maidr-{uuid.uuid4()}"
+        line.set_gid(gid)
+        poly.set_gid(gid)
+
+        kde_lines.append(line)
+        poly_gids.append(gid)
+
+    if not kde_lines:
+        return
+
+    x_levels = LevelExtractorMixin.extract_level(plot_ax, MaidrKey.X)
+
+    FigureManager.create_maidr(
+        plot_ax,
+        PlotType.VIOLIN_KDE,
+        poly_collections=kde_polys,
+        kde_lines=kde_lines,
+        poly_gids=poly_gids,
+        x_levels=x_levels,
+        orientation=orientation,
+    )
+
+
+def _register_box_layer(
+    plot_ax: Axes,
+    args: tuple,
+    kwargs: dict,
+    orientation: str,
+    *,
+    use_full_range: bool,
+    violin_options: dict | None,
+    mpl_artists: dict | None = None,
+    sns_box_lines: list[dict] | None = None,
+) -> None:
+    """Extract raw data and register a VIOLIN_BOX layer."""
+    groups, values = ViolinDataExtractor.extract(args, kwargs)
+    if not groups or not values:
+        return
+
+    FigureManager.create_maidr(
+        plot_ax,
+        PlotType.VIOLIN_BOX,
+        groups=groups,
+        values=values,
+        orientation=orientation,
+        violin_options=violin_options,
+        use_full_range=use_full_range,
+        mpl_artists=mpl_artists,
+        sns_box_lines=sns_box_lines,
+    )
+
+
+# ======================================================================
+# Seaborn inner-box line classification
+# ======================================================================
+def _classify_sns_box_lines(new_lines: list[Line2D], orientation: str) -> list[dict]:
+    """
+    Group and classify seaborn's inner-box Line2D objects.
+
+    Seaborn creates 3 Line2D per violin when ``inner="box"``:
+      * whisker — thin line from min to max (longest data range)
+      * iq      — thick line from Q1 to Q3 (medium data range)
+      * median  — single-point marker (no range)
+
+    Returns a list of dicts, one per violin, each with keys
+    ``{"whisker": Line2D, "iq": Line2D, "median": Line2D}``.
+    """
+    if not new_lines:
+        return []
+
+    is_vert = orientation == "vert"
+
+    # Group lines by their position (x for vertical, y for horizontal).
+    groups: dict[float, list[Line2D]] = {}
+    for line in new_lines:
+        pos_data = line.get_xdata() if is_vert else line.get_ydata()
+        pos = round(float(np.mean(pos_data)), 6)
+        groups.setdefault(pos, []).append(line)
+
+    result: list[dict] = []
+    for pos in sorted(groups.keys()):
+        lines = groups[pos]
+        classified: dict[str, Line2D | None] = {
+            "whisker": None,
+            "iq": None,
+            "median": None,
+        }
+
+        if len(lines) >= 3:
+            # Sort by data range on the value axis (y for vert, x for horz).
+            def _data_range(line: Line2D) -> float:
+                vals = line.get_ydata() if is_vert else line.get_xdata()
+                if len(vals) < 2:
+                    return 0.0
+                return float(np.ptp(vals))
+
+            lines.sort(key=_data_range)
+            classified["median"] = lines[0]  # smallest range (single point)
+            classified["iq"] = lines[1]  # medium range
+            classified["whisker"] = lines[2]  # largest range
+        elif len(lines) == 2:
+
+            def _data_range(line: Line2D) -> float:
+                vals = line.get_ydata() if is_vert else line.get_xdata()
+                if len(vals) < 2:
+                    return 0.0
+                return float(np.ptp(vals))
+
+            lines.sort(key=_data_range)
+            classified["median"] = lines[0]
+            classified["whisker"] = lines[1]
+        elif len(lines) == 1:
+            classified["whisker"] = lines[0]
+
+        result.append(classified)
+
+    return result

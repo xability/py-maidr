@@ -4,7 +4,7 @@ import uuid
 
 import wrapt
 from matplotlib.backends.backend_svg import XMLWriter
-from matplotlib.collections import PathCollection, QuadMesh
+from matplotlib.collections import LineCollection, PathCollection, QuadMesh
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -30,4 +30,5 @@ def tag_elements(wrapped, instance, args, kwargs):
 wrapt.wrap_function_wrapper(Patch, "draw", tag_elements)
 wrapt.wrap_function_wrapper(QuadMesh, "draw", tag_elements)
 wrapt.wrap_function_wrapper(Line2D, "draw", tag_elements)
+wrapt.wrap_function_wrapper(LineCollection, "draw", tag_elements)
 wrapt.wrap_function_wrapper(PathCollection, "draw", tag_elements)
