@@ -107,7 +107,9 @@ class Maidr:
         else:
             dep_destdir = destdir
 
-        rendered = html.render(lib_prefix=lib_dir, include_version=include_version)
+        rendered = html.render(
+            lib_prefix=lib_dir, include_version=include_version
+        )
         for dep in rendered["dependencies"]:
             dep.copy_to(dep_destdir, include_version=include_version)
 
@@ -203,9 +205,7 @@ class Maidr:
         else:
             webbrowser.open(f"file://{html_file_path}")
 
-    def _create_html_tag(
-        self, use_iframe: bool = True, data_in_svg: bool = True
-    ) -> Tag:
+    def _create_html_tag(self, use_iframe: bool = True, data_in_svg: bool = True) -> Tag:
         """Create the MAIDR HTML using HTML tags.
 
         Parameters
@@ -239,9 +239,7 @@ class Maidr:
         # Inject plot's svg and MAIDR structure into html tag.
         return Maidr._inject_plot(svg, maidr, self.maidr_id, use_iframe)
 
-    def _create_html_doc(
-        self, use_iframe: bool = True, data_in_svg: bool = True
-    ) -> HTMLDocument:
+    def _create_html_doc(self, use_iframe: bool = True, data_in_svg: bool = True) -> HTMLDocument:
         """Create an HTML document from Tag objects.
 
         Parameters
@@ -318,10 +316,7 @@ class Maidr:
         for i, plot in enumerate(self._plots):
             schema = plot.schema
 
-            if MaidrKey.SELECTOR in schema and plot.type not in (
-                PlotType.BOX,
-                PlotType.VIOLIN_BOX,
-            ):
+            if MaidrKey.SELECTOR in schema and plot.type != PlotType.BOX:
                 if isinstance(schema[MaidrKey.SELECTOR], str):
                     schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
                         "maidr='true'", f"maidr='{self.selector_ids[i]}'"
@@ -424,9 +419,7 @@ class Maidr:
         return str(uuid.uuid4())
 
     @staticmethod
-    def _inject_plot(
-        plot: HTML, maidr: str | None, maidr_id, use_iframe: bool = True
-    ) -> Tag:
+    def _inject_plot(plot: HTML, maidr: str | None, maidr_id, use_iframe: bool = True) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
         # Get the latest version from npm registry
         MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"

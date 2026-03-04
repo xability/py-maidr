@@ -40,7 +40,7 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         Sets a unique identifier for the plot in the schema.
     """
 
-    def __init__(self, ax: Axes, plot_type: PlotType, **kwargs) -> None:
+    def __init__(self, ax: Axes, plot_type: PlotType) -> None:
         # graphic object
         self.ax = ax
         self._support_highlighting = True

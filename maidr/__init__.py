@@ -16,7 +16,6 @@ from .patch import (
     regplot,
     kdeplot,
     mplfinance,
-    violinplot,
 )
 
 __all__ = [

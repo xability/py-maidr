@@ -15,5 +15,3 @@ class PlotType(str, Enum):
     STACKED = "stacked_bar"
     SMOOTH = "smooth"
     CANDLESTICK = "candlestick"
-    VIOLIN_KDE = "violin_kde"
-    VIOLIN_BOX = "violin_box"
