@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v1.12.1 (2026-03-05)
+
+### Bug Fixes
+
+- Support horizontal orientation violin plot ([#274](https://github.com/xability/py-maidr/pull/274),
+  [`2140c8d`](https://github.com/xability/py-maidr/commit/2140c8d8df10ccec2a30ad1352ec3c0237e07751))
+
+### Continuous Integration
+
+- Add github_token to bypass OIDC in claude review workflow
+  ([`f22e318`](https://github.com/xability/py-maidr/commit/f22e3187521ae2dd84cfe2705d65c3db46804cee))
+
+- Update claude review to pull_request_target with write permissions
+  ([`a35b592`](https://github.com/xability/py-maidr/commit/a35b592593991147b6a6c95b054e272e4eee83e9))
+
+
 ## v1.12.0 (2026-03-04)
 
 ### Bug Fixes
