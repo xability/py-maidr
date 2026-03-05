@@ -55,9 +55,22 @@ class ViolinDataExtractor:
         x = kwargs.get("x", None)
         y = kwargs.get("y", None)
         hue = kwargs.get("hue", None)
+        orient = kwargs.get("orient", None)
 
-        # Case 1 — DataFrame with x & y
-        if isinstance(df, pd.DataFrame) and isinstance(x, str) and isinstance(y, str):
+        # For horizontal orientation the roles of x and y are swapped:
+        # x holds the numeric values and y holds the categorical groups.
+        is_horizontal = orient in ("h", "horizontal", "y")
+        if is_horizontal and isinstance(x, str) and isinstance(y, str):
+            cat_col, val_col = y, x
+        else:
+            cat_col, val_col = x, y
+
+        # Case 1 — DataFrame with categorical & value columns
+        if (
+            isinstance(df, pd.DataFrame)
+            and isinstance(cat_col, str)
+            and isinstance(val_col, str)
+        ):
             groups: list[str] = []
             values: list[np.ndarray] = []
 
@@ -67,33 +80,45 @@ class ViolinDataExtractor:
             if hue is None:
                 if x_order is not None:
                     for g in x_order:
-                        gdf = df[df[x] == g]
+                        gdf = df[df[cat_col] == g]
                         if not gdf.empty:
                             groups.append(str(g))
-                            values.append(gdf[y].dropna().values)
+                            values.append(gdf[val_col].dropna().values)
                 else:
-                    for g, gdf in df.groupby(x, observed=False):
+                    for g, gdf in df.groupby(cat_col, observed=False):
                         groups.append(str(g))
-                        values.append(gdf[y].dropna().values)
+                        values.append(gdf[val_col].dropna().values)
             else:
+                # When hue is the same column as the category, avoid
+                # duplicated labels like "Fair_Fair".
+                hue_is_cat = (hue == cat_col)
+
                 if x_order is not None or hue_order is not None:
-                    x_cats = x_order if x_order is not None else df[x].unique()
-                    h_cats = hue_order if hue_order is not None else df[hue].unique()
+                    x_cats = (
+                        x_order if x_order is not None else df[cat_col].unique()
+                    )
+                    h_cats = (
+                        hue_order if hue_order is not None else df[hue].unique()
+                    )
                     for gx in x_cats:
                         for gh in h_cats:
-                            gdf = df[(df[x] == gx) & (df[hue] == gh)]
+                            gdf = df[(df[cat_col] == gx) & (df[hue] == gh)]
                             if not gdf.empty:
-                                groups.append(f"{gx}_{gh}")
-                                values.append(gdf[y].dropna().values)
+                                label = str(gx) if hue_is_cat else f"{gx}_{gh}"
+                                groups.append(label)
+                                values.append(gdf[val_col].dropna().values)
                 else:
-                    for (gx, gh), gdf in df.groupby([x, hue], observed=False):
-                        groups.append(f"{gx}_{gh}")
-                        values.append(gdf[y].dropna().values)
+                    for (gx, gh), gdf in df.groupby(
+                        [cat_col, hue], observed=False
+                    ):
+                        label = str(gx) if hue_is_cat else f"{gx}_{gh}"
+                        groups.append(label)
+                        values.append(gdf[val_col].dropna().values)
             return groups, values
 
-        # Case 2 — DataFrame, only y → single violin
-        if isinstance(df, pd.DataFrame) and isinstance(y, str):
-            return ["Violin"], [df[y].dropna().values]
+        # Case 2 — DataFrame, only value column → single violin
+        if isinstance(df, pd.DataFrame) and isinstance(val_col, str):
+            return ["Violin"], [df[val_col].dropna().values]
 
         # Case 3 — list/array as positional arg
         if len(args) > 0:

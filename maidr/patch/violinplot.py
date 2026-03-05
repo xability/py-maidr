@@ -146,7 +146,8 @@ def _register_kde_layer(
     if not kde_lines:
         return
 
-    x_levels = LevelExtractorMixin.extract_level(plot_ax, MaidrKey.X)
+    level_key = MaidrKey.Y if orientation == "horz" else MaidrKey.X
+    x_levels = LevelExtractorMixin.extract_level(plot_ax, level_key)
 
     FigureManager.create_maidr(
         plot_ax,

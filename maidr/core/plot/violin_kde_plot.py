@@ -12,7 +12,11 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
+from maidr.util.rdp_utils import simplify_curve
 from maidr.util.svg_utils import data_to_svg_coords
+
+#: Default maximum number of output points per violin KDE curve.
+_DEFAULT_MAX_KDE_POINTS = 30
 
 
 class ViolinKdePlot(MaidrPlot):
@@ -77,18 +81,34 @@ class ViolinKdePlot(MaidrPlot):
         x_levels = self._resolve_x_levels()
         all_violins: list[list[dict]] = []
 
+        is_horz = self._orientation == "horz"
+
         for idx, kde_line in enumerate(self._kde_lines):
             self._elements.append(kde_line)
             xydata = np.asarray(kde_line.get_xydata())
-            x_data, y_data = xydata[:, 0], xydata[:, 1]
-            x_svg, y_svg = data_to_svg_coords(self.ax, x_data, y_data)
+
+            if is_horz:
+                # Horizontal violin: col 0 = value axis, col 1 = density axis.
+                # Swap so that internal variables match vertical convention:
+                #   x_data = density axis (around category position)
+                #   y_data = value axis
+                x_data, y_data = xydata[:, 1], xydata[:, 0]
+            else:
+                x_data, y_data = xydata[:, 0], xydata[:, 1]
+
+            x_svg, y_svg = data_to_svg_coords(self.ax, xydata[:, 0], xydata[:, 1])
 
             x_label = x_levels[idx] if x_levels and idx < len(x_levels) else None
 
             violin_points = self._interpolate_violin(
-                x_data, y_data, x_svg, y_svg, x_label
+                x_data, y_data, x_svg, y_svg, x_label, is_horz
             )
             all_violins.append(violin_points)
+
+        # Reverse for horizontal to match the box layer's ordering convention.
+        if is_horz:
+            all_violins.reverse()
+            self._poly_gids.reverse()
 
         return all_violins
 
@@ -106,14 +126,21 @@ class ViolinKdePlot(MaidrPlot):
     # ------------------------------------------------------------------
     def _resolve_x_levels(self) -> list[str] | None:
         """
-        Resolve categorical X labels with a 3-strategy fallback chain.
+        Resolve categorical labels with a 3-strategy fallback chain.
+
+        For vertical violins categories are on the X-axis; for horizontal
+        violins they are on the Y-axis.
 
         This must happen at *render* time (not patch time) because users
         often call ``ax.set_xticklabels()`` after ``ax.violinplot()``.
         """
+        is_horz = self._orientation == "horz"
+        tick_getter = self.ax.get_yticklabels if is_horz else self.ax.get_xticklabels
+        maidr_key = MaidrKey.Y if is_horz else MaidrKey.X
+
         # Strategy 1 — current tick labels on the axes.
         try:
-            raw = [lbl.get_text() for lbl in self.ax.get_xticklabels()]
+            raw = [lbl.get_text() for lbl in tick_getter()]
             labels = [label for label in raw if label.strip()]
             if labels:
                 return labels
@@ -121,7 +148,7 @@ class ViolinKdePlot(MaidrPlot):
             pass
 
         # Strategy 2 — LevelExtractorMixin.
-        levels = LevelExtractorMixin.extract_level(self.ax, MaidrKey.X)
+        levels = LevelExtractorMixin.extract_level(self.ax, maidr_key)
         if levels:
             filtered = [level for level in levels if str(level).strip()]
             if filtered:
@@ -137,6 +164,7 @@ class ViolinKdePlot(MaidrPlot):
         x_svg: np.ndarray,
         y_svg: np.ndarray,
         x_label: str | None,
+        is_horz: bool = False,
     ) -> list[dict]:
         """
         Interpolate left/right sides of a single violin to a common Y
@@ -157,7 +185,7 @@ class ViolinKdePlot(MaidrPlot):
             return self._fallback_points(x_data, y_data, x_svg, y_svg, x_label)
 
         try:
-            return self._interpolated_points(left, right, y_common, x_label)
+            return self._interpolated_points(left, right, y_common, x_label, is_horz)
         except (ValueError, np.linalg.LinAlgError):
             return self._grouped_fallback(x_data, y_data, x_svg, y_svg, x_label)
 
@@ -167,6 +195,7 @@ class ViolinKdePlot(MaidrPlot):
         right: list[tuple[float, float]],
         y_common: np.ndarray,
         x_label: str | None,
+        is_horz: bool = False,
     ) -> list[dict]:
         left_x, left_y = np.array([p[0] for p in left]), np.array([p[1] for p in left])
         right_x, right_y = (
@@ -194,7 +223,12 @@ class ViolinKdePlot(MaidrPlot):
             assume_sorted=True,
         )
 
-        points: list[dict] = []
+        # --- Evaluate on full grid, then simplify with RDP ---------------
+        y_vals: list[float] = []
+        xl_vals: list[float] = []
+        xr_vals: list[float] = []
+        widths: list[float] = []
+
         for y_val in y_common:
             xl = float(f_left(y_val))
             xr = float(f_right(y_val))
@@ -203,9 +237,54 @@ class ViolinKdePlot(MaidrPlot):
             width = abs(xr - xl)
             if np.isnan(width) or width <= 0:
                 continue
+            y_vals.append(float(y_val))
+            xl_vals.append(xl)
+            xr_vals.append(xr)
+            widths.append(width)
 
-            sx_l, sy_l = data_to_svg_coords(self.ax, np.array([xl]), np.array([y_val]))
-            sx_r, sy_r = data_to_svg_coords(self.ax, np.array([xr]), np.array([y_val]))
+        if not y_vals:
+            return []
+
+        # Each Y-level produces 2 output points (left + right), so the
+        # target number of Y-levels is half the desired point count.
+        target_levels = max(_DEFAULT_MAX_KDE_POINTS // 2, 3)
+
+        y_arr = np.array(y_vals)
+        w_arr = np.array(widths)
+
+        if len(y_arr) > target_levels:
+            # Build a (y, width) curve and apply RDP to find the Y-levels
+            # that best preserve the violin shape.
+            shape_curve = np.column_stack([y_arr, w_arr])
+            mask = simplify_curve(shape_curve, target=target_levels)
+            indices = np.where(mask)[0]
+        else:
+            indices = np.arange(len(y_arr))
+
+        # --- Build output points for retained Y-levels -------------------
+        points: list[dict] = []
+        for i in indices:
+            y_val = y_vals[i]
+            xl = xl_vals[i]
+            xr = xr_vals[i]
+            width = widths[i]
+
+            if is_horz:
+                # Horizontal: xl/xr are density-axis (y in mpl), y_val is
+                # value-axis (x in mpl).
+                sx_l, sy_l = data_to_svg_coords(
+                    self.ax, np.array([y_val]), np.array([xl])
+                )
+                sx_r, sy_r = data_to_svg_coords(
+                    self.ax, np.array([y_val]), np.array([xr])
+                )
+            else:
+                sx_l, sy_l = data_to_svg_coords(
+                    self.ax, np.array([xl]), np.array([y_val])
+                )
+                sx_r, sy_r = data_to_svg_coords(
+                    self.ax, np.array([xr]), np.array([y_val])
+                )
 
             base: dict = {
                 MaidrKey.X: x_label if x_label else xl,
