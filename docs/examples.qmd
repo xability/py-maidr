@@ -382,10 +382,10 @@ maidr.show(horz_box_plot) #<<
 
 ### Violin Plot
 
-#### Seaborn Violin Plot
+#### Seaborn Violin Plot (Horizontal)
 
 ```{python}
-#| fig-alt: Violin plot of diamond price distribution by cut quality
+#| fig-alt: Horizontal violin plot of diamond price distribution by cut quality
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -395,22 +395,25 @@ import maidr #<<
 # Load the diamonds dataset
 diamonds = sns.load_dataset("diamonds")
 
-# Create violin plot comparing price across cut quality
+# Create horizontal violin plot comparing price across cut quality
 v = sns.violinplot(  #<<
-    x="cut",            # 5 categories
-    y="price",          # numeric values
+    x="price",          # numeric values on x-axis
+    y="cut",            # 5 categories on y-axis
     data=diamonds,
+    orient="h",         # horizontal orientation
     inner="box",        # show box plot inside violin
+    hue="cut",          # color by cut quality
     palette="Set2",     # distinct colors
+    legend=False,
 )
 
 # Customize the plot
 plt.title("Diamond Price Distribution by Cut Quality")
-plt.xlabel("Cut Quality")
-plt.ylabel("Price (USD)")
+plt.xlabel("Price (USD)")
+plt.ylabel("Cut Quality")
 
 # Add number formatter for better screen reader output
-plt.gca().yaxis.set_major_formatter("{x:,.0f}")
+plt.gca().xaxis.set_major_formatter("{x:,.0f}")
 
 # Show the plot
 maidr.show(v) #<<

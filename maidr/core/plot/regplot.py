@@ -6,8 +6,12 @@ from maidr.exception.extraction_error import ExtractionError
 import numpy as np
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.util.rdp_utils import simplify_curve
 from maidr.util.regression_line_utils import find_regression_line
 from maidr.util.svg_utils import data_to_svg_coords
+
+#: Default maximum number of output points per smooth curve.
+_DEFAULT_MAX_SMOOTH_POINTS = 30
 
 
 class SmoothPlot(MaidrPlot):
@@ -65,6 +69,16 @@ class SmoothPlot(MaidrPlot):
         self._smooth_gid = regression_line.get_gid()
         xydata = np.asarray(regression_line.get_xydata())
         x_data, y_data = xydata[:, 0], xydata[:, 1]
+
+        # Simplify the curve with RDP before computing SVG coordinates.
+        if len(x_data) > _DEFAULT_MAX_SMOOTH_POINTS:
+            mask = simplify_curve(
+                np.column_stack([x_data, y_data]),
+                target=_DEFAULT_MAX_SMOOTH_POINTS,
+            )
+            x_data = x_data[mask]
+            y_data = y_data[mask]
+
         x_svg, y_svg = data_to_svg_coords(self.ax, x_data, y_data)
         return [
             [

@@ -429,7 +429,7 @@ class Maidr:
     ) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure."""
         # Get the latest version from npm registry
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
+        MAIDR_TS_CDN_URL = "http://localhost:8888/tree/maidr.js"
 
         script = f"""
             (function() {{
