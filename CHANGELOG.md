@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.12.2 (2026-03-06)
+
+### Bug Fixes
+
+- Restore jsDelivr CDN URL for maidr.js
+  ([`3c5a3c0`](https://github.com/xability/py-maidr/commit/3c5a3c0dd5e5c6f54cb8bcafbee367b3d6bcceaa))
+
+
 ## v1.12.1 (2026-03-05)
 
 ### Bug Fixes
