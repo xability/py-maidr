@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.9"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -1917,6 +1917,7 @@ visualization = [
 [package.dev-dependencies]
 dev = [
     { name = "griffe" },
+    { name = "plotly" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-mock" },
@@ -1953,6 +1954,7 @@ provides-extras = ["visualization", "jupyter", "plotly", "test"]
 [package.metadata.requires-dev]
 dev = [
     { name = "griffe", specifier = ">=0.48,<1.0" },
+    { name = "plotly", specifier = ">=6.5.2" },
     { name = "pre-commit", specifier = ">=3.3.2,<4" },
     { name = "pytest", specifier = ">=7.3.2,<8" },
     { name = "pytest-mock", specifier = ">=3.12.0,<4" },

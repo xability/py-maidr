@@ -62,12 +62,13 @@ class PlotlyPlot(ABC):
 
     def render(self) -> dict:
         """Generate the MAIDR schema for this plot layer."""
+        data = self._extract_plot_data()
         schema = {
             MaidrKey.ID: str(uuid.uuid4()),
             MaidrKey.TYPE: self.type,
             MaidrKey.TITLE: self._get_title(),
             MaidrKey.AXES: self._extract_axes_data(),
-            MaidrKey.DATA: self._extract_plot_data(),
+            MaidrKey.DATA: data,
         }
         selector = self._get_selector()
         if selector:

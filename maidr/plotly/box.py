@@ -9,27 +9,78 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
 
 
+def _build_box_selector(
+    prefix: str,
+    nth_child: int,
+    box_sel: str,
+    lower_count: int,
+    upper_count: int,
+) -> dict:
+    """Build a ``BoxSelector``-compatible dict with split outlier selectors.
+
+    Plotly renders outlier ``path.point`` elements in value-sorted order
+    (ascending).  Lower outliers come first, upper outliers last.  We use
+    CSS ``:nth-child(An+B of S)`` to address each group separately, the
+    same technique matplotlib uses.
+    """
+    base = f"{prefix}.boxlayer > g:nth-child({nth_child}) .points"
+
+    if lower_count > 0:
+        lower_sel = [
+            f"{base} > :nth-child(-n+{lower_count} of path.point)"
+        ]
+    else:
+        lower_sel = []
+
+    if upper_count > 0:
+        upper_sel = [
+            f"{base} > :nth-child(n+{lower_count + 1} of path.point)"
+        ]
+    else:
+        upper_sel = []
+
+    return {
+        "lowerOutliers": lower_sel,
+        "min": box_sel,
+        "max": box_sel,
+        "q2": box_sel,
+        "iq": box_sel,
+        "q1": box_sel,
+        "q3": box_sel,
+        "upperOutliers": upper_sel,
+    }
+
+
 class PlotlyBoxPlot(PlotlyPlot):
     """Extract data from a Plotly box trace."""
 
     def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
         super().__init__(trace, layout, PlotType.BOX, **kwargs)
+        # Populated by _extract_plot_data before _get_selector runs.
+        self._outlier_counts: list[tuple[int, int]] = []
 
     def _get_selector(self) -> list[dict]:
-        """Return structured selector for one box."""
+        """Return structured per-box selectors with split outliers.
+
+        Plotly renders outlier points in sorted ascending order, so lower
+        outliers appear first in the DOM.  CSS ``:nth-child`` selectors
+        split them the same way matplotlib does.
+        """
         prefix = self._subplot_css_prefix()
-        box_sel = f"{prefix}.boxlayer > g:nth-child(1) > path.box"
-        outlier_sel = f"{prefix}.boxlayer > g:nth-child(1) .points > path.point"
-        return [
-            {
-                "lowerOutliers": [outlier_sel],
-                "min": box_sel,
-                "max": box_sel,
-                "q2": box_sel,
-                "iq": box_sel,
-                "upperOutliers": [outlier_sel],
-            }
-        ]
+        selectors: list[dict] = []
+        num_boxes = max(len(self._outlier_counts), 1)
+        for i in range(num_boxes):
+            n = i + 1
+            box_sel = f"{prefix}.boxlayer > g:nth-child({n}) > path.box"
+            lower_count, upper_count = (
+                self._outlier_counts[i]
+                if i < len(self._outlier_counts)
+                else (0, 0)
+            )
+            selectors.append(
+                _build_box_selector(prefix, n, box_sel, lower_count, upper_count)
+            )
+        return selectors
 
     def _is_horizontal(self) -> bool:
         """Detect if this box trace is horizontal."""
@@ -48,8 +99,18 @@ class PlotlyBoxPlot(PlotlyPlot):
     def _extract_plot_data(self) -> list[dict]:
         # Plotly box traces can have pre-computed stats or raw data
         if self._has_precomputed_stats():
-            return self._extract_precomputed()
-        return self._extract_from_raw_data()
+            data = self._extract_precomputed()
+        else:
+            data = self._extract_from_raw_data()
+        # Record outlier counts so _get_selector can split them.
+        self._outlier_counts = [
+            (
+                len(d.get(MaidrKey.LOWER_OUTLIER.value, [])),
+                len(d.get(MaidrKey.UPPER_OUTLIER.value, [])),
+            )
+            for d in data
+        ]
+        return data
 
     def _has_precomputed_stats(self) -> bool:
         """Check if the trace has pre-computed quartile values."""

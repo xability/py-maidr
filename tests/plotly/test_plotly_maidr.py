@@ -106,10 +106,6 @@ class TestPlotlyMaidr:
         assert isinstance(pm._plots[0], PlotlyGroupedBarPlot)
         assert pm._plots[0].type == PlotType.STACKED
 
-    def test_candlestick_fig(self, plotly_candlestick_fig):
-        pm = PlotlyMaidr(plotly_candlestick_fig)
-        assert len(pm._plots) == 1
-
     def test_multiline_merged_into_single_plot(self, plotly_multiline_fig):
         """Multiple line traces are merged into one PlotlyMultiLinePlot."""
         from maidr.plotly.multiline import PlotlyMultiLinePlot

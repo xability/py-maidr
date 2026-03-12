@@ -73,9 +73,4 @@ class PlotlyPlotFactory:
 
             return PlotlyHistogramPlot(trace, layout, **axis_kwargs)
 
-        if trace_type == "candlestick":
-            from maidr.plotly.candlestick import PlotlyCandlestickPlot
-
-            return PlotlyCandlestickPlot(trace, layout, **axis_kwargs)
-
         return None

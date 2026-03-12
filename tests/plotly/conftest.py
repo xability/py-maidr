@@ -135,28 +135,6 @@ def plotly_stacked_fig():
 
 
 @pytest.fixture
-def plotly_candlestick_fig():
-    """Create a simple candlestick chart."""
-    fig = go.Figure(
-        data=[
-            go.Candlestick(
-                x=["2024-01-02", "2024-01-03", "2024-01-04"],
-                open=[150.0, 152.5, 148.0],
-                high=[155.0, 156.0, 155.5],
-                low=[148.0, 149.0, 146.5],
-                close=[152.5, 148.0, 155.0],
-            )
-        ],
-        layout=go.Layout(
-            title="Test Candlestick",
-            xaxis=dict(title="Date"),
-            yaxis=dict(title="Price"),
-        ),
-    )
-    return fig
-
-
-@pytest.fixture
 def plotly_multiline_fig():
     """Create a multi-line chart."""
     fig = go.Figure(

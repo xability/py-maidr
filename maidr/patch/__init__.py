@@ -1,8 +1,7 @@
 # Import all patches to ensure they are applied
-from . import (
+from . import (  # noqa: F401
     barplot,
     boxplot,
-    candlestick,
     clear,
     heatmap,
     highlight,
@@ -11,5 +10,6 @@ from . import (
     scatterplot,
     regplot,
     kdeplot,
+    candlestick,
     mplfinance,
 )

@@ -14,7 +14,7 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         super().__init__(trace, layout, PlotType.HEAT, **kwargs)
 
     def _get_selector(self) -> str:
-        return f"{self._subplot_css_prefix()}.heatmaplayer"
+        return f"{self._subplot_css_prefix()}.heatmaplayer image"
 
     @staticmethod
     def _to_native(val: Any) -> Any:

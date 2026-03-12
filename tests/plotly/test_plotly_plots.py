@@ -11,7 +11,6 @@ from maidr.plotly.box import PlotlyBoxPlot
 from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
 from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
-from maidr.plotly.candlestick import PlotlyCandlestickPlot
 from maidr.plotly.multiline import PlotlyMultiLinePlot
 
 
@@ -242,55 +241,6 @@ class TestPlotlyGroupedBarPlot:
         assert plot.schema[MaidrKey.TYPE] == PlotType.DODGED
 
 
-class TestPlotlyCandlestickPlot:
-    def test_extract_data(self):
-        trace = {
-            "type": "candlestick",
-            "x": ["2024-01-02", "2024-01-03"],
-            "open": [150.0, 152.5],
-            "high": [155.0, 156.0],
-            "low": [148.0, 149.0],
-            "close": [152.5, 148.0],
-        }
-        plot = PlotlyCandlestickPlot(trace, {})
-        data = plot._extract_plot_data()
-
-        assert len(data) == 2
-        assert data[0]["value"] == "2024-01-02"
-        assert data[0]["open"] == 150.0
-        assert data[0]["high"] == 155.0
-        assert data[0]["low"] == 148.0
-        assert data[0]["close"] == 152.5
-
-    def test_schema_title_default(self):
-        trace = {
-            "type": "candlestick",
-            "x": ["2024-01-02"],
-            "open": [100],
-            "high": [110],
-            "low": [90],
-            "close": [105],
-        }
-        plot = PlotlyCandlestickPlot(trace, {})
-        schema = plot.schema
-
-        assert schema[MaidrKey.TITLE] == "Candlestick Chart"
-        assert schema[MaidrKey.TYPE] == PlotType.CANDLESTICK
-
-    def test_axes_defaults(self):
-        trace = {
-            "type": "candlestick",
-            "x": ["2024-01-02"],
-            "open": [100],
-            "high": [110],
-            "low": [90],
-            "close": [105],
-        }
-        plot = PlotlyCandlestickPlot(trace, {})
-        schema = plot.schema
-
-        assert schema[MaidrKey.AXES][MaidrKey.X] == "Date"
-        assert schema[MaidrKey.AXES][MaidrKey.Y] == "Price"
 
 
 class TestPlotlyMultiLinePlot:

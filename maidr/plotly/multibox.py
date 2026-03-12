@@ -6,6 +6,7 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
+from maidr.plotly.box import _build_box_selector
 from maidr.plotly.plotly_plot import PlotlyPlot
 
 
@@ -26,33 +27,28 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
     def __init__(self, traces: list[dict], layout: dict, **kwargs: str) -> None:
         super().__init__(traces[0], layout, PlotType.BOX, **kwargs)
         self._traces = traces
+        # Populated by _extract_plot_data before _get_selector runs.
+        self._outlier_counts: list[tuple[int, int]] = []
 
     def _get_selector(self) -> list[dict]:
-        """Return structured per-box selectors matching MAIDR JS format.
+        """Return structured per-box selectors with split outliers.
 
         Each box gets a dict with keys for each part (min, max, q2, iq,
-        lowerOutliers, upperOutliers).  Plotly draws the entire box as a
-        single ``path.box``, so all stat keys point to the same element.
-        Outliers are in ``g.points > path.point``.
+        lowerOutliers, upperOutliers).  Plotly renders outlier points in
+        sorted ascending order so CSS nth-child can split them.
         """
+        prefix = self._subplot_css_prefix()
         selectors = []
         for i in range(len(self._traces)):
-            # nth-child targets the Nth trace inside .boxlayer
             n = i + 1
-            prefix = self._subplot_css_prefix()
             box_sel = f"{prefix}.boxlayer > g:nth-child({n}) > path.box"
-            outlier_sel = (
-                f"{prefix}.boxlayer > g:nth-child({n}) .points > path.point"
+            lower_count, upper_count = (
+                self._outlier_counts[i]
+                if i < len(self._outlier_counts)
+                else (0, 0)
             )
             selectors.append(
-                {
-                    "lowerOutliers": [outlier_sel],
-                    "min": box_sel,
-                    "max": box_sel,
-                    "q2": box_sel,
-                    "iq": box_sel,
-                    "upperOutliers": [outlier_sel],
-                }
+                _build_box_selector(prefix, n, box_sel, lower_count, upper_count)
             )
         return selectors
 
@@ -97,6 +93,14 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 arr = np.array(data, dtype=float)
                 all_boxes.append(self._compute_stats(arr, label=name))
 
+        # Record outlier counts so _get_selector can split them.
+        self._outlier_counts = [
+            (
+                len(d.get(MaidrKey.LOWER_OUTLIER.value, [])),
+                len(d.get(MaidrKey.UPPER_OUTLIER.value, [])),
+            )
+            for d in all_boxes
+        ]
         return all_boxes
 
     def _extract_precomputed(self, trace: dict) -> list[dict]:
