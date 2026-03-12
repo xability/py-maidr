@@ -1,6 +1,107 @@
 # CHANGELOG
 
 
+## v1.12.2 (2026-03-06)
+
+### Bug Fixes
+
+- Restore jsDelivr CDN URL for maidr.js
+  ([`3c5a3c0`](https://github.com/xability/py-maidr/commit/3c5a3c0dd5e5c6f54cb8bcafbee367b3d6bcceaa))
+
+
+## v1.12.1 (2026-03-05)
+
+### Bug Fixes
+
+- Support horizontal orientation violin plot ([#274](https://github.com/xability/py-maidr/pull/274),
+  [`2140c8d`](https://github.com/xability/py-maidr/commit/2140c8d8df10ccec2a30ad1352ec3c0237e07751))
+
+### Continuous Integration
+
+- Add github_token to bypass OIDC in claude review workflow
+  ([`f22e318`](https://github.com/xability/py-maidr/commit/f22e3187521ae2dd84cfe2705d65c3db46804cee))
+
+- Update claude review to pull_request_target with write permissions
+  ([`a35b592`](https://github.com/xability/py-maidr/commit/a35b592593991147b6a6c95b054e272e4eee83e9))
+
+
+## v1.12.0 (2026-03-04)
+
+### Bug Fixes
+
+- Install uv in semantic-release build command
+  ([`dea1114`](https://github.com/xability/py-maidr/commit/dea1114663de2b04f7e5dbd86f6c6d8816814245))
+
+### Chores
+
+- Fix logo image URLs ([#269](https://github.com/xability/py-maidr/pull/269),
+  [`c1467c3`](https://github.com/xability/py-maidr/commit/c1467c33313d53b44b934d5290c8d8a2a85031a1))
+
+- Retrigger release
+  ([`2189279`](https://github.com/xability/py-maidr/commit/2189279597df037acbc0b81b6638e8ca55f5d5d6))
+
+- Update uv.lock to match pyproject.toml v1.11.1
+  ([`a91fb86`](https://github.com/xability/py-maidr/commit/a91fb86a9e4d2ce3c553d955fdb522744ccf4543))
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Continuous Integration
+
+- Add claude code reviews ([#272](https://github.com/xability/py-maidr/pull/272),
+  [`a5e9f66`](https://github.com/xability/py-maidr/commit/a5e9f66ee3a1ef0b18fd4fb8a45a42905f7a6d9a))
+
+- Add devcontainer and copilot-setup-steps configuration
+  ([#271](https://github.com/xability/py-maidr/pull/271),
+  [`3cd75d3`](https://github.com/xability/py-maidr/commit/3cd75d3d1e43ef9054cfd717e0e9ccd1a5d200ba))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+- Install claude github app ([#273](https://github.com/xability/py-maidr/pull/273),
+  [`5b38610`](https://github.com/xability/py-maidr/commit/5b38610c3c646b05f53c5e1ed0b61a3b4ec29755))
+
+- Sync uv.lock during semantic-release version bump
+  ([#270](https://github.com/xability/py-maidr/pull/270),
+  [`716b658`](https://github.com/xability/py-maidr/commit/716b658a1b880c00948877414038cb2c0b203ce5))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Features
+
+- Implement violin plot support with dual-layer registration
+  ([#259](https://github.com/xability/py-maidr/pull/259),
+  [`3abaf17`](https://github.com/xability/py-maidr/commit/3abaf175ba2a458e11cf10628a71a06d8c98f41e))
+
+Authored-by: nk46-cloud <nk46@illinois.edu>
+
+
+## v1.11.1 (2026-02-23)
+
+### Bug Fixes
+
+- Use UTF-8 encoding when saving HTML on Windows
+  ([#266](https://github.com/xability/py-maidr/pull/266),
+  [`a97e4c1`](https://github.com/xability/py-maidr/commit/a97e4c1ede879ad4e11b430a03c5b9042ad4e9f2))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Chores
+
+- Add agent documentation for code reviewer, linter, patch expert, pr reviewer, test runner, and
+  test writer
+  ([`c7887a4`](https://github.com/xability/py-maidr/commit/c7887a4f8f31b81d77ce7b39e832814ad01ba829))
+
+- Add MCP configuration files for GitHub and Playwright
+  ([`b1537b3`](https://github.com/xability/py-maidr/commit/b1537b32b73ff25c8b22236609459f8974a92625))
+
+### Continuous Integration
+
+- Update uv.lock to match pyproject.toml v1.11.0
+  ([#265](https://github.com/xability/py-maidr/pull/265),
+  [`cb44939`](https://github.com/xability/py-maidr/commit/cb44939a50fc438467bda864dc6ede148b8b493b))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+
 ## v1.11.0 (2026-02-04)
 
 ### Features

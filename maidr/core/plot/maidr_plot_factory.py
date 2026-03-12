@@ -11,6 +11,8 @@ from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
+from maidr.core.plot.violin_kde_plot import ViolinKdePlot
+from maidr.core.plot.violin_box_plot import ViolinBoxPlot
 from maidr.core.plot.mplfinance_barplot import MplfinanceBarPlot
 from maidr.core.plot.mplfinance_lineplot import MplfinanceLinePlot
 from maidr.core.plot.candlestick import CandlestickPlot
@@ -65,5 +67,9 @@ class MaidrPlotFactory:
             return GroupedBarPlot(single_ax, plot_type, **kwargs)
         elif PlotType.SMOOTH == plot_type:
             return SmoothPlot(single_ax, **kwargs)
+        elif PlotType.VIOLIN_KDE == plot_type:
+            return ViolinKdePlot(single_ax, **kwargs)
+        elif PlotType.VIOLIN_BOX == plot_type:
+            return ViolinBoxPlot(single_ax, **kwargs)
         else:
             raise TypeError(f"Unsupported plot type: {plot_type}.")

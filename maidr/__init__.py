@@ -1,4 +1,4 @@
-__version__ = "1.11.0"
+__version__ = "1.12.2"
 
 from .api import close, render, save_html, show, stacked
 from .core import Maidr  # noqa: F401
@@ -16,6 +16,7 @@ from .patch import (  # noqa: F401
     kdeplot,
     candlestick,
     mplfinance,
+    violinplot,
 )
 
 __all__ = [

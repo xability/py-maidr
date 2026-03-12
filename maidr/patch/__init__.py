@@ -12,4 +12,5 @@ from . import (  # noqa: F401
     kdeplot,
     candlestick,
     mplfinance,
+    violinplot,
 )
