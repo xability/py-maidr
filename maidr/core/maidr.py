@@ -23,6 +23,7 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
 from maidr.util.environment import Environment
 from maidr.util.dedup_utils import deduplicate_smooth_and_line
+from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
 
 
 class Maidr:
@@ -462,101 +463,13 @@ class Maidr:
 
         base_html = tags.div(*children)
 
-        # is_quarto = os.getenv("IS_QUARTO") == "True"
-
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
-        # For TypeScript we will use iframe by default for now
         if use_iframe and (
             Environment.is_flask()
             or Environment.is_notebook()
             or Environment.is_shiny()
         ):
-            unique_id = "iframe_" + Maidr._unique_id()
-
-            def generate_iframe_script(unique_id: str) -> str:
-                resizing_script = f"""
-                    function resizeIframe() {{
-                        let iframe = document.getElementById('{unique_id}');
-                        if (
-                            iframe && iframe.contentWindow &&
-                            iframe.contentWindow.document
-                        ) {{
-                            let iframeDocument = iframe.contentWindow.document;
-                            // Detect braille textarea by dynamic id prefix
-                            let brailleContainer = iframeDocument.querySelector('[id^="maidr-braille-textarea"]');
-                            // Detect review input container by class name
-                            let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
-                            iframe.style.height = 'auto';
-                            let height = iframeDocument.body.scrollHeight;
-                            // Consider braille active if it or any descendant has focus
-                            let isBrailleActive = brailleContainer && (
-                                brailleContainer === iframeDocument.activeElement ||
-                                (typeof brailleContainer.contains === 'function' && brailleContainer.contains(iframeDocument.activeElement))
-                            );
-                            // Consider review input active if it or any descendant has focus
-                            let isReviewInputActive = reviewInputContainer && (
-                                reviewInputContainer === iframeDocument.activeElement ||
-                                (typeof reviewInputContainer.contains === 'function' && reviewInputContainer.contains(iframeDocument.activeElement))
-                            );
-                            // (logs removed)
-                            if (isBrailleActive) {{
-                                height += 100;
-                            }} else if (isReviewInputActive) {{
-                                height += 50;
-                            }} else {{
-                                height += 50;
-                            }}
-                            iframe.style.height = (height) + 'px';
-                            iframe.style.width = iframeDocument.body.scrollWidth + 'px';
-                        }}
-                    }}
-                    let iframe = document.getElementById('{unique_id}');
-                    resizeIframe();
-                    iframe.onload = function() {{
-                        resizeIframe();
-                        iframe.contentWindow.addEventListener('resize', resizeIframe);
-                    }};
-                    // Delegate focus events for braille textarea (by id prefix)
-                    iframe.contentWindow.document.addEventListener('focusin', (e) => {{
-                        try {{
-                            const t = e && e.target ? e.target : null;
-                            if (t && typeof t.id === 'string' && t.id.startsWith('maidr-braille-textarea')) resizeIframe();
-                        }} catch (_) {{ resizeIframe(); }}
-                    }}, true);
-                    iframe.contentWindow.document.addEventListener('focusout', (e) => {{
-                        try {{
-                            const t = e && e.target ? e.target : null;
-                            if (t && typeof t.id === 'string' && t.id.startsWith('maidr-braille-textarea')) resizeIframe();
-                        }} catch (_) {{ resizeIframe(); }}
-                    }}, true);
-                    // Delegate focus events for review input container (by class name)
-                    iframe.contentWindow.document.addEventListener('focusin', (e) => {{
-                        try {{
-                            const t = e && e.target ? e.target : null;
-                            if (t && t.classList && t.classList.contains('maidr-review-input')) resizeIframe();
-                        }} catch (_) {{ resizeIframe(); }}
-                    }}, true);
-                    iframe.contentWindow.document.addEventListener('focusout', (e) => {{
-                        try {{
-                            const t = e && e.target ? e.target : null;
-                            if (t && t.classList && t.classList.contains('maidr-review-input')) resizeIframe();
-                        }} catch (_) {{ resizeIframe(); }}
-                    }}, true);
-                """
-                return resizing_script
-
-            resizing_script = generate_iframe_script(unique_id)
-
-            base_html = tags.iframe(
-                id=unique_id,
-                srcdoc=str(base_html.get_html_string()),
-                width="100%",
-                height="100%",
-                scrolling="no",
-                style="background-color: #fff; position: relative; border: none",
-                frameBorder=0,
-                onload=resizing_script,
-            )
+            base_html = wrap_in_iframe_matplotlib(base_html)
 
         return base_html
