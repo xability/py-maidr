@@ -95,10 +95,21 @@ ul.task-list li input[type="checkbox"] {
     <a class="nav-link" href="../index.html"> 
 <span class="menu-text">Welcome</span></a>
   </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="../examples.html"> 
-<span class="menu-text">Examples</span></a>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="../examples.html">
+ <span class="dropdown-text">Matplotlib / Seaborn</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-plotly.html">
+ <span class="dropdown-text">Plotly</span></a>
+  </li>  
+    </ul>
+  </li>
   <li class="nav-item">
     <a class="nav-link" href="../api/"> 
 <span class="menu-text">API Reference</span></a>

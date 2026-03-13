@@ -162,10 +162,21 @@ window.Quarto = {
     <a class="nav-link active" href="./index.html" aria-current="page"> 
 <span class="menu-text">Welcome</span></a>
   </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./examples.html"> 
-<span class="menu-text">Examples</span></a>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="./examples.html">
+ <span class="dropdown-text">Matplotlib / Seaborn</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-plotly.html">
+ <span class="dropdown-text">Plotly</span></a>
+  </li>  
+    </ul>
+  </li>
   <li class="nav-item">
     <a class="nav-link" href="./api/"> 
 <span class="menu-text">API Reference</span></a>
@@ -340,7 +351,7 @@ window.Quarto = {
 <p>Check more examples in the <a href="./examples.html#sec-examples">galleries</a>.</p>
 <section id="sample-bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="sample-bar-plot">Sample Bar Plot</h3>
-<div id="098eb514" class="cell" data-execution_count="1">
+<div id="d6a9c3ad" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,5,14,15,24,25,28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -370,7 +381,7 @@ window.Quarto = {
 <span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Uncomment the following line to save and share the accessible version of your plot with others!</span></span>
 <span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="co"># maidr.save_html(bar_plot, "output.html") </span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_043cdde3-1fde-4e2d-8248-91d82a539020" srcdoc="<div>
+<iframe id="iframe_b43db9c0-f932-47a0-993b-ae408074b7ac" srcdoc="<div>
   <link rel=&quot;stylesheet&quot; href=&quot;https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css&quot;/>
   <script type=&quot;text/javascript&quot;>
             (function() {
@@ -389,12 +400,12 @@ window.Quarto = {
                 }
             })();
         </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;c90f056b-f72e-403f-9675-48048c5f5ec4&quot; maidr=&quot;{&amp;#10;  &amp;quot;id&amp;quot;: &amp;quot;c90f056b-f72e-403f-9675-48048c5f5ec4&amp;quot;,&amp;#10;  &amp;quot;subplots&amp;quot;: [&amp;#10;    [&amp;#10;      {&amp;#10;        &amp;quot;id&amp;quot;: &amp;quot;84121223-90e6-4468-a0c6-50123b334627&amp;quot;,&amp;#10;        &amp;quot;layers&amp;quot;: [&amp;#10;          {&amp;#10;            &amp;quot;id&amp;quot;: &amp;quot;01243a19-168f-440f-a3fe-04281da99b09&amp;quot;,&amp;#10;            &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;,&amp;#10;            &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;,&amp;#10;            &amp;quot;axes&amp;quot;: {&amp;#10;              &amp;quot;x&amp;quot;: &amp;quot;Species&amp;quot;,&amp;#10;              &amp;quot;y&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;&amp;#10;            },&amp;#10;            &amp;quot;data&amp;quot;: [&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3700.662251655629&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3733.0882352941176&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 5076.016260162602&amp;#10;              }&amp;#10;            ],&amp;#10;            &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='c9e02d21-f69b-4137-b997-13f496c3949e'] &amp;gt; path&amp;quot;&amp;#10;          }&amp;#10;        ]&amp;#10;      }&amp;#10;    ]&amp;#10;  ]&amp;#10;}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;9ce217d9-a98b-40c2-9ee2-0a7e5992d346&quot; maidr=&quot;{&amp;#10;  &amp;quot;id&amp;quot;: &amp;quot;9ce217d9-a98b-40c2-9ee2-0a7e5992d346&amp;quot;,&amp;#10;  &amp;quot;subplots&amp;quot;: [&amp;#10;    [&amp;#10;      {&amp;#10;        &amp;quot;id&amp;quot;: &amp;quot;f959e7df-0da6-4cac-ab0e-b1b63ddc3ef3&amp;quot;,&amp;#10;        &amp;quot;layers&amp;quot;: [&amp;#10;          {&amp;#10;            &amp;quot;id&amp;quot;: &amp;quot;df1d69d8-bdca-4469-9553-3ce4692dfe78&amp;quot;,&amp;#10;            &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;,&amp;#10;            &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;,&amp;#10;            &amp;quot;axes&amp;quot;: {&amp;#10;              &amp;quot;x&amp;quot;: &amp;quot;Species&amp;quot;,&amp;#10;              &amp;quot;y&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;&amp;#10;            },&amp;#10;            &amp;quot;data&amp;quot;: [&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3700.662251655629&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 3733.0882352941176&amp;#10;              },&amp;#10;              {&amp;#10;                &amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;,&amp;#10;                &amp;quot;y&amp;quot;: 5076.016260162602&amp;#10;              }&amp;#10;            ],&amp;#10;            &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='75dac028-c390-434b-89a4-b2423a57afb5'] &amp;gt; path&amp;quot;&amp;#10;          }&amp;#10;        ]&amp;#10;      }&amp;#10;    ]&amp;#10;  ]&amp;#10;}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-03-06T17:40:04.562382</dc:date>
+    <dc:date>2026-03-13T04:02:41.455651</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -408,30 +419,30 @@ window.Quarto = {
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-bd4d66ba-2340-4a1f-8832-7a729b582e55&quot;>
+  <g id=&quot;maidr-78b66d25-3c2c-4d24-a950-994c4ab4997c&quot;>
    <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-1f395c30-e176-447c-9a30-893ebf6295c7&quot;>
+   <g id=&quot;maidr-efa27920-34a8-4ac0-a6f8-e1b9afd56c24&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  L 388.8 51.84  L 54 51.84  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
-   <g id=&quot;maidr-1ff8fae0-ef1a-4ae9-8498-f05c4a13b7d0&quot; maidr=&quot;c9e02d21-f69b-4137-b997-13f496c3949e&quot;>
-    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#p2b8f037740)&quot; style=&quot;fill: #7da9c7&quot;/>
+   <g id=&quot;maidr-59b43789-e611-4fd4-b889-d4c77eb07915&quot; maidr=&quot;75dac028-c390-434b-89a4-b2423a57afb5&quot;>
+    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#p85522af67f)&quot; style=&quot;fill: #7da9c7&quot;/>
    </g>
-   <g id=&quot;maidr-8708e57b-f2d6-4bc6-9db9-a1d1f936d612&quot; maidr=&quot;c9e02d21-f69b-4137-b997-13f496c3949e&quot;>
-    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#p2b8f037740)&quot; style=&quot;fill: #4884af&quot;/>
+   <g id=&quot;maidr-a77d4bb1-1708-4828-bb56-9f3145c0419f&quot; maidr=&quot;75dac028-c390-434b-89a4-b2423a57afb5&quot;>
+    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#p85522af67f)&quot; style=&quot;fill: #4884af&quot;/>
    </g>
-   <g id=&quot;maidr-bb0dbce5-7d9e-4553-b3b8-89e627b6bbe5&quot; maidr=&quot;c9e02d21-f69b-4137-b997-13f496c3949e&quot;>
-    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#p2b8f037740)&quot; style=&quot;fill: #3d5b70&quot;/>
+   <g id=&quot;maidr-b4ba3330-dce8-44bc-9fc1-5e4a90187758&quot; maidr=&quot;75dac028-c390-434b-89a4-b2423a57afb5&quot;>
+    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#p85522af67f)&quot; style=&quot;fill: #3d5b70&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-cdceed16-9905-4d67-a647-d697ba41fdea&quot;>
+     <g id=&quot;maidr-6aa86f9d-4c8e-4616-bebc-a4c18cf36603&quot;>
       <defs>
-       <path id=&quot;ma45cfbcb3c&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m8c701f34c7&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#ma45cfbcb3c&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m8c701f34c7&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -454,9 +465,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-248ede4b-10aa-47a9-a762-e34618338e0b&quot;>
+     <g id=&quot;maidr-d4719508-a8d5-48dc-ab1a-4d4c54e176c5&quot;>
       <g>
-       <use xlink:href=&quot;#ma45cfbcb3c&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m8c701f34c7&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -485,9 +496,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-6e9ef4c6-6651-47b6-b0b2-eccd54e1912b&quot;>
+     <g id=&quot;maidr-7fadce53-91f5-4bc5-b0b4-b2bdd203ca44&quot;>
       <g>
-       <use xlink:href=&quot;#ma45cfbcb3c&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m8c701f34c7&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -525,12 +536,12 @@ window.Quarto = {
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-da7e41d9-823a-44f8-8344-9695bfb8cae4&quot;>
+     <g id=&quot;maidr-058a7f70-f40c-4ce5-89d7-71cc7fa9df56&quot;>
       <defs>
-       <path id=&quot;m22714632a1&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m82ae3b2b77&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m22714632a1&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m82ae3b2b77&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -544,9 +555,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-d892b291-ce5f-4306-81b2-e3661353d909&quot;>
+     <g id=&quot;maidr-52458c39-c539-4883-97fb-3dddadf969e0&quot;>
       <g>
-       <use xlink:href=&quot;#m22714632a1&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m82ae3b2b77&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -563,9 +574,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-078d353c-b8bb-4512-b539-320b619e18d1&quot;>
+     <g id=&quot;maidr-a93b54fb-aa01-4b98-98d6-2518e9ec2624&quot;>
       <g>
-       <use xlink:href=&quot;#m22714632a1&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m82ae3b2b77&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -582,9 +593,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-1baf777d-68bf-41b7-ab2d-89db8fb90618&quot;>
+     <g id=&quot;maidr-b80c04b8-575a-4a55-ae51-a6a1c10b18c5&quot;>
       <g>
-       <use xlink:href=&quot;#m22714632a1&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m82ae3b2b77&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -601,9 +612,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-7f3e8b8f-6c88-4c1e-8c4d-947da960d0b6&quot;>
+     <g id=&quot;maidr-5e03a9ce-5720-46f6-9a53-80f9586b9ea2&quot;>
       <g>
-       <use xlink:href=&quot;#m22714632a1&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m82ae3b2b77&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -620,9 +631,9 @@ window.Quarto = {
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-139424ef-efa6-4e06-9b14-27b21ebda27e&quot;>
+     <g id=&quot;maidr-bd0ade88-f800-4d5e-a2f3-d538e1477013&quot;>
       <g>
-       <use xlink:href=&quot;#m22714632a1&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m82ae3b2b77&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -666,25 +677,25 @@ window.Quarto = {
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-c46db4d2-486a-4816-a7e1-56368d421d2c&quot;>
-    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#p2b8f037740)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-75816c48-c5dc-4cc4-9821-6784498ce047&quot;>
+    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#p85522af67f)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-e15c3832-ede3-4b8c-be7b-19f3a5a1de7f&quot;>
-    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#p2b8f037740)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-a9eda6aa-b8ca-4c2b-acb5-f2b11c5c9b55&quot;>
+    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#p85522af67f)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-31196b5d-4d8c-45ac-b6fa-02de93f54fc9&quot;>
-    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#p2b8f037740)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-51562f97-3f2c-439f-b9d0-495aa5949dac&quot;>
+    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#p85522af67f)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-b2c682e9-db38-464b-a056-9510b19d8dcf&quot;>
+   <g id=&quot;maidr-dccf1d44-d9d0-4765-b3c3-8e9759b015e9&quot;>
     <path d=&quot;M 54 384.48  L 54 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-7cc9d0a5-fc79-4668-b81f-88cc18b2cc8e&quot;>
+   <g id=&quot;maidr-01948574-45cb-467a-8be8-1fce0fb97a6c&quot;>
     <path d=&quot;M 388.8 384.48  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-6712d587-6dd2-4a2d-a65d-326ae1ebb205&quot;>
+   <g id=&quot;maidr-2e2cc146-f31c-46b9-9d63-76ae71aba4a2&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-bf41d600-e9d1-477a-8ff4-ff185b219195&quot;>
+   <g id=&quot;maidr-3d404327-bdb1-44f3-9dcd-48c3030ba7fe&quot;>
     <path d=&quot;M 54 51.84  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_12&quot;>
@@ -742,81 +753,80 @@ window.Quarto = {
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;p2b8f037740&quot;>
+  <clipPath id=&quot;p85522af67f&quot;>
    <rect x=&quot;54&quot; y=&quot;51.84&quot; width=&quot;334.8&quot; height=&quot;332.64&quot;/>
   </clipPath>
  </defs>
 </svg>
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
-                    function resizeIframe() {
-                        let iframe = document.getElementById('iframe_043cdde3-1fde-4e2d-8248-91d82a539020');
-                        if (
-                            iframe &amp;&amp; iframe.contentWindow &amp;&amp;
-                            iframe.contentWindow.document
-                        ) {
-                            let iframeDocument = iframe.contentWindow.document;
-                            // Detect braille textarea by dynamic id prefix
-                            let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
-                            // Detect review input container by class name
-                            let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
-                            iframe.style.height = 'auto';
-                            let height = iframeDocument.body.scrollHeight;
-                            // Consider braille active if it or any descendant has focus
-                            let isBrailleActive = brailleContainer &amp;&amp; (
-                                brailleContainer === iframeDocument.activeElement ||
-                                (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
-                            );
-                            // Consider review input active if it or any descendant has focus
-                            let isReviewInputActive = reviewInputContainer &amp;&amp; (
-                                reviewInputContainer === iframeDocument.activeElement ||
-                                (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
-                            );
-                            // (logs removed)
-                            if (isBrailleActive) {
-                                height += 100;
-                            } else if (isReviewInputActive) {
-                                height += 50;
-                            } else {
-                                height += 50;
-                            }
-                            iframe.style.height = (height) + 'px';
-                            iframe.style.width = iframeDocument.body.scrollWidth + 'px';
-                        }
-                    }
-                    let iframe = document.getElementById('iframe_043cdde3-1fde-4e2d-8248-91d82a539020');
-                    resizeIframe();
-                    iframe.onload = function() {
-                        resizeIframe();
-                        iframe.contentWindow.addEventListener('resize', resizeIframe);
-                    };
-                    // Delegate focus events for braille textarea (by id prefix)
-                    iframe.contentWindow.document.addEventListener('focusin', (e) => {
-                        try {
-                            const t = e &amp;&amp; e.target ? e.target : null;
-                            if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
-                        } catch (_) { resizeIframe(); }
-                    }, true);
-                    iframe.contentWindow.document.addEventListener('focusout', (e) => {
-                        try {
-                            const t = e &amp;&amp; e.target ? e.target : null;
-                            if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
-                        } catch (_) { resizeIframe(); }
-                    }, true);
-                    // Delegate focus events for review input container (by class name)
-                    iframe.contentWindow.document.addEventListener('focusin', (e) => {
-                        try {
-                            const t = e &amp;&amp; e.target ? e.target : null;
-                            if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
-                        } catch (_) { resizeIframe(); }
-                    }, true);
-                    iframe.contentWindow.document.addEventListener('focusout', (e) => {
-                        try {
-                            const t = e &amp;&amp; e.target ? e.target : null;
-                            if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
-                        } catch (_) { resizeIframe(); }
-                    }, true);
-                "></iframe>
+        function resizeIframe() {
+            let iframe = document.getElementById('iframe_b43db9c0-f932-47a0-993b-ae408074b7ac');
+            if (
+                iframe &amp;&amp; iframe.contentWindow &amp;&amp;
+                iframe.contentWindow.document
+            ) {
+                let iframeDocument = iframe.contentWindow.document;
+                // Detect braille textarea by dynamic id prefix
+                let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                // Detect review input container by class name
+                let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
+                iframe.style.height = 'auto';
+                let height = iframeDocument.body.scrollHeight;
+                // Consider braille active if it or any descendant has focus
+                let isBrailleActive = brailleContainer &amp;&amp; (
+                    brailleContainer === iframeDocument.activeElement ||
+                    (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                );
+                // Consider review input active if it or any descendant has focus
+                let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                    reviewInputContainer === iframeDocument.activeElement ||
+                    (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                );
+                if (isBrailleActive) {
+                    height += 100;
+                } else if (isReviewInputActive) {
+                    height += 50;
+                } else {
+                    height += 50;
+                }
+                iframe.style.height = (height) + 'px';
+                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+            }
+        }
+        let iframe = document.getElementById('iframe_b43db9c0-f932-47a0-993b-ae408074b7ac');
+        resizeIframe();
+        iframe.onload = function() {
+            resizeIframe();
+            iframe.contentWindow.addEventListener('resize', resizeIframe);
+        };
+        // Delegate focus events for braille textarea (by id prefix)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Delegate focus events for review input container (by class name)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+    "></iframe>
 </div>
 </div>
 </section>
