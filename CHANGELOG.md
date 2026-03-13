@@ -1,6 +1,18 @@
 # CHANGELOG
 
 
+## v1.13.0 (2026-03-13)
+
+### Features
+
+- Support plotly ([#264](https://github.com/xability/py-maidr/pull/264),
+  [`227361d`](https://github.com/xability/py-maidr/commit/227361d0d884d6742dc3bd2c8843df3cd126c840))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+Co-authored-by: nk46-cloud <nk46@illinois.edu>
+
+
 ## v1.12.2 (2026-03-06)
 
 ### Bug Fixes
