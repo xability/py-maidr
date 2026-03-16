@@ -9,6 +9,7 @@ metadata-files:
 
 website:
   title: "Py maidr"
+  google-analytics: "G-TL8SVL5VRE"
 
   site-url: https://py.maidr.ai/
   repo-url: https://github.com/xability/py-maidr
@@ -48,7 +49,16 @@ format:
     toc: true
     link-external-icon: true
     link-external-newwindow: true
-    link-external-filter: ’^(?:http:|https:)’
+    link-external-filter: ‘^(?:http:|https:)’
+    include-in-header:
+      - text: |
+          <script type="text/javascript">
+            (function(c,l,a,r,i,t,y){
+              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window, document, "clarity", "script", "vwqybbep0i");
+          </script>
 
 
 # quartodoc:
