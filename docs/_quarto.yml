@@ -10,6 +10,10 @@ metadata-files:
 website:
   title: "Py maidr"
   google-analytics: "G-TL8SVL5VRE"
+  cookie-consent:
+    type: express
+    style: simple
+    palette: light
 
   site-url: https://py.maidr.ai/
   repo-url: https://github.com/xability/py-maidr
@@ -52,7 +56,7 @@ format:
     link-external-filter: ‘^(?:http:|https:)’
     include-in-header:
       - text: |
-          <script type="text/javascript">
+          <script type="text/plain" cookie-consent="tracking">
             (function(c,l,a,r,i,t,y){
               c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
               t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
