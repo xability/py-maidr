@@ -9,7 +9,9 @@ metadata-files:
 
 website:
   title: "Py maidr"
+  # GA4 for traffic analytics
   google-analytics: "G-TL8SVL5VRE"
+  # Cookie consent banner (GDPR compliance) — gates GA4 and Clarity
   cookie-consent:
     type: express
     style: simple
@@ -53,7 +55,8 @@ format:
     toc: true
     link-external-icon: true
     link-external-newwindow: true
-    link-external-filter: ‘^(?:http:|https:)’
+    link-external-filter: '^(?:http:|https:)'
+    # Clarity for session recordings and heatmaps
     include-in-header:
       - text: |
           <script type="text/plain" cookie-consent="tracking">
