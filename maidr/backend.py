@@ -12,11 +12,17 @@ Users can also set it manually via ``matplotlib.use("module://maidr.backend")``.
 
 from __future__ import annotations
 
+import logging
+from typing import Any
+
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-# Required matplotlib backend exports.  Note: this ``FigureManager`` is
-# matplotlib's internal figure-window manager, distinct from
+_logger = logging.getLogger(__name__)
+
+# Required matplotlib backend exports.
+# FigureCanvas: Agg canvas for non-interactive (file-based) rendering.
+# FigureManager: matplotlib's internal figure-window manager — distinct from
 # ``maidr.core.figure_manager.FigureManager`` which tracks maidr-accessible
 # plots.
 FigureCanvas = FigureCanvasAgg
@@ -25,7 +31,7 @@ FigureManager = FigureCanvasAgg.manager_class
 __all__ = ["FigureCanvas", "FigureManager", "show"]
 
 
-def show(*args, **kwargs) -> None:
+def show(*args: Any, **kwargs: Any) -> None:
     """Display all open figures using maidr's accessible renderer.
 
     This function is called by ``plt.show()``.  For every figure tracked by
@@ -52,7 +58,7 @@ def show(*args, **kwargs) -> None:
             maidr_obj = MaidrFigureManager.get_maidr(fig)
         except KeyError:
             # Figure not tracked by maidr (e.g. no supported plot type) — skip.
-            pass
+            _logger.debug("Figure %s not tracked by maidr, skipping.", id(fig))
         else:
             # clear_fig=False because the backend handles figure cleanup.
             maidr_obj.show(clear_fig=False)

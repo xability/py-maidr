@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 __version__ = "1.13.0"
 
 # --- Matplotlib backend activation -----------------------------------------
@@ -64,6 +66,17 @@ def _activate_backend() -> None:
     # Skip only when the user explicitly chose a non-inline backend.
     # ipykernel sets MPLBACKEND to matplotlib_inline by default — override that.
     if mplbackend and mplbackend not in _INLINE_BACKENDS:
+        return
+
+    # Also respect a backend set programmatically via matplotlib.use() (no env
+    # var).  "agg" is the default non-interactive backend and is safe to
+    # override; anything else is a deliberate user choice.
+    current_backend = matplotlib.get_backend().lower()
+    if (
+        current_backend
+        and current_backend not in ("agg", "module://maidr.backend")
+        and current_backend not in (b.lower() for b in _INLINE_BACKENDS)
+    ):
         return
 
     if "matplotlib.pyplot" in sys.modules:

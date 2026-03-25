@@ -74,6 +74,9 @@ test = [
     "plotly>=5.0",
 ]
 
+# Allows ``matplotlib.use("maidr")`` (without the ``module://`` prefix).
+# Requires matplotlib >= 3.9 (entry point discovery added in PR #27948).
+# For matplotlib 3.8.x, use ``matplotlib.use("module://maidr.backend")``.
 [project.entry-points."matplotlib.backend"]
 maidr = "maidr.backend"
 

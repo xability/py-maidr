@@ -48,9 +48,14 @@ class TestBackendRegistration:
         _activate_backend()
         assert matplotlib.get_backend() == "module://maidr.backend"
 
-    def test_backend_respects_user_chosen_backend(self, monkeypatch):
-        """Backend does NOT activate when user explicitly set a backend."""
-        # Switch to Agg first so we can verify _activate_backend is a no-op.
+    def test_backend_skips_when_mplbackend_is_non_inline(self, monkeypatch):
+        """_activate_backend() is a no-op when MPLBACKEND is a non-inline value.
+
+        This verifies that user-chosen backends (e.g. TkAgg, Qt5Agg) are
+        respected.  We set the active backend to Agg first so we can assert
+        that _activate_backend() did not change it.  TkAgg itself is not
+        activated (it would fail without a display server).
+        """
         plt.switch_backend("agg")
         monkeypatch.setenv("MPLBACKEND", "TkAgg")
         from maidr import _activate_backend
