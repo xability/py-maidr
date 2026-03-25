@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__version__ = "1.13.0"
+__version__ = "1.14.0"
 
 # --- Matplotlib backend activation -----------------------------------------
 # Auto-activate the maidr backend so ``plt.show()`` renders accessible HTML.
