@@ -8,7 +8,16 @@ metadata-files:
 
 
 website:
-  title: "Py maidr"
+  title: "py-maidr"
+  description: "A Python library that makes matplotlib, seaborn, and plotly visualizations accessible through sonification, braille, text, and AI-powered multimodal data representation."
+  open-graph:
+    image: "https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg"
+    locale: en_US
+    site-name: "py-maidr Documentation"
+  twitter-card:
+    card-style: summary
+    image: "https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg"
+    image-alt: "MAIDR logo - Data Insight for All"
   # GA4 for traffic analytics
   google-analytics: "G-TL8SVL5VRE"
   # Cookie consent banner (GDPR compliance) — gates GA4 and Clarity
@@ -30,7 +39,7 @@ website:
     # logo: quarto.png
     logo-alt: "Maidr logo."
     logo-href: https://py.maidr.ai/
-    title: Py maidr
+    title: py-maidr
     collapse-below: lg
     left:
       - file: index.qmd
@@ -65,6 +74,94 @@ format:
               t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
               y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
             })(window, document, "clarity", "script", "vwqybbep0i");
+          </script>
+      # JSON-LD structured data — update softwareVersion on each release
+      - text: |
+          <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "SoftwareSourceCode",
+            "name": "py-maidr",
+            "alternateName": "maidr",
+            "description": "A Python library that makes matplotlib, seaborn, and plotly visualizations accessible to blind and low-vision users through sonification, braille, text, and AI modalities.",
+            "url": "https://py.maidr.ai/",
+            "codeRepository": "https://github.com/xability/py-maidr",
+            "downloadUrl": "https://pypi.org/project/maidr/",
+            "installUrl": "https://pypi.org/project/maidr/",
+            "license": "https://opensource.org/license/gpl-3-0",
+            "programmingLanguage": {
+              "@type": "ComputerLanguage",
+              "name": "Python"
+            },
+            "runtimePlatform": "Python 3.9+",
+            "softwareVersion": "1.13.0",
+            "operatingSystem": "Cross-platform",
+            "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly"],
+            "sameAs": [
+              "https://github.com/xability/py-maidr",
+              "https://pypi.org/project/maidr/"
+            ],
+            "author": {
+              "@type": "Organization",
+              "name": "(x)Ability Design Lab",
+              "url": "https://xabilitylab.ischool.illinois.edu/",
+              "sameAs": [
+                "https://github.com/xability",
+                "https://xabilitylab.ischool.illinois.edu/"
+              ],
+              "parentOrganization": {
+                "@type": "CollegeOrUniversity",
+                "name": "University of Illinois Urbana-Champaign",
+                "url": "https://illinois.edu/",
+                "department": {
+                  "@type": "Organization",
+                  "name": "School of Information Sciences",
+                  "url": "https://ischool.illinois.edu/"
+                }
+              }
+            },
+            "contributor": [
+              {
+                "@type": "Person",
+                "name": "JooYoung Seo",
+                "url": "https://jooyoungseo.github.io",
+                "jobTitle": "Assistant Professor",
+                "affiliation": {
+                  "@type": "Organization",
+                  "name": "School of Information Sciences, University of Illinois Urbana-Champaign"
+                },
+                "sameAs": [
+                  "https://scholar.google.com/citations?user=c0x8E5YAAAAJ&hl=en",
+                  "https://www.linkedin.com/in/jooyoungseo",
+                  "https://github.com/jooyoungseo",
+                  "https://ischool.illinois.edu/people/jooyoung-seo"
+                ]
+              },
+              {
+                "@type": "Person",
+                "name": "Saairam Venkatesh",
+                "url": "https://github.com/SaaiVenkat",
+                "sameAs": [
+                  "https://github.com/SaaiVenkat"
+                ]
+              }
+            ]
+          }
+          </script>
+          <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "py-maidr Documentation",
+            "url": "https://py.maidr.ai/",
+            "description": "Documentation for py-maidr, a Python library for accessible data visualization with sonification, braille, text, and AI modalities.",
+            "inLanguage": "en",
+            "publisher": {
+              "@type": "Organization",
+              "name": "(x)Ability Design Lab",
+              "url": "https://xabilitylab.ischool.illinois.edu/"
+            }
+          }
           </script>
 
 
