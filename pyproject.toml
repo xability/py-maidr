@@ -74,6 +74,9 @@ test = [
     "plotly>=5.0",
 ]
 
+[project.entry-points."matplotlib.backend"]
+maidr = "maidr.backend"
+
 [project.urls]
 Homepage = "https://xability.github.io/py-maidr"
 Repository = "https://github.com/xability/py-maidr"
@@ -90,6 +93,9 @@ dev = [
     "griffe>=0.48,<1.0",
     "plotly>=6.5.2",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 88
