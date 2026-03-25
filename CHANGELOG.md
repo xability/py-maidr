@@ -1,6 +1,34 @@
 # CHANGELOG
 
 
+## v1.14.0 (2026-03-25)
+
+### Documentation
+
+- Add Google Analytics and MS Clarity tracking
+  ([#275](https://github.com/xability/py-maidr/pull/275),
+  [`50621bc`](https://github.com/xability/py-maidr/commit/50621bc9dd410e09e89680d26488edc475836df2))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+- Add SEO and GEO improvements ([#277](https://github.com/xability/py-maidr/pull/277),
+  [`6830a11`](https://github.com/xability/py-maidr/commit/6830a1172e4181f31566846fc5fee8397be6e9b4))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+- Address analytics PR review feedback ([#276](https://github.com/xability/py-maidr/pull/276),
+  [`5fb4561`](https://github.com/xability/py-maidr/commit/5fb45617f2ecde8ea47c63e91e46cc26ef89de59))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+### Features
+
+- Add maidr as a matplotlib backend ([#263](https://github.com/xability/py-maidr/pull/263),
+  [`816c6ed`](https://github.com/xability/py-maidr/commit/816c6ed259af228454d4c30a29fe0079773eba1f))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+
 ## v1.13.0 (2026-03-13)
 
 ### Features
