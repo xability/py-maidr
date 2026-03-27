@@ -44,10 +44,11 @@ _INLINE_BACKENDS: tuple[str, ...] = (
 
 
 # The platform's original backend (e.g. "macosx", "TkAgg") saved before
-# maidr overrides it, so that ``maidr.disable()`` can restore it.
+# maidr overrides it, so that ``maidr.set_backend(use_maidr=False)`` can
+# restore it.
 # NOTE: No lock is needed — this is only written at import time (single-
 # threaded by the GIL and Python's import lock).  Concurrent threads that
-# later call enable()/disable() only *read* this value.
+# later call set_backend() only *read* this value.
 _original_backend: str | None = None
 
 
@@ -93,6 +94,7 @@ def _activate_backend() -> None:
 
         try:
             plt.switch_backend("module://maidr.backend")
+            _logger.info("maidr: Setting matplotlib backend to maidr.")
         except ImportError:
             _logger.debug(
                 "Failed to switch matplotlib backend to maidr; "
@@ -103,6 +105,7 @@ def _activate_backend() -> None:
         # pyplot not yet loaded — matplotlib.use() is the safe pre-import API.
         try:
             matplotlib.use("module://maidr.backend")
+            _logger.info("maidr: Setting matplotlib backend to maidr.")
         except ImportError:
             _logger.debug(
                 "Failed to set matplotlib backend to maidr; "
@@ -111,50 +114,45 @@ def _activate_backend() -> None:
             )
 
 
-def enable() -> None:
-    """Re-activate the maidr backend for ``plt.show()``.
+def set_backend(use_maidr: bool = True) -> None:
+    """Switch the matplotlib backend between maidr and the platform default.
 
-    After calling ``maidr.disable()``, call this to switch back to
-    maidr's accessible renderer.
+    When ``use_maidr=True``, the maidr backend is activated so that
+    ``plt.show()`` renders accessible HTML output.  When
+    ``use_maidr=False``, the original platform backend is restored
+    (e.g. ``macosx``, ``TkAgg``, or ``inline`` in Jupyter).
+
+    In Jupyter notebooks, restoring the inline backend requires special
+    handling to re-register the ``post_execute`` hooks that auto-display
+    figures.  This is handled automatically.
+
+    Parameters
+    ----------
+    use_maidr : bool, optional
+        If ``True`` (default), activate the maidr accessible backend.
+        If ``False``, restore the original matplotlib backend that was
+        active before maidr was imported.
 
     Examples
     --------
     >>> import maidr
-    >>> maidr.disable()   # use platform default backend
-    >>> maidr.enable()    # back to maidr
+    >>> maidr.set_backend(use_maidr=False)   # use platform default backend
+    >>> maidr.set_backend(use_maidr=True)    # back to maidr
+
+    Notes
+    -----
+    ``maidr.show()`` always renders accessible output regardless of the
+    active backend.  ``set_backend`` only controls the behavior of
+    ``plt.show()``.
     """
     try:
         import matplotlib.pyplot as plt
     except ImportError:
-        _logger.debug("matplotlib is not installed; cannot enable maidr backend.")
+        _logger.debug("matplotlib is not installed; cannot set backend.")
         return
 
-    plt.switch_backend("module://maidr.backend")
-
-
-def disable() -> None:
-    """Deactivate the maidr backend and restore the platform default.
-
-    After calling this, ``plt.show()`` will use the original backend
-    (e.g. ``macosx``, ``TkAgg``, ``inline``).  Call ``maidr.enable()``
-    to switch back.  ``maidr.show()`` still works regardless of the
-    active backend.
-
-    In Jupyter notebooks, a plain ``plt.switch_backend()`` is not enough
-    because ``matplotlib_inline`` registers ``post_execute`` hooks that
-    auto-display figures.  Those hooks are lost when switching backends.
-    We use IPython's ``%matplotlib inline`` magic to fully restore them.
-
-    Examples
-    --------
-    >>> import maidr
-    >>> maidr.disable()   # plt.show() now uses the platform default
-    >>> maidr.enable()    # back to maidr
-    """
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError:
-        _logger.debug("matplotlib is not installed; cannot disable maidr backend.")
+    if use_maidr:
+        plt.switch_backend("module://maidr.backend")
         return
 
     backend = _original_backend or "agg"
@@ -205,10 +203,9 @@ _activate_backend()
 
 __all__ = [
     "close",
-    "disable",
-    "enable",
     "render",
     "save_html",
+    "set_backend",
     "show",
     "stacked",
 ]

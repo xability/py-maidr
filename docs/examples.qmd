@@ -21,24 +21,24 @@ When you `import maidr`, a custom matplotlib backend is automatically activated.
 
 #### Switching Back to the Default Renderer
 
-If you want to temporarily use the default matplotlib renderer (e.g. for unsupported plot types or debugging), you can disable the maidr backend:
+If you want to temporarily use the default matplotlib renderer (e.g. for unsupported plot types or debugging), you can switch the backend:
 
 **In Jupyter notebooks:**
 
 ```python
-maidr.disable()   # plt.show() now renders static inline images
-maidr.enable()    # plt.show() renders accessible maidr output again
+maidr.set_backend(use_maidr=False)   # plt.show() now renders static inline images
+maidr.set_backend(use_maidr=True)    # plt.show() renders accessible maidr output again
 ```
 
 **In Python scripts (non-notebook):**
 
 ```python
-maidr.disable()   # plt.show() now opens the native image viewer (e.g. macOS, TkAgg)
-maidr.enable()    # plt.show() renders accessible maidr output again
+maidr.set_backend(use_maidr=False)   # plt.show() now opens the native image viewer (e.g. macOS, TkAgg)
+maidr.set_backend(use_maidr=True)    # plt.show() renders accessible maidr output again
 ```
 
 ::: {.callout-note}
-`maidr.show()` always renders accessible output regardless of the active backend. You only need `maidr.disable()`/`maidr.enable()` to control the behavior of `plt.show()`.
+`maidr.show()` always renders accessible output regardless of the active backend. You only need `maidr.set_backend()` to control the behavior of `plt.show()`.
 :::
 
 #### Unsupported Plot Types

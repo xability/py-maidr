@@ -217,8 +217,8 @@ class TestBackendShow:
         assert fig2 not in FigureManager.figs
 
 
-class TestEnableDisable:
-    """Tests for maidr.enable() and maidr.disable()."""
+class TestSetBackend:
+    """Tests for maidr.set_backend()."""
 
     @pytest.fixture(autouse=True)
     def _restore_backend(self):
@@ -226,31 +226,31 @@ class TestEnableDisable:
         yield
         plt.switch_backend("module://maidr.backend")
 
-    def test_disable_switches_away_from_maidr(self):
-        """maidr.disable() should switch to the original backend."""
+    def test_set_backend_false_switches_away(self):
+        """set_backend(use_maidr=False) should switch to the original backend."""
         import maidr
 
         assert matplotlib.get_backend() == "module://maidr.backend"
-        maidr.disable()
+        maidr.set_backend(use_maidr=False)
         assert matplotlib.get_backend() != "module://maidr.backend"
 
-    def test_enable_restores_maidr_backend(self):
-        """maidr.enable() should switch back to the maidr backend."""
+    def test_set_backend_true_restores_maidr(self):
+        """set_backend(use_maidr=True) should switch back to maidr."""
         import maidr
 
-        maidr.disable()
+        maidr.set_backend(use_maidr=False)
         assert matplotlib.get_backend() != "module://maidr.backend"
 
-        maidr.enable()
+        maidr.set_backend(use_maidr=True)
         assert matplotlib.get_backend() == "module://maidr.backend"
 
-    def test_disable_enable_roundtrip(self):
-        """disable() then enable() should return to maidr backend."""
+    def test_set_backend_roundtrip(self):
+        """False then True should return to maidr backend."""
         import maidr
 
         assert matplotlib.get_backend() == "module://maidr.backend"
-        maidr.disable()
-        maidr.enable()
+        maidr.set_backend(use_maidr=False)
+        maidr.set_backend(use_maidr=True)
         assert matplotlib.get_backend() == "module://maidr.backend"
 
     def test_original_backend_is_saved(self):
@@ -265,23 +265,23 @@ class TestEnableDisable:
 
         assert maidr._original_backend != "module://maidr.backend"
 
-    def test_disable_twice_does_not_raise(self):
-        """Calling disable() twice should not raise."""
+    def test_set_backend_false_twice_does_not_raise(self):
+        """Calling set_backend(use_maidr=False) twice should not raise."""
         import maidr
 
-        maidr.disable()
-        maidr.disable()  # Should not raise
+        maidr.set_backend(use_maidr=False)
+        maidr.set_backend(use_maidr=False)  # Should not raise
 
-    def test_enable_without_prior_disable(self):
-        """Calling enable() without disable() should be a no-op."""
+    def test_set_backend_true_without_prior_false(self):
+        """Calling set_backend(use_maidr=True) when already active is a no-op."""
         import maidr
 
         assert matplotlib.get_backend() == "module://maidr.backend"
-        maidr.enable()  # Redundant but should not raise
+        maidr.set_backend(use_maidr=True)  # Redundant but should not raise
         assert matplotlib.get_backend() == "module://maidr.backend"
 
-    def test_disable_jupyter_path(self, mocker):
-        """disable() should use %matplotlib inline magic in Jupyter."""
+    def test_set_backend_jupyter_path(self, mocker):
+        """set_backend(use_maidr=False) should use %matplotlib inline in Jupyter."""
         from unittest.mock import MagicMock
 
         import maidr
@@ -299,6 +299,6 @@ class TestEnableDisable:
             {"IPython": MagicMock(get_ipython=MagicMock(return_value=mock_ip))},
         )
 
-        maidr.disable()
+        maidr.set_backend(use_maidr=False)
 
         mock_ip.run_line_magic.assert_called_once_with("matplotlib", "inline")
