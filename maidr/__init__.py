@@ -33,6 +33,7 @@ __version__ = "1.14.0"
 import logging
 import os
 import sys
+import warnings
 
 _logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ _INLINE_BACKENDS: tuple[str, ...] = (
 # threaded by the GIL and Python's import lock).  Concurrent threads that
 # later call set_backend() only *read* this value.
 _original_backend: str | None = None
+_backend_message_shown: bool = False
 
 
 def _activate_backend() -> None:
@@ -65,7 +67,7 @@ def _activate_backend() -> None:
     no-op, so we go straight to ``plt.switch_backend()`` which actually
     changes the active backend.
     """
-    global _original_backend
+    global _original_backend, _backend_message_shown
 
     try:
         import matplotlib
@@ -94,7 +96,12 @@ def _activate_backend() -> None:
 
         try:
             plt.switch_backend("module://maidr.backend")
-            _logger.info("maidr: Setting matplotlib backend to maidr.")
+            if not _backend_message_shown:
+                warnings.warn(
+                    "maidr: Setting matplotlib backend to maidr.",
+                    stacklevel=2,
+                )
+                _backend_message_shown = True
         except ImportError:
             _logger.debug(
                 "Failed to switch matplotlib backend to maidr; "
@@ -105,7 +112,12 @@ def _activate_backend() -> None:
         # pyplot not yet loaded — matplotlib.use() is the safe pre-import API.
         try:
             matplotlib.use("module://maidr.backend")
-            _logger.info("maidr: Setting matplotlib backend to maidr.")
+            if not _backend_message_shown:
+                warnings.warn(
+                    "maidr: Setting matplotlib backend to maidr.",
+                    stacklevel=2,
+                )
+                _backend_message_shown = True
         except ImportError:
             _logger.debug(
                 "Failed to set matplotlib backend to maidr; "
