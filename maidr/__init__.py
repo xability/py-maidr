@@ -45,6 +45,9 @@ _INLINE_BACKENDS: tuple[str, ...] = (
 
 # The platform's original backend (e.g. "macosx", "TkAgg") saved before
 # maidr overrides it, so that ``maidr.disable()`` can restore it.
+# NOTE: No lock is needed — this is only written at import time (single-
+# threaded by the GIL and Python's import lock).  Concurrent threads that
+# later call enable()/disable() only *read* this value.
 _original_backend: str | None = None
 
 
@@ -196,10 +199,8 @@ from .patch import (  # noqa: E402, F401
 )
 
 # Second call: reclaim the backend after maidr's own imports.
-# maidr.core.maidr imports matplotlib.pyplot, which in Jupyter triggers
-# ipykernel's configure_inline_support() and overrides our backend with
-# matplotlib_inline.  This call sees pyplot in sys.modules and uses
-# plt.switch_backend() to restore the maidr backend.
+# NOTE: See the "Matplotlib backend activation" block at the top of this
+# file for why two calls are needed (Jupyter's configure_inline_support).
 _activate_backend()
 
 __all__ = [

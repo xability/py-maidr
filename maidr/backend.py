@@ -12,8 +12,10 @@ Users can also set it manually via ``matplotlib.use("module://maidr.backend")``.
 
 from __future__ import annotations
 
+import atexit
 import logging
 import os
+import shutil
 import tempfile
 import warnings
 import webbrowser
@@ -29,7 +31,8 @@ _logger = logging.getLogger(__name__)
 # FigureCanvas: Agg canvas for non-interactive (file-based) rendering.
 # FigureManager: matplotlib's internal figure-window manager — distinct from
 # ``maidr.core.figure_manager.FigureManager`` which tracks maidr-accessible
-# plots.
+# plots.  FigureManagerAgg is not a public export; the correct way to obtain
+# the manager class is via ``FigureCanvasAgg.manager_class``.
 FigureCanvas = FigureCanvasAgg
 FigureManager = FigureCanvasAgg.manager_class
 
@@ -88,6 +91,9 @@ def _show_fallback(fig: Figure) -> None:
     fig : Figure
         The matplotlib figure to display.
     """
+    # stacklevel=4 traces through: user code → plt.show() → backend.show()
+    # → _show_fallback() → warnings.warn().  If the internal call chain
+    # changes, this value must be updated.
     warnings.warn(
         "This figure contains plot type(s) not yet supported by maidr. "
         "Falling back to static image. Supported types: bar, box, count, "
@@ -116,4 +122,24 @@ def _show_fallback(fig: Figure) -> None:
         fd, tmp_path = tempfile.mkstemp(suffix=".png", dir=tmp_dir)
         os.close(fd)
         fig.savefig(tmp_path, dpi=150, bbox_inches="tight")
-        webbrowser.open(f"file://{tmp_path}")
+
+        if Environment.is_wsl():
+            # webbrowser.open() is unreliable on WSL; use cmd.exe instead.
+            import subprocess
+
+            subprocess.Popen(  # noqa: S603
+                ["cmd.exe", "/c", "start", "", tmp_path],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            webbrowser.open(f"file://{tmp_path}")
+
+
+def _cleanup_temp_dir() -> None:
+    """Remove the maidr temporary directory on interpreter exit."""
+    tmp_dir = os.path.join(tempfile.gettempdir(), "maidr")
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+atexit.register(_cleanup_temp_dir)

@@ -50,7 +50,7 @@ class TestBackendRegistration:
         _activate_backend()
         assert matplotlib.get_backend() == "module://maidr.backend"
 
-    def test_backend_skips_when_mplbackend_is_non_inline(self, monkeypatch):
+    def test_backend_skips_when_mplbackend_is_non_inline(self, monkeypatch, mocker):
         """_activate_backend() is a no-op when MPLBACKEND is a non-inline value.
 
         This verifies that user-chosen backends (e.g. TkAgg, Qt5Agg) are
@@ -60,11 +60,15 @@ class TestBackendRegistration:
         """
         plt.switch_backend("agg")
         monkeypatch.setenv("MPLBACKEND", "TkAgg")
+        mock_use = mocker.patch("matplotlib.use")
+        mock_switch = mocker.patch("matplotlib.pyplot.switch_backend")
         from maidr import _activate_backend
 
         _activate_backend()
         # Should still be Agg — _activate_backend() should have bailed out.
         assert matplotlib.get_backend() == "agg"
+        mock_use.assert_not_called()
+        mock_switch.assert_not_called()
 
     def test_backend_module_has_required_attributes(self):
         from maidr import backend
@@ -145,6 +149,33 @@ class TestBackendShow:
 
             assert len(w) == 1
             assert "not yet supported by maidr" in str(w[0].message)
+
+    def test_show_fallback_notebook_path(self, mocker):
+        """_show_fallback() should use IPython.display in notebook environments."""
+        from unittest.mock import MagicMock
+
+        from maidr.backend import _show_fallback
+
+        fig, ax = plt.subplots()
+        ax.text(0.5, 0.5, "hello")
+
+        mocker.patch(
+            "maidr.util.environment.Environment.is_notebook", return_value=True
+        )
+        mock_ipython_display = MagicMock()
+        mocker.patch.dict(
+            "sys.modules",
+            {"IPython": MagicMock(), "IPython.display": mock_ipython_display},
+        )
+        mocker.patch.object(fig, "savefig")
+        mock_browser = mocker.patch("maidr.backend.webbrowser.open")
+
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            _show_fallback(fig)
+
+        mock_ipython_display.display.assert_called_once()
+        mock_browser.assert_not_called()
 
     def test_show_cleans_up_maidr_figure_manager(self, mocker):
         """plt.show() should remove figures from maidr's FigureManager.figs."""
@@ -248,3 +279,26 @@ class TestEnableDisable:
         assert matplotlib.get_backend() == "module://maidr.backend"
         maidr.enable()  # Redundant but should not raise
         assert matplotlib.get_backend() == "module://maidr.backend"
+
+    def test_disable_jupyter_path(self, mocker):
+        """disable() should use %matplotlib inline magic in Jupyter."""
+        from unittest.mock import MagicMock
+
+        import maidr
+
+        # Pretend the original backend was the inline backend.
+        mocker.patch.object(
+            maidr,
+            "_original_backend",
+            "module://matplotlib_inline.backend_inline",
+        )
+        mock_ip = MagicMock()
+        mocker.patch("maidr.get_ipython", create=True, return_value=mock_ip)
+        mocker.patch.dict(
+            "sys.modules",
+            {"IPython": MagicMock(get_ipython=MagicMock(return_value=mock_ip))},
+        )
+
+        maidr.disable()
+
+        mock_ip.run_line_magic.assert_called_once_with("matplotlib", "inline")

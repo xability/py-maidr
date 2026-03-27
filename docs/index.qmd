@@ -201,6 +201,10 @@ maidr.enable()    # plt.show() renders accessible maidr output again
 `maidr.show()` always renders accessible output regardless of the active backend. You only need `maidr.disable()`/`maidr.enable()` to control the behavior of `plt.show()`.
 :::
 
+::: {.callout-note}
+If you want to set the backend manually, use `matplotlib.use("module://maidr.backend")`. The shorthand `matplotlib.use("maidr")` requires matplotlib >= 3.9.
+:::
+
 #### Unsupported Plot Types
 
 For plot types not yet supported by maidr (e.g. pie charts, contour plots, 3D plots), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed — your plots will always be visible.
