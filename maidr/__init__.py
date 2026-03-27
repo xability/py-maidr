@@ -43,6 +43,11 @@ _INLINE_BACKENDS: tuple[str, ...] = (
 )
 
 
+# The platform's original backend (e.g. "macosx", "TkAgg") saved before
+# maidr overrides it, so that ``maidr.disable()`` can restore it.
+_original_backend: str | None = None
+
+
 def _activate_backend() -> None:
     """Set the maidr backend, handling Jupyter's inline backend override.
 
@@ -56,27 +61,26 @@ def _activate_backend() -> None:
     no-op, so we go straight to ``plt.switch_backend()`` which actually
     changes the active backend.
     """
+    global _original_backend
+
     try:
         import matplotlib
     except ImportError:
         # matplotlib is not installed — nothing to activate.
         return
 
+    # Save the original backend once, before we override it.
+    # Guard against saving our own backend (could happen if _activate_backend
+    # is called after maidr is already active).
+    if _original_backend is None:
+        current = matplotlib.get_backend()
+        if current != "module://maidr.backend":
+            _original_backend = current
+
     mplbackend = os.environ.get("MPLBACKEND", "")
     # Skip only when the user explicitly chose a non-inline backend.
     # ipykernel sets MPLBACKEND to matplotlib_inline by default — override that.
     if mplbackend and mplbackend not in _INLINE_BACKENDS:
-        return
-
-    # Also respect a backend set programmatically via matplotlib.use() (no env
-    # var).  "agg" is the default non-interactive backend and is safe to
-    # override; anything else is a deliberate user choice.
-    current_backend = matplotlib.get_backend().lower()
-    if (
-        current_backend
-        and current_backend not in ("agg", "module://maidr.backend")
-        and current_backend not in (b.lower() for b in _INLINE_BACKENDS)
-    ):
         return
 
     if "matplotlib.pyplot" in sys.modules:
@@ -102,6 +106,70 @@ def _activate_backend() -> None:
                 "maidr.backend module could not be imported.",
                 exc_info=True,
             )
+
+
+def enable() -> None:
+    """Re-activate the maidr backend for ``plt.show()``.
+
+    After calling ``maidr.disable()``, call this to switch back to
+    maidr's accessible renderer.
+
+    Examples
+    --------
+    >>> import maidr
+    >>> maidr.disable()   # use platform default backend
+    >>> maidr.enable()    # back to maidr
+    """
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        _logger.debug("matplotlib is not installed; cannot enable maidr backend.")
+        return
+
+    plt.switch_backend("module://maidr.backend")
+
+
+def disable() -> None:
+    """Deactivate the maidr backend and restore the platform default.
+
+    After calling this, ``plt.show()`` will use the original backend
+    (e.g. ``macosx``, ``TkAgg``, ``inline``).  Call ``maidr.enable()``
+    to switch back.  ``maidr.show()`` still works regardless of the
+    active backend.
+
+    In Jupyter notebooks, a plain ``plt.switch_backend()`` is not enough
+    because ``matplotlib_inline`` registers ``post_execute`` hooks that
+    auto-display figures.  Those hooks are lost when switching backends.
+    We use IPython's ``%matplotlib inline`` magic to fully restore them.
+
+    Examples
+    --------
+    >>> import maidr
+    >>> maidr.disable()   # plt.show() now uses the platform default
+    >>> maidr.enable()    # back to maidr
+    """
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        _logger.debug("matplotlib is not installed; cannot disable maidr backend.")
+        return
+
+    backend = _original_backend or "agg"
+
+    # In Jupyter, the inline backend needs special re-initialization
+    # to restore the post_execute hooks that auto-display figures.
+    if backend.lower() in (b.lower() for b in _INLINE_BACKENDS):
+        try:
+            from IPython import get_ipython
+
+            ip = get_ipython()
+            if ip is not None:
+                ip.run_line_magic("matplotlib", "inline")
+                return
+        except (ImportError, AttributeError):
+            pass
+
+    plt.switch_backend(backend)
 
 
 # First call: sets the backend config before pyplot is imported.
@@ -136,6 +204,8 @@ _activate_backend()
 
 __all__ = [
     "close",
+    "disable",
+    "enable",
     "render",
     "save_html",
     "show",

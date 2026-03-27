@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 from mplfinance.original_flavor import candlestick_ohlc
 
-import maidr
+import maidr  # noqa: F401
 
 
 def generate_candlestick_chart(
@@ -243,6 +243,4 @@ data = generate_sample_data(
 
 fig, ax = generate_candlestick_chart(data)
 
-# plt.show()
-
-maidr.show(fig)
+plt.show()

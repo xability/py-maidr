@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 
 def plot_dodged_bar() -> None:
@@ -43,7 +43,7 @@ def plot_dodged_bar() -> None:
     # Set theme and create the plot
     sns.set_theme(style="whitegrid")
     fig, ax = plt.subplots()
-    p = sns.barplot(
+    sns.barplot(
         data=df,
         x="species",
         y="count",
@@ -71,7 +71,7 @@ def plot_dodged_bar() -> None:
     ax.yaxis.set_major_formatter("{x:.0f}")
 
     # Render the plot
-    maidr.show(p)
+    plt.show()
 
 
 if __name__ == "__main__":

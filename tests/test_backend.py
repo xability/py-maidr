@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import pytest
 
 import matplotlib
@@ -112,16 +114,37 @@ class TestBackendShow:
         plt.close("all")
         plt.show()  # Should not raise
 
-    def test_show_skips_untracked_figures(self):
-        """plt.show() should skip figures not tracked by maidr."""
+    def test_show_falls_back_for_untracked_figures(self, mocker):
+        """plt.show() should warn and fall back to static image for untracked figures."""
         fig, ax = plt.subplots()
         # Don't add any maidr-tracked plot — just raw text
         ax.text(0.5, 0.5, "hello")
 
-        # Should not raise
+        # Mock the fallback so it doesn't open a browser
+        mock_fallback = mocker.patch("maidr.backend._show_fallback")
+
         plt.show()
 
+        mock_fallback.assert_called_once_with(fig)
         assert len(Gcf.get_all_fig_managers()) == 0
+
+    def test_show_fallback_emits_warning(self, mocker):
+        """_show_fallback() should emit a warning about unsupported plot types."""
+        from maidr.backend import _show_fallback
+
+        fig, ax = plt.subplots()
+        ax.text(0.5, 0.5, "hello")
+
+        # Mock webbrowser so it doesn't actually open
+        mocker.patch("maidr.backend.webbrowser.open")
+        mocker.patch.object(fig, "savefig")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            _show_fallback(fig)
+
+            assert len(w) == 1
+            assert "not yet supported by maidr" in str(w[0].message)
 
     def test_show_cleans_up_maidr_figure_manager(self, mocker):
         """plt.show() should remove figures from maidr's FigureManager.figs."""
@@ -161,3 +184,67 @@ class TestBackendShow:
         assert len(Gcf.get_all_fig_managers()) == 0
         assert fig1 not in FigureManager.figs
         assert fig2 not in FigureManager.figs
+
+
+class TestEnableDisable:
+    """Tests for maidr.enable() and maidr.disable()."""
+
+    @pytest.fixture(autouse=True)
+    def _restore_backend(self):
+        """Restore the maidr backend after each test."""
+        yield
+        plt.switch_backend("module://maidr.backend")
+
+    def test_disable_switches_away_from_maidr(self):
+        """maidr.disable() should switch to the original backend."""
+        import maidr
+
+        assert matplotlib.get_backend() == "module://maidr.backend"
+        maidr.disable()
+        assert matplotlib.get_backend() != "module://maidr.backend"
+
+    def test_enable_restores_maidr_backend(self):
+        """maidr.enable() should switch back to the maidr backend."""
+        import maidr
+
+        maidr.disable()
+        assert matplotlib.get_backend() != "module://maidr.backend"
+
+        maidr.enable()
+        assert matplotlib.get_backend() == "module://maidr.backend"
+
+    def test_disable_enable_roundtrip(self):
+        """disable() then enable() should return to maidr backend."""
+        import maidr
+
+        assert matplotlib.get_backend() == "module://maidr.backend"
+        maidr.disable()
+        maidr.enable()
+        assert matplotlib.get_backend() == "module://maidr.backend"
+
+    def test_original_backend_is_saved(self):
+        """_original_backend should be set after import."""
+        import maidr
+
+        assert maidr._original_backend is not None
+
+    def test_original_backend_is_not_maidr(self):
+        """_original_backend should never be the maidr backend itself."""
+        import maidr
+
+        assert maidr._original_backend != "module://maidr.backend"
+
+    def test_disable_twice_does_not_raise(self):
+        """Calling disable() twice should not raise."""
+        import maidr
+
+        maidr.disable()
+        maidr.disable()  # Should not raise
+
+    def test_enable_without_prior_disable(self):
+        """Calling enable() without disable() should be a no-op."""
+        import maidr
+
+        assert matplotlib.get_backend() == "module://maidr.backend"
+        maidr.enable()  # Redundant but should not raise
+        assert matplotlib.get_backend() == "module://maidr.backend"

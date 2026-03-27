@@ -33,7 +33,7 @@ The following summarizes the key features and design principles of Py maidr:
 
 3. Integration: maidr seamlessly integrates with the popular and mainstream data science environments  (e.g., Python, pandas, and NumPy) as well as data visualization libraries in Python like **matplotlib** and **seaborn**.
 
-4. Unintrusiveness: maidr does not require changes to existing core data visualization code. Without needing to reconstruct an accessible version separately, you can just `import maidr` package and use `maidr.show()` to your plots. Blind and sighted users can use and share the same visualization codebase in their shared data science projects.
+4. Unintrusiveness: maidr does not require changes to existing core data visualization code. Without needing to reconstruct an accessible version separately, you can just `import maidr` and call `plt.show()` as usual — maidr's custom backend automatically renders your plots accessibly. Blind and sighted users can use and share the same visualization codebase in their shared data science projects.
 
 5. Synchronization: maidr treats visualization as one of the multimodal data representations and ensures that all representations (e.g., visual, tactile, textual, audible) cursor and braille routing key positions are synchronized across different modalities.
 
@@ -137,7 +137,7 @@ pip install -U git+https://github.com/xability/py-maidr.git
 
 Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code.
 
-Simply import the `maidr` package and use the `maidr.show()` function to display your plots. **maidr** will automatically generate accessible versions of your plots in your default browser. You can then interact with the accessible versions using keyboard shortcuts (refer to @tbl-shortcuts).
+Simply `import maidr` and call `plt.show()` as usual. **maidr** automatically activates a custom matplotlib backend, so `plt.show()` renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image. You can then interact with the accessible plots using keyboard shortcuts (refer to @tbl-shortcuts).
 
 Check more examples in the [galleries](examples.qmd#sec-examples).
 
@@ -158,24 +158,52 @@ import maidr #<<
 penguins = sns.load_dataset("penguins")
 
 # Create a bar plot showing the average body mass of penguins by species
-plt.figure(figsize=(6, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
-# Assign the plot to a variable #<<
-bar_plot = sns.barplot( #<<
-    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
+# Assign the plot to a variable
+bar_plot = sns.barplot(
+    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d", ax=ax
 )
-plt.title("Average Body Mass of Penguins by Species")
-plt.xlabel("Species")
-plt.ylabel("Body Mass (g)")
+ax.set_title("Average Body Mass of Penguins by Species")
+ax.set_xlabel("Species")
+ax.set_ylabel("Body Mass (g)")
 
-# plt.show()
-
-# Use maidr.show() to display your plot #<<
-maidr.show(bar_plot) #<<
+# plt.show() now renders accessible maidr output #<<
+plt.show() #<<
 
 # Uncomment the following line to save and share the accessible version of your plot with others!
 # maidr.save_html(bar_plot, "output.html") #<<
 ```
+
+### Custom Backend
+
+When you `import maidr`, a custom matplotlib backend is automatically activated. This means `plt.show()` renders accessible HTML output instead of a static image.
+
+#### Switching Back to the Default Renderer
+
+If you want to temporarily use the default matplotlib renderer (e.g. for unsupported plot types or debugging), you can disable the maidr backend:
+
+**In Jupyter notebooks:**
+
+```python
+maidr.disable()   # plt.show() now renders static inline images
+maidr.enable()    # plt.show() renders accessible maidr output again
+```
+
+**In Python scripts (non-notebook):**
+
+```python
+maidr.disable()   # plt.show() now opens the native image viewer (e.g. macOS, TkAgg)
+maidr.enable()    # plt.show() renders accessible maidr output again
+```
+
+::: {.callout-note}
+`maidr.show()` always renders accessible output regardless of the active backend. You only need `maidr.disable()`/`maidr.enable()` to control the behavior of `plt.show()`.
+:::
+
+#### Unsupported Plot Types
+
+For plot types not yet supported by maidr (e.g. pie charts, contour plots, 3D plots), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed — your plots will always be visible.
 
 ## Keyboard Shortcuts and Controls
 

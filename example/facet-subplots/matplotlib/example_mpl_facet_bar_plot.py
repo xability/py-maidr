@@ -10,7 +10,7 @@ Each panel represents data for a different category or condition.
 import matplotlib.pyplot as plt
 import numpy as np
 
-import maidr
+import maidr  # noqa: F401
 
 categories = ["A", "B", "C", "D", "E"]
 
@@ -62,4 +62,4 @@ for ax in axs:
 # Adjust layout
 plt.tight_layout(rect=(0.08, 0.08, 0.98, 0.95))
 
-maidr.show(fig)
+plt.show()

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 # Set the plotting style
 sns.set_theme(style="whitegrid")
@@ -67,4 +67,4 @@ axs[2].yaxis.set_major_formatter("{x:.1f}")
 plt.tight_layout()
 
 # Display the figure
-maidr.show(fig)
+plt.show()

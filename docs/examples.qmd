@@ -13,7 +13,37 @@ filters:
 
 Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code. For **Plotly** examples, see the [Plotly Examples](examples-plotly.qmd) page.
 
-Simply import the `maidr` package and use the `maidr.show()` function to display your plots. **maidr** will automatically generate accessible versions of your plots in your default browser. You can then interact with the accessible versions using keyboard shortcuts (refer to @tbl-shortcuts).
+Simply `import maidr` and call `plt.show()` as usual. **maidr** automatically activates a custom matplotlib backend, so `plt.show()` renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image.
+
+### Custom Backend
+
+When you `import maidr`, a custom matplotlib backend is automatically activated. This means `plt.show()` renders accessible HTML output instead of a static image.
+
+#### Switching Back to the Default Renderer
+
+If you want to temporarily use the default matplotlib renderer (e.g. for unsupported plot types or debugging), you can disable the maidr backend:
+
+**In Jupyter notebooks:**
+
+```python
+maidr.disable()   # plt.show() now renders static inline images
+maidr.enable()    # plt.show() renders accessible maidr output again
+```
+
+**In Python scripts (non-notebook):**
+
+```python
+maidr.disable()   # plt.show() now opens the native image viewer (e.g. macOS, TkAgg)
+maidr.enable()    # plt.show() renders accessible maidr output again
+```
+
+::: {.callout-note}
+`maidr.show()` always renders accessible output regardless of the active backend. You only need `maidr.disable()`/`maidr.enable()` to control the behavior of `plt.show()`.
+:::
+
+#### Unsupported Plot Types
+
+For plot types not yet supported by maidr (e.g. pie charts, contour plots, 3D plots), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed — your plots will always be visible.
 
 ### Bar Plots
 
@@ -36,8 +66,8 @@ penguins = sns.load_dataset("penguins")
 # Create a bar plot showing the average body mass of penguins by species
 fig, ax = plt.subplots(figsize=(6, 6))
 
-# Assign the plot to a variable #<<
-bar_plot = sns.barplot(  #<<
+# Assign the plot to a variable
+bar_plot = sns.barplot(
     x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d", ax=ax
 )
 ax.set_title("Average Body Mass of Penguins by Species")
@@ -47,8 +77,8 @@ ax.set_ylabel("Body Mass (g)")
 # Add number formatter for better screen reader output
 ax.yaxis.set_major_formatter("{x:,.0f}")
 
-# Use maidr.show() to display your plot #<<
-maidr.show(bar_plot)  #<<
+# plt.show() now renders accessible maidr output #<<
+plt.show()  #<<
 ```
 
 
@@ -77,7 +107,7 @@ ax.set_ylabel("Count")
 # Add number formatter for better screen reader output
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(count_plot) #<<
+plt.show() #<<
 ```
 
 #### Vertical Stacked Bar Plot
@@ -119,7 +149,7 @@ ax.legend(loc="upper right")
 # Add number formatter for better screen reader output
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(p) #<<
+plt.show() #<<
 ```
 
 #### Side-By-Side Dodged Bar Plot
@@ -166,8 +196,8 @@ ax.legend(loc="upper right")
 # Add number formatter for better screen reader output
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-# Show plot using maidr.show
-maidr.show(p) #<<
+# Display the plot
+plt.show() #<<
 ```
 
 ### Histogram
@@ -201,7 +231,7 @@ ax.set_ylabel("Frequency")
 ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(hist_plot) #<<
+plt.show() #<<
 ```
 
 ### KDE (Kernel Density Estimation) Plots
@@ -232,7 +262,7 @@ ax.set_ylabel("Density")
 ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.3f}")
 
-maidr.show(kde_plot) #<<
+plt.show() #<<
 ```
 
 ### Line Plots
@@ -273,7 +303,7 @@ ax.set_ylabel("Tip")
 ax.xaxis.set_major_formatter("${x:.2f}")
 ax.yaxis.set_major_formatter("${x:.2f}")
 
-maidr.show(line_plot) #<<
+plt.show() #<<
 ```
 
 #### Multiline Plot
@@ -319,8 +349,8 @@ ax.set_ylabel("Y values")
 ax.xaxis.set_major_formatter("{x:.0f}")
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-# Display the plot using maidr
-maidr.show(lineplot) #<<
+# Display the plot
+plt.show() #<<
 
 ```
 
@@ -348,8 +378,7 @@ if cbar:
     cbar.ax.yaxis.set_major_formatter("{x:.1f}")
 
 # Show the plot
-# plt.show()
-maidr.show(heatmap) #<<
+plt.show() #<<
 ```
 
 ### Box Plot
@@ -378,7 +407,7 @@ ax.set_title("Petal Length by Species from Iris Dataset")
 ax.xaxis.set_major_formatter("{x:.1f}")
 
 # Show the plot
-maidr.show(horz_box_plot) #<<
+plt.show() #<<
 ```
 
 ### Violin Plot
@@ -417,7 +446,7 @@ plt.ylabel("Cut Quality")
 plt.gca().xaxis.set_major_formatter("{x:,.0f}")
 
 # Show the plot
-maidr.show(v) #<<
+plt.show() #<<
 ```
 
 #### Matplotlib Violin Plot
@@ -461,7 +490,7 @@ ax.set_ylabel("Price (USD)")
 # Add number formatter for better screen reader output
 ax.yaxis.set_major_formatter("{x:,.0f}")
 
-maidr.show(ax) #<<
+plt.show() #<<
 ```
 
 ### Scatter Plot
@@ -490,7 +519,7 @@ ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.1f}")
 
 # Show the plot
-maidr.show(scatter_plot) #<<
+plt.show() #<<
 ```
 
 ### Regression Plots
@@ -528,7 +557,7 @@ ax.set_ylabel("Y values")
 ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.2f}")
 
-maidr.show(reg_plot) #<<
+plt.show() #<<
 ```
 
 ### Multi-Layered Plots
@@ -579,7 +608,7 @@ ax2.yaxis.set_major_formatter("{x:.0f}")
 # Adjust layout
 fig.tight_layout()
 
-maidr.show(fig) #<<
+plt.show() #<<
 ```
 
 ### Multi-Panel Plots (Multiple Subplots)
@@ -646,7 +675,7 @@ axs[2].yaxis.set_major_formatter("{x:.1f}")
 plt.tight_layout()
 
 # Display the figure
-maidr.show(fig) #<<
+plt.show() #<<
 ```
 
 ### Facet Plot
@@ -708,7 +737,7 @@ for ax in axs:
 # Adjust layout
 plt.tight_layout(rect=(0.08, 0.08, 0.98, 0.95))
 
-maidr.show(fig) #<<
+plt.show() #<<
 ```
 
 ### Candlestick Chart
@@ -750,7 +779,7 @@ axlist[2].yaxis.set_major_formatter("{x:,.0f}")
 fig.tight_layout()
 
 # Display with maidr
-maidr.show(fig) #<<
+plt.show() #<<
 ```
 
 ## Reactive Dashboard

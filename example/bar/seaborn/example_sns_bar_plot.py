@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 # Load the penguins dataset
 penguins = sns.load_dataset("penguins")
@@ -19,4 +19,4 @@ ax.set_ylabel("Body Mass (g)")
 # Body mass values with thousands separator (e.g., "4,500")
 ax.yaxis.set_major_formatter("{x:,.0f}")
 
-maidr.show(b_plot)
+plt.show()

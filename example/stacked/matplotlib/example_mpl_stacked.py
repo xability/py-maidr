@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import maidr
+import maidr  # noqa: F401
 
 species = (
     "Adelie\nMean = 3700.66g",
@@ -32,4 +32,4 @@ ax.legend(loc="upper right")
 # Count values as integers (no decimals)
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(p)
+plt.show()

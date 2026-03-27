@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.nonparametric.smoothers_lowess import lowess
-import maidr
+import maidr  # noqa: F401
 
 # Generate synthetic data
 np.random.seed(0)
@@ -28,4 +28,4 @@ ax.yaxis.set_major_formatter("{x:.2f}")
 plt.tight_layout()
 
 # Show with MAIDR (if available)
-maidr.show(ax)
+plt.show()

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 # Load dataset
 tips = sns.load_dataset("tips")
@@ -18,4 +18,4 @@ ax.set_ylabel("Count")
 # This formats values with no decimal places (integer counts)
 ax.yaxis.set_major_formatter("{x:.2f}")
 
-maidr.show(b_plot)
+plt.show()
