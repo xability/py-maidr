@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>index – py-maidr</title>
+<title>set_backend – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,6 +22,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -197,10 +232,12 @@ cookieconsent.run({
 
 <link rel="stylesheet" href="../styles.css">
 <meta property="og:title" content="py-maidr">
+<meta property="og:description" content="A Python library that makes matplotlib, seaborn, and plotly visualizations accessible through sonification, braille, text, and AI-powered multimodal data representation.">
 <meta property="og:image" content="https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:title" content="py-maidr">
+<meta name="twitter:description" content="A Python library that makes matplotlib, seaborn, and plotly visualizations accessible through sonification, braille, text, and AI-powered multimodal data representation.">
 <meta name="twitter:image" content="https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
 <meta name="twitter:card" content="summary">
@@ -269,11 +306,11 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#api-reference" id="toc-api-reference" class="nav-link active" data-scroll-target="#api-reference">API Reference</a>
+  <li><a href="#maidr.set_backend" id="toc-maidr.set_backend" class="nav-link active" data-scroll-target="#maidr.set_backend">set_backend</a>
   <ul class="collapse">
-  <li><a href="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats" id="toc-displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="nav-link" data-scroll-target="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</a></li>
-  <li><a href="#saving-a-maidr-plot-as-an-html-file" id="toc-saving-a-maidr-plot-as-an-html-file" class="nav-link" data-scroll-target="#saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</a></li>
-  <li><a href="#switching-the-matplotlib-backend" id="toc-switching-the-matplotlib-backend" class="nav-link" data-scroll-target="#switching-the-matplotlib-backend">Switching the matplotlib backend</a></li>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -284,43 +321,42 @@ cookieconsent.run({
 
 
 
-<section id="api-reference" class="level1 doc doc-index">
-<h1 class="doc doc-index">API Reference</h1>
-<section id="displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="level2">
-<h2 class="anchored" data-anchor-id="displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</h2>
-<p>Plots genereated by <strong>Matplotlib</strong> or <strong>Seaborn</strong> can be displayed in MAIDR format in default browser. Input plot object as an argument in <code>maidr.show()</code>.</p>
+<section id="maidr.set_backend" class="level1">
+<h1>set_backend</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>set_backend(use_maidr<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Switch the matplotlib backend between maidr and the platform default.</p>
+<p>When <code>use_maidr=True</code>, the maidr backend is activated so that <code>plt.show()</code> renders accessible HTML output. When <code>use_maidr=False</code>, the original platform backend is restored (e.g.&nbsp;<code>macosx</code>, <code>TkAgg</code>, or <code>inline</code> in Jupyter).</p>
+<p>In Jupyter notebooks, restoring the inline backend requires special handling to re-register the <code>post_execute</code> hooks that auto-display figures. This is handled automatically.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
 <tbody>
 <tr class="odd">
-<td><a href="../api/Maidr.show.html#maidr.Maidr.show">Maidr.show</a></td>
-<td>Preview the HTML content using the specified renderer.</td>
+<td>use_maidr</td>
+<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a></td>
+<td>If <code>True</code> (default), activate the maidr accessible backend. If <code>False</code>, restore the original matplotlib backend that was active before maidr was imported.</td>
+<td><code>True</code></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="saving-a-maidr-plot-as-an-html-file" class="level2">
-<h2 class="anchored" data-anchor-id="saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</h2>
-<p>Save a plot as an HTML file with <code>maidr.save_html()</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/Maidr.save_html.html#maidr.Maidr.save_html">Maidr.save_html</a></td>
-<td>Save the HTML representation of the figure with MAIDR to a file.</td>
-</tr>
-</tbody>
-</table>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> maidr</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> maidr.set_backend(use_maidr<span class="op">=</span><span class="va">False</span>)   <span class="co"># use platform default backend</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> maidr.set_backend(use_maidr<span class="op">=</span><span class="va">True</span>)    <span class="co"># back to maidr</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="switching-the-matplotlib-backend" class="level2">
-<h2 class="anchored" data-anchor-id="switching-the-matplotlib-backend">Switching the matplotlib backend</h2>
-<p>Control whether <code>plt.show()</code> uses the maidr accessible backend or the platform default with <code>maidr.set_backend()</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/set_backend.html#maidr.set_backend">set_backend</a></td>
-<td>Switch the matplotlib backend between maidr and the platform default.</td>
-</tr>
-</tbody>
-</table>
+<section id="notes" class="level2 doc-section doc-section-notes">
+<h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
+<p><code>maidr.show()</code> always renders accessible output regardless of the active backend. <code>set_backend</code> only controls the behavior of <code>plt.show()</code>.</p>
 
 
 </section>
