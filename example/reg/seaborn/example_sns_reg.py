@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import maidr
+import maidr  # noqa: F401
 
 np.random.seed(0)
 x = np.linspace(0, 10, 100)
@@ -28,4 +28,4 @@ ax.yaxis.set_major_formatter("{x:.2f}")
 plt.tight_layout()
 
 # Show the plot using maidr instead of plt.show()
-maidr.show(plot)
+plt.show()

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 """
 Creates a multiline plot using seaborn showing basic data trends.
@@ -49,4 +49,4 @@ ax.xaxis.set_major_formatter("{x:.0f}")
 ax.yaxis.set_major_formatter("{x:.0f}")
 
 # Display the plot using maidr
-maidr.show(lineplot)
+plt.show()

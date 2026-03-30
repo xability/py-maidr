@@ -10,7 +10,7 @@ from typing import List, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 
-import maidr
+import maidr  # noqa: F401
 
 
 def generate_simple_data(
@@ -123,4 +123,4 @@ x, line_data, bar_data = generate_simple_data(num_rows=3)
 # Create and display the facet plot
 fig, axs = create_facet_plot(x, line_data, bar_data)
 
-maidr.show(fig)
+plt.show()

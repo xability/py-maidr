@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
-import maidr
+import maidr  # noqa: F401
 
 # Load dataset
 diamonds = sns.load_dataset("diamonds")
@@ -19,4 +19,4 @@ plt.title("Diamond Price Distribution by Cut Quality")
 plt.xlabel("Cut Quality")
 plt.ylabel("Price (USD)")
 
-maidr.show(v)
+plt.show()

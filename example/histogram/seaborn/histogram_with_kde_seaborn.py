@@ -8,7 +8,7 @@ It uses MAIDR integration for interactive accessibility.
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-import maidr  # MAIDR integration
+import maidr  # noqa: F401
 
 # Generate sample data (e.g., normally distributed data)
 np.random.seed(0)
@@ -43,4 +43,4 @@ ax.yaxis.set_major_formatter("{x:.3f}")
 plt.tight_layout()
 
 # Show with MAIDR for interactive accessibility
-maidr.show(fig)
+plt.show()

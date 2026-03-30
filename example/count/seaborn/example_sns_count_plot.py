@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 # Load the Titanic dataset
 titanic = sns.load_dataset("titanic")
@@ -17,4 +17,4 @@ ax.set_title("Passenger Class Distribution on the Titanic")
 # Count values as integers (no decimals)
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(count_plot)
+plt.show()

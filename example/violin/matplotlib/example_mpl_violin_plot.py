@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 # Load dataset (same as seaborn example to keep behavior comparable)
 diamonds = sns.load_dataset("diamonds")
@@ -31,5 +31,5 @@ ax.set_title("Diamond Price Distribution by Cut Quality (Matplotlib Violin)")
 ax.set_xlabel("Cut Quality")
 ax.set_ylabel("Price (USD)")
 
-maidr.show(ax)
+plt.show()
 

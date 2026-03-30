@@ -1,7 +1,7 @@
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-import maidr
+import maidr  # noqa: F401
 
 # 1) Sample data
 data = np.random.randn(500)
@@ -20,4 +20,4 @@ ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.3f}")
 
 plt.tight_layout()
-maidr.show(ax)
+plt.show()

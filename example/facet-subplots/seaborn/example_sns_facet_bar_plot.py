@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 
 def create_sample_data() -> pd.DataFrame:
@@ -89,7 +89,7 @@ def create_facet_bar_plot(data: pd.DataFrame) -> None:
         ax.yaxis.set_major_formatter("{x:.0f}")
 
     # Show the plot
-    maidr.show(g.figure)
+    plt.show()
 
 
 # Create sample data
