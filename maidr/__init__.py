@@ -98,7 +98,8 @@ def _activate_backend() -> None:
             plt.switch_backend("module://maidr.backend")
             if not _backend_message_shown:
                 warnings.warn(
-                    "maidr: Setting matplotlib backend to maidr.",
+                    "maidr: Setting matplotlib backend to maidr. "
+                    "To revert, use: maidr.set_backend(use_maidr=False)",
                     stacklevel=2,
                 )
                 _backend_message_shown = True
@@ -114,7 +115,8 @@ def _activate_backend() -> None:
             matplotlib.use("module://maidr.backend")
             if not _backend_message_shown:
                 warnings.warn(
-                    "maidr: Setting matplotlib backend to maidr.",
+                    "maidr: Setting matplotlib backend to maidr. "
+                    "To revert, use: maidr.set_backend(use_maidr=False)",
                     stacklevel=2,
                 )
                 _backend_message_shown = True
