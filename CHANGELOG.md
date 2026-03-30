@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.15.0 (2026-03-30)
+
+### Features
+
+- Support maidr as a matplotlib backend ([#280](https://github.com/xability/py-maidr/pull/280),
+  [`0a8e8d1`](https://github.com/xability/py-maidr/commit/0a8e8d171817fc2c8a545b0b7e169f3fc03094a3))
+
+
 ## v1.14.0 (2026-03-25)
 
 ### Documentation
