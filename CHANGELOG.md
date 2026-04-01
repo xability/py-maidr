@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.16.0 (2026-04-01)
+
+### Features
+
+- Support grid nav in scatter plots ([#278](https://github.com/xability/py-maidr/pull/278),
+  [`ed3f482`](https://github.com/xability/py-maidr/commit/ed3f48246b2f27fe263b06d94e958bfb0059b401))
+
+
 ## v1.15.0 (2026-03-30)
 
 ### Features
