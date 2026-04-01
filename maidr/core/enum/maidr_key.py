@@ -39,6 +39,9 @@ class MaidrKey(str, Enum):
     FILL = "fill"
     LABELS = "labels"
 
+    # Scatter plot grid navigation keys.
+    TICK_STEP = "tickStep"
+
     # Histogram plot keys.
     X_MIN = "xMin"
     X_MAX = "xMax"
