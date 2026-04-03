@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v1.17.0 (2026-04-03)
+
+### Features
+
+- Fix iframe resizing bug and grid nav mode in plotly
+  ([#281](https://github.com/xability/py-maidr/pull/281),
+  [`0172654`](https://github.com/xability/py-maidr/commit/0172654337905972a254a07de6d88080e91e29f8))
+
+
 ## v1.16.0 (2026-04-01)
 
 ### Features
