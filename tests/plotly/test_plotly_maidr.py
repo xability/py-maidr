@@ -134,9 +134,9 @@ class TestPlotlyMaidr:
 
         data = pm._plots[0].schema["data"]
         assert len(data) == 3
-        assert data[0]["fill"] == "A"
-        assert data[1]["fill"] == "B"
-        assert data[2]["fill"] == "C"
+        assert data[0]["z"] == "A"
+        assert data[1]["z"] == "B"
+        assert data[2]["z"] == "C"
 
     def test_single_box_not_merged(self, plotly_box_fig):
         """A single box trace should remain a regular PlotlyBoxPlot."""

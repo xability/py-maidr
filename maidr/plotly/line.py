@@ -26,7 +26,7 @@ class PlotlyLinePlot(PlotlyPlot):
                 MaidrKey.Y: self._to_native(yv),
             }
             if name:
-                point[MaidrKey.FILL] = name
+                point[MaidrKey.Z] = name
             line_data.append(point)
 
         return [line_data]

@@ -35,8 +35,8 @@ class MaidrKey(str, Enum):
     IQ = "iq"
     MEDIAN = "median"
 
-    # Grouped bar and heatmap plot keys.
-    FILL = "fill"
+    # Grouped bar, heatmap, and z-axis keys.
+    Z = "z"
     LABELS = "labels"
 
     # Scatter plot grid navigation keys.

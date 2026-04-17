@@ -50,7 +50,7 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
                 group.append(
                     {
                         MaidrKey.X.value: self._to_native(xv),
-                        MaidrKey.FILL.value: str(fill),
+                        MaidrKey.Z.value: str(fill),
                         MaidrKey.Y.value: self._to_native(yv),
                     }
                 )

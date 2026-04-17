@@ -125,7 +125,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 {
                     MaidrKey.X: x,
                     MaidrKey.Y: y,
-                    **({MaidrKey.FILL: line_type} if line_type else {}),
+                    **({MaidrKey.Z: line_type} if line_type else {}),
                 }
                 for x, y in line_coords
             ]

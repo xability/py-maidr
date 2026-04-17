@@ -35,7 +35,7 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         """Return multi-line data as a list-of-lists.
 
         Each inner list contains ``{x, y}`` dicts for one line, with an
-        optional ``fill`` key set to the trace name.
+        optional ``z`` key set to the trace name.
         """
         all_lines: list[list[dict]] = []
 
@@ -51,7 +51,7 @@ class PlotlyMultiLinePlot(PlotlyPlot):
                     MaidrKey.Y: self._to_native(yv),
                 }
                 if name:
-                    point[MaidrKey.FILL] = name
+                    point[MaidrKey.Z] = name
                 line_data.append(point)
 
             if line_data:

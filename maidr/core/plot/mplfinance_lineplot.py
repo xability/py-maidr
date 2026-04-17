@@ -127,7 +127,7 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
                 point_data = {
                     MaidrKey.X: x_value,
                     MaidrKey.Y: float(y),
-                    MaidrKey.FILL: (label if not label.startswith("_child") else ""),
+                    MaidrKey.Z: (label if not label.startswith("_child") else ""),
                 }
                 line_data.append(point_data)
 

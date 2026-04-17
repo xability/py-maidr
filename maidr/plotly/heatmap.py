@@ -52,17 +52,17 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         return result
 
     def _extract_axes_data(self) -> dict:
-        """Extract axes data, including fill label for heatmaps."""
+        """Extract axes data, including z label for heatmaps."""
         base = super()._extract_axes_data()
-        # Add fill label from colorbar title if available
+        # Add z label from colorbar title if available
         colorbar = self._trace.get("colorbar", {})
-        fill_label = ""
+        z_label = ""
         if isinstance(colorbar, dict):
             title = colorbar.get("title", "")
             if isinstance(title, dict):
-                fill_label = title.get("text", "")
+                z_label = title.get("text", "")
             elif title:
-                fill_label = str(title)
-        if fill_label:
-            base[MaidrKey.FILL] = fill_label
+                z_label = str(title)
+        if z_label:
+            base[MaidrKey.Z] = z_label
         return base

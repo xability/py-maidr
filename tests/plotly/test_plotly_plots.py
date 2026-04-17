@@ -90,14 +90,14 @@ class TestPlotlyLinePlot:
         assert len(data[0]) == 3
         assert data[0][0][MaidrKey.X] == 1
         assert data[0][0][MaidrKey.Y] == 10
-        assert data[0][0][MaidrKey.FILL] == "Series A"
+        assert data[0][0][MaidrKey.Z] == "Series A"
 
-    def test_no_name_omits_fill(self):
+    def test_no_name_omits_z(self):
         trace = {"type": "scatter", "mode": "lines", "x": [1], "y": [2]}
         plot = PlotlyLinePlot(trace, {})
         data = plot._extract_plot_data()
 
-        assert MaidrKey.FILL not in data[0][0]
+        assert MaidrKey.Z not in data[0][0]
 
 
 class TestPlotlyBoxPlot:
@@ -144,8 +144,8 @@ class TestPlotlyBoxPlot:
         data = plot._extract_plot_data()
 
         assert len(data) == 2
-        assert data[0]["fill"] == "A"
-        assert data[1]["fill"] == "B"
+        assert data[0]["z"] == "A"
+        assert data[1]["z"] == "B"
 
 
 class TestPlotlyHeatmapPlot:
@@ -217,8 +217,8 @@ class TestPlotlyGroupedBarPlot:
 
         assert len(data) == 2
         assert len(data[0]) == 2
-        assert data[0][0] == {"x": "A", "fill": "G1", "y": 10}
-        assert data[1][1] == {"x": "B", "fill": "G2", "y": 25}
+        assert data[0][0] == {"x": "A", "z": "G1", "y": 10}
+        assert data[1][1] == {"x": "B", "z": "G2", "y": 25}
 
     def test_stacked_bar_data(self):
         traces = [
@@ -255,8 +255,8 @@ class TestPlotlyMultiLinePlot:
         assert len(data) == 2
         assert len(data[0]) == 2
         assert data[0][0][MaidrKey.X] == 1
-        assert data[0][0][MaidrKey.FILL] == "A"
-        assert data[1][0][MaidrKey.FILL] == "B"
+        assert data[0][0][MaidrKey.Z] == "A"
+        assert data[1][0][MaidrKey.Z] == "B"
 
     def test_single_layer_schema(self):
         traces = [

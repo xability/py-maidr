@@ -176,5 +176,5 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             MaidrKey.UPPER_OUTLIER.value: upper_outliers,
         }
         if label:
-            result[MaidrKey.FILL.value] = label
+            result[MaidrKey.Z.value] = label
         return result
