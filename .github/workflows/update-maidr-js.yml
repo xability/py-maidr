@@ -1,0 +1,99 @@
+name: Update bundled maidr.js
+
+# Downloads the latest ``maidr.js`` / ``maidr.css`` from the jsDelivr CDN
+# into ``maidr/static/`` and opens a PR with the changes.  This keeps
+# the offline-bundled copy in sync with the upstream npm release
+# without requiring the files to be updated manually.
+
+on:
+  workflow_dispatch:
+    inputs:
+      maidr_version:
+        description: "Explicit maidr.js version (defaults to latest on npm)"
+        required: false
+        default: ""
+  schedule:
+    # Run every Monday at 06:00 UTC to catch new releases.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Download latest maidr.js
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve maidr.js version
+        id: resolve
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.maidr_version }}" ]; then
+            VERSION="${{ github.event.inputs.maidr_version }}"
+          else
+            VERSION=$(curl -sL "https://registry.npmjs.org/maidr/latest" | jq -r '.version')
+          fi
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "Failed to resolve maidr.js version" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved maidr.js version: $VERSION"
+
+      - name: Download bundled assets
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p maidr/static
+          curl -sSfL -o maidr/static/maidr.js \
+            "https://cdn.jsdelivr.net/npm/maidr@${VERSION}/dist/maidr.js"
+          curl -sSfL -o maidr/static/maidr.css \
+            "https://cdn.jsdelivr.net/npm/maidr@${VERSION}/dist/maidr.css"
+          printf "%s\n" "$VERSION" > maidr/static/VERSION
+
+      - name: Verify downloaded assets
+        run: |
+          set -euo pipefail
+          test -s maidr/static/maidr.js
+          test -s maidr/static/maidr.css
+          test -s maidr/static/VERSION
+          # Reject HTML error pages masquerading as JS / CSS.
+          head -c 128 maidr/static/maidr.js | grep -Eqv "^<!DOCTYPE|^<html" || {
+            echo "maidr.js looks like an HTML error page" >&2; exit 1;
+          }
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet maidr/static/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/update-maidr-js-${{ steps.resolve.outputs.version }}
+          commit-message: |
+            chore: update bundled maidr.js to v${{ steps.resolve.outputs.version }}
+          title: "chore: update bundled maidr.js to v${{ steps.resolve.outputs.version }}"
+          body: |
+            Automated update of the bundled ``maidr.js`` / ``maidr.css``
+            assets used for ``offline=True`` rendering.
+
+            - Source: https://cdn.jsdelivr.net/npm/maidr@${{ steps.resolve.outputs.version }}/dist/
+            - Version pinned in ``maidr/static/VERSION``
+          labels: |
+            dependencies
+            automated
+          add-paths: |
+            maidr/static/maidr.js
+            maidr/static/maidr.css
+            maidr/static/VERSION

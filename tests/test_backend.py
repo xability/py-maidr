@@ -90,7 +90,12 @@ class TestBackendShow:
         plt.close("all")
 
     def test_show_calls_maidr_show(self, mocker):
-        """plt.show() should call Maidr.show() for tracked figures."""
+        """plt.show() should call Maidr.show() for tracked figures.
+
+        The backend forwards the process-wide ``use_cdn`` default (now
+        ``"auto"``) to :meth:`Maidr.show` — offline users rely on the
+        browser-side ``onerror`` fallback rather than a Python probe.
+        """
         fig, ax = plt.subplots()
         ax.bar([1, 2, 3], [4, 5, 6])
 
@@ -99,7 +104,7 @@ class TestBackendShow:
 
         plt.show()
 
-        mock_show.assert_called_once_with(clear_fig=False)
+        mock_show.assert_called_once_with(clear_fig=False, use_cdn="auto")
 
     def test_show_destroys_figures(self, mocker):
         """plt.show() should clean up figures after displaying."""
@@ -207,9 +212,11 @@ class TestBackendShow:
 
         plt.show()
 
-        # Both figures should have been shown
-        mock_show1.assert_called_once_with(clear_fig=False)
-        mock_show2.assert_called_once_with(clear_fig=False)
+        # Both figures should have been shown with the default ``"auto"``
+        # mode — online users still hit the CDN, offline users fall back
+        # to the bundled copy via the browser's ``onerror`` handler.
+        mock_show1.assert_called_once_with(clear_fig=False, use_cdn="auto")
+        mock_show2.assert_called_once_with(clear_fig=False, use_cdn="auto")
 
         # Both should be cleaned up from matplotlib and maidr
         assert len(Gcf.get_all_fig_managers()) == 0

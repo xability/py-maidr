@@ -191,7 +191,16 @@ def set_backend(use_maidr: bool = True) -> None:
 # In non-Jupyter environments this is sufficient.
 _activate_backend()
 
-from .api import close, render, save_html, show, stacked  # noqa: E402
+from .api import (  # noqa: E402
+    close,
+    get_use_cdn,
+    init_notebook,
+    render,
+    save_html,
+    set_use_cdn,
+    show,
+    stacked,
+)
 from .core import Maidr  # noqa: E402, F401
 from .core.enum import PlotType  # noqa: E402, F401
 from .patch import (  # noqa: E402, F401
@@ -209,17 +218,44 @@ from .patch import (  # noqa: E402, F401
     mplfinance,
     violinplot,
 )
+from .util.dependencies import (  # noqa: E402
+    bundled_css_path,
+    bundled_js_path,
+    maidr_js_version,
+    read_bundled_js,
+)
 
 # Second call: reclaim the backend after maidr's own imports.
 # NOTE: See the "Matplotlib backend activation" block at the top of this
 # file for why two calls are needed (Jupyter's configure_inline_support).
 _activate_backend()
 
+
+# Auto-inject the bundle into the notebook DOM once on import.
+# This is the Plotly / Bokeh "load-once" pattern: calling
+# ``init_notebook()`` from user code is optional because we do it
+# implicitly here.  In non-notebook contexts (``Environment.is_notebook()``
+# returns False) ``init_notebook()`` is a no-op, so this has zero cost
+# for scripts.  Users who prefer to defer the injection can set
+# ``MAIDR_USE_CDN=1`` so the bundle is never embedded.
+try:
+    init_notebook()
+except Exception:  # pragma: no cover - never block import on notebook setup
+    _logger.debug("init_notebook() raised during import", exc_info=True)
+
+
 __all__ = [
+    "bundled_css_path",
+    "bundled_js_path",
     "close",
+    "get_use_cdn",
+    "init_notebook",
+    "maidr_js_version",
+    "read_bundled_js",
     "render",
     "save_html",
     "set_backend",
+    "set_use_cdn",
     "show",
     "stacked",
 ]

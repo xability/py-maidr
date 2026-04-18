@@ -52,13 +52,27 @@ def show(*args: Any, **kwargs: Any) -> None:
     *args : Any
         Accepted to satisfy the matplotlib backend protocol but not used.
     **kwargs : Any
-        Accepted to satisfy the matplotlib backend protocol but not used.
+        Additional keyword arguments.  The only one currently inspected
+        is ``use_cdn``, which is forwarded to each figure's
+        :meth:`Maidr.show` call so that ``plt.show(use_cdn=False)``
+        and ``plt.show(use_cdn="auto")`` work end-to-end.  Any
+        other kwargs are accepted (per the backend protocol) and
+        silently ignored.
     """
+    from maidr.api import get_use_cdn
     from maidr.core.figure_manager import FigureManager as MaidrFigureManager
 
     managers = Gcf.get_all_fig_managers()
     if not managers:
         return
+
+    # Prefer an explicit ``plt.show(use_cdn=...)`` over the module-level
+    # default; fall back to ``maidr.api.get_use_cdn()`` otherwise.  This
+    # lets users opt in via any of: per-call kwarg, ``maidr.set_use_cdn``,
+    # or the ``MAIDR_USE_CDN`` environment variable.
+    use_cdn = kwargs.pop("use_cdn", None)
+    if use_cdn is None:
+        use_cdn = get_use_cdn()
 
     for manager in list(managers):
         fig = manager.canvas.figure
@@ -71,7 +85,7 @@ def show(*args: Any, **kwargs: Any) -> None:
             _show_fallback(fig)
         else:
             # clear_fig=False because the backend handles figure cleanup.
-            maidr_obj.show(clear_fig=False)
+            maidr_obj.show(clear_fig=False, use_cdn=use_cdn)
             # Clean up maidr's own tracking to prevent memory leaks.
             # Without this, FigureManager.figs grows unboundedly because
             # clear_fig=False skips the plt.close() -> clear.py path.

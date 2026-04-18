@@ -97,6 +97,22 @@ dev = [
     "plotly>=6.5.2",
 ]
 
+[tool.hatch.build.targets.wheel]
+# ``packages`` picks up everything under ``maidr/`` including the
+# prebuilt ``maidr.js`` / ``maidr.css`` assets in ``maidr/static/``,
+# so ``pip install maidr`` ships everything needed for ``offline=True``
+# rendering.
+packages = ["maidr"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "maidr/**/*.py",
+    "maidr/static/**",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
