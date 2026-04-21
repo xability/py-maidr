@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.36">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -76,10 +76,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-3e173a9471795c240fc9e7f0b4e5cb29.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-428bd9602493cdd309990225bd4a24e8.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <link href="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
@@ -321,7 +321,7 @@ cookieconsent.run({
 
 <section id="maidr.Maidr.show" class="level1">
 <h1>Maidr.show</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Maidr.show(renderer<span class="op">=</span><span class="st">'auto'</span>, clear_fig<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Maidr.show(renderer<span class="op">=</span><span class="st">'auto'</span>, clear_fig<span class="op">=</span><span class="va">True</span>, use_cdn<span class="op">=</span><span class="st">'auto'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Preview the HTML content using the specified renderer.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
@@ -339,6 +339,18 @@ cookieconsent.run({
 <td>renderer</td>
 <td><a href="https://docs.python.org/3/library/typing.html#typing.Literal">Literal</a>['auto', 'ipython', 'browser']</td>
 <td>The renderer to use for the HTML preview.</td>
+<td><code>"auto"</code></td>
+</tr>
+<tr class="even">
+<td>clear_fig</td>
+<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a></td>
+<td>Whether to close the matplotlib figure after showing.</td>
+<td><code>True</code></td>
+</tr>
+<tr class="odd">
+<td>use_cdn</td>
+<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a> or {'auto'}</td>
+<td>* <code>True</code>: load <code>maidr.js</code> from the CDN only. * <code>False</code>: render using the copy of <code>maidr.js</code> bundled with the installed package. For the browser renderer the assets are copied next to the temporary HTML file. * <code>"auto"</code> (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails.</td>
 <td><code>"auto"</code></td>
 </tr>
 </tbody>
