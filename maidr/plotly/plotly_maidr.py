@@ -233,6 +233,23 @@ class PlotlyMaidr:
         use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render` for the three possible modes.
         """
+        # Proactively stash the bundled ``maidr.js`` / ``maidr.css`` source
+        # on the parent notebook ``window`` so the iframe bootstrap below
+        # can inject them inline when the CDN is unavailable.  Mirrors the
+        # matplotlib ``Maidr.show()`` behaviour (see ``maidr/core/maidr.py``)
+        # and is required because ``Tag.get_html_string()`` drops any
+        # ``HTMLDependency`` children during iframe serialisation.
+        if use_cdn is not True and Environment.is_notebook():
+            try:
+                from maidr.api import init_notebook
+
+                init_notebook(use_cdn=use_cdn, force=True)
+            except Exception:
+                # Never block show() on notebook init; the iframe
+                # bootstrap will surface a helpful console warning if
+                # the bundle is unreachable.
+                pass
+
         html = self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
 
         if renderer == "auto":
@@ -347,24 +364,40 @@ class PlotlyMaidr:
         )
 
     def _build_init_script(
-        self, schema: dict, use_cdn: bool | Literal["auto"] = "auto"
+        self,
+        schema: dict,
+        use_cdn: bool | Literal["auto"] = "auto",
+        iframe_in_notebook: bool = False,
     ) -> str:
         """Build JS that bridges Plotly's SVG with MAIDR.
 
         After Plotly renders its chart into the DOM as an SVG, this
         script injects the MAIDR schema into the SVG element and, when
         CDN mode is requested, dynamically loads the MAIDR JS library.
-        When ``use_cdn=False`` the bundle is already loaded by an
-        :class:`htmltools.HTMLDependency` so no loader is emitted.  In
-        ``"auto"`` mode the loader attempts the CDN first and falls
-        back to the bundled copy on ``onerror``.
+        When ``use_cdn=False`` outside an iframe the bundle is already
+        loaded by an :class:`htmltools.HTMLDependency` so no loader is
+        emitted.  In ``"auto"`` mode the loader attempts the CDN first
+        and falls back to the bundled copy on ``onerror``.
+
+        When ``iframe_in_notebook=True`` the loader instead pulls the
+        bundled source strings from ``window.parent.__maidrJsSource`` /
+        ``window.parent.__maidrCssSource`` (populated by
+        :func:`maidr.api.init_notebook`).  Relative ``lib/maidr-.../``
+        paths do not resolve inside a srcdoc iframe, and
+        ``HTMLDependency`` children are stripped by
+        ``Tag.get_html_string()``, so the parent-window stash is the
+        only reliable offline fallback in notebooks.
 
         Parameters
         ----------
         schema : dict
             The MAIDR schema to inject into the SVG element.
-        use_cdn : bool or {"auto"}, default=True
+        use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render` for mode descriptions.
+        iframe_in_notebook : bool, default=False
+            ``True`` when the emitted HTML will be wrapped in a
+            notebook/Shiny srcdoc iframe.  Switches the loader to use
+            the parent-window source strings instead of relative paths.
         """
         dom_wiring = f"""
             var maidrSchema = {json.dumps(schema, indent=2)};
@@ -391,28 +424,82 @@ class PlotlyMaidr:
             }}
         """
 
+        # Snippet that pulls the bundled JS/CSS source from the parent
+        # notebook window.  Reused by ``use_cdn=False`` (primary loader)
+        # and ``use_cdn="auto"`` (CDN onerror fallback).
+        parent_source_snippet = """
+            (function() {
+                try {
+                    var jsSrc = window.parent && window.parent.__maidrJsSource;
+                    var cssSrc = window.parent && window.parent.__maidrCssSource;
+                    if (cssSrc) {
+                        var style = document.createElement('style');
+                        style.textContent = cssSrc;
+                        document.head.appendChild(style);
+                    }
+                    if (jsSrc) {
+                        var s = document.createElement('script');
+                        s.text = jsSrc;
+                        document.head.appendChild(s);
+                        return true;
+                    }
+                } catch (_) { /* cross-origin or missing parent */ }
+                if (window.console) {
+                    console.warn(
+                        'maidr: use_cdn=False requires maidr.init_notebook() ' +
+                        'to be called once per notebook session, or the bundle ' +
+                        'to be available on window.parent.__maidrJsSource.'
+                    );
+                }
+                return false;
+            })();
+        """
+
         if use_cdn is False:
-            # ``maidr.js`` is already in the DOM via HTMLDependency; do
-            # not attempt any remote ``<script>`` injection.
-            loader = ""
+            if iframe_in_notebook:
+                # Iframe path: HTMLDependency would be dropped by
+                # ``Tag.get_html_string()``.  Pull the bundled source
+                # strings from the parent window instead.
+                loader = parent_source_snippet
+            else:
+                # Non-iframe path: ``maidr.js`` is already in the DOM
+                # via ``HTMLDependency`` (emitted by htmltools as a
+                # regular ``<script src>``).  Nothing to do here.
+                loader = ""
         elif use_cdn == "auto":
-            rel_dir = maidr_bundled_relative_dir()
-            bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
-            loader = f"""
-                var existing = document.querySelector(
-                    'script[src="{MAIDR_JS_CDN_URL}"]'
-                );
-                if (!existing) {{
-                    var s = document.createElement('script');
-                    s.src = '{MAIDR_JS_CDN_URL}';
-                    s.onerror = function() {{
-                        var fb = document.createElement('script');
-                        fb.src = '{bundled_js_rel}';
-                        document.head.appendChild(fb);
-                    }};
-                    document.head.appendChild(s);
-                }}
-            """
+            if iframe_in_notebook:
+                # Iframe path: try the CDN first, fall back to the
+                # parent-window source on ``onerror``.  Relative
+                # ``lib/`` paths cannot be resolved inside srcdoc.
+                loader = f"""
+                    var existing = document.querySelector(
+                        'script[src="{MAIDR_JS_CDN_URL}"]'
+                    );
+                    if (!existing) {{
+                        var s = document.createElement('script');
+                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.onerror = function() {{{parent_source_snippet}}};
+                        document.head.appendChild(s);
+                    }}
+                """
+            else:
+                rel_dir = maidr_bundled_relative_dir()
+                bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
+                loader = f"""
+                    var existing = document.querySelector(
+                        'script[src="{MAIDR_JS_CDN_URL}"]'
+                    );
+                    if (!existing) {{
+                        var s = document.createElement('script');
+                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.onerror = function() {{
+                            var fb = document.createElement('script');
+                            fb.src = '{bundled_js_rel}';
+                            document.head.appendChild(fb);
+                        }};
+                        document.head.appendChild(s);
+                    }}
+                """
         else:
             loader = f"""
                 var existing = document.querySelector(
@@ -451,37 +538,88 @@ class PlotlyMaidr:
         use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render` for mode descriptions.
         """
+        # Decide whether the iframe-in-notebook "load-once" fast path
+        # applies.  ``Tag.get_html_string()`` (used by
+        # :func:`wrap_in_iframe_plotly`) silently drops
+        # ``HTMLDependency`` children, so for iframe renders we must
+        # not rely on htmltools to inject the bundled script.  Instead
+        # the init script evaluates the JS source which
+        # :func:`maidr.api.init_notebook` has stashed on
+        # ``window.__maidrJsSource`` in the parent document.  Mirrors
+        # the matplotlib ``_inject_plot`` logic.
+        iframe_in_notebook = use_iframe and (
+            Environment.is_notebook() or Environment.is_shiny()
+        )
+
         schema = self._flatten_maidr()
         plotly_div = self._get_plotly_html()
-        init_script = self._build_init_script(schema, use_cdn=use_cdn)
+        init_script = self._build_init_script(
+            schema, use_cdn=use_cdn, iframe_in_notebook=iframe_in_notebook
+        )
 
         rel_dir = maidr_bundled_relative_dir()
         bundled_css_rel = f"{rel_dir}/{MAIDR_CSS_FILENAME}"
 
         children: list[Any] = []
         if use_cdn is False:
-            # ``HTMLDependency`` handles both CSS and JS, so we don't
-            # need to emit an explicit ``<link>`` tag here.
-            children.append(maidr_html_dependency())
+            if iframe_in_notebook:
+                # ``HTMLDependency`` is dropped by ``get_html_string()``
+                # during iframe serialisation; the init script's
+                # parent-source loader handles both JS and CSS, so no
+                # extra children are needed here.
+                pass
+            else:
+                # ``HTMLDependency`` handles both CSS and JS, so we
+                # don't need to emit an explicit ``<link>`` tag here.
+                children.append(maidr_html_dependency())
         elif use_cdn == "auto":
-            # Copy the bundle alongside the HTML (no auto-emitted tags)
-            # and emit a <link> with client-side fallback to bundled.
-            children.append(maidr_bundled_files_dependency())
-            fallback_css = f"""
-                (function() {{
-                    var l = document.createElement('link');
-                    l.rel = 'stylesheet';
-                    l.href = '{MAIDR_CSS_CDN_URL}';
-                    l.onerror = function() {{
-                        var fb = document.createElement('link');
-                        fb.rel = 'stylesheet';
-                        fb.href = '{bundled_css_rel}';
-                        document.head.appendChild(fb);
-                    }};
-                    document.head.appendChild(l);
-                }})();
-            """
-            children.append(tags.script(fallback_css, type="text/javascript"))
+            if iframe_in_notebook:
+                # Emit CDN CSS with a parent-source ``onerror`` fallback
+                # (mirrors the JS loader in ``_build_init_script``).
+                # Relative ``lib/`` paths cannot resolve inside srcdoc.
+                fallback_css = f"""
+                    (function() {{
+                        var l = document.createElement('link');
+                        l.rel = 'stylesheet';
+                        l.href = '{MAIDR_CSS_CDN_URL}';
+                        l.onerror = function() {{
+                            try {{
+                                var cssSrc = window.parent && window.parent.__maidrCssSource;
+                                if (cssSrc) {{
+                                    var style = document.createElement('style');
+                                    style.textContent = cssSrc;
+                                    document.head.appendChild(style);
+                                }}
+                            }} catch (_) {{ /* parent unreachable */ }}
+                        }};
+                        document.head.appendChild(l);
+                    }})();
+                """
+                children.append(
+                    tags.script(fallback_css, type="text/javascript")
+                )
+            else:
+                # Copy the bundle alongside the HTML (no auto-emitted
+                # tags) and emit a <link> with client-side fallback to
+                # the relative bundled path.
+                children.append(maidr_bundled_files_dependency())
+                fallback_css = f"""
+                    (function() {{
+                        var l = document.createElement('link');
+                        l.rel = 'stylesheet';
+                        l.href = '{MAIDR_CSS_CDN_URL}';
+                        l.onerror = function() {{
+                            var fb = document.createElement('link');
+                            fb.rel = 'stylesheet';
+                            fb.href = '{bundled_css_rel}';
+                            document.head.appendChild(fb);
+                        }};
+                        document.head.appendChild(l);
+                    }})();
+                """
+                children.append(
+                    tags.script(fallback_css, type="text/javascript")
+                )
         else:
             children.append(tags.link(rel="stylesheet", href=MAIDR_CSS_CDN_URL))
         children.append(tags.div(HTML(plotly_div)))
