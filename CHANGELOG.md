@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v1.17.1 (2026-04-21)
+
+### Bug Fixes
+
+- Change fill to z label and maidr asset bundling
+  ([#282](https://github.com/xability/py-maidr/pull/282),
+  [`15cc54b`](https://github.com/xability/py-maidr/commit/15cc54b530d0a951a1ecdf37c928587c07674fbf))
+
+
 ## v1.17.0 (2026-04-03)
 
 ### Features
