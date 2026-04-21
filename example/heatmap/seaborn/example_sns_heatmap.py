@@ -8,7 +8,7 @@ glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Sco
 
 # Plot a heatmap
 fig, ax = plt.subplots(figsize=(10, 8))
-heatmap = sns.heatmap(glue, annot=True, fill_label="Score", ax=ax)
+heatmap = sns.heatmap(glue, annot=True, z_label="Score", ax=ax)
 ax.set_title("Heatmap of Model Scores by Task")
 
 # Add number formatter for colorbar for better screen reader output

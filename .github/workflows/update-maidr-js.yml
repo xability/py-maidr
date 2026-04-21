@@ -1,0 +1,110 @@
+name: Update bundled maidr.js
+
+# Downloads the latest ``maidr.js`` / ``maidr.css`` from the jsDelivr CDN
+# into ``maidr/static/`` and commits the changes directly to ``main``.
+# This keeps the offline-bundled copy in sync with the upstream npm
+# release without requiring the files to be updated manually.
+#
+# The commit uses the ``chore:`` prefix so python-semantic-release
+# (configured in ``pyproject.toml``) does not treat a bundle refresh
+# as a new py-maidr release.  The next ``feat:`` / ``fix:`` / ``perf:``
+# commit to ``main`` will ship with the refreshed bundle automatically.
+
+on:
+  workflow_dispatch:
+    inputs:
+      maidr_version:
+        description: "Explicit maidr.js version (defaults to latest on npm)"
+        required: false
+        default: ""
+  schedule:
+    # Run every day at 06:00 UTC so new npm releases land on ``main``
+    # within 24 hours.  The pre-download version check below makes the
+    # job a no-op when the bundle is already current, so the daily
+    # cadence adds no commit noise.
+    - cron: "0 6 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Download latest maidr.js
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve maidr.js version
+        id: resolve
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.maidr_version }}" ]; then
+            VERSION="${{ github.event.inputs.maidr_version }}"
+          else
+            VERSION=$(curl -sL "https://registry.npmjs.org/maidr/latest" | jq -r '.version')
+          fi
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "Failed to resolve maidr.js version" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved maidr.js version: $VERSION"
+
+      - name: Read currently bundled version
+        id: current
+        run: |
+          set -euo pipefail
+          if [ -f maidr/static/VERSION ]; then
+            CURRENT=$(tr -d '[:space:]' < maidr/static/VERSION)
+          else
+            CURRENT=""
+          fi
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "Currently bundled maidr.js version: ${CURRENT:-<none>}"
+
+      - name: Skip if already up-to-date
+        id: check
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.resolve.outputs.version }}" = "${{ steps.current.outputs.version }}" ]; then
+            echo "Bundle is already at v${{ steps.resolve.outputs.version }}; nothing to do."
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Update needed: ${{ steps.current.outputs.version }} -> ${{ steps.resolve.outputs.version }}"
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download bundled assets
+        if: steps.check.outputs.needs_update == 'true'
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p maidr/static
+          curl -sSfL -o maidr/static/maidr.js \
+            "https://cdn.jsdelivr.net/npm/maidr@${VERSION}/dist/maidr.js"
+          curl -sSfL -o maidr/static/maidr.css \
+            "https://cdn.jsdelivr.net/npm/maidr@${VERSION}/dist/maidr.css"
+          printf "%s\n" "$VERSION" > maidr/static/VERSION
+
+      - name: Verify downloaded assets
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          set -euo pipefail
+          test -s maidr/static/maidr.js
+          test -s maidr/static/maidr.css
+          test -s maidr/static/VERSION
+          # Reject HTML error pages masquerading as JS / CSS.
+          head -c 128 maidr/static/maidr.js | grep -Eqv "^<!DOCTYPE|^<html" || {
+            echo "maidr.js looks like an HTML error page" >&2; exit 1;
+          }
+
+      - name: Commit updated bundle to main
+        if: steps.check.outputs.needs_update == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update bundled maidr.js to v${{ steps.resolve.outputs.version }}"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          file_pattern: "maidr/static/maidr.js maidr/static/maidr.css maidr/static/VERSION"

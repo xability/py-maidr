@@ -74,7 +74,7 @@ class LevelExtractorMixin:
                 labels = [labels[i] for i in valid_indices if i < len(labels)]
 
             level = labels
-        elif MaidrKey.FILL == key:
+        elif MaidrKey.Z == key:
             level = [container.get_label() for container in ax.containers]
 
         if len(level) == 0:  # type: ignore

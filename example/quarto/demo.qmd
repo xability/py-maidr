@@ -88,7 +88,7 @@ glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Sco
 
 # Plot a heatmap
 plt.figure(figsize=(10, 8))
-heatmap = sns.heatmap(glue, annot=True, fill_label="Score")
+heatmap = sns.heatmap(glue, annot=True, z_label="Score")
 plt.title("Model Scores by Task")
 
 # Show the plot

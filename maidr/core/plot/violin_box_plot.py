@@ -106,7 +106,7 @@ class ViolinBoxPlot(MaidrPlot):
         Returns
         -------
         list[dict]
-            One dict per violin with keys: ``fill, lowerOutliers, min,
+            One dict per violin with keys: ``z, lowerOutliers, min,
             q1, q2, q3, max, upperOutliers, mean?``.
         """
         # Tag artists and register elements for SVG highlighting.
@@ -122,7 +122,7 @@ class ViolinBoxPlot(MaidrPlot):
                 stats = ViolinBoxStatsCalculator.compute(vals)
 
             record: dict = {
-                MaidrKey.FILL.value: str(group),
+                MaidrKey.Z.value: str(group),
                 MaidrKey.LOWER_OUTLIER.value: stats[MaidrKey.LOWER_OUTLIER.value],
                 MaidrKey.MIN.value: round(stats[MaidrKey.MIN.value], 4),
                 MaidrKey.Q1.value: round(stats[MaidrKey.Q1.value], 4),

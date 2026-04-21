@@ -304,7 +304,7 @@ class BoxPlot(
                     MaidrKey.Q3.value: whisker["q3"],
                     MaidrKey.MAX.value: cap["max"],
                     MaidrKey.UPPER_OUTLIER.value: outlier[MaidrKey.UPPER_OUTLIER.value],
-                    MaidrKey.FILL.value: level,
+                    MaidrKey.Z.value: level,
                 }
             )
 

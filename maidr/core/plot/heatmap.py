@@ -19,7 +19,7 @@ class HeatPlot(
     MaidrPlot, LevelExtractorMixin, ScalarMappableExtractorMixin, DictMergerMixin
 ):
     def __init__(self, ax: Axes, **kwargs) -> None:
-        self._fill_label = kwargs.pop("fill_label", "Fill")
+        self._z_label = kwargs.pop("z_label", "Z")
         self._fmt = kwargs.pop("fmt", "")
         super().__init__(ax, PlotType.HEAT)
 
@@ -27,7 +27,7 @@ class HeatPlot(
         base_maidr = super().render()
         heat_maidr = {
             MaidrKey.LABELS: {
-                MaidrKey.FILL: self._fill_label,
+                MaidrKey.Z: self._z_label,
             },
         }
         return self.merge_dict(base_maidr, heat_maidr)
@@ -37,7 +37,7 @@ class HeatPlot(
         heat_ax_schema = {
             MaidrKey.X: self.ax.get_xlabel(),
             MaidrKey.Y: self.ax.get_ylabel(),
-            MaidrKey.FILL: self._fill_label,
+            MaidrKey.Z: self._z_label,
         }
         return self.merge_dict(base_ax_schema, heat_ax_schema)
 

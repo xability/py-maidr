@@ -35,7 +35,7 @@ harvest = np.array(
 )  # type: ignore
 
 fig, ax = plt.subplots()
-im = ax.imshow(harvest, fill_label="Harvest")
+im = ax.imshow(harvest, z_label="Harvest")
 im.get_array()
 
 # Show all ticks and label them with the respective list entries

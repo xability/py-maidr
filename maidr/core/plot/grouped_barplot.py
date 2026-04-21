@@ -67,7 +67,7 @@ class GroupedBarPlot(
                 container_data.append(
                     {
                         MaidrKey.X.value: x,
-                        MaidrKey.FILL.value: fill_value,
+                        MaidrKey.Z.value: fill_value,
                         MaidrKey.Y.value: float(y.get_height()),
                     }
                 )
