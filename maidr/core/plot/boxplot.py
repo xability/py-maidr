@@ -180,6 +180,24 @@ class BoxPlot(
         }
         self.lower_outliers_count = []
 
+    def _extract_axes_data(self) -> dict:
+        """
+        Extend the base per-axis ``AxisConfig`` mapping with a ``z`` axis whose
+        label is sourced from the legend title when a hue dimension is
+        present. Omitted otherwise (per-box ``z`` values remain in data).
+        """
+        axes_data = super()._extract_axes_data()
+
+        legend = self.ax.get_legend()
+        if legend is not None:
+            title = legend.get_title()
+            if title is not None:
+                z_label = title.get_text().strip()
+                if z_label:
+                    axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
+
+        return axes_data
+
     def _get_selector(self) -> list[dict]:
         mins, maxs, medians, boxes, outliers = self.elements_map.values()
         selector = []

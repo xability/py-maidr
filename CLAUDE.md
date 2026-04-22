@@ -43,6 +43,24 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 Defined in `maidr/core/enum/plot_type.py`: BAR, BOX, COUNT, DODGED, HEAT, HIST, LINE, SCATTER, STACKED, SMOOTH, CANDLESTICK.
 
+### Canonical `axes` Payload
+
+Every emitted schema's `axes` object follows the canonical per-axis form:
+
+```python
+{
+    "x": {"label": "...", "min": ..., "max": ..., "tickStep": ..., "format": {...}},
+    "y": {"label": "...", ...},
+    "z": {"label": "..."},  # only when applicable (heatmap colorbar, hue/legend)
+}
+```
+
+- Keys of `axes` are a subset of `{x, y, z}`. No other keys are allowed.
+- Each value is an `AxisConfig` dict. `label` is a string; `min`/`max`/`tickStep` are numbers; `format` is a dict.
+- `format`, `min`, `max`, `tickStep`, `fill`, and `level` must **never** appear as siblings of `x`/`y`/`z`.
+- Use `MaidrPlot._axis_config(...)` / `PlotlyPlot._axis_config(...)` helpers to build an `AxisConfig` so only non-`None` fields are emitted.
+- `tests/core/test_axes_schema.py` enforces this contract across real emitters.
+
 ## Code Style
 
 - **Linter/Formatter**: Ruff (line-length 88), configured in pyproject.toml

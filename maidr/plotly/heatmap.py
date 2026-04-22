@@ -52,7 +52,12 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         return result
 
     def _extract_axes_data(self) -> dict:
-        """Extract axes data, including z label for heatmaps."""
+        """Extract per-axis ``AxisConfig`` objects, including ``z`` for heatmaps.
+
+        The ``z`` axis label is sourced from the trace's colorbar title
+        (formerly emitted as ``axes.fill``). Emitted as a canonical
+        ``AxisConfig`` dict ``{"label": ...}``.
+        """
         base = super()._extract_axes_data()
         # Add z label from colorbar title if available
         colorbar = self._trace.get("colorbar", {})
@@ -64,5 +69,5 @@ class PlotlyHeatmapPlot(PlotlyPlot):
             elif title:
                 z_label = str(title)
         if z_label:
-            base[MaidrKey.Z] = z_label
+            base[MaidrKey.Z] = self._axis_config(label=z_label)
         return base
