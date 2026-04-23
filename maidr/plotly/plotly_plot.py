@@ -141,8 +141,36 @@ class PlotlyPlot(ABC):
                     return text
         return None
 
+    @staticmethod
+    def _axis_config(
+        label: str | None = None,
+        *,
+        min: float | None = None,
+        max: float | None = None,
+        tick_step: float | None = None,
+        format: dict | None = None,
+    ) -> dict:
+        """Build a canonical per-axis ``AxisConfig`` dict (only non-None keys)."""
+        cfg: dict = {}
+        if label is not None:
+            cfg[MaidrKey.LABEL] = label
+        if min is not None:
+            cfg[MaidrKey.MIN] = min
+        if max is not None:
+            cfg[MaidrKey.MAX] = max
+        if tick_step is not None:
+            cfg[MaidrKey.TICK_STEP] = tick_step
+        if format is not None:
+            cfg[MaidrKey.FORMAT] = format
+        return cfg
+
     def _extract_axes_data(self) -> dict:
-        """Extract axes labels and format configuration from the layout."""
+        """Extract axes labels and format configuration as per-axis
+        ``AxisConfig`` objects.
+
+        ``format`` is nested inside each ``AxisConfig`` — never emitted as a
+        sibling of ``x``/``y``/``z``.
+        """
         xaxis = self._layout.get(self._xaxis_name, {})
         yaxis = self._layout.get(self._yaxis_name, {})
 
@@ -154,16 +182,18 @@ class PlotlyPlot(ABC):
         if isinstance(y_label, dict):
             y_label = y_label.get("text", "")
 
-        axes_data: dict = {
-            MaidrKey.X: str(x_label) if x_label else "X",
-            MaidrKey.Y: str(y_label) if y_label else "Y",
+        format_config = self._extract_format(xaxis, yaxis) or {}
+
+        return {
+            MaidrKey.X: self._axis_config(
+                label=str(x_label) if x_label else "X",
+                format=format_config.get("x"),
+            ),
+            MaidrKey.Y: self._axis_config(
+                label=str(y_label) if y_label else "Y",
+                format=format_config.get("y"),
+            ),
         }
-
-        format_config = self._extract_format(xaxis, yaxis)
-        if format_config:
-            axes_data[MaidrKey.FORMAT] = format_config
-
-        return axes_data
 
     @staticmethod
     def _extract_format(
@@ -243,7 +273,14 @@ class PlotlyPlot(ABC):
 
     @property
     def schema(self) -> dict:
-        """Return the MAIDR schema of the plot as a dictionary."""
+        """Return the MAIDR schema of the plot as a dictionary.
+
+        The emitted ``axes`` payload follows the canonical per-axis form —
+        keys ⊆ ``{x, y, z}``; each value is an ``AxisConfig`` dict with
+        optional ``label``, ``min``, ``max``, ``tickStep``, and ``format``
+        fields. ``format``/``min``/``max``/``tickStep``/``fill``/``level``
+        never appear as siblings of ``x``/``y``/``z``.
+        """
         if not self._schema:
             self._schema = self.render()
         return self._schema
