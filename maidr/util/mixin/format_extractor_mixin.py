@@ -24,12 +24,19 @@ class FormatExtractorMixin:
 
     Examples
     --------
+    The returned mapping is intended to be **nested into each per-axis
+    ``AxisConfig``** object under its ``format`` key. It must NOT be placed as
+    a sibling of ``x``/``y`` inside ``axes`` (that legacy shape has been
+    removed).
+
     >>> class MyPlot(MaidrPlot, FormatExtractorMixin):
     ...     def render(self):
     ...         schema = super().render()
     ...         format_config = self.extract_format(self.ax)
     ...         if format_config:
-    ...             schema["format"] = format_config
+    ...             # Nest per-axis: axes["x"]["format"] = format_config["x"]
+    ...             for axis_key, fmt in format_config.items():
+    ...                 schema["axes"][axis_key]["format"] = fmt
     ...         return schema
     """
 
@@ -49,8 +56,10 @@ class FormatExtractorMixin:
         Returns
         -------
         Dict[str, Dict[str, Any]] or None
-            Dictionary with 'x' and/or 'y' keys containing format configurations,
-            or None if no formats could be detected.
+            Dictionary with 'x' and/or 'y' keys containing ``AxisFormat``
+            configurations, or None if no formats could be detected. The caller
+            is responsible for nesting these into the corresponding
+            ``axes[x|y|z].format`` fields of the MAIDR schema.
 
         Notes
         -----

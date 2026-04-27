@@ -133,19 +133,25 @@ class CandlestickPlot(MaidrPlot):
 
     def _extract_axes_data(self) -> dict:
         """
-        Extract the plot's axes data including labels.
+        Extract the plot's axes data as canonical per-axis ``AxisConfig``
+        objects.
 
         Returns
         -------
         dict
-            Dictionary containing x and y axis labels.
+            ``{"x": {"label": ...}, "y": {"label": ...}}``.
         """
-        x_labels = self.ax.get_xlabel()
-        if not x_labels:
-            x_labels = self.extract_shared_xlabel(self.ax)
-        if not x_labels:
-            x_labels = "X"
-        return {MaidrKey.X: x_labels, MaidrKey.Y: self.ax.get_ylabel()}
+        x_label = self.ax.get_xlabel()
+        if not x_label:
+            x_label = self.extract_shared_xlabel(self.ax)
+        if not x_label:
+            x_label = "X"
+        y_label = self.ax.get_ylabel() or "Y"
+
+        return {
+            MaidrKey.X: self._axis_config(label=x_label),
+            MaidrKey.Y: self._axis_config(label=y_label),
+        }
 
     def _get_selector(self) -> Union[str, Dict[str, str]]:
         """Return selectors for highlighting candlestick elements."""
@@ -201,14 +207,26 @@ class CandlestickPlot(MaidrPlot):
         return "g[maidr='true'] > path, g[maidr='true'] > rect"
 
     def render(self) -> dict:
-        """Initialize the MAIDR schema dictionary with basic plot information."""
+        """
+        Initialize the MAIDR schema dictionary with basic plot information.
+
+        Preserves the per-axis ``format`` fields already populated by the base
+        ``render()`` — format is nested inside each ``AxisConfig``, not a
+        sibling of ``x``/``y``.
+        """
         base_schema = super().render()
         base_schema[MaidrKey.TITLE] = "Candlestick Chart"
-        # Update axes labels while preserving format from parent
+
+        # Preserve per-axis format (nested inside each AxisConfig) while
+        # refreshing labels through _extract_axes_data().
+        previous_axes = base_schema.get(MaidrKey.AXES, {}) or {}
         axes_data = self._extract_axes_data()
-        if MaidrKey.AXES in base_schema and MaidrKey.FORMAT in base_schema[MaidrKey.AXES]:
-            axes_data[MaidrKey.FORMAT] = base_schema[MaidrKey.AXES][MaidrKey.FORMAT]
+        for axis_key, axis_cfg in list(axes_data.items()):
+            prev = previous_axes.get(axis_key)
+            if isinstance(prev, dict) and MaidrKey.FORMAT in prev:
+                axis_cfg[MaidrKey.FORMAT] = prev[MaidrKey.FORMAT]
         base_schema[MaidrKey.AXES] = axes_data
+
         base_schema[MaidrKey.DATA] = self._extract_plot_data()
         if self._support_highlighting:
             base_schema[MaidrKey.SELECTOR] = self._get_selector()

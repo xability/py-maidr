@@ -19,12 +19,14 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
         return ["g[maidr='true'] > g > use"]
 
     def _extract_axes_data(self) -> dict:
-        """Extract axes data with grid navigation parameters.
+        """Extract axes data as canonical per-axis ``AxisConfig`` objects.
 
-        Returns per-axis objects containing label, min, max, and tickStep
-        when all values are valid. Falls back to simple string labels if
-        any grid parameter is missing or invalid (e.g., non-uniform ticks,
-        log scale), silently disabling grid navigation.
+        Always returns per-axis objects with ``label``. When the grid
+        navigation preconditions hold (linear scales, uniform ticks, valid
+        bounds), ``min``, ``max``, and ``tickStep`` are additionally included
+        on both axes. If any precondition fails, those numeric fields are
+        omitted on both axes, silently disabling grid navigation while still
+        complying with the canonical axes shape.
         """
         # Labels (with fallback matching base class behavior).
         x_label = self.ax.get_xlabel()
@@ -42,25 +44,29 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
         x_tick_step = self._compute_tick_step(self.ax.get_xticks())
         y_tick_step = self._compute_tick_step(self.ax.get_yticks())
 
-        # Validate — fall back to simple strings if grid config is invalid.
+        # If grid config is invalid, emit bare AxisConfig objects with labels
+        # only (no min/max/tickStep). This keeps the canonical per-axis shape.
         if not self._is_valid_grid_config(
             x_min, x_max, x_tick_step, y_min, y_max, y_tick_step
         ):
-            return {MaidrKey.X: x_label, MaidrKey.Y: y_label}
+            return {
+                MaidrKey.X: self._axis_config(label=x_label),
+                MaidrKey.Y: self._axis_config(label=y_label),
+            }
 
         return {
-            MaidrKey.X: {
-                MaidrKey.LABEL: x_label,
-                MaidrKey.MIN: float(x_min),
-                MaidrKey.MAX: float(x_max),
-                MaidrKey.TICK_STEP: float(x_tick_step),
-            },
-            MaidrKey.Y: {
-                MaidrKey.LABEL: y_label,
-                MaidrKey.MIN: float(y_min),
-                MaidrKey.MAX: float(y_max),
-                MaidrKey.TICK_STEP: float(y_tick_step),
-            },
+            MaidrKey.X: self._axis_config(
+                label=x_label,
+                min=float(x_min),
+                max=float(x_max),
+                tick_step=float(x_tick_step),
+            ),
+            MaidrKey.Y: self._axis_config(
+                label=y_label,
+                min=float(y_min),
+                max=float(y_max),
+                tick_step=float(y_tick_step),
+            ),
         }
 
     @staticmethod

@@ -647,8 +647,15 @@ def extract_axis_format(ax: Optional[Axes]) -> Dict[str, Dict[str, Any]]:
     Returns
     -------
     Dict[str, Dict[str, Any]]
-        Dictionary with 'x' and/or 'y' keys containing format configurations.
-        Only includes axes where a format could be detected.
+        Dictionary with 'x' and/or 'y' keys containing ``AxisFormat``
+        configurations. Only includes axes where a format could be detected.
+
+    Notes
+    -----
+    The returned mapping is consumed by ``MaidrPlot.render()`` and nested into
+    the per-axis ``AxisConfig`` objects of the MAIDR schema — i.e.
+    ``axes[x|y|z].format``. It is never emitted as a sibling of
+    ``x``/``y``/``z`` inside ``axes`` (the legacy shape has been removed).
 
     Examples
     --------

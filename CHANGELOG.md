@@ -1,6 +1,25 @@
 # CHANGELOG
 
 
+## v1.17.2 (2026-04-23)
+
+### Bug Fixes
+
+- Refactor axes in maidr payload ([#283](https://github.com/xability/py-maidr/pull/283),
+  [`12c8316`](https://github.com/xability/py-maidr/commit/12c83169de75948f25c06afbf60e45dbaaef52db))
+
+### Chores
+
+- Update bundled maidr.js to v3.63.1
+  ([`22762b1`](https://github.com/xability/py-maidr/commit/22762b1953015dc3b50635a63e3863e90f4bedb9))
+
+- Update bundled maidr.js to v3.64.0
+  ([`476d85b`](https://github.com/xability/py-maidr/commit/476d85b88cf552cd86f212370faf2e0710f89070))
+
+- Update bundled maidr.js to v3.64.1
+  ([`2048923`](https://github.com/xability/py-maidr/commit/20489231af11a2b3b19226a5f0648471d0901391))
+
+
 ## v1.17.1 (2026-04-21)
 
 ### Bug Fixes

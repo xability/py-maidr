@@ -122,14 +122,23 @@ class MplfinanceBarPlot(
         return [float(patch.get_height()) for patch in patches]
 
     def _extract_axes_data(self) -> dict:
-        """Extract axes data with mplfinance-specific cleaning."""
+        """Extract per-axis ``AxisConfig`` objects with mplfinance-specific cleaning.
+
+        For volume bar plots, the y-axis label is cleaned via
+        ``MplfinanceDataExtractor.clean_axis_label``. The axis shape remains
+        the canonical ``AxisConfig`` object form.
+        """
         ax_data = super()._extract_axes_data()
 
-        # For mplfinance volume plots, clean up the y-axis label
+        # For mplfinance volume plots, clean up the y-axis label in-place.
         if self._custom_patches:
-            y_label = ax_data.get("y")
-            if y_label:
-                ax_data["y"] = MplfinanceDataExtractor.clean_axis_label(y_label)
+            y_axis = ax_data.get(MaidrKey.Y)
+            if isinstance(y_axis, dict):
+                y_label = y_axis.get(MaidrKey.LABEL)
+                if y_label:
+                    y_axis[MaidrKey.LABEL] = (
+                        MplfinanceDataExtractor.clean_axis_label(y_label)
+                    )
 
         return ax_data
 
@@ -140,13 +149,24 @@ class MplfinanceBarPlot(
         return "g[maidr='true'] > path"
 
     def render(self) -> dict:
+        """
+        Build the MAIDR schema for the volume bar layer.
+
+        Preserves per-axis ``format`` fields (nested inside each
+        ``AxisConfig``) populated by the base ``render()`` while refreshing
+        labels through the mplfinance-specific ``_extract_axes_data``.
+        """
         base_schema = super().render()
         base_schema[MaidrKey.TITLE] = "Volume Bar Plot"
-        # Update axes labels while preserving format from parent
+
+        previous_axes = base_schema.get(MaidrKey.AXES, {}) or {}
         axes_data = self._extract_axes_data()
-        if MaidrKey.AXES in base_schema and MaidrKey.FORMAT in base_schema[MaidrKey.AXES]:
-            axes_data[MaidrKey.FORMAT] = base_schema[MaidrKey.AXES][MaidrKey.FORMAT]
+        for axis_key, axis_cfg in list(axes_data.items()):
+            prev = previous_axes.get(axis_key)
+            if isinstance(prev, dict) and MaidrKey.FORMAT in prev:
+                axis_cfg[MaidrKey.FORMAT] = prev[MaidrKey.FORMAT]
         base_schema[MaidrKey.AXES] = axes_data
+
         base_schema[MaidrKey.DATA] = self._extract_plot_data()
         if self._support_highlighting:
             base_schema[MaidrKey.SELECTOR] = self._get_selector()

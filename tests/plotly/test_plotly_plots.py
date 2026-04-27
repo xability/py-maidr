@@ -37,6 +37,25 @@ class TestPlotlyBarPlot:
         assert MaidrKey.AXES in schema
         assert MaidrKey.DATA in schema
 
+    def test_axes_uses_canonical_per_axis_shape(self):
+        trace = {"type": "bar", "x": ["A"], "y": [1]}
+        layout = {"xaxis": {"title": "Cat"}, "yaxis": {"title": "Val"}}
+        plot = PlotlyBarPlot(trace, layout)
+        axes = plot.schema[MaidrKey.AXES]
+
+        # Per-axis AxisConfig objects (never bare strings)
+        assert isinstance(axes[MaidrKey.X], dict)
+        assert isinstance(axes[MaidrKey.Y], dict)
+        assert axes[MaidrKey.X][MaidrKey.LABEL] == "Cat"
+        assert axes[MaidrKey.Y][MaidrKey.LABEL] == "Val"
+        # No forbidden sibling keys (format/min/max/tickStep/fill/level)
+        for forbidden in ("format", "min", "max", "tickStep", "fill", "level"):
+            assert forbidden not in axes
+            # also in enum form
+            assert not any(
+                (k.value if hasattr(k, "value") else k) == forbidden for k in axes
+            )
+
     def test_horizontal_bar(self):
         trace = {
             "type": "bar",
@@ -71,6 +90,39 @@ class TestPlotlyScatterPlot:
 
         assert isinstance(data[0][MaidrKey.X], float)
         assert isinstance(data[0][MaidrKey.Y], int)
+
+    def test_scatter_axes_canonical_per_axis(self):
+        trace = {"type": "scatter", "x": [1.0, 2.0, 3.0], "y": [4.0, 5.0, 6.0]}
+        layout = {
+            "xaxis": {"title": "X"},
+            "yaxis": {"title": "Y"},
+        }
+        plot = PlotlyScatterPlot(trace, layout)
+        axes = plot.schema[MaidrKey.AXES]
+
+        assert isinstance(axes[MaidrKey.X], dict)
+        assert isinstance(axes[MaidrKey.Y], dict)
+        # Grid-nav invalid (no explicit range/dtick): labels only.
+        assert axes[MaidrKey.X][MaidrKey.LABEL] == "X"
+        assert axes[MaidrKey.Y][MaidrKey.LABEL] == "Y"
+
+    def test_scatter_axes_grid_config_nested(self):
+        trace = {"type": "scatter", "x": [0, 10], "y": [0, 10]}
+        layout = {
+            "xaxis": {"title": "X", "range": [0, 10], "dtick": 1},
+            "yaxis": {"title": "Y", "range": [0, 10], "dtick": 2},
+        }
+        plot = PlotlyScatterPlot(trace, layout)
+        axes = plot.schema[MaidrKey.AXES]
+
+        # min/max/tickStep nested inside each AxisConfig, not siblings.
+        assert axes[MaidrKey.X][MaidrKey.MIN] == 0.0
+        assert axes[MaidrKey.X][MaidrKey.MAX] == 10.0
+        assert axes[MaidrKey.X][MaidrKey.TICK_STEP] == 1.0
+        assert axes[MaidrKey.Y][MaidrKey.TICK_STEP] == 2.0
+        # No sibling numeric fields at top of axes.
+        for forbidden in ("min", "max", "tickStep", "format", "fill", "level"):
+            assert forbidden not in axes
 
 
 class TestPlotlyLinePlot:
@@ -172,6 +224,29 @@ class TestPlotlyHeatmapPlot:
         assert MaidrKey.POINTS in data
         assert MaidrKey.X not in data
         assert MaidrKey.Y not in data
+
+    def test_axes_z_is_axis_config_dict(self):
+        trace = {
+            "type": "heatmap",
+            "z": [[1, 2], [3, 4]],
+            "colorbar": {"title": {"text": "Intensity"}},
+        }
+        layout = {"xaxis": {"title": "Col"}, "yaxis": {"title": "Row"}}
+        plot = PlotlyHeatmapPlot(trace, layout)
+        axes = plot.schema[MaidrKey.AXES]
+
+        # z must be a dict (AxisConfig), never a bare string
+        assert isinstance(axes[MaidrKey.Z], dict)
+        assert axes[MaidrKey.Z][MaidrKey.LABEL] == "Intensity"
+        assert isinstance(axes[MaidrKey.X], dict)
+        assert isinstance(axes[MaidrKey.Y], dict)
+
+    def test_axes_omits_z_when_no_colorbar_title(self):
+        trace = {"type": "heatmap", "z": [[1, 2], [3, 4]]}
+        plot = PlotlyHeatmapPlot(trace, {})
+        axes = plot.schema[MaidrKey.AXES]
+
+        assert MaidrKey.Z not in axes
 
 
 class TestPlotlyHistogramPlot:

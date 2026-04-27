@@ -15,12 +15,15 @@ class PlotlyScatterPlot(PlotlyPlot):
         return f"{self._subplot_css_prefix()}.trace.scatter .point"
 
     def _extract_axes_data(self) -> dict:
-        """Extract axes data with grid navigation parameters.
+        """Extract axes data as canonical per-axis ``AxisConfig`` objects.
 
-        Returns per-axis objects containing label, min, max, and tickStep
-        when all values are valid. Falls back to simple string labels if
-        any grid parameter is missing or invalid (e.g., non-uniform ticks,
-        log scale), silently disabling grid navigation.
+        Always returns per-axis objects with ``label`` (and ``format`` when
+        available). When the grid navigation preconditions hold (linear
+        scales, uniform ticks, valid bounds), ``min``, ``max``, and
+        ``tickStep`` are additionally included on both axes. If any
+        precondition fails, those numeric fields are omitted (silently
+        disabling grid navigation) while still complying with the canonical
+        axes shape.
         """
         xaxis = self._layout.get(self._xaxis_name, {})
         yaxis = self._layout.get(self._yaxis_name, {})
@@ -28,6 +31,11 @@ class PlotlyScatterPlot(PlotlyPlot):
         # Get labels
         x_label = self._get_axis_label(xaxis, "X")
         y_label = self._get_axis_label(yaxis, "Y")
+
+        # Per-axis format (nested into each AxisConfig).
+        format_config = self._extract_format(xaxis, yaxis) or {}
+        x_fmt = format_config.get("x")
+        y_fmt = format_config.get("y")
 
         # Get range: explicit from layout OR compute from trace data
         x_data = self._trace.get("x", [])
@@ -39,25 +47,31 @@ class PlotlyScatterPlot(PlotlyPlot):
         x_tick_step = self._get_tick_step(xaxis)
         y_tick_step = self._get_tick_step(yaxis)
 
-        # Validate - fall back to simple labels if invalid
+        # If grid config is invalid, emit bare AxisConfig objects (no
+        # min/max/tickStep). This keeps the canonical per-axis shape.
         if not self._is_valid_grid_config(
             xaxis, yaxis, x_min, x_max, x_tick_step, y_min, y_max, y_tick_step
         ):
-            return {MaidrKey.X: x_label, MaidrKey.Y: y_label}
+            return {
+                MaidrKey.X: self._axis_config(label=x_label, format=x_fmt),
+                MaidrKey.Y: self._axis_config(label=y_label, format=y_fmt),
+            }
 
         return {
-            MaidrKey.X: {
-                MaidrKey.LABEL: x_label,
-                MaidrKey.MIN: float(x_min),
-                MaidrKey.MAX: float(x_max),
-                MaidrKey.TICK_STEP: float(x_tick_step),
-            },
-            MaidrKey.Y: {
-                MaidrKey.LABEL: y_label,
-                MaidrKey.MIN: float(y_min),
-                MaidrKey.MAX: float(y_max),
-                MaidrKey.TICK_STEP: float(y_tick_step),
-            },
+            MaidrKey.X: self._axis_config(
+                label=x_label,
+                min=float(x_min),
+                max=float(x_max),
+                tick_step=float(x_tick_step),
+                format=x_fmt,
+            ),
+            MaidrKey.Y: self._axis_config(
+                label=y_label,
+                min=float(y_min),
+                max=float(y_max),
+                tick_step=float(y_tick_step),
+                format=y_fmt,
+            ),
         }
 
     @staticmethod
