@@ -145,18 +145,30 @@ class LineExtractorMixin:
         if xy_array.size == 0:
             return None
 
-        # Extract x-axis labels for categorical data
-        x_labels = LevelExtractorMixin.extract_level(ax, MaidrKey.X)
+        # Build a coordinate -> label map directly from the *unfiltered* tick
+        # positions and labels. Looking up by tick *coordinate* (not array
+        # index) avoids off-by-one errors when boundary ticks are filtered
+        # elsewhere (e.g. by ``LevelExtractorMixin.extract_level``) and
+        # gracefully handles non-contiguous or non-zero-based tick layouts.
+        tick_positions = ax.get_xticks()
+        tick_labels = [label.get_text() for label in ax.get_xticklabels()]
+        tick_map = {
+            float(pos): text
+            for pos, text in zip(tick_positions, tick_labels)
+            if text
+        }
 
         # If we have categorical labels, map numeric coordinates to labels
-        if x_labels:
-            result = []
+        if tick_map:
+            result: List[Tuple[Union[str, float], float]] = []
             for x, y in xy_array:
-                # Map numeric x-coordinate to categorical label if available
-                if isinstance(x, (int, float)) and 0 <= int(x) < len(x_labels):
-                    x_value = x_labels[int(x)]
-                else:
-                    x_value = float(x)
+                x_coord = float(x)
+                # Look up by coordinate value; fall back to the numeric x when
+                # the data point doesn't sit exactly on a labelled tick.
+                label_value = tick_map.get(x_coord)
+                x_value: Union[str, float] = (
+                    label_value if label_value is not None else x_coord
+                )
                 result.append((x_value, float(y)))
             return result
         else:
