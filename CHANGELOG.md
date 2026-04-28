@@ -1,6 +1,16 @@
 # CHANGELOG
 
 
+## v1.17.3 (2026-04-28)
+
+### Bug Fixes
+
+- Correct x-label for line plots ([#284](https://github.com/xability/py-maidr/pull/284),
+  [`281d411`](https://github.com/xability/py-maidr/commit/281d411ffefa91603082bcff7bc2780b8eebc47a))
+
+Co-authored-by: nk1408 <196366666+nk1408@users.noreply.github.com>
+
+
 ## v1.17.2 (2026-04-23)
 
 ### Bug Fixes
