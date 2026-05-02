@@ -76,8 +76,8 @@ class TestLineDataExtraction:
 
         assert result["type"] == PlotType.LINE.value
         assert len(result["data"]) == 2  # two lines
-        assert result["data"][0][0]["fill"] == "A"
-        assert result["data"][1][0]["fill"] == "B"
+        assert result["data"][0][0]["z"] == "A"
+        assert result["data"][1][0]["z"] == "B"
 
 
 class TestHeatmapDataExtraction:

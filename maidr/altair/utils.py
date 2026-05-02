@@ -4,6 +4,55 @@ from typing import Any
 
 import pandas as pd
 
+from maidr.core.enum import MaidrKey
+
+
+def axis_config(
+    label: str | None = None,
+    *,
+    min: float | None = None,
+    max: float | None = None,
+    tick_step: float | None = None,
+    format: dict | None = None,
+) -> dict:
+    """
+    Build a canonical ``AxisConfig`` dict, emitting only non-None properties.
+
+    Mirrors :meth:`maidr.core.plot.maidr_plot.MaidrPlot._axis_config` so the
+    Altair extractors can produce the same per-axis schema shape without
+    importing the ``MaidrPlot`` base class (which would pull in matplotlib).
+
+    Parameters
+    ----------
+    label : str, optional
+        Human-readable axis label.
+    min : float, optional
+        Numeric lower bound (numeric axes only).
+    max : float, optional
+        Numeric upper bound (numeric axes only).
+    tick_step : float, optional
+        Tick spacing (numeric axes only).
+    format : dict, optional
+        Per-axis ``AxisFormat`` object.
+
+    Returns
+    -------
+    dict
+        A sparse ``AxisConfig`` dict. May be empty.
+    """
+    cfg: dict = {}
+    if label is not None:
+        cfg[MaidrKey.LABEL] = label
+    if min is not None:
+        cfg[MaidrKey.MIN] = min
+    if max is not None:
+        cfg[MaidrKey.MAX] = max
+    if tick_step is not None:
+        cfg[MaidrKey.TICK_STEP] = tick_step
+    if format is not None:
+        cfg[MaidrKey.FORMAT] = format
+    return cfg
+
 
 def is_altair_chart(obj: Any) -> bool:
     """Check if an object is an Altair chart without requiring altair import."""

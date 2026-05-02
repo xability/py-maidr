@@ -9,6 +9,7 @@ import pandas as pd
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.altair.utils import (
+    axis_config,
     get_axis_title,
     get_encoding_aggregate,
     get_encoding_bin,
@@ -50,7 +51,7 @@ def extract_chart_data(spec: dict) -> dict:
     # Add labels for heatmap
     if plot_type == PlotType.HEAT:
         color_title = get_axis_title(encoding, "color")
-        schema[MaidrKey.LABELS] = {MaidrKey.FILL: color_title}
+        schema[MaidrKey.LABELS] = {MaidrKey.Z: color_title}
 
     # Add orientation for box plots
     if plot_type == PlotType.BOX:
@@ -111,24 +112,39 @@ def _detect_plot_type(mark: str, encoding: dict, transforms: list) -> PlotType:
 
 
 def _extract_axes(encoding: dict, plot_type: PlotType) -> dict:
-    """Extract axis labels from encoding."""
-    axes: dict[str, Any] = {}
+    """
+    Extract axis labels from a Vega-Lite encoding into the canonical
+    per-axis ``AxisConfig`` form.
+
+    Each value in the returned dict is an ``AxisConfig`` (e.g. ``{"label": ...}``)
+    rather than a bare string, matching the schema contract enforced by
+    ``tests/core/test_axes_schema.py``. A ``z`` entry is added for plot types
+    whose colour / fill dimension is meaningful (``HEAT``, and grouped bar
+    types when a ``color`` channel is present).
+
+    Parameters
+    ----------
+    encoding : dict
+        The Vega-Lite ``encoding`` block.
+    plot_type : PlotType
+        The detected MAIDR plot type.
+
+    Returns
+    -------
+    dict
+        Mapping with keys subset of ``{MaidrKey.X, MaidrKey.Y, MaidrKey.Z}``.
+    """
+    axes: dict[str, Any] = {
+        MaidrKey.X: axis_config(label=get_axis_title(encoding, "x")),
+        MaidrKey.Y: axis_config(label=get_axis_title(encoding, "y")),
+    }
 
     if plot_type == PlotType.HEAT:
-        axes[MaidrKey.X] = get_axis_title(encoding, "x")
-        axes[MaidrKey.Y] = get_axis_title(encoding, "y")
-        axes[MaidrKey.FILL] = get_axis_title(encoding, "color")
-    elif plot_type == PlotType.BOX:
-        x_type = encoding.get("x", {}).get("type", "")
-        if x_type == "quantitative":
-            axes[MaidrKey.X] = get_axis_title(encoding, "x")
-            axes[MaidrKey.Y] = get_axis_title(encoding, "y")
-        else:
-            axes[MaidrKey.X] = get_axis_title(encoding, "x")
-            axes[MaidrKey.Y] = get_axis_title(encoding, "y")
-    else:
-        axes[MaidrKey.X] = get_axis_title(encoding, "x")
-        axes[MaidrKey.Y] = get_axis_title(encoding, "y")
+        axes[MaidrKey.Z] = axis_config(label=get_axis_title(encoding, "color"))
+    elif plot_type in (PlotType.STACKED, PlotType.DODGED):
+        # Only emit z if a colour encoding is present (legend-like dimension).
+        if get_encoding_field(encoding, "color"):
+            axes[MaidrKey.Z] = axis_config(label=get_axis_title(encoding, "color"))
 
     return axes
 
@@ -229,7 +245,7 @@ def _extract_line_data(df: pd.DataFrame, encoding: dict) -> list[list[dict]]:
                 {
                     MaidrKey.X: _to_str_or_num(row[x_field]),
                     MaidrKey.Y: _to_num(row[y_field]),
-                    MaidrKey.FILL: str(group_name),
+                    MaidrKey.Z: str(group_name),
                 }
                 for _, row in group_df.iterrows()
             ]
@@ -361,7 +377,7 @@ def _extract_box_data(df: pd.DataFrame, encoding: dict) -> list[dict]:
             MaidrKey.UPPER_OUTLIER: upper_outliers,
         }
         if group_name:
-            entry[MaidrKey.FILL] = group_name
+            entry[MaidrKey.Z] = group_name
 
         result.append(entry)
 
@@ -409,7 +425,7 @@ def _extract_grouped_bar_data(df: pd.DataFrame, encoding: dict) -> list[list[dic
             group_data = [
                 {
                     MaidrKey.X: str(row[x_field]),
-                    MaidrKey.FILL: str(group_name),
+                    MaidrKey.Z: str(group_name),
                     MaidrKey.Y: _to_num(row[y_col]),
                 }
                 for _, row in group_df.iterrows()
@@ -472,7 +488,7 @@ def _compute_density(
                 {
                     MaidrKey.X: round(float(x), 4),
                     MaidrKey.Y: round(float(y), 6),
-                    MaidrKey.FILL: str(group_name),
+                    MaidrKey.Z: str(group_name),
                 }
                 for x, y in zip(x_range, y_range)
             ]
