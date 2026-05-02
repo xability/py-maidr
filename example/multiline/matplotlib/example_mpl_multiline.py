@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import maidr
+import maidr  # noqa: F401
 
 """
 Creates a multiline plot showing basic data trends.
@@ -40,4 +40,4 @@ ax.xaxis.set_major_formatter("{x:.0f}")
 ax.yaxis.set_major_formatter("{x:.0f}")
 
 # Display the plot
-maidr.show(lineplot)
+plt.show()

@@ -12,7 +12,7 @@ Example:
 import matplotlib.pyplot as plt
 import numpy as np
 
-import maidr
+import maidr  # noqa: F401
 
 species: tuple[str, str, str] = (
     "Adelie",
@@ -49,4 +49,4 @@ ax.legend(loc="upper right")
 ax.yaxis.set_major_formatter("{x:.0f}")
 
 # Show plot using maidr.show
-maidr.show(p)
+plt.show()

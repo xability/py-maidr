@@ -127,7 +127,7 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
                 point_data = {
                     MaidrKey.X: x_value,
                     MaidrKey.Y: float(y),
-                    MaidrKey.FILL: (label if not label.startswith("_child") else ""),
+                    MaidrKey.Z: (label if not label.startswith("_child") else ""),
                 }
                 line_data.append(point_data)
 
@@ -190,13 +190,24 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
         return periods[0] if periods else ""
 
     def render(self) -> dict:
+        """
+        Build the MAIDR schema for the moving-average line layer.
+
+        Preserves per-axis ``format`` fields (nested inside each
+        ``AxisConfig``) populated by the base ``render()`` while refreshing
+        labels through ``_extract_axes_data``.
+        """
         base_schema = super().render()
         base_schema[MaidrKey.TITLE] = "Moving Average Line Plot"
-        # Update axes labels while preserving format from parent
+
+        previous_axes = base_schema.get(MaidrKey.AXES, {}) or {}
         axes_data = self._extract_axes_data()
-        if MaidrKey.AXES in base_schema and MaidrKey.FORMAT in base_schema[MaidrKey.AXES]:
-            axes_data[MaidrKey.FORMAT] = base_schema[MaidrKey.AXES][MaidrKey.FORMAT]
+        for axis_key, axis_cfg in list(axes_data.items()):
+            prev = previous_axes.get(axis_key)
+            if isinstance(prev, dict) and MaidrKey.FORMAT in prev:
+                axis_cfg[MaidrKey.FORMAT] = prev[MaidrKey.FORMAT]
         base_schema[MaidrKey.AXES] = axes_data
+
         base_schema[MaidrKey.DATA] = self._extract_plot_data()
         if self._support_highlighting:
             base_schema[MaidrKey.SELECTOR] = self._get_selector()

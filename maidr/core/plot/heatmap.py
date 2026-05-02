@@ -19,7 +19,7 @@ class HeatPlot(
     MaidrPlot, LevelExtractorMixin, ScalarMappableExtractorMixin, DictMergerMixin
 ):
     def __init__(self, ax: Axes, **kwargs) -> None:
-        self._fill_label = kwargs.pop("fill_label", "Fill")
+        self._z_label = kwargs.pop("z_label", "Z")
         self._fmt = kwargs.pop("fmt", "")
         super().__init__(ax, PlotType.HEAT)
 
@@ -27,19 +27,22 @@ class HeatPlot(
         base_maidr = super().render()
         heat_maidr = {
             MaidrKey.LABELS: {
-                MaidrKey.FILL: self._fill_label,
+                MaidrKey.Z: self._z_label,
             },
         }
         return self.merge_dict(base_maidr, heat_maidr)
 
     def _extract_axes_data(self) -> dict:
-        base_ax_schema = super()._extract_axes_data()
-        heat_ax_schema = {
-            MaidrKey.X: self.ax.get_xlabel(),
-            MaidrKey.Y: self.ax.get_ylabel(),
-            MaidrKey.FILL: self._fill_label,
-        }
-        return self.merge_dict(base_ax_schema, heat_ax_schema)
+        """
+        Extend the base per-axis ``AxisConfig`` mapping with a ``z`` axis
+        describing the colormap / fill dimension.
+
+        The base class already supplies ``x`` and ``y`` as ``AxisConfig`` dicts
+        (``{"label": ...}``). Here we simply add ``z`` with its label.
+        """
+        axes_data = super()._extract_axes_data()
+        axes_data[MaidrKey.Z] = self._axis_config(label=self._z_label)
+        return axes_data
 
     def _extract_plot_data(self) -> dict:
         plot = self.extract_scalar_mappable(self.ax)

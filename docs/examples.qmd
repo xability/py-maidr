@@ -1,5 +1,6 @@
 ---
-title: Example Gallery
+title: "Matplotlib & Seaborn Accessible Plot Examples"
+description: "Code examples showing how to make matplotlib and seaborn bar plots, histograms, line charts, box plots, heatmaps, scatter plots, and more accessible with py-maidr."
 jupyter: python3
 # aliases:
   # - ../index.html
@@ -8,11 +9,41 @@ filters:
   - line-highlight
 ---
 
-## Example Gallery {#sec-examples}
+## Matplotlib / Seaborn Examples {#sec-examples}
 
-Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code.
+Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code. For **Plotly** examples, see the [Plotly Examples](examples-plotly.qmd) page.
 
-Simply import the `maidr` package and use the `maidr.show()` function to display your plots. **maidr** will automatically generate accessible versions of your plots in your default browser. You can then interact with the accessible versions using keyboard shortcuts (refer to @tbl-shortcuts).
+Simply `import maidr` and call `plt.show()` as usual. **maidr** automatically activates a custom matplotlib backend, so `plt.show()` renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image.
+
+### Custom Backend
+
+When you `import maidr`, a custom matplotlib backend is automatically activated. This means `plt.show()` renders accessible HTML output instead of a static image.
+
+#### Switching Back to the Default Renderer
+
+If you want to temporarily use the default matplotlib renderer (e.g. for unsupported plot types or debugging), you can switch the backend:
+
+**In Jupyter notebooks:**
+
+```python
+maidr.set_backend(use_maidr=False)   # plt.show() now renders static inline images
+maidr.set_backend(use_maidr=True)    # plt.show() renders accessible maidr output again
+```
+
+**In Python scripts (non-notebook):**
+
+```python
+maidr.set_backend(use_maidr=False)   # plt.show() now opens the native image viewer (e.g. macOS, TkAgg)
+maidr.set_backend(use_maidr=True)    # plt.show() renders accessible maidr output again
+```
+
+::: {.callout-note}
+`maidr.show()` always renders accessible output regardless of the active backend. You only need `maidr.set_backend()` to control the behavior of `plt.show()`.
+:::
+
+#### Unsupported Plot Types
+
+For plot types not yet supported by maidr (e.g. pie charts, contour plots, 3D plots), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed — your plots will always be visible.
 
 ### Bar Plots
 
@@ -35,8 +66,8 @@ penguins = sns.load_dataset("penguins")
 # Create a bar plot showing the average body mass of penguins by species
 fig, ax = plt.subplots(figsize=(6, 6))
 
-# Assign the plot to a variable #<<
-bar_plot = sns.barplot(  #<<
+# Assign the plot to a variable
+bar_plot = sns.barplot(
     x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d", ax=ax
 )
 ax.set_title("Average Body Mass of Penguins by Species")
@@ -46,8 +77,8 @@ ax.set_ylabel("Body Mass (g)")
 # Add number formatter for better screen reader output
 ax.yaxis.set_major_formatter("{x:,.0f}")
 
-# Use maidr.show() to display your plot #<<
-maidr.show(bar_plot)  #<<
+# plt.show() now renders accessible maidr output #<<
+plt.show()  #<<
 ```
 
 
@@ -76,7 +107,7 @@ ax.set_ylabel("Count")
 # Add number formatter for better screen reader output
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(count_plot) #<<
+plt.show() #<<
 ```
 
 #### Vertical Stacked Bar Plot
@@ -118,7 +149,7 @@ ax.legend(loc="upper right")
 # Add number formatter for better screen reader output
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(p) #<<
+plt.show() #<<
 ```
 
 #### Side-By-Side Dodged Bar Plot
@@ -165,8 +196,8 @@ ax.legend(loc="upper right")
 # Add number formatter for better screen reader output
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-# Show plot using maidr.show
-maidr.show(p) #<<
+# Display the plot
+plt.show() #<<
 ```
 
 ### Histogram
@@ -200,7 +231,7 @@ ax.set_ylabel("Frequency")
 ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(hist_plot) #<<
+plt.show() #<<
 ```
 
 ### KDE (Kernel Density Estimation) Plots
@@ -231,7 +262,7 @@ ax.set_ylabel("Density")
 ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.3f}")
 
-maidr.show(kde_plot) #<<
+plt.show() #<<
 ```
 
 ### Line Plots
@@ -272,7 +303,7 @@ ax.set_ylabel("Tip")
 ax.xaxis.set_major_formatter("${x:.2f}")
 ax.yaxis.set_major_formatter("${x:.2f}")
 
-maidr.show(line_plot) #<<
+plt.show() #<<
 ```
 
 #### Multiline Plot
@@ -318,8 +349,8 @@ ax.set_ylabel("Y values")
 ax.xaxis.set_major_formatter("{x:.0f}")
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-# Display the plot using maidr
-maidr.show(lineplot) #<<
+# Display the plot
+plt.show() #<<
 
 ```
 
@@ -338,7 +369,7 @@ glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Sco
 
 # Plot a heatmap
 fig, ax = plt.subplots(figsize=(8, 8))
-heatmap = sns.heatmap(glue, annot=True, fill_label="Score", ax=ax) #<<
+heatmap = sns.heatmap(glue, annot=True, z_label="Score", ax=ax) #<<
 ax.set_title("Model Scores by Task")
 
 # Add number formatter for colorbar for better screen reader output
@@ -347,8 +378,7 @@ if cbar:
     cbar.ax.yaxis.set_major_formatter("{x:.1f}")
 
 # Show the plot
-# plt.show()
-maidr.show(heatmap) #<<
+plt.show() #<<
 ```
 
 ### Box Plot
@@ -377,7 +407,90 @@ ax.set_title("Petal Length by Species from Iris Dataset")
 ax.xaxis.set_major_formatter("{x:.1f}")
 
 # Show the plot
-maidr.show(horz_box_plot) #<<
+plt.show() #<<
+```
+
+### Violin Plot
+
+#### Seaborn Violin Plot (Horizontal)
+
+```{python}
+#| fig-alt: Horizontal violin plot of diamond price distribution by cut quality
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Load the diamonds dataset
+diamonds = sns.load_dataset("diamonds")
+
+# Create horizontal violin plot comparing price across cut quality
+v = sns.violinplot(  #<<
+    x="price",          # numeric values on x-axis
+    y="cut",            # 5 categories on y-axis
+    data=diamonds,
+    orient="h",         # horizontal orientation
+    inner="box",        # show box plot inside violin
+    hue="cut",          # color by cut quality
+    palette="Set2",     # distinct colors
+    legend=False,
+)
+
+# Customize the plot
+plt.title("Diamond Price Distribution by Cut Quality")
+plt.xlabel("Price (USD)")
+plt.ylabel("Cut Quality")
+
+# Add number formatter for better screen reader output
+plt.gca().xaxis.set_major_formatter("{x:,.0f}")
+
+# Show the plot
+plt.show() #<<
+```
+
+#### Matplotlib Violin Plot
+
+```{python}
+#| fig-alt: Violin plot of diamond price distribution by cut quality using matplotlib
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Load dataset
+diamonds = sns.load_dataset("diamonds")
+
+# Prepare data grouped by cut (5 categories)
+groups = []
+values = []
+for cut, gdf in diamonds.groupby("cut", observed=False):
+    groups.append(cut)
+    values.append(gdf["price"].dropna().values)
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# Matplotlib violin plot with mean, median, and extrema
+violins = ax.violinplot(  #<<
+    values,
+    showmeans=True,
+    showmedians=True,
+    showextrema=True,
+)
+
+# Set x-ticks to match group labels
+ax.set_xticks(range(1, len(groups) + 1))
+ax.set_xticklabels(groups)
+
+ax.set_title("Diamond Price Distribution by Cut Quality (Matplotlib Violin)")
+ax.set_xlabel("Cut Quality")
+ax.set_ylabel("Price (USD)")
+
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:,.0f}")
+
+plt.show() #<<
 ```
 
 ### Scatter Plot
@@ -406,7 +519,7 @@ ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.1f}")
 
 # Show the plot
-maidr.show(scatter_plot) #<<
+plt.show() #<<
 ```
 
 ### Regression Plots
@@ -444,7 +557,7 @@ ax.set_ylabel("Y values")
 ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.2f}")
 
-maidr.show(reg_plot) #<<
+plt.show() #<<
 ```
 
 ### Multi-Layered Plots
@@ -495,7 +608,7 @@ ax2.yaxis.set_major_formatter("{x:.0f}")
 # Adjust layout
 fig.tight_layout()
 
-maidr.show(fig) #<<
+plt.show() #<<
 ```
 
 ### Multi-Panel Plots (Multiple Subplots)
@@ -562,7 +675,7 @@ axs[2].yaxis.set_major_formatter("{x:.1f}")
 plt.tight_layout()
 
 # Display the figure
-maidr.show(fig) #<<
+plt.show() #<<
 ```
 
 ### Facet Plot
@@ -624,7 +737,7 @@ for ax in axs:
 # Adjust layout
 plt.tight_layout(rect=(0.08, 0.08, 0.98, 0.95))
 
-maidr.show(fig) #<<
+plt.show() #<<
 ```
 
 ### Candlestick Chart
@@ -666,7 +779,7 @@ axlist[2].yaxis.set_major_formatter("{x:,.0f}")
 fig.tight_layout()
 
 # Display with maidr
-maidr.show(fig) #<<
+plt.show() #<<
 ```
 
 ## Reactive Dashboard
@@ -721,7 +834,7 @@ Below is a detailed list of keyboard shortcuts for various functions:
 | Check label for the title of current plot | l t | l t |
 | Check label for the x axis of current plot | l x | l x |
 | Check label for the y axis of current plot | l y | l y |
-| Check label for the fill (z) axis of current plot | l f | l f |
+| Check label for the z axis of current plot | l z | l z |
 | Switch to next layer | PageUp | PageUp |
 | Switch to previous layer | PageDown | PageDown |
 | Move around subplot list | Arrow keys | Arrow keys |

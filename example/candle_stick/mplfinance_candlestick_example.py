@@ -22,7 +22,8 @@ legacy_candlestick_example.py
 import mplfinance as mpf
 import pandas as pd
 import matplotlib.dates as mdates
-import maidr
+import matplotlib.pyplot as plt
+import maidr  # noqa: F401
 
 daily = pd.read_csv("volcandat.csv", index_col=0, parse_dates=True)
 
@@ -61,4 +62,4 @@ fig.tight_layout()
 # This provides:
 # - Automatic moving average line detection (3, 6, 9-day periods)
 # - Formatted values for screen reader output (currency, dates, numbers)
-maidr.show(fig)
+plt.show()

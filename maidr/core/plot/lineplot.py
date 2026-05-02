@@ -41,6 +41,25 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
     def __init__(self, ax: Axes, **kwargs):
         super().__init__(ax, PlotType.LINE)
 
+    def _extract_axes_data(self) -> dict:
+        """
+        Extend the base per-axis ``AxisConfig`` mapping with a ``z`` axis
+        whose label is sourced from the legend title (multi-series column).
+
+        Omitted when there is no legend title.
+        """
+        axes_data = super()._extract_axes_data()
+
+        legend = self.ax.get_legend()
+        if legend is not None:
+            title = legend.get_title()
+            if title is not None:
+                z_label = title.get_text().strip()
+                if z_label:
+                    axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
+
+        return axes_data
+
     def _get_selector(self) -> Union[str, List[str]]:
         # Return selectors for all lines that have data
         all_lines = self.ax.get_lines()
@@ -125,7 +144,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 {
                     MaidrKey.X: x,
                     MaidrKey.Y: y,
-                    **({MaidrKey.FILL: line_type} if line_type else {}),
+                    **({MaidrKey.Z: line_type} if line_type else {}),
                 }
                 for x, y in line_coords
             ]

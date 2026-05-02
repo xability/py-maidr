@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import maidr
+import maidr  # noqa: F401
 
 vegetables = [
     "cucumber",
@@ -35,7 +35,7 @@ harvest = np.array(
 )  # type: ignore
 
 fig, ax = plt.subplots()
-im = ax.imshow(harvest, fill_label="Harvest")
+im = ax.imshow(harvest, z_label="Harvest")
 im.get_array()
 
 # Show all ticks and label them with the respective list entries
@@ -59,5 +59,4 @@ for i in range(len(vegetables)):
 ax.set_title("Harvest of local farmers (in tons/year)")
 fig.tight_layout()
 
-# plt.show()
-maidr.show(im)
+plt.show()

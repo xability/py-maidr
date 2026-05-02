@@ -1,6 +1,182 @@
 # CHANGELOG
 
 
+## v1.17.3 (2026-04-28)
+
+### Bug Fixes
+
+- Correct x-label for line plots ([#284](https://github.com/xability/py-maidr/pull/284),
+  [`281d411`](https://github.com/xability/py-maidr/commit/281d411ffefa91603082bcff7bc2780b8eebc47a))
+
+Co-authored-by: nk1408 <196366666+nk1408@users.noreply.github.com>
+
+
+## v1.17.2 (2026-04-23)
+
+### Bug Fixes
+
+- Refactor axes in maidr payload ([#283](https://github.com/xability/py-maidr/pull/283),
+  [`12c8316`](https://github.com/xability/py-maidr/commit/12c83169de75948f25c06afbf60e45dbaaef52db))
+
+### Chores
+
+- Update bundled maidr.js to v3.63.1
+  ([`22762b1`](https://github.com/xability/py-maidr/commit/22762b1953015dc3b50635a63e3863e90f4bedb9))
+
+- Update bundled maidr.js to v3.64.0
+  ([`476d85b`](https://github.com/xability/py-maidr/commit/476d85b88cf552cd86f212370faf2e0710f89070))
+
+- Update bundled maidr.js to v3.64.1
+  ([`2048923`](https://github.com/xability/py-maidr/commit/20489231af11a2b3b19226a5f0648471d0901391))
+
+
+## v1.17.1 (2026-04-21)
+
+### Bug Fixes
+
+- Change fill to z label and maidr asset bundling
+  ([#282](https://github.com/xability/py-maidr/pull/282),
+  [`15cc54b`](https://github.com/xability/py-maidr/commit/15cc54b530d0a951a1ecdf37c928587c07674fbf))
+
+
+## v1.17.0 (2026-04-03)
+
+### Features
+
+- Fix iframe resizing bug and grid nav mode in plotly
+  ([#281](https://github.com/xability/py-maidr/pull/281),
+  [`0172654`](https://github.com/xability/py-maidr/commit/0172654337905972a254a07de6d88080e91e29f8))
+
+
+## v1.16.0 (2026-04-01)
+
+### Features
+
+- Support grid nav in scatter plots ([#278](https://github.com/xability/py-maidr/pull/278),
+  [`ed3f482`](https://github.com/xability/py-maidr/commit/ed3f48246b2f27fe263b06d94e958bfb0059b401))
+
+
+## v1.15.0 (2026-03-30)
+
+### Features
+
+- Support maidr as a matplotlib backend ([#280](https://github.com/xability/py-maidr/pull/280),
+  [`0a8e8d1`](https://github.com/xability/py-maidr/commit/0a8e8d171817fc2c8a545b0b7e169f3fc03094a3))
+
+
+## v1.14.0 (2026-03-25)
+
+### Documentation
+
+- Add Google Analytics and MS Clarity tracking
+  ([#275](https://github.com/xability/py-maidr/pull/275),
+  [`50621bc`](https://github.com/xability/py-maidr/commit/50621bc9dd410e09e89680d26488edc475836df2))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+- Add SEO and GEO improvements ([#277](https://github.com/xability/py-maidr/pull/277),
+  [`6830a11`](https://github.com/xability/py-maidr/commit/6830a1172e4181f31566846fc5fee8397be6e9b4))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+- Address analytics PR review feedback ([#276](https://github.com/xability/py-maidr/pull/276),
+  [`5fb4561`](https://github.com/xability/py-maidr/commit/5fb45617f2ecde8ea47c63e91e46cc26ef89de59))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+### Features
+
+- Add maidr as a matplotlib backend ([#263](https://github.com/xability/py-maidr/pull/263),
+  [`816c6ed`](https://github.com/xability/py-maidr/commit/816c6ed259af228454d4c30a29fe0079773eba1f))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+
+## v1.13.0 (2026-03-13)
+
+### Features
+
+- Support plotly ([#264](https://github.com/xability/py-maidr/pull/264),
+  [`227361d`](https://github.com/xability/py-maidr/commit/227361d0d884d6742dc3bd2c8843df3cd126c840))
+
+Co-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+Co-authored-by: nk46-cloud <nk46@illinois.edu>
+
+
+## v1.12.2 (2026-03-06)
+
+### Bug Fixes
+
+- Restore jsDelivr CDN URL for maidr.js
+  ([`3c5a3c0`](https://github.com/xability/py-maidr/commit/3c5a3c0dd5e5c6f54cb8bcafbee367b3d6bcceaa))
+
+
+## v1.12.1 (2026-03-05)
+
+### Bug Fixes
+
+- Support horizontal orientation violin plot ([#274](https://github.com/xability/py-maidr/pull/274),
+  [`2140c8d`](https://github.com/xability/py-maidr/commit/2140c8d8df10ccec2a30ad1352ec3c0237e07751))
+
+### Continuous Integration
+
+- Add github_token to bypass OIDC in claude review workflow
+  ([`f22e318`](https://github.com/xability/py-maidr/commit/f22e3187521ae2dd84cfe2705d65c3db46804cee))
+
+- Update claude review to pull_request_target with write permissions
+  ([`a35b592`](https://github.com/xability/py-maidr/commit/a35b592593991147b6a6c95b054e272e4eee83e9))
+
+
+## v1.12.0 (2026-03-04)
+
+### Bug Fixes
+
+- Install uv in semantic-release build command
+  ([`dea1114`](https://github.com/xability/py-maidr/commit/dea1114663de2b04f7e5dbd86f6c6d8816814245))
+
+### Chores
+
+- Fix logo image URLs ([#269](https://github.com/xability/py-maidr/pull/269),
+  [`c1467c3`](https://github.com/xability/py-maidr/commit/c1467c33313d53b44b934d5290c8d8a2a85031a1))
+
+- Retrigger release
+  ([`2189279`](https://github.com/xability/py-maidr/commit/2189279597df037acbc0b81b6638e8ca55f5d5d6))
+
+- Update uv.lock to match pyproject.toml v1.11.1
+  ([`a91fb86`](https://github.com/xability/py-maidr/commit/a91fb86a9e4d2ce3c553d955fdb522744ccf4543))
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Continuous Integration
+
+- Add claude code reviews ([#272](https://github.com/xability/py-maidr/pull/272),
+  [`a5e9f66`](https://github.com/xability/py-maidr/commit/a5e9f66ee3a1ef0b18fd4fb8a45a42905f7a6d9a))
+
+- Add devcontainer and copilot-setup-steps configuration
+  ([#271](https://github.com/xability/py-maidr/pull/271),
+  [`3cd75d3`](https://github.com/xability/py-maidr/commit/3cd75d3d1e43ef9054cfd717e0e9ccd1a5d200ba))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+- Install claude github app ([#273](https://github.com/xability/py-maidr/pull/273),
+  [`5b38610`](https://github.com/xability/py-maidr/commit/5b38610c3c646b05f53c5e1ed0b61a3b4ec29755))
+
+- Sync uv.lock during semantic-release version bump
+  ([#270](https://github.com/xability/py-maidr/pull/270),
+  [`716b658`](https://github.com/xability/py-maidr/commit/716b658a1b880c00948877414038cb2c0b203ce5))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Features
+
+- Implement violin plot support with dual-layer registration
+  ([#259](https://github.com/xability/py-maidr/pull/259),
+  [`3abaf17`](https://github.com/xability/py-maidr/commit/3abaf175ba2a458e11cf10628a71a06d8c98f41e))
+
+Authored-by: nk46-cloud <nk46@illinois.edu>
+
+
 ## v1.11.1 (2026-02-23)
 
 ### Bug Fixes

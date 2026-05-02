@@ -1,0 +1,59 @@
+{
+  "name": "py-maidr",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+
+  "containerEnv": {
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "UV_LINK_MODE": "copy"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "python.languageServer": "Pylance",
+        "python.analysis.typeCheckingMode": "basic",
+        "ruff.nativeServer": "on",
+        "[python]": {
+          "editor.tabSize": 4,
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+          }
+        },
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "files.eol": "\n"
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter",
+        "github.copilot",
+        "github.copilot-chat",
+        "github.vscode-github-actions",
+        "eamodio.gitlens",
+        "vivaxy.vscode-conventional-commits",
+        "tamasfe.even-better-toml",
+        "njpwerner.autodocstring",
+        "usernamehw.errorlens",
+        "ms-python.debugpy"
+      ]
+    }
+  },
+
+  "postCreateCommand": "pip install uv && uv sync --locked --all-extras --dev && npm install @commitlint/config-conventional",
+  "postStartCommand": "uv run pre-commit install || true"
+}

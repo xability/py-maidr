@@ -20,12 +20,30 @@ class GroupedBarPlot(
         super().__init__(ax, plot_type)
 
     def _extract_axes_data(self) -> dict:
-        base_ax_schema = super()._extract_axes_data()
-        grouped_ax_schema = {
-            MaidrKey.X.value: self.ax.get_xlabel(),
-            MaidrKey.Y.value: self.ax.get_ylabel(),
-        }
-        return self.merge_dict(base_ax_schema, grouped_ax_schema)
+        """
+        Extend the base per-axis ``AxisConfig`` mapping with a ``z`` axis whose
+        label is sourced from the legend title (the hue/group column).
+
+        If no legend or no legend title is available, ``z`` is omitted —
+        per-point ``z`` values remain in the data payload.
+        """
+        axes_data = super()._extract_axes_data()
+
+        z_label = self._extract_z_label_from_legend()
+        if z_label:
+            axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
+
+        return axes_data
+
+    def _extract_z_label_from_legend(self) -> str:
+        """Return the legend title text (trimmed) or an empty string."""
+        legend = self.ax.get_legend()
+        if legend is None:
+            return ""
+        title = legend.get_title()
+        if title is None:
+            return ""
+        return title.get_text().strip()
 
     def _extract_plot_data(self):
         plot = self.extract_container(self.ax, BarContainer, include_all=True)
@@ -67,7 +85,7 @@ class GroupedBarPlot(
                 container_data.append(
                     {
                         MaidrKey.X.value: x,
-                        MaidrKey.FILL.value: fill_value,
+                        MaidrKey.Z.value: fill_value,
                         MaidrKey.Y.value: float(y.get_height()),
                     }
                 )

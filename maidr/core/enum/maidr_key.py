@@ -27,6 +27,7 @@ class MaidrKey(str, Enum):
     LOWER_OUTLIER = "lowerOutliers"
     MIN = "min"
     MAX = "max"
+    MEAN = "mean"
     Q1 = "q1"
     Q2 = "q2"
     Q3 = "q3"
@@ -34,9 +35,12 @@ class MaidrKey(str, Enum):
     IQ = "iq"
     MEDIAN = "median"
 
-    # Grouped bar and heatmap plot keys.
-    FILL = "fill"
+    # Grouped bar, heatmap, and z-axis keys.
+    Z = "z"
     LABELS = "labels"
+
+    # Scatter plot grid navigation keys.
+    TICK_STEP = "tickStep"
 
     # Histogram plot keys.
     X_MIN = "xMin"

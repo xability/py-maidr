@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 # Load the 'tips' dataset from seaborn
 tips = sns.load_dataset("tips")
@@ -29,4 +29,4 @@ ax.set_ylabel("Tip")
 ax.xaxis.set_major_formatter("${x:.2f}")
 ax.yaxis.set_major_formatter("${x:.2f}")
 
-maidr.show(line_plot)
+plt.show()

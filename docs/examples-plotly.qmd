@@ -1,0 +1,788 @@
+---
+title: "Plotly Accessible Plot Examples"
+description: "Code examples showing how to make Plotly bar charts, histograms, line charts, box plots, heatmaps, and scatter plots accessible with py-maidr."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+## Plotly Examples {#sec-plotly-examples}
+
+**maidr** also supports **Plotly** figures. If you already have data visualization code using `plotly.graph_objects`, you can make your plots accessible with **maidr** in just a few lines of code. For **matplotlib** and **seaborn** examples, see the [Matplotlib / Seaborn Examples](examples.qmd) page.
+
+Simply import the `maidr` package and pass your Plotly `Figure` to `maidr.show()`. **maidr** will automatically generate an accessible HTML version with sonification, braille, and keyboard navigation support.
+
+### Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Bar chart showing average body mass of penguins by species
+
+import plotly.graph_objects as go
+import seaborn as sns
+
+import maidr  #<<
+
+# Load the penguins dataset
+penguins = sns.load_dataset("penguins")
+
+# Calculate average body mass by species
+avg_mass = penguins.groupby("species")["body_mass_g"].mean()
+
+# Create a bar plot showing the average body mass of penguins by species
+fig = go.Figure(
+    data=[
+        go.Bar(
+            x=avg_mass.index.tolist(),
+            y=avg_mass.values.tolist(),
+            marker_color=["#4c72b0", "#55a868", "#c44e52"],
+        )
+    ],
+    layout=go.Layout(
+        title="Average Body Mass of Penguins by Species",
+        xaxis=dict(title="Species"),
+        yaxis=dict(title="Body Mass (g)", tickformat=",.0f"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Dodged (Grouped) Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Grouped bar chart comparing average body mass by species and sex
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Bar(name="Male", x=["Adelie", "Chinstrap", "Gentoo"], y=[4043, 3939, 5485]),
+        go.Bar(
+            name="Female", x=["Adelie", "Chinstrap", "Gentoo"], y=[3369, 3527, 4680]
+        ),
+    ],
+    layout=go.Layout(
+        title="Average Body Mass by Species and Sex",
+        xaxis=dict(title="Species"),
+        yaxis=dict(title="Body Mass (g)", tickformat=",.0f"),
+        barmode="group",
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Stacked Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Stacked bar chart showing penguin count by island
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Bar(
+            name="Adelie", x=["Torgersen", "Biscoe", "Dream"], y=[47, 44, 56]
+        ),
+        go.Bar(
+            name="Chinstrap", x=["Torgersen", "Biscoe", "Dream"], y=[0, 0, 68]
+        ),
+        go.Bar(
+            name="Gentoo", x=["Torgersen", "Biscoe", "Dream"], y=[0, 124, 0]
+        ),
+    ],
+    layout=go.Layout(
+        title="Penguin Count by Island (Stacked)",
+        xaxis=dict(title="Island"),
+        yaxis=dict(title="Count", tickformat=".0f"),
+        barmode="stack",
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Count Plot (Categorical Histogram)
+
+```{python}
+#| warning: false
+#| fig-alt: Count plot showing frequency of each penguin species
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+# Count plot is a histogram with categorical data
+species = [
+    "Adelie", "Adelie", "Adelie", "Adelie", "Adelie",
+    "Chinstrap", "Chinstrap", "Chinstrap",
+    "Gentoo", "Gentoo", "Gentoo", "Gentoo",
+]
+
+fig = go.Figure(
+    data=[go.Histogram(x=species)],
+    layout=go.Layout(
+        title="Penguin Species Count",
+        xaxis=dict(title="Species"),
+        yaxis=dict(title="Count", tickformat=".0f"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Histogram
+
+```{python}
+#| warning: false
+#| fig-alt: Histogram of petal lengths in the Iris dataset
+
+import plotly.graph_objects as go
+import seaborn as sns
+
+import maidr  #<<
+
+# Load the dataset
+iris = sns.load_dataset("iris")
+
+# Choose a column for the histogram
+data = iris["petal_length"]
+
+# Create the histogram plot
+fig = go.Figure(
+    data=[
+        go.Histogram(
+            x=data.tolist(),
+            nbinsx=20,
+            marker=dict(color="steelblue", line=dict(color="black", width=1)),
+        )
+    ],
+    layout=go.Layout(
+        title="Histogram of Petal Lengths in Iris Dataset",
+        xaxis=dict(title="Petal Length (cm)", tickformat=".1f"),
+        yaxis=dict(title="Frequency", tickformat=".0f"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Box Plot (Vertical)
+
+```{python}
+#| warning: false
+#| fig-alt: Vertical box plot with three groups showing distributions with outliers
+
+import numpy as np
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+# Vertical box plot with three groups
+np.random.seed(42)
+data_group1 = np.append(np.random.normal(100, 10, 200), [150, 160, 50, 40])
+data_group2 = np.append(np.random.normal(90, 20, 200), [180, 190, 10, 20])
+data_group3 = np.append(np.random.normal(80, 30, 200), [200, 210, -10, -20])
+
+fig = go.Figure()
+fig.add_trace(
+    go.Box(y=data_group1.tolist(), name="Group 1", marker_color="lightblue")
+)
+fig.add_trace(
+    go.Box(y=data_group2.tolist(), name="Group 2", marker_color="lightgreen")
+)
+fig.add_trace(
+    go.Box(y=data_group3.tolist(), name="Group 3", marker_color="tan")
+)
+
+fig.update_layout(
+    title="Vertical Box Plot",
+    xaxis=dict(title="Group"),
+    yaxis=dict(title="Values", tickformat=".1f"),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Box Plot (Horizontal)
+
+```{python}
+#| warning: false
+#| fig-alt: Horizontal box plot with three groups
+
+import numpy as np
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+# Horizontal box plot with three groups
+np.random.seed(42)
+
+fig = go.Figure()
+fig.add_trace(
+    go.Box(
+        x=np.random.normal(100, 10, 200).tolist(),
+        name="Group 1",
+        marker_color="lightblue",
+    )
+)
+fig.add_trace(
+    go.Box(
+        x=np.random.normal(90, 20, 200).tolist(),
+        name="Group 2",
+        marker_color="lightgreen",
+    )
+)
+fig.add_trace(
+    go.Box(
+        x=np.random.normal(80, 30, 200).tolist(),
+        name="Group 3",
+        marker_color="tan",
+    )
+)
+
+fig.update_layout(
+    title="Horizontal Box Plot",
+    xaxis=dict(title="Values", tickformat=".1f"),
+    yaxis=dict(title="Group"),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Heatmap
+
+```{python}
+#| warning: false
+#| fig-alt: Heatmap showing harvest amounts of vegetables by farmer
+
+import numpy as np
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+vegetables = [
+    "cucumber",
+    "tomato",
+    "lettuce",
+    "asparagus",
+    "potato",
+    "wheat",
+    "barley",
+]
+farmers = [
+    "Farmer Joe",
+    "Upland Bros.",
+    "Smith Gardening",
+    "Agrifun",
+    "Organiculture",
+    "BioGoods Ltd.",
+    "Cornylee Corp.",
+]
+
+harvest = np.array(
+    [
+        [0.8, 2.4, 2.5, 3.9, 0.0, 4.0, 0.0],
+        [2.4, 0.0, 4.0, 1.0, 2.7, 0.0, 0.0],
+        [1.1, 2.4, 0.8, 4.3, 1.9, 4.4, 0.0],
+        [0.6, 0.0, 0.3, 0.0, 3.1, 0.0, 0.0],
+        [0.7, 1.7, 0.6, 2.6, 2.2, 6.2, 0.0],
+        [1.3, 1.2, 0.0, 0.0, 0.0, 3.2, 5.1],
+        [0.1, 2.0, 0.0, 1.4, 0.0, 1.9, 6.3],
+    ]
+)
+
+fig = go.Figure(
+    data=[
+        go.Heatmap(
+            z=harvest.tolist(),
+            x=farmers,
+            y=vegetables,
+            colorbar=dict(title="Tons/Year", tickformat=".1f"),
+        )
+    ],
+    layout=go.Layout(
+        title="Harvest of Local Farmers (in tons/year)",
+        xaxis=dict(title="Farmers"),
+        yaxis=dict(title="Vegetables"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Line Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart showing total passengers per year from the flights dataset
+
+import plotly.graph_objects as go
+import seaborn as sns
+
+import maidr  #<<
+
+# Load the flights dataset from seaborn
+flights = sns.load_dataset("flights")
+
+# Pivot the dataset and compute total passengers per year
+flights_wide = flights.pivot(index="year", columns="month", values="passengers")
+flights_wide["Total"] = flights_wide.sum(axis=1)
+flights_wide.reset_index(inplace=True)
+
+# Plot the total number of passengers per year
+fig = go.Figure(
+    data=[
+        go.Scatter(
+            x=flights_wide["year"].tolist(),
+            y=flights_wide["Total"].tolist(),
+            mode="lines",
+            name="Total Passengers",
+        )
+    ],
+    layout=go.Layout(
+        title="Total Passengers per Year",
+        xaxis=dict(title="Year"),
+        yaxis=dict(title="Total Passengers (Thousands)", tickformat=",.0f"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Multi-Line Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Multi-line chart showing sales trends by product over five years
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Scatter(
+            x=[2019, 2020, 2021, 2022, 2023],
+            y=[100, 120, 115, 140, 160],
+            mode="lines",
+            name="Product A",
+        ),
+        go.Scatter(
+            x=[2019, 2020, 2021, 2022, 2023],
+            y=[80, 95, 110, 105, 130],
+            mode="lines",
+            name="Product B",
+        ),
+        go.Scatter(
+            x=[2019, 2020, 2021, 2022, 2023],
+            y=[60, 70, 85, 90, 100],
+            mode="lines",
+            name="Product C",
+        ),
+    ],
+    layout=go.Layout(
+        title="Sales Trends by Product",
+        xaxis=dict(title="Year"),
+        yaxis=dict(title="Sales (units)", tickformat=",.0f"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Scatter Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Scatter plot of sepal length vs sepal width from the Iris dataset
+
+import plotly.graph_objects as go
+import seaborn as sns
+
+import maidr  #<<
+
+# Load the Iris dataset
+iris = sns.load_dataset("iris")
+
+# Plot sepal_length vs sepal_width
+fig = go.Figure(
+    data=[
+        go.Scatter(
+            x=iris["sepal_length"].tolist(),
+            y=iris["sepal_width"].tolist(),
+            mode="markers",
+            marker=dict(color="blue", size=6),
+            name="Iris Data Points",
+        )
+    ],
+    layout=go.Layout(
+        title="Iris Dataset: Sepal Length vs Sepal Width",
+        xaxis=dict(title="Sepal Length (cm)", tickformat=".1f"),
+        yaxis=dict(title="Sepal Width (cm)", tickformat=".1f"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### KDE (Histogram + KDE Overlay)
+
+```{python}
+#| warning: false
+#| fig-alt: Histogram with kernel density estimation overlay
+
+import numpy as np
+import plotly.graph_objects as go
+from scipy.stats import gaussian_kde
+
+import maidr  #<<
+
+# Generate sample data
+np.random.seed(42)
+data = np.concatenate([np.random.normal(0, 1, 300), np.random.normal(4, 1.5, 200)])
+
+# Compute KDE
+kde = gaussian_kde(data)
+x_range = np.linspace(data.min() - 1, data.max() + 1, 200)
+kde_values = kde(x_range)
+
+# Create histogram + KDE overlay
+fig = go.Figure()
+fig.add_trace(
+    go.Histogram(
+        x=data.tolist(),
+        nbinsx=30,
+        histnorm="probability density",
+        name="Histogram",
+        opacity=0.6,
+    )
+)
+fig.add_trace(
+    go.Scatter(
+        x=x_range.tolist(),
+        y=kde_values.tolist(),
+        mode="lines",
+        name="KDE",
+        line=dict(color="red", width=2),
+    )
+)
+fig.update_layout(
+    title="Histogram with KDE Overlay",
+    xaxis=dict(title="Value", tickformat=".1f"),
+    yaxis=dict(title="Density", tickformat=".3f"),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Regression (Scatter + Trend Line)
+
+```{python}
+#| warning: false
+#| fig-alt: Scatter plot with a linear regression trend line
+
+import numpy as np
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+# Generate sample data with a linear trend
+np.random.seed(42)
+x = np.linspace(0, 10, 50)
+y = 2.5 * x + 3 + np.random.normal(0, 2, 50)
+
+# Compute linear regression
+coeffs = np.polyfit(x, y, 1)
+trend_y = np.polyval(coeffs, x)
+
+# Create scatter plot with regression line
+fig = go.Figure()
+fig.add_trace(
+    go.Scatter(
+        x=x.tolist(),
+        y=y.tolist(),
+        mode="markers",
+        name="Data",
+        marker=dict(color="steelblue"),
+    )
+)
+fig.add_trace(
+    go.Scatter(
+        x=x.tolist(),
+        y=trend_y.tolist(),
+        mode="lines",
+        name="Regression",
+        line=dict(color="red", width=2),
+    )
+)
+fig.update_layout(
+    title="Scatter Plot with Regression Line",
+    xaxis=dict(title="X", tickformat=".1f"),
+    yaxis=dict(title="Y", tickformat=".2f"),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Multipanel Plot (Line + Bar + Scatter)
+
+```{python}
+#| warning: false
+#| fig-alt: Multipanel plot with a line chart, bar chart, and scatter plot in three rows
+
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+import maidr  #<<
+
+# Data for line plot
+x_line = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+y_line = np.array([2, 4, 1, 5, 3, 7, 6, 8])
+
+# Data for bar plot
+np.random.seed(42)
+categories = ["A", "B", "C", "D", "E"]
+values = (np.random.rand(5) * 10).tolist()
+
+# Data for scatter plot
+np.random.seed(42)
+x_scatter = np.random.randn(50).tolist()
+y_scatter = np.random.randn(50).tolist()
+
+# Create a figure with 3 subplots arranged vertically
+fig = make_subplots(
+    rows=3,
+    cols=1,
+    subplot_titles=("Line Plot: Random Data", "Bar Plot: Random Values", "Scatter Plot"),
+)
+
+# First panel: Line plot
+fig.add_trace(
+    go.Scatter(
+        x=x_line.tolist(),
+        y=y_line.tolist(),
+        mode="lines",
+        name="Line Data",
+        line=dict(color="blue", width=2),
+    ),
+    row=1,
+    col=1,
+)
+
+# Second panel: Bar plot
+fig.add_trace(
+    go.Bar(
+        x=categories,
+        y=values,
+        name="Bar Data",
+        marker_color="green",
+        opacity=0.7,
+    ),
+    row=2,
+    col=1,
+)
+
+# Third panel: Scatter plot
+fig.add_trace(
+    go.Scatter(
+        x=x_scatter,
+        y=y_scatter,
+        mode="markers",
+        name="Scatter Data",
+        marker=dict(color="red", size=6),
+    ),
+    row=3,
+    col=1,
+)
+
+# Update axes labels and formatting
+fig.update_xaxes(title_text="X-axis", tickformat=".0f", row=1, col=1)
+fig.update_yaxes(title_text="Values", tickformat=".0f", row=1, col=1)
+fig.update_xaxes(title_text="Categories", row=2, col=1)
+fig.update_yaxes(title_text="Values", tickformat=".1f", row=2, col=1)
+fig.update_xaxes(title_text="X", tickformat=".1f", row=3, col=1)
+fig.update_yaxes(title_text="Y", tickformat=".1f", row=3, col=1)
+
+fig.update_layout(
+    title="Multipanel Plot: Line, Bar, and Scatter",
+    height=900,
+    showlegend=False,
+)
+
+maidr.show(fig)  #<<
+```
+
+### Facet Bar Plot (2x2 Grid)
+
+```{python}
+#| warning: false
+#| fig-alt: Facet plot with four bar chart panels arranged in a 2x2 grid
+
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+import maidr  #<<
+
+categories = ["A", "B", "C", "D", "E"]
+
+np.random.seed(42)
+data_group1 = (np.random.rand(5) * 10).tolist()
+data_group2 = (np.random.rand(5) * 100).tolist()
+data_group3 = (np.random.rand(5) * 36).tolist()
+data_group4 = (np.random.rand(5) * 42).tolist()
+
+data_sets = [data_group1, data_group2, data_group3, data_group4]
+condition_names = ["Group 1", "Group 2", "Group 3", "Group 4"]
+
+# Compute consistent y-axis limits across all groups
+all_data = np.concatenate(data_sets)
+y_min = float(np.min(all_data) * 0.9)
+y_max = float(np.max(all_data) * 1.1)
+
+# Colors matching matplotlib's default cycle
+colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+
+# Create a 2x2 faceted layout
+fig = make_subplots(
+    rows=2,
+    cols=2,
+    subplot_titles=tuple(condition_names),
+    shared_xaxes=True,
+    shared_yaxes=True,
+)
+
+# Add a bar trace to each subplot
+for i, (data, condition) in enumerate(zip(data_sets, condition_names)):
+    row = i // 2 + 1
+    col = i % 2 + 1
+    fig.add_trace(
+        go.Bar(
+            x=categories,
+            y=data,
+            name=condition,
+            marker_color=colors[i],
+            opacity=0.7,
+            text=[f"{v:.1f}" for v in data],
+            textposition="outside",
+        ),
+        row=row,
+        col=col,
+    )
+
+# Apply consistent y-axis range and tick formatting
+for i in range(1, 5):
+    yaxis_key = f"yaxis{i}" if i > 1 else "yaxis"
+    fig.layout[yaxis_key].update(range=[y_min, y_max], tickformat=".1f")
+
+# Axes labels
+fig.update_xaxes(title_text="Categories", row=2, col=1)
+fig.update_xaxes(title_text="Categories", row=2, col=2)
+fig.update_yaxes(title_text="Values", row=1, col=1)
+fig.update_yaxes(title_text="Values", row=2, col=1)
+
+fig.update_layout(
+    title="Facet Plot: Bar Charts by Condition",
+    height=700,
+    showlegend=False,
+)
+
+maidr.show(fig)  #<<
+```
+
+### Facet Combined Plot (Line + Bar)
+
+```{python}
+#| warning: false
+#| fig-alt: Facet plot combining line plots in the left column and bar plots in the right column across three rows
+
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+import maidr  #<<
+
+# Generate data
+num_rows = 3
+num_points = 5
+x = np.arange(num_points)
+
+np.random.seed(42)
+line_data = [np.random.rand(num_points) * 10 for _ in range(num_rows)]
+bar_data = [np.abs(np.sin(x + i) * 5) + i for i in range(num_rows)]
+
+# Build subplot titles
+subplot_titles = []
+for r in range(1, num_rows + 1):
+    subplot_titles.extend([f"Line Plot {r}", f"Bar Plot {r}"])
+
+# Colors matching matplotlib's default cycle
+colors = ["#1f77b4", "#ff7f0e", "#2ca02c"]
+
+# Create a num_rows x 2 faceted layout (line plots left, bar plots right)
+fig = make_subplots(
+    rows=num_rows,
+    cols=2,
+    subplot_titles=tuple(subplot_titles),
+    shared_yaxes="rows",
+)
+
+for row in range(num_rows):
+    # Left column: line plot
+    fig.add_trace(
+        go.Scatter(
+            x=x.tolist(),
+            y=line_data[row].tolist(),
+            mode="lines+markers",
+            name=f"Line {row + 1}",
+            line=dict(color=colors[row], width=2),
+            marker=dict(size=6),
+        ),
+        row=row + 1,
+        col=1,
+    )
+
+    # Right column: bar plot
+    fig.add_trace(
+        go.Bar(
+            x=x.tolist(),
+            y=bar_data[row].tolist(),
+            name=f"Bar {row + 1}",
+            marker_color=colors[row],
+            opacity=0.7,
+        ),
+        row=row + 1,
+        col=2,
+    )
+
+    # Y-axis label on left column only
+    fig.update_yaxes(
+        title_text=f"Values (Row {row + 1})",
+        tickformat=".1f",
+        row=row + 1,
+        col=1,
+    )
+    fig.update_yaxes(tickformat=".1f", row=row + 1, col=2)
+
+# X-axis labels on bottom row
+fig.update_xaxes(title_text="X Values", tickformat=".0f", row=num_rows, col=1)
+fig.update_xaxes(title_text="X Values", tickformat=".0f", row=num_rows, col=2)
+
+fig.update_layout(
+    title="Facet Plot Example with Shared Y-Axes",
+    height=300 * num_rows,
+    showlegend=False,
+)
+
+maidr.show(fig)  #<<
+```

@@ -4,7 +4,6 @@ from matplotlib.axes import Axes
 from maidr.core.enum import PlotType
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxplot import BoxPlot
-from maidr.core.plot.candlestick import CandlestickPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.histogram import HistPlot
@@ -12,8 +11,11 @@ from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
+from maidr.core.plot.violin_kde_plot import ViolinKdePlot
+from maidr.core.plot.violin_box_plot import ViolinBoxPlot
 from maidr.core.plot.mplfinance_barplot import MplfinanceBarPlot
 from maidr.core.plot.mplfinance_lineplot import MplfinanceLinePlot
+from maidr.core.plot.candlestick import CandlestickPlot
 from maidr.util.plot_detection import PlotDetectionUtils
 
 
@@ -34,15 +36,16 @@ class MaidrPlotFactory:
 
     @staticmethod
     def create(ax: Axes | list[Axes], plot_type: PlotType, **kwargs) -> MaidrPlot:
+        if plot_type == PlotType.CANDLESTICK:
+            axes = PlotDetectionUtils.get_candlestick_axes(ax)
+            return CandlestickPlot(axes, **kwargs)
+
         if isinstance(ax, list):
             single_ax = ax[0]
         else:
             single_ax = ax
 
-        if plot_type == PlotType.CANDLESTICK:
-            axes = PlotDetectionUtils.get_candlestick_axes(ax)
-            return CandlestickPlot(axes, **kwargs)
-        elif PlotType.BAR == plot_type or PlotType.COUNT == plot_type:
+        if PlotType.BAR == plot_type or PlotType.COUNT == plot_type:
             if PlotDetectionUtils.is_mplfinance_bar_plot(**kwargs):
                 return MplfinanceBarPlot(single_ax, **kwargs)
             else:
@@ -64,5 +67,9 @@ class MaidrPlotFactory:
             return GroupedBarPlot(single_ax, plot_type, **kwargs)
         elif PlotType.SMOOTH == plot_type:
             return SmoothPlot(single_ax, **kwargs)
+        elif PlotType.VIOLIN_KDE == plot_type:
+            return ViolinKdePlot(single_ax, **kwargs)
+        elif PlotType.VIOLIN_BOX == plot_type:
+            return ViolinBoxPlot(single_ax, **kwargs)
         else:
             raise TypeError(f"Unsupported plot type: {plot_type}.")

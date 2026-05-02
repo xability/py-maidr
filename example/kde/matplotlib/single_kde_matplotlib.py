@@ -9,7 +9,7 @@ accessibility and exploration.
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
-import maidr
+import maidr  # noqa: F401
 
 # Generate sample data
 np.random.seed(42)
@@ -41,4 +41,4 @@ ax.yaxis.set_major_formatter("{x:.3f}")
 plt.tight_layout()
 
 # Show with MAIDR for interactive accessibility
-maidr.show(fig)
+plt.show()

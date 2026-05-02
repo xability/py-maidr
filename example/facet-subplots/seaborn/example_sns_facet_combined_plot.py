@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 
 def create_sample_data() -> pd.DataFrame:
@@ -238,7 +238,7 @@ def create_complex_facet_plot(data: pd.DataFrame) -> None:
         axes[1, i].yaxis.set_major_formatter("{x:,.0f}")
 
     # Display the plot
-    maidr.show(fig)
+    plt.show()
 
 
 # Generate sample data

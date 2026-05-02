@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import maidr
+import maidr  # noqa: F401
 
 # Generating random data for three different groups
 data_group1 = np.random.normal(100, 10, 200)
@@ -61,10 +61,8 @@ def boxplot(is_vert: bool):
 
 # # Create the vertical boxplot
 vert = boxplot(is_vert=True)
-# plt.show()
-maidr.show(vert)
+plt.show()
 
 # Create the horizontal boxplot
 horz = boxplot(is_vert=False)
-# plt.show()
-maidr.show(horz)
+plt.show()

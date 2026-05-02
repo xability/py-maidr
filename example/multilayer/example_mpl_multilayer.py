@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import maidr
+import maidr  # noqa: F401
 
 """
 Create a simple multilayer plot with a bar chart and a line chart.
@@ -57,4 +57,4 @@ ax2.yaxis.set_major_formatter("{x:.0f}")
 # Adjust layout
 fig.tight_layout()
 
-maidr.show(fig)
+plt.show()

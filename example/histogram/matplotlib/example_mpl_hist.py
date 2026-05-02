@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 # Load the dataset
 iris = sns.load_dataset("iris")
@@ -22,4 +22,4 @@ ax.xaxis.set_major_formatter("{x:.1f}")
 # Y-axis: frequency counts as integers
 ax.yaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(hist_plot)
+plt.show()

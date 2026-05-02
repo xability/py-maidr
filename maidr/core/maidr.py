@@ -21,8 +21,18 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.core.context_manager import HighlightContextManager
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
-from maidr.util.environment import Environment
 from maidr.util.dedup_utils import deduplicate_smooth_and_line
+from maidr.util.dependencies import (
+    MAIDR_CSS_CDN_URL,
+    MAIDR_CSS_FILENAME,
+    MAIDR_JS_CDN_URL,
+    MAIDR_JS_FILENAME,
+    maidr_bundled_files_dependency,
+    maidr_bundled_relative_dir,
+    maidr_html_dependency,
+)
+from maidr.util.environment import Environment
+from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
 
 
 class Maidr:
@@ -67,9 +77,25 @@ class Maidr:
         """Return the list of plots extracted from the ``fig``."""
         return self._plots
 
-    def render(self) -> Tag:
-        """Return the maidr plot inside an iframe."""
-        return self._create_html_tag(use_iframe=True)
+    def render(self, use_cdn: bool | Literal["auto"] = "auto") -> Tag:
+        """Return the maidr plot inside an iframe.
+
+        Parameters
+        ----------
+        use_cdn : bool or {"auto"}, default="auto"
+            Controls which copy of ``maidr.js`` / ``maidr.css`` the
+            rendered HTML references:
+
+            * ``True``: load from the public jsDelivr CDN only (no
+              offline fallback).
+            * ``False``: reference the copy bundled inside the installed
+              ``maidr`` package.  Useful for air-gapped environments.
+            * ``"auto"`` (default): attempt the CDN first and fall back
+              to the bundled copy client-side via a ``<script onerror>``
+              handler.  The bundled files are copied next to the output
+              so the fallback works without network access.
+        """
+        return self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
 
     def save_html(
         self,
@@ -78,6 +104,7 @@ class Maidr:
         lib_dir: str | None = "lib",
         include_version: bool = True,
         data_in_svg: bool = True,
+        use_cdn: bool | Literal["auto"] = "auto",
     ) -> str:
         """
         Save the HTML representation of the figure with MAIDR to a file.
@@ -93,9 +120,18 @@ class Maidr:
             Whether to include the version number in the dependency folder name.
         data_in_svg : bool, default=True
             Controls where the MAIDR JSON payload is placed in the output HTML or SVG.
+        use_cdn : bool or {"auto"}, default="auto"
+            * ``True``: load ``maidr.js`` from the CDN only.
+            * ``False``: copy the bundled ``maidr.js`` / ``maidr.css``
+              into ``lib_dir`` next to the saved HTML and reference
+              them with relative paths (no network access required).
+            * ``"auto"`` (default): attempt the CDN first and fall back
+              to the bundled copy client-side if the CDN request fails.
+              The bundled files are still copied alongside the HTML so
+              the fallback works offline.
         """
         html = self._create_html_doc(
-            use_iframe=False, data_in_svg=data_in_svg
+            use_iframe=False, data_in_svg=data_in_svg, use_cdn=use_cdn
         )  # Always use direct HTML for saving
 
         # Write the HTML ourselves with explicit UTF-8 encoding to avoid
@@ -107,9 +143,7 @@ class Maidr:
         else:
             dep_destdir = destdir
 
-        rendered = html.render(
-            lib_prefix=lib_dir, include_version=include_version
-        )
+        rendered = html.render(lib_prefix=lib_dir, include_version=include_version)
         for dep in rendered["dependencies"]:
             dep.copy_to(dep_destdir, include_version=include_version)
 
@@ -121,6 +155,7 @@ class Maidr:
         self,
         renderer: Literal["auto", "ipython", "browser"] = "auto",
         clear_fig: bool = True,
+        use_cdn: bool | Literal["auto"] = "auto",
     ) -> object:
         """
         Preview the HTML content using the specified renderer.
@@ -129,8 +164,49 @@ class Maidr:
         ----------
         renderer : Literal["auto", "ipython", "browser"], default="auto"
             The renderer to use for the HTML preview.
+        clear_fig : bool, default=True
+            Whether to close the matplotlib figure after showing.
+        use_cdn : bool or {"auto"}, default="auto"
+            * ``True``: load ``maidr.js`` from the CDN only.
+            * ``False``: render using the copy of ``maidr.js`` bundled
+              with the installed package.  For the browser renderer
+              the assets are copied next to the temporary HTML file.
+            * ``"auto"`` (default): attempt the CDN first and fall back
+              to the bundled copy client-side if the CDN request fails.
         """
-        html = self._create_html_tag(use_iframe=True)  # Always use iframe for display
+        # Proactively inject the bundled ``maidr.js`` / ``maidr.css`` into
+        # the *current* notebook cell right before the iframe is emitted.
+        # The auto-call at ``import maidr`` time is not sufficient in
+        # several real-world scenarios:
+        #
+        #   * The user cleared the notebook's output (the import cell's
+        #     ``<script>`` is removed from the DOM even though the Python
+        #     ``_NOTEBOOK_LOADED`` flag stays ``True``).
+        #   * Cell-isolated frontends (Google Colab, Databricks) sandbox
+        #     each cell's output so ``window.__maidrJsSource`` set by
+        #     one cell is not visible to later cells.
+        #   * The notebook was re-opened without re-running the import.
+        #
+        # ``force=True`` bypasses the idempotence guard so each plot
+        # cell becomes self-contained (bundle ``<script>`` + iframe in
+        # the same output).  This mirrors Bokeh's per-output emission
+        # strategy and is only enabled when the user opted out of the
+        # CDN — callers with ``use_cdn=True`` still get the single
+        # ``<script src>`` reference.
+        if use_cdn is not True and Environment.is_notebook():
+            try:
+                from maidr.api import init_notebook
+
+                init_notebook(use_cdn=use_cdn, force=True)
+            except Exception:
+                # Never block show() on notebook init; the iframe
+                # bootstrap will surface a helpful console warning if
+                # the bundle is unreachable.
+                pass
+
+        html = self._create_html_tag(
+            use_iframe=True, use_cdn=use_cdn
+        )  # Always use iframe for display
 
         # Use the passed renderer parameter, fallback to auto-detection
         if renderer == "auto":
@@ -140,7 +216,7 @@ class Maidr:
 
         # Only try browser opening if explicitly requested as browser and not in notebook
         if _renderer == "browser" and not Environment.is_notebook():
-            return self._open_plot_in_browser()
+            return self._open_plot_in_browser(use_cdn=use_cdn)
 
         if clear_fig:
             plt.close()
@@ -153,9 +229,18 @@ class Maidr:
         del self._plots
         del self._fig
 
-    def _open_plot_in_browser(self) -> None:
-        """
-        Open the rendered HTML content using a temporary file
+    def _open_plot_in_browser(
+        self, use_cdn: bool | Literal["auto"] = "auto"
+    ) -> None:
+        """Open the rendered HTML content using a temporary file.
+
+        Parameters
+        ----------
+        use_cdn : bool or {"auto"}, default="auto"
+            When ``False`` (or ``"auto"``), copy the bundled
+            ``maidr.js`` / ``maidr.css`` assets next to the temporary
+            HTML file so the browser can load them over ``file://``
+            without any network access.
         """
         system_temp_dir = tempfile.gettempdir()
         static_temp_dir = os.path.join(system_temp_dir, "maidr")
@@ -163,7 +248,7 @@ class Maidr:
 
         temp_file_path = os.path.join(static_temp_dir, "maidr_plot.html")
         html_file_path = self.save_html(
-            temp_file_path
+            temp_file_path, use_cdn=use_cdn
         )  # This will use use_iframe=False
         if Environment.is_wsl():
             wsl_distro_name = Environment.get_wsl_distro_name()
@@ -205,7 +290,12 @@ class Maidr:
         else:
             webbrowser.open(f"file://{html_file_path}")
 
-    def _create_html_tag(self, use_iframe: bool = True, data_in_svg: bool = True) -> Tag:
+    def _create_html_tag(
+        self,
+        use_iframe: bool = True,
+        data_in_svg: bool = True,
+        use_cdn: bool | Literal["auto"] = "auto",
+    ) -> Tag:
         """Create the MAIDR HTML using HTML tags.
 
         Parameters
@@ -215,6 +305,9 @@ class Maidr:
         data_in_svg : bool, default=True
             If True, the MAIDR JSON is embedded in the root <svg> under attribute 'maidr'.
             If False, a <script>var maidr = {...}</script> tag is injected instead.
+        use_cdn : bool or {"auto"}, default="auto"
+            Controls how ``maidr.js`` is referenced.  See :meth:`render`
+            for the three possible modes.
         """
         tagged_elements: list[Any] = [
             element for plot in self._plots for element in plot.elements
@@ -237,9 +330,14 @@ class Maidr:
             maidr = f"\nvar maidr = {json.dumps(schema, indent=2)}\n"
 
         # Inject plot's svg and MAIDR structure into html tag.
-        return Maidr._inject_plot(svg, maidr, self.maidr_id, use_iframe)
+        return Maidr._inject_plot(svg, maidr, self.maidr_id, use_iframe, use_cdn)
 
-    def _create_html_doc(self, use_iframe: bool = True, data_in_svg: bool = True) -> HTMLDocument:
+    def _create_html_doc(
+        self,
+        use_iframe: bool = True,
+        data_in_svg: bool = True,
+        use_cdn: bool | Literal["auto"] = "auto",
+    ) -> HTMLDocument:
         """Create an HTML document from Tag objects.
 
         Parameters
@@ -248,8 +346,13 @@ class Maidr:
             Whether to render the plot inside an iframe (for notebooks and similar envs).
         data_in_svg : bool, default=True
             See _create_html_tag for details on payload placement strategy.
+        use_cdn : bool or {"auto"}, default="auto"
+            Controls how ``maidr.js`` is referenced.  See :meth:`render`.
         """
-        return HTMLDocument(self._create_html_tag(use_iframe, data_in_svg), lang="en")
+        return HTMLDocument(
+            self._create_html_tag(use_iframe, data_in_svg, use_cdn=use_cdn),
+            lang="en",
+        )
 
     def _merge_plots_by_subplot_position(self) -> list[MaidrPlot]:
         """
@@ -316,7 +419,10 @@ class Maidr:
         for i, plot in enumerate(self._plots):
             schema = plot.schema
 
-            if MaidrKey.SELECTOR in schema and plot.type != PlotType.BOX:
+            if MaidrKey.SELECTOR in schema and plot.type not in (
+                PlotType.BOX,
+                PlotType.VIOLIN_BOX,
+            ):
                 if isinstance(schema[MaidrKey.SELECTOR], str):
                     schema[MaidrKey.SELECTOR] = schema[MaidrKey.SELECTOR].replace(
                         "maidr='true'", f"maidr='{self.selector_ids[i]}'"
@@ -419,137 +525,258 @@ class Maidr:
         return str(uuid.uuid4())
 
     @staticmethod
-    def _inject_plot(plot: HTML, maidr: str | None, maidr_id, use_iframe: bool = True) -> Tag:
-        """Embed the plot and associated MAIDR scripts into the HTML structure."""
-        # Get the latest version from npm registry
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
+    def _inject_plot(
+        plot: HTML,
+        maidr: str | None,
+        maidr_id,
+        use_iframe: bool = True,
+        use_cdn: bool | Literal["auto"] = "auto",
+    ) -> Tag:
+        """Embed the plot and associated MAIDR scripts into the HTML structure.
 
-        script = f"""
-            (function() {{
-                var existing = document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]');
-                if (!existing) {{
-                    var s = document.createElement('script');
-                    s.src = '{MAIDR_TS_CDN_URL}';
-                    s.onload = function() {{ if (window.main) window.main(); }};
-                    document.head.appendChild(s);
-                }} else {{
-                    if (document.readyState === 'loading') {{
-                        document.addEventListener('DOMContentLoaded', function() {{ if (window.main) window.main(); }});
-                    }} else {{
-                        if (window.main) window.main();
-                    }}
-                }}
-            }})();
+        Parameters
+        ----------
+        plot : htmltools.HTML
+            The rendered SVG markup for the chart.
+        maidr : str | None
+            Optional ``var maidr = {...}`` script body (used when the
+            schema is not embedded in the SVG ``maidr`` attribute).
+        maidr_id : Any
+            Unused placeholder retained for backwards compatibility.
+        use_iframe : bool, default=True
+            Whether to wrap the output in an iframe for notebook display.
+        use_cdn : bool or {"auto"}, default="auto"
+            * ``True``: emit only CDN ``<script>`` / ``<link>`` tags
+              (no offline fallback).
+            * ``False``: emit an :class:`htmltools.HTMLDependency`
+              pointing at the bundled ``maidr.js`` / ``maidr.css``
+              assets, which ``htmltools`` copies into ``lib_dir``.
+            * ``"auto"`` (default): emit a CDN loader with a
+              client-side ``onerror`` handler that falls back to the
+              bundled copy.  A no-tag dependency ensures the bundled
+              files are copied to ``lib_dir`` so the fallback works
+              without network access.
         """
+        # Decide whether the iframe-in-notebook "load-once" fast path applies.
+        # ``Tag.get_html_string()`` (used by ``wrap_in_iframe_matplotlib``)
+        # silently drops ``HTMLDependency`` children, so for iframe renders
+        # we must not rely on htmltools to inject the bundled script.
+        # Instead we emit a small bootstrap that evaluates the JS source
+        # which :func:`maidr.api.init_notebook` has stashed on
+        # ``window.__maidrJsSource`` in the parent document.  This matches
+        # the Plotly/Bokeh "library loaded once per notebook" pattern and
+        # keeps the .ipynb file small.
+        iframe_in_notebook = use_iframe and (
+            Environment.is_notebook() or Environment.is_shiny()
+        )
 
-        children = [
-            tags.link(
-                rel="stylesheet",
-                href="https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css",
-            )
-        ]
-        if maidr is not None:
-            children.append(tags.script(maidr, type="text/javascript"))
-        children.append(tags.script(script, type="text/javascript"))
-        children.append(tags.div(plot))
+        children: list[Any]
+        if use_cdn is False:
+            if iframe_in_notebook:
+                # Pull the bundled source from the parent document instead
+                # of emitting an ``HTMLDependency`` (which would be lost
+                # when the iframe wrapper serialises the tag via
+                # ``Tag.get_html_string()``).
+                parent_source_script = """
+                    (function() {
+                        function run() { if (window.main) window.main(); }
+                        function go() {
+                            try {
+                                var jsSrc = window.parent && window.parent.__maidrJsSource;
+                                var cssSrc = window.parent && window.parent.__maidrCssSource;
+                                if (cssSrc) {
+                                    var style = document.createElement('style');
+                                    style.textContent = cssSrc;
+                                    document.head.appendChild(style);
+                                }
+                                if (jsSrc) {
+                                    var s = document.createElement('script');
+                                    s.text = jsSrc;
+                                    document.head.appendChild(s);
+                                    run();
+                                    return;
+                                }
+                            } catch (_) { /* cross-origin or missing parent */ }
+                            // Fallback: init_notebook() was not called, log a hint.
+                            if (window.console) {
+                                console.warn(
+                                    'maidr: use_cdn=False requires maidr.init_notebook() ' +
+                                    'to be called once per notebook session, or the bundle ' +
+                                    'to be available on window.parent.__maidrJsSource.'
+                                );
+                            }
+                        }
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', go);
+                        } else {
+                            go();
+                        }
+                    })();
+                """
+                children = []
+                if maidr is not None:
+                    children.append(tags.script(maidr, type="text/javascript"))
+                children.append(
+                    tags.script(parent_source_script, type="text/javascript")
+                )
+                children.append(tags.div(plot))
+            else:
+                dep = maidr_html_dependency()
+                # ``htmltools`` inserts the bundled ``maidr.js`` via a normal
+                # ``<script src="...">`` tag; we still need the same
+                # ``window.main()`` bootstrap that the CDN loader performs.
+                bootstrap_script = """
+                    (function() {
+                        function run() { if (window.main) window.main(); }
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', run);
+                        } else {
+                            run();
+                        }
+                    })();
+                """
+                children = [dep]
+                if maidr is not None:
+                    children.append(tags.script(maidr, type="text/javascript"))
+                children.append(
+                    tags.script(bootstrap_script, type="text/javascript")
+                )
+                children.append(tags.div(plot))
+        elif use_cdn == "auto":
+            if iframe_in_notebook:
+                # Inside a notebook iframe, relative ``lib/maidr-.../maidr.js``
+                # paths cannot be resolved (srcdoc iframes have no base URL).
+                # Fall back to the parent-source string (populated by
+                # :func:`maidr.api.init_notebook`) if the CDN fetch fails.
+                auto_script = f"""
+                    (function() {{
+                        function bootstrap() {{
+                            if (document.readyState === 'loading') {{
+                                document.addEventListener('DOMContentLoaded', function() {{ if (window.main) window.main(); }});
+                            }} else {{
+                                if (window.main) window.main();
+                            }}
+                        }}
+                        function fallbackFromParent() {{
+                            try {{
+                                var jsSrc = window.parent && window.parent.__maidrJsSource;
+                                var cssSrc = window.parent && window.parent.__maidrCssSource;
+                                if (cssSrc) {{
+                                    var style = document.createElement('style');
+                                    style.textContent = cssSrc;
+                                    document.head.appendChild(style);
+                                }}
+                                if (jsSrc) {{
+                                    var s = document.createElement('script');
+                                    s.text = jsSrc;
+                                    document.head.appendChild(s);
+                                    bootstrap();
+                                }}
+                            }} catch (_) {{ /* parent unreachable */ }}
+                        }}
+                        var cssLink = document.createElement('link');
+                        cssLink.rel = 'stylesheet';
+                        cssLink.href = '{MAIDR_CSS_CDN_URL}';
+                        document.head.appendChild(cssLink);
+                        var s = document.createElement('script');
+                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.onload = bootstrap;
+                        s.onerror = fallbackFromParent;
+                        document.head.appendChild(s);
+                    }})();
+                """
+                children = []
+                if maidr is not None:
+                    children.append(tags.script(maidr, type="text/javascript"))
+                children.append(tags.script(auto_script, type="text/javascript"))
+                children.append(tags.div(plot))
+            else:
+                # Non-iframe (e.g. ``save_html``): copy the bundle alongside
+                # the HTML and emit a CDN loader with an ``onerror``
+                # fallback to the relative bundled path.  The browser
+                # decides which source to use based on network reachability.
+                files_dep = maidr_bundled_files_dependency()
+                rel_dir = maidr_bundled_relative_dir()
+                bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
+                bundled_css_rel = f"{rel_dir}/{MAIDR_CSS_FILENAME}"
+                fallback_script = f"""
+                    (function() {{
+                        function bootstrap() {{
+                            if (document.readyState === 'loading') {{
+                                document.addEventListener('DOMContentLoaded', function() {{ if (window.main) window.main(); }});
+                            }} else {{
+                                if (window.main) window.main();
+                            }}
+                        }}
+                        var cssLink = document.createElement('link');
+                        cssLink.rel = 'stylesheet';
+                        cssLink.href = '{MAIDR_CSS_CDN_URL}';
+                        cssLink.onerror = function() {{
+                            var fb = document.createElement('link');
+                            fb.rel = 'stylesheet';
+                            fb.href = '{bundled_css_rel}';
+                            document.head.appendChild(fb);
+                        }};
+                        document.head.appendChild(cssLink);
+                        var existing = document.querySelector('script[src="{MAIDR_JS_CDN_URL}"]');
+                        if (existing) {{ bootstrap(); return; }}
+                        var s = document.createElement('script');
+                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.onload = bootstrap;
+                        s.onerror = function() {{
+                            var fb = document.createElement('script');
+                            fb.src = '{bundled_js_rel}';
+                            fb.onload = bootstrap;
+                            document.head.appendChild(fb);
+                        }};
+                        document.head.appendChild(s);
+                    }})();
+                """
+                children = [files_dep]
+                if maidr is not None:
+                    children.append(tags.script(maidr, type="text/javascript"))
+                children.append(
+                    tags.script(fallback_script, type="text/javascript")
+                )
+                children.append(tags.div(plot))
+        else:
+            # Preserve the historical CDN-loading behaviour byte-for-byte
+            # so existing notebooks keep working unchanged.
+            script = f"""
+                (function() {{
+                    var existing = document.querySelector('script[src="{MAIDR_JS_CDN_URL}"]');
+                    if (!existing) {{
+                        var s = document.createElement('script');
+                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.onload = function() {{ if (window.main) window.main(); }};
+                        document.head.appendChild(s);
+                    }} else {{
+                        if (document.readyState === 'loading') {{
+                            document.addEventListener('DOMContentLoaded', function() {{ if (window.main) window.main(); }});
+                        }} else {{
+                            if (window.main) window.main();
+                        }}
+                    }}
+                }})();
+            """
+
+            children = [
+                tags.link(rel="stylesheet", href=MAIDR_CSS_CDN_URL),
+            ]
+            if maidr is not None:
+                children.append(tags.script(maidr, type="text/javascript"))
+            children.append(tags.script(script, type="text/javascript"))
+            children.append(tags.div(plot))
 
         base_html = tags.div(*children)
 
-        # is_quarto = os.getenv("IS_QUARTO") == "True"
-
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
-        # For TypeScript we will use iframe by default for now
         if use_iframe and (
             Environment.is_flask()
             or Environment.is_notebook()
             or Environment.is_shiny()
         ):
-            unique_id = "iframe_" + Maidr._unique_id()
-
-            def generate_iframe_script(unique_id: str) -> str:
-                resizing_script = f"""
-                    function resizeIframe() {{
-                        let iframe = document.getElementById('{unique_id}');
-                        if (
-                            iframe && iframe.contentWindow &&
-                            iframe.contentWindow.document
-                        ) {{
-                            let iframeDocument = iframe.contentWindow.document;
-                            // Detect braille textarea by dynamic id prefix
-                            let brailleContainer = iframeDocument.querySelector('[id^="maidr-braille-textarea"]');
-                            // Detect review input container by class name
-                            let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
-                            iframe.style.height = 'auto';
-                            let height = iframeDocument.body.scrollHeight;
-                            // Consider braille active if it or any descendant has focus
-                            let isBrailleActive = brailleContainer && (
-                                brailleContainer === iframeDocument.activeElement ||
-                                (typeof brailleContainer.contains === 'function' && brailleContainer.contains(iframeDocument.activeElement))
-                            );
-                            // Consider review input active if it or any descendant has focus
-                            let isReviewInputActive = reviewInputContainer && (
-                                reviewInputContainer === iframeDocument.activeElement ||
-                                (typeof reviewInputContainer.contains === 'function' && reviewInputContainer.contains(iframeDocument.activeElement))
-                            );
-                            // (logs removed)
-                            if (isBrailleActive) {{
-                                height += 100;
-                            }} else if (isReviewInputActive) {{
-                                height += 50;
-                            }} else {{
-                                height += 50;
-                            }}
-                            iframe.style.height = (height) + 'px';
-                            iframe.style.width = iframeDocument.body.scrollWidth + 'px';
-                        }}
-                    }}
-                    let iframe = document.getElementById('{unique_id}');
-                    resizeIframe();
-                    iframe.onload = function() {{
-                        resizeIframe();
-                        iframe.contentWindow.addEventListener('resize', resizeIframe);
-                    }};
-                    // Delegate focus events for braille textarea (by id prefix)
-                    iframe.contentWindow.document.addEventListener('focusin', (e) => {{
-                        try {{
-                            const t = e && e.target ? e.target : null;
-                            if (t && typeof t.id === 'string' && t.id.startsWith('maidr-braille-textarea')) resizeIframe();
-                        }} catch (_) {{ resizeIframe(); }}
-                    }}, true);
-                    iframe.contentWindow.document.addEventListener('focusout', (e) => {{
-                        try {{
-                            const t = e && e.target ? e.target : null;
-                            if (t && typeof t.id === 'string' && t.id.startsWith('maidr-braille-textarea')) resizeIframe();
-                        }} catch (_) {{ resizeIframe(); }}
-                    }}, true);
-                    // Delegate focus events for review input container (by class name)
-                    iframe.contentWindow.document.addEventListener('focusin', (e) => {{
-                        try {{
-                            const t = e && e.target ? e.target : null;
-                            if (t && t.classList && t.classList.contains('maidr-review-input')) resizeIframe();
-                        }} catch (_) {{ resizeIframe(); }}
-                    }}, true);
-                    iframe.contentWindow.document.addEventListener('focusout', (e) => {{
-                        try {{
-                            const t = e && e.target ? e.target : null;
-                            if (t && t.classList && t.classList.contains('maidr-review-input')) resizeIframe();
-                        }} catch (_) {{ resizeIframe(); }}
-                    }}, true);
-                """
-                return resizing_script
-
-            resizing_script = generate_iframe_script(unique_id)
-
-            base_html = tags.iframe(
-                id=unique_id,
-                srcdoc=str(base_html.get_html_string()),
-                width="100%",
-                height="100%",
-                scrolling="no",
-                style="background-color: #fff; position: relative; border: none",
-                frameBorder=0,
-                onload=resizing_script,
-            )
+            base_html = wrap_in_iframe_matplotlib(base_html)
 
         return base_html

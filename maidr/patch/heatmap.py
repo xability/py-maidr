@@ -12,9 +12,9 @@ from maidr.core.figure_manager import FigureManager
 def heat(wrapped, _, args, kwargs) -> Axes | AxesImage:
     # Check for additional params used by MAIDR heatmap.
     optional_params = {}
-    if "fill_label" in kwargs:
-        # Remove `fill_label` because it is introduced by us.
-        optional_params["fill_label"] = kwargs.pop("fill_label")
+    if "z_label" in kwargs:
+        # Remove `z_label` because it is introduced by us.
+        optional_params["z_label"] = kwargs.pop("z_label")
     if "fmt" in kwargs:
         optional_params["fmt"] = kwargs["fmt"]
 

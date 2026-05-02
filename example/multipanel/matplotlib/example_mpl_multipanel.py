@@ -9,7 +9,7 @@ containing different types of plots: line plot, bar plot, and scatter plot.
 import matplotlib.pyplot as plt
 import numpy as np
 
-import maidr
+import maidr  # noqa: F401
 
 x_line = np.array([1, 2, 3, 4, 5, 6, 7, 8])
 y_line = np.array([2, 4, 1, 5, 3, 7, 6, 8])
@@ -60,4 +60,4 @@ axs[2].yaxis.set_major_formatter("{x:.1f}")
 plt.tight_layout()
 
 # Display the figure
-maidr.show(fig)
+plt.show()

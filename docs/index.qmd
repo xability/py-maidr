@@ -1,5 +1,6 @@
 ---
-title: Welcome
+title: "py-maidr: Accessible Data Visualization for Python"
+description: "Make matplotlib, seaborn, and plotly charts accessible to blind and low-vision users with sonification, braille, text, and AI chat modalities."
 jupyter: python3
 # aliases:
   # - ../index.html
@@ -10,7 +11,7 @@ filters:
 
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/xability/maidr/main/docs/logo/logo.svg" width="350px" alt="A stylized MAIDR logo, with curved characters for M A, a hand pointing for an I, the D character, and R represented in braille."/>
+<img src="https://raw.githubusercontent.com/xability/maidr/refs/heads/main/docs/logo.svg" width="350px" alt="A stylized MAIDR logo, with curved characters for M A, a hand pointing for an I, the D character, and R represented in braille."/>
 
 <hr style="color:transparent" />
 <br />
@@ -32,7 +33,7 @@ The following summarizes the key features and design principles of Py maidr:
 
 3. Integration: maidr seamlessly integrates with the popular and mainstream data science environments  (e.g., Python, pandas, and NumPy) as well as data visualization libraries in Python like **matplotlib** and **seaborn**.
 
-4. Unintrusiveness: maidr does not require changes to existing core data visualization code. Without needing to reconstruct an accessible version separately, you can just `import maidr` package and use `maidr.show()` to your plots. Blind and sighted users can use and share the same visualization codebase in their shared data science projects.
+4. Unintrusiveness: maidr does not require changes to existing core data visualization code. Without needing to reconstruct an accessible version separately, you can just `import maidr` and call `plt.show()` as usual — maidr's custom backend automatically renders your plots accessibly. Blind and sighted users can use and share the same visualization codebase in their shared data science projects.
 
 5. Synchronization: maidr treats visualization as one of the multimodal data representations and ensures that all representations (e.g., visual, tactile, textual, audible) cursor and braille routing key positions are synchronized across different modalities.
 
@@ -40,7 +41,7 @@ The following summarizes the key features and design principles of Py maidr:
 
 7. Reproducibility: maidr supports the generation of accessible data visualizations as part of the reproducible data science workflow with [Quarto scientific publishing system](https://quarto.org/). You can easily create accessible data representations within your reproducible reports, website blogs, slides, e-books, dashboards, and more.
 
-8. Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types. Multi-figure and multi-layer visualizations are also supported.
+8. Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, violin plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types. Multi-figure and multi-layer visualizations are also supported.
 
 Our core philosophy is to make data science accessible to everyone, regardless of their visual dis/abilities. We believe that by making data visualizations accessible, we can empower blind and sighted users to work together on data science projects, share insights, and make data-driven decisions collaboratively.
 
@@ -69,6 +70,8 @@ We currently support the following data visualization libraries in Python:, and 
 * Horizontal box plot having one x (numerical) and one y (categorical) axis.
 
     * Note: For box plots, the categorical variable can be either single-class or multi-class. We support both cases.
+
+* Violin plot having one x (categorical) and one y (numerical) axis, combining a KDE density curve with embedded box plot statistics.
 
 * Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
 
@@ -103,6 +106,8 @@ We currently support the following data visualization libraries in Python:, and 
 
     * Note: For box plots, the categorical variable can be either single-class or multi-class. We support both cases.
 
+* `sns.violinplot()`: Violin plot having one x (categorical) and one y (numerical) axis, combining a KDE density curve with embedded box plot statistics. Supports vertical and horizontal orientations.
+
 * `sns.heatmap()`: Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
 
 * `sns.scatterplot()`: Scatter plot having one x (numerical) and one y (numerical) axis.
@@ -132,7 +137,7 @@ pip install -U git+https://github.com/xability/py-maidr.git
 
 Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code.
 
-Simply import the `maidr` package and use the `maidr.show()` function to display your plots. **maidr** will automatically generate accessible versions of your plots in your default browser. You can then interact with the accessible versions using keyboard shortcuts (refer to @tbl-shortcuts).
+Simply `import maidr` and call `plt.show()` as usual. **maidr** automatically activates a custom matplotlib backend, so `plt.show()` renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image. You can then interact with the accessible plots using keyboard shortcuts (refer to @tbl-shortcuts).
 
 Check more examples in the [galleries](examples.qmd#sec-examples).
 
@@ -153,24 +158,56 @@ import maidr #<<
 penguins = sns.load_dataset("penguins")
 
 # Create a bar plot showing the average body mass of penguins by species
-plt.figure(figsize=(6, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
-# Assign the plot to a variable #<<
-bar_plot = sns.barplot( #<<
-    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d"
+# Assign the plot to a variable
+bar_plot = sns.barplot(
+    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d", ax=ax
 )
-plt.title("Average Body Mass of Penguins by Species")
-plt.xlabel("Species")
-plt.ylabel("Body Mass (g)")
+ax.set_title("Average Body Mass of Penguins by Species")
+ax.set_xlabel("Species")
+ax.set_ylabel("Body Mass (g)")
 
-# plt.show()
-
-# Use maidr.show() to display your plot #<<
-maidr.show(bar_plot) #<<
+# plt.show() now renders accessible maidr output #<<
+plt.show() #<<
 
 # Uncomment the following line to save and share the accessible version of your plot with others!
 # maidr.save_html(bar_plot, "output.html") #<<
 ```
+
+### Custom Backend
+
+When you `import maidr`, a custom matplotlib backend is automatically activated. This means `plt.show()` renders accessible HTML output instead of a static image.
+
+#### Switching Back to the Default Renderer
+
+If you want to temporarily use the default matplotlib renderer (e.g. for unsupported plot types or debugging), you can switch the backend:
+
+**In Jupyter notebooks:**
+
+```python
+maidr.set_backend(use_maidr=False)   # plt.show() now renders static inline images
+maidr.set_backend(use_maidr=True)    # plt.show() renders accessible maidr output again
+```
+
+**In Python scripts (non-notebook):**
+
+```python
+maidr.set_backend(use_maidr=False)   # plt.show() now opens the native image viewer (e.g. macOS, TkAgg)
+maidr.set_backend(use_maidr=True)    # plt.show() renders accessible maidr output again
+```
+
+::: {.callout-note}
+`maidr.show()` always renders accessible output regardless of the active backend. You only need `maidr.set_backend()` to control the behavior of `plt.show()`.
+:::
+
+::: {.callout-note}
+If you want to set the backend manually, use `matplotlib.use("module://maidr.backend")`. The shorthand `matplotlib.use("maidr")` requires matplotlib >= 3.9.
+:::
+
+#### Unsupported Plot Types
+
+For plot types not yet supported by maidr (e.g. pie charts, contour plots, 3D plots), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed — your plots will always be visible.
 
 ## Keyboard Shortcuts and Controls
 
@@ -204,7 +241,7 @@ Below is a detailed list of keyboard shortcuts for various functions:
 | Check label for the title of current plot | l t | l t |
 | Check label for the x axis of current plot | l x | l x |
 | Check label for the y axis of current plot | l y | l y |
-| Check label for the fill (z) axis of current plot | l f | l f |
+| Check label for the z axis of current plot | l z | l z |
 | Switch to next layer | PageUp | PageUp |
 | Switch to previous layer | PageDown | PageDown |
 | Move around subplot list | Arrow keys | Arrow keys |

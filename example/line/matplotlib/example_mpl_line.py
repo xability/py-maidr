@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import maidr
+import maidr  # noqa: F401
 
 # Load the flights dataset from seaborn
 flights = sns.load_dataset("flights")
@@ -31,4 +31,4 @@ ax.yaxis.set_major_formatter("{x:,.2f}")
 # X-axis: Display year as integer (no decimals)
 ax.xaxis.set_major_formatter("{x:.0f}")
 
-maidr.show(line_plot)
+plt.show()
