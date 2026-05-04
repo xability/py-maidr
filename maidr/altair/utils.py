@@ -14,15 +14,3 @@ def is_altair_chart(obj: Any) -> bool:
         return isinstance(obj, (alt.Chart, alt.LayerChart))
     except ImportError:
         return False
-
-
-def get_mark_type(spec: dict) -> str:
-    """Extract the mark type string from a Vega-Lite spec.
-
-    The mark field can be a string (e.g., ``"bar"``) or a dict
-    (e.g., ``{"type": "bar", "color": "red"}``).
-    """
-    mark = spec.get("mark", "")
-    if isinstance(mark, dict):
-        return mark.get("type", "")
-    return str(mark)

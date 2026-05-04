@@ -374,8 +374,9 @@ def show(
     Parameters
     ----------
     plot : Any or None, optional
-        The plot object to display. Supports matplotlib/seaborn artists and
-        Altair chart objects. If None, uses the current matplotlib figure.
+        The plot object to display. Supports matplotlib/seaborn artists,
+        Plotly figures, and Altair chart objects. If None, uses the
+        current matplotlib figure.
     renderer : {"auto", "ipython", "browser"}, default "auto"
         The renderer to use for display.
     clear_fig : bool, default True
@@ -425,8 +426,9 @@ def save_html(
     Parameters
     ----------
     plot : Any or None, optional
-        The plot object to save. Supports matplotlib/seaborn artists and
-        Altair chart objects. If None, uses the current matplotlib figure.
+        The plot object to save. Supports matplotlib/seaborn artists,
+        Plotly figures, and Altair chart objects. If None, uses the
+        current matplotlib figure.
     file : str
         The file path where to save the HTML.
     lib_dir : str or None, default "lib"
