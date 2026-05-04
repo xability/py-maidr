@@ -1,0 +1,620 @@
+---
+title: "Altair Accessible Plot Examples"
+description: "Code examples showing how to make Altair (Vega-Lite) bar, box, line, scatter, heatmap, histogram, KDE, and regression charts accessible with py-maidr."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+## Altair Examples {#sec-altair-examples}
+
+**maidr** also supports **Altair** charts. If you already have data
+visualization code using `altair`, you can make your charts accessible
+with **maidr** in just a few lines of code. For **matplotlib** /
+**seaborn** examples, see the
+[Matplotlib / Seaborn Examples](examples.qmd) page; for **Plotly**
+examples, see the [Plotly Examples](examples-plotly.qmd) page.
+
+Simply import the `maidr` package and pass your Altair `Chart` (or
+layered `Chart + Chart` composite) to `maidr.show()`. **maidr** ships
+the Vega-Lite spec into an iframe that loads the upstream Vega-Lite
+adapter from CDN and binds the MAIDR keyboard-navigation, sonification,
+braille, and AI-chat UI on top of the rendered chart.
+
+::: {.callout-note}
+The Altair adapter currently supports single-view charts (`alt.Chart`)
+and layered composites (`alt.LayerChart`, including `c1 + c2` and
+`alt.layer(...)`). Facet (`.facet(...)`), repeat (`.repeat(...)`), and
+concat (`alt.hconcat` / `alt.vconcat` / `alt.concat`) composite specs
+are **not** currently supported.
+:::
+
+### Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Altair bar chart showing the number of tips by day of week
+
+import altair as alt
+import seaborn as sns
+
+import maidr  #<<
+
+# Load the tips dataset and tally by day
+tips = sns.load_dataset("tips")
+day_counts = tips["day"].value_counts().reset_index()
+day_counts.columns = ["day", "count"]
+
+bar_plot = (
+    alt.Chart(day_counts)
+    .mark_bar(color="skyblue")
+    .encode(
+        x=alt.X("day:N", title="Day"),
+        y=alt.Y("count:Q", title="Count"),
+    )
+    .properties(title="The Number of Tips by Day", width=400, height=300)
+)
+
+maidr.show(bar_plot)  #<<
+```
+
+### Dodged (Grouped) Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Altair dodged bar chart of penguin weight counts above and below average, grouped by species
+
+import altair as alt
+import pandas as pd
+
+import maidr  #<<
+
+species = ["Adelie", "Chinstrap", "Gentoo"]
+weight_counts = {
+    "Below": [70, 31, 58],
+    "Above": [82, 37, 66],
+}
+
+# Build a long-form DataFrame for Altair
+rows = []
+for sp_idx, sp in enumerate(species):
+    for category, counts in weight_counts.items():
+        rows.append({"species": sp, "count": counts[sp_idx], "category": category})
+df = pd.DataFrame(rows)
+
+dodged_plot = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        x=alt.X("species:N", title="Species"),
+        y=alt.Y("count:Q", title="Count"),
+        color=alt.Color("category:N", title="Category"),
+        xOffset="category:N",
+    )
+    .properties(
+        title="Dodged Bar Plot: Penguin Weight Counts", width=400, height=300
+    )
+)
+
+maidr.show(dodged_plot)  #<<
+```
+
+### Stacked Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Altair stacked bar chart of Titanic passenger counts by class and survival status
+
+import altair as alt
+import seaborn as sns
+
+import maidr  #<<
+
+# Load the Titanic dataset
+titanic = sns.load_dataset("titanic")
+
+# Group by class and survived
+grouped = (
+    titanic.groupby(["class", "survived"])
+    .size()
+    .reset_index(name="count")
+)
+grouped["survived"] = grouped["survived"].map(
+    {0: "Did not survive", 1: "Survived"}
+)
+
+stacked_plot = (
+    alt.Chart(grouped)
+    .mark_bar()
+    .encode(
+        x=alt.X("class:N", title="Class"),
+        y=alt.Y("count:Q", title="Number of Passengers", stack="zero"),
+        color=alt.Color("survived:N", title="Survival Status"),
+    )
+    .properties(
+        title="Passenger Count by Class and Survival Status on the Titanic",
+        width=400,
+        height=300,
+    )
+)
+
+maidr.show(stacked_plot)  #<<
+```
+
+### Count Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Altair count plot of Titanic passenger class distribution
+
+import altair as alt
+import seaborn as sns
+
+import maidr  #<<
+
+titanic = sns.load_dataset("titanic")
+
+count_plot = (
+    alt.Chart(titanic)
+    .mark_bar()
+    .encode(
+        x=alt.X("class:N", title="Class"),
+        y=alt.Y("count():Q", title="Count"),
+    )
+    .properties(
+        title="Passenger Class Distribution on the Titanic",
+        width=400,
+        height=300,
+    )
+)
+
+maidr.show(count_plot)  #<<
+```
+
+### Histogram
+
+```{python}
+#| warning: false
+#| fig-alt: Altair histogram of iris petal lengths
+
+import altair as alt
+import seaborn as sns
+
+import maidr  #<<
+
+iris = sns.load_dataset("iris")
+
+hist_plot = (
+    alt.Chart(iris)
+    .mark_bar(color="steelblue")
+    .encode(
+        x=alt.X(
+            "petal_length:Q",
+            bin=alt.Bin(maxbins=20),
+            title="Petal Length (cm)",
+        ),
+        y=alt.Y("count():Q", title="Frequency"),
+    )
+    .properties(
+        title="Histogram of Petal Lengths in Iris Dataset",
+        width=400,
+        height=300,
+    )
+)
+
+maidr.show(hist_plot)  #<<
+```
+
+### Single KDE Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Single Altair KDE plot of a normal distribution using the density transform
+
+import altair as alt
+import numpy as np
+import pandas as pd
+
+import maidr  #<<
+
+# Generate sample data
+np.random.seed(42)
+data = np.random.normal(loc=1, scale=2, size=300)
+df = pd.DataFrame({"value": data})
+
+# Create KDE plot using Altair's density transform
+kde_plot = (
+    alt.Chart(df)
+    .transform_density("value", as_=["value", "density"])
+    .mark_line(color="blue", strokeWidth=2)
+    .encode(
+        x=alt.X("value:Q", title="Value"),
+        y=alt.Y("density:Q", title="Density"),
+    )
+    .properties(title="Single KDE Plot with Altair", width=400, height=300)
+)
+
+maidr.show(kde_plot)  #<<
+```
+
+### Multiple KDE Overlays
+
+```{python}
+#| warning: false
+#| fig-alt: Altair KDE plot showing density curves for three groups via the density transform with groupby
+
+import altair as alt
+import numpy as np
+import pandas as pd
+
+import maidr  #<<
+
+# Generate sample data for three groups
+np.random.seed(0)
+data1 = np.random.normal(loc=0, scale=1, size=200)
+data2 = np.random.normal(loc=2, scale=0.5, size=200)
+data3 = np.random.normal(loc=-2, scale=1.5, size=200)
+
+df = pd.DataFrame(
+    {
+        "value": np.concatenate([data1, data2, data3]),
+        "group": (
+            ["Group 1"] * len(data1)
+            + ["Group 2"] * len(data2)
+            + ["Group 3"] * len(data3)
+        ),
+    }
+)
+
+multi_kde = (
+    alt.Chart(df)
+    .transform_density("value", groupby=["group"], as_=["value", "density"])
+    .mark_line(strokeWidth=2)
+    .encode(
+        x=alt.X("value:Q", title="Value"),
+        y=alt.Y("density:Q", title="Density"),
+        color=alt.Color("group:N", title="Group"),
+    )
+    .properties(title="Multiple KDE Plots with Altair", width=400, height=300)
+)
+
+maidr.show(multi_kde)  #<<
+```
+
+### Box Plot (Vertical and Horizontal)
+
+```{python}
+#| warning: false
+#| fig-alt: Altair vertical and horizontal box plots of iris petal length by species
+
+import altair as alt
+import seaborn as sns
+
+import maidr  #<<
+
+iris = sns.load_dataset("iris")
+
+def boxplot(orientation: str):
+    if orientation == "v":
+        return (
+            alt.Chart(iris)
+            .mark_boxplot()
+            .encode(
+                x=alt.X("species:N", title="Species"),
+                y=alt.Y("petal_length:Q", title="Petal Length (cm)"),
+            )
+            .properties(
+                title="Vertical Box Plot of Petal Length by Iris Species",
+                width=400,
+                height=300,
+            )
+        )
+    return (
+        alt.Chart(iris)
+        .mark_boxplot()
+        .encode(
+            x=alt.X("petal_length:Q", title="Petal Length (cm)"),
+            y=alt.Y("species:N", title="Species"),
+        )
+        .properties(
+            title="Horizontal Box Plot of Petal Length by Iris Species",
+            width=400,
+            height=300,
+        )
+    )
+
+maidr.show(boxplot("v"))  #<<
+maidr.show(boxplot("h"))  #<<
+```
+
+### Heatmap
+
+```{python}
+#| warning: false
+#| fig-alt: Altair heatmap of fictional farmer harvest yields by vegetable, with cell value labels overlaid
+
+import altair as alt
+import numpy as np
+import pandas as pd
+
+import maidr  #<<
+
+vegetables = [
+    "cucumber", "tomato", "lettuce", "asparagus",
+    "potato", "wheat", "barley",
+]
+farmers = [
+    "Farmer Joe", "Upland Bros.", "Smith Gardening", "Agrifun",
+    "Organiculture", "BioGoods Ltd.", "Cornylee Corp.",
+]
+harvest = np.array([
+    [0.8, 2.4, 2.5, 3.9, 0.0, 4.0, 0.0],
+    [2.4, 0.0, 4.0, 1.0, 2.7, 0.0, 0.0],
+    [1.1, 2.4, 0.8, 4.3, 1.9, 4.4, 0.0],
+    [0.6, 0.0, 0.3, 0.0, 3.1, 0.0, 0.0],
+    [0.7, 1.7, 0.6, 2.6, 2.2, 6.2, 0.0],
+    [1.3, 1.2, 0.0, 0.0, 0.0, 3.2, 5.1],
+    [0.1, 2.0, 0.0, 1.4, 0.0, 1.9, 6.3],
+])
+
+rows = []
+for i, veg in enumerate(vegetables):
+    for j, farmer in enumerate(farmers):
+        rows.append(
+            {"Vegetable": veg, "Farmer": farmer, "Harvest": float(harvest[i, j])}
+        )
+df = pd.DataFrame(rows)
+
+heatmap = (
+    alt.Chart(df)
+    .mark_rect()
+    .encode(
+        x=alt.X("Farmer:N", title="Farmers"),
+        y=alt.Y("Vegetable:N", title="Vegetables"),
+        color=alt.Color("Harvest:Q", title="Harvest (tons)"),
+    )
+    .properties(
+        title="Harvest of local farmers (in tons/year)",
+        width=400,
+        height=300,
+    )
+)
+
+text = (
+    alt.Chart(df)
+    .mark_text(color="white")
+    .encode(
+        x="Farmer:N",
+        y="Vegetable:N",
+        text=alt.Text("Harvest:Q", format=".1f"),
+    )
+)
+
+# Layered chart: heatmap + text labels
+chart = heatmap + text  #<<
+maidr.show(chart)  #<<
+```
+
+### Line Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Altair line plot of total airline passengers per year from the seaborn flights dataset
+
+import altair as alt
+import seaborn as sns
+
+import maidr  #<<
+
+flights = sns.load_dataset("flights")
+flights_yearly = flights.groupby("year")["passengers"].sum().reset_index()
+flights_yearly.columns = ["year", "total"]
+
+line_plot = (
+    alt.Chart(flights_yearly)
+    .mark_line(point=True)
+    .encode(
+        x=alt.X("year:O", title="Year"),
+        y=alt.Y("total:Q", title="Total Passengers (Thousands)"),
+    )
+    .properties(
+        title="Total Passengers per Year From the Flights Dataset",
+        width=500,
+        height=300,
+    )
+)
+
+maidr.show(line_plot)  #<<
+```
+
+### Multi-Line Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Altair multi-line plot of three numeric series rendered with a color encoding on the same axes
+
+import altair as alt
+import numpy as np
+import pandas as pd
+
+import maidr  #<<
+
+x = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+y1 = np.array([2, 4, 1, 5, 3, 7, 6, 8])
+y2 = np.array([1, 3, 5, 2, 4, 6, 8, 7])
+y3 = np.array([3, 1, 4, 6, 5, 2, 4, 5])
+
+df = pd.DataFrame({
+    "x": np.tile(x, 3),
+    "y": np.concatenate([y1, y2, y3]),
+    "series": np.repeat(["Series 1", "Series 2", "Series 3"], len(x)),
+})
+
+multiline_plot = (
+    alt.Chart(df)
+    .mark_line(point=True)
+    .encode(
+        x=alt.X("x:Q", title="X values"),
+        y=alt.Y("y:Q", title="Y values"),
+        color=alt.Color("series:N", title="Series"),
+        strokeDash=alt.StrokeDash("series:N"),
+    )
+    .properties(title="Altair Multi-Line Plot", width=400, height=300)
+)
+
+maidr.show(multiline_plot)  #<<
+```
+
+### Scatter Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Altair scatter plot of iris sepal length vs sepal width, color-encoded by species
+
+import altair as alt
+import seaborn as sns
+
+import maidr  #<<
+
+iris = sns.load_dataset("iris")
+
+scatter_plot = (
+    alt.Chart(iris)
+    .mark_point()
+    .encode(
+        x=alt.X("sepal_length:Q", title="Sepal Length (cm)"),
+        y=alt.Y("sepal_width:Q", title="Sepal Width (cm)"),
+        color=alt.Color("species:N", title="Species"),
+    )
+    .properties(
+        title="Iris Sepal Length vs Sepal Width",
+        width=400,
+        height=300,
+    )
+)
+
+maidr.show(scatter_plot)  #<<
+```
+
+### Multi-Layered Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Altair layered chart combining a bar plot and a line plot with independent y-axes
+
+import altair as alt
+import numpy as np
+import pandas as pd
+
+import maidr  #<<
+
+x = np.arange(5)
+bar_data = np.array([3, 5, 2, 7, 3])
+line_data = np.array([10, 8, 12, 14, 9])
+df = pd.DataFrame({"x": x, "bar_values": bar_data, "line_values": line_data})
+
+bar = (
+    alt.Chart(df)
+    .mark_bar(color="skyblue")
+    .encode(
+        x=alt.X("x:O", title="X values"),
+        y=alt.Y("bar_values:Q", title="Bar values"),
+    )
+)
+
+line = (
+    alt.Chart(df)
+    .mark_line(color="red", point=True, strokeWidth=2)
+    .encode(
+        x=alt.X("x:O"),
+        y=alt.Y("line_values:Q", title="Line values"),
+    )
+)
+
+# Layered chart with independent y-scales
+chart = (
+    alt.layer(bar, line)
+    .resolve_scale(y="independent")
+    .properties(title="Multilayer Plot Example", width=400, height=300)
+)
+
+maidr.show(chart)  #<<
+```
+
+### Regression (Scatter + LOESS Smooth)
+
+```{python}
+#| warning: false
+#| fig-alt: Altair scatter plot of synthetic noisy sine-wave data overlaid with a LOESS smoothing line
+
+import altair as alt
+import numpy as np
+import pandas as pd
+
+import maidr  #<<
+
+np.random.seed(0)
+x = np.linspace(0, 10, 100)
+y = np.sin(x) + 0.3 * np.random.randn(100)
+df = pd.DataFrame({"x": x, "y": y})
+
+scatter = (
+    alt.Chart(df)
+    .mark_point(color="blue", opacity=0.6)
+    .encode(
+        x=alt.X("x:Q", title="x"),
+        y=alt.Y("y:Q", title="y"),
+    )
+)
+
+smooth = (
+    alt.Chart(df)
+    .mark_line(color="red", strokeWidth=2)
+    .transform_loess("x", "y")
+    .encode(
+        x="x:Q",
+        y="y:Q",
+    )
+)
+
+# Layered chart: scatter points + loess smooth
+chart = (scatter + smooth).properties(
+    title="Altair: Scatter with LOESS Smooth Line",
+    width=400,
+    height=300,
+)
+
+maidr.show(chart)  #<<
+```
+
+## Saving an Altair Chart as a Self-Contained HTML File
+
+If you would like to save and share the accessible chart as a standalone
+HTML file, use `maidr.save_html()`:
+
+```python
+import altair as alt
+import seaborn as sns
+
+import maidr
+
+tips = sns.load_dataset("tips")
+chart = (
+    alt.Chart(tips)
+    .mark_bar()
+    .encode(x="day:N", y="count():Q")
+)
+
+maidr.save_html(chart, file="tips_by_day.html")
+```
+
+The generated HTML embeds the Vega-Lite spec and loads
+``vega`` / ``vega-lite`` / ``vega-embed`` plus the upstream MAIDR
+Vega-Lite adapter from CDN.
+
+## Bug Report
+
+If you encounter a bug, have usage questions, or want to share ideas to
+make the Altair adapter better, please file an
+[issue](https://github.com/xability/py-maidr/issues).

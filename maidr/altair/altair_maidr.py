@@ -1,22 +1,82 @@
-"""Main AltairMaidr class for rendering Altair charts with MAIDR accessibility."""
+"""Render Altair charts with MAIDR accessibility via the upstream Vega-Lite adapter.
+
+Architecture
+------------
+This module no longer pre-renders Altair specs to SVG on the Python side.
+Instead it ships the Vega-Lite spec into an iframe that loads the upstream
+``maidr@<ver>/dist/vegalite.js`` adapter (which itself bundles the MAIDR
+React UI) plus the Vega/Vega-Lite/Vega-Embed peer dependencies, then calls
+``window.maidrVegaLite.embed(container, spec, options)``.
+
+That entry point performs the rendering via ``vegaEmbed`` and then invokes
+``bindVegaLite`` which runs the visual-order sort/reorder pipeline
+(``sortSimpleBarsByVisualOrder``, ``reorderSegmentedSeriesByVisualBottom``,
+``sortHistogramBinsByVisualOrder``, ``applySegmentedDomMappings``,
+``sortHeatmapCellsByVisualOrder``, ``sortLinesByVisualOrder``,
+``buildBoxPlotSelectorsFromDom``). All MAIDR JSON construction is therefore
+delegated to the upstream adapter.
+
+Limitations
+-----------
+* Only single-view (``alt.Chart``) and layered (``alt.LayerChart`` /
+  ``c1 + c2``) specs are supported. Facet (``alt.Chart.facet(...)``),
+  repeat (``alt.Chart.repeat(...)``), and concat
+  (``alt.hconcat`` / ``alt.vconcat`` / ``alt.concat``) composite specs
+  are intentionally rejected by ``is_altair_chart`` and will not render
+  through this adapter.
+* CDN-only: vega/vega-lite/vega-embed are loaded from jsDelivr. Offline
+  rendering for Altair charts will be added in a follow-up that bundles
+  these peer libraries into ``maidr/static/``.
+"""
 
 from __future__ import annotations
 
 import json
 import os
+import subprocess
 import tempfile
 import uuid
 import webbrowser
-import subprocess
 from pathlib import Path
 from typing import Any, Literal, cast
 
 from htmltools import HTML, HTMLDocument, Tag, tags
 
-from maidr.core.enum.maidr_key import MaidrKey
-from maidr.altair.data_extractor import SELECTOR_PLACEHOLDER, extract_chart_data
-from maidr.altair.utils import resolve_data
 from maidr.util.environment import Environment
+from maidr.util.iframe_utils import wrap_in_iframe_plotly
+
+
+# ---------------------------------------------------------------------------
+# CDN configuration for the Altair adapter. Tracks ``maidr@latest`` so the
+# vegalite.js adapter, the React UI bundle, and the maidr.css stylesheet
+# stay in sync with upstream releases. Pin to a specific version here only
+# for short-lived testing.
+# ---------------------------------------------------------------------------
+_MAIDR_VERSION = "latest"
+_VEGA_CDN = "https://cdn.jsdelivr.net/npm/vega@5"
+_VEGA_LITE_CDN = "https://cdn.jsdelivr.net/npm/vega-lite@5"
+_VEGA_EMBED_CDN = "https://cdn.jsdelivr.net/npm/vega-embed@6"
+_MAIDR_VEGALITE_CDN = (
+    f"https://cdn.jsdelivr.net/npm/maidr@{_MAIDR_VERSION}/dist/vegalite.js"
+)
+_MAIDR_CSS_CDN = f"https://cdn.jsdelivr.net/npm/maidr@{_MAIDR_VERSION}/dist/maidr.css"
+
+
+def _spec_to_safe_json(spec: dict) -> str:
+    """Serialise a Vega-Lite spec for safe embedding in an HTML ``<script>``.
+
+    Escapes ``</`` so the spec string cannot terminate the surrounding
+    ``<script>`` tag, and escapes the line/paragraph separators U+2028 and
+    U+2029 which are valid JSON whitespace but illegal in JavaScript string
+    literals.
+    """
+    payload = json.dumps(spec, ensure_ascii=False, separators=(",", ":"))
+    return (
+        payload
+        .replace("</", "<\\/")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
 
 
 class AltairMaidr:
@@ -24,15 +84,21 @@ class AltairMaidr:
 
     Parameters
     ----------
-    chart : altair.Chart or composite
-        Any Altair chart object (Chart, LayerChart, HConcatChart,
-        VConcatChart, FacetChart, ConcatChart, RepeatChart).
+    chart : altair.Chart or altair.LayerChart
+        A single-view chart (``alt.Chart``) or a layered composite
+        (``alt.LayerChart`` / ``c1 + c2``). Facet, repeat, and concat
+        composite specs are not supported.
     """
 
     def __init__(self, chart: Any) -> None:
         self._chart = chart
         self._spec = chart.to_dict()
         self._maidr_id = str(uuid.uuid4())
+        self._container_id = f"maidr-altair-{self._maidr_id}"
+
+    # ------------------------------------------------------------------ #
+    #  Public API                                                         #
+    # ------------------------------------------------------------------ #
 
     def render(self) -> Tag:
         """Return the maidr plot as an HTML tag (with iframe for notebooks)."""
@@ -46,8 +112,25 @@ class AltairMaidr:
         include_version: bool = True,
         data_in_svg: bool = True,
     ) -> str:
-        """Save the accessible chart as an HTML file."""
-        html = self._create_html_doc(use_iframe=False, data_in_svg=data_in_svg)
+        """Save the accessible chart as a self-contained HTML file.
+
+        Parameters
+        ----------
+        file : str
+            Output HTML path.
+        lib_dir : str, optional
+            Subdirectory (relative to ``file``) where MAIDR static
+            dependencies are copied.
+        include_version : bool, default True
+            Forwarded to :meth:`htmltools.HTMLDocument.render`.
+        data_in_svg : bool, default True
+            Retained for API compatibility with the matplotlib pathway.
+            Ignored by this adapter: the Vega-Lite spec is always embedded
+            in the page so the browser can render and bind via
+            ``maidrVegaLite.embed``.
+        """
+        del data_in_svg  # kept for signature parity; not meaningful here
+        html = self._create_html_doc(use_iframe=False)
 
         destdir = str(Path(file).resolve().parent)
         if lib_dir:
@@ -81,357 +164,118 @@ class AltairMaidr:
         return html.show(_renderer)
 
     # ------------------------------------------------------------------ #
-    #  Internal helpers                                                    #
+    #  Internal helpers                                                   #
     # ------------------------------------------------------------------ #
 
-    def _create_html_tag(
-        self, use_iframe: bool = True, data_in_svg: bool = True
-    ) -> Tag:
-        """Build the HTML structure with embedded SVG and MAIDR metadata."""
-        schema = self._flatten_maidr()
-        svg = self._get_svg(embed_data=data_in_svg, schema=schema)
+    def _create_html_tag(self, use_iframe: bool = True) -> Tag:
+        """Build the HTML tree for an embedded Vega-Lite spec."""
+        base_html = self._build_inner_html()
 
-        maidr_json = None
-        if not data_in_svg:
-            maidr_json = f"\nvar maidr = {json.dumps(schema, indent=2)}\n"
+        if use_iframe and (
+            Environment.is_flask()
+            or Environment.is_notebook()
+            or Environment.is_shiny()
+        ):
+            return self._wrap_in_iframe(base_html)
+        return base_html
 
-        return self._inject_plot(svg, maidr_json, self._maidr_id, use_iframe)
+    def _create_html_doc(self, use_iframe: bool = True) -> HTMLDocument:
+        return HTMLDocument(self._create_html_tag(use_iframe), lang="en")
 
-    def _create_html_doc(
-        self, use_iframe: bool = True, data_in_svg: bool = True
-    ) -> HTMLDocument:
-        return HTMLDocument(self._create_html_tag(use_iframe, data_in_svg), lang="en")
-
-    def _get_svg(self, embed_data: bool = True, schema: dict | None = None) -> HTML:
-        """Generate SVG from the Altair chart using vl-convert-python."""
-        try:
-            import vl_convert as vlc
-        except ImportError:
-            raise ImportError(
-                "vl-convert-python is required for Altair support in maidr. "
-                "Install it with: pip install vl-convert-python"
-            )
-
-        svg_str = vlc.vegalite_to_svg(self._spec)
-
-        # Parse and inject MAIDR attributes
-        from lxml import etree
-
-        etree.register_namespace("svg", "http://www.w3.org/2000/svg")
-        tree_svg = etree.fromstring(svg_str.encode(), parser=None)
-
-        root_svg = None
-        for element in tree_svg.iter(tag="{http://www.w3.org/2000/svg}svg"):
-            current_schema = schema if schema is not None else self._flatten_maidr()
-            if isinstance(current_schema, dict) and "id" in current_schema:
-                element.attrib["id"] = str(current_schema["id"])
-
-            # Inject maidr attributes on SVG mark groups and resolve selectors
-            self._inject_selectors(element, current_schema)
-
-            if embed_data:
-                element.attrib["maidr"] = json.dumps(current_schema, indent=2)
-            root_svg = element
-            break
-
-        if root_svg is None:
-            # Fallback: use the raw SVG
-            return HTML(svg_str)
-
-        return HTML(etree.tostring(root_svg, pretty_print=True, encoding="unicode"))
-
-    @staticmethod
-    def _inject_selectors(svg_root: Any, schema: dict) -> None:
-        """Inject ``maidr`` attributes on SVG mark groups and resolve selectors.
-
-        Walks the SVG tree to find Vega-Lite mark groups (``<g>`` elements
-        with ``role-mark`` in their class), assigns a unique ``maidr`` UUID
-        to each, and replaces the ``__MAIDR_ID__`` placeholder in the
-        corresponding schema layer's ``selectors`` field.
-
-        For line mark groups, the path ``d`` attribute is normalised so
-        that coordinates use spaces instead of commas (maidr.js expects
-        space-separated values).
-
-        For box plots, per-stat selector dicts are built from the multiple
-        SVG mark groups that compose the box plot.
+    def _build_inner_html(self) -> Tag:
+        """Build the in-iframe document: stylesheet + script tags + container."""
+        spec_json = _spec_to_safe_json(self._spec)
+        # The chart id passed to ``maidrVegaLite.embed`` becomes the
+        # maidr-side identifier. Use the same UUID we generated for the
+        # Python wrapper so logs/debugging line up.
+        bootstrap = f"""
+            (function() {{
+                function showError(msg) {{
+                    var el = document.getElementById({json.dumps(self._container_id)});
+                    if (!el) return;
+                    el.innerHTML = '';
+                    var pre = document.createElement('pre');
+                    pre.style.cssText = 'color:#b00020;background:#fdecea;'
+                        + 'border:1px solid #f5c2c0;padding:8px;'
+                        + 'font:12px/1.4 monospace;white-space:pre-wrap;';
+                    pre.textContent = '[maidr] ' + msg;
+                    el.appendChild(pre);
+                }}
+                function bootstrap() {{
+                    if (!window.maidrVegaLite || typeof window.maidrVegaLite.embed !== 'function') {{
+                        showError('maidrVegaLite.embed is unavailable. '
+                            + 'Check that vegalite.js loaded successfully.');
+                        return;
+                    }}
+                    var spec;
+                    try {{
+                        spec = JSON.parse({json.dumps(spec_json)});
+                    }} catch (e) {{
+                        showError('Failed to parse Vega-Lite spec: ' + e.message);
+                        return;
+                    }}
+                    try {{
+                        window.maidrVegaLite.embed(
+                            '#' + {json.dumps(self._container_id)},
+                            spec,
+                            {{ id: {json.dumps(self._maidr_id)} }}
+                        ).catch(function(err) {{
+                            showError(String(err && err.message ? err.message : err));
+                        }});
+                    }} catch (err) {{
+                        showError(String(err && err.message ? err.message : err));
+                    }}
+                }}
+                function startBootstrap() {{
+                    // Double rAF: first rAF fires before paint; second rAF
+                    // fires after the browser has completed at least one
+                    // layout+paint cycle, so getBoundingClientRect() returns
+                    // real coordinates for SVG elements. This is required
+                    // inside iframes where DOMContentLoaded fires before
+                    // layout completes — the upstream visual-order sort
+                    // functions (buildBoxPlotSelectorsFromDom,
+                    // sortSimpleBarsByVisualOrder, sortHistogramBinsByVisualOrder,
+                    // sortHeatmapCellsByVisualOrder,
+                    // reorderSegmentedSeriesByVisualBottom) all bail out via
+                    // isLaidOutForSort when bboxes are zero-dimensional.
+                    requestAnimationFrame(function() {{
+                        requestAnimationFrame(bootstrap);
+                    }});
+                }}
+                if (document.readyState === 'loading') {{
+                    document.addEventListener('DOMContentLoaded', startBootstrap);
+                }} else {{
+                    startBootstrap();
+                }}
+            }})();
         """
-        ns = "{http://www.w3.org/2000/svg}"
 
-        # Collect all role-mark groups in document order
-        mark_groups = [
-            g
-            for g in svg_root.iter(f"{ns}g")
-            if "role-mark" in g.attrib.get("class", "")
+        children: list[Any] = [
+            tags.link(rel="stylesheet", href=_MAIDR_CSS_CDN),
+            tags.script(src=_VEGA_CDN),
+            tags.script(src=_VEGA_LITE_CDN),
+            tags.script(src=_VEGA_EMBED_CDN),
+            tags.script(src=_MAIDR_VEGALITE_CDN),
+            tags.div(id=self._container_id),
+            tags.script(HTML(bootstrap), type="text/javascript"),
         ]
+        return tags.div(*children)
 
-        # Flatten layers from schema in row-major order
-        layers: list[dict] = []
-        for subplot_row in schema.get("subplots", []):
-            for subplot in subplot_row:
-                for layer in subplot.get("layers", []):
-                    layers.append(layer)
+    def _wrap_in_iframe(self, inner: Tag) -> Tag:
+        """Wrap ``inner`` in an auto-resizing iframe (notebook / Shiny / Flask).
 
-        # Match mark groups to layers. For multiline charts a single layer
-        # may own multiple mark groups (one per line).
-        layer_idx = 0
-        group_idx = 0
-        while group_idx < len(mark_groups) and layer_idx < len(layers):
-            layer = layers[layer_idx]
-            sel = layer.get(MaidrKey.SELECTOR, "")
-            layer_type = layer.get(MaidrKey.TYPE, "")
-
-            # --- Box plots: build per-stat selector dicts ---
-            if layer_type == "box":
-                group_idx = _inject_box_selectors(mark_groups, group_idx, layer, ns)
-                layer_idx += 1
-                continue
-
-            # --- List selector (scatter/line/smooth) ---
-            if isinstance(sel, list) and len(sel) > 0:
-                new_selectors: list[str] = []
-                first_template = sel[0] if sel else ""
-
-                first_cls = mark_groups[group_idx].attrib.get("class", "")
-                mark_type_token = _extract_mark_class(first_cls)
-                n_consumed = 0
-                peek = group_idx
-                while peek < len(mark_groups):
-                    peek_cls = mark_groups[peek].attrib.get("class", "")
-                    if _extract_mark_class(peek_cls) != mark_type_token:
-                        break
-                    n_consumed += 1
-                    peek += 1
-
-                layer_data = layer.get(MaidrKey.DATA, [])
-                if (
-                    isinstance(layer_data, list)
-                    and len(layer_data) > 0
-                    and isinstance(layer_data[0], list)
-                ):
-                    n_expected = len(layer_data)
-                else:
-                    n_expected = 1
-
-                n_to_use = min(n_expected, n_consumed)
-                for i in range(n_to_use):
-                    mg = mark_groups[group_idx + i]
-                    maidr_id = str(uuid.uuid4())
-                    mg.attrib["maidr"] = maidr_id
-                    resolved = first_template.replace(
-                        SELECTOR_PLACEHOLDER, maidr_id
-                    )
-                    new_selectors.append(resolved)
-
-                    # Normalise line path d-attrs: replace
-                    # commas with spaces so maidr.js can parse
-                    # the coordinates.
-                    if "mark-line" in mg.attrib.get("class", ""):
-                        _normalise_path_d(mg, ns)
-
-                layer[MaidrKey.SELECTOR] = new_selectors
-                group_idx += n_to_use
-
-            elif isinstance(sel, str) and SELECTOR_PLACEHOLDER in sel:
-                # String selector (bar / hist / heat / stacked / dodged)
-                mg = mark_groups[group_idx]
-                maidr_id = str(uuid.uuid4())
-                mg.attrib["maidr"] = maidr_id
-                layer[MaidrKey.SELECTOR] = sel.replace(SELECTOR_PLACEHOLDER, maidr_id)
-                group_idx += 1
-
-            else:
-                group_idx += 1
-
-            layer_idx += 1
-
-    def _flatten_maidr(self) -> dict:
-        """Build the MAIDR JSON schema from the Vega-Lite spec."""
-        specs = self._collect_unit_specs(self._spec)
-
-        subplot_grid: list[list[dict]] = []
-
-        if len(specs) == 0:
-            # Empty chart
-            return {
-                "id": self._maidr_id,
-                "subplots": [[{"id": str(uuid.uuid4()), "layers": []}]],
-            }
-
-        if len(specs) == 1 and specs[0]["row"] == 0 and specs[0]["col"] == 0:
-            # Single chart
-            layers = [s["schema"] for s in specs]
-            return {
-                "id": self._maidr_id,
-                "subplots": [[{"id": str(uuid.uuid4()), "layers": layers}]],
-            }
-
-        # Multi-chart: build grid
-        max_row = max(s["row"] for s in specs)
-        max_col = max(s["col"] for s in specs)
-
-        subplot_grid = [
-            [{"id": str(uuid.uuid4()), "layers": []} for _ in range(max_col + 1)]
-            for _ in range(max_row + 1)
-        ]
-
-        for s in specs:
-            subplot_grid[s["row"]][s["col"]]["layers"].append(s["schema"])
-
-        return {"id": self._maidr_id, "subplots": subplot_grid}
-
-    def _collect_unit_specs(self, spec: dict, row: int = 0, col: int = 0) -> list[dict]:
-        """Recursively collect unit specs from potentially composite charts.
-
-        Returns a list of dicts with keys: schema, row, col.
+        Delegates to :func:`maidr.util.iframe_utils.wrap_in_iframe_plotly`
+        because Altair's runtime characteristics match Plotly's: external
+        libraries (vega/vega-lite/vega-embed/vegalite.js) load from CDN and
+        the chart + MAIDR React UI mount asynchronously *after*
+        ``iframe.onload`` has already fired. The Plotly helper handles this
+        with delayed retries (500/1500/3000 ms) plus a ResizeObserver
+        (MutationObserver fallback) on ``document.body``.
         """
-        results = []
-
-        # Layer chart: {"layer": [...]}
-        if "layer" in spec:
-            for layer_spec in spec["layer"]:
-                # Inherit data from parent if not present
-                child = _inherit_data(spec, layer_spec)
-                schema = extract_chart_data(child)
-                schema[MaidrKey.ID] = str(uuid.uuid4())
-                results.append({"schema": schema, "row": row, "col": col})
-            return results
-
-        # Horizontal concatenation: {"hconcat": [...]}
-        if "hconcat" in spec:
-            for i, sub in enumerate(spec["hconcat"]):
-                child = _inherit_data(spec, sub)
-                results.extend(self._collect_unit_specs(child, row=row, col=col + i))
-            return results
-
-        # Vertical concatenation: {"vconcat": [...]}
-        if "vconcat" in spec:
-            for i, sub in enumerate(spec["vconcat"]):
-                child = _inherit_data(spec, sub)
-                results.extend(self._collect_unit_specs(child, row=row + i, col=col))
-            return results
-
-        # General concatenation: {"concat": [...]}
-        if "concat" in spec:
-            columns = spec.get("columns", len(spec["concat"]))
-            for i, sub in enumerate(spec["concat"]):
-                r = row + i // columns
-                c = col + i % columns
-                child = _inherit_data(spec, sub)
-                results.extend(self._collect_unit_specs(child, row=r, col=c))
-            return results
-
-        # Facet chart: {"facet": ..., "spec": ...}
-        if "facet" in spec and "spec" in spec:
-            return self._collect_facet_specs(spec, row, col)
-
-        # Repeat chart: {"repeat": ..., "spec": ...}
-        if "repeat" in spec and "spec" in spec:
-            inner_spec = spec["spec"]
-            inner_spec = _inherit_data(spec, inner_spec)
-            schema = extract_chart_data(inner_spec)
-            schema[MaidrKey.ID] = str(uuid.uuid4())
-            results.append({"schema": schema, "row": row, "col": col})
-            return results
-
-        # Unit spec (has "mark")
-        if "mark" in spec:
-            schema = extract_chart_data(spec)
-            schema[MaidrKey.ID] = str(uuid.uuid4())
-            results.append({"schema": schema, "row": row, "col": col})
-            return results
-
-        return results
-
-    def _collect_facet_specs(self, spec: dict, row: int, col: int) -> list[dict]:
-        """Expand a facet spec into one schema per facet cell."""
-        import pandas as pd
-
-        facet_def = spec["facet"]
-        inner_spec = _inherit_data(spec, spec["spec"])
-
-        # Resolve the full dataset
-        df = resolve_data(inner_spec)
-        if df.empty:
-            schema = extract_chart_data(inner_spec)
-            schema[MaidrKey.ID] = str(uuid.uuid4())
-            return [{"schema": schema, "row": row, "col": col}]
-
-        # Determine facet fields
-        row_field = None
-        col_field = None
-        wrap_field = None
-
-        if "row" in facet_def and isinstance(facet_def["row"], dict):
-            row_field = facet_def["row"].get("field")
-        if "column" in facet_def and isinstance(facet_def["column"], dict):
-            col_field = facet_def["column"].get("field")
-        if "field" in facet_def:
-            wrap_field = facet_def["field"]
-
-        results: list[dict] = []
-
-        if wrap_field and wrap_field in df.columns:
-            # Wrapped facet: single field, laid out in a grid
-            columns = spec.get("columns", 2)
-            unique_vals = list(df[wrap_field].unique())
-            for i, val in enumerate(unique_vals):
-                r = row + i // columns
-                c = col + i % columns
-                sub_df = df[df[wrap_field] == val]
-                cell_spec = dict(inner_spec)
-                cell_spec["data"] = {"values": sub_df.to_dict(orient="records")}
-                cell_spec.pop("datasets", None)
-                schema = extract_chart_data(cell_spec)
-                schema[MaidrKey.ID] = str(uuid.uuid4())
-                if not schema.get(MaidrKey.TITLE):
-                    schema[MaidrKey.TITLE] = f"{wrap_field}: {val}"
-                results.append({"schema": schema, "row": r, "col": c})
-
-        elif row_field or col_field:
-            # Row/column facet
-            row_vals = (
-                list(df[row_field].unique())
-                if row_field and row_field in df.columns
-                else [None]
-            )
-            col_vals = (
-                list(df[col_field].unique())
-                if col_field and col_field in df.columns
-                else [None]
-            )
-            for ri, rv in enumerate(row_vals):
-                for ci, cv in enumerate(col_vals):
-                    mask = pd.Series(True, index=df.index)
-                    if rv is not None:
-                        mask &= df[row_field] == rv
-                    if cv is not None:
-                        mask &= df[col_field] == cv
-                    sub_df = df[mask]
-                    cell_spec = dict(inner_spec)
-                    cell_spec["data"] = {"values": sub_df.to_dict(orient="records")}
-                    cell_spec.pop("datasets", None)
-                    schema = extract_chart_data(cell_spec)
-                    schema[MaidrKey.ID] = str(uuid.uuid4())
-                    # Build a descriptive title
-                    title_parts = []
-                    if rv is not None:
-                        title_parts.append(f"{row_field}: {rv}")
-                    if cv is not None:
-                        title_parts.append(f"{col_field}: {cv}")
-                    if not schema.get(MaidrKey.TITLE) and title_parts:
-                        schema[MaidrKey.TITLE] = ", ".join(title_parts)
-                    results.append({"schema": schema, "row": row + ri, "col": col + ci})
-        else:
-            # Fallback: treat as single unit
-            schema = extract_chart_data(inner_spec)
-            schema[MaidrKey.ID] = str(uuid.uuid4())
-            results.append({"schema": schema, "row": row, "col": col})
-
-        return results
+        return wrap_in_iframe_plotly(inner)
 
     def _open_in_browser(self) -> None:
-        """Open the chart in a browser."""
+        """Save to a temp HTML file and open it in the default browser."""
         system_temp_dir = tempfile.gettempdir()
         static_temp_dir = os.path.join(system_temp_dir, "maidr")
         os.makedirs(static_temp_dir, exist_ok=True)
@@ -465,280 +309,3 @@ class AltairMaidr:
                 webbrowser.open(url)
         else:
             webbrowser.open(f"file://{html_file_path}")
-
-    @staticmethod
-    def _inject_plot(
-        plot: HTML, maidr: str | None, maidr_id: str, use_iframe: bool = True
-    ) -> Tag:
-        """Embed the plot and MAIDR scripts into the HTML structure.
-
-        This mirrors ``Maidr._inject_plot()`` from the matplotlib pathway.
-        """
-        MAIDR_TS_CDN_URL = "https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js"
-
-        script = f"""
-            (function() {{
-                var existing = document.querySelector('script[src="{MAIDR_TS_CDN_URL}"]');
-                if (!existing) {{
-                    var s = document.createElement('script');
-                    s.src = '{MAIDR_TS_CDN_URL}';
-                    s.onload = function() {{ if (window.main) window.main(); }};
-                    document.head.appendChild(s);
-                }} else {{
-                    if (document.readyState === 'loading') {{
-                        document.addEventListener('DOMContentLoaded', function() {{ if (window.main) window.main(); }});
-                    }} else {{
-                        if (window.main) window.main();
-                    }}
-                }}
-            }})();
-        """
-
-        children: list[Any] = [
-            tags.link(
-                rel="stylesheet",
-                href="https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr_style.css",
-            )
-        ]
-        if maidr is not None:
-            children.append(tags.script(maidr, type="text/javascript"))
-        children.append(tags.script(script, type="text/javascript"))
-        children.append(tags.div(plot))
-
-        base_html = tags.div(*children)
-
-        if use_iframe and (
-            Environment.is_flask()
-            or Environment.is_notebook()
-            or Environment.is_shiny()
-        ):
-            unique_id = "iframe_" + str(uuid.uuid4())
-            resizing_script = f"""
-                function resizeIframe() {{
-                    let iframe = document.getElementById('{unique_id}');
-                    if (iframe && iframe.contentWindow && iframe.contentWindow.document) {{
-                        let iframeDocument = iframe.contentWindow.document;
-                        let brailleContainer = iframeDocument.querySelector('[id^="maidr-braille-textarea"]');
-                        let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
-                        iframe.style.height = 'auto';
-                        let height = iframeDocument.body.scrollHeight;
-                        let isBrailleActive = brailleContainer && (
-                            brailleContainer === iframeDocument.activeElement ||
-                            (typeof brailleContainer.contains === 'function' && brailleContainer.contains(iframeDocument.activeElement))
-                        );
-                        let isReviewInputActive = reviewInputContainer && (
-                            reviewInputContainer === iframeDocument.activeElement ||
-                            (typeof reviewInputContainer.contains === 'function' && reviewInputContainer.contains(iframeDocument.activeElement))
-                        );
-                        if (isBrailleActive) {{ height += 100; }}
-                        else if (isReviewInputActive) {{ height += 50; }}
-                        else {{ height += 50; }}
-                        iframe.style.height = (height) + 'px';
-                        iframe.style.width = iframeDocument.body.scrollWidth + 'px';
-                    }}
-                }}
-                let iframe = document.getElementById('{unique_id}');
-                resizeIframe();
-                iframe.onload = function() {{
-                    resizeIframe();
-                    iframe.contentWindow.addEventListener('resize', resizeIframe);
-                }};
-                iframe.contentWindow.document.addEventListener('focusin', (e) => {{
-                    try {{
-                        const t = e && e.target ? e.target : null;
-                        if (t && typeof t.id === 'string' && t.id.startsWith('maidr-braille-textarea')) resizeIframe();
-                    }} catch (_) {{ resizeIframe(); }}
-                }}, true);
-                iframe.contentWindow.document.addEventListener('focusout', (e) => {{
-                    try {{
-                        const t = e && e.target ? e.target : null;
-                        if (t && typeof t.id === 'string' && t.id.startsWith('maidr-braille-textarea')) resizeIframe();
-                    }} catch (_) {{ resizeIframe(); }}
-                }}, true);
-                iframe.contentWindow.document.addEventListener('focusin', (e) => {{
-                    try {{
-                        const t = e && e.target ? e.target : null;
-                        if (t && t.classList && t.classList.contains('maidr-review-input')) resizeIframe();
-                    }} catch (_) {{ resizeIframe(); }}
-                }}, true);
-                iframe.contentWindow.document.addEventListener('focusout', (e) => {{
-                    try {{
-                        const t = e && e.target ? e.target : null;
-                        if (t && t.classList && t.classList.contains('maidr-review-input')) resizeIframe();
-                    }} catch (_) {{ resizeIframe(); }}
-                }}, true);
-            """
-
-            base_html = tags.iframe(
-                id=unique_id,
-                srcdoc=str(base_html.get_html_string()),
-                width="100%",
-                height="100%",
-                scrolling="no",
-                style="background-color: #fff; position: relative; border: none",
-                frameBorder=0,
-                onload=resizing_script,
-            )
-
-        return base_html
-
-
-def _inherit_data(parent: dict, child: dict) -> dict:
-    """Inherit ``data`` and ``datasets`` from a parent spec if the child lacks them."""
-    merged = dict(child)
-    if "data" not in merged and "data" in parent:
-        merged["data"] = parent["data"]
-    if "datasets" not in merged and "datasets" in parent:
-        merged["datasets"] = parent["datasets"]
-    return merged
-
-
-def _extract_mark_class(class_str: str) -> str:
-    """Extract the Vega mark type token (e.g. ``mark-rect``) from a class string."""
-    for token in class_str.split():
-        if token.startswith("mark-"):
-            return token
-    return ""
-
-
-def _normalise_path_d(group: Any, ns: str) -> None:
-    """Replace commas with spaces in SVG path ``d`` attributes.
-
-    Vega-Lite emits ``M0,200L75,100`` but maidr.js expects
-    ``M0 200L75 100`` (space-separated coordinates).
-    """
-    import re
-
-    for path in group.iter(f"{ns}path"):
-        d = path.attrib.get("d", "")
-        if "," in d:
-            path.attrib["d"] = re.sub(r",", " ", d)
-
-
-def _inject_box_selectors(
-    mark_groups: list,
-    group_idx: int,
-    layer: dict,
-    ns: str,
-) -> int:
-    """Build per-stat selector dicts for box plot layers.
-
-    Vega-Lite box plots produce multiple mark groups in order:
-    - Outlier points (mark-symbol): ``layer_N_layer_0_marks``
-    - Lower whiskers (mark-rule): ``layer_N_layer_1_layer_0_marks``
-    - Upper whiskers (mark-rule): ``layer_N_layer_1_layer_1_marks``
-    - Box rectangles (mark-rect): ``layer_N+1_layer_0_marks``
-    - Median lines (mark-rect): ``layer_N+1_layer_1_marks``
-
-    maidr.js expects a ``BoxSelector`` interface per box::
-
-        {lowerOutliers: string[], min: string, iq: string,
-         q2: string, max: string, upperOutliers: string[]}
-
-    Returns the updated group_idx.
-    """
-    # Collect all consecutive box-related mark groups
-    box_groups: list[tuple[str, Any]] = []
-    while group_idx < len(mark_groups):
-        cls = mark_groups[group_idx].attrib.get("class", "")
-        if "role-mark" in cls and any(
-            tok in cls for tok in ("mark-rect", "mark-rule", "mark-symbol")
-        ):
-            box_groups.append((cls, mark_groups[group_idx]))
-            group_idx += 1
-        else:
-            break
-
-    # Classify groups by their mark type and layer position
-    outlier_group = None
-    lower_whisker_group = None
-    upper_whisker_group = None
-    box_rect_group = None
-    median_group = None
-
-    rule_groups: list[Any] = []
-    rect_groups: list[Any] = []
-
-    for cls, g in box_groups:
-        if "mark-symbol" in cls:
-            outlier_group = g
-        elif "mark-rule" in cls:
-            rule_groups.append(g)
-        elif "mark-rect" in cls:
-            rect_groups.append(g)
-
-    # Rules: first = lower whiskers, second = upper whiskers
-    if len(rule_groups) >= 2:
-        lower_whisker_group = rule_groups[0]
-        upper_whisker_group = rule_groups[1]
-    elif len(rule_groups) == 1:
-        lower_whisker_group = rule_groups[0]
-
-    # Rects: first = box body, second = median line
-    if len(rect_groups) >= 2:
-        box_rect_group = rect_groups[0]
-        median_group = rect_groups[1]
-    elif len(rect_groups) == 1:
-        box_rect_group = rect_groups[0]
-
-    # Assign stable maidr UUIDs to each group (once, not per-box)
-    outlier_id = None
-    lower_whisker_id = None
-    upper_whisker_id = None
-    box_rect_id = None
-    median_id = None
-
-    if outlier_group is not None:
-        outlier_id = str(uuid.uuid4())
-        outlier_group.attrib["maidr"] = outlier_id
-    if lower_whisker_group is not None:
-        lower_whisker_id = str(uuid.uuid4())
-        lower_whisker_group.attrib["maidr"] = lower_whisker_id
-    if upper_whisker_group is not None:
-        upper_whisker_id = str(uuid.uuid4())
-        upper_whisker_group.attrib["maidr"] = upper_whisker_id
-    if box_rect_group is not None:
-        box_rect_id = str(uuid.uuid4())
-        box_rect_group.attrib["maidr"] = box_rect_id
-    if median_group is not None:
-        median_id = str(uuid.uuid4())
-        median_group.attrib["maidr"] = median_id
-
-    # Build selector dicts (one per box/category)
-    n_boxes = len(layer.get(MaidrKey.DATA, []))
-    selectors: list[dict] = []
-
-    for box_idx in range(n_boxes):
-        sel_dict: dict[str, Any] = {}
-        nth = box_idx + 1  # 1-indexed for CSS nth-child
-
-        # lowerOutliers and upperOutliers must be arrays
-        sel_dict[MaidrKey.LOWER_OUTLIER] = []
-        sel_dict[MaidrKey.UPPER_OUTLIER] = []
-
-        if lower_whisker_id is not None:
-            sel_dict[MaidrKey.MIN] = (
-                f"g[maidr='{lower_whisker_id}'] > :nth-child({nth})"
-            )
-
-        if box_rect_id is not None:
-            # "iq" targets the box rect; maidr.js creates Q1/Q3 lines
-            # from bounding box edges
-            sel_dict[MaidrKey.IQ] = (
-                f"g[maidr='{box_rect_id}'] > :nth-child({nth})"
-            )
-
-        if median_id is not None:
-            sel_dict[MaidrKey.Q2] = (
-                f"g[maidr='{median_id}'] > :nth-child({nth})"
-            )
-
-        if upper_whisker_id is not None:
-            sel_dict[MaidrKey.MAX] = (
-                f"g[maidr='{upper_whisker_id}'] > :nth-child({nth})"
-            )
-
-        selectors.append(sel_dict)
-
-    layer[MaidrKey.SELECTOR] = selectors
-    return group_idx
