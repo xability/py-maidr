@@ -38,6 +38,7 @@ class MaidrKey(str, Enum):
     # Grouped bar, heatmap, and z-axis keys.
     Z = "z"
     LABELS = "labels"
+    DOM_MAPPING = "domMapping"
 
     # Scatter plot grid navigation keys.
     TICK_STEP = "tickStep"

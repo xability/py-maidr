@@ -1,6 +1,6 @@
 ---
 title: "py-maidr: Accessible Data Visualization for Python"
-description: "Make matplotlib, seaborn, and plotly charts accessible to blind and low-vision users with sonification, braille, text, and AI chat modalities."
+description: "Make matplotlib, seaborn, plotly, and altair charts accessible to blind and low-vision users with sonification, braille, text, and AI chat modalities."
 jupyter: python3
 # aliases:
   # - ../index.html
@@ -113,6 +113,38 @@ We currently support the following data visualization libraries in Python:, and 
 * `sns.scatterplot()`: Scatter plot having one x (numerical) and one y (numerical) axis.
 
 * `sns.regplot()`: Regression plot having one x (numerical) and one y (numerical) axis with scatter points and fitted regression line.
+
+### Altair
+
+py-maidr ships an [Altair](https://altair-viz.github.io/) adapter that compiles single-view (`alt.Chart`) and layered (`alt.LayerChart` / `c1 + c2`) specs to MAIDR-instrumented Vega-Lite output. Use `maidr.show(chart)` (or `maidr.save_html(chart, ...)`) to render an accessible version of any supported Altair chart.
+
+* One-factor bar plot (`mark_bar`) with one x (categorical) and one y (numerical/count) axis.
+
+* Dodged (grouped) bar plot using `xOffset` to separate series side-by-side.
+
+* Stacked bar plot — same encoding as the dodged case but without `xOffset`; series stack vertically.
+
+* Count plot (`mark_bar` with `count()` aggregate) showing the frequency of categorical data.
+
+* Histogram (`mark_bar` with `bin=True`) having one x (numerical/binned) and one y (count/density) axis.
+
+* KDE plot using `transform_density`, with single-series and multi-series (color-grouped) variants supported.
+
+* Vertical and horizontal box plots (`mark_boxplot`).
+
+* Heatmap built as a `LayerChart` of `mark_rect` + `mark_text` over categorical x/y with a numerical color/z encoding.
+
+* Single-line plot (`mark_line`) and multi-line plots — both the per-series-layer pattern and the single-mark-with-`color`-encoding pattern.
+
+* Scatter plot (`mark_point` / `mark_circle`).
+
+* Multi-layered plots combining `mark_point` + `mark_line` (e.g. line-with-points overlays) on a `LayerChart`.
+
+* Regression-style scatter overlaid with a `transform_loess` smoothing line on a `LayerChart`.
+
+::: {.callout-note}
+Facet, repeat, and concat composite specs (`alt.FacetChart`, `alt.RepeatChart`, `alt.ConcatChart`, `alt.HConcatChart`, `alt.VConcatChart`) are **not** supported by the adapter; only `alt.Chart` and `alt.LayerChart` instances are accepted by `maidr.show()` / `maidr.save_html()`.
+:::
 
 ### Additional Libraries
 

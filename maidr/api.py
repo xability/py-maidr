@@ -13,6 +13,28 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 
 
+def _is_altair_chart(plot: Any) -> bool:
+    """Check if the plot is an Altair chart object.
+
+    Parameters
+    ----------
+    plot : Any
+        The object to check.
+
+    Returns
+    -------
+    bool
+        ``True`` if the object is an Altair chart, ``False`` otherwise
+        (including when the optional ``altair`` extra is not installed).
+    """
+    try:
+        from maidr.altair.utils import is_altair_chart
+
+        return is_altair_chart(plot)
+    except ImportError:
+        return False
+
+
 # ---------------------------------------------------------------------------
 # Module-level default for ``use_cdn``
 # ---------------------------------------------------------------------------
@@ -298,7 +320,9 @@ def render(
     Parameters
     ----------
     plot : Any or None, optional
-        The plot object to render. If None, uses the current matplotlib figure.
+        The plot object to render. Supports matplotlib/seaborn artists,
+        Plotly figures, and Altair chart objects. If None, uses the
+        current matplotlib figure.
     use_cdn : bool, {"auto"}, or None, default=None
         * ``True``: load ``maidr.js`` from the public jsDelivr CDN only
           (no offline fallback).
@@ -317,6 +341,11 @@ def render(
     htmltools.Tag
         The rendered HTML representation of the plot.
     """
+    if _is_altair_chart(plot):
+        from maidr.altair import AltairMaidr
+
+        return AltairMaidr(plot).render()
+
     use_cdn = _resolve_use_cdn(use_cdn)
     if plot is not None and _is_plotly_figure(plot):
         return _get_plotly_maidr(plot).render(use_cdn=use_cdn)
@@ -345,7 +374,9 @@ def show(
     Parameters
     ----------
     plot : Any or None, optional
-        The plot object to display. If None, uses the current matplotlib figure.
+        The plot object to display. Supports matplotlib/seaborn artists,
+        Plotly figures, and Altair chart objects. If None, uses the
+        current matplotlib figure.
     renderer : {"auto", "ipython", "browser"}, default "auto"
         The renderer to use for display.
     clear_fig : bool, default True
@@ -359,6 +390,11 @@ def show(
     object
         The display result.
     """
+    if _is_altair_chart(plot):
+        from maidr.altair import AltairMaidr
+
+        return AltairMaidr(plot).show(renderer)
+
     use_cdn = _resolve_use_cdn(use_cdn)
     if plot is not None and _is_plotly_figure(plot):
         return _get_plotly_maidr(plot).show(renderer, use_cdn=use_cdn)
@@ -390,7 +426,9 @@ def save_html(
     Parameters
     ----------
     plot : Any or None, optional
-        The plot object to save. If None, uses the current matplotlib figure.
+        The plot object to save. Supports matplotlib/seaborn artists,
+        Plotly figures, and Altair chart objects. If None, uses the
+        current matplotlib figure.
     file : str
         The file path where to save the HTML.
     lib_dir : str or None, default "lib"
@@ -418,6 +456,16 @@ def save_html(
     str
         The path to the saved HTML file.
     """
+    if _is_altair_chart(plot):
+        from maidr.altair import AltairMaidr
+
+        return AltairMaidr(plot).save_html(
+            file,
+            lib_dir=lib_dir,
+            include_version=include_version,
+            data_in_svg=data_in_svg,
+        )
+
     use_cdn = _resolve_use_cdn(use_cdn)
     if plot is not None and _is_plotly_figure(plot):
         return _get_plotly_maidr(plot).save_html(
