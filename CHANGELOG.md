@@ -1,6 +1,29 @@
 # CHANGELOG
 
 
+## v1.18.0 (2026-05-06)
+
+### Chores
+
+- Update bundled maidr.js to v3.65.0
+  ([`bfd5008`](https://github.com/xability/py-maidr/commit/bfd5008a5cca952650424e3b67d72c2cbf5de889))
+
+- Update bundled maidr.js to v3.66.0
+  ([`03e2ec5`](https://github.com/xability/py-maidr/commit/03e2ec5794cb0eaf2700be7a8dbf59a6a380381a))
+
+- Update bundled maidr.js to v3.66.1
+  ([`bde2609`](https://github.com/xability/py-maidr/commit/bde2609f72d2b18dfb2e28ecf828596ed100f216))
+
+### Features
+
+- Add Altair charting library support ([#268](https://github.com/xability/py-maidr/pull/268),
+  [`984e637`](https://github.com/xability/py-maidr/commit/984e6374df9f5e56fc5a372bf2d0046a9d42719d))
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+Co-authored-by: nk46-cloud <nk46@illinois.edu>
+
+
 ## v1.17.3 (2026-04-28)
 
 ### Bug Fixes
