@@ -390,6 +390,45 @@ class Maidr:
 
         return merged_plots
 
+    def _figure_metadata(self) -> dict:
+        """
+        Extract figure-wide metadata for the top-level MAIDR schema.
+
+        Maps matplotlib's figure-level artists onto the top-level MAIDR
+        schema fields used by multi-panel figures:
+
+        - ``Figure.suptitle`` -> ``title``
+        - ``Figure.supxlabel`` -> ``axes.x.label``
+        - ``Figure.supylabel`` -> ``axes.y.label``
+
+        Only authored (non-empty) values are emitted, so figures without
+        figure-level text keep their existing schema unchanged. The ``axes``
+        value follows the canonical per-axis ``AxisConfig`` form (only
+        ``label`` applies at the figure level).
+
+        Returns
+        -------
+        dict
+            A sparse mapping with optional ``title`` and ``axes`` keys.
+        """
+        metadata: dict = {}
+
+        suptitle = self._fig.get_suptitle()
+        if suptitle:
+            metadata[MaidrKey.TITLE] = suptitle
+
+        figure_axes: dict = {}
+        supxlabel = self._fig.get_supxlabel()
+        if supxlabel:
+            figure_axes[MaidrKey.X] = {MaidrKey.LABEL: supxlabel}
+        supylabel = self._fig.get_supylabel()
+        if supylabel:
+            figure_axes[MaidrKey.Y] = {MaidrKey.LABEL: supylabel}
+        if figure_axes:
+            metadata[MaidrKey.AXES] = figure_axes
+
+        return metadata
+
     def _flatten_maidr(self) -> dict | list[dict]:
         """Return a single plot schema or a list of schemas from the Maidr instance."""
         # Handle DODGED/STACKED plots: only keep one plot per subplot position
@@ -469,6 +508,7 @@ class Maidr:
 
         return {
             "id": Maidr._unique_id(),
+            **self._figure_metadata(),
             "subplots": subplot_grid,
         }
 
