@@ -401,10 +401,11 @@ class Maidr:
         - ``Figure.supxlabel`` -> ``axes.x.label``
         - ``Figure.supylabel`` -> ``axes.y.label``
 
-        Only authored (non-empty) values are emitted, so figures without
-        figure-level text keep their existing schema unchanged. The ``axes``
-        value follows the canonical per-axis ``AxisConfig`` form (only
-        ``label`` applies at the figure level).
+        Only authored values are emitted, so figures without figure-level
+        text keep their existing schema unchanged. Whitespace-only strings
+        count as unauthored, matching the maidr JS engine's trimmed
+        "authored" check. The ``axes`` value follows the canonical per-axis
+        ``AxisConfig`` form (only ``label`` applies at the figure level).
 
         Returns
         -------
@@ -413,15 +414,15 @@ class Maidr:
         """
         metadata: dict = {}
 
-        suptitle = self._fig.get_suptitle()
+        suptitle = self._fig.get_suptitle().strip()
         if suptitle:
             metadata[MaidrKey.TITLE] = suptitle
 
         figure_axes: dict = {}
-        supxlabel = self._fig.get_supxlabel()
+        supxlabel = self._fig.get_supxlabel().strip()
         if supxlabel:
             figure_axes[MaidrKey.X] = MaidrPlot._axis_config(label=supxlabel)
-        supylabel = self._fig.get_supylabel()
+        supylabel = self._fig.get_supylabel().strip()
         if supylabel:
             figure_axes[MaidrKey.Y] = MaidrPlot._axis_config(label=supylabel)
         if figure_axes:

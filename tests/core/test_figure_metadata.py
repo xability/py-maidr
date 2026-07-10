@@ -105,3 +105,49 @@ def test_suptitle_alone_emits_title_without_axes():
         assert "axes" not in schema
     finally:
         plt.close(fig)
+
+
+def test_whitespace_only_figure_text_counts_as_unauthored():
+    fig, ax = plt.subplots()
+    try:
+        ax.bar(["a", "b"], [1, 2])
+        fig.suptitle("   ")
+        fig.supxlabel(" \t ")
+
+        schema = _flattened_schema(fig)
+
+        assert "title" not in schema
+        assert "axes" not in schema
+    finally:
+        plt.close(fig)
+
+
+def test_figure_metadata_survives_svg_embedding():
+    """The extra top-level keys must round-trip through the SVG `maidr`
+    attribute JSON embedding used by render()/save_html()."""
+    import json
+
+    from lxml import etree
+
+    fig, axs = plt.subplots(1, 2)
+    try:
+        axs[0].bar(["a", "b"], [1, 2])
+        axs[1].bar(["a", "b"], [3, 4])
+        fig.suptitle("Sales by Region")
+        fig.supxlabel("Year")
+        fig.supylabel("Revenue")
+
+        m = FigureManager.get_maidr(fig)
+        svg = str(m._get_svg(embed_data=True))
+
+        root = etree.fromstring(svg.encode(), parser=None)
+        embedded = json.loads(root.attrib["maidr"])
+
+        assert embedded["title"] == "Sales by Region"
+        assert embedded["axes"] == {
+            "x": {"label": "Year"},
+            "y": {"label": "Revenue"},
+        }
+        assert embedded["id"] == root.attrib["id"]
+    finally:
+        plt.close(fig)
