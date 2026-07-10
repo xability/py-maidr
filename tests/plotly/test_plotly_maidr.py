@@ -228,3 +228,28 @@ class TestPlotlyFigureMetadata:
         assert schema["subtitle"] == "Fiscal year 2025"
         assert len(schema["subplots"]) == 1
         assert len(schema["subplots"][0]) == 2
+
+    def test_figure_metadata_survives_html_embedding(self):
+        """The top-level title/subtitle must round-trip through the
+        `var maidrSchema = {...}` JSON embedded in the init script,
+        which is the path the JS engine actually consumes for Plotly."""
+        import json
+
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(
+            title={
+                "text": "Sales by Region",
+                "subtitle": {"text": "Fiscal year 2025"},
+            }
+        )
+
+        pm = PlotlyMaidr(fig)
+        html_str = str(pm.render().get_html_string())
+
+        marker = "var maidrSchema = "
+        start = html_str.index(marker) + len(marker)
+        embedded, _ = json.JSONDecoder().raw_decode(html_str[start:])
+
+        assert embedded["title"] == "Sales by Region"
+        assert embedded["subtitle"] == "Fiscal year 2025"
+        assert embedded["id"] == pm.maidr_id
