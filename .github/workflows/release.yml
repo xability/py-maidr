@@ -107,8 +107,6 @@ jobs:
         # ships only when a release actually happens.  When no release is
         # pending the commit is discarded with the runner, so the bundle
         # never trickles onto ``main`` between releases.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -152,9 +150,11 @@ jobs:
           test -s maidr/static/maidr.js
           test -s maidr/static/maidr.css
           test -s maidr/static/VERSION
-          head -c 128 maidr/static/maidr.js | grep -Eqv "^<!DOCTYPE|^<html" || {
-            echo "maidr.js looks like an HTML error page" >&2; exit 1;
-          }
+          for asset in maidr.js maidr.css; do
+            head -c 128 "maidr/static/${asset}" | grep -Eqv "^<!DOCTYPE|^<html" || {
+              echo "${asset} looks like an HTML error page" >&2; exit 1;
+            }
+          done
 
           # Commit as xabilitylab so the refreshed bundle is attributed to
           # the org account and lands in the release history / changelog.
