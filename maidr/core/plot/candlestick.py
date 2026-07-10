@@ -146,7 +146,11 @@ class CandlestickPlot(MaidrPlot):
             x_label = self.extract_shared_xlabel(self.ax)
         if not x_label:
             x_label = "X"
-        y_label = self.ax.get_ylabel() or "Y"
+        y_label = self.ax.get_ylabel()
+        if not y_label:
+            y_label = self.extract_shared_ylabel(self.ax)
+        if not y_label:
+            y_label = "Y"
 
         return {
             MaidrKey.X: self._axis_config(label=x_label),

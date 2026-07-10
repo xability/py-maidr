@@ -190,6 +190,22 @@ class MaidrPlot(ABC, FormatExtractorMixin):
 
         return ""
 
+    def extract_shared_ylabel(self, ax, x_threshold=0.2):
+        # First, try to get a ylabel from any shared axes.
+        siblings = ax.get_shared_y_axes().get_siblings(ax)
+        for shared_ax in siblings:
+            ylabel = shared_ax.get_ylabel()
+            if ylabel:  # if non-empty
+                return ylabel
+
+        for text in ax.figure.texts:
+            if text.get_position()[0] < x_threshold:
+                label = text.get_text().strip()
+                if label:
+                    return label
+
+        return ""
+
     def _extract_axes_data(self) -> dict:
         """
         Extract the plot's axes data as per-axis ``AxisConfig`` objects.
@@ -207,6 +223,8 @@ class MaidrPlot(ABC, FormatExtractorMixin):
             x_label = "X"
 
         y_label = self.ax.get_ylabel()
+        if not y_label:
+            y_label = self.extract_shared_ylabel(self.ax)
         if not y_label:
             y_label = "Y"
 

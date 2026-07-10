@@ -153,3 +153,61 @@ class TestGroupedBarAxesZ:
             assert axes["z"]["label"] == "grp"
         finally:
             plt.close(fig)
+
+
+class TestSharedAxisLabels:
+    """Faceted/shared-axis plots must inherit the authored axis label.
+
+    When ``sharey``/``sharex`` groups axes and the label is set on only one
+    member (a common matplotlib idiom), the sibling axes must recover that
+    label from the shared group instead of emitting the generic ``"Y"``/``"X"``
+    placeholder. Mirrors the upstream maidr fix where a shared axis exported an
+    empty/placeholder label.
+    """
+
+    def test_shared_ylabel_recovered_from_sibling(self):
+        # Left column carries the y-label; right column shares the y-axis but
+        # has no y-label of its own. Both must report the authored label.
+        fig, axs = plt.subplots(1, 2, sharey=True)
+        try:
+            axs[0].plot([0, 1, 2], [1, 2, 3])
+            axs[1].bar(["a", "b", "c"], [1, 2, 3])
+            axs[0].set_ylabel("Values")
+
+            left = _first_schema(fig)
+            m = FigureManager.get_maidr(fig)
+            right = _stringify_keys(m._plots[1].schema)
+
+            assert left["axes"]["y"]["label"] == "Values"
+            # Regression: previously this emitted the placeholder "Y".
+            assert right["axes"]["y"]["label"] == "Values"
+        finally:
+            plt.close(fig)
+
+    def test_shared_ylabel_recovered_from_figure_text(self):
+        # A single shared y-label supplied via fig.text() on the left margin.
+        fig, axs = plt.subplots(1, 2, sharey=True)
+        try:
+            axs[0].bar(["a", "b"], [1, 2])
+            axs[1].bar(["a", "b"], [3, 4])
+            fig.text(0.02, 0.5, "Shared Values", rotation="vertical")
+
+            m = FigureManager.get_maidr(fig)
+            right = _stringify_keys(m._plots[1].schema)
+
+            assert right["axes"]["y"]["label"] == "Shared Values"
+        finally:
+            plt.close(fig)
+
+    def test_unlabeled_yaxis_still_falls_back_to_placeholder(self):
+        # No y-label anywhere -> canonical placeholder is preserved.
+        fig, ax = plt.subplots()
+        try:
+            ax.bar(["a", "b"], [1, 2])
+
+            axes = _first_schema(fig)["axes"]
+
+            _assert_canonical_axes(axes)
+            assert axes["y"]["label"] == "Y"
+        finally:
+            plt.close(fig)
