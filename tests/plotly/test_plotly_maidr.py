@@ -156,7 +156,14 @@ class TestPlotlyMaidr:
 
 
 class TestPlotlyFigureMetadata:
-    """Figure-wide layout title/subtitle mapped onto the top-level schema."""
+    """Figure-wide layout title/subtitle mapped onto the top-level schema.
+
+    The matplotlib counterpart lives in ``tests/core/test_figure_metadata.py``;
+    the paths are asymmetric by design — matplotlib maps
+    ``suptitle``/``supxlabel``/``supylabel`` to top-level ``title``/``axes``,
+    while Plotly maps ``layout.title``/``layout.title.subtitle`` to
+    ``title``/``subtitle`` (it has no figure-margin axis label artists).
+    """
 
     def test_layout_title_and_subtitle_emitted(self):
         fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
@@ -253,3 +260,23 @@ class TestPlotlyFigureMetadata:
         assert embedded["title"] == "Sales by Region"
         assert embedded["subtitle"] == "Fiscal year 2025"
         assert embedded["id"] == pm.maidr_id
+
+    def test_legacy_title_without_subtitle_attribute(self):
+        """The getattr guard must handle plotly versions whose Title
+        object predates the `subtitle` attribute (plotly.js < 2.35)."""
+        from types import SimpleNamespace
+
+        from maidr.core.enum.maidr_key import MaidrKey
+
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        pm = PlotlyMaidr(fig)
+
+        class _LegacyTitle:
+            text = "Overview"
+            # deliberately no `subtitle` attribute
+
+        pm._fig = SimpleNamespace(layout=SimpleNamespace(title=_LegacyTitle()))
+
+        metadata = pm._figure_metadata()
+
+        assert metadata == {MaidrKey.TITLE: "Overview"}

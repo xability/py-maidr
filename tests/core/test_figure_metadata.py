@@ -12,6 +12,11 @@ figure-level artists are mapped onto those fields:
 
 and that figures without figure-level text keep their prior schema shape
 (no ``title`` / ``axes`` keys at the top level).
+
+The Plotly counterpart lives in ``tests/plotly/test_plotly_maidr.py``
+(``TestPlotlyFigureMetadata``); note the paths are asymmetric by design —
+Plotly maps ``layout.title.subtitle`` to a top-level ``subtitle``, while
+matplotlib has no native subtitle/caption artist and never emits either.
 """
 
 from __future__ import annotations

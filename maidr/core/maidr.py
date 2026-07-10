@@ -430,8 +430,8 @@ class Maidr:
 
         return metadata
 
-    def _flatten_maidr(self) -> dict | list[dict]:
-        """Return a single plot schema or a list of schemas from the Maidr instance."""
+    def _flatten_maidr(self) -> dict:
+        """Return the top-level MAIDR schema for this figure."""
         # Handle DODGED/STACKED plots: only keep one plot per subplot position
         # because GroupedBarPlot extracts all containers from the axes itself
         if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
