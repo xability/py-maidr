@@ -199,6 +199,71 @@ class TestSharedAxisLabels:
         finally:
             plt.close(fig)
 
+    def test_shared_ylabel_recovered_from_supylabel(self):
+        # A shared y-label supplied via fig.supylabel().
+        fig, axs = plt.subplots(1, 2, sharey=True)
+        try:
+            axs[0].bar(["a", "b"], [1, 2])
+            axs[1].bar(["a", "b"], [3, 4])
+            fig.supylabel("Shared Values")
+
+            m = FigureManager.get_maidr(fig)
+            right = _stringify_keys(m._plots[1].schema)
+
+            assert right["axes"]["y"]["label"] == "Shared Values"
+        finally:
+            plt.close(fig)
+
+    def test_whitespace_only_sibling_label_falls_back_to_placeholder(self):
+        # A blank (whitespace-only) sibling label must not short-circuit the
+        # placeholder fallback.
+        fig, axs = plt.subplots(1, 2, sharey=True)
+        try:
+            axs[0].bar(["a", "b"], [1, 2])
+            axs[1].bar(["a", "b"], [3, 4])
+            axs[0].set_ylabel("   ")
+
+            m = FigureManager.get_maidr(fig)
+            right = _stringify_keys(m._plots[1].schema)
+
+            assert right["axes"]["y"]["label"] == "Y"
+        finally:
+            plt.close(fig)
+
+    def test_scatterplot_recovers_shared_ylabel(self):
+        # Exercise ScatterPlot._extract_axes_data directly.
+        from maidr.core.plot.scatterplot import ScatterPlot
+
+        fig, axs = plt.subplots(1, 2, sharey=True)
+        try:
+            axs[0].scatter([1, 2, 3], [4, 5, 6])
+            axs[1].scatter([1, 2, 3], [7, 8, 9])
+            axs[0].set_ylabel("Values")
+
+            plot = ScatterPlot(axs[1])
+            axes = _stringify_keys(plot._extract_axes_data())
+
+            _assert_canonical_axes(axes)
+            assert axes["y"]["label"] == "Values"
+        finally:
+            plt.close(fig)
+
+    def test_candlestickplot_recovers_shared_ylabel(self):
+        # Exercise CandlestickPlot._extract_axes_data directly.
+        from maidr.core.plot.candlestick import CandlestickPlot
+
+        fig, axs = plt.subplots(2, 1, sharey=True)
+        try:
+            axs[0].set_ylabel("Price")
+
+            plot = CandlestickPlot([axs[1]])
+            axes = _stringify_keys(plot._extract_axes_data())
+
+            _assert_canonical_axes(axes)
+            assert axes["y"]["label"] == "Price"
+        finally:
+            plt.close(fig)
+
     def test_unlabeled_yaxis_still_falls_back_to_placeholder(self):
         # No y-label anywhere -> canonical placeholder is preserved.
         fig, ax = plt.subplots()

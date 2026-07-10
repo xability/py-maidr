@@ -190,14 +190,39 @@ class MaidrPlot(ABC, FormatExtractorMixin):
 
         return ""
 
-    def extract_shared_ylabel(self, ax, x_threshold=0.2):
-        # First, try to get a ylabel from any shared axes.
+    def extract_shared_ylabel(self, ax: Axes, x_threshold: float = 0.2) -> str:
+        """Recover a y-axis label shared across a ``sharey`` axes group.
+
+        When a faceted figure sets the y-label on only one member of a shared
+        y-axis group, the sibling axes report an empty ``get_ylabel()``. This
+        mirrors :meth:`extract_shared_xlabel`: it first scans shared-y siblings
+        for a non-blank label, then falls back to a figure-level text sitting
+        in the left margin (e.g. ``fig.supylabel``).
+
+        Parameters
+        ----------
+        ax : Axes
+            The axes whose shared y-label should be recovered.
+        x_threshold : float, optional
+            Figure-fraction x-position below which a figure text is treated as
+            a left-margin (shared) y-label, by default 0.2.
+
+        Returns
+        -------
+        str
+            The recovered label, or ``""`` if none is found.
+        """
+        # First, try to get a ylabel from any shared axes. Whitespace-only
+        # labels are treated as blank (unavailable), consistent with maidr's
+        # blank-label handling.
         siblings = ax.get_shared_y_axes().get_siblings(ax)
         for shared_ax in siblings:
-            ylabel = shared_ax.get_ylabel()
-            if ylabel:  # if non-empty
+            ylabel = shared_ax.get_ylabel().strip()
+            if ylabel:  # if non-blank
                 return ylabel
 
+        # Fallback heuristic: assume a figure-level text sitting in the left
+        # margin is a shared y-label (e.g. ``fig.supylabel``/``fig.text``).
         for text in ax.figure.texts:
             if text.get_position()[0] < x_threshold:
                 label = text.get_text().strip()
