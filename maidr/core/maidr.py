@@ -420,10 +420,10 @@ class Maidr:
         figure_axes: dict = {}
         supxlabel = self._fig.get_supxlabel()
         if supxlabel:
-            figure_axes[MaidrKey.X] = {MaidrKey.LABEL: supxlabel}
+            figure_axes[MaidrKey.X] = MaidrPlot._axis_config(label=supxlabel)
         supylabel = self._fig.get_supylabel()
         if supylabel:
-            figure_axes[MaidrKey.Y] = {MaidrKey.LABEL: supylabel}
+            figure_axes[MaidrKey.Y] = MaidrPlot._axis_config(label=supylabel)
         if figure_axes:
             metadata[MaidrKey.AXES] = figure_axes
 
