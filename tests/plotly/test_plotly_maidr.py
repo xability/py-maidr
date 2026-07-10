@@ -153,3 +153,55 @@ class TestPlotlyMaidr:
         pm = PlotlyMaidr(plotly_bar_fig)
         assert len(pm._plots) == 1
         assert isinstance(pm._plots[0], PlotlyBarPlot)
+
+
+class TestPlotlyFigureMetadata:
+    """Figure-wide layout title/subtitle mapped onto the top-level schema."""
+
+    def test_layout_title_and_subtitle_emitted(self):
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(
+            title={
+                "text": "Sales by Region",
+                "subtitle": {"text": "Fiscal year 2025"},
+            }
+        )
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert schema["title"] == "Sales by Region"
+        assert schema["subtitle"] == "Fiscal year 2025"
+
+    def test_title_without_subtitle(self):
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(title="Overview")
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert schema["title"] == "Overview"
+        assert "subtitle" not in schema
+
+    def test_no_layout_title_omits_metadata(self):
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert "title" not in schema
+        assert "subtitle" not in schema
+        assert "id" in schema
+        assert "subplots" in schema
+
+    def test_whitespace_only_title_counts_as_unauthored(self):
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(
+            title={"text": "   ", "subtitle": {"text": " \t "}}
+        )
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert "title" not in schema
+        assert "subtitle" not in schema
