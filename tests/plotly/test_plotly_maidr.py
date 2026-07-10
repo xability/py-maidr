@@ -205,3 +205,26 @@ class TestPlotlyFigureMetadata:
 
         assert "title" not in schema
         assert "subtitle" not in schema
+
+    def test_multi_subplot_title_and_subtitle_emitted(self):
+        """The lobby motivation case: layout title/subtitle on a
+        make_subplots figure land at the top level next to the grid."""
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(rows=1, cols=2)
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=1)
+        fig.add_trace(go.Bar(x=["a", "b"], y=[3, 4]), row=1, col=2)
+        fig.update_layout(
+            title={
+                "text": "Sales by Region",
+                "subtitle": {"text": "Fiscal year 2025"},
+            }
+        )
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert schema["title"] == "Sales by Region"
+        assert schema["subtitle"] == "Fiscal year 2025"
+        assert len(schema["subplots"]) == 1
+        assert len(schema["subplots"][0]) == 2

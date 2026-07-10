@@ -137,6 +137,35 @@ def test_whitespace_only_figure_text_counts_as_unauthored():
         plt.close(fig)
 
 
+def test_figure_and_subplot_axis_labels_coexist():
+    """A figure-wide supxlabel/supylabel and per-axes xlabel/ylabel live at
+    different nesting levels and must both be emitted unchanged."""
+    import json
+
+    fig, ax = plt.subplots()
+    try:
+        ax.bar(["a", "b"], [1, 2])
+        ax.set_xlabel("Local X")
+        ax.set_ylabel("Local Y")
+        fig.supxlabel("Global X")
+        fig.supylabel("Global Y")
+
+        m = FigureManager.get_maidr(fig)
+        # JSON round-trip normalizes MaidrKey enum keys to plain strings
+        # at every nesting level (dicts inside the subplots lists too).
+        schema = json.loads(json.dumps(m._flatten_maidr()))
+
+        assert schema["axes"] == {
+            "x": {"label": "Global X"},
+            "y": {"label": "Global Y"},
+        }
+        layer_axes = schema["subplots"][0][0]["layers"][0]["axes"]
+        assert layer_axes["x"]["label"] == "Local X"
+        assert layer_axes["y"]["label"] == "Local Y"
+    finally:
+        plt.close(fig)
+
+
 def test_figure_metadata_survives_svg_embedding():
     """The extra top-level keys must round-trip through the SVG `maidr`
     attribute JSON embedding used by render()/save_html()."""
