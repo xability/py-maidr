@@ -1,9 +1,15 @@
 name: Update bundled maidr.js
 
-# Downloads the latest ``maidr.js`` / ``maidr.css`` from the jsDelivr CDN
-# into ``maidr/static/`` and commits the changes directly to ``main``.
-# This keeps the offline-bundled copy in sync with the upstream npm
-# release without requiring the files to be updated manually.
+# Manual escape hatch for refreshing the offline-bundled ``maidr.js`` /
+# ``maidr.css`` from the jsDelivr CDN into ``maidr/static/`` and committing
+# the changes directly to ``main``.
+#
+# The routine, automatic refresh happens at py-maidr *release* time (see
+# ``release.yml``), so the latest upstream release is bundled *into* each
+# py-maidr release rather than trickling onto ``main`` whenever upstream
+# publishes.  This workflow is kept only for on-demand refreshes between
+# releases and is therefore ``workflow_dispatch``-only -- there is no
+# scheduled trigger.
 #
 # The commit uses the ``chore:`` prefix so python-semantic-release
 # (configured in ``pyproject.toml``) does not treat a bundle refresh
@@ -17,12 +23,6 @@ on:
         description: "Explicit maidr.js version (defaults to latest on npm)"
         required: false
         default: ""
-  schedule:
-    # Run every day at 06:00 UTC so new npm releases land on ``main``
-    # within 24 hours.  The pre-download version check below makes the
-    # job a no-op when the bundle is already current, so the daily
-    # cadence adds no commit noise.
-    - cron: "0 6 * * *"
 
 permissions:
   contents: write
@@ -105,6 +105,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update bundled maidr.js to v${{ steps.resolve.outputs.version }}"
-          commit_user_name: "github-actions[bot]"
-          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_user_name: "xabilitylab"
+          commit_user_email: "187909674+xabilitylab@users.noreply.github.com"
+          commit_author: "xabilitylab <187909674+xabilitylab@users.noreply.github.com>"
           file_pattern: "maidr/static/maidr.js maidr/static/maidr.css maidr/static/VERSION"
