@@ -93,6 +93,21 @@ def test_only_authored_axis_is_emitted():
         plt.close(fig)
 
 
+def test_only_authored_y_axis_is_emitted():
+    fig, axs = plt.subplots(1, 2)
+    try:
+        axs[0].bar(["a", "b"], [1, 2])
+        axs[1].bar(["a", "b"], [3, 4])
+        fig.supylabel("Revenue")
+
+        schema = _flattened_schema(fig)
+
+        assert "title" not in schema
+        assert schema["axes"] == {"y": {"label": "Revenue"}}
+    finally:
+        plt.close(fig)
+
+
 def test_suptitle_alone_emits_title_without_axes():
     fig, ax = plt.subplots()
     try:

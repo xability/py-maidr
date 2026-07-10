@@ -306,13 +306,19 @@ class PlotlyMaidr:
         - ``layout.title.text`` -> ``title``
         - ``layout.title.subtitle.text`` -> ``subtitle`` (Plotly's native
           subtitle, the analog of ggplot2's ``labs(subtitle=...)``;
-          authorable since plotly.js 2.35 / plotly.py 5.24)
+          authorable since plotly.js 2.35)
 
         Only authored values are emitted, so figures without figure-level
         text keep their existing schema unchanged. Whitespace-only strings
         count as unauthored, matching the maidr JS engine's trimmed
         "authored" check. Plotly has no figure-level caption concept, so
         ``caption`` is never emitted.
+
+        Reads ``self._fig.layout.title`` directly rather than going through
+        ``Figure.to_dict()``, which would re-serialize every trace's data
+        arrays just to reach two layout strings. ``getattr`` guards keep
+        this safe on plotly versions whose ``Title`` object predates
+        ``subtitle``.
 
         Returns
         -------
@@ -321,19 +327,14 @@ class PlotlyMaidr:
         """
         metadata: dict = {}
 
-        layout = self._fig.to_dict().get("layout", {})
-        title = layout.get("title", "")
-        if not isinstance(title, dict):
-            title = {"text": title}
+        layout_title = getattr(self._fig.layout, "title", None)
 
-        title_text = str(title.get("text") or "").strip()
+        title_text = str(getattr(layout_title, "text", None) or "").strip()
         if title_text:
             metadata[MaidrKey.TITLE] = title_text
 
-        subtitle = title.get("subtitle") or {}
-        if not isinstance(subtitle, dict):
-            subtitle = {"text": subtitle}
-        subtitle_text = str(subtitle.get("text") or "").strip()
+        subtitle = getattr(layout_title, "subtitle", None)
+        subtitle_text = str(getattr(subtitle, "text", None) or "").strip()
         if subtitle_text:
             metadata[MaidrKey.SUBTITLE] = subtitle_text
 
