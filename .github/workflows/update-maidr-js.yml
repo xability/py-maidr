@@ -96,9 +96,11 @@ jobs:
           test -s maidr/static/maidr.css
           test -s maidr/static/VERSION
           # Reject HTML error pages masquerading as JS / CSS.
-          head -c 128 maidr/static/maidr.js | grep -Eqv "^<!DOCTYPE|^<html" || {
-            echo "maidr.js looks like an HTML error page" >&2; exit 1;
-          }
+          for asset in maidr.js maidr.css; do
+            if head -c 128 "maidr/static/${asset}" | grep -qiE "^[[:space:]]*<!DOCTYPE|^[[:space:]]*<html"; then
+              echo "${asset} looks like an HTML error page" >&2; exit 1
+            fi
+          done
 
       - name: Commit updated bundle to main
         if: steps.check.outputs.needs_update == 'true'

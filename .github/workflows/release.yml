@@ -151,18 +151,22 @@ jobs:
           test -s maidr/static/maidr.css
           test -s maidr/static/VERSION
           for asset in maidr.js maidr.css; do
-            head -c 128 "maidr/static/${asset}" | grep -Eqv "^<!DOCTYPE|^<html" || {
-              echo "${asset} looks like an HTML error page" >&2; exit 1;
-            }
+            if head -c 128 "maidr/static/${asset}" | grep -qiE "^[[:space:]]*<!DOCTYPE|^[[:space:]]*<html"; then
+              echo "${asset} looks like an HTML error page" >&2; exit 1
+            fi
           done
 
           # Commit as xabilitylab so the refreshed bundle is attributed to
           # the org account and lands in the release history / changelog.
-          # Not pushed here -- semantic-release pushes the branch below.
-          git config user.name "xabilitylab"
-          git config user.email "187909674+xabilitylab@users.noreply.github.com"
+          # Scope the identity to this single commit (-c / --author) so it
+          # does not persist into the repo config and bleed into the
+          # semantic-release commit that follows.  Not pushed here --
+          # semantic-release pushes the branch below.
           git add maidr/static/maidr.js maidr/static/maidr.css maidr/static/VERSION
-          git commit -m "chore: update bundled maidr.js to v${VERSION}"
+          git -c user.name="xabilitylab" \
+              -c user.email="187909674+xabilitylab@users.noreply.github.com" \
+              commit -m "chore: update bundled maidr.js to v${VERSION}" \
+              --author="xabilitylab <187909674+xabilitylab@users.noreply.github.com>"
 
       - name: Python Semantic Release
         id: release
