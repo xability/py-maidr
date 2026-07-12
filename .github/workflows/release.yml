@@ -121,52 +121,25 @@ jobs:
           fi
           echo "Release pending (${LAST:-<none>} -> ${NEXT:-<unknown>}); refreshing bundle."
 
-          # Resolve the latest upstream maidr.js release on npm.
-          VERSION=$(curl -sL "https://registry.npmjs.org/maidr/latest" | jq -r '.version')
-          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-            echo "Failed to resolve upstream maidr.js version" >&2
-            exit 1
-          fi
+          # Resolve, download, and verify the latest upstream bundle via the
+          # shared script (also used by update-maidr-js.yml).
+          VERSION=$(.github/scripts/fetch-maidr-bundle.sh)
 
-          CURRENT=""
-          if [ -f maidr/static/VERSION ]; then
-            CURRENT=$(tr -d '[:space:]' < maidr/static/VERSION)
-          fi
-          if [ "$VERSION" = "$CURRENT" ]; then
-            echo "Bundle already at v$VERSION; nothing to refresh."
-            exit 0
-          fi
-
-          echo "Updating bundled maidr.js: ${CURRENT:-<none>} -> $VERSION"
-          mkdir -p maidr/static
-          curl -sSfL -o maidr/static/maidr.js \
-            "https://cdn.jsdelivr.net/npm/maidr@${VERSION}/dist/maidr.js"
-          curl -sSfL -o maidr/static/maidr.css \
-            "https://cdn.jsdelivr.net/npm/maidr@${VERSION}/dist/maidr.css"
-          printf "%s\n" "$VERSION" > maidr/static/VERSION
-
-          # Sanity-check the downloads and reject HTML error pages
-          # masquerading as JS / CSS.
-          test -s maidr/static/maidr.js
-          test -s maidr/static/maidr.css
-          test -s maidr/static/VERSION
-          for asset in maidr.js maidr.css; do
-            if head -c 128 "maidr/static/${asset}" | grep -qiE "^[[:space:]]*<!DOCTYPE|^[[:space:]]*<html"; then
-              echo "${asset} looks like an HTML error page" >&2; exit 1
-            fi
-          done
-
-          # Commit as xabilitylab so the refreshed bundle is attributed to
-          # the org account and lands in the release history / changelog.
-          # Scope the identity to this single commit (-c / --author) so it
-          # does not persist into the repo config and bleed into the
-          # semantic-release commit that follows.  Not pushed here --
+          # Commit as xabilitylab only when the bundle actually changed, so a
+          # release that is already on the newest upstream does not fail on an
+          # empty commit.  Scope the identity to this single commit (-c /
+          # --author) so it does not persist into the repo config and bleed
+          # into the semantic-release commit that follows.  Not pushed here --
           # semantic-release pushes the branch below.
           git add maidr/static/maidr.js maidr/static/maidr.css maidr/static/VERSION
-          git -c user.name="xabilitylab" \
-              -c user.email="187909674+xabilitylab@users.noreply.github.com" \
-              commit -m "chore: update bundled maidr.js to v${VERSION}" \
-              --author="xabilitylab <187909674+xabilitylab@users.noreply.github.com>"
+          if git diff --cached --quiet; then
+            echo "Bundle already at v${VERSION}; nothing to commit."
+          else
+            git -c user.name="xabilitylab" \
+                -c user.email="187909674+xabilitylab@users.noreply.github.com" \
+                commit -m "chore: update bundled maidr.js to v${VERSION}" \
+                --author="xabilitylab <187909674+xabilitylab@users.noreply.github.com>"
+          fi
 
       - name: Python Semantic Release
         id: release
