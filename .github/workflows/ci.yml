@@ -89,7 +89,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install commitlint dependencies
         run: npm install @commitlint/config-conventional
@@ -100,3 +100,21 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           failOnWarnings: 'false'
           commitDepth: 1
+
+  workflow-lint:
+    name: Lint workflows and shell scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # shellcheck is pre-installed on the ubuntu-latest runner image.
+      - name: ShellCheck shell scripts
+        run: shellcheck .github/scripts/*.sh
+
+      # actionlint validates the workflow YAML and shellchecks inline `run`
+      # blocks, catching the class of shell/quoting bugs this repo has hit.
+      - name: actionlint
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
