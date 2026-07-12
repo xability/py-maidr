@@ -37,11 +37,16 @@ jobs:
 
       - name: Resolve, download and verify bundled assets
         id: bundle
+        env:
+          # Pass the dispatch input through the environment rather than
+          # interpolating ${{ ... }} into the script text, which would be a
+          # shell-injection surface in a job holding contents: write.
+          MAIDR_VERSION: ${{ github.event.inputs.maidr_version }}
         run: |
           set -euo pipefail
           # Resolve (or use the requested version), download, and verify the
           # bundle via the shared script (also used by release.yml).
-          VERSION=$(.github/scripts/fetch-maidr-bundle.sh "${{ github.event.inputs.maidr_version }}")
+          VERSION=$(.github/scripts/fetch-maidr-bundle.sh "$MAIDR_VERSION")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Commit updated bundle to main

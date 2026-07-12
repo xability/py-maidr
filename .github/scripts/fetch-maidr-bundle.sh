@@ -31,6 +31,14 @@ if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
   exit 1
 fi
 
+# Validate the version shape before splicing it into the download URL.  This
+# rejects malformed or hostile values (e.g. a caller-supplied version) so
+# they cannot build an unintended jsDelivr path.
+if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+([-+.][0-9A-Za-z.-]+)*$'; then
+  echo "Refusing to fetch: '$VERSION' is not a valid maidr version" >&2
+  exit 1
+fi
+
 echo "Fetching bundled maidr.js v${VERSION} into ${DEST_DIR}" >&2
 mkdir -p "$DEST_DIR"
 curl -sSfL -o "$DEST_DIR/maidr.js" \
