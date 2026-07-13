@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Lint commit messages
         uses: wagoid/commitlint-github-action@v6
@@ -96,6 +96,50 @@ jobs:
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
+
+      - name: Bundle latest upstream maidr.js into this release
+        # Pull the newest upstream ``maidr.js`` / ``maidr.css`` at release
+        # time so the exact assets shipped to PyPI (and recorded in the
+        # changelog) match the upstream release that was current when
+        # py-maidr cut its own release.  The refresh is committed locally
+        # as ``xabilitylab`` but intentionally *not* pushed here: the
+        # semantic-release step below pushes the branch, so this commit
+        # ships only when a release actually happens.  When no release is
+        # pending the commit is discarded with the runner, so the bundle
+        # never trickles onto ``main`` between releases.
+        run: |
+          set -euo pipefail
+
+          # Skip the refresh only when we are confident no release will be
+          # cut for this push.  On any uncertainty we fall through and let
+          # the semantic-release push gate whether the commit survives.
+          NEXT=$(uv run semantic-release version --print 2>/dev/null || true)
+          LAST=$(uv run semantic-release version --print-last-released 2>/dev/null || true)
+          if [ -n "$NEXT" ] && [ -n "$LAST" ] && [ "$NEXT" = "$LAST" ]; then
+            echo "No release pending (version stays at $LAST); skipping bundle refresh."
+            exit 0
+          fi
+          echo "Release pending (${LAST:-<none>} -> ${NEXT:-<unknown>}); refreshing bundle."
+
+          # Resolve, download, and verify the latest upstream bundle via the
+          # shared script (also used by update-maidr-js.yml).
+          VERSION=$(.github/scripts/fetch-maidr-bundle.sh)
+
+          # Commit as xabilitylab only when the bundle actually changed, so a
+          # release that is already on the newest upstream does not fail on an
+          # empty commit.  Scope the identity to this single commit (-c /
+          # --author) so it does not persist into the repo config and bleed
+          # into the semantic-release commit that follows.  Not pushed here --
+          # semantic-release pushes the branch below.
+          git add maidr/static/maidr.js maidr/static/maidr.css maidr/static/VERSION
+          if git diff --cached --quiet; then
+            echo "Bundle already at v${VERSION}; nothing to commit."
+          else
+            git -c user.name="xabilitylab" \
+                -c user.email="187909674+xabilitylab@users.noreply.github.com" \
+                commit -m "chore: update bundled maidr.js to v${VERSION}" \
+                --author="xabilitylab <187909674+xabilitylab@users.noreply.github.com>"
+          fi
 
       - name: Python Semantic Release
         id: release
