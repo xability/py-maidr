@@ -1,6 +1,44 @@
 # CHANGELOG
 
 
+## v1.19.0 (2026-07-13)
+
+### Chores
+
+- Update bundled maidr.js to v3.67.0
+  ([`91bb3c3`](https://github.com/xability/py-maidr/commit/91bb3c3bc8ee1ab8874b1154cc3758e47420ca67))
+
+- Update bundled maidr.js to v3.68.0
+  ([`4645cdc`](https://github.com/xability/py-maidr/commit/4645cdcfe62cb45adb47660a71555b8c0f854b97))
+
+- Update bundled maidr.js to v3.69.0
+  ([`6347057`](https://github.com/xability/py-maidr/commit/6347057430e0bf958026b412b36f4e7b89ced59b))
+
+- Update bundled maidr.js to v3.70.0
+  ([`88505ea`](https://github.com/xability/py-maidr/commit/88505ea5a3fa24aa8febd3120ec586c66db02983))
+
+- Update bundled maidr.js to v3.71.0
+  ([`48ac760`](https://github.com/xability/py-maidr/commit/48ac76078837a69331d6024daca7562916e56f4d))
+
+- Update bundled maidr.js to v3.72.1
+  ([`08587e2`](https://github.com/xability/py-maidr/commit/08587e2ebfb3a89caea7849553932d19114fe1a4))
+
+- Update bundled maidr.js to v3.73.0
+  ([`e422c07`](https://github.com/xability/py-maidr/commit/e422c077cd7c1765cfe9aa0a920c1d9f6294abb7))
+
+### Continuous Integration
+
+- Bundle upstream maidr.js at release time, attribute to xabilitylab
+  ([#286](https://github.com/xability/py-maidr/pull/286),
+  [`21c33ac`](https://github.com/xability/py-maidr/commit/21c33aca9b71988a4a0e700f6eef109b2a9e3920))
+
+### Features
+
+- Emit figure-wide title and axes labels in the MAIDR schema
+  ([#285](https://github.com/xability/py-maidr/pull/285),
+  [`59b1c7c`](https://github.com/xability/py-maidr/commit/59b1c7c26240e09b4449eb198e43d5f565dea84e))
+
+
 ## v1.18.0 (2026-05-06)
 
 ### Chores
