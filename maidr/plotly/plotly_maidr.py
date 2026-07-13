@@ -10,6 +10,7 @@ from typing import Any, Literal, cast
 
 from htmltools import HTML, HTMLDocument, Tag, tags
 
+from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.plotly_plot import PlotlyPlot
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.util.dependencies import (
@@ -295,6 +296,50 @@ class PlotlyMaidr:
         del self._plots
         del self._fig
 
+    def _figure_metadata(self) -> dict:
+        """
+        Extract figure-wide metadata for the top-level MAIDR schema.
+
+        Maps Plotly's figure-level layout title onto the top-level MAIDR
+        schema fields used by multi-panel figures:
+
+        - ``layout.title.text`` -> ``title``
+        - ``layout.title.subtitle.text`` -> ``subtitle`` (Plotly's native
+          subtitle, the analog of ggplot2's ``labs(subtitle=...)``;
+          authorable since plotly.js 2.35)
+
+        Only authored values are emitted, so figures without figure-level
+        text keep their existing schema unchanged. Whitespace-only strings
+        count as unauthored, matching the maidr JS engine's trimmed
+        "authored" check. Plotly has no figure-level caption concept, so
+        ``caption`` is never emitted.
+
+        Reads ``self._fig.layout.title`` directly rather than going through
+        ``Figure.to_dict()``, which would re-serialize every trace's data
+        arrays just to reach two layout strings. ``getattr`` guards keep
+        this safe on plotly versions whose ``Title`` object predates
+        ``subtitle``.
+
+        Returns
+        -------
+        dict
+            A sparse mapping with optional ``title`` and ``subtitle`` keys.
+        """
+        metadata: dict = {}
+
+        layout_title = getattr(self._fig.layout, "title", None)
+
+        title_text = str(getattr(layout_title, "text", None) or "").strip()
+        if title_text:
+            metadata[MaidrKey.TITLE] = title_text
+
+        subtitle = getattr(layout_title, "subtitle", None)
+        subtitle_text = str(getattr(subtitle, "text", None) or "").strip()
+        if subtitle_text:
+            metadata[MaidrKey.SUBTITLE] = subtitle_text
+
+        return metadata
+
     def _flatten_maidr(self) -> dict:
         """Build the MAIDR schema from all extracted plots.
 
@@ -348,6 +393,7 @@ class PlotlyMaidr:
 
         return {
             "id": self.maidr_id,
+            **self._figure_metadata(),
             "subplots": subplot_grid,
         }
 
