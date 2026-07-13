@@ -276,3 +276,26 @@ class TestSharedAxisLabels:
             assert axes["y"]["label"] == "Y"
         finally:
             plt.close(fig)
+
+
+class TestFigureLevelCanonicalShape:
+    """The figure-wide `axes` emitted at the top of the MAIDR schema is
+    built via the same `_axis_config` helper as per-plot axes and must
+    stay bound by the same canonical contract."""
+
+    def test_figure_wide_axes_follow_canonical_shape(self):
+        fig, axs = plt.subplots(1, 2)
+        try:
+            axs[0].bar(["a", "b"], [1, 2])
+            axs[1].bar(["a", "b"], [3, 4])
+            fig.supxlabel("Year")
+            fig.supylabel("Revenue")
+
+            m = FigureManager.get_maidr(fig)
+            schema = _stringify_keys(m._flatten_maidr())
+
+            _assert_canonical_axes(schema["axes"])
+            assert schema["axes"]["x"]["label"] == "Year"
+            assert schema["axes"]["y"]["label"] == "Revenue"
+        finally:
+            plt.close(fig)

@@ -153,3 +153,130 @@ class TestPlotlyMaidr:
         pm = PlotlyMaidr(plotly_bar_fig)
         assert len(pm._plots) == 1
         assert isinstance(pm._plots[0], PlotlyBarPlot)
+
+
+class TestPlotlyFigureMetadata:
+    """Figure-wide layout title/subtitle mapped onto the top-level schema.
+
+    The matplotlib counterpart lives in ``tests/core/test_figure_metadata.py``;
+    the paths are asymmetric by design — matplotlib maps
+    ``suptitle``/``supxlabel``/``supylabel`` to top-level ``title``/``axes``,
+    while Plotly maps ``layout.title``/``layout.title.subtitle`` to
+    ``title``/``subtitle`` (it has no figure-margin axis label artists).
+    """
+
+    def test_layout_title_and_subtitle_emitted(self):
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(
+            title={
+                "text": "Sales by Region",
+                "subtitle": {"text": "Fiscal year 2025"},
+            }
+        )
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert schema["title"] == "Sales by Region"
+        assert schema["subtitle"] == "Fiscal year 2025"
+
+    def test_title_without_subtitle(self):
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(title="Overview")
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert schema["title"] == "Overview"
+        assert "subtitle" not in schema
+
+    def test_no_layout_title_omits_metadata(self):
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert "title" not in schema
+        assert "subtitle" not in schema
+        assert "id" in schema
+        assert "subplots" in schema
+
+    def test_whitespace_only_title_counts_as_unauthored(self):
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(
+            title={"text": "   ", "subtitle": {"text": " \t "}}
+        )
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert "title" not in schema
+        assert "subtitle" not in schema
+
+    def test_multi_subplot_title_and_subtitle_emitted(self):
+        """The lobby motivation case: layout title/subtitle on a
+        make_subplots figure land at the top level next to the grid."""
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(rows=1, cols=2)
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=1)
+        fig.add_trace(go.Bar(x=["a", "b"], y=[3, 4]), row=1, col=2)
+        fig.update_layout(
+            title={
+                "text": "Sales by Region",
+                "subtitle": {"text": "Fiscal year 2025"},
+            }
+        )
+
+        pm = PlotlyMaidr(fig)
+        schema = pm._flatten_maidr()
+
+        assert schema["title"] == "Sales by Region"
+        assert schema["subtitle"] == "Fiscal year 2025"
+        assert len(schema["subplots"]) == 1
+        assert len(schema["subplots"][0]) == 2
+
+    def test_figure_metadata_survives_html_embedding(self):
+        """The top-level title/subtitle must round-trip through the
+        `var maidrSchema = {...}` JSON embedded in the init script,
+        which is the path the JS engine actually consumes for Plotly."""
+        import json
+
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(
+            title={
+                "text": "Sales by Region",
+                "subtitle": {"text": "Fiscal year 2025"},
+            }
+        )
+
+        pm = PlotlyMaidr(fig)
+        html_str = str(pm.render().get_html_string())
+
+        marker = "var maidrSchema = "
+        start = html_str.index(marker) + len(marker)
+        embedded, _ = json.JSONDecoder().raw_decode(html_str[start:])
+
+        assert embedded["title"] == "Sales by Region"
+        assert embedded["subtitle"] == "Fiscal year 2025"
+        assert embedded["id"] == pm.maidr_id
+
+    def test_legacy_title_without_subtitle_attribute(self):
+        """The getattr guard must handle plotly versions whose Title
+        object predates the `subtitle` attribute (plotly.js < 2.35)."""
+        from types import SimpleNamespace
+
+        from maidr.core.enum.maidr_key import MaidrKey
+
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        pm = PlotlyMaidr(fig)
+
+        class _LegacyTitle:
+            text = "Overview"
+            # deliberately no `subtitle` attribute
+
+        pm._fig = SimpleNamespace(layout=SimpleNamespace(title=_LegacyTitle()))
+
+        metadata = pm._figure_metadata()
+
+        assert metadata == {MaidrKey.TITLE: "Overview"}
