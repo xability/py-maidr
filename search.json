@@ -140,20 +140,6 @@
     "text": "Control whether plt.show() uses the maidr accessible backend or the platform default with maidr.set_backend().\n\n\n\nset_backend\nSwitch the matplotlib backend between maidr and the platform default."
   },
   {
-    "objectID": "api/Maidr.show.html",
-    "href": "api/Maidr.show.html",
-    "title": "Maidr.show",
-    "section": "",
-    "text": "Maidr.show(renderer='auto', clear_fig=True, use_cdn='auto')\nPreview the HTML content using the specified renderer.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nrenderer\nLiteral['auto', 'ipython', 'browser']\nThe renderer to use for the HTML preview.\n\"auto\"\n\n\nclear_fig\nbool\nWhether to close the matplotlib figure after showing.\nTrue\n\n\nuse_cdn\nbool or {'auto'}\n* True: load maidr.js from the CDN only. * False: render using the copy of maidr.js bundled with the installed package. For the browser renderer the assets are copied next to the temporary HTML file. * \"auto\" (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails.\n\"auto\""
-  },
-  {
-    "objectID": "api/Maidr.show.html#parameters",
-    "href": "api/Maidr.show.html#parameters",
-    "title": "Maidr.show",
-    "section": "",
-    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nrenderer\nLiteral['auto', 'ipython', 'browser']\nThe renderer to use for the HTML preview.\n\"auto\"\n\n\nclear_fig\nbool\nWhether to close the matplotlib figure after showing.\nTrue\n\n\nuse_cdn\nbool or {'auto'}\n* True: load maidr.js from the CDN only. * False: render using the copy of maidr.js bundled with the installed package. For the browser renderer the assets are copied next to the temporary HTML file. * \"auto\" (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails.\n\"auto\""
-  },
-  {
     "objectID": "api/set_backend.html",
     "href": "api/set_backend.html",
     "title": "set_backend",
@@ -194,6 +180,20 @@
     "title": "Maidr.save_html",
     "section": "",
     "text": "Name\nType\nDescription\nDefault\n\n\n\n\nfile\nstr\nThe file to save to.\nrequired\n\n\nlib_dir\nstr\nThe directory to save the dependencies to (relative to the file’s directory).\n\"lib\"\n\n\ninclude_version\nbool\nWhether to include the version number in the dependency folder name.\nTrue\n\n\ndata_in_svg\nbool\nControls where the MAIDR JSON payload is placed in the output HTML or SVG.\nTrue\n\n\nuse_cdn\nbool or {'auto'}\n* True: load maidr.js from the CDN only. * False: copy the bundled maidr.js / maidr.css into lib_dir next to the saved HTML and reference them with relative paths (no network access required). * \"auto\" (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails. The bundled files are still copied alongside the HTML so the fallback works offline.\n\"auto\""
+  },
+  {
+    "objectID": "api/Maidr.show.html",
+    "href": "api/Maidr.show.html",
+    "title": "Maidr.show",
+    "section": "",
+    "text": "Maidr.show(renderer='auto', clear_fig=True, use_cdn='auto')\nPreview the HTML content using the specified renderer.\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nrenderer\nLiteral['auto', 'ipython', 'browser']\nThe renderer to use for the HTML preview.\n\"auto\"\n\n\nclear_fig\nbool\nWhether to close the matplotlib figure after showing.\nTrue\n\n\nuse_cdn\nbool or {'auto'}\n* True: load maidr.js from the CDN only. * False: render using the copy of maidr.js bundled with the installed package. For the browser renderer the assets are copied next to the temporary HTML file. * \"auto\" (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails.\n\"auto\""
+  },
+  {
+    "objectID": "api/Maidr.show.html#parameters",
+    "href": "api/Maidr.show.html#parameters",
+    "title": "Maidr.show",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nrenderer\nLiteral['auto', 'ipython', 'browser']\nThe renderer to use for the HTML preview.\n\"auto\"\n\n\nclear_fig\nbool\nWhether to close the matplotlib figure after showing.\nTrue\n\n\nuse_cdn\nbool or {'auto'}\n* True: load maidr.js from the CDN only. * False: render using the copy of maidr.js bundled with the installed package. For the browser renderer the assets are copied next to the temporary HTML file. * \"auto\" (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails.\n\"auto\""
   },
   {
     "objectID": "examples.html",
