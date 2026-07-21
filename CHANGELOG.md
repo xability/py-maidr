@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v1.19.1 (2026-07-21)
+
+### Bug Fixes
+
+- Recover shared y-axis label from sibling axes and figure text
+  ([#287](https://github.com/xability/py-maidr/pull/287),
+  [`954926a`](https://github.com/xability/py-maidr/commit/954926a4671a9aa0a3c37956c528269e018fded5))
+
+
 ## v1.19.0 (2026-07-13)
 
 ### Chores
