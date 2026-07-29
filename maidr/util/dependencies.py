@@ -217,7 +217,11 @@ def set_cdn_version(version: str | None) -> None:
     ignored (with a warning) in favour of the normal resolution path.
     """
     global _cdn_version_override
-    if version is None:
+    # A blank string is treated as ``None`` rather than as a malformed
+    # pin.  Otherwise it stores an empty override that later reads as
+    # "no pin" and falls through silently, while every *other* unusable
+    # value warns — an asymmetry with no reason behind it.
+    if version is None or not str(version).strip():
         _cdn_version_override = None
         reset_cdn_version_cache()
         return
@@ -692,6 +696,21 @@ def bundle_status(*, resolve: bool = True) -> BundleStatus:
         or published_minor - bundled_minor >= STALE_MINOR_GAP
     )
     return BundleStatus(bundled, published, is_behind, is_stale)
+
+
+def warn_bundle_unreadable() -> None:
+    """Warn that ``use_cdn=False`` had to reach for the CDN anyway.
+
+    Lives here rather than in :mod:`maidr.api` so the dedup bookkeeping
+    it relies on stays inside the module that owns it, and so every
+    statement about the bundled assets is made from one place.
+    """
+    _warn_once(
+        "missing-bundle",
+        "maidr: use_cdn=False was requested but the bundled maidr.js/css "
+        "could not be read, so the notebook will load them from the CDN. "
+        "Reinstall py-maidr to repair the bundle for offline use.",
+    )
 
 
 def warn_if_bundle_is_stale() -> None:

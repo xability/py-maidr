@@ -208,6 +208,7 @@ def init_notebook(
         maidr_js_cdn_url,
         read_bundled_js,
         unresolved_cdn_url,
+        warn_bundle_unreadable,
         warn_if_bundle_is_stale,
     )
 
@@ -242,7 +243,7 @@ def init_notebook(
             # say why, since silently contacting the CDN under
             # ``use_cdn=False`` is the more surprising outcome.
             if mode is False:
-                _warn_missing_bundle()
+                warn_bundle_unreadable()
                 html = (
                     f'<link rel="stylesheet" '
                     f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
@@ -286,18 +287,6 @@ def init_notebook(
 
     display(HTML(html))
     _NOTEBOOK_LOADED = True
-
-
-def _warn_missing_bundle() -> None:
-    """Warn that ``use_cdn=False`` had to reach for the CDN anyway."""
-    from maidr.util.dependencies import _warn_once
-
-    _warn_once(
-        "missing-bundle",
-        "maidr: use_cdn=False was requested but the bundled maidr.js/css "
-        "could not be read, so the notebook will load them from the CDN. "
-        "Reinstall py-maidr to repair the bundle for offline use.",
-    )
 
 
 def _is_plotly_figure(obj: Any) -> bool:

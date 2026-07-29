@@ -219,6 +219,7 @@ from .patch import (  # noqa: E402, F401
     violinplot,
 )
 from .util.dependencies import (  # noqa: E402
+    BundleStatus,
     bundle_status,
     bundled_css_path,
     bundled_js_path,
@@ -249,6 +250,7 @@ except Exception:  # pragma: no cover - never block import on notebook setup
 
 
 __all__ = [
+    "BundleStatus",
     "bundle_status",
     "bundled_css_path",
     "bundled_js_path",

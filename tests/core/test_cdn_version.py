@@ -630,3 +630,19 @@ def test_concurrent_staleness_warning_emits_once(monkeypatch):
 
     stale = [w for w in caught if "bundled copy of maidr.js" in str(w.message)]
     assert len(stale) == 1, f"warned {len(stale)} times, expected 1"
+
+
+@pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
+def test_blank_pin_clears_rather_than_falling_through(blank, resolvable):
+    """A blank pin means "no pin", not "a pin that happens to be unusable"."""
+    maidr.set_cdn_version("3.70.1")
+    maidr.set_cdn_version(blank)
+
+    assert dependencies._cdn_version_override is None
+    assert dependencies.get_cdn_version() == "9.9.9"
+
+
+def test_bundle_status_type_is_exported():
+    """The return type must be reachable for type hints and isinstance."""
+    assert maidr.BundleStatus is dependencies.BundleStatus
+    assert "BundleStatus" in maidr.__all__
