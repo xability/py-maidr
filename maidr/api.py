@@ -255,22 +255,17 @@ def init_notebook(
             # broken.  Emit the unresolved ``@latest`` URL instead, and
             # say why, since silently contacting the CDN under
             # ``use_cdn=False`` is the more surprising outcome.
+            # Both modes emit the same markup; only ``False`` has been
+            # promised no network I/O, so only it needs telling that its
+            # bundle could not be read.
             if mode is False:
                 warn_bundle_unreadable()
-                html = (
-                    f'<link rel="stylesheet" '
-                    f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
-                    f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}">'
-                    f"</script>"
-                )
-            else:
-                # Same reasoning as above: this runs at import too.
-                html = (
-                    f'<link rel="stylesheet" '
-                    f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
-                    f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}">'
-                    f"</script>"
-                )
+            html = (
+                f'<link rel="stylesheet" '
+                f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
+                f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}">'
+                f"</script>"
+            )
         else:
             # json.dumps produces a JS-safe string literal (escapes quotes,
             # backslashes, newlines, etc.).  ``ensure_ascii=True`` (the

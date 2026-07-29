@@ -160,7 +160,11 @@ def _is_valid_version(candidate: str) -> bool:
     bool
         ``True`` when it is safe to splice into a URL and to parse.
     """
-    return len(candidate) <= _MAX_VERSION_LEN and _VERSION_RE.match(candidate) is not None
+    return (
+        len(candidate) <= _MAX_VERSION_LEN
+        and _VERSION_RE.match(candidate) is not None
+    )
+
 
 # Keys of warnings already logged, so a bad pin is reported once instead
 # of on every URL build.  See :func:`_warn_once`.
@@ -320,7 +324,15 @@ def _published_version(*, resolve: bool) -> str | None:
     """
     if resolve:
         return _resolve_latest_version()
-    return _resolved_cdn_version if _resolution_attempted else None
+    # Read the pair under the lock, as every other access to it does.
+    # ``_resolution_attempted`` is set in a ``finally`` *after*
+    # ``_resolved_cdn_version`` is assigned, so an unlocked reader that
+    # saw the flag without the value would need those two stores to be
+    # reordered — which the GIL prevents today but a free-threaded build
+    # (PEP 703) does not promise.  This module reasons about that mode
+    # everywhere else; no reason for this one read to be the exception.
+    with _resolution_lock:
+        return _resolved_cdn_version if _resolution_attempted else None
 
 
 def unresolved_cdn_url(filename: str) -> str:
