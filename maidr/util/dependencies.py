@@ -823,6 +823,12 @@ def warn_if_bundle_is_stale() -> None:
 
     Notes
     -----
+    Emitted as a ``UserWarning``, so a caller running under ``-W error``
+    (or pytest's ``filterwarnings = ["error"]``) sees ``render()`` raise
+    rather than warn.  That is a real upgrade hazard for anyone treating
+    warnings as errors, which is why it is called out in the user guide
+    as well as here.
+
     Fires at most once per process, and neither :func:`set_cdn_version`
     nor :func:`reset_cdn_version_cache` re-arms it — so re-pinning in a
     REPL to watch the warning again will not produce a second one.

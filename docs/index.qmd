@@ -294,6 +294,16 @@ For multi-session servers, configure once at startup via the environment variabl
 
 The bundled `maidr.js` is refreshed when py-maidr is released, so it can fall behind between releases. Since the offline fallback is what runs whenever the CDN is disabled or unreachable, py-maidr warns once per session when the bundled copy has drifted a long way behind the published release. Upgrading py-maidr picks up a fresher bundle.
 
+::: {.callout-warning}
+## This warning raises under `-W error`
+
+It is emitted with `warnings.warn(..., UserWarning)`. If you run Python with
+`-W error`, or set `filterwarnings = ["error"]` in your pytest config, a stale
+bundle will make `render()` / `save_html()` **raise** rather than warn. Set
+`MAIDR_BUNDLE_STALE_WARNING=0` to turn it off, or add a narrower
+`filterwarnings` entry for it.
+:::
+
 ::: {.callout-important}
 ## A fully offline session cannot warn you on its own
 
