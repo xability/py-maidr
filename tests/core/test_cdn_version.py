@@ -12,7 +12,9 @@ from __future__ import annotations
 import io
 import json
 import logging
+import re
 import time
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
@@ -195,6 +197,15 @@ def test_a_second_bad_pin_still_warns(resolvable, caplog):
     assert len(complaints) == 2
 
 
+def test_warned_keys_stays_bounded(resolvable):
+    """Many distinct bad pins must not grow the dedup set without bound."""
+    for i in range(dependencies._MAX_WARNED_KEYS * 3):
+        maidr.set_cdn_version(f"bad-{i}")
+        dependencies.maidr_js_cdn_url()
+
+    assert len(dependencies._warned_keys) <= dependencies._MAX_WARNED_KEYS
+
+
 @pytest.mark.parametrize(
     "hostile",
     [
@@ -214,6 +225,27 @@ def test_invalid_pin_never_reaches_the_url(hostile, resolvable):
     assert hostile not in url
     # Falls through to normal resolution, which the fixture stubs.
     assert url == "https://cdn.jsdelivr.net/npm/maidr@9.9.9/dist/maidr.js"
+
+
+def test_no_render_path_references_the_unresolved_constants():
+    """The ``@latest`` constants must not leak back into emitted HTML.
+
+    ``MAIDR_JS_CDN_URL`` / ``MAIDR_CSS_CDN_URL`` are kept for backwards
+    compatibility and as the lookup's fallback, but a render path that
+    reaches for one silently reintroduces the stale-cache bug this module
+    exists to fix. Only ``dependencies.py`` itself may name them.
+    """
+    package_root = Path(dependencies.__file__).resolve().parent.parent
+    offenders = [
+        path.relative_to(package_root).as_posix()
+        for path in package_root.rglob("*.py")
+        if path.resolve() != Path(dependencies.__file__).resolve()
+        and re.search(r"MAIDR_(?:JS|CSS)_CDN_URL", path.read_text(encoding="utf-8"))
+    ]
+    assert not offenders, (
+        f"{offenders} reference the unresolved @latest CDN constants; "
+        "call maidr_js_cdn_url()/maidr_css_cdn_url()/cdn_url() instead"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -120,6 +120,11 @@ _VERSION_RE = re.compile(
 # of on every URL build.  See :func:`_warn_once`.
 _warned_keys: set[str] = set()
 
+# Ceiling on the above.  Normal use adds nothing or one entry; the cap
+# only matters for a process that programmatically cycles through many
+# distinct bad pins, and keeps that from growing without bound.
+_MAX_WARNED_KEYS = 64
+
 _cdn_version_override: str | None = None
 _resolved_cdn_version: str | None = None
 _resolution_attempted: bool = False
@@ -129,6 +134,12 @@ _resolution_lock = threading.Lock()
 # literal ``@latest`` form.  These are also what :func:`maidr_js_cdn_url`
 # and :func:`maidr_css_cdn_url` fall back to when the version lookup
 # cannot reach the network.
+#
+# DO NOT reference these from a render path.  ``@latest`` is the mutable
+# dist-tag whose seven-day cache lifetime is the bug this module exists to
+# fix, so emitting one into HTML silently reintroduces it.  Call
+# :func:`maidr_js_cdn_url` / :func:`maidr_css_cdn_url` / :func:`cdn_url`
+# instead — ``tests/core/test_cdn_version.py`` enforces this.
 MAIDR_JS_CDN_URL = _CDN_URL_TEMPLATE.format(
     version=LATEST_TAG, filename=MAIDR_JS_FILENAME
 )
@@ -330,6 +341,11 @@ def _warn_once(key: str, message: str, *args: object) -> None:
     """
     if key in _warned_keys:
         return
+    if len(_warned_keys) >= _MAX_WARNED_KEYS:
+        # Start over rather than grow without bound.  A process churning
+        # through this many distinct bad pins will see the occasional
+        # repeat, which is a fair trade for fixed memory.
+        _warned_keys.clear()
     # ``set.add`` is atomic under the GIL, so no lock is needed here; the
     # worst a race can do is emit the line twice.
     _warned_keys.add(key)

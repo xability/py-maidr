@@ -241,6 +241,61 @@ If you want to set the backend manually, use `matplotlib.use("module://maidr.bac
 
 For plot types not yet supported by maidr (e.g. pie charts, contour plots, 3D plots), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed — your plots will always be visible.
 
+## Offline Use and the JavaScript Bundle
+
+Accessible output needs the `maidr.js` library. `render()`, `show()`, and `save_html()` accept `use_cdn=` to control where it comes from:
+
+| `use_cdn` | Where `maidr.js` comes from |
+|---|---|
+| `"auto"` (default) | The jsDelivr CDN, falling back to the bundled copy in the browser if the CDN is unreachable. |
+| `True` | The CDN only, with no offline fallback. |
+| `False` | The copy bundled inside the installed `maidr` package. Use this in air-gapped environments. |
+
+Set the default for a whole session with `maidr.set_use_cdn(...)` or the `MAIDR_USE_CDN` environment variable.
+
+### Which version the CDN serves
+
+On the CDN paths (`use_cdn=True` and `"auto"`), py-maidr resolves the current published `maidr` version and emits a versioned URL such as `maidr@3.74.0/dist/maidr.js`.
+
+This matters because the CDN serves the mutable `maidr@latest` URL with a seven-day cache lifetime. A browser that had loaded it before would keep replaying its cached copy for up to a week after a new release — so a versioned URL is what guarantees you actually get the current build.
+
+::: {.callout-note}
+## This performs one network request
+
+Resolving the version makes a single outbound HTTPS request, the first time a CDN URL is built in a process. It is bounded by `MAIDR_CDN_TIMEOUT` (3 seconds total), cached for the rest of the process, and falls back to the previous `@latest` URL if it fails — so a blocked or slow network costs you a one-time delay, never an error.
+
+In sandboxed or egress-blocked environments (CI, air-gapped machines), set `MAIDR_CDN_VERSION=latest` to skip the lookup entirely, or use `use_cdn=False`, which never makes any network request.
+:::
+
+Pin the version yourself when you need reproducible output:
+
+```python
+maidr.set_cdn_version("3.74.0")   # a specific published version
+maidr.set_cdn_version("bundled")  # whatever this package ships with
+maidr.set_cdn_version("latest")   # skip resolution, emit the mutable @latest URL
+maidr.set_cdn_version(None)       # back to resolving automatically
+```
+
+### Keeping the bundled copy current
+
+The bundled `maidr.js` is refreshed when py-maidr is released, so it can fall behind between releases. Since the offline fallback is what runs whenever the CDN is disabled or unreachable, py-maidr warns once per session if the bundled copy has drifted a long way behind the published release. Upgrading py-maidr picks up a fresher bundle.
+
+Check the gap yourself at any time:
+
+```python
+maidr.bundle_status()
+# BundleStatus(bundled='3.73.0', published='3.74.0', is_behind=True, is_stale=False)
+```
+
+### Environment variables
+
+| Variable | Effect |
+|---|---|
+| `MAIDR_USE_CDN` | Default for `use_cdn`: `auto`, `1`/`true`, or `0`/`false`. |
+| `MAIDR_CDN_VERSION` | Pin the CDN version: a version such as `3.74.0`, `bundled`, or `latest` to skip resolution. |
+| `MAIDR_CDN_TIMEOUT` | Total seconds allowed for the version lookup (default `3`). |
+| `MAIDR_BUNDLE_STALE_WARNING` | Set to `0` to silence the stale-bundle warning. |
+
 ## Keyboard Shortcuts and Controls
 
 To interact with the plots using maidr, follow these steps:
