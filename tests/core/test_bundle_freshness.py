@@ -473,8 +473,6 @@ def test_offline_render_with_unknown_published_version_is_silent(
         maidr.render(bar_plot, use_cdn=False)
 
 
-
-
 def test_init_notebook_makes_no_network_call(monkeypatch, forbid_network):
     """``import maidr`` calls this, so it must never resolve.
 

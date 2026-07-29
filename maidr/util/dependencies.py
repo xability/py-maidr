@@ -297,6 +297,22 @@ def get_cdn_version() -> str:
     -------
     str
         A concrete version such as ``"3.74.0"``, or ``"latest"``.
+
+    Notes
+    -----
+    Step 4 is what makes this safe to call from a render path: an
+    unreachable, blocked, or malformed resolver degrades to ``"latest"``
+    rather than raising.  That guarantee rests on
+    :func:`_fetch_latest_version` honouring its own "never raises"
+    contract — it catches ``Exception`` around every fallible step for
+    exactly this reason.  Should something slip past it anyway, the
+    handler in :func:`_resolve_latest_version` caches the attempt (so the
+    failure is not retried on every later render) and re-raises, and the
+    exception surfaces from ``render()`` / ``save_html()``.  That is a
+    deliberate fail-fast for a bug in this module rather than a third
+    degradation path, on the grounds that silently swallowing
+    ``KeyboardInterrupt`` or a genuine programming error here would be
+    worse than a traceback that names the cause.
     """
     pin = _version_pin()
     if pin is not None:
