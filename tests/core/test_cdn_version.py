@@ -13,7 +13,9 @@ import io
 import json
 import logging
 import re
+import threading
 import time
+import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -508,3 +510,123 @@ def test_dedup_selector_matches_the_emitted_script_src(bar_plot, tmp_path):
     assert f'script[src=\\"{expected}\\"]' in contents or (
         f'script[src="{expected}"]' in contents
     )
+
+
+# ---------------------------------------------------------------------------
+# Concurrency
+# ---------------------------------------------------------------------------
+#
+# The module carries three locks and docstrings that reason explicitly
+# about GIL versus free-threaded (PEP 703) behaviour, but single-threaded
+# tests cannot exercise any of it.  These drive real contention with a
+# barrier so every thread arrives together, and assert on counts rather
+# than timing, so they are deterministic rather than flaky.
+#
+# Their strength differs, and it is worth being precise about which is
+# which.  Only the resolution test can currently fail without its lock:
+# it was verified by removing the lock and watching 32 threads each make
+# their own request.  The two warning tests below cannot, because their
+# critical sections are a few bytecodes of pure Python that CPython does
+# not preempt -- measured at 0 races in 40 trials of 32 threads at the
+# minimum switch interval.  They are kept as forward-looking guards:
+# under a free-threaded build (PEP 703) there is no GIL holding those
+# sequences together, which is the case the locks were added for.
+
+
+def _run_concurrently(target, threads=32):
+    """Run ``target`` on ``threads`` threads released simultaneously."""
+    barrier = threading.Barrier(threads)
+    errors: list[BaseException] = []
+
+    def runner():
+        try:
+            barrier.wait()
+            target()
+        except BaseException as exc:  # noqa: BLE001 - surfaced below
+            errors.append(exc)
+
+    workers = [threading.Thread(target=runner) for _ in range(threads)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join()
+    assert not errors, f"worker raised: {errors[:3]}"
+
+
+def test_concurrent_resolution_makes_one_lookup(monkeypatch):
+    """Double-checked locking must not let two threads both resolve.
+
+    This one has teeth: with the lock removed, all 32 threads make their
+    own request instead of one.
+    """
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+    calls: list[str] = []
+    calls_lock = threading.Lock()
+
+    def fake_urlopen(request, timeout=None):
+        with calls_lock:
+            calls.append(request.full_url)
+        # Hold the "connection" open briefly. A real lookup takes
+        # milliseconds, and that is exactly the window in which a second
+        # thread can enter an unguarded critical section — an instant
+        # stub closes the window and makes the test prove nothing.
+        time.sleep(0.05)
+        return _json_response({"version": "9.9.9", "latest": "9.9.9"})
+
+    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+
+    results: list[str] = []
+    results_lock = threading.Lock()
+
+    def resolve():
+        value = dependencies.get_cdn_version()
+        with results_lock:
+            results.append(value)
+
+    _run_concurrently(resolve)
+
+    assert len(calls) == 1, f"resolved {len(calls)} times under contention"
+    assert set(results) == {"9.9.9"}, "threads disagreed on the version"
+
+
+def test_concurrent_warn_once_emits_once(monkeypatch):
+    """``_warn_once`` emits once under contention.
+
+    Cannot fail on CPython without its lock (see the note above), so read
+    this as a free-threading guard and a smoke test, not as evidence that
+    the lock is load-bearing today.
+    """
+    monkeypatch.setattr(dependencies, "_warned_keys", set())
+    emitted: list[tuple] = []
+    emit_lock = threading.Lock()
+
+    def record(*args, **_kwargs):
+        with emit_lock:
+            emitted.append(args)
+
+    monkeypatch.setattr(dependencies._logger, "warning", record)
+
+    _run_concurrently(lambda: dependencies._warn_once("same-key", "msg"))
+
+    assert len(emitted) == 1, f"emitted {len(emitted)} times, expected 1"
+
+
+def test_concurrent_staleness_warning_emits_once(monkeypatch):
+    """``warn_if_bundle_is_stale`` emits once under contention.
+
+    Same caveat as ``test_concurrent_warn_once_emits_once``: the guarded
+    sequence is too short for CPython to preempt, so this earns its keep
+    on free-threaded builds rather than here.
+    """
+    monkeypatch.setattr(dependencies, "_bundle_warning_emitted", False)
+    monkeypatch.setattr(dependencies, "maidr_js_version", lambda: "3.66.1")
+    monkeypatch.setattr(dependencies, "_resolved_cdn_version", "3.74.0")
+    monkeypatch.setattr(dependencies, "_resolution_attempted", True)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _run_concurrently(dependencies.warn_if_bundle_is_stale)
+
+    stale = [w for w in caught if "bundled copy of maidr.js" in str(w.message)]
+    assert len(stale) == 1, f"warned {len(stale)} times, expected 1"

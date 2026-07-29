@@ -105,6 +105,12 @@ _RESOLVER_ENDPOINTS: tuple[tuple[str, str], ...] = (
 # endpoint cannot stream an unbounded body into memory.
 _MAX_RESOLVER_BYTES = 64 * 1024
 
+
+def _unresolved_cdn_url(filename: str) -> str:
+    """Format the ``@latest`` URL for ``filename``.  See public wrapper."""
+    return _CDN_URL_TEMPLATE.format(version=LATEST_TAG, filename=filename)
+
+
 # Same intent as the guard in ``.github/scripts/fetch-maidr-bundle.sh``:
 # only a well-formed semver is ever spliced into a URL, so neither a
 # hostile ``MAIDR_CDN_VERSION`` nor a compromised registry response can
@@ -162,12 +168,12 @@ _resolution_lock = threading.Lock()
 # fix, so emitting one into HTML silently reintroduces it.  Call
 # :func:`maidr_js_cdn_url` / :func:`maidr_css_cdn_url` / :func:`cdn_url`
 # instead — ``tests/core/test_cdn_version.py`` enforces this.
-MAIDR_JS_CDN_URL = _CDN_URL_TEMPLATE.format(
-    version=LATEST_TAG, filename=MAIDR_JS_FILENAME
-)
-MAIDR_CSS_CDN_URL = _CDN_URL_TEMPLATE.format(
-    version=LATEST_TAG, filename=MAIDR_CSS_FILENAME
-)
+#
+# Derived from :func:`unresolved_cdn_url` rather than formatting the
+# template again, so "the unresolved URL" is spelled out in exactly one
+# place and the constants cannot drift from the function.
+MAIDR_JS_CDN_URL = _unresolved_cdn_url(MAIDR_JS_FILENAME)
+MAIDR_CSS_CDN_URL = _unresolved_cdn_url(MAIDR_CSS_FILENAME)
 
 
 def set_cdn_version(version: str | None) -> None:
@@ -296,7 +302,7 @@ def unresolved_cdn_url(filename: str) -> str:
     str
         A jsDelivr URL pinned to the ``latest`` dist-tag.
     """
-    return _CDN_URL_TEMPLATE.format(version=LATEST_TAG, filename=filename)
+    return _unresolved_cdn_url(filename)
 
 
 def reset_cdn_version_cache() -> None:
