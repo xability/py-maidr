@@ -121,10 +121,13 @@ _VERSION_RE = re.compile(
 # of on every URL build.  See :func:`_warn_once`.
 _warned_keys: set[str] = set()
 
-# Ceiling on the above.  Normal use adds nothing or one entry; the cap
-# only matters for a process that programmatically cycles through many
-# distinct bad pins, and keeps that from growing without bound.
+# Ceilings on the above.  Normal use adds nothing or one entry; these
+# only matter for a process that programmatically cycles through many
+# distinct bad pins.  Both are needed for the bound to be real: capping
+# the entry count alone still lets one arbitrarily long pin become an
+# arbitrarily long key.
 _MAX_WARNED_KEYS = 64
+_MAX_WARNED_KEY_LEN = 200
 
 # Deliberately not guarded by ``_resolution_lock`` below: this is a lone
 # reference assignment, which is atomic under the GIL, and it is only ever
@@ -332,11 +335,13 @@ def _normalise_version_pin(pin: str) -> str | None:
     candidate = candidate[1:] if candidate.startswith(("v", "V")) else candidate
     if _VERSION_RE.match(candidate):
         return candidate
+    # Truncate for display too: the key is capped, but an oversized pin
+    # would otherwise land in the log line at full length.
     _warn_once(
         f"pin:{pin}",
         "maidr: ignoring invalid CDN version pin %r; expected a semver "
         "such as '3.74.0', %r, or %r.",
-        pin,
+        pin[:_MAX_WARNED_KEY_LEN],
         BUNDLED_TAG,
         LATEST_TAG,
     )
@@ -356,12 +361,15 @@ def _warn_once(key: str, message: str, *args: object) -> None:
     ----------
     key : str
         Identity of this warning.  Include the offending value so that
-        changing the value re-warns.
+        changing the value re-warns.  Truncated to
+        :data:`_MAX_WARNED_KEY_LEN`, so two pins identical for that many
+        characters share one warning.
     message : str
         ``logging``-style format string.
     *args : object
         Arguments interpolated into ``message`` by the logger.
     """
+    key = key[:_MAX_WARNED_KEY_LEN]
     if key in _warned_keys:
         return
     if len(_warned_keys) >= _MAX_WARNED_KEYS:

@@ -225,6 +225,7 @@ from .util.dependencies import (  # noqa: E402
     get_cdn_version,
     maidr_js_version,
     read_bundled_js,
+    reset_cdn_version_cache,
     set_cdn_version,
 )
 
@@ -258,6 +259,7 @@ __all__ = [
     "maidr_js_version",
     "read_bundled_js",
     "render",
+    "reset_cdn_version_cache",
     "save_html",
     "set_backend",
     "set_cdn_version",

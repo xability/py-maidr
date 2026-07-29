@@ -295,6 +295,12 @@ maidr.bundle_status()
 
 `bundle_status()` resolves the published version itself (one request), so it works even in a session that has never touched the CDN. Pass `resolve=False` if you want the comparison without any network access, accepting `published=None` when it isn't already known.
 
+::: {.callout-note}
+## Both the version and the warning are cached per session
+
+The resolved version is looked up once per process, and the staleness warning fires at most once. A long-lived session — a Jupyter kernel, a Shiny app — will not notice a newer release or a freshly upgraded py-maidr until it restarts. Call `maidr.reset_cdn_version_cache()` to force one more lookup, or restart the kernel; note that the warning itself does not re-arm either way.
+:::
+
 ### Environment variables
 
 | Variable | Effect |

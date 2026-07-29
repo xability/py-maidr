@@ -26,6 +26,22 @@ pip install -U git+https://github.com/xability/py-maidr.git
 
 Please visit the [user guide](https://xability.github.io/py-maidr/) page.
 
+## Offline and Restricted-Network Use
+
+py-maidr loads its JavaScript from a CDN by default, and resolves the current published version once per process so browsers cannot serve a stale cached copy. That means one bounded outbound request the first time a plot is rendered (or on `import maidr` in a notebook).
+
+If you work air-gapped, behind a proxy, or in CI:
+
+```python
+maidr.save_html(plot, "out.html", use_cdn=False)  # bundled copy, no network at all
+```
+
+```sh
+export MAIDR_CDN_VERSION=latest   # keep the CDN, skip the version lookup
+```
+
+See [Offline Use and the JavaScript Bundle](https://xability.github.io/py-maidr/#offline-use-and-the-javascript-bundle) for the full set of options.
+
 
 ## Example Code
 
