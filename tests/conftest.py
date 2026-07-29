@@ -24,7 +24,7 @@ def offline_cdn_version(monkeypatch):
     next.
     """
     monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, dependencies.LATEST_TAG)
-    monkeypatch.setattr(dependencies, "_bundle_warning_emitted", False)
+    monkeypatch.setattr(dependencies, "_bundle_warned", set())
     monkeypatch.setattr(dependencies, "_warned_keys", set())
 
     # Default-deny the network rather than relying on the pin above.

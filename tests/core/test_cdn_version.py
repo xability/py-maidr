@@ -269,6 +269,12 @@ def test_no_render_path_references_the_unresolved_constants():
     compatibility and as the lookup's fallback, but a render path that
     reaches for one silently reintroduces the stale-cache bug this module
     exists to fix. Only ``dependencies.py`` itself may name them.
+
+    This is a text scan, not an import graph, so a mere *mention* — in a
+    docstring or a comment — counts as a reference. That is deliberate
+    (it needs no AST walk and cannot be defeated by ``getattr``), but it
+    means the failure is sometimes about prose rather than about a real
+    call, which the message below says out loud.
     """
     package_root = Path(dependencies.__file__).resolve().parent.parent
     offenders = [
@@ -278,8 +284,10 @@ def test_no_render_path_references_the_unresolved_constants():
         and re.search(r"MAIDR_(?:JS|CSS)_CDN_URL", path.read_text(encoding="utf-8"))
     ]
     assert not offenders, (
-        f"{offenders} reference the unresolved @latest CDN constants; "
-        "call maidr_js_cdn_url()/maidr_css_cdn_url()/cdn_url() instead"
+        f"{offenders} name the unresolved @latest CDN constants; "
+        "call maidr_js_cdn_url()/maidr_css_cdn_url()/cdn_url() instead. "
+        "This scan matches raw text, so if the hit is only a docstring or "
+        "comment mention, reword it rather than loosening the check"
     )
 
 
@@ -619,7 +627,7 @@ def test_concurrent_staleness_warning_emits_once(monkeypatch):
     sequence is too short for CPython to preempt, so this earns its keep
     on free-threaded builds rather than here.
     """
-    monkeypatch.setattr(dependencies, "_bundle_warning_emitted", False)
+    monkeypatch.setattr(dependencies, "_bundle_warned", set())
     monkeypatch.setattr(dependencies, "maidr_js_version", lambda: "3.66.1")
     monkeypatch.setattr(dependencies, "_resolved_cdn_version", "3.74.0")
     monkeypatch.setattr(dependencies, "_resolution_attempted", True)
@@ -824,14 +832,33 @@ def test_bundled_cdn_url_degrades_when_version_unknown(monkeypatch, forbid_netwo
 def test_freshness_workflow_imports_resolve():
     """Guard the inline Python in check-bundle-freshness.yml.
 
-    That workflow imports these two names; a rename would break a job
-    nothing else exercises until it fires on a schedule.
-    """
-    from maidr import bundle_status
-    from maidr.util.dependencies import STALE_MINOR_GAP
+    The names are read out of the workflow file rather than hardcoded
+    here, so this cannot drift into guarding a different import path than
+    the job actually runs -- an earlier version of this test imported
+    ``STALE_MINOR_GAP`` from ``maidr.util.dependencies`` while the
+    workflow imported it from ``maidr``, leaving the re-export unguarded.
 
-    assert isinstance(STALE_MINOR_GAP, int)
-    status = bundle_status(resolve=False)
-    assert hasattr(status, "published")
-    assert hasattr(status, "is_stale")
-    assert hasattr(status, "is_behind")
+    Nothing else exercises that job until it fires on a schedule, so a
+    rename would surface as a red cron run days later.
+    """
+    workflow = (
+        Path(__file__).resolve().parents[2]
+        / ".github"
+        / "workflows"
+        / "check-bundle-freshness.yml"
+    )
+    source = workflow.read_text(encoding="utf-8")
+
+    imports = re.findall(r"^\s*from maidr import (.+)$", source, re.MULTILINE)
+    assert imports, "expected the workflow to import from maidr"
+
+    names = [name.strip() for line in imports for name in line.split(",")]
+    for name in names:
+        assert hasattr(maidr, name), f"workflow imports maidr.{name}, which is gone"
+
+    assert isinstance(maidr.STALE_MINOR_GAP, int)
+
+    # The attributes the job reads off the status object.
+    status = maidr.bundle_status(resolve=False)
+    for attribute in ("bundled", "published", "is_stale", "is_behind"):
+        assert hasattr(status, attribute)

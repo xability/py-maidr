@@ -304,6 +304,58 @@ def test_use_cdn_auto_render_reports_to_the_logger(
     assert any("3.66.1" in r.message for r in caplog.records)
 
 
+def test_auto_render_first_does_not_swallow_a_later_offline_warning(
+    bar_plot, bundled, published, caplog
+):
+    """The ordering that made the warning unreachable in practice.
+
+    ``use_cdn="auto"`` is the default, so it is almost always the first
+    render in a process, and it reports drift to the logger.  While the
+    one-shot latch was a single process-wide flag, that first render
+    consumed it and every later ``use_cdn=False`` render returned early
+    — so the documented ``MaidrBundleStaleWarning`` never reached the
+    offline audience it exists for.  The latch is per severity now.
+
+    Both renders happen in one process here on purpose: each on its own
+    passes either way.
+    """
+    bundled("3.66.1")
+    published("3.74.0")
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        with no_stale_bundle_warning():
+            maidr.render(bar_plot, use_cdn="auto")
+
+    assert any("3.66.1" in r.message for r in caplog.records), (
+        "the auto render must have reported the drift to the logger"
+    )
+
+    with pytest.warns(dependencies.MaidrBundleStaleWarning, match="3.66.1"):
+        maidr.render(bar_plot, use_cdn=False)
+
+
+def test_offline_render_first_does_not_swallow_a_later_auto_report(
+    bar_plot, bundled, published, caplog
+):
+    """The mirror of the above: the loud severity must not eat the quiet one.
+
+    Latching per severity has to work in both directions, or the fix just
+    moves which of the two reports goes missing.
+    """
+    bundled("3.66.1")
+    published("3.74.0")
+    maidr.bundle_status()  # establish the published version by resolving
+
+    with pytest.warns(dependencies.MaidrBundleStaleWarning, match="3.66.1"):
+        maidr.render(bar_plot, use_cdn=False)
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        with no_stale_bundle_warning():
+            maidr.render(bar_plot, use_cdn="auto")
+
+    assert any("3.66.1" in r.message for r in caplog.records)
+
+
 def test_use_cdn_true_render_does_not_warn(bar_plot, bundled, published):
     """CDN-only renders never execute the bundle, so its age is moot."""
     bundled("3.66.1")

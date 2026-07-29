@@ -199,7 +199,18 @@ _cdn_version_override: str | None = None
 
 _resolved_cdn_version: str | None = None
 _resolution_attempted: bool = False
+
+# Guards the two globals above and nothing else, so it is only ever held
+# for a few instructions.  Readers on the *offline* paths take it, and a
+# lock held across a network call would let one stalled lookup freeze an
+# unrelated ``use_cdn=False`` render for the whole timeout budget --
+# breaking the guarantee those paths advertise.
 _resolution_lock = threading.Lock()
+
+# Serialises the lookup itself, so concurrent first renders still make one
+# request between them.  Fetchers take this *then* ``_resolution_lock`` to
+# publish; readers never take it, so they cannot be blocked by a fetch.
+_fetch_lock = threading.Lock()
 
 # Unresolved CDN URLs, kept only for backwards compatibility with
 # callers outside this package that imported them before version
@@ -329,18 +340,25 @@ def _published_version(*, resolve: bool) -> str | None:
     return _cached_resolution()
 
 
-def _cached_resolution() -> str | None:
-    """Return the cached lookup result, or ``None`` if none has happened.
+def _resolution_state() -> tuple[bool, str | None]:
+    """Return ``(attempted, value)`` for the cached lookup, atomically.
 
-    Reads ``_resolution_attempted`` and ``_resolved_cdn_version`` together
-    under the lock.  The flag is set in a ``finally`` *after* the value is
-    assigned, so an unlocked reader seeing the flag without the value
-    needs those two stores reordered — which the GIL prevents today but a
-    free-threaded build (PEP 703) does not promise.  Both readers go
-    through here so the discipline cannot drift between them.
+    Reads both globals under the lock so a caller cannot observe the flag
+    without the value it refers to.  Returned as a pair because ``None``
+    is ambiguous on its own: it means both "no lookup yet" and "the lookup
+    failed", and the two need different handling.
+
+    The lock is held for these two reads only — never across a network
+    call — so an offline caller is never delayed by someone else's lookup.
     """
     with _resolution_lock:
-        return _resolved_cdn_version if _resolution_attempted else None
+        return _resolution_attempted, _resolved_cdn_version
+
+
+def _cached_resolution() -> str | None:
+    """Return the resolved version if a lookup has completed, else ``None``."""
+    attempted, value = _resolution_state()
+    return value if attempted else None
 
 
 def unresolved_cdn_url(filename: str) -> str:
@@ -652,24 +670,33 @@ def _resolve_latest_version() -> str | None:
         response).
     """
     global _resolved_cdn_version, _resolution_attempted
-    if _resolution_attempted:
-        return _cached_resolution()
-    with _resolution_lock:
-        if _resolution_attempted:
-            return _resolved_cdn_version
+    attempted, value = _resolution_state()
+    if attempted:
+        return value
+
+    with _fetch_lock:
+        # Re-check: another fetcher may have finished while we queued.
+        attempted, value = _resolution_state()
+        if attempted:
+            return value
+
+        # Deliberately outside ``_resolution_lock``.  The offline paths
+        # read that lock, so holding it here would make a stalled lookup
+        # block a render that promised to make no request at all.
         try:
-            _resolved_cdn_version = _fetch_latest_version(_cdn_timeout())
-        finally:
-            # Mark the attempt even if the lookup raised.  Setting this
-            # only on the success path would leave a doomed lookup
-            # uncached, so every later render would retry it.
+            result = _fetch_latest_version(_cdn_timeout())
+        except BaseException:
+            # ``_fetch_latest_version`` is written not to raise, but if it
+            # ever does, record the attempt so the failure is cached
+            # rather than retried on every later render.
+            with _resolution_lock:
+                _resolution_attempted = True
+            raise
+
+        with _resolution_lock:
+            _resolved_cdn_version = result
             _resolution_attempted = True
-        # Capture inside the lock.  Reading it after release lets a
-        # concurrent ``reset_cdn_version_cache()`` land in between and
-        # turn a lookup that just succeeded into ``None``, emitting
-        # ``@latest`` for no reason.
-        resolved = _resolved_cdn_version
-    return resolved
+        return result
 
 
 def _fetch_latest_version(budget: float) -> str | None:
@@ -769,7 +796,11 @@ _RELEASE_RE = re.compile(
     r"(?:\+[0-9A-Za-z.-]+)?\Z"
 )
 
-_bundle_warning_emitted = False
+# Which severities have already spoken.  One shared flag would let the
+# quiet ``auto`` path -- the default, so almost always first -- consume the
+# single shot and leave the ``use_cdn=False`` warning permanently
+# unreachable, which is precisely the audience it exists for.
+_bundle_warned: set[bool] = set()
 _bundle_warning_lock = threading.Lock()
 
 
@@ -929,9 +960,10 @@ def warn_if_bundle_is_stale(*, bundle_is_primary: bool = True) -> None:
     warnings as errors, which is why it is called out in the user guide
     as well as here.
 
-    Fires at most once per process, and neither :func:`set_cdn_version`
-    nor :func:`reset_cdn_version_cache` re-arms it — so re-pinning in a
-    REPL to watch the warning again will not produce a second one.
+    Fires at most once per process *per severity*, and neither
+    :func:`set_cdn_version` nor :func:`reset_cdn_version_cache` re-arms
+    it — so re-pinning in a REPL to watch it again will not produce a
+    second report.
 
     ``stacklevel=2`` deliberately points at maidr's own render machinery
     rather than the caller's ``render()`` / ``save_html()`` line.  The
@@ -940,20 +972,22 @@ def warn_if_bundle_is_stale(*, bundle_is_primary: bool = True) -> None:
     than about how it was called — the message stands alone without a
     call site.
     """
-    global _bundle_warning_emitted
-    if _bundle_warning_emitted or not _bundle_warning_enabled():
+    if bundle_is_primary in _bundle_warned or not _bundle_warning_enabled():
         return
 
     status = bundle_status(resolve=False)
     if not status.is_stale:
         return
 
-    # Claim the one warning under a lock so concurrent first renders emit
-    # it once rather than racing between the check above and the set.
+    # Claim this severity's one report under a lock so concurrent first
+    # renders emit it once rather than racing between the check above and
+    # the set.  Latched per severity: a quiet ``auto`` report must not
+    # suppress a later ``use_cdn=False`` warning, where the bundle really
+    # is what runs.
     with _bundle_warning_lock:
-        if _bundle_warning_emitted:
+        if bundle_is_primary in _bundle_warned:
             return
-        _bundle_warning_emitted = True
+        _bundle_warned.add(bundle_is_primary)
 
     message = (
         f"maidr: the bundled copy of maidr.js is {status.bundled}, but the "
@@ -1072,6 +1106,10 @@ def maidr_js_version() -> str:
     change under a running interpreter.  Without this, pinning to
     :data:`BUNDLED_TAG` would re-read it twice per figure, since
     :func:`_normalise_version_pin` runs on every URL build.
+
+    The cache is part of the contract: this will not observe a ``VERSION``
+    file edited at runtime, and exposes ``.cache_clear()`` for the tests
+    that need to.
     """
     try:
         version_resource = files(_STATIC_PACKAGE).joinpath(
