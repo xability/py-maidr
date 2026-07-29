@@ -14,13 +14,13 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.plotly_plot import PlotlyPlot
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.util.dependencies import (
-    MAIDR_CSS_CDN_URL,
     MAIDR_CSS_FILENAME,
-    MAIDR_JS_CDN_URL,
     MAIDR_JS_FILENAME,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
+    maidr_css_cdn_url,
     maidr_html_dependency,
+    maidr_js_cdn_url,
 )
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_plotly
@@ -513,17 +513,20 @@ class PlotlyMaidr:
                 # regular ``<script src>``).  Nothing to do here.
                 loader = ""
         elif use_cdn == "auto":
+            # Resolved lazily and only on the CDN paths: ``use_cdn=False``
+            # must never touch the network.
+            js_cdn_url = maidr_js_cdn_url()
             if iframe_in_notebook:
                 # Iframe path: try the CDN first, fall back to the
                 # parent-window source on ``onerror``.  Relative
                 # ``lib/`` paths cannot be resolved inside srcdoc.
                 loader = f"""
                     var existing = document.querySelector(
-                        'script[src="{MAIDR_JS_CDN_URL}"]'
+                        'script[src="{js_cdn_url}"]'
                     );
                     if (!existing) {{
                         var s = document.createElement('script');
-                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.src = '{js_cdn_url}';
                         s.onerror = function() {{{parent_source_snippet}}};
                         document.head.appendChild(s);
                     }}
@@ -533,11 +536,11 @@ class PlotlyMaidr:
                 bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
                 loader = f"""
                     var existing = document.querySelector(
-                        'script[src="{MAIDR_JS_CDN_URL}"]'
+                        'script[src="{js_cdn_url}"]'
                     );
                     if (!existing) {{
                         var s = document.createElement('script');
-                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.src = '{js_cdn_url}';
                         s.onerror = function() {{
                             var fb = document.createElement('script');
                             fb.src = '{bundled_js_rel}';
@@ -547,13 +550,14 @@ class PlotlyMaidr:
                     }}
                 """
         else:
+            js_cdn_url = maidr_js_cdn_url()
             loader = f"""
                 var existing = document.querySelector(
-                    'script[src="{MAIDR_JS_CDN_URL}"]'
+                    'script[src="{js_cdn_url}"]'
                 );
                 if (!existing) {{
                     var s = document.createElement('script');
-                    s.src = '{MAIDR_JS_CDN_URL}';
+                    s.src = '{js_cdn_url}';
                     document.head.appendChild(s);
                 }}
             """
@@ -619,6 +623,7 @@ class PlotlyMaidr:
                 # don't need to emit an explicit ``<link>`` tag here.
                 children.append(maidr_html_dependency())
         elif use_cdn == "auto":
+            css_cdn_url = maidr_css_cdn_url()
             if iframe_in_notebook:
                 # Emit CDN CSS with a parent-source ``onerror`` fallback
                 # (mirrors the JS loader in ``_build_init_script``).
@@ -627,7 +632,7 @@ class PlotlyMaidr:
                     (function() {{
                         var l = document.createElement('link');
                         l.rel = 'stylesheet';
-                        l.href = '{MAIDR_CSS_CDN_URL}';
+                        l.href = '{css_cdn_url}';
                         l.onerror = function() {{
                             try {{
                                 var cssSrc = window.parent && window.parent.__maidrCssSource;
@@ -653,7 +658,7 @@ class PlotlyMaidr:
                     (function() {{
                         var l = document.createElement('link');
                         l.rel = 'stylesheet';
-                        l.href = '{MAIDR_CSS_CDN_URL}';
+                        l.href = '{css_cdn_url}';
                         l.onerror = function() {{
                             var fb = document.createElement('link');
                             fb.rel = 'stylesheet';
@@ -667,7 +672,7 @@ class PlotlyMaidr:
                     tags.script(fallback_css, type="text/javascript")
                 )
         else:
-            children.append(tags.link(rel="stylesheet", href=MAIDR_CSS_CDN_URL))
+            children.append(tags.link(rel="stylesheet", href=maidr_css_cdn_url()))
         children.append(tags.div(HTML(plotly_div)))
         children.append(tags.script(init_script, type="text/javascript"))
 

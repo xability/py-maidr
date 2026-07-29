@@ -23,13 +23,13 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
 from maidr.util.dedup_utils import deduplicate_smooth_and_line
 from maidr.util.dependencies import (
-    MAIDR_CSS_CDN_URL,
     MAIDR_CSS_FILENAME,
-    MAIDR_JS_CDN_URL,
     MAIDR_JS_FILENAME,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
+    maidr_css_cdn_url,
     maidr_html_dependency,
+    maidr_js_cdn_url,
 )
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
@@ -684,6 +684,10 @@ class Maidr:
                 )
                 children.append(tags.div(plot))
         elif use_cdn == "auto":
+            # Resolved lazily and only on the CDN paths: ``use_cdn=False``
+            # must never touch the network.
+            js_cdn_url = maidr_js_cdn_url()
+            css_cdn_url = maidr_css_cdn_url()
             if iframe_in_notebook:
                 # Inside a notebook iframe, relative ``lib/maidr-.../maidr.js``
                 # paths cannot be resolved (srcdoc iframes have no base URL).
@@ -717,10 +721,10 @@ class Maidr:
                         }}
                         var cssLink = document.createElement('link');
                         cssLink.rel = 'stylesheet';
-                        cssLink.href = '{MAIDR_CSS_CDN_URL}';
+                        cssLink.href = '{css_cdn_url}';
                         document.head.appendChild(cssLink);
                         var s = document.createElement('script');
-                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.src = '{js_cdn_url}';
                         s.onload = bootstrap;
                         s.onerror = fallbackFromParent;
                         document.head.appendChild(s);
@@ -751,7 +755,7 @@ class Maidr:
                         }}
                         var cssLink = document.createElement('link');
                         cssLink.rel = 'stylesheet';
-                        cssLink.href = '{MAIDR_CSS_CDN_URL}';
+                        cssLink.href = '{css_cdn_url}';
                         cssLink.onerror = function() {{
                             var fb = document.createElement('link');
                             fb.rel = 'stylesheet';
@@ -759,10 +763,10 @@ class Maidr:
                             document.head.appendChild(fb);
                         }};
                         document.head.appendChild(cssLink);
-                        var existing = document.querySelector('script[src="{MAIDR_JS_CDN_URL}"]');
+                        var existing = document.querySelector('script[src="{js_cdn_url}"]');
                         if (existing) {{ bootstrap(); return; }}
                         var s = document.createElement('script');
-                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.src = '{js_cdn_url}';
                         s.onload = bootstrap;
                         s.onerror = function() {{
                             var fb = document.createElement('script');
@@ -781,14 +785,17 @@ class Maidr:
                 )
                 children.append(tags.div(plot))
         else:
-            # Preserve the historical CDN-loading behaviour byte-for-byte
-            # so existing notebooks keep working unchanged.
+            # CDN-only: same loader shape as before, but pointed at the
+            # resolved version so a browser cannot replay a stale
+            # ``@latest`` response for up to a week.
+            js_cdn_url = maidr_js_cdn_url()
+            css_cdn_url = maidr_css_cdn_url()
             script = f"""
                 (function() {{
-                    var existing = document.querySelector('script[src="{MAIDR_JS_CDN_URL}"]');
+                    var existing = document.querySelector('script[src="{js_cdn_url}"]');
                     if (!existing) {{
                         var s = document.createElement('script');
-                        s.src = '{MAIDR_JS_CDN_URL}';
+                        s.src = '{js_cdn_url}';
                         s.onload = function() {{ if (window.main) window.main(); }};
                         document.head.appendChild(s);
                     }} else {{
@@ -802,7 +809,7 @@ class Maidr:
             """
 
             children = [
-                tags.link(rel="stylesheet", href=MAIDR_CSS_CDN_URL),
+                tags.link(rel="stylesheet", href=css_cdn_url),
             ]
             if maidr is not None:
                 children.append(tags.script(maidr, type="text/javascript"))

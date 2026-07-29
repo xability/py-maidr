@@ -191,9 +191,9 @@ def init_notebook(
         return
 
     from maidr.util.dependencies import (
-        MAIDR_CSS_CDN_URL,
-        MAIDR_JS_CDN_URL,
         bundled_css_path,
+        maidr_css_cdn_url,
+        maidr_js_cdn_url,
         read_bundled_js,
     )
 
@@ -204,8 +204,8 @@ def init_notebook(
         # nothing is stashed on window.* because iframes inject their
         # own CDN <script> as before.
         html = (
-            f'<link rel="stylesheet" href="{MAIDR_CSS_CDN_URL}">'
-            f'<script src="{MAIDR_JS_CDN_URL}"></script>'
+            f'<link rel="stylesheet" href="{maidr_css_cdn_url()}">'
+            f'<script src="{maidr_js_cdn_url()}"></script>'
         )
     else:
         # ``False`` or ``"auto"``: embed the bundled source strings
@@ -220,8 +220,8 @@ def init_notebook(
             # Bundle is missing — fall back to CDN so we don't silently
             # break the user's notebook.
             html = (
-                f'<link rel="stylesheet" href="{MAIDR_CSS_CDN_URL}">'
-                f'<script src="{MAIDR_JS_CDN_URL}"></script>'
+                f'<link rel="stylesheet" href="{maidr_css_cdn_url()}">'
+                f'<script src="{maidr_js_cdn_url()}"></script>'
             )
         else:
             # json.dumps produces a JS-safe string literal (escapes quotes,
@@ -236,8 +236,8 @@ def init_notebook(
             cdn_bootstrap = ""
             if mode == "auto":
                 cdn_bootstrap = (
-                    f'<link rel="stylesheet" href="{MAIDR_CSS_CDN_URL}">'
-                    f'<script src="{MAIDR_JS_CDN_URL}"></script>'
+                    f'<link rel="stylesheet" href="{maidr_css_cdn_url()}">'
+                    f'<script src="{maidr_js_cdn_url()}"></script>'
                 )
             html = (
                 f"<script>"

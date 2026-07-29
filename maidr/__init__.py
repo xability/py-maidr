@@ -221,8 +221,10 @@ from .patch import (  # noqa: E402, F401
 from .util.dependencies import (  # noqa: E402
     bundled_css_path,
     bundled_js_path,
+    get_cdn_version,
     maidr_js_version,
     read_bundled_js,
+    set_cdn_version,
 )
 
 # Second call: reclaim the backend after maidr's own imports.
@@ -248,6 +250,7 @@ __all__ = [
     "bundled_css_path",
     "bundled_js_path",
     "close",
+    "get_cdn_version",
     "get_use_cdn",
     "init_notebook",
     "maidr_js_version",
@@ -255,6 +258,7 @@ __all__ = [
     "render",
     "save_html",
     "set_backend",
+    "set_cdn_version",
     "set_use_cdn",
     "show",
     "stacked",
