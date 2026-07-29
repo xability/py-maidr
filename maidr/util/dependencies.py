@@ -143,6 +143,10 @@ _warned_keys_lock = threading.Lock()
 # distinct bad pins.  Both are needed for the bound to be real: capping
 # the entry count alone still lets one arbitrarily long pin become an
 # arbitrarily long key.
+# Note the guarantee this buys is "each distinct value warns, and
+# repeats stay quiet" rather than "exactly once, forever": eviction
+# clears the whole set, so a value that already warned can warn again
+# once 64 other distinct values have cycled through.
 _MAX_WARNED_KEYS = 64
 _MAX_WARNED_KEY_LEN = 200
 
@@ -587,7 +591,10 @@ def _fetch_latest_version(budget: float) -> str | None:
     ``urlopen`` applies that per blocking socket operation — connect, TLS
     handshake, read — rather than to the call as a whole.  An endpoint
     that stalls just under the limit at each step in turn can therefore
-    overrun the budget by a small multiple.
+    overrun the budget by a small multiple.  Name resolution is a further
+    gap: ``getaddrinfo`` is not reliably covered by a socket timeout on
+    every platform, so a broken resolver can stall past the budget before
+    any of those steps begins.
 
     What it does bound reliably is the failure mode that actually bites:
     a firewall blackholing packets, where each attempt would otherwise

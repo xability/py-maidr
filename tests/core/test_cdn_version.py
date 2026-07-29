@@ -718,3 +718,18 @@ def test_bundle_status_resolves_even_when_pinned_to_latest(monkeypatch):
     calls.clear()
     assert maidr.bundle_status(resolve=False).published is None
     assert not calls
+
+
+@pytest.mark.parametrize("value", ["0.5", "3", "15", "29.9"])
+def test_ordinary_timeout_passes_through_untouched(value, monkeypatch, caplog):
+    """Between the floor and the cap, the value is used as given.
+
+    The boundaries are covered elsewhere; this closes the loop by
+    asserting the common case is neither clamped nor complained about.
+    """
+    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, value)
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        assert dependencies._cdn_timeout() == float(value)
+
+    assert not caplog.records, f"{value!r} should be accepted silently"
