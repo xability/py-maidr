@@ -754,3 +754,84 @@ def test_version_key_never_raises_on_a_shape_that_slips_through(monkeypatch):
     """Defence in depth: parsing is advisory and must not break a render."""
     monkeypatch.setattr(dependencies, "_MAX_VERSION_LEN", 10_000)
     assert dependencies._version_key("3.74.0-" + "9" * 5000) is None
+
+
+def test_resolver_response_read_is_capped(monkeypatch):
+    """An oversized body must be truncated, not slurped whole."""
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+    requested: list[int | None] = []
+
+    class _HugeResponse(_FakeResponse):
+        def read(self, size=-1):  # noqa: D102 - mirrors io.BytesIO
+            requested.append(size)
+            return super().read(size)
+
+    payload = b'{"version": "9.9.9", "pad": "' + b"x" * (256 * 1024) + b'"}'
+    monkeypatch.setattr(
+        dependencies, "urlopen", lambda request, timeout=None: _HugeResponse(payload)
+    )
+
+    dependencies.get_cdn_version()
+
+    assert requested and requested[0] == dependencies._MAX_RESOLVER_BYTES, (
+        f"read the body with size={requested[0]!r}, expected the cap"
+    )
+
+
+def test_non_oserror_from_urlopen_does_not_escape(bar_plot, monkeypatch):
+    """The broad ``except`` exists for exactly this; prove it holds.
+
+    ``pytest-socket`` raises ``SocketBlockedError``, which derives from
+    ``Exception`` rather than ``OSError``. A narrower handler would let it
+    propagate out of ``render()``.
+    """
+
+    class SocketBlockedError(Exception):
+        pass
+
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+
+    def blocked(*_args, **_kwargs):
+        raise SocketBlockedError("network access blocked in this environment")
+
+    monkeypatch.setattr(dependencies, "urlopen", blocked)
+
+    # Degrades to @latest rather than raising, and caches the failure.
+    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
+    maidr.render(bar_plot, use_cdn="auto")
+
+
+def test_bundled_cdn_url_needs_no_lookup(forbid_network):
+    """``init_notebook`` depends on this being network-free."""
+    url = dependencies.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME)
+
+    assert f"maidr@{dependencies.maidr_js_version()}/" in url
+    assert "maidr@latest" not in url
+
+
+def test_bundled_cdn_url_degrades_when_version_unknown(monkeypatch, forbid_network):
+    """With no usable bundled VERSION there is no better offline answer."""
+    monkeypatch.setattr(
+        dependencies, "maidr_js_version", lambda: dependencies._UNKNOWN_VERSION
+    )
+    assert dependencies.bundled_cdn_url(
+        dependencies.MAIDR_JS_FILENAME
+    ) == dependencies.MAIDR_JS_CDN_URL
+
+
+def test_freshness_workflow_imports_resolve():
+    """Guard the inline Python in check-bundle-freshness.yml.
+
+    That workflow imports these two names; a rename would break a job
+    nothing else exercises until it fires on a schedule.
+    """
+    from maidr import bundle_status
+    from maidr.util.dependencies import STALE_MINOR_GAP
+
+    assert isinstance(STALE_MINOR_GAP, int)
+    status = bundle_status(resolve=False)
+    assert hasattr(status, "published")
+    assert hasattr(status, "is_stale")
+    assert hasattr(status, "is_behind")

@@ -185,19 +185,19 @@ def init_notebook(
     returns ``False``).  Safe to call multiple times — the guard flag
     prevents re-injection unless ``force=True``.
 
-    Emits the *unresolved* ``@latest`` URL rather than resolving a
-    version, which is the one place in the library that deliberately
-    does so.  ``maidr/__init__.py`` calls this at import, and resolving
-    here would put a blocking network request inside ``import maidr`` —
-    before the user has run anything, and before the documented opt-outs
-    could be applied.  A stalled DNS resolver is not reliably bounded by
-    a socket timeout, so that wait has no dependable ceiling.
+    Pins its tags to the *bundled* version rather than resolving one.
+    ``maidr/__init__.py`` calls this at import, and resolving here would
+    put a blocking network request inside ``import maidr`` — before the
+    user has run anything, and before the documented opt-outs could be
+    applied.  A stalled DNS resolver is not reliably bounded by a socket
+    timeout, so that wait has no dependable ceiling.
 
-    Nothing is lost by not resolving: in a notebook every plot renders
-    inside an iframe that injects its own ``<script>`` at the resolved
-    version, so these parent-document tags only warm the browser cache
-    and never execute a plot.  The first ``render()`` / ``save_html()``
-    resolves, which is where the cost belongs.
+    The bundled version needs no request and is still immutable, so these
+    tags are cache-safe: emitting ``@latest`` here would have left the
+    parent document subject to the same seven-day cache lifetime this
+    module exists to remove.  Plots themselves render in iframes that
+    inject their own ``<script>`` at the *resolved* version, so the first
+    ``render()`` / ``save_html()`` is where a lookup happens.
     """
     global _NOTEBOOK_LOADED
 
@@ -219,7 +219,7 @@ def init_notebook(
         MAIDR_JS_FILENAME,
         bundled_css_path,
         read_bundled_js,
-        unresolved_cdn_url,
+        bundled_cdn_url,
         warn_bundle_unreadable,
         warn_if_bundle_is_stale,
     )
@@ -232,8 +232,8 @@ def init_notebook(
         # own CDN <script> as before.
         html = (
             f'<link rel="stylesheet" '
-            f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
-            f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}"></script>'
+            f'href="{bundled_cdn_url(MAIDR_CSS_FILENAME)}">'
+            f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}"></script>'
         )
     else:
         # ``False`` or ``"auto"``: embed the bundled source strings
@@ -262,8 +262,8 @@ def init_notebook(
                 warn_bundle_unreadable()
             html = (
                 f'<link rel="stylesheet" '
-                f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
-                f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}">'
+                f'href="{bundled_cdn_url(MAIDR_CSS_FILENAME)}">'
+                f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
                 f"</script>"
             )
         else:
@@ -280,8 +280,8 @@ def init_notebook(
             if mode == "auto":
                 cdn_bootstrap = (
                     f'<link rel="stylesheet" '
-                    f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
-                    f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}">'
+                    f'href="{bundled_cdn_url(MAIDR_CSS_FILENAME)}">'
+                    f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
                     f"</script>"
                 )
             html = (

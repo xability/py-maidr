@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import logging
 import sys
 import types
 import warnings
@@ -349,7 +350,7 @@ def test_plotly_render_use_cdn_true_does_not_warn(bundled, published):
 
 
 def test_init_notebook_use_cdn_false_never_resolves_when_bundle_missing(
-    monkeypatch, forbid_network
+    monkeypatch, forbid_network, caplog
 ):
     """A broken install must not turn ``use_cdn=False`` into a request.
 
@@ -378,11 +379,20 @@ def test_init_notebook_use_cdn_false_never_resolves_when_bundle_missing(
     fake_ipython.display = lambda html: displayed.setdefault("html", html)
     monkeypatch.setitem(sys.modules, "IPython.display", fake_ipython)
 
-    maidr.init_notebook(use_cdn=False)
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        maidr.init_notebook(use_cdn=False)
+
+    assert any("could not be read" in r.message for r in caplog.records), (
+        "an offline caller silently served from the CDN must be told"
+    )
 
     html = displayed.get("html", "")
-    assert "cdn.jsdelivr.net/npm/maidr@latest/" in html, (
-        "offline fallback should emit the unresolved @latest URL"
+    bundled = dependencies.maidr_js_version()
+    assert f"cdn.jsdelivr.net/npm/maidr@{bundled}/" in html, (
+        "the fallback should pin the bundled version, which needs no lookup"
+    )
+    assert "maidr@latest" not in html, (
+        "@latest carries the seven-day cache lifetime this PR removes"
     )
 
 

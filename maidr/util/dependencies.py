@@ -49,7 +49,6 @@ _STATIC_PACKAGE = "maidr"
 _STATIC_SUBDIR = "static"
 MAIDR_JS_FILENAME = "maidr.js"
 MAIDR_CSS_FILENAME = "maidr.css"
-MAIDR_VEGALITE_FILENAME = "vegalite.js"
 _VERSION_FILENAME = "VERSION"
 
 #: Reported by :func:`maidr_js_version` when ``static/VERSION`` is absent
@@ -62,6 +61,10 @@ _UNKNOWN_VERSION = "0.0.0"
 # ---------------------------------------------------------------------------
 
 _CDN_URL_TEMPLATE = "https://cdn.jsdelivr.net/npm/maidr@{version}/dist/{filename}"
+
+#: CDN-only asset: the Altair adapter loads it, but the wheel does not
+#: ship it, so it must never be passed to :func:`_bundled_asset_path`.
+MAIDR_VEGALITE_FILENAME = "vegalite.js"
 
 #: Version specifier meaning "emit the mutable ``@latest`` dist-tag and do
 #: not contact the network".  This is the pre-resolution behaviour.
@@ -198,10 +201,9 @@ _resolved_cdn_version: str | None = None
 _resolution_attempted: bool = False
 _resolution_lock = threading.Lock()
 
-# Unresolved CDN URLs, kept as module constants for callers that want the
-# literal ``@latest`` form.  These are also what :func:`maidr_js_cdn_url`
-# and :func:`maidr_css_cdn_url` fall back to when the version lookup
-# cannot reach the network.
+# Unresolved CDN URLs, kept only for backwards compatibility with
+# callers outside this package that imported them before version
+# resolution existed.  Nothing inside ``maidr/`` references them.
 #
 # DO NOT reference these from a render path.  ``@latest`` is the mutable
 # dist-tag whose seven-day cache lifetime is the bug this module exists to
@@ -324,13 +326,19 @@ def _published_version(*, resolve: bool) -> str | None:
     """
     if resolve:
         return _resolve_latest_version()
-    # Read the pair under the lock, as every other access to it does.
-    # ``_resolution_attempted`` is set in a ``finally`` *after*
-    # ``_resolved_cdn_version`` is assigned, so an unlocked reader that
-    # saw the flag without the value would need those two stores to be
-    # reordered — which the GIL prevents today but a free-threaded build
-    # (PEP 703) does not promise.  This module reasons about that mode
-    # everywhere else; no reason for this one read to be the exception.
+    return _cached_resolution()
+
+
+def _cached_resolution() -> str | None:
+    """Return the cached lookup result, or ``None`` if none has happened.
+
+    Reads ``_resolution_attempted`` and ``_resolved_cdn_version`` together
+    under the lock.  The flag is set in a ``finally`` *after* the value is
+    assigned, so an unlocked reader seeing the flag without the value
+    needs those two stores reordered — which the GIL prevents today but a
+    free-threaded build (PEP 703) does not promise.  Both readers go
+    through here so the discipline cannot drift between them.
+    """
     with _resolution_lock:
         return _resolved_cdn_version if _resolution_attempted else None
 
@@ -394,6 +402,36 @@ def cdn_url(filename: str) -> str:
         A fully qualified jsDelivr URL.
     """
     return _CDN_URL_TEMPLATE.format(version=get_cdn_version(), filename=filename)
+
+
+def bundled_cdn_url(filename: str) -> str:
+    """Return the CDN URL pinned to the version shipped in this wheel.
+
+    For code that must emit a CDN reference without making a request.
+    The bundled version came from the registry at release time, so it is
+    a real published version and the URL resolves — while being
+    immutable, and therefore free of the seven-day cache lifetime that
+    ``@latest`` carries.
+
+    Falls back to :data:`LATEST_TAG` only when the bundled ``VERSION`` is
+    missing or unusable, where there is no better answer available
+    offline.
+
+    Parameters
+    ----------
+    filename : str
+        Asset name under the package's ``dist/`` directory.
+
+    Returns
+    -------
+    str
+        A jsDelivr URL at the bundled version, or at ``latest`` when that
+        version is unknown.
+    """
+    bundled = maidr_js_version()
+    if bundled != _UNKNOWN_VERSION and _is_valid_version(bundled):
+        return _CDN_URL_TEMPLATE.format(version=bundled, filename=filename)
+    return _unresolved_cdn_url(filename)
 
 
 def maidr_js_cdn_url() -> str:
@@ -605,7 +643,7 @@ def _resolve_latest_version() -> str | None:
     """
     global _resolved_cdn_version, _resolution_attempted
     if _resolution_attempted:
-        return _resolved_cdn_version
+        return _cached_resolution()
     with _resolution_lock:
         if _resolution_attempted:
             return _resolved_cdn_version
@@ -720,6 +758,22 @@ _bundle_warning_emitted = False
 _bundle_warning_lock = threading.Lock()
 
 
+class MaidrBundleStaleWarning(UserWarning):
+    """Raised as a warning when the bundled ``maidr.js`` has fallen behind.
+
+    A dedicated category so consumers running ``-W error`` or pytest's
+    ``filterwarnings = ["error"]`` can silence *this* advisory without
+    having to silence every ``UserWarning`` the stack emits.
+
+    Examples
+    --------
+    >>> import warnings
+    >>> warnings.filterwarnings(  # doctest: +SKIP
+    ...     "ignore", category=maidr.MaidrBundleStaleWarning
+    ... )
+    """
+
+
 class BundleStatus(NamedTuple):
     """How the bundled ``maidr.js`` compares to the published release.
 
@@ -800,6 +854,15 @@ def warn_bundle_unreadable() -> None:
     Lives here rather than in :mod:`maidr.api` so the dedup bookkeeping
     it relies on stays inside the module that owns it, and so every
     statement about the bundled assets is made from one place.
+
+    Notes
+    -----
+    Uses ``logging`` where :func:`warn_if_bundle_is_stale` uses
+    ``warnings.warn``, which is deliberate rather than an oversight.  This
+    one can fire from ``init_notebook()`` during ``import maidr``, where a
+    ``UserWarning`` is awkward to attribute and impossible to filter
+    before it happens; the staleness warning fires from an explicit render
+    call, where a filterable warning category is the better fit.
     """
     _warn_once(
         "missing-bundle",
@@ -874,7 +937,7 @@ def warn_if_bundle_is_stale() -> None:
         f"unreachable (use_cdn='auto'), so those plots run the older "
         f"build. Upgrade py-maidr to pick up a refreshed bundle. Set "
         f"{BUNDLE_WARNING_ENV_VAR}=0 to silence this warning.",
-        UserWarning,
+        MaidrBundleStaleWarning,
         stacklevel=2,
     )
 

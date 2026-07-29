@@ -44,13 +44,16 @@ fi
 # build an unintended request path.
 #
 # Spelled out as semver's real grammar -- an optional "-prerelease" then an
-# optional "+build" -- to stay character-for-character in step with
-# _VERSION_RE in maidr/util/dependencies.py, so this script cannot bundle a
-# version the library would refuse to pin. The earlier repeated
-# "([-+.][0-9A-Za-z.-]+)*" form also let "-" and "." both open the group and
-# appear inside it; grep's DFA does not backtrack, but CodeQL flagged the
-# identical shape in the Python copy and the two should not diverge.
-if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?([+][0-9A-Za-z.-]+)?$'; then
+# optional "+build" -- to stay in step with _VERSION_RE in
+# maidr/util/dependencies.py, so this script cannot bundle a version the
+# library would refuse to pin.
+#
+# Uses bash's [[ =~ ]] rather than grep: `grep -qE '^...$'` matches if *any*
+# line matches, so a VERSION containing an embedded newline would pass here
+# and be rejected by Python's \Z anchor. [[ =~ ]] tests the whole string.
+# The length cap mirrors _MAX_VERSION_LEN.
+if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]] \
+  || [ "${#VERSION}" -gt 128 ]; then
   echo "Refusing to fetch: '$VERSION' is not a valid maidr version" >&2
   exit 1
 fi
