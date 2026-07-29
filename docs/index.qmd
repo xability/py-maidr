@@ -262,7 +262,9 @@ This matters because the CDN serves the mutable `maidr@latest` URL with a seven-
 ::: {.callout-note}
 ## This performs one network request
 
-Resolving the version makes a single outbound HTTPS request, the first time a CDN URL is built in a process. It is bounded by `MAIDR_CDN_TIMEOUT` (3 seconds total), cached for the rest of the process, and falls back to the previous `@latest` URL if it fails — so a blocked or slow network costs you a one-time delay, never an error.
+Resolving the version makes a single outbound HTTPS request, the first time a CDN URL is built in a process. It is cached for the rest of the process and falls back to the previous `@latest` URL if it fails — so a blocked or slow network costs you a one-time delay, never an error.
+
+`MAIDR_CDN_TIMEOUT` (default 3 seconds) is shared across the lookup rather than applied per attempt, so a fallback endpoint cannot multiply the wait. Treat it as approximate rather than a ceiling: the underlying timeout applies per socket operation — connect, TLS handshake, read — so an endpoint that stalls just under the limit at each step can overrun it by a small multiple.
 
 In sandboxed or egress-blocked environments (CI, air-gapped machines), set `MAIDR_CDN_VERSION=latest` to skip the lookup entirely, or use `use_cdn=False`, which never makes any network request.
 :::
@@ -275,6 +277,14 @@ maidr.set_cdn_version("bundled")  # whatever this package ships with
 maidr.set_cdn_version("latest")   # skip resolution, emit the mutable @latest URL
 maidr.set_cdn_version(None)       # back to resolving automatically
 ```
+
+::: {.callout-warning}
+## These settings are process-wide, not per-session
+
+`set_cdn_version()` and `set_use_cdn()` write module-level state shared by everything in the interpreter. In a server handling concurrent sessions — a Shiny app, for instance — one session calling a setter changes what every other session renders.
+
+For multi-session servers, configure once at startup via the environment variables below, or pass `use_cdn=` explicitly on each `render()` / `save_html()` call, rather than calling the setters per request.
+:::
 
 ### Keeping the bundled copy current
 

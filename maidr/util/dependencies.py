@@ -177,6 +177,12 @@ def set_cdn_version(version: str | None) -> None:
 
     Notes
     -----
+    Process-wide, not per-session: this writes module-level state shared
+    by every caller in the interpreter, matching ``set_use_cdn``.  In a
+    server handling concurrent sessions (e.g. Shiny), one session calling
+    this changes what the others render — prefer ``MAIDR_CDN_VERSION`` at
+    startup, or an explicit ``use_cdn=`` per call.
+
     Takes precedence over the ``MAIDR_CDN_VERSION`` environment variable.
     A value that is neither a recognised tag nor a valid semver is
     ignored (with a warning) in favour of the normal resolution path.
