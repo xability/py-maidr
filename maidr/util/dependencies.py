@@ -384,6 +384,11 @@ def _cdn_timeout() -> float:
     falls back to the default budget rather than meaning "no budget" or
     "skip the lookup" — ``MAIDR_CDN_VERSION=latest`` is the supported way
     to opt out of resolving entirely.
+
+    No upper bound is imposed: the value is explicit configuration from
+    whoever set it, and silently clamping it would be the more surprising
+    behaviour.  A large value does mean a first render can block for that
+    long.
     """
     raw = os.environ.get(CDN_TIMEOUT_ENV_VAR)
     if raw is None:
@@ -584,6 +589,16 @@ def warn_if_bundle_is_stale() -> None:
     network request of its own: it compares against the published version
     only when that is already known, so an offline render stays offline
     and simply says nothing.
+
+    That leaves a deliberate blind spot.  A process using *only*
+    ``use_cdn=False`` with no pin never establishes a published version
+    to compare against, so it stays silent however old its bundle is —
+    and that is precisely the air-gapped audience the warning is for.
+    Reaching them automatically would require the network request that
+    ``use_cdn=False`` exists to avoid, so this is a partial mitigation by
+    construction: :func:`bundle_status` (which does resolve) is the
+    explicit check for those users, and a release-time CI comparison is
+    the real answer.
 
     Silenced by ``MAIDR_BUNDLE_STALE_WARNING=0``.
 
