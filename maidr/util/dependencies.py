@@ -91,11 +91,21 @@ _RESOLVER_ENDPOINTS: tuple[tuple[str, str], ...] = (
 # endpoint cannot stream an unbounded body into memory.
 _MAX_RESOLVER_BYTES = 64 * 1024
 
-# Mirrors the guard in ``.github/scripts/fetch-maidr-bundle.sh``: only a
-# well-formed semver is ever spliced into a URL, so neither a hostile
-# ``MAIDR_CDN_VERSION`` nor a compromised registry response can steer the
-# request at a path we did not intend.
-_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+.][0-9A-Za-z.-]+)*$")
+# Same intent as the guard in ``.github/scripts/fetch-maidr-bundle.sh``:
+# only a well-formed semver is ever spliced into a URL, so neither a
+# hostile ``MAIDR_CDN_VERSION`` nor a compromised registry response can
+# steer the request at a path we did not intend.
+#
+# Spelled out as semver's real grammar — an optional ``-prerelease``
+# followed by an optional ``+build`` — rather than a repeated
+# ``(?:[-+.]...)*`` group.  The repeated form lets ``-`` and ``.`` both
+# open a group *and* appear inside it, so an input like ``9.9.9+`` plus
+# many ``--`` pairs has exponentially many parses and backtracks forever.
+# Here neither suffix class contains ``+``, so the split is unambiguous
+# and matching stays linear.
+_VERSION_RE = re.compile(
+    r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
+)
 
 _cdn_version_override: str | None = None
 _resolved_cdn_version: str | None = None

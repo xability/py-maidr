@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import json
+import time
 
 import matplotlib.pyplot as plt
 import pytest
@@ -128,6 +129,43 @@ def test_set_cdn_version_overrides_env_var(monkeypatch):
     monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, "3.70.1")
     maidr.set_cdn_version("3.74.0")
     assert dependencies.get_cdn_version() == "3.74.0"
+
+
+@pytest.mark.parametrize(
+    "version",
+    [
+        "3.74.0",
+        "3.74.0-rc.1",
+        "3.74.0+build.5",
+        "3.74.0-rc.1+build.5",
+        "10.0.123",
+    ],
+)
+def test_version_regex_accepts_real_semver(version):
+    assert dependencies._VERSION_RE.match(version)
+
+
+@pytest.mark.parametrize(
+    "version",
+    ["3.74", "3.74.0.post1", "v3.74.0", "3.74.0-", "3.74.0+", "", "3.74.0 "],
+)
+def test_version_regex_rejects_non_semver(version):
+    assert dependencies._VERSION_RE.match(version) is None
+
+
+def test_version_regex_does_not_backtrack_catastrophically():
+    """Guard against the ReDoS shape CodeQL flagged.
+
+    An earlier ``(?:[-+.][0-9A-Za-z.-]+)*`` let ``-`` and ``.`` both open
+    the repeated group and appear inside it, so this input had
+    exponentially many parses. The rewritten pattern is linear, so a
+    rejection is effectively instant.
+    """
+    pathological = "9.9.9+" + "--" * 5_000 + "!"
+
+    start = time.perf_counter()
+    assert dependencies._VERSION_RE.match(pathological) is None
+    assert time.perf_counter() - start < 1.0, "regex is backtracking"
 
 
 @pytest.mark.parametrize(
