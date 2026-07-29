@@ -395,7 +395,7 @@ def test_timeout_env_var_is_honoured(monkeypatch):
 def test_timeout_is_a_total_budget_across_endpoints(monkeypatch):
     """A fallback endpoint must not double how long a first render blocks."""
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "0.5")
+    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "2.0")
     dependencies.set_cdn_version(None)
     seen: list[float] = []
 
@@ -414,8 +414,8 @@ def test_timeout_is_a_total_budget_across_endpoints(monkeypatch):
     # shrink. This is the deterministic part of the guarantee; a
     # wall-clock assertion would add nothing but CI flakiness, since the
     # budget bounds the timeouts we hand out, not the scheduler.
-    assert seen[1] < seen[0] <= 0.5
-    assert sum(seen) <= 1.0, "handed out more than the budget across attempts"
+    assert seen[1] < seen[0] <= 2.0
+    assert sum(seen) <= 4.0, "handed out more than the budget across attempts"
 
 
 def test_budget_exhaustion_skips_remaining_endpoints(monkeypatch):
@@ -435,7 +435,7 @@ def test_budget_exhaustion_skips_remaining_endpoints(monkeypatch):
     assert len(calls) == 1, "second endpoint should be skipped once spent"
 
 
-@pytest.mark.parametrize("bad", ["", "abc", "-1", "0"])
+@pytest.mark.parametrize("bad", ["", "abc", "-1", "0", "nan", "inf", "-inf"])
 def test_invalid_timeout_falls_back_to_default(bad, monkeypatch):
     monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, bad)
     assert dependencies._cdn_timeout() == dependencies._DEFAULT_CDN_TIMEOUT
@@ -672,7 +672,7 @@ def test_build_metadata_is_ignored_for_precedence():
     )
 
 
-@pytest.mark.parametrize("bad", ["abc", "-1", "0"])
+@pytest.mark.parametrize("bad", ["abc", "-1", "0", "nan", "inf"])
 def test_unusable_timeout_is_reported_not_silently_replaced(bad, monkeypatch, caplog):
     """The clamp warns, so the other rejections should too."""
     monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, bad)
@@ -681,3 +681,40 @@ def test_unusable_timeout_is_reported_not_silently_replaced(bad, monkeypatch, ca
         assert dependencies._cdn_timeout() == dependencies._DEFAULT_CDN_TIMEOUT
 
     assert caplog.records, f"{bad!r} was replaced with the default in silence"
+
+
+def test_version_regex_rejects_trailing_newline():
+    """``$`` would accept this; ``\\Z`` does not.
+
+    The comment claims parity with the shell guard, so a value Python
+    accepts and ``grep`` would treat differently is a real divergence.
+    """
+    assert dependencies._VERSION_RE.match("3.74.0\n") is None
+
+
+def test_bundle_status_resolves_even_when_pinned_to_latest(monkeypatch):
+    """The documented opt-out does not cover ``bundle_status()``.
+
+    ``MAIDR_CDN_VERSION=latest`` stops URL building from resolving, but
+    ``bundle_status()`` ignores pins by design — asking what is published
+    has no answer otherwise. Pin the behaviour so the docs and the code
+    cannot drift apart.
+    """
+    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, dependencies.LATEST_TAG)
+    dependencies.set_cdn_version(None)
+    calls: list[str] = []
+
+    def fake_urlopen(request, timeout=None):
+        calls.append(request.full_url)
+        return _json_response({"version": "9.9.9", "latest": "9.9.9"})
+
+    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+
+    assert maidr.bundle_status().published == "9.9.9"
+    assert calls, "bundle_status() should resolve despite the pin"
+
+    # ...and resolve=False is the way to keep it quiet.
+    dependencies.reset_cdn_version_cache()
+    calls.clear()
+    assert maidr.bundle_status(resolve=False).published is None
+    assert not calls

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import re
 import threading
@@ -126,8 +127,10 @@ def _unresolved_cdn_url(filename: str) -> str:
 # ``[0-9]`` rather than ``\d``: on a ``str`` pattern ``\d`` matches the
 # whole Unicode Nd category, so ``٣.٧.٤`` would pass here and fail the
 # shell guard's ``[0-9]`` — and would splice a URL that silently 404s.
+# ``\Z`` rather than ``$``, which in Python also matches just before a
+# trailing newline, so ``"3.74.0\n"`` would validate.
 _VERSION_RE = re.compile(
-    r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
+    r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\Z"
 )
 
 # Keys of warnings already logged, so a bad pin is reported once instead
@@ -389,10 +392,9 @@ def _normalise_version_pin(pin: str) -> str | None:
         # still no request.
         _warn_once(
             f"{BUNDLED_TAG}:{bundled}",
-            "maidr: %s=%s requested but the bundled VERSION is %r; "
-            "falling back to the %r dist-tag without resolving. "
-            "Reinstall py-maidr to repair the bundle.",
-            CDN_VERSION_ENV_VAR,
+            "maidr: a %r CDN version pin was requested but the bundled "
+            "VERSION is %r; falling back to the %r dist-tag without "
+            "resolving. Reinstall py-maidr to repair the bundle.",
             BUNDLED_TAG,
             bundled,
             LATEST_TAG,
@@ -485,6 +487,20 @@ def _cdn_timeout() -> float:
         _warn_once(
             f"timeout-nan:{raw}",
             "maidr: ignoring non-numeric %s=%r; using the %ss default.",
+            CDN_TIMEOUT_ENV_VAR,
+            raw[:_MAX_WARNED_KEY_LEN],
+            _DEFAULT_CDN_TIMEOUT,
+        )
+        return _DEFAULT_CDN_TIMEOUT
+    if not math.isfinite(timeout):
+        # ``float("nan")`` parses, and NaN compares False against both
+        # the floor and the ceiling below, so it would sail through every
+        # guard and reach ``urlopen`` — which raises, gets swallowed by
+        # the broad handler there, and silently disables resolution with
+        # nothing logged.  ``inf`` would hang instead of being clamped.
+        _warn_once(
+            f"timeout-nonfinite:{raw}",
+            "maidr: %s=%s is not a finite number; using the %ss default.",
             CDN_TIMEOUT_ENV_VAR,
             raw[:_MAX_WARNED_KEY_LEN],
             _DEFAULT_CDN_TIMEOUT,
@@ -637,7 +653,7 @@ BUNDLE_WARNING_ENV_VAR = "MAIDR_BUNDLE_STALE_WARNING"
 _RELEASE_RE = re.compile(
     r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)"
     r"(?P<prerelease>-[0-9A-Za-z.-]+)?"
-    r"(?:\+[0-9A-Za-z.-]+)?$"
+    r"(?:\+[0-9A-Za-z.-]+)?\Z"
 )
 
 _bundle_warning_emitted = False
@@ -652,8 +668,9 @@ class BundleStatus(NamedTuple):
     bundled : str
         Version of the copy shipped inside this wheel.
     published : str or None
-        The published version the CDN would serve, or ``None`` when that
-        is unknown (not resolved, or pinned to ``latest``).
+        The version npm has published, or ``None`` when that is not
+        known.  Never what a pin says to serve — see
+        :func:`_published_version`.
     is_behind : bool
         ``True`` when the bundled copy is older than ``published``.
     is_stale : bool
@@ -742,10 +759,12 @@ def warn_if_bundle_is_stale() -> None:
     only when that is already known, so an offline render stays offline
     and simply says nothing.
 
-    That leaves a deliberate blind spot.  A process using *only*
-    ``use_cdn=False`` with no pin never establishes a published version
-    to compare against, so it stays silent however old its bundle is —
-    and that is precisely the air-gapped audience the warning is for.
+    That leaves a deliberate blind spot, and it is wider than it looks.
+    Only a real lookup arms this warning — and a pin *prevents* one,
+    because :func:`get_cdn_version` short-circuits on a pin before
+    resolution runs.  So a process pinned to any version, or using only
+    ``use_cdn=False``, stays silent however old its bundle is.  That is
+    precisely the air-gapped audience the warning is for.
     Reaching them automatically would require the network request that
     ``use_cdn=False`` exists to avoid, so this is a partial mitigation by
     construction: :func:`bundle_status` (which does resolve) is the

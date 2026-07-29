@@ -30,15 +30,17 @@ Please visit the [user guide](https://xability.github.io/py-maidr/) page.
 
 py-maidr loads its JavaScript from a CDN by default, and resolves the current published version once per process so browsers cannot serve a stale cached copy. That means one bounded outbound request the first time a plot is rendered (or on `import maidr` in a notebook).
 
-If you work air-gapped, behind a proxy, or in CI:
-
-```python
-maidr.save_html(plot, "out.html", use_cdn=False)  # bundled copy, no network at all
-```
+If you work air-gapped, behind a proxy, or in CI, set this **before importing maidr**:
 
 ```sh
-export MAIDR_CDN_VERSION=latest   # keep the CDN, skip the version lookup
+export MAIDR_USE_CDN=false        # bundled copy everywhere, no lookup
+# or, to keep the CDN but skip the version lookup:
+export MAIDR_CDN_VERSION=latest
 ```
+
+The environment variables are what to reach for, not `use_cdn=False` on a render
+call. In a notebook, `import maidr` initialises the page before you call anything,
+so a per-call argument comes too late to prevent that first lookup.
 
 See [Offline Use and the JavaScript Bundle](https://xability.github.io/py-maidr/#offline-use-and-the-javascript-bundle) for the full set of options.
 

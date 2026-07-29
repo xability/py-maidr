@@ -266,7 +266,11 @@ Resolving the version makes a single outbound HTTPS request, the first time a CD
 
 `MAIDR_CDN_TIMEOUT` (default 3 seconds) is shared across the lookup rather than applied per attempt, so a fallback endpoint cannot multiply the wait. Treat it as approximate rather than a ceiling: the underlying timeout applies per socket operation — connect, TLS handshake, read — so an endpoint that stalls just under the limit at each step can overrun it by a small multiple.
 
-In sandboxed or egress-blocked environments (CI, air-gapped machines), set `MAIDR_CDN_VERSION=latest` to skip the lookup entirely, or use `use_cdn=False`, which never makes any network request.
+In sandboxed or egress-blocked environments (CI, air-gapped machines), set `MAIDR_CDN_VERSION=latest` or `MAIDR_USE_CDN=false` in the environment **before importing maidr**.
+
+Reach for the environment variables rather than `use_cdn=False` on a render call. The per-call argument is honoured — that render makes no request — but in a notebook `import maidr` calls `init_notebook()` under the default `auto` mode, which resolves before you have called anything. Only configuration that is in place at import time prevents that.
+
+`bundle_status()` is the one deliberate exception: it resolves even when pinned, because "how does my bundle compare to what's published?" has no answer otherwise. Pass `resolve=False` if you need it silent.
 :::
 
 Pin the version yourself when you need reproducible output:
@@ -293,9 +297,9 @@ The bundled `maidr.js` is refreshed when py-maidr is released, so it can fall be
 ::: {.callout-important}
 ## A fully offline session cannot warn you on its own
 
-The warning needs to know what the current published release *is*, and it will never make a network request to find out — that would defeat `use_cdn=False`. So it only fires when the session already knows: because something used the CDN, or because you pinned a version.
+The warning needs to know what the current published release *is*, and it will never make a network request to find out — that would defeat `use_cdn=False`. So it only fires when a real lookup has already happened in that session.
 
-A session that only ever uses `use_cdn=False`, with no pin, stays silent no matter how old its bundle is. That is the air-gapped case, and it is the one this warning cannot reach by itself. Check it explicitly instead:
+Pinning does not help, and in fact guarantees silence: a pin short-circuits resolution, so nothing ever establishes what is published. A session that is pinned, or that only ever uses `use_cdn=False`, stays silent no matter how old its bundle is. That is the air-gapped case, and it is the one this warning cannot reach by itself. Check it explicitly instead:
 :::
 
 ```python
@@ -316,7 +320,7 @@ The resolved version is looked up once per process, and the staleness warning fi
 | Variable | Effect |
 |---|---|
 | `MAIDR_USE_CDN` | Default for `use_cdn`: `auto`, `1`/`true`, or `0`/`false`. |
-| `MAIDR_CDN_VERSION` | Pin the CDN version: a version such as `3.74.0`, `bundled`, or `latest` to skip resolution. If `bundled` is set but the installed `VERSION` file is missing or unreadable, py-maidr warns and falls back to `latest` without making a network request. |
+| `MAIDR_CDN_VERSION` | Pin the CDN version (does not affect `bundle_status()`, which always resolves unless passed `resolve=False`): a version such as `3.74.0`, `bundled`, or `latest` to skip resolution. If `bundled` is set but the installed `VERSION` file is missing or unreadable, py-maidr warns and falls back to `latest` without making a network request. |
 | `MAIDR_CDN_TIMEOUT` | Seconds allowed for the version lookup, shared across attempts (default `3`). Values of `0` or less fall back to the default, and anything above `30` is clamped to it with a warning — the units are seconds, so a value like `3000` is treated as a mistake rather than a request to wait fifty minutes. |
 | `MAIDR_BUNDLE_STALE_WARNING` | Set to `0` to silence the stale-bundle warning. |
 
