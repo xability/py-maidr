@@ -119,6 +119,15 @@ def published(monkeypatch):
         # Prereleases sort before the release they lead to.
         ("3.74.0-rc.1", "3.74.0", True, False),
         ("3.74.0", "3.74.0-rc.1", False, False),
+        # ...and against each other, by semver identifier precedence.
+        ("3.74.0-rc.1", "3.74.0-rc.2", True, False),
+        ("3.74.0-rc.2", "3.74.0-rc.1", False, False),
+        ("3.74.0-rc.9", "3.74.0-rc.10", True, False),  # numeric, not lexical
+        ("3.74.0-alpha", "3.74.0-beta", True, False),
+        ("3.74.0-rc", "3.74.0-rc.1", True, False),  # fewer fields sort lower
+        ("3.74.0-1", "3.74.0-alpha", True, False),  # numeric below alphanumeric
+        # Build metadata carries no precedence.
+        ("3.74.0+build.1", "3.74.0+build.9", False, False),
     ],
 )
 def test_bundle_status_comparison(

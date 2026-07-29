@@ -646,3 +646,38 @@ def test_bundle_status_type_is_exported():
     """The return type must be reachable for type hints and isinstance."""
     assert maidr.BundleStatus is dependencies.BundleStatus
     assert "BundleStatus" in maidr.__all__
+
+
+@pytest.mark.parametrize(
+    ("lower", "higher"),
+    [
+        ("3.74.0-rc.1", "3.74.0-rc.2"),
+        ("3.74.0-rc.9", "3.74.0-rc.10"),
+        ("3.74.0-alpha", "3.74.0-alpha.1"),
+        ("3.74.0-alpha.1", "3.74.0-beta"),
+        ("3.74.0-1", "3.74.0-alpha"),
+        ("3.74.0-rc.1", "3.74.0"),
+    ],
+)
+def test_prerelease_precedence_follows_semver(lower, higher):
+    """Semver §11: numeric identifiers compare numerically and rank below
+    alphanumeric ones, and a shorter identifier run sorts lower."""
+    assert dependencies._version_key(lower) < dependencies._version_key(higher)
+
+
+def test_build_metadata_is_ignored_for_precedence():
+    """Semver §10: build metadata carries no precedence."""
+    assert dependencies._version_key("3.74.0+build.1") == dependencies._version_key(
+        "3.74.0+build.9"
+    )
+
+
+@pytest.mark.parametrize("bad", ["abc", "-1", "0"])
+def test_unusable_timeout_is_reported_not_silently_replaced(bad, monkeypatch, caplog):
+    """The clamp warns, so the other rejections should too."""
+    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, bad)
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        assert dependencies._cdn_timeout() == dependencies._DEFAULT_CDN_TIMEOUT
+
+    assert caplog.records, f"{bad!r} was replaced with the default in silence"

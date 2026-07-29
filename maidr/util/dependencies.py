@@ -482,9 +482,28 @@ def _cdn_timeout() -> float:
     try:
         timeout = float(raw)
     except ValueError:
-        _logger.debug("maidr: ignoring non-numeric %s=%r", CDN_TIMEOUT_ENV_VAR, raw)
+        _warn_once(
+            f"timeout-nan:{raw}",
+            "maidr: ignoring non-numeric %s=%r; using the %ss default.",
+            CDN_TIMEOUT_ENV_VAR,
+            raw[:_MAX_WARNED_KEY_LEN],
+            _DEFAULT_CDN_TIMEOUT,
+        )
         return _DEFAULT_CDN_TIMEOUT
     if timeout <= 0:
+        # Say so rather than silently substituting the default: `0` most
+        # plausibly means "don't look up", and the user should learn that
+        # it doesn't rather than wonder where the wait came from.
+        _warn_once(
+            f"timeout-nonpositive:{raw}",
+            "maidr: %s=%s is not a valid budget, so the %ss default applies. "
+            "To skip the lookup entirely, set %s=%s.",
+            CDN_TIMEOUT_ENV_VAR,
+            raw[:_MAX_WARNED_KEY_LEN],
+            _DEFAULT_CDN_TIMEOUT,
+            CDN_VERSION_ENV_VAR,
+            LATEST_TAG,
+        )
         return _DEFAULT_CDN_TIMEOUT
     if timeout > _MAX_CDN_TIMEOUT:
         _warn_once(
@@ -689,8 +708,8 @@ def bundle_status(*, resolve: bool = True) -> BundleStatus:
         return BundleStatus(bundled, published, is_behind=False, is_stale=False)
 
     is_behind = bundled_key < published_key
-    (bundled_major, bundled_minor, _), _ = bundled_key
-    (published_major, published_minor, _), _ = published_key
+    (bundled_major, bundled_minor, _), _, _ = bundled_key
+    (published_major, published_minor, _), _, _ = published_key
     is_stale = is_behind and (
         published_major > bundled_major
         or published_minor - bundled_minor >= STALE_MINOR_GAP
@@ -783,7 +802,35 @@ def _bundle_warning_enabled() -> bool:
     return raw.strip().lower() not in {"0", "false", "no", "off"}
 
 
-def _version_key(version: str) -> tuple[tuple[int, int, int], int] | None:
+def _prerelease_key(prerelease: str) -> tuple[tuple[int, int, str], ...]:
+    """Return a sortable key for a semver prerelease string.
+
+    Follows semver's precedence rules for the dot-separated identifiers:
+    numeric ones compare numerically and rank below alphanumeric ones,
+    alphanumeric ones compare lexically, and a shorter run of identifiers
+    sorts below an otherwise-equal longer one — which plain tuple
+    comparison gives for free.
+
+    Parameters
+    ----------
+    prerelease : str
+        The prerelease body, without its leading ``-``.
+
+    Returns
+    -------
+    tuple
+        One ``(is_alphanumeric, numeric_value, text_value)`` triple per
+        identifier.
+    """
+    return tuple(
+        (0, int(ident), "") if ident.isdigit() else (1, 0, ident)
+        for ident in prerelease.split(".")
+    )
+
+
+def _version_key(
+    version: str,
+) -> tuple[tuple[int, int, int], int, tuple[tuple[int, int, str], ...]] | None:
     """Return a sortable key for a semver string.
 
     Parameters
@@ -794,16 +841,28 @@ def _version_key(version: str) -> tuple[tuple[int, int, int], int] | None:
     Returns
     -------
     tuple or None
-        ``((major, minor, patch), rank)`` where ``rank`` is ``0`` for a
-        prerelease and ``1`` for a final release, so ``3.74.0-rc.1``
-        sorts before ``3.74.0``.  ``None`` when the string is not a
-        version we can compare.
+        ``((major, minor, patch), rank, prerelease)`` where ``rank`` is
+        ``0`` for a prerelease and ``1`` for a final release, so
+        ``3.74.0-rc.1`` sorts before ``3.74.0``.  The third element
+        orders two prereleases of the same release against each other
+        (``rc.1`` before ``rc.2``); it is empty for a final release,
+        where ``rank`` has already decided the comparison.  ``None``
+        when the string is not a version we can compare.
+
+    Notes
+    -----
+    Build metadata (``+build.5``) is deliberately ignored, which is what
+    semver requires: it carries no precedence.
     """
     match = _RELEASE_RE.match(version.strip())
     if match is None:
         return None
     release = (int(match["major"]), int(match["minor"]), int(match["patch"]))
-    return release, 0 if match["prerelease"] else 1
+    prerelease = match["prerelease"]
+    if not prerelease:
+        return release, 1, ()
+    # Strip the leading ``-`` the pattern captured with the body.
+    return release, 0, _prerelease_key(prerelease[1:])
 
 
 @lru_cache(maxsize=1)
