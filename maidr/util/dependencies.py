@@ -33,6 +33,7 @@ import re
 import threading
 import time
 import warnings
+from functools import lru_cache
 from http.client import HTTPException
 from importlib.resources import as_file, files
 from pathlib import Path
@@ -125,7 +126,13 @@ _warned_keys: set[str] = set()
 # distinct bad pins, and keeps that from growing without bound.
 _MAX_WARNED_KEYS = 64
 
+# Deliberately not guarded by ``_resolution_lock`` below: this is a lone
+# reference assignment, which is atomic under the GIL, and it is only ever
+# written by an explicit :func:`set_cdn_version` call.  The lock exists to
+# stop concurrent *lookups*, which is a compound read-modify-write, not to
+# protect this.
 _cdn_version_override: str | None = None
+
 _resolved_cdn_version: str | None = None
 _resolution_attempted: bool = False
 _resolution_lock = threading.Lock()
@@ -622,6 +629,7 @@ def _version_key(version: str) -> tuple[tuple[int, int, int], int] | None:
     return release, 0 if suffix.startswith("-") else 1
 
 
+@lru_cache(maxsize=1)
 def maidr_js_version() -> str:
     """Return the bundled ``maidr.js`` version string.
 
@@ -633,6 +641,13 @@ def maidr_js_version() -> str:
     str
         The semver string (e.g. ``"3.63.0"``) of the bundled JS assets,
         or ``"0.0.0"`` when the VERSION file is missing.
+
+    Notes
+    -----
+    Cached for the process: the file ships inside the wheel and cannot
+    change under a running interpreter.  Without this, pinning to
+    :data:`BUNDLED_TAG` would re-read it twice per figure, since
+    :func:`_normalise_version_pin` runs on every URL build.
     """
     try:
         version_resource = files(_STATIC_PACKAGE).joinpath(
