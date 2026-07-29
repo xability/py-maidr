@@ -1,0 +1,81 @@
+name: Check bundled maidr.js freshness
+
+# Catch bundle drift *before* it ships.
+#
+# The bundled ``maidr.js`` is refreshed at release time (see release.yml),
+# so between releases it falls behind whatever upstream has published.  At
+# runtime py-maidr warns about that — but only for users whose session
+# already resolved a version, which by construction excludes the offline
+# and pinned users the warning is most for.  Nothing at runtime can reach
+# someone who never contacts the network.
+#
+# So the drift has to be caught here, before a wheel is built with a stale
+# bundle inside it.  This job asks the library itself, via
+# ``maidr.bundle_status()``, so the staleness threshold lives in exactly
+# one place (``STALE_MINOR_GAP``) rather than being duplicated in YAML.
+#
+# It fails rather than opening an issue: a red scheduled workflow already
+# mails the maintainers and shows in the Actions tab, without accumulating
+# duplicate issues week after week.
+
+on:
+  schedule:
+    # Mondays, off the hour — scheduled jobs pile up at :00 across GitHub.
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Compare bundled maidr.js against npm
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Compare bundled version against the published release
+        run: |
+          uv run python - <<'PY'
+          import sys
+
+          from maidr import bundle_status
+          from maidr.util.dependencies import STALE_MINOR_GAP
+
+          status = bundle_status()
+          print(f"bundled:   {status.bundled}")
+          print(f"published: {status.published}")
+
+          if status.published is None:
+              # A resolver hiccup is not a drift signal.  Say so and pass;
+              # failing here would train maintainers to ignore this job.
+              print("::warning::Could not resolve the published version; skipping.")
+              sys.exit(0)
+
+          if status.is_stale:
+              print(
+                  f"::error::Bundled maidr.js ({status.bundled}) is at least "
+                  f"{STALE_MINOR_GAP} minor versions behind the published "
+                  f"release ({status.published}). Run the 'Update bundled "
+                  f"maidr.js' workflow before the next release."
+              )
+              sys.exit(1)
+
+          if status.is_behind:
+              print(
+                  f"::notice::Bundled maidr.js ({status.bundled}) is behind "
+                  f"{status.published}, but within the {STALE_MINOR_GAP}-minor "
+                  f"threshold. The next release will refresh it."
+              )
+
+          print("Bundle is current enough.")
+          PY
