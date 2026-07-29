@@ -42,7 +42,15 @@ fi
 # Validate the version shape before splicing it into any URL.  This rejects
 # malformed or hostile values (e.g. a caller-supplied version) so they cannot
 # build an unintended request path.
-if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+([-+.][0-9A-Za-z.-]+)*$'; then
+#
+# Spelled out as semver's real grammar -- an optional "-prerelease" then an
+# optional "+build" -- to stay character-for-character in step with
+# _VERSION_RE in maidr/util/dependencies.py, so this script cannot bundle a
+# version the library would refuse to pin. The earlier repeated
+# "([-+.][0-9A-Za-z.-]+)*" form also let "-" and "." both open the group and
+# appear inside it; grep's DFA does not backtrack, but CodeQL flagged the
+# identical shape in the Python copy and the two should not diverge.
+if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?([+][0-9A-Za-z.-]+)?$'; then
   echo "Refusing to fetch: '$VERSION' is not a valid maidr version" >&2
   exit 1
 fi

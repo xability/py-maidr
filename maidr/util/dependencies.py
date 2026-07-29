@@ -160,6 +160,11 @@ def set_cdn_version(version: str | None) -> None:
         skip the network lookup entirely.  ``None`` clears the pin and
         discards any cached lookup so the next URL re-resolves.
 
+        Both tags keep the lookup offline: if the bundled ``VERSION`` is
+        missing or unparseable, :data:`BUNDLED_TAG` warns and degrades to
+        :data:`LATEST_TAG` rather than reaching for the network, since
+        asking for the installed copy implies staying local.
+
     Notes
     -----
     Takes precedence over the ``MAIDR_CDN_VERSION`` environment variable.
@@ -295,15 +300,22 @@ def _normalise_version_pin(pin: str) -> str | None:
         bundled = maidr_js_version()
         if _VERSION_RE.match(bundled) and bundled != _UNKNOWN_VERSION:
             return bundled
+        # Asking for ``bundled`` is a request to serve what is installed,
+        # which implies staying local.  Falling through to a network
+        # lookup would betray that intent for someone who chose it to
+        # avoid egress, so degrade to ``@latest`` — still a working URL,
+        # still no request.
         _warn_once(
             f"{BUNDLED_TAG}:{bundled}",
             "maidr: %s=%s requested but the bundled VERSION is %r; "
-            "resolving the latest published version instead.",
+            "falling back to the %r dist-tag without resolving. "
+            "Reinstall py-maidr to repair the bundle.",
             CDN_VERSION_ENV_VAR,
             BUNDLED_TAG,
             bundled,
+            LATEST_TAG,
         )
-        return None
+        return LATEST_TAG
     # Accept a leading ``v`` (``v3.74.0``) since that is how the version
     # is written in git tags and release notes.
     candidate = candidate[1:] if candidate.startswith(("v", "V")) else candidate

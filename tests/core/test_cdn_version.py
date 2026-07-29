@@ -122,6 +122,26 @@ def test_bundled_tag_uses_shipped_version(monkeypatch):
     assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
 
 
+def test_bundled_tag_with_broken_version_stays_offline(monkeypatch):
+    """A corrupt bundle must not turn ``bundled`` into a network lookup.
+
+    Choosing ``bundled`` implies staying local, so a missing ``VERSION``
+    degrades to ``latest`` rather than resolving over the network.
+    """
+    monkeypatch.setattr(
+        dependencies, "maidr_js_version", lambda: dependencies._UNKNOWN_VERSION
+    )
+
+    def explode(*_args, **_kwargs):
+        raise AssertionError("'bundled' must not fall through to the network")
+
+    monkeypatch.setattr(dependencies, "urlopen", explode)
+    maidr.set_cdn_version("bundled")
+
+    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
+    assert dependencies.maidr_js_cdn_url() == dependencies.MAIDR_JS_CDN_URL
+
+
 def test_env_var_pins_version(monkeypatch):
     monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, "3.70.1")
     dependencies.set_cdn_version(None)
