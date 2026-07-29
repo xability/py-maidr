@@ -22,7 +22,10 @@ from maidr.altair.altair_maidr import (  # noqa: E402
     _VEGA_CDN,
     _VEGA_EMBED_CDN,
     _VEGA_LITE_CDN,
-    _maidr_vegalite_cdn,
+)
+from maidr.util.dependencies import (  # noqa: E402
+    MAIDR_VEGALITE_FILENAME,
+    cdn_url,
 )
 from maidr.api import _is_altair_chart  # noqa: E402
 
@@ -67,7 +70,7 @@ class TestRenderEmbedsSpec:
         html_str = str(m._build_inner_html().get_html_string())
 
         # All four script srcs must be present.
-        maidr_vegalite_cdn = _maidr_vegalite_cdn()
+        maidr_vegalite_cdn = cdn_url(MAIDR_VEGALITE_FILENAME)
         assert _VEGA_CDN in html_str
         assert _VEGA_LITE_CDN in html_str
         assert _VEGA_EMBED_CDN in html_str
@@ -114,7 +117,7 @@ class TestSaveHtml:
             # Key invariants: the spec is embedded and the maidrVegaLite
             # adapter script is referenced.
             assert "maidrVegaLite" in html_content
-            assert _maidr_vegalite_cdn() in html_content
+            assert cdn_url(MAIDR_VEGALITE_FILENAME) in html_content
             assert m._maidr_id in html_content
 
 

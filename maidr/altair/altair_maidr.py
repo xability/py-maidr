@@ -64,16 +64,6 @@ _VEGA_LITE_CDN = "https://cdn.jsdelivr.net/npm/vega-lite@5"
 _VEGA_EMBED_CDN = "https://cdn.jsdelivr.net/npm/vega-embed@6"
 
 
-def _maidr_vegalite_cdn() -> str:
-    """Return the CDN URL for ``vegalite.js`` at the resolved version."""
-    return cdn_url(MAIDR_VEGALITE_FILENAME)
-
-
-def _maidr_css_cdn() -> str:
-    """Return the CDN URL for ``maidr.css`` at the resolved version."""
-    return maidr_css_cdn_url()
-
-
 def _spec_to_safe_json(spec: dict) -> str:
     """Serialise a Vega-Lite spec for safe embedding in an HTML ``<script>``.
 
@@ -263,11 +253,11 @@ class AltairMaidr:
         """
 
         children: list[Any] = [
-            tags.link(rel="stylesheet", href=_maidr_css_cdn()),
+            tags.link(rel="stylesheet", href=maidr_css_cdn_url()),
             tags.script(src=_VEGA_CDN),
             tags.script(src=_VEGA_LITE_CDN),
             tags.script(src=_VEGA_EMBED_CDN),
-            tags.script(src=_maidr_vegalite_cdn()),
+            tags.script(src=cdn_url(MAIDR_VEGALITE_FILENAME)),
             tags.div(id=self._container_id),
             tags.script(HTML(bootstrap), type="text/javascript"),
         ]

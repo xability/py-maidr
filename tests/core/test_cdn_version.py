@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import time
 
 import matplotlib.pyplot as plt
@@ -166,6 +167,32 @@ def test_version_regex_does_not_backtrack_catastrophically():
     start = time.perf_counter()
     assert dependencies._VERSION_RE.match(pathological) is None
     assert time.perf_counter() - start < 1.0, "regex is backtracking"
+
+
+def test_invalid_pin_logs_once_not_once_per_render(resolvable, caplog):
+    """A typo'd pin must not log two lines for every figure rendered."""
+    maidr.set_cdn_version("3.74")  # missing patch component
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        for _ in range(5):
+            dependencies.maidr_js_cdn_url()
+            dependencies.maidr_css_cdn_url()
+
+    complaints = [r for r in caplog.records if "invalid CDN version pin" in r.message]
+    assert len(complaints) == 1, f"logged {len(complaints)} times, expected 1"
+
+
+def test_a_second_bad_pin_still_warns(resolvable, caplog):
+    """Deduplication is per value, so a new mistake stays audible."""
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        maidr.set_cdn_version("3.74")
+        dependencies.maidr_js_cdn_url()
+        maidr.set_cdn_version("nonsense")
+        dependencies.maidr_js_cdn_url()
+
+    complaints = [r for r in caplog.records if "invalid CDN version pin" in r.message]
+    assert len(complaints) == 2
 
 
 @pytest.mark.parametrize(

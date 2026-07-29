@@ -19,11 +19,13 @@ def offline_cdn_version(monkeypatch):
     whatever version happens to be published when CI runs.  Tests that
     exercise resolution itself override this explicitly.
 
-    Also clears the one-shot bundle-staleness flag so a warning raised by
-    one test cannot suppress the same warning in the next.
+    Also clears the deduplication state behind the one-shot warnings, so
+    a warning raised by one test cannot suppress the same warning in the
+    next.
     """
     monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, dependencies.LATEST_TAG)
     monkeypatch.setattr(dependencies, "_bundle_warning_emitted", False)
+    monkeypatch.setattr(dependencies, "_warned_keys", set())
     dependencies.set_cdn_version(None)
     yield
     dependencies.set_cdn_version(None)

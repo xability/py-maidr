@@ -51,6 +51,11 @@ MAIDR_CSS_FILENAME = "maidr.css"
 MAIDR_VEGALITE_FILENAME = "vegalite.js"
 _VERSION_FILENAME = "VERSION"
 
+#: Reported by :func:`maidr_js_version` when ``static/VERSION`` is absent
+#: or empty.  Means "no bundled version to speak of", so callers treat it
+#: as unknown rather than as an ancient release.
+_UNKNOWN_VERSION = "0.0.0"
+
 # ---------------------------------------------------------------------------
 # CDN version resolution
 # ---------------------------------------------------------------------------
@@ -110,6 +115,10 @@ _MAX_RESOLVER_BYTES = 64 * 1024
 _VERSION_RE = re.compile(
     r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
 )
+
+# Keys of warnings already logged, so a bad pin is reported once instead
+# of on every URL build.  See :func:`_warn_once`.
+_warned_keys: set[str] = set()
 
 _cdn_version_override: str | None = None
 _resolved_cdn_version: str | None = None
@@ -273,9 +282,10 @@ def _normalise_version_pin(pin: str) -> str | None:
         return LATEST_TAG
     if candidate.lower() == BUNDLED_TAG:
         bundled = maidr_js_version()
-        if _VERSION_RE.match(bundled) and bundled != "0.0.0":
+        if _VERSION_RE.match(bundled) and bundled != _UNKNOWN_VERSION:
             return bundled
-        _logger.warning(
+        _warn_once(
+            f"{BUNDLED_TAG}:{bundled}",
             "maidr: %s=%s requested but the bundled VERSION is %r; "
             "resolving the latest published version instead.",
             CDN_VERSION_ENV_VAR,
@@ -288,7 +298,8 @@ def _normalise_version_pin(pin: str) -> str | None:
     candidate = candidate[1:] if candidate.startswith(("v", "V")) else candidate
     if _VERSION_RE.match(candidate):
         return candidate
-    _logger.warning(
+    _warn_once(
+        f"pin:{pin}",
         "maidr: ignoring invalid CDN version pin %r; expected a semver "
         "such as '3.74.0', %r, or %r.",
         pin,
@@ -298,8 +309,43 @@ def _normalise_version_pin(pin: str) -> str | None:
     return None
 
 
+def _warn_once(key: str, message: str, *args: object) -> None:
+    """Log a warning the first time it is seen, then stay quiet about it.
+
+    :func:`_normalise_version_pin` runs on every URL build — twice per
+    figure in the CDN modes — so a single typo'd ``MAIDR_CDN_VERSION``
+    would otherwise log two lines per rendered plot for the life of the
+    process.  Deduplicating by ``key`` rather than warning once globally
+    keeps a *second*, differently-broken pin audible.
+
+    Parameters
+    ----------
+    key : str
+        Identity of this warning.  Include the offending value so that
+        changing the value re-warns.
+    message : str
+        ``logging``-style format string.
+    *args : object
+        Arguments interpolated into ``message`` by the logger.
+    """
+    if key in _warned_keys:
+        return
+    # ``set.add`` is atomic under the GIL, so no lock is needed here; the
+    # worst a race can do is emit the line twice.
+    _warned_keys.add(key)
+    _logger.warning(message, *args)
+
+
 def _cdn_timeout() -> float:
-    """Return the total time budget for the version lookup, in seconds."""
+    """Return the total time budget for the version lookup, in seconds.
+
+    Notes
+    -----
+    A non-numeric or non-positive ``MAIDR_CDN_TIMEOUT`` (including ``0``)
+    falls back to the default budget rather than meaning "no budget" or
+    "skip the lookup" — ``MAIDR_CDN_VERSION=latest`` is the supported way
+    to opt out of resolving entirely.
+    """
     raw = os.environ.get(CDN_TIMEOUT_ENV_VAR)
     if raw is None:
         return _DEFAULT_CDN_TIMEOUT
@@ -400,9 +446,6 @@ STALE_MINOR_GAP = 5
 
 #: Set to ``0`` / ``false`` / ``off`` to silence the staleness warning.
 BUNDLE_WARNING_ENV_VAR = "MAIDR_BUNDLE_STALE_WARNING"
-
-#: Sentinel written to ``static/VERSION`` when the bundle is missing.
-_UNKNOWN_VERSION = "0.0.0"
 
 _RELEASE_RE = re.compile(
     r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?P<suffix>[-+.].*)?$"
@@ -567,9 +610,10 @@ def maidr_js_version() -> str:
         version_resource = files(_STATIC_PACKAGE).joinpath(
             _STATIC_SUBDIR, _VERSION_FILENAME
         )
-        return version_resource.read_text(encoding="utf-8").strip() or "0.0.0"
+        text = version_resource.read_text(encoding="utf-8").strip()
+        return text or _UNKNOWN_VERSION
     except (FileNotFoundError, ModuleNotFoundError, OSError):
-        return "0.0.0"
+        return _UNKNOWN_VERSION
 
 
 def _bundled_asset_path(filename: str) -> Path:
