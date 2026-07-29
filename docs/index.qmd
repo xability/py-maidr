@@ -262,13 +262,19 @@ This matters because the CDN serves the mutable `maidr@latest` URL with a seven-
 ::: {.callout-note}
 ## This performs one network request
 
-Resolving the version makes a single outbound HTTPS request, the first time a CDN URL is built in a process. It is cached for the rest of the process and falls back to the previous `@latest` URL if it fails — so a blocked or slow network costs you a one-time delay, never an error.
+Resolving the version makes a single outbound HTTPS request, the first time a CDN URL is built for a *rendered plot*. It is cached for the rest of the process and falls back to the `@latest` URL if it fails — so a blocked or slow network costs you a one-time delay, never an error.
+
+`import maidr` makes no request, even in a notebook: `init_notebook()` pins its tags to the version bundled in the wheel, which needs no lookup and is still immutable.
 
 `MAIDR_CDN_TIMEOUT` (default 3 seconds) is shared across the lookup rather than applied per attempt, so a fallback endpoint cannot multiply the wait. Treat it as approximate rather than a ceiling: the underlying timeout applies per socket operation — connect, TLS handshake, read — so an endpoint that stalls just under the limit at each step can overrun it by a small multiple.
 
-In sandboxed or egress-blocked environments (CI, air-gapped machines), set `MAIDR_CDN_VERSION=latest` or `MAIDR_USE_CDN=false` in the environment **before importing maidr**.
+In sandboxed or egress-blocked environments (CI, air-gapped machines), `MAIDR_CDN_VERSION=bundled` is usually the best setting: zero requests, and still an immutable URL so caching behaves correctly. `MAIDR_USE_CDN=false` skips the CDN altogether, and `MAIDR_CDN_VERSION=latest` keeps the CDN but not the lookup.
 
-Reach for the environment variables rather than `use_cdn=False` on a render call. The per-call argument is honoured — that render makes no request — but in a notebook `import maidr` calls `init_notebook()` under the default `auto` mode, which resolves before you have called anything. Only configuration that is in place at import time prevents that.
+::: {.callout-note}
+## Shiny and other async servers
+
+`render_maidr` calls into the synchronous render path, so the one-time lookup happens on the event loop and blocks it for up to `MAIDR_CDN_TIMEOUT`. Set `MAIDR_CDN_VERSION=bundled` at startup for Shiny apps to avoid that entirely.
+:::
 
 `bundle_status()` is the one deliberate exception: it resolves even when pinned, because "how does my bundle compare to what's published?" has no answer otherwise. Pass `resolve=False` if you need it silent.
 :::
@@ -300,8 +306,13 @@ The bundled `maidr.js` is refreshed when py-maidr is released, so it can fall be
 It is emitted with `warnings.warn(..., UserWarning)`. If you run Python with
 `-W error`, or set `filterwarnings = ["error"]` in your pytest config, a stale
 bundle will make `render()` / `save_html()` **raise** rather than warn. Set
-`MAIDR_BUNDLE_STALE_WARNING=0` to turn it off, or add a narrower
-`filterwarnings` entry for it.
+`MAIDR_BUNDLE_STALE_WARNING=0` to turn it off, or filter the category
+precisely with `maidr.MaidrBundleStaleWarning`.
+
+It is only raised as a warning when the bundle genuinely runs
+(`use_cdn=False`). Under `use_cdn="auto"` the CDN copy normally loads
+instead, so the drift is reported to the logger rather than as a warning
+that could redden a test suite over code that never executed.
 :::
 
 ::: {.callout-important}
@@ -330,7 +341,7 @@ The resolved version is looked up once per process, and the staleness warning fi
 | Variable | Effect |
 |---|---|
 | `MAIDR_USE_CDN` | Default for `use_cdn`: `auto`, `1`/`true`, or `0`/`false`. |
-| `MAIDR_CDN_VERSION` | Pin the CDN version (does not affect `bundle_status()`, which always resolves unless passed `resolve=False`): a version such as `3.74.0`, `bundled`, or `latest` to skip resolution. If `bundled` is set but the installed `VERSION` file is missing or unreadable, py-maidr warns and falls back to `latest` without making a network request. |
+| `MAIDR_CDN_VERSION` | Pin the CDN version — `bundled` is the recommended setting for restricted networks (does not affect `bundle_status()`, which always resolves unless passed `resolve=False`): a version such as `3.74.0`, `bundled`, or `latest` to skip resolution. If `bundled` is set but the installed `VERSION` file is missing or unreadable, py-maidr warns and falls back to `latest` without making a network request. |
 | `MAIDR_CDN_TIMEOUT` | Seconds allowed for the version lookup, shared across attempts (default `3`). Values of `0` or less fall back to the default, and anything above `30` is clamped to it with a warning — the units are seconds, so a value like `3000` is treated as a mistake rather than a request to wait fifty minutes. |
 | `MAIDR_BUNDLE_STALE_WARNING` | Set to `0` to silence the stale-bundle warning. |
 

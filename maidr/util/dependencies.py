@@ -346,11 +346,12 @@ def _cached_resolution() -> str | None:
 def unresolved_cdn_url(filename: str) -> str:
     """Return the ``@latest`` CDN URL without resolving a version.
 
-    For the one path that must emit a CDN reference while holding an
-    offline guarantee: ``init_notebook(use_cdn=False)`` on an install
-    whose bundle is missing.  Everywhere else, use :func:`cdn_url` and
-    friends — ``@latest`` is the mutable dist-tag this module exists to
-    stop emitting.
+    The last resort, reached only when no concrete version is available:
+    :func:`bundled_cdn_url` falls back here when the bundled ``VERSION``
+    is unusable, and :func:`get_cdn_version` returns ``latest`` when a
+    lookup fails.  Prefer :func:`cdn_url` or :func:`bundled_cdn_url` —
+    ``@latest`` is the mutable dist-tag this module exists to stop
+    emitting.
 
     Parameters
     ----------
@@ -413,8 +414,10 @@ def bundled_cdn_url(filename: str) -> str:
     immutable, and therefore free of the seven-day cache lifetime that
     ``@latest`` carries.
 
-    Falls back to :data:`LATEST_TAG` only when the bundled ``VERSION`` is
-    missing or unusable, where there is no better answer available
+    Prefers a version an already-completed lookup established, so these
+    tags stay on the same version anything else in the page loads.  Falls
+    back to :data:`LATEST_TAG` only when neither that nor the bundled
+    ``VERSION`` is usable, where there is no better answer available
     offline.
 
     Parameters
@@ -428,8 +431,15 @@ def bundled_cdn_url(filename: str) -> str:
         A jsDelivr URL at the bundled version, or at ``latest`` when that
         version is unknown.
     """
+    # Prefer a version an earlier lookup already established.  It costs
+    # nothing (no request), and it keeps these tags on the same version
+    # the iframes load, rather than leaving two copies of maidr.js in one
+    # page.
+    resolved = _cached_resolution()
+    if resolved is not None and _is_valid_version(resolved):
+        return _CDN_URL_TEMPLATE.format(version=resolved, filename=filename)
     bundled = maidr_js_version()
-    if bundled != _UNKNOWN_VERSION and _is_valid_version(bundled):
+    if _is_valid_version(bundled) and bundled != _UNKNOWN_VERSION:
         return _CDN_URL_TEMPLATE.format(version=bundled, filename=filename)
     return _unresolved_cdn_url(filename)
 
@@ -654,7 +664,12 @@ def _resolve_latest_version() -> str | None:
             # only on the success path would leave a doomed lookup
             # uncached, so every later render would retry it.
             _resolution_attempted = True
-    return _resolved_cdn_version
+        # Capture inside the lock.  Reading it after release lets a
+        # concurrent ``reset_cdn_version_cache()`` land in between and
+        # turn a lookup that just succeeded into ``None``, emitting
+        # ``@latest`` for no reason.
+        resolved = _resolved_cdn_version
+    return resolved
 
 
 def _fetch_latest_version(budget: float) -> str | None:
@@ -872,7 +887,7 @@ def warn_bundle_unreadable() -> None:
     )
 
 
-def warn_if_bundle_is_stale() -> None:
+def warn_if_bundle_is_stale(*, bundle_is_primary: bool = True) -> None:
     """Warn once per process when the bundled fallback has drifted badly.
 
     Intended for the render paths where the bundled copy can actually be
@@ -893,6 +908,16 @@ def warn_if_bundle_is_stale() -> None:
     construction: :func:`bundle_status` (which does resolve) is the
     explicit check for those users, and a release-time CI comparison is
     the real answer.
+
+    Parameters
+    ----------
+    bundle_is_primary : bool, default True
+        Whether the bundled copy is what will actually run.  ``True`` for
+        ``use_cdn=False``, where it is the only source, and the drift is
+        raised as a :class:`MaidrBundleStaleWarning`.  ``False`` for
+        ``use_cdn="auto"``, where the CDN copy normally loads instead and
+        the drift goes to the logger rather than to a warning that could
+        fail a suite running ``-W error`` over code that never executed.
 
     Silenced by ``MAIDR_BUNDLE_STALE_WARNING=0``.
 
@@ -930,16 +955,22 @@ def warn_if_bundle_is_stale() -> None:
             return
         _bundle_warning_emitted = True
 
-    warnings.warn(
+    message = (
         f"maidr: the bundled copy of maidr.js is {status.bundled}, but the "
         f"current published release is {status.published}. The bundle is "
         f"what renders when the CDN is disabled (use_cdn=False) or "
         f"unreachable (use_cdn='auto'), so those plots run the older "
         f"build. Upgrade py-maidr to pick up a refreshed bundle. Set "
-        f"{BUNDLE_WARNING_ENV_VAR}=0 to silence this warning.",
-        MaidrBundleStaleWarning,
-        stacklevel=2,
+        f"{BUNDLE_WARNING_ENV_VAR}=0 to silence this warning."
     )
+    if bundle_is_primary:
+        warnings.warn(message, MaidrBundleStaleWarning, stacklevel=2)
+    else:
+        # Under ``use_cdn="auto"`` the CDN copy normally loads and the
+        # bundle never executes, so a warning here is about code that did
+        # not run -- and under ``-W error`` it would redden a downstream
+        # suite over it.  Report it, but to the logger.
+        _logger.warning("%s", message)
 
 
 def _bundle_warning_enabled() -> bool:

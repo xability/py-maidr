@@ -628,8 +628,8 @@ class PlotlyMaidr:
         elif use_cdn == "auto":
             css_cdn_url = maidr_css_cdn_url()
             # Published version is resolved by now, so the bundled
-            # fallback's age is known for free.
-            warn_if_bundle_is_stale()
+            # fallback's age is known for free.  Fallback, not primary.
+            warn_if_bundle_is_stale(bundle_is_primary=False)
             if iframe_in_notebook:
                 # Emit CDN CSS with a parent-source ``onerror`` fallback
                 # (mirrors the JS loader in ``_build_init_script``).

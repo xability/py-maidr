@@ -296,7 +296,7 @@ def init_notebook(
         # The bundled source is what we just stashed on ``window``, so
         # tell the user if it has drifted behind the published release.
         # Offline-safe: never resolves over the network by itself.
-        warn_if_bundle_is_stale()
+        warn_if_bundle_is_stale(bundle_is_primary=mode is False)
 
     display(HTML(html))
     _NOTEBOOK_LOADED = True

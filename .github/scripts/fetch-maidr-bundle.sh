@@ -48,12 +48,18 @@ fi
 # maidr/util/dependencies.py, so this script cannot bundle a version the
 # library would refuse to pin.
 #
-# Uses bash's [[ =~ ]] rather than grep: `grep -qE '^...$'` matches if *any*
-# line matches, so a VERSION containing an embedded newline would pass here
-# and be rejected by Python's \Z anchor. [[ =~ ]] tests the whole string.
-# The length cap mirrors _MAX_VERSION_LEN.
-if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]] \
-  || [ "${#VERSION}" -gt 128 ]; then
+# Uses bash's [[ =~ ]] rather than grep because `grep -qE '^...$'` matches if
+# *any* line matches, so a VERSION with an embedded newline passed here while
+# Python's \Z anchor rejected it. [[ =~ ]] tests the whole string.
+#
+# This is not a ReDoS fix -- GNU grep -E is DFA-based and does not backtrack,
+# whereas glibc regexec does. The catastrophic-backtracking problem was in the
+# Python pattern, and was fixed there.
+#
+# Length is checked first, mirroring _is_valid_version's size-before-shape
+# order, so an oversized value never reaches the regex engine.
+if [ "${#VERSION}" -gt 128 ] \
+  || ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
   echo "Refusing to fetch: '$VERSION' is not a valid maidr version" >&2
   exit 1
 fi

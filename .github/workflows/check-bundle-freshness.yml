@@ -31,6 +31,7 @@ jobs:
   check:
     name: Compare bundled maidr.js against npm
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
@@ -48,8 +49,7 @@ jobs:
           uv run python - <<'PY'
           import sys
 
-          from maidr import bundle_status
-          from maidr.util.dependencies import STALE_MINOR_GAP
+          from maidr import STALE_MINOR_GAP, bundle_status
 
           status = bundle_status()
           print(f"bundled:   {status.bundled}")

@@ -28,19 +28,17 @@ Please visit the [user guide](https://xability.github.io/py-maidr/) page.
 
 ## Offline and Restricted-Network Use
 
-py-maidr loads its JavaScript from a CDN by default, and resolves the current published version once per process so browsers cannot serve a stale cached copy. That means one bounded outbound request the first time a plot is rendered (or on `import maidr` in a notebook).
+py-maidr loads its JavaScript from a CDN by default, and resolves the current published version so browsers cannot serve a stale cached copy. That costs one bounded outbound request, the first time a plot is rendered. `import maidr` itself makes no request.
 
-If you work air-gapped, behind a proxy, or in CI, set this **before importing maidr**:
+If you work air-gapped, behind a proxy, or in CI:
 
 ```sh
-export MAIDR_USE_CDN=false        # bundled copy everywhere, no lookup
-# or, to keep the CDN but skip the version lookup:
-export MAIDR_CDN_VERSION=latest
+export MAIDR_CDN_VERSION=bundled  # serve the version in this wheel, no lookup
+export MAIDR_USE_CDN=false        # or skip the CDN entirely
 ```
 
-The environment variables are what to reach for, not `use_cdn=False` on a render
-call. In a notebook, `import maidr` initialises the page before you call anything,
-so a per-call argument comes too late to prevent that first lookup.
+`bundled` is usually the best choice for restricted networks: it emits an immutable
+CDN URL — so browser caching still works correctly — without contacting anything.
 
 See [Offline Use and the JavaScript Bundle](https://xability.github.io/py-maidr/#offline-use-and-the-javascript-bundle) for the full set of options.
 

@@ -285,13 +285,23 @@ def test_use_cdn_false_render_warns_once_published_version_known(
         maidr.render(bar_plot, use_cdn=False)
 
 
-def test_use_cdn_auto_render_warns(bar_plot, bundled, published):
-    """``auto`` resolves as part of building its URL, so this is self-contained."""
+def test_use_cdn_auto_render_reports_to_the_logger(
+    bar_plot, bundled, published, caplog
+):
+    """``auto`` resolves while building its URL, so the drift is known.
+
+    But the CDN copy is what normally loads there, so it is reported to
+    the logger rather than as a warning — see
+    ``test_auto_path_reports_drift_to_the_logger_not_as_a_warning``.
+    """
     bundled("3.66.1")
     published("3.74.0")
 
-    with pytest.warns(UserWarning, match="3.66.1"):
-        maidr.render(bar_plot, use_cdn="auto")
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        with no_stale_bundle_warning():
+            maidr.render(bar_plot, use_cdn="auto")
+
+    assert any("3.66.1" in r.message for r in caplog.records)
 
 
 def test_use_cdn_true_render_does_not_warn(bar_plot, bundled, published):
@@ -303,8 +313,8 @@ def test_use_cdn_true_render_does_not_warn(bar_plot, bundled, published):
         maidr.render(bar_plot, use_cdn=True)
 
 
-def test_plotly_auto_render_warns(bundled, published):
-    """The Plotly adapter wires the warning in independently of matplotlib.
+def test_plotly_auto_render_reports_to_the_logger(bundled, published, caplog):
+    """The Plotly adapter wires the check in independently of matplotlib.
 
     ``plotly_maidr.py`` calls ``warn_if_bundle_is_stale()`` from its own
     ``_create_html_tag``, so the matplotlib render tests above would not
@@ -317,8 +327,11 @@ def test_plotly_auto_render_warns(bundled, published):
     published("3.74.0")
     fig = go.Figure(data=[go.Bar(x=["A", "B"], y=[1, 2])])
 
-    with pytest.warns(UserWarning, match="3.66.1"):
-        maidr.render(fig, use_cdn="auto")
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        with no_stale_bundle_warning():
+            maidr.render(fig, use_cdn="auto")
+
+    assert any("3.66.1" in r.message for r in caplog.records)
 
 
 def test_plotly_use_cdn_false_render_warns_once_published_version_known(
@@ -431,3 +444,41 @@ def test_init_notebook_makes_no_network_call(monkeypatch, forbid_network):
     for mode in (True, False, "auto"):
         monkeypatch.setattr(maidr_api, "_NOTEBOOK_LOADED", False, raising=False)
         maidr.init_notebook(use_cdn=mode)
+
+
+def test_warning_uses_a_filterable_category(bundled, published):
+    """The category is what lets ``-W error`` users filter narrowly.
+
+    Asserting only ``UserWarning`` would not catch a regression to a bare
+    ``UserWarning``, which is what the docs tell people to avoid needing.
+    """
+    bundled("3.66.1")
+    published("3.74.0")
+    maidr.bundle_status()
+
+    with pytest.warns(dependencies.MaidrBundleStaleWarning):
+        dependencies.warn_if_bundle_is_stale(bundle_is_primary=True)
+
+    assert issubclass(dependencies.MaidrBundleStaleWarning, UserWarning)
+    assert maidr.MaidrBundleStaleWarning is dependencies.MaidrBundleStaleWarning
+
+
+def test_auto_path_reports_drift_to_the_logger_not_as_a_warning(
+    bundled, published, caplog
+):
+    """Under ``auto`` the CDN copy loads, so a warning would name dead code.
+
+    With ``-W error`` that would fail a downstream suite over a bundle
+    that never executed, so the drift goes to the logger instead.
+    """
+    bundled("3.66.1")
+    published("3.74.0")
+    maidr.bundle_status()
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        with no_stale_bundle_warning():
+            dependencies.warn_if_bundle_is_stale(bundle_is_primary=False)
+
+    assert any("bundled copy of maidr.js" in r.message for r in caplog.records), (
+        "the drift must still be reported, just not as a warning"
+    )
