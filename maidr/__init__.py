@@ -219,7 +219,10 @@ from .patch import (  # noqa: E402, F401
     violinplot,
 )
 from .util.dependencies import (  # noqa: E402
+    BUNDLE_WARNING_ENV_VAR,
     BUNDLED_TAG,
+    CDN_TIMEOUT_ENV_VAR,
+    CDN_VERSION_ENV_VAR,
     LATEST_TAG,
     STALE_MINOR_GAP,
     BundleStatus,
@@ -254,8 +257,11 @@ except Exception:  # pragma: no cover - never block import on notebook setup
 
 
 __all__ = [
+    "BUNDLE_WARNING_ENV_VAR",
     "BUNDLED_TAG",
     "BundleStatus",
+    "CDN_TIMEOUT_ENV_VAR",
+    "CDN_VERSION_ENV_VAR",
     "LATEST_TAG",
     "MaidrBundleStaleWarning",
     "STALE_MINOR_GAP",

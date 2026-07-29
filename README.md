@@ -39,6 +39,9 @@ export MAIDR_USE_CDN=false        # or skip the CDN entirely
 
 `bundled` is usually the best choice for restricted networks: it emits an immutable
 CDN URL — so browser caching still works correctly — without contacting anything.
+It is also the only one of the two that covers **Altair** charts: the Altair adapter
+has no offline path and always references the CDN, so `MAIDR_USE_CDN=false` does not
+apply to it, while `MAIDR_CDN_VERSION=bundled` still removes the lookup.
 
 See [Offline Use and the JavaScript Bundle](https://xability.github.io/py-maidr/#offline-use-and-the-javascript-bundle) for the full set of options.
 

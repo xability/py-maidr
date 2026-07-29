@@ -132,8 +132,38 @@ def _unresolved_cdn_url(filename: str) -> str:
 # shell guard's ``[0-9]`` — and would splice a URL that silently 404s.
 # ``\Z`` rather than ``$``, which in Python also matches just before a
 # trailing newline, so ``"3.74.0\n"`` would validate.
+#
+# The identifier fragments below are shared by :data:`_VERSION_RE` and
+# :data:`_RELEASE_RE` so the validator and the comparator cannot drift into
+# disagreeing about what a version is — a looser comparator would parse
+# shapes the validator rejects, and a looser validator would hand the
+# comparator input it has no sensible ordering for.
+
+#: ``0`` or a digit run with no leading zero, per semver §9.  Rejecting
+#: ``3.074.0`` matters because ``int()`` would silently read it as 74 and
+#: make it compare equal to ``3.74.0``.
+_NUMERIC_ID = r"0|[1-9][0-9]*"
+
+#: A prerelease identifier: numeric (no leading zeros) or alphanumeric
+#: (at least one non-digit).  Both alternatives require a character, so
+#: ``3.74.0-.`` — an *empty* identifier, which :func:`_prerelease_key`
+#: would rank above every numeric one and order nonsensically — no longer
+#: parses.
+_PRERELEASE_ID = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+_PRERELEASE = rf"{_PRERELEASE_ID}(?:\.{_PRERELEASE_ID})*"
+
+#: Build identifiers are plain non-empty alphanumerics; semver allows
+#: leading zeros here because build metadata never carries precedence.
+_BUILD_ID = r"[0-9A-Za-z-]+"
+_BUILD = rf"{_BUILD_ID}(?:\.{_BUILD_ID})*"
+
+# Each repetition above must consume a literal ``.``, which appears in no
+# identifier class, so no input has two parses across iterations and
+# matching stays linear.  ``test_version_regex_does_not_backtrack_
+# catastrophically`` holds that to a wall-clock bound.
 _VERSION_RE = re.compile(
-    r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\Z"
+    rf"^(?:{_NUMERIC_ID})\.(?:{_NUMERIC_ID})\.(?:{_NUMERIC_ID})"
+    rf"(?:-{_PRERELEASE})?(?:\+{_BUILD})?\Z"
 )
 
 #: Length ceiling applied before the pattern.  The pattern bounds the
@@ -200,7 +230,15 @@ _cdn_version_override: str | None = None
 _resolved_cdn_version: str | None = None
 _resolution_attempted: bool = False
 
-# Guards the two globals above and nothing else, so it is only ever held
+# Bumped by :func:`reset_cdn_version_cache`.  A fetch reads this before it
+# starts and refuses to publish if it changed meanwhile, so a reset issued
+# mid-request discards the in-flight answer instead of being silently
+# overwritten by it.  The reset cannot simply take ``_fetch_lock``: that
+# would make it block for the whole timeout budget behind the very lookup
+# it is trying to abandon.
+_resolution_generation: int = 0
+
+# Guards the three globals above and nothing else, so it is only ever held
 # for a few instructions.  Readers on the *offline* paths take it, and a
 # lock held across a network call would let one stalled lookup freeze an
 # unrelated ``use_cdn=False`` render for the whole timeout budget --
@@ -307,12 +345,14 @@ def get_cdn_version() -> str:
     contract — it catches ``Exception`` around every fallible step for
     exactly this reason.  Should something slip past it anyway, the
     handler in :func:`_resolve_latest_version` caches the attempt (so the
-    failure is not retried on every later render) and re-raises, and the
+    failure is not retried on every later render) and re-raises, so the
     exception surfaces from ``render()`` / ``save_html()``.  That is a
     deliberate fail-fast for a bug in this module rather than a third
-    degradation path, on the grounds that silently swallowing
-    ``KeyboardInterrupt`` or a genuine programming error here would be
-    worse than a traceback that names the cause.
+    degradation path.
+
+    A ``KeyboardInterrupt`` is treated differently: it is not cached, so
+    interrupting one render does not leave the rest of the process
+    emitting ``@latest``.
     """
     pin = _version_pin()
     if pin is not None:
@@ -413,10 +453,13 @@ def reset_cdn_version_cache() -> None:
     :func:`warn_if_bundle_is_stale`, which stays spent for the life of
     the process regardless of how often the version is re-resolved.
     """
-    global _resolved_cdn_version, _resolution_attempted
+    global _resolved_cdn_version, _resolution_attempted, _resolution_generation
     with _resolution_lock:
         _resolved_cdn_version = None
         _resolution_attempted = False
+        # Invalidate any lookup already in flight, so its result cannot
+        # land after this call and quietly undo it.
+        _resolution_generation += 1
 
 
 def cdn_url(filename: str) -> str:
@@ -684,6 +727,13 @@ def _resolve_latest_version() -> str | None:
         The concrete version behind the ``latest`` dist-tag, or ``None``
         when it could not be resolved (offline, blocked, or malformed
         response).
+
+    Notes
+    -----
+    A :func:`reset_cdn_version_cache` call that lands while this lookup is
+    in flight wins: the result is returned to *this* caller but not
+    cached, so the next render re-resolves rather than seeing the answer
+    the reset asked to discard.
     """
     global _resolved_cdn_version, _resolution_attempted
     attempted, value = _resolution_state()
@@ -696,22 +746,39 @@ def _resolve_latest_version() -> str | None:
         if attempted:
             return value
 
+        with _resolution_lock:
+            generation = _resolution_generation
+
         # Deliberately outside ``_resolution_lock``.  The offline paths
         # read that lock, so holding it here would make a stalled lookup
         # block a render that promised to make no request at all.
         try:
             result = _fetch_latest_version(_cdn_timeout())
-        except BaseException:
+        except Exception:
             # ``_fetch_latest_version`` is written not to raise, but if it
             # ever does, record the attempt so the failure is cached
             # rather than retried on every later render.
+            #
+            # Deliberately ``Exception`` and not ``BaseException``: a
+            # ``KeyboardInterrupt`` landing mid-lookup is the user
+            # interrupting, not a resolver that cannot be reached, and
+            # caching it would poison resolution for the life of the
+            # process -- every later render would silently emit
+            # ``@latest``, which is the bug this module exists to fix.
+            # Letting it propagate un-cached means the next render simply
+            # tries again.
             with _resolution_lock:
-                _resolution_attempted = True
+                if generation == _resolution_generation:
+                    _resolution_attempted = True
             raise
 
         with _resolution_lock:
-            _resolved_cdn_version = result
-            _resolution_attempted = True
+            # Drop the result if a reset intervened -- it asked for this
+            # answer to be discarded, and publishing it now would silently
+            # undo the reset.
+            if generation == _resolution_generation:
+                _resolved_cdn_version = result
+                _resolution_attempted = True
         return result
 
 
@@ -807,9 +874,9 @@ BUNDLE_WARNING_ENV_VAR = "MAIDR_BUNDLE_STALE_WARNING"
 # could still be parsed for comparison, and any future caller that reused
 # this on less-trusted input would not inherit the same hardening.
 _RELEASE_RE = re.compile(
-    r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)"
-    r"(?P<prerelease>-[0-9A-Za-z.-]+)?"
-    r"(?:\+[0-9A-Za-z.-]+)?\Z"
+    rf"^(?P<major>{_NUMERIC_ID})\.(?P<minor>{_NUMERIC_ID})\.(?P<patch>{_NUMERIC_ID})"
+    rf"(?P<prerelease>-{_PRERELEASE})?"
+    rf"(?:\+{_BUILD})?\Z"
 )
 
 # Which severities have already spoken.  One shared flag would let the

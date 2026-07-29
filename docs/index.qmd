@@ -270,6 +270,8 @@ Resolving the version makes a single outbound HTTPS request, the first time a CD
 
 In sandboxed or egress-blocked environments (CI, air-gapped machines), `MAIDR_CDN_VERSION=bundled` is usually the best setting: zero requests, and still an immutable URL so caching behaves correctly. `MAIDR_USE_CDN=false` skips the CDN altogether, and `MAIDR_CDN_VERSION=latest` keeps the CDN but not the lookup.
 
+One exception is worth knowing about: **Altair** charts always load `maidr.js` from the CDN. That adapter has no bundled/offline path — `use_cdn` and `MAIDR_USE_CDN` are not plumbed through it — so `MAIDR_USE_CDN=false` will not make an Altair chart self-contained. `MAIDR_CDN_VERSION=bundled` does still remove the version lookup for Altair, which is why it is the better setting when any part of your work is air-gapped.
+
 ::: {.callout-note}
 ## Shiny and other async servers
 

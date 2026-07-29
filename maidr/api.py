@@ -198,6 +198,16 @@ def init_notebook(
     module exists to remove.  Plots themselves render in iframes that
     inject their own ``<script>`` at the *resolved* version, so the first
     ``render()`` / ``save_html()`` is where a lookup happens.
+
+    That split has a known, accepted cost: whenever the bundle is behind
+    the published release — the very case :func:`maidr.bundle_status`
+    exists to report — a notebook session fetches *two* different
+    ``maidr.js`` builds, and this parent-document tag is a prefetch the
+    plots do not end up using.  It is still the right trade: the
+    alternative is resolving at import time, which is the blocking
+    request described above, and the duplicate cost falls away as soon as
+    the bundle is refreshed at release time.  Please do not "fix" this by
+    resolving here.
     """
     global _NOTEBOOK_LOADED
 
@@ -439,6 +449,12 @@ def show(
         See :func:`render` for the three possible modes.  ``None``
         defers to :func:`get_use_cdn` (the process-wide default).
 
+        The two CDN modes (``True`` and ``"auto"``) resolve the published
+        version over the network once per process when building the URL,
+        bounded by ``MAIDR_CDN_TIMEOUT``; ``MAIDR_CDN_VERSION`` skips it.
+        ``False`` makes no request.  Altair charts always use the CDN —
+        this argument is not plumbed through that adapter.
+
     Returns
     -------
     object
@@ -504,6 +520,12 @@ def save_html(
         * ``None`` (default): use the process-wide default (see
           :func:`set_use_cdn` / ``MAIDR_USE_CDN``).  Both default to
           ``"auto"``.
+
+        The two CDN modes (``True`` and ``"auto"``) resolve the published
+        version over the network once per process when building the URL,
+        bounded by ``MAIDR_CDN_TIMEOUT``; ``MAIDR_CDN_VERSION`` skips it.
+        ``False`` makes no request.  Altair charts always use the CDN —
+        this argument is not plumbed through that adapter.
 
     Returns
     -------

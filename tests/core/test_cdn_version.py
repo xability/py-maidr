@@ -12,7 +12,10 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 import re
+import shutil
+import subprocess
 import threading
 import time
 import warnings
@@ -191,19 +194,127 @@ def test_version_regex_rejects_non_semver(version):
     assert dependencies._VERSION_RE.match(version) is None
 
 
-def test_version_regex_does_not_backtrack_catastrophically():
+@pytest.mark.parametrize(
+    "pathological",
+    [
+        # The shape CodeQL flagged: an earlier ``(?:[-+.][0-9A-Za-z.-]+)*``
+        # let ``-`` and ``.`` both open the repeated group and appear
+        # inside it, giving this input exponentially many parses.
+        "9.9.9+" + "--" * 5_000 + "!",
+        # Sub-cap variants. The ones above are longer than
+        # ``_MAX_VERSION_LEN``, so ``_is_valid_version`` rejects them on
+        # size before the pattern ever runs -- only inputs this short can
+        # actually reach the regex in production, which is the length the
+        # linearity claim has to hold at.
+        # Each ends in "!" so the match must fail -- a bare run of hyphens
+        # is a legal build identifier and would simply match.
+        "9.9.9+" + "-" * 119 + "!",
+        "3.74.0-" + "1" * 118 + "!",
+        "3.74.0-" + "a1." * 38 + "!",
+        "3.74.0-" + "0" * 100 + "a" * 20 + "!",
+        "3.74.0-" + "-a" * 58 + "!",
+    ],
+)
+def test_version_regex_does_not_backtrack_catastrophically(pathological):
     """Guard against the ReDoS shape CodeQL flagged.
 
-    An earlier ``(?:[-+.][0-9A-Za-z.-]+)*`` let ``-`` and ``.`` both open
-    the repeated group and appear inside it, so this input had
-    exponentially many parses. The rewritten pattern is linear, so a
-    rejection is effectively instant.
+    Every repetition in the pattern must consume a literal ``.``, which
+    appears in no identifier class, so no input has two parses across
+    iterations and a rejection is effectively instant.
     """
-    pathological = "9.9.9+" + "--" * 5_000 + "!"
-
     start = time.perf_counter()
     assert dependencies._VERSION_RE.match(pathological) is None
     assert time.perf_counter() - start < 1.0, "regex is backtracking"
+
+
+@pytest.mark.parametrize(
+    "version",
+    [
+        # Empty prerelease identifier. _prerelease_key ranked these as
+        # alphanumeric, i.e. *above* every numeric identifier, so a
+        # version that slipped through ordered nonsensically.
+        "3.74.0-.",
+        "3.74.0-a..b",
+        "3.74.0-.a",
+        # Leading zeros: int() reads "074" as 74, which would make
+        # 3.074.0 compare equal to 3.74.0.
+        "3.074.0",
+        "01.2.3",
+        "3.74.0-01",
+        # Empty build identifier.
+        "3.74.0+.",
+        "3.74.0+a..b",
+        # Empty suffix bodies.
+        "3.74.0-",
+        "3.74.0+",
+    ],
+)
+def test_non_semver_shapes_are_rejected(version):
+    """The validator and the comparator must both refuse these.
+
+    npm will not publish any of them, so the risk is low — but a shape
+    the comparator cannot order sensibly must not reach it, and a version
+    the validator accepts is one this library will splice into a URL.
+    """
+    assert dependencies._is_valid_version(version) is False
+    assert dependencies._version_key(version) is None
+
+
+@pytest.mark.parametrize(
+    "version",
+    [
+        "3.74.0",
+        "0.0.0",
+        "10.20.30",
+        "3.74.0-0",
+        "3.74.0-rc.1",
+        "3.74.0-alpha",
+        "3.74.0-1.2",
+        "3.74.0-x-y",
+        # A lone hyphen is a legal alphanumeric identifier.
+        "3.74.0--",
+        "3.74.0+build.5",
+        # Build metadata may carry leading zeros; only prereleases may not.
+        "3.74.0-rc.1+b.007",
+    ],
+)
+def test_real_semver_is_still_accepted(version):
+    """Tightening the grammar must not reject anything npm can publish."""
+    assert dependencies._is_valid_version(version) is True
+    assert dependencies._version_key(version) is not None
+
+
+def test_validator_and_comparator_share_one_grammar():
+    """``_VERSION_RE`` and ``_RELEASE_RE`` must agree on every input.
+
+    They are built from the same fragments precisely so they cannot
+    drift: a looser comparator would order shapes the validator rejects,
+    and a looser validator would hand the comparator input it has no
+    sensible ordering for.
+    """
+    candidates = [
+        "3.74.0",
+        "3.74.0-rc.1",
+        "3.74.0+b.1",
+        "3.74.0-rc.1+b.1",
+        "3.074.0",
+        "3.74.0-01",
+        "3.74.0-.",
+        "3.74.0-",
+        "3.74.0",
+        "v3.74.0",
+        "latest",
+        "3.74",
+        "3.74.0.1",
+        "٣.٧.٤",
+        "3.74.0\n",
+    ]
+    for candidate in candidates:
+        by_validator = dependencies._VERSION_RE.match(candidate) is not None
+        by_comparator = dependencies._RELEASE_RE.match(candidate) is not None
+        assert by_validator == by_comparator, (
+            f"{candidate!r}: validator={by_validator} comparator={by_comparator}"
+        )
 
 
 def test_invalid_pin_logs_once_not_once_per_render(resolvable, caplog):
@@ -827,6 +938,218 @@ def test_bundled_cdn_url_degrades_when_version_unknown(monkeypatch, forbid_netwo
     assert dependencies.bundled_cdn_url(
         dependencies.MAIDR_JS_FILENAME
     ) == dependencies.MAIDR_JS_CDN_URL
+
+
+def test_keyboard_interrupt_does_not_poison_resolution(monkeypatch):
+    """Ctrl-C during the first lookup must not disable it for the process.
+
+    The failure cache exists so an offline notebook does not retry a
+    doomed request per figure.  A ``KeyboardInterrupt`` is not that: it
+    is the user interrupting, and caching it left every later render in
+    the process silently emitting ``@latest`` — the exact bug this module
+    fixes — with nothing logged.
+    """
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+
+    calls: list[int] = []
+
+    def interrupt_then_succeed(request, timeout=None):
+        calls.append(1)
+        if len(calls) == 1:
+            raise KeyboardInterrupt("user pressed Ctrl-C mid-lookup")
+        return _json_response({"version": "9.9.9", "latest": "9.9.9"})
+
+    monkeypatch.setattr(dependencies, "urlopen", interrupt_then_succeed)
+
+    with pytest.raises(KeyboardInterrupt):
+        dependencies.get_cdn_version()
+
+    assert dependencies.get_cdn_version() == "9.9.9", (
+        "resolution stayed poisoned after Ctrl-C"
+    )
+
+
+def test_a_real_failure_is_still_cached(monkeypatch):
+    """The counterpart: an ordinary exception must not retry per render."""
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+
+    calls: list[int] = []
+
+    def boom(request, timeout=None):
+        calls.append(1)
+        raise RuntimeError("resolver is broken in an unexpected way")
+
+    # Raise from the inner helper so the outer handler is what sees it.
+    monkeypatch.setattr(dependencies, "_fetch_latest_version", boom)
+
+    with pytest.raises(RuntimeError):
+        dependencies.get_cdn_version()
+
+    dependencies.maidr_js_cdn_url()
+    dependencies.maidr_js_cdn_url()
+
+    assert len(calls) == 1, f"retried the failed lookup {len(calls)} times"
+
+
+def test_reset_during_a_lookup_is_not_overwritten(monkeypatch):
+    """A reset issued mid-request must win over the in-flight answer.
+
+    ``reset_cdn_version_cache`` cannot simply take the fetch lock — that
+    would block it for the whole timeout behind the very lookup it is
+    abandoning — so it bumps a generation counter instead and the fetcher
+    declines to publish a result from a superseded generation.
+    """
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+
+    in_flight = threading.Event()
+    may_finish = threading.Event()
+    versions = iter(["1.1.1", "2.2.2"])
+
+    def slow_urlopen(request, timeout=None):
+        version = next(versions)
+        if version == "1.1.1":
+            in_flight.set()
+            may_finish.wait(timeout=5)
+        return _json_response({"version": version, "latest": version})
+
+    monkeypatch.setattr(dependencies, "urlopen", slow_urlopen)
+
+    result: list[str] = []
+    fetcher = threading.Thread(
+        target=lambda: result.append(dependencies.get_cdn_version())
+    )
+    fetcher.start()
+
+    assert in_flight.wait(timeout=5), "the lookup never started"
+    dependencies.reset_cdn_version_cache()
+    may_finish.set()
+    fetcher.join(timeout=5)
+
+    # The in-flight caller still gets its own answer...
+    assert result == ["1.1.1"]
+    # ...but it must not have been cached over the reset.
+    assert dependencies._cached_resolution() is None, (
+        "the pre-reset result was published anyway, undoing the reset"
+    )
+    assert dependencies.get_cdn_version() == "2.2.2", (
+        "the reset did not force a re-lookup"
+    )
+
+
+def _shell_guard_path() -> Path:
+    return (
+        Path(__file__).resolve().parents[2]
+        / ".github"
+        / "scripts"
+        / "fetch-maidr-bundle.sh"
+    )
+
+
+def test_shell_guard_matches_the_python_validator():
+    """The bash guard and ``_is_valid_version`` must agree on every input.
+
+    ``fetch-maidr-bundle.sh`` decides which version gets *bundled into
+    the wheel*; ``_is_valid_version`` decides which version the library
+    will *pin*. If the shell side were looser, a release could ship a
+    bundle the library then refuses to reference.
+
+    The two patterns are necessarily spelled differently — bash's
+    ``[[ =~ ]]`` takes POSIX ERE, which has no ``(?:...)`` — so a text
+    comparison cannot check them. This runs the real pattern and the
+    real length cap out of the script instead, which is what makes the
+    parity claim in that file's comments enforced rather than asserted.
+    """
+    if shutil.which("bash") is None:  # pragma: no cover - CI always has bash
+        pytest.skip("bash is required to exercise the shell guard")
+
+    source = _shell_guard_path().read_text(encoding="utf-8")
+
+    cap = re.search(r'\$\{#VERSION\}" -gt ([0-9]+)', source)
+    assert cap, "could not find the length cap in the shell guard"
+    assert int(cap.group(1)) == dependencies._MAX_VERSION_LEN, (
+        "the shell guard's length cap has drifted from _MAX_VERSION_LEN"
+    )
+
+    # Re-run the guard's own definitions rather than a copy of them.
+    definitions = re.findall(
+        r"^(?:NUM_ID|PRE_ID|VERSION_RE)=.*$", source, re.MULTILINE
+    )
+    assert len(definitions) == 3, f"expected 3 pattern definitions, got {definitions}"
+
+    corpus = [
+        # Valid.
+        "3.74.0",
+        "0.0.0",
+        "10.20.30",
+        "3.74.0-0",
+        "3.74.0-rc.1",
+        "3.74.0-alpha",
+        "3.74.0-1.2",
+        "3.74.0-x-y",
+        "3.74.0--",
+        "3.74.0+build.5",
+        "3.74.0-rc.1+b.007",
+        # Invalid shapes.
+        "3.074.0",
+        "01.2.3",
+        "3.74.0-01",
+        "3.74.0-.",
+        "3.74.0-a..b",
+        "3.74.0+.",
+        "3.74.0-",
+        "3.74.0+",
+        "3.74",
+        "3.74.0.1",
+        "v3.74.0",
+        "latest",
+        "",
+        # Non-ASCII digits: \d would accept these on the Python side and
+        # splice a URL that 404s.
+        "٣.٧.٤",
+        # Embedded and trailing newlines -- the grep-vs-[[ =~ ]] bug.
+        "3.74.0\nevil",
+        "3.74.0\n",
+        # Path and query injection attempts.
+        "../../../evil",
+        "latest?cb=1",
+        "3.74.0/../x",
+        "3.74.0 ; rm -rf /",
+    ]
+
+    script = "\n".join(
+        [
+            "set -u",
+            *definitions,
+            'if [ "${#VERSION}" -gt %d ] || ! [[ "$VERSION" =~ $VERSION_RE ]]; then'
+            % dependencies._MAX_VERSION_LEN,
+            "  echo invalid",
+            "else",
+            "  echo valid",
+            "fi",
+        ]
+    )
+
+    mismatches = []
+    for candidate in corpus:
+        completed = subprocess.run(
+            ["bash", "-c", script],
+            env={"VERSION": candidate, "PATH": os.environ.get("PATH", "")},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        by_shell = completed.stdout.strip() == "valid"
+        by_python = dependencies._is_valid_version(candidate)
+        if by_shell != by_python:
+            mismatches.append((candidate, by_shell, by_python))
+
+    assert not mismatches, (
+        "shell guard and Python validator disagree on "
+        f"{[(c, f'shell={s}', f'python={p}') for c, s, p in mismatches]}"
+    )
 
 
 def test_freshness_workflow_imports_resolve():

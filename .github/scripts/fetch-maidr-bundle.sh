@@ -43,10 +43,18 @@ fi
 # malformed or hostile values (e.g. a caller-supplied version) so they cannot
 # build an unintended request path.
 #
-# Spelled out as semver's real grammar -- an optional "-prerelease" then an
-# optional "+build" -- to stay in step with _VERSION_RE in
-# maidr/util/dependencies.py, so this script cannot bundle a version the
+# Spelled out as semver's real grammar -- numeric identifiers with no leading
+# zeros, then an optional "-prerelease" of non-empty dot-separated
+# identifiers, then an optional "+build" -- to stay in step with _VERSION_RE
+# in maidr/util/dependencies.py, so this script cannot bundle a version the
 # library would refuse to pin.
+#
+# That parity is enforced, not just asserted here:
+# tests/core/test_cdn_version.py::test_shell_guard_matches_the_python_validator
+# runs this exact pattern and length cap against the Python validator over a
+# shared corpus, so the two cannot silently diverge. The patterns are spelled
+# differently on purpose -- bash's [[ =~ ]] takes POSIX ERE, which has no
+# (?:...) -- so only a behavioural comparison can check them.
 #
 # Uses bash's [[ =~ ]] rather than grep because `grep -qE '^...$'` matches if
 # *any* line matches, so a VERSION with an embedded newline passed here while
@@ -58,8 +66,10 @@ fi
 #
 # Length is checked first, mirroring _is_valid_version's size-before-shape
 # order, so an oversized value never reaches the regex engine.
-if [ "${#VERSION}" -gt 128 ] \
-  || ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+NUM_ID='0|[1-9][0-9]*'
+PRE_ID="0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*"
+VERSION_RE="^($NUM_ID)\.($NUM_ID)\.($NUM_ID)(-($PRE_ID)(\.($PRE_ID))*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$"
+if [ "${#VERSION}" -gt 128 ] || ! [[ "$VERSION" =~ $VERSION_RE ]]; then
   echo "Refusing to fetch: '$VERSION' is not a valid maidr version" >&2
   exit 1
 fi
