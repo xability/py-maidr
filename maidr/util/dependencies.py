@@ -138,10 +138,14 @@ _MAX_WARNED_KEYS = 64
 _MAX_WARNED_KEY_LEN = 200
 
 # Deliberately not guarded by ``_resolution_lock`` below: this is a lone
-# reference assignment, which is atomic under the GIL, and it is only ever
-# written by an explicit :func:`set_cdn_version` call.  The lock exists to
-# stop concurrent *lookups*, which is a compound read-modify-write, not to
-# protect this.
+# reference assignment, written only by an explicit
+# :func:`set_cdn_version` call.  The lock exists to stop concurrent
+# *lookups*, which are a compound read-modify-write, not to protect this.
+#
+# Unlike the compound update in :func:`_warn_once`, the reasoning here
+# does not depend on the GIL and so survives free-threaded builds (PEP
+# 703): storing a single object reference stays indivisible there, so a
+# reader sees either the old value or the new one, never a torn write.
 _cdn_version_override: str | None = None
 
 _resolved_cdn_version: str | None = None
@@ -185,6 +189,17 @@ def set_cdn_version(version: str | None) -> None:
 
     Notes
     -----
+    A malformed concrete version is logged and then *ignored*, which
+    means the next URL resolves normally — one bounded lookup, exactly as
+    if no pin had been set.  That is deliberate: mistyping ``3.74.0`` as
+    ``3.74`` says "I wanted a particular version", not "I want to stay
+    off the network", so recovering to the current published version is
+    the closest thing to what was asked.  Contrast :data:`BUNDLED_TAG`,
+    which *does* imply staying local and therefore degrades to
+    :data:`LATEST_TAG` rather than resolving.  The supported ways to
+    forbid the lookup outright are ``MAIDR_CDN_VERSION=latest`` and
+    ``use_cdn=False``.
+
     Process-wide, not per-session: this writes module-level state shared
     by every caller in the interpreter, matching ``set_use_cdn``.  In a
     server handling concurrent sessions (e.g. Shiny), one session calling
