@@ -83,6 +83,11 @@ CDN_VERSION_ENV_VAR = "MAIDR_CDN_VERSION"
 CDN_TIMEOUT_ENV_VAR = "MAIDR_CDN_TIMEOUT"
 _DEFAULT_CDN_TIMEOUT = 3.0
 
+#: Ceiling on the above.  Far beyond any legitimate lookup, so a larger
+#: value indicates a mistake — most plausibly milliseconds — rather than
+#: an intent to wait that long before a plot appears.
+_MAX_CDN_TIMEOUT = 30.0
+
 # Endpoints consulted, in order, to turn the mutable ``latest`` dist-tag
 # into a concrete version.  jsDelivr's data API comes first because it is
 # the authority on what ``cdn.jsdelivr.net`` will actually serve; the npm
@@ -399,10 +404,13 @@ def _cdn_timeout() -> float:
     "skip the lookup" — ``MAIDR_CDN_VERSION=latest`` is the supported way
     to opt out of resolving entirely.
 
-    No upper bound is imposed: the value is explicit configuration from
-    whoever set it, and silently clamping it would be the more surprising
-    behaviour.  A large value does mean a first render can block for that
-    long.
+    Values above :data:`_MAX_CDN_TIMEOUT` are clamped, with a warning so
+    the clamp is visible rather than silent.  Honouring an arbitrarily
+    large value would respect the letter of the configuration at the cost
+    of a render that appears to hang: ``MAIDR_CDN_TIMEOUT=3000`` meant as
+    milliseconds would block for fifty minutes.  Nothing legitimate needs
+    longer than the cap to fetch a sub-kilobyte JSON document, and a
+    lookup that slow degrades to the ``@latest`` URL anyway.
     """
     raw = os.environ.get(CDN_TIMEOUT_ENV_VAR)
     if raw is None:
@@ -412,7 +420,21 @@ def _cdn_timeout() -> float:
     except ValueError:
         _logger.debug("maidr: ignoring non-numeric %s=%r", CDN_TIMEOUT_ENV_VAR, raw)
         return _DEFAULT_CDN_TIMEOUT
-    return timeout if timeout > 0 else _DEFAULT_CDN_TIMEOUT
+    if timeout <= 0:
+        return _DEFAULT_CDN_TIMEOUT
+    if timeout > _MAX_CDN_TIMEOUT:
+        _warn_once(
+            f"timeout:{raw}",
+            "maidr: %s=%s exceeds the %ss cap and was clamped. The value is "
+            "in seconds; a lookup needing longer would fall back to the "
+            "'%s' dist-tag regardless.",
+            CDN_TIMEOUT_ENV_VAR,
+            raw[:_MAX_WARNED_KEY_LEN],
+            _MAX_CDN_TIMEOUT,
+            LATEST_TAG,
+        )
+        return _MAX_CDN_TIMEOUT
+    return timeout
 
 
 def _resolve_latest_version() -> str | None:

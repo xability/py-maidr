@@ -454,6 +454,27 @@ def test_invalid_timeout_falls_back_to_default(bad, monkeypatch):
     assert dependencies._cdn_timeout() == dependencies._DEFAULT_CDN_TIMEOUT
 
 
+def test_oversized_timeout_is_clamped(monkeypatch, caplog):
+    """A millisecond-looking value must not hang the first render.
+
+    ``MAIDR_CDN_TIMEOUT=3000`` read as seconds would block for fifty
+    minutes before a plot appeared.
+    """
+    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "3000")
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        assert dependencies._cdn_timeout() == dependencies._MAX_CDN_TIMEOUT
+
+    assert any("clamped" in r.message for r in caplog.records), (
+        "clamping must be visible, not silent"
+    )
+
+
+def test_timeout_just_under_the_cap_is_honoured(monkeypatch):
+    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "29")
+    assert dependencies._cdn_timeout() == 29.0
+
+
 # ---------------------------------------------------------------------------
 # End-to-end: emitted HTML
 # ---------------------------------------------------------------------------
