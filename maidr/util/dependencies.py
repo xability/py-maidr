@@ -76,10 +76,10 @@ BUNDLED_TAG = "bundled"
 #: ``=bundled``, or ``=latest`` to opt out of resolution entirely).
 CDN_VERSION_ENV_VAR = "MAIDR_CDN_VERSION"
 
-#: Total time budget, in seconds, for the whole version lookup — not per
-#: request.  The endpoints below are tried in order and share this budget,
-#: so adding a fallback endpoint cannot extend how long a first render can
-#: block.
+#: Time budget, in seconds, shared across the whole version lookup rather
+#: than applied per request, so adding a fallback endpoint cannot multiply
+#: how long a first render blocks.  Approximate rather than a hard ceiling
+#: — see :func:`_fetch_latest_version`.
 CDN_TIMEOUT_ENV_VAR = "MAIDR_CDN_TIMEOUT"
 _DEFAULT_CDN_TIMEOUT = 3.0
 
@@ -437,12 +437,18 @@ def _fetch_latest_version(budget: float) -> str | None:
     Never raises: a version lookup failing must degrade to the ``@latest``
     URL, not break rendering.
 
-    The budget is enforced by handing each attempt the remaining time as
-    its socket timeout.  That bounds the case that actually hurts — a
-    firewall blackholing packets, where every attempt runs to its full
-    timeout — though a server trickling bytes just under the limit could
-    still overrun it slightly.  Responses here are well under a kilobyte,
-    so that is theoretical.
+    The budget is approximate, not a hard ceiling.  It is enforced by
+    handing each attempt the remaining time as its socket timeout, and
+    ``urlopen`` applies that per blocking socket operation — connect, TLS
+    handshake, read — rather than to the call as a whole.  An endpoint
+    that stalls just under the limit at each step in turn can therefore
+    overrun the budget by a small multiple.
+
+    What it does bound reliably is the failure mode that actually bites:
+    a firewall blackholing packets, where each attempt would otherwise
+    burn a full timeout, and where the number of endpoints would multiply
+    the wait.  Hard-capping the total would need a watchdog thread, which
+    is not worth it for two endpoints returning sub-kilobyte payloads.
     """
     deadline = time.monotonic() + budget
     for url, key in _RESOLVER_ENDPOINTS:
@@ -486,8 +492,15 @@ STALE_MINOR_GAP = 5
 #: Set to ``0`` / ``false`` / ``off`` to silence the staleness warning.
 BUNDLE_WARNING_ENV_VAR = "MAIDR_BUNDLE_STALE_WARNING"
 
+# Same grammar as :data:`_VERSION_RE`, with the parts named so
+# :func:`_version_key` can pull them out.  Kept deliberately in step with
+# it: a looser shape here would mean a version this module refuses to pin
+# could still be parsed for comparison, and any future caller that reused
+# this on less-trusted input would not inherit the same hardening.
 _RELEASE_RE = re.compile(
-    r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?P<suffix>[-+.].*)?$"
+    r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
+    r"(?P<prerelease>-[0-9A-Za-z.-]+)?"
+    r"(?:\+[0-9A-Za-z.-]+)?$"
 )
 
 _bundle_warning_emitted = False
@@ -642,8 +655,7 @@ def _version_key(version: str) -> tuple[tuple[int, int, int], int] | None:
     if match is None:
         return None
     release = (int(match["major"]), int(match["minor"]), int(match["patch"]))
-    suffix = match["suffix"] or ""
-    return release, 0 if suffix.startswith("-") else 1
+    return release, 0 if match["prerelease"] else 1
 
 
 @lru_cache(maxsize=1)

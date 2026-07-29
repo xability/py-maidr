@@ -228,6 +228,38 @@ def test_use_cdn_true_render_does_not_warn(bar_plot, bundled):
         maidr.render(bar_plot, use_cdn=True)
 
 
+@pytest.mark.parametrize("use_cdn", [False, "auto"])
+def test_plotly_render_warns(use_cdn, bundled):
+    """The Plotly adapter wires the warning in independently of matplotlib.
+
+    ``plotly_maidr.py`` calls ``warn_if_bundle_is_stale()`` from its own
+    ``_create_html_tag``, so the matplotlib render tests above would not
+    catch that wiring drifting.
+    """
+    pytest.importorskip("plotly")
+    import plotly.graph_objects as go
+
+    bundled("3.66.1")
+    maidr.set_cdn_version("3.74.0")
+    fig = go.Figure(data=[go.Bar(x=["A", "B"], y=[1, 2])])
+
+    with pytest.warns(UserWarning, match="3.66.1"):
+        maidr.render(fig, use_cdn=use_cdn)
+
+
+def test_plotly_render_use_cdn_true_does_not_warn(bundled):
+    """CDN-only Plotly renders never execute the bundle either."""
+    pytest.importorskip("plotly")
+    import plotly.graph_objects as go
+
+    bundled("3.66.1")
+    maidr.set_cdn_version("3.74.0")
+    fig = go.Figure(data=[go.Bar(x=["A", "B"], y=[1, 2])])
+
+    with no_stale_bundle_warning():
+        maidr.render(fig, use_cdn=True)
+
+
 def test_offline_render_with_unknown_published_version_is_silent(
     bar_plot, monkeypatch, bundled
 ):
