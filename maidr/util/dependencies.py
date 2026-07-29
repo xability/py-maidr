@@ -34,7 +34,6 @@ import threading
 import time
 import warnings
 from functools import lru_cache
-from http.client import HTTPException
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import NamedTuple
@@ -118,8 +117,11 @@ _MAX_RESOLVER_BYTES = 64 * 1024
 # many ``--`` pairs has exponentially many parses and backtracks forever.
 # Here neither suffix class contains ``+``, so the split is unambiguous
 # and matching stays linear.
+# ``[0-9]`` rather than ``\d``: on a ``str`` pattern ``\d`` matches the
+# whole Unicode Nd category, so ``٣.٧.٤`` would pass here and fail the
+# shell guard's ``[0-9]`` — and would splice a URL that silently 404s.
 _VERSION_RE = re.compile(
-    r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
+    r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
 )
 
 # Keys of warnings already logged, so a bad pin is reported once instead
@@ -234,26 +236,52 @@ def _version_pin() -> str | None:
     return _normalise_version_pin(pin)
 
 
-def _known_cdn_version() -> str | None:
-    """Return the published version *if it is already known*.
+def _published_version(*, resolve: bool) -> str | None:
+    """Return the version npm has actually published, ignoring any pin.
 
-    Unlike :func:`get_cdn_version` this never issues a network request:
-    it reports only what an explicit pin or an earlier lookup has already
-    established.  Callers on the offline path use it so that surfacing a
-    stale bundle can never itself reach for the network.
+    A pin answers "which version should we serve?", which is a different
+    question from "which version is current?".  Feeding a pin into the
+    staleness comparison would let ``set_cdn_version("4.0.0")`` — pinning
+    an unreleased build to test it — report 4.0.0 as *published* and
+    advise upgrading, and would let a backwards pin mask a genuinely old
+    bundle.  Only a real lookup answers the published question.
+
+    Parameters
+    ----------
+    resolve : bool
+        Whether to perform the lookup when the answer is not already
+        cached.  ``False`` keeps the caller offline and accepts ``None``.
 
     Returns
     -------
     str or None
-        A concrete version, or ``None`` when the published version is
-        unknown (unresolved, or deliberately pinned to ``latest``).
+        A concrete version, or ``None`` when it is unknown.
     """
-    pin = _version_pin()
-    if pin is not None:
-        return None if pin == LATEST_TAG else pin
-    if _resolution_attempted:
-        return _resolved_cdn_version
-    return None
+    if resolve:
+        return _resolve_latest_version()
+    return _resolved_cdn_version if _resolution_attempted else None
+
+
+def unresolved_cdn_url(filename: str) -> str:
+    """Return the ``@latest`` CDN URL without resolving a version.
+
+    For the one path that must emit a CDN reference while holding an
+    offline guarantee: ``init_notebook(use_cdn=False)`` on an install
+    whose bundle is missing.  Everywhere else, use :func:`cdn_url` and
+    friends — ``@latest`` is the mutable dist-tag this module exists to
+    stop emitting.
+
+    Parameters
+    ----------
+    filename : str
+        Asset name under the package's ``dist/`` directory.
+
+    Returns
+    -------
+    str
+        A jsDelivr URL pinned to the ``latest`` dist-tag.
+    """
+    return _CDN_URL_TEMPLATE.format(version=LATEST_TAG, filename=filename)
 
 
 def reset_cdn_version_cache() -> None:
@@ -282,7 +310,10 @@ def cdn_url(filename: str) -> str:
     ----------
     filename : str
         Asset name under the package's ``dist/`` directory, e.g.
-        ``"maidr.js"``.
+        ``"maidr.js"``.  Trusted input: unlike the version, it is not
+        validated, because every call site passes one of this module's
+        ``MAIDR_*_FILENAME`` constants.  Validate it here first if that
+        ever stops being true.
 
     Returns
     -------
@@ -461,8 +492,13 @@ def _resolve_latest_version() -> str | None:
     with _resolution_lock:
         if _resolution_attempted:
             return _resolved_cdn_version
-        _resolved_cdn_version = _fetch_latest_version(_cdn_timeout())
-        _resolution_attempted = True
+        try:
+            _resolved_cdn_version = _fetch_latest_version(_cdn_timeout())
+        finally:
+            # Mark the attempt even if the lookup raised.  Setting this
+            # only on the success path would leave a doomed lookup
+            # uncached, so every later render would retry it.
+            _resolution_attempted = True
     return _resolved_cdn_version
 
 
@@ -518,7 +554,15 @@ def _fetch_latest_version(budget: float) -> str | None:
                 payload = json.loads(
                     response.read(_MAX_RESOLVER_BYTES).decode("utf-8")
                 )
-        except (OSError, HTTPException, ValueError, UnicodeDecodeError):
+        except Exception:
+            # Deliberately broad.  The obvious failures are OSError,
+            # HTTPException, ValueError and UnicodeDecodeError, but the
+            # contract above is that a lookup failure degrades to the
+            # ``@latest`` URL rather than breaking rendering — and an
+            # exception this list did not anticipate would break it.
+            # Sandboxes make that concrete: pytest-socket raises
+            # SocketBlockedError, which derives from Exception, not
+            # OSError, and would otherwise propagate out of render().
             _logger.debug("maidr: CDN version lookup failed at %s", url, exc_info=True)
             continue
 
@@ -547,7 +591,7 @@ BUNDLE_WARNING_ENV_VAR = "MAIDR_BUNDLE_STALE_WARNING"
 # could still be parsed for comparison, and any future caller that reused
 # this on less-trusted input would not inherit the same hardening.
 _RELEASE_RE = re.compile(
-    r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
+    r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)"
     r"(?P<prerelease>-[0-9A-Za-z.-]+)?"
     r"(?:\+[0-9A-Za-z.-]+)?$"
 )
@@ -586,10 +630,15 @@ def bundle_status(*, resolve: bool = True) -> BundleStatus:
     Parameters
     ----------
     resolve : bool, default=True
-        Whether to resolve the published version over the network when it
-        is not already known.  Pass ``False`` on offline code paths: the
-        comparison then uses only an explicit pin or an earlier lookup,
-        and reports ``published=None`` if neither is available.
+        Whether to look the published version up over the network when it
+        is not already cached.  Pass ``False`` on offline code paths: the
+        comparison then uses only an earlier lookup, and reports
+        ``published=None`` when none has happened.
+
+        Note that ``published`` always means "what npm published", never
+        "what we will serve" — a pin from :func:`set_cdn_version` or
+        ``MAIDR_CDN_VERSION`` does not stand in for it, so pinning
+        neither fakes staleness nor conceals it.
 
     Returns
     -------
@@ -607,9 +656,7 @@ def bundle_status(*, resolve: bool = True) -> BundleStatus:
     looked up at call time, so real output tracks whatever is current.
     """
     bundled = maidr_js_version()
-    published = get_cdn_version() if resolve else _known_cdn_version()
-    if published == LATEST_TAG:
-        published = None
+    published = _published_version(resolve=resolve)
 
     bundled_key = _version_key(bundled) if bundled != _UNKNOWN_VERSION else None
     published_key = _version_key(published) if published else None

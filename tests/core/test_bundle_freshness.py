@@ -10,12 +10,18 @@ surfacing it never reaches for the network.
 from __future__ import annotations
 
 import contextlib
+import io
+import json
+import sys
+import types
 import warnings
 
 import matplotlib.pyplot as plt
 import pytest
 
 import maidr
+import maidr.util.environment
+from maidr import api as maidr_api
 from maidr.util import dependencies
 
 
@@ -56,13 +62,46 @@ def bundled(monkeypatch):
     return _set
 
 
+class _FakeResponse(io.BytesIO):
+    """Minimal ``urlopen`` stand-in supporting the ``with`` protocol."""
+
+    def __enter__(self) -> "_FakeResponse":
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
+
+
+@pytest.fixture
+def published(monkeypatch):
+    """Return a setter that stubs what npm reports as published.
+
+    Staleness must be driven by a real resolution, not by a pin — a pin
+    says which version to *serve*, which is a different question.  Using
+    ``set_cdn_version()`` to stand in for "published" is what let that
+    conflation hide from these tests in the first place.
+    """
+
+    def _set(version: str) -> None:
+        monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+        dependencies.set_cdn_version(None)
+
+        def fake_urlopen(request, timeout=None):
+            payload = json.dumps({"version": version, "latest": version})
+            return _FakeResponse(payload.encode("utf-8"))
+
+        monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+
+    return _set
+
+
 # ---------------------------------------------------------------------------
 # Version comparison
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
-    ("bundled_version", "published", "is_behind", "is_stale"),
+    ("bundled_version", "published_version", "is_behind", "is_stale"),
     [
         # The gap from the bug report: 8 minor versions behind.
         ("3.66.1", "3.74.0", True, True),
@@ -83,35 +122,49 @@ def bundled(monkeypatch):
     ],
 )
 def test_bundle_status_comparison(
-    bundled_version, published, is_behind, is_stale, bundled
+    bundled_version, published_version, is_behind, is_stale, bundled, published
 ):
     bundled(bundled_version)
-    maidr.set_cdn_version(published)
+    published(published_version)
 
     status = maidr.bundle_status()
 
     assert status.bundled == bundled_version
-    assert status.published == published
+    assert status.published == published_version
     assert status.is_behind is is_behind
     assert status.is_stale is is_stale
 
 
-def test_bundle_status_unknown_published_version_is_not_a_guess(bundled):
-    """Pinned to ``latest``: no concrete version, so no claim either way."""
+def test_a_pin_does_not_stand_in_for_the_published_version(bundled, published):
+    """A pin says what to *serve*, not what npm published.
+
+    Treating one as the other let ``set_cdn_version("9.9.9")`` — pinning
+    an unreleased build to try it — report 9.9.9 as published and advise
+    upgrading, and let a backwards pin hide a genuinely stale bundle.
+    """
     bundled("3.66.1")
-    maidr.set_cdn_version("latest")
+    published("3.74.0")
+    maidr.set_cdn_version("9.9.9")
 
     status = maidr.bundle_status()
 
-    assert status.published is None
-    assert status.is_behind is False
-    assert status.is_stale is False
+    assert status.published == "3.74.0", "published must come from the lookup"
+    # The pin still decides what the emitted URL serves.
+    assert "maidr@9.9.9/" in dependencies.maidr_js_cdn_url()
 
 
-def test_bundle_status_missing_bundle_is_not_reported_as_stale(bundled):
+def test_backwards_pin_cannot_conceal_a_stale_bundle(bundled, published):
+    bundled("3.66.1")
+    published("3.74.0")
+    maidr.set_cdn_version("3.66.1")  # pinning to the bundle's own version
+
+    assert maidr.bundle_status().is_stale is True
+
+
+def test_bundle_status_missing_bundle_is_not_reported_as_stale(bundled, published):
     """``0.0.0`` means "no VERSION file", not "an ancient release"."""
     bundled("0.0.0")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
 
     status = maidr.bundle_status()
 
@@ -119,15 +172,12 @@ def test_bundle_status_missing_bundle_is_not_reported_as_stale(bundled):
     assert status.is_stale is False
 
 
-def test_bundle_status_resolve_false_never_hits_the_network(monkeypatch, bundled):
+def test_bundle_status_resolve_false_never_hits_the_network(
+    monkeypatch, bundled, forbid_network
+):
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
     dependencies.set_cdn_version(None)
     bundled("3.66.1")
-
-    def explode(*_args, **_kwargs):
-        raise AssertionError("resolve=False must not touch the network")
-
-    monkeypatch.setattr(dependencies, "urlopen", explode)
 
     status = maidr.bundle_status(resolve=False)
     assert status.published is None
@@ -139,9 +189,11 @@ def test_bundle_status_resolve_false_never_hits_the_network(monkeypatch, bundled
 # ---------------------------------------------------------------------------
 
 
-def test_warning_names_both_versions(bundled):
+def test_warning_names_both_versions(bundled, published):
     bundled("3.66.1")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
+
+    maidr.bundle_status()  # establish the published version by resolving
 
     with pytest.warns(UserWarning) as record:
         dependencies.warn_if_bundle_is_stale()
@@ -154,9 +206,11 @@ def test_warning_names_both_versions(bundled):
     )
 
 
-def test_warning_is_emitted_once_per_process(bundled):
+def test_warning_is_emitted_once_per_process(bundled, published):
     bundled("3.66.1")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
+
+    maidr.bundle_status()  # establish the published version by resolving
 
     with pytest.warns(UserWarning):
         dependencies.warn_if_bundle_is_stale()
@@ -165,33 +219,34 @@ def test_warning_is_emitted_once_per_process(bundled):
         dependencies.warn_if_bundle_is_stale()
 
 
-def test_no_warning_for_normal_drift(bundled):
+def test_no_warning_for_normal_drift(bundled, published):
     bundled("3.73.0")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
+
+    maidr.bundle_status()  # establish the published version
 
     with no_stale_bundle_warning():
         dependencies.warn_if_bundle_is_stale()
 
 
 @pytest.mark.parametrize("disabled", ["0", "false", "off", "no", "FALSE"])
-def test_env_var_silences_the_warning(disabled, monkeypatch, bundled):
+def test_env_var_silences_the_warning(disabled, monkeypatch, bundled, published):
     monkeypatch.setenv(dependencies.BUNDLE_WARNING_ENV_VAR, disabled)
     bundled("3.66.1")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
+
+    maidr.bundle_status()  # establish the published version
 
     with no_stale_bundle_warning():
         dependencies.warn_if_bundle_is_stale()
 
 
-def test_warning_never_resolves_over_the_network(monkeypatch, bundled):
+def test_warning_never_resolves_over_the_network(
+    monkeypatch, bundled, forbid_network
+):
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
     dependencies.set_cdn_version(None)
     bundled("3.66.1")
-
-    def explode(*_args, **_kwargs):
-        raise AssertionError("the staleness check must not touch the network")
-
-    monkeypatch.setattr(dependencies, "urlopen", explode)
 
     with no_stale_bundle_warning():
         dependencies.warn_if_bundle_is_stale()
@@ -202,34 +257,43 @@ def test_warning_never_resolves_over_the_network(monkeypatch, bundled):
 # ---------------------------------------------------------------------------
 
 
-def test_use_cdn_false_render_warns(bar_plot, bundled):
-    """Offline mode runs the bundle exclusively, so its age matters most."""
+def test_use_cdn_false_render_warns_once_published_version_known(
+    bar_plot, bundled, published
+):
+    """Offline mode runs the bundle exclusively, so its age matters most.
+
+    It can only be reported once *something* has established the
+    published version, since the check never resolves on its own — here
+    an explicit ``bundle_status()`` call stands in for the CDN render or
+    pinned lookup that would do it in real use.
+    """
     bundled("3.66.1")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
+    maidr.bundle_status()
 
     with pytest.warns(UserWarning, match="3.66.1"):
         maidr.render(bar_plot, use_cdn=False)
 
 
-def test_use_cdn_auto_render_warns(bar_plot, bundled):
+def test_use_cdn_auto_render_warns(bar_plot, bundled, published):
+    """``auto`` resolves as part of building its URL, so this is self-contained."""
     bundled("3.66.1")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
 
     with pytest.warns(UserWarning, match="3.66.1"):
         maidr.render(bar_plot, use_cdn="auto")
 
 
-def test_use_cdn_true_render_does_not_warn(bar_plot, bundled):
+def test_use_cdn_true_render_does_not_warn(bar_plot, bundled, published):
     """CDN-only renders never execute the bundle, so its age is moot."""
     bundled("3.66.1")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
 
     with no_stale_bundle_warning():
         maidr.render(bar_plot, use_cdn=True)
 
 
-@pytest.mark.parametrize("use_cdn", [False, "auto"])
-def test_plotly_render_warns(use_cdn, bundled):
+def test_plotly_auto_render_warns(bundled, published):
     """The Plotly adapter wires the warning in independently of matplotlib.
 
     ``plotly_maidr.py`` calls ``warn_if_bundle_is_stale()`` from its own
@@ -240,38 +304,86 @@ def test_plotly_render_warns(use_cdn, bundled):
     import plotly.graph_objects as go
 
     bundled("3.66.1")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
     fig = go.Figure(data=[go.Bar(x=["A", "B"], y=[1, 2])])
 
     with pytest.warns(UserWarning, match="3.66.1"):
-        maidr.render(fig, use_cdn=use_cdn)
+        maidr.render(fig, use_cdn="auto")
 
 
-def test_plotly_render_use_cdn_true_does_not_warn(bundled):
+def test_plotly_use_cdn_false_render_warns_once_published_version_known(
+    bundled, published
+):
+    pytest.importorskip("plotly")
+    import plotly.graph_objects as go
+
+    bundled("3.66.1")
+    published("3.74.0")
+    maidr.bundle_status()
+    fig = go.Figure(data=[go.Bar(x=["A", "B"], y=[1, 2])])
+
+    with pytest.warns(UserWarning, match="3.66.1"):
+        maidr.render(fig, use_cdn=False)
+
+
+def test_plotly_render_use_cdn_true_does_not_warn(bundled, published):
     """CDN-only Plotly renders never execute the bundle either."""
     pytest.importorskip("plotly")
     import plotly.graph_objects as go
 
     bundled("3.66.1")
-    maidr.set_cdn_version("3.74.0")
+    published("3.74.0")
     fig = go.Figure(data=[go.Bar(x=["A", "B"], y=[1, 2])])
 
     with no_stale_bundle_warning():
         maidr.render(fig, use_cdn=True)
 
 
+def test_init_notebook_use_cdn_false_never_resolves_when_bundle_missing(
+    monkeypatch, forbid_network
+):
+    """A broken install must not turn ``use_cdn=False`` into a request.
+
+    The missing-bundle fallback emits CDN tags so the notebook still
+    works; building those URLs must not resolve a version, or an
+    explicitly offline session pays for a lookup it opted out of.
+    """
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+
+    monkeypatch.setattr(
+        maidr_api, "_NOTEBOOK_LOADED", False, raising=False
+    )
+    monkeypatch.setattr(
+        dependencies,
+        "read_bundled_js",
+        lambda: (_ for _ in ()).throw(FileNotFoundError("bundle missing")),
+    )
+    monkeypatch.setattr(
+        maidr.util.environment.Environment, "is_notebook", staticmethod(lambda: True)
+    )
+
+    displayed = {}
+    fake_ipython = types.ModuleType("IPython.display")
+    fake_ipython.HTML = lambda html: html
+    fake_ipython.display = lambda html: displayed.setdefault("html", html)
+    monkeypatch.setitem(sys.modules, "IPython.display", fake_ipython)
+
+    maidr.init_notebook(use_cdn=False)
+
+    html = displayed.get("html", "")
+    assert "cdn.jsdelivr.net/npm/maidr@latest/" in html, (
+        "offline fallback should emit the unresolved @latest URL"
+    )
+
+
 def test_offline_render_with_unknown_published_version_is_silent(
-    bar_plot, monkeypatch, bundled
+    bar_plot, monkeypatch, bundled, forbid_network
 ):
     """No network, nothing known: say nothing rather than guess."""
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
     dependencies.set_cdn_version(None)
     bundled("3.66.1")
-
-    def explode(*_args, **_kwargs):
-        raise AssertionError("use_cdn=False must not touch the network")
-
-    monkeypatch.setattr(dependencies, "urlopen", explode)
 
     with no_stale_bundle_warning():
         maidr.render(bar_plot, use_cdn=False)

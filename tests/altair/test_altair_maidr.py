@@ -84,6 +84,27 @@ class TestRenderEmbedsSpec:
         idx_maidr = html_str.index(maidr_vegalite_cdn)
         assert idx_vega < idx_vl < idx_ve < idx_maidr
 
+    def test_vegalite_src_carries_the_resolved_version(self):
+        """Guard against a tautology.
+
+        Asserting ``cdn_url(...) in html`` is vacuous under the suite's
+        ``MAIDR_CDN_VERSION=latest`` fixture, since both sides collapse to
+        ``@latest`` whether or not the adapter participates in version
+        resolution. Pin a concrete version so the assertion can fail.
+        """
+        import maidr
+
+        maidr.set_cdn_version("3.74.0")
+        try:
+            m = AltairMaidr(_simple_chart())
+            html_str = str(m._build_inner_html().get_html_string())
+        finally:
+            maidr.set_cdn_version(None)
+
+        assert "maidr@3.74.0/dist/vegalite.js" in html_str
+        assert "maidr@3.74.0/dist/maidr.css" in html_str
+        assert "maidr@latest" not in html_str
+
     def test_iframe_calls_maidrvegalite_embed_with_id(self):
         m = AltairMaidr(_simple_chart())
         html_str = str(m._build_inner_html().get_html_string())

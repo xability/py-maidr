@@ -201,10 +201,13 @@ def init_notebook(
         return
 
     from maidr.util.dependencies import (
+        MAIDR_CSS_FILENAME,
+        MAIDR_JS_FILENAME,
         bundled_css_path,
         maidr_css_cdn_url,
         maidr_js_cdn_url,
         read_bundled_js,
+        unresolved_cdn_url,
         warn_if_bundle_is_stale,
     )
 
@@ -230,10 +233,27 @@ def init_notebook(
         except (FileNotFoundError, OSError):
             # Bundle is missing — fall back to CDN so we don't silently
             # break the user's notebook.
-            html = (
-                f'<link rel="stylesheet" href="{maidr_css_cdn_url()}">'
-                f'<script src="{maidr_js_cdn_url()}"></script>'
-            )
+            #
+            # This branch is reachable with ``mode is False``, where the
+            # caller was promised no Python-side network I/O.  Honour
+            # that: resolving a version here would issue exactly the
+            # request they opted out of, on an install that is already
+            # broken.  Emit the unresolved ``@latest`` URL instead, and
+            # say why, since silently contacting the CDN under
+            # ``use_cdn=False`` is the more surprising outcome.
+            if mode is False:
+                _warn_missing_bundle()
+                html = (
+                    f'<link rel="stylesheet" '
+                    f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
+                    f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}">'
+                    f"</script>"
+                )
+            else:
+                html = (
+                    f'<link rel="stylesheet" href="{maidr_css_cdn_url()}">'
+                    f'<script src="{maidr_js_cdn_url()}"></script>'
+                )
         else:
             # json.dumps produces a JS-safe string literal (escapes quotes,
             # backslashes, newlines, etc.).  ``ensure_ascii=True`` (the
@@ -266,6 +286,18 @@ def init_notebook(
 
     display(HTML(html))
     _NOTEBOOK_LOADED = True
+
+
+def _warn_missing_bundle() -> None:
+    """Warn that ``use_cdn=False`` had to reach for the CDN anyway."""
+    from maidr.util.dependencies import _warn_once
+
+    _warn_once(
+        "missing-bundle",
+        "maidr: use_cdn=False was requested but the bundled maidr.js/css "
+        "could not be read, so the notebook will load them from the CDN. "
+        "Reinstall py-maidr to repair the bundle for offline use.",
+    )
 
 
 def _is_plotly_figure(obj: Any) -> bool:

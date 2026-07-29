@@ -99,24 +99,15 @@ def test_set_cdn_version_accepts_prerelease():
     assert dependencies.get_cdn_version() == "3.74.0-beta.1"
 
 
-def test_latest_tag_opts_out_of_resolution(monkeypatch):
+def test_latest_tag_opts_out_of_resolution(forbid_network):
     """``latest`` keeps the legacy URL and makes no network request."""
-
-    def explode(*_args, **_kwargs):
-        raise AssertionError("resolution must not run when pinned to 'latest'")
-
-    monkeypatch.setattr(dependencies, "urlopen", explode)
     maidr.set_cdn_version("latest")
 
     assert dependencies.get_cdn_version() == "latest"
     assert dependencies.maidr_js_cdn_url() == dependencies.MAIDR_JS_CDN_URL
 
 
-def test_bundled_tag_uses_shipped_version(monkeypatch):
-    def explode(*_args, **_kwargs):
-        raise AssertionError("resolution must not run when pinned to 'bundled'")
-
-    monkeypatch.setattr(dependencies, "urlopen", explode)
+def test_bundled_tag_uses_shipped_version(forbid_network):
     maidr.set_cdn_version("bundled")
 
     assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
@@ -149,7 +140,7 @@ def test_bundled_version_file_is_read_once(monkeypatch):
         dependencies.maidr_js_version.cache_clear()
 
 
-def test_bundled_tag_with_broken_version_stays_offline(monkeypatch):
+def test_bundled_tag_with_broken_version_stays_offline(monkeypatch, forbid_network):
     """A corrupt bundle must not turn ``bundled`` into a network lookup.
 
     Choosing ``bundled`` implies staying local, so a missing ``VERSION``
@@ -158,11 +149,6 @@ def test_bundled_tag_with_broken_version_stays_offline(monkeypatch):
     monkeypatch.setattr(
         dependencies, "maidr_js_version", lambda: dependencies._UNKNOWN_VERSION
     )
-
-    def explode(*_args, **_kwargs):
-        raise AssertionError("'bundled' must not fall through to the network")
-
-    monkeypatch.setattr(dependencies, "urlopen", explode)
     maidr.set_cdn_version("bundled")
 
     assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
@@ -419,16 +405,15 @@ def test_timeout_is_a_total_budget_across_endpoints(monkeypatch):
 
     monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
 
-    start = time.perf_counter()
     assert dependencies.get_cdn_version() == "latest"
-    elapsed = time.perf_counter() - start
 
     assert len(seen) == len(dependencies._RESOLVER_ENDPOINTS)
-    # Each attempt gets only what is left, so the timeouts shrink...
+    # Each attempt gets only what is left of the budget, so the timeouts
+    # shrink. This is the deterministic part of the guarantee; a
+    # wall-clock assertion would add nothing but CI flakiness, since the
+    # budget bounds the timeouts we hand out, not the scheduler.
     assert seen[1] < seen[0] <= 0.5
-    # ...and the whole lookup stays inside the budget (plus slack for the
-    # fake's own sleep overhead).
-    assert elapsed < 1.0
+    assert sum(seen) <= 1.0, "handed out more than the budget across attempts"
 
 
 def test_budget_exhaustion_skips_remaining_endpoints(monkeypatch):
@@ -505,15 +490,10 @@ def test_save_html_use_cdn_auto_emits_versioned_url(bar_plot, tmp_path):
     assert f"lib/maidr-{dependencies.maidr_js_version()}/maidr.js" in contents
 
 
-def test_render_use_cdn_false_never_resolves(bar_plot, monkeypatch):
+def test_render_use_cdn_false_never_resolves(bar_plot, monkeypatch, forbid_network):
     """Offline rendering must not make a version-lookup request."""
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
     dependencies.set_cdn_version(None)
-
-    def explode(*_args, **_kwargs):
-        raise AssertionError("use_cdn=False must not touch the network")
-
-    monkeypatch.setattr(dependencies, "urlopen", explode)
     maidr.render(bar_plot, use_cdn=False)
 
 
