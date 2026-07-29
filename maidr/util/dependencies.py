@@ -249,6 +249,10 @@ def reset_cdn_version_cache() -> None:
     notebook must not stall on a doomed request for every figure it
     renders.  Long-lived processes that want to pick up a newer release
     can call this to force one more attempt.
+
+    Does not re-arm the one-shot staleness warning from
+    :func:`warn_if_bundle_is_stale`, which stays spent for the life of
+    the process regardless of how often the version is re-resolved.
     """
     global _resolved_cdn_version, _resolution_attempted
     with _resolution_lock:
@@ -569,6 +573,19 @@ def warn_if_bundle_is_stale() -> None:
     and simply says nothing.
 
     Silenced by ``MAIDR_BUNDLE_STALE_WARNING=0``.
+
+    Notes
+    -----
+    Fires at most once per process, and neither :func:`set_cdn_version`
+    nor :func:`reset_cdn_version_cache` re-arms it — so re-pinning in a
+    REPL to watch the warning again will not produce a second one.
+
+    ``stacklevel=2`` deliberately points at maidr's own render machinery
+    rather than the caller's ``render()`` / ``save_html()`` line.  The
+    depth from user code differs per entry point, so no fixed level
+    reaches it, and the warning is about the *installed package* rather
+    than about how it was called — the message stands alone without a
+    call site.
     """
     global _bundle_warning_emitted
     if _bundle_warning_emitted or not _bundle_warning_enabled():

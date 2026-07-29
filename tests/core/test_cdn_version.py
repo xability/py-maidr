@@ -122,6 +122,33 @@ def test_bundled_tag_uses_shipped_version(monkeypatch):
     assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
 
 
+def test_bundled_version_file_is_read_once(monkeypatch):
+    """Pinning to ``bundled`` must not re-read VERSION per URL build.
+
+    ``_normalise_version_pin`` runs on every URL build — twice per figure
+    — so without the cache this would be a package-resource read per
+    call for anyone pinning ``bundled`` (e.g. air-gapped CI).
+    """
+    dependencies.maidr_js_version.cache_clear()
+    reads = {"n": 0}
+    real_files = dependencies.files
+
+    def counting_files(*args, **kwargs):
+        reads["n"] += 1
+        return real_files(*args, **kwargs)
+
+    monkeypatch.setattr(dependencies, "files", counting_files)
+    try:
+        maidr.set_cdn_version("bundled")
+        for _ in range(10):
+            dependencies.maidr_js_cdn_url()
+            dependencies.maidr_css_cdn_url()
+        assert reads["n"] == 1, f"read VERSION {reads['n']} times, expected 1"
+    finally:
+        # Drop the value cached through the counting stub.
+        dependencies.maidr_js_version.cache_clear()
+
+
 def test_bundled_tag_with_broken_version_stays_offline(monkeypatch):
     """A corrupt bundle must not turn ``bundled`` into a network lookup.
 

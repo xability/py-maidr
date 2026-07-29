@@ -292,7 +292,7 @@ maidr.bundle_status()
 | Variable | Effect |
 |---|---|
 | `MAIDR_USE_CDN` | Default for `use_cdn`: `auto`, `1`/`true`, or `0`/`false`. |
-| `MAIDR_CDN_VERSION` | Pin the CDN version: a version such as `3.74.0`, `bundled`, or `latest` to skip resolution. |
+| `MAIDR_CDN_VERSION` | Pin the CDN version: a version such as `3.74.0`, `bundled`, or `latest` to skip resolution. If `bundled` is set but the installed `VERSION` file is missing or unreadable, py-maidr warns and falls back to `latest` without making a network request. |
 | `MAIDR_CDN_TIMEOUT` | Total seconds allowed for the version lookup (default `3`). |
 | `MAIDR_BUNDLE_STALE_WARNING` | Set to `0` to silence the stale-bundle warning. |
 
