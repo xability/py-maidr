@@ -42,6 +42,11 @@ from typing import Any, Literal, cast
 
 from htmltools import HTML, HTMLDocument, Tag, tags
 
+from maidr.util.dependencies import (
+    MAIDR_VEGALITE_FILENAME,
+    cdn_url,
+    maidr_css_cdn_url,
+)
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_plotly
 
@@ -61,15 +66,11 @@ _VEGA_EMBED_CDN = "https://cdn.jsdelivr.net/npm/vega-embed@6"
 
 def _maidr_vegalite_cdn() -> str:
     """Return the CDN URL for ``vegalite.js`` at the resolved version."""
-    from maidr.util.dependencies import MAIDR_VEGALITE_FILENAME, cdn_url
-
     return cdn_url(MAIDR_VEGALITE_FILENAME)
 
 
 def _maidr_css_cdn() -> str:
     """Return the CDN URL for ``maidr.css`` at the resolved version."""
-    from maidr.util.dependencies import maidr_css_cdn_url
-
     return maidr_css_cdn_url()
 
 

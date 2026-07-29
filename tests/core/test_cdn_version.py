@@ -294,7 +294,52 @@ def test_timeout_env_var_is_honoured(monkeypatch):
     monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
     dependencies.get_cdn_version()
 
-    assert seen == [0.25]
+    assert len(seen) == 1
+    assert 0 < seen[0] <= 0.25
+
+
+def test_timeout_is_a_total_budget_across_endpoints(monkeypatch):
+    """A fallback endpoint must not double how long a first render blocks."""
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "0.5")
+    dependencies.set_cdn_version(None)
+    seen: list[float] = []
+
+    def fake_urlopen(request, timeout=None):
+        seen.append(timeout)
+        # Burn part of the budget, as a blackholed connection would.
+        time.sleep(0.2)
+        raise OSError("unreachable")
+
+    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+
+    start = time.perf_counter()
+    assert dependencies.get_cdn_version() == "latest"
+    elapsed = time.perf_counter() - start
+
+    assert len(seen) == len(dependencies._RESOLVER_ENDPOINTS)
+    # Each attempt gets only what is left, so the timeouts shrink...
+    assert seen[1] < seen[0] <= 0.5
+    # ...and the whole lookup stays inside the budget (plus slack for the
+    # fake's own sleep overhead).
+    assert elapsed < 1.0
+
+
+def test_budget_exhaustion_skips_remaining_endpoints(monkeypatch):
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "0.15")
+    dependencies.set_cdn_version(None)
+    calls: list[str] = []
+
+    def fake_urlopen(request, timeout=None):
+        calls.append(request.full_url)
+        time.sleep(0.2)  # spends the whole budget on the first attempt
+        raise OSError("unreachable")
+
+    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+
+    assert dependencies.get_cdn_version() == "latest"
+    assert len(calls) == 1, "second endpoint should be skipped once spent"
 
 
 @pytest.mark.parametrize("bad", ["", "abc", "-1", "0"])

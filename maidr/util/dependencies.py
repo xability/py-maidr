@@ -31,6 +31,7 @@ import logging
 import os
 import re
 import threading
+import time
 import warnings
 from http.client import HTTPException
 from importlib.resources import as_file, files
@@ -69,9 +70,12 @@ BUNDLED_TAG = "bundled"
 #: ``=bundled``, or ``=latest`` to opt out of resolution entirely).
 CDN_VERSION_ENV_VAR = "MAIDR_CDN_VERSION"
 
-#: Per-request timeout, in seconds, for the version lookup.
+#: Total time budget, in seconds, for the whole version lookup — not per
+#: request.  The endpoints below are tried in order and share this budget,
+#: so adding a fallback endpoint cannot extend how long a first render can
+#: block.
 CDN_TIMEOUT_ENV_VAR = "MAIDR_CDN_TIMEOUT"
-_DEFAULT_CDN_TIMEOUT = 2.0
+_DEFAULT_CDN_TIMEOUT = 3.0
 
 # Endpoints consulted, in order, to turn the mutable ``latest`` dist-tag
 # into a concrete version.  jsDelivr's data API comes first because it is
@@ -295,7 +299,7 @@ def _normalise_version_pin(pin: str) -> str | None:
 
 
 def _cdn_timeout() -> float:
-    """Return the per-request timeout for the version lookup, in seconds."""
+    """Return the total time budget for the version lookup, in seconds."""
     raw = os.environ.get(CDN_TIMEOUT_ENV_VAR)
     if raw is None:
         return _DEFAULT_CDN_TIMEOUT
@@ -328,13 +332,15 @@ def _resolve_latest_version() -> str | None:
     return _resolved_cdn_version
 
 
-def _fetch_latest_version(timeout: float) -> str | None:
+def _fetch_latest_version(budget: float) -> str | None:
     """Query the resolver endpoints for the concrete ``latest`` version.
 
     Parameters
     ----------
-    timeout : float
-        Per-request timeout in seconds.
+    budget : float
+        Total seconds allowed for the whole lookup.  Each attempt gets
+        whatever is left, so trying a second endpoint cannot double how
+        long the caller blocks.
 
     Returns
     -------
@@ -345,8 +351,22 @@ def _fetch_latest_version(timeout: float) -> str | None:
     -----
     Never raises: a version lookup failing must degrade to the ``@latest``
     URL, not break rendering.
+
+    The budget is enforced by handing each attempt the remaining time as
+    its socket timeout.  That bounds the case that actually hurts — a
+    firewall blackholing packets, where every attempt runs to its full
+    timeout — though a server trickling bytes just under the limit could
+    still overrun it slightly.  Responses here are well under a kilobyte,
+    so that is theoretical.
     """
+    deadline = time.monotonic() + budget
     for url, key in _RESOLVER_ENDPOINTS:
+        timeout = deadline - time.monotonic()
+        if timeout <= 0:
+            _logger.debug(
+                "maidr: CDN version lookup budget spent before trying %s", url
+            )
+            break
         try:
             # ``url`` is one of the hard-coded https:// endpoints above, never
             # anything caller-supplied, so there is no scheme to smuggle here.
@@ -389,6 +409,7 @@ _RELEASE_RE = re.compile(
 )
 
 _bundle_warning_emitted = False
+_bundle_warning_lock = threading.Lock()
 
 
 class BundleStatus(NamedTuple):
@@ -479,7 +500,13 @@ def warn_if_bundle_is_stale() -> None:
     if not status.is_stale:
         return
 
-    _bundle_warning_emitted = True
+    # Claim the one warning under a lock so concurrent first renders emit
+    # it once rather than racing between the check above and the set.
+    with _bundle_warning_lock:
+        if _bundle_warning_emitted:
+            return
+        _bundle_warning_emitted = True
+
     warnings.warn(
         f"maidr: the bundled copy of maidr.js is {status.bundled}, but the "
         f"current published release is {status.published}. The bundle is "

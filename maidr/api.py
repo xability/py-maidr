@@ -111,9 +111,17 @@ def get_use_cdn() -> bool | Literal["auto"]:
     -----
     The built-in default is ``"auto"`` — this mode emits a CDN
     ``<script>`` with a client-side ``onerror`` handler that falls
-    back to the bundled copy on network failure.  The browser is
-    the authoritative signal for CDN reachability, so no Python-side
-    network probing is performed.
+    back to the bundled copy on network failure.  The browser remains
+    the authoritative signal for CDN *reachability*; Python never
+    probes that.
+
+    Python does make one network request on the CDN paths (``True``
+    and ``"auto"``): resolving the published ``maidr`` version so the
+    emitted URL is immutable instead of the mutable ``@latest``
+    dist-tag, which browsers cache for a week.  It runs once per
+    process, is bounded by ``MAIDR_CDN_TIMEOUT`` (3s total), and falls
+    back to ``@latest`` on failure.  Set ``MAIDR_CDN_VERSION=latest``
+    to skip it entirely.  ``use_cdn=False`` never makes any request.
     """
     global _use_cdn_default
     if _use_cdn_default is None:
@@ -131,9 +139,11 @@ def _resolve_use_cdn(
     When ``value`` is ``None`` the process-wide default (from
     :func:`get_use_cdn` / :data:`MAIDR_USE_CDN`) is consulted.
     Explicit values (``True``, ``False``, or ``"auto"``) are honoured
-    verbatim.  Unlike earlier revisions there is no Python-side
-    connectivity probe — offline detection is performed in the
-    browser via a ``<script onerror>`` fallback.
+    verbatim.  Resolving the mode itself makes no network request:
+    offline *detection* is performed in the browser via a
+    ``<script onerror>`` fallback, not by probing from Python.  (The
+    CDN modes do resolve the published version over the network when
+    they build a URL — see :func:`get_use_cdn`.)
     """
     if value is None:
         return get_use_cdn()
@@ -337,8 +347,11 @@ def render(
           ``maidr`` package.  Use this in air-gapped environments.
         * ``"auto"``: emit a CDN ``<script>`` with a client-side
           ``onerror`` handler that swaps in the bundled copy when the
-          CDN is unreachable.  This is the default mode and gives
-          offline resilience without any Python-side network probing.
+          CDN is unreachable.  This is the default mode.  Reachability
+          is decided in the browser, but building the URL resolves the
+          published version over the network once per process (bounded
+          by ``MAIDR_CDN_TIMEOUT``; set ``MAIDR_CDN_VERSION=latest`` to
+          skip it).
         * ``None`` (default): use the process-wide default set via
           :func:`set_use_cdn` or the ``MAIDR_USE_CDN`` env var (both
           default to ``"auto"``).
