@@ -18,8 +18,12 @@ def offline_cdn_version(monkeypatch):
     lookup, so rendering tests neither hit jsDelivr/npm nor depend on
     whatever version happens to be published when CI runs.  Tests that
     exercise resolution itself override this explicitly.
+
+    Also clears the one-shot bundle-staleness flag so a warning raised by
+    one test cannot suppress the same warning in the next.
     """
     monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, dependencies.LATEST_TAG)
+    monkeypatch.setattr(dependencies, "_bundle_warning_emitted", False)
     dependencies.set_cdn_version(None)
     yield
     dependencies.set_cdn_version(None)

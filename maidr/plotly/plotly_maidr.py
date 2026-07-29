@@ -21,6 +21,7 @@ from maidr.util.dependencies import (
     maidr_css_cdn_url,
     maidr_html_dependency,
     maidr_js_cdn_url,
+    warn_if_bundle_is_stale,
 )
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_plotly
@@ -612,6 +613,8 @@ class PlotlyMaidr:
 
         children: list[Any] = []
         if use_cdn is False:
+            # Bundled copy is the only source; surface it if it has aged.
+            warn_if_bundle_is_stale()
             if iframe_in_notebook:
                 # ``HTMLDependency`` is dropped by ``get_html_string()``
                 # during iframe serialisation; the init script's
@@ -624,6 +627,9 @@ class PlotlyMaidr:
                 children.append(maidr_html_dependency())
         elif use_cdn == "auto":
             css_cdn_url = maidr_css_cdn_url()
+            # Published version is resolved by now, so the bundled
+            # fallback's age is known for free.
+            warn_if_bundle_is_stale()
             if iframe_in_notebook:
                 # Emit CDN CSS with a parent-source ``onerror`` fallback
                 # (mirrors the JS loader in ``_build_init_script``).

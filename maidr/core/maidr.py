@@ -30,6 +30,7 @@ from maidr.util.dependencies import (
     maidr_css_cdn_url,
     maidr_html_dependency,
     maidr_js_cdn_url,
+    warn_if_bundle_is_stale,
 )
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
@@ -613,6 +614,10 @@ class Maidr:
 
         children: list[Any]
         if use_cdn is False:
+            # The bundled copy is the only source here, so its age is the
+            # age of what runs.  Free and offline-safe: only compares
+            # against an already-known published version.
+            warn_if_bundle_is_stale()
             if iframe_in_notebook:
                 # Pull the bundled source from the parent document instead
                 # of emitting an ``HTMLDependency`` (which would be lost
@@ -688,6 +693,9 @@ class Maidr:
             # must never touch the network.
             js_cdn_url = maidr_js_cdn_url()
             css_cdn_url = maidr_css_cdn_url()
+            # Resolution above has established the published version, so
+            # the bundled fallback's age is now known for free.
+            warn_if_bundle_is_stale()
             if iframe_in_notebook:
                 # Inside a notebook iframe, relative ``lib/maidr-.../maidr.js``
                 # paths cannot be resolved (srcdoc iframes have no base URL).

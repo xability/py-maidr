@@ -15,6 +15,13 @@ Resolving ``latest`` to a concrete version in Python at render time and
 emitting ``maidr@<version>/dist/maidr.js`` instead changes the cache key
 on every release, which makes the stale-cache window disappear *and*
 lets the browser cache each build permanently.
+
+Resolving the published version also makes the *bundled* copy's age
+observable.  The bundle is refreshed at py-maidr release time, so it can
+drift behind upstream between releases — and a render that falls back to
+it silently runs older code.  :func:`bundle_status` reports that drift and
+:func:`warn_if_bundle_is_stale` surfaces it once per process when the gap
+grows large enough to matter.
 """
 
 from __future__ import annotations
@@ -24,9 +31,11 @@ import logging
 import os
 import re
 import threading
+import warnings
 from http.client import HTTPException
 from importlib.resources import as_file, files
 from pathlib import Path
+from typing import NamedTuple
 from urllib.request import Request, urlopen
 
 
@@ -148,14 +157,42 @@ def get_cdn_version() -> str:
     str
         A concrete version such as ``"3.74.0"``, or ``"latest"``.
     """
+    pin = _version_pin()
+    if pin is not None:
+        return pin
+    return _resolve_latest_version() or LATEST_TAG
+
+
+def _version_pin() -> str | None:
+    """Return the normalised explicit pin, or ``None`` if there is none."""
     pin = _cdn_version_override
     if pin is None:
         pin = os.environ.get(CDN_VERSION_ENV_VAR)
+    if pin is None:
+        return None
+    return _normalise_version_pin(pin)
+
+
+def _known_cdn_version() -> str | None:
+    """Return the published version *if it is already known*.
+
+    Unlike :func:`get_cdn_version` this never issues a network request:
+    it reports only what an explicit pin or an earlier lookup has already
+    established.  Callers on the offline path use it so that surfacing a
+    stale bundle can never itself reach for the network.
+
+    Returns
+    -------
+    str or None
+        A concrete version, or ``None`` when the published version is
+        unknown (unresolved, or deliberately pinned to ``latest``).
+    """
+    pin = _version_pin()
     if pin is not None:
-        normalised = _normalise_version_pin(pin)
-        if normalised is not None:
-            return normalised
-    return _resolve_latest_version() or LATEST_TAG
+        return None if pin == LATEST_TAG else pin
+    if _resolution_attempted:
+        return _resolved_cdn_version
+    return None
 
 
 def reset_cdn_version_cache() -> None:
@@ -320,6 +357,161 @@ def _fetch_latest_version(timeout: float) -> str | None:
             return candidate.strip()
         _logger.debug("maidr: unusable CDN version %r from %s", candidate, url)
     return None
+
+
+# ---------------------------------------------------------------------------
+# Bundled-copy freshness
+# ---------------------------------------------------------------------------
+
+#: Minor-version gap at which the bundled fallback stops being "a release
+#: or two behind" and starts being a copy users should know about.  The
+#: bug report that prompted this check cited a gap of 8.
+STALE_MINOR_GAP = 5
+
+#: Set to ``0`` / ``false`` / ``off`` to silence the staleness warning.
+BUNDLE_WARNING_ENV_VAR = "MAIDR_BUNDLE_STALE_WARNING"
+
+#: Sentinel written to ``static/VERSION`` when the bundle is missing.
+_UNKNOWN_VERSION = "0.0.0"
+
+_RELEASE_RE = re.compile(
+    r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?P<suffix>[-+.].*)?$"
+)
+
+_bundle_warning_emitted = False
+
+
+class BundleStatus(NamedTuple):
+    """How the bundled ``maidr.js`` compares to the published release.
+
+    Attributes
+    ----------
+    bundled : str
+        Version of the copy shipped inside this wheel.
+    published : str or None
+        The published version the CDN would serve, or ``None`` when that
+        is unknown (not resolved, or pinned to ``latest``).
+    is_behind : bool
+        ``True`` when the bundled copy is older than ``published``.
+    is_stale : bool
+        ``True`` when it is behind by at least a major version or
+        :data:`STALE_MINOR_GAP` minor versions — the threshold at which
+        :func:`warn_if_bundle_is_stale` speaks up.
+    """
+
+    bundled: str
+    published: str | None
+    is_behind: bool
+    is_stale: bool
+
+
+def bundle_status(*, resolve: bool = True) -> BundleStatus:
+    """Compare the bundled ``maidr.js`` against the published release.
+
+    Parameters
+    ----------
+    resolve : bool, default=True
+        Whether to resolve the published version over the network when it
+        is not already known.  Pass ``False`` on offline code paths: the
+        comparison then uses only an explicit pin or an earlier lookup,
+        and reports ``published=None`` if neither is available.
+
+    Returns
+    -------
+    BundleStatus
+        The two versions and how far apart they are.  Unparseable or
+        unknown versions yield ``is_behind=is_stale=False`` rather than a
+        guess.
+
+    Examples
+    --------
+    >>> status = bundle_status()  # doctest: +SKIP
+    >>> status.bundled, status.published, status.is_behind  # doctest: +SKIP
+    ('3.73.0', '3.74.0', True)
+    """
+    bundled = maidr_js_version()
+    published = get_cdn_version() if resolve else _known_cdn_version()
+    if published == LATEST_TAG:
+        published = None
+
+    bundled_key = _version_key(bundled) if bundled != _UNKNOWN_VERSION else None
+    published_key = _version_key(published) if published else None
+    if bundled_key is None or published_key is None:
+        return BundleStatus(bundled, published, is_behind=False, is_stale=False)
+
+    is_behind = bundled_key < published_key
+    (bundled_major, bundled_minor, _), _ = bundled_key
+    (published_major, published_minor, _), _ = published_key
+    is_stale = is_behind and (
+        published_major > bundled_major
+        or published_minor - bundled_minor >= STALE_MINOR_GAP
+    )
+    return BundleStatus(bundled, published, is_behind, is_stale)
+
+
+def warn_if_bundle_is_stale() -> None:
+    """Warn once per process when the bundled fallback has drifted badly.
+
+    Intended for the render paths where the bundled copy can actually be
+    executed — ``use_cdn=False`` (it is the only source) and
+    ``use_cdn="auto"`` (it is the offline fallback).  Never issues a
+    network request of its own: it compares against the published version
+    only when that is already known, so an offline render stays offline
+    and simply says nothing.
+
+    Silenced by ``MAIDR_BUNDLE_STALE_WARNING=0``.
+    """
+    global _bundle_warning_emitted
+    if _bundle_warning_emitted or not _bundle_warning_enabled():
+        return
+
+    status = bundle_status(resolve=False)
+    if not status.is_stale:
+        return
+
+    _bundle_warning_emitted = True
+    warnings.warn(
+        f"maidr: the bundled copy of maidr.js is {status.bundled}, but the "
+        f"current published release is {status.published}. The bundle is "
+        f"what renders when the CDN is disabled (use_cdn=False) or "
+        f"unreachable (use_cdn='auto'), so those plots run the older "
+        f"build. Upgrade py-maidr to pick up a refreshed bundle. Set "
+        f"{BUNDLE_WARNING_ENV_VAR}=0 to silence this warning.",
+        UserWarning,
+        stacklevel=2,
+    )
+
+
+def _bundle_warning_enabled() -> bool:
+    """Return whether the staleness warning is enabled (it is by default)."""
+    raw = os.environ.get(BUNDLE_WARNING_ENV_VAR)
+    if raw is None:
+        return True
+    return raw.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _version_key(version: str) -> tuple[tuple[int, int, int], int] | None:
+    """Return a sortable key for a semver string.
+
+    Parameters
+    ----------
+    version : str
+        A version such as ``"3.74.0"`` or ``"3.74.0-rc.1"``.
+
+    Returns
+    -------
+    tuple or None
+        ``((major, minor, patch), rank)`` where ``rank`` is ``0`` for a
+        prerelease and ``1`` for a final release, so ``3.74.0-rc.1``
+        sorts before ``3.74.0``.  ``None`` when the string is not a
+        version we can compare.
+    """
+    match = _RELEASE_RE.match(version.strip())
+    if match is None:
+        return None
+    release = (int(match["major"]), int(match["minor"]), int(match["patch"]))
+    suffix = match["suffix"] or ""
+    return release, 0 if suffix.startswith("-") else 1
 
 
 def maidr_js_version() -> str:

@@ -195,6 +195,7 @@ def init_notebook(
         maidr_css_cdn_url,
         maidr_js_cdn_url,
         read_bundled_js,
+        warn_if_bundle_is_stale,
     )
 
     mode = _resolve_use_cdn(use_cdn)
@@ -246,6 +247,12 @@ def init_notebook(
                 f"</script>"
                 f"{cdn_bootstrap}"
             )
+
+    if mode is not True:
+        # The bundled source is what we just stashed on ``window``, so
+        # tell the user if it has drifted behind the published release.
+        # Offline-safe: never resolves over the network by itself.
+        warn_if_bundle_is_stale()
 
     display(HTML(html))
     _NOTEBOOK_LOADED = True
