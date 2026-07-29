@@ -125,6 +125,7 @@ _VERSION_RE = re.compile(
 # Keys of warnings already logged, so a bad pin is reported once instead
 # of on every URL build.  See :func:`_warn_once`.
 _warned_keys: set[str] = set()
+_warned_keys_lock = threading.Lock()
 
 # Ceilings on the above.  Normal use adds nothing or one entry; these
 # only matter for a process that programmatically cycles through many
@@ -383,14 +384,21 @@ def _warn_once(key: str, message: str, *args: object) -> None:
     key = key[:_MAX_WARNED_KEY_LEN]
     if key in _warned_keys:
         return
-    if len(_warned_keys) >= _MAX_WARNED_KEYS:
-        # Start over rather than grow without bound.  A process churning
-        # through this many distinct bad pins will see the occasional
-        # repeat, which is a fair trade for fixed memory.
-        _warned_keys.clear()
-    # ``set.add`` is atomic under the GIL, so no lock is needed here; the
-    # worst a race can do is emit the line twice.
-    _warned_keys.add(key)
+    # Claim the key under the lock.  Individual set operations being
+    # atomic would not be enough: the sequence below is compound, so two
+    # threads could both pass the size check and one's ``clear()`` would
+    # drop the key the other just added.  Leaning on the GIL for that
+    # would also stop holding under free-threaded builds (PEP 703).  The
+    # membership test above keeps the lock off the common path.
+    with _warned_keys_lock:
+        if key in _warned_keys:
+            return
+        if len(_warned_keys) >= _MAX_WARNED_KEYS:
+            # Start over rather than grow without bound.  A process
+            # churning through this many distinct bad pins will see the
+            # occasional repeat, which is a fair trade for fixed memory.
+            _warned_keys.clear()
+        _warned_keys.add(key)
     _logger.warning(message, *args)
 
 
@@ -592,9 +600,11 @@ def bundle_status(*, resolve: bool = True) -> BundleStatus:
 
     Examples
     --------
-    >>> status = bundle_status()  # doctest: +SKIP
-    >>> status.bundled, status.published, status.is_behind  # doctest: +SKIP
-    ('3.73.0', '3.74.0', True)
+    >>> bundle_status()  # doctest: +SKIP
+    BundleStatus(bundled='3.73.0', published='3.74.0', is_behind=True, is_stale=False)
+
+    The versions above are illustrative, not a fixture: ``published`` is
+    looked up at call time, so real output tracks whatever is current.
     """
     bundled = maidr_js_version()
     published = get_cdn_version() if resolve else _known_cdn_version()
