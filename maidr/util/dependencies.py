@@ -133,6 +133,35 @@ _VERSION_RE = re.compile(
     r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\Z"
 )
 
+#: Length ceiling applied before the pattern.  The pattern bounds the
+#: *shape* of a version but not its size, and unbounded numeric fields
+#: are not merely untidy: ``int()`` raises ``ValueError`` above CPython's
+#: 4300-digit integer-string conversion limit, so a version like
+#: ``3.74.0-`` plus five thousand digits validates, gets spliced into a
+#: URL, and then explodes out of ``render()`` when compared.  Real npm
+#: versions are far under this.
+_MAX_VERSION_LEN = 128
+
+
+def _is_valid_version(candidate: str) -> bool:
+    """Return whether ``candidate`` is a version we will accept.
+
+    Checks size before shape, so nothing unbounded reaches the regex or,
+    later, :func:`_version_key`'s ``int()`` calls.
+
+    Parameters
+    ----------
+    candidate : str
+        A version string from a pin, a resolver response, or the bundled
+        ``VERSION`` file.
+
+    Returns
+    -------
+    bool
+        ``True`` when it is safe to splice into a URL and to parse.
+    """
+    return len(candidate) <= _MAX_VERSION_LEN and _VERSION_RE.match(candidate) is not None
+
 # Keys of warnings already logged, so a bad pin is reported once instead
 # of on every URL build.  See :func:`_warn_once`.
 _warned_keys: set[str] = set()
@@ -356,12 +385,24 @@ def cdn_url(filename: str) -> str:
 
 
 def maidr_js_cdn_url() -> str:
-    """Return the CDN URL for ``maidr.js`` at the resolved version."""
+    """Return the CDN URL for ``maidr.js`` at the resolved version.
+
+    Returns
+    -------
+    str
+        A fully qualified jsDelivr URL.
+    """
     return cdn_url(MAIDR_JS_FILENAME)
 
 
 def maidr_css_cdn_url() -> str:
-    """Return the CDN URL for ``maidr.css`` at the resolved version."""
+    """Return the CDN URL for ``maidr.css`` at the resolved version.
+
+    Returns
+    -------
+    str
+        A fully qualified jsDelivr URL.
+    """
     return cdn_url(MAIDR_CSS_FILENAME)
 
 
@@ -387,7 +428,7 @@ def _normalise_version_pin(pin: str) -> str | None:
         return LATEST_TAG
     if candidate.lower() == BUNDLED_TAG:
         bundled = maidr_js_version()
-        if _VERSION_RE.match(bundled) and bundled != _UNKNOWN_VERSION:
+        if _is_valid_version(bundled) and bundled != _UNKNOWN_VERSION:
             return bundled
         # Asking for ``bundled`` is a request to serve what is installed,
         # which implies staying local.  Falling through to a network
@@ -407,7 +448,7 @@ def _normalise_version_pin(pin: str) -> str | None:
     # Accept a leading ``v`` (``v3.74.0``) since that is how the version
     # is written in git tags and release notes.
     candidate = candidate[1:] if candidate.startswith(("v", "V")) else candidate
-    if _VERSION_RE.match(candidate):
+    if _is_valid_version(candidate):
         return candidate
     # Truncate for display too: the key is capped, but an oversized pin
     # would otherwise land in the log line at full length.
@@ -634,7 +675,7 @@ def _fetch_latest_version(budget: float) -> str | None:
             continue
 
         candidate = payload.get(key) if isinstance(payload, dict) else None
-        if isinstance(candidate, str) and _VERSION_RE.match(candidate.strip()):
+        if isinstance(candidate, str) and _is_valid_version(candidate.strip()):
             return candidate.strip()
         _logger.debug("maidr: unusable CDN version %r from %s", candidate, url)
     return None
@@ -880,15 +921,24 @@ def _version_key(
     Build metadata (``+build.5``) is deliberately ignored, which is what
     semver requires: it carries no precedence.
     """
-    match = _RELEASE_RE.match(version.strip())
+    candidate = version.strip()
+    if len(candidate) > _MAX_VERSION_LEN:
+        return None
+    match = _RELEASE_RE.match(candidate)
     if match is None:
         return None
-    release = (int(match["major"]), int(match["minor"]), int(match["patch"]))
-    prerelease = match["prerelease"]
-    if not prerelease:
-        return release, 1, ()
-    # Strip the leading ``-`` the pattern captured with the body.
-    return release, 0, _prerelease_key(prerelease[1:])
+    try:
+        release = (int(match["major"]), int(match["minor"]), int(match["patch"]))
+        prerelease = match["prerelease"]
+        if not prerelease:
+            return release, 1, ()
+        # Strip the leading ``-`` the pattern captured with the body.
+        return release, 0, _prerelease_key(prerelease[1:])
+    except ValueError:
+        # Defence in depth behind the length cap above.  A comparison is
+        # advisory; it must never be the thing that breaks a render.
+        _logger.debug("maidr: unparseable version %r", candidate[:80])
+        return None
 
 
 @lru_cache(maxsize=1)

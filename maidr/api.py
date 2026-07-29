@@ -184,6 +184,20 @@ def init_notebook(
     No-op outside notebook environments (``Environment.is_notebook()``
     returns ``False``).  Safe to call multiple times — the guard flag
     prevents re-injection unless ``force=True``.
+
+    Emits the *unresolved* ``@latest`` URL rather than resolving a
+    version, which is the one place in the library that deliberately
+    does so.  ``maidr/__init__.py`` calls this at import, and resolving
+    here would put a blocking network request inside ``import maidr`` —
+    before the user has run anything, and before the documented opt-outs
+    could be applied.  A stalled DNS resolver is not reliably bounded by
+    a socket timeout, so that wait has no dependable ceiling.
+
+    Nothing is lost by not resolving: in a notebook every plot renders
+    inside an iframe that injects its own ``<script>`` at the resolved
+    version, so these parent-document tags only warm the browser cache
+    and never execute a plot.  The first ``render()`` / ``save_html()``
+    resolves, which is where the cost belongs.
     """
     global _NOTEBOOK_LOADED
 
@@ -204,8 +218,6 @@ def init_notebook(
         MAIDR_CSS_FILENAME,
         MAIDR_JS_FILENAME,
         bundled_css_path,
-        maidr_css_cdn_url,
-        maidr_js_cdn_url,
         read_bundled_js,
         unresolved_cdn_url,
         warn_bundle_unreadable,
@@ -219,8 +231,9 @@ def init_notebook(
         # nothing is stashed on window.* because iframes inject their
         # own CDN <script> as before.
         html = (
-            f'<link rel="stylesheet" href="{maidr_css_cdn_url()}">'
-            f'<script src="{maidr_js_cdn_url()}"></script>'
+            f'<link rel="stylesheet" '
+            f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
+            f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}"></script>'
         )
     else:
         # ``False`` or ``"auto"``: embed the bundled source strings
@@ -251,9 +264,12 @@ def init_notebook(
                     f"</script>"
                 )
             else:
+                # Same reasoning as above: this runs at import too.
                 html = (
-                    f'<link rel="stylesheet" href="{maidr_css_cdn_url()}">'
-                    f'<script src="{maidr_js_cdn_url()}"></script>'
+                    f'<link rel="stylesheet" '
+                    f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
+                    f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}">'
+                    f"</script>"
                 )
         else:
             # json.dumps produces a JS-safe string literal (escapes quotes,
@@ -268,8 +284,10 @@ def init_notebook(
             cdn_bootstrap = ""
             if mode == "auto":
                 cdn_bootstrap = (
-                    f'<link rel="stylesheet" href="{maidr_css_cdn_url()}">'
-                    f'<script src="{maidr_js_cdn_url()}"></script>'
+                    f'<link rel="stylesheet" '
+                    f'href="{unresolved_cdn_url(MAIDR_CSS_FILENAME)}">'
+                    f'<script src="{unresolved_cdn_url(MAIDR_JS_FILENAME)}">'
+                    f"</script>"
                 )
             html = (
                 f"<script>"

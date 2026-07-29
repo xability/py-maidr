@@ -415,7 +415,7 @@ def test_timeout_is_a_total_budget_across_endpoints(monkeypatch):
     # wall-clock assertion would add nothing but CI flakiness, since the
     # budget bounds the timeouts we hand out, not the scheduler.
     assert seen[1] < seen[0] <= 2.0
-    assert sum(seen) <= 4.0, "handed out more than the budget across attempts"
+    assert sum(seen) < 2.0 * len(seen), "timeouts were not sharing a budget"
 
 
 def test_budget_exhaustion_skips_remaining_endpoints(monkeypatch):
@@ -733,3 +733,24 @@ def test_ordinary_timeout_passes_through_untouched(value, monkeypatch, caplog):
         assert dependencies._cdn_timeout() == float(value)
 
     assert not caplog.records, f"{value!r} should be accepted silently"
+
+
+@pytest.mark.parametrize(
+    "hostile",
+    ["3.74.0-" + "9" * 5000, "9" * 5000 + ".1.0", "3.74.0+" + "a" * 5000],
+)
+def test_absurdly_long_versions_are_rejected_before_parsing(hostile):
+    """A valid *shape* is not enough; size has to be bounded too.
+
+    ``int()`` raises above CPython's 4300-digit conversion limit, so an
+    unbounded numeric field would validate, reach the URL, and then
+    explode out of ``render()`` during the staleness comparison.
+    """
+    assert not dependencies._is_valid_version(hostile)
+    assert dependencies._version_key(hostile) is None
+
+
+def test_version_key_never_raises_on_a_shape_that_slips_through(monkeypatch):
+    """Defence in depth: parsing is advisory and must not break a render."""
+    monkeypatch.setattr(dependencies, "_MAX_VERSION_LEN", 10_000)
+    assert dependencies._version_key("3.74.0-" + "9" * 5000) is None

@@ -398,3 +398,26 @@ def test_offline_render_with_unknown_published_version_is_silent(
         maidr.render(bar_plot, use_cdn=False)
 
 
+
+
+def test_init_notebook_makes_no_network_call(monkeypatch, forbid_network):
+    """``import maidr`` calls this, so it must never resolve.
+
+    Resolving here would put a blocking request inside ``import maidr``,
+    before the user can apply any of the documented opt-outs.
+    """
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+    monkeypatch.setattr(maidr_api, "_NOTEBOOK_LOADED", False, raising=False)
+    monkeypatch.setattr(
+        maidr.util.environment.Environment, "is_notebook", staticmethod(lambda: True)
+    )
+
+    fake = types.ModuleType("IPython.display")
+    fake.HTML = lambda html: html
+    fake.display = lambda html: None
+    monkeypatch.setitem(sys.modules, "IPython.display", fake)
+
+    for mode in (True, False, "auto"):
+        monkeypatch.setattr(maidr_api, "_NOTEBOOK_LOADED", False, raising=False)
+        maidr.init_notebook(use_cdn=mode)
