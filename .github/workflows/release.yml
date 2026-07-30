@@ -131,7 +131,11 @@ jobs:
           # --author) so it does not persist into the repo config and bleed
           # into the semantic-release commit that follows.  Not pushed here --
           # semantic-release pushes the branch below.
-          git add maidr/static/maidr.js maidr/static/maidr.css maidr/static/VERSION
+          # Stage the directory rather than each filename: maidr-math.css is
+          # only present once the bundled maidr.js is new enough to publish a
+          # split-out maths stylesheet, and naming a path that does not exist
+          # makes `git add` fail outright.
+          git add maidr/static
           if git diff --cached --quiet; then
             echo "Bundle already at v${VERSION}; nothing to commit."
           else

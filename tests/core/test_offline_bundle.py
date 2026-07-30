@@ -57,6 +57,49 @@ def test_maidr_html_dependency_points_to_package():
     ), "maidr.css is not listed as a dependency stylesheet"
 
 
+def test_bundled_math_css_is_optional_not_an_error():
+    """A bundle without ``maidr-math.css`` reports ``None``, never raises.
+
+    maidr.js only started publishing a split-out KaTeX stylesheet partway
+    through its history, and the bundled copy is refreshed only when the update
+    workflow runs.  Treating its absence as a packaging error would break every
+    install carrying an older bundle.
+    """
+    path = dependencies.bundled_math_css_path()
+
+    assert path is None or path.is_file()
+    if path is not None:
+        assert path.name == dependencies.MAIDR_MATH_CSS_FILENAME
+        assert path.stat().st_size > 0, "bundled maidr-math.css looks empty"
+
+
+def test_maidr_html_dependency_copies_every_bundled_file():
+    """The tagged dependency must copy the whole bundle, not just tagged files.
+
+    maidr.js resolves ``maidr-math.css`` against its own URL at runtime, so the
+    file has to land in ``lib_dir`` beside ``maidr.js``.  With
+    ``all_files=False`` only the files carrying a tag are copied, and the maths
+    stylesheet would 404 the first time a chat response contained an equation.
+    """
+    dep = dependencies.maidr_html_dependency()
+
+    assert dep.all_files is True
+
+
+def test_maidr_html_dependency_does_not_link_the_math_stylesheet():
+    """``maidr-math.css`` ships but must never get a ``<link>``.
+
+    The whole point of splitting it out is that ~360 kB of base64 font data is
+    fetched only for the messages that need it.  Emitting a tag for it would
+    put that back on every page load and undo the split.
+    """
+    dep = dependencies.maidr_html_dependency()
+
+    hrefs = [Path(entry["href"]).name for entry in dep.stylesheet]
+    assert dependencies.MAIDR_MATH_CSS_FILENAME not in hrefs
+    assert hrefs == [dependencies.MAIDR_CSS_FILENAME]
+
+
 def test_maidr_bundled_files_dependency_has_no_script_tags():
     """The no-tag dependency must still copy files but emit no tags."""
     dep = dependencies.maidr_bundled_files_dependency()

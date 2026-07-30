@@ -26,6 +26,23 @@ _STATIC_PACKAGE = "maidr"
 _STATIC_SUBDIR = "static"
 MAIDR_JS_FILENAME = "maidr.js"
 MAIDR_CSS_FILENAME = "maidr.css"
+
+# ``maidr.js`` renders LaTeX in AI chat responses with KaTeX, whose stylesheet
+# is ~360 kB of base64 font data.  Upstream publishes it as a separate file and
+# fetches it at runtime -- only for the messages that actually contain maths --
+# by resolving it against whichever ``maidr.js`` or ``maidr.css`` the page
+# already loaded.  So it has to sit *next to* them wherever they land, but must
+# never be emitted as a ``<link>``: doing so would download it on every page and
+# undo the split.
+#
+# Optional by design.  maidr versions predating the split do not publish it, and
+# the bundled copy is only refreshed when the update workflow runs, so every
+# consumer here treats a missing file as "this bundle has no maths stylesheet"
+# rather than an error.  Losing it is not fatal at runtime either: KaTeX still
+# emits MathML, so a screen reader reads the equation; only the visual layout
+# degrades.
+MAIDR_MATH_CSS_FILENAME = "maidr-math.css"
+
 _VERSION_FILENAME = "VERSION"
 
 
@@ -91,6 +108,23 @@ def bundled_css_path() -> Path:
     return _bundled_asset_path(MAIDR_CSS_FILENAME)
 
 
+def bundled_math_css_path() -> Path | None:
+    """Return the path to the bundled KaTeX stylesheet, if this bundle has one.
+
+    Returns
+    -------
+    pathlib.Path or None
+        Absolute path to ``maidr-math.css``, or ``None`` when the bundled
+        ``maidr.js`` predates the split and ships no maths stylesheet.  Callers
+        must handle ``None`` rather than treat it as a packaging error -- see
+        :data:`MAIDR_MATH_CSS_FILENAME`.
+    """
+    try:
+        return _bundled_asset_path(MAIDR_MATH_CSS_FILENAME)
+    except FileNotFoundError:
+        return None
+
+
 def read_bundled_js() -> str:
     """Return the contents of the bundled ``maidr.js`` as a string."""
     return bundled_js_path().read_text(encoding="utf-8")
@@ -121,7 +155,13 @@ def maidr_html_dependency():
         source={"package": _STATIC_PACKAGE, "subdir": _STATIC_SUBDIR},
         script=[{"src": MAIDR_JS_FILENAME}],
         stylesheet=[{"href": MAIDR_CSS_FILENAME}],
-        all_files=False,
+        # ``all_files=True`` copies ``maidr-math.css`` into ``lib_dir`` next to
+        # the bundle, which is what lets maidr.js find it at runtime, while the
+        # explicit ``script`` / ``stylesheet`` lists still decide which files
+        # get a tag -- so the maths stylesheet ships without being downloaded on
+        # every page.  Listing it as a stylesheet instead would defeat the
+        # entire point of splitting it out.
+        all_files=True,
     )
 
 

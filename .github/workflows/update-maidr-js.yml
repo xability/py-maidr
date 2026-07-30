@@ -58,4 +58,7 @@ jobs:
           commit_user_name: "xabilitylab"
           commit_user_email: "187909674+xabilitylab@users.noreply.github.com"
           commit_author: "xabilitylab <187909674+xabilitylab@users.noreply.github.com>"
-          file_pattern: "maidr/static/maidr.js maidr/static/maidr.css maidr/static/VERSION"
+          # The directory, not a filename list: maidr-math.css only exists once
+          # the bundled maidr.js is new enough to publish one, and a pattern
+          # naming a missing path fails `git add`.
+          file_pattern: "maidr/static"

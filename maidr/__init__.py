@@ -220,6 +220,7 @@ from .patch import (  # noqa: E402, F401
 )
 from .util.dependencies import (  # noqa: E402
     bundled_css_path,
+    bundled_math_css_path,
     bundled_js_path,
     maidr_js_version,
     read_bundled_js,
@@ -246,6 +247,7 @@ except Exception:  # pragma: no cover - never block import on notebook setup
 
 __all__ = [
     "bundled_css_path",
+    "bundled_math_css_path",
     "bundled_js_path",
     "close",
     "get_use_cdn",

@@ -12,13 +12,20 @@
 # guarantee: a tampered CDN/registry response fails the hash check instead of
 # being written into the bundle (and, at release time, shipped to PyPI).
 #
+# ``maidr-math.css`` -- the on-demand KaTeX stylesheet that maidr.js fetches
+# from alongside itself the first time an AI chat response contains maths -- is
+# copied too, but only when the published bundle has one.  Versions before it
+# was split out of ``maidr.css`` simply do not ship the file, and those must
+# keep bundling cleanly.
+#
 # Usage:
 #   fetch-maidr-bundle.sh [VERSION] [DEST_DIR]
 #
 #   VERSION   maidr npm version to fetch.  Resolves the latest published
 #             version on npm when empty or omitted.
-#   DEST_DIR  directory to write ``maidr.js`` / ``maidr.css`` / ``VERSION``
-#             into.  Defaults to ``maidr/static``.
+#   DEST_DIR  directory to write ``maidr.js`` / ``maidr.css`` /
+#             ``maidr-math.css`` / ``VERSION`` into.  Defaults to
+#             ``maidr/static``.
 #
 # The resolved version is written to ``<DEST_DIR>/VERSION`` and printed as the
 # final line of stdout so callers can capture it, e.g.
@@ -92,9 +99,21 @@ fi
 # Extract the bundled assets from the verified tarball.  npm tarballs place
 # published files under ``package/``.
 tar -xzf "$TGZ" -C "$WORK" package/dist/maidr.js package/dist/maidr.css
+# Extracted separately, and tolerantly: maidr.js only started publishing a
+# split-out maths stylesheet partway through its history, so a tarball without
+# one is a valid older bundle rather than a failure.
+tar -xzf "$TGZ" -C "$WORK" package/dist/maidr-math.css 2>/dev/null \
+  || echo "maidr@$VERSION ships no maidr-math.css; maths styling will fall back" >&2
 mkdir -p "$DEST_DIR"
 cp "$WORK/package/dist/maidr.js" "$DEST_DIR/maidr.js"
 cp "$WORK/package/dist/maidr.css" "$DEST_DIR/maidr.css"
+# Refresh or remove, never leave stale: a downgrade to a version predating the
+# split would otherwise keep an unrelated stylesheet next to the new bundle.
+if [ -f "$WORK/package/dist/maidr-math.css" ]; then
+  cp "$WORK/package/dist/maidr-math.css" "$DEST_DIR/maidr-math.css"
+else
+  rm -f "$DEST_DIR/maidr-math.css"
+fi
 printf "%s\n" "$VERSION" > "$DEST_DIR/VERSION"
 
 # Defense-in-depth sanity checks: non-empty, and not an HTML error page
@@ -103,7 +122,10 @@ printf "%s\n" "$VERSION" > "$DEST_DIR/VERSION"
 test -s "$DEST_DIR/maidr.js"
 test -s "$DEST_DIR/maidr.css"
 test -s "$DEST_DIR/VERSION"
-for asset in maidr.js maidr.css; do
+for asset in maidr.js maidr.css maidr-math.css; do
+  # maidr-math.css is optional; only inspect it when this version shipped one.
+  [ -f "$DEST_DIR/${asset}" ] || continue
+  test -s "$DEST_DIR/${asset}"
   if head -c 128 "$DEST_DIR/${asset}" | grep -qiE "^[[:space:]]*<!DOCTYPE|^[[:space:]]*<html"; then
     echo "${asset} looks like an HTML error page" >&2
     exit 1
