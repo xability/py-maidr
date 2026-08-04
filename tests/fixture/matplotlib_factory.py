@@ -52,7 +52,7 @@ class MatplotlibFactory(LibraryFactory):
 
         The stages are plotted as numeric codes so they keep driving
         sonification and braille, then named via ``set_yticks(..., labels=...)``
-        the way a user would. ``where="post"`` is the reading a hypnogram
+        the way a user would. ``where="post"`` is the reading that a hypnogram
         implies: the stage holds until the next reading, then jumps.
         """
         ax.step(

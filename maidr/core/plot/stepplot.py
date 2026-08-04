@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Dict, List, Optional
 
 from matplotlib.axes import Axes
@@ -204,10 +205,17 @@ class StepPlot(MultiLinePlot):
             ``True`` when ``text`` parses as a number equal to ``position``.
             A label matplotlib cannot have generated from the number alone —
             ``"$1,000"``, ``"Awake"`` — returns ``False`` and is kept.
+
+        Notes
+        -----
+        The comparison is approximate because a tick label is a *rounded*
+        rendering of its position (``0.30000000000000004`` prints as
+        ``"0.3"``), so exact equality would let the echo through and put a
+        redundant label on every point.
         """
         # matplotlib renders negative ticks with U+2212 MINUS SIGN.
         normalized = text.replace(",", "").replace("−", "-")
         try:
-            return float(normalized) == position
+            return math.isclose(float(normalized), position, rel_tol=1e-6, abs_tol=1e-9)
         except ValueError:
             return False
