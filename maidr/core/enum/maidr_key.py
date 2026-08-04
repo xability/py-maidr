@@ -43,6 +43,9 @@ class MaidrKey(str, Enum):
     # Scatter plot grid navigation keys.
     TICK_STEP = "tickStep"
 
+    # Step plot keys. The per-point ordinal level name reuses LABEL above.
+    STEP_DIRECTION = "stepDirection"
+
     # Histogram plot keys.
     X_MIN = "xMin"
     X_MAX = "xMax"

@@ -13,6 +13,7 @@ class PlotType(str, Enum):
     LINE = "line"
     SCATTER = "point"
     STACKED = "stacked_bar"
+    STEP = "step"
     SMOOTH = "smooth"
     CANDLESTICK = "candlestick"
     VIOLIN_KDE = "violin_kde"

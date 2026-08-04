@@ -111,7 +111,8 @@ def _show_fallback(fig: Figure) -> None:
     warnings.warn(
         "This figure contains plot type(s) not yet supported by maidr. "
         "Falling back to static image. Supported types: bar, box, count, "
-        "dodged, heat, hist, line, scatter, stacked, kde, violin, candlestick.",
+        "dodged, heat, hist, line, step, scatter, stacked, kde, violin, "
+        "candlestick.",
         stacklevel=4,
     )
 

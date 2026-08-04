@@ -9,6 +9,7 @@ from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot_factory import MaidrPlotFactory
 from maidr.core.plot.scatterplot import ScatterPlot
+from maidr.core.plot.stepplot import StepPlot
 
 
 # test invalid inputs
@@ -31,6 +32,7 @@ def test_create_with_invalid_plot_type(mocker):
         (PlotType.LINE, MultiLinePlot),
         (PlotType.SCATTER, ScatterPlot),
         (PlotType.STACKED, GroupedBarPlot),
+        (PlotType.STEP, StepPlot),
     ],
 )
 def test_create_plot_data(mocker, plot_type, expected_plot_data):

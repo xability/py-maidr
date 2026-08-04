@@ -22,13 +22,17 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
     ----------
     ax : Axes
         The matplotlib axes object containing the line plot(s).
+    plot_type : PlotType, optional
+        The layer type to emit, by default ``PlotType.LINE``. Subclasses that
+        share this extraction logic but describe a different chart — notably
+        :class:`maidr.core.plot.stepplot.StepPlot` — override it.
     **kwargs : dict
         Additional keyword arguments to pass to the parent class.
 
     Attributes
     ----------
     type : PlotType
-        Set to PlotType.LINE to identify this as a line plot.
+        The plot type this layer identifies as, ``PlotType.LINE`` by default.
 
     Notes
     -----
@@ -38,8 +42,8 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
       (fill values) for each point.
     """
 
-    def __init__(self, ax: Axes, **kwargs):
-        super().__init__(ax, PlotType.LINE)
+    def __init__(self, ax: Axes, plot_type: PlotType = PlotType.LINE, **kwargs):
+        super().__init__(ax, plot_type)
 
     def _extract_axes_data(self) -> dict:
         """

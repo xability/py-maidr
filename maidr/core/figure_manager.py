@@ -47,6 +47,7 @@ class FigureManager:
         PlotType.STACKED: 2,
         PlotType.DODGED: 2,  # DODGED and STACKED have same priority
         PlotType.LINE: 1,
+        PlotType.STEP: 1,
         PlotType.SCATTER: 1,
         PlotType.HIST: 1,
         PlotType.BOX: 1,

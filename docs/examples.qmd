@@ -354,6 +354,68 @@ plt.show() #<<
 
 ```
 
+### Step Plot
+
+A step plot is the right chart when the value is *piecewise constant*: it is
+held across an interval and then jumps, rather than sliding continuously
+between samples. `ax.step()` produces one, as does any `drawstyle="steps-*"`
+passed to `ax.plot()` or `sns.lineplot()`.
+
+The classic case is a **hypnogram** — an ordinal sleep stage against time. Plot
+the stages as numeric codes so they keep driving sonification, braille and the
+min/max bounds, then name the codes with `set_yticks(..., labels=...)`. maidr
+attaches the names to each point and announces "REM" instead of "3".
+
+```{python}
+#| fig-alt: Hypnogram of sleep stage across one night
+
+import matplotlib.pyplot as plt
+
+import maidr #<<
+
+# Ordinal sleep stages, deepest first, so "up" means lighter sleep.
+stage_codes = [0, 1, 2, 3, 4]
+stage_names = ["N3", "N2", "N1", "REM", "Awake"]
+
+# One reading every half hour across a night's sleep.
+hours = [i * 0.5 for i in range(17)]
+stages = [4, 3, 2, 1, 0, 0, 1, 3, 2, 1, 0, 1, 3, 2, 1, 3, 4]
+
+fig, ax = plt.subplots(figsize=(10, 5))
+
+# where="post": the stage holds until the next reading, then jumps.
+ax.step(hours, stages, where="post") #<<
+
+# Name the ordinal levels; the underlying y values stay numeric.
+ax.set_yticks(stage_codes, labels=stage_names) #<<
+
+ax.set_title("Hypnogram\nSleep stage across one night")
+ax.set_xlabel("Time asleep (hours)")
+ax.set_ylabel("Sleep stage")
+
+# Add a number formatter for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+
+plt.show() #<<
+```
+
+The `where` argument decides which side of each sample the value is held on,
+and maidr reports it so the description can say what the chart actually means:
+
+| matplotlib | maidr `stepDirection` | Meaning |
+|------------|-----------------------|---------|
+| `where="post"` (`drawstyle="steps-post"`) | `hv` | Value holds until the next x value, then jumps |
+| `where="pre"` (`drawstyle="steps-pre"` or `"steps"`) | `vh` | Value jumps at the current x value, then holds |
+| `where="mid"` (`drawstyle="steps-mid"`) | `mid` | Value jumps midway between x values |
+
+::: {.callout-note}
+Level names are read from the y tick labels at render time, so calling
+`set_yticks()` or `set_yticklabels()` *after* plotting works as expected. A tick
+label that merely spells out its own position (`"3"` at y = 3) carries no
+ordinal information and is not emitted, so a purely numeric step plot is
+announced by its numbers as usual.
+:::
+
 ### Heat Map
 
 ```{python}
