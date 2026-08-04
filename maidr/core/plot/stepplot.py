@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import math
 from typing import Dict, List, Optional
 
+from matplotlib import cbook
 from matplotlib.axes import Axes
 
 from maidr.core.enum.maidr_key import MaidrKey
@@ -154,11 +154,17 @@ class StepPlot(MultiLinePlot):
         """
         Read ``{tick position: level name}`` off a single axes.
 
-        Blank labels are skipped, as are labels that merely spell out their
-        own tick position (``"3"`` at y = 3, ``"1,000"`` at y = 1000). Those
-        carry no ordinal information, so emitting them would add a ``label``
-        to every point of an ordinary numeric step plot and make MAIDR
-        announce the number it was already going to announce.
+        Blank labels are skipped, as are labels that are themselves numerals
+        (``"3"``, ``"1,000"``, ``"−0.5"``) and labels rendered as mathtext
+        (``"$\\mathdefault{10^{1}}$"`` on a log axis). Neither carries ordinal
+        information: they are the y *number* written out by a tick formatter,
+        which MAIDR already announces, and a formatter is free to write a
+        number that is not the tick's own coordinate — the default
+        ``ScalarFormatter`` labels y = 1000000 as ``"0.0"`` once it factors an
+        offset out, and ``ticklabel_format(style="sci")`` labels it ``"1.00"``.
+        Emitting those as level names would announce a flatly wrong value, so
+        every numeral is dropped rather than only the ones that echo their own
+        position.
 
         Parameters
         ----------
@@ -181,41 +187,46 @@ class StepPlot(MultiLinePlot):
             name = text.strip()
             if not name:
                 continue
-            coord = float(position)
-            if StepPlot._is_numeral_echo(name, coord):
+            if StepPlot._is_number_rendering(name):
                 continue
-            levels[coord] = name
+            levels[float(position)] = name
         return levels
 
     @staticmethod
-    def _is_numeral_echo(text: str, position: float) -> bool:
+    def _is_number_rendering(text: str) -> bool:
         """
-        Report whether a tick label is just its own position written out.
+        Report whether a tick label is a formatter's rendering of a number.
 
         Parameters
         ----------
         text : str
             The tick label text.
-        position : float
-            The tick's data coordinate.
 
         Returns
         -------
         bool
-            ``True`` when ``text`` parses as a number equal to ``position``.
-            A label matplotlib cannot have generated from the number alone —
-            ``"$1,000"``, ``"Awake"`` — returns ``False`` and is kept.
+            ``True`` when ``text`` parses as a bare number, or is mathtext
+            (which is how numeric formatters typeset exponents). A label a
+            formatter cannot have produced from the number alone — ``"$1,000"``,
+            ``"50%"``, ``"Awake"`` — returns ``False`` and is kept.
 
         Notes
         -----
-        The comparison is approximate because a tick label is a *rounded*
-        rendering of its position (``0.30000000000000004`` prints as
-        ``"0.3"``), so exact equality would let the echo through and put a
-        redundant label on every point.
+        A numeral is rejected whatever its value, not only when it matches its
+        own tick position: an offset or scaled axis renders y = 1000000 as
+        ``"0.0"``, and labelling that point ``"0.0"`` is worse than leaving it
+        unlabelled. The cost is that an axis deliberately relabelled with
+        numerals (``set_yticks([0, 1], labels=["1", "2"])``) yields no level
+        names; those points still sonify and braille from their numeric ``y``.
         """
+        # matplotlib typesets exponents (log axes) as mathtext; announcing the
+        # raw LaTeX would be worse than announcing nothing.
+        if cbook.is_math_text(text):
+            return True
         # matplotlib renders negative ticks with U+2212 MINUS SIGN.
         normalized = text.replace(",", "").replace("−", "-")
         try:
-            return math.isclose(float(normalized), position, rel_tol=1e-6, abs_tol=1e-9)
+            float(normalized)
         except ValueError:
             return False
+        return True

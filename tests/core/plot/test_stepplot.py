@@ -277,6 +277,34 @@ class TestStepLevelLabels:
         finally:
             plt.close(fig)
 
+    @pytest.mark.parametrize(
+        "y_values, configure",
+        [
+            # Default ScalarFormatter factors out an offset, so the tick at
+            # y = 1000000 is labelled "0.0". Labelling the point "0.0" would
+            # announce a flatly wrong value.
+            ([1000000, 1000002, 1000004], lambda ax: None),
+            # Scientific notation rescales the same way: "1.00" at y = 1e6.
+            (
+                [1e6, 2e6, 3e6],
+                lambda ax: ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0)),
+            ),
+            # A log axis typesets its ticks as mathtext; announcing the raw
+            # LaTeX ("$\\mathdefault{10^{1}}$") is worse than announcing nothing.
+            ([1, 10, 100], lambda ax: ax.set_yscale("log")),
+        ],
+    )
+    def test_rescaled_numeric_axis_emits_no_labels(self, y_values, configure):
+        fig, ax = plt.subplots()
+        try:
+            ax.step([0, 1, 2], y_values, where="post")
+            configure(ax)
+            points = _only_layer(fig)["data"][0]
+
+            assert all("label" not in point for point in points), points
+        finally:
+            plt.close(fig)
+
     def test_point_off_a_named_tick_gets_no_label(self):
         fig, ax = plt.subplots()
         try:
