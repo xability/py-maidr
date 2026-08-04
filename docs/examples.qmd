@@ -411,9 +411,9 @@ and maidr reports it so the description can say what the chart actually means:
 ::: {.callout-note}
 Level names are read from the y tick labels at render time, so calling
 `set_yticks()` or `set_yticklabels()` *after* plotting works as expected. A tick
-label that merely spells out its own position (`"3"` at y = 3) carries no
-ordinal information and is not emitted, so a purely numeric step plot is
-announced by its numbers as usual.
+label that is itself a number (`"3"`, `"1,000"`, or the rescaled `"0.0"` a
+default axis prints for y = 1000000) carries no ordinal information and is not
+emitted, so a purely numeric step plot is announced by its numbers as usual.
 :::
 
 ### Heat Map
