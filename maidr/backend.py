@@ -114,7 +114,11 @@ def _show_fallback(fig: Figure) -> None:
     # drifted, naming "kde" and "violin" (neither is a PlotType) while omitting
     # smooth and the violin_* variants. Deriving it keeps a user-facing message
     # honest as plot types are added.
-    supported = ", ".join(sorted(plot_type.value for plot_type in PlotType))
+    #
+    # display_name, not .value: the values are wire identifiers, so a user who
+    # called ax.scatter() would otherwise be told about "point". The set() folds
+    # the two violin layers, which share a display name, back into one entry.
+    supported = ", ".join(sorted({plot_type.display_name for plot_type in PlotType}))
     warnings.warn(
         "This figure contains plot type(s) not yet supported by maidr. "
         f"Falling back to static image. Supported types: {supported}.",

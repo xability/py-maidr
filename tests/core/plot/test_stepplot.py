@@ -351,3 +351,58 @@ class TestStepPlotClass:
             assert axes["z"]["label"] == "Night"
         finally:
             plt.close(fig)
+
+
+class TestStepUtils:
+    """Direct coverage for the helpers the classification rule is built on."""
+
+    def test_data_bearing_lines_agrees_with_the_extractor(self):
+        """
+        Pin ``data_bearing_lines`` to ``MultiLinePlot._extract_line_data``.
+
+        The two apply the same "does this line carry data" predicate from
+        opposite ends of the pipeline — one decides the layer's *type*, the
+        other decides which lines become *series*. They are separate
+        implementations, so if one starts counting a line the other skips,
+        an axes could be classified as a step plot whose only step line is
+        then dropped from the payload. This test fails the moment they
+        disagree.
+        """
+        from maidr.util.step_utils import data_bearing_lines
+
+        fig, ax = plt.subplots()
+        try:
+            ax.step([0, 1, 2], [1, 2, 3], where="post")
+            ax.plot([], [])  # empty: carries no data, must be ignored by both
+            ax.step([0, 1, 2], [3, 2, 1], where="post")
+
+            counted = data_bearing_lines(ax)
+            extracted = _only_layer(fig)["data"]
+
+            assert len(counted) == len(extracted) == 2
+        finally:
+            plt.close(fig)
+
+    def test_an_empty_line_does_not_make_an_axes_a_step_plot(self):
+        """An axes with no data-bearing line is not a step plot."""
+        from maidr.util.step_utils import is_step_axes
+
+        fig, ax = plt.subplots()
+        try:
+            ax.plot([], [])
+            assert is_step_axes(ax) is False
+        finally:
+            plt.close(fig)
+
+    def test_display_names_read_the_way_a_user_named_the_plot(self):
+        """
+        The fallback warning names plot types for users, not for the schema.
+
+        ``PlotType.SCATTER.value`` is ``"point"``; someone who called
+        ``ax.scatter`` should be told about "scatter".
+        """
+        assert PlotType.SCATTER.display_name == "scatter"
+        assert PlotType.HEAT.display_name == "heatmap"
+        assert PlotType.STEP.display_name == "step"
+        # Both violin layers collapse to one user-facing name.
+        assert PlotType.VIOLIN_KDE.display_name == PlotType.VIOLIN_BOX.display_name
