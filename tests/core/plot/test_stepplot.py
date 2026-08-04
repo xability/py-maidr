@@ -434,3 +434,51 @@ class TestStepUtils:
         assert PlotType.STEP.display_name == "step"
         # Both violin layers collapse to one user-facing name.
         assert PlotType.VIOLIN_KDE.display_name == PlotType.VIOLIN_BOX.display_name
+
+class TestClassificationIsOrderDependent:
+    """
+    Classification happens once, on the first plotting call for an axes.
+
+    That is the existing one-layer-per-axes model (``_maidr_plot_created``),
+    not something step introduced — but it makes a mixed axes asymmetric, and
+    these tests pin both directions so the asymmetry cannot drift unnoticed.
+    """
+
+    def test_line_drawn_first_keeps_the_axes_a_line(self):
+        """The conservative direction: a plain line first wins outright."""
+        fig, ax = plt.subplots()
+        try:
+            ax.plot([0, 1, 2], [1, 2, 3])
+            ax.step([0, 1, 2], [3, 2, 1], where="post")
+            layer = _only_layer(fig)
+
+            assert layer["type"] == PlotType.LINE
+            assert "stepDirection" not in layer
+        finally:
+            plt.close(fig)
+
+    def test_step_drawn_first_keeps_the_axes_a_step_but_drops_the_direction(self):
+        """
+        The generous direction, pinned deliberately.
+
+        A step line first classifies the axes ``step``; a plain line added
+        afterwards does not re-open that decision, so its points ride in a
+        layer typed ``step``. Downgrading at render time would be worse: it
+        would strip the ordinal level names, and losing the stage names is a
+        bigger accessibility loss than a slightly generous type.
+
+        What the layer does give up is ``stepDirection`` —
+        ``resolve_step_direction`` re-reads the artists at render time and
+        finds them disagreeing, so no convention is ever claimed that the data
+        does not support.
+        """
+        fig, ax = plt.subplots()
+        try:
+            ax.step([0, 1, 2], [1, 2, 3], where="post")
+            ax.plot([0, 1, 2], [3, 2, 1])
+            layer = _only_layer(fig)
+
+            assert layer["type"] == PlotType.STEP
+            assert "stepDirection" not in layer
+        finally:
+            plt.close(fig)
