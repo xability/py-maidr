@@ -50,6 +50,17 @@ class PlotlyPlotFactory:
         if trace_type in ("scatter", "scattergl"):
             mode = trace.get("mode", "markers")
             if "lines" in mode and "markers" not in mode:
+                # A staircase is a scatter trace too — plotly varies
+                # ``line.shape``, not the trace type — so the shape is the only
+                # thing separating piecewise-constant data from an
+                # interpolated line.
+                from maidr.plotly.step_shape import is_step_trace
+
+                if is_step_trace(trace):
+                    from maidr.plotly.step import PlotlyStepPlot
+
+                    return PlotlyStepPlot([trace], layout, **axis_kwargs)
+
                 from maidr.plotly.line import PlotlyLinePlot
 
                 return PlotlyLinePlot(trace, layout, **axis_kwargs)

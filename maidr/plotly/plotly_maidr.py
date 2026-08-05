@@ -140,13 +140,21 @@ class PlotlyMaidr:
             bar_traces = [
                 t for t in group_traces if t.get("type") == "bar"
             ]
-            line_traces = [
+            connected_traces = [
                 t
                 for t in group_traces
                 if t.get("type") in ("scatter", "scattergl")
                 and "lines" in t.get("mode", "")
                 and "markers" not in t.get("mode", "")
             ]
+            # A staircase is a scatter/lines trace whose ``line.shape`` makes
+            # plotly draw risers instead of interpolating, so it has to be
+            # split out here: merged into the multi-line layer it would be
+            # announced as an interpolated line.
+            from maidr.plotly.step_shape import is_step_trace
+
+            step_traces = [t for t in connected_traces if is_step_trace(t)]
+            line_traces = [t for t in connected_traces if not is_step_trace(t)]
             box_traces = [
                 t for t in group_traces if t.get("type") == "box"
             ]
@@ -182,6 +190,42 @@ class PlotlyMaidr:
                 plot.col_index = col
                 self._plots.append(plot)
                 merged.update(id(t) for t in line_traces)
+
+            # Steps, one layer per step convention. A MAIDR layer carries a
+            # single ``stepDirection`` for all of its series, so merging an
+            # ``hv`` trace with a ``vh`` one would describe one of them
+            # wrongly. Single-trace groups go through here too rather than
+            # falling to the factory below, so their selector is scoped by
+            # position among the subplot's scatter traces.
+            if step_traces:
+                from maidr.plotly.step import PlotlyStepPlot
+                from maidr.plotly.step_shape import group_by_direction
+
+                # `nth-child` counts within the subplot's scatterlayer, which
+                # holds every scatter-family trace, so a step trace's selector
+                # index is its position there — not within its own layer.
+                scatter_family = [
+                    t
+                    for t in group_traces
+                    if t.get("type") in ("scatter", "scattergl")
+                ]
+                position_of = {
+                    id(t): index for index, t in enumerate(scatter_family)
+                }
+
+                for direction_group in group_by_direction(step_traces):
+                    plot = PlotlyStepPlot(
+                        direction_group,
+                        layout,
+                        scatter_positions=[
+                            position_of[id(t)] for t in direction_group
+                        ],
+                        **axis_kwargs,
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in step_traces)
 
             # Multi-box
             if len(box_traces) > 1:

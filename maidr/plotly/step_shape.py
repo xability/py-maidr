@@ -1,0 +1,146 @@
+"""Recognising Plotly staircase traces and the convention they draw.
+
+Plotly has no step trace type. A step chart is an ordinary ``scatter`` trace
+whose ``line.shape`` tells plotly.js to draw risers between the samples
+instead of interpolating across them, so the shape is the only thing that
+distinguishes one from a line.
+
+The values and the direction mapping here mirror the upstream JS adapter
+(``src/adapters/plotly/extractor.ts`` in xability/maidr, added in #746) so a
+plotly figure describes itself the same way whether it is bound in the
+browser or exported through this package.
+"""
+
+from __future__ import annotations
+
+from typing import Dict, List, Optional
+
+#: ``line.shape`` values plotly draws as a staircase.
+#:
+#: ``linear``, ``spline`` and an absent shape are deliberately not here: they
+#: interpolate between samples, which is what a step chart does not do.
+STEP_SHAPES = frozenset({"hv", "vh", "hvh", "vhv"})
+
+#: Where each staircase shape jumps, in MAIDR ``stepDirection`` terms.
+#:
+#: ``vhv`` is deliberately absent rather than mapped to ``mid``. It is the one
+#: shape whose horizontal segments do not sit at a sample's own value: ``hvh``
+#: holds each sample's value and jumps midway between x values, where ``vhv``
+#: jumps at the x values themselves and holds a value between two samples. A
+#: ``vhv`` trace still binds as a step — the data is piecewise constant — but
+#: the direction is withheld, which is what an optional ``stepDirection``
+#: exists for.
+STEP_SHAPE_DIRECTION: Dict[str, str] = {
+    "hv": "hv",
+    "vh": "vh",
+    "hvh": "mid",
+}
+
+
+def is_step_shape(shape: Optional[str]) -> bool:
+    """
+    Report whether a ``line.shape`` makes plotly draw a staircase.
+
+    Parameters
+    ----------
+    shape : str or None
+        The trace's ``line.shape``, or None when it authors none.
+
+    Returns
+    -------
+    bool
+        True for every shape plotly renders as piecewise constant.
+    """
+    return shape is not None and shape in STEP_SHAPES
+
+
+def trace_line_shape(trace: dict) -> Optional[str]:
+    """
+    Read ``line.shape`` off a trace, tolerating a missing or odd ``line``.
+
+    Plotly accepts ``line`` as a dict; a trace may omit it entirely, and a
+    hand-built dict may carry something else there. Anything that is not a
+    dict with a string ``shape`` reads as "no shape authored".
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace dictionary.
+
+    Returns
+    -------
+    str or None
+        The authored shape, or None.
+    """
+    line = trace.get("line")
+    if not isinstance(line, dict):
+        return None
+    shape = line.get("shape")
+    return shape if isinstance(shape, str) else None
+
+
+def is_step_trace(trace: dict) -> bool:
+    """
+    Report whether a trace is a plotly staircase.
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace dictionary.
+
+    Returns
+    -------
+    bool
+        True when the trace's ``line.shape`` is a stepping shape.
+    """
+    return is_step_shape(trace_line_shape(trace))
+
+
+def step_direction_of(trace: dict) -> Optional[str]:
+    """
+    Resolve the MAIDR ``stepDirection`` a trace authored.
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace dictionary.
+
+    Returns
+    -------
+    str or None
+        One of ``"hv"``, ``"vh"``, ``"mid"``, or None when plotly's shape has
+        no MAIDR equivalent (``vhv``) or none was authored.
+    """
+    shape = trace_line_shape(trace)
+    return None if shape is None else STEP_SHAPE_DIRECTION.get(shape)
+
+
+def group_by_direction(traces: List[dict]) -> List[List[dict]]:
+    """
+    Split step traces into groups that share one step convention.
+
+    A MAIDR layer carries a single ``stepDirection`` for all of its series, so
+    merging an ``hv`` trace with a ``vh`` one would describe one of them
+    wrongly. Traces whose shape reports no direction (``vhv``) group together
+    rather than being scattered across the directional groups.
+
+    Insertion order is preserved both between and within groups, so the
+    emitted layers follow the order plotly declared the traces in.
+
+    Parameters
+    ----------
+    traces : list of dict
+        The step traces on one subplot.
+
+    Returns
+    -------
+    list of list of dict
+        One inner list per distinct convention, each non-empty.
+    """
+    grouped: Dict[str, List[dict]] = {}
+    for trace in traces:
+        # "" keys the shapes that report no direction, keeping them together
+        # instead of merging them into whichever directional group came first.
+        key = step_direction_of(trace) or ""
+        grouped.setdefault(key, []).append(trace)
+    return list(grouped.values())

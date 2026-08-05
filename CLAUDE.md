@@ -43,6 +43,10 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 Defined in `maidr/core/enum/plot_type.py`: BAR, BOX, COUNT, DODGED, HEAT, HIST, LINE, SCATTER, STACKED, STEP, SMOOTH, CANDLESTICK.
 
+Note that `maidr/plotly/` builds its MAIDR schema in Python and therefore needs its own
+handling per plot type, whereas `maidr/altair/` delegates entirely to the upstream
+Vega-Lite JS adapter — an Altair-only plot type is implemented there, not here.
+
 ### Canonical `axes` Payload
 
 Every emitted schema's `axes` object follows the canonical per-axis form:
