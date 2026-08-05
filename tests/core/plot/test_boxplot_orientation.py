@@ -23,7 +23,7 @@ from matplotlib.axes import Axes  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.figure_manager import FigureManager  # noqa: E402
-from maidr.patch.boxplot import _resolve_bxp_orientation  # noqa: E402
+from maidr.patch.common import resolve_orientation  # noqa: E402
 
 
 DATA = [[1, 2, 3, 4, 9], [2, 3, 4, 5, 6]]
@@ -112,11 +112,44 @@ def test_seaborn_boxplot_orientation(orient: str | None, expected: str) -> None:
         # An explicitly set `vert` still wins while matplotlib supports it.
         ({"vert": False, "orientation": "vertical"}, "horz"),
         ({"vert": True, "orientation": "horizontal"}, "vert"),
-        # Pre-3.9 matplotlib passes `vert` alone.
+        # Older matplotlib passes `vert` alone.
         ({"vert": True}, "vert"),
         ({"vert": False}, "horz"),
         ({}, "vert"),
     ],
 )
-def test_resolve_bxp_orientation(kwargs: dict, expected: str) -> None:
-    assert _resolve_bxp_orientation(kwargs) == expected
+def test_resolve_orientation_from_keywords(kwargs: dict, expected: str) -> None:
+    fig, ax = plt.subplots()
+    try:
+        assert resolve_orientation(ax.bxp, (), kwargs) == expected
+    finally:
+        plt.close(fig)
+
+
+@pytest.mark.parametrize(
+    ("args", "expected"),
+    [
+        # Axes.bxp(bxpstats, positions, widths, vert, ...)
+        (([], None, None, False), "horz"),
+        (([], None, None, True), "vert"),
+        (([], None, None), "vert"),
+    ],
+)
+def test_resolve_orientation_from_positional_arguments(
+    args: tuple, expected: str
+) -> None:
+    """`Axes.bxp` is public, so a caller can pass `vert` positionally."""
+    fig, ax = plt.subplots()
+    try:
+        assert resolve_orientation(ax.bxp, args, {}) == expected
+    finally:
+        plt.close(fig)
+
+
+def test_resolve_orientation_ignores_parameters_matplotlib_lacks() -> None:
+    """A function without either parameter resolves to the vertical default."""
+
+    def no_orientation(dataset, positions=None):  # pragma: no cover - shape only
+        raise AssertionError("never called")
+
+    assert resolve_orientation(no_orientation, ([],), {}) == "vert"

@@ -1,10 +1,86 @@
 from __future__ import annotations
 
+import inspect
 import warnings
-from typing import Any
+from typing import Any, Callable
 
 from maidr.core.context_manager import ContextManager
 from maidr.core.figure_manager import FigureManager
+
+
+def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
+    """
+    Read one argument of a patched call, whether it was passed by name or by
+    position.
+
+    Parameters
+    ----------
+    name : str
+        Name of the parameter to read.
+    wrapped : Callable
+        The wrapped matplotlib function, used for its parameter order. It is
+        the bound method, so ``self`` is not among its parameters.
+    args : tuple
+        Positional arguments the caller passed.
+    kwargs : dict
+        Keyword arguments the caller passed.
+
+    Returns
+    -------
+    Any
+        The argument's value, or None when the caller did not pass it or the
+        installed matplotlib has no such parameter.
+    """
+    if name in kwargs:
+        return kwargs[name]
+
+    try:
+        parameters = list(inspect.signature(wrapped).parameters)
+    except (TypeError, ValueError):
+        return None
+
+    if name not in parameters:
+        return None
+
+    index = parameters.index(name)
+    return args[index] if index < len(args) else None
+
+
+def resolve_orientation(wrapped: Callable, args: tuple, kwargs: dict) -> str:
+    """
+    Resolve the MAIDR orientation of a matplotlib call that takes ``vert``.
+
+    Matplotlib 3.10 introduced ``orientation`` and pending-deprecated ``vert``
+    on ``Axes.boxplot``, ``Axes.bxp`` and ``Axes.violinplot``. Reading ``vert``
+    alone misses ``orientation="horizontal"``, and — because ``Axes.boxplot``
+    forwards ``vert=None`` to ``Axes.bxp`` whenever the caller omits it —
+    defaulting an absent ``vert`` to False reads every vertical plot as
+    horizontal.
+
+    Mirror what matplotlib itself does: an explicitly set ``vert`` wins while
+    it is still supported, and ``orientation`` decides otherwise.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        The wrapped matplotlib function, used to read arguments the caller
+        passed positionally.
+    args : tuple
+        Positional arguments the caller passed.
+    kwargs : dict
+        Keyword arguments the caller passed.
+
+    Returns
+    -------
+    str
+        ``"horz"`` for a horizontal plot, ``"vert"`` otherwise.
+    """
+    vert = _argument("vert", wrapped, args, kwargs)
+    if vert is not None:
+        return "vert" if vert else "horz"
+
+    orientation = _argument("orientation", wrapped, args, kwargs)
+    return "horz" if orientation == "horizontal" else "vert"
 
 
 def common(plot_type, wrapped, _, args, kwargs) -> Any:
