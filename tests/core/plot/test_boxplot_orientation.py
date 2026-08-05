@@ -15,6 +15,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+import packaging.version as version  # noqa: E402
 import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
 
@@ -24,6 +25,16 @@ from maidr.patch.boxplot import _resolve_bxp_orientation  # noqa: E402
 
 
 DATA = [[1, 2, 3, 4, 9], [2, 3, 4, 5, 6]]
+
+# `orientation` arrived in matplotlib 3.9; older releases only accept `vert`.
+# The resolver's handling of the keyword is covered version-independently by
+# ``test_resolve_bxp_orientation``.
+_HAS_ORIENTATION_KWARG = version.parse(matplotlib.__version__) >= version.parse("3.9")
+
+_needs_orientation_kwarg = pytest.mark.skipif(
+    not _HAS_ORIENTATION_KWARG,
+    reason="matplotlib < 3.9 has no `orientation` parameter",
+)
 
 
 def _schema(fig) -> dict:
@@ -38,8 +49,12 @@ def _schema(fig) -> dict:
         ({}, "vert"),
         ({"vert": True}, "vert"),
         ({"vert": False}, "horz"),
-        ({"orientation": "vertical"}, "vert"),
-        ({"orientation": "horizontal"}, "horz"),
+        pytest.param(
+            {"orientation": "vertical"}, "vert", marks=_needs_orientation_kwarg
+        ),
+        pytest.param(
+            {"orientation": "horizontal"}, "horz", marks=_needs_orientation_kwarg
+        ),
     ],
 )
 def test_matplotlib_boxplot_orientation(kwargs: dict, expected: str) -> None:
