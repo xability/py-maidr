@@ -12,11 +12,15 @@ on:
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+    # Dependabot PRs are not given repository secrets even on
+    # pull_request_target, so CLAUDE_CODE_OAUTH_TOKEN resolves empty and the
+    # job fails rather than reviewing anything -- as it did on
+    # dependabot/uv/uv-a74796fa6c. Skip cleanly instead.
+    #
+    # No fork guard here, unlike maidr and r-maidr: this repo takes most of its
+    # PRs from forks, and reviewing them is the reason pull_request_target is
+    # used. See the PR description for the exposure that choice carries.
+    if: github.actor != 'dependabot[bot]'
 
     runs-on: ubuntu-latest
     permissions:
