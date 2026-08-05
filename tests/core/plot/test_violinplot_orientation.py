@@ -68,6 +68,27 @@ def test_matplotlib_violinplot_orientation(kwargs: dict, expected: str) -> None:
     assert orientations == [expected] * len(orientations)
 
 
+def test_matplotlib_violinplot_orientation_passed_positionally() -> None:
+    """`ax.violinplot(dataset, positions, vert)` still binds `vert` by position.
+
+    Unlike `Axes.boxplot`, this patch wraps the call the user made, so the
+    positional argument reaches it verbatim.
+    """
+    fig, ax = plt.subplots()
+    try:
+        try:
+            ax.violinplot(DATA, None, False)
+        except TypeError:
+            # Matplotlib says these become keyword-only in 3.12.
+            pytest.skip("this matplotlib no longer accepts `vert` positionally")
+        orientations = _orientations(fig)
+    finally:
+        plt.close(fig)
+
+    assert orientations, "violinplot registered no layers"
+    assert orientations == ["horz"] * len(orientations)
+
+
 @pytest.mark.parametrize(
     ("orient", "expected"),
     [(None, "vert"), ("h", "horz")],

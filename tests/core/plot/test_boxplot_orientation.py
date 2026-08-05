@@ -42,7 +42,7 @@ _needs_orientation_kwarg = pytest.mark.skipif(
 
 def _schema(fig) -> dict:
     """Return the first layer's schema with plain string keys."""
-    plot = FigureManager.get_maidr(fig)._plots[0]
+    plot = FigureManager.get_maidr(fig).plots[0]
     return {(k.value if hasattr(k, "value") else k): v for k, v in plot.schema.items()}
 
 
@@ -65,6 +65,20 @@ def test_matplotlib_boxplot_orientation(kwargs: dict, expected: str) -> None:
     try:
         ax.boxplot(DATA, **kwargs)
         assert _schema(fig)["orientation"] == expected
+    finally:
+        plt.close(fig)
+
+
+def test_matplotlib_boxplot_orientation_passed_positionally() -> None:
+    """`ax.boxplot(x, notch, sym, vert)` still binds `vert` by position."""
+    fig, ax = plt.subplots()
+    try:
+        try:
+            ax.boxplot(DATA, None, None, False)
+        except TypeError:
+            # Matplotlib says these become keyword-only in 3.12.
+            pytest.skip("this matplotlib no longer accepts `vert` positionally")
+        assert _schema(fig)["orientation"] == "horz"
     finally:
         plt.close(fig)
 
