@@ -35,14 +35,29 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
         return kwargs[name]
 
     try:
-        parameters = list(inspect.signature(wrapped).parameters)
+        parameters = inspect.signature(wrapped).parameters
     except (TypeError, ValueError):
         return None
 
-    if name not in parameters:
+    # Declared order is the binding order: matplotlib's `vert` and
+    # `orientation` are declared keyword-only, yet the deprecation shim they
+    # sit behind still accepts them positionally and assigns them in that
+    # order, so the kind cannot be filtered on. A variadic parameter is the one
+    # thing that breaks the correspondence — past it an index means nothing —
+    # so stop there and let the keyword lookup above be the only answer.
+    positional: list[str] = []
+    for parameter_name, parameter in parameters.items():
+        if parameter.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        ):
+            break
+        positional.append(parameter_name)
+
+    if name not in positional:
         return None
 
-    index = parameters.index(name)
+    index = positional.index(name)
     return args[index] if index < len(args) else None
 
 

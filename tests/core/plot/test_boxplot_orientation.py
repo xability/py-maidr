@@ -153,3 +153,13 @@ def test_resolve_orientation_ignores_parameters_matplotlib_lacks() -> None:
         raise AssertionError("never called")
 
     assert resolve_orientation(no_orientation, ([],), {}) == "vert"
+
+
+def test_resolve_orientation_does_not_index_past_a_variadic_parameter() -> None:
+    """A `*args` ahead of the parameter makes a positional index meaningless."""
+
+    def variadic(dataset, *extra, vert=None):  # pragma: no cover - shape only
+        raise AssertionError("never called")
+
+    assert resolve_orientation(variadic, ([], False), {}) == "vert"
+    assert resolve_orientation(variadic, ([],), {"vert": False}) == "horz"
