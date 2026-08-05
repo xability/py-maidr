@@ -13,8 +13,6 @@ browser or exported through this package.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 #: ``line.shape`` values plotly draws as a staircase.
 #:
 #: ``linear``, ``spline`` and an absent shape are deliberately not here: they
@@ -30,14 +28,14 @@ STEP_SHAPES = frozenset({"hv", "vh", "hvh", "vhv"})
 #: ``vhv`` trace still binds as a step — the data is piecewise constant — but
 #: the direction is withheld, which is what an optional ``stepDirection``
 #: exists for.
-STEP_SHAPE_DIRECTION: Dict[str, str] = {
+STEP_SHAPE_DIRECTION: dict[str, str] = {
     "hv": "hv",
     "vh": "vh",
     "hvh": "mid",
 }
 
 
-def is_step_shape(shape: Optional[str]) -> bool:
+def is_step_shape(shape: str | None) -> bool:
     """
     Report whether a ``line.shape`` makes plotly draw a staircase.
 
@@ -54,7 +52,7 @@ def is_step_shape(shape: Optional[str]) -> bool:
     return shape is not None and shape in STEP_SHAPES
 
 
-def trace_line_shape(trace: dict) -> Optional[str]:
+def trace_line_shape(trace: dict) -> str | None:
     """
     Read ``line.shape`` off a trace, tolerating a missing or odd ``line``.
 
@@ -96,7 +94,7 @@ def is_step_trace(trace: dict) -> bool:
     return is_step_shape(trace_line_shape(trace))
 
 
-def step_direction_of(trace: dict) -> Optional[str]:
+def step_direction_of(trace: dict) -> str | None:
     """
     Resolve the MAIDR ``stepDirection`` a trace authored.
 
@@ -115,7 +113,7 @@ def step_direction_of(trace: dict) -> Optional[str]:
     return None if shape is None else STEP_SHAPE_DIRECTION.get(shape)
 
 
-def group_by_direction(traces: List[dict]) -> List[List[dict]]:
+def group_by_direction(traces: list[dict]) -> list[list[dict]]:
     """
     Split step traces into groups that share one step convention.
 
@@ -137,7 +135,7 @@ def group_by_direction(traces: List[dict]) -> List[List[dict]]:
     list of list of dict
         One inner list per distinct convention, each non-empty.
     """
-    grouped: Dict[str, List[dict]] = {}
+    grouped: dict[str, list[dict]] = {}
     for trace in traces:
         # "" keys the shapes that report no direction, keeping them together
         # instead of merging them into whichever directional group came first.

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
@@ -43,9 +41,9 @@ class PlotlyStepPlot(PlotlyPlot):
 
     def __init__(
         self,
-        traces: List[dict],
+        traces: list[dict],
         layout: dict,
-        scatter_positions: Optional[List[int]] = None,
+        scatter_positions: list[int] | None = None,
         **kwargs: str,
     ) -> None:
         super().__init__(traces[0], layout, PlotType.STEP, **kwargs)
@@ -56,7 +54,7 @@ class PlotlyStepPlot(PlotlyPlot):
             else scatter_positions
         )
 
-    def _get_selector(self) -> List[str]:
+    def _get_selector(self) -> list[str]:
         """
         Return one selector per series, matching the rendered line paths.
 
@@ -102,7 +100,7 @@ class PlotlyStepPlot(PlotlyPlot):
 
         return schema
 
-    def _resolve_direction(self) -> Optional[str]:
+    def _resolve_direction(self) -> str | None:
         """
         Resolve the one step convention these traces share.
 
@@ -120,7 +118,7 @@ class PlotlyStepPlot(PlotlyPlot):
             return None
         return directions.pop()
 
-    def _extract_plot_data(self) -> List[List[dict]]:
+    def _extract_plot_data(self) -> list[list[dict]]:
         """
         Return the samples as a list of series.
 
@@ -135,14 +133,14 @@ class PlotlyStepPlot(PlotlyPlot):
             ``{x, y}`` per point, with ``z`` set to the trace name when it has
             one. Empty series are dropped, matching ``PlotlyMultiLinePlot``.
         """
-        all_series: List[List[dict]] = []
+        all_series: list[list[dict]] = []
 
         for trace in self._traces:
             x_values = trace.get("x", [])
             y_values = trace.get("y", [])
             name = trace.get("name", "")
 
-            series: List[dict] = []
+            series: list[dict] = []
             for x_value, y_value in zip(x_values, y_values):
                 point: dict = {
                     MaidrKey.X: self._to_native(x_value),
