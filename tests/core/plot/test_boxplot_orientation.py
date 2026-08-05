@@ -31,7 +31,7 @@ DATA = [[1, 2, 3, 4, 9], [2, 3, 4, 5, 6]]
 # Older matplotlib releases accept only `vert`, and the supported Python range
 # spans both. Ask the installed signature rather than hardcoding the release
 # that introduced `orientation`. The resolver's handling of the keyword is
-# covered on every version by ``test_resolve_bxp_orientation``.
+# covered on every version by ``test_resolve_orientation_from_keywords``.
 _HAS_ORIENTATION_KWARG = "orientation" in inspect.signature(Axes.boxplot).parameters
 
 _needs_orientation_kwarg = pytest.mark.skipif(
