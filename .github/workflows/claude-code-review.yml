@@ -40,7 +40,12 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # No github_token on purpose. The input is "optional if using GitHub
+          # App", and supplying it makes the action post as github-actions[bot]
+          # instead of claude[bot] -- which is what every review here has been
+          # attributed to since f22e3187. The Claude app is installed on this
+          # repo (it posted as claude[bot] on #273), so leaving this out lets
+          # the action use its own app token and its own identity again.
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
