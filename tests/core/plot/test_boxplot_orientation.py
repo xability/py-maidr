@@ -2,22 +2,24 @@
 
 The orientation reaches the MAIDR JSON as ``orientation`` and drives two
 user-visible things: the announced plot type ("vertical box" / "horizontal
-box") and which axis the extractor reads the Tukey statistics off. Matplotlib
-3.9 deprecated ``vert`` in favour of ``orientation`` and ``Axes.boxplot``
+box") and which axis the extractor reads the Tukey statistics off. Recent
+matplotlib deprecated ``vert`` in favour of ``orientation`` and ``Axes.boxplot``
 forwards both to ``Axes.bxp``, so the detection has to read them the way
 matplotlib itself does.
 """
 
 from __future__ import annotations
 
+import inspect
+
 import matplotlib
 
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
-import packaging.version as version  # noqa: E402
 import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
+from matplotlib.axes import Axes  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.figure_manager import FigureManager  # noqa: E402
@@ -26,14 +28,15 @@ from maidr.patch.boxplot import _resolve_bxp_orientation  # noqa: E402
 
 DATA = [[1, 2, 3, 4, 9], [2, 3, 4, 5, 6]]
 
-# `orientation` arrived in matplotlib 3.9; older releases only accept `vert`.
-# The resolver's handling of the keyword is covered version-independently by
-# ``test_resolve_bxp_orientation``.
-_HAS_ORIENTATION_KWARG = version.parse(matplotlib.__version__) >= version.parse("3.9")
+# Older matplotlib releases accept only `vert`, and the supported Python range
+# spans both. Ask the installed signature rather than hardcoding the release
+# that introduced `orientation`. The resolver's handling of the keyword is
+# covered on every version by ``test_resolve_bxp_orientation``.
+_HAS_ORIENTATION_KWARG = "orientation" in inspect.signature(Axes.boxplot).parameters
 
 _needs_orientation_kwarg = pytest.mark.skipif(
     not _HAS_ORIENTATION_KWARG,
-    reason="matplotlib < 3.9 has no `orientation` parameter",
+    reason="this matplotlib has no `orientation` parameter on Axes.boxplot",
 )
 
 

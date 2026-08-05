@@ -12,8 +12,8 @@ def _resolve_bxp_orientation(kwargs: dict) -> str:
     """
     Resolve the MAIDR orientation of a ``Axes.bxp`` call.
 
-    Matplotlib 3.9 deprecated ``vert`` in favour of ``orientation``, and
-    ``Axes.boxplot`` forwards *both* to ``Axes.bxp`` — passing ``vert=None``
+    Matplotlib 3.10 introduced ``orientation`` and pending-deprecated ``vert``,
+    and ``Axes.boxplot`` forwards *both* to ``Axes.bxp`` — passing ``vert=None``
     whenever the caller did not set it. Reading ``vert`` alone therefore reads
     every default (vertical) box plot as horizontal, which flips the announced
     orientation and makes the extractor read box statistics off the wrong axis.
