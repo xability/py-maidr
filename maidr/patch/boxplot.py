@@ -8,6 +8,36 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 
 
+def _resolve_bxp_orientation(kwargs: dict) -> str:
+    """
+    Resolve the MAIDR orientation of a ``Axes.bxp`` call.
+
+    Matplotlib 3.9 deprecated ``vert`` in favour of ``orientation``, and
+    ``Axes.boxplot`` forwards *both* to ``Axes.bxp`` — passing ``vert=None``
+    whenever the caller did not set it. Reading ``vert`` alone therefore reads
+    every default (vertical) box plot as horizontal, which flips the announced
+    orientation and makes the extractor read box statistics off the wrong axis.
+
+    Mirror what ``Axes.bxp`` itself does: an explicitly set ``vert`` wins while
+    it is still supported, and ``orientation`` decides otherwise.
+
+    Parameters
+    ----------
+    kwargs : dict
+        Keyword arguments the caller passed to ``Axes.bxp``.
+
+    Returns
+    -------
+    str
+        ``"horz"`` for a horizontal box plot, ``"vert"`` otherwise.
+    """
+    vert = kwargs.get("vert")
+    if vert is not None:
+        return "vert" if vert else "horz"
+
+    return "horz" if kwargs.get("orientation") == "horizontal" else "vert"
+
+
 @wrapt.patch_function_wrapper(Axes, "bxp")
 def mpl_box(wrapped, _, args, kwargs) -> dict:
     # Don't proceed if the call is made internally by the patched function.
@@ -22,10 +52,7 @@ def mpl_box(wrapped, _, args, kwargs) -> dict:
         plot = wrapped(*args, **kwargs)
 
     # Set the orientation of the boxplot
-    if not kwargs.get("vert", True):
-        orientation = "horz"
-    else:
-        orientation = "vert"
+    orientation = _resolve_bxp_orientation(kwargs)
 
     # Extract the boxplot data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)
