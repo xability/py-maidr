@@ -59,12 +59,11 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
     def _extract_plot_data(self) -> list:
         plot = self.extract_container(self.ax, BarContainer, include_all=True)
         self._orientation = self._extract_orientation(plot)
+        levels = self.extract_level(self.ax, self._level_key)
 
-        data = self._extract_bar_container_data(plot)
+        data = self._extract_bar_container_data(plot, levels)
         if data is None:
             raise ExtractionError(self.type, plot)
-
-        levels = self.extract_level(self.ax, self._level_key)
 
         # A horizontal bar's magnitude runs along x and its label sits on y,
         # which is the layout the renderer reads for a horizontal layer. The
@@ -78,8 +77,26 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         return [{"x": x, "y": y} for x, y in combined_data]
 
     def _extract_bar_container_data(
-        self, plot: list[BarContainer] | None
+        self, plot: list[BarContainer] | None, levels: list[str] | None
     ) -> list | None:
+        """
+        Read one magnitude per bar, in the containers' own order.
+
+        Parameters
+        ----------
+        plot : list of BarContainer, optional
+            The containers holding the bars of this layer.
+        levels : list of str, optional
+            The bar labels read off the categorical axis. Used only to check
+            that the axis has one label per bar; an axis with no tick labels
+            at all places no constraint.
+
+        Returns
+        -------
+        list, optional
+            One magnitude per bar, or None when the bars and the labels do
+            not line up.
+        """
         if plot is None:
             return None
 
@@ -88,11 +105,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         # So, extract data correspondingly based on the level.
         # Flatten all the `list[BarContainer]` to `list[Patch]`.
         plot = [patch for container in plot for patch in container.patches]
-        level = self.extract_level(self.ax, self._level_key)
-        if len(level) == 0:  # type: ignore
-            level = ["" for _ in range(len(plot))]  # type: ignore
-
-        if len(plot) != len(level):
+        if levels and len(plot) != len(levels):
             return None
 
         self._elements.extend(plot)
