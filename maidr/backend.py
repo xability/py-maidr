@@ -25,6 +25,8 @@ from matplotlib._pylab_helpers import Gcf
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
+from maidr.core.enum.plot_type import PlotType
+
 _logger = logging.getLogger(__name__)
 
 # Required matplotlib backend exports.
@@ -108,10 +110,18 @@ def _show_fallback(fig: Figure) -> None:
     # stacklevel=4 traces through: user code → plt.show() → backend.show()
     # → _show_fallback() → warnings.warn().  If the internal call chain
     # changes, this value must be updated.
+    # Built from PlotType rather than hand-listed: the previous literal had
+    # drifted, naming "kde" and "violin" (neither is a PlotType) while omitting
+    # smooth and the violin_* variants. Deriving it keeps a user-facing message
+    # honest as plot types are added.
+    #
+    # display_name, not .value: the values are wire identifiers, so a user who
+    # called ax.scatter() would otherwise be told about "point". The set() folds
+    # the two violin layers, which share a display name, back into one entry.
+    supported = ", ".join(sorted({plot_type.display_name for plot_type in PlotType}))
     warnings.warn(
         "This figure contains plot type(s) not yet supported by maidr. "
-        "Falling back to static image. Supported types: bar, box, count, "
-        "dodged, heat, hist, line, scatter, stacked, kde, violin, candlestick.",
+        f"Falling back to static image. Supported types: {supported}.",
         stacklevel=4,
     )
 

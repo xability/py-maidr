@@ -32,6 +32,9 @@ def test_create_maidr_with_none_plot_type(mocker):
         # Parametrize matplotlib plots.
         (Library.MATPLOTLIB, PlotType.BAR),
         (Library.MATPLOTLIB, PlotType.BOX),
+        # ``ax.step`` delegates to the already-patched ``Axes.plot``; this
+        # guards against it registering a STEP *and* a LINE layer.
+        (Library.MATPLOTLIB, PlotType.STEP),
         # Parametrize seaborn plots.
         (Library.SEABORN, PlotType.BAR),
         (Library.SEABORN, PlotType.BOX),

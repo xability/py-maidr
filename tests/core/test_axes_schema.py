@@ -99,6 +99,25 @@ class TestMatplotlibCanonicalShape:
         finally:
             plt.close(fig)
 
+    def test_step_keeps_level_names_out_of_axes(self):
+        # A hypnogram carries its ordinal level names per point, never as
+        # extra keys on the axes payload.
+        fig, ax = plt.subplots()
+        try:
+            ax.step([0, 1, 2, 3], [4, 2, 1, 0], where="post")
+            ax.set_yticks([0, 1, 2, 3, 4], labels=["N3", "N2", "N1", "REM", "Awake"])
+            ax.set_xlabel("Time (h)")
+            ax.set_ylabel("Sleep stage")
+            schema = _first_schema(fig)
+
+            _assert_canonical_axes(schema["axes"])
+            assert schema["axes"]["x"]["label"] == "Time (h)"
+            assert schema["axes"]["y"]["label"] == "Sleep stage"
+            # stepDirection is a layer-level sibling of axes, not an axis key.
+            assert schema["stepDirection"] == "hv"
+        finally:
+            plt.close(fig)
+
     def test_heatmap_has_z_axis_config(self):
         fig, ax = plt.subplots()
         try:

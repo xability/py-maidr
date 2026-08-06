@@ -41,7 +41,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 ### Supported Plot Types
 
-Defined in `maidr/core/enum/plot_type.py`: BAR, BOX, COUNT, DODGED, HEAT, HIST, LINE, SCATTER, STACKED, SMOOTH, CANDLESTICK.
+Defined in `maidr/core/enum/plot_type.py`: BAR, BOX, COUNT, DODGED, HEAT, HIST, LINE, SCATTER, STACKED, STEP, SMOOTH, CANDLESTICK.
 
 ### Canonical `axes` Payload
 
