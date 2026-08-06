@@ -137,12 +137,24 @@ match = "(main|master)"
 prerelease_token = "rc"
 prerelease = false
 
-[tool.semantic_release.changelog.default_templates]
-template_dir = "templates"
-changelog_file = "CHANGELOG.md"
+[tool.semantic_release.changelog]
+# ``exclude_commit_patterns`` belongs to *this* table, not to
+# ``changelog.default_templates``.  python-semantic-release parses its config
+# with pydantic, which silently drops unknown keys, so while this list lived
+# under ``default_templates`` it was never applied and every commit type landed
+# in the changelog.
+#
+# The pattern is an allowlist expressed as a negative lookahead: a commit is
+# excluded unless its subject starts with one of the listed types.  ``chore`` is
+# deliberately absent -- the release-time ``chore: update bundled maidr.js to
+# vX.Y.Z`` commits and dependency bumps are housekeeping, and they were crowding
+# out the entries a reader of the release notes actually cares about.
 exclude_commit_patterns = [
-  "^(?!feat: |feat\\(.*\\): |fix: |fix\\(.*\\): |docs: |docs\\(.*\\): |perf: |perf\\(.*\\): |refactor: |refactor\\(.*\\): |test: |test\\(.*\\): |build: |build\\(.*\\): |chore: |chore\\(.*\\): |ci: |ci\\(.*\\): |style: |style\\(.*\\): ).*"
+  "^(?!feat: |feat\\(.*\\): |fix: |fix\\(.*\\): |docs: |docs\\(.*\\): |perf: |perf\\(.*\\): |refactor: |refactor\\(.*\\): |test: |test\\(.*\\): |build: |build\\(.*\\): |ci: |ci\\(.*\\): |style: |style\\(.*\\): ).*"
 ]
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
 
 [tool.semantic_release.changelog.environment]
 block_start_string = "{%"

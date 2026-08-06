@@ -1,11 +1,18 @@
 name: Test & Release
 
 on:
-  workflow_dispatch:
+  # Release on a weekly cadence rather than on every push to ``main``, matching
+  # the upstream ``xability/maidr`` repo.  Upstream releases Mondays at 15:00
+  # UTC; we run an hour later so the ``maidr`` npm package that the bundle step
+  # below pulls from the registry is the release upstream just published, not
+  # the previous week's.
+  #
+  # 16:00 UTC = 10 AM CST (winter) / 11 AM CDT (summer).  GitHub Actions cron
+  # runs in UTC and does not observe DST.
+  schedule:
+    - cron: '0 16 * * 1'
 
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -56,24 +63,19 @@ jobs:
           args: "check --diff"
           version: "0.3.4"
 
-  commit-lint:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Lint commit messages
-        uses: wagoid/commitlint-github-action@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          failOnWarnings: 'false'
-          commitDepth: 1
+  # NOTE: there is deliberately no ``commit-lint`` job here.  On a scheduled run
+  # there is no push or pull-request payload to derive a commit range from --
+  # ``wagoid/commitlint-github-action`` only supports ``push``,
+  # ``pull_request``, and ``merge_group`` -- so gating the release on it would
+  # risk blocking every release on undefined behaviour.  Commit messages are
+  # already linted before they reach ``main`` by the ``commit-lint`` job in
+  # ``ci.yml``, which runs on every pull request and branch push.
 
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    concurrency: push
-    needs: [test, lint, commit-lint]
+    concurrency: release
+    needs: [test, lint]
     if: github.repository == 'xability/py-maidr'
     environment:
       name: pypi
