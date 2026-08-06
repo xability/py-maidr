@@ -18,17 +18,46 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         All scatter/lines trace dicts belonging to the multi-line plot.
     layout : dict
         The Plotly figure layout.
+    scatter_positions : list of int, optional
+        Each trace's zero-based position among the subplot's scatter-family
+        traces. Required whenever these are not the leading scatter traces of
+        the subplot — which a step trace declared alongside them makes the
+        normal case. Defaults to the traces' own order, correct only for a
+        layer that owns every scatter trace on its subplot.
     """
 
-    def __init__(self, traces: list[dict], layout: dict, **kwargs: str) -> None:
+    def __init__(
+        self,
+        traces: list[dict],
+        layout: dict,
+        scatter_positions: list[int] | None = None,
+        **kwargs: str,
+    ) -> None:
         super().__init__(traces[0], layout, PlotType.LINE, **kwargs)
         self._traces = traces
+        self._scatter_positions = (
+            list(range(len(traces)))
+            if scatter_positions is None
+            else scatter_positions
+        )
 
     def _get_selector(self) -> list[str]:
-        prefix = self._subplot_css_prefix()
+        """
+        Return one selector per line, matching the rendered line paths.
+
+        Indices are subplot-relative, not layer-relative: a step trace
+        declared before these lines shifts every one of them in the
+        ``scatterlayer``, so numbering from 1 here would point each line at
+        its predecessor and collide with the step layer's own selectors.
+
+        Returns
+        -------
+        list of str
+            One CSS selector per line, in trace order.
+        """
         return [
-            f"{prefix}.scatterlayer > .trace.scatter:nth-child({i + 1}) path.js-line"
-            for i in range(len(self._traces))
+            self._scatter_line_selector(position)
+            for position in self._scatter_positions
         ]
 
     def _extract_plot_data(self) -> list[list[dict]]:

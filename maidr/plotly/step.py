@@ -75,9 +75,8 @@ class PlotlyStepPlot(PlotlyPlot):
         list of str
             One CSS selector per series, in trace order.
         """
-        prefix = self._subplot_css_prefix()
         return [
-            f"{prefix}.scatterlayer > .trace.scatter:nth-child({position + 1}) path.js-line"
+            self._scatter_line_selector(position)
             for position in self._scatter_positions
         ]
 

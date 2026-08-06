@@ -223,6 +223,50 @@ class TestStepDoesNotDisturbLines:
         assert len(by_type[PlotType.LINE][MaidrKey.DATA]) == 2
         assert len(by_type[PlotType.STEP][MaidrKey.DATA]) == 1
 
+    def test_lines_after_a_step_are_indexed_past_it(self):
+        # Splitting steps out of the multiline layer breaks the assumption
+        # that a line layer owns every scatter trace on its subplot, so the
+        # line layer must count from the step's position, not from 1. Getting
+        # this wrong made the LINE layer claim nth-child(1) — the step's own
+        # element — and shifted every line onto its predecessor.
+        fig = go.Figure()
+        fig.add_scatter(**_step_trace("hv", "step"))
+        fig.add_scatter(x=[0, 1, 2], y=[3, 2, 1], mode="lines", name="line 1")
+        fig.add_scatter(x=[0, 1, 2], y=[2, 3, 4], mode="lines", name="line 2")
+
+        by_type = {layer[MaidrKey.TYPE]: layer for layer in _layers(fig)}
+
+        assert "nth-child(1)" in by_type[PlotType.STEP][MaidrKey.SELECTOR][0]
+        assert "nth-child(2)" in by_type[PlotType.LINE][MaidrKey.SELECTOR][0]
+        assert "nth-child(3)" in by_type[PlotType.LINE][MaidrKey.SELECTOR][1]
+
+    def test_a_lone_line_beside_a_step_is_scoped_to_its_own_trace(self):
+        # A single line used to emit the unscoped `.trace.scatter
+        # path.js-line`, which was safe only while it was the subplot's one
+        # line path. A step renders as path.js-line too, so that form now
+        # matches both elements.
+        fig = go.Figure()
+        fig.add_scatter(**_step_trace("hv", "step"))
+        fig.add_scatter(x=[0, 1, 2], y=[3, 2, 1], mode="lines", name="only")
+
+        by_type = {layer[MaidrKey.TYPE]: layer for layer in _layers(fig)}
+        line_selector = by_type[PlotType.LINE][MaidrKey.SELECTOR][0]
+
+        assert "nth-child(2)" in line_selector
+        assert "nth-child(1)" in by_type[PlotType.STEP][MaidrKey.SELECTOR][0]
+
+    def test_lines_alone_still_number_from_the_first_child(self):
+        # The no-step case must be untouched: with no step carved out, the
+        # subplot-relative positions are exactly the layer-relative ones.
+        fig = go.Figure()
+        fig.add_scatter(x=[0, 1], y=[1, 2], mode="lines", name="a")
+        fig.add_scatter(x=[0, 1], y=[2, 1], mode="lines", name="b")
+
+        selectors = _layers(fig)[0][MaidrKey.SELECTOR]
+
+        assert "nth-child(1)" in selectors[0]
+        assert "nth-child(2)" in selectors[1]
+
     def test_lines_alone_still_produce_a_single_multiline_layer(self):
         fig = go.Figure()
         fig.add_scatter(x=[0, 1], y=[1, 2], mode="lines", name="a")
