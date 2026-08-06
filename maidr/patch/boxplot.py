@@ -6,6 +6,7 @@ from matplotlib.axes import Axes
 from maidr.core.context_manager import BoxplotContextManager, ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.patch.common import resolve_orientation
 
 
 @wrapt.patch_function_wrapper(Axes, "bxp")
@@ -22,10 +23,7 @@ def mpl_box(wrapped, _, args, kwargs) -> dict:
         plot = wrapped(*args, **kwargs)
 
     # Set the orientation of the boxplot
-    if not kwargs.get("vert", True):
-        orientation = "horz"
-    else:
-        orientation = "vert"
+    orientation = resolve_orientation(wrapped, args, kwargs)
 
     # Extract the boxplot data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)

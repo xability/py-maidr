@@ -23,6 +23,7 @@ from maidr.core.enum import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.violinplot import ViolinDataExtractor
+from maidr.patch.common import resolve_orientation
 from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
 
 
@@ -85,7 +86,7 @@ def mpl_violinplot(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict)
         plot = wrapped(*args, **kwargs)
 
     plot_ax: Axes = instance
-    orientation = "vert" if kwargs.get("vert", True) else "horz"
+    orientation = resolve_orientation(wrapped, args, kwargs)
 
     violin_options = {
         "showMean": bool(kwargs.get("showmeans", False)),
