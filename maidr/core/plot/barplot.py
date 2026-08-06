@@ -3,7 +3,7 @@ from __future__ import annotations
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
 
-from maidr.core.enum import PlotType
+from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
 from maidr.util.mixin import (
@@ -16,27 +16,66 @@ from maidr.util.mixin import (
 class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMergerMixin):
     def __init__(self, ax: Axes) -> None:
         super().__init__(ax, PlotType.BAR)
+        self._orientation = "vert"
+
+    @property
+    def _is_horizontal(self) -> bool:
+        return self._orientation == "horz"
+
+    @property
+    def _level_key(self) -> MaidrKey:
+        """
+        The axis the bar labels sit on: ``y`` for a horizontal bar plot
+        (``Axes.barh``, ``seaborn.barplot(orient="h")``), ``x`` otherwise.
+        """
+        return MaidrKey.Y if self._is_horizontal else MaidrKey.X
+
+    @staticmethod
+    def _extract_orientation(plot: list[BarContainer] | None) -> str:
+        """
+        Read the orientation matplotlib recorded on the bar container.
+
+        Parameters
+        ----------
+        plot : list of BarContainer, optional
+            The containers holding the bars of this layer.
+
+        Returns
+        -------
+        str
+            ``"horz"`` for a horizontal bar plot, ``"vert"`` otherwise.
+        """
+        if not plot:
+            return "vert"
+
+        return "horz" if plot[0].orientation == "horizontal" else "vert"
+
+    def render(self) -> dict:
+        """Add ``orientation`` to the base schema."""
+        base_schema = super().render()
+        bar_orientation = {MaidrKey.ORIENTATION: self._orientation}
+        return DictMergerMixin.merge_dict(base_schema, bar_orientation)
 
     def _extract_plot_data(self) -> list:
         plot = self.extract_container(self.ax, BarContainer, include_all=True)
+        self._orientation = self._extract_orientation(plot)
+
         data = self._extract_bar_container_data(plot)
-        levels = self.extract_level(self.ax)
-        formatted_data = []
-        combined_data = list(
-            zip(levels, data)
-            if plot[0].orientation == "vertical"
-            else zip(data, levels)  # type: ignore
-        )
-        if combined_data:  # type: ignore
-            for x, y in combined_data:  # type: ignore
-                formatted_data.append({"x": x, "y": y})
-            return formatted_data
-        if len(formatted_data) == 0:
-            raise ExtractionError(self.type, plot)
         if data is None:
             raise ExtractionError(self.type, plot)
 
-        return data
+        levels = self.extract_level(self.ax, self._level_key)
+
+        # A horizontal bar's magnitude runs along x and its label sits on y,
+        # which is the layout the renderer reads for a horizontal layer. The
+        # vertical layer is the mirror of that.
+        combined_data = list(
+            zip(data, levels) if self._is_horizontal else zip(levels, data)  # type: ignore
+        )
+        if not combined_data:
+            raise ExtractionError(self.type, plot)
+
+        return [{"x": x, "y": y} for x, y in combined_data]
 
     def _extract_bar_container_data(
         self, plot: list[BarContainer] | None
@@ -49,7 +88,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         # So, extract data correspondingly based on the level.
         # Flatten all the `list[BarContainer]` to `list[Patch]`.
         plot = [patch for container in plot for patch in container.patches]
-        level = self.extract_level(self.ax)
+        level = self.extract_level(self.ax, self._level_key)
         if len(level) == 0:  # type: ignore
             level = ["" for _ in range(len(plot))]  # type: ignore
 
@@ -57,5 +96,10 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
             return None
 
         self._elements.extend(plot)
+
+        # A bar's magnitude is the dimension it grows along: the width of a
+        # horizontal bar, the height of a vertical one.
+        if self._is_horizontal:
+            return [float(patch.get_width()) for patch in plot]
 
         return [float(patch.get_height()) for patch in plot]
