@@ -150,6 +150,26 @@ class TestAPositionListMustDescribeItsTraces:
 
         assert len(plot.schema[MaidrKey.DATA]) == 2
 
+    def test_an_explicit_none_names_the_argument_at_fault(self):
+        # `None` was this parameter's default until it became required, so a
+        # caller migrating off that default is exactly who passes it
+        # explicitly -- and used to get "object of type 'NoneType' has no
+        # len()", which names nothing.
+        with pytest.raises(TypeError, match="must be a list of int"):
+            PlotlyStepPlot([_step()], {}, scatter_positions=None)
+
+    def test_an_explicit_none_position_on_a_lone_line_does_too(self):
+        # Reached the `< 0` comparison and raised "'<' not supported between
+        # instances of 'NoneType' and 'int'".
+        with pytest.raises(TypeError, match="must all be int"):
+            PlotlyLinePlot(_line(), {}, scatter_position=None)
+
+    def test_a_non_int_entry_is_rejected(self):
+        with pytest.raises(TypeError, match="must all be int"):
+            PlotlyMultiLinePlot(
+                [_line("a"), _line("b")], {}, scatter_positions=[0, "1"]
+            )
+
     def test_a_valid_out_of_order_list_is_accepted(self):
         # Positions need not be sorted or contiguous -- only well-formed.
         plot = PlotlyStepPlot([_step(), _step()], {}, scatter_positions=[5, 1])

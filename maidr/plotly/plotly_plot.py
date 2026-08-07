@@ -146,16 +146,35 @@ class PlotlyPlot(ABC):
 
         Raises
         ------
+        TypeError
+            If ``positions`` is not a list/tuple, or any entry is not an int.
         ValueError
             If the length disagrees with ``trace_count``, or any position is
             negative or repeated.
         """
+        # Type-checked before anything else, because the value most likely to
+        # arrive here wrongly is ``None`` -- it was this parameter's default
+        # until it became required, so a caller migrating off that default is
+        # exactly who passes it explicitly. Left unchecked it surfaced as
+        # "object of type 'NoneType' has no len()" or "'<' not supported
+        # between instances of 'NoneType' and 'int'", neither of which names
+        # the argument at fault.
+        if not isinstance(positions, (list, tuple)):
+            raise TypeError(
+                f"scatter positions must be a list of int, got {positions!r}"
+            )
+
         if len(positions) != trace_count:
             plural = "" if trace_count == 1 else "s"
             raise ValueError(
                 f"expected {trace_count} scatter position{plural} to match "
                 f"{trace_count} trace{plural}, got {len(positions)}: {positions}"
             )
+        if any(not isinstance(position, int) for position in positions):
+            raise TypeError(
+                f"scatter positions must all be int, got {positions!r}"
+            )
+
         if any(position < 0 for position in positions):
             raise ValueError(f"scatter positions must be >= 0, got {positions}")
         if len(set(positions)) != len(positions):

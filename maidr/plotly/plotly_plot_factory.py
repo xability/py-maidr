@@ -91,9 +91,7 @@ class PlotlyPlotFactory:
 
                 from maidr.plotly.line import PlotlyLinePlot
 
-                return PlotlyLinePlot(
-                    trace, layout, scatter_position=0, **axis_kwargs
-                )
+                return PlotlyLinePlot(trace, layout, scatter_position=0, **axis_kwargs)
 
             from maidr.plotly.scatter import PlotlyScatterPlot
 
