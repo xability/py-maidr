@@ -132,3 +132,27 @@ def test_horizontal_histogram_bins_run_along_y() -> None:
     assert first["y"] == (first["yMin"] + first["yMax"]) / 2
     assert first["xMin"] == 0
     assert first["xMax"] == first["x"]
+
+
+def test_seaborn_horizontal_histplot() -> None:
+    """`sns.histplot(y=...)` reaches the same extractor as `hist()`.
+
+    Seaborn asks for a horizontal histogram by binning `y` rather than by an
+    `orientation` argument, so this is a distinct entry point into the code
+    the matplotlib tests above cover.
+    """
+    fig, ax = plt.subplots()
+    try:
+        sns.histplot(y=SAMPLES, bins=3, ax=ax)
+        schema = _schema(fig)
+    finally:
+        plt.close(fig)
+
+    assert schema["orientation"] == "horz"
+    counts = [bin_["x"] for bin_ in schema["data"]]
+    assert counts == [1.0, 2.0, 3.0]
+    first = schema["data"][0]
+    assert first["yMin"] == 1.0
+    assert first["y"] == (first["yMin"] + first["yMax"]) / 2
+    assert first["xMin"] == 0
+    assert first["xMax"] == first["x"]
