@@ -259,8 +259,13 @@ class TestAModelessStaircaseStillBinds:
     default draws lines regardless ("lines+markers" under 20 points, "lines"
     at or above). Reading that as markers-only sent a chart plotly draws as a
     staircase to a scatter layer — announced as loose points, with the
-    piecewise-constant reading lost. Only a declared stepping shape is
-    rescued; everything else keeps its previous classification.
+    piecewise-constant reading lost.
+
+    A declared stepping shape is decisive on its own, checked before the mode
+    default is resolved at all: plotly draws the risers whatever the mode
+    turns out to be. Traces with no shape go on to
+    ``tests/plotly/test_plotly_mode_default.py``, which covers how an absent
+    mode resolves.
     """
 
     def _one_layer(self, **trace_kwargs):
@@ -276,9 +281,11 @@ class TestAModelessStaircaseStillBinds:
         assert layer[MaidrKey.TYPE] == PlotType.STEP
         assert layer[MaidrKey.STEP_DIRECTION] == "hv"
 
-    def test_a_modeless_trace_without_a_shape_is_untouched(self):
-        # The rescue is scoped to declared stepping shapes, so a plain
-        # mode-less scatter keeps the classification it had before steps.
+    def test_a_modeless_trace_without_a_shape_is_not_a_step(self):
+        # No shape, so nothing here claims the data is piecewise constant.
+        # This six-point trace lands on SCATTER because plotly's own default
+        # adds markers below 20 points -- not because an absent mode reads as
+        # markers-only. See test_plotly_mode_default.py for that boundary.
         assert self._one_layer()[MaidrKey.TYPE] == PlotType.SCATTER
 
     def test_an_explicit_markers_mode_still_wins(self):

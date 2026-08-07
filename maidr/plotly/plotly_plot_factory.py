@@ -8,8 +8,11 @@ class PlotlyPlotFactory:
     """
     Factory that maps Plotly trace types to PlotlyPlot subclasses.
 
-    For scatter traces, uses the ``mode`` attribute to disambiguate
-    between scatter (markers) and line (lines) plots.
+    For scatter traces, the drawing mode disambiguates loose markers from a
+    connected line. That is resolved through
+    :func:`maidr.plotly.step_shape.is_connected_line_trace` rather than read
+    off the trace, because ``Figure.to_dict()`` omits ``mode`` when the author
+    never set one — and an absent ``mode`` still draws a line.
     """
 
     @staticmethod
