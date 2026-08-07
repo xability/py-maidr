@@ -37,6 +37,8 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
 
     def render(self) -> dict:
         """Add ``orientation`` to the base schema."""
+        # Read after the super call, not before: `self._orientation` is
+        # populated by `_extract_plot_data`, which that call runs.
         base_schema = super().render()
         hist_orientation = {MaidrKey.ORIENTATION: self._orientation}
         return DictMergerMixin.merge_dict(base_schema, hist_orientation)

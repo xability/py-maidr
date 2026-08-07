@@ -56,6 +56,8 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
 
     def render(self) -> dict:
         """Add ``orientation`` to the base schema."""
+        # Read after the super call, not before: `self._orientation` is
+        # populated by `_extract_plot_data`, which that call runs.
         base_schema = super().render()
         bar_orientation = {MaidrKey.ORIENTATION: self._orientation}
         return DictMergerMixin.merge_dict(base_schema, bar_orientation)
@@ -72,9 +74,11 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         # A horizontal bar's magnitude runs along x and its label sits on y,
         # which is the layout the renderer reads for a horizontal layer. The
         # vertical layer is the mirror of that.
-        combined_data = list(
-            zip(data, levels) if self._is_horizontal else zip(levels, data)  # type: ignore
-        )
+        if self._is_horizontal:
+            combined_data = list(zip(data, levels))  # type: ignore
+        else:
+            combined_data = list(zip(levels, data))  # type: ignore
+
         if not combined_data:
             raise ExtractionError(self.type, plot)
 
