@@ -164,6 +164,28 @@ def test_a_label_count_mismatch_raises_extraction_error(horizontal: bool) -> Non
         plt.close(fig)
 
 
+def test_an_axis_with_no_tick_labels_raises_extraction_error() -> None:
+    """Unchanged by the refactor, and pinned here because it looks changed.
+
+    The old `_extract_bar_container_data` swapped an empty level list for a
+    list of empty strings, which reads like it emitted a blank label per bar.
+    It did not: the substitution was local to that method and existed only to
+    let its own length check pass, while the caller went on to zip against
+    the real, still-empty list. Both before and after, a bar axis stripped of
+    its tick labels raises rather than emitting blank labels.
+    """
+    fig, ax = plt.subplots()
+    try:
+        ax.bar(LABELS, VALUES)
+        ax.set_xticks([])
+        plot = FigureManager.get_maidr(fig).plots[0]
+
+        with pytest.raises(ExtractionError):
+            plot._extract_plot_data()
+    finally:
+        plt.close(fig)
+
+
 def test_seaborn_horizontal_histplot() -> None:
     """`sns.histplot(y=...)` reaches the same extractor as `hist()`.
 
