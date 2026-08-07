@@ -50,15 +50,18 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         ``scatterlayer``, so numbering from 1 here would point each line at
         its predecessor and collide with the step layer's own selectors.
 
+        A ``scattergl`` layer gets none: it is painted to a canvas, so there
+        is no path to address.
+
         Returns
         -------
         list of str
-            One CSS selector per line, in trace order.
+            One CSS selector per line, in trace order; empty for a WebGL
+            layer.
         """
-        return [
-            self._scatter_line_selector(position)
-            for position in self._scatter_positions
-        ]
+        return self._scatter_line_selectors(
+            self._traces, self._scatter_positions
+        )
 
     def _extract_plot_data(self) -> list[list[dict]]:
         """Return multi-line data as a list-of-lists.

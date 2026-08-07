@@ -7,6 +7,7 @@ from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
+from maidr.plotly.step_shape import renders_through_webgl
 
 
 class PlotlyPlot(ABC):
@@ -115,6 +116,40 @@ class PlotlyPlot(ABC):
             f"{self._subplot_css_prefix()}.scatterlayer > "
             f".trace.scatter:nth-child({position + 1}) path.js-line"
         )
+
+    def _scatter_line_selectors(
+        self, traces: list[dict], positions: list[int]
+    ) -> list[str]:
+        """
+        Return one line selector per trace, or none when they are not SVG.
+
+        A WebGL trace has no element to address, so a selector built for it
+        would resolve to zero elements and the highlight would simply not
+        appear — with nothing in the output to say why. Emitting no selector
+        at all says the same thing honestly: this layer has no highlightable
+        geometry, while its audio, braille and text are unaffected.
+
+        The choice is all-or-nothing per layer rather than per trace, because
+        the emitted list is positional — the frontend pairs selector *i* with
+        series *i*. Dropping one entry from the middle would slide every later
+        series onto the wrong element, which is worse than no highlight.
+
+        Parameters
+        ----------
+        traces : list of dict
+            The traces this layer covers, in series order.
+        positions : list of int
+            Each trace's zero-based position among the subplot's
+            scatter-family traces, in the same order.
+
+        Returns
+        -------
+        list of str
+            One selector per series, or an empty list for a WebGL layer.
+        """
+        if any(renders_through_webgl(trace) for trace in traces):
+            return []
+        return [self._scatter_line_selector(position) for position in positions]
 
     def _get_selector(self) -> str:
         """Return a CSS selector for Plotly SVG elements."""

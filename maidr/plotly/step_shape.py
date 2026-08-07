@@ -37,13 +37,47 @@ STEP_SHAPE_DIRECTION: dict[str, str] = {
 
 #: Plotly trace types that render as a connected path in the scatter layer.
 #:
-#: ``scattergl`` is included because the line classification has always
-#: included it. Note it draws through WebGL rather than SVG, so the
-#: ``path.js-line`` selectors built for these traces do not match anything in
-#: a ``scattergl`` figure — highlighting is silently inert there. That is
-#: pre-existing for lines and is not made worse by steps; it is called out
-#: here so the next reader does not have to rediscover it.
+#: ``scattergl`` is included because it is a scatter trace in every respect
+#: that matters to classification — same ``mode``, same ``line.shape``, same
+#: data. It differs only in how it is painted, which
+#: :func:`renders_through_webgl` handles separately.
 _CONNECTED_TRACE_TYPES = ("scatter", "scattergl")
+
+
+#: Plotly trace types painted onto a ``<canvas>`` through WebGL, not as SVG.
+#:
+#: These have no per-trace DOM element, so no CSS selector can address their
+#: geometry — see :func:`renders_through_webgl` for what follows from that.
+_WEBGL_TRACE_TYPES = ("scattergl",)
+
+
+def renders_through_webgl(trace: dict) -> bool:
+    """
+    Report whether a trace is painted to a canvas rather than to SVG.
+
+    A WebGL trace has no element to select: plotly draws every ``scattergl``
+    trace on the subplot into one shared ``<canvas>``, so there is no
+    ``path.js-line`` and no ``.point`` to match. Emitting the SVG selectors
+    anyway produced layers whose highlight silently resolved to zero elements
+    — correct audio, braille and text, no visible highlight, no warning.
+
+    Upstream leaves no room for a canvas selector either. ``maidr``'s
+    highlight service rejects a non-``SVGElement`` outright, and canvas-backed
+    libraries are served instead by the ``onNavigate`` callback, which
+    ``src/type/grammar.ts`` documents as "not serializable as JSON" — so it is
+    unreachable from an exported figure by construction, not merely unused.
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace dictionary.
+
+    Returns
+    -------
+    bool
+        True when the trace renders through WebGL.
+    """
+    return trace.get("type", "scatter") in _WEBGL_TRACE_TYPES
 
 
 def is_scatter_family_trace(trace: dict) -> bool:

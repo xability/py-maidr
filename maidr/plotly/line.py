@@ -3,6 +3,7 @@ from __future__ import annotations
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.step_shape import renders_through_webgl
 
 
 class PlotlyLinePlot(PlotlyPlot):
@@ -45,11 +46,18 @@ class PlotlyLinePlot(PlotlyPlot):
         would match both. ``PlotlyMaidr`` therefore always supplies a
         position; the fallback is for direct/standalone construction.
 
+        A ``scattergl`` line gets none, on either path: it is painted to a
+        canvas, so there is no path to address.
+
         Returns
         -------
         list of str
-            A single CSS selector.
+            A single CSS selector, or empty for a WebGL trace.
         """
+        # Guarded once, ahead of both paths: neither an unscoped nor a
+        # position-scoped selector can address a canvas.
+        if renders_through_webgl(self._trace):
+            return []
         if self._scatter_position is None:
             return [f"{self._subplot_css_prefix()}.trace.scatter path.js-line"]
         return [self._scatter_line_selector(self._scatter_position)]

@@ -1,0 +1,230 @@
+"""WebGL traces have no element to highlight, and must not claim one.
+
+A ``scattergl`` trace is painted into a shared ``<canvas>`` rather than drawn
+as SVG. It was still given ``path.js-line`` / ``.point`` selectors, which
+resolved to zero elements: correct audio, braille and text, no visible
+highlight, and nothing in the output to say why.
+
+The DOM facts asserted here were confirmed by rendering plotly's own bundle in
+Chromium. With a ``scattergl`` trace declared before a ``scatter`` one, the
+subplot's ``scatterlayer`` holds exactly **one** child — the SVG trace — so
+``nth-child(1)`` matches the SVG line and ``nth-child(2)`` matches nothing.
+That is why a gl trace must not occupy a position in the index either: doing
+so pushed every SVG sibling one place along, onto a selector matching nothing.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from maidr.core.enum.maidr_key import MaidrKey
+from maidr.core.enum.plot_type import PlotType
+from maidr.plotly.plotly_maidr import PlotlyMaidr
+from maidr.plotly.step_shape import renders_through_webgl
+
+plotly = pytest.importorskip("plotly")
+import plotly.graph_objects as go  # noqa: E402
+
+
+def _layers(fig) -> list[dict]:
+    """
+    Render a figure through PlotlyMaidr and return its layer schemas.
+
+    Parameters
+    ----------
+    fig : plotly.graph_objects.Figure
+        The figure to export.
+
+    Returns
+    -------
+    list of dict
+        One schema per emitted layer, in emission order.
+    """
+    return [plot.schema for plot in PlotlyMaidr(fig)._plots]
+
+
+class TestTheWebglPredicate:
+    """Only the canvas-painted trace types report True."""
+
+    def test_scattergl_renders_through_webgl(self):
+        assert renders_through_webgl({"type": "scattergl"}) is True
+
+    @pytest.mark.parametrize("trace_type", ["scatter", "bar", "box", "heatmap"])
+    def test_svg_types_do_not(self, trace_type):
+        assert renders_through_webgl({"type": trace_type}) is False
+
+    def test_a_missing_type_reads_as_svg_scatter(self):
+        # plotly's own default for an absent type is "scatter".
+        assert renders_through_webgl({}) is False
+
+
+class TestAWebglLayerClaimsNoHighlight:
+    """The layer still carries data; it just does not promise a highlight."""
+
+    def test_a_gl_line_emits_no_selector(self):
+        fig = go.Figure()
+        fig.add_scattergl(x=[0, 1, 2], y=[1, 2, 3], mode="lines")
+
+        (layer,) = _layers(fig)
+
+        assert layer[MaidrKey.TYPE] == PlotType.LINE
+        assert MaidrKey.SELECTOR not in layer
+
+    def test_a_gl_line_still_carries_its_data(self):
+        # The point of dropping the selector is that the other three
+        # modalities keep working -- this would be a regression, not a fix,
+        # if the layer came out empty.
+        fig = go.Figure()
+        fig.add_scattergl(x=[0, 1, 2], y=[1, 2, 3], mode="lines")
+
+        (layer,) = _layers(fig)
+
+        assert len(layer[MaidrKey.DATA][0]) == 3
+
+    def test_a_gl_step_emits_no_selector_but_keeps_its_direction(self):
+        fig = go.Figure()
+        fig.add_scattergl(
+            x=[0, 1, 2], y=[1, 2, 3], mode="lines", line={"shape": "hv"}
+        )
+
+        (layer,) = _layers(fig)
+
+        assert layer[MaidrKey.TYPE] == PlotType.STEP
+        assert layer[MaidrKey.STEP_DIRECTION] == "hv"
+        assert MaidrKey.SELECTOR not in layer
+
+    def test_a_gl_scatter_emits_no_selector(self):
+        # `.point` is as unmatched as `path.js-line` -- markers are painted to
+        # the same canvas.
+        fig = go.Figure()
+        fig.add_scattergl(x=[0, 1, 2], y=[1, 2, 3], mode="markers")
+
+        (layer,) = _layers(fig)
+
+        assert layer[MaidrKey.TYPE] == PlotType.SCATTER
+        assert MaidrKey.SELECTOR not in layer
+
+    def test_a_gl_multiline_emits_no_selectors(self):
+        fig = go.Figure()
+        fig.add_scattergl(x=[0, 1], y=[1, 2], mode="lines", name="a")
+        fig.add_scattergl(x=[0, 1], y=[2, 1], mode="lines", name="b")
+
+        (layer,) = _layers(fig)
+
+        assert layer[MaidrKey.TYPE] == PlotType.LINE
+        assert len(layer[MaidrKey.DATA]) == 2
+        assert MaidrKey.SELECTOR not in layer
+
+
+class TestSvgTracesAreUnaffected:
+    """The pre-existing SVG behaviour is untouched."""
+
+    def test_an_svg_line_still_gets_its_selector(self):
+        fig = go.Figure()
+        fig.add_scatter(x=[0, 1, 2], y=[1, 2, 3], mode="lines")
+
+        (layer,) = _layers(fig)
+
+        assert "nth-child(1)" in layer[MaidrKey.SELECTOR][0]
+
+    def test_an_svg_scatter_still_gets_its_selector(self):
+        fig = go.Figure()
+        fig.add_scatter(x=[0, 1, 2], y=[1, 2, 3], mode="markers")
+
+        (layer,) = _layers(fig)
+
+        assert layer[MaidrKey.SELECTOR].endswith(".point")
+
+
+class TestAGlTraceDoesNotDisplaceItsSvgNeighbours:
+    """
+    The second half of the defect: a gl trace broke everyone else's highlight.
+
+    Because a gl trace never enters the ``scatterlayer``, counting it in the
+    position index shifted every SVG sibling one place along -- so declaring
+    one ``scattergl`` trace silently disabled highlighting for the ordinary
+    SVG traces beside it.
+    """
+
+    def test_an_svg_line_after_a_gl_line_is_still_the_first_child(self):
+        fig = go.Figure()
+        fig.add_scattergl(x=[0, 1, 2], y=[1, 2, 3], mode="lines", name="gl")
+        fig.add_scatter(x=[0, 1, 2], y=[3, 2, 1], mode="lines", name="svg")
+
+        layers = _layers(fig)
+        svg = [x for x in layers if MaidrKey.SELECTOR in x]
+
+        assert len(svg) == 1
+        assert "nth-child(1)" in svg[0][MaidrKey.SELECTOR][0]
+
+    def test_two_svg_lines_after_a_gl_line_number_from_one(self):
+        fig = go.Figure()
+        fig.add_scattergl(x=[0, 1], y=[1, 2], mode="lines", name="gl")
+        fig.add_scatter(x=[0, 1], y=[2, 1], mode="lines", name="svg a")
+        fig.add_scatter(x=[0, 1], y=[1, 3], mode="lines", name="svg b")
+
+        layers = _layers(fig)
+        multiline = next(
+            x
+            for x in layers
+            if MaidrKey.SELECTOR in x and len(x[MaidrKey.SELECTOR]) == 2
+        )
+
+        assert "nth-child(1)" in multiline[MaidrKey.SELECTOR][0]
+        assert "nth-child(2)" in multiline[MaidrKey.SELECTOR][1]
+
+    def test_steps_of_one_convention_still_split_across_renderers(self):
+        # Both steps share the `hv` convention, so grouping by convention
+        # alone would merge them -- and the merged layer, holding a gl trace,
+        # could then only claim a highlight for both or for neither. Splitting
+        # by renderer first keeps the SVG step's highlight working.
+        fig = go.Figure()
+        fig.add_scattergl(
+            x=[0, 1], y=[1, 2], mode="lines", line={"shape": "hv"}, name="gl"
+        )
+        fig.add_scatter(
+            x=[0, 1], y=[2, 1], mode="lines", line={"shape": "hv"}, name="svg"
+        )
+
+        layers = _layers(fig)
+
+        assert len(layers) == 2
+        assert [x[MaidrKey.STEP_DIRECTION] for x in layers] == ["hv", "hv"]
+
+        with_selector = [x for x in layers if MaidrKey.SELECTOR in x]
+        assert len(with_selector) == 1
+        assert "nth-child(1)" in with_selector[0][MaidrKey.SELECTOR][0]
+
+    def test_a_gl_and_an_svg_step_of_different_conventions_split_cleanly(self):
+        # Convention splitting still applies within a renderer, so this is
+        # two layers for two reasons at once.
+        fig = go.Figure()
+        fig.add_scattergl(
+            x=[0, 1], y=[1, 2], mode="lines", line={"shape": "hv"}, name="gl"
+        )
+        fig.add_scatter(
+            x=[0, 1], y=[2, 1], mode="lines", line={"shape": "vh"}, name="svg"
+        )
+
+        layers = _layers(fig)
+        gl_layer = next(x for x in layers if x[MaidrKey.STEP_DIRECTION] == "hv")
+        svg_layer = next(x for x in layers if x[MaidrKey.STEP_DIRECTION] == "vh")
+
+        assert MaidrKey.SELECTOR not in gl_layer
+        assert "nth-child(1)" in svg_layer[MaidrKey.SELECTOR][0]
+
+    def test_gl_lines_do_not_merge_into_the_svg_multiline_layer(self):
+        # Two SVG lines still merge with each other; the gl line becomes its
+        # own layer rather than joining them.
+        fig = go.Figure()
+        fig.add_scattergl(x=[0, 1], y=[1, 2], mode="lines", name="gl")
+        fig.add_scatter(x=[0, 1], y=[2, 1], mode="lines", name="svg a")
+        fig.add_scatter(x=[0, 1], y=[1, 3], mode="lines", name="svg b")
+
+        layers = _layers(fig)
+        svg_layer = next(x for x in layers if MaidrKey.SELECTOR in x)
+        gl_layer = next(x for x in layers if MaidrKey.SELECTOR not in x)
+
+        assert len(layers) == 2
+        assert len(svg_layer[MaidrKey.DATA]) == 2
+        assert len(gl_layer[MaidrKey.DATA]) == 1

@@ -70,15 +70,18 @@ class PlotlyStepPlot(PlotlyPlot):
         traces are routinely not the leading ones: an ``hv`` layer and a
         ``vh`` layer both starting from 1 would highlight the same elements.
 
+        A ``scattergl`` staircase gets none: it is painted to a canvas, so
+        there is no path to address.
+
         Returns
         -------
         list of str
-            One CSS selector per series, in trace order.
+            One CSS selector per series, in trace order; empty for a WebGL
+            layer.
         """
-        return [
-            self._scatter_line_selector(position)
-            for position in self._scatter_positions
-        ]
+        return self._scatter_line_selectors(
+            self._traces, self._scatter_positions
+        )
 
     def render(self) -> dict:
         """
