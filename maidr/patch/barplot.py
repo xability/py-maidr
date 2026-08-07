@@ -262,6 +262,12 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
     PlotType
         `PlotType.DODGED` for a grouped layer, `PlotType.BAR` otherwise.
     """
+    # Every bar container on the axes is counted, not only the ones this call
+    # drew, so a second bar layer overlaid on the same axes is read as extra
+    # groups. That layering is already unrenderable — the first layer re-reads
+    # every container here too and raises on the count — so this does not make
+    # a working figure wrong. Scoping both to one call's own containers is the
+    # fix, and it belongs to whoever takes that on.
     containers = [c for c in ax.containers if isinstance(c, BarContainer)]
     if len(containers) < 2:
         return PlotType.BAR

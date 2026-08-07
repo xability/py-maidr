@@ -168,6 +168,27 @@ def test_a_hue_that_repeats_the_category_stays_a_plain_bar_layer() -> None:
     ]
 
 
+def test_hue_groups_that_do_not_cover_every_category_stay_a_plain_bar_layer() -> None:
+    """The length check, reached with two containers rather than one.
+
+    Seaborn draws no bar at all for a category and hue level that never
+    occur together, so the containers come out ragged. `GroupedBarPlot`
+    cannot read those — it pairs bars with labels by position — so the
+    classification refuses to call them grouped. The layer does not render
+    either way; what is pinned here is that the guard is what turns it back,
+    not the container count.
+    """
+    ragged = DATA[~((DATA["cat"] == "b") & (DATA["grp"] == "y"))]
+    fig, ax = plt.subplots()
+    try:
+        sns.barplot(data=ragged, x="cat", y="val", hue="grp", ax=ax)
+        # The premise: seaborn dropped the bar rather than drawing a gap.
+        assert [len(c.patches) for c in ax.containers] == [3, 2]
+        assert _layer_type(fig) is PlotType.BAR
+    finally:
+        plt.close(fig)
+
+
 def test_a_hue_with_one_level_stays_a_plain_bar_layer() -> None:
     """Nothing to group by: seaborn draws the one container it would anyway."""
     single = DATA.assign(grp="only")
