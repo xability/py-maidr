@@ -130,6 +130,13 @@ class PlotlyPlot(ABC):
         element. None of those raise on their own; they highlight the wrong
         geometry, which is the outcome this whole parameter exists to prevent.
 
+        The guard is not exhaustive, and cannot be: a position beyond the
+        subplot's actual scatter-trace count is well-formed by every rule
+        here, so ``scatter_position=99`` on a two-trace subplot constructs
+        happily and simply matches nothing at render time. Only
+        ``PlotlyMaidr._extract_plots`` knows that total, so an upper bound
+        would have to live there rather than in this class.
+
         Parameters
         ----------
         positions : list of int

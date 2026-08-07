@@ -45,7 +45,7 @@ class PlotlyMultiLinePlot(PlotlyPlot):
     ) -> None:
         if not traces:
             raise ValueError("a multi-line layer needs at least one trace")
-        self._validate_scatter_positions(scatter_positions, len(traces))
+        PlotlyPlot._validate_scatter_positions(scatter_positions, len(traces))
 
         super().__init__(traces[0], layout, PlotType.LINE, **kwargs)
         # Copied, not aliased: a caller mutating its list afterwards would

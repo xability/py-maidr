@@ -42,7 +42,7 @@ class PlotlyLinePlot(PlotlyPlot):
     ) -> None:
         # Routed through the list validator so the non-negative rule has
         # one home rather than a scalar copy that can drift from it.
-        self._validate_scatter_positions([scatter_position], 1)
+        PlotlyPlot._validate_scatter_positions([scatter_position], 1)
 
         super().__init__(trace, layout, PlotType.LINE, **kwargs)
         self._scatter_position = scatter_position
