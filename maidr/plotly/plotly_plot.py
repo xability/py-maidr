@@ -117,9 +117,7 @@ class PlotlyPlot(ABC):
         )
 
     @staticmethod
-    def _validate_scatter_positions(
-        positions: list[int], trace_count: int
-    ) -> None:
+    def _validate_scatter_positions(positions: list[int], trace_count: int) -> None:
         """
         Reject a position list that cannot describe these traces.
 
@@ -151,13 +149,9 @@ class PlotlyPlot(ABC):
                 f"{trace_count} trace(s), got {len(positions)}: {positions}"
             )
         if any(position < 0 for position in positions):
-            raise ValueError(
-                f"scatter positions must be >= 0, got {positions}"
-            )
+            raise ValueError(f"scatter positions must be >= 0, got {positions}")
         if len(set(positions)) != len(positions):
-            raise ValueError(
-                f"scatter positions must be unique, got {positions}"
-            )
+            raise ValueError(f"scatter positions must be unique, got {positions}")
 
     def _get_selector(self) -> str:
         """Return a CSS selector for Plotly SVG elements."""
