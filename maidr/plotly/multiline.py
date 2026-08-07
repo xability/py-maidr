@@ -18,28 +18,32 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         All scatter/lines trace dicts belonging to the multi-line plot.
     layout : dict
         The Plotly figure layout.
-    scatter_positions : list of int, optional
+    scatter_positions : list of int
         Each trace's zero-based position among the subplot's scatter-family
-        traces. Required whenever these are not the leading scatter traces of
-        the subplot — which a step trace declared alongside them makes the
-        normal case. Defaults to the traces' own order, correct only for a
-        layer that owns every scatter trace on its subplot.
+        traces, in trace order. Required: see the note below.
+
+    Notes
+    -----
+    ``scatter_positions`` deliberately has no default. It previously fell back
+    to the traces' own order, ``list(range(len(traces)))``, which is right
+    only for a layer that owns every scatter trace on its subplot — an
+    invariant that ended when steps were split into their own layers. For any
+    other layer that default emitted ``nth-child(1), nth-child(2), …``
+    pointing at whichever elements happened to occupy those positions: no
+    error, nothing visibly wrong in the output, and the wrong element
+    highlighted. A missing position is now a ``TypeError`` at the call site.
     """
 
     def __init__(
         self,
         traces: list[dict],
         layout: dict,
-        scatter_positions: list[int] | None = None,
+        scatter_positions: list[int],
         **kwargs: str,
     ) -> None:
         super().__init__(traces[0], layout, PlotType.LINE, **kwargs)
         self._traces = traces
-        self._scatter_positions = (
-            list(range(len(traces)))
-            if scatter_positions is None
-            else scatter_positions
-        )
+        self._scatter_positions = scatter_positions
 
     def _get_selector(self) -> list[str]:
         """

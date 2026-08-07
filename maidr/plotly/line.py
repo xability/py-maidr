@@ -15,19 +15,29 @@ class PlotlyLinePlot(PlotlyPlot):
         The scatter/lines trace dict.
     layout : dict
         The Plotly figure layout.
-    scatter_position : int, optional
+    scatter_position : int
         The trace's zero-based position among the subplot's scatter-family
-        traces. Pass this whenever the subplot holds more than this one
-        scatter trace — a step trace beside it makes that the normal case.
+        traces. Required: it is the only thing that makes this layer's
+        selector address *this* trace rather than whichever one happens to
+        sit first. See the class note below on why it has no default.
     **kwargs : str
         Axis names forwarded to the parent class.
+
+    Notes
+    -----
+    ``scatter_position`` deliberately has no default. It previously fell back
+    to an unscoped ``.trace.scatter path.js-line``, which over-matched — a
+    step trace renders as ``path.js-line`` too, so the fallback selected it
+    as well. A caller that cannot supply a real position has to say so at the
+    call site now, rather than silently getting a selector that is wrong in a
+    way nothing reports.
     """
 
     def __init__(
         self,
         trace: dict,
         layout: dict,
-        scatter_position: int | None = None,
+        scatter_position: int,
         **kwargs: str,
     ) -> None:
         super().__init__(trace, layout, PlotType.LINE, **kwargs)
@@ -37,21 +47,12 @@ class PlotlyLinePlot(PlotlyPlot):
         """
         Return the selector for this line's rendered path.
 
-        With a known position the selector is scoped to that one trace.
-        Without one it falls back to the unscoped subplot-wide form, which
-        assumes this is the only ``path.js-line`` on the subplot. That
-        assumption held while a line layer owned every scatter trace, but a
-        step trace renders as ``path.js-line`` too, so the unscoped form
-        would match both. ``PlotlyMaidr`` therefore always supplies a
-        position; the fallback is for direct/standalone construction.
-
         Returns
         -------
         list of str
-            A single CSS selector.
+            A single CSS selector, scoped to this trace's position among the
+            subplot's scatter traces.
         """
-        if self._scatter_position is None:
-            return [f"{self._subplot_css_prefix()}.trace.scatter path.js-line"]
         return [self._scatter_line_selector(self._scatter_position)]
 
     def _extract_plot_data(self) -> list[list[dict]]:

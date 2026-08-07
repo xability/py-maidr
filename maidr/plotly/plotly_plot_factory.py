@@ -56,9 +56,7 @@ class PlotlyPlotFactory:
                 # lone line alike — because only it knows each trace's
                 # position among its subplot's scatter traces, which the
                 # selector needs. The branch is kept for direct/standalone
-                # construction (and is exercised that way by the tests), the
-                # same role the unscoped fallback plays in
-                # ``PlotlyLinePlot._get_selector``.
+                # construction, and is exercised that way by the tests.
                 #
                 # The "is this a connected line" test is shared with
                 # ``_extract_plots`` through ``is_connected_line_trace`` rather
@@ -68,14 +66,25 @@ class PlotlyPlotFactory:
                 # ``line.shape``, not the trace type — so the shape is the only
                 # thing separating piecewise-constant data from an
                 # interpolated line.
+                #
+                # Position 0 is passed explicitly rather than left to a
+                # default. This factory sees one trace with no idea what else
+                # is on its subplot, so 0 — "assume it is the only scatter
+                # trace" — is the only assumption available, and it belongs
+                # here, visible, rather than hidden inside the three classes
+                # where every other caller would inherit it silently.
                 if is_step_trace(trace):
                     from maidr.plotly.step import PlotlyStepPlot
 
-                    return PlotlyStepPlot([trace], layout, **axis_kwargs)
+                    return PlotlyStepPlot(
+                        [trace], layout, scatter_positions=[0], **axis_kwargs
+                    )
 
                 from maidr.plotly.line import PlotlyLinePlot
 
-                return PlotlyLinePlot(trace, layout, **axis_kwargs)
+                return PlotlyLinePlot(
+                    trace, layout, scatter_position=0, **axis_kwargs
+                )
 
             from maidr.plotly.scatter import PlotlyScatterPlot
 
