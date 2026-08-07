@@ -35,6 +35,43 @@ STEP_SHAPE_DIRECTION: dict[str, str] = {
 }
 
 
+#: Plotly trace types that render as a connected path in the scatter layer.
+#:
+#: ``scattergl`` is included because the line classification has always
+#: included it. Note it draws through WebGL rather than SVG, so the
+#: ``path.js-line`` selectors built for these traces do not match anything in
+#: a ``scattergl`` figure — highlighting is silently inert there. That is
+#: pre-existing for lines and is not made worse by steps; it is called out
+#: here so the next reader does not have to rediscover it.
+_CONNECTED_TRACE_TYPES = ("scatter", "scattergl")
+
+
+def is_connected_line_trace(trace: dict) -> bool:
+    """
+    Report whether a trace draws a connected path rather than loose markers.
+
+    This is the gate in front of every line/step decision: a trace only
+    reaches that classification if plotly is joining its samples up. It lives
+    here so ``PlotlyMaidr._extract_plots`` and ``PlotlyPlotFactory`` share one
+    definition — they classify the same traces in two places, and a rule
+    duplicated by hand is one that eventually disagrees with itself.
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace dictionary.
+
+    Returns
+    -------
+    bool
+        True for a scatter-family trace in a lines-only mode.
+    """
+    if trace.get("type", "scatter") not in _CONNECTED_TRACE_TYPES:
+        return False
+    mode = trace.get("mode", "markers")
+    return "lines" in mode and "markers" not in mode
+
+
 def is_step_shape(shape: str | None) -> bool:
     """
     Report whether a ``line.shape`` makes plotly draw a staircase.

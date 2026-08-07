@@ -13,6 +13,7 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.plotly_plot import PlotlyPlot
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
+from maidr.plotly.step_shape import is_connected_line_trace, is_step_trace
 from maidr.util.dependencies import (
     MAIDR_CSS_CDN_URL,
     MAIDR_CSS_FILENAME,
@@ -154,18 +155,12 @@ class PlotlyMaidr:
                 t for t in group_traces if t.get("type") == "bar"
             ]
             connected_traces = [
-                t
-                for t in group_traces
-                if t.get("type") in ("scatter", "scattergl")
-                and "lines" in t.get("mode", "")
-                and "markers" not in t.get("mode", "")
+                t for t in group_traces if is_connected_line_trace(t)
             ]
             # A staircase is a scatter/lines trace whose ``line.shape`` makes
             # plotly draw risers instead of interpolating, so it has to be
             # split out here: merged into the multi-line layer it would be
             # announced as an interpolated line.
-            from maidr.plotly.step_shape import is_step_trace
-
             step_traces = [t for t in connected_traces if is_step_trace(t)]
             line_traces = [t for t in connected_traces if not is_step_trace(t)]
             box_traces = [
