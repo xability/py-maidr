@@ -13,7 +13,11 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.plotly_plot import PlotlyPlot
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
-from maidr.plotly.step_shape import is_connected_line_trace, is_step_trace
+from maidr.plotly.step_shape import (
+    is_connected_line_trace,
+    is_scatter_family_trace,
+    is_step_trace,
+)
 from maidr.util.dependencies import (
     MAIDR_CSS_CDN_URL,
     MAIDR_CSS_FILENAME,
@@ -172,10 +176,12 @@ class PlotlyMaidr:
             # is its position there — not its position within the MAIDR layer
             # it lands in. The two agree only while one layer owns every
             # scatter trace on the subplot, which splitting steps out ends.
+            # Shares its membership test with `connected_traces` above. If the
+            # two ever disagree, a trace can be classified as a line or a step
+            # while being absent from `position_of`, and the lookup below dies
+            # with a KeyError instead of producing a wrong selector.
             scatter_family = [
-                t
-                for t in group_traces
-                if t.get("type") in ("scatter", "scattergl")
+                t for t in group_traces if is_scatter_family_trace(t)
             ]
             position_of = {
                 id(t): index for index, t in enumerate(scatter_family)

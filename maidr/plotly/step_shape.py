@@ -46,6 +46,31 @@ STEP_SHAPE_DIRECTION: dict[str, str] = {
 _CONNECTED_TRACE_TYPES = ("scatter", "scattergl")
 
 
+def is_scatter_family_trace(trace: dict) -> bool:
+    """
+    Report whether a trace belongs to the subplot's scatter layer.
+
+    This is the membership test for ``scatterlayer``, so it decides both which
+    traces can be lines or steps and which ones the ``nth-child`` selector
+    indices count over. Those two must agree: a trace classified as a line but
+    absent from the index would have no position to look up.
+
+    ``type`` defaults to ``"scatter"`` because that is plotly's own default
+    for a trace that omits it.
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace dictionary.
+
+    Returns
+    -------
+    bool
+        True for a ``scatter`` or ``scattergl`` trace.
+    """
+    return trace.get("type", "scatter") in _CONNECTED_TRACE_TYPES
+
+
 def is_connected_line_trace(trace: dict) -> bool:
     """
     Report whether a trace draws a connected path rather than loose markers.
@@ -55,6 +80,11 @@ def is_connected_line_trace(trace: dict) -> bool:
     here so ``PlotlyMaidr._extract_plots`` and ``PlotlyPlotFactory`` share one
     definition — they classify the same traces in two places, and a rule
     duplicated by hand is one that eventually disagrees with itself.
+
+    It is deliberately built on :func:`is_scatter_family_trace` rather than
+    repeating the type test, so the scatter-family rule has exactly one home.
+    Spelling it out twice is what previously let the two tests drift apart and
+    produce a trace that was a line but had no selector position.
 
     Parameters
     ----------
@@ -66,7 +96,7 @@ def is_connected_line_trace(trace: dict) -> bool:
     bool
         True for a scatter-family trace in a lines-only mode.
     """
-    if trace.get("type", "scatter") not in _CONNECTED_TRACE_TYPES:
+    if not is_scatter_family_trace(trace):
         return False
     mode = trace.get("mode", "markers")
     return "lines" in mode and "markers" not in mode

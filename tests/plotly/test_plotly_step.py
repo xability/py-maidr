@@ -205,6 +205,52 @@ class TestDirectionGrouping:
         assert "nth-child(3)" in vh_layer[MaidrKey.SELECTOR][0]
 
 
+class _TypelessTraceFigure:
+    """
+    A minimal figure whose trace dict omits ``type``.
+
+    ``Figure.to_dict()`` always emits ``type``, so this shape is only
+    reachable by building the dict by hand — which the internals accept and
+    which is how these classifiers get exercised directly.
+    """
+
+    def __init__(self, line_shape: str | None = None) -> None:
+        trace: dict = {"mode": "lines", "x": [0, 1, 2], "y": [1, 2, 3]}
+        if line_shape is not None:
+            trace["line"] = {"shape": line_shape}
+        self._trace = trace
+
+    def to_dict(self) -> dict:
+        return {"layout": {}, "data": [self._trace]}
+
+
+class TestClassificationAndSelectorIndexAgree:
+    """
+    Whatever counts as a line or a step must also have a selector position.
+
+    The line/step classifier and the scatter-family index are two separate
+    filters over the same traces. When they disagreed on the default for a
+    missing ``type``, a trace could be classified as a line while being absent
+    from the position map, and the selector lookup raised ``KeyError`` rather
+    than emitting a layer. They now share ``is_scatter_family_trace``.
+    """
+
+    def test_a_typeless_line_trace_still_resolves_its_position(self):
+        layers = _layers(_TypelessTraceFigure())
+
+        assert len(layers) == 1
+        assert layers[0][MaidrKey.TYPE] == PlotType.LINE
+        assert "nth-child(1)" in layers[0][MaidrKey.SELECTOR][0]
+
+    def test_a_typeless_step_trace_still_resolves_its_position(self):
+        layers = _layers(_TypelessTraceFigure(line_shape="hv"))
+
+        assert len(layers) == 1
+        assert layers[0][MaidrKey.TYPE] == PlotType.STEP
+        assert layers[0][MaidrKey.STEP_DIRECTION] == "hv"
+        assert "nth-child(1)" in layers[0][MaidrKey.SELECTOR][0]
+
+
 class TestStepDoesNotDisturbLines:
     """The regression that matters most: plain lines are untouched."""
 
