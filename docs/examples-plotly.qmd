@@ -399,6 +399,76 @@ fig = go.Figure(
 maidr.show(fig)  #<<
 ```
 
+### Step Plot
+
+Plotly has no step trace type. A staircase is an ordinary `Scatter` trace whose
+`line_shape` tells plotly.js to draw risers between the samples rather than
+interpolating across them, so `line_shape` is the only thing that marks the data
+as *piecewise constant*. maidr reads it and exports a step layer.
+
+A **hypnogram** is the canonical case: the sleep stage is held for a stretch of
+the night and then jumps. Drawn as a line it would claim the sleeper glided
+through every intermediate stage.
+
+```{python}
+#| warning: false
+#| fig-alt: Hypnogram showing sleep stage as a step chart across one night
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+# Ordinal sleep stages, deepest first, so that "up" means lighter sleep.
+STAGE_NAMES = ["N3", "N2", "N1", "REM", "Awake"]
+
+hours = [i * 0.5 for i in range(17)]
+stages = [4, 3, 2, 1, 0, 0, 1, 3, 2, 1, 0, 1, 3, 2, 1, 3, 4]
+
+fig = go.Figure(
+    go.Scatter(
+        x=hours,
+        y=stages,
+        mode="lines",
+        line_shape="hv",  #<<
+        name="Night 1",
+    )
+)
+
+fig.update_layout(
+    title="Hypnogram<br>Sleep stage across one night",
+    xaxis_title="Time asleep (hours)",
+    yaxis=dict(
+        title="Sleep stage",
+        tickmode="array",
+        tickvals=list(range(len(STAGE_NAMES))),
+        ticktext=STAGE_NAMES,
+    ),
+)
+
+maidr.show(fig)
+```
+
+`line_shape` decides which side of each sample the value is held on, and maidr
+reports it so the description can say what the chart actually means:
+
+| Plotly `line_shape` | maidr `stepDirection` | Meaning |
+|---------------------|-----------------------|---------|
+| `"hv"` | `hv` | Value holds until the next x value, then jumps |
+| `"vh"` | `vh` | Value jumps at the current x value, then holds |
+| `"hvh"` | `mid` | Value jumps midway between x values |
+| `"vhv"` | *(none)* | Still a step, but no direction is claimed — see below |
+
+::: {.callout-note}
+`"vhv"` is the one shape whose horizontal segments do not sit at a sample's own
+value, so it has no maidr equivalent. The trace still binds as a step, because
+the data is piecewise constant, but no `stepDirection` is emitted rather than
+one being guessed.
+
+A maidr layer carries a single `stepDirection` for all of its series, so traces
+drawn with different shapes are exported as **separate layers**. Merging an
+`"hv"` trace with a `"vh"` one would describe one of them wrongly.
+:::
+
 ### Scatter Plot
 
 ```{python}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.step_shape import is_connected_line_trace, is_step_trace
 
 
 class PlotlyPlotFactory:
@@ -48,8 +49,30 @@ class PlotlyPlotFactory:
             return PlotlyBarPlot(trace, layout, **axis_kwargs)
 
         if trace_type in ("scatter", "scattergl"):
-            mode = trace.get("mode", "markers")
-            if "lines" in mode and "markers" not in mode:
+            if is_connected_line_trace(trace):
+                # NOTE: this whole lines-mode branch is unreachable from
+                # ``PlotlyMaidr``. ``_extract_plots`` consumes every
+                # scatter/lines trace itself — steps, multi-line groups and a
+                # lone line alike — because only it knows each trace's
+                # position among its subplot's scatter traces, which the
+                # selector needs. The branch is kept for direct/standalone
+                # construction (and is exercised that way by the tests), the
+                # same role the unscoped fallback plays in
+                # ``PlotlyLinePlot._get_selector``.
+                #
+                # The "is this a connected line" test is shared with
+                # ``_extract_plots`` through ``is_connected_line_trace`` rather
+                # than spelled out twice, so the two cannot drift apart.
+                #
+                # A staircase is a scatter trace too — plotly varies
+                # ``line.shape``, not the trace type — so the shape is the only
+                # thing separating piecewise-constant data from an
+                # interpolated line.
+                if is_step_trace(trace):
+                    from maidr.plotly.step import PlotlyStepPlot
+
+                    return PlotlyStepPlot([trace], layout, **axis_kwargs)
+
                 from maidr.plotly.line import PlotlyLinePlot
 
                 return PlotlyLinePlot(trace, layout, **axis_kwargs)

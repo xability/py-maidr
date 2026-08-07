@@ -466,6 +466,69 @@ multiline_plot = (
 maidr.show(multiline_plot)  #<<
 ```
 
+### Step Plot
+
+Altair expresses a staircase through the mark's `interpolate` property, which
+Vega-Lite hands to the matching d3 curve. maidr renders Altair charts through the
+upstream Vega-Lite adapter, so a stepping `interpolate` is recognised there and
+the chart is bound as a step layer rather than a line.
+
+A **hypnogram** is the canonical case: the sleep stage is held for a stretch of
+the night and then jumps.
+
+```{python}
+#| warning: false
+#| fig-alt: Hypnogram showing sleep stage as a step chart across one night
+
+import altair as alt
+import pandas as pd
+
+import maidr  #<<
+
+# Ordinal sleep stages, deepest first, so that "up" means lighter sleep.
+STAGE_NAMES = ["N3", "N2", "N1", "REM", "Awake"]
+
+hours = [i * 0.5 for i in range(17)]
+stages = [4, 3, 2, 1, 0, 0, 1, 3, 2, 1, 0, 1, 3, 2, 1, 3, 4]
+
+df = pd.DataFrame({"hours": hours, "stage": stages})
+
+chart = (
+    alt.Chart(df)
+    .mark_line(interpolate="step-after")  #<<
+    .encode(
+        x=alt.X("hours:Q", title="Time asleep (hours)"),
+        y=alt.Y(
+            "stage:Q",
+            title="Sleep stage",
+            axis=alt.Axis(
+                values=list(range(len(STAGE_NAMES))),
+                labelExpr=(
+                    "datum.value == 0 ? 'N3' : datum.value == 1 ? 'N2' : "
+                    "datum.value == 2 ? 'N1' : datum.value == 3 ? 'REM' : 'Awake'"
+                ),
+            ),
+        ),
+    )
+    .properties(title="Hypnogram: sleep stage across one night")
+)
+
+maidr.show(chart)
+```
+
+`interpolate` decides which side of each sample the value is held on:
+
+| Altair `interpolate` | maidr `stepDirection` | Meaning |
+|----------------------|-----------------------|---------|
+| `"step-after"` | `hv` | Value holds until the next x value, then jumps |
+| `"step-before"` | `vh` | Value jumps at the current x value, then holds |
+| `"step"` | `mid` | Value jumps midway between x values |
+
+::: {.callout-note}
+`mark_area(interpolate="step-after")` binds as a step too — the fill is lost in
+the conversion, as it is for a plain area mark.
+:::
+
 ### Scatter Plot
 
 ```{python}

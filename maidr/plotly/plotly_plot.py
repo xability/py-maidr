@@ -89,6 +89,33 @@ class PlotlyPlot(ABC):
         subplot_id = f"{x_ref}{y_ref}"
         return f".subplot.{subplot_id} "
 
+    def _scatter_line_selector(self, position: int) -> str:
+        """
+        Return the selector for one scatter trace's rendered line path.
+
+        ``nth-child`` counts within the subplot's ``scatterlayer``, which
+        holds *every* scatter-family trace on the subplot. So the index has
+        to be a trace's position there, never its position within whichever
+        MAIDR layer it was grouped into. Those two agree only while one layer
+        owns every scatter trace on the subplot — which stopped being true
+        once step traces were split out into their own layers.
+
+        Parameters
+        ----------
+        position : int
+            The trace's zero-based position among the subplot's
+            scatter-family traces.
+
+        Returns
+        -------
+        str
+            A CSS selector scoped to this subplot and that one trace.
+        """
+        return (
+            f"{self._subplot_css_prefix()}.scatterlayer > "
+            f".trace.scatter:nth-child({position + 1}) path.js-line"
+        )
+
     def _get_selector(self) -> str:
         """Return a CSS selector for Plotly SVG elements."""
         return ""
