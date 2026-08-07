@@ -6,22 +6,24 @@ import wrapt
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
 
-from maidr.core.enum import PlotType
+from maidr.core.enum import MaidrKey, PlotType
 from maidr.patch.common import common
+from maidr.util.mixin import LevelExtractorMixin
 
 
 def bar(
     wrapped: Callable, instance: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]
 ) -> Union[Axes, BarContainer]:
     """
-    Patch function for bar plots.
+    Patch function for `Axes.bar` and `Axes.barh`.
 
     This function patches the bar plotting functions to identify whether the
     plot should be rendered as a normal, stacked, or dodged bar plot.
-    It uses the 'bottom' keyword to identify stacked bar plots. For dodged plots,
-    it first checks for seaborn-specific indicators (hue parameter with dodge=True),
-    then uses robust detection logic that considers both width and context
-    to avoid misclassifying simple bar plots with narrow widths as dodged plots.
+    It uses the 'bottom' keyword to identify stacked bar plots. For dodged
+    plots, it uses robust detection logic that considers both width and
+    context to avoid misclassifying simple bar plots with narrow widths as
+    dodged plots. Seaborn's bar plots do not come through here — they are
+    classified from the bars they drew, in `sns_bar` below.
 
     Parameters
     ----------
@@ -34,7 +36,6 @@ def bar(
         For a dodged plot, the first argument (x positions) should be numeric.
     kwargs : dict
         Keyword arguments passed to the original function.
-        For seaborn plots, may contain 'hue' and 'dodge' parameters.
 
     Returns
     -------
@@ -43,9 +44,6 @@ def bar(
 
     Examples
     --------
-    >>> # For a seaborn dodged (grouped) bar plot:
-    >>> sns.barplot(data=df, x='category', y='value', hue='group', dodge=True)
-
     >>> # For a manual dodged (grouped) bar plot, pass numeric x positions:
     >>> x_positions = np.arange(3)
     >>> ax.bar(x_positions, heights, width, label='Group')  # Dodged bar plot.
@@ -58,27 +56,22 @@ def bar(
         if bottom is not None:
             plot_type = PlotType.STACKED
     else:
-        # Check for seaborn-specific dodged plot indicators first
-        # This handles seaborn.barplot with hue and dodge=True
-        if "hue" in kwargs and kwargs.get("dodge"):
-            plot_type = PlotType.DODGED
+        # Extract width and align parameters
+        if len(args) >= 3:
+            real_width = args[2]
         else:
-            # Extract width and align parameters
-            if len(args) >= 3:
-                real_width = args[2]
-            else:
-                real_width = kwargs.get("width", 0.8)
+            real_width = kwargs.get("width", 0.8)
 
-            align = kwargs.get("align", "center")
+        align = kwargs.get("align", "center")
 
-            # More robust dodged plot detection: consider multiple factors
-            # Only classify as DODGED if there are strong indicators of grouping
-            should_be_dodged = _should_classify_as_dodged(
-                instance, real_width, align, args, kwargs
-            )
+        # More robust dodged plot detection: consider multiple factors
+        # Only classify as DODGED if there are strong indicators of grouping
+        should_be_dodged = _should_classify_as_dodged(
+            instance, real_width, align, args, kwargs
+        )
 
-            if should_be_dodged:
-                plot_type = PlotType.DODGED
+        if should_be_dodged:
+            plot_type = PlotType.DODGED
 
     return common(plot_type, wrapped, instance, args, kwargs)
 
@@ -209,10 +202,92 @@ def _has_numeric_grouping_pattern(x_positions: Any) -> bool:
         return False
 
 
+def sns_bar(
+    wrapped: Callable, instance: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]
+) -> Axes:
+    """
+    Patch function for `seaborn.barplot` and `seaborn.countplot`.
+
+    Whether a hue splits the layer into groups is seaborn's decision, and it
+    is not one the arguments alone answer: `dodge` defaults to `"auto"`, and
+    a hue that repeats the category variable is drawn as a plain bar layer
+    wearing a legend. Seaborn does not forward `hue` or `dodge` to
+    `Axes.bar` either — and those inner calls are suppressed as internal
+    anyway — so the layer is classified from the bars seaborn drew.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        The original seaborn function.
+    instance : Any
+        Unused; seaborn's plotting functions are module level.
+    args : tuple
+        Positional arguments passed to the original function.
+    kwargs : dict
+        Keyword arguments passed to the original function.
+
+    Returns
+    -------
+    Axes
+        The axes seaborn drew on, which is what both functions return.
+
+    Examples
+    --------
+    >>> # Grouped: one container per hue level, one bar per category.
+    >>> sns.barplot(data=df, x="day", y="tip", hue="sex")
+
+    >>> # Not grouped: the hue repeats `x`, so each container holds one bar.
+    >>> sns.barplot(data=df, x="day", y="tip", hue="day")
+    """
+    return common(_seaborn_bar_type, wrapped, instance, args, kwargs)
+
+
+def _seaborn_bar_type(ax: Axes) -> PlotType:
+    """
+    Classify a drawn seaborn bar layer as grouped or plain.
+
+    A grouped layer draws one container per hue level, each holding one bar
+    per category. Anything else — a single container, or containers that do
+    not line up with the categorical axis — is a plain bar layer. The bars
+    are counted against the same tick labels `GroupedBarPlot` pairs them
+    with, so the layer is only called grouped when it can be read as one.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes seaborn drew on.
+
+    Returns
+    -------
+    PlotType
+        `PlotType.DODGED` for a grouped layer, `PlotType.BAR` otherwise.
+    """
+    # Every bar container on the axes is counted, not only the ones this call
+    # drew, so a second bar layer overlaid on the same axes is read as extra
+    # groups. That layering is already unrenderable — the first layer re-reads
+    # every container here too and raises on the count — so this does not make
+    # a working figure wrong. Scoping both to one call's own containers is the
+    # fix, and it belongs to whoever takes that on.
+    containers = [c for c in ax.containers if isinstance(c, BarContainer)]
+    if len(containers) < 2:
+        return PlotType.BAR
+
+    # The bar labels sit on y when the bars grow along x.
+    level_key = MaidrKey.Y if containers[0].orientation == "horizontal" else MaidrKey.X
+    levels = LevelExtractorMixin.extract_level(ax, level_key)
+    if not levels:
+        return PlotType.BAR
+
+    if any(len(container.patches) != len(levels) for container in containers):
+        return PlotType.BAR
+
+    return PlotType.DODGED
+
+
 # Patch matplotlib functions.
 wrapt.wrap_function_wrapper(Axes, "bar", bar)
 wrapt.wrap_function_wrapper(Axes, "barh", bar)
 
 # Patch seaborn functions.
-wrapt.wrap_function_wrapper("seaborn", "barplot", bar)
-wrapt.wrap_function_wrapper("seaborn", "countplot", bar)
+wrapt.wrap_function_wrapper("seaborn", "barplot", sns_bar)
+wrapt.wrap_function_wrapper("seaborn", "countplot", sns_bar)
