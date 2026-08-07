@@ -116,6 +116,49 @@ class PlotlyPlot(ABC):
             f".trace.scatter:nth-child({position + 1}) path.js-line"
         )
 
+    @staticmethod
+    def _validate_scatter_positions(
+        positions: list[int], trace_count: int
+    ) -> None:
+        """
+        Reject a position list that cannot describe these traces.
+
+        Requiring positions closes the hole where a caller supplied none. It
+        leaves a second one with the same failure mode: a list that is simply
+        wrong. The emitted selector list is positional — the frontend pairs
+        selector *i* with series *i* — so a length mismatch slides every later
+        series onto another element, a negative index builds ``nth-child(0)``
+        or lower and matches nothing, and a repeat points two series at one
+        element. None of those raise on their own; they highlight the wrong
+        geometry, which is the outcome this whole parameter exists to prevent.
+
+        Parameters
+        ----------
+        positions : list of int
+            Zero-based positions among the subplot's scatter-family traces.
+        trace_count : int
+            How many traces this layer covers.
+
+        Raises
+        ------
+        ValueError
+            If the length disagrees with ``trace_count``, or any position is
+            negative or repeated.
+        """
+        if len(positions) != trace_count:
+            raise ValueError(
+                f"expected {trace_count} scatter position(s) to match "
+                f"{trace_count} trace(s), got {len(positions)}: {positions}"
+            )
+        if any(position < 0 for position in positions):
+            raise ValueError(
+                f"scatter positions must be >= 0, got {positions}"
+            )
+        if len(set(positions)) != len(positions):
+            raise ValueError(
+                f"scatter positions must be unique, got {positions}"
+            )
+
     def _get_selector(self) -> str:
         """Return a CSS selector for Plotly SVG elements."""
         return ""

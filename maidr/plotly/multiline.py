@@ -21,6 +21,8 @@ class PlotlyMultiLinePlot(PlotlyPlot):
     scatter_positions : list of int
         Each trace's zero-based position among the subplot's scatter-family
         traces, in trace order. Required: see the note below.
+    **kwargs : str
+        Axis names forwarded to the parent class.
 
     Notes
     -----
@@ -41,6 +43,10 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         scatter_positions: list[int],
         **kwargs: str,
     ) -> None:
+        if not traces:
+            raise ValueError("a multi-line layer needs at least one trace")
+        self._validate_scatter_positions(scatter_positions, len(traces))
+
         super().__init__(traces[0], layout, PlotType.LINE, **kwargs)
         self._traces = traces
         self._scatter_positions = scatter_positions

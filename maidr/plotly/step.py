@@ -51,6 +51,10 @@ class PlotlyStepPlot(PlotlyPlot):
         scatter_positions: list[int],
         **kwargs: str,
     ) -> None:
+        if not traces:
+            raise ValueError("a step layer needs at least one trace")
+        self._validate_scatter_positions(scatter_positions, len(traces))
+
         super().__init__(traces[0], layout, PlotType.STEP, **kwargs)
         self._traces = traces
         self._scatter_positions = scatter_positions

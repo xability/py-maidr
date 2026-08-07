@@ -82,6 +82,56 @@ class TestAPositionIsRequired:
             PlotlyStepPlot([_step()], {})
 
 
+class TestAPositionListMustDescribeItsTraces:
+    """
+    Requiring positions closes one hole; a wrong list is the other.
+
+    The emitted selector list is positional, so a length mismatch slides every
+    later series onto another element, a negative index builds
+    ``nth-child(0)`` and matches nothing, and a repeat points two series at
+    one element. None of those raise on their own — they highlight the wrong
+    geometry, which is exactly what requiring positions was meant to end.
+    """
+
+    def test_too_few_positions_is_rejected(self):
+        with pytest.raises(ValueError, match="expected 2 scatter position"):
+            PlotlyStepPlot([_step(), _step()], {}, scatter_positions=[0])
+
+    def test_too_many_positions_is_rejected(self):
+        with pytest.raises(ValueError, match="expected 1 scatter position"):
+            PlotlyMultiLinePlot([_line("a")], {}, scatter_positions=[0, 1])
+
+    def test_a_negative_position_is_rejected(self):
+        with pytest.raises(ValueError, match="must be >= 0"):
+            PlotlyStepPlot([_step()], {}, scatter_positions=[-1])
+
+    def test_a_negative_position_is_rejected_for_a_lone_line(self):
+        with pytest.raises(ValueError, match="must be >= 0"):
+            PlotlyLinePlot(_line(), {}, scatter_position=-1)
+
+    def test_duplicate_positions_are_rejected(self):
+        with pytest.raises(ValueError, match="must be unique"):
+            PlotlyMultiLinePlot(
+                [_line("a"), _line("b")], {}, scatter_positions=[2, 2]
+            )
+
+    @pytest.mark.parametrize(
+        "cls", [PlotlyStepPlot, PlotlyMultiLinePlot], ids=["step", "multiline"]
+    )
+    def test_an_empty_trace_list_is_rejected(self, cls):
+        # Would otherwise die on `traces[0]` inside the parent constructor.
+        with pytest.raises(ValueError, match="at least one trace"):
+            cls([], {}, scatter_positions=[])
+
+    def test_a_valid_out_of_order_list_is_accepted(self):
+        # Positions need not be sorted or contiguous -- only well-formed.
+        plot = PlotlyStepPlot([_step(), _step()], {}, scatter_positions=[5, 1])
+        first, second = plot.schema[MaidrKey.SELECTOR]
+
+        assert "nth-child(6)" in first
+        assert "nth-child(2)" in second
+
+
 class TestTheFallbacksAreGone:
     """Neither old default can be reached any more."""
 
@@ -97,9 +147,7 @@ class TestTheFallbacksAreGone:
     def test_a_step_layer_honours_positions_past_the_leading_ones(self):
         # Under the old leading-order default this emitted nth-child(1) and
         # (2) regardless -- the silent failure the issue describes.
-        plot = PlotlyStepPlot(
-            [_step(), _step()], {}, scatter_positions=[2, 4]
-        )
+        plot = PlotlyStepPlot([_step(), _step()], {}, scatter_positions=[2, 4])
         first, second = plot.schema[MaidrKey.SELECTOR]
 
         assert "nth-child(3)" in first
