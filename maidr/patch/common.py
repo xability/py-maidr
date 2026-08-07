@@ -4,7 +4,10 @@ import inspect
 import warnings
 from typing import Any, Callable
 
+from matplotlib.axes import Axes
+
 from maidr.core.context_manager import ContextManager
+from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 
 
@@ -98,7 +101,9 @@ def resolve_orientation(wrapped: Callable, args: tuple, kwargs: dict) -> str:
     return "horz" if orientation == "horizontal" else "vert"
 
 
-def common(plot_type, wrapped, _, args, kwargs) -> Any:
+def common(
+    plot_type: PlotType | Callable[[Axes], PlotType], wrapped, _, args, kwargs
+) -> Any:
     """
     Draw a patched plot and register the layer it produced with MAIDR.
 

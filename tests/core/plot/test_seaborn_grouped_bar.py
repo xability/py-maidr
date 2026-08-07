@@ -168,6 +168,24 @@ def test_a_hue_that_repeats_the_category_stays_a_plain_bar_layer() -> None:
     ]
 
 
+def test_a_hue_with_one_level_stays_a_plain_bar_layer() -> None:
+    """Nothing to group by: seaborn draws the one container it would anyway."""
+    single = DATA.assign(grp="only")
+    fig, ax = plt.subplots()
+    try:
+        sns.barplot(data=single, x="cat", y="val", hue="grp", ax=ax)
+        schema = _schema(fig)
+    finally:
+        plt.close(fig)
+
+    assert _layer_type(fig) is PlotType.BAR
+    assert schema["data"] == [
+        {"x": "a", "y": 1.5},
+        {"x": "b", "y": 3.5},
+        {"x": "c", "y": 5.5},
+    ]
+
+
 def test_a_barplot_without_a_hue_stays_a_plain_bar_layer() -> None:
     fig, ax = plt.subplots()
     try:
