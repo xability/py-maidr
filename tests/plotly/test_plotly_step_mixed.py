@@ -72,6 +72,36 @@ def _layers(fig) -> list[dict]:
     return [plot.schema for plot in PlotlyMaidr(fig)._plots]
 
 
+def _only(layers: list[dict], predicate, description: str) -> dict:
+    """
+    Return the one layer matching ``predicate``.
+
+    Fails with a readable assertion rather than ``StopIteration`` when nothing
+    matches, so a broken grouping reports what was being looked for instead of
+    an opaque iterator error several frames from the cause.
+
+    Parameters
+    ----------
+    layers : list of dict
+        The emitted layer schemas.
+    predicate : callable
+        Called with each layer; must match exactly one.
+    description : str
+        How to describe the sought layer in the failure message.
+
+    Returns
+    -------
+    dict
+        The single matching layer schema.
+    """
+    matches = [layer for layer in layers if predicate(layer)]
+    assert len(matches) == 1, (
+        f"expected exactly one layer {description}, found {len(matches)} "
+        f"among types {[layer[MaidrKey.TYPE] for layer in layers]}"
+    )
+    return matches[0]
+
+
 class TestAStepBesideBarTraces:
     """Bars occupy their own render layer and must not shift a step's index."""
 
@@ -84,7 +114,9 @@ class TestAStepBesideBarTraces:
         fig.add_scatter(**_step_kwargs("hv", "stage"))
 
         layers = _layers(fig)
-        step = next(x for x in layers if x[MaidrKey.TYPE] == PlotType.STEP)
+        step = _only(
+            layers, lambda x: x[MaidrKey.TYPE] == PlotType.STEP, "of type step"
+        )
 
         assert "nth-child(1)" in step[MaidrKey.SELECTOR][0]
         assert ".scatterlayer" in step[MaidrKey.SELECTOR][0]
@@ -126,7 +158,9 @@ class TestAStepBesideBoxTraces:
         fig.add_scatter(**_step_kwargs("hv", "stage"))
 
         layers = _layers(fig)
-        step = next(x for x in layers if x[MaidrKey.TYPE] == PlotType.STEP)
+        step = _only(
+            layers, lambda x: x[MaidrKey.TYPE] == PlotType.STEP, "of type step"
+        )
 
         assert "nth-child(1)" in step[MaidrKey.SELECTOR][0]
 
@@ -140,7 +174,9 @@ class TestAStepBesideBoxTraces:
 
         layers = _layers(fig)
         types = [layer[MaidrKey.TYPE] for layer in layers]
-        step = next(x for x in layers if x[MaidrKey.TYPE] == PlotType.STEP)
+        step = _only(
+            layers, lambda x: x[MaidrKey.TYPE] == PlotType.STEP, "of type step"
+        )
 
         assert PlotType.BOX in types
         assert step[MaidrKey.STEP_DIRECTION] == "vh"
@@ -185,16 +221,22 @@ class TestStepsAcrossASubplotGrid:
 
         layers = _layers(fig)
         steps = [x for x in layers if x[MaidrKey.TYPE] == PlotType.STEP]
-        line = next(x for x in layers if x[MaidrKey.TYPE] == PlotType.LINE)
+        line = _only(
+            layers, lambda x: x[MaidrKey.TYPE] == PlotType.LINE, "of type line"
+        )
 
         assert line[MaidrKey.SELECTOR][0].startswith(".subplot.xy ")
         assert "nth-child(1)" in line[MaidrKey.SELECTOR][0]
 
-        top_step = next(
-            x for x in steps if x[MaidrKey.SELECTOR][0].startswith(".subplot.xy ")
+        top_step = _only(
+            steps,
+            lambda x: x[MaidrKey.SELECTOR][0].startswith(".subplot.xy "),
+            "stepping in the first subplot",
         )
-        bottom_step = next(
-            x for x in steps if x[MaidrKey.SELECTOR][0].startswith(".subplot.x2y2 ")
+        bottom_step = _only(
+            steps,
+            lambda x: x[MaidrKey.SELECTOR][0].startswith(".subplot.x2y2 "),
+            "stepping in the second subplot",
         )
 
         assert "nth-child(2)" in top_step[MaidrKey.SELECTOR][0]
