@@ -3,7 +3,7 @@ from __future__ import annotations
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
 
-from maidr.core.enum import PlotType
+from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
 from maidr.util.mixin import (
@@ -16,31 +16,97 @@ from maidr.util.mixin import (
 class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMergerMixin):
     def __init__(self, ax: Axes) -> None:
         super().__init__(ax, PlotType.BAR)
+        self._orientation = "vert"
+
+    @property
+    def _is_horizontal(self) -> bool:
+        return self._orientation == "horz"
+
+    @property
+    def _level_key(self) -> MaidrKey:
+        """
+        The axis the bar labels sit on: ``y`` for a horizontal bar plot
+        (``Axes.barh``, ``seaborn.barplot(orient="h")``), ``x`` otherwise.
+        """
+        return MaidrKey.Y if self._is_horizontal else MaidrKey.X
+
+    @staticmethod
+    def _extract_orientation(plot: list[BarContainer] | None) -> str:
+        """
+        Read the orientation matplotlib recorded on the bar container.
+
+        Only the first container is asked: every container on one Axes is
+        drawn by the same call, so a layer runs one way or the other, never
+        both. A mixed-orientation layer would need this to say so per bar.
+
+        Parameters
+        ----------
+        plot : list of BarContainer, optional
+            The containers holding the bars of this layer.
+
+        Returns
+        -------
+        str
+            ``"horz"`` for a horizontal bar plot, ``"vert"`` otherwise.
+        """
+        if not plot:
+            return "vert"
+
+        return "horz" if plot[0].orientation == "horizontal" else "vert"
+
+    def render(self) -> dict:
+        """Add ``orientation`` to the base schema."""
+        # Read after the super call, not before: `self._orientation` is
+        # populated by `_extract_plot_data`, which that call runs.
+        base_schema = super().render()
+        bar_orientation = {MaidrKey.ORIENTATION: self._orientation}
+        return DictMergerMixin.merge_dict(base_schema, bar_orientation)
 
     def _extract_plot_data(self) -> list:
         plot = self.extract_container(self.ax, BarContainer, include_all=True)
-        data = self._extract_bar_container_data(plot)
-        levels = self.extract_level(self.ax)
-        formatted_data = []
-        combined_data = list(
-            zip(levels, data)
-            if plot[0].orientation == "vertical"
-            else zip(data, levels)  # type: ignore
-        )
-        if combined_data:  # type: ignore
-            for x, y in combined_data:  # type: ignore
-                formatted_data.append({"x": x, "y": y})
-            return formatted_data
-        if len(formatted_data) == 0:
-            raise ExtractionError(self.type, plot)
+        self._orientation = self._extract_orientation(plot)
+        levels = self.extract_level(self.ax, self._level_key)
+
+        data = self._extract_bar_container_data(plot, levels)
         if data is None:
             raise ExtractionError(self.type, plot)
 
-        return data
+        # A horizontal bar's magnitude runs along x and its label sits on y,
+        # which is the layout the renderer reads for a horizontal layer. The
+        # vertical layer is the mirror of that.
+        if self._is_horizontal:
+            combined_data = list(zip(data, levels))  # type: ignore
+        else:
+            combined_data = list(zip(levels, data))  # type: ignore
+
+        if not combined_data:
+            raise ExtractionError(self.type, plot)
+
+        return [{"x": x, "y": y} for x, y in combined_data]
 
     def _extract_bar_container_data(
-        self, plot: list[BarContainer] | None
+        self, plot: list[BarContainer] | None, levels: list[str] | None
     ) -> list | None:
+        """
+        Read one magnitude per bar, in the containers' own order.
+
+        Parameters
+        ----------
+        plot : list of BarContainer, optional
+            The containers holding the bars of this layer.
+        levels : list of str, optional
+            The bar labels read off the categorical axis. Used only to check
+            that the axis has one label per bar; an axis with no tick labels
+            at all is not checked here — the caller pairs the magnitudes with
+            the labels, so it ends up raising `ExtractionError` on an empty
+            list regardless.
+
+        Returns
+        -------
+        list, optional
+            One magnitude per bar, or None when the bars and the labels do
+            not line up.
+        """
         if plot is None:
             return None
 
@@ -49,13 +115,14 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         # So, extract data correspondingly based on the level.
         # Flatten all the `list[BarContainer]` to `list[Patch]`.
         plot = [patch for container in plot for patch in container.patches]
-        level = self.extract_level(self.ax)
-        if len(level) == 0:  # type: ignore
-            level = ["" for _ in range(len(plot))]  # type: ignore
-
-        if len(plot) != len(level):
+        if levels and len(plot) != len(levels):
             return None
 
         self._elements.extend(plot)
+
+        # A bar's magnitude is the dimension it grows along: the width of a
+        # horizontal bar, the height of a vertical one.
+        if self._is_horizontal:
+            return [float(patch.get_width()) for patch in plot]
 
         return [float(patch.get_height()) for patch in plot]
