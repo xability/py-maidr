@@ -144,9 +144,10 @@ class PlotlyPlot(ABC):
             negative or repeated.
         """
         if len(positions) != trace_count:
+            plural = "" if trace_count == 1 else "s"
             raise ValueError(
-                f"expected {trace_count} scatter position(s) to match "
-                f"{trace_count} trace(s), got {len(positions)}: {positions}"
+                f"expected {trace_count} scatter position{plural} to match "
+                f"{trace_count} trace{plural}, got {len(positions)}: {positions}"
             )
         if any(position < 0 for position in positions):
             raise ValueError(f"scatter positions must be >= 0, got {positions}")
