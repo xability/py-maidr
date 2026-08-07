@@ -119,7 +119,9 @@ class TestStepDirection:
     def test_direction_is_withheld_when_traces_disagree(self):
         # Guards a caller that skipped group_by_direction: better to say
         # nothing than to describe one of the series wrongly.
-        plot = PlotlyStepPlot([_step_trace("hv"), _step_trace("vh")], {})
+        plot = PlotlyStepPlot(
+            [_step_trace("hv"), _step_trace("vh")], {}, scatter_positions=[0, 1]
+        )
 
         assert MaidrKey.STEP_DIRECTION not in plot.schema
 

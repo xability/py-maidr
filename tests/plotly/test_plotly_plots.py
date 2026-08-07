@@ -134,7 +134,7 @@ class TestPlotlyLinePlot:
             "y": [10, 20, 15],
             "name": "Series A",
         }
-        plot = PlotlyLinePlot(trace, {})
+        plot = PlotlyLinePlot(trace, {}, scatter_position=0)
         data = plot._extract_plot_data()
 
         # Line data is wrapped in an outer list
@@ -146,7 +146,7 @@ class TestPlotlyLinePlot:
 
     def test_no_name_omits_z(self):
         trace = {"type": "scatter", "mode": "lines", "x": [1], "y": [2]}
-        plot = PlotlyLinePlot(trace, {})
+        plot = PlotlyLinePlot(trace, {}, scatter_position=0)
         data = plot._extract_plot_data()
 
         assert MaidrKey.Z not in data[0][0]
@@ -324,7 +324,7 @@ class TestPlotlyMultiLinePlot:
             {"type": "scatter", "mode": "lines", "x": [1, 2], "y": [10, 20], "name": "A"},
             {"type": "scatter", "mode": "lines", "x": [1, 2], "y": [5, 15], "name": "B"},
         ]
-        plot = PlotlyMultiLinePlot(traces, {})
+        plot = PlotlyMultiLinePlot(traces, {}, scatter_positions=[0, 1])
         data = plot._extract_plot_data()
 
         assert len(data) == 2
@@ -338,7 +338,7 @@ class TestPlotlyMultiLinePlot:
             {"type": "scatter", "mode": "lines", "x": [1], "y": [2], "name": "L1"},
             {"type": "scatter", "mode": "lines", "x": [1], "y": [3], "name": "L2"},
         ]
-        plot = PlotlyMultiLinePlot(traces, {})
+        plot = PlotlyMultiLinePlot(traces, {}, scatter_positions=[0, 1])
         schema = plot.schema
 
         assert schema[MaidrKey.TYPE] == PlotType.LINE
