@@ -73,6 +73,15 @@ class PlotlyPlotFactory:
                 # trace" — is the only assumption available, and it belongs
                 # here, visible, rather than hidden inside the three classes
                 # where every other caller would inherit it silently.
+                #
+                # What it costs when the assumption is wrong: a direct caller
+                # handing this factory one trace out of a multi-trace figure
+                # used to get an unscoped selector that over-matched — wrong,
+                # but visibly so. It now gets a confidently wrong one bound to
+                # position 0. That is the failure mode this parameter exists
+                # to remove, surviving in the single place that cannot know
+                # better; `PlotlyMaidr` never reaches here precisely because
+                # it does know, and passes real positions.
                 if is_step_trace(trace):
                     from maidr.plotly.step import PlotlyStepPlot
 
