@@ -2,7 +2,7 @@
 
 ``Figure.to_dict()`` omits ``mode`` unless it was set, so the exported dict
 cannot be read literally: an absent ``mode`` is not "no drawing mode", it is
-"whatever plotly's default resolves to". plotly documents that default on
+"whatever Plotly's default resolves to". Plotly documents that default on
 ``scatter.mode`` as "If there are less than 20 points and the trace is not
 stacked then the default is 'lines+markers'. Otherwise, 'lines'."
 
@@ -64,8 +64,43 @@ def _layers(fig) -> list[dict]:
     return [plot.schema for plot in PlotlyMaidr(fig)._plots]
 
 
+class TestTheTranscribedRuleStillMatchesUpstream:
+    """
+    Guard the one assumption the whole fix rests on.
+
+    ``default_mode`` is a hand transcription of a rule Plotly states only in
+    its generated attribute docstring — nothing in the Python package enforces
+    it, so a future Plotly release could change the boundary or drop the
+    stacked exception and every test here would keep passing against a rule
+    that no longer describes what is drawn. Reading the docstring back turns
+    that silent drift into a failing build.
+    """
+
+    @staticmethod
+    def _mode_doc() -> str:
+        return go.Scatter().__class__.mode.__doc__ or ""
+
+    def test_the_point_boundary_is_still_twenty(self):
+        from maidr.plotly.step_shape import _MARKER_DEFAULT_MAX_POINTS
+
+        doc = " ".join(self._mode_doc().split())
+
+        assert f"less than {_MARKER_DEFAULT_MAX_POINTS} points" in doc
+
+    def test_the_stacked_exception_still_exists(self):
+        doc = " ".join(self._mode_doc().split())
+
+        assert "not stacked" in doc
+
+    def test_the_two_resolved_modes_are_still_the_documented_ones(self):
+        doc = " ".join(self._mode_doc().split())
+
+        assert '"lines+markers"' in doc
+        assert '"lines"' in doc
+
+
 class TestPlotlysOwnDefault:
-    """``default_mode`` must reproduce the rule plotly documents."""
+    """``default_mode`` must reproduce the rule Plotly documents."""
 
     @pytest.mark.parametrize("n", [0, 1, 5, 19])
     def test_a_short_trace_defaults_to_lines_and_markers(self, n):

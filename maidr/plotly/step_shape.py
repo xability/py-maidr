@@ -61,8 +61,10 @@ def _trace_point_count(trace: dict) -> int:
     Count the points a trace will actually draw.
 
     ``x`` and ``y`` are zipped when the data is extracted, so the shorter of
-    the two is the number of points that reach the chart. A trace supplying
-    only ``y`` counts that, matching plotly generating ``x`` as ``0..n-1``.
+    the two is the number of points that reach the chart. Whichever axis is
+    absent is simply not counted, symmetrically: a ``y``-only trace counts
+    ``y`` — matching plotly generating ``x`` as ``0..n-1`` — and an
+    ``x``-only trace counts ``x``.
 
     Parameters
     ----------
