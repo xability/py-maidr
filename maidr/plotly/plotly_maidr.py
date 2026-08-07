@@ -17,6 +17,7 @@ from maidr.plotly.step_shape import (
     is_connected_line_trace,
     is_scatter_family_trace,
     is_step_trace,
+    renders_through_webgl,
 )
 from maidr.util.dependencies import (
     MAIDR_CSS_CDN_URL,
@@ -116,8 +117,19 @@ class PlotlyMaidr:
 
         * Multiple bar traces with ``barmode='group'`` or ``'stack'`` are
           merged into a single :class:`PlotlyGroupedBarPlot`.
-        * Scatter/lines traces are first split into staircases and plain
-          lines by ``line.shape``: a step merged into the line layer would be
+        * Scatter/lines traces are split by *renderer* first — SVG traces
+          apart from canvas-painted ``scattergl`` ones — because a layer's
+          selector list is all-or-nothing, so a mixed layer could only claim a
+          highlight for every series or for none. The groups are built in
+          first-seen order, so the emitted layers still follow plotly's own
+          trace order. Grouping is coarse rather than interleaved: traces
+          alternating ``svg, gl, svg`` emit ``[svg, svg]`` then ``[gl]``,
+          because both SVG traces belong to one merged layer. That is
+          inherent to merging at all, and matches how
+          :func:`~maidr.plotly.step_shape.group_by_direction` already behaves
+          for alternating step conventions.
+        * Within a renderer they are split into staircases and plain lines by
+          ``line.shape``: a step merged into the line layer would be
           announced as interpolating between samples, which is the one thing
           piecewise-constant data does not do. The plain lines then merge into
           a single :class:`PlotlyMultiLinePlot` (matching ``MultiLinePlot``),
@@ -161,30 +173,54 @@ class PlotlyMaidr:
             connected_traces = [
                 t for t in group_traces if is_connected_line_trace(t)
             ]
-            # A staircase is a scatter/lines trace whose ``line.shape`` makes
-            # plotly draw risers instead of interpolating, so it has to be
-            # split out here: merged into the multi-line layer it would be
-            # announced as an interpolated line.
-            step_traces = [t for t in connected_traces if is_step_trace(t)]
-            line_traces = [t for t in connected_traces if not is_step_trace(t)]
             box_traces = [
                 t for t in group_traces if t.get("type") == "box"
             ]
 
-            # `nth-child` counts within the subplot's scatterlayer, which holds
-            # every scatter-family trace, so any scatter trace's selector index
-            # is its position there — not its position within the MAIDR layer
-            # it lands in. The two agree only while one layer owns every
-            # scatter trace on the subplot, which splitting steps out ends.
-            # Shares its membership test with `connected_traces` above. If the
-            # two ever disagree, a trace can be classified as a line or a step
-            # while being absent from `position_of`, and the lookup below dies
-            # with a KeyError instead of producing a wrong selector.
+            # `nth-child` counts within the subplot's SVG `scatterlayer`, so a
+            # scatter trace's selector index is its position *there* — not its
+            # position within the MAIDR layer it lands in. The two agree only
+            # while one layer owns every scatter trace on the subplot, which
+            # splitting steps out ends.
+            #
+            # A `scattergl` trace is painted into a shared `<canvas>` and never
+            # appears in the `scatterlayer` at all. Verified in a browser
+            # rather than assumed: with a gl trace declared before an svg one,
+            # the `scatterlayer` holds exactly one child and it is the svg
+            # trace, at `nth-child(1)`; `nth-child(2)` matches nothing.
+            # Counting gl traces here therefore pushed every svg sibling one
+            # position along, onto a selector that matched nothing — so a
+            # single gl trace silently broke its neighbours' highlighting too.
             scatter_family = [
                 t for t in group_traces if is_scatter_family_trace(t)
             ]
+            svg_scatter = [
+                t for t in scatter_family if not renders_through_webgl(t)
+            ]
+            gl_scatter = [t for t in scatter_family if renders_through_webgl(t)]
+
+            # Each trace's index *within its own renderer*. For an SVG trace
+            # that is its position in the `scatterlayer`, which is what
+            # `nth-child` counts. A `scattergl` trace never enters that layer
+            # at all -- verified in a browser: with a gl trace declared before
+            # an svg one, the `scatterlayer` holds exactly one child and it is
+            # the svg trace, at `nth-child(1)`, while `nth-child(2)` matches
+            # nothing. Numbering the two renderers together therefore pushed
+            # every svg trace one place along, onto a selector that matched
+            # nothing, so one gl trace silently broke its neighbours'
+            # highlighting as well as its own.
+            #
+            # The gl indices are never rendered -- a WebGL layer emits no
+            # selectors (see `PlotlyPlot._scatter_line_selectors`) -- but they
+            # still have to be well-formed, because the layer classes validate
+            # the list they are handed. Numbering gl traces from their own
+            # zero keeps them unique and correct-by-construction rather than
+            # padding with a placeholder, which collided the moment two gl
+            # traces shared a subplot.
             position_of = {
-                id(t): index for index, t in enumerate(scatter_family)
+                id(t): index
+                for renderer in (svg_scatter, gl_scatter)
+                for index, t in enumerate(renderer)
             }
 
             merged: set[int] = set()
@@ -207,65 +243,100 @@ class PlotlyMaidr:
                 self._plots.append(plot)
                 merged.update(id(t) for t in bar_traces)
 
-            # Multi-line
-            if len(line_traces) > 1:
-                from maidr.plotly.multiline import PlotlyMultiLinePlot
+            # Lines and steps are grouped within one renderer, never across
+            # two. A layer's selector list is positional and all-or-nothing
+            # (see `PlotlyPlot._scatter_line_selectors`), so a layer holding
+            # both a canvas trace and an SVG one could only describe every
+            # series or none of them. Merging them meant a single `scattergl`
+            # line took the highlight away from every ordinary line beside it.
+            # Splitting first keeps each layer homogeneous: the SVG traces
+            # keep working selectors, and the WebGL ones honestly claim none.
+            #
+            # Grouped in first-seen order rather than SVG-then-WebGL, so the
+            # emitted layers still follow the order plotly declared the traces
+            # in — the same property `group_by_direction` preserves. A fixed
+            # order would reorder the layers of any figure that declares a gl
+            # trace before its svg ones, pulling MAIDR's navigation order out
+            # of step with plotly's own trace and legend order.
+            renderer_groups: dict[bool, list[dict]] = {}
+            for trace in connected_traces:
+                renderer_groups.setdefault(
+                    renders_through_webgl(trace), []
+                ).append(trace)
 
-                plot = PlotlyMultiLinePlot(
-                    line_traces,
-                    layout,
-                    scatter_positions=[
-                        position_of[id(t)] for t in line_traces
-                    ],
-                    **axis_kwargs,
-                )
-                plot.row_index = row
-                plot.col_index = col
-                self._plots.append(plot)
-                merged.update(id(t) for t in line_traces)
+            for renderer_traces in renderer_groups.values():
+                # A staircase is a scatter/lines trace whose ``line.shape``
+                # makes plotly draw risers instead of interpolating, so it has
+                # to be split out here: merged into the multi-line layer it
+                # would be announced as an interpolated line.
+                step_traces = [
+                    t for t in renderer_traces if is_step_trace(t)
+                ]
+                line_traces = [
+                    t for t in renderer_traces if not is_step_trace(t)
+                ]
 
-            # A lone line is built here rather than left to the factory below,
-            # so it too gets a position-scoped selector. The factory cannot
-            # know the trace's position among its subplot's scatter traces,
-            # and its unscoped selector would also match a step trace's path.
-            elif len(line_traces) == 1:
-                from maidr.plotly.line import PlotlyLinePlot
+                # Multi-line
+                if len(line_traces) > 1:
+                    from maidr.plotly.multiline import PlotlyMultiLinePlot
 
-                only_line = line_traces[0]
-                plot = PlotlyLinePlot(
-                    only_line,
-                    layout,
-                    scatter_position=position_of[id(only_line)],
-                    **axis_kwargs,
-                )
-                plot.row_index = row
-                plot.col_index = col
-                self._plots.append(plot)
-                merged.add(id(only_line))
-
-            # Steps, one layer per step convention. A MAIDR layer carries a
-            # single ``stepDirection`` for all of its series, so merging an
-            # ``hv`` trace with a ``vh`` one would describe one of them
-            # wrongly. Single-trace groups go through here too rather than
-            # falling to the factory below, so their selector is scoped by
-            # position among the subplot's scatter traces.
-            if step_traces:
-                from maidr.plotly.step import PlotlyStepPlot
-                from maidr.plotly.step_shape import group_by_direction
-
-                for direction_group in group_by_direction(step_traces):
-                    plot = PlotlyStepPlot(
-                        direction_group,
+                    plot = PlotlyMultiLinePlot(
+                        line_traces,
                         layout,
                         scatter_positions=[
-                            position_of[id(t)] for t in direction_group
+                            position_of[id(t)] for t in line_traces
                         ],
                         **axis_kwargs,
                     )
                     plot.row_index = row
                     plot.col_index = col
                     self._plots.append(plot)
-                merged.update(id(t) for t in step_traces)
+                    merged.update(id(t) for t in line_traces)
+
+                # A lone line is built here rather than left to the factory
+                # below, so it too gets a position-scoped selector. The factory
+                # cannot know the trace's position among its subplot's scatter
+                # traces, and its unscoped selector would also match a step
+                # trace's path.
+                elif len(line_traces) == 1:
+                    from maidr.plotly.line import PlotlyLinePlot
+
+                    only_line = line_traces[0]
+                    plot = PlotlyLinePlot(
+                        only_line,
+                        layout,
+                        scatter_position=position_of[id(only_line)],
+                        **axis_kwargs,
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                    merged.add(id(only_line))
+
+                # Steps, one layer per step convention. A MAIDR layer carries a
+                # single ``stepDirection`` for all of its series, so merging an
+                # ``hv`` trace with a ``vh`` one would describe one of them
+                # wrongly. Single-trace groups go through here too rather than
+                # falling to the factory below, so their selector is scoped by
+                # position among the subplot's scatter traces.
+                if step_traces:
+                    from maidr.plotly.step import PlotlyStepPlot
+                    from maidr.plotly.step_shape import group_by_direction
+
+                    for direction_group in group_by_direction(step_traces):
+                        plot = PlotlyStepPlot(
+                            direction_group,
+                            layout,
+                            scatter_positions=[
+                                position_of[id(t)]
+                                for t in direction_group
+                            ],
+                            **axis_kwargs,
+                        )
+                        plot.row_index = row
+                        plot.col_index = col
+                        self._plots.append(plot)
+                    merged.update(id(t) for t in step_traces)
 
             # Multi-box
             if len(box_traces) > 1:

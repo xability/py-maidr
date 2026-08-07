@@ -3,6 +3,7 @@ from __future__ import annotations
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.step_shape import renders_through_webgl
 
 
 class PlotlyLinePlot(PlotlyPlot):
@@ -51,12 +52,17 @@ class PlotlyLinePlot(PlotlyPlot):
         """
         Return the selector for this line's rendered path.
 
+        A ``scattergl`` line gets none: it is painted to a canvas, so there
+        is no path to address.
+
         Returns
         -------
         list of str
-            A single CSS selector, scoped to this trace's position among the
-            subplot's scatter traces.
+            A single CSS selector scoped to this trace's position among the
+            subplot's scatter traces, or empty for a WebGL trace.
         """
+        if renders_through_webgl(self._trace):
+            return []
         return [self._scatter_line_selector(self._scatter_position)]
 
     def _extract_plot_data(self) -> list[list[dict]]:
