@@ -112,6 +112,9 @@ def common(plot_type, wrapped, _, args, kwargs) -> Any:
         that decision to matplotlib.
     wrapped : Callable
         The original plotting function.
+    _ : Any
+        The instance wrapt bound the patched function to, or None for a
+        module-level function. Unused here, and named for that.
     args : tuple
         Positional arguments the caller passed.
     kwargs : dict

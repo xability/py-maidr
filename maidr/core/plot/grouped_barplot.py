@@ -89,7 +89,7 @@ class GroupedBarPlot(
             return ""
         return title.get_text().strip()
 
-    def _extract_plot_data(self):
+    def _extract_plot_data(self) -> list[list[dict]]:
         plot = self.extract_container(self.ax, BarContainer, include_all=True)
         data = self._extract_grouped_bar_data(plot)
 
@@ -100,7 +100,7 @@ class GroupedBarPlot(
 
     def _extract_grouped_bar_data(
         self, plot: list[BarContainer] | None
-    ) -> list[dict] | None:
+    ) -> list[list[dict]] | None:
         if plot is None:
             return None
 
