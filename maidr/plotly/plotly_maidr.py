@@ -117,8 +117,14 @@ class PlotlyMaidr:
 
         * Multiple bar traces with ``barmode='group'`` or ``'stack'`` are
           merged into a single :class:`PlotlyGroupedBarPlot`.
-        * Scatter/lines traces are first split into staircases and plain
-          lines by ``line.shape``: a step merged into the line layer would be
+        * Scatter/lines traces are split by *renderer* first — SVG traces
+          apart from canvas-painted ``scattergl`` ones — because a layer's
+          selector list is all-or-nothing, so a mixed layer could only claim a
+          highlight for every series or for none. The groups are built in
+          first-seen order, so the emitted layers still follow plotly's own
+          trace order.
+        * Within a renderer they are split into staircases and plain lines by
+          ``line.shape``: a step merged into the line layer would be
           announced as interpolating between samples, which is the one thing
           piecewise-constant data does not do. The plain lines then merge into
           a single :class:`PlotlyMultiLinePlot` (matching ``MultiLinePlot``),
@@ -224,17 +230,20 @@ class PlotlyMaidr:
             # line took the highlight away from every ordinary line beside it.
             # Splitting first keeps each layer homogeneous: the SVG traces
             # keep working selectors, and the WebGL ones honestly claim none.
-            svg_connected = [
-                t for t in connected_traces if not renders_through_webgl(t)
-            ]
-            gl_connected = [
-                t for t in connected_traces if renders_through_webgl(t)
-            ]
+            #
+            # Grouped in first-seen order rather than SVG-then-WebGL, so the
+            # emitted layers still follow the order plotly declared the traces
+            # in — the same property `group_by_direction` preserves. A fixed
+            # order would reorder the layers of any figure that declares a gl
+            # trace before its svg ones, pulling MAIDR's navigation order out
+            # of step with plotly's own trace and legend order.
+            renderer_groups: dict[bool, list[dict]] = {}
+            for trace in connected_traces:
+                renderer_groups.setdefault(
+                    renders_through_webgl(trace), []
+                ).append(trace)
 
-            for renderer_traces in (svg_connected, gl_connected):
-                if not renderer_traces:
-                    continue
-
+            for renderer_traces in renderer_groups.values():
                 # A staircase is a scatter/lines trace whose ``line.shape``
                 # makes plotly draw risers instead of interpolating, so it has
                 # to be split out here: merged into the multi-line layer it

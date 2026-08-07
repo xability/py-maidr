@@ -59,9 +59,7 @@ class PlotlyMultiLinePlot(PlotlyPlot):
             One CSS selector per line, in trace order; empty for a WebGL
             layer.
         """
-        return self._scatter_line_selectors(
-            self._traces, self._scatter_positions
-        )
+        return self._scatter_line_selectors(self._traces, self._scatter_positions)
 
     def _extract_plot_data(self) -> list[list[dict]]:
         """Return multi-line data as a list-of-lists.

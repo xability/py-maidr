@@ -213,6 +213,27 @@ class TestAGlTraceDoesNotDisplaceItsSvgNeighbours:
         assert MaidrKey.SELECTOR not in gl_layer
         assert "nth-child(1)" in svg_layer[MaidrKey.SELECTOR][0]
 
+    def test_layers_follow_the_order_the_traces_were_declared_in(self):
+        # Renderer groups are built in first-seen order, not svg-then-gl, so a
+        # figure declaring its gl trace first keeps that ordering. Grouping in
+        # a fixed order would pull MAIDR's navigation order out of step with
+        # plotly's own trace and legend order.
+        gl_first = go.Figure()
+        gl_first.add_scattergl(x=[0, 1], y=[1, 2], mode="lines", name="gl")
+        gl_first.add_scatter(x=[0, 1], y=[2, 1], mode="lines", name="svg")
+
+        svg_first = go.Figure()
+        svg_first.add_scatter(x=[0, 1], y=[2, 1], mode="lines", name="svg")
+        svg_first.add_scattergl(x=[0, 1], y=[1, 2], mode="lines", name="gl")
+
+        def names(fig):
+            return [
+                layer[MaidrKey.DATA][0][0][MaidrKey.Z] for layer in _layers(fig)
+            ]
+
+        assert names(gl_first) == ["gl", "svg"]
+        assert names(svg_first) == ["svg", "gl"]
+
     def test_gl_lines_do_not_merge_into_the_svg_multiline_layer(self):
         # Two SVG lines still merge with each other; the gl line becomes its
         # own layer rather than joining them.

@@ -79,9 +79,7 @@ class PlotlyStepPlot(PlotlyPlot):
             One CSS selector per series, in trace order; empty for a WebGL
             layer.
         """
-        return self._scatter_line_selectors(
-            self._traces, self._scatter_positions
-        )
+        return self._scatter_line_selectors(self._traces, self._scatter_positions)
 
     def render(self) -> dict:
         """
