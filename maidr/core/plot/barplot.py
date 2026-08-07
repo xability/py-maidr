@@ -35,6 +35,10 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         """
         Read the orientation matplotlib recorded on the bar container.
 
+        Only the first container is asked: every container on one Axes is
+        drawn by the same call, so a layer runs one way or the other, never
+        both. A mixed-orientation layer would need this to say so per bar.
+
         Parameters
         ----------
         plot : list of BarContainer, optional
@@ -89,7 +93,9 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         levels : list of str, optional
             The bar labels read off the categorical axis. Used only to check
             that the axis has one label per bar; an axis with no tick labels
-            at all places no constraint.
+            at all is not checked here — the caller pairs the magnitudes with
+            the labels, so it ends up raising `ExtractionError` on an empty
+            list regardless.
 
         Returns
         -------
