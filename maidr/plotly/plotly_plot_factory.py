@@ -50,6 +50,18 @@ class PlotlyPlotFactory:
         if trace_type in ("scatter", "scattergl"):
             mode = trace.get("mode", "markers")
             if "lines" in mode and "markers" not in mode:
+                # NOTE: this whole lines-mode branch is unreachable from
+                # ``PlotlyMaidr``. ``_extract_plots`` consumes every
+                # scatter/lines trace itself — steps, multi-line groups and a
+                # lone line alike — because only it knows each trace's
+                # position among its subplot's scatter traces, which the
+                # selector needs. The branch is kept for direct/standalone
+                # construction (and is exercised that way by the tests), the
+                # same role the unscoped fallback plays in
+                # ``PlotlyLinePlot._get_selector``. If the classification rule
+                # below changes, change it in ``_extract_plots`` too — these
+                # two are the only copies and nothing forces them to agree.
+                #
                 # A staircase is a scatter trace too — plotly varies
                 # ``line.shape``, not the trace type — so the shape is the only
                 # thing separating piecewise-constant data from an

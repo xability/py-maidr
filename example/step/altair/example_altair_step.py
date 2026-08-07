@@ -28,7 +28,6 @@ df = pd.DataFrame(
     {
         "hours": hours,
         "stage": stages,
-        "stage_name": [STAGE_NAMES[s] for s in stages],
     }
 )
 

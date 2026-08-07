@@ -111,10 +111,23 @@ class PlotlyMaidr:
 
         * Multiple bar traces with ``barmode='group'`` or ``'stack'`` are
           merged into a single :class:`PlotlyGroupedBarPlot`.
-        * Multiple scatter/lines traces are merged into a single
-          :class:`PlotlyMultiLinePlot` (matching ``MultiLinePlot``).
+        * Scatter/lines traces are first split into staircases and plain
+          lines by ``line.shape``: a step merged into the line layer would be
+          announced as interpolating between samples, which is the one thing
+          piecewise-constant data does not do. The plain lines then merge into
+          a single :class:`PlotlyMultiLinePlot` (matching ``MultiLinePlot``),
+          or become one :class:`PlotlyLinePlot` when there is only one.
+        * The staircases are split again by step convention, one
+          :class:`PlotlyStepPlot` per convention, because a MAIDR layer
+          carries a single ``stepDirection`` for all of its series.
         * Multiple box traces are merged into a single
           :class:`PlotlyMultiBoxPlot` (matching ``BoxPlot``).
+
+        Every scatter-family trace is assigned a selector index from its
+        position within the subplot, not within the layer it lands in — see
+        :meth:`PlotlyPlot._scatter_line_selector`. Because of that, all
+        scatter/lines traces are built here rather than left to
+        :class:`PlotlyPlotFactory`, which cannot know those positions.
         """
         fig_dict = self._fig.to_dict()
         layout = fig_dict.get("layout", {})
