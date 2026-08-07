@@ -74,6 +74,13 @@ class TestTheTranscribedRuleStillMatchesUpstream:
     stacked exception and every test here would keep passing against a rule
     that no longer describes what is drawn. Reading the docstring back turns
     that silent drift into a failing build.
+
+    **If one of these fails, check for a wording change before changing any
+    code.** They match on the docstring's prose, so a purely cosmetic rewrite
+    upstream ("fewer than" for "less than") fails them without the behaviour
+    having moved at all. The question to answer first is whether the *rule*
+    changed; ``go.Figure``'s resolved ``_fullData[i].mode`` in a browser is
+    the ground truth if it is ever unclear.
     """
 
     @staticmethod
@@ -133,6 +140,38 @@ class TestPlotlysOwnDefault:
     def test_a_trace_with_no_sequence_does_not_raise(self):
         assert default_mode({}) == "lines+markers"
         assert default_mode({"x": 3, "y": 4}) == "lines+markers"
+
+
+class TestScatterglSharesTheRule:
+    """
+    ``scattergl`` is scatter-family, so the same default has to apply to it.
+
+    Its Python docstring is not evidence either way — unlike ``Scatter``'s, it
+    states no default at all, so it can neither confirm nor contradict the
+    rule. plotly.js was read instead: the threshold is one shared
+    ``PTS_LINESONLY`` constant, and both trace modules coerce with the same
+    ``n < PTS_LINESONLY ? "lines+markers" : "lines"``.
+
+    Confirmed by rendering both types in Chromium and reading back plotly's
+    own resolved ``gd._fullData[i].mode``, which agreed at every count::
+
+        n=5   scattergl lines+markers   scatter lines+markers
+        n=19  scattergl lines+markers   scatter lines+markers
+        n=20  scattergl lines           scatter lines
+        n=25  scattergl lines           scatter lines
+    """
+
+    @pytest.mark.parametrize("n", [5, 19, 20, 25])
+    def test_gl_and_svg_resolve_identically(self, n):
+        assert default_mode(_trace(n, type="scattergl")) == default_mode(
+            _trace(n)
+        )
+
+    def test_a_long_gl_trace_is_a_connected_line(self):
+        assert is_connected_line_trace(_trace(25, type="scattergl")) is True
+
+    def test_a_short_gl_trace_is_not(self):
+        assert is_connected_line_trace(_trace(5, type="scattergl")) is False
 
 
 class TestModelessClassification:
