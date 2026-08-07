@@ -51,6 +51,16 @@ _CONNECTED_TRACE_TYPES = ("scatter", "scattergl")
 _WEBGL_TRACE_TYPES = ("scattergl",)
 
 
+#: Point count at which plotly's default ``mode`` drops its markers.
+#:
+#: From the plotly.js ``scatter.mode`` attribute: "If there are less than 20
+#: points and the trace is not stacked, then the default is 'lines+markers'.
+#: Otherwise, 'lines'." Both halves matter — a mode-less trace is never
+#: markers-only, so reading an absent ``mode`` as markers describes a chart
+#: plotly draws as a connected line.
+_MARKER_DEFAULT_MAX_POINTS = 20
+
+
 def renders_through_webgl(trace: dict) -> bool:
     """
     Report whether a trace is painted to a canvas rather than to SVG.
@@ -78,6 +88,64 @@ def renders_through_webgl(trace: dict) -> bool:
         True when the trace renders through WebGL.
     """
     return trace.get("type", "scatter") in _WEBGL_TRACE_TYPES
+
+
+def _trace_point_count(trace: dict) -> int:
+    """
+    Count the points a trace will actually draw.
+
+    ``x`` and ``y`` are zipped when the data is extracted, so the shorter of
+    the two is the number of points that reach the chart. Whichever axis is
+    absent is simply not counted, symmetrically: a ``y``-only trace counts
+    ``y`` — matching plotly generating ``x`` as ``0..n-1`` — and an
+    ``x``-only trace counts ``x``.
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace dictionary.
+
+    Returns
+    -------
+    int
+        The number of drawn points; 0 when neither axis carries a sequence.
+    """
+    lengths = [
+        len(values)
+        for values in (trace.get("x"), trace.get("y"))
+        if values is not None and hasattr(values, "__len__")
+    ]
+    return min(lengths) if lengths else 0
+
+
+def default_mode(trace: dict) -> str:
+    """
+    Resolve the ``mode`` plotly itself applies when the author sets none.
+
+    ``Figure.to_dict()`` omits ``mode`` entirely unless it was set, so the
+    exported dict cannot be read literally — an absent ``mode`` is not "no
+    drawing mode", it is "whatever plotly's default resolves to". Reproducing
+    that default here keeps the classification tied to what is drawn rather
+    than to what happens to be spelled out in the dict.
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace dictionary.
+
+    Returns
+    -------
+    str
+        ``"lines+markers"`` for a short unstacked trace, ``"lines"`` otherwise.
+    """
+    # A stacked trace defaults to "lines" at any size -- plotly excludes it
+    # from the marker default explicitly.
+    if trace.get("stackgroup"):
+        return "lines"
+
+    if _trace_point_count(trace) < _MARKER_DEFAULT_MAX_POINTS:
+        return "lines+markers"
+    return "lines"
 
 
 def is_scatter_family_trace(trace: dict) -> bool:
@@ -128,26 +196,27 @@ def is_connected_line_trace(trace: dict) -> bool:
     Returns
     -------
     bool
-        True for a scatter-family trace in a lines-only mode, or a staircase
-        that never authored a mode at all.
+        True for a scatter-family trace whose drawing mode joins its samples
+        up, resolving an absent ``mode`` the way plotly does.
     """
     if not is_scatter_family_trace(trace):
         return False
 
     mode = trace.get("mode")
     if mode is None:
-        # ``to_dict()`` omits ``mode`` when the author never set one, and
-        # plotly's default draws lines either way — "lines+markers" under 20
-        # points, "lines" at or above. Reading an absent mode as markers-only
-        # would send a trace authored as
-        # ``add_scatter(..., line_shape="hv")`` to a scatter layer, so the
-        # chart plotly actually draws as a staircase gets announced as loose
-        # points, losing the piecewise-constant reading entirely.
-        #
-        # Only a declared stepping shape is rescued here. A mode-less trace
-        # with no ``line.shape`` keeps whatever classification it had before
-        # steps existed, so plain scatters are untouched.
-        return is_step_trace(trace)
+        # A declared stepping shape settles it on its own: plotly draws the
+        # risers whatever the resolved mode turns out to be, so the data is
+        # piecewise constant either way. Checked before the default so a
+        # short staircase -- where the default adds markers -- still binds as
+        # a step rather than as loose points.
+        if is_step_trace(trace):
+            return True
+
+        # Otherwise stand in plotly's own default, because ``to_dict()``
+        # omits ``mode`` rather than recording it. Reading absent-as-markers
+        # described a chart plotly draws as a connected line as scattered
+        # points, losing the connectivity of the data entirely.
+        mode = default_mode(trace)
 
     return "lines" in mode and "markers" not in mode
 

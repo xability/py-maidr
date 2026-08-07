@@ -192,20 +192,36 @@ class PlotlyMaidr:
             # position along, onto a selector that matched nothing — so a
             # single gl trace silently broke its neighbours' highlighting too.
             scatter_family = [
-                t
-                for t in group_traces
-                if is_scatter_family_trace(t) and not renders_through_webgl(t)
+                t for t in group_traces if is_scatter_family_trace(t)
             ]
-            position_of = {
-                id(t): index for index, t in enumerate(scatter_family)
-            }
+            svg_scatter = [
+                t for t in scatter_family if not renders_through_webgl(t)
+            ]
+            gl_scatter = [t for t in scatter_family if renders_through_webgl(t)]
 
-            # Looked up below with `.get(..., 0)` rather than by subscript,
-            # because this map deliberately no longer covers every trace the
-            # classifiers accept: a gl trace is still a line or a step, it
-            # just has no scatterlayer position. Its layer emits no selectors
-            # at all (see `PlotlyPlot._scatter_line_selectors`), so the
-            # fallback is never rendered — it only keeps the lists aligned.
+            # Each trace's index *within its own renderer*. For an SVG trace
+            # that is its position in the `scatterlayer`, which is what
+            # `nth-child` counts. A `scattergl` trace never enters that layer
+            # at all -- verified in a browser: with a gl trace declared before
+            # an svg one, the `scatterlayer` holds exactly one child and it is
+            # the svg trace, at `nth-child(1)`, while `nth-child(2)` matches
+            # nothing. Numbering the two renderers together therefore pushed
+            # every svg trace one place along, onto a selector that matched
+            # nothing, so one gl trace silently broke its neighbours'
+            # highlighting as well as its own.
+            #
+            # The gl indices are never rendered -- a WebGL layer emits no
+            # selectors (see `PlotlyPlot._scatter_line_selectors`) -- but they
+            # still have to be well-formed, because the layer classes validate
+            # the list they are handed. Numbering gl traces from their own
+            # zero keeps them unique and correct-by-construction rather than
+            # padding with a placeholder, which collided the moment two gl
+            # traces shared a subplot.
+            position_of = {
+                id(t): index
+                for renderer in (svg_scatter, gl_scatter)
+                for index, t in enumerate(renderer)
+            }
 
             merged: set[int] = set()
 
@@ -268,7 +284,7 @@ class PlotlyMaidr:
                         line_traces,
                         layout,
                         scatter_positions=[
-                            position_of.get(id(t), 0) for t in line_traces
+                            position_of[id(t)] for t in line_traces
                         ],
                         **axis_kwargs,
                     )
@@ -289,7 +305,7 @@ class PlotlyMaidr:
                     plot = PlotlyLinePlot(
                         only_line,
                         layout,
-                        scatter_position=position_of.get(id(only_line), 0),
+                        scatter_position=position_of[id(only_line)],
                         **axis_kwargs,
                     )
                     plot.row_index = row
@@ -312,7 +328,7 @@ class PlotlyMaidr:
                             direction_group,
                             layout,
                             scatter_positions=[
-                                position_of.get(id(t), 0)
+                                position_of[id(t)]
                                 for t in direction_group
                             ],
                             **axis_kwargs,

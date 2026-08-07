@@ -28,31 +28,39 @@ class PlotlyStepPlot(PlotlyPlot):
         The staircase traces forming this layer, all of one convention.
     layout : dict
         The Plotly figure layout.
-    scatter_positions : list of int, optional
+    scatter_positions : list of int
         Each trace's zero-based position among the subplot's scatter-family
-        traces. Required whenever this layer's traces are not the leading
-        scatter traces of the subplot — which is the normal case once steps
-        are split out by convention, or drawn alongside plain lines. Defaults
-        to the traces' own order, which is only correct for a layer that owns
-        every scatter trace on its subplot.
+        traces, in trace order. Required: see the note below.
     **kwargs : str
         Axis names forwarded to the parent class.
+
+    Notes
+    -----
+    ``scatter_positions`` deliberately has no default. It previously fell back
+    to the traces' own order, which is right only for a layer that owns every
+    scatter trace on its subplot — and splitting steps by convention makes a
+    step layer routinely *not* the leading one. An ``hv`` layer and a ``vh``
+    layer both numbering from 1 would highlight the same elements, silently.
+    A missing position is now a ``TypeError`` at the call site.
     """
 
     def __init__(
         self,
         traces: list[dict],
         layout: dict,
-        scatter_positions: list[int] | None = None,
+        scatter_positions: list[int],
         **kwargs: str,
     ) -> None:
+        if not traces:
+            raise ValueError("a step layer needs at least one trace")
+        PlotlyPlot._validate_scatter_positions(scatter_positions, len(traces))
+
         super().__init__(traces[0], layout, PlotType.STEP, **kwargs)
-        self._traces = traces
-        self._scatter_positions = (
-            list(range(len(traces)))
-            if scatter_positions is None
-            else scatter_positions
-        )
+        # Copied, not aliased: a caller mutating its list afterwards would
+        # silently change this layer's selectors on the next render -- the
+        # same wrong-element failure the required parameter exists to end.
+        self._traces = list(traces)
+        self._scatter_positions = list(scatter_positions)
 
     def _get_selector(self) -> list[str]:
         """

@@ -104,6 +104,40 @@ class TestAWebglLayerClaimsNoHighlight:
         assert layer[MaidrKey.TYPE] == PlotType.SCATTER
         assert MaidrKey.SELECTOR not in layer
 
+    def test_two_gl_traces_on_one_subplot_do_not_collide(self):
+        # Regression: gl traces are excluded from the SVG scatterlayer index,
+        # and were once padded with a placeholder 0. Two of them on a subplot
+        # therefore both got position 0 -- a duplicate, which the position
+        # validator rejects, so the figure raised instead of exporting.
+        # Numbering each renderer from its own zero makes them well-formed
+        # without inventing an scatterlayer position a canvas trace has not
+        # got.
+        fig = go.Figure()
+        fig.add_scattergl(x=[0, 1], y=[1, 2], mode="lines", name="a")
+        fig.add_scattergl(x=[0, 1], y=[2, 1], mode="lines", name="b")
+
+        (layer,) = _layers(fig)
+
+        assert len(layer[MaidrKey.DATA]) == 2
+
+    def test_three_gl_steps_of_one_convention_do_not_collide(self):
+        # Same shape through the step path, which numbers per direction group.
+        fig = go.Figure()
+        for i in range(3):
+            fig.add_scattergl(
+                x=[0, 1],
+                y=[i, i + 1],
+                mode="lines",
+                line={"shape": "hv"},
+                name=f"s{i}",
+            )
+
+        (layer,) = _layers(fig)
+
+        assert layer[MaidrKey.TYPE] == PlotType.STEP
+        assert len(layer[MaidrKey.DATA]) == 3
+        assert MaidrKey.SELECTOR not in layer
+
     def test_a_gl_multiline_emits_no_selectors(self):
         fig = go.Figure()
         fig.add_scattergl(x=[0, 1], y=[1, 2], mode="lines", name="a")
@@ -116,36 +150,44 @@ class TestAWebglLayerClaimsNoHighlight:
         assert MaidrKey.SELECTOR not in layer
 
 
-class TestTheStandaloneFallbackIsGuardedToo:
+class TestAStandaloneLineIsGuardedToo:
     """
-    ``PlotlyLinePlot``'s unscoped fallback must not resurrect a selector.
+    The guard has to sit in ``PlotlyLinePlot`` itself, not only in the layer.
 
-    That branch exists for direct construction without a position, which
-    ``PlotlyMaidr`` never takes. The WebGL guard sits ahead of *both* paths,
-    so a gl trace built that way is silent too — the one combination the
-    layer-level guard does not cover on its own.
+    A lone line is the one case that does not go through
+    ``_scatter_line_selectors``, so its WebGL check is a separate line of
+    code — and separate code is what drifts. Both directions are pinned here.
+
+    These two previously exercised the unscoped ``scatter_position is None``
+    fallback, which #311 removed: the parameter is required now, so there is
+    no second path left to guard. They construct with a position instead.
     """
 
-    def test_a_gl_line_built_without_a_position_still_emits_nothing(self):
+    def test_a_standalone_gl_line_emits_nothing(self):
         from maidr.plotly.line import PlotlyLinePlot
 
         plot = PlotlyLinePlot(
-            {"type": "scattergl", "mode": "lines", "x": [0, 1], "y": [1, 2]}, {}
+            {"type": "scattergl", "mode": "lines", "x": [0, 1], "y": [1, 2]},
+            {},
+            scatter_position=0,
         )
 
         assert plot._get_selector() == []
         assert MaidrKey.SELECTOR not in plot.schema
 
-    def test_an_svg_line_built_without_a_position_still_gets_the_fallback(self):
+    def test_a_standalone_svg_line_still_gets_its_scoped_selector(self):
         from maidr.plotly.line import PlotlyLinePlot
 
         plot = PlotlyLinePlot(
-            {"type": "scatter", "mode": "lines", "x": [0, 1], "y": [1, 2]}, {}
+            {"type": "scatter", "mode": "lines", "x": [0, 1], "y": [1, 2]},
+            {},
+            scatter_position=2,
         )
 
         (selector,) = plot._get_selector()
 
-        assert selector.endswith(".trace.scatter path.js-line")
+        assert "nth-child(3)" in selector
+        assert selector.endswith("path.js-line")
 
 
 class TestSvgTracesAreUnaffected:
