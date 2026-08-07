@@ -147,9 +147,15 @@ class PlotlyPlot(ABC):
         list of str
             One selector per series, or an empty list for a WebGL layer.
         """
+        # `any`, not `all`: the renderer split upstream already guarantees a
+        # homogeneous layer, so the two agree today. If that invariant ever
+        # breaks, `any` fails closed -- no highlight -- while `all` would emit
+        # a full set of selectors for a layer that is partly canvas, putting
+        # every series after the gl trace on the wrong element.
         if any(renders_through_webgl(trace) for trace in traces):
             return []
         return [self._scatter_line_selector(position) for position in positions]
+
     @staticmethod
     def _validate_scatter_positions(positions: list[int], trace_count: int) -> None:
         """
