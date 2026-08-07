@@ -136,19 +136,26 @@ def test_horizontal_histogram_bins_run_along_y() -> None:
     assert first["xMax"] == first["x"]
 
 
-def test_a_label_count_mismatch_raises_extraction_error() -> None:
+@pytest.mark.parametrize("horizontal", [False, True])
+def test_a_label_count_mismatch_raises_extraction_error(horizontal: bool) -> None:
     """The failure this reordering fixed: an `ExtractionError`, not a `TypeError`.
 
     Three bars against two tick labels is the shape that made
     `_extract_bar_container_data` return None. The magnitudes and the labels
     are zipped straight after, so before the None was checked first this
-    surfaced as `TypeError: 'NoneType' object is not iterable`.
+    surfaced as `TypeError: 'NoneType' object is not iterable`. Both
+    orientations are driven because each zips its own way round.
     """
     fig, ax = plt.subplots()
     try:
-        ax.bar(LABELS, VALUES)
-        ax.set_xticks([0, 1])
-        ax.set_xticklabels(LABELS[:2])
+        if horizontal:
+            ax.barh(LABELS, VALUES)
+            ax.set_yticks([0, 1])
+            ax.set_yticklabels(LABELS[:2])
+        else:
+            ax.bar(LABELS, VALUES)
+            ax.set_xticks([0, 1])
+            ax.set_xticklabels(LABELS[:2])
         plot = FigureManager.get_maidr(fig).plots[0]
 
         with pytest.raises(ExtractionError):
