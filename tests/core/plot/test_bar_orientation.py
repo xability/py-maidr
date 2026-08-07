@@ -15,10 +15,12 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.exception import ExtractionError  # noqa: E402
 
 
 LABELS = ["a", "b", "c"]
@@ -132,6 +134,27 @@ def test_horizontal_histogram_bins_run_along_y() -> None:
     assert first["y"] == (first["yMin"] + first["yMax"]) / 2
     assert first["xMin"] == 0
     assert first["xMax"] == first["x"]
+
+
+def test_a_label_count_mismatch_raises_extraction_error() -> None:
+    """The failure this reordering fixed: an `ExtractionError`, not a `TypeError`.
+
+    Three bars against two tick labels is the shape that made
+    `_extract_bar_container_data` return None. The magnitudes and the labels
+    are zipped straight after, so before the None was checked first this
+    surfaced as `TypeError: 'NoneType' object is not iterable`.
+    """
+    fig, ax = plt.subplots()
+    try:
+        ax.bar(LABELS, VALUES)
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(LABELS[:2])
+        plot = FigureManager.get_maidr(fig).plots[0]
+
+        with pytest.raises(ExtractionError):
+            plot._extract_plot_data()
+    finally:
+        plt.close(fig)
 
 
 def test_seaborn_horizontal_histplot() -> None:
