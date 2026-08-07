@@ -99,6 +99,29 @@ def resolve_orientation(wrapped: Callable, args: tuple, kwargs: dict) -> str:
 
 
 def common(plot_type, wrapped, _, args, kwargs) -> Any:
+    """
+    Draw a patched plot and register the layer it produced with MAIDR.
+
+    Parameters
+    ----------
+    plot_type : PlotType or callable
+        The type to register the layer as. A callable is handed the drawn
+        Axes and returns the type, for plots whose layout is only decided
+        inside the library being patched: seaborn works out on its own
+        whether a hue splits a bar layer into groups, and does not forward
+        that decision to matplotlib.
+    wrapped : Callable
+        The original plotting function.
+    args : tuple
+        Positional arguments the caller passed.
+    kwargs : dict
+        Keyword arguments the caller passed.
+
+    Returns
+    -------
+    Any
+        Whatever the wrapped function returned.
+    """
     # Suppress warnings not to confuse screen-reader users
     warnings.filterwarnings("ignore")
 
@@ -114,6 +137,8 @@ def common(plot_type, wrapped, _, args, kwargs) -> Any:
     # Extract the data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)
     kwargs.pop("ax", None)
+    if callable(plot_type):
+        plot_type = plot_type(ax)
     FigureManager.create_maidr(ax, plot_type, **kwargs)
 
     return plot

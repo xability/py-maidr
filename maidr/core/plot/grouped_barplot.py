@@ -18,6 +18,50 @@ class GroupedBarPlot(
 ):
     def __init__(self, ax: Axes, plot_type: PlotType, **kwargs) -> None:
         super().__init__(ax, plot_type)
+        self._orientation = "vert"
+
+    @property
+    def _is_horizontal(self) -> bool:
+        return self._orientation == "horz"
+
+    @property
+    def _level_key(self) -> MaidrKey:
+        """
+        The axis the bar labels sit on: ``y`` for a horizontal layer
+        (``seaborn.barplot(orient="h", hue=...)``), ``x`` otherwise.
+        """
+        return MaidrKey.Y if self._is_horizontal else MaidrKey.X
+
+    @staticmethod
+    def _extract_orientation(plot: list[BarContainer] | None) -> str:
+        """
+        Read the orientation matplotlib recorded on the bar containers.
+
+        Only the first container is asked: the containers of one layer are
+        drawn by the same call, so they all run the same way.
+
+        Parameters
+        ----------
+        plot : list of BarContainer, optional
+            The containers holding the bars of this layer, one per group.
+
+        Returns
+        -------
+        str
+            ``"horz"`` for a horizontal layer, ``"vert"`` otherwise.
+        """
+        if not plot:
+            return "vert"
+
+        return "horz" if plot[0].orientation == "horizontal" else "vert"
+
+    def render(self) -> dict:
+        """Add ``orientation`` to the base schema."""
+        # Read after the super call, not before: `self._orientation` is
+        # populated by `_extract_plot_data`, which that call runs.
+        base_schema = super().render()
+        orientation = {MaidrKey.ORIENTATION: self._orientation}
+        return DictMergerMixin.merge_dict(base_schema, orientation)
 
     def _extract_axes_data(self) -> dict:
         """
@@ -60,8 +104,10 @@ class GroupedBarPlot(
         if plot is None:
             return None
 
-        x_level = self.extract_level(self.ax)
-        if x_level is None:
+        self._orientation = self._extract_orientation(plot)
+
+        level = self.extract_level(self.ax, self._level_key)
+        if not level:
             return None
 
         data = []
@@ -74,21 +120,30 @@ class GroupedBarPlot(
         hue_categories = self._extract_hue_categories_from_legend()
 
         for i, container in enumerate(plot):
-            if len(x_level) != len(container.patches):
+            if len(level) != len(container.patches):
                 return None
             container_data = []
 
             # Use hue category if available, otherwise fall back to container label
             fill_value = hue_categories[i] if i < len(hue_categories) else container.get_label()
 
-            for x, y in zip(x_level, container.patches):
-                container_data.append(
-                    {
-                        MaidrKey.X.value: x,
+            for label, patch in zip(level, container.patches):
+                # A horizontal bar's magnitude runs along x and its label sits
+                # on y, which is the layout the renderer reads for a
+                # horizontal layer. The vertical layer is the mirror of that.
+                if self._is_horizontal:
+                    point = {
+                        MaidrKey.X.value: float(patch.get_width()),
                         MaidrKey.Z.value: fill_value,
-                        MaidrKey.Y.value: float(y.get_height()),
+                        MaidrKey.Y.value: label,
                     }
-                )
+                else:
+                    point = {
+                        MaidrKey.X.value: label,
+                        MaidrKey.Z.value: fill_value,
+                        MaidrKey.Y.value: float(patch.get_height()),
+                    }
+                container_data.append(point)
             data.append(container_data)
 
         return data
