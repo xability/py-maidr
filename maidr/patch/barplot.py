@@ -204,7 +204,7 @@ def _has_numeric_grouping_pattern(x_positions: Any) -> bool:
 
 def sns_bar(
     wrapped: Callable, instance: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]
-) -> Union[Axes, BarContainer]:
+) -> Axes:
     """
     Patch function for `seaborn.barplot` and `seaborn.countplot`.
 
@@ -228,8 +228,8 @@ def sns_bar(
 
     Returns
     -------
-    Union[Axes, BarContainer]
-        Whatever the original function returned.
+    Axes
+        The axes seaborn drew on, which is what both functions return.
 
     Examples
     --------
