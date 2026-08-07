@@ -56,8 +56,11 @@ class PlotlyStepPlot(PlotlyPlot):
         self._validate_scatter_positions(scatter_positions, len(traces))
 
         super().__init__(traces[0], layout, PlotType.STEP, **kwargs)
-        self._traces = traces
-        self._scatter_positions = scatter_positions
+        # Copied, not aliased: a caller mutating its list afterwards would
+        # silently change this layer's selectors on the next render -- the
+        # same wrong-element failure the required parameter exists to end.
+        self._traces = list(traces)
+        self._scatter_positions = list(scatter_positions)
 
     def _get_selector(self) -> list[str]:
         """

@@ -123,6 +123,33 @@ class TestAPositionListMustDescribeItsTraces:
         with pytest.raises(ValueError, match="at least one trace"):
             cls([], {}, scatter_positions=[])
 
+    @pytest.mark.parametrize(
+        "cls", [PlotlyStepPlot, PlotlyMultiLinePlot], ids=["step", "multiline"]
+    )
+    def test_mutating_the_caller_s_list_afterwards_changes_nothing(self, cls):
+        # Stored by value, not aliased. A validated list that the caller then
+        # mutates would otherwise slip past validation and reach render() --
+        # the wrong-element failure, arrived at after the guard rather than
+        # around it.
+        positions = [2, 4]
+        plot = cls([_step(), _step()], {}, scatter_positions=positions)
+
+        positions[0] = 99
+        positions.append(7)
+
+        first, second = plot.schema[MaidrKey.SELECTOR]
+
+        assert "nth-child(3)" in first
+        assert "nth-child(5)" in second
+
+    def test_mutating_the_caller_s_trace_list_afterwards_changes_nothing(self):
+        traces = [_step(), _step()]
+        plot = PlotlyStepPlot(traces, {}, scatter_positions=[0, 1])
+
+        traces.append(_step())
+
+        assert len(plot.schema[MaidrKey.DATA]) == 2
+
     def test_a_valid_out_of_order_list_is_accepted(self):
         # Positions need not be sorted or contiguous -- only well-formed.
         plot = PlotlyStepPlot([_step(), _step()], {}, scatter_positions=[5, 1])
