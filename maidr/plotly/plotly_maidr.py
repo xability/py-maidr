@@ -122,7 +122,12 @@ class PlotlyMaidr:
           selector list is all-or-nothing, so a mixed layer could only claim a
           highlight for every series or for none. The groups are built in
           first-seen order, so the emitted layers still follow plotly's own
-          trace order.
+          trace order. Grouping is coarse rather than interleaved: traces
+          alternating ``svg, gl, svg`` emit ``[svg, svg]`` then ``[gl]``,
+          because both SVG traces belong to one merged layer. That is
+          inherent to merging at all, and matches how
+          :func:`~maidr.plotly.step_shape.group_by_direction` already behaves
+          for alternating step conventions.
         * Within a renderer they are split into staircases and plain lines by
           ``line.shape``: a step merged into the line layer would be
           announced as interpolating between samples, which is the one thing

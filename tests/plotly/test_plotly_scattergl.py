@@ -116,6 +116,38 @@ class TestAWebglLayerClaimsNoHighlight:
         assert MaidrKey.SELECTOR not in layer
 
 
+class TestTheStandaloneFallbackIsGuardedToo:
+    """
+    ``PlotlyLinePlot``'s unscoped fallback must not resurrect a selector.
+
+    That branch exists for direct construction without a position, which
+    ``PlotlyMaidr`` never takes. The WebGL guard sits ahead of *both* paths,
+    so a gl trace built that way is silent too — the one combination the
+    layer-level guard does not cover on its own.
+    """
+
+    def test_a_gl_line_built_without_a_position_still_emits_nothing(self):
+        from maidr.plotly.line import PlotlyLinePlot
+
+        plot = PlotlyLinePlot(
+            {"type": "scattergl", "mode": "lines", "x": [0, 1], "y": [1, 2]}, {}
+        )
+
+        assert plot._get_selector() == []
+        assert MaidrKey.SELECTOR not in plot.schema
+
+    def test_an_svg_line_built_without_a_position_still_gets_the_fallback(self):
+        from maidr.plotly.line import PlotlyLinePlot
+
+        plot = PlotlyLinePlot(
+            {"type": "scatter", "mode": "lines", "x": [0, 1], "y": [1, 2]}, {}
+        )
+
+        (selector,) = plot._get_selector()
+
+        assert selector.endswith(".trace.scatter path.js-line")
+
+
 class TestSvgTracesAreUnaffected:
     """The pre-existing SVG behaviour is untouched."""
 
@@ -233,6 +265,42 @@ class TestAGlTraceDoesNotDisplaceItsSvgNeighbours:
 
         assert names(gl_first) == ["gl", "svg"]
         assert names(svg_first) == ["svg", "gl"]
+
+    def test_alternating_traces_group_coarsely_and_that_is_expected(self):
+        # `svg, gl, svg` emits [svg, svg] then [gl] -- the gl trace does not
+        # keep its middle position, because both svg traces belong to one
+        # merged layer. That is inherent to merging at all, not a defect of
+        # first-seen ordering, and `group_by_direction` already behaves the
+        # same way for alternating step conventions. Pinned so the limitation
+        # is explicit rather than discovered.
+        fig = go.Figure()
+        fig.add_scatter(x=[0, 1], y=[1, 2], mode="lines", name="svg a")
+        fig.add_scattergl(x=[0, 1], y=[2, 1], mode="lines", name="gl")
+        fig.add_scatter(x=[0, 1], y=[1, 3], mode="lines", name="svg b")
+
+        layers = _layers(fig)
+        series_names = [
+            [series[0][MaidrKey.Z] for series in layer[MaidrKey.DATA]]
+            for layer in layers
+        ]
+
+        assert series_names == [["svg a", "svg b"], ["gl"]]
+        assert MaidrKey.SELECTOR in layers[0]
+        assert MaidrKey.SELECTOR not in layers[1]
+
+    def test_the_svg_pair_still_numbers_from_the_first_svg_child(self):
+        # The consequence that actually matters: the gl trace sits between
+        # them in declaration order but occupies no scatterlayer position, so
+        # the two svg lines are children 1 and 2, not 1 and 3.
+        fig = go.Figure()
+        fig.add_scatter(x=[0, 1], y=[1, 2], mode="lines", name="svg a")
+        fig.add_scattergl(x=[0, 1], y=[2, 1], mode="lines", name="gl")
+        fig.add_scatter(x=[0, 1], y=[1, 3], mode="lines", name="svg b")
+
+        svg_layer = _layers(fig)[0]
+
+        assert "nth-child(1)" in svg_layer[MaidrKey.SELECTOR][0]
+        assert "nth-child(2)" in svg_layer[MaidrKey.SELECTOR][1]
 
     def test_gl_lines_do_not_merge_into_the_svg_multiline_layer(self):
         # Two SVG lines still merge with each other; the gl line becomes its
