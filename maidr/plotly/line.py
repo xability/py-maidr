@@ -3,6 +3,7 @@ from __future__ import annotations
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.step_shape import renders_through_webgl
 
 
 class PlotlyLinePlot(PlotlyPlot):
@@ -15,21 +16,35 @@ class PlotlyLinePlot(PlotlyPlot):
         The scatter/lines trace dict.
     layout : dict
         The Plotly figure layout.
-    scatter_position : int, optional
+    scatter_position : int
         The trace's zero-based position among the subplot's scatter-family
-        traces. Pass this whenever the subplot holds more than this one
-        scatter trace — a step trace beside it makes that the normal case.
+        traces. Required: it is the only thing that makes this layer's
+        selector address *this* trace rather than whichever one happens to
+        sit first. See the class note below on why it has no default.
     **kwargs : str
         Axis names forwarded to the parent class.
+
+    Notes
+    -----
+    ``scatter_position`` deliberately has no default. It previously fell back
+    to an unscoped ``.trace.scatter path.js-line``, which over-matched — a
+    step trace renders as ``path.js-line`` too, so the fallback selected it
+    as well. A caller that cannot supply a real position has to say so at the
+    call site now, rather than silently getting a selector that is wrong in a
+    way nothing reports.
     """
 
     def __init__(
         self,
         trace: dict,
         layout: dict,
-        scatter_position: int | None = None,
+        scatter_position: int,
         **kwargs: str,
     ) -> None:
+        # Routed through the list validator so the non-negative rule has
+        # one home rather than a scalar copy that can drift from it.
+        PlotlyPlot._validate_scatter_positions([scatter_position], 1)
+
         super().__init__(trace, layout, PlotType.LINE, **kwargs)
         self._scatter_position = scatter_position
 
@@ -37,21 +52,17 @@ class PlotlyLinePlot(PlotlyPlot):
         """
         Return the selector for this line's rendered path.
 
-        With a known position the selector is scoped to that one trace.
-        Without one it falls back to the unscoped subplot-wide form, which
-        assumes this is the only ``path.js-line`` on the subplot. That
-        assumption held while a line layer owned every scatter trace, but a
-        step trace renders as ``path.js-line`` too, so the unscoped form
-        would match both. ``PlotlyMaidr`` therefore always supplies a
-        position; the fallback is for direct/standalone construction.
+        A ``scattergl`` line gets none: it is painted to a canvas, so there
+        is no path to address.
 
         Returns
         -------
         list of str
-            A single CSS selector.
+            A single CSS selector scoped to this trace's position among the
+            subplot's scatter traces, or empty for a WebGL trace.
         """
-        if self._scatter_position is None:
-            return [f"{self._subplot_css_prefix()}.trace.scatter path.js-line"]
+        if renders_through_webgl(self._trace):
+            return []
         return [self._scatter_line_selector(self._scatter_position)]
 
     def _extract_plot_data(self) -> list[list[dict]]:

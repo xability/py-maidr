@@ -3,6 +3,7 @@ from __future__ import annotations
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.step_shape import renders_through_webgl
 
 
 class PlotlyScatterPlot(PlotlyPlot):
@@ -12,6 +13,21 @@ class PlotlyScatterPlot(PlotlyPlot):
         super().__init__(trace, layout, PlotType.SCATTER, **kwargs)
 
     def _get_selector(self) -> str:
+        """
+        Return the selector matching this trace's rendered marker elements.
+
+        A ``scattergl`` trace gets none. Its markers are painted into the
+        subplot's shared ``<canvas>``, so there is no ``.point`` element to
+        match — and a selector that resolves to nothing is a highlight that
+        silently never appears.
+
+        Returns
+        -------
+        str
+            A CSS selector, or an empty string for a WebGL trace.
+        """
+        if renders_through_webgl(self._trace):
+            return ""
         return f"{self._subplot_css_prefix()}.trace.scatter .point"
 
     def _extract_axes_data(self) -> dict:
