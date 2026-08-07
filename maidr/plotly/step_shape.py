@@ -94,11 +94,27 @@ def is_connected_line_trace(trace: dict) -> bool:
     Returns
     -------
     bool
-        True for a scatter-family trace in a lines-only mode.
+        True for a scatter-family trace in a lines-only mode, or a staircase
+        that never authored a mode at all.
     """
     if not is_scatter_family_trace(trace):
         return False
-    mode = trace.get("mode", "markers")
+
+    mode = trace.get("mode")
+    if mode is None:
+        # ``to_dict()`` omits ``mode`` when the author never set one, and
+        # plotly's default draws lines either way — "lines+markers" under 20
+        # points, "lines" at or above. Reading an absent mode as markers-only
+        # would send a trace authored as
+        # ``add_scatter(..., line_shape="hv")`` to a scatter layer, so the
+        # chart plotly actually draws as a staircase gets announced as loose
+        # points, losing the piecewise-constant reading entirely.
+        #
+        # Only a declared stepping shape is rescued here. A mode-less trace
+        # with no ``line.shape`` keeps whatever classification it had before
+        # steps existed, so plain scatters are untouched.
+        return is_step_trace(trace)
+
     return "lines" in mode and "markers" not in mode
 
 

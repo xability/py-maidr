@@ -251,6 +251,47 @@ class TestClassificationAndSelectorIndexAgree:
         assert "nth-child(1)" in layers[0][MaidrKey.SELECTOR][0]
 
 
+class TestAModelessStaircaseStillBinds:
+    """
+    A staircase authored without ``mode`` must not fall through to scatter.
+
+    ``to_dict()`` omits ``mode`` when the author never set one, and plotly's
+    default draws lines regardless ("lines+markers" under 20 points, "lines"
+    at or above). Reading that as markers-only sent a chart plotly draws as a
+    staircase to a scatter layer — announced as loose points, with the
+    piecewise-constant reading lost. Only a declared stepping shape is
+    rescued; everything else keeps its previous classification.
+    """
+
+    def _one_layer(self, **trace_kwargs):
+        fig = go.Figure()
+        fig.add_scatter(x=list(range(6)), y=[1, 2, 3, 2, 1, 2], **trace_kwargs)
+        layers = _layers(fig)
+        assert len(layers) == 1
+        return layers[0]
+
+    def test_a_modeless_step_binds_as_step(self):
+        layer = self._one_layer(line={"shape": "hv"})
+
+        assert layer[MaidrKey.TYPE] == PlotType.STEP
+        assert layer[MaidrKey.STEP_DIRECTION] == "hv"
+
+    def test_a_modeless_trace_without_a_shape_is_untouched(self):
+        # The rescue is scoped to declared stepping shapes, so a plain
+        # mode-less scatter keeps the classification it had before steps.
+        assert self._one_layer()[MaidrKey.TYPE] == PlotType.SCATTER
+
+    def test_an_explicit_markers_mode_still_wins(self):
+        layer = self._one_layer(mode="markers", line={"shape": "hv"})
+
+        assert layer[MaidrKey.TYPE] == PlotType.SCATTER
+
+    def test_an_explicit_lines_markers_mode_is_unchanged(self):
+        layer = self._one_layer(mode="lines+markers", line={"shape": "hv"})
+
+        assert layer[MaidrKey.TYPE] == PlotType.SCATTER
+
+
 class TestStepDoesNotDisturbLines:
     """The regression that matters most: plain lines are untouched."""
 
