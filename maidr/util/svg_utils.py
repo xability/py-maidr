@@ -87,8 +87,10 @@ def to_scaled_coords(
     if not (np.all(np.isfinite(x_scaled)) and np.all(np.isfinite(y_scaled))):
         return None
 
-    # A clipped value maps to a sentinel rather than to infinity, so the round
-    # trip is what actually reveals whether the scale represented this data.
+    # The check above catches only a scale that answers with infinity or NaN.
+    # A log scale clips instead, mapping an unrepresentable value to a sentinel
+    # that reads as a perfectly ordinary coordinate, so the round trip is the
+    # only thing standing between that value and a curve thinned against it.
     if not (
         np.allclose(
             x_transform.inverted().transform(x_scaled), x_data, rtol=1e-9, atol=0

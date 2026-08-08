@@ -328,6 +328,40 @@ def test_filled_kde_boundary_is_thinned_by_index():
         plt.close(fig)
 
 
+def test_filled_kde_on_a_log_axis_falls_back_twice():
+    """Both fallbacks compose: an unmappable scale, then a curve with no order.
+
+    A filled KDE's support runs past its data, into x values a log axis cannot
+    map, so the scale falls back to data space — and the outline is a closed
+    loop, so thinning falls back again to vertex index. Each is covered alone;
+    this pins that stacking them still yields a full, usable trace.
+    """
+    rng = np.random.default_rng(21)
+    data = rng.lognormal(3.0, 0.45, 500)
+
+    fig, ax = plt.subplots()
+    sns.kdeplot(data, fill=True, ax=ax)
+    ax.set_xscale("log")
+    try:
+        plots = [
+            p for p in FigureManager.get_maidr(fig).plots if p.type is PlotType.SMOOTH
+        ]
+        assert len(plots) == 1
+        points = plots[0].schema["data"][0]
+        source = np.asarray(plots[0]._elements[0].get_xydata())
+
+        assert plots[0]._is_polycollection, "fixture must exercise the poly path"
+        assert source[:, 0].min() <= 0, "support must reach where a log cannot map"
+        assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is None
+
+        x = _x_values(points)
+
+        assert not np.all(np.diff(x) > 0), "a closed outline must double back"
+        assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
+    finally:
+        plt.close(fig)
+
+
 def test_resample_curve_keeps_a_straight_line_at_full_budget():
     """Collinear points carry no shape, so only the spacing can guide us."""
     points = np.column_stack([np.linspace(0, 1, 100), np.linspace(0, 2, 100)])
