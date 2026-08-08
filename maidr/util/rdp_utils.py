@@ -159,9 +159,13 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     curve that doubles back, or one running right to left — falls back to
     index sampling.
 
-    Interpolated points sit exactly on the drawn line: matplotlib renders the
-    curve as straight segments between its vertices, which is the same path
-    the interpolation walks.
+    Interpolated points sit on the drawn line, which matters because they are
+    what the highlight ring lands on.  Matplotlib renders the curve as straight
+    segments between its vertices, so on a linear axis — where data and display
+    space differ by an affine map — the interpolation walks exactly that path.
+    A log axis bends each segment between the vertices, leaving a gap of about
+    a tenth of a pixel at this point count; still far under the ring's radius,
+    just not the exact landing a linear axis gives.
 
     Parameters
     ----------
