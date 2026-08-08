@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib.axes import Axes
+from matplotlib.transforms import Transform
 from matplotlib.lines import Line2D
 from typing import List, Optional, Tuple
 
@@ -46,7 +47,7 @@ def unique_lines_by_xy(lines: List[Line2D]) -> List[Line2D]:
     return unique_lines
 
 
-def _clip_sentinel(transform) -> Optional[float]:
+def _clip_sentinel(transform: Transform) -> Optional[float]:
     """
     Return the coordinate a scale parks unrepresentable values on, if it clips.
 
@@ -66,7 +67,7 @@ def _clip_sentinel(transform) -> Optional[float]:
 
     Parameters
     ----------
-    transform : matplotlib.transforms.Transform
+    transform : Transform
         A scale transform, as returned by ``Axis.get_transform()``.
 
     Returns

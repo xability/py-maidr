@@ -24,7 +24,11 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.regplot import _DEFAULT_MAX_SMOOTH_POINTS  # noqa: E402
 from maidr.util.rdp_utils import resample_curve  # noqa: E402
 from maidr.util.regression_line_utils import find_regression_line  # noqa: E402
-from maidr.util.svg_utils import _clip_sentinel, to_scaled_coords  # noqa: E402
+from maidr.util.svg_utils import (  # noqa: E402
+    _clip_sentinel,
+    from_scaled_coords,
+    to_scaled_coords,
+)
 
 
 def _smooth_points(fig) -> list[dict]:
@@ -393,6 +397,29 @@ def test_a_scale_rejecting_on_an_upper_bound_is_caught():
         assert np.allclose(round_tripped, x, rtol=1e-9, atol=0)
 
         assert to_scaled_coords(ax, x, y) is None
+    finally:
+        plt.close(fig)
+
+
+@pytest.mark.parametrize("scale", ["linear", "symlog", "asinh"])
+def test_a_representable_zero_is_not_rejected(scale):
+    """Zero must map where it is legal, not be swept up with the clipped kind.
+
+    The round trip compares on relative tolerance alone, so a value of zero
+    has to come back as exactly zero to pass. That holds on the scales where
+    zero is representable, and rejecting it would drop the whole curve to the
+    fallback for no reason.
+    """
+    x = np.array([-10.0, -1.0, 0.0, 1.0, 10.0])
+    y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+
+    fig, ax = plt.subplots()
+    ax.set_xscale(scale)
+    try:
+        scaled = to_scaled_coords(ax, x, y)
+
+        assert scaled is not None, f"{scale} represents zero and must map it"
+        assert from_scaled_coords(ax, *scaled)[0][2] == 0.0
     finally:
         plt.close(fig)
 
