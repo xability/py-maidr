@@ -62,6 +62,13 @@ def _clip_sentinel(transform) -> Optional[float]:
     finiteness check in :func:`to_scaled_coords` instead.  The two guards cover
     one mode each; neither is redundant.
 
+    This reads matplotlib's behaviour rather than a promise it makes, so a
+    future release that stops collapsing rejected values would go undetected
+    here and the sentinel would simply never be found again.  Nothing raises
+    in that case — a curve touching zero on a log axis would quietly go back
+    to being thinned against the sentinel — so a caller left wondering why
+    such a curve drifts off the canvas should suspect this probe first.
+
     Parameters
     ----------
     transform : matplotlib.transforms.Transform
