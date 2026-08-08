@@ -85,8 +85,12 @@ def to_scaled_coords(
     # A clipped value maps to a sentinel rather than to infinity, so the round
     # trip is what actually reveals whether the scale represented this data.
     if not (
-        np.allclose(x_transform.inverted().transform(x_scaled), x_data, rtol=1e-9)
-        and np.allclose(y_transform.inverted().transform(y_scaled), y_data, rtol=1e-9)
+        np.allclose(
+            x_transform.inverted().transform(x_scaled), x_data, rtol=1e-9, atol=0
+        )
+        and np.allclose(
+            y_transform.inverted().transform(y_scaled), y_data, rtol=1e-9, atol=0
+        )
     ):
         return None
 

@@ -162,8 +162,12 @@ def test_straight_regression_line_keeps_the_full_point_budget(regplot_figure):
 
 @pytest.mark.parametrize(
     "figure_fixture",
-    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure",
-     "log_x_regplot_figure"],
+    [
+        "regplot_figure",
+        "histplot_kde_figure",
+        "lowess_regplot_figure",
+        "log_x_regplot_figure",
+    ],
     ids=["reg", "kde", "lowess", "log"],
 )
 def test_smooth_points_are_evenly_spaced(figure_fixture, request):
@@ -178,8 +182,12 @@ def test_smooth_points_are_evenly_spaced(figure_fixture, request):
 
 @pytest.mark.parametrize(
     "figure_fixture",
-    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure",
-     "log_x_regplot_figure"],
+    [
+        "regplot_figure",
+        "histplot_kde_figure",
+        "lowess_regplot_figure",
+        "log_x_regplot_figure",
+    ],
     ids=["reg", "kde", "lowess", "log"],
 )
 def test_smooth_points_span_the_whole_line(figure_fixture, request):
@@ -257,6 +265,35 @@ def test_curve_within_budget_is_passed_through_untouched():
         emitted = _x_values(_smooth_points(fig))
 
         assert np.array_equal(emitted, source[:, 0])
+    finally:
+        plt.close(fig)
+
+
+def test_filled_kde_boundary_is_thinned_by_index():
+    """A filled KDE registers its polygon outline, which has no x ordering.
+
+    ``sns.kdeplot(fill=True)`` hands ``SmoothPlot`` the boundary of a
+    ``PolyCollection`` — a closed loop that runs out along the curve and back
+    along the baseline — so x doubles back and the even-x path cannot apply.
+    Thinning has to fall through to vertex index and still produce a usable
+    trace rather than mangling the outline.
+    """
+    rng = np.random.default_rng(11)
+    data = rng.normal(0, 1, 400)
+
+    fig, ax = plt.subplots()
+    sns.kdeplot(data, fill=True, ax=ax)
+    try:
+        plots = [
+            p for p in FigureManager.get_maidr(fig).plots if p.type is PlotType.SMOOTH
+        ]
+        assert len(plots) == 1
+        assert plots[0]._is_polycollection, "fixture must exercise the poly path"
+
+        x = _x_values(plots[0].schema["data"][0])
+
+        assert not np.all(np.diff(x) > 0), "a closed outline must double back"
+        assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
     finally:
         plt.close(fig)
 

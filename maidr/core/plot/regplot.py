@@ -95,9 +95,7 @@ class SmoothPlot(MaidrPlot):
             )
             return xy[:, 0], xy[:, 1]
 
-        xy = resample_curve(
-            np.column_stack(scaled), target=_DEFAULT_MAX_SMOOTH_POINTS
-        )
+        xy = resample_curve(np.column_stack(scaled), target=_DEFAULT_MAX_SMOOTH_POINTS)
         return from_scaled_coords(self.ax, xy[:, 0], xy[:, 1])
 
     def _extract_plot_data(self) -> list:
