@@ -218,24 +218,54 @@ def log_y_crossing_zero_figure():
     plt.close(fig)
 
 
-def test_unmappable_scale_is_detected(log_y_crossing_zero_figure):
-    """Guards the fixture: the fallback test means nothing if the scale maps."""
-    ax = FigureManager.get_axes(log_y_crossing_zero_figure)[0]
-    source = _source_line(log_y_crossing_zero_figure)
+@pytest.fixture
+def log_x_crossing_zero_figure():
+    """The same unmappable case on the other axis.
 
-    assert source[:, 1].min() < 0, "fitted line must reach below zero"
+    ``to_scaled_coords`` checks x and y separately, so covering only one axis
+    would leave the other resting on an assumption of symmetry.
+    """
+    rng = np.random.default_rng(4)
+    x = np.linspace(-3, 12, 60)
+    y = 2 * x + rng.normal(0, 1.5, 60)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_xscale("log")
+    yield fig
+    plt.close(fig)
+
+
+@pytest.mark.parametrize(
+    "figure_fixture",
+    ["log_y_crossing_zero_figure", "log_x_crossing_zero_figure"],
+    ids=["log_y", "log_x"],
+)
+def test_unmappable_scale_is_detected(figure_fixture, request):
+    """Guards the fixtures: the fallback tests mean nothing if the scale maps."""
+    fig = request.getfixturevalue(figure_fixture)
+    ax = FigureManager.get_axes(fig)[0]
+    source = _source_line(fig)
+
+    assert source.min(axis=0).min() < 0, "the fit must reach below zero"
     assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is None
 
 
-def test_unmappable_scale_still_thins_the_curve(log_y_crossing_zero_figure):
+@pytest.mark.parametrize(
+    "figure_fixture",
+    ["log_y_crossing_zero_figure", "log_x_crossing_zero_figure"],
+    ids=["log_y", "log_x"],
+)
+def test_unmappable_scale_still_thins_the_curve(figure_fixture, request):
     """Falling back to data space must still yield a usable trace.
 
     Screen-even pacing is out of reach when the scale cannot represent the
     line, but degrading to data-space spacing has to stay graceful — a full
     budget of points spanning the fit, not a collapse or a crash.
     """
-    source_x = _source_line(log_y_crossing_zero_figure)[:, 0]
-    x = _x_values(_smooth_points(log_y_crossing_zero_figure))
+    fig = request.getfixturevalue(figure_fixture)
+    source_x = _source_line(fig)[:, 0]
+    x = _x_values(_smooth_points(fig))
     gaps = np.diff(x)
 
     assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
