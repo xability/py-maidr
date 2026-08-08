@@ -151,10 +151,16 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     collapsing to its two endpoints, and a curved line keeps a steady step
     size.  The first and last vertices are always kept.
 
-    Sampling is by vertex index, so the result is evenly spaced *in x* only
-    when the input is too — which holds for the curves matplotlib and seaborn
-    evaluate on a uniform grid.  A curve sampled unevenly would need
-    arc-length interpolation instead.
+    Spacing is measured along x whenever x increases monotonically, which
+    covers every curve seaborn fits.  Sampling by vertex index instead would
+    only be even in x when the source grid already was — true of a plain
+    ``regplot`` fit or a KDE, but not of a ``lowess=True`` fit, which lands on
+    the observed x values and inherits their clustering.  Curves that double
+    back carry no usable x ordering, so those fall back to index sampling.
+
+    Interpolated points sit exactly on the drawn line: matplotlib renders the
+    curve as straight segments between its vertices, which is the same path
+    the interpolation walks.
 
     Parameters
     ----------
@@ -167,7 +173,7 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     Returns
     -------
     np.ndarray, shape (M, 2)
-        The retained points, where ``M == min(N, max(target, 2))``.  A curve
+        The resampled points, where ``M == min(N, max(target, 2))``.  A curve
         that already fits the budget comes back as *points* itself, not a
         copy, so callers that intend to mutate the result should copy it.
     """
@@ -176,6 +182,12 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     if n <= count:
         return points
 
+    x, y = points[:, 0], points[:, 1]
+    if np.all(np.diff(x) > 0):
+        grid = np.linspace(x[0], x[-1], count)
+        return np.column_stack([grid, np.interp(grid, x, y)])
+
+    # No usable x ordering, so fall back to even spacing by vertex index.
     # ``n > count >= 2`` puts the step ``(n - 1) / (count - 1)`` strictly above
     # 1, so rounding can never land two samples on the same vertex: the result
     # always holds exactly ``count`` distinct points.

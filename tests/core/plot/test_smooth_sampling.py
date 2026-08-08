@@ -158,6 +158,35 @@ def test_resample_curve_returns_exactly_the_requested_count(n, target):
     assert len(kept) == target
 
 
+def test_resample_curve_evens_out_a_clustered_source_curve():
+    """A lowess fit lands on the observed x values and inherits their gaps.
+
+    Sampling such a curve by vertex index would carry the clustering straight
+    through into the emitted points, which is what auto-play pacing feels.
+    """
+    x = np.concatenate([np.linspace(0, 1, 90), np.linspace(2, 10, 10)])
+    points = np.column_stack([x, x**2])
+    source_gaps = np.diff(x)
+    assert source_gaps.max() / source_gaps.min() > 50, "fixture must be clustered"
+
+    kept = resample_curve(points, target=30)
+
+    gaps = np.diff(kept[:, 0])
+    assert gaps.max() / gaps.min() < 2.0, f"clustering survived: {gaps}"
+
+
+def test_resample_curve_falls_back_to_index_sampling_when_x_doubles_back():
+    """A curve with no usable x ordering still gets thinned, just by index."""
+    t = np.linspace(0, 2 * np.pi, 100)
+    points = np.column_stack([np.cos(t), np.sin(t)])
+
+    kept = resample_curve(points, target=30)
+
+    assert len(kept) == 30
+    assert np.array_equal(kept[0], points[0])
+    assert np.array_equal(kept[-1], points[-1])
+
+
 def test_resample_curve_keeps_both_endpoints():
     """The first and last vertices anchor the navigable range."""
     points = np.column_stack([np.linspace(0, 7, 61), np.sin(np.linspace(0, 7, 61))])
