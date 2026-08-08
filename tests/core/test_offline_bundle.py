@@ -479,6 +479,42 @@ def test_init_notebook_auto_emits_both(mocker, reset_notebook_loaded):
     assert "dist/maidr.css" not in html_arg
 
 
+def test_init_notebook_tag_matches_the_pin(mocker, reset_notebook_loaded, monkeypatch):
+    """The parent document and the iframes it hosts must name one version.
+
+    ``init_notebook`` emits its tag without resolving, so that ``import
+    maidr`` never blocks on the network. That is not licence to ignore an
+    explicit pin: reading one costs no request, and disagreeing with the
+    render paths would put two builds of maidr.js in a single page.
+    """
+    from unittest.mock import MagicMock
+
+    from maidr.util import dependencies
+
+    mocker.patch(
+        "maidr.util.environment.Environment.is_notebook", return_value=True
+    )
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    maidr.set_cdn_version("3.74.0")
+    maidr_api._NOTEBOOK_LOADED = False
+
+    fake_html_cls = MagicMock()
+    fake_display_mod = MagicMock(HTML=fake_html_cls, display=MagicMock())
+    mocker.patch.dict(
+        "sys.modules",
+        {"IPython": MagicMock(), "IPython.display": fake_display_mod},
+    )
+
+    try:
+        maidr.init_notebook(use_cdn=True)
+        html_arg = fake_html_cls.call_args[0][0]
+    finally:
+        maidr.set_cdn_version(None)
+
+    assert "maidr@3.74.0/dist/maidr.js" in html_arg
+    assert "maidr@latest" not in html_arg
+
+
 def test_init_notebook_is_idempotent(mocker, reset_notebook_loaded):
     """Second call is a no-op unless ``force=True``."""
     from unittest.mock import MagicMock

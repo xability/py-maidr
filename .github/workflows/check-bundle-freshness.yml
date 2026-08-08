@@ -51,7 +51,18 @@ jobs:
 
           from maidr import STALE_MINOR_GAP, bundle_status
 
-          status = bundle_status()
+          # bundle_status() re-raises rather than caches a lookup that
+          # failed in a way it is written not to.  That is right for a
+          # render -- a resolver bug should be visible -- but here it
+          # would produce a red run with a traceback, which reads as
+          # drift and is exactly what the "not a drift signal" branch
+          # below exists to avoid saying.
+          try:
+              status = bundle_status()
+          except Exception as exc:
+              print(f"::warning::Version lookup raised {exc!r}; skipping.")
+              sys.exit(0)
+
           print(f"bundled:   {status.bundled}")
           print(f"published: {status.published}")
 

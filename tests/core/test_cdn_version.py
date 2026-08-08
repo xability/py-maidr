@@ -476,6 +476,25 @@ def test_offline_falls_back_to_latest_tag(monkeypatch):
     assert len(calls) == len(dependencies._RESOLVER_ENDPOINTS)
 
 
+def test_non_object_resolver_response_is_unusable(monkeypatch):
+    """A JSON array parses fine and answers nothing; it must not crash.
+
+    ``payload.get(key)`` would raise ``AttributeError`` on a list, and
+    that exception is re-raised out of the resolver rather than caught,
+    so the guard that keeps this a "no answer" rather than a traceback is
+    worth pinning.
+    """
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+
+    def fake_urlopen(request, timeout=None):
+        return _json_response([{"version": "9.9.9"}])
+
+    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+
+    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
+
+
 def test_malformed_resolver_response_falls_back(monkeypatch):
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
     dependencies.set_cdn_version(None)
@@ -934,16 +953,84 @@ def test_non_oserror_from_urlopen_does_not_escape(bar_plot, monkeypatch):
     maidr.render(bar_plot, use_cdn="auto")
 
 
-def test_bundled_cdn_url_needs_no_lookup(forbid_network):
+def test_bundled_cdn_url_needs_no_lookup(monkeypatch, forbid_network):
     """``init_notebook`` depends on this being network-free."""
+    # The suite pins ``latest`` by default; drop it so the bundled
+    # version is what this exercises rather than the pin.
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+
     url = dependencies.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME)
 
     assert f"maidr@{dependencies.maidr_js_version()}/" in url
     assert "maidr@latest" not in url
 
 
+def test_bundled_cdn_url_honours_an_explicit_pin(monkeypatch, forbid_network):
+    """A pin governs these tags too, or one page loads two maidr.js builds.
+
+    ``init_notebook`` emits its tag through :func:`bundled_cdn_url` while
+    the iframes it hosts emit theirs through :func:`maidr_js_cdn_url`.
+    When the first ignored the pin, a pinned session loaded the *bundled*
+    version in the parent document and the *pinned* one in every plot —
+    two different builds of maidr.js in one page, and neither the version
+    ``set_cdn_version`` documents.
+    """
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version("3.74.0")
+
+    assert dependencies.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME) == (
+        "https://cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr.js"
+    )
+    # The two tag-emitting paths agree, which is the property that matters.
+    assert dependencies.bundled_cdn_url(
+        dependencies.MAIDR_JS_FILENAME
+    ) == dependencies.maidr_js_cdn_url()
+
+
+def test_bundled_cdn_url_under_a_latest_pin_emits_latest(monkeypatch, forbid_network):
+    """``latest`` is a pin like any other: asked for it, emit it."""
+    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, dependencies.LATEST_TAG)
+
+    assert dependencies.bundled_cdn_url(
+        dependencies.MAIDR_JS_FILENAME
+    ) == dependencies.MAIDR_JS_CDN_URL
+
+
+def test_pin_before_the_stylesheet_split_warns_once(monkeypatch, forbid_network, caplog):
+    """Pinning back past 3.75.1 loses KaTeX, so say so rather than let it be found.
+
+    py-maidr links no stylesheet: from 3.75.1 the published ``maidr.css``
+    is a placeholder and ``maidr.js`` fetches ``maidr-math.css`` itself.
+    An older version has neither, so LaTeX in AI chat responses renders
+    unstyled while everything else looks fine.
+    """
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        dependencies.set_cdn_version("3.74.0")
+        for _ in range(5):
+            dependencies.maidr_js_cdn_url()
+
+    complaints = [r for r in caplog.records if "predates maidr" in r.message]
+    assert len(complaints) == 1, f"warned {len(complaints)} times, expected 1"
+    assert dependencies._STYLESHEET_SPLIT_VERSION in complaints[0].getMessage()
+
+
+@pytest.mark.parametrize("pin", ["3.75.1", "3.76.0", "4.0.0", "3.75.2-rc.1"])
+def test_pin_at_or_after_the_split_is_silent(pin, monkeypatch, forbid_network, caplog):
+    """The warning is about older versions only; newer ones carry the file."""
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        dependencies.set_cdn_version(pin)
+        dependencies.maidr_js_cdn_url()
+
+    assert not [r for r in caplog.records if "predates maidr" in r.message]
+
+
 def test_bundled_cdn_url_degrades_when_version_unknown(monkeypatch, forbid_network):
     """With no usable bundled VERSION there is no better offline answer."""
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
     monkeypatch.setattr(
         dependencies, "maidr_js_version", lambda: dependencies._UNKNOWN_VERSION
     )

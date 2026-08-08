@@ -262,6 +262,17 @@ notebooks `init_notebook()` stashes it in the page for the same reason: an
 iframe rendered from `srcdoc` has no base URL for the runtime to resolve
 against.
 
+::: {.callout-note}
+## Pinning the CDN below maidr 3.75.1
+
+That runtime fetch is what 3.75.1 introduced, when KaTeX moved out of
+`maidr.css` and left it a placeholder. Pinning `MAIDR_CDN_VERSION` to anything
+older gets a `maidr.js` that expects the stylesheet to be linked for it — and
+py-maidr no longer links one, so LaTeX in AI chat responses renders unstyled.
+Nothing else is affected: the interface has been styled at runtime throughout.
+py-maidr logs a warning once per process when a pin names such a version.
+:::
+
 ### Which version the CDN serves
 
 On the CDN paths (`use_cdn=True` and `"auto"`), py-maidr resolves the current published `maidr` version and emits a versioned URL such as `maidr@3.74.0/dist/maidr.js`.

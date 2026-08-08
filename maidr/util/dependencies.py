@@ -60,6 +60,16 @@ MAIDR_CSS_FILENAME = "maidr.css"
 #: has to *be* in the same directory.
 MAIDR_MATH_CSS_FILENAME = "maidr-math.css"
 
+#: The release that made the split above true.
+#:
+#: Before it, ``maidr.css`` carried KaTeX and had to be linked.  py-maidr
+#: links no stylesheet at all now, so pinning the CDN to anything older
+#: leaves LaTeX in AI chat responses unstyled -- everything else is
+#: unaffected, since the interface has been styled at runtime throughout.
+#: :func:`_warn_if_pin_predates_stylesheet_split` says so once rather than
+#: letting it be discovered.
+_STYLESHEET_SPLIT_VERSION = "3.75.1"
+
 _VERSION_FILENAME = "VERSION"
 
 #: Reported by :func:`maidr_js_version` when ``static/VERSION`` is absent
@@ -502,10 +512,10 @@ def bundled_cdn_url(filename: str) -> str:
     immutable, and therefore free of the seven-day cache lifetime that
     ``@latest`` carries.
 
-    Prefers a version an already-completed lookup established, so these
-    tags stay on the same version anything else in the page loads.  Falls
-    back to :data:`LATEST_TAG` only when neither that nor the bundled
-    ``VERSION`` is usable, where there is no better answer available
+    Honours an explicit pin first, then a version an already-completed
+    lookup established, so these tags stay on the same version anything
+    else in the page loads.  Falls back to :data:`LATEST_TAG` only when
+    none of those is usable, where there is no better answer available
     offline.
 
     Parameters
@@ -519,10 +529,21 @@ def bundled_cdn_url(filename: str) -> str:
         A jsDelivr URL at the bundled version, or at ``latest`` when that
         version is unknown.
     """
-    # Prefer a version an earlier lookup already established.  It costs
-    # nothing (no request), and it keeps these tags on the same version
-    # the iframes load, rather than leaving two copies of maidr.js in one
-    # page.
+    # A pin is the caller's own answer to "which version?", and reading
+    # it costs nothing -- no request is involved either way.  Without
+    # this, a pinned session emitted the *bundled* version here while
+    # every iframe emitted the pinned one, so one page loaded two
+    # different builds of maidr.js: exactly the split the next paragraph
+    # exists to avoid, and a contradiction of what set_cdn_version
+    # documents. A LATEST_TAG pin lands here too and yields the ``@latest``
+    # URL, which is what that pin asks for and what the render paths emit.
+    pin = _version_pin()
+    if pin is not None:
+        return _CDN_URL_TEMPLATE.format(version=pin, filename=filename)
+
+    # Then a version an earlier lookup already established.  It also costs
+    # nothing, and it keeps these tags on the same version the iframes
+    # load, rather than leaving two copies of maidr.js in one page.
     resolved = _cached_resolution()
     if resolved is not None and _is_valid_version(resolved):
         return _CDN_URL_TEMPLATE.format(version=resolved, filename=filename)
@@ -619,6 +640,7 @@ def _normalise_version_pin(pin: str) -> str | None:
     # is written in git tags and release notes.
     candidate = candidate[1:] if candidate.startswith(("v", "V")) else candidate
     if _is_valid_version(candidate):
+        _warn_if_pin_predates_stylesheet_split(candidate)
         return candidate
     # Truncate for display too: the key is capped, but an oversized pin
     # would otherwise land in the log line at full length.
@@ -631,6 +653,41 @@ def _normalise_version_pin(pin: str) -> str | None:
         LATEST_TAG,
     )
     return None
+
+
+def _warn_if_pin_predates_stylesheet_split(version: str) -> None:
+    """Warn once when a pin names a maidr from before the KaTeX split.
+
+    py-maidr emits no stylesheet link, because from
+    :data:`_STYLESHEET_SPLIT_VERSION` the published ``maidr.css`` is a
+    placeholder and ``maidr.js`` fetches the maths stylesheet itself.  An
+    older version has neither that runtime fetch nor rules anywhere else,
+    so LaTeX in AI chat responses renders unstyled.
+
+    The failure is narrow and silent — no other part of the interface
+    changes, and a page whose chat is never opened looks perfectly fine —
+    which is exactly why pinning backwards deserves a sentence rather
+    than a discovery.
+
+    Parameters
+    ----------
+    version : str
+        A pin that has already passed :func:`_is_valid_version`.
+    """
+    key = _version_key(version)
+    split_key = _version_key(_STYLESHEET_SPLIT_VERSION)
+    if key is None or split_key is None or key >= split_key:
+        return
+    _warn_once(
+        f"pre-split-pin:{version}",
+        "maidr: CDN version pin %r predates maidr %s, where KaTeX moved out "
+        "of maidr.css into maidr-math.css. py-maidr links no stylesheet, so "
+        "LaTeX in AI chat responses will render unstyled at that version; "
+        "everything else is unaffected. Pin %s or newer to style it.",
+        version,
+        _STYLESHEET_SPLIT_VERSION,
+        _STYLESHEET_SPLIT_VERSION,
+    )
 
 
 def _warn_once(key: str, message: str, *args: object) -> None:
@@ -984,6 +1041,17 @@ def bundle_status(*, resolve: bool = True) -> BundleStatus:
         unknown versions yield ``is_behind=is_stale=False`` rather than a
         guess.
 
+    Raises
+    ------
+    Exception
+        Only with ``resolve=True``, and only if the lookup itself fails
+        in a way it is written not to: unreachable endpoints, timeouts
+        and malformed responses are all handled internally and reported
+        as ``published=None``.  The re-raise exists so a genuine bug in
+        the resolver surfaces instead of being cached as "no answer", so
+        callers that must not fail -- a scheduled freshness check, say --
+        should still catch it.
+
     Examples
     --------
     >>> bundle_status()  # doctest: +SKIP
@@ -1066,10 +1134,10 @@ def warn_if_bundle_is_stale(*, bundle_is_primary: bool = True) -> None:
         the drift goes to the logger rather than to a warning that could
         fail a suite running ``-W error`` over code that never executed.
 
-    Silenced by ``MAIDR_BUNDLE_STALE_WARNING=0``.
-
     Notes
     -----
+    Silenced by ``MAIDR_BUNDLE_STALE_WARNING=0``.
+
     Emitted as a ``UserWarning``, so a caller running under ``-W error``
     (or pytest's ``filterwarnings = ["error"]``) sees ``render()`` raise
     rather than warn.  That is a real upgrade hazard for anyone treating
