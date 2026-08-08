@@ -27,7 +27,8 @@ from maidr.util.rdp_utils import resample_curve  # noqa: E402
 
 def _smooth_points(fig) -> list[dict]:
     """Return the point list of the figure's single smooth layer."""
-    smooth = [p for p in FigureManager.get_maidr(fig).plots if p.type is PlotType.SMOOTH]
+    plots = FigureManager.get_maidr(fig).plots
+    smooth = [p for p in plots if p.type is PlotType.SMOOTH]
     assert len(smooth) == 1, f"expected one smooth layer, got {len(smooth)}"
     return smooth[0].schema["data"][0]
 
