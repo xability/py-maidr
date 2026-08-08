@@ -24,7 +24,7 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.regplot import _DEFAULT_MAX_SMOOTH_POINTS  # noqa: E402
 from maidr.util.rdp_utils import resample_curve  # noqa: E402
 from maidr.util.regression_line_utils import find_regression_line  # noqa: E402
-from maidr.util.svg_utils import to_scaled_coords  # noqa: E402
+from maidr.util.svg_utils import _clip_sentinel, to_scaled_coords  # noqa: E402
 
 
 def _smooth_points(fig) -> list[dict]:
@@ -366,6 +366,33 @@ def test_filled_kde_doubles_back_inside_scale_space():
 
         assert not np.all(np.diff(x) > 0), "a closed outline must double back"
         assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
+    finally:
+        plt.close(fig)
+
+
+def test_a_scale_rejecting_on_an_upper_bound_is_caught():
+    """The sentinel probe looks downward; infinity is what covers the other end.
+
+    ``logit`` rejects at both 0 and 1, and signals with infinity rather than
+    parking values on a sentinel, so the probe finds nothing for it. The round
+    trip cannot see it either — inverting infinity returns 1.0 unchanged. The
+    finiteness check is what stands there.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xscale("logit")
+    try:
+        transform = ax.xaxis.get_transform()
+        x = np.array([0.2, 0.5, 0.9, 1.0])
+        y = np.array([1.0, 2.0, 3.0, 4.0])
+        scaled = transform.transform(x)
+
+        assert _clip_sentinel(transform) is None, "logit parks nothing on a sentinel"
+        assert not np.isfinite(scaled).all(), "it signals with infinity instead"
+        # The trap this guards: the round trip alone reports the value intact.
+        round_tripped = transform.inverted().transform(scaled)
+        assert np.allclose(round_tripped, x, rtol=1e-9, atol=0)
+
+        assert to_scaled_coords(ax, x, y) is None
     finally:
         plt.close(fig)
 

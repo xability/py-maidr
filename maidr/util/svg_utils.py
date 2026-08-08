@@ -53,10 +53,11 @@ def _clip_sentinel(transform) -> Optional[float]:
     A clipping scale sends everything it cannot represent to one coordinate,
     so it stops being injective there; probing with values only such a scale
     would reject finds that coordinate without naming a scale or its constant.
-    A masking scale answers with NaN, which never compares equal, so none is
-    reported for it — correctly, since it has none, and its rejected values
-    are caught by the finiteness check in :func:`to_scaled_coords` instead.
-    The two guards cover a mode each.
+    The probe looks downward only, since a lower bound is the one a scale
+    parks values below; a scale rejecting on an upper bound, as logit does at
+    1, answers with infinity rather than a sentinel.  That and a masking
+    scale's NaN both fall to the finiteness check in :func:`to_scaled_coords`,
+    which is why the guards there cover a mode each.
 
     This reads matplotlib's behaviour rather than a promise, and would fail
     quietly: a release that stopped collapsing rejected values would leave the
