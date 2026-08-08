@@ -485,6 +485,13 @@ class PlotlyMaidr:
                         var style = document.createElement('style');
                         style.textContent = mathCss;
                         document.head.appendChild(style);
+                        // maidr.js looks for a <link> carrying this attribute
+                        // to decide whether the rules are already present; a
+                        // <style> never matches, and the miss is reported to
+                        // the console as maths rendering unstyled.
+                        var mark = document.createElement('link');
+                        mark.setAttribute('data-maidr-math', '');
+                        document.head.appendChild(mark);
                     }
                     if (jsSrc) {
                         var s = document.createElement('script');

@@ -112,6 +112,15 @@ _DEFAULT_CDN_TIMEOUT = 3.0
 #: an intent to wait that long before a plot appears.
 _MAX_CDN_TIMEOUT = 30.0
 
+#: Floor on the same value, for the mistake in the other direction.  A
+#: budget below this cannot complete a round trip, so every attempt times
+#: out, the failure is cached, and every render for the rest of the
+#: process emits ``@latest`` — silently reinstating the stale-cache bug
+#: this module exists to fix.  ``MAIDR_CDN_TIMEOUT=0.05`` from someone
+#: wanting the lookup to be fast is the plausible way to get there; the
+#: milliseconds misreading (``=100``) lands on the ceiling instead.
+_MIN_CDN_TIMEOUT = 0.1
+
 # Endpoints consulted, in order, to turn the mutable ``latest`` dist-tag
 # into a concrete version.  jsDelivr's data API comes first because it is
 # the authority on what ``cdn.jsdelivr.net`` will actually serve; the npm
@@ -473,6 +482,15 @@ def reset_cdn_version_cache() -> None:
     Does not re-arm the one-shot staleness warning from
     :func:`warn_if_bundle_is_stale`, which stays spent for the life of
     the process regardless of how often the version is re-resolved.
+
+    Returns without waiting on a lookup already in flight — it does not
+    take ``_fetch_lock``, which would make the reset itself block for the
+    whole budget behind the request it is abandoning.  That is a promise
+    about *this* call, not about the next one: a caller that needs a
+    version afterwards still queues on ``_fetch_lock`` behind the
+    abandoned request, and only then makes its own.  What the generation
+    counter guarantees is that the abandoned answer is discarded rather
+    than published over the reset.
     """
     global _resolved_cdn_version, _resolution_attempted, _resolution_generation
     with _resolution_lock:
@@ -579,22 +597,6 @@ def maidr_css_cdn_url() -> str:
         A fully qualified jsDelivr URL.
     """
     return cdn_url(MAIDR_CSS_FILENAME)
-
-
-def maidr_math_css_cdn_url() -> str:
-    """Return the CDN URL for ``maidr-math.css`` at the resolved version.
-
-    Only needed where ``maidr.js`` runs from an inline ``<script>`` and so
-    has no URL of its own to resolve against; see
-    :data:`MAIDR_MATH_CSS_FILENAME`.  Everywhere it is loaded through
-    ``<script src=...>``, the runtime finds this file unaided.
-
-    Returns
-    -------
-    str
-        A fully qualified jsDelivr URL.
-    """
-    return cdn_url(MAIDR_MATH_CSS_FILENAME)
 
 
 def _normalise_version_pin(pin: str) -> str | None:
@@ -749,6 +751,16 @@ def _cdn_timeout() -> float:
     milliseconds would block for fifty minutes.  Nothing legitimate needs
     longer than the cap to fetch a sub-kilobyte JSON document, and a
     lookup that slow degrades to the ``@latest`` URL anyway.
+
+    Values below :data:`_MIN_CDN_TIMEOUT` are clamped for the mirror-image
+    reason, and it is the more damaging mistake: a budget like ``0.05``,
+    set by someone who wanted the lookup to be quick, is positive and so
+    passes every other guard, yet no round trip can finish inside it.
+    Every attempt times out, the failure is cached once, and every render
+    for the rest of the process quietly emits ``@latest`` — the exact bug
+    this module exists to fix, arrived at through configuration rather
+    than through code.  A render that waits a tenth of a second and then
+    gives up is the better failure.
     """
     raw = os.environ.get(CDN_TIMEOUT_ENV_VAR)
     if raw is None:
@@ -793,6 +805,18 @@ def _cdn_timeout() -> float:
             LATEST_TAG,
         )
         return _DEFAULT_CDN_TIMEOUT
+    if timeout < _MIN_CDN_TIMEOUT:
+        _warn_once(
+            f"timeout-tiny:{raw}",
+            "maidr: %s=%s is below the %ss floor and was clamped. The value "
+            "is in seconds; a budget that small times out on every attempt "
+            "and silently reinstates the '%s' dist-tag.",
+            CDN_TIMEOUT_ENV_VAR,
+            raw[:_MAX_WARNED_KEY_LEN],
+            _MIN_CDN_TIMEOUT,
+            LATEST_TAG,
+        )
+        return _MIN_CDN_TIMEOUT
     if timeout > _MAX_CDN_TIMEOUT:
         _warn_once(
             f"timeout:{raw}",

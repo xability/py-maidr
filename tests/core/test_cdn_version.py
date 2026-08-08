@@ -92,11 +92,12 @@ def test_set_cdn_version_pins_concrete_version():
         dependencies.maidr_css_cdn_url()
         == "https://cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr.css"
     )
-    # Not emitted by any render path -- it is the escape hatch for pages
-    # that inline maidr.js and so have to set window.maidrMathStylesheetUrl
-    # themselves -- but it must resolve like the others.
+    # No render path emits this one -- maidr.js resolves the maths
+    # stylesheet against its own URL -- but a page that inlines the bundle
+    # has to name it for `window.maidrMathStylesheetUrl`, and it resolves
+    # through the same helper as everything else.
     assert (
-        dependencies.maidr_math_css_cdn_url()
+        dependencies.cdn_url(dependencies.MAIDR_MATH_CSS_FILENAME)
         == "https://cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr-math.css"
     )
 
@@ -951,6 +952,33 @@ def test_non_oserror_from_urlopen_does_not_escape(bar_plot, monkeypatch):
     # Degrades to @latest rather than raising, and caches the failure.
     assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
     maidr.render(bar_plot, use_cdn="auto")
+
+
+@pytest.mark.parametrize("raw", ["1e-9", "0.001", "0.05"])
+def test_tiny_timeout_is_clamped_to_the_floor(raw, monkeypatch, caplog):
+    """A positive-but-unusable budget must not silently restore @latest.
+
+    A value like ``0.05`` -- fifty milliseconds, from someone wanting the
+    lookup to be fast -- is positive, so it clears every other guard, and
+    no round trip finishes inside it. Every attempt times out, the failure
+    is cached once, and every render for the rest of the process emits the
+    mutable dist-tag: the bug this module exists to fix, reached through
+    configuration rather than through code.
+    """
+    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, raw)
+
+    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+        assert dependencies._cdn_timeout() == dependencies._MIN_CDN_TIMEOUT
+
+    assert [r for r in caplog.records if "floor" in r.message], (
+        "the clamp must be visible, like the ceiling's"
+    )
+
+
+def test_the_floor_leaves_a_usable_budget_alone(monkeypatch):
+    """Only values below the floor are clamped."""
+    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "0.5")
+    assert dependencies._cdn_timeout() == 0.5
 
 
 def test_bundled_cdn_url_needs_no_lookup(monkeypatch, forbid_network):

@@ -122,6 +122,13 @@ def get_use_cdn() -> bool | Literal["auto"]:
     process, is bounded by ``MAIDR_CDN_TIMEOUT`` (3s total), and falls
     back to ``@latest`` on failure.  Set ``MAIDR_CDN_VERSION=latest``
     to skip it entirely.  ``use_cdn=False`` never makes any request.
+
+    With one exception, which this setting cannot reach: the Altair
+    adapter always loads from the CDN and always resolves, because
+    ``use_cdn`` is not plumbed through it.  So an Altair chart can
+    still spend the lookup budget under ``MAIDR_USE_CDN=false``.
+    ``MAIDR_CDN_VERSION=bundled`` is the setting that stops it, and
+    :func:`save_html` / :func:`show` say the same.
     """
     global _use_cdn_default
     if _use_cdn_default is None:

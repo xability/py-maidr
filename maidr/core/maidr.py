@@ -638,6 +638,17 @@ class Maidr:
                                     var style = document.createElement('style');
                                     style.textContent = mathCss;
                                     document.head.appendChild(style);
+                                    // maidr.js decides whether to fetch the
+                                    // stylesheet by looking for a <link> that
+                                    // carries this attribute, and a <style>
+                                    // never matches. Without the marker it
+                                    // logs that maths will render unstyled --
+                                    // which is untrue here, the rules are
+                                    // right above -- and the console line is
+                                    // the only thing the reader would see.
+                                    var mark = document.createElement('link');
+                                    mark.setAttribute('data-maidr-math', '');
+                                    document.head.appendChild(mark);
                                 }
                                 if (jsSrc) {
                                     var s = document.createElement('script');
@@ -725,6 +736,12 @@ class Maidr:
                                     var style = document.createElement('style');
                                     style.textContent = mathCss;
                                     document.head.appendChild(style);
+                                    // See the use_cdn=False path: marks the
+                                    // rules as already present so maidr.js
+                                    // does not report them missing.
+                                    var mark = document.createElement('link');
+                                    mark.setAttribute('data-maidr-math', '');
+                                    document.head.appendChild(mark);
                                 }}
                                 if (jsSrc) {{
                                     var s = document.createElement('script');

@@ -75,6 +75,28 @@ def test_maidr_html_dependency_points_to_package():
     assert dep.all_files is True
 
 
+def test_inlined_katex_is_marked_as_already_present(bar_plot, mocker):
+    """Inlining the rules is not enough; maidr.js has to be told.
+
+    In a srcdoc iframe the script is inline, so the runtime cannot resolve
+    ``maidr-math.css`` and the rules are injected as a ``<style>``
+    instead. It decides whether to fetch by looking for a ``<link>``
+    carrying ``data-maidr-math``, which a ``<style>`` never matches — so
+    without the marker it logs that maths will render unstyled, which is
+    untrue here and is the only thing the reader would see.
+    """
+    mocker.patch(
+        "maidr.util.environment.Environment.is_notebook", return_value=True
+    )
+
+    html = str(maidr.render(bar_plot, use_cdn=False).get_html_string())
+
+    assert "__maidrMathCssSource" in html, "the KaTeX rules are not inlined"
+    assert "data-maidr-math" in html, (
+        "the inlined rules are not marked, so maidr.js will report them missing"
+    )
+
+
 def test_fetch_script_bundles_every_asset_the_runtime_needs():
     """``fetch-maidr-bundle.sh`` must ship what ``maidr.js`` looks for.
 
