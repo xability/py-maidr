@@ -139,6 +139,38 @@ def test_log_axis_paces_by_the_screen_not_the_data(log_x_regplot_figure):
     assert data_gaps.max() / data_gaps.min() > 50
 
 
+@pytest.mark.parametrize("scale", ["symlog", "asinh"])
+def test_any_nonlinear_scale_paces_by_the_screen(scale):
+    """Pacing follows whatever scale the axis carries, not log in particular.
+
+    The thinning reads ``axis.get_transform()`` rather than testing for a log
+    axis, so scales that are linear near zero and compress further out should
+    work the same way. These also map values a log axis cannot, which keeps
+    them on the scale-space path rather than the fallback.
+    """
+    rng = np.random.default_rng(9)
+    x = np.concatenate([-np.geomspace(1000, 1, 30), np.geomspace(1, 1000, 30)])
+    y = np.sign(x) * np.log10(np.abs(x) + 1) * 2 + rng.normal(0, 0.2, 60)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_xscale(scale)
+    try:
+        source = _source_line(fig)
+        assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is not None
+
+        points = _smooth_points(fig)
+        screen_gaps = np.abs(np.diff(_svg_x_values(points)))
+        data_gaps = np.diff(_x_values(points))
+
+        assert screen_gaps.max() / screen_gaps.min() < 2.0
+        # Spanning several decades either side of zero, so data-space steps
+        # diverge wildly — the test would be empty if they happened to agree.
+        assert data_gaps.max() / data_gaps.min() > 50
+    finally:
+        plt.close(fig)
+
+
 def test_straight_regression_line_is_not_collapsed_to_its_endpoints(regplot_figure):
     """A linear fit must stay navigable, not shrink to a start and an end."""
     points = _smooth_points(regplot_figure)
