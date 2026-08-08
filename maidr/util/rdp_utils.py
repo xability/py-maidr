@@ -167,7 +167,9 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     Returns
     -------
     np.ndarray, shape (M, 2)
-        The retained points, where ``M == min(N, max(target, 2))``.
+        The retained points, where ``M == min(N, max(target, 2))``.  A curve
+        that already fits the budget comes back as *points* itself, not a
+        copy, so callers that intend to mutate the result should copy it.
     """
     n = len(points)
     count = max(int(target), 2)
