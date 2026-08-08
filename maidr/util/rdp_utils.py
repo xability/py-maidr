@@ -166,8 +166,11 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
 
     Interpolated points sit on the drawn line, which matters because they are
     what the highlight ring lands on.  Matplotlib renders the curve as straight
-    segments between its vertices, and scale space differs from the display by
-    an affine map, so the interpolation walks exactly that path.
+    segments between its vertices, so interpolating in scale space — an affine
+    map away from the display — walks exactly that path.  That exactness is
+    the caller's to earn, though: interpolating a nonlinear axis in data space
+    instead leaves the points a fraction of a pixel off the segment, which is
+    what ``SmoothPlot`` settles for when a scale cannot represent the curve.
 
     Parameters
     ----------
