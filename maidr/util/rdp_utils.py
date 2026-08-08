@@ -167,6 +167,15 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     a tenth of a pixel at this point count; still far under the ring's radius,
     just not the exact landing a linear axis gives.
 
+    Known limitation: the grid is even in *data* x, which is even on screen
+    only while the axis is linear.  A log x-axis stretches the same points
+    into a roughly 100:1 spread across the plot, so auto-play sweeps the
+    picture unevenly even though the announced x values step uniformly.
+    Nothing here sets a nonlinear scale — it takes an explicit
+    ``ax.set_xscale`` — and which of the two should stay uniform is a call
+    about what the sweep represents, so this stays as-is until a caller needs
+    otherwise.
+
     Parameters
     ----------
     points : np.ndarray, shape (N, 2)

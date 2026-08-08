@@ -166,12 +166,17 @@ def test_resample_curve_keeps_a_straight_line_at_full_budget():
 
 
 def test_resample_curve_returns_short_curves_untouched():
-    """Nothing to thin when the curve already fits in the budget."""
+    """Nothing to thin when the curve already fits in the budget.
+
+    Identity, not just equality: the docstring promises the input array back
+    rather than a copy, so a refactor that quietly started copying would be a
+    contract change even though every value still matched.
+    """
     points = np.column_stack([np.arange(5.0), np.arange(5.0) ** 2])
 
     kept = resample_curve(points, target=30)
 
-    assert np.array_equal(kept, points)
+    assert kept is points
 
 
 @pytest.mark.parametrize("n,target", [(100, 30), (31, 30), (61, 30), (7, 5)])
