@@ -1,9 +1,15 @@
-"""Ramer-Douglas-Peucker curve simplification utilities.
+"""Curve thinning utilities.
 
-These helpers reduce the number of points on a curve while preserving its
-shape.  They are used by :class:`~maidr.core.plot.violin_kde_plot.ViolinKdePlot`
-and :class:`~maidr.core.plot.regplot.SmoothPlot` to keep the MAIDR JSON
-payload compact.
+These helpers reduce the number of points on a curve to keep the MAIDR JSON
+payload compact.  Two strategies live here because the two callers want
+different things:
+
+- :func:`simplify_curve` runs Ramer-Douglas-Peucker, which preserves *shape*
+  and is used by :class:`~maidr.core.plot.violin_kde_plot.ViolinKdePlot` to
+  pick the levels that outline a violin.
+- :func:`resample_curve` keeps the vertices evenly spaced and is used by
+  :class:`~maidr.core.plot.regplot.SmoothPlot`, whose points are navigated and
+  sonified one at a time, so *spacing* matters more than shape.
 """
 
 from __future__ import annotations
@@ -133,3 +139,73 @@ def simplify_curve(
             break
 
     return best_mask
+
+
+def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
+    """
+    Thin a 2-D curve down to *target* evenly spaced vertices.
+
+    Unlike :func:`simplify_curve`, this keeps the retained vertices spread
+    evenly along the curve rather than clustering them where the curve bends.
+    A straight line therefore survives as *target* points instead of
+    collapsing to its two endpoints, and a curved line keeps a steady step
+    size.  The first and last vertices are always kept.
+
+    Spacing is measured along x whenever x increases monotonically, which
+    covers every curve seaborn fits.  Sampling by vertex index instead would
+    only be even in x when the source grid already was — true of a plain
+    ``regplot`` fit or a KDE, but not of a ``lowess=True`` fit, which lands on
+    the observed x values and inherits their clustering.  Anything else — a
+    curve that doubles back, or one running right to left — falls back to
+    index sampling.
+
+    Interpolated points sit on the drawn line, which matters because they are
+    what the highlight ring lands on.  Matplotlib renders the curve as straight
+    segments between its vertices, so on a linear axis — where data and display
+    space differ by an affine map — the interpolation walks exactly that path.
+    A log axis bends each segment between the vertices, leaving a gap of about
+    a tenth of a pixel at this point count; still far under the ring's radius,
+    just not the exact landing a linear axis gives.
+
+    Known limitation: the grid is even in *data* x, which is even on screen
+    only while the axis is linear.  A log x-axis stretches the same points
+    into a roughly 100:1 spread across the plot, so auto-play sweeps the
+    picture unevenly even though the announced x values step uniformly.
+    Nothing here sets a nonlinear scale — it takes an explicit
+    ``ax.set_xscale`` — and which of the two should stay uniform is a call
+    about what the sweep represents, so this stays as-is until a caller needs
+    otherwise.
+
+    Parameters
+    ----------
+    points : np.ndarray, shape (N, 2)
+        Ordered (x, y) points.
+    target : int
+        Desired number of retained points.  Values below 2 are raised to 2,
+        since the endpoints alone already describe a segment.
+
+    Returns
+    -------
+    np.ndarray, shape (M, 2)
+        The resampled points, where ``M == min(N, max(target, 2))``.  A curve
+        that already fits the budget comes back as *points* itself, not a
+        copy, so callers that intend to mutate the result should copy it.
+    """
+    n = len(points)
+    count = max(int(target), 2)
+    if n <= count:
+        return points
+
+    x, y = points[:, 0], points[:, 1]
+    if np.all(np.diff(x) > 0):
+        grid = np.linspace(x[0], x[-1], count)
+        return np.column_stack([grid, np.interp(grid, x, y)])
+
+    # Left-to-right is the only order worth special-casing, since it is the one
+    # every fit produces; a decreasing or self-crossing curve falls through to
+    # even spacing by vertex index rather than growing a case for each shape.
+    # ``n > count >= 2`` puts the step ``(n - 1) / (count - 1)`` strictly above
+    # 1, so rounding can never land two samples on the same vertex: the result
+    # always holds exactly ``count`` distinct points.
+    idx = np.rint(np.linspace(0, n - 1, count)).astype(int)
+    return points[idx]
