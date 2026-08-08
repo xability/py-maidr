@@ -1,14 +1,10 @@
 """Even curve resampling.
 
-Thins a curve by spreading the points it keeps evenly, rather than by where
-the curve bends.  :class:`~maidr.core.plot.regplot.SmoothPlot` needs that: its
-points are navigated and auto-played one at a time at a fixed rate, so the
-spacing between them is what a reader hears, and
-:func:`~maidr.util.rdp_utils.simplify_curve` would collapse a straight fit to
-its two endpoints.
-
-r-maidr has no counterpart, since its smooth processor emits every vertex the
-plot was built with.
+Kept apart from :mod:`maidr.util.rdp_utils` because the two thin a curve
+towards different ends, and only that one mirrors r-maidr's ``R/rdp_utils.R``.
+:class:`~maidr.core.plot.regplot.SmoothPlot` is the caller here; r-maidr has
+no counterpart, since its smooth processor emits every vertex the plot was
+built with.
 """
 
 from __future__ import annotations
@@ -20,11 +16,12 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     """
     Thin a 2-D curve down to *target* evenly spaced vertices.
 
-    Unlike :func:`simplify_curve`, this keeps the retained vertices spread
-    evenly along the curve rather than clustering them where the curve bends.
-    A straight line therefore survives as *target* points instead of
-    collapsing to its two endpoints, and a curved line keeps a steady step
-    size.  The first and last vertices are always kept.
+    Unlike :func:`~maidr.util.rdp_utils.simplify_curve`, this keeps the
+    retained vertices spread evenly along the curve rather than clustering
+    them where the curve bends.  A straight line therefore survives as
+    *target* points instead of collapsing to its two endpoints, and a curved
+    line keeps a steady step size.  The first and last vertices are always
+    kept.
 
     Spacing is measured along x whenever x increases monotonically, which
     covers every curve seaborn fits.  Sampling by vertex index instead would
