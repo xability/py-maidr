@@ -1,0 +1,133 @@
+"""Tests that a smooth layer keeps evenly spaced, navigable points.
+
+A smooth trace is navigated and auto-played one point at a time at a fixed
+rate, so the emitted points have to stay spread along the line.  Shape-based
+simplification does the opposite: it collapses a straight fit to its two
+endpoints and clusters the survivors of a curved fit around the bends.
+"""
+
+from __future__ import annotations
+
+import matplotlib
+
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+import seaborn as sns  # noqa: E402
+
+import maidr  # noqa: F401,E402  # activates patches
+from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
+from maidr.core.enum.plot_type import PlotType  # noqa: E402
+from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.util.rdp_utils import resample_curve  # noqa: E402
+
+
+def _smooth_points(fig) -> list[dict]:
+    """Return the point list of the figure's single smooth layer."""
+    smooth = [p for p in FigureManager.get_maidr(fig).plots if p.type is PlotType.SMOOTH]
+    assert len(smooth) == 1, f"expected one smooth layer, got {len(smooth)}"
+    return smooth[0].schema["data"][0]
+
+
+def _x_values(points: list[dict]) -> np.ndarray:
+    """Pull the x coordinates out of a smooth layer's point list."""
+    return np.array([float(p[MaidrKey.X]) for p in points])
+
+
+@pytest.fixture
+def regplot_figure():
+    """A seaborn regplot whose fitted line is perfectly straight."""
+    rng = np.random.default_rng(42)
+    x = np.linspace(0, 10, 50)
+    y = 2 * x + 1 + rng.normal(0, 1.5, 50)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax)
+    yield fig
+    plt.close(fig)
+
+
+@pytest.fixture
+def histplot_kde_figure():
+    """A seaborn histogram with an overlaid — and genuinely curved — KDE."""
+    rng = np.random.default_rng(7)
+    data = np.concatenate([rng.normal(-2, 0.5, 300), rng.normal(2, 0.8, 300)])
+
+    fig, ax = plt.subplots()
+    sns.histplot(data, kde=True, ax=ax)
+    yield fig
+    plt.close(fig)
+
+
+def test_straight_regression_line_is_not_collapsed_to_its_endpoints(regplot_figure):
+    """A linear fit must stay navigable, not shrink to a start and an end."""
+    points = _smooth_points(regplot_figure)
+
+    assert len(points) > 2
+
+
+def test_straight_regression_line_keeps_the_full_point_budget(regplot_figure):
+    """A 100-vertex seaborn fit is thinned to the 30-point budget, not below."""
+    points = _smooth_points(regplot_figure)
+
+    assert len(points) == 30
+
+
+@pytest.mark.parametrize(
+    "figure_fixture", ["regplot_figure", "histplot_kde_figure"], ids=["reg", "kde"]
+)
+def test_smooth_points_are_evenly_spaced(figure_fixture, request):
+    """Steps along x stay uniform so auto-play paces the trend correctly."""
+    fig = request.getfixturevalue(figure_fixture)
+    x = _x_values(_smooth_points(fig))
+    gaps = np.diff(x)
+
+    assert np.all(gaps > 0), "x must stay monotonically increasing"
+    assert gaps.max() / gaps.min() < 2.0, f"uneven steps along x: {gaps}"
+
+
+@pytest.mark.parametrize(
+    "figure_fixture", ["regplot_figure", "histplot_kde_figure"], ids=["reg", "kde"]
+)
+def test_smooth_points_span_the_whole_line(figure_fixture, request):
+    """Thinning keeps both endpoints, so the trace covers the fitted range."""
+    fig = request.getfixturevalue(figure_fixture)
+    line = FigureManager.get_axes(fig)[0].get_lines()[-1]
+    source_x = np.asarray(line.get_xydata())[:, 0]
+    x = _x_values(_smooth_points(fig))
+
+    assert x[0] == pytest.approx(source_x[0])
+    assert x[-1] == pytest.approx(source_x[-1])
+
+
+def test_resample_curve_keeps_a_straight_line_at_full_budget():
+    """Collinear points carry no shape, so only the spacing can guide us."""
+    points = np.column_stack([np.linspace(0, 1, 100), np.linspace(0, 2, 100)])
+
+    kept = resample_curve(points, target=30)
+
+    assert len(kept) == 30
+
+    gaps = np.diff(kept[:, 0])
+    assert gaps.max() / gaps.min() < 2.0
+
+
+def test_resample_curve_returns_short_curves_untouched():
+    """Nothing to thin when the curve already fits in the budget."""
+    points = np.column_stack([np.arange(5.0), np.arange(5.0) ** 2])
+
+    kept = resample_curve(points, target=30)
+
+    assert np.array_equal(kept, points)
+
+
+def test_resample_curve_keeps_both_endpoints():
+    """The first and last vertices anchor the navigable range."""
+    points = np.column_stack([np.linspace(0, 7, 61), np.sin(np.linspace(0, 7, 61))])
+
+    kept = resample_curve(points, target=10)
+
+    assert np.array_equal(kept[0], points[0])
+    assert np.array_equal(kept[-1], points[-1])

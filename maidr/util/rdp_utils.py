@@ -1,9 +1,15 @@
-"""Ramer-Douglas-Peucker curve simplification utilities.
+"""Curve thinning utilities.
 
-These helpers reduce the number of points on a curve while preserving its
-shape.  They are used by :class:`~maidr.core.plot.violin_kde_plot.ViolinKdePlot`
-and :class:`~maidr.core.plot.regplot.SmoothPlot` to keep the MAIDR JSON
-payload compact.
+These helpers reduce the number of points on a curve to keep the MAIDR JSON
+payload compact.  Two strategies live here because the two callers want
+different things:
+
+- :func:`simplify_curve` runs Ramer-Douglas-Peucker, which preserves *shape*
+  and is used by :class:`~maidr.core.plot.violin_kde_plot.ViolinKdePlot` to
+  pick the levels that outline a violin.
+- :func:`resample_curve` keeps the vertices evenly spaced and is used by
+  :class:`~maidr.core.plot.regplot.SmoothPlot`, whose points are navigated and
+  sonified one at a time, so *spacing* matters more than shape.
 """
 
 from __future__ import annotations
@@ -133,3 +139,34 @@ def simplify_curve(
             break
 
     return best_mask
+
+
+def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
+    """
+    Thin a 2-D curve down to *target* evenly spaced vertices.
+
+    Unlike :func:`simplify_curve`, this keeps the retained vertices spread
+    evenly along the curve rather than clustering them where the curve bends.
+    A straight line therefore survives as *target* points instead of
+    collapsing to its two endpoints, and a curved line keeps a steady step
+    size.  The first and last vertices are always kept.
+
+    Parameters
+    ----------
+    points : np.ndarray, shape (N, 2)
+        Ordered (x, y) points.
+    target : int
+        Desired maximum number of retained points.
+
+    Returns
+    -------
+    np.ndarray, shape (M, 2)
+        The retained points, where ``M <= max(target, 2)``.
+    """
+    n = len(points)
+    if n <= target:
+        return points
+
+    count = max(int(target), 2)
+    idx = np.unique(np.rint(np.linspace(0, n - 1, count)).astype(int))
+    return points[idx]
