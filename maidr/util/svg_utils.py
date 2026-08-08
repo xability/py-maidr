@@ -56,6 +56,12 @@ def _clip_sentinel(transform) -> Optional[float]:
     constant: a log axis collapses them onto a single coordinate, while linear,
     symlog and asinh keep them apart and report nothing to watch for.
 
+    A scale asked to mask rather than clip answers with NaN, which never
+    compares equal, so this reports no sentinel for it.  That is the honest
+    answer — such a scale has none — and its rejected values are caught by the
+    finiteness check in :func:`to_scaled_coords` instead.  The two guards cover
+    one mode each; neither is redundant.
+
     Parameters
     ----------
     transform : matplotlib.transforms.Transform
