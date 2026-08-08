@@ -6,7 +6,7 @@ from maidr.exception.extraction_error import ExtractionError
 import numpy as np
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
-from maidr.util.rdp_utils import resample_curve
+from maidr.util.resample_utils import resample_curve
 from maidr.util.regression_line_utils import find_regression_line
 from maidr.util.svg_utils import (
     data_to_svg_coords,
