@@ -22,7 +22,7 @@ from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.regplot import _DEFAULT_MAX_SMOOTH_POINTS  # noqa: E402
-from maidr.util.rdp_utils import resample_curve  # noqa: E402
+from maidr.util.resample_utils import resample_curve  # noqa: E402
 from maidr.util.regression_line_utils import find_regression_line  # noqa: E402
 from maidr.util.svg_utils import (  # noqa: E402
     _clip_sentinel,
