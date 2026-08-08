@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Resolve, download, and verify the bundled ``maidr.js`` / ``maidr.css``
-# assets.  Shared by the release workflow (``release.yml``, release-time
-# refresh) and the manual refresh workflow (``update-maidr-js.yml``) so the
+# Resolve, download, and verify the bundled ``maidr.js``, ``maidr.css`` and
+# ``maidr-math.css`` assets.  Shared by the release workflow
+# (``release.yml``, release-time refresh) and the manual refresh workflow
+# (``update-maidr-js.yml``) so the
 # download + integrity-check logic lives in exactly one place and cannot
 # drift between the two.
 #
@@ -17,7 +18,7 @@
 #
 #   VERSION   maidr npm version to fetch.  Resolves the latest published
 #             version on npm when empty or omitted.
-#   DEST_DIR  directory to write ``maidr.js`` / ``maidr.css`` / ``VERSION``
+#   DEST_DIR  directory to write the assets and ``VERSION``
 #             into.  Defaults to ``maidr/static``.
 #
 # The resolved version is written to ``<DEST_DIR>/VERSION`` and printed as the
@@ -118,10 +119,35 @@ fi
 
 # Extract the bundled assets from the verified tarball.  npm tarballs place
 # published files under ``package/``.
-tar -xzf "$TGZ" -C "$WORK" package/dist/maidr.js package/dist/maidr.css
+#
+# ``maidr-math.css`` is KaTeX, which maidr 3.75.1 split out of ``maidr.css``
+# so that pages stop paying ~360 kB for maths they will probably never
+# render.  ``maidr.js`` fetches it at runtime, resolved *relative to the URL
+# it was itself loaded from* -- so an offline render that ships ``maidr.js``
+# without it renders LaTeX in AI chat responses unstyled, quietly, and only
+# for readers who opened the chat.  It has to travel with the bundle.
+#
+# Checked before extracting so a maidr older than 3.75.1 fails with a
+# sentence rather than with tar's "Not found in archive".  py-maidr stopped
+# linking ``maidr.css`` when that release turned it into a placeholder, so a
+# bundle without ``maidr-math.css`` has no stylesheet at all.
+#
+# Listed into a variable first, then matched from a here-string: under
+# ``set -o pipefail`` a ``tar | grep -q`` pipeline reports failure on
+# *success*, because grep exits at the first match and tar dies of SIGPIPE.
+TARBALL_FILES=$(tar -tzf "$TGZ")
+if ! grep -qx 'package/dist/maidr-math.css' <<<"$TARBALL_FILES"; then
+  echo "maidr@$VERSION does not ship dist/maidr-math.css." >&2
+  echo "py-maidr requires maidr >= 3.75.1; refusing to bundle $VERSION." >&2
+  exit 1
+fi
+
+tar -xzf "$TGZ" -C "$WORK" \
+  package/dist/maidr.js package/dist/maidr.css package/dist/maidr-math.css
 mkdir -p "$DEST_DIR"
 cp "$WORK/package/dist/maidr.js" "$DEST_DIR/maidr.js"
 cp "$WORK/package/dist/maidr.css" "$DEST_DIR/maidr.css"
+cp "$WORK/package/dist/maidr-math.css" "$DEST_DIR/maidr-math.css"
 printf "%s\n" "$VERSION" > "$DEST_DIR/VERSION"
 
 # Defense-in-depth sanity checks: non-empty, and not an HTML error page
@@ -129,8 +155,9 @@ printf "%s\n" "$VERSION" > "$DEST_DIR/VERSION"
 # payload *starts* with an HTML marker.
 test -s "$DEST_DIR/maidr.js"
 test -s "$DEST_DIR/maidr.css"
+test -s "$DEST_DIR/maidr-math.css"
 test -s "$DEST_DIR/VERSION"
-for asset in maidr.js maidr.css; do
+for asset in maidr.js maidr.css maidr-math.css; do
   if head -c 128 "$DEST_DIR/${asset}" | grep -qiE "^[[:space:]]*<!DOCTYPE|^[[:space:]]*<html"; then
     echo "${asset} looks like an HTML error page" >&2
     exit 1
