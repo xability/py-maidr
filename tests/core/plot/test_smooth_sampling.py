@@ -24,6 +24,7 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.regplot import _DEFAULT_MAX_SMOOTH_POINTS  # noqa: E402
 from maidr.util.rdp_utils import resample_curve  # noqa: E402
 from maidr.util.regression_line_utils import find_regression_line  # noqa: E402
+from maidr.util.svg_utils import to_scaled_coords  # noqa: E402
 
 
 def _smooth_points(fig) -> list[dict]:
@@ -189,6 +190,75 @@ def test_smooth_points_span_the_whole_line(figure_fixture, request):
 
     assert x[0] == pytest.approx(source_x[0])
     assert x[-1] == pytest.approx(source_x[-1])
+
+
+@pytest.fixture
+def log_y_crossing_zero_figure():
+    """A log y-axis whose fitted line dips below zero, which no log can map.
+
+    Matplotlib clips such a value to a sentinel rather than refusing it, so
+    this is the case ``to_scaled_coords`` has to catch by round-tripping.
+    """
+    rng = np.random.default_rng(3)
+    x = np.linspace(1, 10, 60)
+    y = np.linspace(-5, 20, 60) + rng.normal(0, 1, 60)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_yscale("log")
+    yield fig
+    plt.close(fig)
+
+
+def test_unmappable_scale_is_detected(log_y_crossing_zero_figure):
+    """Guards the fixture: the fallback test means nothing if the scale maps."""
+    ax = FigureManager.get_axes(log_y_crossing_zero_figure)[0]
+    source = _source_line(log_y_crossing_zero_figure)
+
+    assert source[:, 1].min() < 0, "fitted line must reach below zero"
+    assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is None
+
+
+def test_unmappable_scale_still_thins_the_curve(log_y_crossing_zero_figure):
+    """Falling back to data space must still yield a usable trace.
+
+    Screen-even pacing is out of reach when the scale cannot represent the
+    line, but degrading to data-space spacing has to stay graceful — a full
+    budget of points spanning the fit, not a collapse or a crash.
+    """
+    source_x = _source_line(log_y_crossing_zero_figure)[:, 0]
+    x = _x_values(_smooth_points(log_y_crossing_zero_figure))
+    gaps = np.diff(x)
+
+    assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
+    assert x[0] == pytest.approx(source_x[0])
+    assert x[-1] == pytest.approx(source_x[-1])
+    assert gaps.max() / gaps.min() < 2.0
+
+
+def test_curve_within_budget_is_passed_through_untouched():
+    """A short fit keeps its exact vertices, not a scale round trip's rounding.
+
+    ``lowess`` over few points returns a fit shorter than the budget, so there
+    is nothing to thin — and mapping it through a log scale and back would
+    shift the values by the round trip's last bits for no gain.
+    """
+    rng = np.random.default_rng(5)
+    x = np.sort(rng.uniform(1, 100, 12))
+    y = np.log10(x) * 4 + rng.normal(0, 0.3, 12)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax, ci=None, lowess=True)
+    ax.set_xscale("log")
+    try:
+        source = _source_line(fig)
+        assert len(source) <= _DEFAULT_MAX_SMOOTH_POINTS, "fit must be under budget"
+
+        emitted = _x_values(_smooth_points(fig))
+
+        assert np.array_equal(emitted, source[:, 0])
+    finally:
+        plt.close(fig)
 
 
 def test_resample_curve_keeps_a_straight_line_at_full_budget():

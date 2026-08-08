@@ -79,6 +79,12 @@ class SmoothPlot(MaidrPlot):
         tuple of np.ndarray
             The retained vertices, in data coordinates.
         """
+        if len(x_data) <= _DEFAULT_MAX_SMOOTH_POINTS:
+            # Nothing to thin, so hand the vertices straight back.  Mapping
+            # them into scale space and out again would return them shifted by
+            # the round trip's last bit or two, for no gain.
+            return x_data, y_data
+
         scaled = to_scaled_coords(self.ax, x_data, y_data)
         if scaled is None:
             # The scale cannot represent this data, leaving data coordinates as

@@ -52,11 +52,13 @@ def to_scaled_coords(
     """
     Map data coordinates into the axes' scale space.
 
-    Distances there are proportional to distances on screen, because what
-    remains between scale space and the display is an affine map.  A linear
-    axis passes through unchanged; a log axis becomes its logarithm.  Working
-    in scale space rather than reading ``transData`` keeps the result
-    independent of figure layout, which is not settled during extraction.
+    What remains between scale space and the display is an affine map, so
+    ratios of distances there are the ratios on screen — which is what makes
+    reasoning about drawn distance in scale space valid at all.  Because an
+    affine map cannot change those ratios, the answer holds whatever the
+    figure layout turns out to be, so this neither needs nor waits for the
+    axes' position and limits to settle.  A linear axis passes through
+    unchanged; a log axis becomes its logarithm.
 
     Parameters
     ----------
