@@ -376,7 +376,7 @@ cookieconsent.run({
 <tr class="odd">
 <td>use_cdn</td>
 <td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a> or {'auto'}</td>
-<td>* <code>True</code>: load <code>maidr.js</code> from the CDN only. * <code>False</code>: copy the bundled <code>maidr.js</code> / <code>maidr.css</code> into <code>lib_dir</code> next to the saved HTML and reference them with relative paths (no network access required). * <code>"auto"</code> (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails. The bundled files are still copied alongside the HTML so the fallback works offline.</td>
+<td>* <code>True</code>: load <code>maidr.js</code> from the CDN only. * <code>False</code>: copy the bundled <code>maidr.js</code> and its assets into <code>lib_dir</code> next to the saved HTML and reference the script with a relative path (no network access required). * <code>"auto"</code> (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails. The bundled files are still copied alongside the HTML so the fallback works offline.</td>
 <td><code>"auto"</code></td>
 </tr>
 </tbody>
