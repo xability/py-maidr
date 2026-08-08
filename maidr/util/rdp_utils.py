@@ -151,22 +151,31 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     collapsing to its two endpoints, and a curved line keeps a steady step
     size.  The first and last vertices are always kept.
 
+    Sampling is by vertex index, so the result is evenly spaced *in x* only
+    when the input is too — which holds for the curves matplotlib and seaborn
+    evaluate on a uniform grid.  A curve sampled unevenly would need
+    arc-length interpolation instead.
+
     Parameters
     ----------
     points : np.ndarray, shape (N, 2)
         Ordered (x, y) points.
     target : int
-        Desired maximum number of retained points.
+        Desired number of retained points.  Values below 2 are raised to 2,
+        since the endpoints alone already describe a segment.
 
     Returns
     -------
     np.ndarray, shape (M, 2)
-        The retained points, where ``M <= max(target, 2)``.
+        The retained points, where ``M == min(N, max(target, 2))``.
     """
     n = len(points)
-    if n <= target:
+    count = max(int(target), 2)
+    if n <= count:
         return points
 
-    count = max(int(target), 2)
-    idx = np.unique(np.rint(np.linspace(0, n - 1, count)).astype(int))
+    # ``n > count >= 2`` puts the step ``(n - 1) / (count - 1)`` strictly above
+    # 1, so rounding can never land two samples on the same vertex: the result
+    # always holds exactly ``count`` distinct points.
+    idx = np.rint(np.linspace(0, n - 1, count)).astype(int)
     return points[idx]

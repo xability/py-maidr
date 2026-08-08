@@ -21,6 +21,7 @@ import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.core.plot.regplot import _DEFAULT_MAX_SMOOTH_POINTS  # noqa: E402
 from maidr.util.rdp_utils import resample_curve  # noqa: E402
 
 
@@ -69,10 +70,18 @@ def test_straight_regression_line_is_not_collapsed_to_its_endpoints(regplot_figu
 
 
 def test_straight_regression_line_keeps_the_full_point_budget(regplot_figure):
-    """A 100-vertex seaborn fit is thinned to the 30-point budget, not below."""
+    """A fit longer than the budget is thinned to it exactly, not below.
+
+    The expected count is derived from the fitted line rather than hard-coded,
+    so the assertion tracks ``resample_curve``'s contract instead of whichever
+    grid size seaborn happens to evaluate the fit on.
+    """
+    source = FigureManager.get_axes(regplot_figure)[0].get_lines()[-1]
+    expected = min(_DEFAULT_MAX_SMOOTH_POINTS, len(source.get_xydata()))
+
     points = _smooth_points(regplot_figure)
 
-    assert len(points) == 30
+    assert len(points) == expected
 
 
 @pytest.mark.parametrize(
@@ -121,6 +130,20 @@ def test_resample_curve_returns_short_curves_untouched():
     kept = resample_curve(points, target=30)
 
     assert np.array_equal(kept, points)
+
+
+@pytest.mark.parametrize("n,target", [(100, 30), (31, 30), (61, 30), (7, 5)])
+def test_resample_curve_returns_exactly_the_requested_count(n, target):
+    """Rounding never collapses two samples onto one vertex.
+
+    The step between samples stays above 1 whenever the curve is longer than
+    the target, which is what makes the count exact even at awkward ratios.
+    """
+    points = np.column_stack([np.linspace(0, 1, n), np.linspace(0, 1, n) ** 2])
+
+    kept = resample_curve(points, target=target)
+
+    assert len(kept) == target
 
 
 def test_resample_curve_keeps_both_endpoints():
