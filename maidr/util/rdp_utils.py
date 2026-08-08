@@ -159,18 +159,17 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     curve that doubles back, or one running right to left — falls back to
     index sampling.
 
-    Spacing is even in whatever space the caller hands over.  ``SmoothPlot``
-    passes scale space rather than data space, so the evenness lands on screen
-    where the sweep is felt; see
-    :meth:`~maidr.core.plot.regplot.SmoothPlot._thin_to_even_steps`.
+    Spacing is even in whatever space the caller hands over, so a caller that
+    wants evenness on screen rather than in raw data has to convert before
+    calling and back afterwards.
 
     Interpolated points sit on the drawn line, which matters because they are
     what the highlight ring lands on.  Matplotlib renders the curve as straight
     segments between its vertices, so interpolating in scale space — an affine
     map away from the display — walks exactly that path.  That exactness is
-    the caller's to earn, though: interpolating a nonlinear axis in data space
-    instead leaves the points a fraction of a pixel off the segment, which is
-    what ``SmoothPlot`` settles for when a scale cannot represent the curve.
+    the caller's to earn, though: handing over data coordinates for a
+    nonlinear axis instead leaves the points a fraction of a pixel off the
+    segment.
 
     Parameters
     ----------
