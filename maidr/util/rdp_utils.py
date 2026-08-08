@@ -159,22 +159,17 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     curve that doubles back, or one running right to left — falls back to
     index sampling.
 
+    Spacing is even in whatever space the caller hands over, so a caller that
+    wants evenness on screen rather than in raw data has to convert before
+    calling and back afterwards.
+
     Interpolated points sit on the drawn line, which matters because they are
     what the highlight ring lands on.  Matplotlib renders the curve as straight
-    segments between its vertices, so on a linear axis — where data and display
-    space differ by an affine map — the interpolation walks exactly that path.
-    A log axis bends each segment between the vertices, leaving a gap of about
-    a tenth of a pixel at this point count; still far under the ring's radius,
-    just not the exact landing a linear axis gives.
-
-    Known limitation: the grid is even in *data* x, which is even on screen
-    only while the axis is linear.  A log x-axis stretches the same points
-    into a roughly 100:1 spread across the plot, so auto-play sweeps the
-    picture unevenly even though the announced x values step uniformly.
-    Nothing here sets a nonlinear scale — it takes an explicit
-    ``ax.set_xscale`` — and which of the two should stay uniform is a call
-    about what the sweep represents, so this stays as-is until a caller needs
-    otherwise.
+    segments between its vertices, so interpolating in scale space — an affine
+    map away from the display — walks exactly that path.  That exactness is
+    the caller's to earn, though: handing over data coordinates for a
+    nonlinear axis instead leaves the points a fraction of a pixel off the
+    segment.
 
     Parameters
     ----------

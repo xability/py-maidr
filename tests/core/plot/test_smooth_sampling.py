@@ -24,6 +24,11 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.regplot import _DEFAULT_MAX_SMOOTH_POINTS  # noqa: E402
 from maidr.util.rdp_utils import resample_curve  # noqa: E402
 from maidr.util.regression_line_utils import find_regression_line  # noqa: E402
+from maidr.util.svg_utils import (  # noqa: E402
+    _clip_sentinel,
+    from_scaled_coords,
+    to_scaled_coords,
+)
 
 
 def _smooth_points(fig) -> list[dict]:
@@ -44,6 +49,11 @@ def _source_line(fig) -> np.ndarray:
     line = find_regression_line(FigureManager.get_axes(fig)[0])
     assert line is not None, "no regression line found on the axes"
     return np.asarray(line.get_xydata())
+
+
+def _svg_x_values(points: list[dict]) -> np.ndarray:
+    """Pull the on-screen x coordinates out of a smooth layer's point list."""
+    return np.array([float(p["svg_x"]) for p in points])
 
 
 def _x_values(points: list[dict]) -> np.ndarray:
@@ -102,6 +112,69 @@ def test_lowess_fit_source_curve_really_is_clustered(lowess_regplot_figure):
     assert gaps.max() / gaps.min() > 50
 
 
+@pytest.fixture
+def log_x_regplot_figure():
+    """A regplot on a log x-axis, where data distance stops matching the screen."""
+    rng = np.random.default_rng(1)
+    x = np.geomspace(1, 1000, 60)
+    y = np.log10(x) * 3 + rng.normal(0, 0.2, 60)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_xscale("log")
+    yield fig
+    plt.close(fig)
+
+
+def test_log_axis_paces_by_the_screen_not_the_data(log_x_regplot_figure):
+    """Auto-play advances a constant distance across the plot, as drawn.
+
+    The sweep is meant to track what a sighted reader sees moving left to
+    right, so a log axis has to pace by drawn distance. Uniform data steps
+    would bunch almost the whole curve into the last part of the plot.
+    """
+    points = _smooth_points(log_x_regplot_figure)
+    screen_gaps = np.abs(np.diff(_svg_x_values(points)))
+    data_gaps = np.diff(_x_values(points))
+
+    assert screen_gaps.max() / screen_gaps.min() < 2.0
+    # And confirm this genuinely cost the data-space evenness, so the test
+    # cannot pass by the two spacings happening to agree.
+    assert data_gaps.max() / data_gaps.min() > 50
+
+
+@pytest.mark.parametrize("scale", ["symlog", "asinh"])
+def test_any_nonlinear_scale_paces_by_the_screen(scale):
+    """Pacing follows whatever scale the axis carries, not log in particular.
+
+    The thinning reads ``axis.get_transform()`` rather than testing for a log
+    axis, so scales that are linear near zero and compress further out should
+    work the same way. These also map values a log axis cannot, which keeps
+    them on the scale-space path rather than the fallback.
+    """
+    rng = np.random.default_rng(9)
+    x = np.concatenate([-np.geomspace(1000, 1, 30), np.geomspace(1, 1000, 30)])
+    y = np.sign(x) * np.log10(np.abs(x) + 1) * 2 + rng.normal(0, 0.2, 60)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_xscale(scale)
+    try:
+        source = _source_line(fig)
+        assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is not None
+
+        points = _smooth_points(fig)
+        screen_gaps = np.abs(np.diff(_svg_x_values(points)))
+        data_gaps = np.diff(_x_values(points))
+
+        assert screen_gaps.max() / screen_gaps.min() < 2.0
+        # Spanning several decades either side of zero, so data-space steps
+        # diverge wildly — the test would be empty if they happened to agree.
+        assert data_gaps.max() / data_gaps.min() > 50
+    finally:
+        plt.close(fig)
+
+
 def test_straight_regression_line_is_not_collapsed_to_its_endpoints(regplot_figure):
     """A linear fit must stay navigable, not shrink to a start and an end."""
     points = _smooth_points(regplot_figure)
@@ -125,23 +198,33 @@ def test_straight_regression_line_keeps_the_full_point_budget(regplot_figure):
 
 @pytest.mark.parametrize(
     "figure_fixture",
-    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure"],
-    ids=["reg", "kde", "lowess"],
+    [
+        "regplot_figure",
+        "histplot_kde_figure",
+        "lowess_regplot_figure",
+        "log_x_regplot_figure",
+    ],
+    ids=["reg", "kde", "lowess", "log"],
 )
 def test_smooth_points_are_evenly_spaced(figure_fixture, request):
-    """Steps along x stay uniform so auto-play paces the trend correctly."""
+    """Steps stay uniform on screen so auto-play paces the trend correctly."""
     fig = request.getfixturevalue(figure_fixture)
-    x = _x_values(_smooth_points(fig))
-    gaps = np.diff(x)
+    points = _smooth_points(fig)
+    gaps = np.abs(np.diff(_svg_x_values(points)))
 
-    assert np.all(gaps > 0), "x must stay monotonically increasing"
-    assert gaps.max() / gaps.min() < 2.0, f"uneven steps along x: {gaps}"
+    assert np.all(np.diff(_x_values(points)) > 0), "x must stay increasing"
+    assert gaps.max() / gaps.min() < 2.0, f"uneven steps across the plot: {gaps}"
 
 
 @pytest.mark.parametrize(
     "figure_fixture",
-    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure"],
-    ids=["reg", "kde", "lowess"],
+    [
+        "regplot_figure",
+        "histplot_kde_figure",
+        "lowess_regplot_figure",
+        "log_x_regplot_figure",
+    ],
+    ids=["reg", "kde", "lowess", "log"],
 )
 def test_smooth_points_span_the_whole_line(figure_fixture, request):
     """Thinning keeps both endpoints, so the trace covers the fitted range."""
@@ -151,6 +234,310 @@ def test_smooth_points_span_the_whole_line(figure_fixture, request):
 
     assert x[0] == pytest.approx(source_x[0])
     assert x[-1] == pytest.approx(source_x[-1])
+
+
+@pytest.fixture
+def log_y_crossing_zero_figure():
+    """A log y-axis whose fitted line dips below zero, which no log can map.
+
+    Matplotlib clips such a value to a sentinel rather than refusing it, so
+    this is the case ``to_scaled_coords`` has to catch by round-tripping.
+    """
+    rng = np.random.default_rng(3)
+    x = np.linspace(1, 10, 60)
+    y = np.linspace(-5, 20, 60) + rng.normal(0, 1, 60)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_yscale("log")
+    yield fig
+    plt.close(fig)
+
+
+@pytest.fixture
+def log_x_crossing_zero_figure():
+    """The same unmappable case on the other axis.
+
+    ``to_scaled_coords`` checks x and y separately, so covering only one axis
+    would leave the other resting on an assumption of symmetry.
+    """
+    rng = np.random.default_rng(4)
+    x = np.linspace(-3, 12, 60)
+    y = 2 * x + rng.normal(0, 1.5, 60)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_xscale("log")
+    yield fig
+    plt.close(fig)
+
+
+@pytest.mark.parametrize(
+    "figure_fixture",
+    ["log_y_crossing_zero_figure", "log_x_crossing_zero_figure"],
+    ids=["log_y", "log_x"],
+)
+def test_unmappable_scale_is_detected(figure_fixture, request):
+    """Guards the fixtures: the fallback tests mean nothing if the scale maps."""
+    fig = request.getfixturevalue(figure_fixture)
+    ax = FigureManager.get_axes(fig)[0]
+    source = _source_line(fig)
+
+    assert source.min(axis=0).min() < 0, "the fit must reach below zero"
+    assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is None
+
+
+@pytest.mark.parametrize(
+    "figure_fixture",
+    ["log_y_crossing_zero_figure", "log_x_crossing_zero_figure"],
+    ids=["log_y", "log_x"],
+)
+def test_unmappable_scale_still_thins_the_curve(figure_fixture, request):
+    """Falling back to data space must still yield a usable trace.
+
+    Screen-even pacing is out of reach when the scale cannot represent the
+    line, but degrading to data-space spacing has to stay graceful — a full
+    budget of points spanning the fit, not a collapse or a crash.
+    """
+    fig = request.getfixturevalue(figure_fixture)
+    source_x = _source_line(fig)[:, 0]
+    x = _x_values(_smooth_points(fig))
+    gaps = np.diff(x)
+
+    assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
+    assert x[0] == pytest.approx(source_x[0])
+    assert x[-1] == pytest.approx(source_x[-1])
+    assert gaps.max() / gaps.min() < 2.0
+
+
+def test_a_fit_touching_zero_on_a_log_axis_is_not_mapped():
+    """Exactly zero is the clipped value a round trip alone cannot see.
+
+    A log scale parks it on a sentinel, and inverting that underflows back to
+    zero, so the value looks like it survived the journey. Thinning against
+    the sentinel then drags almost the whole curve off the canvas. ``x``
+    starting at zero is an ordinary fixture, so this is reachable rather than
+    exotic.
+    """
+    rng = np.random.default_rng(2)
+    x = np.linspace(0, 10, 50)
+    y = 2 * x + 1 + rng.normal(0, 1.5, 50)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_xscale("log")
+    try:
+        source = _source_line(fig)
+        assert source[0, 0] == 0.0, "the fit must land on zero exactly"
+        assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is None
+
+        points = _smooth_points(fig)
+        off_canvas = int((_svg_x_values(points) < 0).sum())
+
+        # Only the zero itself, which no log axis can place, may fall outside.
+        assert off_canvas <= 1, f"{off_canvas} of {len(points)} points off canvas"
+    finally:
+        plt.close(fig)
+
+
+def test_filled_kde_doubles_back_inside_scale_space():
+    """The index fallback also has to work on scale-space coordinates.
+
+    Data far enough from zero keeps a filled KDE's whole outline positive, so
+    a log axis maps it and thinning stays on the scale-space path — where the
+    closed loop still has to fall back to vertex index. The other outline
+    tests either take both fallbacks or neither, leaving this one unpinned.
+    """
+    rng = np.random.default_rng(5)
+    data = rng.normal(1000, 5, 500)
+
+    fig, ax = plt.subplots()
+    sns.kdeplot(data, fill=True, ax=ax)
+    ax.set_xscale("log")
+    try:
+        plots = [
+            p for p in FigureManager.get_maidr(fig).plots if p.type is PlotType.SMOOTH
+        ]
+        assert len(plots) == 1
+        points = plots[0].schema["data"][0]
+        source = np.asarray(plots[0]._elements[0].get_xydata())
+
+        assert plots[0]._is_polycollection, "fixture must exercise the poly path"
+        assert source[:, 0].min() > 0, "outline must stay mappable on a log axis"
+        assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is not None
+
+        x = _x_values(points)
+
+        assert not np.all(np.diff(x) > 0), "a closed outline must double back"
+        assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
+    finally:
+        plt.close(fig)
+
+
+def test_a_scale_rejecting_on_an_upper_bound_is_caught():
+    """The sentinel probe looks downward; infinity is what covers the other end.
+
+    ``logit`` rejects at both 0 and 1, and signals with infinity rather than
+    parking values on a sentinel, so the probe finds nothing for it. The round
+    trip cannot see it either — inverting infinity returns 1.0 unchanged. The
+    finiteness check is what stands there.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xscale("logit")
+    try:
+        transform = ax.xaxis.get_transform()
+        x = np.array([0.2, 0.5, 0.9, 1.0])
+        y = np.array([1.0, 2.0, 3.0, 4.0])
+        scaled = transform.transform(x)
+
+        assert _clip_sentinel(transform) is None, "logit parks nothing on a sentinel"
+        assert not np.isfinite(scaled).all(), "it signals with infinity instead"
+        # The trap this guards: the round trip alone reports the value intact.
+        round_tripped = transform.inverted().transform(scaled)
+        assert np.allclose(round_tripped, x, rtol=1e-9, atol=0)
+
+        assert to_scaled_coords(ax, x, y) is None
+    finally:
+        plt.close(fig)
+
+
+@pytest.mark.parametrize("scale", ["linear", "symlog", "asinh"])
+def test_a_representable_zero_is_not_rejected(scale):
+    """Zero must map where it is legal, not be swept up with the clipped kind.
+
+    The round trip compares on relative tolerance alone, so a value of zero
+    has to come back as exactly zero to pass. That holds on the scales where
+    zero is representable, and rejecting it would drop the whole curve to the
+    fallback for no reason.
+    """
+    x = np.array([-10.0, -1.0, 0.0, 1.0, 10.0])
+    y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+
+    fig, ax = plt.subplots()
+    ax.set_xscale(scale)
+    try:
+        scaled = to_scaled_coords(ax, x, y)
+
+        assert scaled is not None, f"{scale} represents zero and must map it"
+        assert from_scaled_coords(ax, *scaled)[0][2] == 0.0
+    finally:
+        plt.close(fig)
+
+
+def test_a_masking_scale_is_caught_by_the_finiteness_guard():
+    """The guard table claims this path; nothing was holding it to that.
+
+    A scale asked to mask rather than clip is the one case the sentinel probe
+    reports nothing for, so the finiteness check has to carry it. That rests
+    on matplotlib handing back a plain array of NaN and infinity rather than a
+    masked one — on a masked array the reduction would count masked entries as
+    vacuously true and wave the curve through.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xscale("log", nonpositive="mask")
+    try:
+        transform = ax.xaxis.get_transform()
+        scaled = transform.transform(np.array([-1.0, 0.0, 1.0, 10.0]))
+
+        assert not np.ma.is_masked(scaled), "a masked array would break the guard"
+        assert isinstance(np.all(np.isfinite(scaled)), (bool, np.bool_))
+        assert not np.all(np.isfinite(scaled))
+        assert _clip_sentinel(transform) is None, "masking parks nothing"
+
+        x = np.array([-1.0, 1.0, 10.0])
+        y = np.array([1.0, 2.0, 3.0])
+
+        assert to_scaled_coords(ax, x, y) is None
+    finally:
+        plt.close(fig)
+
+
+def test_curve_within_budget_is_passed_through_untouched():
+    """A short fit keeps its exact vertices, not a scale round trip's rounding.
+
+    ``lowess`` over few points returns a fit shorter than the budget, so there
+    is nothing to thin — and mapping it through a log scale and back would
+    shift the values by the round trip's last bits for no gain.
+    """
+    rng = np.random.default_rng(5)
+    x = np.sort(rng.uniform(1, 100, 12))
+    y = np.log10(x) * 4 + rng.normal(0, 0.3, 12)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax, ci=None, lowess=True)
+    ax.set_xscale("log")
+    try:
+        source = _source_line(fig)
+        assert len(source) <= _DEFAULT_MAX_SMOOTH_POINTS, "fit must be under budget"
+
+        emitted = _x_values(_smooth_points(fig))
+
+        assert np.array_equal(emitted, source[:, 0])
+    finally:
+        plt.close(fig)
+
+
+def test_filled_kde_boundary_is_thinned_by_index():
+    """A filled KDE registers its polygon outline, which has no x ordering.
+
+    ``sns.kdeplot(fill=True)`` hands ``SmoothPlot`` the boundary of a
+    ``PolyCollection`` — a closed loop that runs out along the curve and back
+    along the baseline — so x doubles back and the even-x path cannot apply.
+    Thinning has to fall through to vertex index and still produce a usable
+    trace rather than mangling the outline.
+    """
+    rng = np.random.default_rng(11)
+    data = rng.normal(0, 1, 400)
+
+    fig, ax = plt.subplots()
+    sns.kdeplot(data, fill=True, ax=ax)
+    try:
+        plots = [
+            p for p in FigureManager.get_maidr(fig).plots if p.type is PlotType.SMOOTH
+        ]
+        assert len(plots) == 1
+        assert plots[0]._is_polycollection, "fixture must exercise the poly path"
+
+        x = _x_values(plots[0].schema["data"][0])
+
+        assert not np.all(np.diff(x) > 0), "a closed outline must double back"
+        assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
+    finally:
+        plt.close(fig)
+
+
+def test_filled_kde_on_a_log_axis_falls_back_twice():
+    """Both fallbacks compose: an unmappable scale, then a curve with no order.
+
+    A filled KDE's support runs past its data, into x values a log axis cannot
+    map, so the scale falls back to data space — and the outline is a closed
+    loop, so thinning falls back again to vertex index. Each is covered alone;
+    this pins that stacking them still yields a full, usable trace.
+    """
+    rng = np.random.default_rng(21)
+    data = rng.lognormal(3.0, 0.45, 500)
+
+    fig, ax = plt.subplots()
+    sns.kdeplot(data, fill=True, ax=ax)
+    ax.set_xscale("log")
+    try:
+        plots = [
+            p for p in FigureManager.get_maidr(fig).plots if p.type is PlotType.SMOOTH
+        ]
+        assert len(plots) == 1
+        points = plots[0].schema["data"][0]
+        source = np.asarray(plots[0]._elements[0].get_xydata())
+
+        assert plots[0]._is_polycollection, "fixture must exercise the poly path"
+        assert source[:, 0].min() <= 0, "support must reach where a log cannot map"
+        assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is None
+
+        x = _x_values(points)
+
+        assert not np.all(np.diff(x) > 0), "a closed outline must double back"
+        assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
+    finally:
+        plt.close(fig)
 
 
 def test_resample_curve_keeps_a_straight_line_at_full_budget():
