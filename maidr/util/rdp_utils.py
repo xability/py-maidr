@@ -155,8 +155,9 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
     covers every curve seaborn fits.  Sampling by vertex index instead would
     only be even in x when the source grid already was — true of a plain
     ``regplot`` fit or a KDE, but not of a ``lowess=True`` fit, which lands on
-    the observed x values and inherits their clustering.  Curves that double
-    back carry no usable x ordering, so those fall back to index sampling.
+    the observed x values and inherits their clustering.  Anything else — a
+    curve that doubles back, or one running right to left — falls back to
+    index sampling.
 
     Interpolated points sit exactly on the drawn line: matplotlib renders the
     curve as straight segments between its vertices, which is the same path
@@ -187,7 +188,9 @@ def resample_curve(points: np.ndarray, target: int) -> np.ndarray:
         grid = np.linspace(x[0], x[-1], count)
         return np.column_stack([grid, np.interp(grid, x, y)])
 
-    # No usable x ordering, so fall back to even spacing by vertex index.
+    # Left-to-right is the only order worth special-casing, since it is the one
+    # every fit produces; a decreasing or self-crossing curve falls through to
+    # even spacing by vertex index rather than growing a case for each shape.
     # ``n > count >= 2`` puts the step ``(n - 1) / (count - 1)`` strictly above
     # 1, so rounding can never land two samples on the same vertex: the result
     # always holds exactly ``count`` distinct points.

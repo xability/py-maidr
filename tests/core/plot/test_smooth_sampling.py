@@ -76,6 +76,32 @@ def histplot_kde_figure():
     plt.close(fig)
 
 
+@pytest.fixture
+def lowess_regplot_figure():
+    """A lowess fit over clustered x, the case a uniform grid does not cover.
+
+    ``statsmodels``'s lowess returns y-hat at the *observed* x values, so a
+    skewed sample hands the extractor a curve whose own vertices bunch up at
+    one end — unlike a plain fit or a KDE, which seaborn evaluates on a
+    ``linspace`` grid.
+    """
+    rng = np.random.default_rng(0)
+    x = np.sort(rng.exponential(2.0, 80))
+    y = 2 * x + rng.normal(0, 1.5, 80)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax, ci=None, lowess=True)
+    yield fig
+    plt.close(fig)
+
+
+def test_lowess_fit_source_curve_really_is_clustered(lowess_regplot_figure):
+    """Guards the fixture: without clustered input the next test proves nothing."""
+    gaps = np.diff(_source_line(lowess_regplot_figure)[:, 0])
+
+    assert gaps.max() / gaps.min() > 50
+
+
 def test_straight_regression_line_is_not_collapsed_to_its_endpoints(regplot_figure):
     """A linear fit must stay navigable, not shrink to a start and an end."""
     points = _smooth_points(regplot_figure)
@@ -98,7 +124,9 @@ def test_straight_regression_line_keeps_the_full_point_budget(regplot_figure):
 
 
 @pytest.mark.parametrize(
-    "figure_fixture", ["regplot_figure", "histplot_kde_figure"], ids=["reg", "kde"]
+    "figure_fixture",
+    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure"],
+    ids=["reg", "kde", "lowess"],
 )
 def test_smooth_points_are_evenly_spaced(figure_fixture, request):
     """Steps along x stay uniform so auto-play paces the trend correctly."""
@@ -111,7 +139,9 @@ def test_smooth_points_are_evenly_spaced(figure_fixture, request):
 
 
 @pytest.mark.parametrize(
-    "figure_fixture", ["regplot_figure", "histplot_kde_figure"], ids=["reg", "kde"]
+    "figure_fixture",
+    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure"],
+    ids=["reg", "kde", "lowess"],
 )
 def test_smooth_points_span_the_whole_line(figure_fixture, request):
     """Thinning keeps both endpoints, so the trace covers the fitted range."""
