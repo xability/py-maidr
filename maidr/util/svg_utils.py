@@ -46,6 +46,32 @@ def unique_lines_by_xy(lines: List[Line2D]) -> List[Line2D]:
     return unique_lines
 
 
+def _clip_sentinel(transform) -> Optional[float]:
+    """
+    Return the coordinate a scale parks unrepresentable values on, if it clips.
+
+    A clipping scale sends every value it cannot represent to one sentinel, so
+    it stops being injective there.  Probing with several values that only such
+    a scale would reject finds that sentinel without naming a scale or its
+    constant: a log axis collapses them onto a single coordinate, while linear,
+    symlog and asinh keep them apart and report nothing to watch for.
+
+    Parameters
+    ----------
+    transform : matplotlib.transforms.Transform
+        A scale transform, as returned by ``Axis.get_transform()``.
+
+    Returns
+    -------
+    float or None
+        The sentinel coordinate, or ``None`` for a scale that never clips.
+    """
+    probe = transform.transform(np.array([-1.0, -2.0, -4.0]))
+    if probe[0] == probe[1] == probe[2]:
+        return float(probe[0])
+    return None
+
+
 def to_scaled_coords(
     ax: Axes, x_data: np.ndarray, y_data: np.ndarray
 ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
@@ -87,10 +113,19 @@ def to_scaled_coords(
     if not (np.all(np.isfinite(x_scaled)) and np.all(np.isfinite(y_scaled))):
         return None
 
-    # The check above catches only a scale that answers with infinity or NaN.
-    # A log scale clips instead, mapping an unrepresentable value to a sentinel
-    # that reads as a perfectly ordinary coordinate, so the round trip is the
-    # only thing standing between that value and a curve thinned against it.
+    # Zero is the one clipped value the round trip below cannot see: a log
+    # scale parks it on the sentinel, and inverting that underflows back to
+    # zero, so the value appears to have survived the journey intact.  Ask the
+    # scale where it parks what it rejects, and refuse anything sitting there.
+    for transform, scaled in ((x_transform, x_scaled), (y_transform, y_scaled)):
+        sentinel = _clip_sentinel(transform)
+        if sentinel is not None and np.any(scaled == sentinel):
+            return None
+
+    # The finiteness check above catches only a scale that answers with
+    # infinity or NaN.  A log scale clips instead, mapping an unrepresentable
+    # value to a coordinate that reads as perfectly ordinary, so the round trip
+    # is what stands between that value and a curve thinned against it.
     if not (
         np.allclose(
             x_transform.inverted().transform(x_scaled), x_data, rtol=1e-9, atol=0

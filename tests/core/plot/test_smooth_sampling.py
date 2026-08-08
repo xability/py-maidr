@@ -306,6 +306,36 @@ def test_unmappable_scale_still_thins_the_curve(figure_fixture, request):
     assert gaps.max() / gaps.min() < 2.0
 
 
+def test_a_fit_touching_zero_on_a_log_axis_is_not_mapped():
+    """Exactly zero is the clipped value a round trip alone cannot see.
+
+    A log scale parks it on a sentinel, and inverting that underflows back to
+    zero, so the value looks like it survived the journey. Thinning against
+    the sentinel then drags almost the whole curve off the canvas. ``x``
+    starting at zero is an ordinary fixture, so this is reachable rather than
+    exotic.
+    """
+    rng = np.random.default_rng(2)
+    x = np.linspace(0, 10, 50)
+    y = 2 * x + 1 + rng.normal(0, 1.5, 50)
+
+    fig, ax = plt.subplots()
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_xscale("log")
+    try:
+        source = _source_line(fig)
+        assert source[0, 0] == 0.0, "the fit must land on zero exactly"
+        assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is None
+
+        points = _smooth_points(fig)
+        off_canvas = int((_svg_x_values(points) < 0).sum())
+
+        # Only the zero itself, which no log axis can place, may fall outside.
+        assert off_canvas <= 1, f"{off_canvas} of {len(points)} points off canvas"
+    finally:
+        plt.close(fig)
+
+
 def test_curve_within_budget_is_passed_through_untouched():
     """A short fit keeps its exact vertices, not a scale round trip's rounding.
 
