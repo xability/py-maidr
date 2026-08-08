@@ -92,6 +92,13 @@ def test_set_cdn_version_pins_concrete_version():
         dependencies.maidr_css_cdn_url()
         == "https://cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr.css"
     )
+    # Not emitted by any render path -- it is the escape hatch for pages
+    # that inline maidr.js and so have to set window.maidrMathStylesheetUrl
+    # themselves -- but it must resolve like the others.
+    assert (
+        dependencies.maidr_math_css_cdn_url()
+        == "https://cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr-math.css"
+    )
 
 
 def test_set_cdn_version_accepts_v_prefix():
@@ -593,9 +600,14 @@ def test_save_html_use_cdn_true_emits_versioned_url(bar_plot, tmp_path):
 
     contents = out.read_text(encoding="utf-8")
     assert "cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr.js" in contents
-    assert "cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr.css" in contents
     assert "maidr@latest" not in contents, (
         "the mutable @latest dist-tag must not survive into the output"
+    )
+    # The script tag's own URL is what maidr.js resolves maidr-math.css
+    # against, so no stylesheet needs emitting -- and maidr.css has been a
+    # placeholder with no rules in it since maidr 3.75.1.
+    assert "dist/maidr.css" not in contents, (
+        "a stylesheet link survived into the CDN output"
     )
 
 

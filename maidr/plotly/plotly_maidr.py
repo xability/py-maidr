@@ -14,11 +14,9 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.plotly_plot import PlotlyPlot
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.util.dependencies import (
-    MAIDR_CSS_FILENAME,
     MAIDR_JS_FILENAME,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
-    maidr_css_cdn_url,
     maidr_html_dependency,
     maidr_js_cdn_url,
     warn_if_bundle_is_stale,
@@ -235,8 +233,8 @@ class PlotlyMaidr:
         use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render` for the three possible modes.
         """
-        # Proactively stash the bundled ``maidr.js`` / ``maidr.css`` source
-        # on the parent notebook ``window`` so the iframe bootstrap below
+        # Proactively stash the bundled ``maidr.js`` and KaTeX source on
+        # the parent notebook ``window`` so the iframe bootstrap below
         # can inject them inline when the CDN is unavailable.  Mirrors the
         # matplotlib ``Maidr.show()`` behaviour (see ``maidr/core/maidr.py``)
         # and is required because ``Tag.get_html_string()`` drops any
@@ -428,7 +426,7 @@ class PlotlyMaidr:
 
         When ``iframe_in_notebook=True`` the loader instead pulls the
         bundled source strings from ``window.parent.__maidrJsSource`` /
-        ``window.parent.__maidrCssSource`` (populated by
+        ``window.parent.__maidrMathCssSource`` (populated by
         :func:`maidr.api.init_notebook`).  Relative ``lib/maidr-.../``
         paths do not resolve inside a srcdoc iframe, and
         ``HTMLDependency`` children are stripped by
@@ -471,17 +469,21 @@ class PlotlyMaidr:
             }}
         """
 
-        # Snippet that pulls the bundled JS/CSS source from the parent
-        # notebook window.  Reused by ``use_cdn=False`` (primary loader)
-        # and ``use_cdn="auto"`` (CDN onerror fallback).
+        # Snippet that pulls the bundled JS and KaTeX source from the
+        # parent notebook window.  Reused by ``use_cdn=False`` (primary
+        # loader) and ``use_cdn="auto"`` (CDN onerror fallback).
+        #
+        # KaTeX travels as a string because ``maidr.js`` resolves
+        # ``maidr-math.css`` against the URL it was loaded from, and an
+        # inline script inside a srcdoc iframe has no URL to offer it.
         parent_source_snippet = """
             (function() {
                 try {
                     var jsSrc = window.parent && window.parent.__maidrJsSource;
-                    var cssSrc = window.parent && window.parent.__maidrCssSource;
-                    if (cssSrc) {
+                    var mathCss = window.parent && window.parent.__maidrMathCssSource;
+                    if (mathCss) {
                         var style = document.createElement('style');
-                        style.textContent = cssSrc;
+                        style.textContent = mathCss;
                         document.head.appendChild(style);
                     }
                     if (jsSrc) {
@@ -575,11 +577,14 @@ class PlotlyMaidr:
 
         The output includes:
 
-        1. MAIDR CSS for accessibility UI styling
-        2. The interactive Plotly chart (plotly.js loaded from CDN)
-        3. A bridge script that waits for Plotly to render, injects the
+        1. The interactive Plotly chart (plotly.js loaded from CDN)
+        2. A bridge script that waits for Plotly to render, injects the
            MAIDR schema into the SVG, and (in online mode) loads the
            MAIDR JS bundle.
+
+        No MAIDR stylesheet is emitted: the accessibility UI is styled at
+        runtime, and KaTeX -- the one stylesheet with rules in it -- is
+        fetched by ``maidr.js`` from wherever it was itself loaded.
 
         Parameters
         ----------
@@ -608,9 +613,6 @@ class PlotlyMaidr:
             schema, use_cdn=use_cdn, iframe_in_notebook=iframe_in_notebook
         )
 
-        rel_dir = maidr_bundled_relative_dir()
-        bundled_css_rel = f"{rel_dir}/{MAIDR_CSS_FILENAME}"
-
         children: list[Any] = []
         if use_cdn is False:
             # Bundled copy is the only source; surface it if it has aged.
@@ -618,67 +620,23 @@ class PlotlyMaidr:
             if iframe_in_notebook:
                 # ``HTMLDependency`` is dropped by ``get_html_string()``
                 # during iframe serialisation; the init script's
-                # parent-source loader handles both JS and CSS, so no
-                # extra children are needed here.
+                # parent-source loader carries both the JS and KaTeX, so
+                # no extra children are needed here.
                 pass
             else:
-                # ``HTMLDependency`` handles both CSS and JS, so we
-                # don't need to emit an explicit ``<link>`` tag here.
+                # The dependency copies the whole bundle, so ``maidr.js``
+                # finds ``maidr-math.css`` beside itself; no ``<link>``
+                # needs emitting.
                 children.append(maidr_html_dependency())
         elif use_cdn == "auto":
-            css_cdn_url = maidr_css_cdn_url()
             # Published version is resolved by now, so the bundled
             # fallback's age is known for free.  Fallback, not primary.
             warn_if_bundle_is_stale(bundle_is_primary=False)
-            if iframe_in_notebook:
-                # Emit CDN CSS with a parent-source ``onerror`` fallback
-                # (mirrors the JS loader in ``_build_init_script``).
-                # Relative ``lib/`` paths cannot resolve inside srcdoc.
-                fallback_css = f"""
-                    (function() {{
-                        var l = document.createElement('link');
-                        l.rel = 'stylesheet';
-                        l.href = '{css_cdn_url}';
-                        l.onerror = function() {{
-                            try {{
-                                var cssSrc = window.parent && window.parent.__maidrCssSource;
-                                if (cssSrc) {{
-                                    var style = document.createElement('style');
-                                    style.textContent = cssSrc;
-                                    document.head.appendChild(style);
-                                }}
-                            }} catch (_) {{ /* parent unreachable */ }}
-                        }};
-                        document.head.appendChild(l);
-                    }})();
-                """
-                children.append(
-                    tags.script(fallback_css, type="text/javascript")
-                )
-            else:
-                # Copy the bundle alongside the HTML (no auto-emitted
-                # tags) and emit a <link> with client-side fallback to
-                # the relative bundled path.
+            if not iframe_in_notebook:
+                # Copy the bundle alongside the HTML without auto-emitted
+                # tags, so the JS loader's ``onerror`` path has something
+                # to fall back to.
                 children.append(maidr_bundled_files_dependency())
-                fallback_css = f"""
-                    (function() {{
-                        var l = document.createElement('link');
-                        l.rel = 'stylesheet';
-                        l.href = '{css_cdn_url}';
-                        l.onerror = function() {{
-                            var fb = document.createElement('link');
-                            fb.rel = 'stylesheet';
-                            fb.href = '{bundled_css_rel}';
-                            document.head.appendChild(fb);
-                        }};
-                        document.head.appendChild(l);
-                    }})();
-                """
-                children.append(
-                    tags.script(fallback_css, type="text/javascript")
-                )
-        else:
-            children.append(tags.link(rel="stylesheet", href=maidr_css_cdn_url()))
         children.append(tags.div(HTML(plotly_div)))
         children.append(tags.script(init_script, type="text/javascript"))
 

@@ -32,6 +32,21 @@ def test_bundled_maidr_css_exists():
     assert css_path.stat().st_size > 0, "bundled maidr.css looks empty"
 
 
+def test_bundled_math_css_exists():
+    """KaTeX must ship too, or offline chat renders LaTeX unstyled.
+
+    ``maidr.js`` fetches ``maidr-math.css`` from whichever directory it
+    was loaded from, so an offline bundle that omits it fails quietly:
+    only readers who open the AI chat and receive maths ever see it.
+    """
+    math_css_path = dependencies.bundled_math_css_path()
+    assert math_css_path.is_file()
+    assert math_css_path.stat().st_size > 1_000, (
+        "bundled maidr-math.css looks empty; it should carry KaTeX's rules"
+    )
+    assert "KaTeX" in math_css_path.read_text(encoding="utf-8")
+
+
 def test_bundled_version_file_is_semver_like():
     """VERSION file exists and contains a sensible version string."""
     version = dependencies.maidr_js_version()
@@ -52,9 +67,41 @@ def test_maidr_html_dependency_points_to_package():
     assert any(
         "maidr.js" == Path(s["src"]).name for s in dep.script
     ), "maidr.js is not listed as a dependency script"
-    assert any(
-        "maidr.css" == Path(s["href"]).name for s in dep.stylesheet
-    ), "maidr.css is not listed as a dependency stylesheet"
+    # No stylesheet is linked: maidr styles itself at runtime, and since
+    # maidr 3.75.1 ``maidr.css`` is a placeholder with no rules in it.
+    assert dep.stylesheet == []
+    # ``all_files`` is what carries ``maidr-math.css`` into ``lib_dir``
+    # beside ``maidr.js``, which is where the runtime looks for it.
+    assert dep.all_files is True
+
+
+def test_fetch_script_bundles_every_asset_the_runtime_needs():
+    """``fetch-maidr-bundle.sh`` must ship what ``maidr.js`` looks for.
+
+    The bundle is assembled by that script at release time, so a file the
+    runtime fetches but the script never copies is missing from the wheel
+    and from every offline render made with it. ``maidr-math.css`` is the
+    one that fails silently — the script shipped ``maidr.js`` and
+    ``maidr.css`` for as long as KaTeX lived inside the latter, and maidr
+    3.75.1 moved it out without changing either filename.
+    """
+    script = (
+        Path(__file__).resolve().parents[2]
+        / ".github"
+        / "scripts"
+        / "fetch-maidr-bundle.sh"
+    ).read_text(encoding="utf-8")
+
+    for filename in (
+        dependencies.MAIDR_JS_FILENAME,
+        dependencies.MAIDR_MATH_CSS_FILENAME,
+    ):
+        assert f"package/dist/{filename}" in script, (
+            f"{filename} is never extracted from the npm tarball"
+        )
+        assert f'"$DEST_DIR/{filename}"' in script, (
+            f"{filename} is never written into the bundle directory"
+        )
 
 
 def test_maidr_bundled_files_dependency_has_no_script_tags():
@@ -113,9 +160,10 @@ def test_save_html_use_cdn_false_creates_lib_dir_with_js(bar_plot, tmp_path):
     subdirs = [p for p in lib_dir.iterdir() if p.is_dir() and p.name.startswith("maidr")]
     assert subdirs, f"no maidr-* subdirectory under {lib_dir}"
     js_files = list(subdirs[0].glob("maidr.js"))
-    css_files = list(subdirs[0].glob("maidr.css"))
+    math_css_files = list(subdirs[0].glob("maidr-math.css"))
     assert js_files and js_files[0].stat().st_size > 1_000
-    assert css_files and css_files[0].stat().st_size > 0
+    # Beside maidr.js, because that is the only place maidr.js looks.
+    assert math_css_files and math_css_files[0].stat().st_size > 1_000
 
 
 def test_save_html_use_cdn_false_html_references_relative_path(bar_plot, tmp_path):
@@ -130,8 +178,9 @@ def test_save_html_use_cdn_false_html_references_relative_path(bar_plot, tmp_pat
     assert re.search(r'src="[^"]*maidr\.js"', contents), (
         "use_cdn=False output does not include a <script src='.../maidr.js'> tag"
     )
-    assert re.search(r'href="[^"]*maidr\.css"', contents), (
-        "use_cdn=False output does not include a <link href='.../maidr.css'> tag"
+    assert not re.search(r'href="[^"]*maidr\.css"', contents), (
+        "use_cdn=False output still links maidr.css, which has been a "
+        "placeholder with no rules in it since maidr 3.75.1"
     )
 
 
@@ -365,7 +414,9 @@ def test_init_notebook_false_injects_bundled_source(
     fake_html_cls.assert_called_once()
     html_arg = fake_html_cls.call_args[0][0]
     assert "window.__maidrJsSource" in html_arg
-    assert "window.__maidrCssSource" in html_arg
+    # KaTeX travels as a source string because a srcdoc iframe has no
+    # base URL for maidr.js to resolve the stylesheet against.
+    assert "window.__maidrMathCssSource" in html_arg
     # No CDN reference when explicitly offline.
     assert "cdn.jsdelivr.net" not in html_arg
     # Closing </script> must be escaped so an embedded </script> in the
@@ -397,6 +448,9 @@ def test_init_notebook_true_injects_cdn_only(mocker, reset_notebook_loaded):
     html_arg = fake_html_cls.call_args[0][0]
     assert "cdn.jsdelivr.net/npm/maidr" in html_arg
     assert "window.__maidrJsSource" not in html_arg
+    # The script tag's URL is what maidr.js resolves maidr-math.css
+    # against, so a stylesheet link would be a request for nothing.
+    assert "dist/maidr.css" not in html_arg
 
 
 def test_init_notebook_auto_emits_both(mocker, reset_notebook_loaded):
@@ -420,7 +474,9 @@ def test_init_notebook_auto_emits_both(mocker, reset_notebook_loaded):
 
     html_arg = fake_html_cls.call_args[0][0]
     assert "window.__maidrJsSource" in html_arg
+    assert "window.__maidrMathCssSource" in html_arg
     assert "cdn.jsdelivr.net/npm/maidr" in html_arg
+    assert "dist/maidr.css" not in html_arg
 
 
 def test_init_notebook_is_idempotent(mocker, reset_notebook_loaded):
@@ -512,6 +568,9 @@ def test_bundled_js_path_is_top_level_export():
 
     css_path = maidr.bundled_css_path()
     assert css_path.is_file()
+
+    assert callable(maidr.bundled_math_css_path)
+    assert maidr.bundled_math_css_path().is_file()
 
     version = maidr.maidr_js_version()
     assert re.match(r"^\d+\.\d+\.\d+", version)

@@ -49,6 +49,17 @@ _STATIC_PACKAGE = "maidr"
 _STATIC_SUBDIR = "static"
 MAIDR_JS_FILENAME = "maidr.js"
 MAIDR_CSS_FILENAME = "maidr.css"
+
+#: KaTeX, which styles LaTeX in AI chat responses.
+#:
+#: maidr 3.75.1 moved it out of :data:`MAIDR_CSS_FILENAME` -- which is now a
+#: 406-byte placeholder kept alive only so that existing ``<link>`` tags do
+#: not 404 -- and made ``maidr.js`` fetch this file on demand, the first
+#: time a response actually contains maths.  Nothing links it: the runtime
+#: resolves it against the URL ``maidr.js`` was loaded from, so it simply
+#: has to *be* in the same directory.
+MAIDR_MATH_CSS_FILENAME = "maidr-math.css"
+
 _VERSION_FILENAME = "VERSION"
 
 #: Reported by :func:`maidr_js_version` when ``static/VERSION`` is absent
@@ -535,12 +546,34 @@ def maidr_js_cdn_url() -> str:
 def maidr_css_cdn_url() -> str:
     """Return the CDN URL for ``maidr.css`` at the resolved version.
 
+    Nothing in ``maidr/`` emits this any more.  From maidr 3.75.1 the file
+    it points at is a placeholder with no rules in it, published only so
+    that ``<link>`` tags written before the split keep resolving; linking
+    it costs a request and buys nothing.  Kept for callers outside this
+    package that already build their own HTML around it.
+
     Returns
     -------
     str
         A fully qualified jsDelivr URL.
     """
     return cdn_url(MAIDR_CSS_FILENAME)
+
+
+def maidr_math_css_cdn_url() -> str:
+    """Return the CDN URL for ``maidr-math.css`` at the resolved version.
+
+    Only needed where ``maidr.js`` runs from an inline ``<script>`` and so
+    has no URL of its own to resolve against; see
+    :data:`MAIDR_MATH_CSS_FILENAME`.  Everywhere it is loaded through
+    ``<script src=...>``, the runtime finds this file unaided.
+
+    Returns
+    -------
+    str
+        A fully qualified jsDelivr URL.
+    """
+    return cdn_url(MAIDR_MATH_CSS_FILENAME)
 
 
 def _normalise_version_pin(pin: str) -> str | None:
@@ -1241,13 +1274,41 @@ def bundled_js_path() -> Path:
 
 
 def bundled_css_path() -> Path:
-    """Return the filesystem path to the bundled MAIDR stylesheet."""
+    """Return the filesystem path to the bundled MAIDR stylesheet.
+
+    Kept for callers that predate maidr 3.75.1.  Since that release the
+    file is a placeholder with no rules in it, and nothing in ``maidr/``
+    links it; :func:`bundled_math_css_path` is the stylesheet that
+    carries content.
+    """
     return _bundled_asset_path(MAIDR_CSS_FILENAME)
+
+
+def bundled_math_css_path() -> Path:
+    """Return the filesystem path to the bundled KaTeX stylesheet.
+
+    Returns
+    -------
+    Path
+        On-disk path to ``maidr-math.css``.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the wheel was built without it, which means the bundle
+        predates maidr 3.75.1.
+    """
+    return _bundled_asset_path(MAIDR_MATH_CSS_FILENAME)
 
 
 def read_bundled_js() -> str:
     """Return the contents of the bundled ``maidr.js`` as a string."""
     return bundled_js_path().read_text(encoding="utf-8")
+
+
+def read_bundled_math_css() -> str:
+    """Return the contents of the bundled ``maidr-math.css`` as a string."""
+    return bundled_math_css_path().read_text(encoding="utf-8")
 
 
 def maidr_html_dependency():
@@ -1256,14 +1317,23 @@ def maidr_html_dependency():
     The dependency points at the ``maidr/static/`` directory inside the
     installed package.  When consumed by
     :meth:`htmltools.HTMLDocument.save_html`, ``htmltools`` copies the
-    assets into the HTML file's ``lib_dir`` and rewrites ``<script>``
-    / ``<link>`` tags to use relative paths, producing a self-contained
-    output directory that works without network access.
+    assets into the HTML file's ``lib_dir`` and rewrites the ``<script>``
+    tag to use a relative path, producing a self-contained output
+    directory that works without network access.
+
+    No stylesheet is linked.  maidr styles its interface at runtime, and
+    since 3.75.1 the only stylesheet with rules in it is
+    ``maidr-math.css``, which ``maidr.js`` fetches for itself from
+    whichever directory it was loaded from.  ``all_files=True`` is what
+    puts it in that directory: it copies every file under
+    ``maidr/static/`` rather than only the ones named in a tag, so the
+    runtime's fetch resolves against ``lib/maidr-<version>/`` and finds
+    it there.
 
     Returns
     -------
     htmltools.HTMLDependency
-        Dependency describing the bundled JS and CSS assets.
+        Dependency describing the bundled assets.
     """
     # Imported lazily so this module stays importable even in contexts
     # where ``htmltools`` may not be fully initialised.
@@ -1274,8 +1344,8 @@ def maidr_html_dependency():
         version=maidr_js_version(),
         source={"package": _STATIC_PACKAGE, "subdir": _STATIC_SUBDIR},
         script=[{"src": MAIDR_JS_FILENAME}],
-        stylesheet=[{"href": MAIDR_CSS_FILENAME}],
-        all_files=False,
+        stylesheet=[],
+        all_files=True,
     )
 
 

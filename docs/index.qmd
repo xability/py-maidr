@@ -253,6 +253,15 @@ Accessible output needs the `maidr.js` library. `render()`, `show()`, and `save_
 
 Set the default for a whole session with `maidr.set_use_cdn(...)` or the `MAIDR_USE_CDN` environment variable.
 
+No stylesheet accompanies the script. maidr styles its interface at runtime, so
+there is nothing static to link; the one stylesheet it does use — KaTeX, which
+renders LaTeX in AI chat responses — is fetched by `maidr.js` itself, on demand,
+from whichever directory it was loaded from. `save_html(use_cdn=False)` copies
+it into `lib/` alongside `maidr.js` so that keeps working offline, and in
+notebooks `init_notebook()` stashes it in the page for the same reason: an
+iframe rendered from `srcdoc` has no base URL for the runtime to resolve
+against.
+
 ### Which version the CDN serves
 
 On the CDN paths (`use_cdn=True` and `"auto"`), py-maidr resolves the current published `maidr` version and emits a versioned URL such as `maidr@3.74.0/dist/maidr.js`.

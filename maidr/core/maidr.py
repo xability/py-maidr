@@ -23,11 +23,9 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
 from maidr.util.dedup_utils import deduplicate_smooth_and_line
 from maidr.util.dependencies import (
-    MAIDR_CSS_FILENAME,
     MAIDR_JS_FILENAME,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
-    maidr_css_cdn_url,
     maidr_html_dependency,
     maidr_js_cdn_url,
     warn_if_bundle_is_stale,
@@ -84,8 +82,8 @@ class Maidr:
         Parameters
         ----------
         use_cdn : bool or {"auto"}, default="auto"
-            Controls which copy of ``maidr.js`` / ``maidr.css`` the
-            rendered HTML references:
+            Controls which copy of ``maidr.js`` the rendered HTML
+            references:
 
             * ``True``: load from the public jsDelivr CDN only (no
               offline fallback).
@@ -123,9 +121,9 @@ class Maidr:
             Controls where the MAIDR JSON payload is placed in the output HTML or SVG.
         use_cdn : bool or {"auto"}, default="auto"
             * ``True``: load ``maidr.js`` from the CDN only.
-            * ``False``: copy the bundled ``maidr.js`` / ``maidr.css``
-              into ``lib_dir`` next to the saved HTML and reference
-              them with relative paths (no network access required).
+            * ``False``: copy the bundled ``maidr.js`` and its assets
+              into ``lib_dir`` next to the saved HTML and reference the
+              script with a relative path (no network access required).
             * ``"auto"`` (default): attempt the CDN first and fall back
               to the bundled copy client-side if the CDN request fails.
               The bundled files are still copied alongside the HTML so
@@ -175,8 +173,9 @@ class Maidr:
             * ``"auto"`` (default): attempt the CDN first and fall back
               to the bundled copy client-side if the CDN request fails.
         """
-        # Proactively inject the bundled ``maidr.js`` / ``maidr.css`` into
-        # the *current* notebook cell right before the iframe is emitted.
+        # Proactively inject the bundled ``maidr.js`` and its KaTeX
+        # stylesheet into the *current* notebook cell right before the
+        # iframe is emitted.
         # The auto-call at ``import maidr`` time is not sufficient in
         # several real-world scenarios:
         #
@@ -239,9 +238,9 @@ class Maidr:
         ----------
         use_cdn : bool or {"auto"}, default="auto"
             When ``False`` (or ``"auto"``), copy the bundled
-            ``maidr.js`` / ``maidr.css`` assets next to the temporary
-            HTML file so the browser can load them over ``file://``
-            without any network access.
+            ``maidr.js`` and its assets next to the temporary HTML file
+            so the browser can load them over ``file://`` without any
+            network access.
         """
         system_temp_dir = tempfile.gettempdir()
         static_temp_dir = os.path.join(system_temp_dir, "maidr")
@@ -588,11 +587,11 @@ class Maidr:
         use_iframe : bool, default=True
             Whether to wrap the output in an iframe for notebook display.
         use_cdn : bool or {"auto"}, default="auto"
-            * ``True``: emit only CDN ``<script>`` / ``<link>`` tags
-              (no offline fallback).
+            * ``True``: emit only a CDN ``<script>`` tag (no offline
+              fallback).
             * ``False``: emit an :class:`htmltools.HTMLDependency`
-              pointing at the bundled ``maidr.js`` / ``maidr.css``
-              assets, which ``htmltools`` copies into ``lib_dir``.
+              pointing at the bundled ``maidr.js``, whose directory
+              ``htmltools`` copies into ``lib_dir``.
             * ``"auto"`` (default): emit a CDN loader with a
               client-side ``onerror`` handler that falls back to the
               bundled copy.  A no-tag dependency ensures the bundled
@@ -629,10 +628,15 @@ class Maidr:
                         function go() {
                             try {
                                 var jsSrc = window.parent && window.parent.__maidrJsSource;
-                                var cssSrc = window.parent && window.parent.__maidrCssSource;
-                                if (cssSrc) {
+                                // KaTeX, for LaTeX in AI chat responses.
+                                // maidr.js fetches this itself wherever it
+                                // was loaded by URL, but an inline script in
+                                // a srcdoc iframe gives it nothing to resolve
+                                // against, so the rules are injected here.
+                                var mathCss = window.parent && window.parent.__maidrMathCssSource;
+                                if (mathCss) {
                                     var style = document.createElement('style');
-                                    style.textContent = cssSrc;
+                                    style.textContent = mathCss;
                                     document.head.appendChild(style);
                                 }
                                 if (jsSrc) {
@@ -692,7 +696,6 @@ class Maidr:
             # Resolved lazily and only on the CDN paths: ``use_cdn=False``
             # must never touch the network.
             js_cdn_url = maidr_js_cdn_url()
-            css_cdn_url = maidr_css_cdn_url()
             # Resolution above has established the published version, so
             # the bundled fallback's age is now known for free.  It is a
             # fallback here, not the primary source, so report quietly.
@@ -714,10 +717,13 @@ class Maidr:
                         function fallbackFromParent() {{
                             try {{
                                 var jsSrc = window.parent && window.parent.__maidrJsSource;
-                                var cssSrc = window.parent && window.parent.__maidrCssSource;
-                                if (cssSrc) {{
+                                // See the use_cdn=False path: an inline
+                                // script cannot resolve maidr-math.css on
+                                // its own, so KaTeX travels as a string.
+                                var mathCss = window.parent && window.parent.__maidrMathCssSource;
+                                if (mathCss) {{
                                     var style = document.createElement('style');
-                                    style.textContent = cssSrc;
+                                    style.textContent = mathCss;
                                     document.head.appendChild(style);
                                 }}
                                 if (jsSrc) {{
@@ -728,10 +734,6 @@ class Maidr:
                                 }}
                             }} catch (_) {{ /* parent unreachable */ }}
                         }}
-                        var cssLink = document.createElement('link');
-                        cssLink.rel = 'stylesheet';
-                        cssLink.href = '{css_cdn_url}';
-                        document.head.appendChild(cssLink);
                         var s = document.createElement('script');
                         s.src = '{js_cdn_url}';
                         s.onload = bootstrap;
@@ -752,7 +754,6 @@ class Maidr:
                 files_dep = maidr_bundled_files_dependency()
                 rel_dir = maidr_bundled_relative_dir()
                 bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
-                bundled_css_rel = f"{rel_dir}/{MAIDR_CSS_FILENAME}"
                 fallback_script = f"""
                     (function() {{
                         function bootstrap() {{
@@ -762,16 +763,6 @@ class Maidr:
                                 if (window.main) window.main();
                             }}
                         }}
-                        var cssLink = document.createElement('link');
-                        cssLink.rel = 'stylesheet';
-                        cssLink.href = '{css_cdn_url}';
-                        cssLink.onerror = function() {{
-                            var fb = document.createElement('link');
-                            fb.rel = 'stylesheet';
-                            fb.href = '{bundled_css_rel}';
-                            document.head.appendChild(fb);
-                        }};
-                        document.head.appendChild(cssLink);
                         var existing = document.querySelector('script[src="{js_cdn_url}"]');
                         if (existing) {{ bootstrap(); return; }}
                         var s = document.createElement('script');
@@ -798,7 +789,6 @@ class Maidr:
             # resolved version so a browser cannot replay a stale
             # ``@latest`` response for up to a week.
             js_cdn_url = maidr_js_cdn_url()
-            css_cdn_url = maidr_css_cdn_url()
             script = f"""
                 (function() {{
                     var existing = document.querySelector('script[src="{js_cdn_url}"]');
@@ -817,9 +807,7 @@ class Maidr:
                 }})();
             """
 
-            children = [
-                tags.link(rel="stylesheet", href=css_cdn_url),
-            ]
+            children = []
             if maidr is not None:
                 children.append(tags.script(maidr, type="text/javascript"))
             children.append(tags.script(script, type="text/javascript"))

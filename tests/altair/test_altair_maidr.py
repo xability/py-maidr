@@ -102,7 +102,9 @@ class TestRenderEmbedsSpec:
             maidr.set_cdn_version(None)
 
         assert "maidr@3.74.0/dist/vegalite.js" in html_str
-        assert "maidr@3.74.0/dist/maidr.css" in html_str
+        # vegalite.js resolves maidr-math.css against its own CDN URL, so
+        # the adapter links no stylesheet of its own.
+        assert "dist/maidr.css" not in html_str
         assert "maidr@latest" not in html_str
 
     def test_iframe_calls_maidrvegalite_embed_with_id(self):

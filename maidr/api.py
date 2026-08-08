@@ -52,7 +52,7 @@ _use_cdn_default: bool | Literal["auto"] | None = None
 # ---------------------------------------------------------------------------
 #
 # Mirrors the pattern used by Plotly (``init_notebook_mode``) and Bokeh
-# (``output_notebook``): the bundled ``maidr.js`` / ``maidr.css`` are
+# (``output_notebook``): the bundled ``maidr.js`` / ``maidr-math.css`` are
 # injected into the parent notebook DOM exactly once per kernel session
 # and subsequent iframe outputs pull them from ``window.parent`` rather
 # than duplicating the ~1.7 MB bundle per cell.
@@ -154,23 +154,30 @@ def init_notebook(
     use_cdn: bool | Literal["auto"] | None = None,
     force: bool = False,
 ) -> None:
-    """Inject the bundled ``maidr.js`` / ``maidr.css`` into the notebook DOM.
+    """Inject the bundled ``maidr.js`` / ``maidr-math.css`` into the notebook DOM.
 
     Mirrors the ``plotly.offline.init_notebook_mode`` / ``bokeh.io.output_notebook``
     pattern: load the library once at the top of the notebook instead of
     duplicating the ~1.7 MB bundle in every iframe ``srcdoc``.  The source
-    strings are stashed on ``window.__maidrJsSource`` / ``window.__maidrCssSource``
-    in the parent document so that later iframe outputs can evaluate them
-    in their own JS context without the bundle re-appearing in the
-    notebook file.
+    strings are stashed on ``window.__maidrJsSource`` /
+    ``window.__maidrMathCssSource`` in the parent document so that later
+    iframe outputs can evaluate them in their own JS context without the
+    bundle re-appearing in the notebook file.
+
+    The stylesheet stashed alongside the script is ``maidr-math.css``, the
+    KaTeX rules that style LaTeX in AI chat responses.  It travels as a
+    source string for the same reason the script does: an iframe rendered
+    from ``srcdoc`` has no base URL, so ``maidr.js`` cannot fetch the file
+    for itself the way it does on a page that loaded it over HTTP.
 
     Parameters
     ----------
     use_cdn : bool, {"auto"}, or None, optional
-        * ``True``: inject ``<script src="{CDN}">`` and ``<link>`` tags
-          so the notebook loads the CDN copy once.
-        * ``False``: read the bundled ``maidr.js`` / ``maidr.css`` from
-          the installed package and embed them as strings on ``window``.
+        * ``True``: inject a ``<script src="{CDN}">`` tag so the notebook
+          loads the CDN copy once.
+        * ``False``: read the bundled ``maidr.js`` / ``maidr-math.css``
+          from the installed package and embed them as strings on
+          ``window``.
         * ``"auto"``: try the CDN first and fall back to the bundled
           source client-side.
         * ``None`` (default): defer to :func:`get_use_cdn`.
@@ -225,10 +232,9 @@ def init_notebook(
         return
 
     from maidr.util.dependencies import (
-        MAIDR_CSS_FILENAME,
         MAIDR_JS_FILENAME,
-        bundled_css_path,
         read_bundled_js,
+        read_bundled_math_css,
         bundled_cdn_url,
         warn_bundle_unreadable,
         warn_if_bundle_is_stale,
@@ -237,14 +243,12 @@ def init_notebook(
     mode = _resolve_use_cdn(use_cdn)
 
     if mode is True:
-        # CDN-only: a single <script src> + <link> reference suffices;
-        # nothing is stashed on window.* because iframes inject their
-        # own CDN <script> as before.
-        html = (
-            f'<link rel="stylesheet" '
-            f'href="{bundled_cdn_url(MAIDR_CSS_FILENAME)}">'
-            f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}"></script>'
-        )
+        # CDN-only: a single <script src> reference suffices; nothing is
+        # stashed on window.* because iframes inject their own CDN
+        # <script> as before.  No stylesheet accompanies it — the script
+        # tag's own URL is what maidr.js resolves maidr-math.css against,
+        # so the CDN copy of that file is already reachable from here.
+        html = f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}"></script>'
     else:
         # ``False`` or ``"auto"``: embed the bundled source strings
         # once in the parent DOM.  For ``"auto"`` we also kick off a
@@ -253,7 +257,7 @@ def init_notebook(
         # because they are guaranteed to resolve.
         try:
             js_source = read_bundled_js()
-            css_source = bundled_css_path().read_text(encoding="utf-8")
+            math_css_source = read_bundled_math_css()
         except (FileNotFoundError, OSError):
             # Bundle is missing — fall back to CDN so we don't silently
             # break the user's notebook.
@@ -271,8 +275,6 @@ def init_notebook(
             if mode is False:
                 warn_bundle_unreadable()
             html = (
-                f'<link rel="stylesheet" '
-                f'href="{bundled_cdn_url(MAIDR_CSS_FILENAME)}">'
                 f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
                 f"</script>"
             )
@@ -285,19 +287,17 @@ def init_notebook(
             # terminate the outer ``<script>`` tag early — the leading
             # backslash is a legal (redundant) JSON escape.
             js_literal = json.dumps(js_source).replace("</", "<\\/")
-            css_literal = json.dumps(css_source).replace("</", "<\\/")
+            math_css_literal = json.dumps(math_css_source).replace("</", "<\\/")
             cdn_bootstrap = ""
             if mode == "auto":
                 cdn_bootstrap = (
-                    f'<link rel="stylesheet" '
-                    f'href="{bundled_cdn_url(MAIDR_CSS_FILENAME)}">'
                     f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
                     f"</script>"
                 )
             html = (
                 f"<script>"
                 f"window.__maidrJsSource = {js_literal};"
-                f"window.__maidrCssSource = {css_literal};"
+                f"window.__maidrMathCssSource = {math_css_literal};"
                 f"</script>"
                 f"{cdn_bootstrap}"
             )
@@ -510,10 +510,10 @@ def save_html(
     use_cdn : bool, {"auto"}, or None, default=None
         * ``True``: reference the public jsDelivr CDN only (no files
           copied, no offline fallback).
-        * ``False``: bundle ``maidr.js`` / ``maidr.css`` into ``lib_dir``
-          next to the saved HTML and reference them with relative
-          paths.  The resulting directory is self-contained and works
-          without any network access.
+        * ``False``: bundle ``maidr.js`` and its assets into ``lib_dir``
+          next to the saved HTML and reference the script with a
+          relative path.  The resulting directory is self-contained and
+          works without any network access.
         * ``"auto"``: copy the bundle alongside the HTML and emit a
           CDN loader with a client-side ``onerror`` fallback, so the
           HTML works both online and offline.  This is the default mode.
