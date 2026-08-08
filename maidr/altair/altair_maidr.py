@@ -42,24 +42,25 @@ from typing import Any, Literal, cast
 
 from htmltools import HTML, HTMLDocument, Tag, tags
 
+from maidr.util.dependencies import (
+    MAIDR_VEGALITE_FILENAME,
+    cdn_url,
+)
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_plotly
 
 
 # ---------------------------------------------------------------------------
-# CDN configuration for the Altair adapter. Tracks ``maidr@latest`` so the
-# vegalite.js adapter, the React UI bundle, and the maidr.css stylesheet
-# stay in sync with upstream releases. Pin to a specific version here only
-# for short-lived testing.
+# CDN configuration for the Altair adapter. The ``vegalite.js`` adapter
+# tracks the newest published ``maidr`` release, resolved to a concrete
+# version at render time by
+# :func:`maidr.util.dependencies.get_cdn_version` so browsers never replay a
+# stale ``@latest`` response. Pin with ``MAIDR_CDN_VERSION`` when a specific
+# version is needed.
 # ---------------------------------------------------------------------------
-_MAIDR_VERSION = "latest"
 _VEGA_CDN = "https://cdn.jsdelivr.net/npm/vega@5"
 _VEGA_LITE_CDN = "https://cdn.jsdelivr.net/npm/vega-lite@5"
 _VEGA_EMBED_CDN = "https://cdn.jsdelivr.net/npm/vega-embed@6"
-_MAIDR_VEGALITE_CDN = (
-    f"https://cdn.jsdelivr.net/npm/maidr@{_MAIDR_VERSION}/dist/vegalite.js"
-)
-_MAIDR_CSS_CDN = f"https://cdn.jsdelivr.net/npm/maidr@{_MAIDR_VERSION}/dist/maidr.css"
 
 
 def _spec_to_safe_json(spec: dict) -> str:
@@ -183,7 +184,13 @@ class AltairMaidr:
         return HTMLDocument(self._create_html_tag(use_iframe), lang="en")
 
     def _build_inner_html(self) -> Tag:
-        """Build the in-iframe document: stylesheet + script tags + container."""
+        """Build the in-iframe document: script tags + container.
+
+        No maidr stylesheet is linked. maidr styles its interface at
+        runtime, and the one stylesheet with rules in it — KaTeX, for
+        LaTeX in AI chat responses — is fetched by ``vegalite.js`` itself,
+        resolved against the CDN URL it was loaded from.
+        """
         spec_json = _spec_to_safe_json(self._spec)
         # The chart id passed to ``maidrVegaLite.embed`` becomes the
         # maidr-side identifier. Use the same UUID we generated for the
@@ -251,11 +258,10 @@ class AltairMaidr:
         """
 
         children: list[Any] = [
-            tags.link(rel="stylesheet", href=_MAIDR_CSS_CDN),
             tags.script(src=_VEGA_CDN),
             tags.script(src=_VEGA_LITE_CDN),
             tags.script(src=_VEGA_EMBED_CDN),
-            tags.script(src=_MAIDR_VEGALITE_CDN),
+            tags.script(src=cdn_url(MAIDR_VEGALITE_FILENAME)),
             tags.div(id=self._container_id),
             tags.script(HTML(bootstrap), type="text/javascript"),
         ]

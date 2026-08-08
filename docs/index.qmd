@@ -243,6 +243,132 @@ If you want to set the backend manually, use `matplotlib.use("module://maidr.bac
 
 For plot types not yet supported by maidr (e.g. pie charts, contour plots, 3D plots), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed — your plots will always be visible.
 
+## Offline Use and the JavaScript Bundle
+
+Accessible output needs the `maidr.js` library. `render()`, `show()`, and `save_html()` accept `use_cdn=` to control where it comes from:
+
+| `use_cdn` | Where `maidr.js` comes from |
+|---|---|
+| `"auto"` (default) | The jsDelivr CDN, falling back to the bundled copy in the browser if the CDN is unreachable. |
+| `True` | The CDN only, with no offline fallback. |
+| `False` | The copy bundled inside the installed `maidr` package. Use this in air-gapped environments. |
+
+Set the default for a whole session with `maidr.set_use_cdn(...)` or the `MAIDR_USE_CDN` environment variable.
+
+No stylesheet accompanies the script. maidr styles its interface at runtime, so
+there is nothing static to link; the one stylesheet it does use — KaTeX, which
+renders LaTeX in AI chat responses — is fetched by `maidr.js` itself, on demand,
+from whichever directory it was loaded from. `save_html(use_cdn=False)` copies
+it into `lib/` alongside `maidr.js` so that keeps working offline, and in
+notebooks `init_notebook()` stashes it in the page for the same reason: an
+iframe rendered from `srcdoc` has no base URL for the runtime to resolve
+against.
+
+::: {.callout-note}
+## Pinning the CDN below maidr 3.75.1
+
+That runtime fetch is what 3.75.1 introduced, when KaTeX moved out of
+`maidr.css` and left it a placeholder. Pinning `MAIDR_CDN_VERSION` to anything
+older gets a `maidr.js` that expects the stylesheet to be linked for it — and
+py-maidr no longer links one, so LaTeX in AI chat responses renders unstyled.
+Nothing else is affected: the interface has been styled at runtime throughout.
+py-maidr logs a warning once per process when a pin names such a version.
+:::
+
+### Which version the CDN serves
+
+On the CDN paths (`use_cdn=True` and `"auto"`), py-maidr resolves the current published `maidr` version and emits a versioned URL such as `maidr@3.74.0/dist/maidr.js`.
+
+This matters because the CDN serves the mutable `maidr@latest` URL with a seven-day cache lifetime. A browser that had loaded it before would keep replaying its cached copy for up to a week after a new release — so a versioned URL is what guarantees you actually get the current build.
+
+:::: {.callout-note}
+## This performs one network request
+
+Resolving the version makes a single outbound HTTPS request, the first time a CDN URL is built for a *rendered plot*. It is cached for the rest of the process and falls back to the `@latest` URL if it fails — so a blocked or slow network costs you a one-time delay, never an error.
+
+`import maidr` makes no request, even in a notebook: `init_notebook()` pins its tags to the version bundled in the wheel, which needs no lookup and is still immutable.
+
+`MAIDR_CDN_TIMEOUT` (default 3 seconds) is shared across the lookup rather than applied per attempt, so a fallback endpoint cannot multiply the wait. Treat it as approximate rather than a ceiling: the underlying timeout applies per socket operation — connect, TLS handshake, read — so an endpoint that stalls just under the limit at each step can overrun it by a small multiple.
+
+In sandboxed or egress-blocked environments (CI, air-gapped machines), `MAIDR_CDN_VERSION=bundled` is usually the best setting: zero requests, and still an immutable URL so caching behaves correctly. `MAIDR_USE_CDN=false` skips the CDN altogether, and `MAIDR_CDN_VERSION=latest` keeps the CDN but not the lookup.
+
+One exception is worth knowing about: **Altair** charts always load `maidr.js` from the CDN. That adapter has no bundled/offline path — `use_cdn` and `MAIDR_USE_CDN` are not plumbed through it — so `MAIDR_USE_CDN=false` will not make an Altair chart self-contained. `MAIDR_CDN_VERSION=bundled` does still remove the version lookup for Altair, which is why it is the better setting when any part of your work is air-gapped.
+
+::: {.callout-note}
+## Shiny and other async servers
+
+`render_maidr` calls into the synchronous render path, so the one-time lookup happens on the event loop and blocks it for up to `MAIDR_CDN_TIMEOUT`. Set `MAIDR_CDN_VERSION=bundled` at startup for Shiny apps to avoid that entirely.
+:::
+
+`bundle_status()` is the one deliberate exception: it resolves even when pinned, because "how does my bundle compare to what's published?" has no answer otherwise. Pass `resolve=False` if you need it silent.
+::::
+
+Pin the version yourself when you need reproducible output:
+
+```python
+maidr.set_cdn_version("3.74.0")   # a specific published version
+maidr.set_cdn_version("bundled")  # whatever this package ships with
+maidr.set_cdn_version("latest")   # skip resolution, emit the mutable @latest URL
+maidr.set_cdn_version(None)       # back to resolving automatically
+```
+
+::: {.callout-warning}
+## These settings are process-wide, not per-session
+
+`set_cdn_version()` and `set_use_cdn()` write module-level state shared by everything in the interpreter. In a server handling concurrent sessions — a Shiny app, for instance — one session calling a setter changes what every other session renders.
+
+For multi-session servers, configure once at startup via the environment variables below, or pass `use_cdn=` explicitly on each `render()` / `save_html()` call, rather than calling the setters per request.
+:::
+
+### Keeping the bundled copy current
+
+The bundled `maidr.js` is refreshed when py-maidr is released, so it can fall behind between releases. Since the offline fallback is what runs whenever the CDN is disabled or unreachable, py-maidr warns once per session when the bundled copy has drifted a long way behind the published release. Upgrading py-maidr picks up a fresher bundle.
+
+::: {.callout-warning}
+## This warning raises under `-W error`
+
+It is emitted with `warnings.warn(..., UserWarning)`. If you run Python with
+`-W error`, or set `filterwarnings = ["error"]` in your pytest config, a stale
+bundle will make `render()` / `save_html()` **raise** rather than warn. Set
+`MAIDR_BUNDLE_STALE_WARNING=0` to turn it off, or filter the category
+precisely with `maidr.MaidrBundleStaleWarning`.
+
+It is only raised as a warning when the bundle genuinely runs
+(`use_cdn=False`). Under `use_cdn="auto"` the CDN copy normally loads
+instead, so the drift is reported to the logger rather than as a warning
+that could redden a test suite over code that never executed.
+:::
+
+::: {.callout-important}
+## A fully offline session cannot warn you on its own
+
+The warning needs to know what the current published release *is*, and it will never make a network request to find out — that would defeat `use_cdn=False`. So it only fires when a real lookup has already happened in that session.
+
+Pinning does not help, and in fact guarantees silence: a pin short-circuits resolution, so nothing ever establishes what is published. A session that is pinned, or that only ever uses `use_cdn=False`, stays silent no matter how old its bundle is. That is the air-gapped case, and it is the one this warning cannot reach by itself. Check it explicitly instead:
+:::
+
+```python
+maidr.bundle_status()
+# BundleStatus(bundled='3.73.0', published='3.74.0', is_behind=True, is_stale=False)
+```
+
+`bundle_status()` resolves the published version itself (one request), so it works even in a session that has never touched the CDN. Pass `resolve=False` if you want the comparison without any network access, accepting `published=None` when it isn't already known.
+
+::: {.callout-note}
+## Both the version and the warning are cached per session
+
+The resolved version is looked up once per process, and the staleness warning fires at most once. A long-lived session — a Jupyter kernel, a Shiny app — will not notice a newer release or a freshly upgraded py-maidr until it restarts. Call `maidr.reset_cdn_version_cache()` to force one more lookup, or restart the kernel; note that the warning itself does not re-arm either way.
+:::
+
+### Environment variables
+
+| Variable | Effect |
+|---|---|
+| `MAIDR_USE_CDN` | Default for `use_cdn`: `auto`, `1`/`true`, or `0`/`false`. |
+| `MAIDR_CDN_VERSION` | Pin the CDN version — `bundled` is the recommended setting for restricted networks (does not affect `bundle_status()`, which always resolves unless passed `resolve=False`): a version such as `3.74.0`, `bundled`, or `latest` to skip resolution. If `bundled` is set but the installed `VERSION` file is missing or unreadable, py-maidr warns and falls back to `latest` without making a network request. |
+| `MAIDR_CDN_TIMEOUT` | Seconds allowed for the version lookup, shared across attempts (default `3`). Values of `0` or less fall back to the default, and anything above `30` is clamped to it with a warning — the units are seconds, so a value like `3000` is treated as a mistake rather than a request to wait fifty minutes. |
+| `MAIDR_BUNDLE_STALE_WARNING` | Set to `0` to silence the stale-bundle warning. |
+
 ## Keyboard Shortcuts and Controls
 
 To interact with the plots using maidr, follow these steps:

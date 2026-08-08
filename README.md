@@ -26,6 +26,25 @@ pip install -U git+https://github.com/xability/py-maidr.git
 
 Please visit the [user guide](https://xability.github.io/py-maidr/) page.
 
+## Offline and Restricted-Network Use
+
+py-maidr loads its JavaScript from a CDN by default, and resolves the current published version so browsers cannot serve a stale cached copy. That costs one bounded outbound request, the first time a plot is rendered. `import maidr` itself makes no request.
+
+If you work air-gapped, behind a proxy, or in CI:
+
+```sh
+export MAIDR_CDN_VERSION=bundled  # serve the version in this wheel, no lookup
+export MAIDR_USE_CDN=false        # or skip the CDN entirely
+```
+
+`bundled` is usually the best choice for restricted networks: it emits an immutable
+CDN URL — so browser caching still works correctly — without contacting anything.
+It is also the only one of the two that covers **Altair** charts: the Altair adapter
+has no offline path and always references the CDN, so `MAIDR_USE_CDN=false` does not
+apply to it, while `MAIDR_CDN_VERSION=bundled` still removes the lookup.
+
+See [Offline Use and the JavaScript Bundle](https://xability.github.io/py-maidr/#offline-use-and-the-javascript-bundle) for the full set of options.
+
 
 ## Example Code
 

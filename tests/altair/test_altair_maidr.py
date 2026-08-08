@@ -19,10 +19,13 @@ import altair as alt  # noqa: E402
 
 from maidr.altair import AltairMaidr, is_altair_chart  # noqa: E402
 from maidr.altair.altair_maidr import (  # noqa: E402
-    _MAIDR_VEGALITE_CDN,
     _VEGA_CDN,
     _VEGA_EMBED_CDN,
     _VEGA_LITE_CDN,
+)
+from maidr.util.dependencies import (  # noqa: E402
+    MAIDR_VEGALITE_FILENAME,
+    cdn_url,
 )
 from maidr.api import _is_altair_chart  # noqa: E402
 
@@ -67,18 +70,42 @@ class TestRenderEmbedsSpec:
         html_str = str(m._build_inner_html().get_html_string())
 
         # All four script srcs must be present.
+        maidr_vegalite_cdn = cdn_url(MAIDR_VEGALITE_FILENAME)
         assert _VEGA_CDN in html_str
         assert _VEGA_LITE_CDN in html_str
         assert _VEGA_EMBED_CDN in html_str
-        assert _MAIDR_VEGALITE_CDN in html_str
+        assert maidr_vegalite_cdn in html_str
 
         # Order matters: vega before vega-lite before vega-embed before
         # vegalite.js (peer-dep load order).
         idx_vega = html_str.index(_VEGA_CDN)
         idx_vl = html_str.index(_VEGA_LITE_CDN)
         idx_ve = html_str.index(_VEGA_EMBED_CDN)
-        idx_maidr = html_str.index(_MAIDR_VEGALITE_CDN)
+        idx_maidr = html_str.index(maidr_vegalite_cdn)
         assert idx_vega < idx_vl < idx_ve < idx_maidr
+
+    def test_vegalite_src_carries_the_resolved_version(self):
+        """Guard against a tautology.
+
+        Asserting ``cdn_url(...) in html`` is vacuous under the suite's
+        ``MAIDR_CDN_VERSION=latest`` fixture, since both sides collapse to
+        ``@latest`` whether or not the adapter participates in version
+        resolution. Pin a concrete version so the assertion can fail.
+        """
+        import maidr
+
+        maidr.set_cdn_version("3.74.0")
+        try:
+            m = AltairMaidr(_simple_chart())
+            html_str = str(m._build_inner_html().get_html_string())
+        finally:
+            maidr.set_cdn_version(None)
+
+        assert "maidr@3.74.0/dist/vegalite.js" in html_str
+        # vegalite.js resolves maidr-math.css against its own CDN URL, so
+        # the adapter links no stylesheet of its own.
+        assert "dist/maidr.css" not in html_str
+        assert "maidr@latest" not in html_str
 
     def test_iframe_calls_maidrvegalite_embed_with_id(self):
         m = AltairMaidr(_simple_chart())
@@ -113,7 +140,7 @@ class TestSaveHtml:
             # Key invariants: the spec is embedded and the maidrVegaLite
             # adapter script is referenced.
             assert "maidrVegaLite" in html_content
-            assert _MAIDR_VEGALITE_CDN in html_content
+            assert cdn_url(MAIDR_VEGALITE_FILENAME) in html_content
             assert m._maidr_id in html_content
 
 

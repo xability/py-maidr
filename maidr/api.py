@@ -52,7 +52,7 @@ _use_cdn_default: bool | Literal["auto"] | None = None
 # ---------------------------------------------------------------------------
 #
 # Mirrors the pattern used by Plotly (``init_notebook_mode``) and Bokeh
-# (``output_notebook``): the bundled ``maidr.js`` / ``maidr.css`` are
+# (``output_notebook``): the bundled ``maidr.js`` / ``maidr-math.css`` are
 # injected into the parent notebook DOM exactly once per kernel session
 # and subsequent iframe outputs pull them from ``window.parent`` rather
 # than duplicating the ~1.7 MB bundle per cell.
@@ -111,9 +111,24 @@ def get_use_cdn() -> bool | Literal["auto"]:
     -----
     The built-in default is ``"auto"`` — this mode emits a CDN
     ``<script>`` with a client-side ``onerror`` handler that falls
-    back to the bundled copy on network failure.  The browser is
-    the authoritative signal for CDN reachability, so no Python-side
-    network probing is performed.
+    back to the bundled copy on network failure.  The browser remains
+    the authoritative signal for CDN *reachability*; Python never
+    probes that.
+
+    Python does make one network request on the CDN paths (``True``
+    and ``"auto"``): resolving the published ``maidr`` version so the
+    emitted URL is immutable instead of the mutable ``@latest``
+    dist-tag, which browsers cache for a week.  It runs once per
+    process, is bounded by ``MAIDR_CDN_TIMEOUT`` (3s total), and falls
+    back to ``@latest`` on failure.  Set ``MAIDR_CDN_VERSION=latest``
+    to skip it entirely.  ``use_cdn=False`` never makes any request.
+
+    With one exception, which this setting cannot reach: the Altair
+    adapter always loads from the CDN and always resolves, because
+    ``use_cdn`` is not plumbed through it.  So an Altair chart can
+    still spend the lookup budget under ``MAIDR_USE_CDN=false``.
+    ``MAIDR_CDN_VERSION=bundled`` is the setting that stops it, and
+    :func:`save_html` / :func:`show` say the same.
     """
     global _use_cdn_default
     if _use_cdn_default is None:
@@ -131,9 +146,11 @@ def _resolve_use_cdn(
     When ``value`` is ``None`` the process-wide default (from
     :func:`get_use_cdn` / :data:`MAIDR_USE_CDN`) is consulted.
     Explicit values (``True``, ``False``, or ``"auto"``) are honoured
-    verbatim.  Unlike earlier revisions there is no Python-side
-    connectivity probe — offline detection is performed in the
-    browser via a ``<script onerror>`` fallback.
+    verbatim.  Resolving the mode itself makes no network request:
+    offline *detection* is performed in the browser via a
+    ``<script onerror>`` fallback, not by probing from Python.  (The
+    CDN modes do resolve the published version over the network when
+    they build a URL — see :func:`get_use_cdn`.)
     """
     if value is None:
         return get_use_cdn()
@@ -144,23 +161,30 @@ def init_notebook(
     use_cdn: bool | Literal["auto"] | None = None,
     force: bool = False,
 ) -> None:
-    """Inject the bundled ``maidr.js`` / ``maidr.css`` into the notebook DOM.
+    """Inject the bundled ``maidr.js`` / ``maidr-math.css`` into the notebook DOM.
 
     Mirrors the ``plotly.offline.init_notebook_mode`` / ``bokeh.io.output_notebook``
     pattern: load the library once at the top of the notebook instead of
     duplicating the ~1.7 MB bundle in every iframe ``srcdoc``.  The source
-    strings are stashed on ``window.__maidrJsSource`` / ``window.__maidrCssSource``
-    in the parent document so that later iframe outputs can evaluate them
-    in their own JS context without the bundle re-appearing in the
-    notebook file.
+    strings are stashed on ``window.__maidrJsSource`` /
+    ``window.__maidrMathCssSource`` in the parent document so that later
+    iframe outputs can evaluate them in their own JS context without the
+    bundle re-appearing in the notebook file.
+
+    The stylesheet stashed alongside the script is ``maidr-math.css``, the
+    KaTeX rules that style LaTeX in AI chat responses.  It travels as a
+    source string for the same reason the script does: an iframe rendered
+    from ``srcdoc`` has no base URL, so ``maidr.js`` cannot fetch the file
+    for itself the way it does on a page that loaded it over HTTP.
 
     Parameters
     ----------
     use_cdn : bool, {"auto"}, or None, optional
-        * ``True``: inject ``<script src="{CDN}">`` and ``<link>`` tags
-          so the notebook loads the CDN copy once.
-        * ``False``: read the bundled ``maidr.js`` / ``maidr.css`` from
-          the installed package and embed them as strings on ``window``.
+        * ``True``: inject a ``<script src="{CDN}">`` tag so the notebook
+          loads the CDN copy once.
+        * ``False``: read the bundled ``maidr.js`` / ``maidr-math.css``
+          from the installed package and embed them as strings on
+          ``window``.
         * ``"auto"``: try the CDN first and fall back to the bundled
           source client-side.
         * ``None`` (default): defer to :func:`get_use_cdn`.
@@ -174,6 +198,30 @@ def init_notebook(
     No-op outside notebook environments (``Environment.is_notebook()``
     returns ``False``).  Safe to call multiple times — the guard flag
     prevents re-injection unless ``force=True``.
+
+    Pins its tags to the *bundled* version rather than resolving one.
+    ``maidr/__init__.py`` calls this at import, and resolving here would
+    put a blocking network request inside ``import maidr`` — before the
+    user has run anything, and before the documented opt-outs could be
+    applied.  A stalled DNS resolver is not reliably bounded by a socket
+    timeout, so that wait has no dependable ceiling.
+
+    The bundled version needs no request and is still immutable, so these
+    tags are cache-safe: emitting ``@latest`` here would have left the
+    parent document subject to the same seven-day cache lifetime this
+    module exists to remove.  Plots themselves render in iframes that
+    inject their own ``<script>`` at the *resolved* version, so the first
+    ``render()`` / ``save_html()`` is where a lookup happens.
+
+    That split has a known, accepted cost: whenever the bundle is behind
+    the published release — the very case :func:`maidr.bundle_status`
+    exists to report — a notebook session fetches *two* different
+    ``maidr.js`` builds, and this parent-document tag is a prefetch the
+    plots do not end up using.  It is still the right trade: the
+    alternative is resolving at import time, which is the blocking
+    request described above, and the duplicate cost falls away as soon as
+    the bundle is refreshed at release time.  Please do not "fix" this by
+    resolving here.
     """
     global _NOTEBOOK_LOADED
 
@@ -191,22 +239,23 @@ def init_notebook(
         return
 
     from maidr.util.dependencies import (
-        MAIDR_CSS_CDN_URL,
-        MAIDR_JS_CDN_URL,
-        bundled_css_path,
+        MAIDR_JS_FILENAME,
         read_bundled_js,
+        read_bundled_math_css,
+        bundled_cdn_url,
+        warn_bundle_unreadable,
+        warn_if_bundle_is_stale,
     )
 
     mode = _resolve_use_cdn(use_cdn)
 
     if mode is True:
-        # CDN-only: a single <script src> + <link> reference suffices;
-        # nothing is stashed on window.* because iframes inject their
-        # own CDN <script> as before.
-        html = (
-            f'<link rel="stylesheet" href="{MAIDR_CSS_CDN_URL}">'
-            f'<script src="{MAIDR_JS_CDN_URL}"></script>'
-        )
+        # CDN-only: a single <script src> reference suffices; nothing is
+        # stashed on window.* because iframes inject their own CDN
+        # <script> as before.  No stylesheet accompanies it — the script
+        # tag's own URL is what maidr.js resolves maidr-math.css against,
+        # so the CDN copy of that file is already reachable from here.
+        html = f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}"></script>'
     else:
         # ``False`` or ``"auto"``: embed the bundled source strings
         # once in the parent DOM.  For ``"auto"`` we also kick off a
@@ -215,13 +264,26 @@ def init_notebook(
         # because they are guaranteed to resolve.
         try:
             js_source = read_bundled_js()
-            css_source = bundled_css_path().read_text(encoding="utf-8")
+            math_css_source = read_bundled_math_css()
         except (FileNotFoundError, OSError):
             # Bundle is missing — fall back to CDN so we don't silently
             # break the user's notebook.
+            #
+            # This branch is reachable with ``mode is False``, where the
+            # caller was promised no Python-side network I/O.  Honour
+            # that: resolving a version here would issue exactly the
+            # request they opted out of, on an install that is already
+            # broken.  Emit the unresolved ``@latest`` URL instead, and
+            # say why, since silently contacting the CDN under
+            # ``use_cdn=False`` is the more surprising outcome.
+            # Both modes emit the same markup; only ``False`` has been
+            # promised no network I/O, so only it needs telling that its
+            # bundle could not be read.
+            if mode is False:
+                warn_bundle_unreadable()
             html = (
-                f'<link rel="stylesheet" href="{MAIDR_CSS_CDN_URL}">'
-                f'<script src="{MAIDR_JS_CDN_URL}"></script>'
+                f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
+                f"</script>"
             )
         else:
             # json.dumps produces a JS-safe string literal (escapes quotes,
@@ -232,20 +294,26 @@ def init_notebook(
             # terminate the outer ``<script>`` tag early — the leading
             # backslash is a legal (redundant) JSON escape.
             js_literal = json.dumps(js_source).replace("</", "<\\/")
-            css_literal = json.dumps(css_source).replace("</", "<\\/")
+            math_css_literal = json.dumps(math_css_source).replace("</", "<\\/")
             cdn_bootstrap = ""
             if mode == "auto":
                 cdn_bootstrap = (
-                    f'<link rel="stylesheet" href="{MAIDR_CSS_CDN_URL}">'
-                    f'<script src="{MAIDR_JS_CDN_URL}"></script>'
+                    f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
+                    f"</script>"
                 )
             html = (
                 f"<script>"
                 f"window.__maidrJsSource = {js_literal};"
-                f"window.__maidrCssSource = {css_literal};"
+                f"window.__maidrMathCssSource = {math_css_literal};"
                 f"</script>"
                 f"{cdn_bootstrap}"
             )
+
+    if mode is not True:
+        # The bundled source is what we just stashed on ``window``, so
+        # tell the user if it has drifted behind the published release.
+        # Offline-safe: never resolves over the network by itself.
+        warn_if_bundle_is_stale(bundle_is_primary=mode is False)
 
     display(HTML(html))
     _NOTEBOOK_LOADED = True
@@ -330,8 +398,11 @@ def render(
           ``maidr`` package.  Use this in air-gapped environments.
         * ``"auto"``: emit a CDN ``<script>`` with a client-side
           ``onerror`` handler that swaps in the bundled copy when the
-          CDN is unreachable.  This is the default mode and gives
-          offline resilience without any Python-side network probing.
+          CDN is unreachable.  This is the default mode.  Reachability
+          is decided in the browser, but building the URL resolves the
+          published version over the network once per process (bounded
+          by ``MAIDR_CDN_TIMEOUT``; set ``MAIDR_CDN_VERSION=latest`` to
+          skip it).
         * ``None`` (default): use the process-wide default set via
           :func:`set_use_cdn` or the ``MAIDR_USE_CDN`` env var (both
           default to ``"auto"``).
@@ -384,6 +455,12 @@ def show(
     use_cdn : bool, {"auto"}, or None, default=None
         See :func:`render` for the three possible modes.  ``None``
         defers to :func:`get_use_cdn` (the process-wide default).
+
+        The two CDN modes (``True`` and ``"auto"``) resolve the published
+        version over the network once per process when building the URL,
+        bounded by ``MAIDR_CDN_TIMEOUT``; ``MAIDR_CDN_VERSION`` skips it.
+        ``False`` makes no request.  Altair charts always use the CDN —
+        this argument is not plumbed through that adapter.
 
     Returns
     -------
@@ -440,16 +517,22 @@ def save_html(
     use_cdn : bool, {"auto"}, or None, default=None
         * ``True``: reference the public jsDelivr CDN only (no files
           copied, no offline fallback).
-        * ``False``: bundle ``maidr.js`` / ``maidr.css`` into ``lib_dir``
-          next to the saved HTML and reference them with relative
-          paths.  The resulting directory is self-contained and works
-          without any network access.
+        * ``False``: bundle ``maidr.js`` and its assets into ``lib_dir``
+          next to the saved HTML and reference the script with a
+          relative path.  The resulting directory is self-contained and
+          works without any network access.
         * ``"auto"``: copy the bundle alongside the HTML and emit a
           CDN loader with a client-side ``onerror`` fallback, so the
           HTML works both online and offline.  This is the default mode.
         * ``None`` (default): use the process-wide default (see
           :func:`set_use_cdn` / ``MAIDR_USE_CDN``).  Both default to
           ``"auto"``.
+
+        The two CDN modes (``True`` and ``"auto"``) resolve the published
+        version over the network once per process when building the URL,
+        bounded by ``MAIDR_CDN_TIMEOUT``; ``MAIDR_CDN_VERSION`` skips it.
+        ``False`` makes no request.  Altair charts always use the CDN —
+        this argument is not plumbed through that adapter.
 
     Returns
     -------

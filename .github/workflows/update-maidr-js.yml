@@ -1,7 +1,7 @@
 name: Update bundled maidr.js
 
-# Manual escape hatch for refreshing the offline-bundled ``maidr.js`` /
-# ``maidr.css`` from the jsDelivr CDN into ``maidr/static/`` and committing
+# Manual escape hatch for refreshing the offline-bundled ``maidr.js`` and
+# its assets from the npm registry into ``maidr/static/`` and committing
 # the changes directly to ``main``.
 #
 # The routine, automatic refresh happens at py-maidr *release* time (see
@@ -58,4 +58,7 @@ jobs:
           commit_user_name: "xabilitylab"
           commit_user_email: "187909674+xabilitylab@users.noreply.github.com"
           commit_author: "xabilitylab <187909674+xabilitylab@users.noreply.github.com>"
-          file_pattern: "maidr/static/maidr.js maidr/static/maidr.css maidr/static/VERSION"
+          # The whole directory, so an asset added upstream (as
+          # ``maidr-math.css`` was in maidr 3.75.1) is committed rather
+          # than silently dropped by a stale filename list.
+          file_pattern: "maidr/static"

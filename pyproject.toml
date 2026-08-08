@@ -102,10 +102,11 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-# ``packages`` picks up everything under ``maidr/`` including the
-# prebuilt ``maidr.js`` / ``maidr.css`` assets in ``maidr/static/``,
-# so ``pip install maidr`` ships everything needed for ``offline=True``
-# rendering.
+# ``packages`` picks up everything under ``maidr/``, including every
+# prebuilt asset in ``maidr/static/``: ``maidr.js``, the ``maidr-math.css``
+# it fetches at runtime, and the ``maidr.css`` placeholder kept for callers
+# that still reference it.  So ``pip install maidr`` ships everything
+# needed for ``offline=True`` rendering.
 packages = ["maidr"]
 
 [tool.hatch.build.targets.sdist]
