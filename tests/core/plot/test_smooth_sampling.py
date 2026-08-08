@@ -23,6 +23,7 @@ from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.regplot import _DEFAULT_MAX_SMOOTH_POINTS  # noqa: E402
 from maidr.util.rdp_utils import resample_curve  # noqa: E402
+from maidr.util.regression_line_utils import find_regression_line  # noqa: E402
 
 
 def _smooth_points(fig) -> list[dict]:
@@ -31,6 +32,18 @@ def _smooth_points(fig) -> list[dict]:
     smooth = [p for p in plots if p.type is PlotType.SMOOTH]
     assert len(smooth) == 1, f"expected one smooth layer, got {len(smooth)}"
     return smooth[0].schema["data"][0]
+
+
+def _source_line(fig) -> np.ndarray:
+    """Return the vertices of the line the extractor actually reads.
+
+    Resolved through ``find_regression_line`` — the same lookup
+    ``SmoothPlot`` uses — so a test's idea of the source curve cannot drift
+    from the extractor's if seaborn ever adds another ``Line2D`` to the axes.
+    """
+    line = find_regression_line(FigureManager.get_axes(fig)[0])
+    assert line is not None, "no regression line found on the axes"
+    return np.asarray(line.get_xydata())
 
 
 def _x_values(points: list[dict]) -> np.ndarray:
@@ -77,8 +90,7 @@ def test_straight_regression_line_keeps_the_full_point_budget(regplot_figure):
     so the assertion tracks ``resample_curve``'s contract instead of whichever
     grid size seaborn happens to evaluate the fit on.
     """
-    source = FigureManager.get_axes(regplot_figure)[0].get_lines()[-1]
-    expected = min(_DEFAULT_MAX_SMOOTH_POINTS, len(source.get_xydata()))
+    expected = min(_DEFAULT_MAX_SMOOTH_POINTS, len(_source_line(regplot_figure)))
 
     points = _smooth_points(regplot_figure)
 
@@ -104,8 +116,7 @@ def test_smooth_points_are_evenly_spaced(figure_fixture, request):
 def test_smooth_points_span_the_whole_line(figure_fixture, request):
     """Thinning keeps both endpoints, so the trace covers the fitted range."""
     fig = request.getfixturevalue(figure_fixture)
-    line = FigureManager.get_axes(fig)[0].get_lines()[-1]
-    source_x = np.asarray(line.get_xydata())[:, 0]
+    source_x = _source_line(fig)[:, 0]
     x = _x_values(_smooth_points(fig))
 
     assert x[0] == pytest.approx(source_x[0])
