@@ -50,24 +50,18 @@ def _clip_sentinel(transform) -> Optional[float]:
     """
     Return the coordinate a scale parks unrepresentable values on, if it clips.
 
-    A clipping scale sends every value it cannot represent to one sentinel, so
-    it stops being injective there.  Probing with several values that only such
-    a scale would reject finds that sentinel without naming a scale or its
-    constant: a log axis collapses them onto a single coordinate, while linear,
-    symlog and asinh keep them apart and report nothing to watch for.
+    A clipping scale sends everything it cannot represent to one coordinate,
+    so it stops being injective there; probing with values only such a scale
+    would reject finds that coordinate without naming a scale or its constant.
+    A masking scale answers with NaN, which never compares equal, so none is
+    reported for it — correctly, since it has none, and its rejected values
+    are caught by the finiteness check in :func:`to_scaled_coords` instead.
+    The two guards cover a mode each.
 
-    A scale asked to mask rather than clip answers with NaN, which never
-    compares equal, so this reports no sentinel for it.  That is the honest
-    answer — such a scale has none — and its rejected values are caught by the
-    finiteness check in :func:`to_scaled_coords` instead.  The two guards cover
-    one mode each; neither is redundant.
-
-    This reads matplotlib's behaviour rather than a promise it makes, so a
-    future release that stops collapsing rejected values would go undetected
-    here and the sentinel would simply never be found again.  Nothing raises
-    in that case — a curve touching zero on a log axis would quietly go back
-    to being thinned against the sentinel — so a caller left wondering why
-    such a curve drifts off the canvas should suspect this probe first.
+    This reads matplotlib's behaviour rather than a promise, and would fail
+    quietly: a release that stopped collapsing rejected values would leave the
+    sentinel never found, and a curve touching zero on a log axis thinned
+    against it again and drifting off the canvas.
 
     Parameters
     ----------

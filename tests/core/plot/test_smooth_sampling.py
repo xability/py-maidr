@@ -336,6 +336,40 @@ def test_a_fit_touching_zero_on_a_log_axis_is_not_mapped():
         plt.close(fig)
 
 
+def test_filled_kde_doubles_back_inside_scale_space():
+    """The index fallback also has to work on scale-space coordinates.
+
+    Data far enough from zero keeps a filled KDE's whole outline positive, so
+    a log axis maps it and thinning stays on the scale-space path — where the
+    closed loop still has to fall back to vertex index. The other outline
+    tests either take both fallbacks or neither, leaving this one unpinned.
+    """
+    rng = np.random.default_rng(5)
+    data = rng.normal(1000, 5, 500)
+
+    fig, ax = plt.subplots()
+    sns.kdeplot(data, fill=True, ax=ax)
+    ax.set_xscale("log")
+    try:
+        plots = [
+            p for p in FigureManager.get_maidr(fig).plots if p.type is PlotType.SMOOTH
+        ]
+        assert len(plots) == 1
+        points = plots[0].schema["data"][0]
+        source = np.asarray(plots[0]._elements[0].get_xydata())
+
+        assert plots[0]._is_polycollection, "fixture must exercise the poly path"
+        assert source[:, 0].min() > 0, "outline must stay mappable on a log axis"
+        assert to_scaled_coords(ax, source[:, 0], source[:, 1]) is not None
+
+        x = _x_values(points)
+
+        assert not np.all(np.diff(x) > 0), "a closed outline must double back"
+        assert len(x) == _DEFAULT_MAX_SMOOTH_POINTS
+    finally:
+        plt.close(fig)
+
+
 def test_curve_within_budget_is_passed_through_untouched():
     """A short fit keeps its exact vertices, not a scale round trip's rounding.
 
