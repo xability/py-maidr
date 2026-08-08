@@ -60,17 +60,17 @@ def to_scaled_coords(
     axes' position and limits to settle.  A linear axis passes through
     unchanged; a log axis becomes its logarithm.
 
+    One unmappable point rejects the whole batch rather than being dropped:
+    a curve mapped point by point would mix two coordinate spaces, leaving
+    the spacing it is thinned by — and any interpolation across it —
+    meaningless.
+
     Parameters
     ----------
     ax : Axes
         The axes whose x and y scales apply.
     x_data, y_data : np.ndarray
         Data coordinates to map.
-
-    One unmappable point rejects the whole batch rather than being dropped:
-    a curve mapped point by point would mix two coordinate spaces, leaving
-    the spacing it is thinned by — and any interpolation across it —
-    meaningless.
 
     Returns
     -------
