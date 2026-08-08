@@ -424,6 +424,34 @@ def test_a_representable_zero_is_not_rejected(scale):
         plt.close(fig)
 
 
+def test_a_masking_scale_is_caught_by_the_finiteness_guard():
+    """The guard table claims this path; nothing was holding it to that.
+
+    A scale asked to mask rather than clip is the one case the sentinel probe
+    reports nothing for, so the finiteness check has to carry it. That rests
+    on matplotlib handing back a plain array of NaN and infinity rather than a
+    masked one — on a masked array the reduction would count masked entries as
+    vacuously true and wave the curve through.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xscale("log", nonpositive="mask")
+    try:
+        transform = ax.xaxis.get_transform()
+        scaled = transform.transform(np.array([-1.0, 0.0, 1.0, 10.0]))
+
+        assert not np.ma.is_masked(scaled), "a masked array would break the guard"
+        assert isinstance(np.all(np.isfinite(scaled)), (bool, np.bool_))
+        assert not np.all(np.isfinite(scaled))
+        assert _clip_sentinel(transform) is None, "masking parks nothing"
+
+        x = np.array([-1.0, 1.0, 10.0])
+        y = np.array([1.0, 2.0, 3.0])
+
+        assert to_scaled_coords(ax, x, y) is None
+    finally:
+        plt.close(fig)
+
+
 def test_curve_within_budget_is_passed_through_untouched():
     """A short fit keeps its exact vertices, not a scale round trip's rounding.
 
