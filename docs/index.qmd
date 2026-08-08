@@ -279,7 +279,7 @@ On the CDN paths (`use_cdn=True` and `"auto"`), py-maidr resolves the current pu
 
 This matters because the CDN serves the mutable `maidr@latest` URL with a seven-day cache lifetime. A browser that had loaded it before would keep replaying its cached copy for up to a week after a new release — so a versioned URL is what guarantees you actually get the current build.
 
-::: {.callout-note}
+:::: {.callout-note}
 ## This performs one network request
 
 Resolving the version makes a single outbound HTTPS request, the first time a CDN URL is built for a *rendered plot*. It is cached for the rest of the process and falls back to the `@latest` URL if it fails — so a blocked or slow network costs you a one-time delay, never an error.
@@ -299,7 +299,7 @@ One exception is worth knowing about: **Altair** charts always load `maidr.js` f
 :::
 
 `bundle_status()` is the one deliberate exception: it resolves even when pinned, because "how does my bundle compare to what's published?" has no answer otherwise. Pass `resolve=False` if you need it silent.
-:::
+::::
 
 Pin the version yourself when you need reproducible output:
 
