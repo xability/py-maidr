@@ -46,6 +46,11 @@ def _source_line(fig) -> np.ndarray:
     return np.asarray(line.get_xydata())
 
 
+def _svg_x_values(points: list[dict]) -> np.ndarray:
+    """Pull the on-screen x coordinates out of a smooth layer's point list."""
+    return np.array([float(p["svg_x"]) for p in points])
+
+
 def _x_values(points: list[dict]) -> np.ndarray:
     """Pull the x coordinates out of a smooth layer's point list."""
     return np.array([float(p[MaidrKey.X]) for p in points])
@@ -102,6 +107,37 @@ def test_lowess_fit_source_curve_really_is_clustered(lowess_regplot_figure):
     assert gaps.max() / gaps.min() > 50
 
 
+@pytest.fixture
+def log_x_regplot_figure():
+    """A regplot on a log x-axis, where data distance stops matching the screen."""
+    rng = np.random.default_rng(1)
+    x = np.geomspace(1, 1000, 60)
+    y = np.log10(x) * 3 + rng.normal(0, 0.2, 60)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    sns.regplot(x=x, y=y, ax=ax, ci=None)
+    ax.set_xscale("log")
+    yield fig
+    plt.close(fig)
+
+
+def test_log_axis_paces_by_the_screen_not_the_data(log_x_regplot_figure):
+    """Auto-play advances a constant distance across the plot, as drawn.
+
+    The sweep is meant to track what a sighted reader sees moving left to
+    right, so a log axis has to pace by drawn distance. Uniform data steps
+    would bunch almost the whole curve into the last part of the plot.
+    """
+    points = _smooth_points(log_x_regplot_figure)
+    screen_gaps = np.abs(np.diff(_svg_x_values(points)))
+    data_gaps = np.diff(_x_values(points))
+
+    assert screen_gaps.max() / screen_gaps.min() < 2.0
+    # And confirm this genuinely cost the data-space evenness, so the test
+    # cannot pass by the two spacings happening to agree.
+    assert data_gaps.max() / data_gaps.min() > 50
+
+
 def test_straight_regression_line_is_not_collapsed_to_its_endpoints(regplot_figure):
     """A linear fit must stay navigable, not shrink to a start and an end."""
     points = _smooth_points(regplot_figure)
@@ -125,23 +161,25 @@ def test_straight_regression_line_keeps_the_full_point_budget(regplot_figure):
 
 @pytest.mark.parametrize(
     "figure_fixture",
-    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure"],
-    ids=["reg", "kde", "lowess"],
+    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure",
+     "log_x_regplot_figure"],
+    ids=["reg", "kde", "lowess", "log"],
 )
 def test_smooth_points_are_evenly_spaced(figure_fixture, request):
-    """Steps along x stay uniform so auto-play paces the trend correctly."""
+    """Steps stay uniform on screen so auto-play paces the trend correctly."""
     fig = request.getfixturevalue(figure_fixture)
-    x = _x_values(_smooth_points(fig))
-    gaps = np.diff(x)
+    points = _smooth_points(fig)
+    gaps = np.abs(np.diff(_svg_x_values(points)))
 
-    assert np.all(gaps > 0), "x must stay monotonically increasing"
-    assert gaps.max() / gaps.min() < 2.0, f"uneven steps along x: {gaps}"
+    assert np.all(np.diff(_x_values(points)) > 0), "x must stay increasing"
+    assert gaps.max() / gaps.min() < 2.0, f"uneven steps across the plot: {gaps}"
 
 
 @pytest.mark.parametrize(
     "figure_fixture",
-    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure"],
-    ids=["reg", "kde", "lowess"],
+    ["regplot_figure", "histplot_kde_figure", "lowess_regplot_figure",
+     "log_x_regplot_figure"],
+    ids=["reg", "kde", "lowess", "log"],
 )
 def test_smooth_points_span_the_whole_line(figure_fixture, request):
     """Thinning keeps both endpoints, so the trace covers the fitted range."""

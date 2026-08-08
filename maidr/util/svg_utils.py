@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 
 def data_to_svg_coords(
@@ -44,3 +44,72 @@ def unique_lines_by_xy(lines: List[Line2D]) -> List[Line2D]:
             seen_xy.add(xy_rounded)
             unique_lines.append(line)
     return unique_lines
+
+
+def to_scaled_coords(
+    ax: Axes, x_data: np.ndarray, y_data: np.ndarray
+) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """
+    Map data coordinates into the axes' scale space.
+
+    Distances there are proportional to distances on screen, because what
+    remains between scale space and the display is an affine map.  A linear
+    axis passes through unchanged; a log axis becomes its logarithm.  Working
+    in scale space rather than reading ``transData`` keeps the result
+    independent of figure layout, which is not settled during extraction.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes whose x and y scales apply.
+    x_data, y_data : np.ndarray
+        Data coordinates to map.
+
+    Returns
+    -------
+    tuple of np.ndarray, or None
+        The mapped coordinates, or ``None`` when a scale cannot represent this
+        data faithfully — a log axis reaching zero or below, which matplotlib
+        clips rather than maps.  Callers should stay on data coordinates then.
+    """
+    x_transform = ax.xaxis.get_transform()
+    y_transform = ax.yaxis.get_transform()
+    x_scaled = x_transform.transform(x_data)
+    y_scaled = y_transform.transform(y_data)
+
+    if not (np.all(np.isfinite(x_scaled)) and np.all(np.isfinite(y_scaled))):
+        return None
+
+    # A clipped value maps to a sentinel rather than to infinity, so the round
+    # trip is what actually reveals whether the scale represented this data.
+    if not (
+        np.allclose(x_transform.inverted().transform(x_scaled), x_data, rtol=1e-9)
+        and np.allclose(y_transform.inverted().transform(y_scaled), y_data, rtol=1e-9)
+    ):
+        return None
+
+    return x_scaled, y_scaled
+
+
+def from_scaled_coords(
+    ax: Axes, x_scaled: np.ndarray, y_scaled: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Invert :func:`to_scaled_coords`, returning data coordinates.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes whose x and y scales apply.
+    x_scaled, y_scaled : np.ndarray
+        Coordinates in the axes' scale space.
+
+    Returns
+    -------
+    tuple of np.ndarray
+        The same points in data coordinates.
+    """
+    return (
+        ax.xaxis.get_transform().inverted().transform(x_scaled),
+        ax.yaxis.get_transform().inverted().transform(y_scaled),
+    )

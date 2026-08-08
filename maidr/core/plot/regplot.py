@@ -8,7 +8,11 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.util.rdp_utils import resample_curve
 from maidr.util.regression_line_utils import find_regression_line
-from maidr.util.svg_utils import data_to_svg_coords
+from maidr.util.svg_utils import (
+    data_to_svg_coords,
+    from_scaled_coords,
+    to_scaled_coords,
+)
 
 #: Default maximum number of output points per smooth curve.
 _DEFAULT_MAX_SMOOTH_POINTS = 30
@@ -49,6 +53,47 @@ class SmoothPlot(MaidrPlot):
             return [f"g[id='{self._smooth_gid}'] path"]
         return ["g[id^='maidr-'] path"]
 
+    def _thin_to_even_steps(
+        self, x_data: np.ndarray, y_data: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Thin the curve to points that step evenly across the plot.
+
+        The points are navigated and auto-played one at a time at a fixed rate,
+        so the sweep only tracks the drawn line while the steps look even on
+        screen.  Shape-based simplification gives the opposite: it collapses a
+        straight fit to its two endpoints and spends fewer steps on the flat
+        stretches of a curved one than on the bends.
+
+        Thinning happens in scale space, so a log axis paces by the distance it
+        draws rather than by raw data distance — on a linear axis the two are
+        the same thing and this costs nothing.
+
+        Parameters
+        ----------
+        x_data, y_data : np.ndarray
+            Vertices of the fitted line, in data coordinates.
+
+        Returns
+        -------
+        tuple of np.ndarray
+            The retained vertices, in data coordinates.
+        """
+        scaled = to_scaled_coords(self.ax, x_data, y_data)
+        if scaled is None:
+            # The scale cannot represent this data, leaving data coordinates as
+            # the only ordering to thin along.
+            xy = resample_curve(
+                np.column_stack([x_data, y_data]),
+                target=_DEFAULT_MAX_SMOOTH_POINTS,
+            )
+            return xy[:, 0], xy[:, 1]
+
+        xy = resample_curve(
+            np.column_stack(scaled), target=_DEFAULT_MAX_SMOOTH_POINTS
+        )
+        return from_scaled_coords(self.ax, xy[:, 0], xy[:, 1])
+
     def _extract_plot_data(self) -> list:
         """
         Extract XY data from the regression line for serialization, including SVG coordinates.
@@ -70,16 +115,7 @@ class SmoothPlot(MaidrPlot):
         xydata = np.asarray(regression_line.get_xydata())
         x_data, y_data = xydata[:, 0], xydata[:, 1]
 
-        # Thin the curve before computing SVG coordinates.  The points are
-        # navigated and auto-played one at a time at a fixed rate, so they have
-        # to stay evenly spaced along the line: shape-based simplification
-        # would collapse a straight fit to its two endpoints and stretch the
-        # flat stretches of a curved one over fewer steps than the bends.
-        xy = resample_curve(
-            np.column_stack([x_data, y_data]),
-            target=_DEFAULT_MAX_SMOOTH_POINTS,
-        )
-        x_data, y_data = xy[:, 0], xy[:, 1]
+        x_data, y_data = self._thin_to_even_steps(x_data, y_data)
 
         x_svg, y_svg = data_to_svg_coords(self.ax, x_data, y_data)
         return [
