@@ -101,9 +101,12 @@ def _resolve(value: Any, data: Any) -> Any:
 
     try:
         return data[value]
-    except Exception:
+    except (KeyError, IndexError, TypeError):
         # Matplotlib treats an unresolvable name as a plain value too, and a
-        # pie that renders must not fail to be described.
+        # pie that renders must not fail to be described. Only the three ways
+        # an indexable object says "not this key" are caught -- a wider net
+        # would swallow a genuinely broken ``data`` and leave nothing to
+        # debug from.
         return value
 
 
