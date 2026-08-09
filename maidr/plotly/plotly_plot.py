@@ -10,6 +10,10 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
+# This is the import that makes the cycle: `step_shape` reads its trace arrays
+# through `as_list`, defined below, and so imports this module back. It does so
+# inside the function rather than here. Moving either import to the other's
+# level closes the cycle and breaks both — see `step_shape._trace_point_count`.
 from maidr.plotly.step_shape import renders_through_webgl
 
 
@@ -498,8 +502,11 @@ def as_list(value: Any) -> list:
     A multi-dimensional array carries its extents alongside the buffer and is
     restored to nested lists, so a heatmap's ``z`` still arrives as rows.
 
-    Plain lists, tuples and None are handed back as they are, so a hand-built
-    ``go.Bar(y=[1, 2, 3])`` travels this path unchanged.
+    A plain list or tuple is handed back as a list, so a hand-built
+    ``go.Bar(y=[1, 2, 3])`` travels this path unchanged. An absent array
+    becomes an empty list rather than staying ``None``: every caller reads a
+    trace key that may simply not be there, and one empty answer for "no
+    array" saves each of them a null check.
 
     Parameters
     ----------
