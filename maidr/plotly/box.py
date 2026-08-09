@@ -6,7 +6,7 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
 
 def _build_box_selector(
@@ -118,11 +118,11 @@ class PlotlyBoxPlot(PlotlyPlot):
 
     def _extract_precomputed(self) -> list[dict]:
         """Extract box stats from pre-computed values in the trace."""
-        q1_vals = self._trace.get("q1", [])
-        median_vals = self._trace.get("median", [])
-        q3_vals = self._trace.get("q3", [])
-        lowerfence = self._trace.get("lowerfence", q1_vals)
-        upperfence = self._trace.get("upperfence", q3_vals)
+        q1_vals = as_list(self._trace.get("q1"))
+        median_vals = as_list(self._trace.get("median"))
+        q3_vals = as_list(self._trace.get("q3"))
+        lowerfence = as_list(self._trace.get("lowerfence", q1_vals))
+        upperfence = as_list(self._trace.get("upperfence", q3_vals))
 
         results = []
         for i in range(len(median_vals)):
@@ -155,7 +155,7 @@ class PlotlyBoxPlot(PlotlyPlot):
         # Single box — data may be in y (vertical) or x (horizontal)
         data = y if y is not None else x
         if data is not None:
-            arr = np.array(data, dtype=float)
+            arr = np.array(as_list(data), dtype=float)
             return [
                 self._compute_stats(arr, label=self._trace.get("name", ""))
             ]
@@ -164,8 +164,8 @@ class PlotlyBoxPlot(PlotlyPlot):
 
     def _extract_grouped(self, x: list[Any], y: list[Any]) -> list[dict]:
         """Extract stats grouped by x categories."""
-        x = list(x)
-        y = list(y)
+        x = as_list(x)
+        y = as_list(y)
         # Preserve order of appearance
         categories = list(dict.fromkeys(x))
         groups: dict[Any, list] = {cat: [] for cat in categories}

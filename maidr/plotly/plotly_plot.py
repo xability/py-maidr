@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import base64
 import re
 import uuid
 from abc import ABC, abstractmethod
 from typing import Any
+
+import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
@@ -478,6 +481,84 @@ def domain_interval(box: Any, key: str) -> tuple[float, float]:
         return round(float(interval[0]), 6), round(float(interval[1]), 6)
     except (TypeError, ValueError):
         return whole
+
+
+def as_list(value: Any) -> list:
+    """
+    Return a plotly data array as a plain list.
+
+    ``Figure.to_dict()`` hands back the arrays the author supplied, plus two
+    shapes they never wrote: a numeric array is exported as the
+    ``{"dtype": ..., "bdata": ...}`` base64 typed-array spec plotly.js
+    consumes, and a non-numeric one stays a numpy array. ``plotly.express``
+    produces one or the other for every column it plots, so every extractor
+    reads its trace arrays through here -- iterating the spec directly walks
+    its two keys and emits ``"dtype"`` and ``"bdata"`` as the data.
+
+    A multi-dimensional array carries its extents alongside the buffer and is
+    restored to nested lists, so a heatmap's ``z`` still arrives as rows.
+
+    Plain lists, tuples and None are handed back as they are, so a hand-built
+    ``go.Bar(y=[1, 2, 3])`` travels this path unchanged.
+
+    Parameters
+    ----------
+    value : Any
+        A plotly data array, a typed-array spec, or None.
+
+    Returns
+    -------
+    list
+        The array's entries, or an empty list.
+    """
+    if value is None:
+        return []
+
+    if isinstance(value, dict):
+        return _decode_typed_array(value)
+
+    # A string is iterable, so without this it would decompose into one
+    # single-character entry per letter instead of being rejected.
+    if isinstance(value, str):
+        return []
+
+    try:
+        return list(value)
+    except TypeError:
+        return []
+
+
+def _decode_typed_array(spec: dict) -> list:
+    """
+    Decode one exported ``{"dtype": ..., "bdata": ...}`` typed-array spec.
+
+    Parameters
+    ----------
+    spec : dict
+        The exported spec. ``shape`` is present only for an array of more
+        than one dimension, and names its extents as a comma-separated
+        string.
+
+    Returns
+    -------
+    list
+        The buffer's entries, nested when ``shape`` says so. Anything that
+        will not decode comes back empty rather than as something worse.
+    """
+    dtype = spec.get("dtype")
+    bdata = spec.get("bdata")
+    if dtype is None or bdata is None:
+        return []
+
+    try:
+        array = np.frombuffer(base64.b64decode(bdata), dtype=dtype)
+        shape = spec.get("shape")
+        if shape is not None:
+            extents = shape.split(",") if isinstance(shape, str) else shape
+            array = array.reshape([int(extent) for extent in extents])
+        return array.tolist()
+    except (TypeError, ValueError):
+        return []
 
 
 def _extract_decimals(fmt: str) -> int | None:

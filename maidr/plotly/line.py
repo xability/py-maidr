@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 from maidr.plotly.step_shape import renders_through_webgl
 
 
@@ -66,8 +66,8 @@ class PlotlyLinePlot(PlotlyPlot):
         return [self._scatter_line_selector(self._scatter_position)]
 
     def _extract_plot_data(self) -> list[list[dict]]:
-        x = self._trace.get("x", [])
-        y = self._trace.get("y", [])
+        x = as_list(self._trace.get("x"))
+        y = as_list(self._trace.get("y"))
         name = self._trace.get("name", "")
 
         line_data = []

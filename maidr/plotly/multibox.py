@@ -7,7 +7,7 @@ import numpy as np
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.box import _build_box_selector
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
 
 class PlotlyMultiBoxPlot(PlotlyPlot):
@@ -90,7 +90,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             # Single box — data may be in y (vertical) or x (horizontal)
             data = y if y is not None else x
             if data is not None:
-                arr = np.array(data, dtype=float)
+                arr = np.array(as_list(data), dtype=float)
                 all_boxes.append(self._compute_stats(arr, label=name))
 
         # Record outlier counts so _get_selector can split them.
@@ -105,11 +105,11 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
 
     def _extract_precomputed(self, trace: dict) -> list[dict]:
         """Extract box stats from pre-computed values."""
-        q1_vals = trace.get("q1", [])
-        median_vals = trace.get("median", [])
-        q3_vals = trace.get("q3", [])
-        lowerfence = trace.get("lowerfence", q1_vals)
-        upperfence = trace.get("upperfence", q3_vals)
+        q1_vals = as_list(trace.get("q1"))
+        median_vals = as_list(trace.get("median"))
+        q3_vals = as_list(trace.get("q3"))
+        lowerfence = as_list(trace.get("lowerfence", q1_vals))
+        upperfence = as_list(trace.get("upperfence", q3_vals))
 
         results = []
         for i in range(len(median_vals)):
@@ -130,8 +130,8 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         self, x: list[Any], y: list[Any]
     ) -> list[dict]:
         """Extract stats grouped by x categories."""
-        x_list = list(x)
-        y_list = list(y)
+        x_list = as_list(x)
+        y_list = as_list(y)
         categories = list(dict.fromkeys(x_list))
         groups: dict[Any, list] = {cat: [] for cat in categories}
         for xi, yi in zip(x_list, y_list):

@@ -4,7 +4,7 @@ from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
 
 class PlotlyHeatmapPlot(PlotlyPlot):
@@ -33,7 +33,10 @@ class PlotlyHeatmapPlot(PlotlyPlot):
             return val
 
     def _extract_plot_data(self) -> dict:
-        z = self._trace.get("z", [])
+        # ``z`` is the one two-dimensional array a trace carries, so it is
+        # also the one whose exported spec names a ``shape``; decoding it
+        # restores the rows the loop below reads.
+        z = as_list(self._trace.get("z"))
         x = self._trace.get("x", None)
         y = self._trace.get("y", None)
 
@@ -45,9 +48,9 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         result: dict = {MaidrKey.POINTS: points}
 
         if x is not None:
-            result[MaidrKey.X] = [self._to_native(v) for v in x]
+            result[MaidrKey.X] = [self._to_native(v) for v in as_list(x)]
         if y is not None:
-            result[MaidrKey.Y] = [self._to_native(v) for v in y]
+            result[MaidrKey.Y] = [self._to_native(v) for v in as_list(y)]
 
         return result
 

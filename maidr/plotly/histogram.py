@@ -6,7 +6,7 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
 
 def _plotly_round_up(val: float, array: list[float], reverse: bool = False) -> float:
@@ -176,9 +176,10 @@ class PlotlyHistogramPlot(PlotlyPlot):
         return f"{self._subplot_css_prefix()}.trace.bars .point > path"
 
     def _extract_plot_data(self) -> list[dict]:
-        x = self._trace.get("x", None)
-        if x is None:
+        raw_x = self._trace.get("x", None)
+        if raw_x is None:
             return []
+        x = as_list(raw_x)
 
         # Detect categorical (string) data — Plotly renders these as
         # count bar charts.  Mirror how seaborn countplot is handled:
