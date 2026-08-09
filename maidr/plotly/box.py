@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import numpy as np
@@ -7,6 +8,8 @@ import numpy as np
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+
+_logger = logging.getLogger(__name__)
 
 
 def _build_box_selector(
@@ -117,15 +120,39 @@ class PlotlyBoxPlot(PlotlyPlot):
         return "q1" in self._trace and "median" in self._trace
 
     def _extract_precomputed(self) -> list[dict]:
-        """Extract box stats from pre-computed values in the trace."""
+        """
+        Extract box stats from pre-computed values in the trace.
+
+        Only as many boxes are described as every statistic has a value for.
+        The five arrays are decoded independently, so one of them failing --
+        a corrupt typed-array spec comes back empty -- would otherwise leave
+        the loop indexing past the end of it. A short layer is the same answer
+        the rest of this module gives to data it cannot read; a crash would
+        take the whole figure with it.
+        """
         q1_vals = as_list(self._trace.get("q1"))
         median_vals = as_list(self._trace.get("median"))
         q3_vals = as_list(self._trace.get("q3"))
         lowerfence = as_list(self._trace.get("lowerfence")) or q1_vals
         upperfence = as_list(self._trace.get("upperfence")) or q3_vals
 
+        count = min(
+            len(q1_vals),
+            len(median_vals),
+            len(q3_vals),
+            len(lowerfence),
+            len(upperfence),
+        )
+        if count < len(median_vals):
+            _logger.warning(
+                "maidr: box has %d medians but only %d complete boxes; "
+                "describing those and dropping the rest.",
+                len(median_vals),
+                count,
+            )
+
         results = []
-        for i in range(len(median_vals)):
+        for i in range(count):
             results.append(
                 {
                     MaidrKey.LOWER_OUTLIER.value: [],

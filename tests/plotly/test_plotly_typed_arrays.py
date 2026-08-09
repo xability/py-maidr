@@ -254,3 +254,71 @@ class TestAsList:
             assert as_list({"dtype": "i1", "bdata": "ChQe"}) == [10, 20, 30]
 
         assert caplog.text == ""
+
+
+class TestPartialDecodeFailure:
+    """One unreadable statistic shortens a boxplot; it does not crash it.
+
+    The five precomputed arrays decode independently, so a corrupt spec in
+    one of them leaves the others populated. Indexing the short one is what
+    a crash would look like, and a crash here takes the whole figure with it
+    — including every layer that decoded perfectly well.
+    """
+
+    @staticmethod
+    def _trace(**overrides: Any) -> dict:
+        good = {"dtype": "i1", "bdata": "ChQe"}  # 10, 20, 30
+        trace = {
+            "type": "box",
+            "q1": good,
+            "median": good,
+            "q3": good,
+        }
+        trace.update(overrides)
+        return trace
+
+    @pytest.mark.parametrize("field", ["q1", "median", "q3"])
+    def test_an_undecodable_statistic_shortens_the_layer(self, field: str):
+        from maidr.plotly.box import PlotlyBoxPlot
+
+        broken = {"dtype": "i1", "bdata": "!!!not base64!!!"}
+        plot = PlotlyBoxPlot(self._trace(**{field: broken}), {})
+
+        assert plot._extract_plot_data() == []
+
+    def test_a_short_statistic_describes_only_the_complete_boxes(self):
+        from maidr.plotly.box import PlotlyBoxPlot
+
+        # One q1 for three medians: two boxes have no lower quartile.
+        plot = PlotlyBoxPlot(self._trace(q1={"dtype": "i1", "bdata": "Cg=="}), {})
+        boxes = plot._extract_plot_data()
+
+        assert len(boxes) == 1
+        assert boxes[0]["q1"] == 10
+
+    def test_the_shortening_is_reported(self, caplog):
+        from maidr.plotly.box import PlotlyBoxPlot
+
+        plot = PlotlyBoxPlot(self._trace(q1={"dtype": "i1", "bdata": "Cg=="}), {})
+        with caplog.at_level(logging.WARNING, logger="maidr.plotly.box"):
+            plot._extract_plot_data()
+
+        assert "3 medians but only 1" in caplog.text
+
+    def test_a_complete_trace_is_unaffected_and_silent(self, caplog):
+        from maidr.plotly.box import PlotlyBoxPlot
+
+        plot = PlotlyBoxPlot(self._trace(), {})
+        with caplog.at_level(logging.WARNING, logger="maidr.plotly.box"):
+            boxes = plot._extract_plot_data()
+
+        assert len(boxes) == 3
+        assert caplog.text == ""
+
+    def test_the_multi_box_extractor_behaves_the_same(self):
+        from maidr.plotly.multibox import PlotlyMultiBoxPlot
+
+        broken = {"dtype": "i1", "bdata": "!!!not base64!!!"}
+        plot = PlotlyMultiBoxPlot([self._trace(q3=broken)], {})
+
+        assert plot._extract_plot_data() == []
