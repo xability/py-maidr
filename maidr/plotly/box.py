@@ -183,9 +183,8 @@ class PlotlyBoxPlot(PlotlyPlot):
         data = y if y is not None else x
         if data is not None:
             arr = np.array(as_list(data), dtype=float)
-            return [
-                self._compute_stats(arr, label=self._trace.get("name", ""))
-            ]
+            stats = self._compute_stats(arr, label=self._trace.get("name", ""))
+            return [stats] if stats is not None else []
 
         return []
 
@@ -202,11 +201,30 @@ class PlotlyBoxPlot(PlotlyPlot):
         results = []
         for cat in categories:
             arr = np.array(groups[cat], dtype=float)
-            results.append(self._compute_stats(arr, label=str(cat)))
+            stats = self._compute_stats(arr, label=str(cat))
+            if stats is not None:
+                results.append(stats)
         return results
 
-    def _compute_stats(self, arr: np.ndarray, label: str = "") -> dict:
-        """Compute box plot statistics for a numeric array."""
+    def _compute_stats(self, arr: np.ndarray, label: str = "") -> dict | None:
+        """
+        Compute box plot statistics for a numeric array.
+
+        Answers None for an empty array. Every quartile of a box with no
+        samples is undefined -- `np.percentile` raises rather than inventing
+        one -- and an array arrives empty when the samples behind it could not
+        be read, a corrupt typed-array spec being the way that happens. The
+        caller drops the box; letting the raise through would take the whole
+        figure with it, including the layers that read perfectly well. The
+        precomputed path bounds its loop for the same reason.
+        """
+        if arr.size == 0:
+            _logger.warning(
+                "maidr: box %r has no samples to summarise; dropping it.",
+                label or "<unnamed>",
+            )
+            return None
+
         q1 = float(np.percentile(arr, 25))
         q2 = float(np.percentile(arr, 50))
         q3 = float(np.percentile(arr, 75))

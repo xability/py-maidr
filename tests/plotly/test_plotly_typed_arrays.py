@@ -322,3 +322,59 @@ class TestPartialDecodeFailure:
         plot = PlotlyMultiBoxPlot([self._trace(q3=broken)], {})
 
         assert plot._extract_plot_data() == []
+
+    def test_an_undecodable_raw_sample_array_drops_the_box(self):
+        from maidr.plotly.box import PlotlyBoxPlot
+
+        broken = {"dtype": "i1", "bdata": "!!!not base64!!!"}
+        plot = PlotlyBoxPlot({"type": "box", "y": broken}, {})
+
+        assert plot._extract_plot_data() == []
+
+    def test_an_undecodable_grouped_sample_array_drops_its_boxes(self):
+        from maidr.plotly.box import PlotlyBoxPlot
+
+        broken = {"dtype": "i1", "bdata": "!!!not base64!!!"}
+        plot = PlotlyBoxPlot(
+            {"type": "box", "x": {"dtype": "i1", "bdata": "ChQe"}, "y": broken}, {}
+        )
+
+        assert plot._extract_plot_data() == []
+
+    def test_the_multi_box_raw_path_drops_it_too(self):
+        from maidr.plotly.multibox import PlotlyMultiBoxPlot
+
+        broken = {"dtype": "i1", "bdata": "!!!not base64!!!"}
+        plot = PlotlyMultiBoxPlot([{"type": "box", "y": broken}], {})
+
+        assert plot._extract_plot_data() == []
+
+    def test_a_dropped_raw_box_is_reported(self, caplog):
+        from maidr.plotly.box import PlotlyBoxPlot
+
+        broken = {"dtype": "i1", "bdata": "!!!not base64!!!"}
+        plot = PlotlyBoxPlot({"type": "box", "name": "north", "y": broken}, {})
+        with caplog.at_level(logging.WARNING, logger="maidr.plotly.box"):
+            plot._extract_plot_data()
+
+        assert "no samples to summarise" in caplog.text
+        assert "north" in caplog.text
+
+    def test_a_readable_box_beside_an_unreadable_one_survives(self):
+        # The point of dropping rather than raising: one corrupt trace must
+        # not cost the figure the layers that read perfectly well.
+        from maidr.plotly.multibox import PlotlyMultiBoxPlot
+
+        broken = {"dtype": "i1", "bdata": "!!!not base64!!!"}
+        plot = PlotlyMultiBoxPlot(
+            [
+                {"type": "box", "name": "bad", "y": broken},
+                {"type": "box", "name": "good", "y": [1.0, 2.0, 3.0, 4.0, 5.0]},
+            ],
+            {},
+        )
+        boxes = plot._extract_plot_data()
+
+        assert len(boxes) == 1
+        assert boxes[0]["z"] == "good"
+        assert boxes[0]["q2"] == pytest.approx(3.0)
