@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from matplotlib.axes import Axes
@@ -148,6 +149,19 @@ class PiePlot(MaidrPlot):
             if any(value < 0 for value in values):
                 raise ValueError("Wedge sizes 'x' must be non negative values")
             return values
+
+        # Reaching here through the patch would mean the wedges and the call's
+        # own `x` had come apart, and the fractions below are plausible enough
+        # to pass unnoticed -- 0.3 where the caller wrote 30. Say so, so a
+        # future bug that decouples the two is visible rather than quietly
+        # rescaling every announcement.
+        if values is not None:
+            warnings.warn(
+                f"maidr: pie has {len(values)} values for {len(wedges)} wedges; "
+                "reporting each slice's share of the whole instead of the "
+                "magnitudes passed.",
+                stacklevel=2,
+            )
 
         # `theta2 - theta1` is the slice's share of the 360 degree whole. A
         # wedge matplotlib drew has already passed its own non-negative check,

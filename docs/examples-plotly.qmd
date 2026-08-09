@@ -192,8 +192,14 @@ leaves the data behind it untouched, so it is emitted as a pie layer too.
 
 ::: {.callout-note}
 Plotly names neither axis of a pie, so the layout's `xaxis`/`yaxis` titles are
-what tell maidr how to announce a slice; without them it falls back to "Label"
-and "Value".
+what tell maidr how to announce a slice; without them it falls back to
+"Category" and "Value", the same pair the matplotlib side uses.
+
+Those titles are only borrowed when the figure holds nothing but pies. A
+cartesian trace that declares no axis pair of its own shares the same default
+`xaxis`/`yaxis`, and those titles describe *its* axes — so in a mixed figure
+the pie keeps the generic pair rather than announcing a bar's axis names
+against its slices.
 
 Plotly builds its own slice list before drawing, and maidr follows it exactly
 so that data index *k* and highlighted wedge *k* stay the same slice: entries

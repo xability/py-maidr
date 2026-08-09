@@ -135,6 +135,10 @@ class PlotlyPiePlot(PlotlyPlot):
             return []
 
         numbers = [_as_number(value) for value in values[:length]]
+        # Plotly marks a pie with nothing positive to draw invisible, so it
+        # renders no wedges at all. This is a short circuit, not a rule of its
+        # own: the merge and filter steps below reach the same empty answer,
+        # since merging can only sum values that were already non-positive.
         if has_values and not any(n is not None and n > 0 for n in numbers):
             return []
 

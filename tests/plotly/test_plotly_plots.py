@@ -479,6 +479,27 @@ class TestPlotlyPiePlot:
 
         assert plot._extract_plot_data() == []
 
+    def test_a_pie_with_no_drawn_slice_still_builds_a_schema(self):
+        # An empty layer has to reach the wire intact rather than raise part
+        # way through: the figure around it is still describable, and a plot
+        # that throws here takes every other layer down with it.
+        trace = {"type": "pie", "labels": ["A", "B"], "values": [0, 0]}
+        plot = PlotlyPiePlot(trace, {})
+
+        schema = plot.schema
+
+        assert schema["type"] == PlotType.PIE
+        assert schema["data"] == []
+        assert set(schema["axes"]) == {"x", "y"}
+
+    def test_an_all_hidden_pie_still_builds_a_schema(self):
+        trace = {"type": "pie", "labels": ["A", "B"], "values": [1, 2]}
+        plot = PlotlyPiePlot(trace, {"hiddenlabels": ["A", "B"]})
+
+        schema = plot.schema
+
+        assert schema["data"] == []
+
     def test_labels_without_values_count_the_labels(self):
         trace = {"type": "pie", "labels": ["A", "B", "A"], "sort": False}
         plot = PlotlyPiePlot(trace, {})
