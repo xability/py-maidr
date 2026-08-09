@@ -23,7 +23,7 @@ import warnings  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 import pytest  # noqa: E402
 
-import maidr  # noqa: E402  # activates patches
+import maidr  # noqa: E402, F401  # imported for its side effect: activates the patches
 
 
 def _draw(kind: str, ax) -> None:
