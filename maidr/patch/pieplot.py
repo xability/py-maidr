@@ -12,9 +12,7 @@ from maidr.core.figure_manager import FigureManager
 from maidr.patch.common import _argument
 
 
-def pie(
-    wrapped: Callable, instance: Axes, args: tuple, kwargs: dict
-) -> tuple:
+def pie(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> tuple:
     """
     Patch function for `Axes.pie`.
 
