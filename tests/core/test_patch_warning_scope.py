@@ -67,6 +67,7 @@ KINDS = [
     "candlestick",  # candlestick
     "mplfinance",  # mplfinance
     "sns_boxplot",  # boxplot
+    "sns_catplot_box",  # boxplot
     "sns_violinplot",  # violinplot
     "sns_heatmap",  # heatmap
     "sns_histplot",  # histogram
@@ -123,6 +124,16 @@ def _draw(kind: str, ax) -> None:
         mpf.plot(_ohlc_frame(), type="candle", volume=True)
     elif kind == "sns_boxplot":
         sns.boxplot(x=[1, 2, 3, 4, 5], ax=ax)
+    elif kind == "sns_catplot_box":
+        # Reaches `_CategoricalPlotter.plot_boxes` without going through
+        # `seaborn.boxplot`, which is the only path for which wrapping
+        # `plot_boxes` buys anything. This row does not on its own prove that
+        # wrap works -- the injected warning lands inside `Axes.bxp`, which is
+        # suppressed in its own right, so it passes either way. It covers the
+        # path; `test_catplot_suppresses_what_plot_boxes_raises_around_the_draw`
+        # covers the wrap. Like `mpf.plot`, it lays out its own figure, so
+        # `ax` is unused.
+        sns.catplot(x=[1, 2, 3, 4, 5], kind="box")
     elif kind == "sns_violinplot":
         sns.violinplot(x=[1, 2, 3, 4, 5], ax=ax)
     elif kind == "sns_heatmap":
@@ -219,6 +230,43 @@ def test_a_warning_raised_after_the_plot_still_reaches_the_caller(kind):
 
         assert [str(w.message) for w in caught] == [f"heard after the {kind}"]
     finally:
+        plt.close("all")
+
+
+def test_catplot_suppresses_what_plot_boxes_raises_around_the_draw():
+    """
+    The one path for which wrapping ``_CategoricalPlotter.plot_boxes`` buys
+    anything, and it needs its own injection point.
+
+    Reached through ``seaborn.boxplot`` the wrap is a no-op — ``plot_boxes``
+    is already nested inside a suppressed call. ``seaborn.catplot`` reaches it
+    without going through ``seaborn.boxplot``, so that is the path under test.
+
+    ``_warning_from_inside_the_draw`` cannot see the difference: the first
+    artist a box draw adds is added *inside* ``Axes.bxp``, which is patched
+    and suppressed in its own right, so the warning never reaches the region
+    the ``plot_boxes`` wrap covers and the assertion holds either way. What
+    the wrap covers is what ``plot_boxes`` itself raises around its call to
+    ``bxp`` — so the warning is raised from a wrapper installed *over*
+    maidr's ``Axes.bxp``, which runs inside ``plot_boxes`` and outside the
+    suppression ``bxp`` installs for itself.
+    """
+    raised = 'raised by plot_boxes, outside the bxp it calls'
+    outer = Axes.bxp
+
+    def noisy_bxp(self, *args, **kwargs):
+        warnings.warn(raised, UserWarning)
+        return outer(self, *args, **kwargs)
+
+    Axes.bxp = noisy_bxp
+    try:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            sns.catplot(x=[1, 2, 3, 4, 5], kind="box")
+
+        assert raised not in [str(w.message) for w in caught]
+    finally:
+        Axes.bxp = outer
         plt.close("all")
 
 
