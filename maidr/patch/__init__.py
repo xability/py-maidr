@@ -7,6 +7,7 @@ from . import (  # noqa: F401
     highlight,
     histogram,
     lineplot,
+    pieplot,
     scatterplot,
     regplot,
     kdeplot,

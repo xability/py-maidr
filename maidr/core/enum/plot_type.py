@@ -11,6 +11,7 @@ class PlotType(str, Enum):
     HEAT = "heat"
     HIST = "hist"
     LINE = "line"
+    PIE = "pie"
     SCATTER = "point"
     STACKED = "stacked_bar"
     STEP = "step"

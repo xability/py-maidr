@@ -118,6 +118,33 @@ class TestMatplotlibCanonicalShape:
         finally:
             plt.close(fig)
 
+    def test_pie(self):
+        # A pie has no scale, so its two axes name what a slice is and what
+        # it measures -- still as AxisConfig objects, never bare strings.
+        fig, ax = plt.subplots()
+        try:
+            ax.pie([30, 50, 20], labels=["Apples", "Bananas", "Cherries"])
+            ax.set_xlabel("Fruit")
+            ax.set_ylabel("Units")
+            axes = _first_schema(fig)["axes"]
+
+            _assert_canonical_axes(axes)
+            assert axes["x"]["label"] == "Fruit"
+            assert axes["y"]["label"] == "Units"
+            assert "z" not in axes
+        finally:
+            plt.close(fig)
+
+    def test_pie_without_authored_labels(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie([1, 2, 3])
+            axes = _first_schema(fig)["axes"]
+
+            _assert_canonical_axes(axes)
+        finally:
+            plt.close(fig)
+
     def test_heatmap_has_z_axis_config(self):
         fig, ax = plt.subplots()
         try:

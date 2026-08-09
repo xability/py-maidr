@@ -11,7 +11,7 @@ from typing import Any, Literal, cast
 from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, domain_interval
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.plotly.step_shape import (
     is_connected_line_trace,
@@ -29,6 +29,56 @@ from maidr.util.dependencies import (
 )
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_plotly
+
+
+#: Trace types placed by their own ``domain`` rectangle that maidr renders as
+#: a layer. Plotly has other domain traces -- ``table``, ``sunburst``,
+#: ``treemap``, ``indicator`` -- and maidr draws no layer for any of them, so
+#: their rectangles are deliberately not folded into the figure's row and
+#: column universe by :meth:`PlotlyMaidr._subplot_domain_starts`. Folding them
+#: in would move the cartesian subplots sitting beside them: a bar to the right
+#: of a ``go.Table`` in a 1x2 grid would go from column 0, the only column
+#: maidr has anything to put in, to column 1 behind an empty cell.
+#:
+#: Add a type here when maidr learns to render it, not before.
+_PLACED_BY_DOMAIN = frozenset({"pie"})
+
+#: Every trace type plotly places by a ``domain`` rectangle rather than by a
+#: cartesian axis pair. These share the default ``("x", "y")`` trace group with
+#: each other simply because none of them names an axis -- not because any of
+#: them has a claim on ``layout.xaxis``/``yaxis``. Used to decide whether a pie
+#: may take those titles for its own dimension names; see ``_extract_plots``.
+_DOMAIN_TRACE_TYPES = frozenset(
+    {
+        "pie",
+        "funnelarea",
+        "sunburst",
+        "treemap",
+        "icicle",
+        "indicator",
+        "table",
+        "sankey",
+        "parcats",
+        "parcoords",
+    }
+)
+
+
+def _is_domain_trace(trace: dict) -> bool:
+    """Report whether plotly places this trace by a domain rather than an axis.
+
+    Parameters
+    ----------
+    trace : dict
+        One trace of the figure.
+
+    Returns
+    -------
+    bool
+        True when the trace carries no cartesian axis pair. A trace with no
+        ``type`` at all is a ``scatter``, which is cartesian.
+    """
+    return trace.get("type") in _DOMAIN_TRACE_TYPES
 
 
 class PlotlyMaidr:
@@ -70,43 +120,107 @@ class PlotlyMaidr:
         return x_key, y_key
 
     @staticmethod
-    def _subplot_grid_position(
-        layout: dict, xaxis_name: str, yaxis_name: str
-    ) -> tuple[int, int]:
-        """Determine subplot grid position from axis domain values.
+    def _subplot_domain_starts(
+        layout: dict, traces: list[dict]
+    ) -> tuple[list[float], list[float]]:
+        """Collect the fractional start of every subplot in the figure.
 
-        Plotly's ``make_subplots`` assigns each axis a ``domain`` property
-        that specifies its fractional position within the figure.  This
-        method collects all unique domain start values to compute row/col
-        indices.
+        Plotly's ``make_subplots`` places a *cartesian* subplot by giving each
+        of its axes a ``domain``, and a *domain* trace -- ``go.Pie`` has no
+        axes at all -- by giving the trace itself a ``domain`` rectangle.
+        Both are fractions of the same figure, so the two are collected
+        together: a figure mixing a pie with a cartesian subplot has to order
+        their columns against each other, not each against its own kind.
+
+        Only the domain traces maidr renders are collected -- see
+        :data:`_PLACED_BY_DOMAIN`. The grid this builds is the grid the user
+        navigates, and a trace maidr draws no layer for occupies no cell in
+        it: reserving one would both add an empty cell to tab through and
+        shift every renderable subplot beside it into a different column.
+
+        Parameters
+        ----------
+        layout : dict
+            The Plotly figure layout.
+        traces : list of dict
+            Every trace in the figure.
+
+        Returns
+        -------
+        tuple of (list of float, list of float)
+            The unique x starts left to right, giving column indices, and the
+            unique y starts top to bottom, giving row indices -- a higher y
+            start sits higher on the page, so it is the lower row index.
         """
-        # Collect all x-axis domain starts and y-axis domain starts
         x_starts: set[float] = set()
         y_starts: set[float] = set()
 
         for key, val in layout.items():
             if key.startswith("xaxis") and isinstance(val, dict):
-                domain = val.get("domain", [0, 1])
-                x_starts.add(round(domain[0], 6))
+                x_starts.add(_domain_start(val, "domain"))
             if key.startswith("yaxis") and isinstance(val, dict):
-                domain = val.get("domain", [0, 1])
-                y_starts.add(round(domain[0], 6))
+                y_starts.add(_domain_start(val, "domain"))
 
-        # Sort: x left-to-right gives columns, y top-to-bottom gives rows
-        # y domains: higher start = higher on page = lower row index
-        sorted_x = sorted(x_starts)
-        sorted_y = sorted(y_starts, reverse=True)
+        for trace in traces:
+            if trace.get("type") not in _PLACED_BY_DOMAIN:
+                continue
+            domain = trace.get("domain")
+            if isinstance(domain, dict):
+                x_starts.add(_domain_start(domain, "x"))
+                y_starts.add(_domain_start(domain, "y"))
 
-        # Get this axis's domain start
-        xaxis = layout.get(xaxis_name, {})
-        yaxis = layout.get(yaxis_name, {})
-        x_start = round(xaxis.get("domain", [0, 1])[0], 6)
-        y_start = round(yaxis.get("domain", [0, 1])[0], 6)
+        return sorted(x_starts), sorted(y_starts, reverse=True)
 
-        col = sorted_x.index(x_start) if x_start in sorted_x else 0
-        row = sorted_y.index(y_start) if y_start in sorted_y else 0
+    @staticmethod
+    def _grid_position(
+        x_starts: list[float],
+        y_starts: list[float],
+        start: tuple[float, float],
+    ) -> tuple[int, int]:
+        """Return the grid cell one subplot's domain start pair addresses.
+
+        Parameters
+        ----------
+        x_starts, y_starts : list of float
+            The figure's subplot starts, as :meth:`_subplot_domain_starts`
+            ordered them.
+        start : tuple of (float, float)
+            This subplot's own x and y domain start.
+
+        Returns
+        -------
+        tuple of (int, int)
+            The ``(row, col)`` of the cell, falling back to the first row or
+            column for a start the figure does not place.
+        """
+        x_start, y_start = start
+
+        col = x_starts.index(x_start) if x_start in x_starts else 0
+        row = y_starts.index(y_start) if y_start in y_starts else 0
 
         return row, col
+
+    @staticmethod
+    def _axis_domain_start(
+        layout: dict, xaxis_name: str, yaxis_name: str
+    ) -> tuple[float, float]:
+        """Return where a cartesian subplot's axis pair starts in the figure."""
+        return (
+            _domain_start(layout.get(xaxis_name, {}), "domain"),
+            _domain_start(layout.get(yaxis_name, {}), "domain"),
+        )
+
+    @staticmethod
+    def _trace_domain_start(trace: dict) -> tuple[float, float]:
+        """Return where a domain trace's own rectangle starts in the figure.
+
+        A domain trace carries no ``xaxis``/``yaxis``, so this -- not the axis
+        names its group was keyed by, which are the defaults for every one of
+        them -- is what tells two pies of a grid apart. A trace plotly never
+        placed covers the whole figure, which is the first cell.
+        """
+        domain = trace.get("domain")
+        return _domain_start(domain, "x"), _domain_start(domain, "y")
 
     def _extract_plots(self) -> None:
         """Extract PlotlyPlot instances from all traces in the figure.
@@ -138,6 +252,9 @@ class PlotlyMaidr:
           carries a single ``stepDirection`` for all of its series.
         * Multiple box traces are merged into a single
           :class:`PlotlyMultiBoxPlot` (matching ``BoxPlot``).
+        * Pie traces stay one layer each, but are built here rather than by
+          the factory so every pie carries its position among the figure's
+          pie traces — the only thing its selector can be scoped by.
 
         Every scatter-family trace is assigned a selector index from its
         position within the subplot, not within the layer it lands in — see
@@ -156,14 +273,18 @@ class PlotlyMaidr:
             axis_pair = self._trace_axis_ref(trace)
             axis_groups[axis_pair].append(trace)
 
+        x_starts, y_starts = self._subplot_domain_starts(layout, traces)
+
         # Process each subplot group independently
         for (xaxis_name, yaxis_name), group_traces in axis_groups.items():
             axis_kwargs = {
                 "xaxis_name": xaxis_name,
                 "yaxis_name": yaxis_name,
             }
-            row, col = self._subplot_grid_position(
-                layout, xaxis_name, yaxis_name
+            row, col = self._grid_position(
+                x_starts,
+                y_starts,
+                self._axis_domain_start(layout, xaxis_name, yaxis_name),
             )
 
             bar_traces = [
@@ -174,6 +295,9 @@ class PlotlyMaidr:
             ]
             box_traces = [
                 t for t in group_traces if t.get("type") == "box"
+            ]
+            pie_traces = [
+                t for t in group_traces if t.get("type") == "pie"
             ]
 
             # `nth-child` counts within the subplot's SVG `scatterlayer`, so a
@@ -348,6 +472,55 @@ class PlotlyMaidr:
                 plot.col_index = col
                 self._plots.append(plot)
                 merged.update(id(t) for t in box_traces)
+
+            # Pies, one layer each. Plotly draws them into a figure-level
+            # ``pielayer`` instead of a subplot group, so a pie's selector is
+            # scoped by its position among the *pie* traces rather than by an
+            # axis pair -- which a pie does not carry at all, and which is why
+            # every pie in a figure lands in this one group. Only this loop
+            # knows those positions, so pies are built here rather than left
+            # to ``PlotlyPlotFactory``, which sees one trace and has to assume
+            # it is the only one.
+            #
+            # That one group is a fact about the selector, not about the grid:
+            # a pie is placed by its own ``domain`` rectangle, so its cell is
+            # read from there. Taking the group's cell instead collapsed every
+            # pie of a grid into the first one, stacked as layers of a single
+            # subplot.
+            if pie_traces:
+                from maidr.plotly.pie import PlotlyPiePlot
+
+                # A pie has no axes of its own, so it names its dimensions from
+                # ``layout.xaxis``/``yaxis`` when nothing else has claimed them.
+                # A cartesian trace with no explicit axis pair shares this same
+                # default group, and those titles describe *its* axes -- letting
+                # the pie borrow them would announce a bar's "Month" against a
+                # pie's slice labels.
+                #
+                # Only a *cartesian* trace claims them. The other domain traces
+                # land in this group for the same reason a pie does -- they
+                # carry no axis pair either -- so a pie beside a `go.Sunburst`
+                # still owns the titles, and falling back to the generic pair
+                # there would lose a label the author did write.
+                pie_owns_axes = all(
+                    _is_domain_trace(trace) for trace in group_traces
+                )
+
+                for position, pie_trace in enumerate(pie_traces):
+                    plot = PlotlyPiePlot(
+                        pie_trace,
+                        layout,
+                        pie_position=position,
+                        borrows_axis_titles=pie_owns_axes,
+                        **axis_kwargs,
+                    )
+                    plot.row_index, plot.col_index = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._trace_domain_start(pie_trace),
+                    )
+                    self._plots.append(plot)
+                merged.update(id(t) for t in pie_traces)
 
             # Remaining traces
             for trace in group_traces:
@@ -842,3 +1015,25 @@ class PlotlyMaidr:
         temp_file_path = os.path.join(static_temp_dir, "maidr_plotly_plot.html")
         html_file_path = self.save_html(temp_file_path, use_cdn=use_cdn)
         webbrowser.open(f"file://{html_file_path}")
+
+
+def _domain_start(box: Any, key: str) -> float:
+    """
+    Return where one ``domain`` interval starts, as a fraction of the figure.
+
+    Parameters
+    ----------
+    box : Any
+        A layout axis, whose ``domain`` holds the interval, or a trace's
+        ``domain``, whose ``x`` and ``y`` hold one each.
+    key : str
+        The key holding the interval.
+
+    Returns
+    -------
+    float
+        The interval's start, rounded so that two subplots plotly placed
+        together compare equal, or 0 for an interval that is absent or
+        malformed -- the figure's own edge, which is the first row or column.
+    """
+    return domain_interval(box, key)[0]
