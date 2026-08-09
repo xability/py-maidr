@@ -181,11 +181,13 @@ class PlotlyPiePlot(PlotlyPlot):
         announces a slice as those two names paired with the point. Plotly
         names neither, so an author who wants them says so through the
         layout's axis titles; otherwise the generic pair stands in, which at
-        least reads as English where ``X`` and ``Y`` would not.
+        least reads as English where ``X`` and ``Y`` would not. It is the same
+        pair :class:`~maidr.core.plot.pieplot.PiePlot` falls back to, because
+        an unlabelled pie is announced by its plot type, not by its library.
         """
         return {
             MaidrKey.X: self._axis_config(
-                label=_axis_title(self._layout.get(self._xaxis_name, {}), "Label")
+                label=_axis_title(self._layout.get(self._xaxis_name, {}), "Category")
             ),
             MaidrKey.Y: self._axis_config(
                 label=_axis_title(self._layout.get(self._yaxis_name, {}), "Value")

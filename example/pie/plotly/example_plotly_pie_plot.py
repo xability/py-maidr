@@ -7,7 +7,8 @@ highlights. Pass ``sort=False`` to keep the authored order in both.
 
 Plotly names neither axis of a pie, so ``xaxis``/``yaxis`` titles in the layout
 are what tell maidr how to announce a slice; without them it falls back to the
-generic "Label" and "Value". A donut is the same chart with ``hole`` set.
+generic "Category" and "Value" — the same pair the matplotlib pie falls back
+to. A donut is the same chart with ``hole`` set.
 """
 
 import plotly.graph_objects as go

@@ -225,6 +225,113 @@ class TestPlotlyPieFigures:
         assert '"type": "pie"' in html_str
 
 
+class TestPlotlyPieSubplotGrid:
+    """A pie takes its grid cell from its own ``domain`` rectangle.
+
+    Every pie in a figure shares one trace group, because a pie carries no
+    axis pair to be grouped by — which is what its selector needs (see
+    :class:`TestPlotlyPieFigures`) and what its *position* must not be taken
+    from. Reading the group's cell instead collapsed a whole grid of pies into
+    one subplot holding all of them as layers.
+    """
+
+    @staticmethod
+    def _cells(fig) -> list[tuple[int, int]]:
+        return [(plot.row_index, plot.col_index) for plot in PlotlyMaidr(fig)._plots]
+
+    @staticmethod
+    def _cell_of(fig, plot_type: str) -> tuple[int, int]:
+        plot = next(
+            plot for plot in PlotlyMaidr(fig)._plots if plot.type.value == plot_type
+        )
+        return plot.row_index, plot.col_index
+
+    def test_two_pies_side_by_side_are_two_subplots(self):
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1, cols=2, specs=[[{"type": "domain"}, {"type": "domain"}]]
+        )
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]), row=1, col=1)
+        fig.add_trace(go.Pie(labels=["C", "D"], values=[3, 4]), row=1, col=2)
+
+        assert self._cells(fig) == [(0, 0), (0, 1)]
+
+        subplots = PlotlyMaidr(fig)._flatten_maidr()["subplots"]
+        assert len(subplots) == 1
+        assert [len(cell["layers"]) for cell in subplots[0]] == [1, 1]
+
+    def test_a_two_by_two_grid_of_pies_fills_every_cell(self):
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(rows=2, cols=2, specs=[[{"type": "domain"}] * 2] * 2)
+        for row in (1, 2):
+            for col in (1, 2):
+                fig.add_trace(
+                    go.Pie(labels=["A", "B"], values=[1, 2]), row=row, col=col
+                )
+
+        assert self._cells(fig) == [(0, 0), (0, 1), (1, 0), (1, 1)]
+
+    def test_the_grid_still_numbers_the_pielayer_across_subplots(self):
+        # `pie_position` counts the figure's pie traces, not its subplots:
+        # plotly draws all four into one `pielayer` however they are placed.
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(rows=2, cols=2, specs=[[{"type": "domain"}] * 2] * 2)
+        for row in (1, 2):
+            for col in (1, 2):
+                fig.add_trace(
+                    go.Pie(labels=["A", "B"], values=[1, 2]), row=row, col=col
+                )
+
+        selectors = [plot._get_selector() for plot in PlotlyMaidr(fig)._plots]
+
+        assert len(selectors) == 4
+        assert all(
+            f"nth-child({position})" in selector
+            for position, selector in enumerate(selectors, start=1)
+        )
+
+    def test_a_pie_is_ordered_against_a_cartesian_subplot(self):
+        # The pie is placed by a trace domain and the bar by an axis domain;
+        # the two are fractions of the same figure, so the columns have to be
+        # ordered against each other rather than each within its own kind.
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1, cols=2, specs=[[{"type": "domain"}, {"type": "xy"}]]
+        )
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]), row=1, col=1)
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=2)
+
+        assert self._cell_of(fig, "pie") == (0, 0)
+        assert self._cell_of(fig, "bar") == (0, 1)
+
+    def test_a_pie_right_of_a_cartesian_subplot_keeps_its_column(self):
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1, cols=2, specs=[[{"type": "xy"}, {"type": "domain"}]]
+        )
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=1)
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]), row=1, col=2)
+
+        assert self._cell_of(fig, "pie") == (0, 1)
+        assert self._cell_of(fig, "bar") == (0, 0)
+
+    def test_a_lone_pie_stays_in_the_first_cell(self):
+        # An unplaced pie covers the whole figure, and a single-cell grid is
+        # not a grid: it must not gain a subplot selector.
+        fig = go.Figure(go.Pie(labels=["A", "B"], values=[1, 2]))
+
+        assert self._cells(fig) == [(0, 0)]
+
+        subplots = PlotlyMaidr(fig)._flatten_maidr()["subplots"]
+        assert len(subplots) == 1 and len(subplots[0]) == 1
+        assert "selector" not in subplots[0][0]
+
+
 class TestPlotlyFigureMetadata:
     """Figure-wide layout title/subtitle mapped onto the top-level schema.
 

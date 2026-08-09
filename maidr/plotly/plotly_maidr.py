@@ -70,43 +70,102 @@ class PlotlyMaidr:
         return x_key, y_key
 
     @staticmethod
-    def _subplot_grid_position(
-        layout: dict, xaxis_name: str, yaxis_name: str
-    ) -> tuple[int, int]:
-        """Determine subplot grid position from axis domain values.
+    def _subplot_domain_starts(
+        layout: dict, traces: list[dict]
+    ) -> tuple[list[float], list[float]]:
+        """Collect the fractional start of every subplot in the figure.
 
-        Plotly's ``make_subplots`` assigns each axis a ``domain`` property
-        that specifies its fractional position within the figure.  This
-        method collects all unique domain start values to compute row/col
-        indices.
+        Plotly's ``make_subplots`` places a *cartesian* subplot by giving each
+        of its axes a ``domain``, and a *domain* trace -- ``go.Pie`` has no
+        axes at all -- by giving the trace itself a ``domain`` rectangle.
+        Both are fractions of the same figure, so the two are collected
+        together: a figure mixing a pie with a cartesian subplot has to order
+        their columns against each other, not each against its own kind.
+
+        Parameters
+        ----------
+        layout : dict
+            The Plotly figure layout.
+        traces : list of dict
+            Every trace in the figure.
+
+        Returns
+        -------
+        tuple of (list of float, list of float)
+            The unique x starts left to right, giving column indices, and the
+            unique y starts top to bottom, giving row indices -- a higher y
+            start sits higher on the page, so it is the lower row index.
         """
-        # Collect all x-axis domain starts and y-axis domain starts
         x_starts: set[float] = set()
         y_starts: set[float] = set()
 
         for key, val in layout.items():
             if key.startswith("xaxis") and isinstance(val, dict):
-                domain = val.get("domain", [0, 1])
-                x_starts.add(round(domain[0], 6))
+                x_starts.add(_domain_start(val, "domain"))
             if key.startswith("yaxis") and isinstance(val, dict):
-                domain = val.get("domain", [0, 1])
-                y_starts.add(round(domain[0], 6))
+                y_starts.add(_domain_start(val, "domain"))
 
-        # Sort: x left-to-right gives columns, y top-to-bottom gives rows
-        # y domains: higher start = higher on page = lower row index
-        sorted_x = sorted(x_starts)
-        sorted_y = sorted(y_starts, reverse=True)
+        for trace in traces:
+            domain = trace.get("domain")
+            if isinstance(domain, dict):
+                x_starts.add(_domain_start(domain, "x"))
+                y_starts.add(_domain_start(domain, "y"))
 
-        # Get this axis's domain start
-        xaxis = layout.get(xaxis_name, {})
-        yaxis = layout.get(yaxis_name, {})
-        x_start = round(xaxis.get("domain", [0, 1])[0], 6)
-        y_start = round(yaxis.get("domain", [0, 1])[0], 6)
+        return sorted(x_starts), sorted(y_starts, reverse=True)
 
-        col = sorted_x.index(x_start) if x_start in sorted_x else 0
-        row = sorted_y.index(y_start) if y_start in sorted_y else 0
+    @staticmethod
+    def _grid_position(
+        x_starts: list[float],
+        y_starts: list[float],
+        start: tuple[float, float],
+    ) -> tuple[int, int]:
+        """Return the grid cell one subplot's domain start pair addresses.
+
+        Parameters
+        ----------
+        x_starts, y_starts : list of float
+            The figure's subplot starts, as :meth:`_subplot_domain_starts`
+            ordered them.
+        start : tuple of (float, float)
+            This subplot's own x and y domain start.
+
+        Returns
+        -------
+        tuple of (int, int)
+            The ``(row, col)`` of the cell, falling back to the first row or
+            column for a start the figure does not place.
+        """
+        x_start, y_start = start
+
+        col = x_starts.index(x_start) if x_start in x_starts else 0
+        row = y_starts.index(y_start) if y_start in y_starts else 0
 
         return row, col
+
+    @staticmethod
+    def _axis_domain_start(
+        layout: dict, xaxis_name: str, yaxis_name: str
+    ) -> tuple[float, float]:
+        """Return where a cartesian subplot's axis pair starts in the figure."""
+        return (
+            _domain_start(layout.get(xaxis_name, {}), "domain"),
+            _domain_start(layout.get(yaxis_name, {}), "domain"),
+        )
+
+    @staticmethod
+    def _trace_domain_start(trace: dict) -> tuple[float, float]:
+        """Return where a domain trace's own rectangle starts in the figure.
+
+        A domain trace carries no ``xaxis``/``yaxis``, so this -- not the axis
+        names its group was keyed by, which are the defaults for every one of
+        them -- is what tells two pies of a grid apart. A trace plotly never
+        placed covers the whole figure, which is the first cell.
+        """
+        domain = trace.get("domain")
+        if not isinstance(domain, dict):
+            domain = {}
+
+        return _domain_start(domain, "x"), _domain_start(domain, "y")
 
     def _extract_plots(self) -> None:
         """Extract PlotlyPlot instances from all traces in the figure.
@@ -159,14 +218,18 @@ class PlotlyMaidr:
             axis_pair = self._trace_axis_ref(trace)
             axis_groups[axis_pair].append(trace)
 
+        x_starts, y_starts = self._subplot_domain_starts(layout, traces)
+
         # Process each subplot group independently
         for (xaxis_name, yaxis_name), group_traces in axis_groups.items():
             axis_kwargs = {
                 "xaxis_name": xaxis_name,
                 "yaxis_name": yaxis_name,
             }
-            row, col = self._subplot_grid_position(
-                layout, xaxis_name, yaxis_name
+            row, col = self._grid_position(
+                x_starts,
+                y_starts,
+                self._axis_domain_start(layout, xaxis_name, yaxis_name),
             )
 
             bar_traces = [
@@ -363,6 +426,12 @@ class PlotlyMaidr:
             # knows those positions, so pies are built here rather than left
             # to ``PlotlyPlotFactory``, which sees one trace and has to assume
             # it is the only one.
+            #
+            # That one group is a fact about the selector, not about the grid:
+            # a pie is placed by its own ``domain`` rectangle, so its cell is
+            # read from there. Taking the group's cell instead collapsed every
+            # pie of a grid into the first one, stacked as layers of a single
+            # subplot.
             if pie_traces:
                 from maidr.plotly.pie import PlotlyPiePlot
 
@@ -373,8 +442,11 @@ class PlotlyMaidr:
                         pie_position=position,
                         **axis_kwargs,
                     )
-                    plot.row_index = row
-                    plot.col_index = col
+                    plot.row_index, plot.col_index = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._trace_domain_start(pie_trace),
+                    )
                     self._plots.append(plot)
                 merged.update(id(t) for t in pie_traces)
 
@@ -871,3 +943,32 @@ class PlotlyMaidr:
         temp_file_path = os.path.join(static_temp_dir, "maidr_plotly_plot.html")
         html_file_path = self.save_html(temp_file_path, use_cdn=use_cdn)
         webbrowser.open(f"file://{html_file_path}")
+
+
+def _domain_start(box: dict, key: str) -> float:
+    """
+    Return where one ``domain`` interval starts, as a fraction of the figure.
+
+    Parameters
+    ----------
+    box : dict
+        A layout axis, whose ``domain`` holds the interval, or a trace's
+        ``domain``, whose ``x`` and ``y`` hold one each.
+    key : str
+        The key holding the interval.
+
+    Returns
+    -------
+    float
+        The interval's start, rounded so that two subplots plotly placed
+        together compare equal, or 0 for an interval that is absent or
+        malformed -- the figure's own edge, which is the first row or column.
+    """
+    interval = box.get(key, [0, 1])
+    if not isinstance(interval, (list, tuple)) or not interval:
+        return 0.0
+
+    try:
+        return round(float(interval[0]), 6)
+    except (TypeError, ValueError):
+        return 0.0

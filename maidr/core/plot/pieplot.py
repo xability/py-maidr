@@ -138,21 +138,21 @@ class PiePlot(MaidrPlot):
         Raises
         ------
         ValueError
-            If any magnitude is negative. A negative slice has no area to
-            draw, and matplotlib rejects one for the same reason.
+            If any magnitude the caller passed is negative. A negative slice
+            has no area to draw, and matplotlib rejects one for the same
+            reason.
         """
         values = self._as_floats(self._values)
 
-        if values is None or len(values) != len(wedges):
-            # `theta2 - theta1` is the slice's share of the 360 degree whole.
-            values = [
-                (float(wedge.theta2) - float(wedge.theta1)) / 360.0 for wedge in wedges
-            ]
+        if values is not None and len(values) == len(wedges):
+            if any(value < 0 for value in values):
+                raise ValueError("Wedge sizes 'x' must be non negative values")
+            return values
 
-        if any(value < 0 for value in values):
-            raise ValueError("Wedge sizes 'x' must be non negative values")
-
-        return values
+        # `theta2 - theta1` is the slice's share of the 360 degree whole. A
+        # wedge matplotlib drew has already passed its own non-negative check,
+        # so this branch has nothing left to reject.
+        return [(float(wedge.theta2) - float(wedge.theta1)) / 360.0 for wedge in wedges]
 
     def _extract_labels(self, wedges: list[Wedge]) -> list[Any]:
         """

@@ -468,11 +468,12 @@ class TestPlotlyPiePlot:
 
     def test_unnamed_axes_read_as_english(self):
         # Plotly names neither axis of a pie, and MAIDR reads a slice out as
-        # those two names.
+        # those two names. The pair matches the matplotlib pie's own fallback:
+        # the announcement follows the plot type, not the library behind it.
         plot = PlotlyPiePlot({"type": "pie", "labels": ["A"], "values": [1]}, {})
         axes = plot.schema[MaidrKey.AXES]
 
-        assert axes[MaidrKey.X][MaidrKey.LABEL] == "Label"
+        assert axes[MaidrKey.X][MaidrKey.LABEL] == "Category"
         assert axes[MaidrKey.Y][MaidrKey.LABEL] == "Value"
 
 
