@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import base64
 import math
 from typing import Any
 
-import numpy as np
-
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, domain_interval
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list, domain_interval
 
 
 class PlotlyPiePlot(PlotlyPlot):
@@ -155,8 +152,8 @@ class PlotlyPiePlot(PlotlyPlot):
         """
         raw_labels = self._trace.get("labels")
         raw_values = self._trace.get("values")
-        labels = _as_list(raw_labels)
-        values = _as_list(raw_values)
+        labels = as_list(raw_labels)
+        values = as_list(raw_values)
 
         # Each array bounds the other, and an array the author never supplied
         # bounds nothing -- an empty one still bounds the pie down to nothing.
@@ -217,7 +214,7 @@ class PlotlyPiePlot(PlotlyPlot):
         # would shift every later slice onto the wrong element.
         hidden = {
             label
-            for label in _as_list(self._layout.get("hiddenlabels"))
+            for label in as_list(self._layout.get("hiddenlabels"))
             if isinstance(label, str)
         }
         return [(label, value) for label, value in wedges if label not in hidden]
@@ -278,52 +275,6 @@ def _wedge_label(label: Any, index: int) -> str:
     if label == "":
         return str(index)
     return str(label)
-
-
-def _as_list(value: Any) -> list:
-    """
-    Return a plotly data array as a plain list.
-
-    ``Figure.to_dict()`` hands back the arrays the author supplied, plus one
-    shape they never wrote: a numeric numpy array is exported as the
-    ``{"dtype": ..., "bdata": ...}`` base64 spec plotly.js consumes, which is
-    what ``plotly.express`` produces for every numeric column. Decoding it
-    here keeps ``px.pie`` on the same path as a hand-built ``go.Pie``, where
-    iterating the dict would otherwise walk its two keys. Anything that will
-    not decode comes back empty rather than as something worse.
-
-    Parameters
-    ----------
-    value : Any
-        A plotly data array, a typed-array spec, or None.
-
-    Returns
-    -------
-    list
-        The array's entries, or an empty list.
-    """
-    if value is None:
-        return []
-
-    if isinstance(value, dict):
-        dtype = value.get("dtype")
-        bdata = value.get("bdata")
-        if dtype is None or bdata is None:
-            return []
-        try:
-            return np.frombuffer(base64.b64decode(bdata), dtype=dtype).tolist()
-        except (TypeError, ValueError):
-            return []
-
-    # A string is iterable, so without this it would decompose into one
-    # single-character entry per letter instead of being rejected.
-    if isinstance(value, str):
-        return []
-
-    try:
-        return list(value)
-    except TypeError:
-        return []
 
 
 def _as_number(value: Any) -> float | None:

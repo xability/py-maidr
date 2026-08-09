@@ -1,13 +1,23 @@
 from __future__ import annotations
 
+import base64
+import logging
 import re
 import uuid
 from abc import ABC, abstractmethod
 from typing import Any
 
+import numpy as np
+
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
+# This is the import that makes the cycle: `step_shape` reads its trace arrays
+# through `as_list`, defined below, and so imports this module back. It does so
+# inside the function rather than here. Moving either import to the other's
+# level closes the cycle and breaks both — see `step_shape._trace_point_count`.
 from maidr.plotly.step_shape import renders_through_webgl
+
+_logger = logging.getLogger(__name__)
 
 
 class PlotlyPlot(ABC):
@@ -478,6 +488,118 @@ def domain_interval(box: Any, key: str) -> tuple[float, float]:
         return round(float(interval[0]), 6), round(float(interval[1]), 6)
     except (TypeError, ValueError):
         return whole
+
+
+def as_list(value: Any) -> list:
+    """
+    Return a plotly data array as a plain list.
+
+    ``Figure.to_dict()`` hands back the arrays the author supplied, plus two
+    shapes they never wrote: a numeric array is exported as the
+    ``{"dtype": ..., "bdata": ...}`` base64 typed-array spec plotly.js
+    consumes, and a non-numeric one stays a numpy array. ``plotly.express``
+    produces one or the other for every column it plots, so every extractor
+    reads its trace arrays through here -- iterating the spec directly walks
+    its two keys and emits ``"dtype"`` and ``"bdata"`` as the data.
+
+    A multi-dimensional array carries its extents alongside the buffer and is
+    restored to nested lists, so a heatmap's ``z`` still arrives as rows.
+
+    A plain list or tuple is handed back as a list, so a hand-built
+    ``go.Bar(y=[1, 2, 3])`` travels this path unchanged. An absent array
+    becomes an empty list rather than staying ``None``: every caller reads a
+    trace key that may simply not be there, and one empty answer for "no
+    array" saves each of them a null check.
+
+    Parameters
+    ----------
+    value : Any
+        A plotly data array, a typed-array spec, or None.
+
+    Returns
+    -------
+    list
+        The array's entries, or an empty list.
+    """
+    if value is None:
+        return []
+
+    if isinstance(value, dict):
+        return _decode_typed_array(value)
+
+    # A string is iterable, so without this it would decompose into one
+    # single-character entry per letter instead of being rejected.
+    if isinstance(value, str):
+        return []
+
+    try:
+        return list(value)
+    except TypeError:
+        return []
+
+
+def _decode_typed_array(spec: dict) -> list:
+    """
+    Decode one exported ``{"dtype": ..., "bdata": ...}`` typed-array spec.
+
+    Parameters
+    ----------
+    spec : dict
+        The exported spec. ``shape`` is present only for an array of more
+        than one dimension, and names its extents as a comma-separated
+        string.
+
+    Returns
+    -------
+    list
+        The buffer's entries, nested when ``shape`` says so. Anything that
+        will not decode comes back empty rather than as something worse.
+
+    Notes
+    -----
+    Failure is logged, not swallowed. An empty layer is a safer answer than a
+    garbled one, but silence here would be the same fault this decoder exists
+    to fix: a chart that draws correctly while its accessible layer is wrong
+    and nothing says so. The log is what turns "the plot reads as empty" into
+    something diagnosable.
+    """
+    dtype = spec.get("dtype")
+    bdata = spec.get("bdata")
+    if dtype is None or bdata is None:
+        _logger.warning(
+            "maidr: typed array names no %s; reporting no data for it.",
+            "dtype" if dtype is None else "bdata",
+        )
+        return []
+
+    try:
+        array = np.frombuffer(base64.b64decode(bdata), dtype=dtype)
+        shape = spec.get("shape")
+        if shape is not None:
+            extents = shape.split(",") if isinstance(shape, str) else shape
+            # Three ways this raises, and the clauses below cover all of
+            # them: an unknown `dtype` is a TypeError, base64 that will not
+            # decode is a `binascii.Error` (a ValueError), and a `shape` that
+            # is not integral, or does not multiply out to the buffer's
+            # length, is a ValueError from `int()` or from `reshape`.
+            #
+            # `OverflowError` is listed for an extent too large to be a
+            # dimension. numpy 2.4 answers that with a ValueError, so it is
+            # unreachable on the version pinned here — but the project accepts
+            # numpy>=1.26, and the cost of being wrong about one release in
+            # that range is an uncaught exception taking down the whole
+            # figure, which is what this decoder exists to prevent.
+            array = array.reshape([int(extent) for extent in extents])
+        return array.tolist()
+    except (TypeError, ValueError, OverflowError) as error:
+        _logger.warning(
+            "maidr: could not decode a typed array (dtype=%r, shape=%r): %s; "
+            "reporting no data for it.",
+            dtype,
+            spec.get("shape"),
+            error,
+        )
+        return []
 
 
 def _extract_decimals(fmt: str) -> int | None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 from maidr.plotly.step_shape import step_direction_of
 
 
@@ -144,8 +144,8 @@ class PlotlyStepPlot(PlotlyPlot):
         all_series: list[list[dict]] = []
 
         for trace in self._traces:
-            x_values = trace.get("x", [])
-            y_values = trace.get("y", [])
+            x_values = as_list(trace.get("x"))
+            y_values = as_list(trace.get("y"))
             name = trace.get("name", "")
 
             series: list[dict] = []

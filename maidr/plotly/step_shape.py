@@ -100,6 +100,12 @@ def _trace_point_count(trace: dict) -> int:
     ``y`` — matching plotly generating ``x`` as ``0..n-1`` — and an
     ``x``-only trace counts ``x``.
 
+    The count is taken off the decoded array, not off the exported one: a
+    numeric array leaves ``Figure.to_dict()`` as a two-key typed-array spec,
+    whose own length is 2 whatever it holds. Reading that literally caps
+    every numpy-backed trace at two points and hands :func:`default_mode` the
+    wrong answer.
+
     Parameters
     ----------
     trace : dict
@@ -110,8 +116,13 @@ def _trace_point_count(trace: dict) -> int:
     int
         The number of drawn points; 0 when neither axis carries a sequence.
     """
+    # Imported here rather than at module scope: `plotly_plot` reads
+    # `renders_through_webgl` from this module, so naming it at the top would
+    # close the cycle.
+    from maidr.plotly.plotly_plot import as_list
+
     lengths = [
-        len(values)
+        len(as_list(values))
         for values in (trace.get("x"), trace.get("y"))
         if values is not None and hasattr(values, "__len__")
     ]

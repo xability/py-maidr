@@ -189,12 +189,13 @@ class PiePlot(MaidrPlot):
         # future bug that decouples the two is visible rather than quietly
         # rescaling every announcement.
         #
-        # This is logged rather than warned because a warning cannot be heard
-        # from here: `maidr.patch.pieplot.pie` calls
-        # `warnings.filterwarnings("ignore")` on every `Axes.pie`, so by the
-        # time `render()` reaches this line the process has a persistent
-        # catch-all "ignore" filter in front of it. `logging` is the channel
-        # that patch does not close, and the one `maidr.backend` already uses.
+        # This is logged rather than warned because it reports a MAIDR bug,
+        # not anything the caller wrote or can act on -- a warning would put
+        # it in front of the reader of an otherwise correct pie. `logging` is
+        # the channel `maidr.backend` already uses for exactly that, and
+        # `maidr.patch.pieplot.pie` suppresses warnings only for the duration
+        # of the `Axes.pie` call, so this line is reached with neither channel
+        # closed.
         if values is not None:
             _logger.warning(
                 "maidr: pie has %d values for %d wedges; reporting each "

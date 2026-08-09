@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import numpy as np
@@ -7,7 +8,9 @@ import numpy as np
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.box import _build_box_selector
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+
+_logger = logging.getLogger(__name__)
 
 
 class PlotlyMultiBoxPlot(PlotlyPlot):
@@ -90,8 +93,10 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             # Single box — data may be in y (vertical) or x (horizontal)
             data = y if y is not None else x
             if data is not None:
-                arr = np.array(data, dtype=float)
-                all_boxes.append(self._compute_stats(arr, label=name))
+                arr = np.array(as_list(data), dtype=float)
+                stats = self._compute_stats(arr, label=name)
+                if stats is not None:
+                    all_boxes.append(stats)
 
         # Record outlier counts so _get_selector can split them.
         self._outlier_counts = [
@@ -104,15 +109,39 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         return all_boxes
 
     def _extract_precomputed(self, trace: dict) -> list[dict]:
-        """Extract box stats from pre-computed values."""
-        q1_vals = trace.get("q1", [])
-        median_vals = trace.get("median", [])
-        q3_vals = trace.get("q3", [])
-        lowerfence = trace.get("lowerfence", q1_vals)
-        upperfence = trace.get("upperfence", q3_vals)
+        """
+        Extract box stats from pre-computed values.
+
+        Only as many boxes are described as every statistic has a value for.
+        The five arrays are decoded independently, so one of them failing --
+        a corrupt typed-array spec comes back empty -- would otherwise leave
+        the loop indexing past the end of it. A short layer is the same answer
+        the rest of this module gives to data it cannot read; a crash would
+        take the whole figure with it.
+        """
+        q1_vals = as_list(trace.get("q1"))
+        median_vals = as_list(trace.get("median"))
+        q3_vals = as_list(trace.get("q3"))
+        lowerfence = as_list(trace.get("lowerfence")) or q1_vals
+        upperfence = as_list(trace.get("upperfence")) or q3_vals
+
+        count = min(
+            len(q1_vals),
+            len(median_vals),
+            len(q3_vals),
+            len(lowerfence),
+            len(upperfence),
+        )
+        if count < len(median_vals):
+            _logger.warning(
+                "maidr: box has %d medians but only %d complete boxes; "
+                "describing those and dropping the rest.",
+                len(median_vals),
+                count,
+            )
 
         results = []
-        for i in range(len(median_vals)):
+        for i in range(count):
             results.append(
                 {
                     MaidrKey.LOWER_OUTLIER.value: [],
@@ -130,8 +159,8 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         self, x: list[Any], y: list[Any]
     ) -> list[dict]:
         """Extract stats grouped by x categories."""
-        x_list = list(x)
-        y_list = list(y)
+        x_list = as_list(x)
+        y_list = as_list(y)
         categories = list(dict.fromkeys(x_list))
         groups: dict[Any, list] = {cat: [] for cat in categories}
         for xi, yi in zip(x_list, y_list):
@@ -140,11 +169,30 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         results = []
         for cat in categories:
             arr = np.array(groups[cat], dtype=float)
-            results.append(self._compute_stats(arr, label=str(cat)))
+            stats = self._compute_stats(arr, label=str(cat))
+            if stats is not None:
+                results.append(stats)
         return results
 
-    def _compute_stats(self, arr: np.ndarray, label: str = "") -> dict:
-        """Compute box plot statistics for a numeric array."""
+    def _compute_stats(self, arr: np.ndarray, label: str = "") -> dict | None:
+        """
+        Compute box plot statistics for a numeric array.
+
+        Answers None for an empty array. Every quartile of a box with no
+        samples is undefined -- `np.percentile` raises rather than inventing
+        one -- and an array arrives empty when the samples behind it could not
+        be read, a corrupt typed-array spec being the way that happens. The
+        caller drops the box; letting the raise through would take the whole
+        figure with it, including the layers that read perfectly well. The
+        precomputed path bounds its loop for the same reason.
+        """
+        if arr.size == 0:
+            _logger.warning(
+                "maidr: box %r has no samples to summarise; dropping it.",
+                label or "<unnamed>",
+            )
+            return None
+
         q1 = float(np.percentile(arr, 25))
         q2 = float(np.percentile(arr, 50))
         q3 = float(np.percentile(arr, 75))

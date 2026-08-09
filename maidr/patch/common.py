@@ -101,6 +101,44 @@ def resolve_orientation(wrapped: Callable, args: tuple, kwargs: dict) -> str:
     return "horz" if orientation == "horizontal" else "vert"
 
 
+def _draw_quietly(wrapped: Callable, args: tuple, kwargs: dict) -> Any:
+    """
+    Call a patched plotting function with its warnings suppressed.
+
+    The suppression is not to confuse screen-reader users with warnings they
+    did not ask for and cannot act on. It is scoped to the call rather than
+    installed process-wide, because a filter that outlives the call goes on
+    swallowing warnings raised much later and far from any plot -- including
+    MAIDR's own diagnostics, which are raised while the schema is built and
+    not while the figure is drawn.
+
+    ``catch_warnings`` saves and restores the *global* filter list, so it is
+    not thread safe: two threads drawing at once can restore each other's
+    state, and one may briefly miss a warning the other suppressed. The
+    process-wide filter this replaced shared that flaw and never restored at
+    all, so this is not a regression -- but the window is now per call rather
+    than permanent, which is what makes it reachable in a threaded server.
+    Python 3.14's context-aware filters would close it.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        The original plotting function.
+    args : tuple
+        Positional arguments the caller passed.
+    kwargs : dict
+        Keyword arguments the caller passed.
+
+    Returns
+    -------
+    Any
+        Whatever the wrapped function returned.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return wrapped(*args, **kwargs)
+
+
 def common(
     plot_type: PlotType | Callable[[Axes], PlotType], wrapped, _, args, kwargs
 ) -> Any:
@@ -130,17 +168,14 @@ def common(
     Any
         Whatever the wrapped function returned.
     """
-    # Suppress warnings not to confuse screen-reader users
-    warnings.filterwarnings("ignore")
-
     # Don't proceed if the call is made internally by the patched function.
     if ContextManager.is_internal_context():
-        return wrapped(*args, **kwargs)
+        return _draw_quietly(wrapped, args, kwargs)
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
         # Patch the plotting function.
-        plot = wrapped(*args, **kwargs)
+        plot = _draw_quietly(wrapped, args, kwargs)
 
     # Extract the data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)
