@@ -167,19 +167,17 @@ class PlotlyPiePlot(PlotlyPlot):
         if self._trace.get("sort", True):
             wedges.sort(key=lambda wedge: wedge[1], reverse=True)
 
-        # Both sides of this comparison must go through the same normalisation.
-        # A null label reaches ``wedges`` as ``"null"``, so a raw ``None`` in
-        # ``hiddenlabels`` -- which is what an author writing the label they
-        # passed would naturally use -- has to become ``"null"`` too, or it
-        # matches nothing and the wedge stays visible.
-        #
-        # An empty entry is deliberately left alone rather than given an index:
-        # a hidden label carries no position to substitute, and the empty label
-        # it would name has already become that entry's own index. Plotly
-        # itself cannot match one either, so leaving it unmatched is faithful.
+        # Plotly matches `hiddenlabels` with `indexOf` against the *stringified*
+        # label -- `i.indexOf(p) !== -1`, where `p` has already become "null",
+        # an index, or `String(label)`. `indexOf` is strict equality, so only a
+        # string entry can ever match: `[null].indexOf("null")` is -1, and so is
+        # `[5].indexOf("5")`. A non-string entry therefore hides nothing there,
+        # and must hide nothing here -- dropping a wedge plotly still draws
+        # would shift every later slice onto the wrong element.
         hidden = {
-            _wedge_label(self._to_native(label), None)
+            label
             for label in _as_list(self._layout.get("hiddenlabels"))
+            if isinstance(label, str)
         }
         return [(label, value) for label, value in wedges if label not in hidden]
 
@@ -205,7 +203,7 @@ class PlotlyPiePlot(PlotlyPlot):
         }
 
 
-def _wedge_label(label: Any, index: int | None) -> str:
+def _wedge_label(label: Any, index: int) -> str:
     """
     Name a wedge the way plotly names it.
 
@@ -214,17 +212,12 @@ def _wedge_label(label: Any, index: int | None) -> str:
     of nulls merges into a single wedge there -- and so has to merge here too,
     or every slice after the second lands on the wrong element.
 
-    Shared with the ``hiddenlabels`` lookup so both sides of that comparison
-    agree; see the call site for why an empty entry has no index to take.
-
     Parameters
     ----------
     label : Any
         The label as the author wrote it, already converted to a Python scalar.
-    index : int, optional
-        The entry's position, substituted for an empty label. ``None`` when the
-        label has no position -- a ``hiddenlabels`` entry -- in which case an
-        empty label is left empty.
+    index : int
+        The entry's position, substituted for an empty label.
 
     Returns
     -------
@@ -233,7 +226,7 @@ def _wedge_label(label: Any, index: int | None) -> str:
     """
     if label is None:
         return "null"
-    if label == "" and index is not None:
+    if label == "":
         return str(index)
     return str(label)
 

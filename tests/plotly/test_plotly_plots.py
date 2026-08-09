@@ -398,31 +398,70 @@ class TestPlotlyPiePlot:
 
         assert plot._slices() == [("B", 2)]
 
+    def test_a_zero_valued_slice_is_kept(self):
+        # Plotly's calc filters `v >= 0`, not `v > 0`, so a zero-valued entry
+        # stays in the slice list and takes a position in it. Dropping it here
+        # would shift every later slice onto the wrong element.
+        trace = {
+            "type": "pie",
+            "labels": ["A", "B", "C"],
+            "values": [0, 5, 3],
+            "sort": False,
+        }
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot._slices() == [("A", 0), ("B", 5), ("C", 3)]
+
+    def test_slices_that_cancel_to_zero_are_kept(self):
+        # Two entries sharing a label merge, and the merged total is what the
+        # `>= 0` filter sees.
+        trace = {
+            "type": "pie",
+            "labels": ["A", "A", "B"],
+            "values": [-2, 2, 5],
+            "sort": False,
+        }
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot._slices() == [("A", 0), ("B", 5)]
+
     def test_a_hidden_label_is_not_emitted(self):
         trace = {"type": "pie", "labels": ["A", "B"], "values": [1, 2], "sort": False}
         plot = PlotlyPiePlot(trace, {"hiddenlabels": ["A"]})
 
         assert plot._slices() == [("B", 2)]
 
-    def test_a_null_label_hides_by_the_none_the_author_wrote(self):
-        # The wedge is named "null", but an author hiding it reaches for the
-        # label they passed. Both sides go through the same normalisation, so
-        # the raw None has to match.
-        trace = {"type": "pie", "labels": [None, "B"], "values": [1, 2], "sort": False}
-        plot = PlotlyPiePlot(trace, {"hiddenlabels": [None]})
-
-        assert plot._slices() == [("B", 2)]
-
-    def test_a_null_label_also_hides_by_its_wedge_name(self):
+    def test_a_null_label_hides_by_its_wedge_name(self):
         trace = {"type": "pie", "labels": [None, "B"], "values": [1, 2], "sort": False}
         plot = PlotlyPiePlot(trace, {"hiddenlabels": ["null"]})
 
         assert plot._slices() == [("B", 2)]
 
+    def test_a_raw_none_hides_nothing_because_plotly_hides_nothing(self):
+        # Plotly compares with `indexOf` against the stringified label, and
+        # `[null].indexOf("null")` is -1 -- so it keeps drawing the wedge.
+        # Dropping it here would leave a drawn wedge with no data point and
+        # shift every later slice onto the wrong element.
+        trace = {"type": "pie", "labels": [None, "B"], "values": [1, 2], "sort": False}
+        plot = PlotlyPiePlot(trace, {"hiddenlabels": [None]})
+
+        assert plot._slices() == [("null", 1), ("B", 2)]
+
+    def test_a_numeric_hidden_entry_hides_nothing(self):
+        # Same rule: `[5].indexOf("5")` is -1, so plotly draws it.
+        trace = {"type": "pie", "labels": [5, "B"], "values": [1, 2], "sort": False}
+        plot = PlotlyPiePlot(trace, {"hiddenlabels": [5]})
+
+        assert plot._slices() == [("5", 1), ("B", 2)]
+
+    def test_a_numeric_label_hides_by_its_stringified_name(self):
+        trace = {"type": "pie", "labels": [5, "B"], "values": [1, 2], "sort": False}
+        plot = PlotlyPiePlot(trace, {"hiddenlabels": ["5"]})
+
+        assert plot._slices() == [("B", 2)]
+
     def test_an_empty_hidden_label_matches_nothing(self):
-        # An empty label became the entry's own index, and a hidden label
-        # carries no index to substitute -- so it names no wedge, which is
-        # what plotly does with one too.
+        # An empty label became the entry's own index, so `""` names no wedge.
         trace = {"type": "pie", "labels": ["", "B"], "values": [1, 2], "sort": False}
         plot = PlotlyPiePlot(trace, {"hiddenlabels": [""]})
 
