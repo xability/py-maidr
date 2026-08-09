@@ -112,6 +112,14 @@ def _draw_quietly(wrapped: Callable, args: tuple, kwargs: dict) -> Any:
     MAIDR's own diagnostics, which are raised while the schema is built and
     not while the figure is drawn.
 
+    ``catch_warnings`` saves and restores the *global* filter list, so it is
+    not thread safe: two threads drawing at once can restore each other's
+    state, and one may briefly miss a warning the other suppressed. The
+    process-wide filter this replaced shared that flaw and never restored at
+    all, so this is not a regression -- but the window is now per call rather
+    than permanent, which is what makes it reachable in a threaded server.
+    Python 3.14's context-aware filters would close it.
+
     Parameters
     ----------
     wrapped : Callable
