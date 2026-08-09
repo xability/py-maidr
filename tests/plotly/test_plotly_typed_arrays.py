@@ -15,6 +15,7 @@ why it stayed green.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import numpy as np
@@ -227,3 +228,29 @@ class TestAsList:
     )
     def test_an_undecodable_spec_comes_back_empty(self, spec: dict):
         assert as_list(spec) == []
+
+    @pytest.mark.parametrize(
+        "spec",
+        [
+            {"dtype": "i1"},
+            {"bdata": "ChQe"},
+            {"dtype": "not-a-dtype", "bdata": "ChQe"},
+            {"dtype": "i1", "bdata": "!!!not base64!!!"},
+            {"dtype": "i1", "bdata": "ChQe", "shape": "5, 5"},
+        ],
+    )
+    def test_an_undecodable_spec_says_so(self, spec: dict, caplog):
+        # An empty layer is the safe answer, but a silent one repeats the very
+        # fault this decoder exists to fix: a chart that draws while its
+        # accessible layer is wrong and nothing says so.
+        with caplog.at_level(logging.WARNING, logger="maidr.plotly.plotly_plot"):
+            as_list(spec)
+
+        assert "maidr" in caplog.text
+        assert "no data" in caplog.text
+
+    def test_a_spec_that_decodes_says_nothing(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="maidr.plotly.plotly_plot"):
+            assert as_list({"dtype": "i1", "bdata": "ChQe"}) == [10, 20, 30]
+
+        assert caplog.text == ""

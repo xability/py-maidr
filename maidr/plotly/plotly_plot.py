@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import logging
 import re
 import uuid
 from abc import ABC, abstractmethod
@@ -15,6 +16,8 @@ from maidr.core.enum.plot_type import PlotType
 # inside the function rather than here. Moving either import to the other's
 # level closes the cycle and breaks both — see `step_shape._trace_point_count`.
 from maidr.plotly.step_shape import renders_through_webgl
+
+_logger = logging.getLogger(__name__)
 
 
 class PlotlyPlot(ABC):
@@ -551,10 +554,22 @@ def _decode_typed_array(spec: dict) -> list:
     list
         The buffer's entries, nested when ``shape`` says so. Anything that
         will not decode comes back empty rather than as something worse.
+
+    Notes
+    -----
+    Failure is logged, not swallowed. An empty layer is a safer answer than a
+    garbled one, but silence here would be the same fault this decoder exists
+    to fix: a chart that draws correctly while its accessible layer is wrong
+    and nothing says so. The log is what turns "the plot reads as empty" into
+    something diagnosable.
     """
     dtype = spec.get("dtype")
     bdata = spec.get("bdata")
     if dtype is None or bdata is None:
+        _logger.warning(
+            "maidr: typed array names no %s; reporting no data for it.",
+            "dtype" if dtype is None else "bdata",
+        )
         return []
 
     try:
@@ -562,9 +577,21 @@ def _decode_typed_array(spec: dict) -> list:
         shape = spec.get("shape")
         if shape is not None:
             extents = shape.split(",") if isinstance(shape, str) else shape
+            # Three ways this raises, and the two clauses below cover all of
+            # them: an unknown `dtype` is a TypeError, base64 that will not
+            # decode is a `binascii.Error` (a ValueError), and a `shape` that
+            # is not integral, or does not multiply out to the buffer's
+            # length, is a ValueError from `int()` or from `reshape`.
             array = array.reshape([int(extent) for extent in extents])
         return array.tolist()
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as error:
+        _logger.warning(
+            "maidr: could not decode a typed array (dtype=%r, shape=%r): %s; "
+            "reporting no data for it.",
+            dtype,
+            spec.get("shape"),
+            error,
+        )
         return []
 
 

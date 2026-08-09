@@ -121,8 +121,8 @@ class PlotlyBoxPlot(PlotlyPlot):
         q1_vals = as_list(self._trace.get("q1"))
         median_vals = as_list(self._trace.get("median"))
         q3_vals = as_list(self._trace.get("q3"))
-        lowerfence = as_list(self._trace.get("lowerfence", q1_vals))
-        upperfence = as_list(self._trace.get("upperfence", q3_vals))
+        lowerfence = as_list(self._trace.get("lowerfence")) or q1_vals
+        upperfence = as_list(self._trace.get("upperfence")) or q3_vals
 
         results = []
         for i in range(len(median_vals)):
