@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from typing import Any, Callable
 
 import wrapt
@@ -9,7 +8,7 @@ from matplotlib.axes import Axes
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _argument
+from maidr.patch.common import _argument, _draw_quietly
 
 
 def pie(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> tuple:
@@ -46,23 +45,18 @@ def pie(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> tuple:
         `(wedges, texts)`, or `(wedges, texts, autotexts)` when the caller
         passed `autopct` — whichever the original function returned.
     """
-    # Suppress warnings not to confuse screen-reader users.
+    # The call is drawn through the same helper `maidr.patch.common.common`
+    # uses, so a pie suppresses matplotlib's warnings exactly as every other
+    # patched plot type does -- they neither appear nor disappear depending on
+    # which type the user happened to draw.
     #
-    # This is a process-wide, persistent catch-all, which is broader than this
-    # call needs -- but it is exactly what `maidr.patch.common.common` does on
-    # every other patched plot type, and a pie that filtered differently would
-    # make matplotlib's warnings appear or disappear depending on which plot
-    # type the user happened to draw. Parity is kept deliberately; narrowing
-    # it is a change to make in `common` for all plot types at once.
-    warnings.filterwarnings("ignore")
-
     # Don't proceed if the call is made internally by the patched function.
     if ContextManager.is_internal_context():
-        return wrapped(*args, **kwargs)
+        return _draw_quietly(wrapped, args, kwargs)
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
-        plot = wrapped(*args, **kwargs)
+        plot = _draw_quietly(wrapped, args, kwargs)
 
     data = _argument("data", wrapped, args, kwargs)
     values = _resolve(_argument("x", wrapped, args, kwargs), data)

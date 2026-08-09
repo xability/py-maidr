@@ -654,13 +654,13 @@ class TestDataColumnNames:
 
 
 class TestMismatchDiagnostic:
-    """The values/wedges mismatch is logged, because it cannot be warned.
+    """The values/wedges mismatch is logged, and the log is reachable.
 
-    ``maidr.patch.pieplot.pie`` installs a persistent, process-wide
-    ``warnings.filterwarnings("ignore")`` on every ``Axes.pie`` -- deliberate
-    parity with ``maidr.patch.common.common``, which does the same on every
-    other plot type. Any ``warnings.warn`` raised later, during ``render()``,
-    is therefore unreachable.
+    ``maidr.patch.pieplot.pie`` suppresses warnings only for the duration of
+    the ``Axes.pie`` call it wraps -- the same scope
+    ``maidr.patch.common.common`` uses on every other plot type -- so nothing
+    the patch installs is still in front of ``render()`` when the diagnostic
+    is emitted.
     """
 
     def test_the_mismatch_is_reported_through_logging(self, caplog):
@@ -678,18 +678,17 @@ class TestMismatchDiagnostic:
         finally:
             plt.close(fig)
 
-    def test_a_warning_would_not_have_been_heard(self):
-        # Pins the reason the line above uses `logging`: the patch's filter is
-        # process-wide and persistent, so it is already in front of any
-        # `warnings.warn` `render()` could raise.
+    def test_the_patch_leaves_no_filter_behind_to_swallow_it(self):
+        # The diagnostic above is only reachable because `Axes.pie` no longer
+        # leaves an "ignore" filter installed behind it. Pin that: a warning
+        # raised after the pie is drawn still reaches the caller.
         fig, ax = plt.subplots()
         try:
             ax.pie(UNITS, labels=FRUIT)
-            plot = PiePlot(ax, values=[30, 50], labels=FRUIT)
 
             with warnings.catch_warnings(record=True) as caught:
-                _ = plot.schema
+                warnings.warn("heard after the pie", UserWarning)
 
-            assert caught == []
+            assert [str(w.message) for w in caught] == ["heard after the pie"]
         finally:
             plt.close(fig)
