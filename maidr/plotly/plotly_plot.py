@@ -241,24 +241,42 @@ class PlotlyPlot(ABC):
             return title.get("text", "")
         return str(title) if title else ""
 
+    def _title_anchor(self) -> tuple[float, float]:
+        """Return the point on the page a subplot title annotation sits at.
+
+        ``make_subplots`` puts each subplot's title centred over the top of
+        that subplot, so the pair is the horizontal midpoint and the top edge
+        of whatever rectangle the subplot occupies. A cartesian subplot's
+        rectangle is the product of its two axis domains, which is what this
+        reads. A plot placed some other way — a pie, which has no axis pair at
+        all and so would read the layout defaults here and land at the middle
+        of the figure whatever column it is really in — overrides this with
+        the rectangle it does have.
+
+        Returns
+        -------
+        tuple of (float, float)
+            The ``(x_mid, y_top)`` of this subplot, as fractions of the
+            figure.
+        """
+        x_domain = domain_interval(self._layout.get(self._xaxis_name, {}), "domain")
+        y_domain = domain_interval(self._layout.get(self._yaxis_name, {}), "domain")
+        return (x_domain[0] + x_domain[1]) / 2, y_domain[1]
+
     def _get_subplot_annotation_title(self) -> str | None:
         """Find the annotation that serves as this subplot's title.
 
         Plotly ``make_subplots`` places title annotations at the top of
-        each subplot's y-axis domain.  This matches annotations by
-        checking if their ``y`` position is near the top of this
-        subplot's y-axis domain.
+        each subplot.  This matches annotations against the point
+        :meth:`_title_anchor` reports for this plot, so a plot type that is
+        not placed by an axis pair only has to say where it sits, not repeat
+        the matching.
         """
         annotations = self._layout.get("annotations", [])
         if not annotations:
             return None
 
-        yaxis = self._layout.get(self._yaxis_name, {})
-        xaxis = self._layout.get(self._xaxis_name, {})
-        y_domain = yaxis.get("domain", [0, 1])
-        x_domain = xaxis.get("domain", [0, 1])
-        y_top = y_domain[1]
-        x_mid = (x_domain[0] + x_domain[1]) / 2
+        x_mid, y_top = self._title_anchor()
 
         for ann in annotations:
             if ann.get("xref") != "paper" or ann.get("yref") != "paper":
@@ -415,6 +433,51 @@ class PlotlyPlot(ABC):
         if not self._schema:
             self._schema = self.render()
         return self._schema
+
+
+def domain_interval(box: Any, key: str) -> tuple[float, float]:
+    """
+    Return one ``domain`` interval, as fractions of the figure.
+
+    Plotly places a *cartesian* subplot by giving each of its axes a
+    ``domain`` interval, and a *domain* trace — ``go.Pie`` has no axes at all
+    — by giving the trace's own ``domain`` an ``x`` and a ``y`` interval.
+    Both are fractions of the same figure and are read the same way, so both
+    are read here: :class:`~maidr.plotly.plotly_maidr.PlotlyMaidr` uses it to
+    order subplots into a grid, and
+    :class:`~maidr.plotly.pie.PlotlyPiePlot` to find where its own rectangle
+    sits on the page.
+
+    Parameters
+    ----------
+    box : Any
+        A layout axis, whose ``domain`` holds the interval, or a trace's
+        ``domain``, whose ``x`` and ``y`` hold one each. Anything that is not
+        a dict is treated as absent.
+    key : str
+        The key holding the interval.
+
+    Returns
+    -------
+    tuple of (float, float)
+        The interval's start and end, rounded so that two subplots plotly
+        placed together compare equal. An absent or malformed interval is
+        the whole figure, ``(0.0, 1.0)`` — the first row and column, and the
+        span a figure that was never split into subplots actually has.
+    """
+    whole = (0.0, 1.0)
+
+    if not isinstance(box, dict):
+        return whole
+
+    interval = box.get(key, list(whole))
+    if not isinstance(interval, (list, tuple)) or len(interval) < 2:
+        return whole
+
+    try:
+        return round(float(interval[0]), 6), round(float(interval[1]), 6)
+    except (TypeError, ValueError):
+        return whole
 
 
 def _extract_decimals(fmt: str) -> int | None:

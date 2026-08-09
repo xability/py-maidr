@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import warnings
+import logging
 from typing import Any
 
 from matplotlib.axes import Axes
@@ -9,6 +9,8 @@ from matplotlib.patches import Wedge
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
+
+_logger = logging.getLogger(__name__)
 
 
 class PiePlot(MaidrPlot):
@@ -73,9 +75,40 @@ class PiePlot(MaidrPlot):
         }
 
     def _extract_plot_data(self) -> list:
+        """
+        Read this layer's slices as a flat row of ``{x, y}`` points.
+
+        An empty pie is emitted as an empty layer rather than raised on.
+        ``ax.pie([])`` is a legal call that draws no wedges, and the figure is
+        already registered by the time this runs — raising here takes the
+        whole figure down, so a working bar drawn beside the empty pie would
+        die with it. This is the rule
+        :meth:`maidr.plotly.pie.PlotlyPiePlot._slices` already follows for the
+        same reason: an empty layer reaches the wire intact.
+
+        A *failed* extraction is still an error. The patch hands over the
+        wedges the call drew, so an empty list from it means matplotlib drew
+        none. Without that list this falls back to scanning the axes, and
+        finding no wedges there means the layer was built for a pie that
+        cannot be found — nothing to describe and no evidence it was ever
+        empty by intent.
+
+        Returns
+        -------
+        list of dict
+            One ``{"x": label, "y": value}`` point per slice, in slice order.
+
+        Raises
+        ------
+        ExtractionError
+            If no wedges could be found on an axes that was not handed its
+            own wedge list.
+        """
         wedges = self._extract_wedges()
         if not wedges:
-            raise ExtractionError(self.type, self.ax)
+            if self._wedges is None:
+                raise ExtractionError(self.type, self.ax)
+            return []
 
         values = self._extract_values(wedges)
         labels = self._extract_labels(wedges)
@@ -155,12 +188,19 @@ class PiePlot(MaidrPlot):
         # to pass unnoticed -- 0.3 where the caller wrote 30. Say so, so a
         # future bug that decouples the two is visible rather than quietly
         # rescaling every announcement.
+        #
+        # This is logged rather than warned because a warning cannot be heard
+        # from here: `maidr.patch.pieplot.pie` calls
+        # `warnings.filterwarnings("ignore")` on every `Axes.pie`, so by the
+        # time `render()` reaches this line the process has a persistent
+        # catch-all "ignore" filter in front of it. `logging` is the channel
+        # that patch does not close, and the one `maidr.backend` already uses.
         if values is not None:
-            warnings.warn(
-                f"maidr: pie has {len(values)} values for {len(wedges)} wedges; "
-                "reporting each slice's share of the whole instead of the "
-                "magnitudes passed.",
-                stacklevel=2,
+            _logger.warning(
+                "maidr: pie has %d values for %d wedges; reporting each "
+                "slice's share of the whole instead of the magnitudes passed.",
+                len(values),
+                len(wedges),
             )
 
         # `theta2 - theta1` is the slice's share of the 360 degree whole. A

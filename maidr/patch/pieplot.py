@@ -48,7 +48,14 @@ def pie(
         `(wedges, texts)`, or `(wedges, texts, autotexts)` when the caller
         passed `autopct` — whichever the original function returned.
     """
-    # Suppress warnings not to confuse screen-reader users
+    # Suppress warnings not to confuse screen-reader users.
+    #
+    # This is a process-wide, persistent catch-all, which is broader than this
+    # call needs -- but it is exactly what `maidr.patch.common.common` does on
+    # every other patched plot type, and a pie that filtered differently would
+    # make matplotlib's warnings appear or disappear depending on which plot
+    # type the user happened to draw. Parity is kept deliberately; narrowing
+    # it is a change to make in `common` for all plot types at once.
     warnings.filterwarnings("ignore")
 
     # Don't proceed if the call is made internally by the patched function.

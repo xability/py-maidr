@@ -20,7 +20,9 @@ import matplotlib
 matplotlib.use("Agg")
 
 import json  # noqa: E402
+import logging  # noqa: E402
 import re  # noqa: E402
+import warnings  # noqa: E402
 
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
@@ -28,10 +30,12 @@ import pandas as pd  # noqa: E402
 import pytest  # noqa: E402
 from lxml import etree  # noqa: E402
 
-import maidr  # noqa: F401,E402  # activates patches
+import maidr  # noqa: E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.pieplot import PiePlot  # noqa: E402
+from maidr.exception import ExtractionError  # noqa: E402
+from maidr.patch.pieplot import _resolve  # noqa: E402
 
 
 #: A pie whose sizes sum far above 1, so matplotlib normalises them away.
@@ -455,5 +459,234 @@ class TestPiePlotDirectly:
 
             with pytest.raises(ValueError, match="non negative"):
                 _ = plot.schema
+        finally:
+            plt.close(fig)
+
+    def test_an_axes_with_no_wedges_is_an_extraction_failure(self):
+        # The empty-pie rule below is about a call that legitimately drew
+        # nothing, which the patch reports by handing over an empty wedge
+        # list. A layer built with no list at all falls back to scanning the
+        # axes, and finding nothing there means the pie it was built for
+        # cannot be found -- still an error, and it must stay one.
+        fig, ax = plt.subplots()
+        try:
+            ax.bar(["a", "b"], [1, 2])
+
+            with pytest.raises(ExtractionError):
+                _ = PiePlot(ax).schema
+        finally:
+            plt.close(fig)
+
+
+class TestEmptyPie:
+    """``ax.pie([])`` is a legal call, and an empty layer on the wire.
+
+    The figure is registered by the time the schema is built, so raising on
+    an empty pie takes the whole figure down with it -- including any working
+    plot drawn beside it, which no static-image fallback rescues. An empty
+    layer reaches the wire instead, which is the rule
+    ``PlotlyPiePlot._slices`` already follows on the plotly side.
+    """
+
+    def test_an_empty_pie_is_an_empty_layer(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie([])
+            schema = _only_layer(fig)
+
+            assert schema["type"] == "pie"
+            assert schema["data"] == []
+        finally:
+            plt.close(fig)
+
+    def test_a_bar_beside_an_empty_pie_survives(self):
+        fig, axs = plt.subplots(1, 2)
+        try:
+            axs[0].bar(["a", "b"], [1, 2])
+            axs[1].pie([])
+            bar, pie = _layers(fig)
+
+            assert [point["y"] for point in bar["data"]] == [1, 2]
+            assert pie["data"] == []
+        finally:
+            plt.close(fig)
+
+    def test_the_whole_figure_still_renders(self):
+        # The error used to fire inside `_flatten_maidr`, well past the point
+        # where the figure could be dropped, so nothing below `render()`
+        # proves the fix.
+        fig, axs = plt.subplots(1, 2)
+        try:
+            axs[0].bar(["a", "b"], [1, 2])
+            axs[1].pie([])
+
+            schema = _stringify(FigureManager.get_maidr(fig)._flatten_maidr())
+            cells = schema["subplots"][0]
+            html = maidr.render(fig)
+
+            assert [cell["layers"][0]["type"] for cell in cells] == ["bar", "pie"]
+            assert "<svg" in str(html)
+            json.dumps(schema)
+        finally:
+            plt.close(fig)
+
+
+class TestDonut:
+    """``wedgeprops={"width": ...}`` cuts the middle out and nothing else.
+
+    A donut is a pie whose wedges are annuli. The data behind them is
+    untouched, so the layer must be identical to the same call without it.
+    """
+
+    def test_a_donut_reports_the_callers_magnitudes(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, wedgeprops={"width": 0.4})
+            schema = _only_layer(fig)
+
+            assert [point["x"] for point in schema["data"]] == FRUIT
+            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+        finally:
+            plt.close(fig)
+
+    def test_a_donut_still_has_one_element_per_slice(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, wedgeprops={"width": 0.4})
+            groups = _highlight_groups(fig)
+
+            assert len(groups) == 3
+            assert all(len(paths) == 1 for paths in groups)
+        finally:
+            plt.close(fig)
+
+
+class TestZeroValuedSlice:
+    """A zero-sized slice is still a slice.
+
+    ``ax.pie([0, 5, 5])`` draws a `Wedge` spanning no angle at all for the
+    zero. Matplotlib keeps it -- it is in the returned wedge list and in
+    ``ax.patches`` -- so dropping it here would leave the data one entry short
+    of the elements the selector resolves to, landing every later slice on the
+    wrong wedge.
+    """
+
+    def test_the_zero_slice_is_kept_in_place(self):
+        fig, ax = plt.subplots()
+        try:
+            wedges, _ = ax.pie([0, 5, 5], labels=FRUIT)
+            schema = _only_layer(fig)
+
+            assert len(wedges) == 3
+            assert [point["y"] for point in schema["data"]] == [0, 5, 5]
+            assert [point["x"] for point in schema["data"]] == FRUIT
+        finally:
+            plt.close(fig)
+
+    def test_the_data_and_the_elements_stay_aligned(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie([0, 5, 5], labels=FRUIT)
+            schema = _only_layer(fig)
+
+            assert len(_highlight_groups(fig)) == len(schema["data"])
+        finally:
+            plt.close(fig)
+
+
+class TestDataColumnNames:
+    """``ax.pie("sales", labels="fruit", data=df)`` names columns, not values.
+
+    ``Axes.pie`` sits behind matplotlib's ``_preprocess_data``, and the patch
+    wraps the outside of that decorator, so it sees the names. It looks them
+    up the way matplotlib does.
+    """
+
+    def test_column_names_are_resolved_against_data(self):
+        frame = pd.DataFrame({"units": UNITS, "fruit": FRUIT})
+        fig, ax = plt.subplots()
+        try:
+            ax.pie("units", labels="fruit", data=frame)
+            schema = _only_layer(fig)
+
+            assert [point["x"] for point in schema["data"]] == FRUIT
+            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+        finally:
+            plt.close(fig)
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param(pd.DataFrame({"units": UNITS}), id="KeyError"),
+            pytest.param([30, 50, 20], id="IndexError"),
+            pytest.param(object(), id="TypeError"),
+        ],
+    )
+    def test_an_unresolvable_name_is_passed_through_unchanged(self, data):
+        # Matplotlib treats a name it cannot look up as a plain value, and so
+        # must this: raising instead would fail a pie matplotlib drew
+        # perfectly well. One case per way an indexable object says "not this
+        # key" -- the three, and only the three, `_resolve` catches.
+        assert _resolve("missing_col", data) == "missing_col"
+
+    def test_a_name_is_only_looked_up_when_there_is_data_to_look_it_up_in(self):
+        assert _resolve("units", None) == "units"
+
+    def test_an_unresolvable_name_still_describes_the_pie_it_drew(self):
+        # The end-to-end reach of the fallback is narrow: matplotlib rejects
+        # an unresolved `labels` whose length is not the slice count, so the
+        # name has to be as long as the pie is wide. It then labels the wedges
+        # by its own characters, and the layer has to report those -- the
+        # slices really are named "a", "b", "c" on the page.
+        frame = pd.DataFrame({"units": UNITS, "fruit": FRUIT})
+        fig, ax = plt.subplots()
+        try:
+            ax.pie("units", labels="abc", data=frame)
+            schema = _only_layer(fig)
+
+            assert [point["x"] for point in schema["data"]] == ["a", "b", "c"]
+            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+        finally:
+            plt.close(fig)
+
+
+class TestMismatchDiagnostic:
+    """The values/wedges mismatch is logged, because it cannot be warned.
+
+    ``maidr.patch.pieplot.pie`` installs a persistent, process-wide
+    ``warnings.filterwarnings("ignore")`` on every ``Axes.pie`` -- deliberate
+    parity with ``maidr.patch.common.common``, which does the same on every
+    other plot type. Any ``warnings.warn`` raised later, during ``render()``,
+    is therefore unreachable.
+    """
+
+    def test_the_mismatch_is_reported_through_logging(self, caplog):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT)
+            plot = PiePlot(ax, values=[30, 50], labels=FRUIT)
+
+            with caplog.at_level(logging.WARNING, logger="maidr.core.plot.pieplot"):
+                data = _stringify(plot.schema)["data"]
+
+            assert "2 values for 3 wedges" in caplog.text
+            # The fallback still happened: shares of the whole, not 30/50/20.
+            assert [point["y"] for point in data] == pytest.approx([0.3, 0.5, 0.2])
+        finally:
+            plt.close(fig)
+
+    def test_a_warning_would_not_have_been_heard(self):
+        # Pins the reason the line above uses `logging`: the patch's filter is
+        # process-wide and persistent, so it is already in front of any
+        # `warnings.warn` `render()` could raise.
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT)
+            plot = PiePlot(ax, values=[30, 50], labels=FRUIT)
+
+            with warnings.catch_warnings(record=True) as caught:
+                _ = plot.schema
+
+            assert caught == []
         finally:
             plt.close(fig)

@@ -372,6 +372,143 @@ class TestPlotlyPieSubplotGrid:
         assert "selector" not in subplots[0][0]
 
 
+class TestPlotlyUnrenderedDomainTraces:
+    """A domain trace maidr draws nothing for occupies no grid cell.
+
+    Pies are placed by their own ``domain`` rectangle, and plotly gives one to
+    every domain trace — ``go.Table``, ``go.Sunburst``, ``go.Treemap``,
+    ``go.Indicator`` — including the ones maidr renders no layer for. Folding
+    *their* rectangles into the figure's column universe would move the
+    cartesian subplots beside them, changing where maidr places a figure that
+    contains no pie at all. The grid describes what maidr can describe.
+    """
+
+    @staticmethod
+    def _cells(fig) -> list[tuple[int, int]]:
+        return [(plot.row_index, plot.col_index) for plot in PlotlyMaidr(fig)._plots]
+
+    @pytest.mark.parametrize(
+        "trace",
+        [
+            pytest.param(
+                go.Table(header={"values": ["a"]}, cells={"values": [[1, 2]]}),
+                id="table",
+            ),
+            pytest.param(go.Sunburst(labels=["a"], parents=[""]), id="sunburst"),
+            pytest.param(go.Treemap(labels=["a"], parents=[""]), id="treemap"),
+            pytest.param(go.Indicator(value=42, mode="number"), id="indicator"),
+        ],
+    )
+    def test_it_does_not_shift_the_cartesian_subplot_beside_it(self, trace):
+        # Without the scoping this bar lands in column 1, behind an empty
+        # cell -- a placement change for a figure holding no pie.
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1, cols=2, specs=[[{"type": "domain"}, {"type": "xy"}]]
+        )
+        fig.add_trace(trace, row=1, col=1)
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=2)
+
+        assert self._cells(fig) == [(0, 0)]
+
+    def test_a_pie_beside_it_is_still_placed_by_its_own_domain(self):
+        # The scoping is by trace type, not by "ignore trace domains": a pie
+        # sharing a figure with an unrendered domain trace still gets its own
+        # cell, and the two renderable layers are still ordered against each
+        # other.
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1,
+            cols=3,
+            specs=[[{"type": "domain"}, {"type": "domain"}, {"type": "xy"}]],
+        )
+        fig.add_trace(
+            go.Table(header={"values": ["a"]}, cells={"values": [[1, 2]]}),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]), row=1, col=2)
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=3)
+
+        assert self._cells(fig) == [(0, 0), (0, 1)]
+
+
+class TestPlotlyPieSubplotTitles:
+    """``subplot_titles`` reach a pie, which has no axis pair to match on.
+
+    ``make_subplots`` stores per-subplot titles as paper-referenced
+    annotations centred over each subplot. The base class finds the right one
+    by matching against the rectangle the subplot's axis domains describe —
+    and a pie has no axes, so every pie in a figure reads the same default
+    ``[0, 1]`` domain, anchors itself at the middle of the figure, and matches
+    none of them.
+    """
+
+    @staticmethod
+    def _titles(fig) -> list[str]:
+        return [plot._get_title() for plot in PlotlyMaidr(fig)._plots]
+
+    def test_each_pie_of_a_row_gets_its_own_title(self):
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1,
+            cols=2,
+            specs=[[{"type": "domain"}, {"type": "domain"}]],
+            subplot_titles=("Q1", "Q2"),
+        )
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]), row=1, col=1)
+        fig.add_trace(go.Pie(labels=["C", "D"], values=[3, 4]), row=1, col=2)
+
+        assert self._titles(fig) == ["Q1", "Q2"]
+
+    def test_each_pie_of_a_grid_gets_its_own_title(self):
+        # Two columns and two rows: the row a title belongs to is as much a
+        # part of the match as the column.
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=2,
+            cols=2,
+            specs=[[{"type": "domain"}] * 2] * 2,
+            subplot_titles=("Q1", "Q2", "Q3", "Q4"),
+        )
+        for row in (1, 2):
+            for col in (1, 2):
+                fig.add_trace(
+                    go.Pie(labels=["A", "B"], values=[1, 2]), row=row, col=col
+                )
+
+        assert self._titles(fig) == ["Q1", "Q2", "Q3", "Q4"]
+
+    def test_a_pie_beside_a_bar_takes_the_title_over_its_own_column(self):
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1,
+            cols=2,
+            specs=[[{"type": "xy"}, {"type": "domain"}]],
+            subplot_titles=("Sales", "Share"),
+        )
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=1)
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]), row=1, col=2)
+
+        titles = {
+            plot.type.value: plot._get_title() for plot in PlotlyMaidr(fig)._plots
+        }
+        assert titles == {"bar": "Sales", "pie": "Share"}
+
+    def test_a_lone_pie_still_falls_back_to_the_figure_title(self):
+        # An unplaced pie covers the whole figure and there are no subplot
+        # annotations to match, so the figure-level title is the answer.
+        fig = go.Figure(go.Pie(labels=["A", "B"], values=[1, 2]))
+        fig.update_layout(title="Market share")
+
+        assert self._titles(fig) == ["Market share"]
+
+
 class TestPlotlyFigureMetadata:
     """Figure-wide layout title/subtitle mapped onto the top-level schema.
 

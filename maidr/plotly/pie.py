@@ -8,7 +8,7 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, domain_interval
 
 
 class PlotlyPiePlot(PlotlyPlot):
@@ -31,6 +31,14 @@ class PlotlyPiePlot(PlotlyPlot):
         what makes the selector address *this* pie. The default describes the
         single-pie figure; :class:`~maidr.plotly.plotly_maidr.PlotlyMaidr`
         passes real positions.
+    borrows_axis_titles : bool, default=True
+        Whether this pie may name its two dimensions from the layout's axis
+        titles. A pie draws no axes, so those titles are only its own when no
+        cartesian trace shares them — see :meth:`_extract_axes_data` for why
+        borrowing another trace's is worse than the generic fallback. The
+        default describes the pie-only figure;
+        :class:`~maidr.plotly.plotly_maidr.PlotlyMaidr` passes False when a
+        cartesian trace shares the pie's default axis pair.
     **kwargs : str
         Axis names forwarded to the parent class.
     """
@@ -73,6 +81,33 @@ class PlotlyPiePlot(PlotlyPlot):
             f".pielayer > .trace:nth-child({self._pie_position + 1}) "
             f"> .slice > path.surface"
         )
+
+    def _title_anchor(self) -> tuple[float, float]:
+        """
+        Return the point a ``subplot_titles`` annotation for this pie sits at.
+
+        The base class reads the rectangle off ``layout.xaxis``/``yaxis``,
+        which a pie does not have: every pie in a figure shares the *default*
+        axis names, so every one of them would read the default domain
+        ``[0, 1]``, put its anchor at the middle of the figure, and match none
+        of the titles ``make_subplots`` centred over the actual columns. A pie
+        is placed by its own ``domain`` rectangle instead — the same one
+        :meth:`~maidr.plotly.plotly_maidr.PlotlyMaidr._trace_domain_start`
+        reads to give it a grid cell — so that is what it is anchored by.
+
+        Only the anchor is overridden; matching a title to it stays in the
+        base class, so a pie and a bar agree on what counts as a match.
+
+        Returns
+        -------
+        tuple of (float, float)
+            The ``(x_mid, y_top)`` of this pie's rectangle, as fractions of
+            the figure.
+        """
+        domain = self._trace.get("domain")
+        x_start, x_end = domain_interval(domain, "x")
+        _, y_top = domain_interval(domain, "y")
+        return (x_start + x_end) / 2, y_top
 
     def _extract_plot_data(self) -> list[dict]:
         """Return one flat ``{x: label, y: value}`` point per drawn wedge."""

@@ -11,7 +11,7 @@ from typing import Any, Literal, cast
 from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, domain_interval
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.plotly.step_shape import (
     is_connected_line_trace,
@@ -29,6 +29,19 @@ from maidr.util.dependencies import (
 )
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_plotly
+
+
+#: Trace types placed by their own ``domain`` rectangle that maidr renders as
+#: a layer. Plotly has other domain traces -- ``table``, ``sunburst``,
+#: ``treemap``, ``indicator`` -- and maidr draws no layer for any of them, so
+#: their rectangles are deliberately not folded into the figure's row and
+#: column universe by :meth:`PlotlyMaidr._subplot_domain_starts`. Folding them
+#: in would move the cartesian subplots sitting beside them: a bar to the right
+#: of a ``go.Table`` in a 1x2 grid would go from column 0, the only column
+#: maidr has anything to put in, to column 1 behind an empty cell.
+#:
+#: Add a type here when maidr learns to render it, not before.
+_PLACED_BY_DOMAIN = frozenset({"pie"})
 
 
 class PlotlyMaidr:
@@ -82,6 +95,12 @@ class PlotlyMaidr:
         together: a figure mixing a pie with a cartesian subplot has to order
         their columns against each other, not each against its own kind.
 
+        Only the domain traces maidr renders are collected -- see
+        :data:`_PLACED_BY_DOMAIN`. The grid this builds is the grid the user
+        navigates, and a trace maidr draws no layer for occupies no cell in
+        it: reserving one would both add an empty cell to tab through and
+        shift every renderable subplot beside it into a different column.
+
         Parameters
         ----------
         layout : dict
@@ -106,6 +125,8 @@ class PlotlyMaidr:
                 y_starts.add(_domain_start(val, "domain"))
 
         for trace in traces:
+            if trace.get("type") not in _PLACED_BY_DOMAIN:
+                continue
             domain = trace.get("domain")
             if isinstance(domain, dict):
                 x_starts.add(_domain_start(domain, "x"))
@@ -162,9 +183,6 @@ class PlotlyMaidr:
         placed covers the whole figure, which is the first cell.
         """
         domain = trace.get("domain")
-        if not isinstance(domain, dict):
-            domain = {}
-
         return _domain_start(domain, "x"), _domain_start(domain, "y")
 
     def _extract_plots(self) -> None:
@@ -954,13 +972,13 @@ class PlotlyMaidr:
         webbrowser.open(f"file://{html_file_path}")
 
 
-def _domain_start(box: dict, key: str) -> float:
+def _domain_start(box: Any, key: str) -> float:
     """
     Return where one ``domain`` interval starts, as a fraction of the figure.
 
     Parameters
     ----------
-    box : dict
+    box : Any
         A layout axis, whose ``domain`` holds the interval, or a trace's
         ``domain``, whose ``x`` and ``y`` hold one each.
     key : str
@@ -973,11 +991,4 @@ def _domain_start(box: dict, key: str) -> float:
         together compare equal, or 0 for an interval that is absent or
         malformed -- the figure's own edge, which is the first row or column.
     """
-    interval = box.get(key, [0, 1])
-    if not isinstance(interval, (list, tuple)) or not interval:
-        return 0.0
-
-    try:
-        return round(float(interval[0]), 6)
-    except (TypeError, ValueError):
-        return 0.0
+    return domain_interval(box, key)[0]
