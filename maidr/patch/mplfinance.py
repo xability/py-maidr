@@ -6,7 +6,7 @@ from matplotlib.collections import LineCollection, PolyCollection
 from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
-from maidr.patch.common import common
+from maidr.patch.common import _draw_quietly, common
 from maidr.core.context_manager import ContextManager
 from maidr.util.datetime_conversion import create_datetime_converter
 
@@ -27,7 +27,7 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
     kwargs["returnfig"] = True
 
     with ContextManager.set_internal_context():
-        result = wrapped(*args, **kwargs)
+        result = _draw_quietly(wrapped, args, kwargs)
 
     # Validate that we received the expected figure and axes tuple
     if not (isinstance(result, tuple) and len(result) >= 2):

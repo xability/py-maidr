@@ -5,7 +5,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
 from maidr.core.enum import PlotType
-from maidr.patch.common import common
+from maidr.patch.common import _draw_quietly, common
 from maidr.core.context_manager import ContextManager
 from maidr.core.figure_manager import FigureManager
 from maidr.util.step_utils import is_step_axes
@@ -28,12 +28,12 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     """
     # Don't proceed if the call is made internally by the patched function.
     if ContextManager.is_internal_context():
-        return wrapped(*args, **kwargs)
+        return _draw_quietly(wrapped, args, kwargs)
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
         # Patch the plotting function.
-        plot = wrapped(*args, **kwargs)
+        plot = _draw_quietly(wrapped, args, kwargs)
 
     # Get the axes from the plot result (works for both matplotlib and seaborn)
     ax = FigureManager.get_axes(plot)

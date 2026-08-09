@@ -23,7 +23,7 @@ from maidr.core.enum import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.violinplot import ViolinDataExtractor
-from maidr.patch.common import resolve_orientation
+from maidr.patch.common import _draw_quietly, resolve_orientation
 from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
 
 
@@ -36,7 +36,7 @@ def patch_violinplot(
 ) -> Any:
     """Intercept ``seaborn.violinplot`` and register box + KDE layers."""
     if ContextManager.is_internal_context():
-        return wrapped(*args, **kwargs)
+        return _draw_quietly(wrapped, args, kwargs)
 
     # Snapshot existing Line2D objects so we can detect new ones later.
     pre_ax = kwargs.get("ax", None)
@@ -45,7 +45,7 @@ def patch_violinplot(
     )
 
     with ContextManager.set_internal_context():
-        ax = wrapped(*args, **kwargs)
+        ax = _draw_quietly(wrapped, args, kwargs)
 
     plot_ax = kwargs.get("ax", ax) or ax
 
@@ -80,10 +80,10 @@ def patch_violinplot(
 def mpl_violinplot(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> Any:
     """Intercept ``Axes.violinplot`` and register box + KDE layers."""
     if ContextManager.is_internal_context():
-        return wrapped(*args, **kwargs)
+        return _draw_quietly(wrapped, args, kwargs)
 
     with ContextManager.set_internal_context():
-        plot = wrapped(*args, **kwargs)
+        plot = _draw_quietly(wrapped, args, kwargs)
 
     plot_ax: Axes = instance
     orientation = resolve_orientation(wrapped, args, kwargs)

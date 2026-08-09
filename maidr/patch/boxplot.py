@@ -6,21 +6,21 @@ from matplotlib.axes import Axes
 from maidr.core.context_manager import BoxplotContextManager, ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import resolve_orientation
+from maidr.patch.common import _draw_quietly, resolve_orientation
 
 
 @wrapt.patch_function_wrapper(Axes, "bxp")
 def mpl_box(wrapped, _, args, kwargs) -> dict:
     # Don't proceed if the call is made internally by the patched function.
     if BoxplotContextManager.is_internal_context():
-        plot = wrapped(*args, **kwargs)
+        plot = _draw_quietly(wrapped, args, kwargs)
         BoxplotContextManager.add_bxp_context(plot)
         return plot
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
         # Patch `ax.boxplot()` and `ax.bxp()`.
-        plot = wrapped(*args, **kwargs)
+        plot = _draw_quietly(wrapped, args, kwargs)
 
     # Set the orientation of the boxplot
     orientation = resolve_orientation(wrapped, args, kwargs)
@@ -40,7 +40,7 @@ def sns_box(wrapped, _, args, kwargs) -> Axes:
     # Set the internal context to avoid cyclic processing.
     with BoxplotContextManager.set_internal_context() as bxp_context:
         # Patch `ax.boxplot()` and `ax.bxp()`.
-        plot = wrapped(*args, **kwargs)
+        plot = _draw_quietly(wrapped, args, kwargs)
         bxp_container = bxp_context
 
     # Set the orientation of the boxplot
@@ -64,7 +64,7 @@ def sns_infer_new_orient(wrapped, instance, args, kwargs) -> str:
         orientation = instance.orient
         BoxplotContextManager.set_bxp_orientation(orientation)
 
-    return wrapped(*args, **kwargs)
+    return _draw_quietly(wrapped, args, kwargs)
 
 
 def patch_seaborn():

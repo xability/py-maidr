@@ -7,6 +7,7 @@ import numpy as np
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.patch.common import _draw_quietly
 
 
 def candlestick(
@@ -45,7 +46,7 @@ def candlestick(
     """
     with ContextManager.set_internal_context():
         # Patch the plotting function.
-        plot = wrapped(*args, **kwargs)
+        plot = _draw_quietly(wrapped, args, kwargs)
 
     original_data = None
     date_nums = None
