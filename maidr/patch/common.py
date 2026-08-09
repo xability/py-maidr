@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import threading
 import warnings
 from typing import Any, Callable
 
@@ -9,6 +10,12 @@ from matplotlib.axes import Axes
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+
+# Serialises the warning-filter save/restore in `_draw_quietly`; see its
+# docstring for why interleaving those corrupts the global filter list.
+# Reentrant because patches nest: `regplot.patched_plot` wraps `Axes.plot`,
+# which `lineplot.line` wraps as well, so one draw can enter twice.
+_FILTER_LOCK = threading.RLock()
 
 
 def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
@@ -112,13 +119,32 @@ def _draw_quietly(wrapped: Callable, args: tuple, kwargs: dict) -> Any:
     MAIDR's own diagnostics, which are raised while the schema is built and
     not while the figure is drawn.
 
-    ``catch_warnings`` saves and restores the *global* filter list, so it is
-    not thread safe: two threads drawing at once can restore each other's
-    state, and one may briefly miss a warning the other suppressed. The
-    process-wide filter this replaced shared that flaw and never restored at
-    all, so this is not a regression -- but the window is now per call rather
-    than permanent, which is what makes it reachable in a threaded server.
-    Python 3.14's context-aware filters would close it.
+    ``catch_warnings`` saves and restores the *global* filter list, which two
+    threads drawing at once will corrupt outright rather than merely race on.
+    Interleave one pair of calls and the restores nest wrongly::
+
+        A enters, saving S0          filters = ignore + S0
+        B enters, saving S1          S1 already contains A's ignore
+        A exits,  restoring S0       filters = S0        (correct, for now)
+        B exits,  restoring S1       filters = ignore + S0
+
+    B puts back a snapshot it took while A was suppressing, so a process-wide
+    ``ignore`` survives every draw -- exactly the leak this helper was written
+    to remove, reintroduced under concurrency and permanently. Measured: eight
+    threads drawing sixty times each leave one ``('ignore', None, Warning,
+    None, 0)`` behind.
+
+    Serialising the draw is what prevents it, since the save and restore have
+    to pair up. The cost is real but narrow: drawing is already effectively
+    single-threaded for the caller that motivated this (Shiny renders on one
+    asyncio loop), and matplotlib's own guidance is that a figure belongs to
+    one thread anyway. Python 3.14's context-aware filters would remove the
+    need for the lock.
+
+    What the lock does *not* fix is that a draw's ``ignore`` is global while
+    it is held, so another thread warning at that moment is still silenced.
+    That one is transient -- it ends with the draw -- rather than surviving
+    it, and closing it would mean not touching the global filters at all.
 
     Parameters
     ----------
@@ -134,7 +160,7 @@ def _draw_quietly(wrapped: Callable, args: tuple, kwargs: dict) -> Any:
     Any
         Whatever the wrapped function returned.
     """
-    with warnings.catch_warnings():
+    with _FILTER_LOCK, warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return wrapped(*args, **kwargs)
 
