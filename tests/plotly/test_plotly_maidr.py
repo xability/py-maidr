@@ -248,6 +248,20 @@ class TestPlotlyPieAxisTitles:
 
         assert self._labels(fig, "pie") == ("Fruit", "Units")
 
+    def test_another_domain_trace_does_not_take_the_titles_away(self):
+        # A sunburst lands in the same default group as the pie for the same
+        # reason the pie does -- neither names an axis -- so it has no claim
+        # on those titles, and falling back here would lose a label the
+        # author did write.
+        fig = go.Figure()
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]))
+        fig.add_trace(
+            go.Sunburst(labels=["a", "b"], parents=["", ""], values=[1, 2])
+        )
+        fig.update_layout(xaxis_title="Fruit", yaxis_title="Units")
+
+        assert self._labels(fig, "pie") == ("Fruit", "Units")
+
     def test_a_pie_sharing_a_figure_with_a_bar_keeps_the_generic_pair(self):
         fig = go.Figure()
         fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]))

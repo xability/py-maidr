@@ -43,6 +43,43 @@ from maidr.util.iframe_utils import wrap_in_iframe_plotly
 #: Add a type here when maidr learns to render it, not before.
 _PLACED_BY_DOMAIN = frozenset({"pie"})
 
+#: Every trace type plotly places by a ``domain`` rectangle rather than by a
+#: cartesian axis pair. These share the default ``("x", "y")`` trace group with
+#: each other simply because none of them names an axis -- not because any of
+#: them has a claim on ``layout.xaxis``/``yaxis``. Used to decide whether a pie
+#: may take those titles for its own dimension names; see ``_extract_plots``.
+_DOMAIN_TRACE_TYPES = frozenset(
+    {
+        "pie",
+        "funnelarea",
+        "sunburst",
+        "treemap",
+        "icicle",
+        "indicator",
+        "table",
+        "sankey",
+        "parcats",
+        "parcoords",
+    }
+)
+
+
+def _is_domain_trace(trace: dict) -> bool:
+    """Report whether plotly places this trace by a domain rather than an axis.
+
+    Parameters
+    ----------
+    trace : dict
+        One trace of the figure.
+
+    Returns
+    -------
+    bool
+        True when the trace carries no cartesian axis pair. A trace with no
+        ``type`` at all is a ``scatter``, which is cartesian.
+    """
+    return trace.get("type") in _DOMAIN_TRACE_TYPES
+
 
 class PlotlyMaidr:
     """
@@ -459,7 +496,15 @@ class PlotlyMaidr:
                 # default group, and those titles describe *its* axes -- letting
                 # the pie borrow them would announce a bar's "Month" against a
                 # pie's slice labels.
-                pie_owns_axes = len(pie_traces) == len(group_traces)
+                #
+                # Only a *cartesian* trace claims them. The other domain traces
+                # land in this group for the same reason a pie does -- they
+                # carry no axis pair either -- so a pie beside a `go.Sunburst`
+                # still owns the titles, and falling back to the generic pair
+                # there would lose a label the author did write.
+                pie_owns_axes = all(
+                    _is_domain_trace(trace) for trace in group_traces
+                )
 
                 for position, pie_trace in enumerate(pie_traces):
                     plot = PlotlyPiePlot(
