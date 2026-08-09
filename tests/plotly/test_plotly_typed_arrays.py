@@ -378,3 +378,18 @@ class TestPartialDecodeFailure:
         assert len(boxes) == 1
         assert boxes[0]["z"] == "good"
         assert boxes[0]["q2"] == pytest.approx(3.0)
+
+    @pytest.mark.parametrize(
+        "shape",
+        [
+            "99999999999999999999, 2",
+            "1000000000000000000000000, 1",
+            "-1, -1",
+            "abc, 2",
+        ],
+    )
+    def test_an_impossible_shape_comes_back_empty(self, shape: str):
+        # numpy 2.4 answers an out-of-range extent with a ValueError, but the
+        # project accepts numpy>=1.26 and the except clause names
+        # OverflowError too. Either way nothing escapes to the caller.
+        assert as_list({"dtype": "i1", "bdata": "ChQe", "shape": shape}) == []

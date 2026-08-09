@@ -8,8 +8,28 @@ muted every ``warnings.warn`` raised afterwards — anywhere, arbitrarily far
 from any figure, including MAIDR's own diagnostics, which are raised while the
 schema is built rather than while the figure is drawn.
 
-``common`` is the path every plot type but pie takes, so it is pinned here
-rather than only through the one type that has its own patch.
+``common`` is where most plot types are drawn, so it is pinned here rather
+than only through pie, which has its own patch.
+
+How each kind below reaches the helper is worth stating, because it is not
+uniform and the parametrisation would otherwise read as claiming more than
+it pins:
+
+* ``bar``, ``barh`` and ``scatter`` are drawn through ``common`` directly —
+  these are the cases where the fix does its work.
+* ``hist`` is not routed through ``common`` by its own patch, but
+  ``Axes.hist`` draws its bars with the patched ``Axes.bar``, so the helper
+  wraps that internal draw.
+* ``plot`` reaches ``common`` with a *no-op lambda* — ``lineplot.line``
+  calls ``wrapped()`` itself first — so the helper suppresses nothing for
+  it. Its own draw is unsuppressed both before and after this change.
+
+All five nevertheless pin the property under test, which is that nothing is
+left installed afterwards: under the filter this replaced, ``common``
+installed one unconditionally, no-op lambda included. Each fails in
+isolation against that code, so none of them depends on another having run
+first. What ``plot`` does *not* demonstrate is its own draw being scoped;
+that it never was is tracked in #328.
 """
 
 from __future__ import annotations

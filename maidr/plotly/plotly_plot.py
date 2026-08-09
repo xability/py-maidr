@@ -577,14 +577,21 @@ def _decode_typed_array(spec: dict) -> list:
         shape = spec.get("shape")
         if shape is not None:
             extents = shape.split(",") if isinstance(shape, str) else shape
-            # Three ways this raises, and the two clauses below cover all of
+            # Three ways this raises, and the clauses below cover all of
             # them: an unknown `dtype` is a TypeError, base64 that will not
             # decode is a `binascii.Error` (a ValueError), and a `shape` that
             # is not integral, or does not multiply out to the buffer's
             # length, is a ValueError from `int()` or from `reshape`.
+            #
+            # `OverflowError` is listed for an extent too large to be a
+            # dimension. numpy 2.4 answers that with a ValueError, so it is
+            # unreachable on the version pinned here — but the project accepts
+            # numpy>=1.26, and the cost of being wrong about one release in
+            # that range is an uncaught exception taking down the whole
+            # figure, which is what this decoder exists to prevent.
             array = array.reshape([int(extent) for extent in extents])
         return array.tolist()
-    except (TypeError, ValueError) as error:
+    except (TypeError, ValueError, OverflowError) as error:
         _logger.warning(
             "maidr: could not decode a typed array (dtype=%r, shape=%r): %s; "
             "reporting no data for it.",
