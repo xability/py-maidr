@@ -4,7 +4,7 @@ import wrapt
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
-from maidr.patch.common import common
+from maidr.patch.common import _draw_quietly, common
 from maidr.core.context_manager import ContextManager
 import uuid
 from maidr.core.enum.smooth_keywords import SMOOTH_KEYWORDS
@@ -21,7 +21,7 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
     else:
         # Prevent any MAIDR layer registration during plotting when scatter=False
         with ContextManager.set_internal_context():
-            ax = wrapped(*args, **kwargs)
+            ax = _draw_quietly(wrapped, args, kwargs)
 
     axes = ax if isinstance(ax, Axes) else ax.axes if hasattr(ax, "axes") else None
     if axes is not None:
@@ -58,7 +58,7 @@ def patched_plot(wrapped, instance, args, kwargs):
     Patch matplotlib Axes.plot to register SMOOTH layers for MAIDR if the label matches SMOOTH_KEYWORDS.
     """
     # Call the original plot function
-    lines = wrapped(*args, **kwargs)
+    lines = _draw_quietly(wrapped, args, kwargs)
 
     # Check each line for smooth keywords and register if found
     for line in lines:

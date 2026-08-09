@@ -7,6 +7,7 @@ from matplotlib.image import AxesImage
 
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.patch.common import _draw_quietly
 
 
 def heat(wrapped, _, args, kwargs) -> Axes | AxesImage:
@@ -19,7 +20,7 @@ def heat(wrapped, _, args, kwargs) -> Axes | AxesImage:
         optional_params["fmt"] = kwargs["fmt"]
 
     # Patch `ax.imshow()` and `seaborn.heatmap`.
-    plot = wrapped(*args, **kwargs)
+    plot = _draw_quietly(wrapped, args, kwargs)
 
     # Extract the heatmap data points for MAIDR from the plots.
     ax = FigureManager.get_axes(plot)

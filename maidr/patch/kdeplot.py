@@ -7,7 +7,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
 from maidr.core.enum import PlotType
-from maidr.patch.common import common
+from maidr.patch.common import _draw_quietly, common
 from maidr.core.context_manager import ContextManager
 from maidr.util.svg_utils import unique_lines_by_xy
 
@@ -17,7 +17,7 @@ def kde(wrapped, instance, args, kwargs) -> Axes | Line2D | PolyCollection:
     Patch for seaborn.kdeplot: register all unique lines and/or filled boundaries as SMOOTH.
     """
     with ContextManager.set_internal_context():
-        plot = wrapped(*args, **kwargs)
+        plot = _draw_quietly(wrapped, args, kwargs)
     ax = plot if isinstance(plot, Axes) else getattr(plot, "axes", None)
     if ax is not None:
         # Register all unique Line2D objects

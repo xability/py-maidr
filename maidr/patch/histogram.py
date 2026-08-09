@@ -12,7 +12,7 @@ import uuid
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import common
+from maidr.patch.common import _draw_quietly, common
 
 
 @wrapt.patch_function_wrapper(Axes, "hist")
@@ -28,12 +28,12 @@ def mpl_hist(
     """
     # Don't proceed if the call is made internally by the patched function.
     if ContextManager.is_internal_context():
-        return wrapped(*args, **kwargs)
+        return _draw_quietly(wrapped, args, kwargs)
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
         # Patch `ax.hist()`.
-        n, bins, plot = wrapped(*args, **kwargs)
+        n, bins, plot = _draw_quietly(wrapped, args, kwargs)
 
     # Extract the histogram data points for MAIDR from the plots.
     ax = FigureManager.get_axes(plot)
