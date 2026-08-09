@@ -138,6 +138,9 @@ class PlotlyMaidr:
           carries a single ``stepDirection`` for all of its series.
         * Multiple box traces are merged into a single
           :class:`PlotlyMultiBoxPlot` (matching ``BoxPlot``).
+        * Pie traces stay one layer each, but are built here rather than by
+          the factory so every pie carries its position among the figure's
+          pie traces — the only thing its selector can be scoped by.
 
         Every scatter-family trace is assigned a selector index from its
         position within the subplot, not within the layer it lands in — see
@@ -174,6 +177,9 @@ class PlotlyMaidr:
             ]
             box_traces = [
                 t for t in group_traces if t.get("type") == "box"
+            ]
+            pie_traces = [
+                t for t in group_traces if t.get("type") == "pie"
             ]
 
             # `nth-child` counts within the subplot's SVG `scatterlayer`, so a
@@ -348,6 +354,29 @@ class PlotlyMaidr:
                 plot.col_index = col
                 self._plots.append(plot)
                 merged.update(id(t) for t in box_traces)
+
+            # Pies, one layer each. Plotly draws them into a figure-level
+            # ``pielayer`` instead of a subplot group, so a pie's selector is
+            # scoped by its position among the *pie* traces rather than by an
+            # axis pair -- which a pie does not carry at all, and which is why
+            # every pie in a figure lands in this one group. Only this loop
+            # knows those positions, so pies are built here rather than left
+            # to ``PlotlyPlotFactory``, which sees one trace and has to assume
+            # it is the only one.
+            if pie_traces:
+                from maidr.plotly.pie import PlotlyPiePlot
+
+                for position, pie_trace in enumerate(pie_traces):
+                    plot = PlotlyPiePlot(
+                        pie_trace,
+                        layout,
+                        pie_position=position,
+                        **axis_kwargs,
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in pie_traces)
 
             # Remaining traces
             for trace in group_traces:

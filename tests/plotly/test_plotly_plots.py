@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
@@ -12,6 +13,7 @@ from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
 from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
 from maidr.plotly.multiline import PlotlyMultiLinePlot
+from maidr.plotly.pie import PlotlyPiePlot
 
 
 class TestPlotlyBarPlot:
@@ -316,6 +318,162 @@ class TestPlotlyGroupedBarPlot:
         assert plot.schema[MaidrKey.TYPE] == PlotType.DODGED
 
 
+class TestPlotlyPiePlot:
+    """One flat point per drawn wedge, in the order plotly draws them.
+
+    Plotly does not draw one wedge per ``values`` entry in the order given:
+    ``pie/calc.js`` builds its own slice list first, dropping and merging
+    entries and then — by default — sorting them. The emitted data has to
+    follow that list exactly, because the selector is positional, so the
+    first divergence lands every later slice on another wedge.
+    """
+
+    def test_extract_data(self):
+        trace = {
+            "type": "pie",
+            "labels": ["Apples", "Bananas", "Cherries"],
+            "values": [30, 50, 20],
+            "sort": False,
+        }
+        plot = PlotlyPiePlot(trace, {})
+        data = plot._extract_plot_data()
+
+        assert data == [
+            {MaidrKey.X: "Apples", MaidrKey.Y: 30},
+            {MaidrKey.X: "Bananas", MaidrKey.Y: 50},
+            {MaidrKey.X: "Cherries", MaidrKey.Y: 20},
+        ]
+
+    def test_data_is_flat_and_carries_no_percentage(self):
+        # Percentage is derived from the values by the renderer, so a layer
+        # that emitted one would be a second source of truth.
+        trace = {"type": "pie", "labels": ["A", "B"], "values": [1, 3]}
+        plot = PlotlyPiePlot(trace, {})
+        schema = plot.schema
+
+        assert schema[MaidrKey.TYPE] == PlotType.PIE
+        data = schema[MaidrKey.DATA]
+        assert all(set(point) == {MaidrKey.X, MaidrKey.Y} for point in data)
+        assert "orientation" not in schema
+
+    def test_sort_default_orders_slices_largest_first(self):
+        # This is the rule that silently misaligns every selector if ignored:
+        # plotly sorts by default, so data order is not slice order.
+        trace = {"type": "pie", "labels": ["A", "B", "C"], "values": [30, 50, 20]}
+        plot = PlotlyPiePlot(trace, {})
+        data = plot._extract_plot_data()
+
+        assert [point[MaidrKey.X] for point in data] == ["B", "A", "C"]
+
+    def test_duplicate_labels_merge_at_the_first_position(self):
+        trace = {
+            "type": "pie",
+            "labels": ["A", "B", "A"],
+            "values": [1, 2, 3],
+            "sort": False,
+        }
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot._slices() == [("A", 4), ("B", 2)]
+
+    def test_a_non_numeric_value_draws_no_wedge(self):
+        trace = {
+            "type": "pie",
+            "labels": ["A", "B", "C"],
+            "values": [1, "not a number", 3],
+            "sort": False,
+        }
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot._slices() == [("A", 1), ("C", 3)]
+
+    def test_a_negative_wedge_is_dropped(self):
+        trace = {
+            "type": "pie",
+            "labels": ["A", "B"],
+            "values": [-1, 2],
+            "sort": False,
+        }
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot._slices() == [("B", 2)]
+
+    def test_a_hidden_label_is_not_emitted(self):
+        trace = {"type": "pie", "labels": ["A", "B"], "values": [1, 2], "sort": False}
+        plot = PlotlyPiePlot(trace, {"hiddenlabels": ["A"]})
+
+        assert plot._slices() == [("B", 2)]
+
+    def test_nothing_positive_draws_nothing(self):
+        trace = {"type": "pie", "labels": ["A", "B"], "values": [0, 0]}
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot._extract_plot_data() == []
+
+    def test_labels_without_values_count_the_labels(self):
+        trace = {"type": "pie", "labels": ["A", "B", "A"], "sort": False}
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot._slices() == [("A", 2), ("B", 1)]
+
+    def test_values_without_labels_are_numbered(self):
+        trace = {"type": "pie", "values": [1, 2], "sort": False}
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot._slices() == [("0", 1), ("1", 2)]
+
+    def test_typed_array_values_are_decoded(self):
+        # ``plotly.express`` exports every numeric column as the base64
+        # typed-array spec plotly.js consumes; iterating it would otherwise
+        # walk the two dict keys.
+        import base64
+
+        bdata = base64.b64encode(np.array([30.0, 50.0, 20.0]).tobytes()).decode()
+        trace = {
+            "type": "pie",
+            "labels": ["A", "B", "C"],
+            "values": {"dtype": "f8", "bdata": bdata},
+            "sort": False,
+        }
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot._slices() == [("A", 30.0), ("B", 50.0), ("C", 20.0)]
+
+    def test_selector_is_scoped_to_the_pie_layer(self):
+        # Pies are drawn into a figure-level `pielayer`, never into a
+        # `.subplot.xy` group, so a subplot-prefixed selector would match
+        # nothing.
+        trace = {"type": "pie", "labels": ["A"], "values": [1]}
+        plot = PlotlyPiePlot(trace, {}, pie_position=2)
+        selector = plot.schema[MaidrKey.SELECTOR]
+
+        assert selector == ".pielayer > .trace:nth-child(3) > .slice > path.surface"
+
+    def test_a_negative_position_is_rejected(self):
+        # `nth-child(0)` matches nothing, so the highlight would simply never
+        # appear -- a silent failure worth refusing at construction.
+        trace = {"type": "pie", "labels": ["A"], "values": [1]}
+        with pytest.raises(ValueError, match="pie position"):
+            PlotlyPiePlot(trace, {}, pie_position=-1)
+
+    def test_axes_name_the_slice_dimensions(self):
+        trace = {"type": "pie", "labels": ["A"], "values": [1]}
+        layout = {"xaxis": {"title": "Fruit"}, "yaxis": {"title": "Units"}}
+        plot = PlotlyPiePlot(trace, layout)
+        axes = plot.schema[MaidrKey.AXES]
+
+        assert axes[MaidrKey.X][MaidrKey.LABEL] == "Fruit"
+        assert axes[MaidrKey.Y][MaidrKey.LABEL] == "Units"
+        assert MaidrKey.Z not in axes
+
+    def test_unnamed_axes_read_as_english(self):
+        # Plotly names neither axis of a pie, and MAIDR reads a slice out as
+        # those two names.
+        plot = PlotlyPiePlot({"type": "pie", "labels": ["A"], "values": [1]}, {})
+        axes = plot.schema[MaidrKey.AXES]
+
+        assert axes[MaidrKey.X][MaidrKey.LABEL] == "Label"
+        assert axes[MaidrKey.Y][MaidrKey.LABEL] == "Value"
 
 
 class TestPlotlyMultiLinePlot:

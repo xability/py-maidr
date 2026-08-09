@@ -35,6 +35,10 @@ def test_create_maidr_with_none_plot_type(mocker):
         # ``ax.step`` delegates to the already-patched ``Axes.plot``; this
         # guards against it registering a STEP *and* a LINE layer.
         (Library.MATPLOTLIB, PlotType.STEP),
+        # ``Axes.pie`` returns a tuple of artist lists rather than an artist,
+        # so its patch resolves the axes off the call instead of the return
+        # value; this guards that it still registers exactly one layer.
+        (Library.MATPLOTLIB, PlotType.PIE),
         # Parametrize seaborn plots.
         (Library.SEABORN, PlotType.BAR),
         (Library.SEABORN, PlotType.BOX),

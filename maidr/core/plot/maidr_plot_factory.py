@@ -9,6 +9,7 @@ from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot import MaidrPlot
+from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
 from maidr.core.plot.stepplot import StepPlot
@@ -64,6 +65,8 @@ class MaidrPlotFactory:
                 return MultiLinePlot(single_ax, **kwargs)
         elif PlotType.STEP == plot_type:
             return StepPlot(single_ax, **kwargs)
+        elif PlotType.PIE == plot_type:
+            return PiePlot(single_ax, **kwargs)
         elif PlotType.SCATTER == plot_type:
             return ScatterPlot(single_ax)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:

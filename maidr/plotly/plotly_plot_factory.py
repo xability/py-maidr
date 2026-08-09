@@ -115,4 +115,17 @@ class PlotlyPlotFactory:
 
             return PlotlyHistogramPlot(trace, layout, **axis_kwargs)
 
+        if trace_type == "pie":
+            from maidr.plotly.pie import PlotlyPiePlot
+
+            # ``pie_position`` is left at its default here. Plotly draws every
+            # pie into one figure-level ``pielayer``, so a pie's selector is
+            # scoped by its position among *those* traces; this factory sees
+            # one trace with no idea what else the figure holds, so "assume it
+            # is the only pie" is the only assumption available — the same one
+            # the lines branch above makes about scatter positions.
+            # ``PlotlyMaidr`` never reaches here precisely because it does
+            # know, and passes real positions.
+            return PlotlyPiePlot(trace, layout, **axis_kwargs)
+
         return None

@@ -8,6 +8,7 @@ from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot_factory import MaidrPlotFactory
+from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.stepplot import StepPlot
 
@@ -30,6 +31,7 @@ def test_create_with_invalid_plot_type(mocker):
         (PlotType.HEAT, HeatPlot),
         (PlotType.HIST, HistPlot),
         (PlotType.LINE, MultiLinePlot),
+        (PlotType.PIE, PiePlot),
         (PlotType.SCATTER, ScatterPlot),
         (PlotType.STACKED, GroupedBarPlot),
         (PlotType.STEP, StepPlot),

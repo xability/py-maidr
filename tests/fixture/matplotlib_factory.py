@@ -32,6 +32,8 @@ class MatplotlibFactory(LibraryFactory):
             self.create_boxplot(ax)
         elif PlotType.STEP is plot_type:
             self.create_stepplot(ax)
+        elif PlotType.PIE is plot_type:
+            self.create_pieplot(ax)
 
     def create_barplot(self, ax: Axes) -> Any:
         # TODO: using numbers makes matplotlib to add additional ticks messing with the
@@ -64,3 +66,15 @@ class MatplotlibFactory(LibraryFactory):
         ax.set_title("Test matplotlib step title")
         ax.set_xlabel("Test matplotlib step x label")
         ax.set_ylabel("Test matplotlib step y label")
+
+    def create_pieplot(self, ax: Axes) -> Any:
+        """Draw a pie whose magnitudes do not survive matplotlib.
+
+        The sizes sum well above 1, so ``Axes.pie`` normalises them and the
+        wedges it draws keep only the fractions 0.3/0.5/0.2. The layer must
+        still report 30/50/20, which is what the caller plotted.
+        """
+        ax.pie([30, 50, 20], labels=["A", "B", "C"])
+        ax.set_title("Test matplotlib pie title")
+        ax.set_xlabel("Test matplotlib pie x label")
+        ax.set_ylabel("Test matplotlib pie y label")

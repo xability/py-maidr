@@ -79,13 +79,17 @@ class TestPlotlyMaidr:
         pm = PlotlyMaidr(fig)
         assert len(pm._plots) == 2
 
+    def test_creates_plots_from_pie_fig(self, plotly_pie_fig):
+        pm = PlotlyMaidr(plotly_pie_fig)
+        assert len(pm._plots) == 1
+
     def test_unsupported_trace_skipped(self):
         fig = go.Figure()
-        fig.add_trace(go.Pie(values=[1, 2, 3], labels=["a", "b", "c"]))
+        fig.add_trace(go.Violin(y=[1, 2, 3, 4]))
         fig.add_trace(go.Bar(x=["A"], y=[1]))
 
         pm = PlotlyMaidr(fig)
-        # Pie is unsupported and skipped
+        # Violin is unsupported and skipped
         assert len(pm._plots) == 1
 
     def test_dodged_bar_detection(self, plotly_dodged_fig):
@@ -153,6 +157,72 @@ class TestPlotlyMaidr:
         pm = PlotlyMaidr(plotly_bar_fig)
         assert len(pm._plots) == 1
         assert isinstance(pm._plots[0], PlotlyBarPlot)
+
+
+class TestPlotlyPieFigures:
+    """A pie's selector is scoped by its position among the figure's pies.
+
+    Plotly draws every pie into one figure-level ``pielayer`` rather than into
+    a subplot group, so only ``PlotlyMaidr`` — which sees the whole figure —
+    can say which trace group a given pie is. The factory cannot, which is why
+    these go through ``PlotlyMaidr`` rather than the factory.
+    """
+
+    def test_pie_layer_data_is_flat(self, plotly_pie_fig):
+        from maidr.core.enum.maidr_key import MaidrKey
+        from maidr.plotly.pie import PlotlyPiePlot
+
+        pm = PlotlyMaidr(plotly_pie_fig)
+        assert isinstance(pm._plots[0], PlotlyPiePlot)
+
+        data = pm._plots[0].schema[MaidrKey.DATA]
+        assert all(isinstance(point, dict) for point in data)
+        # Largest first: `sort` is plotly's default.
+        assert [point[MaidrKey.X] for point in data] == [
+            "Bananas",
+            "Apples",
+            "Cherries",
+        ]
+
+    def test_two_pies_get_their_own_positions(self):
+        fig = go.Figure()
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2], domain={"x": [0, 0.5]}))
+        fig.add_trace(go.Pie(labels=["C", "D"], values=[3, 4], domain={"x": [0.5, 1]}))
+
+        pm = PlotlyMaidr(fig)
+        selectors = [plot._get_selector() for plot in pm._plots]
+
+        assert len(pm._plots) == 2
+        assert "nth-child(1)" in selectors[0]
+        assert "nth-child(2)" in selectors[1]
+
+    def test_a_bar_does_not_shift_the_pie_position(self):
+        # The bar is drawn into `.subplot.xy`, not into `.pielayer`, so it
+        # occupies no trace group the pie's selector counts.
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=["A"], y=[1]))
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]))
+
+        pm = PlotlyMaidr(fig)
+        pie = next(plot for plot in pm._plots if plot.type.value == "pie")
+
+        assert len(pm._plots) == 2
+        assert "nth-child(1)" in pie._get_selector()
+
+    def test_donut_is_a_pie_layer(self):
+        from maidr.plotly.pie import PlotlyPiePlot
+
+        fig = go.Figure(go.Pie(labels=["A", "B"], values=[1, 2], hole=0.4))
+
+        pm = PlotlyMaidr(fig)
+        assert len(pm._plots) == 1
+        assert isinstance(pm._plots[0], PlotlyPiePlot)
+
+    def test_render_contains_the_pie_schema(self, plotly_pie_fig):
+        pm = PlotlyMaidr(plotly_pie_fig)
+        html_str = str(pm.render().get_html_string())
+
+        assert '"type": "pie"' in html_str
 
 
 class TestPlotlyFigureMetadata:

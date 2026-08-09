@@ -9,6 +9,7 @@ from maidr.plotly.line import PlotlyLinePlot
 from maidr.plotly.box import PlotlyBoxPlot
 from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
+from maidr.plotly.pie import PlotlyPiePlot
 
 
 class TestPlotlyPlotFactory:
@@ -65,7 +66,27 @@ class TestPlotlyPlotFactory:
         assert isinstance(plot, PlotlyHistogramPlot)
         assert plot.type == PlotType.HIST
 
+    def test_pie_trace(self):
+        trace = {"type": "pie", "labels": ["A", "B"], "values": [1, 2]}
+        plot = PlotlyPlotFactory.create(trace, {})
+        assert isinstance(plot, PlotlyPiePlot)
+        assert plot.type == PlotType.PIE
+
+    def test_donut_trace_is_still_a_pie(self):
+        # `hole` cuts the middle out of the wedges; the data is unchanged.
+        trace = {"type": "pie", "labels": ["A", "B"], "values": [1, 2], "hole": 0.4}
+        plot = PlotlyPlotFactory.create(trace, {})
+        assert isinstance(plot, PlotlyPiePlot)
+
+    def test_pie_assumes_it_is_the_only_one(self):
+        # This factory sees one trace and cannot know what else the figure
+        # holds, so it scopes the selector to the first pie. `PlotlyMaidr`
+        # passes real positions precisely because it does know.
+        trace = {"type": "pie", "labels": ["A"], "values": [1]}
+        plot = PlotlyPlotFactory.create(trace, {})
+        assert "nth-child(1)" in plot._get_selector()
+
     def test_unsupported_trace_returns_none(self):
-        trace = {"type": "pie", "values": [1, 2, 3]}
+        trace = {"type": "violin", "y": [1, 2, 3]}
         plot = PlotlyPlotFactory.create(trace, {})
         assert plot is None

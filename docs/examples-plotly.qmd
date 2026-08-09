@@ -139,6 +139,69 @@ fig = go.Figure(
 maidr.show(fig)  #<<
 ```
 
+### Pie Chart
+
+A pie is one flat row of slices, so navigation runs left and right across them
+and there is no second dimension to move through. Each slice is announced by
+its label, its value, and the share of the whole that value works out to. The
+percentage is derived from the values at render time rather than authored, so
+it can never disagree with the numbers it is derived from.
+
+Plotly draws a pie's wedges largest first — `sort` defaults to true — so the
+order of the `values` array is not the order of the slices. maidr reproduces
+that ordering, because the slice a user hears has to be the slice that
+highlights. Pass `sort=False` to keep the authored order in both.
+
+```{python}
+#| warning: false
+#| fig-alt: Pie chart showing the share of tips recorded on each day of the week
+
+import plotly.graph_objects as go
+import seaborn as sns
+
+import maidr  #<<
+
+# Load the tips dataset
+tips = sns.load_dataset("tips")
+
+# Count the tips recorded on each day of the week
+day_counts = tips["day"].value_counts()
+
+fig = go.Figure(
+    go.Pie( #<<
+        labels=day_counts.index.tolist(),
+        values=day_counts.values.tolist(),
+        # Keep the authored order rather than letting plotly re-sort it.
+        sort=False,
+    )
+)
+
+fig.update_layout(
+    title="Share of Tips by Day",
+    # Name the two dimensions of a slice, so it is read out as
+    # "Day: Sat, Number of tips: 87" rather than "Label: Sat, Value: 87".
+    xaxis=dict(title="Day"), #<<
+    yaxis=dict(title="Number of tips"), #<<
+)
+
+maidr.show(fig)  #<<
+```
+
+A donut is the same chart with `hole` set: it changes the wedge geometry and
+leaves the data behind it untouched, so it is emitted as a pie layer too.
+
+::: {.callout-note}
+Plotly names neither axis of a pie, so the layout's `xaxis`/`yaxis` titles are
+what tell maidr how to announce a slice; without them it falls back to "Label"
+and "Value".
+
+Plotly builds its own slice list before drawing, and maidr follows it exactly
+so that data index *k* and highlighted wedge *k* stay the same slice: entries
+plotly does not read as numbers draw no wedge, repeated labels merge into one
+wedge holding their sum, and a label listed in `layout.hiddenlabels` is
+dropped along with its wedge.
+:::
+
 ### Histogram
 
 ```{python}

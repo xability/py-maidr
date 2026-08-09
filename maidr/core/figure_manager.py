@@ -53,6 +53,7 @@ class FigureManager:
         PlotType.BOX: 1,
         PlotType.HEAT: 1,
         PlotType.COUNT: 1,
+        PlotType.PIE: 1,
         PlotType.SMOOTH: 1,
         PlotType.CANDLESTICK: 1,
         PlotType.VIOLIN_KDE: 1,

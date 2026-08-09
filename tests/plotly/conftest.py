@@ -99,6 +99,20 @@ def plotly_histogram_fig():
 
 
 @pytest.fixture
+def plotly_pie_fig():
+    """Create a simple Plotly pie chart."""
+    fig = go.Figure(
+        data=[go.Pie(labels=["Apples", "Bananas", "Cherries"], values=[30, 50, 20])],
+        layout=go.Layout(
+            title="Test Pie Chart",
+            xaxis=dict(title="Fruit"),
+            yaxis=dict(title="Units"),
+        ),
+    )
+    return fig
+
+
+@pytest.fixture
 def plotly_dodged_fig():
     """Create a grouped (dodged) bar chart."""
     fig = go.Figure(
