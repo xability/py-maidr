@@ -618,15 +618,18 @@ class TestDataColumnNames:
         "data",
         [
             pytest.param(pd.DataFrame({"units": UNITS}), id="KeyError"),
-            pytest.param([30, 50, 20], id="IndexError"),
-            pytest.param(object(), id="TypeError"),
+            pytest.param(np.array(UNITS), id="IndexError"),
+            pytest.param([30, 50, 20], id="TypeError-list"),
+            pytest.param(object(), id="TypeError-unindexable"),
         ],
     )
     def test_an_unresolvable_name_is_passed_through_unchanged(self, data):
         # Matplotlib treats a name it cannot look up as a plain value, and so
         # must this: raising instead would fail a pie matplotlib drew
         # perfectly well. One case per way an indexable object says "not this
-        # key" -- the three, and only the three, `_resolve` catches.
+        # key" -- the three, and only the three, `_resolve` catches. A numpy
+        # array is what raises `IndexError`; a plain list raises `TypeError`,
+        # so it cannot stand in for that arm.
         assert _resolve("missing_col", data) == "missing_col"
 
     def test_a_name_is_only_looked_up_when_there_is_data_to_look_it_up_in(self):

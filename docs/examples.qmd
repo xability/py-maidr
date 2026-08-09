@@ -255,7 +255,9 @@ the slice values measure. Leave them unset and maidr falls back to "Category"
 and "Value", which at least read as English where "X" and "Y" would not.
 
 Negative sizes are rejected — matplotlib refuses to draw a wedge with no area,
-and so does maidr. Drawing options that only move the wedges around
+so `ax.pie()` raises before maidr sees the call at all; maidr repeats the check
+for anyone building a `PiePlot` directly. Drawing options that only move the
+wedges around
 (`startangle`, `counterclock`, `explode`, `shadow`) leave the slice order
 alone, so the data stays index-aligned with what is on screen.
 :::
