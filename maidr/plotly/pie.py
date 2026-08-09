@@ -106,6 +106,11 @@ class PlotlyPiePlot(PlotlyPlot):
         A pie with no positive value left to draw is marked invisible by
         plotly and renders nothing, so it yields no slices here.
 
+        These rules are mirrored rather than called, so they can drift if
+        plotly changes them. Verified against plotly.py 6.7.0; the tests pin
+        one rule each, so a drift surfaces as a named failure rather than as
+        silently shifted slices.
+
         Returns
         -------
         list of (str, float)
@@ -149,15 +154,7 @@ class PlotlyPiePlot(PlotlyPlot):
                 if has_labels
                 else label0 + index * dlabel
             )
-            # An empty label is the only one plotly replaces. A null one it
-            # simply stringifies, which is why two of them merge into a single
-            # "null" wedge there -- and so have to merge here too, or every
-            # slice after the second lands on the wrong element.
-            if label is None:
-                label = "null"
-            elif label == "":
-                label = index
-            label = str(label)
+            label = _wedge_label(label, index)
 
             position = position_of.get(label)
             if position is None:
@@ -170,7 +167,20 @@ class PlotlyPiePlot(PlotlyPlot):
         if self._trace.get("sort", True):
             wedges.sort(key=lambda wedge: wedge[1], reverse=True)
 
-        hidden = {str(label) for label in _as_list(self._layout.get("hiddenlabels"))}
+        # Both sides of this comparison must go through the same normalisation.
+        # A null label reaches ``wedges`` as ``"null"``, so a raw ``None`` in
+        # ``hiddenlabels`` -- which is what an author writing the label they
+        # passed would naturally use -- has to become ``"null"`` too, or it
+        # matches nothing and the wedge stays visible.
+        #
+        # An empty entry is deliberately left alone rather than given an index:
+        # a hidden label carries no position to substitute, and the empty label
+        # it would name has already become that entry's own index. Plotly
+        # itself cannot match one either, so leaving it unmatched is faithful.
+        hidden = {
+            _wedge_label(self._to_native(label), None)
+            for label in _as_list(self._layout.get("hiddenlabels"))
+        }
         return [(label, value) for label, value in wedges if label not in hidden]
 
     def _extract_axes_data(self) -> dict:
@@ -193,6 +203,39 @@ class PlotlyPiePlot(PlotlyPlot):
                 label=_axis_title(self._layout.get(self._yaxis_name, {}), "Value")
             ),
         }
+
+
+def _wedge_label(label: Any, index: int | None) -> str:
+    """
+    Name a wedge the way plotly names it.
+
+    Plotly replaces exactly one label: an empty one becomes the entry's own
+    index. A null one it simply stringifies to ``null``, which is why a pair
+    of nulls merges into a single wedge there -- and so has to merge here too,
+    or every slice after the second lands on the wrong element.
+
+    Shared with the ``hiddenlabels`` lookup so both sides of that comparison
+    agree; see the call site for why an empty entry has no index to take.
+
+    Parameters
+    ----------
+    label : Any
+        The label as the author wrote it, already converted to a Python scalar.
+    index : int, optional
+        The entry's position, substituted for an empty label. ``None`` when the
+        label has no position -- a ``hiddenlabels`` entry -- in which case an
+        empty label is left empty.
+
+    Returns
+    -------
+    str
+        The wedge's name.
+    """
+    if label is None:
+        return "null"
+    if label == "" and index is not None:
+        return str(index)
+    return str(label)
 
 
 def _as_list(value: Any) -> list:

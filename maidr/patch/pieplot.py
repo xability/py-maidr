@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable
 
 import wrapt
 from matplotlib.axes import Axes
@@ -13,7 +13,7 @@ from maidr.patch.common import _argument
 
 
 def pie(
-    wrapped: Callable, instance: Axes, args: Tuple[Any, ...], kwargs: Dict[str, Any]
+    wrapped: Callable, instance: Axes, args: tuple, kwargs: dict
 ) -> tuple:
     """
     Patch function for `Axes.pie`.
