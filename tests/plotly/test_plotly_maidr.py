@@ -225,6 +225,46 @@ class TestPlotlyPieFigures:
         assert '"type": "pie"' in html_str
 
 
+class TestPlotlyPieAxisTitles:
+    """A pie only borrows ``layout.xaxis``/``yaxis`` titles when it owns them.
+
+    A pie has no axis pair, so it shares the default group with any cartesian
+    trace that declares none either. Those titles describe that trace's axes,
+    and announcing a bar's "Month" against a pie's slice labels is worse than
+    the generic pair — it is confidently wrong rather than merely vague.
+    """
+
+    @staticmethod
+    def _labels(fig, plot_type: str) -> tuple[str, str]:
+        plot = next(
+            plot for plot in PlotlyMaidr(fig)._plots if plot.type.value == plot_type
+        )
+        axes = plot.schema["axes"]
+        return axes["x"]["label"], axes["y"]["label"]
+
+    def test_a_lone_pie_takes_the_layout_titles(self):
+        fig = go.Figure(go.Pie(labels=["A", "B"], values=[1, 2]))
+        fig.update_layout(xaxis_title="Fruit", yaxis_title="Units")
+
+        assert self._labels(fig, "pie") == ("Fruit", "Units")
+
+    def test_a_pie_sharing_a_figure_with_a_bar_keeps_the_generic_pair(self):
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]))
+        fig.update_layout(xaxis_title="Month", yaxis_title="Revenue")
+
+        assert self._labels(fig, "pie") == ("Category", "Value")
+
+    def test_the_bar_still_keeps_the_titles_that_are_its_own(self):
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.add_trace(go.Pie(labels=["A", "B"], values=[1, 2]))
+        fig.update_layout(xaxis_title="Month", yaxis_title="Revenue")
+
+        assert self._labels(fig, "bar") == ("Month", "Revenue")
+
+
 class TestPlotlyPieSubplotGrid:
     """A pie takes its grid cell from its own ``domain`` rectangle.
 

@@ -41,6 +41,7 @@ class PlotlyPiePlot(PlotlyPlot):
         layout: dict,
         *,
         pie_position: int = 0,
+        borrows_axis_titles: bool = True,
         **kwargs: str,
     ) -> None:
         # A negative position builds ``nth-child(0)`` or lower, which matches
@@ -50,6 +51,7 @@ class PlotlyPiePlot(PlotlyPlot):
 
         super().__init__(trace, layout, PlotType.PIE, **kwargs)
         self._pie_position = pie_position
+        self._borrows_axis_titles = borrows_axis_titles
 
     def _get_selector(self) -> str:
         """
@@ -192,14 +194,22 @@ class PlotlyPiePlot(PlotlyPlot):
         least reads as English where ``X`` and ``Y`` would not. It is the same
         pair :class:`~maidr.core.plot.pieplot.PiePlot` falls back to, because
         an unlabelled pie is announced by its plot type, not by its library.
+
+        Those titles are only borrowed when the pie has them to itself. A
+        cartesian trace with no explicit axis pair shares the same default
+        ``xaxis``/``yaxis``, and their titles describe *its* axes — a bar's
+        "Month" read against a pie's slice labels is worse than the generic
+        pair, because it is confidently wrong rather than merely vague.
         """
+        if self._borrows_axis_titles:
+            x_axis = self._layout.get(self._xaxis_name, {})
+            y_axis = self._layout.get(self._yaxis_name, {})
+        else:
+            x_axis, y_axis = {}, {}
+
         return {
-            MaidrKey.X: self._axis_config(
-                label=_axis_title(self._layout.get(self._xaxis_name, {}), "Category")
-            ),
-            MaidrKey.Y: self._axis_config(
-                label=_axis_title(self._layout.get(self._yaxis_name, {}), "Value")
-            ),
+            MaidrKey.X: self._axis_config(label=_axis_title(x_axis, "Category")),
+            MaidrKey.Y: self._axis_config(label=_axis_title(y_axis, "Value")),
         }
 
 

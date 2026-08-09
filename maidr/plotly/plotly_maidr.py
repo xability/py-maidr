@@ -435,11 +435,20 @@ class PlotlyMaidr:
             if pie_traces:
                 from maidr.plotly.pie import PlotlyPiePlot
 
+                # A pie has no axes of its own, so it names its dimensions from
+                # ``layout.xaxis``/``yaxis`` when nothing else has claimed them.
+                # A cartesian trace with no explicit axis pair shares this same
+                # default group, and those titles describe *its* axes -- letting
+                # the pie borrow them would announce a bar's "Month" against a
+                # pie's slice labels.
+                pie_owns_axes = len(pie_traces) == len(group_traces)
+
                 for position, pie_trace in enumerate(pie_traces):
                     plot = PlotlyPiePlot(
                         pie_trace,
                         layout,
                         pie_position=position,
+                        borrows_axis_titles=pie_owns_axes,
                         **axis_kwargs,
                     )
                     plot.row_index, plot.col_index = self._grid_position(
