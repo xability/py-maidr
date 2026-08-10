@@ -16,10 +16,24 @@ it, and apply it the way ``ReleaseHistory.from_git_history`` does:
 from __future__ import annotations
 
 import re
-import tomllib
 from pathlib import Path
 
 import pytest
+
+try:  # Python 3.11 and later
+    import tomllib
+except ModuleNotFoundError:  # Python 3.9 and 3.10
+    # ``tomli`` is what ``tomllib`` was adopted from and has the same API.  It
+    # arrives with ``black`` in the dev group, so ``ci.yml`` has it on every
+    # interpreter; ``release.yml`` installs the test extra *without* the dev
+    # group, where on these two it can be absent.  Skip rather than fail
+    # collection there -- what is under test is a string in ``pyproject.toml``,
+    # which does not vary by interpreter, so the 3.11 and 3.12 legs cover the
+    # invariant completely and a release must not break over a parser.
+    tomllib = pytest.importorskip(
+        "tomli",
+        reason="reading pyproject.toml needs tomllib (3.11+) or tomli",
+    )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
