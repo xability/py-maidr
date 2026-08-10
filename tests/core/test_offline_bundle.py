@@ -724,18 +724,49 @@ def test_the_placeholder_css_accessors_warn_before_they_go():
     """
     from maidr.util.dependencies import maidr_css_cdn_url
 
-    for call, name in (
-        (maidr.bundled_css_path, "bundled_css_path"),
-        (maidr_css_cdn_url, "maidr_css_cdn_url"),
+    # The way out has to be in the message, and it has to return what the
+    # caller was already holding: one of these resolves a local file and the
+    # other a remote URL, so a single suggestion would hand one of them the
+    # wrong type. A deprecation that misdirects is worse than one that only
+    # says "deprecated".
+    for call, name, instead in (
+        (maidr.bundled_css_path, "bundled_css_path", "bundled_math_css_path()"),
+        (
+            maidr_css_cdn_url,
+            "maidr_css_cdn_url",
+            "cdn_url(MAIDR_MATH_CSS_FILENAME)",
+        ),
     ):
         with pytest.warns(FutureWarning, match=name) as caught:
             call()
 
         message = str(caught[0].message)
-        # The way out has to be in the message: a warning that says only
-        # "deprecated" leaves the reader to guess what replaces it.
-        assert "bundled_math_css_path" in message
+        assert instead in message
         assert "next major" in message
+
+
+def test_the_cdn_accessor_is_not_sent_to_a_local_path():
+    """The replacement each accessor names must return that accessor's type.
+
+    ``maidr_css_cdn_url`` returns a URL string. Pointing its caller at
+    ``bundled_math_css_path()`` would hand them a :class:`Path`, which is
+    the one mistake a deprecation message can make that leaves the reader
+    worse off than no message at all.
+    """
+    from maidr.util.dependencies import (
+        MAIDR_MATH_CSS_FILENAME,
+        cdn_url,
+        maidr_css_cdn_url,
+    )
+
+    with pytest.warns(FutureWarning) as caught:
+        maidr_css_cdn_url()
+
+    message = str(caught[0].message)
+    assert "bundled_math_css_path" not in message
+
+    # And what it does name resolves to a real URL, not just a plausible one.
+    assert cdn_url(MAIDR_MATH_CSS_FILENAME).endswith("/dist/maidr-math.css")
 
 
 def test_the_stylesheet_that_carries_rules_does_not_warn():

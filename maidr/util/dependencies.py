@@ -582,7 +582,7 @@ def maidr_js_cdn_url() -> str:
     return cdn_url(MAIDR_JS_FILENAME)
 
 
-def _warn_placeholder_css(name: str) -> None:
+def _warn_placeholder_css(name: str, instead: str) -> None:
     """
     Announce that a ``maidr.css`` accessor is going away.
 
@@ -604,14 +604,19 @@ def _warn_placeholder_css(name: str) -> None:
     name : str
         The function being called, so the message names the caller's own
         call rather than this helper.
+    instead : str
+        What to call in its place, in the same form the caller wanted.  The
+        two accessors return different things -- a local :class:`Path` and a
+        remote URL -- so a single suggestion would hand one of them the
+        wrong type, which is the opposite of what a deprecation message is
+        for.
     """
     warnings.warn(
         f"maidr.{name}() is deprecated and will be removed in the next major "
         "release, along with the bundled maidr.css it resolves. That file has "
         "carried no rules since maidr 3.75.1 and nothing in py-maidr links "
-        "it. Use bundled_math_css_path() for the stylesheet that does carry "
-        "rules, or link no stylesheet at all -- MAIDR styles its interface at "
-        "runtime.",
+        f"it. Use {instead} for the stylesheet that does carry rules, or link "
+        "no stylesheet at all -- MAIDR styles its interface at runtime.",
         FutureWarning,
         stacklevel=3,
     )
@@ -622,9 +627,11 @@ def maidr_css_cdn_url() -> str:
 
     .. deprecated::
         Linking this buys nothing and will be removed, along with
-        ``maidr.css`` itself, in the next major release.  Use
-        :func:`bundled_math_css_path` if what you wanted was the
-        stylesheet that carries rules, or link nothing at all -- MAIDR
+        ``maidr.css`` itself, in the next major release.  If what you
+        wanted was the stylesheet that carries rules, and you want it from
+        the CDN as this function returns it, call
+        ``cdn_url(MAIDR_MATH_CSS_FILENAME)``; :func:`bundled_math_css_path`
+        is the local-file counterpart.  Or link nothing at all -- MAIDR
         styles its interface at runtime.
 
     Nothing in ``maidr/`` emits this any more.  From maidr 3.75.1 the file
@@ -643,7 +650,7 @@ def maidr_css_cdn_url() -> str:
     FutureWarning
         Always.  See :func:`_warn_placeholder_css` for why this category.
     """
-    _warn_placeholder_css("maidr_css_cdn_url")
+    _warn_placeholder_css("maidr_css_cdn_url", "cdn_url(MAIDR_MATH_CSS_FILENAME)")
     return cdn_url(MAIDR_CSS_FILENAME)
 
 
@@ -1433,7 +1440,7 @@ def bundled_css_path() -> Path:
     FutureWarning
         Always.  See :func:`_warn_placeholder_css` for why this category.
     """
-    _warn_placeholder_css("bundled_css_path")
+    _warn_placeholder_css("bundled_css_path", "bundled_math_css_path()")
     return _bundled_asset_path(MAIDR_CSS_FILENAME)
 
 
