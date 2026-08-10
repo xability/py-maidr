@@ -34,7 +34,7 @@ from maidr.util import dependencies
 # warning is noise here rather than the subject. Matched by message, so any
 # other FutureWarning still surfaces.
 pytestmark = pytest.mark.filterwarnings(
-    "ignore:maidr.maidr_css_cdn_url:FutureWarning"
+    r"ignore:maidr\.maidr_css_cdn_url:FutureWarning"
 )
 
 

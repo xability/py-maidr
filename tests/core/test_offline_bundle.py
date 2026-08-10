@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import warnings
 import re
+import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
