@@ -1,6 +1,375 @@
 # CHANGELOG
 
 
+## v1.20.0 (2026-08-10)
+
+### Bug Fixes
+
+- **bar**: Bind a hued seaborn bar plot as a grouped layer
+  ([#317](https://github.com/xability/py-maidr/pull/317),
+  [`13002c3`](https://github.com/xability/py-maidr/commit/13002c3e377d0da9a05884d6b738482725b10763))
+
+Whether a hue splits a bar layer into groups is seaborn's own decision, taken from its auto dodge
+  and the data, and it never reaches matplotlib. Classifying from the seaborn arguments only caught
+  the calls that asked to dodge by hand, so every other hued bar plot was bound as a plain bar
+  layer, where the grouped bars outnumber the tick labels and extraction fails.
+
+Classify the layer from the bars seaborn drew instead: one container per hue level, each holding one
+  bar per category. A hue that repeats the category variable draws one single-bar container per
+  category and stays a plain bar layer, which is what it is.
+
+The grouped extractor read every bar's height against the x tick labels, so a horizontal grouped
+  layer reported bar thicknesses against the wrong axis. Read the magnitude off the dimension the
+  bars grow along and the labels off the axis they sit on, and report the orientation in the schema,
+  as bar, box and violin layers do.
+
+- **patch**: Draw every patched plot type through the scoped warning filter
+  ([#330](https://github.com/xability/py-maidr/pull/330),
+  [`c73d2c1`](https://github.com/xability/py-maidr/commit/c73d2c116677e842c732ff0c4add4ed1869e7045))
+
+Only `common` and the pie patch drew through `_draw_quietly`. Nine modules called `wrapped()`
+  directly and had been inheriting the old process-wide filter by accident, so whether a violin plot
+  was quiet depended on whether a bar chart had been drawn first in that process. #327 scoped the
+  filter to its call, which removed the accident and left those nine consistently unsuppressed
+  instead.
+
+18 call sites across the nine modules. Return values and FigureManager registration are untouched;
+  only which call is wrapped changed.
+
+The warning-scope tests grew from 5 kinds to 21, one or more per patch module, so a module left
+  calling `wrapped()` directly fails on its own row. The `plot_boxes` wrap needed its own test: the
+  shared injection fires on the first artist added, which for a box draw is inside the
+  separately-suppressed `Axes.bxp`, so a plain catplot row passes either way.
+
+Closes #328.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **patch**: Read box and violin orientation the way matplotlib does
+  ([#301](https://github.com/xability/py-maidr/pull/301),
+  [`fcc52f4`](https://github.com/xability/py-maidr/commit/fcc52f40ef51d64603fa5f2d0cf0bf9a1f367614))
+
+- **patch**: Serialise the warning suppression so concurrent draws cannot leak it
+  ([#331](https://github.com/xability/py-maidr/pull/331),
+  [`bc70987`](https://github.com/xability/py-maidr/commit/bc7098718f8a7c7fc196ea3a080061161ecbcf09))
+
+`catch_warnings` saves the global filter list on entry and restores it on exit, and two threads
+  drawing at once do not merely race on that -- they corrupt it, because the restores nest wrongly.
+  B puts back a snapshot taken while A was suppressing, so a process-wide `ignore` outlives every
+  draw: the leak #327 removed, reintroduced under concurrency and permanently.
+
+Measured before writing the fix. Eight threads drawing sixty times each leave one ('ignore', None,
+  Warning, None, 0) behind, and a warning raised long afterwards -- nowhere near a figure -- is
+  swallowed. The issue described this as a narrow race; the window is neither narrow nor transient.
+
+An RLock around the suppression makes the save and restore pair up. Reentrant because patches nest:
+  `regplot.patched_plot` wraps `Axes.plot`, which `lineplot.line` wraps too, so one draw enters
+  twice on one thread.
+
+Concurrent draws now serialise. Shiny renders on one asyncio loop so the caller that motivated this
+  sees no contention, and matplotlib's own guidance is that a figure belongs to one thread. Python
+  3.14's context-aware filters would remove the need for the lock.
+
+Closes #329.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **plotly**: Decode typed arrays, and scope the patch warning filter to its call
+  ([#327](https://github.com/xability/py-maidr/pull/327),
+  [`d72822b`](https://github.com/xability/py-maidr/commit/d72822bfd350b47b99e70f38f4d8d32d013a4659))
+
+Closes #325. Refs #326.
+
+Since plotly 6.x a numeric column is exported as a base64 typed-array spec rather than a list, and
+  every extractor but pie iterated it literally — walking the spec's two keys and emitting "dtype"
+  and "bdata" as the data. The issue named three extractors; auditing all of them with
+  plotly.express figures found every one affected, in three ways: bar, line, multiline, scatter,
+  grouped_bar and step emitted the key names; box and multibox raised; histogram fell to its
+  categorical path; heatmap emitted the letters of the key names. The chart draws correctly in each
+  case, so only the accessible layer is wrong — confidently rather than visibly.
+
+Pie's decoder moves to a shared `as_list` every extractor now reads through. A spec that will not
+  decode logs and returns empty: silently empty is better than silently garbled, but it is still
+  silent, and silence is the fault this decoder exists to fix.
+
+Two things the issue did not name. Heatmap's 2-D spec carries its own extents, so the decode
+  reshapes rather than flattening. And `_trace_point_count` was miscounting: a spec's length is 2
+  whatever it holds, so a 30-point numpy-backed scatter counted as 2 and was classified
+  `lines+markers` where the same data as a list was `lines`.
+
+An unreadable array must not cost more than itself, so the boxplot extractors now bound their
+  precomputed loop by the shortest statistic and drop a box with no samples rather than letting
+  `np.percentile` raise — either would have taken the whole figure down, including the layers that
+  read perfectly well.
+
+Warning suppression is now scoped to the wrapped call. The process-wide filter it replaces was still
+  installed at render time, so one plot muted every later `warnings.warn` in the process — MAIDR's
+  own diagnostics among them. Nine patch modules that never routed through the helper are tracked in
+  #328, and the scoped filter's thread safety in #329.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **plotly**: Resolve an absent mode the way plotly does before classifying
+  ([#313](https://github.com/xability/py-maidr/pull/313),
+  [`8c3f5ab`](https://github.com/xability/py-maidr/commit/8c3f5ab6d41abece553ecbb4277870d78f4ec013))
+
+Figure.to_dict() omits mode unless the author set one, and the classifier read that absence as
+  markers-only. So a line chart written as add_scatter(x=..., y=...) was exported as SCATTER and
+  announced as loose points while plotly drew a connected line — the connectivity of the data lost
+  for a screen-reader user.
+
+An absent mode is not "no drawing mode", it is "whatever plotly's default resolves to". plotly
+  documents that on scatter.mode: "If there are less than 20 points and the trace is not stacked
+  then the default is 'lines+markers'. Otherwise, 'lines'." default_mode() reproduces both halves,
+  and is_connected_line_trace() stands it in before applying the existing rule.
+
+Mirroring plotly rather than treating every absent mode as lines keeps one classification rule
+  instead of two: a mode-less six-point trace and an explicit "lines+markers" six-point trace are
+  drawn identically by plotly and are now classified identically here.
+
+Verified that scattergl shares the same default by reading plotly.js and by reading back plotly's
+  own resolved gd._fullData[i].mode in Chromium.
+
+Closes #308
+
+- **plotly**: Stop claiming a highlight for canvas-painted traces
+  ([#314](https://github.com/xability/py-maidr/pull/314),
+  [`7550aff`](https://github.com/xability/py-maidr/commit/7550aff5c9ae6ed3bc66af63a863ef32d066423c))
+
+A scattergl trace is painted into a shared <canvas>, not drawn as SVG, so the path.js-line and
+  .point selectors built for it resolved to zero elements. The layer sonified, brailled and
+  described correctly and the highlight simply never appeared — with nothing in the output to say
+  why. WebGL layers now emit no selector at all, which says the same thing honestly.
+
+Upstream leaves no alternative: maidr's highlight service rejects a non-SVGElement outright, and
+  canvas-backed libraries are served instead by the onNavigate callback, which grammar.ts documents
+  as "not serializable as JSON" — unreachable from an exported figure by construction rather than
+  merely unused.
+
+Rendering plotly's own bundle in Chromium turned up a second half to the defect. A gl trace never
+  enters the SVG scatterlayer at all: with one declared before an svg trace, the scatterlayer holds
+  exactly one child — the svg trace, at nth-child(1) — and nth-child(2) matches nothing. Counting gl
+  traces in the position index therefore pushed every svg sibling one place along, so a single
+  scattergl trace silently disabled highlighting for the ordinary traces beside it.
+
+Positions are now numbered per renderer, so an svg trace keeps its real scatterlayer index while a
+  gl trace gets one that is well-formed but never rendered. Lines and steps likewise group within
+  one renderer rather than across two, since a layer's selector list is positional and
+  all-or-nothing and so cannot describe a mixed layer.
+
+Verified in the browser after the fix: the emitted selector for an svg line sharing a subplot with a
+  gl line matches exactly one element.
+
+Closes #309
+
+- **smooth**: Keep a regression line navigable point by point
+  ([#319](https://github.com/xability/py-maidr/pull/319),
+  [`8b190d0`](https://github.com/xability/py-maidr/commit/8b190d0dc32afe29c8919ffa0642ae9ca85fc8b9))
+
+The smooth layer thinned its fitted line with Ramer-Douglas-Peucker, which preserves shape by
+  dropping vertices that sit on the chord between their neighbours. A seaborn regplot fit is a
+  straight line sampled on a 100-point grid, so every interior vertex is exactly collinear and the
+  whole line collapsed to its two endpoints: pressing Page Up onto the layer left two navigable
+  points and one arrow press ran out of data.
+
+The same thinning warped the KDE curve overlaid on a histogram, clustering its 30 surviving vertices
+  around the bends until the step along x varied by 16x. Since the trace is navigated and
+  auto-played one vertex at a time at a fixed rate, that stretches the flat parts of the trend and
+  crams the steep ones.
+
+Thin the curve by resampling it evenly along x instead, so a straight fit keeps the full point
+  budget and every smooth layer paces its sweep the same way. Sampling by vertex index alone would
+  have left a lowess fit clustered, since it lands on the observed x values rather than a uniform
+  grid.
+
+Fixes #318
+
+- **smooth**: Pace a smooth layer by drawn distance, not data distance
+  ([#320](https://github.com/xability/py-maidr/pull/320),
+  [`ffa24cf`](https://github.com/xability/py-maidr/commit/ffa24cf3f96ba5da8397f35a28510815537e8c93))
+
+Points evenly spaced along x are evenly spaced on screen only while the axis is linear. A log x-axis
+  stretched the same points into a 102:1 spread across the plot, so auto-play swept the picture
+  unevenly even though the announced x values stepped uniformly. A smooth trace is meant to let a
+  blind reader follow the trend a sighted reader sees moving left to right, so drawn distance is
+  what has to stay even.
+
+Thin in scale space and map back. What remains between scale space and the display is an affine map,
+  which cannot change distance ratios, so the answer holds under any figure layout. A linear axis is
+  untouched, its scale transform being the exact identity.
+
+Return the vertices unchanged when the curve already fits the budget, since the scale round trip is
+  not bit-exact and would otherwise shift a short fit off the line it used to sit on. Thin in data
+  space when a scale cannot represent the line at all.
+
+Guard that last case three ways, because no single check sees every refusal: a scale answering with
+  infinity or NaN, a clipping scale's sentinel that reads as an ordinary coordinate, and a value
+  that maps somewhere it cannot come back from. Two of them catch cases the round trip reports as
+  perfectly fine -- a log scale's sentinel inverts back to zero, and logit's infinity inverts back
+  to one -- which left a fit touching zero dragging 29 of its 30 points off the canvas.
+
+Follows #318 and #319.
+
+### Continuous Integration
+
+- Harden Claude workflows (skip Dependabot PRs, gate @claude)
+  ([#300](https://github.com/xability/py-maidr/pull/300),
+  [`a32c216`](https://github.com/xability/py-maidr/commit/a32c216b51437f05de2f5e0cb2eff0af96d33972))
+
+- Let the Claude action post under its own identity again
+  ([#302](https://github.com/xability/py-maidr/pull/302),
+  [`968c19a`](https://github.com/xability/py-maidr/commit/968c19a3098a0b595f8fc2140cb09d1578c65b86))
+
+- Release weekly like upstream maidr, and keep chore out of the changelog
+  ([#306](https://github.com/xability/py-maidr/pull/306),
+  [`a8104f5`](https://github.com/xability/py-maidr/commit/a8104f55398df5bbc18a912506d5f870930898b7))
+
+### Features
+
+- **bar**: Support horizontal bar and histogram layers
+  ([#307](https://github.com/xability/py-maidr/pull/307),
+  [`d4af984`](https://github.com/xability/py-maidr/commit/d4af984097c44bfacc6fcaa1849015c3fb7079e7))
+
+Bar labels were always read off the x axis, so a horizontal layer never matched its patch count and
+  raised while extracting. A horizontal histogram did not crash but took its counts from the bar's
+  height, which is the bin thickness rather than the count.
+
+Read the orientation matplotlib records on the container and extract along it, emitting the mirror
+  layout the renderer reads, and report orientation in the schema so the layer announces as
+  horizontal.
+
+- **cdn**: Resolve @latest to a concrete version and report bundle drift
+  ([#291](https://github.com/xability/py-maidr/pull/291),
+  [`d865b4e`](https://github.com/xability/py-maidr/commit/d865b4e81719f3ddbe1f87f7904cf37f04e31c3f))
+
+Fixes #290.
+
+Emitted CDN URLs named the mutable `maidr@latest` dist-tag, which jsDelivr serves with a seven-day
+  cache lifetime, so a browser kept replaying a week-old `maidr.js` after every release. The
+  published version is now resolved once per process and spliced into the URL, which changes the
+  cache key on each release and lets the browser cache each build permanently. The lookup is bounded
+  by a total budget shared across both resolver endpoints, caches success and failure alike,
+  validates every version before it reaches a URL, and degrades to `@latest` rather than raising.
+  `use_cdn=False` never touches the network; a pin, an env var, or the `latest` tag opts out
+  entirely.
+
+Resolving the published version also makes the bundled copy's age observable, so `bundle_status()`
+  reports drift, a one-shot warning surfaces it on the paths where the bundle can actually run, and
+  a scheduled workflow fails when the bundle falls far enough behind. That workflow runs on a
+  schedule and on dispatch; it is not called at release time.
+
+The branch also carries the upstream stylesheet split. maidr 3.75.1 made `dist/maidr.css` a 406-byte
+  placeholder and moved KaTeX to `dist/maidr-math.css`, which `maidr.js` fetches at runtime relative
+  to its own URL. The bundle script fetched two filenames given to it years ago, so the next release
+  would have shipped the placeholder and no maths stylesheet, leaving LaTeX in AI chat responses
+  unstyled for anyone who opened the chat. The script now takes `maidr-math.css`, both bundle
+  workflows stage `maidr/static` wholesale rather than a filename list that can go stale, and the
+  bundle moves 3.73.0 to 3.75.1 — about 1 MB smaller in the wheel. No render path links a stylesheet
+  any more: where maidr.js loads by URL the runtime finds the file itself, and where it is evaluated
+  inline in a srcdoc iframe the rules travel as a source string and are marked so the runtime does
+  not report them missing. Pinning the CDN below 3.75.1 warns once, since that is the one
+  configuration the removal regresses.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **pie**: Support matplotlib and plotly pie charts
+  ([#322](https://github.com/xability/py-maidr/pull/322),
+  [`810c9ca`](https://github.com/xability/py-maidr/commit/810c9ca09ce0ab9f6d5060053fdb875ef0bc7f87))
+
+Adds `PlotType.PIE`, a `PiePlot` extractor, a wrapt patch on `Axes.pie`, and plotly `go.Pie`/donut
+  support, emitting the flat pie wire format the renderer expects.
+
+Values come from the patched call's arguments rather than from the drawn wedges. `Axes.pie`
+  normalises its input when the values sum to more than one, and each `Wedge` keeps only its angles
+  — so recovering magnitudes from the geometry would report 0.3/0.5/0.2 for a caller who passed
+  30/50/20, and lose precision doing it.
+
+Labels resolve the way matplotlib does: the `labels` argument, then the wedge's own label, then the
+  slice index.
+
+A `go.Pie` is a domain trace with no axis pair, so its grid cell comes from its own `domain`
+  rectangle rather than from the default axis group every pie would otherwise share — which had
+  collapsed a `make_subplots` grid of pies into a single cell. Its subplot title is anchored the
+  same way. Only domain traces maidr renders are folded into that grid, so a figure containing no
+  pie is placed exactly as before.
+
+An empty pie emits an empty layer rather than raising, so a working subplot beside it still renders.
+  Slice order mirrors plotly's own `pie/calc.js` — merge, filter, sort, and the `hiddenlabels` rule
+  that compares against the stringified label — because the selector is positional and the first
+  divergence lands every later slice on the wrong wedge.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **plotly**: Bind a plotly step chart as a step trace, not a line
+  ([#303](https://github.com/xability/py-maidr/pull/303),
+  [`3471a0d`](https://github.com/xability/py-maidr/commit/3471a0ddfd4f93ca3d4c632c8904df1a31857b2e))
+
+- **step**: Add step plot support with ordinal level names
+  ([#299](https://github.com/xability/py-maidr/pull/299),
+  [`72c1a8a`](https://github.com/xability/py-maidr/commit/72c1a8adfdd76ac19a2d21d11a4ba4dba2070c4b))
+
+### Refactoring
+
+- **plotly**: Require a selector position instead of guessing one
+  ([#315](https://github.com/xability/py-maidr/pull/315),
+  [`b126419`](https://github.com/xability/py-maidr/commit/b12641913b04ce04813437d1943ab29448fa2214))
+
+The three line-family classes disagreed about what to do when nobody told them where their traces
+  sit in the subplot, and the two fallbacks failed in different ways. PlotlyLinePlot fell back to an
+  unscoped selector, which over-matches — a step trace renders as path.js-line too. PlotlyStepPlot
+  and PlotlyMultiLinePlot fell back to leading order, which is worse because it is silent:
+  constructed off-position they emitted nth-child(1), nth-child(2), ... pointing at whichever
+  elements happened to sit there, with no error and the wrong element highlighted.
+
+Both are removed and the parameter is required, so a missing position is a TypeError at the call
+  site rather than a wrong element at runtime. _extract_plots already passed positions
+  unconditionally, so no production path changes behaviour.
+
+A shared _validate_scatter_positions additionally rejects a list that is the wrong length, negative,
+  duplicated or not a list of int — the same silent failure reached by supplying a wrong list rather
+  than none. Lists are stored by value, so a caller mutating one afterwards cannot change an
+  already-validated layer's selectors.
+
+PlotlyPlotFactory is the one caller that genuinely cannot know a position, so it passes 0
+  explicitly, with the cost of that assumption recorded at the call site.
+
+Closes #311
+
+- **smooth**: Move resample_curve out of the RDP module
+  ([#321](https://github.com/xability/py-maidr/pull/321),
+  [`4a107e9`](https://github.com/xability/py-maidr/commit/4a107e928d6c17e26b747421d8a329f7410f5618))
+
+rdp_utils.py mirrors r-maidr's R/rdp_utils.R, which holds the RDP trio and nothing else. Adding
+  resample_curve here left the name describing three of its four functions and put the two ports out
+  of step.
+
+Renaming the module, as review suggested, would have widened that gap: the R side keeps the name
+  while the Python side loses it. Move the odd function out instead, into resample_utils.py, so
+  rdp_utils.py is again exactly what its name and its mirror say. Each module now points at the
+  other for the objective it does not serve.
+
+The move also surfaced a reference that had been resolving only by accident: resample_curve pointed
+  at :func:`simplify_curve` unqualified, which worked while the two shared a module and would have
+  rendered as inert text once they did not.
+
+No behaviour change. Follows #318, #319 and #320.
+
+### Testing
+
+- **plotly**: Cover steps beside bar/box traces and across a subplot grid
+  ([#312](https://github.com/xability/py-maidr/pull/312),
+  [`3875431`](https://github.com/xability/py-maidr/commit/3875431f54c015d507e70d475051a13014f333e2))
+
+Step selector indexing was covered only on a single subplot holding nothing but scatter-family
+  traces. A bar or box on the same subplot, and steps across a make_subplots grid, were untested —
+  and both fail silently, since a wrong nth-child index does not raise, it highlights somebody
+  else's element.
+
+Each assertion was checked against a deliberately broken build rather than trusted for passing.
+
+Closes #310
+
+
 ## v1.19.1 (2026-07-21)
 
 ### Bug Fixes
@@ -11,29 +380,6 @@
 
 
 ## v1.19.0 (2026-07-13)
-
-### Chores
-
-- Update bundled maidr.js to v3.67.0
-  ([`91bb3c3`](https://github.com/xability/py-maidr/commit/91bb3c3bc8ee1ab8874b1154cc3758e47420ca67))
-
-- Update bundled maidr.js to v3.68.0
-  ([`4645cdc`](https://github.com/xability/py-maidr/commit/4645cdcfe62cb45adb47660a71555b8c0f854b97))
-
-- Update bundled maidr.js to v3.69.0
-  ([`6347057`](https://github.com/xability/py-maidr/commit/6347057430e0bf958026b412b36f4e7b89ced59b))
-
-- Update bundled maidr.js to v3.70.0
-  ([`88505ea`](https://github.com/xability/py-maidr/commit/88505ea5a3fa24aa8febd3120ec586c66db02983))
-
-- Update bundled maidr.js to v3.71.0
-  ([`48ac760`](https://github.com/xability/py-maidr/commit/48ac76078837a69331d6024daca7562916e56f4d))
-
-- Update bundled maidr.js to v3.72.1
-  ([`08587e2`](https://github.com/xability/py-maidr/commit/08587e2ebfb3a89caea7849553932d19114fe1a4))
-
-- Update bundled maidr.js to v3.73.0
-  ([`e422c07`](https://github.com/xability/py-maidr/commit/e422c077cd7c1765cfe9aa0a920c1d9f6294abb7))
 
 ### Continuous Integration
 
@@ -49,17 +395,6 @@
 
 
 ## v1.18.0 (2026-05-06)
-
-### Chores
-
-- Update bundled maidr.js to v3.65.0
-  ([`bfd5008`](https://github.com/xability/py-maidr/commit/bfd5008a5cca952650424e3b67d72c2cbf5de889))
-
-- Update bundled maidr.js to v3.66.0
-  ([`03e2ec5`](https://github.com/xability/py-maidr/commit/03e2ec5794cb0eaf2700be7a8dbf59a6a380381a))
-
-- Update bundled maidr.js to v3.66.1
-  ([`bde2609`](https://github.com/xability/py-maidr/commit/bde2609f72d2b18dfb2e28ecf828596ed100f216))
 
 ### Features
 
@@ -87,17 +422,6 @@ Co-authored-by: nk1408 <196366666+nk1408@users.noreply.github.com>
 
 - Refactor axes in maidr payload ([#283](https://github.com/xability/py-maidr/pull/283),
   [`12c8316`](https://github.com/xability/py-maidr/commit/12c83169de75948f25c06afbf60e45dbaaef52db))
-
-### Chores
-
-- Update bundled maidr.js to v3.63.1
-  ([`22762b1`](https://github.com/xability/py-maidr/commit/22762b1953015dc3b50635a63e3863e90f4bedb9))
-
-- Update bundled maidr.js to v3.64.0
-  ([`476d85b`](https://github.com/xability/py-maidr/commit/476d85b88cf552cd86f212370faf2e0710f89070))
-
-- Update bundled maidr.js to v3.64.1
-  ([`2048923`](https://github.com/xability/py-maidr/commit/20489231af11a2b3b19226a5f0648471d0901391))
 
 
 ## v1.17.1 (2026-04-21)
@@ -205,19 +529,6 @@ Co-authored-by: nk46-cloud <nk46@illinois.edu>
 - Install uv in semantic-release build command
   ([`dea1114`](https://github.com/xability/py-maidr/commit/dea1114663de2b04f7e5dbd86f6c6d8816814245))
 
-### Chores
-
-- Fix logo image URLs ([#269](https://github.com/xability/py-maidr/pull/269),
-  [`c1467c3`](https://github.com/xability/py-maidr/commit/c1467c33313d53b44b934d5290c8d8a2a85031a1))
-
-- Retrigger release
-  ([`2189279`](https://github.com/xability/py-maidr/commit/2189279597df037acbc0b81b6638e8ca55f5d5d6))
-
-- Update uv.lock to match pyproject.toml v1.11.1
-  ([`a91fb86`](https://github.com/xability/py-maidr/commit/a91fb86a9e4d2ce3c553d955fdb522744ccf4543))
-
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
-
 ### Continuous Integration
 
 - Add claude code reviews ([#272](https://github.com/xability/py-maidr/pull/272),
@@ -256,15 +567,6 @@ Authored-by: nk46-cloud <nk46@illinois.edu>
   [`a97e4c1`](https://github.com/xability/py-maidr/commit/a97e4c1ede879ad4e11b430a03c5b9042ad4e9f2))
 
 Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
-
-### Chores
-
-- Add agent documentation for code reviewer, linter, patch expert, pr reviewer, test runner, and
-  test writer
-  ([`c7887a4`](https://github.com/xability/py-maidr/commit/c7887a4f8f31b81d77ce7b39e832814ad01ba829))
-
-- Add MCP configuration files for GitHub and Playwright
-  ([`b1537b3`](https://github.com/xability/py-maidr/commit/b1537b32b73ff25c8b22236609459f8974a92625))
 
 ### Continuous Integration
 
@@ -572,11 +874,6 @@ Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>
   ([#196](https://github.com/xability/py-maidr/pull/196),
   [`b223bd1`](https://github.com/xability/py-maidr/commit/b223bd1247712e2cf61b920572f5818b3a2b10bb))
 
-### Chores
-
-- Revert semantic release plugin change ([#197](https://github.com/xability/py-maidr/pull/197),
-  [`eda9f09`](https://github.com/xability/py-maidr/commit/eda9f09ee7a281616cb8918f5ba4308b3eff6724))
-
 
 ## v1.2.0 (2025-06-19)
 
@@ -869,11 +1166,6 @@ BREAKING CHANGE: Using Maidr TS Engine by default, deprecating the JS engine.
 
 ## v0.12.0 (2025-02-20)
 
-### Chores
-
-- **vscode**: Add Copilot instructions and update VSCode settings for code generation
-  ([`27f96fc`](https://github.com/xability/py-maidr/commit/27f96fc3351971fc9dc70c5ea03bb2ecf0e71084))
-
 ### Features
 
 - Add 'maidr-data' attribute to SVG elements ([#138](https://github.com/xability/py-maidr/pull/138),
@@ -881,14 +1173,6 @@ BREAKING CHANGE: Using Maidr TS Engine by default, deprecating the JS engine.
 
 
 ## v0.11.0 (2025-02-19)
-
-### Chores
-
-- Update project metadata in pyproject.toml for version 0.10.6
-  ([`3f3dcc1`](https://github.com/xability/py-maidr/commit/3f3dcc11b7f616654b23e9f01242e39aa93f1dbc))
-
-- Update VSCode window title format to include activeEditorState
-  ([`6b84d53`](https://github.com/xability/py-maidr/commit/6b84d53bde194ed9564fa17e17fef723b9636718))
 
 ### Features
 
@@ -903,11 +1187,6 @@ BREAKING CHANGE: Using Maidr TS Engine by default, deprecating the JS engine.
 
 - Stacked bar plot with new api ([#132](https://github.com/xability/py-maidr/pull/132),
   [`003be7c`](https://github.com/xability/py-maidr/commit/003be7cc1c4fbaa7d24df61ab85b1273cfe8f663))
-
-### Chores
-
-- Add instructions for conventional commit message format in VSCode settings
-  ([`7940ce6`](https://github.com/xability/py-maidr/commit/7940ce654035ec51ee6d2342d6f29d2c2d8e822e))
 
 ### Continuous Integration
 
@@ -980,14 +1259,6 @@ BREAKING CHANGE: Using Maidr TS Engine by default, deprecating the JS engine.
   ([#127](https://github.com/xability/py-maidr/pull/127),
   [`a50b4c1`](https://github.com/xability/py-maidr/commit/a50b4c1d5aa264731d4135e38b6f06eac0932e04))
 
-### Chores
-
-- Remove CNAME
-  ([`452a594`](https://github.com/xability/py-maidr/commit/452a594f65575b170748c8c7fc5a27164b7d3f36))
-
-- Update .gitignore to ignore all quarto_ipynb files
-  ([`9d47725`](https://github.com/xability/py-maidr/commit/9d477256e517309efc92eca03ebd369946fef655))
-
 ### Continuous Integration
 
 - Update actions/cache to v4
@@ -1023,11 +1294,6 @@ BREAKING CHANGE: Using Maidr TS Engine by default, deprecating the JS engine.
   ([#125](https://github.com/xability/py-maidr/pull/125),
   [`532b687`](https://github.com/xability/py-maidr/commit/532b6872c8bcf91340a4737dedf7fa610d08b360))
 
-### Chores
-
-- Add CNAME file to redirect to py.maidr.ai
-  ([`0268394`](https://github.com/xability/py-maidr/commit/02683945f55dfa1e5ec9486c7513c3936de52fbe))
-
 
 ## v0.10.3 (2024-12-06)
 
@@ -1035,11 +1301,6 @@ BREAKING CHANGE: Using Maidr TS Engine by default, deprecating the JS engine.
 
 - Update repository references from 'py_maidr' to 'py-maidr'
   ([`9749835`](https://github.com/xability/py-maidr/commit/9749835aeb81c58a5c750830f61ab6d4c1ec362d))
-
-### Chores
-
-- **vscode**: Format settings.json for clarity
-  ([`2040c4a`](https://github.com/xability/py-maidr/commit/2040c4affbb81e5498ec7a2f624a4379d58d174f))
 
 ### Documentation
 
@@ -1113,11 +1374,6 @@ Co-authored-by: JooYoung Seo <jseo1005@illinois.edu>
   ([#114](https://github.com/xability/py-maidr/pull/114),
   [`ccb1ae4`](https://github.com/xability/py-maidr/commit/ccb1ae42d4cefb9ad6962ea2fe10813745405602))
 
-### Chores
-
-- **semantic-release**: Update `exclude_commit_patterns` in pyproject.toml to clean up CHANGELOG
-  ([`794816d`](https://github.com/xability/py-maidr/commit/794816d27d1289e6d8904a12ff06e077c1616b85))
-
 ### Documentation
 
 - **example**: Update ipynb to exclude inline rendering
@@ -1126,23 +1382,6 @@ Co-authored-by: JooYoung Seo <jseo1005@illinois.edu>
 
 
 ## v0.9.0 (2024-09-13)
-
-### Chores
-
-- Refactor ([#95](https://github.com/xability/py-maidr/pull/95),
-  [`63b7f3f`](https://github.com/xability/py-maidr/commit/63b7f3fb791e7945d54ad6cdf73a7054ab5b7bea))
-
-- Refactor ([#96](https://github.com/xability/py-maidr/pull/96),
-  [`a37b0f1`](https://github.com/xability/py-maidr/commit/a37b0f1a0ef1ea79483a5cd06b32dcb43c837cfa))
-
-- **vscode**: Add a missing space to window title format in `.vscode/settings.json`
-  ([`aa739d3`](https://github.com/xability/py-maidr/commit/aa739d3111b3dcaadc50fc940ae1cbf57b65af67))
-
-- **vscode**: Add Copilot instructions for coding style and documentation
-  ([`b7037d8`](https://github.com/xability/py-maidr/commit/b7037d83a1e4485f178a26951d5187247602689b))
-
-- **vscode**: Refine Copilot instruction
-  ([`f049b44`](https://github.com/xability/py-maidr/commit/f049b441ab980c6e9a1c3f9a47ff7c16ecffe836))
 
 ### Continuous Integration
 
@@ -1258,17 +1497,6 @@ closes #76
 - Remove `sphinx` from package dev dependencies
   ([`41f61a9`](https://github.com/xability/py-maidr/commit/41f61a915d9b3dea27419d984c8cd9408de794d5))
 
-### Chores
-
-- Clean up messy CHANGELOG
-  ([`20785a8`](https://github.com/xability/py-maidr/commit/20785a8b95ff17132c900dc96035814d34821974))
-
-- Hide `chore` and `ci` updates from future release notes
-  ([`e886067`](https://github.com/xability/py-maidr/commit/e88606736a9b9a481b5aa463e7231ca83f63521f))
-
-- Update `poetry.lock`
-  ([`ac89fd7`](https://github.com/xability/py-maidr/commit/ac89fd78d5df129caeef3c57518463a6812cf4fb))
-
 ### Features
 
 - Pick up seaborn heatmap fmt towards maidr ([#90](https://github.com/xability/py-maidr/pull/90),
@@ -1371,30 +1599,6 @@ closes #86
 
 ## v0.6.0 (2024-08-21)
 
-### Chores
-
-- Add bug report and feature request templates ([#81](https://github.com/xability/py-maidr/pull/81),
-  [`5af72c2`](https://github.com/xability/py-maidr/commit/5af72c2cc1f01f4b1b1d1ac1944ed06c789891d8))
-
-Added bug report and feature request templates to improve the issue creation process. These
-  templates provide a standardized structure for reporting bugs and requesting new features, making
-  it easier for contributors to provide clear and concise information. This will help streamline the
-  issue triage and resolution process.
-
-The bug report template includes sections for describing the bug, steps to reproduce, actual and
-  expected behavior, screenshots, and additional information. The feature request template includes
-  sections for describing the requested feature, motivation, proposed solution, and additional
-  context.
-
-This commit follows the established commit message convention of starting with a verb in the
-  imperative form, followed by a brief description of the change. It also includes a type prefix
-  ("feat") to indicate that it is a new feature.
-
-closes #80
-
-- **vscode**: Update shiny extension
-  ([`483a075`](https://github.com/xability/py-maidr/commit/483a0758a68960de0670e36c312cfbc1ee90c110))
-
 ### Continuous Integration
 
 - Add repo name condidtion to docs workflow ([#75](https://github.com/xability/py-maidr/pull/75),
@@ -1413,11 +1617,6 @@ closes #80
 
 - Update poetry.lock ([#74](https://github.com/xability/py-maidr/pull/74),
   [`6216959`](https://github.com/xability/py-maidr/commit/621695940075fe195b0310c544c117bdc5a9d35e))
-
-### Chores
-
-- **vscode**: Update settings to use numpy docstring
-  ([`e9b0c4d`](https://github.com/xability/py-maidr/commit/e9b0c4d08eacdb4d9e40e46ffd74e13799da42d7))
 
 ### Continuous Integration
 
@@ -1484,23 +1683,6 @@ closes #80
 
 - Remove docs ([#48](https://github.com/xability/py-maidr/pull/48),
   [`9b8cae5`](https://github.com/xability/py-maidr/commit/9b8cae5c1e4071be6edbfdbab8f4b498516f9caf))
-
-### Chores
-
-- **deps-dev**: Bump black from 23.3.0 to 24.3.0
-  ([#45](https://github.com/xability/py-maidr/pull/45),
-  [`53818c9`](https://github.com/xability/py-maidr/commit/53818c9478301376461e64d1cf5a5d32ef730df2))
-
-Bumps [black](https://github.com/psf/black) from 23.3.0 to 24.3.0. - [Release
-  notes](https://github.com/psf/black/releases) -
-  [Changelog](https://github.com/psf/black/blob/main/CHANGES.md) -
-  [Commits](https://github.com/psf/black/compare/23.3.0...24.3.0)
-
---- updated-dependencies: - dependency-name: black dependency-type: direct:development ...
-
-Signed-off-by: dependabot[bot] <support@github.com>
-
-Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
 
 ### Continuous Integration
 
@@ -1587,50 +1769,6 @@ Resolves: #17
 
 - **version**: Start from 0.0.1
   ([`6bf23bb`](https://github.com/xability/py-maidr/commit/6bf23bb3bff2056f7b1b8d54abc1539d666269ae))
-
-### Chores
-
-- Add homepage URL to pyproject.toml
-  ([`582a23f`](https://github.com/xability/py-maidr/commit/582a23f4bb98327edac8b8ae2ed60a59bbf6e3e4))
-
-- Add more vscode settings and extensions
-  ([`0bf19ba`](https://github.com/xability/py-maidr/commit/0bf19ba68094f46d08af7297a4c93c0e5215ad62))
-
-- Remove spellright extension
-  ([`85b7bdf`](https://github.com/xability/py-maidr/commit/85b7bdf590c9ed6a6b9588e6e33d22f502848bd1))
-
-- Update project homepage URL
-  ([`2aeb15c`](https://github.com/xability/py-maidr/commit/2aeb15c4625aface3db289d6e7634ed30516bb58))
-
-- Update pyproject.toml with additional metadata
-  ([`314cd38`](https://github.com/xability/py-maidr/commit/314cd386d2f6a4ecaa5635dd433bd68e9b67fe9b))
-
-- Use copilot to describe pr
-  ([`5bc8803`](https://github.com/xability/py-maidr/commit/5bc8803684eaaf17c34301b08a677a5b02bc505e))
-
-- **.vscode**: :wrench: add conventional commits settings
-  ([`7cb39cd`](https://github.com/xability/py-maidr/commit/7cb39cd1af091eecc35f448fbe20ff610f7ed7c8))
-
-- **.vscode**: :wrench: add conventional commits settings
-  ([`e8e782f`](https://github.com/xability/py-maidr/commit/e8e782f198cba310494ef817e71bddd0374ce58a))
-
-- **.vscode**: Add conventional commits extensions
-  ([`492d23f`](https://github.com/xability/py-maidr/commit/492d23ff70803ab2c82e71fee487c019ee743dd1))
-
-- **vscode**: Add git.ignoreRebaseWarning setting to .vscode/settings.json
-  ([`97c27a8`](https://github.com/xability/py-maidr/commit/97c27a8c694b3c84870a82bfb60d9ae05c6cbec2))
-
-- **vscode**: Add GitLens extension
-  ([`3491ecc`](https://github.com/xability/py-maidr/commit/3491ecc6e5f7ade3fc9fe78d2d31e7616a41215e))
-
-- **vscode**: Add ms-python.debugpy extension to extensions.json
-  ([`ac1b619`](https://github.com/xability/py-maidr/commit/ac1b61957db84631f6616787d404e4053ec5ab26))
-
-- **vscode**: Remove brackets from the title
-  ([`99ecd10`](https://github.com/xability/py-maidr/commit/99ecd10d4e7b19b05a22fd21276b5fcb54406e6a))
-
-- **vscode**: Update window title in VS Code settings.json
-  ([`065800e`](https://github.com/xability/py-maidr/commit/065800ede282c861678c71b0a3e258a6e2bd496f))
 
 ### Continuous Integration
 
