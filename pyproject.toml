@@ -150,8 +150,16 @@ prerelease = false
 # deliberately absent -- the release-time ``chore: update bundled maidr.js to
 # vX.Y.Z`` commits and dependency bumps are housekeeping, and they were crowding
 # out the entries a reader of the release notes actually cares about.
+#
+# ``!?`` is what admits a breaking commit.  Written out type by type, every
+# alternative ended in a literal ``): `` or ``: ``, so ``feat(deps)!: `` matched
+# none of them and was excluded -- a breaking change would bump the major and
+# then be missing from the changelog explaining it, which is the one entry a
+# reader of a major release needs most.  ``tests/core/test_changelog_filter.py``
+# holds this pattern to the same set of subjects the written-out form admitted,
+# plus the breaking ones.
 exclude_commit_patterns = [
-  "^(?!feat: |feat\\(.*\\): |fix: |fix\\(.*\\): |docs: |docs\\(.*\\): |perf: |perf\\(.*\\): |refactor: |refactor\\(.*\\): |test: |test\\(.*\\): |build: |build\\(.*\\): |ci: |ci\\(.*\\): |style: |style\\(.*\\): ).*"
+  "^(?!(feat|fix|docs|perf|refactor|test|build|ci|style)(\\(.*\\))?!?: ).*"
 ]
 
 [tool.semantic_release.changelog.default_templates]
