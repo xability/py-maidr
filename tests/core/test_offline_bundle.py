@@ -713,7 +713,7 @@ def test_no_connectivity_probe_remains():
     assert not hasattr(maidr_api, "_connectivity_cache_time")
 
 
-def test_the_placeholder_css_accessors_warn_before_they_go():
+def test_placeholder_css_accessors_warn():
     """
     Both accessors for the rule-less ``maidr.css`` announce their removal.
 
@@ -779,7 +779,7 @@ def _importable(dotted: str) -> bool:
         return False
 
 
-def test_every_path_the_deprecation_names_can_be_imported():
+def test_deprecation_names_only_importable_symbols():
     """A message that names an unimportable path misdirects the reader.
 
     Only one of the two accessors is re-exported from the top-level
@@ -788,9 +788,11 @@ def test_every_path_the_deprecation_names_can_be_imported():
     suggested replacement lands in the same place. Substring assertions
     cannot see this: the name is present either way.
 
-    So this resolves every dotted path the messages contain rather than
-    checking for the ones expected today, which is what makes it catch the
-    next wrong path as well as this one.
+    So this resolves everything the messages name rather than checking for
+    the symbols expected today, which is what makes it catch the next wrong
+    one as well as this one -- including the bare names, which a message
+    that says "from <module>" is just as capable of misspelling as it is a
+    dotted path.
     """
     from maidr.util.dependencies import maidr_css_cdn_url
 
@@ -799,24 +801,53 @@ def test_every_path_the_deprecation_names_can_be_imported():
             call()
 
         message = str(caught[0].message)
-        # Dotted paths only: a bare word in prose is not a claim about the
-        # import system. ``maidr.css`` and ``maidr.js`` match the same shape
-        # while being filenames, and both have to appear in a message about
-        # a stylesheet -- so they are excluded by name rather than by making
+        # ``maidr.css`` and ``maidr.js`` have the shape of a dotted path
+        # while being filenames, and a message about a stylesheet has to
+        # mention them -- so they are excluded by name rather than by making
         # the pattern clever enough to tell a module from a file, which it
         # cannot be.
-        named = set(re.findall(r"\bmaidr(?:\.[A-Za-z_]\w*)+", message))
-        named -= {"maidr.css", "maidr.js"}
-        assert named, f"the message names no importable path at all: {message}"
+        dotted = set(re.findall(r"\bmaidr(?:\.[A-Za-z_]\w*)+", message))
+        dotted -= {"maidr.css", "maidr.js"}
+        assert dotted, f"the message names no importable path at all: {message}"
 
-        unresolvable = sorted(path for path in named if not _importable(path))
+        # A bare ``name()`` or ``CONSTANT`` is a claim about whatever module
+        # the message points at, so resolve it against each of them. The
+        # top-level package is always a candidate: an unqualified suggestion
+        # is only useful if it is reachable from somewhere the reader has.
+        modules = [path for path in dotted if _importable(path)] + ["maidr"]
+        # A constant here carries an underscore. Without that the pattern
+        # also claims "MAIDR", which these messages say as the product's
+        # name rather than as a symbol.
+        bare = set(re.findall(r"\b([a-z_]\w*)\(", message))
+        bare |= set(re.findall(r"\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b", message))
+
+        unresolvable = sorted(
+            symbol
+            for symbol in dotted | bare
+            if not any(_importable(f"{module}.{symbol}") for module in modules)
+            and not _importable(symbol)
+        )
         assert not unresolvable, (
-            f"the deprecation for {call.__name__} names paths that do not "
-            f"import: {unresolvable}"
+            f"the deprecation for {call.__name__} names symbols that do not "
+            f"resolve: {unresolvable}"
+        )
+
+        # The docstring paraphrases the same guidance, and nothing keeps the
+        # two in step, so a replacement renamed in one can survive in the
+        # other. Whatever the message says to call, the docstring says too.
+        suggestion = re.search(r"Use (\S+)", message)
+        assert suggestion, f"the message suggests nothing: {message}"
+        # Compare the symbol, not its spelling: the message qualifies it so
+        # a reader can import it, while the docstring uses Sphinx's ``:func:``
+        # role, which takes the bare name.
+        instead = suggestion.group(1).split("(")[0].rpartition(".")[2]
+        assert instead in (call.__doc__ or ""), (
+            f"{call.__name__}'s docstring no longer names the replacement its "
+            f"warning does: {instead}"
         )
 
 
-def test_the_cdn_version_suite_really_silences_the_deprecation():
+def test_cdn_version_filter_still_matches_the_warning():
     """A warning filter that stops matching goes dead without a sound.
 
     ``test_cdn_version.py`` mutes this deprecation so that it tests CDN
@@ -854,7 +885,7 @@ def test_the_cdn_version_suite_really_silences_the_deprecation():
     )
 
 
-def test_the_cdn_accessor_is_not_sent_to_a_local_path():
+def test_cdn_accessor_replacement_returns_a_url():
     """The replacement each accessor names must return that accessor's type.
 
     ``maidr_css_cdn_url`` returns a URL string. Pointing its caller at
@@ -878,7 +909,7 @@ def test_the_cdn_accessor_is_not_sent_to_a_local_path():
     assert cdn_url(MAIDR_MATH_CSS_FILENAME).endswith("/dist/maidr-math.css")
 
 
-def test_the_stylesheet_that_carries_rules_does_not_warn():
+def test_math_css_accessors_do_not_warn():
     """
     Only the placeholder is deprecated.
 
