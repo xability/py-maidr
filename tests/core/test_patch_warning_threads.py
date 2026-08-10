@@ -55,6 +55,23 @@ def _run_concurrently(target) -> None:
         thread.join()
 
 
+@pytest.fixture(autouse=True)
+def _restore_filters():
+    """
+    Put the filter list back however the test ended.
+
+    The failure this file guards against *is* a corrupted global filter list,
+    so a failing run here would otherwise hand every later test a leaked
+    ``ignore`` -- turning one legible failure into a cascade of unrelated
+    ones somewhere else entirely.
+    """
+    saved = copy.copy(warnings.filters)
+    try:
+        yield
+    finally:
+        warnings.filters[:] = saved
+
+
 def test_concurrent_draws_leave_the_filter_list_as_they_found_it():
     # Without the lock this leaves one ('ignore', None, Warning, None, 0)
     # behind at position 0 -- a process-wide "swallow everything" that no
@@ -79,24 +96,35 @@ def test_a_warning_after_concurrent_draws_still_reaches_the_caller():
     assert [str(w.message) for w in caught] == ["heard after the threads"]
 
 
-def test_the_suppression_still_works_under_concurrency():
-    # Serialising must not cost the property the helper exists for.
-    heard: list[str] = []
+def test_every_concurrent_draw_sees_its_own_suppression():
+    """
+    Serialising must not cost the property the helper exists for.
 
-    def draw_and_warn() -> None:
+    Asserted by *reading* the filter list from inside each draw rather than by
+    recording warnings around it. A recorder would need its own
+    ``catch_warnings``, and that reassigns the same module-global the code
+    under test is manipulating -- unsynchronised, on every thread, outside the
+    lock. It would reproduce this PR's own bug one layer up, in the test
+    harness: intermittently failing, and passing for the wrong reason when it
+    did pass. Reading races with nothing.
+    """
+    suppressed: list[bool] = []
+
+    def inspect() -> str:
+        # `simplefilter("ignore")` prepends ('ignore', None, Warning, None, 0),
+        # so the head of the list is this draw's own suppression.
+        suppressed.append(bool(warnings.filters) and warnings.filters[0][0] == "ignore")
+        time.sleep(0.002)
+        return "drawn"
+
+    def run() -> None:
         for _ in range(DRAWS):
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                _draw_quietly(_warn_then_draw, (), {})
-            heard.extend(str(w.message) for w in caught)
+            _draw_quietly(inspect, (), {})
 
-    def _warn_then_draw() -> str:
-        warnings.warn("from inside the draw", UserWarning)
-        return _slow_draw()
+    _run_concurrently(run)
 
-    _run_concurrently(draw_and_warn)
-
-    assert heard == []
+    assert len(suppressed) == THREADS * DRAWS
+    assert all(suppressed)
 
 
 def test_a_nested_draw_does_not_deadlock():
