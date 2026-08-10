@@ -33,8 +33,14 @@ from maidr.util import dependencies
 # cache with `maidr_js_cdn_url`, which is the property under test -- so the
 # warning is noise here rather than the subject. Matched by message, so any
 # other FutureWarning still surfaces.
+# The message field is matched with ``re.match``, so it is anchored at the
+# start.  The leading ``.*`` skips whatever module path the warning happens to
+# spell the function with -- that path has changed once already, which silently
+# killed this filter -- while the rest stays specific enough to mute only this
+# deprecation.  ``test_the_cdn_version_suite_really_silences_the_deprecation``
+# in ``test_offline_bundle.py`` fails if it ever stops matching again.
 pytestmark = pytest.mark.filterwarnings(
-    r"ignore:maidr\.maidr_css_cdn_url:FutureWarning"
+    r"ignore:.*maidr_css_cdn_url\(\) is deprecated:FutureWarning"
 )
 
 

@@ -816,6 +816,44 @@ def test_every_path_the_deprecation_names_can_be_imported():
         )
 
 
+def test_the_cdn_version_suite_really_silences_the_deprecation():
+    """A warning filter that stops matching goes dead without a sound.
+
+    ``test_cdn_version.py`` mutes this deprecation so that it tests CDN
+    version resolution rather than the warning. Nothing in this repo turns
+    warnings into errors, so a filter that no longer matches changes
+    nothing and no test notices -- which has already happened once, when
+    the warning grew the module path that makes it importable.
+
+    So this reads the filter off that module and applies it to the message
+    the accessor really emits, rather than trusting the two to stay in
+    step.
+    """
+    from maidr.util.dependencies import maidr_css_cdn_url
+
+    from tests.core import test_cdn_version
+
+    marks = test_cdn_version.pytestmark
+    specs = [
+        argument
+        for mark in (marks if isinstance(marks, list) else [marks])
+        for argument in mark.mark.args
+    ]
+    assert specs, "test_cdn_version.py no longer filters anything"
+
+    with pytest.warns(FutureWarning) as caught:
+        maidr_css_cdn_url()
+    message = str(caught[0].message)
+
+    # ``action:message:category:module:lineno`` -- the message field is a
+    # regex applied with ``re.match``, which is what pytest does with it.
+    matched = [spec for spec in specs if re.match(spec.split(":")[1], message)]
+    assert matched, (
+        f"no filter in test_cdn_version.py matches the warning it means to "
+        f"silence.\n  filters: {specs}\n  message: {message}"
+    )
+
+
 def test_the_cdn_accessor_is_not_sent_to_a_local_path():
     """The replacement each accessor names must return that accessor's type.
 
