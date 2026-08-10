@@ -23,13 +23,14 @@ import pytest
 try:  # Python 3.11 and later
     import tomllib
 except ModuleNotFoundError:  # Python 3.9 and 3.10
-    # ``tomli`` is what ``tomllib`` was adopted from and has the same API.  It
-    # arrives with ``black`` in the dev group, so ``ci.yml`` has it on every
-    # interpreter; ``release.yml`` installs the test extra *without* the dev
-    # group, where on these two it can be absent.  Skip rather than fail
-    # collection there -- what is under test is a string in ``pyproject.toml``,
-    # which does not vary by interpreter, so the 3.11 and 3.12 legs cover the
-    # invariant completely and a release must not break over a parser.
+    # ``tomli`` is what ``tomllib`` was adopted from and has the same API.
+    # ``pytest`` itself requires it below 3.11, and ``pytest`` is in the
+    # ``test`` extra, so anything that can run this file at all has it --
+    # including ``release.yml``, which installs that extra without the dev
+    # group.  Still guarded: a dependency that arrives by implication can
+    # stop arriving, and what is under test is a string in ``pyproject.toml``
+    # that does not vary by interpreter.  The 3.11 and 3.12 legs cover the
+    # invariant on their own, and a release must not fail over a parser.
     tomllib = pytest.importorskip(
         "tomli",
         reason="reading pyproject.toml needs tomllib (3.11+) or tomli",
