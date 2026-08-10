@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import re
 import warnings
 from pathlib import Path
@@ -730,19 +731,89 @@ def test_the_placeholder_css_accessors_warn_before_they_go():
     # wrong type. A deprecation that misdirects is worse than one that only
     # says "deprecated".
     for call, name, instead in (
-        (maidr.bundled_css_path, "bundled_css_path", "bundled_math_css_path()"),
+        (
+            maidr.bundled_css_path,
+            "maidr.bundled_css_path",
+            "maidr.bundled_math_css_path()",
+        ),
         (
             maidr_css_cdn_url,
-            "maidr_css_cdn_url",
+            "maidr.util.dependencies.maidr_css_cdn_url",
             "cdn_url(MAIDR_MATH_CSS_FILENAME)",
         ),
     ):
-        with pytest.warns(FutureWarning, match=name) as caught:
+        with pytest.warns(FutureWarning, match=re.escape(name)) as caught:
             call()
 
         message = str(caught[0].message)
         assert instead in message
         assert "next major" in message
+
+
+def _importable(dotted: str) -> bool:
+    """Report whether a dotted path resolves to something real.
+
+    Parameters
+    ----------
+    dotted : str
+        A module path, or a module path followed by an attribute.
+
+    Returns
+    -------
+    bool
+        ``True`` if the path can be imported, or names an attribute of a
+        module that can be.
+    """
+    try:
+        importlib.import_module(dotted)
+        return True
+    except ImportError:
+        pass
+
+    module, _, attribute = dotted.rpartition(".")
+    if not module:
+        return False
+    try:
+        return hasattr(importlib.import_module(module), attribute)
+    except ImportError:
+        return False
+
+
+def test_every_path_the_deprecation_names_can_be_imported():
+    """A message that names an unimportable path misdirects the reader.
+
+    Only one of the two accessors is re-exported from the top-level
+    package, so a fixed ``maidr.`` prefix names something that raises
+    ``AttributeError`` for the other -- and a reader following the
+    suggested replacement lands in the same place. Substring assertions
+    cannot see this: the name is present either way.
+
+    So this resolves every dotted path the messages contain rather than
+    checking for the ones expected today, which is what makes it catch the
+    next wrong path as well as this one.
+    """
+    from maidr.util.dependencies import maidr_css_cdn_url
+
+    for call in (maidr.bundled_css_path, maidr_css_cdn_url):
+        with pytest.warns(FutureWarning) as caught:
+            call()
+
+        message = str(caught[0].message)
+        # Dotted paths only: a bare word in prose is not a claim about the
+        # import system. ``maidr.css`` and ``maidr.js`` match the same shape
+        # while being filenames, and both have to appear in a message about
+        # a stylesheet -- so they are excluded by name rather than by making
+        # the pattern clever enough to tell a module from a file, which it
+        # cannot be.
+        named = set(re.findall(r"\bmaidr(?:\.[A-Za-z_]\w*)+", message))
+        named -= {"maidr.css", "maidr.js"}
+        assert named, f"the message names no importable path at all: {message}"
+
+        unresolvable = sorted(path for path in named if not _importable(path))
+        assert not unresolvable, (
+            f"the deprecation for {call.__name__} names paths that do not "
+            f"import: {unresolvable}"
+        )
 
 
 def test_the_cdn_accessor_is_not_sent_to_a_local_path():
