@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 import re
 from pathlib import Path
 
@@ -26,8 +27,14 @@ def test_bundled_maidr_js_exists():
 
 
 def test_bundled_maidr_css_exists():
-    """The bundled stylesheet must ship alongside ``maidr.js``."""
-    css_path = dependencies.bundled_css_path()
+    """The bundled stylesheet must ship alongside ``maidr.js``.
+
+    Still shipped, and still resolvable, through the deprecation cycle: the
+    accessor warns (#333) but must keep working until the file goes with it,
+    or a caller mid-cycle gets a breakage rather than a warning.
+    """
+    with pytest.warns(FutureWarning, match="bundled_css_path"):
+        css_path = dependencies.bundled_css_path()
     assert css_path.is_file()
     assert css_path.stat().st_size > 0, "bundled maidr.css looks empty"
 
@@ -624,7 +631,8 @@ def test_bundled_js_path_is_top_level_export():
     assert js_path.is_file()
     assert js_path.stat().st_size > 1_000
 
-    css_path = maidr.bundled_css_path()
+    with pytest.warns(FutureWarning, match="bundled_css_path"):
+        css_path = maidr.bundled_css_path()
     assert css_path.is_file()
 
     assert callable(maidr.bundled_math_css_path)
@@ -702,3 +710,44 @@ def test_no_connectivity_probe_remains():
     assert not hasattr(maidr_api, "_reset_connectivity_cache")
     assert not hasattr(maidr_api, "_connectivity_cache")
     assert not hasattr(maidr_api, "_connectivity_cache_time")
+
+
+def test_the_placeholder_css_accessors_warn_before_they_go():
+    """
+    Both accessors for the rule-less ``maidr.css`` announce their removal.
+
+    ``FutureWarning`` rather than ``DeprecationWarning`` on purpose: the
+    latter is silenced by default outside ``__main__``, so a caller inside a
+    Shiny app or an imported module would never see it and would meet the
+    removal as a breakage. The category is the difference between a
+    deprecation cycle and a surprise (#333).
+    """
+    from maidr.util.dependencies import maidr_css_cdn_url
+
+    for call, name in (
+        (maidr.bundled_css_path, "bundled_css_path"),
+        (maidr_css_cdn_url, "maidr_css_cdn_url"),
+    ):
+        with pytest.warns(FutureWarning, match=name) as caught:
+            call()
+
+        message = str(caught[0].message)
+        # The way out has to be in the message: a warning that says only
+        # "deprecated" leaves the reader to guess what replaces it.
+        assert "bundled_math_css_path" in message
+        assert "next major" in message
+
+
+def test_the_stylesheet_that_carries_rules_does_not_warn():
+    """
+    Only the placeholder is deprecated.
+
+    ``maidr-math.css`` is fetched at runtime by ``maidr.js`` and is the one
+    stylesheet with content, so its accessors must stay quiet -- warning on
+    them would push callers off the asset they should be using.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+
+        assert maidr.bundled_math_css_path().is_file()
+        assert maidr.read_bundled_math_css()

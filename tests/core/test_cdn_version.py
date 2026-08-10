@@ -28,6 +28,16 @@ import maidr
 from maidr.util import dependencies
 
 
+# `maidr_css_cdn_url` is deprecated (#333) and warns on every call. These tests
+# call it incidentally -- as a second helper sharing the version-resolution
+# cache with `maidr_js_cdn_url`, which is the property under test -- so the
+# warning is noise here rather than the subject. Matched by message, so any
+# other FutureWarning still surfaces.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:maidr.maidr_css_cdn_url:FutureWarning"
+)
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
