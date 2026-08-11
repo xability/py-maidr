@@ -31,6 +31,8 @@ import seaborn as sns  # noqa: E402
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.core.plot.errorbar import ErrorBarPlot  # noqa: E402
+from maidr.exception import ExtractionError  # noqa: E402
 
 
 #: Three group means with asymmetric intervals. Every number is distinct, so a
@@ -312,7 +314,11 @@ def test_a_date_axis_does_not_break_the_figure():
 
     points = _schema(fig)["data"]
 
-    assert [point["x"] for point in points] == ["2026-01-01", "2026-01-02", "2026-01-03"]
+    assert [point["x"] for point in points] == [
+        "2026-01-01",
+        "2026-01-02",
+        "2026-01-03",
+    ]
     # The magnitude and its bounds are still numbers, so sonification works.
     assert points[0]["y"] == 4.2
     assert points[0]["yMin"] == 3.7
@@ -388,6 +394,62 @@ def test_seaborn_error_bars_do_not_register_a_second_layer(draw, expected):
     plots = _plots(fig)
     assert len(plots) == 1
     assert plots[0].type == expected
+
+
+def test_a_call_with_no_error_promises_no_highlight():
+    """
+    Nothing is tagged when nothing is drawn, so no selector is emitted.
+
+    A bare ``ax.errorbar(x, y)`` renders no bar collection, so no element ever
+    carries the ``maidr`` attribute the selector goes looking for. Emitting the
+    selector anyway would promise the frontend highlightable paths the document
+    does not contain.
+    """
+    fig, ax = plt.subplots()
+    ax.errorbar(X, Y)
+
+    plot = _plots(fig)[0]
+    schema = plot.render()
+
+    assert plot._support_highlighting is False
+    assert not plot.elements
+    assert "selectors" not in schema
+
+
+def test_caps_do_not_disturb_the_bounds():
+    """
+    ``capsize`` adds cap artists, and the bounds are read the same.
+
+    The caps are separate ``Line2D`` artists in ``container.lines[1]``, while
+    the bounds come from the collection in ``lines[2]``. Pinned because
+    ``capsize`` is the one rendering permutation that changes how many artists
+    the container holds without changing what the interval is.
+    """
+    fig, ax = plt.subplots()
+    ax.errorbar(X, Y, yerr=YERR, capsize=5)
+
+    points = _schema(fig)["data"]
+
+    assert points[0] == {"x": 0.0, "y": 4.2, "yMin": 3.8, "yMax": 4.6}
+    assert points[1] == {"x": 1.0, "y": 5.1, "yMin": 4.0, "yMax": 6.6}
+
+
+def test_a_layer_built_without_its_container_refuses_to_guess():
+    """
+    Constructed outside the patch, the layer raises rather than guessing.
+
+    The tempting fallback -- take the first ``ErrorbarContainer`` on the axes
+    -- is exactly the bug the patch's container hand-off exists to prevent, so
+    it must not be reachable by another route either. A figure with two calls
+    would otherwise describe the first series twice.
+    """
+    fig, ax = plt.subplots()
+    ax.errorbar(X, Y, yerr=0.5)
+
+    orphan = ErrorBarPlot(ax)
+
+    with pytest.raises(ExtractionError):
+        orphan._extract_plot_data()
 
 
 def test_the_selector_reaches_one_element_per_sample():

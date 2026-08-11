@@ -51,9 +51,13 @@ def errorbar(wrapped, instance, args, kwargs) -> ErrorbarContainer:
     with ContextManager.set_internal_context():
         container = _draw_quietly(wrapped, args, kwargs)
 
+    # `instance` is the bound Axes, always: this wraps `Axes.errorbar`, so
+    # wrapt has an instance to bind by construction. Reading it directly
+    # rather than routing through `FigureManager.get_axes` is deliberate --
+    # that helper has no branch for an `ErrorbarContainer`, which is a
+    # `Container` rather than an `Artist`, so it would answer None and the
+    # failure would surface as a bare "No plot found."
     ax = instance if isinstance(instance, Axes) else getattr(instance, "axes", None)
-    if ax is None:
-        ax = FigureManager.get_axes(container)
 
     FigureManager.create_maidr(
         ax, PlotType.ERRORBAR, container=container, x=x, y=y

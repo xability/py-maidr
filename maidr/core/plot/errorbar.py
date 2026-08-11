@@ -10,10 +10,10 @@ from matplotlib.container import ErrorbarContainer
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
-from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
+from maidr.util.mixin import DictMergerMixin
 
 
-class ErrorBarPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
+class ErrorBarPlot(MaidrPlot, DictMergerMixin):
     """
     A plot that draws an estimate together with the interval around it.
 
@@ -97,6 +97,14 @@ class ErrorBarPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
             # Tag for highlighting. One path per sample, in data order, which
             # is the shape the JS trace repeats across its three sections.
             self._elements.append(bars)
+        else:
+            # A call passing no error at all draws bare estimates: there is no
+            # bar collection, so nothing carries the `maidr` attribute the
+            # selector goes looking for. Leaving the flag set would emit a
+            # selector promising highlightable paths that the document does
+            # not contain. Cleared the same way `HeatPlot` clears it when the
+            # artist is not a mesh.
+            self._support_highlighting = False
 
         # The category runs along the axis the bars do NOT span, and the
         # magnitude along the one they do. The schema names them `x` and `y`
@@ -133,19 +141,22 @@ class ErrorBarPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         """
         Return the container to describe.
 
+        There is deliberately no fallback to "the first container on the
+        axes". That lookup is precisely the bug this class is built to avoid:
+        a figure with two ``errorbar`` calls carries two containers, and both
+        layers searching for one would find the first, describing one series
+        twice and losing the other with no error to say so. Falling back to it
+        when the patch has not supplied a container would reintroduce that
+        silently on any future path that constructed this class directly.
+
         Returns
         -------
         ErrorbarContainer or None
-            The container the patch supplied, falling back to the first one on
-            the axes, or None when the axes carries none.
+            The container the patched call supplied, or None when there is
+            none -- which the caller turns into an ``ExtractionError`` rather
+            than guessing.
         """
-        if self._container is not None:
-            return self._container
-
-        containers = self.extract_container(
-            self.ax, ErrorbarContainer, include_all=True
-        )
-        return containers[0] if containers else None
+        return self._container
 
     def _extract_centers(
         self, container: ErrorbarContainer
