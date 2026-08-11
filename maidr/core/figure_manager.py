@@ -46,6 +46,7 @@ class FigureManager:
         PlotType.BAR: 1,
         PlotType.STACKED: 2,
         PlotType.DODGED: 2,  # DODGED and STACKED have same priority
+        PlotType.NORMALIZED: 2,  # a stacked bar, drawn to a common total
         PlotType.LINE: 1,
         PlotType.STEP: 1,
         PlotType.SCATTER: 1,

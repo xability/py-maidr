@@ -12,6 +12,7 @@ class PlotType(str, Enum):
     HEAT = "heat"
     HIST = "hist"
     LINE = "line"
+    NORMALIZED = "stacked_normalized_bar"
     PIE = "pie"
     SCATTER = "point"
     STACKED = "stacked_bar"
@@ -49,6 +50,7 @@ _DISPLAY_NAMES = {
     PlotType.ERRORBAR: "error bar",
     PlotType.HEAT: "heatmap",
     PlotType.HIST: "histogram",
+    PlotType.NORMALIZED: "100% stacked bar",
     PlotType.SCATTER: "scatter",
     PlotType.STACKED: "stacked bar",
     PlotType.VIOLIN_BOX: "violin",
