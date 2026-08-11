@@ -417,6 +417,27 @@ def test_other_timestamp_types_read_rather_than_raising(make_axis):
     assert all(label.startswith("2026-01-0") for label in labels)
 
 
+def test_a_date_axis_reads_the_same_with_no_markers():
+    """
+    The two fallbacks compose: a date axis drawn with ``fmt="none"``.
+
+    Each is covered alone, but they meet on one code path -- ``fmt="none"``
+    takes the centres from the call arguments rather than from a data line, so
+    the labels travel through ``np.atleast_1d`` before reaching ``_scalar``.
+    Were that to coerce the dates to ``datetime64``, the labels would silently
+    gain a time component that the ordinary path does not produce, and the
+    same chart would read two different ways depending on its marker style.
+    """
+    dates = [datetime.date(2026, 1, day) for day in (1, 2, 3)]
+
+    fig, ax = plt.subplots()
+    ax.errorbar(dates, Y, yerr=0.5, fmt="none")
+
+    labels = [point["x"] for point in _schema(fig)["data"]]
+
+    assert labels == ["2026-01-01", "2026-01-02", "2026-01-03"]
+
+
 def test_two_calls_register_two_distinct_layers():
     """
     Each ``errorbar`` call describes its own series.
