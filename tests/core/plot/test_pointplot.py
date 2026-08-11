@@ -386,3 +386,94 @@ def test_an_unrecognised_rendering_falls_back_to_describing_the_lines():
 
     assert _pairs_up([estimate], intervals) is False
     assert _pairs_up([estimate], []) is True
+
+
+def test_bounds_are_not_spelled_out_to_seventeen_digits():
+    """
+    A bound is computed, not authored, and comes off the drawn vertex raw.
+
+    ``mean - sd`` for these two observations is ``0.07928932188134526`` -- a
+    number a screen reader reads digit by digit, and one whose tail is an
+    artifact of how it was arrived at rather than a measurement. ``ErrorBarPlot``
+    already cuts its own bounds to twelve significant figures; a point plot's
+    bounds are the same quantity reached the same way, so they are cut the same.
+    """
+    pair = pd.DataFrame({"g": ["a", "a"], "v": [0.1, 0.2]})
+
+    fig, ax = plt.subplots()
+    sns.pointplot(pair, x="g", y="v", errorbar="sd", ax=ax)
+
+    point = _schema(fig)["data"][0]
+
+    assert point["yMin"] == 0.0792893218813
+    assert point["yMax"] == 0.220710678119
+
+
+def test_a_group_of_one_carries_no_interval():
+    """
+    A single observation has nothing to estimate an interval from.
+
+    Seaborn still draws the polyline, with the cap positions intact and the
+    value coordinates NaN. Read as an interval it hands the reader the *cap's
+    own width* -- roughly 0.05 either side of the group's position -- which is
+    not a measurement and is not even in the units of the value axis.
+
+    So the chart reads as the line of estimates it is. This was found by the
+    ``native_scale`` case, where seaborn groups by every distinct value and
+    every group therefore has one observation.
+    """
+    singles = pd.DataFrame({"g": ["a", "b", "c"], "v": [1.0, 2.0, 3.0]})
+
+    fig, ax = plt.subplots()
+    sns.pointplot(singles, x="g", y="v", capsize=0.2, ax=ax)
+
+    schema = _schema(fig)
+
+    assert schema["type"] == PlotType.LINE.value
+    assert [point["y"] for point in schema["data"][0]] == [1.0, 2.0, 3.0]
+
+
+def test_nothing_recognisable_still_describes_the_lines():
+    """
+    The one path that used to register no layer at all.
+
+    Every other verification failure falls back to describing what was drawn,
+    which is what the generic wrapper did; dropping the chart entirely is a
+    worse answer than the one it already gave. Reached here by drawing lines
+    that all look like intervals, which is what a renderer that stopped marking
+    its estimates would produce.
+    """
+    fig, ax = plt.subplots()
+    for index in range(2):
+        ax.plot([0, 1], [index, index + 1], marker="None")
+
+    plots = _plots(fig)
+
+    assert len(plots) == 1
+    assert plots[0].type == PlotType.LINE
+
+
+def test_a_horizontal_dodge_still_reports_raw_category_offsets():
+    """
+    The known limit of the tick-rounding fix, pinned rather than left implicit.
+
+    ``extract_line_data_with_categorical_labels`` reads the *x* ticks only, so
+    the label recovery helps a vertical dodged chart and not a horizontal one,
+    whose categories sit on y. Recorded here so the gap is visible and so the
+    day the shared helper learns to follow the category axis, this test turns
+    red rather than the behaviour changing unnoticed. Tracked in #353.
+    """
+    frame = FRAME.assign(half=["x", "y"] * 9)
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, y="group", x="value", hue="half", dodge=True, ax=ax)
+
+    schema = _schema(fig)
+
+    # Category positions on y, still numeric and still dodged aside.
+    assert schema["type"] == PlotType.LINE.value
+    assert all(
+        isinstance(point["y"], float)
+        for series in schema["data"]
+        for point in series
+    )

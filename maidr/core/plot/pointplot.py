@@ -214,7 +214,15 @@ class PointPlot(ErrorBarPlot):
         if finite.size == 0:
             return None
 
-        return float(finite.min()), float(finite.max())
+        # Cleaned the same way `ErrorBarPlot` cleans its own bounds, and for
+        # the same reason: a bound is computed rather than authored, and
+        # `5 - 4.0497` is not exactly representable. Reusing the base class's
+        # helper rather than restating the rule keeps the two from drifting to
+        # different precisions for the same quantity.
+        return (
+            ErrorBarPlot._without_float_noise(float(finite.min())),
+            ErrorBarPlot._without_float_noise(float(finite.max())),
+        )
 
     @staticmethod
     def _extent(coordinates: Sequence) -> float:
@@ -235,6 +243,11 @@ class PointPlot(ErrorBarPlot):
         values = np.asarray(coordinates, dtype=float)
         finite = values[np.isfinite(values)]
         if finite.size == 0:
-            return 0.0
+            # NaN rather than 0: a polyline with nothing finite on this axis is
+            # not *flat* along it, it is absent from it, and the caller reads a
+            # zero extent as evidence that this is the category axis. Answering
+            # 0 here made a chart whose intervals carried no value at all look
+            # like a chart drawn the other way round.
+            return float("nan")
 
         return float(finite.max() - finite.min())

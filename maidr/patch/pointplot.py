@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
+import numpy as np
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -75,6 +76,13 @@ def point(wrapped, instance, args, kwargs) -> Axes:
     estimates, intervals = _split(drawn)
 
     if not estimates:
+        # Nothing looked like an estimate line, so the split says nothing and
+        # every drawn line is described -- the same fallback the verification
+        # below takes, and for the same reason. Registering no layer at all
+        # would leave the chart unreadable, which is a worse answer than the
+        # one the generic wrapper already gave.
+        if drawn:
+            FigureManager.create_maidr(ax, PlotType.LINE, lines=drawn)
         return ax
 
     paired = _pairs_up(estimates, intervals)
@@ -148,12 +156,41 @@ def _split(lines: list[Line2D]) -> tuple[list[Line2D], list[Line2D]]:
         if vertices is None or not len(vertices):
             # The proxy artists a `hue` legend is built from carry no data.
             continue
-        if line.get_marker() == _INTERVAL_MARKER:
-            intervals.append(line)
-        else:
+        if line.get_marker() != _INTERVAL_MARKER:
             estimates.append(line)
+        elif _is_drawn(vertices):
+            intervals.append(line)
 
     return estimates, intervals
+
+
+def _is_drawn(vertices: np.ndarray) -> bool:
+    """
+    Check that a candidate interval is a shape the chart actually drew.
+
+    A group with a single observation has nothing to estimate an interval
+    from, and seaborn renders that as a polyline whose value coordinates are
+    all NaN -- the cap positions survive, the interval does not. Such a line
+    carries no bound, and treating it as one hands the reader the cap's own
+    width as the interval, which is neither a measurement nor even in the
+    right units.
+
+    Tested as "two vertices finite in both coordinates", which is what it
+    takes to draw a segment at all, so the check needs no view on which axis
+    is which.
+
+    Parameters
+    ----------
+    vertices : numpy.ndarray
+        The line's vertices, as an ``(n, 2)`` array.
+
+    Returns
+    -------
+    bool
+        True when at least one segment of the polyline was drawable.
+    """
+    finite = np.isfinite(np.asarray(vertices, dtype=float)).all(axis=1)
+    return bool(finite.sum() >= 2)
 
 
 def _pairs_up(estimates: list[Line2D], intervals: list[Line2D]) -> bool:

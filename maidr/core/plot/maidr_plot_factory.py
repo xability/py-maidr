@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from matplotlib.axes import Axes
+from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxplot import BoxPlot
@@ -61,7 +62,7 @@ class MaidrPlotFactory:
             # the same layer; they differ only in what the library drew.
             # `Axes.errorbar` leaves a container, while seaborn's point plot
             # leaves the lines the patch resolved and hands them over here.
-            if "estimate" in kwargs:
+            if isinstance(kwargs.get("estimate"), Line2D):
                 return PointPlot(single_ax, **kwargs)
             return ErrorBarPlot(single_ax, **kwargs)
         elif PlotType.HEAT == plot_type:
