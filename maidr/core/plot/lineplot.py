@@ -1,6 +1,7 @@
-from typing import List, Union
+from typing import List, Optional, Union
 
 from matplotlib.axes import Axes
+from matplotlib.lines import Line2D
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
@@ -26,6 +27,12 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         The layer type to emit, by default ``PlotType.LINE``. Subclasses that
         share this extraction logic but describe a different chart — notably
         :class:`maidr.core.plot.stepplot.StepPlot` — override it.
+    lines : list of Line2D, optional
+        The lines to describe, by default every line on the axes. A patch
+        passes this when some of what was drawn is not a series: seaborn's
+        point plot renders each confidence interval as a line of its own, and
+        describing those alongside the estimates announces cap geometry as
+        data.
     **kwargs : dict
         Additional keyword arguments to pass to the parent class.
 
@@ -42,8 +49,30 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
       (fill values) for each point.
     """
 
-    def __init__(self, ax: Axes, plot_type: PlotType = PlotType.LINE, **kwargs):
+    def __init__(
+        self,
+        ax: Axes,
+        plot_type: PlotType = PlotType.LINE,
+        lines: Optional[List[Line2D]] = None,
+        **kwargs,
+    ):
         super().__init__(ax, plot_type)
+        self._lines = lines
+
+    def _series(self) -> List[Line2D]:
+        """
+        Return the lines this layer describes.
+
+        Returns
+        -------
+        list[Line2D]
+            The lines a patch narrowed the layer to, or every line on the axes
+            when it did not.
+        """
+        if self._lines is not None:
+            return self._lines
+
+        return self.ax.get_lines()
 
     def _extract_axes_data(self) -> dict:
         """
@@ -66,7 +95,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
 
     def _get_selector(self) -> Union[str, List[str]]:
         # Return selectors for all lines that have data
-        all_lines = self.ax.get_lines()
+        all_lines = self._series()
         if not all_lines:
             return ["g[maidr='true'] > path"]
 
@@ -105,7 +134,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             List of lists, where each inner list contains dictionaries with x,y coordinates
             and line identifiers for one line, or None if the plot data is invalid.
         """
-        all_lines = self.ax.get_lines()
+        all_lines = self._series()
         if not all_lines:
             return None
 

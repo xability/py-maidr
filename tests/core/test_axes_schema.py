@@ -19,6 +19,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 import seaborn as sns  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
@@ -111,6 +112,24 @@ class TestMatplotlibCanonicalShape:
             _assert_canonical_axes(axes)
             assert axes["x"]["label"] == "Response"
             assert axes["y"]["label"] == "Group"
+        finally:
+            plt.close(fig)
+
+    def test_pointplot(self):
+        # The same layer type reached by a different route: seaborn builds the
+        # axes itself, so the canonical shape has to survive a chart this
+        # package did not lay out.
+        frame = pd.DataFrame({"g": ["a", "a", "b", "b"], "v": [1.0, 3.0, 5.0, 9.0]})
+        fig, ax = plt.subplots()
+        try:
+            sns.pointplot(frame, x="g", y="v", ax=ax)
+            ax.set_xlabel("Group")
+            ax.set_ylabel("Response")
+            axes = _first_schema(fig)["axes"]
+
+            _assert_canonical_axes(axes)
+            assert axes["x"]["label"] == "Group"
+            assert axes["y"]["label"] == "Response"
         finally:
             plt.close(fig)
 

@@ -482,7 +482,7 @@ def test_errorbar_supports_highlighting():
     ("draw", "expected"),
     [
         (lambda ax, df: sns.barplot(df, x="g", y="v", ax=ax), PlotType.BAR),
-        (lambda ax, df: sns.pointplot(df, x="g", y="v", ax=ax), PlotType.LINE),
+        (lambda ax, df: sns.pointplot(df, x="g", y="v", ax=ax), PlotType.ERRORBAR),
     ],
     ids=["barplot", "pointplot"],
 )
@@ -498,6 +498,11 @@ def test_seaborn_error_bars_do_not_register_a_second_layer(draw, expected):
     Pinned rather than assumed, because it is a claim about another library's
     internals: current seaborn renders those intervals itself, and the day it
     switches, this test is what says so.
+
+    The point plot's single layer *is* an error bar layer, registered by
+    ``maidr.patch.pointplot`` off the lines seaborn drew rather than by this
+    patch -- so what the count proves is that the two paths do not both fire,
+    not that the intervals went undescribed.
     """
     rng = np.random.default_rng(20260811)
     df = pd.DataFrame({"g": ["a"] * 20 + ["b"] * 20, "v": rng.normal(size=40)})

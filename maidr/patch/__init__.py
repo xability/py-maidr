@@ -9,6 +9,7 @@ from . import (  # noqa: F401
     histogram,
     lineplot,
     pieplot,
+    pointplot,
     scatterplot,
     regplot,
     kdeplot,
