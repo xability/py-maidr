@@ -541,3 +541,65 @@ def test_a_partial_interval_promises_no_highlight():
     assert plot._support_highlighting is False
     assert not plot.elements
     assert "selectors" not in schema
+
+
+def test_a_hue_level_missing_a_category_does_not_break_the_pairing():
+    """
+    Seaborn NaN-pads a hue level that never appears in some category.
+
+    Which is what makes the pairing survive an unbalanced hue-by-category set:
+    both estimate lines carry one vertex per category whether or not the data
+    had one, so the counts still match and the chart does not fall back to
+    describing the raw interval polylines.
+
+    Pinned rather than assumed, because it is a claim about another library's
+    rendering. Were seaborn to *omit* the point instead, the two estimate lines
+    would differ in length, the pairing would fail, and the cap geometry this
+    module exists to remove would travel as data again -- so this is the test
+    that would say so.
+    """
+    # Hue level 'y' never appears in category 'c'.
+    unbalanced = pd.DataFrame(
+        {
+            "g": ["a"] * 4 + ["b"] * 4 + ["c"] * 2,
+            "half": ["x", "x", "y", "y", "x", "x", "y", "y", "x", "x"],
+            "v": [1.0, 2.0, 5.0, 6.0, 10.0, 11.0, 14.0, 15.0, 20.0, 21.0],
+        }
+    )
+
+    fig, ax = plt.subplots()
+    sns.pointplot(unbalanced, x="g", y="v", hue="half", dodge=True, ax=ax)
+
+    schema = _schema(fig)
+    data = schema["data"]
+
+    assert schema["type"] == PlotType.LINE.value
+    # Two series, not two series plus six interval polylines.
+    assert len(data) == 2
+    assert all(len(series) == 3 for series in data)
+    assert [point["x"] for point in data[1]] == ["a", "b", "c"]
+    # The combination the data does not have arrives as a gap, which the
+    # consumer names rather than reading out -- not as cap geometry.
+    assert np.isnan(data[1][2]["y"])
+
+
+def test_an_estimate_line_without_a_marker_is_still_an_estimate():
+    """
+    The split tests the literal marker seaborn gives its interval lines.
+
+    ``markers=""`` turns the estimate's own marker off, leaving it as the empty
+    string -- while an interval line carries the string ``"None"``. Simplifying
+    the check to ``if not line.get_marker()`` would therefore classify the
+    estimates as intervals, the counts would stop matching, and the chart would
+    fall back to describing every drawn line.
+
+    This is the test that fails if someone makes that simplification.
+    """
+    fig, ax = plt.subplots()
+    sns.pointplot(FRAME, x="group", y="value", marker="", ax=ax)
+
+    schema = _schema(fig)
+
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert len(schema["data"]) == 3
+    assert all("yMin" in point for point in schema["data"])
