@@ -79,6 +79,9 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
         dict
             The MAIDR layer schema.
         """
+        # `super().render()` runs `_extract_plot_data`, which is what resolves
+        # `self._orientation` -- so the read below has to come after it, not
+        # alongside it.
         base_schema = super().render()
         return self.merge_dict(
             base_schema, {MaidrKey.ORIENTATION: self._orientation}
@@ -92,7 +95,7 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
         # `has_yerr` decides the value axis, and an errorbar carrying neither
         # is still a legitimate call -- it draws bare points -- so it reads as
         # vertical rather than as a failure.
-        is_vertical = bool(container.has_yerr) or not bool(container.has_xerr)
+        is_vertical = container.has_yerr or not container.has_xerr
         self._orientation = "vert" if is_vertical else "horz"
 
         centers = self._extract_centers(container)

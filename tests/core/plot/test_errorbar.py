@@ -389,6 +389,34 @@ def test_a_date_axis_does_not_break_the_figure():
     assert points[0]["yMin"] == 3.7
 
 
+@pytest.mark.parametrize(
+    "make_axis",
+    [
+        lambda: [pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-02")],
+        lambda: np.array(["2026-01-01", "2026-01-02"], dtype="datetime64[D]"),
+    ],
+    ids=["pandas-timestamp", "numpy-datetime64"],
+)
+def test_other_timestamp_types_read_rather_than_raising(make_axis):
+    """
+    Every timestamp type reaches the string fallback rather than raising.
+
+    ``ax.errorbar(df.index, ...)`` hands back a ``Timestamp`` or a
+    ``datetime64`` rather than a ``date``, so pinning only ``datetime.date``
+    would leave the crash this fallback exists to prevent reachable by the
+    types most likely to appear in practice. Their ``str()`` forms differ from
+    each other -- one carries a time component -- so the assertion is that the
+    label is a non-empty string naming the year, not one exact spelling.
+    """
+    fig, ax = plt.subplots()
+    ax.errorbar(make_axis(), [4.2, 5.1], yerr=0.5)
+
+    labels = [point["x"] for point in _schema(fig)["data"]]
+
+    assert all(isinstance(label, str) for label in labels)
+    assert all(label.startswith("2026-01-0") for label in labels)
+
+
 def test_two_calls_register_two_distinct_layers():
     """
     Each ``errorbar`` call describes its own series.
