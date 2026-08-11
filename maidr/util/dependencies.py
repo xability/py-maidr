@@ -582,8 +582,63 @@ def maidr_js_cdn_url() -> str:
     return cdn_url(MAIDR_JS_FILENAME)
 
 
+def _warn_placeholder_css(name: str, instead: str) -> None:
+    """
+    Announce that a ``maidr.css`` accessor is going away.
+
+    ``FutureWarning`` rather than ``DeprecationWarning``, which is the more
+    usual category for an API removal. Python's own guidance splits them by
+    audience: ``DeprecationWarning`` is for warnings aimed at other library
+    authors, ``FutureWarning`` for those aimed at end users of applications
+    written in Python. Someone calling this is building a dashboard or a
+    report, not extending py-maidr.
+
+    The practical half matters more. ``DeprecationWarning`` is silenced by
+    default outside ``__main__``, so a caller inside a Shiny app or an
+    imported module would never see it and would meet the removal as a
+    breakage instead of a warning -- which is the one thing a deprecation
+    cycle exists to prevent.
+
+    Parameters
+    ----------
+    name : str
+        The function being called, spelled as a path that actually
+        imports, so the message names the caller's own call rather than
+        this helper.  Fully qualified rather than assumed: only one of
+        these two is re-exported from the top-level package, so a fixed
+        ``maidr.`` prefix would name a path that raises
+        :class:`AttributeError` for the other.
+    instead : str
+        What to call in its place, in the same form the caller wanted.  The
+        two accessors return different things -- a local :class:`Path` and a
+        remote URL -- so a single suggestion would hand one of them the
+        wrong type, which is the opposite of what a deprecation message is
+        for.
+    """
+    warnings.warn(
+        f"{name}() is deprecated and will be removed in the next major "
+        "release, along with the bundled maidr.css it resolves. That file has "
+        "carried no rules since maidr 3.75.1 and nothing in py-maidr links "
+        f"it. Use {instead} for the stylesheet that does carry rules, or link "
+        "no stylesheet at all -- MAIDR styles its interface at runtime.",
+        FutureWarning,
+        stacklevel=3,
+    )
+
+
 def maidr_css_cdn_url() -> str:
     """Return the CDN URL for ``maidr.css`` at the resolved version.
+
+    .. deprecated::
+        Linking this buys nothing and will be removed, along with
+        ``maidr.css`` itself, in the next major release.  If what you
+        wanted was the stylesheet that carries rules, and you want it from
+        the CDN as this function returns it, call
+        ``cdn_url(MAIDR_MATH_CSS_FILENAME)`` -- both from this module, which
+        is also the only place this function itself is importable from.
+        :func:`bundled_math_css_path` is the local-file counterpart, and is
+        re-exported as ``maidr.bundled_math_css_path``.  Or link nothing at
+        all -- MAIDR styles its interface at runtime.
 
     Nothing in ``maidr/`` emits this any more.  From maidr 3.75.1 the file
     it points at is a placeholder with no rules in it, published only so
@@ -595,7 +650,16 @@ def maidr_css_cdn_url() -> str:
     -------
     str
         A fully qualified jsDelivr URL.
+
+    Warns
+    -----
+    FutureWarning
+        Always.  See :func:`_warn_placeholder_css` for why this category.
     """
+    _warn_placeholder_css(
+        "maidr.util.dependencies.maidr_css_cdn_url",
+        "cdn_url(MAIDR_MATH_CSS_FILENAME) from maidr.util.dependencies",
+    )
     return cdn_url(MAIDR_CSS_FILENAME)
 
 
@@ -1368,11 +1432,24 @@ def bundled_js_path() -> Path:
 def bundled_css_path() -> Path:
     """Return the filesystem path to the bundled MAIDR stylesheet.
 
+    .. deprecated::
+        The file this resolves has no rules in it, and both it and this
+        function will be removed in the next major release.  Use
+        :func:`bundled_math_css_path` if what you wanted was the
+        stylesheet that carries rules, or link nothing at all -- MAIDR
+        styles its interface at runtime.
+
     Kept for callers that predate maidr 3.75.1.  Since that release the
     file is a placeholder with no rules in it, and nothing in ``maidr/``
     links it; :func:`bundled_math_css_path` is the stylesheet that
     carries content.
+
+    Warns
+    -----
+    FutureWarning
+        Always.  See :func:`_warn_placeholder_css` for why this category.
     """
+    _warn_placeholder_css("maidr.bundled_css_path", "maidr.bundled_math_css_path()")
     return _bundled_asset_path(MAIDR_CSS_FILENAME)
 
 

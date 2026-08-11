@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
 import re
+import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -26,8 +28,14 @@ def test_bundled_maidr_js_exists():
 
 
 def test_bundled_maidr_css_exists():
-    """The bundled stylesheet must ship alongside ``maidr.js``."""
-    css_path = dependencies.bundled_css_path()
+    """The bundled stylesheet must ship alongside ``maidr.js``.
+
+    Still shipped, and still resolvable, through the deprecation cycle: the
+    accessor warns (#333) but must keep working until the file goes with it,
+    or a caller mid-cycle gets a breakage rather than a warning.
+    """
+    with pytest.warns(FutureWarning, match="bundled_css_path"):
+        css_path = dependencies.bundled_css_path()
     assert css_path.is_file()
     assert css_path.stat().st_size > 0, "bundled maidr.css looks empty"
 
@@ -624,7 +632,8 @@ def test_bundled_js_path_is_top_level_export():
     assert js_path.is_file()
     assert js_path.stat().st_size > 1_000
 
-    css_path = maidr.bundled_css_path()
+    with pytest.warns(FutureWarning, match="bundled_css_path"):
+        css_path = maidr.bundled_css_path()
     assert css_path.is_file()
 
     assert callable(maidr.bundled_math_css_path)
@@ -702,3 +711,214 @@ def test_no_connectivity_probe_remains():
     assert not hasattr(maidr_api, "_reset_connectivity_cache")
     assert not hasattr(maidr_api, "_connectivity_cache")
     assert not hasattr(maidr_api, "_connectivity_cache_time")
+
+
+def test_placeholder_css_accessors_warn():
+    """
+    Both accessors for the rule-less ``maidr.css`` announce their removal.
+
+    ``FutureWarning`` rather than ``DeprecationWarning`` on purpose: the
+    latter is silenced by default outside ``__main__``, so a caller inside a
+    Shiny app or an imported module would never see it and would meet the
+    removal as a breakage. The category is the difference between a
+    deprecation cycle and a surprise (#333).
+    """
+    from maidr.util.dependencies import maidr_css_cdn_url
+
+    # The way out has to be in the message, and it has to return what the
+    # caller was already holding: one of these resolves a local file and the
+    # other a remote URL, so a single suggestion would hand one of them the
+    # wrong type. A deprecation that misdirects is worse than one that only
+    # says "deprecated".
+    for call, name, instead in (
+        (
+            maidr.bundled_css_path,
+            "maidr.bundled_css_path",
+            "maidr.bundled_math_css_path()",
+        ),
+        (
+            maidr_css_cdn_url,
+            "maidr.util.dependencies.maidr_css_cdn_url",
+            "cdn_url(MAIDR_MATH_CSS_FILENAME)",
+        ),
+    ):
+        with pytest.warns(FutureWarning, match=re.escape(name)) as caught:
+            call()
+
+        message = str(caught[0].message)
+        assert instead in message
+        assert "next major" in message
+
+
+def _importable(dotted: str) -> bool:
+    """Report whether a dotted path resolves to something real.
+
+    Parameters
+    ----------
+    dotted : str
+        A module path, or a module path followed by an attribute.
+
+    Returns
+    -------
+    bool
+        ``True`` if the path can be imported, or names an attribute of a
+        module that can be.
+    """
+    try:
+        importlib.import_module(dotted)
+        return True
+    except ImportError:
+        pass
+
+    module, _, attribute = dotted.rpartition(".")
+    if not module:
+        return False
+    try:
+        return hasattr(importlib.import_module(module), attribute)
+    except ImportError:
+        return False
+
+
+def test_deprecation_names_only_importable_symbols():
+    """A message that names an unimportable path misdirects the reader.
+
+    Only one of the two accessors is re-exported from the top-level
+    package, so a fixed ``maidr.`` prefix names something that raises
+    ``AttributeError`` for the other -- and a reader following the
+    suggested replacement lands in the same place. Substring assertions
+    cannot see this: the name is present either way.
+
+    So this resolves everything the messages name rather than checking for
+    the symbols expected today, which is what makes it catch the next wrong
+    one as well as this one -- including the bare names, which a message
+    that says "from <module>" is just as capable of misspelling as it is a
+    dotted path.
+    """
+    from maidr.util.dependencies import maidr_css_cdn_url
+
+    for call in (maidr.bundled_css_path, maidr_css_cdn_url):
+        with pytest.warns(FutureWarning) as caught:
+            call()
+
+        message = str(caught[0].message)
+        # ``maidr.css`` and ``maidr.js`` have the shape of a dotted path
+        # while being filenames, and a message about a stylesheet has to
+        # mention them -- so they are excluded by name rather than by making
+        # the pattern clever enough to tell a module from a file, which it
+        # cannot be.
+        dotted = set(re.findall(r"\bmaidr(?:\.[A-Za-z_]\w*)+", message))
+        dotted -= {"maidr.css", "maidr.js"}
+        assert dotted, f"the message names no importable path at all: {message}"
+
+        # A bare ``name()`` or ``CONSTANT`` is a claim about whatever module
+        # the message points at, so resolve it against each of them. The
+        # top-level package is always a candidate: an unqualified suggestion
+        # is only useful if it is reachable from somewhere the reader has.
+        modules = [path for path in dotted if _importable(path)] + ["maidr"]
+        # A constant here carries an underscore. Without that the pattern
+        # also claims "MAIDR", which these messages say as the product's
+        # name rather than as a symbol.
+        bare = set(re.findall(r"\b([a-z_]\w*)\(", message))
+        bare |= set(re.findall(r"\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b", message))
+
+        unresolvable = sorted(
+            symbol
+            for symbol in dotted | bare
+            if not any(_importable(f"{module}.{symbol}") for module in modules)
+            and not _importable(symbol)
+        )
+        assert not unresolvable, (
+            f"the deprecation for {call.__name__} names symbols that do not "
+            f"resolve: {unresolvable}"
+        )
+
+        # The docstring paraphrases the same guidance, and nothing keeps the
+        # two in step, so a replacement renamed in one can survive in the
+        # other. Whatever the message says to call, the docstring says too.
+        suggestion = re.search(r"Use (\S+)", message)
+        assert suggestion, f"the message suggests nothing: {message}"
+        # Compare the symbol, not its spelling: the message qualifies it so
+        # a reader can import it, while the docstring uses Sphinx's ``:func:``
+        # role, which takes the bare name.
+        instead = suggestion.group(1).split("(")[0].rpartition(".")[2]
+        assert instead in (call.__doc__ or ""), (
+            f"{call.__name__}'s docstring no longer names the replacement its "
+            f"warning does: {instead}"
+        )
+
+
+def test_cdn_version_filter_still_matches_the_warning():
+    """A warning filter that stops matching goes dead without a sound.
+
+    ``test_cdn_version.py`` mutes this deprecation so that it tests CDN
+    version resolution rather than the warning. Nothing in this repo turns
+    warnings into errors, so a filter that no longer matches changes
+    nothing and no test notices -- which has already happened once, when
+    the warning grew the module path that makes it importable.
+
+    So this reads the filter off that module and applies it to the message
+    the accessor really emits, rather than trusting the two to stay in
+    step.
+    """
+    from maidr.util.dependencies import maidr_css_cdn_url
+
+    from tests.core import test_cdn_version
+
+    marks = test_cdn_version.pytestmark
+    specs = [
+        argument
+        for mark in (marks if isinstance(marks, list) else [marks])
+        for argument in mark.mark.args
+    ]
+    assert specs, "test_cdn_version.py no longer filters anything"
+
+    with pytest.warns(FutureWarning) as caught:
+        maidr_css_cdn_url()
+    message = str(caught[0].message)
+
+    # ``action:message:category:module:lineno`` -- the message field is a
+    # regex applied with ``re.match``, which is what pytest does with it.
+    matched = [spec for spec in specs if re.match(spec.split(":")[1], message)]
+    assert matched, (
+        f"no filter in test_cdn_version.py matches the warning it means to "
+        f"silence.\n  filters: {specs}\n  message: {message}"
+    )
+
+
+def test_cdn_accessor_replacement_returns_a_url():
+    """The replacement each accessor names must return that accessor's type.
+
+    ``maidr_css_cdn_url`` returns a URL string. Pointing its caller at
+    ``bundled_math_css_path()`` would hand them a :class:`Path`, which is
+    the one mistake a deprecation message can make that leaves the reader
+    worse off than no message at all.
+    """
+    from maidr.util.dependencies import (
+        MAIDR_MATH_CSS_FILENAME,
+        cdn_url,
+        maidr_css_cdn_url,
+    )
+
+    with pytest.warns(FutureWarning) as caught:
+        maidr_css_cdn_url()
+
+    message = str(caught[0].message)
+    assert "bundled_math_css_path" not in message
+
+    # And what it does name resolves to a real URL, not just a plausible one.
+    assert cdn_url(MAIDR_MATH_CSS_FILENAME).endswith("/dist/maidr-math.css")
+
+
+def test_math_css_accessors_do_not_warn():
+    """
+    Only the placeholder is deprecated.
+
+    ``maidr-math.css`` is fetched at runtime by ``maidr.js`` and is the one
+    stylesheet with content, so its accessors must stay quiet -- warning on
+    them would push callers off the asset they should be using.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+
+        assert maidr.bundled_math_css_path().is_file()
+        assert maidr.read_bundled_math_css()
