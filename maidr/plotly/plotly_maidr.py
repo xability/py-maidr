@@ -353,11 +353,21 @@ class PlotlyMaidr:
                 from maidr.core.enum.plot_type import PlotType
                 from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
 
-                plot_type = (
-                    PlotType.DODGED
-                    if barmode == "group"
-                    else PlotType.STACKED
-                )
+                # `barnorm` is what makes a stack a 100% stack. Plotly
+                # normalises at render time and leaves the trace arrays
+                # absolute, so nothing in the data says the bars were drawn
+                # to a common total -- read as `stacked_bar`, the chart is
+                # announced under the wrong name, and the equal bar heights
+                # a sighted reader sees have no counterpart in what is said.
+                # It is declared on the layout rather than computed, which is
+                # why this is the one place normalisation is detectable at
+                # all (#338).
+                if barmode == "group":
+                    plot_type = PlotType.DODGED
+                elif layout.get("barnorm") in ("fraction", "percent"):
+                    plot_type = PlotType.NORMALIZED
+                else:
+                    plot_type = PlotType.STACKED
                 plot = PlotlyGroupedBarPlot(
                     bar_traces, layout, plot_type, **axis_kwargs
                 )

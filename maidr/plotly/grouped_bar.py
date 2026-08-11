@@ -15,7 +15,11 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
     layout : dict
         The Plotly figure layout.
     plot_type : PlotType
-        Either ``PlotType.DODGED`` or ``PlotType.STACKED``.
+        ``PlotType.DODGED``, ``PlotType.STACKED``, or
+        ``PlotType.NORMALIZED`` when the layout declares ``barnorm``. The
+        extraction is identical for all three -- plotly normalises at render
+        time, so the trace arrays hold the same absolute values either way,
+        and it is the type that tells the frontend which chart it is.
     """
 
     def __init__(

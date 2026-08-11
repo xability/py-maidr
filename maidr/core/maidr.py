@@ -434,7 +434,11 @@ class Maidr:
         """Return the top-level MAIDR schema for this figure."""
         # Handle DODGED/STACKED plots: only keep one plot per subplot position
         # because GroupedBarPlot extracts all containers from the axes itself
-        if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
+        if self.plot_type in (
+            PlotType.DODGED,
+            PlotType.STACKED,
+            PlotType.NORMALIZED,
+        ):
             self._plots = self._merge_plots_by_subplot_position()
 
         # Deduplicate: if any SMOOTH plots exist, remove LINE plots
