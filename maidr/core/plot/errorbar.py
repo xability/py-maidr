@@ -99,9 +99,17 @@ class ErrorBarPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
             self._elements.append(bars)
 
         # The category runs along the axis the bars do NOT span, and the
-        # magnitude along the one they do. The schema names them x and y in
-        # every orientation and lets `orientation` say which is on screen
-        # where, matching how the box plot already travels.
+        # magnitude along the one they do. The schema names them `x` and `y`
+        # in BOTH orientations, and lets `orientation` say which is on screen
+        # where.
+        #
+        # That differs from how a bar or a histogram travels, and deliberately
+        # so: the shape is set by the consumer. `ErrorBarTrace` reads the
+        # magnitude as `y`/`yMin`/`yMax` with no orientation branch, and
+        # `ErrorBarPoint` declares no `xMin`/`xMax` to put a bound in --
+        # so emitting the screen-aligned form a bar uses would leave a
+        # horizontal chart with no interval at all, which is the one thing the
+        # trace type exists to convey.
         categories, values = (xs, ys) if is_vertical else (ys, xs)
         component = 1 if is_vertical else 0
 

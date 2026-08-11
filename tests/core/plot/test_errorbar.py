@@ -183,9 +183,14 @@ def test_horizontal_error_reports_horz_orientation():
     ``xerr`` draws the interval along x, and the layer says so.
 
     The schema names the category ``x`` and the magnitude ``y`` in both
-    orientations, exactly as the box plot already travels, and lets
-    ``orientation`` say which is on screen where. Asserting the swap is what
-    stops the axes being read back to front.
+    orientations, and lets ``orientation`` say which is on screen where.
+
+    That is the consumer's shape, not a convention borrowed from another plot
+    type: ``ErrorBarTrace`` reads the magnitude as ``y``/``yMin``/``yMax``
+    with no orientation branch, and ``ErrorBarPoint`` declares no
+    ``xMin``/``xMax``. Emitting the screen-aligned form a bar uses would leave
+    a horizontal chart with no interval at all, so this assertion is what
+    keeps the two repositories agreeing.
     """
     fig, ax = plt.subplots()
     ax.errorbar(X, Y, xerr=0.3)
