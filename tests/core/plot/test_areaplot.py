@@ -21,6 +21,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 import pytest  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
@@ -168,6 +169,41 @@ def test_a_two_dimensional_y_means_the_same_as_several_arrays():
     separate.stackplot(X, SUBS, SERVICES, labels=["a", "b"])
 
     assert _schema(fig_rows)["data"] == _schema(fig_args)["data"]
+
+
+@pytest.mark.parametrize(
+    "columns",
+    [
+        pytest.param(None, id="positional-labels"),
+        pytest.param(["a", "b", "c", "d"], id="named-labels"),
+    ],
+)
+def test_a_data_frame_of_series_is_read_by_row_like_matplotlib_reads_it(columns):
+    """
+    A ``DataFrame`` handed to ``stackplot`` is rows, not columns.
+
+    Both of the obvious ways to split one give the columns instead. ``df[0]``
+    is the column *labelled* zero, so it raises for named columns and picks
+    the wrong axis when a column happens to be called that; iterating a frame
+    yields the labels themselves and no data at all. Matplotlib reads the
+    rows, and a description that disagreed with the drawing would be a
+    different chart -- reported without an error either way, which is the
+    reason to pin it.
+
+    Parameterised over both label kinds because the two mistakes fail
+    differently: named columns silently collapse to a single series, and
+    integer ones survive far enough to produce nonsense.
+    """
+    frame = pd.DataFrame([SUBS, SERVICES], columns=columns)
+
+    fig_frame, from_frame = plt.subplots()
+    from_frame.stackplot(X, frame, labels=["a", "b"])
+
+    fig_args, separate = plt.subplots()
+    separate.stackplot(X, SUBS, SERVICES, labels=["a", "b"])
+
+    assert _plots(fig_frame)[0].type == PlotType.STACKED_AREA
+    assert _schema(fig_frame)["data"] == _schema(fig_args)["data"]
 
 
 def test_each_band_is_named_after_its_label():

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import wrapt
 from matplotlib.axes import Axes
 
@@ -104,16 +105,26 @@ def _positions_and_series(args: tuple, kwargs: dict):
         # on current versions, and there is nothing to describe either way.
         return None, []
 
-    if len(rest) == 1 and _is_two_dimensional(rest[0]):
-        # `stackplot(x, y)` with a 2-D y stacks its rows.
-        return x, [row for row in rest[0]]
+    if len(rest) == 1:
+        rows = _rows_of(rest[0])
+        if rows is not None:
+            # `stackplot(x, y)` with a 2-D y stacks its rows.
+            return x, rows
 
     return x, rest
 
 
-def _is_two_dimensional(values) -> bool:
+def _rows_of(values) -> list | None:
     """
-    Check whether a series argument holds several series rather than one.
+    Split a series argument into rows, when it holds several series.
+
+    Asks numpy rather than indexing or iterating the argument directly,
+    because for a ``DataFrame`` both of those mean the columns. ``values[0]``
+    is the column labelled ``0`` -- absent for named columns, and the wrong
+    axis when present -- and iterating yields the labels themselves rather
+    than any data. Matplotlib reads a ``DataFrame`` here as rows, so a reading
+    that took it for columns would describe a chart nobody drew, and would do
+    so without raising.
 
     Parameters
     ----------
@@ -122,15 +133,20 @@ def _is_two_dimensional(values) -> bool:
 
     Returns
     -------
-    bool
-        True when the argument is a sequence of sequences.
+    list or None
+        One array per series, or None when the argument is a single series.
     """
     try:
-        first = values[0]
-    except (IndexError, KeyError, TypeError):
-        return False
+        array = np.asarray(values)
+    except ValueError:
+        # Ragged input. Matplotlib rejects it too, and it has already done so
+        # by the time this runs, so there is nothing here to describe.
+        return None
 
-    return hasattr(first, "__len__") and not isinstance(first, (str, bytes))
+    if array.ndim != 2:
+        return None
+
+    return list(array)
 
 
 # Patch matplotlib function.
