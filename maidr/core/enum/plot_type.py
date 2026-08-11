@@ -8,6 +8,7 @@ class PlotType(str, Enum):
     BOX = "box"
     COUNT = "count"
     DODGED = "dodged_bar"
+    ERRORBAR = "error_bar"
     HEAT = "heat"
     HIST = "hist"
     LINE = "line"
@@ -45,6 +46,7 @@ class PlotType(str, Enum):
 #: plot, and callers de-duplicate.
 _DISPLAY_NAMES = {
     PlotType.DODGED: "dodged bar",
+    PlotType.ERRORBAR: "error bar",
     PlotType.HEAT: "heatmap",
     PlotType.HIST: "histogram",
     PlotType.SCATTER: "scatter",
