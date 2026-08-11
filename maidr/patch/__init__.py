@@ -3,6 +3,7 @@ from . import (  # noqa: F401
     barplot,
     boxplot,
     clear,
+    errorbar,
     heatmap,
     highlight,
     histogram,

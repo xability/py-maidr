@@ -617,6 +617,46 @@ ax.yaxis.set_major_formatter("{x:,.0f}")
 plt.show() #<<
 ```
 
+### Error Bar Plot
+
+Uncertainty is usually the finding, not the decoration: whether two group means
+differ is answered by whether their intervals overlap. `ax.errorbar()` draws
+that, and maidr reads the estimate **and** its interval, so the comparison the
+chart was drawn to support can be made by ear.
+
+Navigation is a grid. Left and right walk the samples; up and down at one
+sample walk the lower bound, the estimate and the upper bound — so a reader
+traces one interval rather than rebuilding it from three passes over the chart.
+
+The bounds are read off the drawn bars rather than from the `yerr` you passed,
+so asymmetric errors, one-sided errors, `uplims`/`lolims` and `fmt="none"` all
+read correctly without you having to present them any particular way.
+
+```{python}
+#| fig-alt: Mean response by dose with 95% confidence intervals
+
+import matplotlib.pyplot as plt
+
+import maidr #<<
+
+groups = ["control", "low dose", "high dose"]
+means = [4.2, 5.1, 7.3]
+
+# Asymmetric intervals, as a real confidence interval usually is: the lower
+# and upper distances from the mean are given separately.
+lower = [0.4, 1.1, 0.2]
+upper = [0.4, 1.5, 0.1]
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.errorbar(groups, means, yerr=[lower, upper], fmt="o", capsize=5)
+
+ax.set_title("Mean Response by Dose, with 95% Confidence Intervals")
+ax.set_xlabel("Group")
+ax.set_ylabel("Response")
+
+plt.show() #<<
+```
+
 ### Scatter Plot
 
 ```{python}

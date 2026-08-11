@@ -83,6 +83,37 @@ class TestMatplotlibCanonicalShape:
         finally:
             plt.close(fig)
 
+    def test_errorbar(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.errorbar([0, 1, 2], [4.2, 5.1, 7.3], yerr=0.5)
+            ax.set_xlabel("Group")
+            ax.set_ylabel("Response")
+            axes = _first_schema(fig)["axes"]
+
+            _assert_canonical_axes(axes)
+            assert axes["x"]["label"] == "Group"
+            assert axes["y"]["label"] == "Response"
+        finally:
+            plt.close(fig)
+
+    def test_errorbar_horizontal_keeps_axes_screen_aligned(self):
+        # The layer's data is orientation-invariant while its axis labels are
+        # not, so the canonical shape has to hold for the orientation where
+        # the two disagree, not only the one where they happen to line up.
+        fig, ax = plt.subplots()
+        try:
+            ax.errorbar([4.2, 5.1, 7.3], ["a", "b", "c"], xerr=0.3)
+            ax.set_xlabel("Response")
+            ax.set_ylabel("Group")
+            axes = _first_schema(fig)["axes"]
+
+            _assert_canonical_axes(axes)
+            assert axes["x"]["label"] == "Response"
+            assert axes["y"]["label"] == "Group"
+        finally:
+            plt.close(fig)
+
     def test_scatter_emits_per_axis_object(self):
         fig, ax = plt.subplots()
         try:
