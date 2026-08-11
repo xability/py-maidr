@@ -152,3 +152,41 @@ def test_imshow_still_registers_one_layer():
     ax.imshow(VALUES)
 
     assert _sole_plot(fig).type == PlotType.HEAT
+
+
+@pytest.mark.parametrize("draw", ["pcolormesh", "pcolor", "imshow"])
+def test_fmt_is_read_but_not_forwarded_to_matplotlib(draw):
+    """
+    ``fmt`` reaches MAIDR's schema without reaching matplotlib.
+
+    ``fmt`` is seaborn's parameter, and none of the matplotlib entry points
+    declare it. Forwarding it does not fail cleanly: ``pcolormesh`` swallows it
+    into ``**kwargs`` and the artist raises ``AttributeError: QuadMesh.set()
+    got an unexpected keyword argument 'fmt'``, which the caller has no way to
+    connect back to MAIDR.
+    """
+    fig, ax = plt.subplots()
+    if draw == "imshow":
+        ax.imshow(VALUES, fmt=".1f")
+    else:
+        getattr(ax, draw)(X_EDGES, Y_EDGES, VALUES, fmt=".1f")
+
+    # The draw survived, and the format reached the extraction rather than
+    # being dropped along with the kwarg.
+    points = _sole_plot(fig)._extract_plot_data()["points"]
+    assert points == VALUES.tolist()
+
+
+def test_seaborn_heatmap_still_receives_fmt():
+    """
+    ``seaborn.heatmap`` declares ``fmt`` and uses it for the cell annotations,
+    so it must still be handed the value rather than having it stripped.
+    """
+    fig, ax = plt.subplots()
+    sns.heatmap(VALUES, ax=ax, annot=True, fmt=".1f")
+
+    assert _sole_plot(fig).type == PlotType.HEAT
+    # seaborn writes one annotation per cell, formatted with `fmt`.
+    assert {text.get_text() for text in ax.texts} == {
+        f"{value:.1f}" for value in VALUES.ravel()
+    }
