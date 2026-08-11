@@ -59,6 +59,7 @@ _DISPLAY_NAMES = {
     PlotType.HIST: "histogram",
     PlotType.SCATTER: "scatter",
     PlotType.STACKED: "stacked bar",
+    PlotType.STACKED_AREA: "stacked area",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",
 }

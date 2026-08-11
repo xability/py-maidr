@@ -264,6 +264,46 @@ def test_every_band_is_tagged_for_highlighting():
     assert len(schema["selectors"]) == len(schema["data"])
 
 
+def test_the_nth_selector_points_at_the_band_the_nth_series_drew():
+    """
+    Which band is which, asserted rather than assumed.
+
+    The count matching is not the same claim: two selectors and two series
+    pass that test whichever way round they are paired, and a reader whose
+    highlight lands on the neighbouring band is told the wrong task by a
+    chart that reports no error. Everything this layer says about a band --
+    its value, its name, its running total -- is wrong for the band actually
+    lit up.
+
+    Order is checked through geometry rather than through the returned list,
+    because the list is the assumption under test. A stacked band is drawn
+    between the running total below it and the running total including it, so
+    band *i*'s drawn extent is a fact about series 0..i that no other band
+    shares.
+    """
+    fig, ax = plt.subplots()
+    collections = ax.stackplot(X, SUBS, SERVICES, labels=["a", "b"])
+
+    plot = _plots(fig)[0]
+    schema = plot.render()
+    tagged = [element.get_gid() for element in plot.elements]
+
+    # Band 0 runs from the baseline to its own values; band 1 from band 0's
+    # values to the pair's totals.
+    lower = [np.zeros(len(X)), np.array(SUBS, dtype=float)]
+    upper = [np.array(SUBS, dtype=float), np.array(SUBS) + np.array(SERVICES)]
+
+    for index, collection in enumerate(collections):
+        extent = collection.get_paths()[0].get_extents()
+
+        assert extent.y0 == pytest.approx(lower[index].min())
+        assert extent.y1 == pytest.approx(upper[index].max())
+        # The element carrying that geometry is the one the schema names at
+        # the same index, so the selector and the series agree.
+        assert collection.get_gid() == tagged[index]
+        assert collection.get_gid() in schema["selectors"][index]
+
+
 def test_rendering_twice_does_not_double_the_elements():
     """
     A layer is rendered more than once -- ``set_id`` renders again when the
@@ -278,6 +318,26 @@ def test_rendering_twice_does_not_double_the_elements():
     plot.render()
 
     assert len(plot.elements) == 2
+
+
+def test_no_plot_type_is_named_to_a_user_with_an_underscore_in_it():
+    """
+    ``display_name`` exists because the wire value is not the user's word.
+
+    ``_show_fallback`` lists these in one sentence, so a member with no
+    override sits beside "stacked bar" and "dodged bar" reading
+    "stacked_area" -- a schema token shown to someone who wrote
+    ``ax.stackplot``.
+
+    Asserted over every member rather than over the one this branch adds,
+    because the gap is a class of mistake: a new multi-word type is
+    registered in the enum and the override is a separate line to remember.
+    """
+    for plot_type in PlotType:
+        assert "_" not in plot_type.display_name, plot_type.name
+
+    assert PlotType.STACKED_AREA.display_name == "stacked area"
+    assert PlotType.AREA.display_name == "area"
 
 
 def test_the_axis_labels_travel():
