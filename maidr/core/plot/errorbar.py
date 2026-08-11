@@ -32,6 +32,15 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
     every one of those into two endpoints, so reading it is both shorter and
     correct for cases this module would otherwise have to enumerate.
 
+    Note that ``x`` and ``y`` mean *category* and *magnitude* here in both
+    orientations, which is **not** how ``BarPlot`` and ``HistPlot`` travel --
+    they emit screen-aligned keys that swap with orientation. The difference
+    is not an oversight: the shape is set by the consumer, and ``ErrorBarTrace``
+    reads the magnitude as ``y``/``yMin``/``yMax`` with no orientation branch,
+    while ``ErrorBarPoint`` declares no ``xMin``/``xMax`` to hold a bound.
+    Emitting the bar convention would leave a horizontal chart with no interval
+    at all.
+
     Parameters
     ----------
     ax : Axes

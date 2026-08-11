@@ -180,6 +180,37 @@ def test_one_sided_error_reads_the_bound_that_exists():
     assert [point["yMax"] for point in points] == [4.6, 5.6, 7.9]
 
 
+@pytest.mark.parametrize(
+    ("limit", "expected_lower", "expected_upper"),
+    [
+        # `uplims` marks the estimate as an upper limit: the bar runs from
+        # below up to the estimate, so the upper bound coincides with it.
+        ("uplims", [3.7, 4.6, 6.8], Y),
+        # `lolims` is the mirror image.
+        ("lolims", Y, [4.7, 5.6, 7.8]),
+    ],
+)
+def test_a_one_sided_limit_reads_the_bar_that_was_drawn(
+    limit, expected_lower, expected_upper
+):
+    """
+    ``uplims``/``lolims`` change what the bar means, and are read correctly.
+
+    These are the kwargs the zero-offset case only approximates: they do not
+    change the offset at all, they change which side of the estimate the bar
+    is drawn on and swap the cap for an arrow. Reading the drawn geometry
+    handles them with no special casing -- which is the whole argument for
+    reading geometry -- but only this test actually pins it.
+    """
+    fig, ax = plt.subplots()
+    ax.errorbar(X, Y, yerr=0.5, **{limit: True})
+
+    points = _schema(fig)["data"]
+
+    assert [point["yMin"] for point in points] == expected_lower
+    assert [point["yMax"] for point in points] == expected_upper
+
+
 def test_horizontal_error_reports_horz_orientation():
     """
     ``xerr`` draws the interval along x, and the layer says so.

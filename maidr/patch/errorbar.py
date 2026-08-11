@@ -51,12 +51,16 @@ def errorbar(wrapped, instance, args, kwargs) -> ErrorbarContainer:
     with ContextManager.set_internal_context():
         container = _draw_quietly(wrapped, args, kwargs)
 
-    # `instance` is the bound Axes, always: this wraps `Axes.errorbar`, so
-    # wrapt has an instance to bind by construction. Reading it directly
-    # rather than routing through `FigureManager.get_axes` is deliberate --
-    # that helper has no branch for an `ErrorbarContainer`, which is a
-    # `Container` rather than an `Artist`, so it would answer None and the
-    # failure would surface as a bare "No plot found."
+    # Read the axes off `instance` rather than routing through
+    # `FigureManager.get_axes`: that helper has no branch for an
+    # `ErrorbarContainer`, which is a `Container` rather than an `Artist`, so
+    # it would answer None and the failure would surface as a bare "No plot
+    # found." rather than as anything to do with error bars.
+    #
+    # Wrapping `Axes.errorbar` means `instance` is the bound Axes on every
+    # call this patch can actually receive. The `getattr` keeps the same shape
+    # `lineplot.py` uses rather than asserting, so a wrapper installed on some
+    # other holder of the method degrades instead of raising here.
     ax = instance if isinstance(instance, Axes) else getattr(instance, "axes", None)
 
     FigureManager.create_maidr(
