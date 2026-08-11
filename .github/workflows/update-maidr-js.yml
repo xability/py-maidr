@@ -1,22 +1,40 @@
 name: Update bundled maidr.js
 
-# Manual escape hatch for refreshing the offline-bundled ``maidr.js`` and
-# its assets from the npm registry into ``maidr/static/`` and committing
-# the changes directly to ``main``.
+# Refreshes the offline-bundled ``maidr.js`` and its assets from the npm
+# registry into ``maidr/static/`` and commits the changes directly to
+# ``main``.  Runs when upstream publishes, and on demand.
 #
-# The routine, automatic refresh happens at py-maidr *release* time (see
-# ``release.yml``), so the latest upstream release is bundled *into* each
-# py-maidr release rather than trickling onto ``main`` whenever upstream
-# publishes.  This workflow is kept only for on-demand refreshes between
-# releases and is therefore ``workflow_dispatch``-only -- there is no
-# scheduled trigger.
+# What reaches *users* is still decided at py-maidr release time, not here:
+# ``release.yml`` refreshes the bundle again as part of cutting a release, so
+# a release always ships the upstream version that was current when it was
+# cut.  This workflow moves ``main`` forward in between, which is what makes
+# a freshly published upstream fix testable from a checkout without waiting
+# for the next release.
 #
 # The commit uses the ``chore:`` prefix so python-semantic-release
-# (configured in ``pyproject.toml``) does not treat a bundle refresh
-# as a new py-maidr release.  The next ``feat:`` / ``fix:`` / ``perf:``
-# commit to ``main`` will ship with the refreshed bundle automatically.
+# (configured in ``pyproject.toml``) does not treat a bundle refresh as a new
+# py-maidr release.  That is deliberate, and it is the limit of what this
+# workflow can do: an upstream release alone does not reach PyPI.  It ships
+# with the next ``feat:`` / ``fix:`` / ``perf:`` release, whenever that is.
+#
+# There is no scheduled trigger, and none is needed as a backstop the way
+# r-maidr has one.  r-maidr has no release pipeline -- whatever sits on
+# ``main`` at CRAN submission time is what ships -- so a missed refresh there
+# is a missed shipment.  Here the release-time refresh in ``release.yml``
+# already re-resolves the newest upstream, so a missed dispatch costs only
+# the head-of-``main`` currency, never the released artifact.
 
 on:
+  repository_dispatch:
+    # Sent by maidr's release workflow the moment ``npm publish`` succeeds.
+    # ``client_payload.version`` names the version just published, and the job
+    # fetches that exact version rather than re-resolving ``latest``, which
+    # sidesteps the window where the ``latest`` dist-tag has not propagated.
+    #
+    # repository_dispatch only ever triggers the workflow file as it exists on
+    # the default branch, so changes to this trigger take effect once they are
+    # on ``main`` and not before.
+    types: [maidr-released]
   workflow_dispatch:
     inputs:
       maidr_version:
@@ -31,6 +49,24 @@ jobs:
   update:
     name: Download latest maidr.js
     runs-on: ubuntu-latest
+    # Shares ``release.yml``'s group name on purpose. A concurrency group is
+    # scoped to the repository, not to a workflow, so naming the same group in
+    # both is what serialises them -- and they need serialising, because both
+    # push to ``main``: this job through git-auto-commit-action, that one
+    # through semantic-release. Overlapping, the second push is a
+    # non-fast-forward against a checkout taken before the first landed, and
+    # the loser is a failed release rather than anything corrupted.
+    #
+    # The window is narrow but it is not theoretical: the schedules are an
+    # hour apart precisely because upstream releases on Mondays, and an
+    # off-schedule upstream release now fires a dispatch here at any hour.
+    #
+    # Queuing, not cancelling, since the default is to wait. A refresh held
+    # behind a release then finds the bundle already current and commits
+    # nothing, because the release refreshed it too. If a second dispatch
+    # arrives while one is pending, the pending one is dropped -- the cost is
+    # ``main`` briefly trailing, never the released artifact.
+    concurrency: release
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,10 +74,18 @@ jobs:
       - name: Resolve, download and verify bundled assets
         id: bundle
         env:
-          # Pass the dispatch input through the environment rather than
+          # Pass the requested version through the environment rather than
           # interpolating ${{ ... }} into the script text, which would be a
-          # shell-injection surface in a job holding contents: write.
-          MAIDR_VERSION: ${{ github.event.inputs.maidr_version }}
+          # shell-injection surface in a job holding contents: write.  The
+          # same reasoning covers ``client_payload``, which is written by
+          # whoever holds the sending token rather than by this repository;
+          # the script validates the version against a strict pattern before
+          # it reaches a URL or a path, and verifies the download against the
+          # registry's published integrity hash.
+          #
+          # Empty when neither is supplied, which is what makes the script
+          # resolve ``latest`` on its own.
+          MAIDR_VERSION: ${{ github.event.inputs.maidr_version || github.event.client_payload.version }}
         run: |
           set -euo pipefail
           # Resolve (or use the requested version), download, and verify the

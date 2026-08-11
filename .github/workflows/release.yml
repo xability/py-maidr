@@ -106,9 +106,14 @@ jobs:
         # py-maidr cut its own release.  The refresh is committed locally
         # as ``xabilitylab`` but intentionally *not* pushed here: the
         # semantic-release step below pushes the branch, so this commit
-        # ships only when a release actually happens.  When no release is
-        # pending the commit is discarded with the runner, so the bundle
-        # never trickles onto ``main`` between releases.
+        # ships only when a release actually happens, and when no release is
+        # pending it is discarded with the runner.
+        #
+        # ``main`` may already carry a newer bundle than the last release:
+        # ``update-maidr-js.yml`` refreshes it whenever upstream publishes.
+        # That costs nothing here -- this step re-resolves the newest upstream
+        # either way, and finds nothing to commit when the bundle is already
+        # current -- and this step stays the authority on what users receive.
         run: |
           set -euo pipefail
 
