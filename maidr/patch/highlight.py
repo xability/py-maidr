@@ -4,7 +4,12 @@ import uuid
 
 import wrapt
 from matplotlib.backends.backend_svg import XMLWriter
-from matplotlib.collections import LineCollection, PathCollection, QuadMesh
+from matplotlib.collections import (
+    LineCollection,
+    PathCollection,
+    PolyQuadMesh,
+    QuadMesh,
+)
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -32,3 +37,14 @@ wrapt.wrap_function_wrapper(QuadMesh, "draw", tag_elements)
 wrapt.wrap_function_wrapper(Line2D, "draw", tag_elements)
 wrapt.wrap_function_wrapper(LineCollection, "draw", tag_elements)
 wrapt.wrap_function_wrapper(PathCollection, "draw", tag_elements)
+
+# `Axes.pcolor` renders a PolyQuadMesh rather than the QuadMesh `pcolormesh`
+# gives, so a pcolor heatmap read but carried no visual highlight.
+#
+# The wrapper goes on PolyQuadMesh and deliberately NOT on its PolyCollection
+# base. PolyCollection also backs violin bodies and `fill_between`, and tagging
+# it would hand every one of those a maidr gid and a highlight context they
+# were never extracted for. PolyQuadMesh inherits `draw` rather than defining
+# one, so wrapping it here installs a subclass-only override: the base class
+# and its other subclasses keep the unwrapped method.
+wrapt.wrap_function_wrapper(PolyQuadMesh, "draw", tag_elements)
