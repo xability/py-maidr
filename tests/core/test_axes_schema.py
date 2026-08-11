@@ -115,6 +115,22 @@ class TestMatplotlibCanonicalShape:
         finally:
             plt.close(fig)
 
+    def test_stackplot(self):
+        # A nested-data layer, whose series are lists of points rather than
+        # points -- the canonical axes shape has to hold for that too.
+        fig, ax = plt.subplots()
+        try:
+            ax.stackplot([1, 2, 3], [1.0, 2.0, 3.0], [2.0, 1.0, 4.0])
+            ax.set_xlabel("Year")
+            ax.set_ylabel("Revenue")
+            axes = _first_schema(fig)["axes"]
+
+            _assert_canonical_axes(axes)
+            assert axes["x"]["label"] == "Year"
+            assert axes["y"]["label"] == "Revenue"
+        finally:
+            plt.close(fig)
+
     def test_pointplot(self):
         # The same layer type reached by a different route: seaborn builds the
         # axes itself, so the canonical shape has to survive a chart this

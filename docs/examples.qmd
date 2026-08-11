@@ -657,6 +657,43 @@ ax.set_ylabel("Response")
 plt.show() #<<
 ```
 
+### Area Plot
+
+`ax.stackplot()` reads as an area chart rather than a line one, and the
+distinction matters: a stacked area draws **two** numbers at each point that a
+line would conflate. The band's height is the series' own value; its top edge
+is the running total. maidr announces the value and reports the total beside
+it, so a reader always knows which they heard.
+
+A single band is a plain area — nothing is stacked on it, so a running total
+equal to its own value would be noise. `baseline="wiggle"` (a streamgraph)
+reads the same way as any stacked area: floating the stack moves where the
+bands sit without changing what any band measures.
+
+```{python}
+#| fig-alt: Stacked area chart of revenue by source over four years
+
+import matplotlib.pyplot as plt
+
+import maidr #<<
+
+years = [2019, 2020, 2021, 2022]
+subscriptions = [10, 20, 25, 30]
+services = [5, 8, 12, 14]
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.stackplot( #<<
+    years, subscriptions, services, labels=["Subscriptions", "Services"]
+)
+
+ax.set_title("Revenue by Source")
+ax.set_xlabel("Year")
+ax.set_ylabel("Revenue (millions)")
+ax.legend(loc="upper left")
+
+plt.show() #<<
+```
+
 ### Point Plot
 
 `sns.pointplot()` is the same reading from the other direction: it estimates a
