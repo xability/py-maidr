@@ -97,7 +97,15 @@ def test_hist2d_extracts_the_bin_counts_as_a_grid():
 
 
 def test_hist2d_supports_highlighting():
-    """The mesh is tagged, so the cell under the cursor can be highlighted."""
+    """
+    The mesh is tagged, so the cell under the cursor can be highlighted.
+
+    Both halves are asserted because the flag alone does not say the mesh was
+    tagged. ``_support_highlighting`` starts True and is only ever cleared, so
+    it reports which branch the extraction took; were the tagging inside that
+    branch dropped, the flag would stay True and highlighting would break in
+    silence. ``elements`` is the thing the docstring above actually claims.
+    """
     fig, ax = plt.subplots()
     ax.hist2d(X, Y, bins=(3, 2))
 
@@ -105,6 +113,7 @@ def test_hist2d_supports_highlighting():
     plot._extract_plot_data()
 
     assert plot._support_highlighting is True
+    assert plot.elements, "the QuadMesh should be tagged for highlighting"
 
 
 def test_hist2d_registers_exactly_one_layer():
