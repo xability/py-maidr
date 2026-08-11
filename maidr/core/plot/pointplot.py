@@ -104,11 +104,18 @@ class PointPlot(ErrorBarPlot):
         if not data:
             raise ExtractionError(self.type, self.ax)
 
-        if not self._elements:
-            # Every interval was empty -- a group with a single observation
-            # has no interval to draw -- so nothing carries the `maidr`
-            # attribute the selector goes looking for, and emitting one would
-            # promise highlightable paths the document does not contain.
+        if len(self._elements) != len(data):
+            # The consumer resolves the selector to one element per point, in
+            # point order, and discards the result outright when the count
+            # disagrees. A chart where only some groups have an interval --
+            # ordinary imbalanced data, where one category holds a single
+            # observation -- would therefore emit a selector that resolves
+            # short and silently highlights nothing at all.
+            #
+            # Better to say so: the layer promises a selector only when it can
+            # deliver one element for every point, and the announcement, which
+            # is the reading, is unaffected either way.
+            self._elements.clear()
             self._support_highlighting = False
 
         return data

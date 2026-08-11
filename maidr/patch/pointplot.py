@@ -86,19 +86,25 @@ def point(wrapped, instance, args, kwargs) -> Axes:
         return ax
 
     paired = _pairs_up(estimates, intervals)
+    measured = any(_is_drawn(line.get_xydata()) for line in intervals)
 
-    if paired and intervals and len(estimates) == 1:
+    if paired and measured and len(estimates) == 1:
         FigureManager.create_maidr(
             ax, PlotType.ERRORBAR, estimate=estimates[0], intervals=intervals
         )
         return ax
 
     # Everything else is a line chart. `errorbar=None` draws no intervals to
-    # carry, and more than one estimate means a `hue` split the chart into
-    # groups while the MAIDR error bar layer carries a single series -- so
-    # those intervals are dropped rather than mis-assigned. Both are still a
+    # carry, a chart whose every group holds one observation has none to draw,
+    # and more than one estimate means a `hue` split the chart into groups
+    # while the MAIDR error bar layer carries a single series -- so those
+    # intervals are dropped rather than mis-assigned. All three are still a
     # repair over describing every drawn line, since the interval polylines no
     # longer travel as series of their own.
+    #
+    # A chart where only *some* groups have an interval takes the branch above,
+    # not this one: the undrawable lines stay in the list to hold their
+    # positions, and the layer omits the bound for those groups alone.
     FigureManager.create_maidr(
         ax, PlotType.LINE, lines=estimates if paired else drawn
     )
@@ -158,7 +164,12 @@ def _split(lines: list[Line2D]) -> tuple[list[Line2D], list[Line2D]]:
             continue
         if line.get_marker() != _INTERVAL_MARKER:
             estimates.append(line)
-        elif _is_drawn(vertices):
+        else:
+            # Kept whether or not it carries a bound. The list is read against
+            # the estimates *by position*, so dropping the line a group with a
+            # single observation leaves behind would shift every later group's
+            # interval onto the wrong estimate. `_is_drawn` decides what to do
+            # with it; it does not decide whether it is there.
             intervals.append(line)
 
     return estimates, intervals
@@ -174,6 +185,11 @@ def _is_drawn(vertices: np.ndarray) -> bool:
     carries no bound, and treating it as one hands the reader the cap's own
     width as the interval, which is neither a measurement nor even in the
     right units.
+
+    Answering False does not remove the line: it stays in the list to hold its
+    group's position, and the layer omits that one group's bound. What this
+    decides is whether the chart draws *any* interval, and so whether it is an
+    error bar chart at all.
 
     Tested as "two vertices finite in both coordinates", which is what it
     takes to draw a segment at all, so the check needs no view on which axis

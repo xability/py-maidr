@@ -477,3 +477,67 @@ def test_a_horizontal_dodge_still_reports_raw_category_offsets():
         for series in schema["data"]
         for point in series
     )
+
+
+#: Two groups of five observations and one of a single observation -- ordinary
+#: imbalanced categorical data, and the shape where only *some* groups have an
+#: interval to draw.
+MIXED = pd.DataFrame(
+    {
+        "g": ["a"] * 5 + ["b"] * 5 + ["c"] * 1,
+        "v": [1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 11.0, 12.0, 13.0, 14.0, 7.0],
+    }
+)
+
+
+def test_a_group_without_an_interval_does_not_cost_the_others_theirs():
+    """
+    Only some groups having an interval is the common case, not the exotic one.
+
+    An imbalanced frame -- one category with a single observation among several
+    larger ones -- draws intervals for the groups that have them and a NaN
+    polyline for the group that does not. Dropping that polyline would leave the
+    list one short of the estimates and shift every later group's interval onto
+    the wrong estimate, so it stays in place and only its own bound is omitted.
+
+    Before this, the count check failed and the layer fell back to describing
+    every drawn line: four series for a three-group chart, one of them a pair of
+    NaNs -- the exact rendering this module exists to remove.
+    """
+    fig, ax = plt.subplots()
+    sns.pointplot(MIXED, x="g", y="v", ax=ax)
+
+    schema = _schema(fig)
+    data = schema["data"]
+
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert [point["x"] for point in data] == ["a", "b", "c"]
+    # The two measurable groups keep their bounds, correctly paired.
+    assert data[0]["yMin"] < data[0]["y"] < data[0]["yMax"]
+    assert data[1]["yMin"] < data[1]["y"] < data[1]["yMax"]
+    assert data[1]["yMin"] > data[0]["yMax"]
+    # The single-observation group carries its estimate and no interval.
+    assert data[2]["y"] == 7.0
+    assert "yMin" not in data[2]
+    assert "yMax" not in data[2]
+
+
+def test_a_partial_interval_promises_no_highlight():
+    """
+    The selector resolves to one element per point, or the consumer drops it.
+
+    A chart where only some groups have an interval has fewer drawn elements
+    than points, so the selector resolves short and the consumer discards the
+    whole result -- highlighting nothing while the schema said it would. Saying
+    so is better than promising it; the announcement is unaffected either way.
+    """
+    fig, ax = plt.subplots()
+    sns.pointplot(MIXED, x="g", y="v", ax=ax)
+
+    plot = _plots(fig)[0]
+    schema = plot.render()
+
+    assert len(schema["data"]) == 3
+    assert plot._support_highlighting is False
+    assert not plot.elements
+    assert "selectors" not in schema
