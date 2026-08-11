@@ -58,6 +58,7 @@ class FigureManager:
         PlotType.CANDLESTICK: 1,
         PlotType.VIOLIN_KDE: 1,
         PlotType.VIOLIN_BOX: 1,
+        PlotType.ERRORBAR: 1,
     }
 
     _instance = None

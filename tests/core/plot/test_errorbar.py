@@ -16,6 +16,8 @@ coincide.
 
 from __future__ import annotations
 
+import datetime
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -286,6 +288,29 @@ def test_categorical_x_keeps_its_labels():
     points = _schema(fig)["data"]
 
     assert [point["x"] for point in points] == ["control", "low", "high"]
+
+
+def test_a_date_axis_does_not_break_the_figure():
+    """
+    Error bars on a time series read, rather than raising.
+
+    ``ax.errorbar(dates, ...)`` is ordinary on a time series, and matplotlib
+    hands the dates back as ``datetime`` objects rather than as the ordinals it
+    drew. Coercing those to float raises, which would take out the user's whole
+    figure over an axis matplotlib is perfectly happy with -- so the label
+    travels as a string, which the schema allows for ``x``.
+    """
+    dates = [datetime.date(2026, 1, day) for day in (1, 2, 3)]
+
+    fig, ax = plt.subplots()
+    ax.errorbar(dates, Y, yerr=0.5)
+
+    points = _schema(fig)["data"]
+
+    assert [point["x"] for point in points] == ["2026-01-01", "2026-01-02", "2026-01-03"]
+    # The magnitude and its bounds are still numbers, so sonification works.
+    assert points[0]["y"] == 4.2
+    assert points[0]["yMin"] == 3.7
 
 
 def test_two_calls_register_two_distinct_layers():

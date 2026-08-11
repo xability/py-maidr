@@ -283,8 +283,18 @@ class ErrorBarPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         Returns
         -------
         Any
-            A float, or the string a categorical axis carries.
+            A float, or a string for a coordinate that is not numeric.
         """
         if isinstance(value, (str, np.str_)):
             return str(value)
-        return float(value)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            # A date axis is the case that reaches here: `ax.errorbar(dates,
+            # ...)` is ordinary on a time series, and matplotlib hands the
+            # dates back as `datetime` objects rather than as the ordinals it
+            # drew. Raising would take out the user's whole figure over an axis
+            # matplotlib is perfectly happy with, so the label travels as a
+            # string -- which the schema allows for `x`, and which reads better
+            # than the bare ordinal a scatter emits.
+            return str(value)
