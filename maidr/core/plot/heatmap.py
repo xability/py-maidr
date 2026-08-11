@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy.ma as ma
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
-from matplotlib.collections import QuadMesh
+from matplotlib.collections import PolyQuadMesh, QuadMesh
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
@@ -64,11 +64,16 @@ class HeatPlot(
             return None
 
         array = sm.get_array().data
-        if isinstance(sm, QuadMesh):
-            # Data gets flattened in ScalarMappable, when the plot is from QuadMesh.
-            # So, reshaping the data to reflect the original quadrilaterals
-            m, n, _ = ma.shape(sm.get_coordinates())
-            array = array.reshape(m - 1, n - 1)  # Coordinates shape is (M + 1, N + 1)
+        if isinstance(sm, (QuadMesh, PolyQuadMesh)):
+            # The two mesh classes disagree about the shape they keep their
+            # values in: `pcolormesh`'s QuadMesh flattens them, while
+            # `pcolor`'s PolyQuadMesh keeps the grid. Reshaping unconditionally
+            # would fail on the one that is already two-dimensional, so the
+            # recovery is driven by the array rather than by the class.
+            if array.ndim == 1:
+                m, n, _ = ma.shape(sm.get_coordinates())
+                # Coordinates shape is (M + 1, N + 1)
+                array = array.reshape(m - 1, n - 1)
 
             # Tag the elements for highlighting
             self._elements.append(sm)

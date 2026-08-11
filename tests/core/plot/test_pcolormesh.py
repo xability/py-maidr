@@ -22,8 +22,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
+from matplotlib.collections import PolyCollection, PolyQuadMesh  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
+from maidr.core.enum import MaidrKey  # noqa: E402
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 
@@ -114,15 +116,13 @@ def test_pcolormesh_supports_highlighting():
     assert plot.elements, "the QuadMesh should be tagged for highlighting"
 
 
-def test_pcolor_reads_without_highlighting():
+def test_pcolor_supports_highlighting():
     """
-    ``pcolor`` renders as a ``PolyQuadMesh``, which `patch/highlight.py` does
-    not tag, so the layer reads through audio, text and braille but carries no
-    visual highlight.
+    ``pcolor`` renders a ``PolyQuadMesh``, which is tagged for highlighting
+    just as ``pcolormesh``'s ``QuadMesh`` is.
 
-    Asserted rather than left implicit: it is the one way the two entry points
-    differ, and a future change that starts tagging ``PolyCollection`` should
-    have to come back and update this.
+    This replaces an earlier assertion that ``pcolor`` read *without* a
+    highlight, which was true only because nothing tagged its class yet.
     """
     fig, ax = plt.subplots()
     ax.pcolor(X_EDGES, Y_EDGES, VALUES)
@@ -130,7 +130,22 @@ def test_pcolor_reads_without_highlighting():
     plot = _sole_plot(fig)
     plot._extract_plot_data()
 
-    assert plot._support_highlighting is False
+    assert plot._support_highlighting is True
+    assert plot.elements, "the PolyQuadMesh should be tagged for highlighting"
+
+
+def test_tagging_pcolor_leaves_other_poly_collections_alone():
+    """
+    Only ``PolyQuadMesh`` is tagged, never its ``PolyCollection`` base.
+
+    ``PolyCollection`` also backs violin bodies and ``fill_between``. Tagging
+    it would hand every one of those a maidr gid and a highlight context they
+    were never extracted for, which is why the wrapper is installed on the
+    subclass — one that inherits ``draw`` rather than defining its own, so
+    wrapping it shadows the method for ``pcolor`` alone.
+    """
+    assert "draw" in PolyQuadMesh.__dict__, "the subclass override is what scopes this"
+    assert "draw" not in PolyCollection.__dict__, "the base must stay unwrapped"
 
 
 def test_seaborn_heatmap_still_registers_one_layer():
@@ -175,6 +190,36 @@ def test_fmt_is_read_but_not_forwarded_to_matplotlib(draw):
     # being dropped along with the kwarg.
     points = _sole_plot(fig)._extract_plot_data()["points"]
     assert points == VALUES.tolist()
+
+
+@pytest.mark.parametrize("draw", ["pcolormesh", "pcolor", "imshow"])
+def test_z_label_reaches_the_schema_and_not_matplotlib(draw):
+    """
+    ``z_label`` names the colour dimension and is MAIDR's own — matplotlib has
+    never heard of it, so it must be lifted out of ``kwargs`` before the draw
+    and still reach the emitted axes.
+
+    Parametrized across all three matplotlib entry points because the lifting
+    happens once, before the wrapped call, and a per-entry-point regression
+    would be invisible from any single one of them.
+    """
+    fig, ax = plt.subplots()
+    if draw == "imshow":
+        ax.imshow(VALUES, z_label="Temperature")
+    else:
+        getattr(ax, draw)(X_EDGES, Y_EDGES, VALUES, z_label="Temperature")
+
+    axes = _sole_plot(fig)._extract_axes_data()
+
+    assert axes[MaidrKey.Z] == {"label": "Temperature"}
+
+
+def test_z_label_defaults_when_the_caller_omits_it():
+    """A heatmap drawn without a ``z_label`` still names its colour axis."""
+    fig, ax = plt.subplots()
+    ax.pcolormesh(X_EDGES, Y_EDGES, VALUES)
+
+    assert _sole_plot(fig)._extract_axes_data()[MaidrKey.Z] == {"label": "Z"}
 
 
 def test_seaborn_heatmap_still_receives_fmt():

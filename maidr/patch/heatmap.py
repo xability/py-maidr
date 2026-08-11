@@ -52,6 +52,38 @@ def _declares_fmt(wrapped: Callable) -> bool:
 
 
 def heat(wrapped, _, args, kwargs) -> Axes | AxesImage | Collection:
+    """
+    Draw a patched heatmap call and register the layer it produced with MAIDR.
+
+    Wraps every way a heatmap reaches the canvas: ``Axes.imshow``,
+    ``Axes.pcolormesh``, ``Axes.pcolor`` and ``seaborn.heatmap``. Two MAIDR-only
+    parameters are lifted out of ``kwargs`` before the draw — ``z_label``, which
+    names the colour dimension and which matplotlib has never heard of, and
+    ``fmt``, which only ``seaborn.heatmap`` declares.
+
+    This does not route through :func:`maidr.patch.common.common` precisely
+    because of that lifting: ``common`` forwards ``kwargs`` untouched, and these
+    two have to be removed first.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        The original plotting function.
+    _ : Any
+        The instance wrapt bound the patched function to, or None for a
+        module-level function. Unused here, and named for that.
+    args : tuple
+        Positional arguments the caller passed.
+    kwargs : dict
+        Keyword arguments the caller passed.
+
+    Returns
+    -------
+    Axes or AxesImage or Collection
+        Whatever the wrapped function returned: an ``Axes`` from seaborn, an
+        ``AxesImage`` from ``imshow``, or the mesh the two ``pcolor`` variants
+        render.
+    """
     # `seaborn.heatmap` draws through `Axes.pcolormesh`, and both are patched
     # here. Without this guard the inner call registers a second HEAT layer for
     # the same axes, so one `sns.heatmap()` would be announced as two identical
