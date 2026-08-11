@@ -657,6 +657,40 @@ ax.set_ylabel("Response")
 plt.show() #<<
 ```
 
+### Point Plot
+
+`sns.pointplot()` is the same reading from the other direction: it estimates a
+group mean from raw observations and draws the interval around it for you. It
+reads as an error bar layer, so navigation is the same grid — left and right
+walk the groups, up and down walk the lower bound, the estimate and the upper
+bound.
+
+`capsize`, `orient` and `errorbar=` change how the chart is drawn, not how it
+is read; the bounds come from the drawn interval either way. A `hue` splits the
+chart into several series, which the error bar layer cannot yet carry
+alongside its intervals, so a hued point plot reads as the multi-line chart it
+is.
+
+```{python}
+#| fig-alt: Mean body mass by penguin species with 95% confidence intervals
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+fig, ax = plt.subplots(figsize=(8, 5))
+sns.pointplot( #<<
+    penguins, x="species", y="body_mass_g", capsize=0.1, ax=ax
+)
+
+ax.set_title("Mean Body Mass by Species, with 95% Confidence Intervals")
+ax.set_xlabel("Species")
+ax.set_ylabel("Body Mass (g)")
+
+plt.show() #<<
+```
+
 ### Scatter Plot
 
 ```{python}

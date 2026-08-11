@@ -11,6 +11,7 @@ from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.core.plot.pieplot import PiePlot
+from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
 from maidr.core.plot.stepplot import StepPlot
@@ -56,6 +57,12 @@ class MaidrPlotFactory:
         elif PlotType.BOX == plot_type:
             return BoxPlot(single_ax, **kwargs)
         elif PlotType.ERRORBAR == plot_type:
+            # Both read an estimate and the interval around it, and both emit
+            # the same layer; they differ only in what the library drew.
+            # `Axes.errorbar` leaves a container, while seaborn's point plot
+            # leaves the lines the patch resolved and hands them over here.
+            if "estimate" in kwargs:
+                return PointPlot(single_ax, **kwargs)
             return ErrorBarPlot(single_ax, **kwargs)
         elif PlotType.HEAT == plot_type:
             return HeatPlot(single_ax, **kwargs)

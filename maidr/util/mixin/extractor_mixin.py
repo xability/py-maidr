@@ -158,6 +158,17 @@ class LineExtractorMixin:
             if text
         }
 
+        # A string-category axis puts its groups on consecutive integers, so a
+        # point drawn off one is a group a `dodge` shifted aside to make room
+        # for its neighbour -- still that group, and still named by the tick it
+        # was moved from. Rounding recovers the name; without it a dodged
+        # series announces "-0.025" where the chart says "Thur".
+        #
+        # Gated on the axis really being categorical, because on a numeric axis
+        # the same rounding would rename a measurement after whichever tick it
+        # happens to fall nearest.
+        is_categorical = ax.xaxis.units is not None
+
         # If we have categorical labels, map numeric coordinates to labels
         if tick_map:
             result: List[Tuple[Union[str, float], float]] = []
@@ -166,6 +177,8 @@ class LineExtractorMixin:
                 # Look up by coordinate value; fall back to the numeric x when
                 # the data point doesn't sit exactly on a labelled tick.
                 label_value = tick_map.get(x_coord)
+                if label_value is None and is_categorical:
+                    label_value = tick_map.get(float(round(x_coord)))
                 x_value: Union[str, float] = (
                     label_value if label_value is not None else x_coord
                 )
