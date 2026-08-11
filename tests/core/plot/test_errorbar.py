@@ -235,6 +235,40 @@ def test_horizontal_error_reports_horz_orientation():
     assert schema["data"][0] == {"x": 4.2, "y": 0.0, "yMin": -0.3, "yMax": 0.3}
 
 
+def test_horizontal_axes_labels_pair_with_the_swapped_data():
+    """
+    The axis labels stay screen-aligned, and still pair correctly.
+
+    This is the half of the horizontal case that looks wrong in isolation: the
+    labels are emitted screen-aligned (``x`` is the axis the magnitude is drawn
+    on) while the data is orientation-invariant (``x`` is the category). Read
+    naively as "axes.x with data.x" that pairs "Response" with "control".
+
+    It resolves in the consumer, which swaps which label goes with which value
+    exactly when the layer is horizontal::
+
+        main  = { label: yAxis,  value: point.x }  -> "Group: control"
+        cross = { label: xAxis,  value: magnitude } -> "Response: 4.2"
+
+    So both halves have to be asserted together, or a future change to either
+    one alone would silently transpose every horizontal chart's announcement.
+    """
+    fig, ax = plt.subplots()
+    ax.errorbar(Y, ["control", "low", "high"], xerr=0.3)
+    ax.set_xlabel("Response")  # the magnitude, on the real x axis
+    ax.set_ylabel("Group")  # the category, on the real y axis
+
+    schema = _schema(fig)
+
+    assert schema["orientation"] == "horz"
+    # Labels: screen-aligned, as every other plot type emits them.
+    assert schema["axes"]["x"]["label"] == "Response"
+    assert schema["axes"]["y"]["label"] == "Group"
+    # Data: category in x, magnitude in y, in both orientations.
+    assert schema["data"][0]["x"] == "control"
+    assert schema["data"][0]["y"] == 4.2
+
+
 def test_vertical_error_reports_vert_orientation():
     """``yerr`` is the vertical case, and the default."""
     fig, ax = plt.subplots()
