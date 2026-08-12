@@ -57,10 +57,30 @@ class ViolinKdePlot(MaidrPlot):
     # Selector
     # ------------------------------------------------------------------
     def _get_selector(self) -> list[str]:
-        """Return one CSS selector per violin using PolyCollection GIDs."""
-        if self._poly_gids:
-            return [f"g[id='{gid}'] path, g[id='{gid}'] use" for gid in self._poly_gids]
-        return ["g[id^='maidr-'] path"]
+        """
+        Return one CSS selector per violin using PolyCollection GIDs.
+
+        In the order the data was emitted, which for a horizontal violin is
+        the reverse of the order the collections were drawn in -- the box
+        layer's convention, which the KDE layer matches.
+
+        The reversal is done here rather than to ``self._poly_gids``, because
+        that list is the constructor's and persists across renders. Reversing
+        it in place put it back in drawn order on every second render while
+        the data, rebuilt each time, stayed reversed -- so an even number of
+        renders left selector *i* pointing at a different violin from point
+        *i*, and the highlight landed on a neighbour. The same failure #354
+        describes, one list further along.
+        """
+        if not self._poly_gids:
+            return ["g[id^='maidr-'] path"]
+
+        gids = (
+            list(reversed(self._poly_gids))
+            if self._orientation == "horz"
+            else self._poly_gids
+        )
+        return [f"g[id='{gid}'] path, g[id='{gid}'] use" for gid in gids]
 
     # ------------------------------------------------------------------
     # Data extraction
@@ -109,9 +129,11 @@ class ViolinKdePlot(MaidrPlot):
             all_violins.append(violin_points)
 
         # Reverse for horizontal to match the box layer's ordering convention.
+        # `all_violins` is rebuilt every call, so reversing it is idempotent;
+        # the matching order for the selectors is derived in `_get_selector`
+        # rather than written back onto the constructor's gid list.
         if is_horz:
             all_violins.reverse()
-            self._poly_gids.reverse()
 
         return all_violins
 

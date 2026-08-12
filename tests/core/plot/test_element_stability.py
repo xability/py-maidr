@@ -323,6 +323,73 @@ def test_the_mplfinance_layers_extract_once_per_render():
         assert len(plot.elements) == expected[name], name
 
 
+def test_a_horizontal_violin_keeps_its_selectors_paired_with_its_data():
+    """
+    The KDE layer reversed a list it did not own.
+
+    A horizontal violin emits its series in the reverse of the drawn order, to
+    match the box layer's convention. The data is rebuilt each render so
+    reversing it is idempotent, but the gid list comes from the constructor
+    and persists -- and it was reversed **in place**, so it was back in drawn
+    order on every second render while the data was still reversed. Selector
+    *i* then pointed at a different violin from point *i*, and the highlight
+    landed on a neighbour. Silently, with no error and no change to anything
+    announced: the same failure this file exists for, one list further along.
+
+    Rendering an even number of times is exactly what the cases above do for
+    every other layer, and none of them is horizontal.
+    """
+    from maidr.core.plot.violin_kde_plot import ViolinKdePlot
+
+    fig, ax = plt.subplots()
+    ax.violinplot(
+        [[1.0, 2.0, 3.0, 9.0], [20.0, 21.0, 22.0, 30.0], [5.0, 6.0, 7.0, 8.0]],
+        vert=False,
+    )
+    plot = [p for p in _plots(fig) if isinstance(p, ViolinKdePlot)][0]
+    assert plot._orientation == "horz"
+
+    drawn = list(plot._poly_gids)
+    selectors = [plot.render()["selectors"] for _ in range(4)]
+
+    # Every render agrees, rather than alternating between two orders.
+    assert selectors[1:] == selectors[:-1]
+
+    # And they agree on the *right* order: the reverse of the drawn one,
+    # which is the order the data comes out in.
+    assert all(
+        gid in selector
+        for gid, selector in zip(reversed(drawn), selectors[0])
+    )
+
+    # The constructor's list is left as it was found.
+    assert plot._poly_gids == drawn
+
+
+def test_a_vertical_violin_addresses_its_violins_in_drawn_order():
+    """
+    The counterpart: no reversal where none is due.
+
+    A fix that reversed unconditionally would satisfy the stability check
+    above and pair every vertical violin with the wrong body.
+    """
+    from maidr.core.plot.violin_kde_plot import ViolinKdePlot
+
+    fig, ax = plt.subplots()
+    ax.violinplot(
+        [[1.0, 2.0, 3.0, 9.0], [20.0, 21.0, 22.0, 30.0], [5.0, 6.0, 7.0, 8.0]]
+    )
+    plot = [p for p in _plots(fig) if isinstance(p, ViolinKdePlot)][0]
+    assert plot._orientation == "vert"
+
+    drawn = list(plot._poly_gids)
+    selectors = plot.render()["selectors"]
+
+    assert all(
+        gid in selector for gid, selector in zip(drawn, selectors)
+    )
+
+
 def test_a_violin_keeps_its_bodies_as_well_as_its_curves():
     """
     ``ViolinKdePlot`` registered its bodies in ``__init__``.
