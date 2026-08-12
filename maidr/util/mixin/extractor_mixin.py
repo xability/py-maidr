@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
@@ -114,11 +114,96 @@ class LineExtractorMixin:
         return ax.get_lines()
 
     @staticmethod
+    def _category_tick_labels(ax: Axes, axis: str) -> Dict[float, str]:
+        """
+        Map an axis's tick coordinates to the names written beside them.
+
+        Built from the *unfiltered* tick positions and labels, and keyed by
+        tick coordinate rather than array index, so it survives boundary ticks
+        being filtered elsewhere (``LevelExtractorMixin.extract_level``) and
+        tick layouts that are neither contiguous nor zero-based.
+
+        Empty unless the axis really is a string-category axis: matplotlib
+        leaves a ``UnitData`` on the axis it mapped strings onto, and nothing
+        else. A numeric axis has tick labels too -- "0", "25", "1.00" -- and
+        they are formatted renderings of the numbers rather than names for
+        them, so substituting one costs the value both its type and its
+        precision.
+
+        Parameters
+        ----------
+        ax : Axes
+            The matplotlib axes object
+        axis : str
+            ``"x"`` or ``"y"``
+
+        Returns
+        -------
+        Dict[float, str]
+            Tick coordinate to label, or an empty mapping on a numeric axis
+        """
+        holder = ax.xaxis if axis == "x" else ax.yaxis
+        if holder.units is None:
+            return {}
+
+        positions = ax.get_xticks() if axis == "x" else ax.get_yticks()
+        labels = ax.get_xticklabels() if axis == "x" else ax.get_yticklabels()
+        return {
+            float(pos): label.get_text()
+            for pos, label in zip(positions, labels)
+            if label.get_text()
+        }
+
+    @staticmethod
+    def _named_coordinate(
+        coordinate: float, tick_labels: Dict[float, str]
+    ) -> Union[str, float]:
+        """
+        Name one coordinate after the tick it was drawn on, when there is one.
+
+        A string-category axis puts its groups on consecutive integers, so a
+        point drawn *off* one is a group a ``dodge`` shifted aside to make room
+        for its neighbour -- still that group, and still named by the tick it
+        was moved from. Rounding recovers the name; without it a dodged series
+        announces "-0.025" where the chart says "Thur".
+
+        ``tick_labels`` is empty on a numeric axis, so the same rounding cannot
+        rename a measurement after whichever tick it happens to fall nearest.
+
+        Parameters
+        ----------
+        coordinate : float
+            The drawn coordinate
+        tick_labels : Dict[float, str]
+            The axis's tick names, from :meth:`_category_tick_labels`
+
+        Returns
+        -------
+        Union[str, float]
+            The tick's name, or the coordinate when the axis has none
+        """
+        if not tick_labels:
+            return float(coordinate)
+
+        exact = tick_labels.get(float(coordinate))
+        if exact is not None:
+            return exact
+
+        nearest = tick_labels.get(float(round(coordinate)))
+        return nearest if nearest is not None else float(coordinate)
+
+    @staticmethod
     def extract_line_data_with_categorical_labels(
         ax: Axes, line: Line2D
-    ) -> Optional[List[Tuple[Union[str, float], float]]]:
+    ) -> Optional[List[Tuple[Union[str, float], Union[str, float]]]]:
         """
-        Extract line data with proper handling of categorical x-axis labels.
+        Extract line data, naming whichever axis carries the categories.
+
+        Categories sit on x in a vertical chart and on y in a horizontal one,
+        and the axis that carries them is the one to recover names from. This
+        followed x alone, so a horizontal categorical chart announced its
+        groups as the positions they were drawn at -- and a dodged one as the
+        offsets it was shifted to (#353).
 
         Parameters
         ----------
@@ -129,9 +214,9 @@ class LineExtractorMixin:
 
         Returns
         -------
-        Optional[List[Tuple[Union[str, float], float]]]
-            List of (x, y) tuples where x values are categorical labels if available,
-            or numeric values if no categorical labels are found
+        Optional[List[Tuple[Union[str, float], Union[str, float]]]]
+            List of (x, y) tuples, each coordinate being the name written
+            beside it on a category axis and the drawn number otherwise
         """
         if ax is None or line is None:
             return None
@@ -145,48 +230,16 @@ class LineExtractorMixin:
         if xy_array.size == 0:
             return None
 
-        # Build a coordinate -> label map directly from the *unfiltered* tick
-        # positions and labels. Looking up by tick *coordinate* (not array
-        # index) avoids off-by-one errors when boundary ticks are filtered
-        # elsewhere (e.g. by ``LevelExtractorMixin.extract_level``) and
-        # gracefully handles non-contiguous or non-zero-based tick layouts.
-        tick_positions = ax.get_xticks()
-        tick_labels = [label.get_text() for label in ax.get_xticklabels()]
-        tick_map = {
-            float(pos): text
-            for pos, text in zip(tick_positions, tick_labels)
-            if text
-        }
+        x_ticks = LineExtractorMixin._category_tick_labels(ax, "x")
+        y_ticks = LineExtractorMixin._category_tick_labels(ax, "y")
 
-        # A string-category axis puts its groups on consecutive integers, so a
-        # point drawn off one is a group a `dodge` shifted aside to make room
-        # for its neighbour -- still that group, and still named by the tick it
-        # was moved from. Rounding recovers the name; without it a dodged
-        # series announces "-0.025" where the chart says "Thur".
-        #
-        # Gated on the axis really being categorical, because on a numeric axis
-        # the same rounding would rename a measurement after whichever tick it
-        # happens to fall nearest.
-        is_categorical = ax.xaxis.units is not None
-
-        # If we have categorical labels, map numeric coordinates to labels
-        if tick_map:
-            result: List[Tuple[Union[str, float], float]] = []
-            for x, y in xy_array:
-                x_coord = float(x)
-                # Look up by coordinate value; fall back to the numeric x when
-                # the data point doesn't sit exactly on a labelled tick.
-                label_value = tick_map.get(x_coord)
-                if label_value is None and is_categorical:
-                    label_value = tick_map.get(float(round(x_coord)))
-                x_value: Union[str, float] = (
-                    label_value if label_value is not None else x_coord
-                )
-                result.append((x_value, float(y)))
-            return result
-        else:
-            # No categorical labels, return numeric values
-            return [(float(x), float(y)) for x, y in xy_array]
+        return [
+            (
+                LineExtractorMixin._named_coordinate(x, x_ticks),
+                LineExtractorMixin._named_coordinate(y, y_ticks),
+            )
+            for x, y in xy_array
+        ]
 
 
 class CollectionExtractorMixin:

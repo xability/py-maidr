@@ -453,15 +453,14 @@ def test_nothing_recognisable_still_describes_the_lines():
     assert plots[0].type == PlotType.LINE
 
 
-def test_a_horizontal_dodge_still_reports_raw_category_offsets():
+def test_a_horizontal_dodge_names_its_groups():
     """
-    The known limit of the tick-rounding fix, pinned rather than left implicit.
+    The categories are on y here, and they are named there (#353).
 
-    ``extract_line_data_with_categorical_labels`` reads the *x* ticks only, so
-    the label recovery helps a vertical dodged chart and not a horizontal one,
-    whose categories sit on y. Recorded here so the gap is visible and so the
-    day the shared helper learns to follow the category axis, this test turns
-    red rather than the behaviour changing unnoticed. Tracked in #353.
+    This replaces a test that pinned the gap. ``-0.025`` and ``0.975`` are
+    where two hue levels were shifted to make room for each other around the
+    ticks the chart writes ``a`` and ``b`` on, so a reader was given the
+    offsets and no way to reach the names.
     """
     frame = FRAME.assign(half=["x", "y"] * 9)
 
@@ -470,13 +469,88 @@ def test_a_horizontal_dodge_still_reports_raw_category_offsets():
 
     schema = _schema(fig)
 
-    # Category positions on y, still numeric and still dodged aside.
     assert schema["type"] == PlotType.LINE.value
+    named = {point["y"] for series in schema["data"] for point in series}
+    assert named == set(FRAME["group"].unique())
+
+    # The value axis is still numeric: only the axis carrying the categories
+    # is named, and naming both would have made the measurement a string.
     assert all(
-        isinstance(point["y"], float)
+        isinstance(point["x"], float)
         for series in schema["data"]
         for point in series
     )
+
+
+def test_a_horizontal_chart_names_its_groups_without_a_dodge():
+    """
+    An undodged horizontal chart sits exactly on its ticks.
+
+    The dodged case above exercises the rounding; this one exercises the exact
+    lookup, so a fix that only ever rounded would still be caught. Drawn with
+    ``Axes.plot`` because an undodged ``pointplot`` emits an error bar layer,
+    which reads its categories by a different route.
+    """
+    fig, ax = plt.subplots()
+    ax.plot([4.0, 5.0, 6.0], ["a", "b", "c"])
+
+    schema = _schema(fig)
+    points = [point for series in schema["data"] for point in series]
+
+    assert [point["y"] for point in points] == ["a", "b", "c"]
+    assert [point["x"] for point in points] == [4.0, 5.0, 6.0]
+
+
+def test_a_vertical_chart_still_names_its_groups():
+    """
+    The axis this used to follow, unchanged.
+
+    Following the category axis rather than x must not have cost the vertical
+    case anything, which is what it was doing correctly all along.
+    """
+    fig, ax = plt.subplots()
+    ax.plot(["a", "b", "c"], [4.0, 5.0, 6.0])
+
+    schema = _schema(fig)
+    points = [point for series in schema["data"] for point in series]
+
+    assert [point["x"] for point in points] == ["a", "b", "c"]
+    assert [point["y"] for point in points] == [4.0, 5.0, 6.0]
+
+
+def test_a_numeric_axis_keeps_its_numbers():
+    """
+    The over-correction, guarded.
+
+    A numeric axis has tick labels too, and they are formatted renderings of
+    the numbers rather than names for them. Substituting one costs the value
+    its type and its precision -- this chart reported ``"1.00"`` for an x of
+    ``1.0`` before, which is a string where the frontend expects a number.
+    """
+    fig, ax = plt.subplots()
+    ax.plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
+
+    schema = _schema(fig)
+    points = [point for series in schema["data"] for point in series]
+
+    assert [point["x"] for point in points] == [1.0, 2.0, 3.0]
+    assert [point["y"] for point in points] == [4.0, 5.0, 6.0]
+
+
+def test_a_measurement_near_a_tick_is_not_renamed_after_it():
+    """
+    Rounding is what recovers a dodged group, and it must not reach further.
+
+    On a numeric axis a point at 1.98 is a measurement, not a group drawn
+    beside the tick at 2. Nothing here may name it after that tick.
+    """
+    fig, ax = plt.subplots()
+    ax.plot([0.02, 1.98, 3.01], [4.0, 5.0, 6.0])
+
+    schema = _schema(fig)
+    points = [point for series in schema["data"] for point in series]
+
+    assert [point["x"] for point in points] == [0.02, 1.98, 3.01]
 
 
 #: Two groups of five observations and one of a single observation -- ordinary
