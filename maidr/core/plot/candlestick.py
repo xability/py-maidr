@@ -76,8 +76,10 @@ class CandlestickPlot(MaidrPlot):
             self._maidr_wick_gid = wick_collection.get_gid()
             self._maidr_gid = self._maidr_body_gid or self._maidr_wick_gid
 
-            # Use the original collections for highlighting
-            self._elements = [body_collection, wick_collection]
+            # Use the original collections for highlighting. Extended rather
+            # than rebound, so `self._elements` stays the list `render()`
+            # cleared rather than becoming a different one.
+            self._elements.extend([body_collection, wick_collection])
 
             # Extract data directly from DataFrame
             if self._maidr_original_data is not None and isinstance(
@@ -231,7 +233,8 @@ class CandlestickPlot(MaidrPlot):
                 axis_cfg[MaidrKey.FORMAT] = prev[MaidrKey.FORMAT]
         base_schema[MaidrKey.AXES] = axes_data
 
-        base_schema[MaidrKey.DATA] = self._extract_plot_data()
-        if self._support_highlighting:
-            base_schema[MaidrKey.SELECTOR] = self._get_selector()
+        # Data and selector are left as `super().render()` built them. Running
+        # the extraction a second time here appended a second set of artists
+        # to `self._elements` within one render, which the frontend then
+        # indexes into by point index (#354). Only the axes needed refreshing.
         return base_schema

@@ -77,6 +77,18 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         if format_config:
             self._merge_format_into_axes(axes_data, format_config)
 
+        # Extraction owns the whole element list, so it starts empty every time.
+        #
+        # A layer is rendered more than once -- `schema`, `elements` and
+        # `set_id` each render when nothing is cached, and a caller may render
+        # explicitly besides -- and every subclass appended without clearing,
+        # so the list grew by a full set of artists per render. `elements` is
+        # the ordered list the highlight machinery tags and the frontend
+        # indexes into by point index, so a doubled list leaves point n
+        # pointing at the artist for point n mod count. Nothing errors; the
+        # outline simply lands on the wrong mark (#354).
+        self._elements.clear()
+
         # Generate a unique UUID for this layer to ensure each plot layer can be distinctly identified
         # in the MAIDR frontend. This supports robust layer switching.
         maidr_schema = {

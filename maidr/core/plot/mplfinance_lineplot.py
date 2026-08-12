@@ -208,7 +208,8 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
                 axis_cfg[MaidrKey.FORMAT] = prev[MaidrKey.FORMAT]
         base_schema[MaidrKey.AXES] = axes_data
 
-        base_schema[MaidrKey.DATA] = self._extract_plot_data()
-        if self._support_highlighting:
-            base_schema[MaidrKey.SELECTOR] = self._get_selector()
+        # Data and selector are left as `super().render()` built them. Running
+        # the extraction a second time here appended a second set of lines to
+        # `self._elements` within one render, which the frontend then indexes
+        # into by point index (#354). Only the axes needed refreshing.
         return base_schema

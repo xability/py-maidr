@@ -86,8 +86,11 @@ class MplfinanceBarPlot(
         # Sort patches by x-coordinate to maintain order
         sorted_patches = sorted(volume_patches, key=lambda p: p.get_x())
 
-        # Set elements for highlighting (use the patches directly)
-        self._elements = sorted_patches
+        # Set elements for highlighting (use the patches directly). Extended
+        # rather than rebound: `render()` clears the list it owns, and a
+        # rebinding would leave `self._elements` pointing at a different list
+        # from the one that was cleared.
+        self._elements.extend(sorted_patches)
 
         # Use datetime converter for enhanced data extraction
         if self._maidr_datetime_converter is not None:
@@ -167,7 +170,8 @@ class MplfinanceBarPlot(
                 axis_cfg[MaidrKey.FORMAT] = prev[MaidrKey.FORMAT]
         base_schema[MaidrKey.AXES] = axes_data
 
-        base_schema[MaidrKey.DATA] = self._extract_plot_data()
-        if self._support_highlighting:
-            base_schema[MaidrKey.SELECTOR] = self._get_selector()
+        # Data and selector are left as `super().render()` built them. Running
+        # the extraction a second time here appended a second set of patches
+        # to `self._elements` within one render, which the frontend then
+        # indexes into by point index (#354). Only the axes needed refreshing.
         return base_schema

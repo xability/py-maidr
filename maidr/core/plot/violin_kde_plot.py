@@ -53,10 +53,6 @@ class ViolinKdePlot(MaidrPlot):
         self._x_levels = kwargs.get("x_levels", None)
         self._orientation = kwargs.get("orientation", "vert")
 
-        # Register PolyCollections so highlight.py tags them in SVG.
-        for poly in self._poly_collections:
-            self._elements.append(poly)
-
     # ------------------------------------------------------------------
     # Selector
     # ------------------------------------------------------------------
@@ -80,6 +76,13 @@ class ViolinKdePlot(MaidrPlot):
         """
         x_levels = self._resolve_x_levels()
         all_violins: list[list[dict]] = []
+
+        # Registered here rather than in `__init__` so that extraction owns the
+        # whole element list and `render()` can clear it without dropping the
+        # violin bodies. Both lists arrive from the constructor, so rebuilding
+        # them per render costs nothing and keeps one place responsible (#354).
+        for poly in self._poly_collections:
+            self._elements.append(poly)
 
         is_horz = self._orientation == "horz"
 
