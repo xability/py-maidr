@@ -59,6 +59,8 @@ class FigureManager:
         PlotType.VIOLIN_KDE: 1,
         PlotType.VIOLIN_BOX: 1,
         PlotType.ERRORBAR: 1,
+        PlotType.AREA: 1,
+        PlotType.STACKED_AREA: 2,
     }
 
     _instance = None

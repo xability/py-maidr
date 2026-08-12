@@ -12,6 +12,14 @@ class PlotType(str, Enum):
     HEAT = "heat"
     HIST = "hist"
     LINE = "line"
+    #: A filled band between a series and a baseline. Emitted for a single
+    #: `stackplot` band, which has nothing stacked on it.
+    AREA = "area"
+    #: Bands stacked on one another, so a band's height is its own series'
+    #: value while its top edge is the running total. A distinct type because
+    #: a line layer announces one number per point with nothing to say which
+    #: of those two it is.
+    STACKED_AREA = "stacked_area"
     PIE = "pie"
     SCATTER = "point"
     STACKED = "stacked_bar"
@@ -51,6 +59,7 @@ _DISPLAY_NAMES = {
     PlotType.HIST: "histogram",
     PlotType.SCATTER: "scatter",
     PlotType.STACKED: "stacked bar",
+    PlotType.STACKED_AREA: "stacked area",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",
 }

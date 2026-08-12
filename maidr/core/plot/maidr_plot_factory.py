@@ -3,6 +3,7 @@ from __future__ import annotations
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
+from maidr.core.plot.areaplot import AreaPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.errorbar import ErrorBarPlot
@@ -49,6 +50,11 @@ class MaidrPlotFactory:
             single_ax = ax[0]
         else:
             single_ax = ax
+
+        if PlotType.AREA == plot_type or PlotType.STACKED_AREA == plot_type:
+            # One class, both types. They differ in how the bands relate, not
+            # in where the numbers are read from.
+            return AreaPlot(single_ax, plot_type, **kwargs)
 
         if PlotType.BAR == plot_type or PlotType.COUNT == plot_type:
             if PlotDetectionUtils.is_mplfinance_bar_plot(**kwargs):

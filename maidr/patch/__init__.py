@@ -1,5 +1,6 @@
 # Import all patches to ensure they are applied
 from . import (  # noqa: F401
+    areaplot,
     barplot,
     boxplot,
     clear,

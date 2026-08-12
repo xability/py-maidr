@@ -48,3 +48,20 @@ wrapt.wrap_function_wrapper(PathCollection, "draw", tag_elements)
 # one, so wrapping it here installs a subclass-only override: the base class
 # and its other subclasses keep the unwrapped method.
 wrapt.wrap_function_wrapper(PolyQuadMesh, "draw", tag_elements)
+
+# `Axes.stackplot` and `Axes.fill_between` render their bands as
+# `FillBetweenPolyCollection`, which matplotlib 3.10 split out of
+# `PolyCollection` -- so wrapping it is a subclass-only override in exactly the
+# way `PolyQuadMesh` is, and leaves violin bodies and every other
+# `PolyCollection` untouched.
+#
+# Guarded because the class is 3.10 and later, while this package supports
+# 3.8. On an older matplotlib a band keeps the plain `PolyCollection` it always
+# had, and an area layer degrades to no highlight rather than failing to
+# import -- the announcement, which is the reading, is unaffected.
+try:
+    from matplotlib.collections import FillBetweenPolyCollection
+except ImportError:  # pragma: no cover - matplotlib < 3.10
+    pass
+else:
+    wrapt.wrap_function_wrapper(FillBetweenPolyCollection, "draw", tag_elements)
