@@ -250,6 +250,17 @@ class BoxPlot(
         if bxp_stats is None:
             return None
 
+        # Three lists beside `_elements` are filled here and read by
+        # `_get_selector()`, and they carried the same defect: appended to on
+        # every render, so a second one produced twice as many selectors as
+        # there are boxes. Worse than the extra entries, this loop stamps a
+        # fresh gid on each artist every time, so after a second render the
+        # *first* half of the map names gids no artist carries any more and
+        # those selectors resolve to nothing (#354).
+        for gids in self.elements_map.values():
+            gids.clear()
+        self.lower_outliers_count.clear()
+
         whiskers = self._bxp_extractor.extract_whiskers(bxp_stats["whiskers"])
         caps = self._bxp_extractor.extract_caps(bxp_stats["caps"])
         medians = self._bxp_extractor.extract_medians(bxp_stats["medians"])

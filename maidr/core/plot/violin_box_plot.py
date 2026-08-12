@@ -164,7 +164,16 @@ class ViolinBoxPlot(MaidrPlot):
             self._elements.append(artist)
 
     def _tag_sns_artists(self) -> None:
-        """Tag seaborn inner-box Line2D artists with GIDs."""
+        """
+        Tag seaborn inner-box Line2D artists with GIDs.
+
+        The gid map is rebuilt rather than appended to. `_build_sns_selectors`
+        emits one selector per entry, so a second render would have doubled
+        the selector list against unchanged data -- the same defect as #354,
+        in a list beside `_elements` rather than in it.
+        """
+        self._sns_gids.clear()
+
         for violin_lines in self._sns_box_lines:
             gid_map: dict[str, str] = {}
             for role, line in violin_lines.items():

@@ -237,6 +237,54 @@ def test_rendering_repeatedly_never_grows_the_list(name):
     assert counts[1:] == counts[:-1]
 
 
+@pytest.mark.parametrize("name", sorted(BUILDERS))
+def test_rendering_twice_emits_the_same_selectors(name):
+    """
+    `_elements` is not the only list the selectors are built from.
+
+    A layer may keep its own gid bookkeeping beside it, and those lists
+    accumulated too. `BoxPlot` kept four — one per element role plus the
+    outlier counts — so a second render emitted **twice as many selectors as
+    there are boxes**, and because the same loop re-stamps a fresh gid on each
+    artist every time, the first half named gids no artist carried any more.
+    Those selectors resolve to nothing at all.
+
+    The assertion is on how many, not on which. Several layers mint a fresh
+    gid per artist on every render and name the new one, which stays
+    consistent -- the artist carries the gid the selector asks for. What must
+    not change is the count, because that is what the frontend pairs with the
+    data.
+    """
+    fig = BUILDERS[name]()
+    plots = _plots(fig)
+    assert plots
+
+    for plot in plots:
+        first = plot.render().get("selectors")
+        second = plot.render().get("selectors")
+
+        assert isinstance(second, type(first))
+        if isinstance(first, list):
+            assert len(second) == len(first)
+
+
+def test_a_box_layer_emits_one_selector_per_box():
+    """
+    Counted against the chart, so stable-but-wrong does not pass.
+
+    Three distributions, three selectors, three points -- however many times
+    the layer is rendered.
+    """
+    fig = _box()
+    plot = _plots(fig)[0]
+
+    for _ in range(3):
+        schema = plot.render()
+
+        assert len(schema["selectors"]) == 3
+        assert len(schema["data"]) == 3
+
+
 def test_a_bar_layer_tags_one_artist_per_bar():
     """
     Stable is not the same as right.
