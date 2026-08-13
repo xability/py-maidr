@@ -77,7 +77,7 @@ We currently support the following data visualization libraries in Python:, and 
 
 * Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
 
-* Hexbin plot (`ax.hexbin()`) having one x (numerical) and one y (numerical) axis and a z axis carrying each hexagon's count. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its centre rather than by a column index.
+* Hexbin plot (`ax.hexbin()`) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon's count by default, the reduction of `C` when one is given, or the count's interval when `bins` is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its centre rather than by a column index.
 
 * Scatter plot having one x (numerical) and one y (numerical) axis.
 

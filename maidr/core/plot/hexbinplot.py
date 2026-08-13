@@ -96,7 +96,13 @@ class HexbinPlot(MaidrPlot):
         if values is None or offsets.ndim != 2 or offsets.shape[0] == 0:
             raise ExtractionError(self.type, self.ax)
 
-        values = np.asarray(values, dtype=float)
+        # Through the mask rather than around it. `get_array()` hands back a
+        # masked array, and `np.asarray` on one returns the data *under* the
+        # mask -- so a bin matplotlib had declined to give a value would be
+        # announced with whatever happened to be in that slot. No release
+        # masks a bin today (empty ones are dropped before `set_array`), which
+        # is exactly why this would go unnoticed if one started.
+        values = np.ma.filled(np.ma.asarray(values).astype(float), np.nan)
         if len(values) != len(offsets):
             # The two are filtered together by `mincnt`, so they cannot
             # disagree on any matplotlib this reads -- but the whole scheme
@@ -123,7 +129,7 @@ class HexbinPlot(MaidrPlot):
                     {
                         MaidrKey.X: float(offsets[index][0]),
                         MaidrKey.Y: float(offsets[index][1]),
-                        MaidrKey.COUNT: float(values[index]),
+                        MaidrKey.COUNT: self._count(values[index]),
                     }
                     for index in in_row
                 ]
@@ -139,6 +145,33 @@ class HexbinPlot(MaidrPlot):
         self._elements.append(collection)
 
         return data
+
+    @staticmethod
+    def _count(value: float) -> float | None:
+        """
+        Render one bin's value, or ``None`` when it does not have one.
+
+        A masked or non-finite entry is a bin matplotlib declined to score,
+        and there is no number to put in its place. It still has to be
+        *emitted*, because the hexagon is drawn and the selector list is
+        matched against the DOM by length -- dropping it would withdraw
+        highlighting from the whole lattice. The frontend already reads a
+        non-finite count as "no value here": it filters them out of the
+        pitch range and announces `NaN`.
+
+        Parameters
+        ----------
+        value : float
+            One bin's value, possibly ``nan``.
+
+        Returns
+        -------
+        float or None
+            The value, or ``None`` for a bin without one. ``None`` rather
+            than ``nan`` because JSON has no NaN literal.
+        """
+        number = float(value)
+        return number if np.isfinite(number) else None
 
     def _get_selector(self) -> list[str]:
         """

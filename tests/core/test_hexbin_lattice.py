@@ -263,6 +263,71 @@ def test_the_colour_axis_is_named_for_what_the_fill_encodes(hexbin) -> None:
     assert named["axes"]["z"]["label"] == "density"
 
 
+@pytest.mark.parametrize(
+    "scales",
+    [{"xscale": "log"}, {"yscale": "log"}, {"xscale": "log", "yscale": "log"}],
+)
+def test_a_log_axis_still_groups_into_rows(scales) -> None:
+    """The row grouping is exact-equality, so a second scale path is worth a look.
+
+    ``hexbin`` takes its own ``xscale``/``yscale``, which log-transform the
+    input before binning. The centres are still built from one
+    ``index * spacing + origin`` in the transformed space, so a row's y
+    values stay identical bit for bit -- but that is a claim about a code
+    path the default case does not exercise, and a grouping that silently
+    fell apart would split every row into singletons rather than fail.
+    """
+    rng = np.random.default_rng(0)
+    positive = np.abs(rng.normal(5, 2, 300)) + 0.1
+
+    fig, ax = plt.subplots()
+    collection = ax.hexbin(positive, positive.copy(), gridsize=3, **scales)
+    instance = FigureManager.get_maidr(fig)
+    layer = json.loads(json.dumps(instance._flatten_maidr()))
+    layer = layer["subplots"][0][0]["layers"][0]
+    plt.close(fig)
+
+    assert len(_flat(layer)) == len(np.asarray(collection.get_offsets()))
+    assert len(layer["data"]) == len(np.unique(np.asarray(collection.get_offsets())[:, 1]))
+    for row in layer["data"]:
+        assert [bin["y"] for bin in row] == [row[0]["y"]] * len(row)
+
+
+def test_a_bin_with_no_value_is_emitted_without_one(hexbin) -> None:
+    """A masked bin must not be announced with the number underneath the mask.
+
+    ``get_array()`` hands back a masked array. No matplotlib release masks a
+    hexbin cell today -- the empty ones are dropped before ``set_array`` --
+    so this drives the case directly rather than through a chart. It is
+    written because ``np.asarray`` on a masked array returns the data *under*
+    the mask, which would announce a fabricated count with nothing in the
+    output to contradict it.
+
+    The bin is still emitted. The hexagon is drawn, and the frontend matches
+    the selector list against the DOM by length, so dropping one bin would
+    withdraw highlighting from the entire lattice.
+    """
+    collection, _, _ = hexbin()
+
+    counts = np.asarray(collection.get_array(), dtype=float)
+    collection.set_array(np.ma.array(counts, mask=[i == 1 for i in range(len(counts))]))
+
+    plot = FigureManager.get_maidr(collection.axes.get_figure())._plots[0]
+    rows = plot._extract_plot_data()
+    bins = [bin for row in rows for bin in row]
+
+    assert len(bins) == len(counts)
+    assert sum(bin["count"] is None for bin in bins) == 1
+
+    masked = next(bin for bin in bins if bin["count"] is None)
+    assert masked["x"] == pytest.approx(float(collection.get_offsets()[1][0]))
+    assert masked["y"] == pytest.approx(float(collection.get_offsets()[1][1]))
+
+    # `None`, not `nan`: JSON has no NaN literal, and `json.dumps` would emit
+    # a bare `NaN` that the browser's own parser rejects.
+    assert "NaN" not in json.dumps(rows)
+
+
 def test_marginals_do_not_pull_in_the_marginal_collections(hexbin) -> None:
     """``marginals=True`` draws two more PolyCollections on the same axes.
 
