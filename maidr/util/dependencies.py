@@ -562,17 +562,30 @@ def _offline_version() -> str:
     if _is_valid_version(bundled) and bundled != _UNKNOWN_VERSION:
         return bundled
 
+    # The two faults read differently, and the point of speaking at all is
+    # to be read: an absent VERSION reported as `is unreadable ('0.0.0')`
+    # says the file contains those characters, which is the one thing it
+    # does not. `maidr_js_version` returns the sentinel for missing,
+    # empty and unreadable alike, so that is as far as the distinction
+    # goes -- but it is the distinction someone chasing this needs first.
+    if bundled == _UNKNOWN_VERSION:
+        detail = "cannot be read (the VERSION file is missing or empty)"
+    else:
+        # Truncated for the same reason `_normalise_version_pin` truncates
+        # its pin: nothing bounds the length of a garbled file, and a log
+        # line is not where a megabyte belongs.
+        detail = f"is not a version ({bundled[:_MAX_WARNED_KEY_LEN]!r})"
+
     # Keyed on the unusable value, so a wheel whose VERSION is garbled
     # rather than absent says which -- and a second, differently broken
     # one is still audible.
     _warn_once(
         f"unusable-bundled-version:{bundled}",
-        "maidr: the bundled maidr.js version is unreadable (%r), so CDN "
-        "URLs fall back to the mutable maidr@%s tag. jsDelivr serves that "
-        "with a seven-day cache lifetime, so a browser may replay an old "
-        "bundle. Reinstall py-maidr, or pin a version with "
-        "maidr.set_cdn_version().",
-        bundled,
+        "maidr: the bundled maidr.js version %s, so CDN URLs fall back to "
+        "the mutable maidr@%s tag. jsDelivr serves that with a seven-day "
+        "cache lifetime, so a browser may replay an old bundle. Reinstall "
+        "py-maidr, or pin a version with maidr.set_cdn_version().",
+        detail,
         LATEST_TAG,
     )
     return LATEST_TAG

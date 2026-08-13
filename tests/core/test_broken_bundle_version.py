@@ -60,7 +60,7 @@ def test_an_unreadable_bundle_version_says_so(monkeypatch, caplog, no_pin) -> No
         version = dependencies._offline_version()
 
     assert version == dependencies.LATEST_TAG
-    assert "unreadable" in caplog.text
+    assert "missing or empty" in caplog.text
     assert dependencies.LATEST_TAG in caplog.text
     assert "cache" in caplog.text
 
@@ -79,6 +79,7 @@ def test_a_garbled_version_is_named_in_the_warning(
     with caplog.at_level(logging.WARNING):
         dependencies._offline_version()
 
+    assert "not a version" in caplog.text
     assert "not-a-version" in caplog.text
 
 
@@ -94,7 +95,7 @@ def test_it_is_said_once_not_once_per_figure(monkeypatch, caplog, no_pin) -> Non
         for _ in range(5):
             dependencies._offline_version()
 
-    assert caplog.text.count("unreadable") == 1
+    assert caplog.text.count("maidr.js version") == 1
 
 
 def test_a_failed_lookup_stays_quiet(monkeypatch, caplog, no_pin) -> None:
@@ -110,7 +111,7 @@ def test_a_failed_lookup_stays_quiet(monkeypatch, caplog, no_pin) -> None:
         version = dependencies.get_cdn_version()
 
     assert version == dependencies.LATEST_TAG
-    assert "unreadable" not in caplog.text
+    assert "maidr.js version" not in caplog.text
 
 
 def test_a_working_bundle_stays_quiet(caplog, no_pin) -> None:
@@ -119,7 +120,7 @@ def test_a_working_bundle_stays_quiet(caplog, no_pin) -> None:
         version = dependencies._offline_version()
 
     assert version == dependencies.maidr_js_version()
-    assert "unreadable" not in caplog.text
+    assert "maidr.js version" not in caplog.text
 
 
 def test_a_pin_is_answered_before_the_bundle(monkeypatch, caplog, no_pin) -> None:
@@ -135,4 +136,4 @@ def test_a_pin_is_answered_before_the_bundle(monkeypatch, caplog, no_pin) -> Non
         version = dependencies._offline_version()
 
     assert version == "3.74.0"
-    assert "unreadable" not in caplog.text
+    assert "maidr.js version" not in caplog.text
