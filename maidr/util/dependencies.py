@@ -390,6 +390,26 @@ def set_cdn_version(version: str | None) -> None:
     Takes precedence over the ``MAIDR_CDN_VERSION`` environment variable.
     A value that is neither a recognised tag nor a valid semver is
     ignored (with a warning) in favour of the normal resolution path.
+
+    Warns
+    -----
+    FutureWarning
+        When ``version`` is unusable.  Today the pin is ignored and the
+        next URL resolves normally; a future major release will raise
+        :class:`ValueError` instead.
+
+        The leniency is right for ``MAIDR_CDN_VERSION`` -- ambient
+        configuration may be set by something outside the caller's
+        control, and crashing on it would be hostile.  It is wrong here:
+        this is an explicit call with a bad argument, which is the
+        textbook case for ``ValueError``, and the caller currently gets no
+        return value, no exception, and a *log* line they may never see.
+        So a typo does nothing, visibly (#294).
+
+        Raising outright would break a script that has been quietly
+        mistyping its pin and rendering fine, so it goes through a
+        deprecation the way :func:`bundled_css_path` did.  The warning is
+        the behaviour change; the raise is the next major's.
     """
     global _cdn_version_override
     # A blank string is treated as ``None`` rather than as a malformed
@@ -400,7 +420,25 @@ def set_cdn_version(version: str | None) -> None:
         _cdn_version_override = None
         reset_cdn_version_cache()
         return
-    _cdn_version_override = str(version).strip()
+
+    candidate = str(version).strip()
+    # Checked here as well as on every URL build, because the two
+    # answer different questions. `_normalise_version_pin` asks "can I
+    # use this?" every time it needs a URL, and logs. This asks "did the
+    # caller just make a mistake?", once, at the point they made it --
+    # which is the only moment a stack trace points anywhere useful.
+    if _normalise_version_pin(candidate) is None:
+        warnings.warn(
+            f"maidr.set_cdn_version({version!r}) was given something that is "
+            f"neither a semver such as '3.74.0' nor {BUNDLED_TAG!r} or "
+            f"{LATEST_TAG!r}. The pin is ignored and URLs resolve as if it "
+            "had not been set. A future major release will raise ValueError "
+            "here instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+
+    _cdn_version_override = candidate
 
 
 def get_cdn_version() -> str:

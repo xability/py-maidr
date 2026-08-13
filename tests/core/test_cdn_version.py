@@ -341,8 +341,14 @@ def test_validator_and_comparator_share_one_grammar():
         )
 
 
+@pytest.mark.filterwarnings("ignore:maidr.set_cdn_version:FutureWarning")
 def test_invalid_pin_logs_once_not_once_per_render(resolvable, caplog):
-    """A typo'd pin must not log two lines for every figure rendered."""
+    """A typo'd pin must not log two lines for every figure rendered.
+
+    About the per-render log, not about the one-off deprecation the call
+    itself now raises -- `test_invalid_pin_never_reaches_the_url` covers
+    that, and asserting both here would confuse which is being counted.
+    """
     maidr.set_cdn_version("3.74")  # missing patch component
 
     with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
@@ -354,6 +360,7 @@ def test_invalid_pin_logs_once_not_once_per_render(resolvable, caplog):
     assert len(complaints) == 1, f"logged {len(complaints)} times, expected 1"
 
 
+@pytest.mark.filterwarnings("ignore:maidr.set_cdn_version:FutureWarning")
 def test_a_second_bad_pin_still_warns(resolvable, caplog):
     """Deduplication is per value, so a new mistake stays audible."""
 
@@ -367,8 +374,14 @@ def test_a_second_bad_pin_still_warns(resolvable, caplog):
     assert len(complaints) == 2
 
 
+@pytest.mark.filterwarnings("ignore:maidr.set_cdn_version:FutureWarning")
 def test_warned_keys_stays_bounded(resolvable):
-    """Many distinct bad pins must not grow the dedup set without bound."""
+    """Many distinct bad pins must not grow the dedup set without bound.
+
+    The deprecation from `set_cdn_version` is filtered rather than
+    asserted: the subject here is the *log* dedup set, and every one of
+    these several hundred calls raises the same deprecation.
+    """
     for i in range(dependencies._MAX_WARNED_KEYS * 3):
         maidr.set_cdn_version(f"bad-{i}")
         dependencies.maidr_js_cdn_url()
@@ -388,8 +401,14 @@ def test_warned_keys_stays_bounded(resolvable):
     ],
 )
 def test_invalid_pin_never_reaches_the_url(hostile, resolvable):
-    """A bad pin is ignored rather than spliced into the CDN URL."""
-    maidr.set_cdn_version(hostile)
+    """A bad pin is ignored rather than spliced into the CDN URL.
+
+    And it says so at the call, which is what #294 asked for: these are
+    the values a caller most needs telling about, and the log line they
+    used to get is invisible unless logging is configured.
+    """
+    with pytest.warns(FutureWarning, match="set_cdn_version"):
+        maidr.set_cdn_version(hostile)
     url = dependencies.maidr_js_cdn_url()
 
     assert hostile not in url

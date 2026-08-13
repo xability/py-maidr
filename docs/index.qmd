@@ -319,6 +319,14 @@ maidr.set_cdn_version("latest")   # skip resolution, emit the mutable @latest UR
 maidr.set_cdn_version(None)       # back to resolving automatically
 ```
 
+::: {.callout-note}
+## A mistyped pin warns; a mistyped environment variable does not
+
+`maidr.set_cdn_version("3.74")` — a missing patch component — raises a `FutureWarning` and is then ignored, so URLs resolve as if no pin had been set. A future major release will raise `ValueError` there instead.
+
+`MAIDR_CDN_VERSION=3.74` stays quiet apart from a log line. The asymmetry is deliberate: an explicit function call with a bad argument is the caller's mistake and worth interrupting them over, while an environment variable is ambient configuration that a CI image or a container base may have set without them, and crashing on it would be hostile.
+:::
+
 ::: {.callout-warning}
 ## These settings are process-wide, not per-session
 
