@@ -26,6 +26,7 @@ grows large enough to matter.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import math
@@ -357,9 +358,11 @@ def get_cdn_version() -> str:
 
     1. An explicit pin from :func:`set_cdn_version`.
     2. The ``MAIDR_CDN_VERSION`` environment variable.
-    3. The ``latest`` dist-tag resolved over the network (once per
+    3. The version this wheel ships, when resolving would block an event
+       loop — see :func:`_resolution_would_block`, and the note below.
+    4. The ``latest`` dist-tag resolved over the network (once per
        process, then cached).
-    4. The literal string ``"latest"`` when the lookup fails, which
+    5. The literal string ``"latest"`` when the lookup fails, which
        reproduces the library's historical behaviour.
 
     Returns
@@ -369,7 +372,7 @@ def get_cdn_version() -> str:
 
     Notes
     -----
-    Step 4 is what makes this safe to call from a render path: an
+    Step 5 is what makes this safe to call from a render path: an
     unreachable, blocked, or malformed resolver degrades to ``"latest"``
     rather than raising.  That guarantee rests on
     :func:`_fetch_latest_version` honouring its own "never raises"
@@ -384,10 +387,38 @@ def get_cdn_version() -> str:
     A ``KeyboardInterrupt`` is treated differently: it is not cached, so
     interrupting one render does not leave the rest of the process
     emitting ``@latest``.
+
+    Step 3 is the one that depends on where it is called from, and it is
+    a deliberate trade.  ``maidr.render()`` is synchronous and Shiny calls
+    it from ``render_maidr.render()``, which is ``async`` — so under the
+    default the first figure in an app performed a blocking ``urlopen`` on
+    the event loop, stalling every concurrent session behind it (#296).
+    The bundled version is a real published one, so the URL resolves and
+    is immutable; what is given up is picking up a release newer than the
+    wheel, automatically, in an async process.
+
+    That is the trade the docs already recommended making by hand:
+    ``MAIDR_CDN_VERSION=bundled`` was the advice for Shiny apps, and this
+    makes the default do it in exactly the context the advice was for.
+    Two things follow that are worth knowing rather than discovering:
+
+    * :func:`warn_if_bundle_is_stale` reads only an already-completed
+      lookup, so a process that never resolves never hears it.
+    * Calling this once from synchronous code at start-up caches the
+      answer, after which every async render uses the resolved version --
+      which is how an app that wants the newer release gets it without
+      any render paying for the request.
+
+    Synchronous callers are unaffected, including threads: they still
+    resolve once per process and queue on ``_fetch_lock`` while the first
+    of them does.  That queueing is not fixed here; it is the event loop
+    specifically that must not be made to wait.
     """
     pin = _version_pin()
     if pin is not None:
         return pin
+    if _resolution_would_block():
+        return _offline_version()
     return _resolve_latest_version() or LATEST_TAG
 
 
@@ -446,6 +477,75 @@ def _cached_resolution() -> str | None:
     """Return the resolved version if a lookup has completed, else ``None``."""
     attempted, value = _resolution_state()
     return value if attempted else None
+
+
+def _offline_version() -> str:
+    """Return the best version available without making a request.
+
+    The order is the same question asked three ways, cheapest first: what
+    did the caller ask for, what did an earlier lookup establish, and what
+    shipped in this wheel.  Only when none of those is usable does this
+    fall back to :data:`LATEST_TAG`, the mutable dist-tag this module
+    exists to stop emitting.
+
+    Both offline callers read it from here rather than each spelling it
+    out, because when they disagreed the result was one page loading two
+    different builds of ``maidr.js`` -- an iframe on the pinned version
+    and its host on the bundled one.
+
+    Returns
+    -------
+    str
+        A concrete version, or ``latest`` when there is no better answer.
+    """
+    pin = _version_pin()
+    if pin is not None:
+        return pin
+
+    resolved = _cached_resolution()
+    if resolved is not None and _is_valid_version(resolved):
+        return resolved
+
+    bundled = maidr_js_version()
+    if _is_valid_version(bundled) and bundled != _UNKNOWN_VERSION:
+        return bundled
+
+    return LATEST_TAG
+
+
+def _resolution_would_block() -> bool:
+    """Report whether resolving now would stall an event loop.
+
+    ``_resolve_latest_version`` makes a blocking ``urlopen`` call, holding
+    ``_fetch_lock`` across it.  On a thread running an event loop -- which
+    is where ``maidr.render()`` is called from in a Shiny app, through
+    ``render_maidr.render()`` -- that stalls every other session in the
+    process for up to :data:`MAIDR_CDN_TIMEOUT`, and that budget is only
+    approximate: ``urlopen``'s timeout applies per socket operation and
+    does not reliably cover ``getaddrinfo``, so a broken resolver can
+    exceed it (#296).
+
+    A lookup that has already completed costs nothing, so it is not
+    blocking and this says so -- which is what makes the answer stable
+    rather than context-dependent after the first resolution anywhere in
+    the process.  Resolving once from synchronous code at start-up is
+    therefore the way to have an async app serve the resolved version.
+
+    Returns
+    -------
+    bool
+        ``True`` only when a lookup would have to be performed *and* this
+        thread is running an event loop.
+    """
+    attempted, _ = _resolution_state()
+    if attempted:
+        return False
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
 
 
 def unresolved_cdn_url(filename: str) -> str:
@@ -548,28 +648,16 @@ def bundled_cdn_url(filename: str) -> str:
         A jsDelivr URL at the bundled version, or at ``latest`` when that
         version is unknown.
     """
-    # A pin is the caller's own answer to "which version?", and reading
-    # it costs nothing -- no request is involved either way.  Without
-    # this, a pinned session emitted the *bundled* version here while
-    # every iframe emitted the pinned one, so one page loaded two
-    # different builds of maidr.js: exactly the split the next paragraph
-    # exists to avoid, and a contradiction of what set_cdn_version
-    # documents. A LATEST_TAG pin lands here too and yields the ``@latest``
-    # URL, which is what that pin asks for and what the render paths emit.
-    pin = _version_pin()
-    if pin is not None:
-        return _CDN_URL_TEMPLATE.format(version=pin, filename=filename)
-
-    # Then a version an earlier lookup already established.  It also costs
-    # nothing, and it keeps these tags on the same version the iframes
-    # load, rather than leaving two copies of maidr.js in one page.
-    resolved = _cached_resolution()
-    if resolved is not None and _is_valid_version(resolved):
-        return _CDN_URL_TEMPLATE.format(version=resolved, filename=filename)
-    bundled = maidr_js_version()
-    if _is_valid_version(bundled) and bundled != _UNKNOWN_VERSION:
-        return _CDN_URL_TEMPLATE.format(version=bundled, filename=filename)
-    return _unresolved_cdn_url(filename)
+    # A pin first, then a version an earlier lookup already established,
+    # then the bundled one -- see `_offline_version`, which is the same
+    # order `get_cdn_version` falls back to on an event loop, written once
+    # so the two cannot answer differently. When they did, a pinned
+    # session emitted the *bundled* version here while every iframe
+    # emitted the pinned one, and one page loaded two builds of maidr.js.
+    #
+    # A LATEST_TAG pin lands there too and yields the ``@latest`` URL,
+    # which is what that pin asks for and what the render paths emit.
+    return _CDN_URL_TEMPLATE.format(version=_offline_version(), filename=filename)
 
 
 def maidr_js_cdn_url() -> str:
