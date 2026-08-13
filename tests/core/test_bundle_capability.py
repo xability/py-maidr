@@ -296,3 +296,19 @@ def test_the_cdn_only_path_says_nothing_about_a_bundle_that_will_not_run(
     monkeypatch.setattr(dependencies, "_bundle_tokens", frozenset({"line"}))
 
     assert _caught(lambda: maidr.render(bar_plot, use_cdn=True)) == []
+
+
+def test_the_warning_category_is_reachable_from_the_package():
+    """
+    A dedicated category is only useful if a consumer can name it.
+
+    ``MaidrBundleStaleWarning`` is re-exported from the package root and its
+    docstring shows the filter, so this one being reachable only through
+    ``maidr.util.dependencies`` would quietly break the same story. Every
+    other test here imports from the module, so none of them would notice.
+    """
+    import maidr as package
+
+    assert package.MaidrBundleTraceWarning is MaidrBundleTraceWarning
+    assert "MaidrBundleTraceWarning" in package.__all__
+    assert "MaidrBundleStaleWarning" in package.__all__

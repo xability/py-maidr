@@ -327,6 +327,10 @@ class Maidr:
         # hand it. Distance in version numbers cannot answer that, and the
         # user who most needs the answer -- `use_cdn=False`, offline -- is
         # the one the staleness warning cannot reach (#358).
+        # Kept in step with the `use_cdn` branching in _inject_plot, where
+        # `warn_if_bundle_is_stale` is called: these are two readings of the
+        # same decision in two places, and the schema this one needs is not
+        # available down there. Change one and check the other.
         if use_cdn is not True:
             warn_if_bundle_cannot_render(
                 schema_trace_types(schema), bundle_is_primary=use_cdn is False

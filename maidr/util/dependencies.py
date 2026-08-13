@@ -1297,7 +1297,9 @@ def _bundle_warning_enabled() -> bool:
 #: is shortest for the surrounding context -- the 4.1.0 bundle uses
 #: backticks throughout, and a check written for double quotes alone would
 #: have reported every type missing.
-_BUNDLE_TOKEN_RE = re.compile(r"[`\"'](?P<token>[a-z][a-z0-9_]{1,39})[`\"']")
+_BUNDLE_TOKEN_RE = re.compile(
+    r"(?P<quote>[`\"'])(?P<token>[a-z][a-z0-9_]{1,39})(?P=quote)"
+)
 
 #: Parsed once; the bundle does not change under a running process.
 _bundle_tokens: frozenset[str] | None = None
@@ -1305,7 +1307,10 @@ _bundle_token_lock = threading.Lock()
 
 #: Which (severity, trace type) pairs have already been reported, so a
 #: chart rendered in a loop says it once per type rather than per render.
+#: Its own lock: it shares no invariant with the token cache, and the
+#: staleness warning next door already keeps these two concerns apart.
 _bundle_trace_warned: set[tuple[bool, str]] = set()
+_bundle_trace_lock = threading.Lock()
 
 
 class MaidrBundleTraceWarning(UserWarning):
@@ -1315,6 +1320,11 @@ class MaidrBundleTraceWarning(UserWarning):
     This one is about capability, and it is the question a reader actually
     has: a bundle five minors behind may render everything, and one minor
     behind may render none of a newly added type.
+
+    Re-exported as ``maidr.MaidrBundleTraceWarning``, so a consumer running
+    under ``-W error`` can silence this advisory alone::
+
+        warnings.filterwarnings("ignore", category=maidr.MaidrBundleTraceWarning)
     """
 
 
@@ -1416,7 +1426,7 @@ def warn_if_bundle_cannot_render(
     if not missing:
         return
 
-    with _bundle_token_lock:
+    with _bundle_trace_lock:
         fresh = [
             name
             for name in missing

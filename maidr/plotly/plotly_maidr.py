@@ -949,6 +949,10 @@ class PlotlyMaidr:
         # Same question the matplotlib path asks: can the copy that will
         # run actually draw these layers (#358)? Version distance cannot
         # answer it, and this needs no network.
+        # Kept in step with the `use_cdn` branching in the use_cdn branches below, where
+        # `warn_if_bundle_is_stale` is called: these are two readings of the
+        # same decision in two places, and the schema this one needs is not
+        # available down there. Change one and check the other.
         if use_cdn is not True:
             warn_if_bundle_cannot_render(
                 schema_trace_types(schema), bundle_is_primary=use_cdn is False
