@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.collections import Collection
@@ -55,6 +56,60 @@ def _fill_label(wrapped, args: tuple, kwargs: dict) -> str:
     return "count"
 
 
+def _is_readable(wrapped, args, kwargs, collection: Collection) -> bool:
+    """
+    Whether the drawn lattice can be described truthfully.
+
+    Two ways it cannot, and both would otherwise produce a chart that reads
+    confidently and says something false.
+
+    **A log axis.** ``hexbin`` takes its own ``xscale``/``yscale``, and bins in
+    the transformed space. On matplotlib 3.10 the offsets come back in that
+    space too, so a bin centred at x = 3.4 would be announced as ``0.53``:
+    right structure, right counts, wrong coordinates, and nothing in the
+    output to contradict them. On 3.9 the same call returns one path per
+    hexagon and a single placeholder offset, so the centres are not in
+    ``get_offsets()`` at all.
+
+    Un-transforming the 3.10 case would be an assumption about matplotlib's
+    internals that the 3.9 case shows is not stable, so a log-scaled hexbin is
+    declined on both. Note this reads ``hexbin``'s own arguments, not the
+    axis: an axes that was *already* log-scaled makes matplotlib bin linearly,
+    and those offsets are honest data coordinates.
+
+    **A count list that does not match the bins.** They are filtered together
+    by ``mincnt``, so they agree on every release this reads -- but the whole
+    scheme indexes one by the other, and a silent mismatch would pair a bin
+    with a stranger's count.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        The original ``Axes.hexbin``, used for its parameter order.
+    args : tuple
+        Positional arguments the caller passed.
+    kwargs : dict
+        Keyword arguments the caller passed.
+    collection : matplotlib.collections.Collection
+        The collection the call drew.
+
+    Returns
+    -------
+    bool
+        True when the lattice can be read.
+    """
+    for axis in ("xscale", "yscale"):
+        if _argument(axis, wrapped, args, kwargs) == "log":
+            return False
+
+    values = collection.get_array()
+    if values is None:
+        return False
+
+    offsets = np.asarray(collection.get_offsets())
+    return offsets.ndim == 2 and len(offsets) > 0 and len(offsets) == len(values)
+
+
 def hexbin(wrapped, _, args, kwargs) -> Collection:
     """
     Draw a patched ``Axes.hexbin`` call and register the lattice with MAIDR.
@@ -93,6 +148,14 @@ def hexbin(wrapped, _, args, kwargs) -> Collection:
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
         collection = _draw_quietly(wrapped, args, kwargs)
+
+    if not _is_readable(wrapped, args, kwargs, collection):
+        # Left unregistered, so the figure renders as it did before this patch
+        # existed: a static image, with no layer claiming to describe it.
+        # `stackplot` declines the calls it cannot read the same way, and for
+        # the same reason -- saying nothing beats describing a shape that was
+        # not established.
+        return collection
 
     ax = FigureManager.get_axes(collection)
     FigureManager.create_maidr(

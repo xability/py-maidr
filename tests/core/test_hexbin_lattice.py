@@ -29,6 +29,7 @@ one.
 from __future__ import annotations
 
 import json
+import unittest.mock
 
 import matplotlib
 import numpy as np
@@ -37,10 +38,24 @@ from lxml import etree
 
 matplotlib.use("Agg")
 
+import matplotlib.collections  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _close_figures():
+    """Close every figure a test opened, so state cannot leak between them.
+
+    Not housekeeping. A figure left open stays registered with
+    ``FigureManager``, and a later test calling ``plt.show()`` renders every
+    one of them -- so a layer this file could not read once took down two
+    tests in ``test_offline_bundle.py`` that have nothing to do with hexbins.
+    """
+    yield
+    plt.close("all")
 
 
 def _points() -> tuple[np.ndarray, np.ndarray]:
@@ -267,30 +282,81 @@ def test_the_colour_axis_is_named_for_what_the_fill_encodes(hexbin) -> None:
     "scales",
     [{"xscale": "log"}, {"yscale": "log"}, {"xscale": "log", "yscale": "log"}],
 )
-def test_a_log_axis_still_groups_into_rows(scales) -> None:
-    """The row grouping is exact-equality, so a second scale path is worth a look.
+def test_a_log_scaled_lattice_is_declined_rather_than_mistranslated(scales) -> None:
+    """``hexbin``'s own log scales are not read, and that is the honest answer.
 
-    ``hexbin`` takes its own ``xscale``/``yscale``, which log-transform the
-    input before binning. The centres are still built from one
-    ``index * spacing + origin`` in the transformed space, so a row's y
-    values stay identical bit for bit -- but that is a claim about a code
-    path the default case does not exercise, and a grouping that silently
-    fell apart would split every row into singletons rather than fail.
+    It bins in the transformed space, and on matplotlib 3.10 the offsets come
+    back in that space as well: for data spanning 0.3 to 11.2 they run -0.52
+    to 1.05. Announced as centres, a bin at x = 3.4 reads as ``0.53``. The
+    structure is right, the counts are right, the coordinates are wrong, and
+    nothing in the chart contradicts them -- which is worse than saying
+    nothing.
+
+    Un-transforming them would be an assumption about matplotlib's internals
+    that the neighbouring release already breaks: on 3.9 the same call returns
+    one path per hexagon and a single placeholder offset, so the centres are
+    not in ``get_offsets()`` at all.
+
+    So the layer is not registered and the figure keeps the static image it
+    had before this patch existed. What is asserted here is that it degrades
+    rather than crashes -- an `ExtractionError` from a layer takes the whole
+    render down with it, including every other chart on the figure.
     """
     rng = np.random.default_rng(0)
     positive = np.abs(rng.normal(5, 2, 300)) + 0.1
 
     fig, ax = plt.subplots()
-    collection = ax.hexbin(positive, positive.copy(), gridsize=3, **scales)
-    instance = FigureManager.get_maidr(fig)
-    layer = json.loads(json.dumps(instance._flatten_maidr()))
-    layer = layer["subplots"][0][0]["layers"][0]
-    plt.close(fig)
+    ax.hexbin(positive, positive.copy(), gridsize=3, **scales)
 
-    assert len(_flat(layer)) == len(np.asarray(collection.get_offsets()))
-    assert len(layer["data"]) == len(np.unique(np.asarray(collection.get_offsets())[:, 1]))
-    for row in layer["data"]:
-        assert [bin["y"] for bin in row] == [row[0]["y"]] * len(row)
+    with pytest.raises(KeyError):
+        FigureManager.get_maidr(fig)
+
+
+def test_an_already_log_axis_is_still_read(hexbin) -> None:
+    """The distinction the check turns on, asserted rather than only argued.
+
+    Declining is keyed on ``hexbin``'s *own* ``xscale``/``yscale``, not on the
+    axis. An axes that was already log-scaled makes matplotlib bin linearly,
+    so those offsets are honest data coordinates and the chart reads.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xscale("log")
+    rng = np.random.default_rng(0)
+    positive = np.abs(rng.normal(5, 2, 300)) + 0.1
+    collection = ax.hexbin(positive, positive.copy(), gridsize=3)
+
+    layer = json.loads(json.dumps(FigureManager.get_maidr(fig)._flatten_maidr()))
+    layer = layer["subplots"][0][0]["layers"][0]
+
+    offsets = np.asarray(collection.get_offsets(), dtype=float)
+    assert len(_flat(layer)) == len(offsets)
+    assert min(bin["x"] for bin in _flat(layer)) == pytest.approx(offsets[:, 0].min())
+    # Data coordinates, not log10 of them.
+    assert max(bin["x"] for bin in _flat(layer)) > 1.0
+
+
+def test_a_lattice_whose_counts_do_not_match_is_declined(hexbin) -> None:
+    """The second way a lattice cannot be read, driven directly.
+
+    ``mincnt`` filters the offsets and the counts through one mask, so they
+    agree on every release this reads -- and matplotlib 3.9 shows that is a
+    property of the representation rather than a law: under a log scale it
+    returns eleven counts against a single offset. The whole scheme indexes
+    one list by the other, so a mismatch has to end in no layer rather than
+    in a bin wearing a stranger's count.
+    """
+    fig, ax = plt.subplots()
+    rng = np.random.default_rng(0)
+
+    with unittest.mock.patch.object(
+        matplotlib.collections.Collection,
+        "get_offsets",
+        lambda self: np.zeros((1, 2)),
+    ):
+        ax.hexbin(rng.normal(size=200), rng.normal(size=200), gridsize=3)
+
+    with pytest.raises(KeyError):
+        FigureManager.get_maidr(fig)
 
 
 def test_a_bin_with_no_value_is_emitted_without_one(hexbin) -> None:
