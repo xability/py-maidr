@@ -22,6 +22,15 @@ drift behind upstream between releases — and a render that falls back to
 it silently runs older code.  :func:`bundle_status` reports that drift and
 :func:`warn_if_bundle_is_stale` surfaces it once per process when the gap
 grows large enough to matter.
+
+Version distance is the coarse signal, not the answer.  What a user
+actually wants to know is whether the bundle can draw the chart they are
+emitting, and :func:`warn_if_bundle_cannot_render` answers that directly
+by reading the installed file — no network, so unlike the staleness
+warning it reaches the offline and pinned users whose bundle is what runs.
+Keep the two apart when changing either: "you are drifting" and "this
+chart will not draw" are different claims, and the second is the one worth
+acting on.
 """
 
 from __future__ import annotations
@@ -381,6 +390,26 @@ def set_cdn_version(version: str | None) -> None:
     Takes precedence over the ``MAIDR_CDN_VERSION`` environment variable.
     A value that is neither a recognised tag nor a valid semver is
     ignored (with a warning) in favour of the normal resolution path.
+
+    Warns
+    -----
+    FutureWarning
+        When ``version`` is unusable.  Today the pin is ignored and the
+        next URL resolves normally; a future major release will raise
+        :class:`ValueError` instead.
+
+        The leniency is right for ``MAIDR_CDN_VERSION`` -- ambient
+        configuration may be set by something outside the caller's
+        control, and crashing on it would be hostile.  It is wrong here:
+        this is an explicit call with a bad argument, which is the
+        textbook case for ``ValueError``, and the caller currently gets no
+        return value, no exception, and a *log* line they may never see.
+        So a typo does nothing, visibly (#294).
+
+        Raising outright would break a script that has been quietly
+        mistyping its pin and rendering fine, so it goes through a
+        deprecation the way :func:`bundled_css_path` did.  The warning is
+        the behaviour change; the raise is the next major's.
     """
     global _cdn_version_override
     # A blank string is treated as ``None`` rather than as a malformed
@@ -391,7 +420,25 @@ def set_cdn_version(version: str | None) -> None:
         _cdn_version_override = None
         reset_cdn_version_cache()
         return
-    _cdn_version_override = str(version).strip()
+
+    candidate = str(version).strip()
+    # Checked here as well as on every URL build, because the two
+    # answer different questions. `_normalise_version_pin` asks "can I
+    # use this?" every time it needs a URL, and logs. This asks "did the
+    # caller just make a mistake?", once, at the point they made it --
+    # which is the only moment a stack trace points anywhere useful.
+    if _normalise_version_pin(candidate) is None:
+        warnings.warn(
+            f"maidr.set_cdn_version({version!r}) was given something that is "
+            f"neither a semver such as '3.74.0' nor {BUNDLED_TAG!r} or "
+            f"{LATEST_TAG!r}. The pin is ignored and URLs resolve as if it "
+            "had not been set. A future major release will raise ValueError "
+            "here instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+
+    _cdn_version_override = candidate
 
 
 def get_cdn_version() -> str:
@@ -462,7 +509,22 @@ def get_cdn_version() -> str:
         return pin
     if _resolution_would_block():
         return _offline_version()
-    return _resolve_latest_version() or LATEST_TAG
+    # A lookup that failed falls back to the bundled version, not to
+    # `@latest`.  `@latest` is the mutable dist-tag whose seven-day
+    # `Cache-Control` is the whole of #290 -- so degrading to it meant the
+    # fix stopped applying in precisely the case it was meant to survive,
+    # and an offline browser could still replay a week-old build (#295).
+    #
+    # The bundled version is a real published one, immutable, and is the
+    # copy this wheel would have served anyway had the CDN been declined.
+    # What it costs is that a network hiccup pins the page to a possibly
+    # older release -- quieter, but staler. That trade was argued the
+    # other way when this fallback was written, on the grounds that
+    # `@latest` is byte-for-byte what users had before version resolution
+    # existed and so nobody ends up worse off. Three other paths have
+    # since moved to the bundled answer, and being the last one left
+    # emitting the mutable tag is not a place worth defending.
+    return _resolve_latest_version() or _offline_version()
 
 
 def _version_pin() -> str | None:
@@ -1258,6 +1320,25 @@ def _fetch_latest_version(budget: float) -> str | None:
 #: Minor-version gap at which the bundled fallback stops being "a release
 #: or two behind" and starts being a copy users should know about.  The
 #: bug report that prompted this check cited a gap of 8.
+#:
+#: Picked without the release histories, then measured against them (#292).
+#: The question that decides it is not how fast upstream ships, it is how
+#: many minors accumulate between the py-maidr releases that refresh the
+#: bundle.  Over the seventeen cycles from 2026-01-31 to 2026-08-10:
+#:
+#:     median 1   mean 1.7   min 0   max 7
+#:     cycles reaching 3+:  6/17  (35%)
+#:     cycles reaching 5+:  1/17  (6%)
+#:     cycles reaching 8+:  0/17  (0%)
+#:
+#: So 5 fires on the one cycle in seventeen where the bundle genuinely
+#: fell behind -- a 68-day gap with nothing released -- and stays quiet
+#: otherwise.  3 would fire on a third of all cycles, which is how a
+#: warning becomes noise; 8 would not have fired even on that one.
+#:
+#: Recompute the *cycle* table, not upstream's cadence, if this is ever
+#: revisited: upstream shipping faster only matters here to the extent it
+#: outruns py-maidr's releases.
 STALE_MINOR_GAP = 5
 
 #: Set to ``0`` / ``false`` / ``off`` to silence the staleness warning.

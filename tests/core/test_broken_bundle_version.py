@@ -104,13 +104,19 @@ def test_a_failed_lookup_stays_quiet(monkeypatch, caplog, no_pin) -> None:
     An offline notebook falls back to the bundled version on every figure,
     and that is working as documented. Warning here as well would make the
     broken-install message indistinguishable from ordinary life on a train.
+
+    Since #295 the failed lookup routes through `_offline_version` rather
+    than straight to `latest`, so it now passes *through* the code that
+    warns -- which is why this asserts the silence rather than assuming
+    it. The warning is about the broken install, not about being offline,
+    and a healthy bundle is what keeps it quiet here.
     """
     monkeypatch.setattr(dependencies, "_fetch_latest_version", lambda budget: None)
 
     with caplog.at_level(logging.WARNING):
         version = dependencies.get_cdn_version()
 
-    assert version == dependencies.LATEST_TAG
+    assert version == dependencies.maidr_js_version()
     assert "maidr.js version" not in caplog.text
 
 

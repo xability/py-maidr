@@ -135,15 +135,17 @@ def test_a_cached_failure_is_not_retried_on_a_loop(monkeypatch, requests) -> Non
     """A failed lookup stays failed, and stays cheap.
 
     An offline notebook must not stall on a doomed request for every figure,
-    and the loop must not either. The answer is ``latest`` here rather than
-    the bundled version, which is what a failed lookup has always produced --
-    this path is unchanged and is pinned so it stays that way.
+    and the loop must not either. Both answer with the bundled version --
+    the loop because it declines to look, the main thread because its
+    lookup failed and #295 made that fall back the same way. The two
+    agreeing is the point: after any resolution attempt, context stops
+    mattering.
     """
     monkeypatch.setattr(dependencies, "_fetch_latest_version", lambda budget: None)
 
-    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
+    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
 
-    assert in_loop(dependencies.get_cdn_version) == dependencies.LATEST_TAG
+    assert in_loop(dependencies.get_cdn_version) == dependencies.maidr_js_version()
     assert requests == []
 
 

@@ -228,7 +228,7 @@ def test_a_reset_discards_the_verdict_with_the_lookup(monkeypatch, clean) -> Non
 
 
 def test_the_render_path_is_unchanged_by_any_of_it(monkeypatch, clean) -> None:
-    """A failed lookup still degrades to ``latest`` rather than raising.
+    """A failed lookup still degrades rather than raising.
 
     The reason the outcome is a separate accessor rather than a widened
     ``BundleStatus``: nothing on the render path has to know about it, and
@@ -239,5 +239,5 @@ def test_the_render_path_is_unchanged_by_any_of_it(monkeypatch, clean) -> None:
         lambda request, timeout=None: (_ for _ in ()).throw(TimeoutError()),
     )
 
-    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
+    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
     assert dependencies.bundle_status(resolve=False).published is None
