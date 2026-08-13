@@ -297,7 +297,14 @@ One exception is worth knowing about: **Altair** charts always load `maidr.js` f
 ::: {.callout-note}
 ## Shiny and other async servers
 
-`render_maidr` calls into the synchronous render path, so the one-time lookup happens on the event loop and blocks it for up to `MAIDR_CDN_TIMEOUT`. Set `MAIDR_CDN_VERSION=bundled` at startup for Shiny apps to avoid that entirely.
+**No lookup happens on an event loop.** `render_maidr` calls into the synchronous render path, so the one-time lookup used to land on the loop and block it — every concurrent session queued behind one slow request. py-maidr now answers from the bundled version instead whenever a lookup would have to be made from a thread running a loop, which needs no request and is still an immutable URL.
+
+You give up picking up a release newer than your wheel, automatically, in an async app. Two ways to get it back:
+
+- `maidr.set_cdn_version("3.74.0")` at startup, if you know which version you want.
+- Call `maidr.get_cdn_version()` once from synchronous code at startup. That resolves and caches, and every async render then uses the resolved version — the request is paid for once, by your startup, not by a render.
+
+The same caching means this is not "async gets a different answer forever": after any resolution anywhere in the process, the loop and the main thread agree. It also means `warn_if_bundle_is_stale()` stays quiet in an app that never resolves, since it reads only an already-completed lookup.
 :::
 
 `bundle_status()` is the one deliberate exception: it resolves even when pinned, because "how does my bundle compare to what's published?" has no answer otherwise. Pass `resolve=False` if you need it silent.
