@@ -28,6 +28,8 @@ from maidr.util.dependencies import (
     maidr_bundled_relative_dir,
     maidr_html_dependency,
     maidr_js_cdn_url,
+    schema_trace_types,
+    warn_if_bundle_cannot_render,
     warn_if_bundle_is_stale,
 )
 from maidr.util.environment import Environment
@@ -320,6 +322,19 @@ class Maidr:
 
         # Build schema once so id stays consistent across SVG and global var
         schema = self._flatten_maidr()
+
+        # Ask the bundle whether it can draw what this render is about to
+        # hand it. Distance in version numbers cannot answer that, and the
+        # user who most needs the answer -- `use_cdn=False`, offline -- is
+        # the one the staleness warning cannot reach (#358).
+        # Kept in step with the `use_cdn` branching in _inject_plot, where
+        # `warn_if_bundle_is_stale` is called: these are two readings of the
+        # same decision in two places, and the schema this one needs is not
+        # available down there. Change one and check the other.
+        if use_cdn is not True:
+            warn_if_bundle_cannot_render(
+                schema_trace_types(schema), bundle_is_primary=use_cdn is False
+            )
 
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
             svg = self._get_svg(embed_data=data_in_svg, schema=schema)

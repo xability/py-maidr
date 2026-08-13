@@ -25,6 +25,8 @@ from maidr.util.dependencies import (
     maidr_bundled_relative_dir,
     maidr_html_dependency,
     maidr_js_cdn_url,
+    schema_trace_types,
+    warn_if_bundle_cannot_render,
     warn_if_bundle_is_stale,
 )
 from maidr.util.environment import Environment
@@ -943,6 +945,19 @@ class PlotlyMaidr:
         )
 
         schema = self._flatten_maidr()
+
+        # Same question the matplotlib path asks: can the copy that will
+        # run actually draw these layers (#358)? Version distance cannot
+        # answer it, and this needs no network.
+        # Kept in step with the `use_cdn` branching in the use_cdn branches below, where
+        # `warn_if_bundle_is_stale` is called: these are two readings of the
+        # same decision in two places, and the schema this one needs is not
+        # available down there. Change one and check the other.
+        if use_cdn is not True:
+            warn_if_bundle_cannot_render(
+                schema_trace_types(schema), bundle_is_primary=use_cdn is False
+            )
+
         plotly_div = self._get_plotly_html()
         init_script = self._build_init_script(
             schema, use_cdn=use_cdn, iframe_in_notebook=iframe_in_notebook
