@@ -493,6 +493,15 @@ def _offline_version() -> str:
     different builds of ``maidr.js`` -- an iframe on the pinned version
     and its host on the bundled one.
 
+    The last step warns, because there are two roads to ``latest`` and
+    only one of them is normal.  A lookup that failed is a routine
+    operating condition -- offline, blocked, a malformed response -- and
+    is documented as the safe degradation; it stays quiet.  A bundled
+    version that will not read is a broken install, nobody but the user
+    can fix it, and the page still works, so without a word the only
+    symptom is someone occasionally being served a week-old ``maidr.js``
+    for reasons nothing in the output explains (#364).
+
     Returns
     -------
     str
@@ -510,6 +519,19 @@ def _offline_version() -> str:
     if _is_valid_version(bundled) and bundled != _UNKNOWN_VERSION:
         return bundled
 
+    # Keyed on the unusable value, so a wheel whose VERSION is garbled
+    # rather than absent says which -- and a second, differently broken
+    # one is still audible.
+    _warn_once(
+        f"unusable-bundled-version:{bundled}",
+        "maidr: the bundled maidr.js version is unreadable (%r), so CDN "
+        "URLs fall back to the mutable maidr@%s tag. jsDelivr serves that "
+        "with a seven-day cache lifetime, so a browser may replay an old "
+        "bundle. Reinstall py-maidr, or pin a version with "
+        "maidr.set_cdn_version().",
+        bundled,
+        LATEST_TAG,
+    )
     return LATEST_TAG
 
 
