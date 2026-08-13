@@ -492,8 +492,16 @@ def test_falls_back_to_npm_registry_when_jsdelivr_fails(monkeypatch):
     assert len(calls) == 2
 
 
-def test_offline_falls_back_to_latest_tag(monkeypatch):
-    """No network: the URL degrades to the historical ``@latest`` form."""
+def test_offline_falls_back_to_the_bundled_version(monkeypatch):
+    """No network: the URL degrades to the version this wheel ships.
+
+    Not to ``@latest``, which was the historical form. That is the mutable
+    dist-tag whose seven-day ``Cache-Control`` is the whole of #290, so
+    degrading to it meant the fix stopped applying in precisely the case
+    it had to survive -- an offline browser could still replay a week-old
+    build (#295). The bundled version is immutable and is the copy this
+    wheel would have served anyway.
+    """
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
     dependencies.set_cdn_version(None)
     calls: list[str] = []
@@ -504,7 +512,10 @@ def test_offline_falls_back_to_latest_tag(monkeypatch):
 
     monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
 
-    assert dependencies.maidr_js_cdn_url() == dependencies.MAIDR_JS_CDN_URL
+    assert dependencies.maidr_js_cdn_url() == (
+        "https://cdn.jsdelivr.net/npm/maidr@"
+        f"{dependencies.maidr_js_version()}/dist/maidr.js"
+    )
     # Failure is cached too, so an offline session does not stall on a
     # doomed request for every figure it renders.
     dependencies.maidr_js_cdn_url()
@@ -528,7 +539,7 @@ def test_non_object_resolver_response_is_unusable(monkeypatch):
 
     monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
 
-    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
+    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
 
 
 def test_malformed_resolver_response_falls_back(monkeypatch):
@@ -539,7 +550,7 @@ def test_malformed_resolver_response_falls_back(monkeypatch):
         return _FakeResponse(b"<!DOCTYPE html><html>error</html>")
 
     monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
-    assert dependencies.get_cdn_version() == "latest"
+    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
 
 
 def test_hostile_resolver_version_is_rejected(monkeypatch):
@@ -552,7 +563,7 @@ def test_hostile_resolver_version_is_rejected(monkeypatch):
 
     monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
 
-    assert dependencies.get_cdn_version() == "latest"
+    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
     assert "evil" not in dependencies.maidr_js_cdn_url()
 
 
@@ -588,7 +599,7 @@ def test_timeout_is_a_total_budget_across_endpoints(monkeypatch):
 
     monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
 
-    assert dependencies.get_cdn_version() == "latest"
+    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
 
     assert len(seen) == len(dependencies._RESOLVER_ENDPOINTS)
     # Each attempt gets only what is left of the budget, so the timeouts
@@ -612,7 +623,7 @@ def test_budget_exhaustion_skips_remaining_endpoints(monkeypatch):
 
     monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
 
-    assert dependencies.get_cdn_version() == "latest"
+    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
     assert len(calls) == 1, "second endpoint should be skipped once spent"
 
 
@@ -984,8 +995,9 @@ def test_non_oserror_from_urlopen_does_not_escape(bar_plot, monkeypatch):
 
     monkeypatch.setattr(dependencies, "urlopen", blocked)
 
-    # Degrades to @latest rather than raising, and caches the failure.
-    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
+    # Degrades to the bundled version rather than raising, and caches
+    # the failure.
+    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
     maidr.render(bar_plot, use_cdn="auto")
 
 
@@ -1347,3 +1359,48 @@ def test_freshness_workflow_imports_resolve():
     status = maidr.bundle_status(resolve=False)
     for attribute in ("bundled", "published", "is_stale", "is_behind"):
         assert hasattr(status, attribute)
+
+
+def test_a_failed_lookup_never_emits_the_mutable_tag(monkeypatch):
+    """The point of #295, asserted on the URL rather than on the version.
+
+    ``@latest`` carries a seven-day ``Cache-Control``, which is the whole
+    of #290. Degrading to it when the lookup failed meant the fix stopped
+    applying in exactly the case it was written to survive: an offline
+    browser could still be handed a week-old build.
+
+    Every path is checked, not just the one that regressed, because the
+    version is spliced in three places and a fallback that fixed one of
+    them would look fixed.
+    """
+    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    dependencies.set_cdn_version(None)
+    monkeypatch.setattr(
+        dependencies, "urlopen", lambda *_a, **_k: (_ for _ in ()).throw(OSError())
+    )
+
+    bundled = dependencies.maidr_js_version()
+    urls = [
+        dependencies.maidr_js_cdn_url(),
+        dependencies.cdn_url(dependencies.MAIDR_MATH_CSS_FILENAME),
+        dependencies.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME),
+    ]
+
+    for url in urls:
+        assert f"maidr@{dependencies.LATEST_TAG}/" not in url, url
+        assert f"maidr@{bundled}/" in url, url
+
+
+def test_an_explicit_latest_pin_still_gets_the_mutable_tag(monkeypatch):
+    """Asking for ``latest`` is not a failure, and still means ``latest``.
+
+    The fallback moved; the pin did not. Someone who writes
+    ``MAIDR_CDN_VERSION=latest`` is deliberately opting out of resolution
+    and asking for the mutable tag, and #295 must not take that away --
+    it is the documented way to keep the CDN without the lookup.
+    """
+    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, "latest")
+    dependencies.set_cdn_version(None)
+
+    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
+    assert dependencies.maidr_js_cdn_url() == dependencies.MAIDR_JS_CDN_URL

@@ -509,7 +509,22 @@ def get_cdn_version() -> str:
         return pin
     if _resolution_would_block():
         return _offline_version()
-    return _resolve_latest_version() or LATEST_TAG
+    # A lookup that failed falls back to the bundled version, not to
+    # `@latest`.  `@latest` is the mutable dist-tag whose seven-day
+    # `Cache-Control` is the whole of #290 -- so degrading to it meant the
+    # fix stopped applying in precisely the case it was meant to survive,
+    # and an offline browser could still replay a week-old build (#295).
+    #
+    # The bundled version is a real published one, immutable, and is the
+    # copy this wheel would have served anyway had the CDN been declined.
+    # What it costs is that a network hiccup pins the page to a possibly
+    # older release -- quieter, but staler. That trade was argued the
+    # other way when this fallback was written, on the grounds that
+    # `@latest` is byte-for-byte what users had before version resolution
+    # existed and so nobody ends up worse off. Three other paths have
+    # since moved to the bundled answer, and being the last one left
+    # emitting the mutable tag is not a place worth defending.
+    return _resolve_latest_version() or _offline_version()
 
 
 def _version_pin() -> str | None:

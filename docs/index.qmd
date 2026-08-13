@@ -284,7 +284,9 @@ This matters because the CDN serves the mutable `maidr@latest` URL with a seven-
 :::: {.callout-note}
 ## This performs one network request
 
-Resolving the version makes a single outbound HTTPS request, the first time a CDN URL is built for a *rendered plot*. It is cached for the rest of the process and falls back to the `@latest` URL if it fails — so a blocked or slow network costs you a one-time delay, never an error.
+Resolving the version makes a single outbound HTTPS request, the first time a CDN URL is built for a *rendered plot*. It is cached for the rest of the process and falls back to **the version bundled in your wheel** if it fails — so a blocked or slow network costs you a one-time delay, never an error, and never the mutable `@latest` URL whose seven-day cache lifetime this resolution exists to avoid.
+
+The trade is that a network hiccup pins that page to the version you installed rather than the current one. That is the quieter failure: the bundled version is a real published release, and it is the same copy py-maidr would serve with `use_cdn=False`.
 
 `import maidr` makes no request, even in a notebook: `init_notebook()` pins its tags to the version bundled in the wheel, which needs no lookup and is still immutable.
 
