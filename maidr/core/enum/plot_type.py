@@ -10,6 +10,11 @@ class PlotType(str, Enum):
     DODGED = "dodged_bar"
     ERRORBAR = "error_bar"
     HEAT = "heat"
+    #: A hexagonal bin lattice: the standard answer to an overplotted scatter.
+    #: Read as a grid of cells each carrying a count, which is a heatmap --
+    #: except that alternate rows are offset by half a cell, so a bin's column
+    #: index is not its position and the trace announces centres instead.
+    HEXBIN = "hexbin"
     HIST = "hist"
     LINE = "line"
     #: A filled band between a series and a baseline. Emitted for a single

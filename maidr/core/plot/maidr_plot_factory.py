@@ -9,6 +9,7 @@ from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
+from maidr.core.plot.hexbinplot import HexbinPlot
 from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.maidr_plot import MaidrPlot
@@ -73,6 +74,8 @@ class MaidrPlotFactory:
             return ErrorBarPlot(single_ax, **kwargs)
         elif PlotType.HEAT == plot_type:
             return HeatPlot(single_ax, **kwargs)
+        elif PlotType.HEXBIN == plot_type:
+            return HexbinPlot(single_ax, **kwargs)
         elif PlotType.HIST == plot_type:
             return HistPlot(single_ax)
         elif PlotType.LINE == plot_type:
