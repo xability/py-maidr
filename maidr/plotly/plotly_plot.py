@@ -51,6 +51,10 @@ class PlotlyPlot(ABC):
         self.row_index: int = 0
         self.col_index: int = 0
         self._schema: dict = {}
+        # Set by `_drawn_line_series`; see it for why the pass is cached.
+        self._line_series_cache: (
+            tuple[list[dict], list[int], tuple[list[list[dict]], list[int]]] | None
+        ) = None
 
     @staticmethod
     def _to_native(val: Any) -> Any:
@@ -227,6 +231,59 @@ class PlotlyPlot(ABC):
                 drawn_positions.append(position)
 
         return series_list, drawn_positions
+
+    def _drawn_line_series(
+        self, traces: list[dict], positions: list[int]
+    ) -> tuple[list[list[dict]], list[int]]:
+        """
+        Return ``_line_series_with_positions``, run once per layer.
+
+        ``render()`` asks for the data and the selector as two separate steps,
+        and both answers come out of the same pass. Running it a second time
+        for the second caller is not merely wasteful — it assumes the pass can
+        be repeated, and it cannot: ``as_list`` materialises a trace array with
+        ``list(value)``, so a one-shot iterable is spent by the first walk and
+        reads as empty on the second. The layer then reports its series and no
+        selector at all, which is the silent no-highlight this pairing exists
+        to prevent.
+
+        ``Figure.to_dict()`` hands back lists, numpy arrays and typed-array
+        specs, never an iterator, so the export path does not reach that. A
+        caller constructing a layer directly does.
+
+        Cached against the two lists by identity rather than unconditionally,
+        so a caller passing different traces gets an answer for those traces
+        instead of the previous ones. Identity rather than equality because a
+        layer always hands over the same two objects it stored in ``__init__``,
+        so the check is free where it matters and never walks the points to
+        decide whether to walk the points.
+
+        One entry, deliberately — not a memoizer. It exists so that the two
+        halves of a single ``render()`` share one pass, and a layer only ever
+        asks about one pair. Alternating between two pairs would recompute
+        every time, correctly; if that ever becomes a real call pattern, this
+        wants replacing rather than widening.
+
+        Parameters
+        ----------
+        traces : list of dict
+            The traces this layer covers, in series order.
+        positions : list of int
+            Each trace's zero-based position among the subplot's
+            scatter-family traces, in the same order.
+
+        Returns
+        -------
+        tuple of (list of list of dict, list of int)
+            The non-empty series and the positions they were drawn at.
+        """
+        cached = self._line_series_cache
+        if cached is not None and cached[0] is traces and cached[1] is positions:
+            return cached[2]
+
+        drawn = self._line_series_with_positions(traces, positions)
+        self._line_series_cache = (traces, positions, drawn)
+        return drawn
 
     @staticmethod
     def _validate_scatter_positions(positions: list[int], trace_count: int) -> None:

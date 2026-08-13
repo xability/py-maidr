@@ -73,8 +73,9 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         """
         # Positions filtered by the same predicate that filters the data, so
         # series *i* always addresses the element series *i* is drawn as --
-        # see `_line_series_with_positions`.
-        _, drawn_positions = self._line_series_with_positions(
+        # see `_line_series_with_positions`. The pass is shared with
+        # `_extract_plot_data` rather than repeated: see `_drawn_line_series`.
+        _, drawn_positions = self._drawn_line_series(
             self._traces, self._scatter_positions
         )
         return self._scatter_line_selectors(self._traces, drawn_positions)
@@ -85,7 +86,5 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         Each inner list contains ``{x, y}`` dicts for one line, with an
         optional ``z`` key set to the trace name.
         """
-        lines, _ = self._line_series_with_positions(
-            self._traces, self._scatter_positions
-        )
+        lines, _ = self._drawn_line_series(self._traces, self._scatter_positions)
         return lines
