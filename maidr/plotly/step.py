@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.plotly_plot import PlotlyPlot
 from maidr.plotly.step_shape import step_direction_of
 
 
@@ -87,7 +87,13 @@ class PlotlyStepPlot(PlotlyPlot):
             One CSS selector per series, in trace order; empty for a WebGL
             layer.
         """
-        return self._scatter_line_selectors(self._traces, self._scatter_positions)
+        # Positions filtered by the same predicate that filters the data, so
+        # series *i* always addresses the element series *i* is drawn as --
+        # see `_line_series_with_positions`.
+        _, drawn_positions = self._line_series_with_positions(
+            self._traces, self._scatter_positions
+        )
+        return self._scatter_line_selectors(self._traces, drawn_positions)
 
     def render(self) -> dict:
         """
@@ -141,24 +147,7 @@ class PlotlyStepPlot(PlotlyPlot):
             ``{x, y}`` per point, with ``z`` set to the trace name when it has
             one. Empty series are dropped, matching ``PlotlyMultiLinePlot``.
         """
-        all_series: list[list[dict]] = []
-
-        for trace in self._traces:
-            x_values = as_list(trace.get("x"))
-            y_values = as_list(trace.get("y"))
-            name = trace.get("name", "")
-
-            series: list[dict] = []
-            for x_value, y_value in zip(x_values, y_values):
-                point: dict = {
-                    MaidrKey.X: self._to_native(x_value),
-                    MaidrKey.Y: self._to_native(y_value),
-                }
-                if name:
-                    point[MaidrKey.Z] = name
-                series.append(point)
-
-            if series:
-                all_series.append(series)
-
-        return all_series
+        series, _ = self._line_series_with_positions(
+            self._traces, self._scatter_positions
+        )
+        return series

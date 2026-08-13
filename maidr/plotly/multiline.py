@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.plotly_plot import PlotlyPlot
 
 
 class PlotlyMultiLinePlot(PlotlyPlot):
@@ -72,7 +71,13 @@ class PlotlyMultiLinePlot(PlotlyPlot):
             One CSS selector per line, in trace order; empty for a WebGL
             layer.
         """
-        return self._scatter_line_selectors(self._traces, self._scatter_positions)
+        # Positions filtered by the same predicate that filters the data, so
+        # series *i* always addresses the element series *i* is drawn as --
+        # see `_line_series_with_positions`.
+        _, drawn_positions = self._line_series_with_positions(
+            self._traces, self._scatter_positions
+        )
+        return self._scatter_line_selectors(self._traces, drawn_positions)
 
     def _extract_plot_data(self) -> list[list[dict]]:
         """Return multi-line data as a list-of-lists.
@@ -80,24 +85,7 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         Each inner list contains ``{x, y}`` dicts for one line, with an
         optional ``z`` key set to the trace name.
         """
-        all_lines: list[list[dict]] = []
-
-        for trace in self._traces:
-            x = as_list(trace.get("x"))
-            y = as_list(trace.get("y"))
-            name = trace.get("name", "")
-
-            line_data: list[dict] = []
-            for xv, yv in zip(x, y):
-                point: dict = {
-                    MaidrKey.X: self._to_native(xv),
-                    MaidrKey.Y: self._to_native(yv),
-                }
-                if name:
-                    point[MaidrKey.Z] = name
-                line_data.append(point)
-
-            if line_data:
-                all_lines.append(line_data)
-
-        return all_lines
+        lines, _ = self._line_series_with_positions(
+            self._traces, self._scatter_positions
+        )
+        return lines

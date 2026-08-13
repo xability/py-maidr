@@ -166,6 +166,68 @@ class PlotlyPlot(ABC):
             return []
         return [self._scatter_line_selector(position) for position in positions]
 
+    def _line_series_with_positions(
+        self, traces: list[dict], positions: list[int]
+    ) -> tuple[list[list[dict]], list[int]]:
+        """
+        Build the drawn series and the positions they were drawn at, together.
+
+        ``data`` and ``selector`` are paired positionally by the frontend, so
+        they have to be filtered by the same predicate. They were not: a trace
+        whose ``x``/``y`` came out empty was dropped from the data and still
+        consumed a selector, which slid every later series onto its
+        predecessor's element (#316). The audio, braille and text stayed
+        correct, so only a sighted collaborator could see the wrong line
+        highlighted -- the failure was invisible to the person using it.
+
+        Returning both from one pass is the fix, and is what stops the two
+        drifting apart again. The alternative, keeping the empty series so the
+        lists stay parallel, would emit a zero-point series for the frontend
+        to tolerate; dropping the position costs nothing and leaves ``data``
+        exactly as it is today.
+
+        An empty ``x``/``y`` is not exotic. It is what a series filtered to
+        nothing produces, which is routine in a dashboard or a faceted export
+        where one category has no rows in the current slice.
+
+        Parameters
+        ----------
+        traces : list of dict
+            The traces this layer covers, in series order.
+        positions : list of int
+            Each trace's zero-based position among the subplot's
+            scatter-family traces, in the same order.
+
+        Returns
+        -------
+        tuple of (list of list of dict, list of int)
+            The non-empty series, and the positions of the traces that
+            produced them -- index-aligned, and the same length.
+        """
+        series_list: list[list[dict]] = []
+        drawn_positions: list[int] = []
+
+        for trace, position in zip(traces, positions):
+            x_values = as_list(trace.get("x"))
+            y_values = as_list(trace.get("y"))
+            name = trace.get("name", "")
+
+            series: list[dict] = []
+            for x_value, y_value in zip(x_values, y_values):
+                point: dict = {
+                    MaidrKey.X: self._to_native(x_value),
+                    MaidrKey.Y: self._to_native(y_value),
+                }
+                if name:
+                    point[MaidrKey.Z] = name
+                series.append(point)
+
+            if series:
+                series_list.append(series)
+                drawn_positions.append(position)
+
+        return series_list, drawn_positions
+
     @staticmethod
     def _validate_scatter_positions(positions: list[int], trace_count: int) -> None:
         """
