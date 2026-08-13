@@ -53,6 +53,23 @@ def bar_plot():
     plt.close(fig)
 
 
+#: Stand-ins for "a type this bundle cannot build", spelled so that no
+#: release can turn them into types it can.
+#:
+#: These were `"treemap"` and `"sankey"` -- real types the bundle genuinely
+#: lacked when this file was written. maidr 4.2.0 shipped both, the bundle
+#: update landed, and five cases here went from testing the warning to
+#: asserting that a supported type warns. They failed loudly, which was
+#: luck: the same release could as easily have made them pass vacuously.
+#:
+#: Nothing about the check depends on the name being real. It is a set
+#: difference between the types a schema carries and the types the bundle
+#: quotes, so an absent name is an absent name. What matters is that these
+#: stay absent, which `test_the_stand_ins_are_really_absent` is for.
+UNBUILDABLE = "maidr_test_unbuildable_trace"
+OTHER_UNBUILDABLE = "maidr_test_second_unbuildable_trace"
+
+
 def _caught(action) -> list[str]:
     """Run ``action`` and return the capability warnings it raised."""
     with warnings.catch_warnings(record=True) as records:
@@ -164,12 +181,32 @@ def test_the_enum_is_not_the_source_of_truth():
 # ---------------------------------------------------------------------------
 
 
+def test_the_stand_ins_are_really_absent():
+    """Every case below is vacuous if the bundle learns to build these.
+
+    The guard that was missing. `"treemap"` and `"sankey"` were real types
+    the bundle lacked; maidr 4.2.0 shipped both and five cases silently
+    stopped testing what they were named for. They happened to fail, which
+    is not the same as being caught -- a release that made them pass
+    instead would have left the file green and empty.
+
+    Nothing here rests on the names being real, only on their being
+    missing, so this is the whole invariant the rest of the section needs.
+    """
+    types = bundle_trace_types()
+
+    # Not vacuous itself: an empty set would satisfy the two below.
+    assert "bar" in types
+    assert UNBUILDABLE not in types
+    assert OTHER_UNBUILDABLE not in types
+
+
 def test_a_type_the_bundle_cannot_build_is_named(bar_plot):
     """The reader is told which type, and what to do about it."""
-    messages = _caught(lambda: warn_if_bundle_cannot_render(["treemap"]))
+    messages = _caught(lambda: warn_if_bundle_cannot_render([UNBUILDABLE]))
 
     assert len(messages) == 1
-    assert "treemap" in messages[0]
+    assert UNBUILDABLE in messages[0]
     assert "use_cdn" in messages[0]
 
 
@@ -181,20 +218,20 @@ def test_every_unsupported_type_is_named_at_once():
     discover the second.
     """
     messages = _caught(
-        lambda: warn_if_bundle_cannot_render(["sankey", "bar", "treemap"])
+        lambda: warn_if_bundle_cannot_render([OTHER_UNBUILDABLE, "bar", UNBUILDABLE])
     )
 
     assert len(messages) == 1
-    assert "sankey" in messages[0]
-    assert "treemap" in messages[0]
+    assert OTHER_UNBUILDABLE in messages[0]
+    assert UNBUILDABLE in messages[0]
     # The supported one is not mentioned as a problem.
     assert "bar," not in messages[0]
 
 
 def test_a_type_is_reported_once_per_process():
     """A chart rendered in a loop says it once."""
-    first = _caught(lambda: warn_if_bundle_cannot_render(["treemap"]))
-    second = _caught(lambda: warn_if_bundle_cannot_render(["treemap"]))
+    first = _caught(lambda: warn_if_bundle_cannot_render([UNBUILDABLE]))
+    second = _caught(lambda: warn_if_bundle_cannot_render([UNBUILDABLE]))
 
     assert len(first) == 1
     assert second == []
@@ -204,14 +241,14 @@ def test_a_second_unsupported_type_is_not_swallowed_by_the_first():
     """
     Latched per type rather than per process.
 
-    One shared latch would let a treemap consume the single report and
-    leave a later sankey permanently unmentioned.
+    One shared latch would let the first type consume the single report and
+    leave a later, differently unbuildable one permanently unmentioned.
     """
-    _caught(lambda: warn_if_bundle_cannot_render(["treemap"]))
-    later = _caught(lambda: warn_if_bundle_cannot_render(["sankey"]))
+    _caught(lambda: warn_if_bundle_cannot_render([UNBUILDABLE]))
+    later = _caught(lambda: warn_if_bundle_cannot_render([OTHER_UNBUILDABLE]))
 
     assert len(later) == 1
-    assert "sankey" in later[0]
+    assert OTHER_UNBUILDABLE in later[0]
 
 
 def test_the_auto_path_reports_to_the_logger_rather_than_warning(caplog):
@@ -224,11 +261,11 @@ def test_the_auto_path_reports_to_the_logger_rather_than_warning(caplog):
     """
     with caplog.at_level("WARNING", logger="maidr.util.dependencies"):
         messages = _caught(
-            lambda: warn_if_bundle_cannot_render(["treemap"], bundle_is_primary=False)
+            lambda: warn_if_bundle_cannot_render([UNBUILDABLE], bundle_is_primary=False)
         )
 
     assert messages == []
-    assert any("treemap" in record.message for record in caplog.records)
+    assert any(UNBUILDABLE in record.message for record in caplog.records)
 
 
 def test_the_two_severities_do_not_share_a_latch():
@@ -239,8 +276,8 @@ def test_the_two_severities_do_not_share_a_latch():
     latch would leave the ``use_cdn=False`` warning — the audience this
     exists for — permanently unreachable.
     """
-    warn_if_bundle_cannot_render(["treemap"], bundle_is_primary=False)
-    messages = _caught(lambda: warn_if_bundle_cannot_render(["treemap"]))
+    warn_if_bundle_cannot_render([UNBUILDABLE], bundle_is_primary=False)
+    messages = _caught(lambda: warn_if_bundle_cannot_render([UNBUILDABLE]))
 
     assert len(messages) == 1
 
@@ -249,7 +286,7 @@ def test_the_env_switch_silences_it(monkeypatch):
     """Same knob as the staleness warning: bundle chatter off means off."""
     monkeypatch.setenv(dependencies.BUNDLE_WARNING_ENV_VAR, "0")
 
-    assert _caught(lambda: warn_if_bundle_cannot_render(["treemap"])) == []
+    assert _caught(lambda: warn_if_bundle_cannot_render([UNBUILDABLE])) == []
 
 
 # ---------------------------------------------------------------------------
