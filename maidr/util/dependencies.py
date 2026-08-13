@@ -40,6 +40,7 @@ from functools import lru_cache
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import NamedTuple
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
@@ -140,6 +141,41 @@ _RESOLVER_ENDPOINTS: tuple[tuple[str, str], ...] = (
 # Cap on how much of a resolver response we read, so a hostile or broken
 # endpoint cannot stream an unbounded body into memory.
 _MAX_RESOLVER_BYTES = 64 * 1024
+
+
+class ResolverOutcome(NamedTuple):
+    """Why the last ``latest`` lookup ended the way it did.
+
+    :func:`_fetch_latest_version` collapses every failure into ``None``,
+    which is the right answer for a render -- there is nothing a chart can
+    do about it either way -- but it loses the one distinction a monitor
+    needs.  Two endpoints failing to answer is the network; two endpoints
+    answering with something unusable is *this code* being wrong about
+    their shape, and only the second should wake anyone up.
+
+    Kept separate from :class:`BundleStatus` rather than folded into it,
+    so the render path's answer to "how does my bundle compare?" stays the
+    two versions and the two flags it already is.
+
+    Attributes
+    ----------
+    resolved : str or None
+        The version the lookup settled on, if any.
+    unreachable : tuple of str
+        Endpoints that never answered: a timeout, a refused connection, a
+        name that would not resolve, a blocked socket.  Says nothing about
+        whether the resolver code is right, because nothing was read.
+    answered_badly : tuple of str
+        Endpoints that answered, in a way this code could not use: an HTTP
+        error status, a body that would not decode or parse, a payload
+        without the key, or a value that is not a version.  This is the
+        one worth failing a scheduled check over -- an API that changed
+        shape looks exactly like this and looks like nothing else.
+    """
+
+    resolved: str | None
+    unreachable: tuple[str, ...]
+    answered_badly: tuple[str, ...]
 
 
 def _unresolved_cdn_url(filename: str) -> str:
@@ -281,6 +317,13 @@ _resolution_lock = threading.Lock()
 # request between them.  Fetchers take this *then* ``_resolution_lock`` to
 # publish; readers never take it, so they cannot be blocked by a fetch.
 _fetch_lock = threading.Lock()
+
+# The last lookup's verdict, for :func:`resolver_outcome`.  A single
+# rebound reference like the globals above, so no lock is needed to read
+# it: a reader sees one whole outcome, never half of two.  ``None`` until
+# a lookup has run, which is what tells "not tried" from "tried and
+# reached nothing".
+_resolver_outcome: ResolverOutcome | None = None
 
 # Unresolved CDN URLs, kept only for backwards compatibility with
 # callers outside this package that imported them before version
@@ -606,6 +649,11 @@ def reset_cdn_version_cache() -> None:
     :func:`warn_if_bundle_is_stale`, which stays spent for the life of
     the process regardless of how often the version is re-resolved.
 
+    Clears :func:`resolver_outcome` too.  It describes the lookup this
+    call is discarding, and leaving it behind would let a monitor read a
+    stale verdict as the current one -- reporting an endpoint as broken
+    after a successful re-resolution, or the reverse.
+
     Returns without waiting on a lookup already in flight — it does not
     take ``_fetch_lock``, which would make the reset itself block for the
     whole budget behind the request it is abandoning.  That is a promise
@@ -616,9 +664,11 @@ def reset_cdn_version_cache() -> None:
     than published over the reset.
     """
     global _resolved_cdn_version, _resolution_attempted, _resolution_generation
+    global _resolver_outcome
     with _resolution_lock:
         _resolved_cdn_version = None
         _resolution_attempted = False
+        _resolver_outcome = None
         # Invalidate any lookup already in flight, so its result cannot
         # land after this call and quietly undo it.
         _resolution_generation += 1
@@ -1107,13 +1157,23 @@ def _fetch_latest_version(budget: float) -> str | None:
     the wait.  Hard-capping the total would need a watchdog thread, which
     is not worth it for two endpoints returning sub-kilobyte payloads.
     """
+    global _resolver_outcome
+
     deadline = time.monotonic() + budget
+    unreachable: list[str] = []
+    answered_badly: list[str] = []
+    resolved: str | None = None
+
     for url, key in _RESOLVER_ENDPOINTS:
         timeout = deadline - time.monotonic()
         if timeout <= 0:
             _logger.debug(
                 "maidr: CDN version lookup budget spent before trying %s", url
             )
+            # Never asked, so neither bucket: recording it as unreachable
+            # would report a spent budget as a network fault, and as
+            # answering badly would blame this code for a question it did
+            # not put. The endpoints before it already carry the verdict.
             break
         try:
             # ``url`` is one of the hard-coded https:// endpoints above, never
@@ -1126,23 +1186,56 @@ def _fetch_latest_version(budget: float) -> str | None:
                 payload = json.loads(
                     response.read(_MAX_RESOLVER_BYTES).decode("utf-8")
                 )
+        except HTTPError:
+            # The server answered; the status was one we cannot use. That
+            # is the endpoint telling us something -- a moved path, a
+            # removed package, a rate limit -- and it is a different fact
+            # from not having reached it at all.
+            _logger.debug("maidr: CDN version lookup rejected at %s", url,
+                          exc_info=True)
+            answered_badly.append(url)
+            continue
+        except (ValueError, UnicodeDecodeError):
+            # Bytes arrived and would not become JSON, or would not decode.
+            # Reached, and unusable.
+            _logger.debug("maidr: unparseable CDN version response from %s", url,
+                          exc_info=True)
+            answered_badly.append(url)
+            continue
         except Exception:
-            # Deliberately broad.  The obvious failures are OSError,
-            # HTTPException, ValueError and UnicodeDecodeError, but the
-            # contract above is that a lookup failure degrades to the
-            # ``@latest`` URL rather than breaking rendering — and an
-            # exception this list did not anticipate would break it.
-            # Sandboxes make that concrete: pytest-socket raises
-            # SocketBlockedError, which derives from Exception, not
-            # OSError, and would otherwise propagate out of render().
+            # Deliberately broad, and deliberately last.  The obvious
+            # failures are OSError and HTTPException, but the contract
+            # above is that a lookup failure degrades to the ``@latest``
+            # URL rather than breaking rendering — and an exception this
+            # list did not anticipate would break it.  Sandboxes make that
+            # concrete: pytest-socket raises SocketBlockedError, which
+            # derives from Exception, not OSError, and would otherwise
+            # propagate out of render().
+            #
+            # Counted as unreachable rather than as a bad answer, because
+            # that is the safe direction: an unrecognised failure calling
+            # itself "this code is wrong" would redden a scheduled check
+            # for a network condition nobody can fix.
             _logger.debug("maidr: CDN version lookup failed at %s", url, exc_info=True)
+            unreachable.append(url)
             continue
 
         candidate = payload.get(key) if isinstance(payload, dict) else None
         if isinstance(candidate, str) and _is_valid_version(candidate.strip()):
-            return candidate.strip()
+            resolved = candidate.strip()
+            break
+        # Answered, parsed, and said something this code cannot read: the
+        # payload has no such key, or the value is not a version. An
+        # endpoint that changed shape looks exactly like this.
         _logger.debug("maidr: unusable CDN version %r from %s", candidate, url)
-    return None
+        answered_badly.append(url)
+
+    _resolver_outcome = ResolverOutcome(
+        resolved=resolved,
+        unreachable=tuple(unreachable),
+        answered_badly=tuple(answered_badly),
+    )
+    return resolved
 
 
 # ---------------------------------------------------------------------------
@@ -1215,6 +1308,40 @@ class BundleStatus(NamedTuple):
     published: str | None
     is_behind: bool
     is_stale: bool
+
+
+def resolver_outcome() -> ResolverOutcome | None:
+    """Report why the last ``latest`` lookup ended as it did.
+
+    For a monitor rather than for a render.  The scheduled freshness check
+    passes when the published version cannot be resolved, because a
+    resolver hiccup is not a drift signal and failing on one would train
+    maintainers to ignore the job.  That is right for a hiccup and wrong
+    for a persistent failure: if the resolver stays unreachable the job
+    stays green forever while checking nothing, and a green check that
+    verifies nothing is worse than a red one because it is
+    indistinguishable from a real pass (#298).
+
+    What separates the two is *how* it failed.  Endpoints that never
+    answered are the network, which nobody watching the job can fix.
+    Endpoints that answered with something this code could not use are
+    this code being wrong about their shape -- which is the most likely
+    long-lived cause, and the one worth waking someone for.
+
+    Returns
+    -------
+    ResolverOutcome or None
+        ``None`` when no lookup has run in this process, which is a
+        different thing from one that ran and reached nothing.  A pinned
+        or offline session never resolves, so the caller has to tell those
+        apart rather than reading an empty outcome as a verdict.
+
+    Examples
+    --------
+    >>> resolver_outcome()  # doctest: +SKIP
+    ResolverOutcome(resolved='4.2.0', unreachable=(), answered_badly=())
+    """
+    return _resolver_outcome
 
 
 def bundle_status(*, resolve: bool = True) -> BundleStatus:

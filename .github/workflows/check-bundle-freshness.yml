@@ -49,7 +49,7 @@ jobs:
           uv run python - <<'PY'
           import sys
 
-          from maidr import STALE_MINOR_GAP, bundle_status
+          from maidr import STALE_MINOR_GAP, bundle_status, resolver_outcome
 
           # bundle_status() re-raises rather than caches a lookup that
           # failed in a way it is written not to.  That is right for a
@@ -67,9 +67,37 @@ jobs:
           print(f"published: {status.published}")
 
           if status.published is None:
-              # A resolver hiccup is not a drift signal.  Say so and pass;
-              # failing here would train maintainers to ignore this job.
-              print("::warning::Could not resolve the published version; skipping.")
+              # Passing on a failed lookup is right for a hiccup and wrong
+              # for a persistent failure: a job that skips forever stays
+              # green while checking nothing, and a green check that
+              # verifies nothing is worse than a red one because it is
+              # indistinguishable from a real pass (#298).
+              #
+              # What separates them is *how* it failed.  An endpoint that
+              # never answered is the network, which nobody reading this
+              # job can fix.  An endpoint that answered with something
+              # py-maidr could not use is py-maidr being wrong about its
+              # shape -- an API that moved or changed its payload -- and
+              # that is the long-lived cause this job most needs to catch,
+              # because it will not fix itself.
+              outcome = resolver_outcome()
+
+              if outcome is not None and outcome.answered_badly:
+                  print(
+                      "::error::Every resolver that answered gave something "
+                      f"py-maidr could not read: {', '.join(outcome.answered_badly)}. "
+                      "This is not a network problem -- the endpoints replied. "
+                      "Check whether their payload shape changed, in "
+                      "_RESOLVER_ENDPOINTS and _fetch_latest_version."
+                  )
+                  sys.exit(1)
+
+              unreachable = ", ".join(outcome.unreachable) if outcome else "all"
+              print(
+                  f"::warning::Could not reach any resolver ({unreachable}); "
+                  "skipping. Nothing answered, so this says nothing about "
+                  "whether the bundle has drifted."
+              )
               sys.exit(0)
 
           if status.is_stale:
