@@ -147,24 +147,32 @@ def test_a_cached_failure_is_not_retried_on_a_loop(monkeypatch, requests) -> Non
     assert requests == []
 
 
-def test_two_concurrent_renders_on_one_loop_both_return(requests) -> None:
+def test_interleaved_renders_on_one_loop_all_return(requests) -> None:
     """No pile-up, because there is nothing to pile up behind.
 
     Concurrent first-renders used to queue on ``_fetch_lock`` while the first
     of them made the request, so a slow resolver cost every session the same
     stall rather than costing one of them.
+
+    Each call yields to the loop before asking, so the four are interleaved by
+    the scheduler rather than run to completion in turn -- which is the shape
+    a Shiny app's sessions arrive in. Written as ``await asyncio.sleep(0)``
+    inside each coroutine rather than as an argument to it: an argument is
+    evaluated when the coroutine is *created*, so all four calls would happen
+    before ``gather`` ever scheduled anything.
     """
 
+    async def one_render():
+        await asyncio.sleep(0)
+        return dependencies.get_cdn_version()
+
     async def main():
-        return await asyncio.gather(
-            asyncio.to_thread(lambda: None),
-            *[asyncio.sleep(0, dependencies.get_cdn_version()) for _ in range(4)],
-        )
+        return await asyncio.gather(*[one_render() for _ in range(4)])
 
     results = asyncio.run(main())
 
     assert requests == []
-    assert set(results[1:]) == {dependencies.maidr_js_version()}
+    assert set(results) == {dependencies.maidr_js_version()}
 
 
 def test_bundled_cdn_url_still_prefers_a_pin_then_a_lookup(requests) -> None:
