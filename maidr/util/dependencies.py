@@ -22,6 +22,15 @@ drift behind upstream between releases — and a render that falls back to
 it silently runs older code.  :func:`bundle_status` reports that drift and
 :func:`warn_if_bundle_is_stale` surfaces it once per process when the gap
 grows large enough to matter.
+
+Version distance is the coarse signal, not the answer.  What a user
+actually wants to know is whether the bundle can draw the chart they are
+emitting, and :func:`warn_if_bundle_cannot_render` answers that directly
+by reading the installed file — no network, so unlike the staleness
+warning it reaches the offline and pinned users whose bundle is what runs.
+Keep the two apart when changing either: "you are drifting" and "this
+chart will not draw" are different claims, and the second is the one worth
+acting on.
 """
 
 from __future__ import annotations
@@ -1258,6 +1267,25 @@ def _fetch_latest_version(budget: float) -> str | None:
 #: Minor-version gap at which the bundled fallback stops being "a release
 #: or two behind" and starts being a copy users should know about.  The
 #: bug report that prompted this check cited a gap of 8.
+#:
+#: Picked without the release histories, then measured against them (#292).
+#: The question that decides it is not how fast upstream ships, it is how
+#: many minors accumulate between the py-maidr releases that refresh the
+#: bundle.  Over the seventeen cycles from 2026-01-31 to 2026-08-10:
+#:
+#:     median 1   mean 1.7   min 0   max 7
+#:     cycles reaching 3+:  6/17  (35%)
+#:     cycles reaching 5+:  1/17  (6%)
+#:     cycles reaching 8+:  0/17  (0%)
+#:
+#: So 5 fires on the one cycle in seventeen where the bundle genuinely
+#: fell behind -- a 68-day gap with nothing released -- and stays quiet
+#: otherwise.  3 would fire on a third of all cycles, which is how a
+#: warning becomes noise; 8 would not have fired even on that one.
+#:
+#: Recompute the *cycle* table, not upstream's cadence, if this is ever
+#: revisited: upstream shipping faster only matters here to the extent it
+#: outruns py-maidr's releases.
 STALE_MINOR_GAP = 5
 
 #: Set to ``0`` / ``false`` / ``off`` to silence the staleness warning.
