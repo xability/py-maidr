@@ -253,7 +253,16 @@ class PlotlyPlot(ABC):
 
         Cached against the two lists by identity rather than unconditionally,
         so a caller passing different traces gets an answer for those traces
-        instead of the previous ones.
+        instead of the previous ones. Identity rather than equality because a
+        layer always hands over the same two objects it stored in ``__init__``,
+        so the check is free where it matters and never walks the points to
+        decide whether to walk the points.
+
+        One entry, deliberately — not a memoizer. It exists so that the two
+        halves of a single ``render()`` share one pass, and a layer only ever
+        asks about one pair. Alternating between two pairs would recompute
+        every time, correctly; if that ever becomes a real call pattern, this
+        wants replacing rather than widening.
 
         Parameters
         ----------
