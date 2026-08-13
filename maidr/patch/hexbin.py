@@ -46,14 +46,20 @@ def _fill_label(wrapped, args: tuple, kwargs: dict) -> str:
     str
         The label for the ``z`` axis.
     """
-    if _argument("C", wrapped, args, kwargs) is not None:
-        return "value"
+    reduced = _argument("C", wrapped, args, kwargs) is not None
 
+    # `bins` is read first because it wins. matplotlib applies it *after* the
+    # count-or-reduce step and overwrites whatever that produced, so a numeric
+    # `bins` alongside `C` leaves interval indices where the reduced values
+    # were -- measured, not inferred: `C=` alone gives float64 spanning 79 to
+    # 114, and `C=` with `bins=5` gives int64 spanning 0 to 4.
     bins = _argument("bins", wrapped, args, kwargs)
     if bins is not None and not (isinstance(bins, str) and bins == "log"):
-        return "count bin"
+        # Which quantity was discretised still matters. "count bin" for a
+        # chart that never counted anything would be its own small lie.
+        return "value bin" if reduced else "count bin"
 
-    return "count"
+    return "value" if reduced else "count"
 
 
 def _is_readable(wrapped, args, kwargs, collection: Collection) -> bool:

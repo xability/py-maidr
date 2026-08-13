@@ -274,6 +274,22 @@ def test_the_colour_axis_is_named_for_what_the_fill_encodes(hexbin) -> None:
     _, reduced, _ = hexbin(C=x)
     assert reduced["axes"]["z"]["label"] == "value"
 
+    # `bins` wins over `C`, because matplotlib applies it after the reduction
+    # and overwrites the result. Measured: `C=` alone leaves float64 spanning
+    # 79 to 114, and `C=` with `bins=5` leaves int64 spanning 0 to 4. Reading
+    # that as the reduced value announces "value: 2" for a bin whose mean is
+    # 113.8 -- a plausible number with nothing in the chart to deny it.
+    #
+    # It is not "count bin" either. Nothing was counted, so which quantity
+    # got discretised is still worth saying.
+    _, both, _ = hexbin(C=x, bins=5)
+    assert both["axes"]["z"]["label"] == "value bin"
+
+    # `bins="log"` is the exception on both paths: it installs a norm and
+    # leaves the array alone, reduced values included.
+    _, logged_reduction, _ = hexbin(C=x, bins="log")
+    assert logged_reduction["axes"]["z"]["label"] == "value"
+
     _, named, _ = hexbin(z_label="density")
     assert named["axes"]["z"]["label"] == "density"
 
