@@ -101,6 +101,34 @@ def test_an_empty_barnorm_is_not_normalisation() -> None:
     assert _types(_figure("stack", "")) == ["stacked_bar"]
 
 
+def test_the_express_spelling_reaches_the_same_answer() -> None:
+    """How a user actually writes one, rather than a hand-built layout.
+
+    `px.bar` takes no `barnorm` argument -- unlike `px.histogram`, which does
+    -- so the express route to a 100% stacked bar is `update_layout`. That
+    still has to arrive as `relative` + `percent` in `to_dict()` for the
+    lookup above to fire, which is the part worth driving rather than assuming
+    from the `go.Figure` cases.
+    """
+    pd = pytest.importorskip("pandas")
+    np = pytest.importorskip("numpy")
+    import plotly.express as px
+
+    rng = np.random.default_rng(3)
+    frame = pd.DataFrame(
+        {
+            "g": list("abc") * 10,
+            "h": ["x", "y"] * 15,
+            "v": rng.normal(10, 3, size=30),
+        }
+    )
+
+    figure = px.bar(frame, x="g", y="v", color="h").update_layout(barnorm="percent")
+
+    assert figure.layout.barmode == "relative"
+    assert _types(figure) == ["stacked_normalized_bar"]
+
+
 def test_the_type_is_the_one_the_maidr_core_already_carries() -> None:
     """The wire value has to match the core, or the bundle cannot draw it.
 
