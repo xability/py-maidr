@@ -6,7 +6,7 @@ from matplotlib.axes import Axes
 from maidr.core.context_manager import BoxplotContextManager, ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly, resolve_orientation
+from maidr.patch.common import _draw_quietly, resolve_orientation, wrap_seaborn
 
 
 @wrapt.patch_function_wrapper(Axes, "bxp")
@@ -35,7 +35,6 @@ def mpl_box(wrapped, _, args, kwargs) -> dict:
     return plot
 
 
-@wrapt.patch_function_wrapper("seaborn", "boxplot")
 def sns_box(wrapped, _, args, kwargs) -> Axes:
     # Set the internal context to avoid cyclic processing.
     with BoxplotContextManager.set_internal_context() as bxp_context:
@@ -57,6 +56,10 @@ def sns_box(wrapped, _, args, kwargs) -> Axes:
 
     # Return to the caller.
     return plot
+
+
+# Patch seaborn function.
+wrap_seaborn("boxplot", sns_box)
 
 
 def sns_infer_new_orient(wrapped, instance, args, kwargs) -> str:

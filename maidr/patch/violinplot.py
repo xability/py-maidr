@@ -23,14 +23,13 @@ from maidr.core.enum import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.violinplot import ViolinDataExtractor
-from maidr.patch.common import _draw_quietly, resolve_orientation
+from maidr.patch.common import _draw_quietly, resolve_orientation, wrap_seaborn
 from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
 
 
 # ======================================================================
 # Seaborn
 # ======================================================================
-@wrapt.patch_function_wrapper("seaborn", "violinplot")
 def patch_violinplot(
     wrapped: Callable, instance: Any, args: tuple, kwargs: dict
 ) -> Any:
@@ -71,6 +70,10 @@ def patch_violinplot(
     _register_kde_layer(plot_ax, args, kwargs, orientation)
 
     return ax
+
+
+# Patch seaborn function.
+wrap_seaborn("violinplot", patch_violinplot)
 
 
 # ======================================================================
