@@ -108,10 +108,26 @@ def _auto_shift_bins(
     Exact port of Plotly.js ``autoShiftNumericBins`` from
     ``src/plots/cartesian/axes.js``.
 
+    *bin_start* need only be **some** multiple of *dtick* within one *dtick*
+    of the true unshifted start -- not one particular formula. The two callers
+    rely on that: the autobin path passes
+    ``ceil(data_min / dtick) * dtick - dtick`` and the explicit-size path
+    ``floor(data_min / size) * size``. Those agree except when ``data_min`` is
+    itself a multiple of the width, where they differ by exactly one bin, and
+    the branches below then correct both to the same answer -- ``near_edge``
+    is trivially true of a seed equal to ``data_min``, so the no-shift
+    fallback cannot fire for it either.
+
+    That convergence is a property of the branches rather than of the
+    arithmetic that produced the seed, so it is worth keeping deliberate:
+    ``test_plotly_histogram_bins.py`` asserts the two seeds land on the same
+    start across a spread of samples and widths, which would otherwise be
+    rediscovered by hand the next time this function is touched.
+
     Parameters
     ----------
     bin_start : float
-        Initial bin start (a round multiple of *dtick*).
+        A multiple of *dtick* within one *dtick* of the unshifted start.
     data : np.ndarray
         Raw data values.
     dtick : float
@@ -327,8 +343,7 @@ class PlotlyHistogramPlot(PlotlyPlot):
         count_min, count_max = bounds[counted]
 
         data = []
-        for i in range(first, last + 1):
-            count = counts[i]
+        for i, count in enumerate(counts[first : last + 1], start=first):
             low = float(bin_edges[i])
             high = float(bin_edges[i + 1])
             data.append(

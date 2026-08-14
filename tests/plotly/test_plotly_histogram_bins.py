@@ -47,7 +47,7 @@ plotly = pytest.importorskip("plotly")
 import numpy as np  # noqa: E402
 import plotly.graph_objects as go  # noqa: E402
 
-from maidr.plotly.histogram import _occupied_span  # noqa: E402
+from maidr.plotly.histogram import _auto_shift_bins, _occupied_span  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
 #: Spans a window given below in one test and above it in another.
@@ -182,6 +182,49 @@ class TestBinStartShift:
     def test_the_shift_applies_on_a_horizontal_trace_too(self):
         fig = go.Figure([go.Histogram(y=[0, 1, 2, 3, 4], ybins=dict(size=2))])
         assert bins(fig) == [(-0.5, 1.5, 2), (1.5, 3.5, 2), (3.5, 5.5, 1)]
+
+
+class TestBothCallersSeedTheShiftEquivalently:
+    """``_auto_shift_bins`` has two callers that seed it differently.
+
+    The autobin path passes ``ceil(data_min / dtick) * dtick - dtick``; the
+    explicit-size path passes ``floor(data_min / size) * size``. Those agree
+    except when ``data_min`` is itself a multiple of the width, where they
+    differ by exactly one bin — and the branches inside then correct both to
+    the same start.
+
+    That is a property of those branches, not of the seed arithmetic, so a
+    refactor of the shift could break the coupling with nothing failing. This
+    pins it instead of leaving it to be re-derived by hand.
+    """
+
+    SAMPLES = {
+        "integers from zero": [0, 1, 2, 3, 4],
+        "integers spanning zero": [-4, -3, 0, 1],
+        "one value on an edge": [0.5, 1.5, 4.0],
+        "min on a multiple": [2.0, 3.7, 5.1, 8.9],
+        "every value a multiple": [0.0, 2.0, 4.0, 6.0],
+        "negative multiples": [-6.0, -4.0, -2.0, 0.0],
+        "barely any spread": [1.0, 1.0000001],
+        "sub-unit": [0.001, 0.002, 0.004],
+    }
+
+    @pytest.mark.parametrize("label", sorted(SAMPLES))
+    @pytest.mark.parametrize("width", [0.001, 0.5, 1, 2, 3, 5])
+    def test_the_two_seeds_land_on_the_same_start(self, label, width):
+        import math
+
+        arr = np.array(self.SAMPLES[label], dtype=float)
+        low, high = float(arr.min()), float(arr.max())
+
+        from_explicit = _auto_shift_bins(
+            math.floor(low / width) * width, arr, width, low, high
+        )
+        from_autobin = _auto_shift_bins(
+            math.ceil(low / width) * width - width, arr, width, low, high
+        )
+
+        assert from_explicit == pytest.approx(from_autobin, abs=1e-12)
 
 
 class TestNothingToAnnounce:
