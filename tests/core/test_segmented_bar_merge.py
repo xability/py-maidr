@@ -240,7 +240,7 @@ def test_a_bar_typed_layer_outside_the_family_is_not_dropped() -> None:
     figure_maidr.plots.append(volume)
     figure_maidr.selector_ids.append("volume-id")
 
-    figure_maidr._collapse_segmented_bar_layers()
+    figure_maidr._drop_superseded_layers()
 
     assert volume in figure_maidr.plots
     assert "volume-id" in figure_maidr.selector_ids
@@ -252,7 +252,7 @@ def test_a_bar_typed_layer_outside_the_family_is_not_dropped() -> None:
 def test_collapsing_twice_changes_nothing() -> None:
     """It runs from two places, so it has to be safe to run again.
 
-    ``_create_html_tag`` collapses before collecting artists -- it has to,
+    ``_create_html_tag`` drops superseded layers before collecting artists -- it has to,
     since reading a superseded ``BarPlot``'s elements is what raised -- and
     ``_flatten_maidr`` collapses too, because it is reachable on its own.
     A single render therefore calls it twice.
@@ -262,8 +262,8 @@ def test_collapsing_twice_changes_nothing() -> None:
     ax.bar(CATEGORIES, SERIES_1, bottom=SERIES_0, label="s1")
 
     figure_maidr = FigureManager.get_maidr(fig)
-    figure_maidr._collapse_segmented_bar_layers()
+    figure_maidr._drop_superseded_layers()
     after_once = (list(figure_maidr.plots), list(figure_maidr.selector_ids))
-    figure_maidr._collapse_segmented_bar_layers()
+    figure_maidr._drop_superseded_layers()
 
     assert (figure_maidr.plots, figure_maidr.selector_ids) == after_once

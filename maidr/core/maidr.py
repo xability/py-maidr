@@ -24,7 +24,6 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
-from maidr.util.dedup_utils import deduplicate_smooth_and_line
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
     maidr_bundled_files_dependency,
@@ -349,7 +348,7 @@ class Maidr:
         # also keeps one artist from appearing twice in the list below, where
         # `HighlightContextManager` resolves an artist by its *first* index and
         # would hand every bar the dropped layer's selector id (#376).
-        self._collapse_segmented_bar_layers()
+        self._drop_superseded_layers()
 
         tagged_elements: list[Any] = [
             element for plot in self._plots for element in plot.elements
@@ -429,9 +428,101 @@ class Maidr:
         """
         return plot.ax
 
-    def _collapse_segmented_bar_layers(self) -> None:
+    @staticmethod
+    def _superseded_bar_layers(group: list[MaidrPlot]) -> list[MaidrPlot]:
         """
-        Drop the bar layers a segmented layer on the same axes already describes.
+        The bar layers a segmented layer on the same axes already describes.
+
+        ``BarPlot`` and ``GroupedBarPlot`` both read *every* ``BarContainer``
+        on their axes rather than the bars their own call drew, so a stacked
+        chart built from three ``ax.bar()`` calls registers three layers that
+        each describe the whole chart. The first segmented one survives; the
+        other axes-wide bar layers on that axes are duplicates of it.
+
+        Layers of any other kind are left alone -- a line over a stacked bar
+        is a second layer, not a duplicate of it.
+
+        Parameters
+        ----------
+        group : list of MaidrPlot
+            The layers registered against one axes.
+
+        Returns
+        -------
+        list of MaidrPlot
+            The layers this axes' segmented layer supersedes.
+        """
+        segmented = [plot for plot in group if isinstance(plot, _SEGMENTED_BAR_PLOTS)]
+        if not segmented:
+            return []
+        survivor = segmented[0]
+        return [
+            plot
+            for plot in group
+            if plot is not survivor and isinstance(plot, _AXES_WIDE_BAR_PLOTS)
+        ]
+
+    @staticmethod
+    def _superseded_line_layers(group: list[MaidrPlot]) -> list[MaidrPlot]:
+        """
+        The line layers a fitted curve on the same axes already describes.
+
+        ``regplot`` draws its fit through ``ax.plot``, so one curve registers
+        both a ``LINE`` and a ``SMOOTH``. ``smooth`` is what it is, and the
+        ``line`` is the duplicate.
+
+        Asked per axes, which is the fix. ``deduplicate_smooth_and_line`` used
+        to ask it of the whole figure -- *any* smooth anywhere, then drop
+        *every* line anywhere -- so a regression line in one panel deleted an
+        unrelated line chart in another, and took that panel's grid column
+        with it, since no surviving layer carried its index (#378).
+
+        Parameters
+        ----------
+        group : list of MaidrPlot
+            The layers registered against one axes.
+
+        Returns
+        -------
+        list of MaidrPlot
+            The line layers this axes' fitted curve supersedes.
+        """
+        if not any(plot.type == PlotType.SMOOTH for plot in group):
+            return []
+        return [plot for plot in group if plot.type == PlotType.LINE]
+
+    def _duplicate_smooth_layers(self) -> list[MaidrPlot]:
+        """
+        Fitted curves registered more than once under one ``_smooth_gid``.
+
+        Deliberately still asked of the whole figure rather than per axes: a
+        ``_smooth_gid`` names one curve, and whether the same one can be
+        registered against two axes is not something this change measured. The
+        scoping is left as it was; only the bookkeeping moves, so that these
+        drops go through the same lockstep filter as the rest.
+
+        Returns
+        -------
+        list of MaidrPlot
+            Every smooth layer whose gid was already claimed by an earlier one.
+        """
+        seen: set = set()
+        duplicates: list[MaidrPlot] = []
+        for plot in self._plots:
+            if plot.type != PlotType.SMOOTH:
+                continue
+            gid = getattr(plot, "_smooth_gid", None)
+            if not gid:
+                continue
+            if gid in seen:
+                duplicates.append(plot)
+            else:
+                seen.add(gid)
+        return duplicates
+
+    def _drop_superseded_layers(self) -> None:
+        """
+        Drop every layer another layer on the same axes already describes.
 
         ``BarPlot`` and ``GroupedBarPlot`` both read *every* ``BarContainer``
         on their axes rather than the bars their own call drew, so a stacked
@@ -458,11 +549,11 @@ class Maidr:
           on the first call avoided it, which is why every test wrote it that
           way.
 
-        So the question is asked per *axes* and answered by type: an axes
-        holding a segmented layer keeps the first of those and drops the other
-        axes-wide bar layers on it. Layers of any other type are left alone --
-        a line over a stacked bar is a second layer, not a duplicate of it.
-        See ``_layer_axes_key`` for why the axes and not the grid cell.
+        So the question is asked per *axes*, and it is asked once. Three rules
+        used to answer it in three places, each filtering ``_plots`` on its
+        own; they are gathered here so there is one filter and one statement
+        of the pairing invariant below. See ``_layer_axes_key`` for why the
+        axes and not the grid cell.
 
         Idempotent, and it has to be: it runs from ``_create_html_tag`` before
         the elements are collected *and* from ``_flatten_maidr``, which can be
@@ -472,8 +563,9 @@ class Maidr:
         paired by index in both directions -- ``_create_html_tag`` tags each
         layer's artists with ``selector_ids[i]``, and ``_flatten_maidr``
         stamps the same index into the layer's selector string -- so dropping
-        a layer without dropping its id would hand every surviving layer its
-        neighbour's, and the highlight would land on the wrong bar.
+        a layer without dropping its id hands every surviving layer its
+        neighbour's, and the highlight lands on the wrong mark with nothing
+        raised. Two of the three rules gathered here did exactly that.
         """
         by_axes: dict[Axes, list[MaidrPlot]] = defaultdict(list)
         for plot in self._plots:
@@ -485,17 +577,9 @@ class Maidr:
         # still two objects and only one of them is dropped.
         superseded: set[MaidrPlot] = set()
         for group in by_axes.values():
-            segmented = [
-                plot for plot in group if isinstance(plot, _SEGMENTED_BAR_PLOTS)
-            ]
-            if not segmented:
-                continue
-            survivor = segmented[0]
-            superseded.update(
-                plot
-                for plot in group
-                if plot is not survivor and isinstance(plot, _AXES_WIDE_BAR_PLOTS)
-            )
+            superseded.update(self._superseded_bar_layers(group))
+            superseded.update(self._superseded_line_layers(group))
+        superseded.update(self._duplicate_smooth_layers())
 
         if not superseded:
             return
@@ -550,28 +634,10 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict:
         """Return the top-level MAIDR schema for this figure."""
-        # A segmented bar layer describes every bar on its axes, so the sibling
-        # registrations from the same chart are duplicates of it. Asked per
-        # axes rather than per figure -- see the method for what asking it per
-        # figure cost (#376).
-        self._collapse_segmented_bar_layers()
-
-        # Deduplicate: if any SMOOTH plots exist, remove LINE plots
-        self._plots = deduplicate_smooth_and_line(self._plots)
-
-        unique_gids = set()
-        deduped_plots = []
-        for plot in self._plots:
-            if getattr(plot, "type", None) == PlotType.SMOOTH:
-                gid = getattr(plot, "_smooth_gid", None)
-                if gid and gid in unique_gids:
-                    continue
-                if gid:
-                    unique_gids.add(gid)
-                deduped_plots.append(plot)
-            else:
-                deduped_plots.append(plot)
-        self._plots = deduped_plots
+        # A layer that already describes what another drew is a duplicate of
+        # it. Asked per axes rather than per figure -- see the method for what
+        # asking it per figure cost (#376, #378).
+        self._drop_superseded_layers()
 
         plot_schemas = []
 
