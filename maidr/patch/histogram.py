@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
+
+import matplotlib.pyplot as plt
 import wrapt
 
 import numpy as np
@@ -43,12 +46,133 @@ def mpl_hist(
     return n, bins, plot
 
 
+def _prospective_axes(kwargs: dict) -> Axes | None:
+    """
+    The axes ``histplot`` is about to draw on, resolved before it draws.
+
+    Named without drawing anything: an explicit ``ax=`` is the answer when
+    given, and otherwise seaborn will take ``plt.gca()``, which is only asked
+    for when a figure already exists so that a call on a clean slate does not
+    conjure one early.
+
+    Parameters
+    ----------
+    kwargs : dict
+        Keyword arguments the caller passed.
+
+    Returns
+    -------
+    Axes or None
+        The axes to snapshot, or None when there is nothing drawn yet.
+    """
+    # `ax` is read from kwargs alone because seaborn declares it keyword-only:
+    # everything after `data` in `histplot`'s signature is, so there is no
+    # positional spelling to miss. `test_seaborn_still_takes_ax_by_keyword`
+    # asserts that rather than trusting it, so a signature change fails loudly
+    # instead of quietly emptying the snapshot below.
+    ax = kwargs.get("ax")
+    if ax is not None:
+        return ax
+    return plt.gcf().gca() if plt.get_fignums() else None
+
+
+def _containers_of(ax: Axes | None) -> list:
+    """
+    The containers an axes holds right now, kept by reference.
+
+    The objects themselves rather than their ``id()``s, and that is not
+    incidental. An id is only unique while its object is alive, so a snapshot
+    of ids could be matched by an unrelated container that happened to be
+    allocated at a freed address -- which would make a genuinely new histogram
+    look pre-existing and be declined. Holding the list keeps every one of
+    them alive for the comparison.
+
+    A ``set`` would be wrong for a second reason: ``BarContainer`` extends
+    ``tuple``, so it hashes by value, and two equal containers would collapse
+    into one.
+    """
+    return list(getattr(ax, "containers", ()) or ())
+
+
+def _drew_bars(plot: Any, before: list) -> bool:
+    """
+    Whether *this call* drew a histogram made of bars.
+
+    `sns.histplot(x=..., y=...)` is a **2D** histogram: seaborn draws it as a
+    ``QuadMesh`` of joint counts, not as bars. `hist` promises one bin per bar
+    with a count, which such a layer has neither of -- so registering it
+    promises a reading nothing can produce, and extraction then took the whole
+    figure down with it. `sns.jointplot(kind="hist")` produced no HTML at all,
+    and so did any supported chart that happened to share the axes (#388).
+
+    Asked of the artists rather than of the arguments, because "did this draw
+    bars" is the question the extractor actually needs answered, and a `y=`
+    keyword is seaborn's spelling of it rather than the thing itself.
+
+    Asked of the containers *this call added* rather than of everything on the
+    axes, which is the difference between declining and lying. An axes that
+    already holds bars -- `sns.barplot(ax=ax)` first, then a bivariate
+    `histplot(ax=ax)` -- would otherwise answer True for someone else's
+    artists, and `extract_container` returns the first container on the axes,
+    so the `hist` layer would describe the *barplot's* bars with bin edges
+    invented for them:
+
+        registered: ['bar', 'hist']
+          bar   [{'x': 'a', 'y': 8.67}, ...]
+          hist  [{'y': 8.67, 'xMin': -0.4, 'xMax': 0.4}, ...]
+
+    Right numbers, wrong chart, and nothing raised -- which is worse than the
+    crash this function was added to prevent.
+
+    Parameters
+    ----------
+    plot : Any
+        Whatever the patched call returned.
+    before : list
+        The containers the axes held before the call, by reference.
+
+    Returns
+    -------
+    bool
+        True when this call added at least one ``BarContainer``.
+    """
+    try:
+        ax = FigureManager.get_axes(plot)
+    except StopIteration:  # pragma: no cover - an artist with no axes on it
+        # `get_axes` walks a container's children with a bare `next()`, so an
+        # artist it cannot resolve raises rather than returning. Declining is
+        # the gentler answer and loses nothing: `common` would call the same
+        # function a line below and raise the same way.
+        return False
+    if ax is None or not ax.containers:
+        return False
+    return any(
+        isinstance(container, BarContainer)
+        and not any(container is seen for seen in before)
+        for container in ax.containers
+    )
+
+
 def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     """
     Patch seaborn.histplot to register HIST and (if kde=True) SMOOTH layers for MAIDR.
+
+    A bivariate histogram is left unregistered rather than read wrongly; see
+    `_drew_bars`.
     """
+    if ContextManager.is_internal_context():
+        return _draw_quietly(wrapped, args, kwargs)
+
+    before = _containers_of(_prospective_axes(kwargs))
+
+    with ContextManager.set_internal_context():
+        drawn = _draw_quietly(wrapped, args, kwargs)
+
+    if not _drew_bars(drawn, before):
+        return drawn
+
     # Register the histogram as HIST as before
-    ax = common(PlotType.HIST, wrapped, instance, args, kwargs)
+    ax = common(PlotType.HIST, lambda *a, **k: drawn, instance, args, kwargs)
     # Only register KDE overlay as SMOOTH if kde=True was set
     kde_enabled = kwargs.get("kde", False)
     if kde_enabled:
