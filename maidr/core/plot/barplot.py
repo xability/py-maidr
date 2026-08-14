@@ -80,11 +80,12 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
     def _extract_plot_data(self) -> list:
         plot = self._own_containers()
         self._orientation = self._extract_orientation(plot)
+        patches = self._patches(plot)
         data = self._extract_bar_container_data(plot)
         if data is None:
             raise ExtractionError(self.type, plot)
 
-        levels = self._labels_for(plot, data)
+        levels = self._labels_for(patches, data)
 
         # A horizontal bar's magnitude runs along x and its label sits on y,
         # which is the layout the renderer reads for a horizontal layer. The
@@ -99,7 +100,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
 
         return [{"x": x, "y": y} for x, y in combined_data]
 
-    def _labels_for(self, plot: list[BarContainer] | None, data: list) -> list[str]:
+    def _labels_for(self, patches: list[Rectangle], data: list) -> list[str]:
         """
         What to announce alongside each magnitude.
 
@@ -128,8 +129,8 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
 
         Parameters
         ----------
-        plot : list of BarContainer, optional
-            The containers this layer describes.
+        patches : list of Rectangle
+            This layer's bars, already flattened out of their containers.
         data : list
             One magnitude per bar, used for its length.
 
@@ -143,7 +144,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         if levels and len(levels) == len(data):
             return levels
 
-        return [self._bar_position(patch) for patch in self._patches(plot)]
+        return [self._bar_position(patch) for patch in patches]
 
     def _bar_position(self, patch: Rectangle) -> str:
         """
