@@ -34,12 +34,18 @@ row and carrying the wrong fallback, so every barmode is enumerated below.
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import pytest
 
-from maidr.plotly.plotly_maidr import PlotlyMaidr
+# `plotly` is an optional extra, so guard the import the way every other file
+# in this directory does -- without it, a minimal install fails at *collection*
+# rather than skipping.
+plotly = pytest.importorskip("plotly")
+pd = pytest.importorskip("pandas")
+
+import plotly.express as px  # noqa: E402
+import plotly.graph_objects as go  # noqa: E402
+
+from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
 #: Every value plotly accepts, with the layer types MAIDR should emit.
 #: `relative` and `stack` both combine; `group` dodges; `overlay` draws the

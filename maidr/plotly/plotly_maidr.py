@@ -290,6 +290,10 @@ class PlotlyMaidr:
         # a reader the bars sit side by side when they sit on top of each
         # other, so every segment means something other than what is said and
         # the totals a stack is read for are absent (#390).
+        # `or` rather than `get(key, default)`: the key is absent when unset
+        # today, but a future plotly could export it as an explicit `None`, and
+        # every barmode plotly accepts is a non-empty string, so nothing valid
+        # is falsy here.
         barmode = layout.get("barmode") or _PLOTLY_DEFAULT_BARMODE
 
         # Group traces by their subplot axis pair
