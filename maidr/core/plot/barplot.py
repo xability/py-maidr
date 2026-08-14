@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
+from matplotlib.patches import Rectangle
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
@@ -79,7 +80,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
     def _extract_plot_data(self) -> list:
         plot = self._own_containers()
         self._orientation = self._extract_orientation(plot)
-        data = self._extract_bar_container_data(plot, None)
+        data = self._extract_bar_container_data(plot)
         if data is None:
             raise ExtractionError(self.type, plot)
 
@@ -144,7 +145,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
 
         return [self._bar_position(patch) for patch in self._patches(plot)]
 
-    def _bar_position(self, patch) -> str:
+    def _bar_position(self, patch: Rectangle) -> str:
         """
         The centre a bar was drawn at, as the axis would print it.
 
@@ -167,10 +168,12 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
             centre = patch.get_y() + patch.get_height() / 2
         else:
             centre = patch.get_x() + patch.get_width() / 2
+        if float(centre).is_integer():
+            return str(int(centre))
         return f"{centre:g}"
 
     @staticmethod
-    def _patches(plot: list[BarContainer] | None) -> list:
+    def _patches(plot: list[BarContainer] | None) -> list[Rectangle]:
         """Every bar of every container, in the order they are held."""
         if not plot:
             return []
@@ -203,27 +206,27 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         return self.extract_container(self.ax, BarContainer, include_all=True)
 
     def _extract_bar_container_data(
-        self, plot: list[BarContainer] | None, levels: list[str] | None
+        self, plot: list[BarContainer] | None
     ) -> list | None:
         """
         Read one magnitude per bar, in the containers' own order.
+
+        It used to take the labels as well, and return ``None`` when their
+        count disagreed with the bars' -- which the caller turned into an
+        ``ExtractionError`` and so into an empty render. That decision now
+        lives in ``_labels_for``, which answers it with the bars' positions
+        instead of with nothing, so the parameter is gone rather than left
+        vestigial (#382).
 
         Parameters
         ----------
         plot : list of BarContainer, optional
             The containers holding the bars of this layer.
-        levels : list of str, optional
-            The bar labels read off the categorical axis. Used only to check
-            that the axis has one label per bar; an axis with no tick labels
-            at all is not checked here — the caller pairs the magnitudes with
-            the labels, so it ends up raising `ExtractionError` on an empty
-            list regardless.
 
         Returns
         -------
         list, optional
-            One magnitude per bar, or None when the bars and the labels do
-            not line up.
+            One magnitude per bar, or None when there are no containers.
         """
         if plot is None:
             return None
@@ -232,9 +235,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         # `list[BarContainers] for plotting bar plots.
         # So, extract data correspondingly based on the level.
         # Flatten all the `list[BarContainer]` to `list[Patch]`.
-        plot = [patch for container in plot for patch in container.patches]
-        if levels and len(plot) != len(levels):
-            return None
+        plot = self._patches(plot)
 
         self._elements.extend(plot)
 

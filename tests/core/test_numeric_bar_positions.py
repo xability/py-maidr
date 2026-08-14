@@ -134,3 +134,16 @@ def test_a_position_is_printed_the_way_an_axis_prints_it() -> None:
     ax.bar([0.0, 1.5, 3.0], MEASUREMENTS, 0.5)
 
     assert [point["x"] for point in _points(fig)] == ["0", "1.5", "3"]
+
+
+def test_a_large_position_is_not_announced_in_scientific_notation() -> None:
+    """``f"{x:g}"`` alone would say "1.23457e+06" for a bar at 1234567.
+
+    Six significant figures, then exponential -- lossy and hard to listen to.
+    A large x is overwhelmingly an integer one (an index, an id, a year), so
+    integers are formatted exactly and only fractions fall back to ``:g``.
+    """
+    fig, ax = plt.subplots()
+    ax.bar([0, 1234567, 2.5], MEASUREMENTS, 0.4)
+
+    assert [point["x"] for point in _points(fig)] == ["0", "1234567", "2.5"]
