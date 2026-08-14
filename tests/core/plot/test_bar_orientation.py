@@ -20,7 +20,6 @@ import seaborn as sns  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.figure_manager import FigureManager  # noqa: E402
-from maidr.exception import ExtractionError  # noqa: E402
 
 
 LABELS = ["a", "b", "c"]
@@ -137,14 +136,22 @@ def test_horizontal_histogram_bins_run_along_y() -> None:
 
 
 @pytest.mark.parametrize("horizontal", [False, True])
-def test_a_label_count_mismatch_raises_extraction_error(horizontal: bool) -> None:
-    """The failure this reordering fixed: an `ExtractionError`, not a `TypeError`.
+def test_a_label_count_mismatch_announces_positions(horizontal: bool) -> None:
+    """Three bars against two tick labels: positions, not an error.
 
-    Three bars against two tick labels is the shape that made
-    `_extract_bar_container_data` return None. The magnitudes and the labels
-    are zipped straight after, so before the None was checked first this
-    surfaced as `TypeError: 'NoneType' object is not iterable`. Both
-    orientations are driven because each zips its own way round.
+    This used to raise, and this test used to assert that it did. What it was
+    really guarding is in its old name -- an `ExtractionError` **rather than a
+    `TypeError`**: the magnitudes and the labels are zipped straight after the
+    None check, so before that check was reordered this surfaced as
+    `TypeError: 'NoneType' object is not iterable`.
+
+    Failing cleanly was an improvement on failing messily. Not failing is an
+    improvement on both: labels are one presentation of x, not x itself, and
+    a bar drawn at x=0 with no tick beside it still has a position (#382).
+    The guarantee the old test encoded survives -- no `TypeError`, and every
+    bar gets exactly one label -- which is what is asserted here.
+
+    Both orientations are driven because each zips its own way round.
     """
     fig, ax = plt.subplots()
     try:
@@ -158,21 +165,28 @@ def test_a_label_count_mismatch_raises_extraction_error(horizontal: bool) -> Non
             ax.set_xticklabels(LABELS[:2])
         plot = FigureManager.get_maidr(fig).plots[0]
 
-        with pytest.raises(ExtractionError):
-            plot._extract_plot_data()
+        data = plot._extract_plot_data()
     finally:
         plt.close(fig)
 
+    assert len(data) == len(VALUES)
+    label_key, value_key = ("y", "x") if horizontal else ("x", "y")
+    assert [point[label_key] for point in data] == ["0", "1", "2"]
+    assert [point[value_key] for point in data] == list(VALUES)
 
-def test_an_axis_with_no_tick_labels_raises_extraction_error() -> None:
-    """Unchanged by the refactor, and pinned here because it looks changed.
 
-    The old `_extract_bar_container_data` swapped an empty level list for a
-    list of empty strings, which reads like it emitted a blank label per bar.
-    It did not: the substitution was local to that method and existed only to
-    let its own length check pass, while the caller went on to zip against
-    the real, still-empty list. Both before and after, a bar axis stripped of
-    its tick labels raises rather than emitting blank labels.
+def test_an_axis_with_no_tick_labels_announces_positions() -> None:
+    """A bar axis stripped of its ticks, which used to delete the chart.
+
+    The guarantee this test has always encoded is that a bar never gets a
+    **blank** label. The old `_extract_bar_container_data` swapped an empty
+    level list for a list of empty strings, which reads as though it emitted
+    one blank label per bar; it did not, because the substitution was local
+    to that method while the caller zipped against the real, still-empty
+    list -- and the whole figure raised instead.
+
+    That guarantee is intact and the outcome is no longer an error: hiding
+    tick marks is a styling choice, and it should not delete the chart.
     """
     fig, ax = plt.subplots()
     try:
@@ -180,10 +194,12 @@ def test_an_axis_with_no_tick_labels_raises_extraction_error() -> None:
         ax.set_xticks([])
         plot = FigureManager.get_maidr(fig).plots[0]
 
-        with pytest.raises(ExtractionError):
-            plot._extract_plot_data()
+        data = plot._extract_plot_data()
     finally:
         plt.close(fig)
+
+    assert [point["x"] for point in data] == ["0", "1", "2"]
+    assert all(point["x"] for point in data), "no blank labels"
 
 
 def test_seaborn_horizontal_histplot() -> None:

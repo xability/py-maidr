@@ -79,11 +79,11 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
     def _extract_plot_data(self) -> list:
         plot = self._own_containers()
         self._orientation = self._extract_orientation(plot)
-        levels = self.extract_level(self.ax, self._level_key)
-
-        data = self._extract_bar_container_data(plot, levels)
+        data = self._extract_bar_container_data(plot, None)
         if data is None:
             raise ExtractionError(self.type, plot)
+
+        levels = self._labels_for(plot, data)
 
         # A horizontal bar's magnitude runs along x and its label sits on y,
         # which is the layout the renderer reads for a horizontal layer. The
@@ -97,6 +97,84 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
             raise ExtractionError(self.type, plot)
 
         return [{"x": x, "y": y} for x, y in combined_data]
+
+    def _labels_for(self, plot: list[BarContainer] | None, data: list) -> list[str]:
+        """
+        What to announce alongside each magnitude.
+
+        The tick labels when there is one per bar, and the positions the bars
+        were drawn at otherwise.
+
+        The labels are one *presentation* of x, not x itself. matplotlib puts
+        exactly one tick per category on a categorical axis, so the counts
+        agree there by construction -- and on a numeric axis the tick locator
+        picks its own breaks, so they have no reason to. Three bars against
+        five ticks used to return ``None`` and raise, which is fatal to the
+        whole figure, so a bar chart with a numeric x produced no HTML at all
+        (#382). That is matplotlib's own grouped-bar shape::
+
+            x = np.arange(len(species))
+            ax.bar(x + offset, measurement, width, label=attribute)
+
+        which survives in the gallery only because the example goes on to
+        call ``set_xticks(x + width, species)`` and make the counts line up.
+
+        Raising was the wrong response to a real hazard. Pairing three bars
+        against five labels would announce the wrong name for every bar, so
+        the mismatch does have to be caught -- but a bar at x=0 with no tick
+        beside it still has a position, and announcing ``0`` is honest where
+        announcing nothing is not.
+
+        Parameters
+        ----------
+        plot : list of BarContainer, optional
+            The containers this layer describes.
+        data : list
+            One magnitude per bar, used for its length.
+
+        Returns
+        -------
+        list of str
+            One label per bar, either read off the axis or derived from the
+            bars' own centres.
+        """
+        levels = self.extract_level(self.ax, self._level_key)
+        if levels and len(levels) == len(data):
+            return levels
+
+        return [self._bar_position(patch) for patch in self._patches(plot)]
+
+    def _bar_position(self, patch) -> str:
+        """
+        The centre a bar was drawn at, as the axis would print it.
+
+        Read off the rectangle rather than the caller's argument, because the
+        caller's is not available here and the drawn centre is what the value
+        became. Whole numbers lose their trailing ``.0``: a bar at x=0 is at
+        ``"0"``, not ``"0.0"``, matching what a numeric axis shows.
+
+        Parameters
+        ----------
+        patch : Rectangle
+            One bar.
+
+        Returns
+        -------
+        str
+            The bar's position along its label axis.
+        """
+        if self._is_horizontal:
+            centre = patch.get_y() + patch.get_height() / 2
+        else:
+            centre = patch.get_x() + patch.get_width() / 2
+        return f"{centre:g}"
+
+    @staticmethod
+    def _patches(plot: list[BarContainer] | None) -> list:
+        """Every bar of every container, in the order they are held."""
+        if not plot:
+            return []
+        return [patch for container in plot for patch in container.patches]
 
     def _own_containers(self) -> list[BarContainer] | None:
         """
