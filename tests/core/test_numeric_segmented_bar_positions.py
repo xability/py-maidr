@@ -131,23 +131,19 @@ def test_the_same_chart_with_ticks_set_is_unchanged() -> None:
     ] == [SPECIES, SPECIES]
 
 
-def test_a_horizontal_stack_is_not_recognised_as_one() -> None:
-    """A boundary this change does not move, pinned rather than discovered.
+def test_a_horizontal_stack_over_numeric_positions() -> None:
+    """The mirror, which could not be written until `left=` was recognised.
 
-    `ax.barh(..., left=...)` is how a stacked bar is written horizontally,
-    and the patch classifies on ``"bottom" in kwargs`` alone — so it arrives
-    as two independent `bar` layers rather than one `stacked_bar`. A reader is
-    told there are two charts, and is not told the second sits on top of the
-    first.
+    `ax.barh(..., left=...)` is how a stacked bar is written horizontally.
+    The patch used to classify on ``"bottom" in kwargs`` alone, so this
+    arrived as two independent `bar` layers -- the numbers right, the layer
+    count plausible, and a reader never told the second sits on top of the
+    first. This test was originally named for that defect so it would fail
+    the day it was fixed; #385 fixed it, so here is what it should say.
 
-    That is a wrong *reading* rather than a dead render, it is not what #384
-    is about, and it is filed as its own issue. What is asserted here is that
-    the positions half works regardless: whatever the layers are called, each
-    announces the bars it drew rather than raising, which is what #383 and
-    this change are between them responsible for.
-
-    Named for the defect, so the day the classification is fixed this test
-    fails and has to be rewritten.
+    A horizontal bar reads its label off y and its magnitude off x, through
+    the mirrored branch of the shared position formatter, so it exercises
+    what the vertical cases above cannot.
     """
     fig, ax = plt.subplots()
     positions = np.arange(len(SPECIES))
@@ -155,9 +151,55 @@ def test_a_horizontal_stack_is_not_recognised_as_one() -> None:
     ax.barh(positions, UPPER, left=LOWER, label="upper")
     ax.legend()
 
-    grid = FigureManager.get_maidr(fig)._flatten_maidr()["subplots"]
-    layers = grid[0][0]["layers"]
+    layer = _layer(fig)
 
-    assert [layer["type"].value for layer in layers] == ["bar", "bar"]
-    for layer in layers:
-        assert [point["y"] for point in layer["data"]] == ["0", "1", "2"]
+    assert layer["type"].value == "stacked_bar"
+    assert [[point["y"] for point in series] for series in layer["data"]] == [
+        ["0", "1", "2"],
+        ["0", "1", "2"],
+    ]
+    assert [[point["x"] for point in series] for series in layer["data"]] == [
+        list(LOWER),
+        list(UPPER),
+    ]
+    assert [series[0]["z"] for series in layer["data"]] == ["lower", "upper"]
+
+
+def test_a_plain_horizontal_bar_is_still_plain() -> None:
+    """The control for reading `left`: no baseline, no stack.
+
+    `left` names a stacked bar's baseline the way `bottom` does for a
+    vertical one, so a `barh` without it must stay a plain bar -- otherwise
+    every horizontal bar chart would be announced as a stack of one.
+    """
+    fig, ax = plt.subplots()
+    ax.barh(SPECIES, LOWER)
+
+    grid = FigureManager.get_maidr(fig)._flatten_maidr()["subplots"]
+
+    assert [layer["type"].value for layer in grid[0][0]["layers"]] == ["bar"]
+
+
+def test_an_explicit_none_baseline_still_reaches_dodge_detection() -> None:
+    """`bottom=None` is not a baseline, and used to skip the dodge check.
+
+    The old test was ``if "bottom" in kwargs``, so passing it explicitly as
+    ``None`` -- which matplotlib treats exactly as omitting it -- took the
+    stacked branch's `else` away and dodge detection never ran. The inner
+    ``is not None`` guard kept the layer from being called stacked, so the
+    result was a *plain* bar where a dodged one was drawn.
+
+    Reading the value rather than the key fixes it as a side effect, and this
+    is here so the fix is deliberate rather than incidental.
+    """
+    fig, ax = plt.subplots()
+    positions = np.arange(len(SPECIES), dtype=float)
+    ax.bar(positions - 0.2, LOWER, 0.4, bottom=None, label="lower")
+    ax.bar(positions + 0.2, UPPER, 0.4, bottom=None, label="upper")
+    ax.legend()
+
+    grid = FigureManager.get_maidr(fig)._flatten_maidr()["subplots"]
+    types = [layer["type"].value for layer in grid[0][0]["layers"]]
+
+    assert "stacked_bar" not in types, "None is not a baseline"
+    assert types == ["dodged_bar"], types
