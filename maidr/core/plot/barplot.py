@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
+from matplotlib.patches import Rectangle
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
@@ -79,11 +80,12 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
     def _extract_plot_data(self) -> list:
         plot = self._own_containers()
         self._orientation = self._extract_orientation(plot)
-        levels = self.extract_level(self.ax, self._level_key)
-
-        data = self._extract_bar_container_data(plot, levels)
+        patches = self._patches(plot)
+        data = self._extract_bar_container_data(plot)
         if data is None:
             raise ExtractionError(self.type, plot)
+
+        levels = self._labels_for(patches, data)
 
         # A horizontal bar's magnitude runs along x and its label sits on y,
         # which is the layout the renderer reads for a horizontal layer. The
@@ -97,6 +99,86 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
             raise ExtractionError(self.type, plot)
 
         return [{"x": x, "y": y} for x, y in combined_data]
+
+    def _labels_for(self, patches: list[Rectangle], data: list) -> list[str]:
+        """
+        What to announce alongside each magnitude.
+
+        The tick labels when there is one per bar, and the positions the bars
+        were drawn at otherwise.
+
+        The labels are one *presentation* of x, not x itself. matplotlib puts
+        exactly one tick per category on a categorical axis, so the counts
+        agree there by construction -- and on a numeric axis the tick locator
+        picks its own breaks, so they have no reason to. Three bars against
+        five ticks used to return ``None`` and raise, which is fatal to the
+        whole figure, so a bar chart with a numeric x produced no HTML at all
+        (#382). That is matplotlib's own grouped-bar shape::
+
+            x = np.arange(len(species))
+            ax.bar(x + offset, measurement, width, label=attribute)
+
+        which survives in the gallery only because the example goes on to
+        call ``set_xticks(x + width, species)`` and make the counts line up.
+
+        Raising was the wrong response to a real hazard. Pairing three bars
+        against five labels would announce the wrong name for every bar, so
+        the mismatch does have to be caught -- but a bar at x=0 with no tick
+        beside it still has a position, and announcing ``0`` is honest where
+        announcing nothing is not.
+
+        Parameters
+        ----------
+        patches : list of Rectangle
+            This layer's bars, already flattened out of their containers.
+        data : list
+            One magnitude per bar, used for its length.
+
+        Returns
+        -------
+        list of str
+            One label per bar, either read off the axis or derived from the
+            bars' own centres.
+        """
+        levels = self.extract_level(self.ax, self._level_key)
+        if levels and len(levels) == len(data):
+            return levels
+
+        return [self._bar_position(patch) for patch in patches]
+
+    def _bar_position(self, patch: Rectangle) -> str:
+        """
+        The centre a bar was drawn at, as the axis would print it.
+
+        Read off the rectangle rather than the caller's argument, because the
+        caller's is not available here and the drawn centre is what the value
+        became. Whole numbers lose their trailing ``.0``: a bar at x=0 is at
+        ``"0"``, not ``"0.0"``, matching what a numeric axis shows.
+
+        Parameters
+        ----------
+        patch : Rectangle
+            One bar.
+
+        Returns
+        -------
+        str
+            The bar's position along its label axis.
+        """
+        if self._is_horizontal:
+            centre = patch.get_y() + patch.get_height() / 2
+        else:
+            centre = patch.get_x() + patch.get_width() / 2
+        if float(centre).is_integer():
+            return str(int(centre))
+        return f"{centre:g}"
+
+    @staticmethod
+    def _patches(plot: list[BarContainer] | None) -> list[Rectangle]:
+        """Every bar of every container, in the order they are held."""
+        if not plot:
+            return []
+        return [patch for container in plot for patch in container.patches]
 
     def _own_containers(self) -> list[BarContainer] | None:
         """
@@ -125,27 +207,27 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         return self.extract_container(self.ax, BarContainer, include_all=True)
 
     def _extract_bar_container_data(
-        self, plot: list[BarContainer] | None, levels: list[str] | None
+        self, plot: list[BarContainer] | None
     ) -> list | None:
         """
         Read one magnitude per bar, in the containers' own order.
+
+        It used to take the labels as well, and return ``None`` when their
+        count disagreed with the bars' -- which the caller turned into an
+        ``ExtractionError`` and so into an empty render. That decision now
+        lives in ``_labels_for``, which answers it with the bars' positions
+        instead of with nothing, so the parameter is gone rather than left
+        vestigial (#382).
 
         Parameters
         ----------
         plot : list of BarContainer, optional
             The containers holding the bars of this layer.
-        levels : list of str, optional
-            The bar labels read off the categorical axis. Used only to check
-            that the axis has one label per bar; an axis with no tick labels
-            at all is not checked here — the caller pairs the magnitudes with
-            the labels, so it ends up raising `ExtractionError` on an empty
-            list regardless.
 
         Returns
         -------
         list, optional
-            One magnitude per bar, or None when the bars and the labels do
-            not line up.
+            One magnitude per bar, or None when there are no containers.
         """
         if plot is None:
             return None
@@ -154,9 +236,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         # `list[BarContainers] for plotting bar plots.
         # So, extract data correspondingly based on the level.
         # Flatten all the `list[BarContainer]` to `list[Patch]`.
-        plot = [patch for container in plot for patch in container.patches]
-        if levels and len(plot) != len(levels):
-            return None
+        plot = self._patches(plot)
 
         self._elements.extend(plot)
 
