@@ -4,6 +4,7 @@ from . import (  # noqa: F401
     barplot,
     boxplot,
     clear,
+    colorbar,
     errorbar,
     heatmap,
     hexbin,
