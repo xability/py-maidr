@@ -55,6 +55,7 @@ import seaborn as sns  # noqa: E402
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.patch.seaborn_probe import _patch_default_color  # noqa: E402
 
 #: The modules that pull the probe in by name, plus the one that defines it.
 CALL_SITES = [
@@ -124,6 +125,26 @@ def test_the_known_call_sites_are_covered(module_name) -> None:
     module = sys.modules[module_name]
 
     assert _is_wrapped(module._default_color)
+
+
+def test_a_renamed_probe_warns(monkeypatch) -> None:
+    """The one branch that cannot wrap anything, driven rather than assumed.
+
+    If seaborn renames or drops ``_default_color`` there is nothing to
+    suppress, and the phantom layer comes back with no other signal -- so the
+    branch says so. Exercised by deleting the attribute, since it is
+    unreachable on any seaborn this has been measured against.
+
+    Safe to re-run ``_patch_default_color`` here: with the attribute gone it
+    returns after warning, so nothing is double-wrapped, and ``monkeypatch``
+    puts the probe back.
+    """
+    import seaborn.utils
+
+    monkeypatch.delattr(seaborn.utils, "_default_color")
+
+    with pytest.warns(UserWarning, match="_default_color is gone"):
+        _patch_default_color()
 
 
 def test_a_rug_over_a_scatter_renders() -> None:

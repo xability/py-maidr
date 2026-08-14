@@ -15,10 +15,10 @@ from . import (  # noqa: F401
     pieplot,
     pointplot,
     scatterplot,
-    seaborn_probe,
     regplot,
     kdeplot,
     candlestick,
     mplfinance,
     violinplot,
+    seaborn_probe,
 )

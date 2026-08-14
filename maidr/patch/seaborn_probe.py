@@ -83,14 +83,20 @@ def _patch_default_color() -> None:
 
     The identity check is what makes the sweep safe: a name that no longer
     resolves to the same object is left alone rather than wrapped by guess.
-    Importing ``seaborn.utils`` runs ``seaborn/__init__.py``, which imports
-    every module that binds the probe, so they are all in ``sys.modules`` by
-    the time the sweep runs.
+
+    The sweep is a snapshot of ``sys.modules`` taken once, at ``import
+    maidr``, and it assumes ``seaborn/__init__.py`` has already pulled in
+    every module that binds the probe -- which it has, since it does
+    ``from .categorical import *`` and the same for the other two. A seaborn
+    that imported its submodules lazily would leave a binding unwrapped and
+    say nothing, so the assumption is asserted rather than trusted:
+    ``test_the_known_call_sites_are_covered`` indexes ``sys.modules`` by name
+    and raises ``KeyError`` the moment one of them is no longer loaded.
     """
     import seaborn.utils
 
     original = getattr(seaborn.utils, "_default_color", None)
-    if original is None:  # pragma: no cover - seaborn renamed the helper
+    if original is None:
         warnings.warn(
             "maidr: seaborn.utils._default_color is gone, so the colour probe "
             "is no longer suppressed. If seaborn still resolves default "
