@@ -186,6 +186,81 @@ def _auto_shift_bins(
 _HORIZONTAL = "h"
 
 
+def apply_histnorm(
+    values: np.ndarray, widths: np.ndarray, histnorm: str | None
+) -> np.ndarray:
+    """Rescale a histogram's bar values the way ``histnorm`` does.
+
+    ``histnorm`` decides what a bar *measures*, and ignoring it left the
+    values contradicting the axis label beside them: a ``histnorm="percent"``
+    histogram whose axis reads "percent" announced ``2`` for a bar plotly
+    draws at ``3.33`` (#404).
+
+    Every form below is checked against ``gd.calcdata[0][i].s`` after
+    ``Plotly.newPlot`` in Chromium:
+
+    =========================  ==============
+    ``histnorm``               value
+    =========================  ==============
+    *(unset)*                  ``v``
+    ``percent``                ``v / T * 100``
+    ``probability``            ``v / T``
+    ``density``                ``v / w``
+    ``probability density``    ``v / (T * w)``
+    =========================  ==============
+
+    ``T`` is the total of the bars' own values, **not** the number of
+    observations. Those coincide under the default ``histfunc="count"``, which
+    is why the distinction is easy to miss and worth stating: measured with
+    ``histfunc="sum"`` and ``histfunc="avg"`` over the same data,
+    ``histnorm="percent"`` returns *identical* output -- impossible if the
+    denominator were the sample size, since the two aggregates differ by a
+    constant factor, and required if it is their own total.
+
+    So this takes the values it is given rather than recomputing anything from
+    the sample: when ``histfunc`` support lands (#405) the aggregate flows
+    through unchanged.
+
+    Parameters
+    ----------
+    values : np.ndarray
+        Per-bin values, before rescaling.
+    widths : np.ndarray
+        Per-bin widths, aligned with *values*.
+    histnorm : str | None
+        Plotly's ``histnorm``. Anything falsy or unrecognised leaves the
+        values alone, matching plotly's own handling of an unset attribute.
+
+    Returns
+    -------
+    np.ndarray
+        The rescaled values.
+    """
+    if not histnorm:
+        return values
+
+    total = float(values.sum())
+    per_width = values / widths
+
+    if histnorm == "density":
+        return per_width
+
+    # The remaining three all divide by the total, so an empty trace would
+    # divide by zero. It cannot reach here -- an all-empty histogram returns
+    # before this -- but the guard keeps that a property of the caller rather
+    # than an assumption made here.
+    if total == 0:
+        return values
+
+    if histnorm == "percent":
+        return values / total * 100
+    if histnorm == "probability":
+        return values / total
+    if histnorm == "probability density":
+        return per_width / total
+    return values
+
+
 def _occupied_span(counts: np.ndarray) -> tuple[int | None, int | None]:
     """Return the first and last bin index that anything landed in.
 
@@ -323,9 +398,20 @@ class PlotlyHistogramPlot(PlotlyPlot):
 
         bin_edges = self._compute_bin_edges(arr)
         counts, bin_edges = np.histogram(arr, bins=bin_edges)
+
+        # Trimmed on the raw counts rather than the rescaled values, because
+        # that is what "a bin nothing landed in" means. Every rescaling below
+        # maps zero to zero, so the two agree -- but only the counts say it
+        # without depending on that.
         first, last = _occupied_span(counts)
         if first is None:
             return []
+
+        bar_values = apply_histnorm(
+            counts.astype(float),
+            np.diff(bin_edges),
+            self._trace.get("histnorm"),
+        )
 
         # The binned axis carries the bin, the other one the count. Naming the
         # keys off the orientation rather than hardcoding ``x`` keeps the
@@ -343,17 +429,21 @@ class PlotlyHistogramPlot(PlotlyPlot):
         count_min, count_max = bounds[counted]
 
         data = []
-        for i, count in enumerate(counts[first : last + 1], start=first):
+        for i, value in enumerate(bar_values[first : last + 1], start=first):
             low = float(bin_edges[i])
             high = float(bin_edges[i + 1])
+            # A count is announced as the integer it is; a rescaled value is
+            # not one, and rounding it to look like one would put a 3.33%
+            # share on the chart as 3.
+            height = int(value) if value == int(value) else float(value)
             data.append(
                 {
                     binned.value: (low + high) / 2,
-                    counted.value: int(count),
+                    counted.value: height,
                     bin_min.value: low,
                     bin_max.value: high,
                     count_min.value: 0,
-                    count_max.value: int(count),
+                    count_max.value: height,
                 }
             )
         return data
