@@ -5,7 +5,7 @@ from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
 
 from maidr.core.enum import PlotType
-from maidr.patch.common import common
+from maidr.patch.common import common, wrap_seaborn
 
 
 def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
@@ -16,4 +16,4 @@ def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
 wrapt.wrap_function_wrapper(Axes, "scatter", scatter)
 
 # Patch seaborn function.
-wrapt.wrap_function_wrapper("seaborn", "scatterplot", scatter)
+wrap_seaborn("scatterplot", scatter)

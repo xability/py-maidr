@@ -4,7 +4,7 @@ import wrapt
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
-from maidr.patch.common import _draw_quietly, common
+from maidr.patch.common import _draw_quietly, common, wrap_seaborn
 from maidr.core.context_manager import ContextManager
 import uuid
 from maidr.core.enum.smooth_keywords import SMOOTH_KEYWORDS
@@ -84,6 +84,6 @@ def patched_plot(wrapped, instance, args, kwargs):
 
 
 # Patch seaborn function.
-wrapt.wrap_function_wrapper("seaborn", "regplot", regplot)
+wrap_seaborn("regplot", regplot)
 # Patch matplotlib Axes.plot for smooth line detection/registration
 wrapt.wrap_function_wrapper(Axes, "plot", patched_plot)

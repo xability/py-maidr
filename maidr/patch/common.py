@@ -5,6 +5,8 @@ import threading
 import warnings
 from typing import Any, Callable
 
+import wrapt
+
 from matplotlib.axes import Axes
 
 from maidr.core.context_manager import ContextManager
@@ -211,3 +213,62 @@ def common(
     FigureManager.create_maidr(ax, plot_type, **kwargs)
 
     return plot
+
+
+def wrap_seaborn(name: str, wrapper: Callable) -> None:
+    """
+    Wrap a seaborn function at both of the names it answers to.
+
+    seaborn re-exports its plotting functions from the package root, and its
+    own figure-level functions import them from the *defining* module inside
+    the function body::
+
+        from .relational import scatterplot   # Avoid circular import
+        from .distributions import histplot, kdeplot
+
+    Those are two separate bindings to one function object, so wrapping
+    ``seaborn.scatterplot`` leaves ``seaborn.relational.scatterplot``
+    untouched -- and every grid in ``seaborn/axisgrid.py`` takes the second
+    one. `pairplot`, `jointplot`, `catplot`, `relplot`, `displot` and
+    `lmplot` therefore ran the *unpatched* function, and the panel was seen
+    only by the matplotlib-level patches.
+
+    That cost two things at once. A `histplot` panel arrived as bars, because
+    `Axes.bar` cannot know it is drawing a histogram and the seaborn-level
+    patch that would have known never ran. And every panel registered twice:
+    `seaborn.utils._default_color` draws a throwaway artist to resolve a
+    default colour and removes it again, and with no seaborn-level patch
+    there was no recursion context to suppress it, so the probe registered as
+    a chart of its own (#344).
+
+    The defining module is located through ``__module__`` rather than a table
+    of names, so a function seaborn moves does not quietly stop being
+    patched -- and the identity check means a name that no longer resolves to
+    the same object is left alone rather than wrapped by guess.
+
+    Parameters
+    ----------
+    name : str
+        The function's name, the same at both bindings.
+    wrapper : Callable
+        The wrapt-style wrapper to install.
+    """
+    import importlib
+
+    import seaborn
+
+    original = getattr(seaborn, name, None)
+    if original is None:  # pragma: no cover - seaborn dropped the function
+        return
+
+    defining = getattr(original, "__module__", None)
+    wrapt.wrap_function_wrapper(seaborn, name, wrapper)
+
+    if not defining or defining == "seaborn":  # pragma: no cover
+        return
+    try:
+        module = importlib.import_module(defining)
+    except ImportError:  # pragma: no cover - a module seaborn does not ship
+        return
+    if getattr(module, name, None) is original:
+        wrapt.wrap_function_wrapper(module, name, wrapper)

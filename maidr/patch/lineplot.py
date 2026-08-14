@@ -5,7 +5,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
 from maidr.core.enum import PlotType
-from maidr.patch.common import _draw_quietly, common
+from maidr.patch.common import _draw_quietly, common, wrap_seaborn
 from maidr.core.context_manager import ContextManager
 from maidr.core.figure_manager import FigureManager
 from maidr.util.step_utils import is_step_axes
@@ -58,4 +58,4 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
 wrapt.wrap_function_wrapper(Axes, "plot", line)
 
 # Patch seaborn function.
-wrapt.wrap_function_wrapper("seaborn", "lineplot", line)
+wrap_seaborn("lineplot", line)

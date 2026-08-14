@@ -12,7 +12,7 @@ import uuid
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly, common
+from maidr.patch.common import _draw_quietly, common, wrap_seaborn
 
 
 @wrapt.patch_function_wrapper(Axes, "hist")
@@ -43,7 +43,6 @@ def mpl_hist(
     return n, bins, plot
 
 
-@wrapt.patch_function_wrapper("seaborn", "histplot")
 def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     """
     Patch seaborn.histplot to register HIST and (if kde=True) SMOOTH layers for MAIDR.
@@ -69,3 +68,7 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
                         dict(kwargs, regression_line=line),
                     )
     return ax
+
+
+# Patch seaborn function at both names it answers to; see `wrap_seaborn`.
+wrap_seaborn("histplot", sns_hist)

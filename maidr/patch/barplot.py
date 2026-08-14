@@ -7,7 +7,7 @@ from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
 
 from maidr.core.enum import MaidrKey, PlotType
-from maidr.patch.common import common
+from maidr.patch.common import common, wrap_seaborn
 from maidr.util.mixin import LevelExtractorMixin
 
 
@@ -289,5 +289,5 @@ wrapt.wrap_function_wrapper(Axes, "bar", bar)
 wrapt.wrap_function_wrapper(Axes, "barh", bar)
 
 # Patch seaborn functions.
-wrapt.wrap_function_wrapper("seaborn", "barplot", sns_bar)
-wrapt.wrap_function_wrapper("seaborn", "countplot", sns_bar)
+wrap_seaborn("barplot", sns_bar)
+wrap_seaborn("countplot", sns_bar)
