@@ -28,6 +28,34 @@ VIOLIN_TRACE_TYPE = "violin"
 #: What plotly calls a horizontal violin: values along x, categories up y.
 _HORIZONTAL = "h"
 
+#: The values of ``trace.visible`` that mean plotly drew nothing. ``False``
+#: hides a trace outright; ``"legendonly"`` is what clicking a legend entry
+#: sets, so a reader reaches it by ordinary use rather than an exotic figure.
+_HIDDEN = (False, "legendonly")
+
+
+def _is_drawn(trace: dict) -> bool:
+    """
+    Return whether plotly drew this trace at all.
+
+    A hidden trace gets no group in ``g.violinlayer``, so it must not be
+    announced and must not take a slot: counting it would push every later
+    trace's selector onto a group that does not exist, and a selector matching
+    nothing loses the highlight silently.
+
+    Parameters
+    ----------
+    trace : dict
+        A plotly trace dictionary.
+
+    Returns
+    -------
+    bool
+        ``True`` unless ``visible`` says otherwise. An absent ``visible`` is
+        plotly's default of drawn.
+    """
+    return trace.get("visible") not in _HIDDEN
+
 
 def is_violin_trace(trace: dict) -> bool:
     """
@@ -137,6 +165,12 @@ def collect_violins(traces: list[dict], prefix: str) -> list[Violin]:
     rendered = 0
 
     for trace in traces:
+        # A hidden trace is not a violin with no curve -- it is not on the
+        # chart. Announcing it would describe a shape the reader cannot see,
+        # and letting it advance `rendered` would move everyone else's group.
+        if not _is_drawn(trace):
+            continue
+
         samples = _samples(trace)
         computed = [(label, violin_stats(values)) for label, values in samples]
         if not any(stats is not None for _, stats in computed):

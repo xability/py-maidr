@@ -453,6 +453,49 @@ def test_a_category_whose_values_are_all_equal_is_still_announced() -> None:
     )
 
 
+@pytest.mark.parametrize("hidden", [False, "legendonly"], ids=["false", "legendonly"])
+def test_a_hidden_violin_is_neither_announced_nor_counted(hidden) -> None:
+    """A hidden trace is not on the chart, so it is not in the reading.
+
+    Two failures at once, and the first is the worse. Announcing it describes
+    a violin the reader cannot see -- its quartiles, its shape, its name --
+    with nothing saying it is not drawn. And letting it advance the group
+    index pushes the violin that *is* drawn onto `nth-child(2)` of a layer
+    with one child, so its selector matches nothing and the highlight
+    silently stops appearing.
+
+    Clicking a legend entry sets `visible="legendonly"` and re-renders, so
+    this is a state reached by ordinary use rather than an exotic figure.
+    """
+    figure = go.Figure(
+        [
+            go.Violin(y=LOWER, name="hidden", visible=hidden),
+            go.Violin(y=UPPER, name="shown"),
+        ]
+    )
+
+    kde = _of_type(figure, PlotType.VIOLIN_KDE)
+    box = _of_type(figure, PlotType.VIOLIN_BOX)
+
+    assert [curve[0]["x"] for curve in kde["data"]] == ["shown"]
+    assert [row["z"] for row in box["data"]] == ["shown"]
+    assert kde["selectors"] == [
+        ".subplot.xy .violinlayer > g:nth-child(1) > :nth-child(1 of path.violin)"
+    ]
+
+
+def test_a_figure_of_only_hidden_violins_emits_no_layers() -> None:
+    """Nothing drawn is nothing to read.
+
+    The empty-list guard the branch already has, driven: skipping every trace
+    must leave no `violin_box`/`violin_kde` pair behind rather than an empty
+    one, which would be a chart announcing two layers with no violins in them.
+    """
+    figure = go.Figure([go.Violin(y=LOWER, name="A", visible=False)])
+
+    assert _layers(figure) == []
+
+
 def test_a_violin_beside_other_traces_is_unaffected() -> None:
     """The control: a new branch must cost the existing types nothing.
 
