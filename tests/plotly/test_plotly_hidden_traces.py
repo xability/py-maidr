@@ -88,6 +88,16 @@ def _types(figure: go.Figure) -> list[str]:
             ),
             id="candlestick",
         ),
+        # `ohlc` is the other half of the OHLC family and draws into a layer
+        # of its own, so it is named here rather than left to the candlestick
+        # case -- the point of this parametrization is that no type is assumed
+        # to be covered by a neighbour.
+        pytest.param(
+            lambda v: go.Ohlc(
+                x=["d1"], open=[1.0], high=[2.0], low=[0.0], close=[1.5], **v
+            ),
+            id="ohlc",
+        ),
     ],
 )
 def test_a_hidden_trace_is_not_read(trace_of, hidden) -> None:
