@@ -1,0 +1,230 @@
+"""A filled band from the baseline is an area chart; a band between two is not.
+
+``Axes.fill_between`` was unregistered entirely, so a filled area chart drew
+and read as a static image. ``stackplot`` already emitted an area layer for
+the same picture (#356), which made the gap arbitrary from a reader's side:
+the same chart read or did not depending on which function drew it.
+
+The part that needed deciding rather than writing is that ``fill_between``
+draws two different charts.
+
+``fill_between(x, y1)`` fills from zero up to a curve. That is an area chart,
+and it measures what a one-series ``stackplot`` band measures -- a magnitude
+per position, from a baseline the reader can assume.
+
+``fill_between(x, lo, hi)`` draws the **gap**. Its content is the distance
+between the edges, not the height of either, so read as an area it would
+announce ``hi`` as a magnitude and drop ``lo`` without saying so. The honest
+reading is an estimate and its interval, and there is no estimate on the
+chart -- inventing the midpoint would put a number in the reader's ear that
+nothing drew. So it stays unregistered, and the figure keeps the static image
+it had, rather than gaining a confident description of a different chart
+(#339).
+
+That decision is what these pin. The registration is the easy half.
+"""
+
+from __future__ import annotations
+
+import json
+
+import matplotlib
+import numpy as np
+import pytest
+
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402
+
+import maidr  # noqa: F401,E402  # activates patches
+from maidr.core.enum.plot_type import PlotType  # noqa: E402
+from maidr.core.figure_manager import FigureManager  # noqa: E402
+
+
+X = np.arange(5)
+Y = np.array([1.0, 3.0, 2.0, 5.0, 4.0])
+
+
+@pytest.fixture(autouse=True)
+def _close_figures():
+    """Close every figure a test opened, so state cannot leak between them."""
+    yield
+    plt.close("all")
+
+
+def _layers(fig) -> list:
+    """The plot types registered for a figure, or an empty list."""
+    try:
+        return [plot.type for plot in FigureManager.get_maidr(fig).plots]
+    except KeyError:
+        return []
+
+
+def _layer(fig) -> dict:
+    """The one emitted layer's schema, as JSON round-trips it."""
+    schema = json.loads(json.dumps(FigureManager.get_maidr(fig)._flatten_maidr()))
+    return schema["subplots"][0][0]["layers"][0]
+
+
+def test_a_band_from_the_baseline_is_an_area():
+    """The registration, and the values it carries.
+
+    Read against the arguments the caller passed rather than against the
+    drawn polygon: `fill_between` closes its outline, running forward along
+    the curve and back along the baseline with the endpoints repeated, so a
+    reading taken from the artist would have to undo the closure first.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xlabel("t")
+    ax.set_ylabel("v")
+    ax.fill_between(X, Y)
+
+    assert _layers(fig) == [PlotType.AREA]
+
+    layer = _layer(fig)
+    assert layer["type"] == "area"
+    assert layer["axes"]["x"]["label"] == "t"
+    assert layer["axes"]["y"]["label"] == "v"
+
+    points = layer["data"][0]
+    assert [point["x"] for point in points] == X.tolist()
+    assert [point["y"] for point in points] == Y.tolist()
+
+
+def test_an_explicit_zero_baseline_is_the_same_chart():
+    """``y2=0`` is what the default already means, written out."""
+    fig, ax = plt.subplots()
+    ax.fill_between(X, Y, 0)
+
+    assert _layers(fig) == [PlotType.AREA]
+    assert [point["y"] for point in _layer(fig)["data"][0]] == Y.tolist()
+
+
+def test_a_band_between_two_curves_is_declined():
+    """The decision, not an oversight.
+
+    Its content is the gap. Announced as an area, ``hi`` becomes a magnitude
+    and ``lo`` disappears -- a complete, confident description of a chart
+    nobody drew. The alternative reading needs an estimate the chart does not
+    carry.
+    """
+    fig, ax = plt.subplots()
+    ax.fill_between(X, Y - 1, Y + 1)
+
+    assert _layers(fig) == []
+
+
+def test_a_constant_second_edge_is_declined_too():
+    """The same problem in miniature, and the one a zero-check alone misses.
+
+    ``fill_between(x, y, 2)`` measures heights from two, and an area layer
+    would announce them as though measured from zero. Nothing in the reading
+    would mention the baseline it actually used.
+    """
+    fig, ax = plt.subplots()
+    ax.fill_between(X, Y, 2)
+
+    assert _layers(fig) == []
+
+
+def test_a_line_keeps_its_band_unannounced_rather_than_misannounced():
+    """The common idiom, and what it still costs.
+
+    A line with a confidence ribbon is the case a reader loses most from,
+    and it is deliberately not fixed here: the band is an interval around
+    the line, which is an `error_bar` reading rather than an area one, and
+    matching a band to a line is a heuristic worth settling before writing.
+
+    What is pinned is that it does not silently gain a *wrong* layer in the
+    meantime -- the figure reads as the line it always did.
+    """
+    fig, ax = plt.subplots()
+    ax.plot(X, Y)
+    ax.fill_between(X, Y - 1, Y + 1, alpha=0.3)
+
+    assert _layers(fig) == [PlotType.LINE]
+
+
+def test_fill_betweenx_is_the_same_chart_turned_over():
+    """The shared axis is y and the magnitude runs along x.
+
+    What a band measures does not change with which way it is drawn, so it
+    is the same layer type -- and the arguments have to be read from their
+    own parameter names rather than by position, since `x1` sits where `y1`
+    does.
+    """
+    fig, ax = plt.subplots()
+    ax.fill_betweenx(X, Y)
+
+    assert _layers(fig) == [PlotType.AREA]
+
+    points = _layer(fig)["data"][0]
+    assert [point["x"] for point in points] == X.tolist()
+    assert [point["y"] for point in points] == Y.tolist()
+
+
+def test_a_stackplot_still_reads_as_a_stack():
+    """The thing most at risk: `stackplot` draws its bands through here.
+
+    It calls `fill_between` once per band and reads the series itself, so a
+    stacked chart could gain one area layer per band on top of its stack --
+    every band described twice, once as its own value and once as a running
+    total.
+
+    Two things stop that, and it is worth being exact about which does the
+    work, because the obvious answer is not the one that fires. The recursion
+    guard would catch it, but never gets the chance: `stackplot` draws every
+    band with two explicit edges (`fill_between(x, stack[i], stack[i + 1])`),
+    so the baseline test declines them first. Removing the guard alone leaves
+    this passing.
+
+    Asserted on the outcome for that reason. It is the outcome that matters,
+    and pinning it to one mechanism would make the test a description of
+    matplotlib's `stackplot` rather than of this package.
+    """
+    fig, ax = plt.subplots()
+    ax.stackplot(X, Y, Y + 1)
+
+    assert _layers(fig) == [PlotType.STACKED_AREA]
+    assert len(_layer(fig)["data"]) == 2
+
+
+def test_a_scalar_curve_is_declined():
+    """`fill_between(x, 3)` is a horizontal band, not a series.
+
+    Matplotlib broadcasts the scalar across the positions. Pairing the two
+    by index would describe a one-point chart out of a five-point one, and
+    the count is the only thing that would have looked wrong.
+    """
+    fig, ax = plt.subplots()
+    ax.fill_between(X, 3)
+
+    assert _layers(fig) == []
+
+
+def test_the_band_is_tagged_for_highlighting():
+    """A selector per band, resolving to the drawn polygon.
+
+    `AreaPlot` addresses its bands by the artist's own gid, which is
+    assigned during extraction because the schema is built before the draw
+    that would otherwise stamp one.
+    """
+    fig, ax = plt.subplots()
+    ax.fill_between(X, Y)
+
+    layer = _layer(fig)
+    assert len(layer["selectors"]) == 1
+    assert "maidr-" in layer["selectors"][0]
+
+
+def test_a_label_is_carried_onto_the_points():
+    """`label=` is what a legend would show, and names the series.
+
+    Only when it is a string: matplotlib accepts other objects and renders
+    them through `str()`, which is a decision about display rather than a
+    name the reader should be handed.
+    """
+    fig, ax = plt.subplots()
+    ax.fill_between(X, Y, label="rainfall")
+
+    assert all(point["z"] == "rainfall" for point in _layer(fig)["data"][0])
