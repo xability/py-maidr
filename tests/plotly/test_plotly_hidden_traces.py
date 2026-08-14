@@ -169,6 +169,11 @@ def test_a_hidden_pie_does_not_shift_the_one_beside_it(hidden) -> None:
     Its selector is scoped by position among the *drawn* pies -- which is
     also what the browser-side adapter's `isDrawnPie` decides, so the two
     agree on what counts.
+
+    Pinned exactly rather than by substring, matching the candlestick and
+    violin cases beside it: a `nth-child(1) in str(...)` check can pass on a
+    coincidence elsewhere in the string, which is precisely the kind of test
+    that looks like coverage and is not.
     """
     figure = go.Figure(
         [
@@ -180,7 +185,9 @@ def test_a_hidden_pie_does_not_shift_the_one_beside_it(hidden) -> None:
     (layer,) = _layers(figure)
 
     assert layer["type"] is PlotType.PIE
-    assert "nth-child(1)" in str(layer["selectors"])
+    assert layer["selectors"] == (
+        ".pielayer > .trace:nth-child(1) > .slice > path.surface"
+    )
 
 
 @HIDDEN
