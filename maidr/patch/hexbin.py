@@ -24,7 +24,7 @@ def _fill_label(wrapped, args: tuple, kwargs: dict) -> str:
       count and is routinely not even an integer.
     * ``bins``, given as a number or a sequence of edges, discretises the
       counts and colours each bin by *which* interval its count landed in.
-      ``get_array()` then holds an interval index. A three-point bin and a
+      ``get_array()`` then holds an interval index. A three-point bin and a
       nine-point bin can both read 1.
 
     Announcing either as "count" would be wrong in the way that is hardest to
@@ -142,14 +142,17 @@ def hexbin(wrapped, _, args, kwargs) -> Collection:
     matplotlib.collections.Collection
         Whatever the wrapped function returned, unchanged.
     """
+    # Lifted before the recursion guard, not after. `hexbin` forwards what it
+    # does not recognise to the collection, so a `z_label` still in `kwargs`
+    # on the internal-context path would reach matplotlib and raise from
+    # somewhere the caller cannot connect back to MAIDR. There is no live path
+    # that reaches this in an internal context today; popping first costs
+    # nothing and means there does not have to be one.
+    z_label = kwargs.pop("z_label", None)
+
     # Don't proceed if the call is made internally by the patched function.
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
-
-    # MAIDR's own, and not a parameter of the function being wrapped:
-    # `hexbin` forwards what it does not recognise to the collection, which
-    # raises from somewhere the caller cannot connect back to MAIDR.
-    z_label = kwargs.pop("z_label", None)
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
