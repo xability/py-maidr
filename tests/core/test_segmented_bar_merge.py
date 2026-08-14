@@ -43,6 +43,7 @@ import pytest  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.core.plot.mplfinance_barplot import MplfinanceBarPlot  # noqa: E402
 
 CATEGORIES = ["a", "b", "c"]
 SERIES_0 = np.array([10.0, 20.0, 30.0])
@@ -214,6 +215,38 @@ def test_every_layer_keeps_its_own_selector_id() -> None:
 
     assert len(figure_maidr.plots) == 1
     assert figure_maidr.selector_ids == [issued[1]]
+
+
+def test_a_bar_typed_layer_outside_the_family_is_not_dropped() -> None:
+    """The family is a class, not a ``PlotType``, and that has to stay true.
+
+    ``MplfinanceBarPlot`` carries ``PlotType.BAR`` but reads the volume
+    patches handed to it rather than sweeping the axes -- so the premise that
+    justifies dropping a layer, *its extractor already describes every bar
+    here*, is not true of it. A ``plot.type`` check said it was, and a stacked
+    bar sharing its axes would have taken the volume chart with it.
+
+    The obvious later "simplification" is to collapse ``_AXES_WIDE_BAR_PLOTS``
+    back to a set of types, which reads cleaner and is wrong. This is the test
+    that catches that, so it drives the classification directly rather than
+    building an mplfinance figure to reach it.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(CATEGORIES, SERIES_0, bottom=np.zeros(len(CATEGORIES)), label="s0")
+    ax.bar(CATEGORIES, SERIES_1, bottom=SERIES_0, label="s1")
+
+    figure_maidr = FigureManager.get_maidr(fig)
+    volume = MplfinanceBarPlot(ax)
+    figure_maidr.plots.append(volume)
+    figure_maidr.selector_ids.append("volume-id")
+
+    figure_maidr._collapse_segmented_bar_layers()
+
+    assert volume in figure_maidr.plots
+    assert "volume-id" in figure_maidr.selector_ids
+    # The duplicate stacked registration is still dropped, so this is not
+    # passing because the collapse stopped working.
+    assert len(figure_maidr.plots) == 2
 
 
 def test_collapsing_twice_changes_nothing() -> None:

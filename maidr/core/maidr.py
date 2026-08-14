@@ -15,6 +15,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 from htmltools import HTML, HTMLDocument, Tag, tags
 from lxml import etree
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from maidr.core.enum.plot_type import PlotType
 
@@ -409,7 +410,7 @@ class Maidr:
         )
 
     @staticmethod
-    def _layer_axes_key(plot: MaidrPlot) -> int:
+    def _layer_axes_key(plot: MaidrPlot) -> Axes:
         """
         What decides whether two layers can supersede one another.
 
@@ -422,9 +423,11 @@ class Maidr:
         chart was announced nowhere.
 
         ``MaidrPlot.__init__`` takes a required ``Axes`` and assigns it, so
-        every layer has one and there is no absent-axes case to handle.
+        every layer has one and there is no absent-axes case to handle. The
+        axes is used as the key directly: ``Axes`` overrides neither
+        ``__eq__`` nor ``__hash__``, so it already groups by identity.
         """
-        return id(plot.ax)
+        return plot.ax
 
     def _collapse_segmented_bar_layers(self) -> None:
         """
@@ -472,7 +475,7 @@ class Maidr:
         a layer without dropping its id would hand every surviving layer its
         neighbour's, and the highlight would land on the wrong bar.
         """
-        by_axes: dict[Any, list[MaidrPlot]] = defaultdict(list)
+        by_axes: dict[Axes, list[MaidrPlot]] = defaultdict(list)
         for plot in self._plots:
             by_axes[self._layer_axes_key(plot)].append(plot)
 
