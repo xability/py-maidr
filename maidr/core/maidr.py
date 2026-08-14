@@ -35,6 +35,19 @@ from maidr.util.dependencies import (
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
 
+#: Layer types whose extractor reads every ``BarContainer`` on its axes rather
+#: than the bars its own call drew, so two of them on one axes describe the
+#: same chart twice. ``BAR`` and ``COUNT`` are ``BarPlot``; ``DODGED`` and
+#: ``STACKED`` are ``GroupedBarPlot``. ``HIST`` draws bars too but reads its
+#: own container, so it is not in this family and is never dropped.
+_AXES_WIDE_BAR_TYPES = frozenset(
+    {PlotType.BAR, PlotType.COUNT, PlotType.DODGED, PlotType.STACKED}
+)
+
+#: The subset of the above that describes a whole segmented chart, and so is
+#: the layer to keep when a position holds more than one of the family.
+_SEGMENTED_BAR_TYPES = frozenset({PlotType.DODGED, PlotType.STACKED})
+
 
 class Maidr:
     """
@@ -311,6 +324,15 @@ class Maidr:
             Controls how ``maidr.js`` is referenced.  See :meth:`render`
             for the three possible modes.
         """
+        # Before the artists are collected, not after: reading `plot.elements`
+        # renders the layer, and a superseded `BarPlot` on a stacked axes
+        # raises `ExtractionError` there -- which is fatal to the whole figure,
+        # so collapsing later in `_flatten_maidr` would never be reached. It
+        # also keeps one artist from appearing twice in the list below, where
+        # `HighlightContextManager` resolves an artist by its *first* index and
+        # would hand every bar the dropped layer's selector id (#376).
+        self._collapse_segmented_bar_layers()
+
         tagged_elements: list[Any] = [
             element for plot in self._plots for element in plot.elements
         ]
@@ -369,41 +391,82 @@ class Maidr:
             lang="en",
         )
 
-    def _merge_plots_by_subplot_position(self) -> list[MaidrPlot]:
+    @staticmethod
+    def _subplot_position(plot: MaidrPlot) -> tuple[int, int]:
+        """The ``(row, col)`` cell a layer belongs to, defaulting to ``(0, 0)``."""
+        return (getattr(plot, "row_index", 0), getattr(plot, "col_index", 0))
+
+    def _collapse_segmented_bar_layers(self) -> None:
         """
-        Merge plots by their subplot position, keeping only the first plot per position.
+        Drop the bar layers a segmented layer on the same axes already describes.
 
-        For DODGED and STACKED plot types, multiple plots on the same subplot
-        should be merged into a single plot since GroupedBarPlot extracts all
-        containers from the axes itself.
+        ``BarPlot`` and ``GroupedBarPlot`` both read *every* ``BarContainer``
+        on their axes rather than the bars their own call drew, so a stacked
+        chart built from three ``ax.bar()`` calls registers three layers that
+        each describe the whole chart. One has to survive and the rest are
+        duplicates.
 
-        Returns
-        -------
-        list[MaidrPlot]
-            List of plots with one plot per unique subplot position.
+        Which one survives is the part that was wrong. This used to key off
+        ``self.plot_type`` -- a *figure-wide* "highest priority type seen",
+        where ``STACKED``/``DODGED`` outrank everything -- and then keep
+        ``position_plots[0]``, the first layer registered at each position
+        whatever its type. Three things followed, none of which errored (#376):
 
-        Examples
-        --------
-        If we have plots at positions [(0,0), (0,0), (0,1), (1,0)],
-        this will return plots at positions [(0,0), (0,1), (1,0)].
+        * a stacked bar in one panel collapsed **every** panel to its first
+          layer, so an unrelated scatter overlay in the next panel along
+          simply stopped being announced;
+        * which layer survived was registration order, so a reference line
+          drawn before the bars meant the bar chart was the thing dropped;
+        * matplotlib's own documented stacked bar -- ``bottom`` omitted on the
+          first call, as everyone writes it -- registered ``BAR`` then
+          ``STACKED``, kept the ``BAR``, and that layer's extractor then found
+          six patches against three tick labels and raised ``ExtractionError``,
+          which is fatal to the whole figure. Passing ``bottom=np.zeros(n)``
+          on the first call avoided it, which is why every test wrote it that
+          way.
+
+        So the question is asked per position and answered by type: a position
+        holding a segmented layer keeps the first of those and drops the other
+        axes-wide bar layers there. Layers of any other type are left alone --
+        a line over a stacked bar is a second layer, not a duplicate of it.
+
+        Idempotent, and it has to be: it runs from ``_create_html_tag`` before
+        the elements are collected *and* from ``_flatten_maidr``, which can be
+        called on its own.
+
+        ``selector_ids`` is filtered in step with ``_plots``. The two are
+        paired by index in both directions -- ``_create_html_tag`` tags each
+        layer's artists with ``selector_ids[i]``, and ``_flatten_maidr``
+        stamps the same index into the layer's selector string -- so dropping
+        a layer without dropping its id would hand every surviving layer its
+        neighbour's, and the highlight would land on the wrong bar.
         """
-        # Group plots by their subplot position (row, col) using defaultdict
-        subplot_groups: dict[tuple[int, int], list[MaidrPlot]] = defaultdict(list)
-
+        positions: dict[tuple[int, int], list[MaidrPlot]] = defaultdict(list)
         for plot in self._plots:
-            # Get subplot position, defaulting to (0, 0) if not set
-            position = (getattr(plot, "row_index", 0), getattr(plot, "col_index", 0))
-            subplot_groups[position].append(plot)
+            positions[self._subplot_position(plot)].append(plot)
 
-        # Keep only the first plot for each subplot position
-        # The GroupedBarPlot will extract all containers from that axes
-        merged_plots: list[MaidrPlot] = []
-        for position_plots in subplot_groups.values():
-            merged_plots.append(
-                position_plots[0]
-            )  # Each list is guaranteed to have at least one plot
+        superseded: set[int] = set()
+        for group in positions.values():
+            segmented = [plot for plot in group if plot.type in _SEGMENTED_BAR_TYPES]
+            if not segmented:
+                continue
+            survivor = segmented[0]
+            superseded.update(
+                id(plot)
+                for plot in group
+                if plot is not survivor and plot.type in _AXES_WIDE_BAR_TYPES
+            )
 
-        return merged_plots
+        if not superseded:
+            return
+
+        kept = [
+            (plot, selector_id)
+            for plot, selector_id in zip(self._plots, self.selector_ids)
+            if id(plot) not in superseded
+        ]
+        self._plots = [plot for plot, _ in kept]
+        self.selector_ids = [selector_id for _, selector_id in kept]
 
     def _figure_metadata(self) -> dict:
         """
@@ -447,10 +510,11 @@ class Maidr:
 
     def _flatten_maidr(self) -> dict:
         """Return the top-level MAIDR schema for this figure."""
-        # Handle DODGED/STACKED plots: only keep one plot per subplot position
-        # because GroupedBarPlot extracts all containers from the axes itself
-        if self.plot_type in (PlotType.DODGED, PlotType.STACKED):
-            self._plots = self._merge_plots_by_subplot_position()
+        # A segmented bar layer describes every bar on its axes, so the sibling
+        # registrations from the same chart are duplicates of it. Asked per
+        # position rather than per figure -- see the method for what asking it
+        # per figure cost (#376).
+        self._collapse_segmented_bar_layers()
 
         # Deduplicate: if any SMOOTH plots exist, remove LINE plots
         self._plots = deduplicate_smooth_and_line(self._plots)
