@@ -13,6 +13,16 @@ from maidr.util.mixin import (
 )
 
 
+#: The keyword ``Axes.bar`` hands its own ``BarContainer`` to this layer
+#: under. Named once and imported at both ends rather than spelled twice:
+#: ``kwargs.get`` falls back to sweeping the axes on a mismatch, so a typo
+#: would not raise -- it would quietly restore the behaviour #380 removed.
+#:
+#: Lives here rather than beside ``common.drawn_as`` because ``maidr.patch``
+#: imports ``maidr.core`` and not the other way about.
+DRAWN_BARS = "_maidr_bars"
+
+
 class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMergerMixin):
     def __init__(self, ax: Axes, **kwargs) -> None:
         super().__init__(ax, PlotType.BAR)
@@ -20,7 +30,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         # The container this layer's own call drew, when the patch could say.
         # `None` falls back to sweeping the axes, which is what seaborn needs:
         # it draws one layer as several containers, one per hue group.
-        self._own_bars = kwargs.get("_maidr_bars", None)
+        self._own_bars = kwargs.get(DRAWN_BARS, None)
 
     @property
     def _is_horizontal(self) -> bool:
@@ -88,7 +98,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
 
         return [{"x": x, "y": y} for x, y in combined_data]
 
-    def _own_containers(self) -> list[BarContainer]:
+    def _own_containers(self) -> list[BarContainer] | None:
         """
         The containers this layer describes.
 
@@ -105,8 +115,10 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
 
         Returns
         -------
-        list of BarContainer
-            One or more containers, in the order the axes holds them.
+        list of BarContainer, optional
+            One or more containers, in the order the axes holds them. ``None``
+            when the axes holds no container list at all, which the caller
+            already treats as nothing to extract.
         """
         if self._own_bars is not None:
             return [self._own_bars]

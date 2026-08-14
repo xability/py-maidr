@@ -7,6 +7,7 @@ from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
 
 from maidr.core.enum import MaidrKey, PlotType
+from maidr.core.plot.barplot import DRAWN_BARS
 from maidr.patch.common import common, wrap_seaborn
 from maidr.util.mixin import LevelExtractorMixin
 
@@ -82,7 +83,7 @@ def bar(
     # several containers, one per hue group, and registers it from `sns_bar`
     # below, where no single container is the answer -- that path keeps the
     # sweep, which is right for it.
-    return common(plot_type, wrapped, instance, args, kwargs, drawn_as="_maidr_bars")
+    return common(plot_type, wrapped, instance, args, kwargs, drawn_as=DRAWN_BARS)
 
 
 def _should_classify_as_dodged(
