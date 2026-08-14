@@ -274,6 +274,49 @@ def as_numeric(values: list) -> np.ndarray:
     return coerced
 
 
+def paired_arrays(trace: dict, binned: str) -> tuple[list | None, list | None]:
+    """The binned sample and its value array, cut to their common length.
+
+    Plotly pairs the two arrays positionally and reads only as far as the
+    shorter one, **including for the binning** -- and it does so whatever
+    ``histfunc`` says. Measured: ``go.Histogram(x=[1..9], y=[10..50])`` draws
+    three bins spanning 1 to 5, not the two spanning 1 to 9 that binning all
+    of ``x`` gives, and the same figure with ``histfunc="sum"`` sums only the
+    five pairs.
+
+    Truncating here rather than at the point of use is what makes the bins and
+    the values agree: slicing only the value array left it shorter than the
+    bin assignment when ``y`` was the shorter of the two, which raised an
+    ``IndexError`` out of a rendering path for a figure plotly draws without
+    complaint.
+
+    Parameters
+    ----------
+    trace : dict
+        A ``histogram`` trace dict.
+    binned : str
+        ``"x"`` or ``"y"``, the axis being binned.
+
+    Returns
+    -------
+    tuple[list | None, list | None]
+        The binned sample, and the other axis's array when the trace carries
+        one. Both ``None`` when the binned axis is absent.
+    """
+    raw = trace.get(binned)
+    if raw is None:
+        return None, None
+    sample = as_list(raw)
+
+    other_raw = trace.get("y" if binned == "x" else "x")
+    if other_raw is None:
+        return sample, None
+
+    other = as_list(other_raw)
+    shared = min(len(sample), len(other))
+    return sample[:shared], other[:shared]
+
+
 def value_array(trace: dict, binned: str) -> list | None:
     """The array ``histfunc`` aggregates, or ``None`` when there is none.
 
@@ -298,9 +341,7 @@ def value_array(trace: dict, binned: str) -> list | None:
     """
     if trace.get("histfunc") not in _AGGREGATING:
         return None
-    other = "y" if binned == "x" else "x"
-    raw = trace.get(other)
-    return None if raw is None else as_list(raw)
+    return paired_arrays(trace, binned)[1]
 
 
 def apply_histnorm(
@@ -520,10 +561,9 @@ class PlotlyHistogramPlot(PlotlyPlot):
         return assignment
 
     def _extract_plot_data(self) -> list[dict]:
-        raw = self._trace.get(self._binned, None)
-        if raw is None:
+        values, _ = paired_arrays(self._trace, self._binned)
+        if values is None:
             return []
-        values = as_list(raw)
 
         # Detect categorical (string) data — Plotly renders these as
         # count bar charts.  Mirror how seaborn countplot is handled:
@@ -553,7 +593,7 @@ class PlotlyHistogramPlot(PlotlyPlot):
         else:
             measured, present = aggregate_bins(
                 self._bin_assignment(arr, bin_edges),
-                as_numeric(raw_values[: len(arr)]),
+                as_numeric(raw_values),
                 len(counts),
                 histfunc,
             )
@@ -574,17 +614,15 @@ class PlotlyHistogramPlot(PlotlyPlot):
         # `avg` with any `histnorm` gives six. Rescaling evidently runs over
         # the whole bin array and does not carry the "no answer" marker
         # through, so the composition is not simply one step after the other.
-        drop_empty = (
-            histfunc in _UNDEFINED_WHEN_EMPTY and not self._trace.get("histnorm")
+        drop_empty = histfunc in _UNDEFINED_WHEN_EMPTY and not self._trace.get(
+            "histnorm"
         )
 
         # The binned axis carries the bin, the other one the count. Naming the
         # keys off the orientation rather than hardcoding ``x`` keeps the
         # announced extent on the axis the bins are actually drawn along.
         binned, counted = (
-            (MaidrKey.Y, MaidrKey.X)
-            if self._horizontal
-            else (MaidrKey.X, MaidrKey.Y)
+            (MaidrKey.Y, MaidrKey.X) if self._horizontal else (MaidrKey.X, MaidrKey.Y)
         )
         bounds = {
             MaidrKey.X: (MaidrKey.X_MIN, MaidrKey.X_MAX),
@@ -643,13 +681,11 @@ class PlotlyHistogramPlot(PlotlyPlot):
         if raw_values is None:
             measured = [float(len(members)) for members in grouped.values()]
         else:
-            numeric = as_numeric(raw_values[: len(values)])
+            numeric = as_numeric(raw_values)
             assignment = np.empty(len(values), dtype=int)
             for index, members in enumerate(grouped.values()):
                 assignment[members] = index
-            reduced, _ = aggregate_bins(
-                assignment, numeric, len(grouped), histfunc
-            )
+            reduced, _ = aggregate_bins(assignment, numeric, len(grouped), histfunc)
             measured = list(reduced)
 
         # Every category holds at least one observation by construction, so
@@ -669,9 +705,7 @@ class PlotlyHistogramPlot(PlotlyPlot):
         # horizontal count bar chart with its categories on ``x`` would be
         # announced with the counts and the labels swapped.
         category, count_key = (
-            (MaidrKey.Y, MaidrKey.X)
-            if self._horizontal
-            else (MaidrKey.X, MaidrKey.Y)
+            (MaidrKey.Y, MaidrKey.X) if self._horizontal else (MaidrKey.X, MaidrKey.Y)
         )
         return [
             {

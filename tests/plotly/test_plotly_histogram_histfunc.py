@@ -39,7 +39,11 @@ plotly = pytest.importorskip("plotly")
 import numpy as np  # noqa: E402
 import plotly.graph_objects as go  # noqa: E402
 
-from maidr.plotly.histogram import aggregate_bins, value_array  # noqa: E402
+from maidr.plotly.histogram import (  # noqa: E402
+    aggregate_bins,
+    paired_arrays,
+    value_array,
+)
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
 #: Categories a/b/c holding 1,4,7 / 2,5,8 / 3,6,9.
@@ -265,6 +269,57 @@ class TestNonNumericValues:
         # raised here, on a figure plotly renders without complaint.
         fig = go.Figure([go.Histogram(y=CATS, x=CAT_VALUES, histfunc="sum")])
         assert all(value == 0 for value in values(fig))
+
+
+class TestMismatchedLengths:
+    """Plotly reads both arrays only as far as the shorter one."""
+
+    LONG_X = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    SHORT_Y = [10, 20, 30, 40, 50]
+
+    def test_paired_arrays_cuts_both_to_the_common_length(self):
+        binned, other = paired_arrays(
+            {"type": "histogram", "x": self.LONG_X, "y": self.SHORT_Y}, "x"
+        )
+        assert binned == [1, 2, 3, 4, 5]
+        assert other == self.SHORT_Y
+
+    def test_it_cuts_the_other_way_round_too(self):
+        binned, other = paired_arrays(
+            {"type": "histogram", "x": self.SHORT_Y[:3], "y": self.LONG_X}, "x"
+        )
+        assert len(binned) == len(other) == 3
+
+    def test_a_single_array_is_left_whole(self):
+        binned, other = paired_arrays({"type": "histogram", "x": self.LONG_X}, "x")
+        assert binned == self.LONG_X
+        assert other is None
+
+    def test_the_binning_uses_the_common_length_not_the_whole_sample(self):
+        # The part that is easy to get half right: slicing only the *value*
+        # array leaves the bins spanning 1 to 9, where plotly spans 1 to 5.
+        # Three bins, not two.
+        fig = go.Figure([go.Histogram(x=self.LONG_X, y=self.SHORT_Y, histfunc="sum")])
+        assert pairs(fig) == [(0.5, 10), (2.5, 50), (4.5, 90)]
+
+    def test_count_truncates_as_well(self):
+        # Pairing is not a property of aggregating: plotly cuts the arrays
+        # whatever `histfunc` says, so a plain count over mismatched arrays
+        # bins five values rather than nine.
+        fig = go.Figure([go.Histogram(x=self.LONG_X, y=self.SHORT_Y, histfunc="count")])
+        assert pairs(fig) == [(0.5, 1), (2.5, 2), (4.5, 2)]
+
+    def test_the_shorter_value_array_no_longer_raises(self):
+        # Slicing only the value array left it shorter than the bin
+        # assignment, and the boolean mask inside `aggregate_bins` raised
+        # `IndexError` out of a rendering path -- for a figure plotly draws
+        # without complaint.
+        fig = go.Figure([go.Histogram(x=self.LONG_X, y=self.SHORT_Y, histfunc="sum")])
+        assert len(values(fig)) == 3
+
+    def test_a_categorical_sample_truncates_the_same_way(self):
+        fig = go.Figure([go.Histogram(x=CATS, y=[1, 2, 3], histfunc="sum")])
+        assert pairs(fig) == [("a", 1), ("b", 2), ("c", 3)]
 
 
 class TestSwappedArraysIsNotHorizontal:
