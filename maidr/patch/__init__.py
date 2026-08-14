@@ -6,6 +6,7 @@ from . import (  # noqa: F401
     clear,
     colorbar,
     errorbar,
+    fillbetween,
     heatmap,
     hexbin,
     highlight,

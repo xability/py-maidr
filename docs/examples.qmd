@@ -736,6 +736,38 @@ ax.legend(loc="upper left")
 plt.show() #<<
 ```
 
+`ax.fill_between()` reads as an area too, when it draws one: `fill_between(x,
+y)` fills from zero up to a curve, which is the same chart a single
+`stackplot` band draws. `ax.fill_betweenx()` is the same picture turned over
+and reads the same way.
+
+```{python}
+#| fig-alt: Filled area chart of monthly rainfall
+
+import matplotlib.pyplot as plt
+
+import maidr #<<
+
+months = list(range(1, 13))
+rainfall = [78, 62, 71, 55, 48, 39, 31, 35, 52, 74, 89, 84]
+
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.fill_between(months, rainfall, alpha=0.6, label="Rainfall") #<<
+
+ax.set_title("Monthly Rainfall")
+ax.set_xlabel("Month")
+ax.set_ylabel("Rainfall (mm)")
+
+plt.show() #<<
+```
+
+A band drawn **between two curves** — `fill_between(x, lower, upper)`, the
+usual way to shade a confidence interval — is a different chart, and maidr
+does not read it as an area. Its content is the gap between the edges rather
+than the height of either, so announcing it as an area would report the upper
+edge as a magnitude and drop the lower one. Those charts render as a static
+image for now; see [issue #339](https://github.com/xability/py-maidr/issues/339).
+
 ### Point Plot
 
 `sns.pointplot()` is the same reading from the other direction: it estimates a

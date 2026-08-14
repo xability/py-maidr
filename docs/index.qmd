@@ -79,6 +79,8 @@ We currently support the following data visualization libraries in Python:, and 
 
 * Hexbin plot (`ax.hexbin()`) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon's count by default, the reduction of `C` when one is given, or the count's interval when `bins` is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its centre rather than by a column index.
 
+* Filled area plot (`ax.stackplot()`, `ax.fill_between()`, `ax.fill_betweenx()`) having one x (numerical) and one y (numerical) axis. A band drawn from the baseline to a curve reads as an area; several stacked bands read as a stacked area, with each band's own value announced alongside the running total. A band drawn *between two curves* is not read as an area, since its content is the gap rather than either edge.
+
 * Scatter plot having one x (numerical) and one y (numerical) axis.
 
 * Regression plot having one x (numerical) and one y (numerical) axis with scatter points and fitted regression line.
