@@ -166,76 +166,182 @@ def _auto_shift_bins(
     return bin_start
 
 
+#: Plotly's spelling of a horizontal trace.
+_HORIZONTAL = "h"
+
+
+def binned_axis(trace: dict) -> str:
+    """Return which of ``x``/``y`` plotly bins for *trace*.
+
+    A histogram bins one axis and counts into the other, and which one is not
+    always stated: ``px.histogram(y=...)`` writes ``orientation`` onto the
+    trace, but ``go.Histogram(y=...)`` writes nothing and lets Plotly.js infer
+    it. Reading only ``x`` therefore left every horizontal histogram with no
+    data at all (#401).
+
+    The rule below is Plotly.js's own, measured rather than assumed --
+    ``gd._fullData[i].orientation`` read back out of Chromium for each shape:
+
+    ==================================================  ===========  ======
+    trace                                               orientation  binned
+    ==================================================  ===========  ======
+    ``go.Histogram(x=v)``                               ``v``        ``x``
+    ``go.Histogram(y=v)``                               ``h``        ``y``
+    ``px.histogram(y="v")``                             ``h``        ``y``
+    ``go.Histogram(x=cats, y=vals, histfunc="sum")``    ``v``        ``x``
+    ``go.Histogram(y=cats, x=vals, histfunc="sum")``    ``v``        ``x``
+    ``go.Histogram(x=v, orientation="h")``              ``h``        ``y``
+    ==================================================  ===========  ======
+
+    So an explicit ``orientation`` wins outright, and only in its absence does
+    the presence of the arrays decide. The last row is the one that settles
+    the precedence: plotly honours the attribute and bins the *absent* ``y``,
+    drawing an empty trace rather than falling back to ``x``.
+
+    Parameters
+    ----------
+    trace : dict
+        A ``histogram`` trace dict.
+
+    Returns
+    -------
+    str
+        ``"x"`` or ``"y"``.
+    """
+    orientation = trace.get("orientation")
+    if orientation is not None:
+        return "y" if orientation == _HORIZONTAL else "x"
+    if trace.get("y") is not None and trace.get("x") is None:
+        return "y"
+    return "x"
+
+
 class PlotlyHistogramPlot(PlotlyPlot):
     """Extract data from a Plotly histogram trace."""
 
     def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
         super().__init__(trace, layout, PlotType.HIST, **kwargs)
+        self._binned = binned_axis(trace)
+
+    @property
+    def _horizontal(self) -> bool:
+        """Whether the bins run along the y axis."""
+        return self._binned == "y"
+
+    def render(self) -> dict:
+        """Add ``orientation`` to the base schema.
+
+        The core reads a histogram's bin bounds from ``xMin``/``xMax`` or from
+        ``yMin``/``yMax`` depending on this, so a horizontal layer that did not
+        carry it would have its counts announced as the bin range.
+        """
+        schema = super().render()
+        schema[MaidrKey.ORIENTATION] = "horz" if self._horizontal else "vert"
+        return schema
 
     def _get_selector(self) -> str:
         return f"{self._subplot_css_prefix()}.trace.bars .point > path"
 
     def _extract_plot_data(self) -> list[dict]:
-        raw_x = self._trace.get("x", None)
-        if raw_x is None:
+        raw = self._trace.get(self._binned, None)
+        if raw is None:
             return []
-        x = as_list(raw_x)
+        values = as_list(raw)
 
         # Detect categorical (string) data — Plotly renders these as
         # count bar charts.  Mirror how seaborn countplot is handled:
         # produce type "bar" data with category counts.
         try:
-            arr = np.array(x, dtype=float)
+            arr = np.array(values, dtype=float)
         except (ValueError, TypeError):
-            return self._extract_categorical_data(x)
+            return self._extract_categorical_data(values)
 
         bin_edges = self._compute_bin_edges(arr)
         counts, bin_edges = np.histogram(arr, bins=bin_edges)
 
+        # The binned axis carries the bin, the other one the count. Naming the
+        # keys off the orientation rather than hardcoding ``x`` keeps the
+        # announced extent on the axis the bins are actually drawn along.
+        binned, counted = (
+            (MaidrKey.Y, MaidrKey.X)
+            if self._horizontal
+            else (MaidrKey.X, MaidrKey.Y)
+        )
+        bounds = {
+            MaidrKey.X: (MaidrKey.X_MIN, MaidrKey.X_MAX),
+            MaidrKey.Y: (MaidrKey.Y_MIN, MaidrKey.Y_MAX),
+        }
+        bin_min, bin_max = bounds[binned]
+        count_min, count_max = bounds[counted]
+
         data = []
         for i, count in enumerate(counts):
-            x_min = float(bin_edges[i])
-            x_max = float(bin_edges[i + 1])
+            low = float(bin_edges[i])
+            high = float(bin_edges[i + 1])
             data.append(
                 {
-                    MaidrKey.X.value: (x_min + x_max) / 2,
-                    MaidrKey.Y.value: int(count),
-                    MaidrKey.X_MIN.value: x_min,
-                    MaidrKey.X_MAX.value: x_max,
-                    MaidrKey.Y_MIN.value: 0,
-                    MaidrKey.Y_MAX.value: int(count),
+                    binned.value: (low + high) / 2,
+                    counted.value: int(count),
+                    bin_min.value: low,
+                    bin_max.value: high,
+                    count_min.value: 0,
+                    count_max.value: int(count),
                 }
             )
         return data
 
-    def _extract_categorical_data(self, x: list) -> list[dict]:
+    def _extract_categorical_data(self, values: list) -> list[dict]:
         """Count occurrences of categorical values and return bar-format data.
 
         Mirrors how seaborn ``countplot`` produces ``type: "bar"`` schemas.
         The plot type is switched from HIST to BAR so the JS side renders
         it as a bar chart with proper categorical navigation.
+
+        Parameters
+        ----------
+        values : list
+            The binned axis's sample -- ``trace["y"]`` on a horizontal trace,
+            ``trace["x"]`` on a vertical one. Named for the role rather than
+            the axis, since either can be the one that holds it.
         """
         # Preserve order of first appearance.
         counts: dict[str, int] = {}
-        for val in x:
+        for val in values:
             key = str(val)
             counts[key] = counts.get(key, 0) + 1
 
         # Switch schema type from "hist" to "bar".
         self.type = PlotType.BAR
 
+        # As above, the category belongs on whichever axis plotly binned. A
+        # horizontal count bar chart with its categories on ``x`` would be
+        # announced with the counts and the labels swapped.
+        category, count_key = (
+            (MaidrKey.Y, MaidrKey.X)
+            if self._horizontal
+            else (MaidrKey.X, MaidrKey.Y)
+        )
         return [
-            {MaidrKey.X.value: cat, MaidrKey.Y.value: count}
+            {category.value: cat, count_key.value: count}
             for cat, count in counts.items()
         ]
 
     def _compute_bin_edges(self, arr: np.ndarray) -> np.ndarray:
         """Compute bin edges that match Plotly's autobinning algorithm.
 
-        Plotly treats ``nbinsx`` as a *hint* and rounds the bin size to a
+        Plotly treats ``nbins`` as a *hint* and rounds the bin size to a
         'nice' number via ``autoTicks`` (sequence ``{2, 5, 10} * 10^n``)
-        before aligning the start edge.  When ``xbins.size`` is specified
+        before aligning the start edge.  When the bin ``size`` is specified
         explicitly, it is used directly without rounding.
+
+        The bin spec is read off the *binned* axis, so a horizontal trace is
+        governed by ``ybins``/``nbinsy`` and a vertical one by
+        ``xbins``/``nbinsx``. Plotly ignores the other axis's spec outright
+        rather than falling back to it -- measured both ways in Chromium:
+        ``go.Histogram(y=v, xbins=dict(size=2))`` autobins to 13 bins of 0.5
+        exactly as if no spec were given, and ``go.Histogram(x=v,
+        ybins=dict(size=2))`` does the same. Reading ``xbins`` for every trace
+        would have honoured a spec plotly discards and missed the one it uses.
 
         Parameters
         ----------
@@ -247,19 +353,19 @@ class PlotlyHistogramPlot(PlotlyPlot):
         np.ndarray
             Bin edges matching what Plotly renders.
         """
-        xbins = self._trace.get("xbins", None)
+        bins = self._trace.get(f"{self._binned}bins", None)
 
         # Explicit bin size — use it directly.
-        if xbins is not None and "size" in xbins:
-            size = float(xbins["size"])
+        if bins is not None and "size" in bins:
+            size = float(bins["size"])
             start = (
-                float(xbins["start"])
-                if "start" in xbins
+                float(bins["start"])
+                if "start" in bins
                 else math.floor(arr.min() / size) * size
             )
             end = (
-                float(xbins["end"])
-                if "end" in xbins
+                float(bins["end"])
+                if "end" in bins
                 else math.ceil(arr.max() / size) * size + size
             )
             return np.arange(start, end + size / 2, size)
@@ -270,9 +376,9 @@ class PlotlyHistogramPlot(PlotlyPlot):
             return np.array([data_min - 0.5, data_max + 0.5])
 
         # 1. Compute nice bin size (mirrors axes.autoTicks + roundDTick)
-        nbinsx = self._trace.get("nbinsx", None)
-        if nbinsx is not None:
-            size0 = data_range / max(1, nbinsx)
+        nbins = self._trace.get(f"nbins{self._binned}", None)
+        if nbins is not None:
+            size0 = data_range / max(1, nbins)
         else:
             size0 = _plotly_default_size0(arr)
         dtick = _plotly_dtick(size0)
