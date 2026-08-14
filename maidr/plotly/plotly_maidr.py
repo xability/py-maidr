@@ -12,7 +12,12 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.candlestick import is_ohlc_trace, layer_position
-from maidr.plotly.plotly_plot import PlotlyPlot, domain_interval
+from maidr.plotly.plotly_plot import (
+    PlotlyPlot,
+    domain_interval,
+    subplot_css_prefix,
+)
+from maidr.plotly.violin import is_violin_trace
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.plotly.step_shape import (
     is_connected_line_trace,
@@ -592,6 +597,42 @@ class PlotlyMaidr:
                     plot.col_index = col
                     self._plots.append(plot)
                 merged.update(id(t) for t in ohlc_traces)
+
+            # Violins, as one `violin_box` + `violin_kde` pair for the whole
+            # subplot however many traces they came from -- the grouping the
+            # browser-side plotly adapter uses, and the one the matplotlib
+            # path produces per axes.
+            #
+            # Both layers are built from a single list of violins so they
+            # cannot fall out of step: the box's row `i` and the KDE's curve
+            # `i` have to be the same violin, and computing each layer's
+            # grouping separately is how that quietly stops being true.
+            violin_traces = [t for t in group_traces if is_violin_trace(t)]
+            if violin_traces:
+                from maidr.plotly.violin import (
+                    PlotlyViolinBoxPlot,
+                    PlotlyViolinKdePlot,
+                    collect_violins,
+                )
+
+                violins = collect_violins(
+                    violin_traces,
+                    subplot_css_prefix(xaxis_name, yaxis_name),
+                )
+
+                if violins:
+                    for layer in (
+                        PlotlyViolinBoxPlot(
+                            violin_traces, layout, violins, **axis_kwargs
+                        ),
+                        PlotlyViolinKdePlot(
+                            violin_traces, layout, violins, **axis_kwargs
+                        ),
+                    ):
+                        layer.row_index = row
+                        layer.col_index = col
+                        self._plots.append(layer)
+                merged.update(id(t) for t in violin_traces)
 
             # Remaining traces
             for trace in group_traces:

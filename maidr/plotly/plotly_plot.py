@@ -98,11 +98,7 @@ class PlotlyPlot(ABC):
         stored axis names into the corresponding CSS selector prefix so
         that selectors only match elements within a single subplot.
         """
-        # "xaxis" -> "x", "xaxis2" -> "x2", "xaxis3" -> "x3"
-        x_ref = self._xaxis_name.replace("xaxis", "x")
-        y_ref = self._yaxis_name.replace("yaxis", "y")
-        subplot_id = f"{x_ref}{y_ref}"
-        return f".subplot.{subplot_id} "
+        return subplot_css_prefix(self._xaxis_name, self._yaxis_name)
 
     def _scatter_line_selector(self, position: int) -> str:
         """
@@ -607,6 +603,31 @@ def domain_interval(box: Any, key: str) -> tuple[float, float]:
         return round(float(interval[0]), 6), round(float(interval[1]), 6)
     except (TypeError, ValueError):
         return whole
+
+
+def subplot_css_prefix(xaxis_name: str, yaxis_name: str) -> str:
+    """
+    Return the CSS prefix scoping selectors to one subplot.
+
+    Module level as well as a method, because a layer built from several
+    traces needs the prefix *before* it has a plot to ask -- its selectors are
+    computed while the traces are still being grouped.
+
+    Parameters
+    ----------
+    xaxis_name, yaxis_name : str
+        Layout keys for the pair, e.g. ``"xaxis"`` / ``"yaxis2"``.
+
+    Returns
+    -------
+    str
+        e.g. ``".subplot.xy "``, with the trailing space every caller
+        concatenates onto.
+    """
+    # "xaxis" -> "x", "xaxis2" -> "x2", "xaxis3" -> "x3"
+    x_ref = xaxis_name.replace("xaxis", "x")
+    y_ref = yaxis_name.replace("yaxis", "y")
+    return f".subplot.{x_ref}{y_ref} "
 
 
 def as_list(value: Any) -> list:

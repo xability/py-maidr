@@ -84,13 +84,29 @@ class TestPlotlyMaidr:
         assert len(pm._plots) == 1
 
     def test_unsupported_trace_skipped(self):
+        # A trace maidr cannot read is skipped without taking its neighbours
+        # with it. `go.Sunburst` stands in for that here; the test used to use
+        # `go.Violin`, which is now read as a `violin_box` + `violin_kde` pair
+        # -- so it was pinning "violin is unsupported" rather than the
+        # behaviour this test is named for.
         fig = go.Figure()
-        fig.add_trace(go.Violin(y=[1, 2, 3, 4]))
+        fig.add_trace(go.Sunburst(labels=["a", "b"], parents=["", ""], values=[1, 2]))
         fig.add_trace(go.Bar(x=["A"], y=[1]))
 
         pm = PlotlyMaidr(fig)
-        # Violin is unsupported and skipped
         assert len(pm._plots) == 1
+
+    def test_a_violin_beside_a_bar_is_read(self):
+        # The other half of the change above: the violin that used to be
+        # skipped now contributes its own pair of layers, and the bar beside
+        # it is unaffected.
+        fig = go.Figure()
+        fig.add_trace(go.Violin(y=[1.0, 2.0, 3.0, 4.0]))
+        fig.add_trace(go.Bar(x=["A"], y=[1]))
+
+        types = [plot.type.value for plot in PlotlyMaidr(fig)._plots]
+
+        assert types == ["violin_box", "violin_kde", "bar"]
 
     def test_dodged_bar_detection(self, plotly_dodged_fig):
         from maidr.core.enum.plot_type import PlotType

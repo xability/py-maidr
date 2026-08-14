@@ -133,6 +133,15 @@ class TestPlotlyPlotFactory:
         assert "nth-child(1)" in plot._get_selector()
 
     def test_unsupported_trace_returns_none(self):
-        trace = {"type": "violin", "y": [1, 2, 3]}
+        trace = {"type": "sunburst", "labels": ["a"], "values": [1]}
         plot = PlotlyPlotFactory.create(trace, {})
         assert plot is None
+
+    def test_a_violin_is_not_built_here(self):
+        # A violin *is* supported, but only through `PlotlyMaidr`: its two
+        # layers are shared by every violin trace on the subplot, and the
+        # selectors need each trace's position among them -- neither of which
+        # this factory can see from one trace. Returning `None` is therefore
+        # "not mine to build", not "not supported", and this test says which.
+        trace = {"type": "violin", "y": [1, 2, 3]}
+        assert PlotlyPlotFactory.create(trace, {}) is None
