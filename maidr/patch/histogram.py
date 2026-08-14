@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
+
+import matplotlib.pyplot as plt
 import wrapt
 
 import numpy as np
@@ -43,9 +46,39 @@ def mpl_hist(
     return n, bins, plot
 
 
-def _drew_bars(plot) -> bool:
+def _prospective_axes(kwargs: dict) -> Axes | None:
     """
-    Whether the call that produced *plot* drew a histogram made of bars.
+    The axes ``histplot`` is about to draw on, resolved before it draws.
+
+    Named without drawing anything: an explicit ``ax=`` is the answer when
+    given, and otherwise seaborn will take ``plt.gca()``, which is only asked
+    for when a figure already exists so that a call on a clean slate does not
+    conjure one early.
+
+    Parameters
+    ----------
+    kwargs : dict
+        Keyword arguments the caller passed.
+
+    Returns
+    -------
+    Axes or None
+        The axes to snapshot, or None when there is nothing drawn yet.
+    """
+    ax = kwargs.get("ax")
+    if ax is not None:
+        return ax
+    return plt.gcf().gca() if plt.get_fignums() else None
+
+
+def _container_ids(ax: Axes | None) -> set[int]:
+    """The identities of the containers an axes holds right now."""
+    return {id(container) for container in getattr(ax, "containers", ()) or ()}
+
+
+def _drew_bars(plot: Any, before: set[int]) -> bool:
+    """
+    Whether *this call* drew a histogram made of bars.
 
     `sns.histplot(x=..., y=...)` is a **2D** histogram: seaborn draws it as a
     ``QuadMesh`` of joint counts, not as bars. `hist` promises one bin per bar
@@ -54,27 +87,47 @@ def _drew_bars(plot) -> bool:
     figure down with it. `sns.jointplot(kind="hist")` produced no HTML at all,
     and so did any supported chart that happened to share the axes (#388).
 
-    Asked of the axes rather than of the arguments, because "did this draw
+    Asked of the artists rather than of the arguments, because "did this draw
     bars" is the question the extractor actually needs answered, and a `y=`
     keyword is seaborn's spelling of it rather than the thing itself.
+
+    Asked of the containers *this call added* rather than of everything on the
+    axes, which is the difference between declining and lying. An axes that
+    already holds bars -- `sns.barplot(ax=ax)` first, then a bivariate
+    `histplot(ax=ax)` -- would otherwise answer True for someone else's
+    artists, and `extract_container` returns the first container on the axes,
+    so the `hist` layer would describe the *barplot's* bars with bin edges
+    invented for them:
+
+        registered: ['bar', 'hist']
+          bar   [{'x': 'a', 'y': 8.67}, ...]
+          hist  [{'y': 8.67, 'xMin': -0.4, 'xMax': 0.4}, ...]
+
+    Right numbers, wrong chart, and nothing raised -- which is worse than the
+    crash this function was added to prevent.
 
     Parameters
     ----------
     plot : Any
         Whatever the patched call returned.
+    before : set of int
+        Identities of the containers the axes held before the call.
 
     Returns
     -------
     bool
-        True when the axes holds at least one ``BarContainer``.
+        True when this call added at least one ``BarContainer``.
     """
     try:
         ax = FigureManager.get_axes(plot)
     except Exception:  # pragma: no cover - `common` already resolved this once
         return False
-    return bool(ax is not None and ax.containers and any(
-        isinstance(container, BarContainer) for container in ax.containers
-    ))
+    if ax is None or not ax.containers:
+        return False
+    return any(
+        isinstance(container, BarContainer) and id(container) not in before
+        for container in ax.containers
+    )
 
 
 def sns_hist(wrapped, instance, args, kwargs) -> Axes:
@@ -87,10 +140,12 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
 
+    before = _container_ids(_prospective_axes(kwargs))
+
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
 
-    if not _drew_bars(drawn):
+    if not _drew_bars(drawn, before):
         return drawn
 
     # Register the histogram as HIST as before

@@ -154,3 +154,58 @@ def test_extract_container_still_finds_the_first_of_several() -> None:
     assert len(
         ContainerExtractorMixin.extract_container(ax, BarContainer, include_all=True)
     ) == 2
+
+
+def test_bars_already_on_the_axes_do_not_make_it_a_histogram() -> None:
+    """The lie that would have sat next to the fixed crash.
+
+    `_drew_bars` asks what *this call* added, not what the axes holds. Asked
+    the second way, an axes that already has bars — a `barplot` drawn first —
+    answers True for someone else's artists, `sns_hist` registers a `hist`,
+    and `extract_container` hands back the first container on the axes. The
+    layer then describes the **barplot's** bars with bin edges invented for
+    them::
+
+        registered: ['bar', 'hist']
+          bar   [{'x': 'a', 'y': 8.67}, ...]
+          hist  [{'y': 8.67, 'xMin': -0.4, 'xMax': 0.4}, ...]
+
+    Right numbers, wrong chart, nothing raised — worse than the crash the
+    decline was added to prevent.
+    """
+    frame = _frame()
+    frame["g"] = ["a", "b", "c"] * 20
+    fig, ax = plt.subplots()
+
+    sns.barplot(data=frame, x="g", y="v", ax=ax)
+    sns.histplot(data=frame, x="v", y="w", ax=ax)
+
+    assert _layers(fig) == [PlotType.BAR]
+
+
+def test_a_second_histogram_on_the_same_axes_still_registers() -> None:
+    """The control for the diff: new bars are new bars.
+
+    Snapshotting must decline only what added nothing. Two overlaid 1D
+    histograms are two histograms, and each call adds its own container.
+    """
+    frame = _frame()
+    fig, ax = plt.subplots()
+
+    sns.histplot(data=frame, x="v", ax=ax)
+    sns.histplot(data=frame, x="w", ax=ax)
+
+    assert _layers(fig) == [PlotType.HIST, PlotType.HIST]
+
+
+def test_a_histogram_drawn_without_an_explicit_axes_registers() -> None:
+    """The snapshot has to find the axes seaborn will use, or find none.
+
+    Without ``ax=``, seaborn draws on ``plt.gca()``. Resolving that before the
+    call must not miss the axes (which would make the snapshot empty and let
+    a stale container through) nor conjure one where a figure does not exist.
+    """
+    plt.close("all")
+    sns.histplot(data=_frame(), x="v")
+
+    assert _layers(plt.gcf()) == [PlotType.HIST]
