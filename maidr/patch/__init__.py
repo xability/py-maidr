@@ -20,4 +20,5 @@ from . import (  # noqa: F401
     candlestick,
     mplfinance,
     violinplot,
+    seaborn_probe,
 )
