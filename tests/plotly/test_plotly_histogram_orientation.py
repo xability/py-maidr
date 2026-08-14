@@ -37,7 +37,6 @@ import pytest
 # does, so a minimal install skips rather than failing at collection.
 plotly = pytest.importorskip("plotly")
 
-import numpy as np  # noqa: E402
 import plotly.express as px  # noqa: E402
 import plotly.graph_objects as go  # noqa: E402
 
@@ -45,9 +44,26 @@ from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.plotly.histogram import binned_axis  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
-#: A fixed normal sample. Rounded so the figure JSON handed to the browser and
-#: the array handed to numpy hold the same values to the last bit.
-SAMPLE = [round(float(v), 4) for v in np.random.default_rng(3).normal(0, 1, 60)]
+#: The sample every expectation below is pinned to. It began as
+#: ``np.random.default_rng(3).normal(0, 1, 60)`` rounded to four places -- the
+#: rounding so the figure JSON handed to the browser and the array handed to
+#: numpy hold the same values to the last bit -- and is written out in full
+#: rather than regenerated. The bin edges and counts here are what Plotly.js
+#: drew for *these* numbers, so a future numpy that changes the ``PCG64``
+#: stream would otherwise leave the expectations describing a sample the test
+#: no longer uses.
+SAMPLE = [
+    2.0409, -2.5557, 0.4181, -0.5678, -0.4526, -0.2156,
+    -2.02, -0.2319, -0.8652, 3.323, 0.2258, -0.3526,
+    -0.2813, -0.668, -1.0552, -0.3908, 0.4819, -0.2386,
+    0.9578, -0.1998, 0.0243, 1.5458, 0.5451, -0.5052,
+    -0.1828, 0.5405, 1.9351, -0.2696, -0.2436, 1.0023,
+    -0.8865, -0.2917, 0.8825, 0.5804, 0.0915, 0.6701,
+    -2.8282, 1.0213, -0.9596, -1.6686, 0.2764, 0.7005,
+    -0.4448, -1.0764, 0.0261, -0.0527, 1.4056, 0.7474,
+    0.1938, 1.1116, -0.2055, -0.9259, 0.5841, 0.5825,
+    -0.2148, -0.7828, 0.2292, -2.4939, 0.6901, 0.4914,
+]  # fmt: skip
 
 
 def only_layer(fig) -> dict:
@@ -59,9 +75,7 @@ def only_layer(fig) -> dict:
 def bins(layer: dict) -> list[tuple[float, float, int]]:
     """``(low, high, count)`` per bin, read off whichever axis was binned."""
     horizontal = layer.get("orientation") == "horz"
-    low, high, count = (
-        ("yMin", "yMax", "x") if horizontal else ("xMin", "xMax", "y")
-    )
+    low, high, count = ("yMin", "yMax", "x") if horizontal else ("xMin", "xMax", "y")
     return [(d[low], d[high], d[count]) for d in layer["data"]]
 
 
@@ -127,9 +141,7 @@ class TestHorizontalHistogram:
         layer = only_layer(fig)
 
         assert layer["orientation"] == "horz"
-        assert bins(layer) == bins(
-            only_layer(go.Figure([go.Histogram(x=SAMPLE)]))
-        )
+        assert bins(layer) == bins(only_layer(go.Figure([go.Histogram(x=SAMPLE)])))
 
     def test_a_vertical_histogram_still_says_so(self):
         # `orientation` is emitted either way rather than left off for the

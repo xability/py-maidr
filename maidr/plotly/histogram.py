@@ -290,16 +290,23 @@ class PlotlyHistogramPlot(PlotlyPlot):
             )
         return data
 
-    def _extract_categorical_data(self, x: list) -> list[dict]:
+    def _extract_categorical_data(self, values: list) -> list[dict]:
         """Count occurrences of categorical values and return bar-format data.
 
         Mirrors how seaborn ``countplot`` produces ``type: "bar"`` schemas.
         The plot type is switched from HIST to BAR so the JS side renders
         it as a bar chart with proper categorical navigation.
+
+        Parameters
+        ----------
+        values : list
+            The binned axis's sample -- ``trace["y"]`` on a horizontal trace,
+            ``trace["x"]`` on a vertical one. Named for the role rather than
+            the axis, since either can be the one that holds it.
         """
         # Preserve order of first appearance.
         counts: dict[str, int] = {}
-        for val in x:
+        for val in values:
             key = str(val)
             counts[key] = counts.get(key, 0) + 1
 
