@@ -506,7 +506,7 @@ class Maidr:
         list of MaidrPlot
             Every smooth layer whose gid was already claimed by an earlier one.
         """
-        seen: set = set()
+        seen: set[str] = set()
         duplicates: list[MaidrPlot] = []
         for plot in self._plots:
             if plot.type != PlotType.SMOOTH:

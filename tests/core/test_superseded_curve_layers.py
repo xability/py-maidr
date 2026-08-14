@@ -122,6 +122,40 @@ def test_a_deliberate_line_over_a_fit_is_kept() -> None:
     assert _emitted(fig) == [[["point", "smooth"]]]
 
 
+def test_one_curve_registered_twice_keeps_one_layer_and_one_id() -> None:
+    """The gid rule, which this change moved but did not alter.
+
+    A ``_smooth_gid`` names one fitted curve, and a curve registered twice
+    under the same gid is one chart described twice. That rule is unchanged —
+    still asked of the whole figure rather than per axes, since whether one
+    gid can span two axes was not measured here — but its *bookkeeping* moved
+    into the shared filter, so it now drops the selector id alongside the
+    layer where before it dropped neither or only the layer.
+
+    The gid is stamped rather than drawn. Two ``regplot`` calls on one axes
+    leave ``_smooth_gid`` as ``None`` on every layer, so no real drawing this
+    reached makes the rule fire — and what is under test is the filtering, not
+    how a collision arises. How many fits those calls register is likewise not
+    the point, so it is read rather than asserted.
+    """
+    fig, ax = plt.subplots()
+    sns.regplot(data=_frame(), x="a", y="b", ax=ax)
+    sns.regplot(data=_frame(), x="b", y="a", ax=ax)
+
+    figure_maidr = FigureManager.get_maidr(fig)
+    smooths = [plot for plot in figure_maidr.plots if plot.type == PlotType.SMOOTH]
+    assert len(smooths) > 1, "need at least two fits for one to be a duplicate"
+    for smooth in smooths:
+        smooth._smooth_gid = "one-and-the-same-curve"
+
+    figure_maidr._flatten_maidr()
+
+    kept = [plot for plot in figure_maidr.plots if plot.type == PlotType.SMOOTH]
+    assert len(kept) == 1
+    # The half that was not filtered before: an id goes with each layer.
+    assert len(figure_maidr.selector_ids) == len(figure_maidr.plots)
+
+
 def test_every_kept_layer_keeps_its_own_selector_id() -> None:
     """The quiet half, and the one that needs the dropped layer not to be last.
 
