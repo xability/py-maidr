@@ -10,6 +10,7 @@ from maidr.plotly.box import PlotlyBoxPlot
 from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
 from maidr.plotly.pie import PlotlyPiePlot
+from maidr.plotly.candlestick import PlotlyCandlestickPlot
 
 
 class TestPlotlyPlotFactory:
@@ -83,6 +84,51 @@ class TestPlotlyPlotFactory:
         # holds, so it scopes the selector to the first pie. `PlotlyMaidr`
         # passes real positions precisely because it does know.
         trace = {"type": "pie", "labels": ["A"], "values": [1]}
+        plot = PlotlyPlotFactory.create(trace, {})
+        assert "nth-child(1)" in plot._get_selector()
+
+    def test_candlestick_trace(self):
+        trace = {
+            "type": "candlestick",
+            "x": ["d1"],
+            "open": [1.0],
+            "high": [2.0],
+            "low": [0.0],
+            "close": [1.5],
+        }
+        plot = PlotlyPlotFactory.create(trace, {})
+        assert isinstance(plot, PlotlyCandlestickPlot)
+        assert plot.type == PlotType.CANDLESTICK
+
+    def test_ohlc_trace_is_the_same_type(self):
+        # `ohlc` draws the same numbers differently, so it is one MAIDR type
+        # with the candlestick -- but a different DOM layer, which is what
+        # the selector below is checking has followed the trace type.
+        trace = {
+            "type": "ohlc",
+            "x": ["d1"],
+            "open": [1.0],
+            "high": [2.0],
+            "low": [0.0],
+            "close": [1.5],
+        }
+        plot = PlotlyPlotFactory.create(trace, {})
+        assert isinstance(plot, PlotlyCandlestickPlot)
+        assert plot.type == PlotType.CANDLESTICK
+        assert ".ohlclayer" in plot._get_selector()
+
+    def test_candlestick_assumes_it_is_the_only_one(self):
+        # Same reasoning as the pie above: this factory sees one trace and
+        # cannot know what else shares its `boxlayer`, so it scopes to the
+        # first slot. `PlotlyMaidr` passes real positions because it does know.
+        trace = {
+            "type": "candlestick",
+            "x": ["d1"],
+            "open": [1.0],
+            "high": [2.0],
+            "low": [0.0],
+            "close": [1.5],
+        }
         plot = PlotlyPlotFactory.create(trace, {})
         assert "nth-child(1)" in plot._get_selector()
 
