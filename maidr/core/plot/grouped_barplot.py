@@ -7,6 +7,7 @@ from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
 from maidr.util.mixin import (
+    BarPositionMixin,
     ContainerExtractorMixin,
     DictMergerMixin,
     LevelExtractorMixin,
@@ -14,7 +15,11 @@ from maidr.util.mixin import (
 
 
 class GroupedBarPlot(
-    MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMergerMixin
+    MaidrPlot,
+    BarPositionMixin,
+    ContainerExtractorMixin,
+    LevelExtractorMixin,
+    DictMergerMixin,
 ):
     def __init__(self, ax: Axes, plot_type: PlotType, **kwargs) -> None:
         super().__init__(ax, plot_type)
@@ -106,7 +111,7 @@ class GroupedBarPlot(
 
         self._orientation = self._extract_orientation(plot)
 
-        level = self.extract_level(self.ax, self._level_key)
+        level = self._labels_for(plot)
         if not level:
             return None
 
@@ -121,6 +126,10 @@ class GroupedBarPlot(
 
         for i, container in enumerate(plot):
             if len(level) != len(container.patches):
+                # Guarded above by `_labels_for`, which either found one tick
+                # per bar or built one label per bar. A container of a
+                # different length from its siblings would still land here,
+                # and there is nothing honest to pair it with.
                 return None
             container_data = []
 
@@ -147,6 +156,47 @@ class GroupedBarPlot(
             data.append(container_data)
 
         return data
+
+    def _labels_for(self, plot: list[BarContainer]) -> list[str]:
+        """
+        What to announce alongside each bar of every series.
+
+        The tick labels when there is one per bar, and the positions the bars
+        were drawn at otherwise. Decided once for the layer rather than per
+        container, because every series of a segmented chart shares one
+        category axis -- so the announcement has to agree across them, and a
+        per-container answer could name a category in one series and a
+        position in the next.
+
+        matplotlib puts exactly one tick per category on a categorical axis,
+        so the counts agree there by construction; on a numeric axis the tick
+        locator picks its own breaks and they have no reason to. This used to
+        return ``None`` for that mismatch, which the caller turned into an
+        ``ExtractionError`` and so into an empty render -- a stacked chart
+        over ``np.arange(len(species))`` produced no HTML at all (#384), the
+        segmented half of #382.
+
+        The first container is the one measured. Every container of a
+        segmented layer holds one bar per category by construction, so they
+        agree; a layer where they do not is caught by the length check at the
+        pairing loop, which has nothing honest to pair such a container with.
+
+        Parameters
+        ----------
+        plot : list of BarContainer
+            The containers holding this layer's series.
+
+        Returns
+        -------
+        list of str
+            One label per category, from the axis or from the bars.
+        """
+        level = self.extract_level(self.ax, self._level_key)
+        first = plot[0].patches if plot else []
+        if level and len(level) == len(first):
+            return level
+
+        return [self._bar_position(patch) for patch in first]
 
     def _extract_hue_categories_from_legend(self) -> list[str]:
         """
