@@ -12,6 +12,7 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.candlestick import is_ohlc_trace, layer_position
+from maidr.plotly.grouped_histogram import is_histogram_trace
 from maidr.plotly.plotly_plot import (
     PlotlyPlot,
     domain_interval,
@@ -403,31 +404,54 @@ class PlotlyMaidr:
 
             merged: set[int] = set()
 
+            # `barnorm` only means anything for a stack: plotly scales each
+            # category's segments to a common total, so the values are shares
+            # rather than counts. Read as a plain `stacked_bar` a reader is
+            # told nothing about that, and is left to suppose the equal totals
+            # are a property of the data rather than of the chart (#338).
+            def _combined_type() -> Any:
+                from maidr.core.enum.plot_type import PlotType
+
+                if barmode == "group":
+                    return PlotType.DODGED
+                if layout.get("barnorm") in _NORMALISING_BARNORMS:
+                    return PlotType.NORMALIZED
+                return PlotType.STACKED
+
             # Grouped / stacked bars
             if len(bar_traces) > 1 and barmode in _COMBINED_BARMODES:
-                from maidr.core.enum.plot_type import PlotType
                 from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
 
-                # `barnorm` only means anything for a stack: plotly scales
-                # each category's segments to a common total, so the values
-                # are shares rather than counts. Read as a plain `stacked_bar`
-                # a reader is told nothing about that, and is left to suppose
-                # the equal totals are a property of the data rather than of
-                # the chart (#338).
-                normalised = layout.get("barnorm") in _NORMALISING_BARNORMS
-                if barmode == "group":
-                    plot_type = PlotType.DODGED
-                elif normalised:
-                    plot_type = PlotType.NORMALIZED
-                else:
-                    plot_type = PlotType.STACKED
                 plot = PlotlyGroupedBarPlot(
-                    bar_traces, layout, plot_type, **axis_kwargs
+                    bar_traces, layout, _combined_type(), **axis_kwargs
                 )
                 plot.row_index = row
                 plot.col_index = col
                 self._plots.append(plot)
                 merged.update(id(t) for t in bar_traces)
+
+            # Grouped / stacked histograms. Plotly combines these exactly as
+            # it combines bars, and bins them jointly -- one grid computed
+            # from every trace's values together. Left as one layer each they
+            # were announced as independent distributions binned on grids of
+            # their own, so a reader was told neither that the bars stack nor
+            # what the bins are (#394).
+            histogram_traces = [t for t in group_traces if is_histogram_trace(t)]
+            if len(histogram_traces) > 1 and barmode in _COMBINED_BARMODES:
+                from maidr.plotly.grouped_histogram import (
+                    PlotlyGroupedHistogramPlot,
+                )
+
+                plot = PlotlyGroupedHistogramPlot(
+                    histogram_traces, layout, _combined_type(), **axis_kwargs
+                )
+                # A categorical group declines rather than half-describing
+                # itself, and is left to the factory one trace at a time.
+                if plot._extract_plot_data():
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                    merged.update(id(t) for t in histogram_traces)
 
             # Lines and steps are grouped within one renderer, never across
             # two. A layer's selector list is positional and all-or-nothing

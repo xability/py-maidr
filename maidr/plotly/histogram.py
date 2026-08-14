@@ -716,92 +716,101 @@ class PlotlyHistogramPlot(PlotlyPlot):
         ]
 
     def _compute_bin_edges(self, arr: np.ndarray) -> np.ndarray:
-        """Compute bin edges that match Plotly's autobinning algorithm.
+        """This trace's own bin edges. See :func:`compute_bin_edges`."""
+        return compute_bin_edges(
+            arr,
+            self._trace.get(f"{self._binned}bins", None),
+            self._trace.get(f"nbins{self._binned}", None),
+        )
 
-        Plotly treats ``nbins`` as a *hint* and rounds the bin size to a
-        'nice' number via ``autoTicks`` (sequence ``{2, 5, 10} * 10^n``)
-        before aligning the start edge.  When the bin ``size`` is specified
-        explicitly, it is used directly without rounding.
 
-        The bin spec is read off the *binned* axis, so a horizontal trace is
-        governed by ``ybins``/``nbinsy`` and a vertical one by
-        ``xbins``/``nbinsx``. Plotly ignores the other axis's spec outright
-        rather than falling back to it -- measured both ways in Chromium:
-        ``go.Histogram(y=v, xbins=dict(size=2))`` autobins to 13 bins of 0.5
-        exactly as if no spec were given, and ``go.Histogram(x=v,
-        ybins=dict(size=2))`` does the same. Reading ``xbins`` for every trace
-        would have honoured a spec plotly discards and missed the one it uses.
+def compute_bin_edges(
+    arr: np.ndarray, bins: dict | None = None, nbins: int | None = None
+) -> np.ndarray:
+    """Compute bin edges that match Plotly's autobinning algorithm.
 
-        Parameters
-        ----------
-        arr : np.ndarray
-            The raw data values.
+    Plotly treats ``nbins`` as a *hint* and rounds the bin size to a
+    'nice' number via ``autoTicks`` (sequence ``{2, 5, 10} * 10^n``)
+    before aligning the start edge.  When the bin ``size`` is specified
+    explicitly, it is used directly without rounding.
 
-        Returns
-        -------
-        np.ndarray
-            Bin edges matching what Plotly renders.
-        """
-        bins = self._trace.get(f"{self._binned}bins", None)
+    The bin spec is read off the *binned* axis, so a horizontal trace is
+    governed by ``ybins``/``nbinsy`` and a vertical one by
+    ``xbins``/``nbinsx``. Plotly ignores the other axis's spec outright
+    rather than falling back to it -- measured both ways in Chromium:
+    ``go.Histogram(y=v, xbins=dict(size=2))`` autobins to 13 bins of 0.5
+    exactly as if no spec were given, and ``go.Histogram(x=v,
+    ybins=dict(size=2))`` does the same. Reading ``xbins`` for every trace
+    would have honoured a spec plotly discards and missed the one it uses.
 
-        # Explicit bin size — the width is used as given, without the 'nice'
-        # rounding an `nbins` hint goes through.
-        if bins is not None and "size" in bins:
-            size = float(bins["size"])
-            data_min, data_max = float(arr.min()), float(arr.max())
+    Parameters
+    ----------
+    arr : np.ndarray
+        The raw data values.
 
-            # An explicit `start` is honoured verbatim. Without one, plotly
-            # still runs the same anti-clustering shift it applies when
-            # autobinning, which the round multiple of `size` alone does not
-            # reproduce: `go.Histogram(x=[0, 1, 2, 3, 4], xbins=dict(size=2))`
-            # is drawn from -0.5, not 0, because every value is an integer and
-            # they would otherwise sit on the bin edges.
-            if "start" in bins:
-                start = float(bins["start"])
-            else:
-                start = _auto_shift_bins(
-                    math.floor(data_min / size) * size,
-                    arr,
-                    size,
-                    data_min,
-                    data_max,
-                )
-
-            # One bin past the last value, so a value sitting exactly on a
-            # grid multiple gets the bin starting there rather than being
-            # folded into the one below by numpy's closed final interval.
-            # Any bin this reaches past the data is empty, and `_occupied_span`
-            # trims it back off.
-            end = (
-                float(bins["end"])
-                if "end" in bins
-                else math.floor((data_max - start) / size) * size + start + size
-            )
-            return np.arange(start, end + size / 2, size)
-
+    Returns
+    -------
+    np.ndarray
+        Bin edges matching what Plotly renders.
+    """
+    # Explicit bin size — the width is used as given, without the 'nice'
+    # rounding an `nbins` hint goes through.
+    if bins is not None and "size" in bins:
+        size = float(bins["size"])
         data_min, data_max = float(arr.min()), float(arr.max())
-        data_range = data_max - data_min
-        if data_range == 0:
-            return np.array([data_min - 0.5, data_max + 0.5])
 
-        # 1. Compute nice bin size (mirrors axes.autoTicks + roundDTick)
-        nbins = self._trace.get(f"nbins{self._binned}", None)
-        if nbins is not None:
-            size0 = data_range / max(1, nbins)
+        # An explicit `start` is honoured verbatim. Without one, plotly
+        # still runs the same anti-clustering shift it applies when
+        # autobinning, which the round multiple of `size` alone does not
+        # reproduce: `go.Histogram(x=[0, 1, 2, 3, 4], xbins=dict(size=2))`
+        # is drawn from -0.5, not 0, because every value is an integer and
+        # they would otherwise sit on the bin edges.
+        if "start" in bins:
+            start = float(bins["start"])
         else:
-            size0 = _plotly_default_size0(arr)
-        dtick = _plotly_dtick(size0)
+            start = _auto_shift_bins(
+                math.floor(data_min / size) * size,
+                arr,
+                size,
+                data_min,
+                data_max,
+            )
 
-        # 2. Initial bin start: one tick below the first tick >= data_min
-        #    (mirrors axes.tickFirst → axes.tickIncrement(reverse))
-        first_tick = math.ceil(data_min / dtick) * dtick
-        bin_start = first_tick - dtick
+        # One bin past the last value, so a value sitting exactly on a
+        # grid multiple gets the bin starting there rather than being
+        # folded into the one below by numpy's closed final interval.
+        # Any bin this reaches past the data is empty, and `_occupied_span`
+        # trims it back off.
+        end = (
+            float(bins["end"])
+            if "end" in bins
+            else math.floor((data_max - start) / size) * size + start + size
+        )
+        return np.arange(start, end + size / 2, size)
 
-        # 3. Shift to avoid data clustering at bin edges
-        bin_start = _auto_shift_bins(bin_start, arr, dtick, data_min, data_max)
+    data_min, data_max = float(arr.min()), float(arr.max())
+    data_range = data_max - data_min
+    if data_range == 0:
+        return np.array([data_min - 0.5, data_max + 0.5])
 
-        # 4. Compute bin count and end
-        bin_count = 1 + math.floor((data_max - bin_start) / dtick)
-        bin_end = bin_start + bin_count * dtick
+    # 1. Compute nice bin size (mirrors axes.autoTicks + roundDTick)
+    if nbins is not None:
+        size0 = data_range / max(1, nbins)
+    else:
+        size0 = _plotly_default_size0(arr)
+    dtick = _plotly_dtick(size0)
 
-        return np.arange(bin_start, bin_end + dtick / 2, dtick)
+    # 2. Initial bin start: one tick below the first tick >= data_min
+    #    (mirrors axes.tickFirst → axes.tickIncrement(reverse))
+    first_tick = math.ceil(data_min / dtick) * dtick
+    bin_start = first_tick - dtick
+
+    # 3. Shift to avoid data clustering at bin edges
+    bin_start = _auto_shift_bins(bin_start, arr, dtick, data_min, data_max)
+
+    # 4. Compute bin count and end
+    bin_count = 1 + math.floor((data_max - bin_start) / dtick)
+    bin_end = bin_start + bin_count * dtick
+
+    return np.arange(bin_start, bin_end + dtick / 2, dtick)
+
