@@ -73,7 +73,16 @@ def bar(
         if should_be_dodged:
             plot_type = PlotType.DODGED
 
-    return common(plot_type, wrapped, instance, args, kwargs)
+    # Hand the layer the container this call drew. `BarPlot` otherwise sweeps
+    # every `BarContainer` on the axes, so two `ax.bar()` calls each read both
+    # containers' patches against one axis' worth of tick labels, fail the
+    # count check and raise -- which is fatal to the whole render (#380).
+    #
+    # Only the matplotlib entry point can say this. seaborn draws one layer as
+    # several containers, one per hue group, and registers it from `sns_bar`
+    # below, where no single container is the answer -- that path keeps the
+    # sweep, which is right for it.
+    return common(plot_type, wrapped, instance, args, kwargs, drawn_as="_maidr_bars")
 
 
 def _should_classify_as_dodged(

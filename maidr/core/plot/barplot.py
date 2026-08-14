@@ -14,9 +14,13 @@ from maidr.util.mixin import (
 
 
 class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMergerMixin):
-    def __init__(self, ax: Axes) -> None:
+    def __init__(self, ax: Axes, **kwargs) -> None:
         super().__init__(ax, PlotType.BAR)
         self._orientation = "vert"
+        # The container this layer's own call drew, when the patch could say.
+        # `None` falls back to sweeping the axes, which is what seaborn needs:
+        # it draws one layer as several containers, one per hue group.
+        self._own_bars = kwargs.get("_maidr_bars", None)
 
     @property
     def _is_horizontal(self) -> bool:
@@ -63,7 +67,7 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
         return DictMergerMixin.merge_dict(base_schema, bar_orientation)
 
     def _extract_plot_data(self) -> list:
-        plot = self.extract_container(self.ax, BarContainer, include_all=True)
+        plot = self._own_containers()
         self._orientation = self._extract_orientation(plot)
         levels = self.extract_level(self.ax, self._level_key)
 
@@ -83,6 +87,30 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
             raise ExtractionError(self.type, plot)
 
         return [{"x": x, "y": y} for x, y in combined_data]
+
+    def _own_containers(self) -> list[BarContainer]:
+        """
+        The containers this layer describes.
+
+        The containers its own call drew when the patch could name them, and
+        every ``BarContainer`` on the axes otherwise.
+
+        The sweep is not a fallback in the apologetic sense -- seaborn draws
+        one bar layer as several containers, one per hue group, and registers
+        it from a seaborn-level patch where no single container is the answer.
+        What the sweep cannot do is tell one ``ax.bar()`` call's bars from
+        another's, so two overlaid calls each found both containers' patches,
+        failed the count check against one axis' worth of tick labels, and
+        raised ``ExtractionError`` -- fatal to the whole figure (#380).
+
+        Returns
+        -------
+        list of BarContainer
+            One or more containers, in the order the axes holds them.
+        """
+        if self._own_bars is not None:
+            return [self._own_bars]
+        return self.extract_container(self.ax, BarContainer, include_all=True)
 
     def _extract_bar_container_data(
         self, plot: list[BarContainer] | None, levels: list[str] | None

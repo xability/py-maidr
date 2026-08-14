@@ -168,7 +168,13 @@ def _draw_quietly(wrapped: Callable, args: tuple, kwargs: dict) -> Any:
 
 
 def common(
-    plot_type: PlotType | Callable[[Axes], PlotType], wrapped, _, args, kwargs
+    plot_type: PlotType | Callable[[Axes], PlotType],
+    wrapped,
+    _,
+    args,
+    kwargs,
+    *,
+    drawn_as: str | None = None,
 ) -> Any:
     """
     Draw a patched plot and register the layer it produced with MAIDR.
@@ -190,6 +196,12 @@ def common(
         Positional arguments the caller passed.
     kwargs : dict
         Keyword arguments the caller passed.
+    drawn_as : str, optional
+        When set, the artist the call returned is handed to the layer under
+        this keyword. A layer that knows which artists its own call drew can
+        describe those rather than sweeping the axes for every artist of the
+        kind -- which is what makes two ``ax.bar()`` calls on one axes each
+        read six patches against three tick labels (#380).
 
     Returns
     -------
@@ -210,6 +222,8 @@ def common(
     kwargs.pop("ax", None)
     if callable(plot_type):
         plot_type = plot_type(ax)
+    if drawn_as is not None:
+        kwargs[drawn_as] = plot
     FigureManager.create_maidr(ax, plot_type, **kwargs)
 
     return plot
