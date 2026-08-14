@@ -104,6 +104,42 @@ def test_a_fit_still_supersedes_the_line_it_drew() -> None:
     assert _emitted(fig) == [[["point", "smooth"]]]
 
 
+def test_two_axes_each_drop_only_their_own_duplicate() -> None:
+    """The title of the change, asserted directly.
+
+    Two independent fits, each with its own genuine ``LINE``/``SMOOTH`` pair.
+    Per-group evaluation makes this safe by construction, but "safe by
+    construction" is what the figure-wide version was assumed to be — so the
+    shape the fix is named for gets its own test rather than being inferred
+    from the single-panel cases.
+    """
+    fig, axes = plt.subplots(1, 2)
+    sns.regplot(data=_frame(), x="a", y="b", ax=axes[0])
+    sns.regplot(data=_frame(), x="b", y="a", ax=axes[1])
+
+    assert _emitted(fig) == [[["point", "smooth"], ["point", "smooth"]]]
+
+
+def test_dropping_twice_changes_nothing() -> None:
+    """Idempotence for the curve rules, not only the bar one.
+
+    A single render calls the pass twice — once in ``_create_html_tag``
+    before the elements are collected, once in ``_flatten_maidr`` — so every
+    rule folded into it has to survive being asked again, not just the bar
+    rule that arrived with the pass.
+    """
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [3, 2, 1])
+    sns.regplot(data=_frame(), x="a", y="b", ax=ax)
+
+    figure_maidr = FigureManager.get_maidr(fig)
+    figure_maidr._drop_superseded_layers()
+    after_once = (list(figure_maidr.plots), list(figure_maidr.selector_ids))
+    figure_maidr._drop_superseded_layers()
+
+    assert (figure_maidr.plots, figure_maidr.selector_ids) == after_once
+
+
 def test_a_deliberate_line_over_a_fit_is_kept() -> None:
     """A reference line on the same axes as a fit is not the fit's duplicate.
 

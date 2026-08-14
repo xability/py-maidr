@@ -501,6 +501,18 @@ class Maidr:
         scoping is left as it was; only the bookkeeping moves, so that these
         drops go through the same lockstep filter as the rest.
 
+        This rule alone cannot fire on the pass's *first* run.
+        ``_smooth_gid`` is assigned during extraction, which is what reading
+        ``plot.elements`` triggers -- so when ``_create_html_tag`` runs the
+        pass before collecting artists, every gid is still ``None``. Only the
+        run inside ``_flatten_maidr`` can see a collision, by which point the
+        artists are tagged. The consequence is bounded: a dropped layer's
+        artists keep a tag no schema layer references, which is inert, and
+        the surviving layers keep their own ids because the filter is
+        lockstep. It is *not* the misattribution the other two rules caused,
+        and it is worth knowing that this one rule sees a later snapshot than
+        its neighbours.
+
         Returns
         -------
         list of MaidrPlot
