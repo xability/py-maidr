@@ -248,7 +248,7 @@ class PlotlyViolinBoxPlot(_PlotlyViolinLayer):
                 MaidrKey.UPPER_OUTLIER: [],
             }
             if violin.has_mean:
-                summary["mean"] = stats.mean
+                summary[MaidrKey.MEAN] = stats.mean
             summaries.append(summary)
         return summaries
 

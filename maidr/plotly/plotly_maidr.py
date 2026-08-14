@@ -17,7 +17,12 @@ from maidr.plotly.plotly_plot import (
     domain_interval,
     subplot_css_prefix,
 )
-from maidr.plotly.violin import is_violin_trace
+from maidr.plotly.violin import (
+    PlotlyViolinBoxPlot,
+    PlotlyViolinKdePlot,
+    collect_violins,
+    is_violin_trace,
+)
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.plotly.step_shape import (
     is_connected_line_trace,
@@ -609,12 +614,6 @@ class PlotlyMaidr:
             # grouping separately is how that quietly stops being true.
             violin_traces = [t for t in group_traces if is_violin_trace(t)]
             if violin_traces:
-                from maidr.plotly.violin import (
-                    PlotlyViolinBoxPlot,
-                    PlotlyViolinKdePlot,
-                    collect_violins,
-                )
-
                 violins = collect_violins(
                     violin_traces,
                     subplot_css_prefix(xaxis_name, yaxis_name),
