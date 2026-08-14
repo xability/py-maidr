@@ -124,6 +124,20 @@ def test_an_explicitly_placed_colorbar_is_covered_too() -> None:
     assert _layers(fig) == [PlotType.HEAT]
 
 
+def test_the_pyplot_level_colorbar_is_covered_too() -> None:
+    """The third route in, and the last one not pinned by a test.
+
+    ``plt.colorbar`` reaches the same ``Colorbar._draw_all`` as the two above,
+    which is the argument for putting the guard there -- but an argument is
+    not a test, and this is the one route where a reader would reasonably
+    wonder whether the reasoning holds.
+    """
+    fig, ax = plt.subplots()
+    plt.colorbar(ax.pcolormesh(np.arange(12).reshape(3, 4)), ax=ax)
+
+    assert _layers(fig) == [PlotType.HEAT]
+
+
 def test_the_chart_a_colorbar_belongs_to_is_unchanged() -> None:
     """Suppressing the legend must not suppress anything the chart says.
 

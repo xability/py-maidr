@@ -8,9 +8,13 @@ from matplotlib.colorbar import Colorbar
 from maidr.core.context_manager import ContextManager
 
 
-def draw_quietly(wrapped, _, args, kwargs) -> Any:
+def _suppress_registration(wrapped, _, args, kwargs) -> Any:
     """
     Draw a colorbar without registering it as a chart of its own.
+
+    Named apart from ``common._draw_quietly``, which is a different helper
+    doing a different job -- that one suppresses *warnings* around a
+    plotting call, and nearly every other patch module uses it.
 
     A colorbar paints its gradient onto its own axes through the very entry
     points the heatmap patch wraps, so MAIDR was registering it as a second
@@ -59,6 +63,6 @@ def draw_quietly(wrapped, _, args, kwargs) -> Any:
 # is worse, and the failure would be caught by the tests that pin this rather
 # than by a user.
 try:
-    wrapt.wrap_function_wrapper(Colorbar, "_draw_all", draw_quietly)
+    wrapt.wrap_function_wrapper(Colorbar, "_draw_all", _suppress_registration)
 except AttributeError:  # pragma: no cover - matplotlib renamed the method
     pass
