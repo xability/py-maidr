@@ -505,6 +505,48 @@ if cbar:
 plt.show() #<<
 ```
 
+### Hexbin Plot
+
+A hexbin is the usual answer to a scatter plot with too many points to read:
+the points are binned into hexagons and the count is shown as fill. maidr reads
+it as a lattice of counted cells, one row at a time.
+
+Hexagons tessellate by offsetting alternate rows by half a cell, so a bin's
+column index is not its position — bin 3 of one row and bin 3 of the next sit
+at different x. Each bin is therefore announced by its **centre** rather than
+by an index, and moving up or down keeps to the x you started from instead of
+carrying the index into a row where it means something else.
+
+```{python}
+#| fig-alt: Hexbin plot of two thousand points drawn from two overlapping clusters
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+rng = np.random.default_rng(20260813)
+x = np.concatenate([rng.normal(-1, 0.8, 1200), rng.normal(1.5, 0.5, 800)])
+y = np.concatenate([rng.normal(0, 0.9, 1200), rng.normal(1.5, 0.6, 800)])
+
+fig, ax = plt.subplots(figsize=(7, 6))
+# `z_label` names the colour axis for maidr, so a bin reads as
+# "First measurement: -1.02, Second measurement: 0.31, Points: 47".
+# Without it the axis is named "count", which is what the fill encodes.
+hexes = ax.hexbin(x, y, gridsize=12, cmap="Blues", z_label="Points") #<<
+ax.set_xlabel("First measurement")
+ax.set_ylabel("Second measurement")
+ax.set_title("Where the points pile up")
+
+plt.show() #<<
+```
+
+`hexbin` has two arguments that change what the fill means, and maidr names the
+colour axis to match rather than calling everything a count: `C=` replaces the
+count with a reduction of the values you supply, and a numeric `bins=`
+discretises the counts so the colour shows *which interval* a bin landed in.
+Pass `z_label=` to name it yourself.
+
 ### Box Plot
 
 ```{python}

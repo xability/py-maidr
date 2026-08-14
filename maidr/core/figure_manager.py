@@ -52,6 +52,7 @@ class FigureManager:
         PlotType.HIST: 1,
         PlotType.BOX: 1,
         PlotType.HEAT: 1,
+        PlotType.HEXBIN: 1,
         PlotType.COUNT: 1,
         PlotType.PIE: 1,
         PlotType.SMOOTH: 1,

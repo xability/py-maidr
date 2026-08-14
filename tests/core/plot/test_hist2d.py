@@ -10,13 +10,16 @@ skips nested draws -- would take this away silently: no error, no warning, just
 a chart that used to be navigable and no longer is. These tests make that a
 failure instead.
 
-The other two 2D density paths do NOT read, and are asserted here too so the
-boundary is visible in one place rather than discovered per bug report:
+The other 2D density paths are asserted here too, so the boundary is visible in
+one place rather than discovered per bug report:
 
-- ``Axes.hexbin`` renders a ``PolyCollection`` of hexagons, which is neither a
-  mesh nor a rectangular grid.
+- ``Axes.hexbin`` reads as a ``hexbin`` layer of its own. It renders a
+  ``PolyCollection`` of hexagons rather than a mesh, and its rows are staggered
+  and ragged, so it is not a heatmap in the shape the mesh path builds -- what
+  it emits is pinned in ``tests/core/test_hexbin_lattice.py``. Registration is
+  asserted here because this is where a reader comes looking for it.
 - ``sns.kdeplot(x=, y=)`` renders filled or line contours, which need a
-  contour trace to describe levels rather than cells.
+  contour trace to describe levels rather than cells, and does NOT read.
 """
 
 from __future__ import annotations
@@ -130,18 +133,39 @@ def test_hist2d_registers_exactly_one_layer():
     assert len(_plots(fig)) == 1
 
 
-def test_hexbin_is_not_registered_yet():
+def test_hexbin_registers_a_hexbin_layer():
     """
-    ``hexbin`` renders a ``PolyCollection`` of hexagons rather than a mesh.
+    ``hexbin`` reads, as a layer of its own rather than as a heatmap.
 
-    Asserted rather than left unsaid: it is the neighbouring call a user will
-    reach for, and pinning the boundary here means the day hexagonal binning
-    lands, this test fails and has to be rewritten as a positive one.
+    This was the negative half of the boundary above, written so that the day
+    hexagonal binning landed it would fail and have to be rewritten. It did.
+
+    The type matters as much as the registration: hexagons tessellate by
+    offsetting alternate rows, so a bin's column index is not its position and
+    the frontend has a trace that announces centres instead. Registering it as
+    ``heat`` would navigate, and would place every bin past the first row on
+    the wrong x.
     """
     fig, ax = plt.subplots()
     ax.hexbin(X, Y, gridsize=3)
 
-    assert _plots(fig) == []
+    plots = _plots(fig)
+    assert len(plots) == 1
+    assert plots[0].type == PlotType.HEXBIN
+
+
+def test_hexbin_registers_exactly_one_layer():
+    """
+    One call registers one layer, marginals and all.
+
+    ``hexbin(marginals=True)`` draws two further ``PolyCollection``s for the
+    marginal distributions. They are part of the same chart, not two more
+    lattices to navigate.
+    """
+    fig, ax = plt.subplots()
+    ax.hexbin(X, Y, gridsize=3, marginals=True)
+
+    assert len(_plots(fig)) == 1
 
 
 @pytest.mark.parametrize("fill", [True, False])
