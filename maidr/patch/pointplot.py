@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
-import wrapt
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly
+from maidr.patch.common import _draw_quietly, wrap_seaborn
 
 # The marker seaborn leaves on the lines it draws the intervals with. The
 # estimate line carries a real one -- `"o"` by default, and the empty string
@@ -249,4 +248,4 @@ def _pairs_up(estimates: list[Line2D], intervals: list[Line2D]) -> bool:
 
 
 # Patch seaborn function.
-wrapt.wrap_function_wrapper("seaborn", "pointplot", point)
+wrap_seaborn("pointplot", point)

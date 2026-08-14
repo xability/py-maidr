@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import wrapt
 import uuid
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
 from maidr.core.enum import PlotType
-from maidr.patch.common import _draw_quietly, common
+from maidr.patch.common import _draw_quietly, common, wrap_seaborn
 from maidr.core.context_manager import ContextManager
 from maidr.util.svg_utils import unique_lines_by_xy
 
@@ -60,4 +59,4 @@ def kde(wrapped, instance, args, kwargs) -> Axes | Line2D | PolyCollection:
 
 
 # Patch seaborn kdeplot
-wrapt.wrap_function_wrapper("seaborn", "kdeplot", kde)
+wrap_seaborn("kdeplot", kde)

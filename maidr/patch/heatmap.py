@@ -12,7 +12,7 @@ from matplotlib.image import AxesImage
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly
+from maidr.patch.common import _draw_quietly, wrap_seaborn
 
 
 def _declares_fmt(wrapped: Callable) -> bool:
@@ -130,4 +130,4 @@ wrapt.wrap_function_wrapper(Axes, "pcolormesh", heat)
 wrapt.wrap_function_wrapper(Axes, "pcolor", heat)
 
 # Patch seaborn function.
-wrapt.wrap_function_wrapper("seaborn", "heatmap", heat)
+wrap_seaborn("heatmap", heat)
