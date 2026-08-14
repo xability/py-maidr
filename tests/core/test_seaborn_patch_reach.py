@@ -9,9 +9,14 @@ function body::
 
 Those are two separate bindings to one function object, so wrapping
 ``seaborn.scatterplot`` left ``seaborn.relational.scatterplot`` untouched --
-and every grid in ``seaborn/axisgrid.py`` takes the second one. `pairplot`,
-`jointplot`, `catplot`, `relplot`, `displot` and `lmplot` therefore ran the
-*unpatched* function.
+and the grids in ``seaborn/axisgrid.py`` take the second one. `pairplot`,
+`jointplot`, `relplot` and `lmplot` therefore ran the *unpatched* function.
+Measured by counting calls that reach the defining-module binding:
+
+    pairplot   histplot, scatterplot      catplot   -- none --
+    jointplot  histplot, scatterplot      displot   -- none --
+    relplot    scatterplot
+    lmplot     regplot
 
 That cost two things at once, and neither reads as a patching problem:
 
@@ -73,6 +78,8 @@ PATCHED = [
     ("pointplot", seaborn.categorical),
     ("heatmap", seaborn.matrix),
     ("regplot", seaborn.regression),
+    ("boxplot", seaborn.categorical),
+    ("violinplot", seaborn.categorical),
 ]
 
 
@@ -181,6 +188,51 @@ def test_a_regression_grid_reads_its_curve_as_a_fit() -> None:
     grid = sns.lmplot(data=_frame(), x="a", y="b")
 
     assert _layers(grid.figure) == [PlotType.SCATTER, PlotType.SMOOTH]
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("boxplot", [PlotType.BOX]),
+        ("violinplot", [PlotType.VIOLIN_BOX, PlotType.VIOLIN_KDE]),
+    ],
+)
+def test_a_categorical_plot_reads_the_same_from_either_binding(
+    name, expected
+) -> None:
+    """No seaborn grid reaches these two, and they were still wrong.
+
+    `catplot` drives `_CategoricalPlotter` directly, so nothing in seaborn
+    takes `seaborn.categorical.boxplot`. What did was ordinary user code::
+
+        from seaborn.categorical import violinplot
+
+    and that import got a reading with nothing recognisable left in it:
+
+        seaborn.violinplot              violin_box, violin_kde
+        seaborn.categorical.violinplot  area, line
+
+    A violin announced as a **line chart** -- not a degraded violin, a
+    different chart -- plus a phantom `area` layer from the colour probe in
+    `seaborn.utils._default_color`, which had no recursion context to
+    suppress it because no seaborn-level patch had run.
+
+    Asserted as equality between the two bindings *and* against the expected
+    types, because either alone would pass if both bindings broke together.
+    """
+    frame = pd.DataFrame(
+        {"group": list("aabbcc") * 4, "value": list(range(1, 25))}
+    )
+    readings = []
+
+    for source in (sns, seaborn.categorical):
+        fig, ax = plt.subplots()
+        getattr(source, name)(data=frame, x="group", y="value", ax=ax)
+        readings.append(_layers(fig))
+        plt.close(fig)
+
+    assert readings[0] == expected
+    assert readings[1] == expected
 
 
 def test_the_grids_this_does_not_reach_are_named() -> None:

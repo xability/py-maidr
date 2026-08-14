@@ -215,6 +215,40 @@ def common(
     return plot
 
 
+def _warn_root_binding_only(name: str, reason: str) -> None:
+    """
+    Say so when only the re-export could be wrapped.
+
+    Every early return in ``wrap_seaborn`` below has the same consequence and
+    it is not a visible one: seaborn's own grids call the defining module's
+    binding, so the function goes on being drawn by an unpatched code path
+    and the panel is read by the matplotlib-level patches alone. That is a
+    wrong reading rather than a missing one -- a histogram announced as a
+    grouped bar chart -- which nothing downstream can detect and no user can
+    trace back to here.
+
+    A warning is the only thing that makes it findable. None of these
+    branches fire against any seaborn MAIDR has been measured on; they exist
+    for the release that moves a function or renames a module.
+
+    Parameters
+    ----------
+    name : str
+        The function that could only be wrapped at ``seaborn.<name>``.
+    reason : str
+        What stopped the defining module from being reached, phrased to
+        complete "because ...".
+    """
+    warnings.warn(
+        f"maidr: patched seaborn.{name} but not the module that defines it, "
+        f"because {reason}. seaborn's figure-level grids -- pairplot, "
+        f"jointplot, relplot, lmplot -- call the defining module's binding, "
+        f"so a {name} panel inside one of them will be read as the artists it "
+        f"drew rather than as a {name}.",
+        stacklevel=3,
+    )
+
+
 def wrap_seaborn(name: str, wrapper: Callable) -> None:
     """
     Wrap a seaborn function at both of the names it answers to.
@@ -228,10 +262,12 @@ def wrap_seaborn(name: str, wrapper: Callable) -> None:
 
     Those are two separate bindings to one function object, so wrapping
     ``seaborn.scatterplot`` leaves ``seaborn.relational.scatterplot``
-    untouched -- and every grid in ``seaborn/axisgrid.py`` takes the second
-    one. `pairplot`, `jointplot`, `catplot`, `relplot`, `displot` and
-    `lmplot` therefore ran the *unpatched* function, and the panel was seen
-    only by the matplotlib-level patches.
+    untouched -- and the grids in ``seaborn/axisgrid.py`` take the second
+    one. `pairplot`, `jointplot`, `relplot` and `lmplot` therefore ran the
+    *unpatched* function, and the panel was seen only by the matplotlib-level
+    patches. (`catplot` and `displot` reach neither binding: they drive
+    seaborn's plotter classes directly, and are pinned as unreached in
+    ``tests/core/test_seaborn_patch_reach.py``.)
 
     That cost two things at once. A `histplot` panel arrived as bars, because
     `Axes.bar` cannot know it is drawing a histogram and the seaborn-level
@@ -259,16 +295,27 @@ def wrap_seaborn(name: str, wrapper: Callable) -> None:
 
     original = getattr(seaborn, name, None)
     if original is None:  # pragma: no cover - seaborn dropped the function
+        warnings.warn(
+            f"maidr: seaborn no longer exports {name}, so it is not patched "
+            f"at all and a {name} will be read as the artists it drew.",
+            stacklevel=2,
+        )
         return
 
     defining = getattr(original, "__module__", None)
     wrapt.wrap_function_wrapper(seaborn, name, wrapper)
 
     if not defining or defining == "seaborn":  # pragma: no cover
+        _warn_root_binding_only(name, f"its __module__ is {defining!r}")
         return
     try:
         module = importlib.import_module(defining)
     except ImportError:  # pragma: no cover - a module seaborn does not ship
+        _warn_root_binding_only(name, f"{defining} could not be imported")
         return
-    if getattr(module, name, None) is original:
-        wrapt.wrap_function_wrapper(module, name, wrapper)
+    if getattr(module, name, None) is not original:  # pragma: no cover
+        _warn_root_binding_only(
+            name, f"{defining}.{name} is a different object"
+        )
+        return
+    wrapt.wrap_function_wrapper(module, name, wrapper)
