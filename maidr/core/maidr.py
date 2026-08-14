@@ -21,6 +21,8 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.core.context_manager import HighlightContextManager
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.barplot import BarPlot
+from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.util.dedup_utils import deduplicate_smooth_and_line
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
@@ -35,18 +37,22 @@ from maidr.util.dependencies import (
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
 
-#: Layer types whose extractor reads every ``BarContainer`` on its axes rather
-#: than the bars its own call drew, so two of them on one axes describe the
-#: same chart twice. ``BAR`` and ``COUNT`` are ``BarPlot``; ``DODGED`` and
-#: ``STACKED`` are ``GroupedBarPlot``. ``HIST`` draws bars too but reads its
-#: own container, so it is not in this family and is never dropped.
-_AXES_WIDE_BAR_TYPES = frozenset(
-    {PlotType.BAR, PlotType.COUNT, PlotType.DODGED, PlotType.STACKED}
-)
+#: Layer classes whose extractor reads every ``BarContainer`` on its axes
+#: rather than the bars its own call drew, so two of them on one axes describe
+#: the same chart twice.
+#:
+#: Asked by class rather than by ``plot.type``, and that distinction is not
+#: pedantic: ``MplfinanceBarPlot`` also carries ``PlotType.BAR``, and it reads
+#: the volume patches handed to it rather than sweeping the axes. A type-based
+#: check would have made it eligible to be dropped by a stacked bar sharing
+#: its axes, on a premise that is not true of it. ``HistPlot`` draws bars and
+#: reads its own container too. Neither subclasses the two below, so neither
+#: is in the family.
+_AXES_WIDE_BAR_PLOTS = (BarPlot, GroupedBarPlot)
 
 #: The subset of the above that describes a whole segmented chart, and so is
 #: the layer to keep when one axes holds more than one of the family.
-_SEGMENTED_BAR_TYPES = frozenset({PlotType.DODGED, PlotType.STACKED})
+_SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 
 
 class Maidr:
@@ -403,7 +409,7 @@ class Maidr:
         )
 
     @staticmethod
-    def _layer_axes_key(plot: MaidrPlot) -> Any:
+    def _layer_axes_key(plot: MaidrPlot) -> int:
         """
         What decides whether two layers can supersede one another.
 
@@ -415,13 +421,10 @@ class Maidr:
         each side of a twinned pair collapsed to one layer and the right-hand
         chart was announced nowhere.
 
-        Falls back to the grid cell for a layer that carries no axes, which is
-        no coarser than the position-keyed grouping this replaced.
+        ``MaidrPlot.__init__`` takes a required ``Axes`` and assigns it, so
+        every layer has one and there is no absent-axes case to handle.
         """
-        ax = getattr(plot, "ax", None)
-        if ax is not None:
-            return id(ax)
-        return ("position", getattr(plot, "row_index", 0), getattr(plot, "col_index", 0))
+        return id(plot.ax)
 
     def _collapse_segmented_bar_layers(self) -> None:
         """
@@ -479,14 +482,16 @@ class Maidr:
         # still two objects and only one of them is dropped.
         superseded: set[MaidrPlot] = set()
         for group in by_axes.values():
-            segmented = [plot for plot in group if plot.type in _SEGMENTED_BAR_TYPES]
+            segmented = [
+                plot for plot in group if isinstance(plot, _SEGMENTED_BAR_PLOTS)
+            ]
             if not segmented:
                 continue
             survivor = segmented[0]
             superseded.update(
                 plot
                 for plot in group
-                if plot is not survivor and plot.type in _AXES_WIDE_BAR_TYPES
+                if plot is not survivor and isinstance(plot, _AXES_WIDE_BAR_PLOTS)
             )
 
         if not superseded:
