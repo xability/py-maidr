@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
-from matplotlib.patches import Rectangle
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
 from maidr.util.mixin import (
+    BarPositionMixin,
     ContainerExtractorMixin,
     DictMergerMixin,
     LevelExtractorMixin,
@@ -15,7 +15,11 @@ from maidr.util.mixin import (
 
 
 class GroupedBarPlot(
-    MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMergerMixin
+    MaidrPlot,
+    BarPositionMixin,
+    ContainerExtractorMixin,
+    LevelExtractorMixin,
+    DictMergerMixin,
 ):
     def __init__(self, ax: Axes, plot_type: PlotType, **kwargs) -> None:
         super().__init__(ax, plot_type)
@@ -193,34 +197,6 @@ class GroupedBarPlot(
             return level
 
         return [self._bar_position(patch) for patch in first]
-
-    def _bar_position(self, patch: Rectangle) -> str:
-        """
-        The centre a bar was drawn at, as the axis would print it.
-
-        The same rule as ``BarPlot._bar_position``: integers exactly, so a
-        bar at 1234567 does not become ``"1.23457e+06"``, and fractions
-        through ``:g``, since the centre comes from the rectangle's geometry
-        and printing float noise exactly would be worse than printing it
-        short.
-
-        Parameters
-        ----------
-        patch : Rectangle
-            One bar.
-
-        Returns
-        -------
-        str
-            The bar's position along its label axis.
-        """
-        if self._is_horizontal:
-            centre = patch.get_y() + patch.get_height() / 2
-        else:
-            centre = patch.get_x() + patch.get_width() / 2
-        if float(centre).is_integer():
-            return str(int(centre))
-        return f"{centre:g}"
 
     def _extract_hue_categories_from_legend(self) -> list[str]:
         """

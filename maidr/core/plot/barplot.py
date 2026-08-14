@@ -8,6 +8,7 @@ from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
 from maidr.util.mixin import (
+    BarPositionMixin,
     ContainerExtractorMixin,
     DictMergerMixin,
     LevelExtractorMixin,
@@ -24,7 +25,13 @@ from maidr.util.mixin import (
 DRAWN_BARS = "_maidr_bars"
 
 
-class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMergerMixin):
+class BarPlot(
+    MaidrPlot,
+    BarPositionMixin,
+    ContainerExtractorMixin,
+    LevelExtractorMixin,
+    DictMergerMixin,
+):
     def __init__(self, ax: Axes, **kwargs) -> None:
         super().__init__(ax, PlotType.BAR)
         self._orientation = "vert"
@@ -145,33 +152,6 @@ class BarPlot(MaidrPlot, ContainerExtractorMixin, LevelExtractorMixin, DictMerge
             return levels
 
         return [self._bar_position(patch) for patch in patches]
-
-    def _bar_position(self, patch: Rectangle) -> str:
-        """
-        The centre a bar was drawn at, as the axis would print it.
-
-        Read off the rectangle rather than the caller's argument, because the
-        caller's is not available here and the drawn centre is what the value
-        became. Whole numbers lose their trailing ``.0``: a bar at x=0 is at
-        ``"0"``, not ``"0.0"``, matching what a numeric axis shows.
-
-        Parameters
-        ----------
-        patch : Rectangle
-            One bar.
-
-        Returns
-        -------
-        str
-            The bar's position along its label axis.
-        """
-        if self._is_horizontal:
-            centre = patch.get_y() + patch.get_height() / 2
-        else:
-            centre = patch.get_x() + patch.get_width() / 2
-        if float(centre).is_integer():
-            return str(int(centre))
-        return f"{centre:g}"
 
     @staticmethod
     def _patches(plot: list[BarContainer] | None) -> list[Rectangle]:
