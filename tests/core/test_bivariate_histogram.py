@@ -209,3 +209,21 @@ def test_a_histogram_drawn_without_an_explicit_axes_registers() -> None:
     sns.histplot(data=_frame(), x="v")
 
     assert _layers(plt.gcf()) == [PlotType.HIST]
+
+
+def test_seaborn_still_takes_ax_by_keyword() -> None:
+    """The assumption the pre-draw snapshot rests on.
+
+    `_prospective_axes` reads `ax` from kwargs alone. That is safe only while
+    seaborn declares it keyword-only — a positional spelling would be missed,
+    the snapshot would come back empty, and a stale container would once again
+    look like this call's own work.
+
+    Asserted rather than commented, because the failure is silent: every test
+    above passes an explicit `ax=` keyword and would go on passing.
+    """
+    import inspect
+
+    kind = inspect.signature(sns.histplot).parameters["ax"].kind
+
+    assert kind is inspect.Parameter.KEYWORD_ONLY

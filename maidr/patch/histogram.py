@@ -65,18 +65,36 @@ def _prospective_axes(kwargs: dict) -> Axes | None:
     Axes or None
         The axes to snapshot, or None when there is nothing drawn yet.
     """
+    # `ax` is read from kwargs alone because seaborn declares it keyword-only:
+    # everything after `data` in `histplot`'s signature is, so there is no
+    # positional spelling to miss. `test_seaborn_still_takes_ax_by_keyword`
+    # asserts that rather than trusting it, so a signature change fails loudly
+    # instead of quietly emptying the snapshot below.
     ax = kwargs.get("ax")
     if ax is not None:
         return ax
     return plt.gcf().gca() if plt.get_fignums() else None
 
 
-def _container_ids(ax: Axes | None) -> set[int]:
-    """The identities of the containers an axes holds right now."""
-    return {id(container) for container in getattr(ax, "containers", ()) or ()}
+def _containers_of(ax: Axes | None) -> list:
+    """
+    The containers an axes holds right now, kept by reference.
+
+    The objects themselves rather than their ``id()``s, and that is not
+    incidental. An id is only unique while its object is alive, so a snapshot
+    of ids could be matched by an unrelated container that happened to be
+    allocated at a freed address -- which would make a genuinely new histogram
+    look pre-existing and be declined. Holding the list keeps every one of
+    them alive for the comparison.
+
+    A ``set`` would be wrong for a second reason: ``BarContainer`` extends
+    ``tuple``, so it hashes by value, and two equal containers would collapse
+    into one.
+    """
+    return list(getattr(ax, "containers", ()) or ())
 
 
-def _drew_bars(plot: Any, before: set[int]) -> bool:
+def _drew_bars(plot: Any, before: list) -> bool:
     """
     Whether *this call* drew a histogram made of bars.
 
@@ -110,8 +128,8 @@ def _drew_bars(plot: Any, before: set[int]) -> bool:
     ----------
     plot : Any
         Whatever the patched call returned.
-    before : set of int
-        Identities of the containers the axes held before the call.
+    before : list
+        The containers the axes held before the call, by reference.
 
     Returns
     -------
@@ -120,12 +138,17 @@ def _drew_bars(plot: Any, before: set[int]) -> bool:
     """
     try:
         ax = FigureManager.get_axes(plot)
-    except Exception:  # pragma: no cover - `common` already resolved this once
+    except StopIteration:  # pragma: no cover - an artist with no axes on it
+        # `get_axes` walks a container's children with a bare `next()`, so an
+        # artist it cannot resolve raises rather than returning. Declining is
+        # the gentler answer and loses nothing: `common` would call the same
+        # function a line below and raise the same way.
         return False
     if ax is None or not ax.containers:
         return False
     return any(
-        isinstance(container, BarContainer) and id(container) not in before
+        isinstance(container, BarContainer)
+        and not any(container is seen for seen in before)
         for container in ax.containers
     )
 
@@ -140,7 +163,7 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
 
-    before = _container_ids(_prospective_axes(kwargs))
+    before = _containers_of(_prospective_axes(kwargs))
 
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
