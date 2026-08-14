@@ -25,8 +25,6 @@ class FigureManager:
     figs : dict
         A dictionary that maps matplotlib Figure objects to their corresponding
         Maidr instances.
-    PLOT_TYPE_PRIORITY : dict
-        Defines the priority order for plot types. Higher numbers take precedence.
 
     Methods
     -------
@@ -40,29 +38,6 @@ class FigureManager:
     """
 
     figs = {}
-
-    # Define plot type priority order (higher numbers take precedence)
-    PLOT_TYPE_PRIORITY = {
-        PlotType.BAR: 1,
-        PlotType.STACKED: 2,
-        PlotType.DODGED: 2,  # DODGED and STACKED have same priority
-        PlotType.LINE: 1,
-        PlotType.STEP: 1,
-        PlotType.SCATTER: 1,
-        PlotType.HIST: 1,
-        PlotType.BOX: 1,
-        PlotType.HEAT: 1,
-        PlotType.HEXBIN: 1,
-        PlotType.COUNT: 1,
-        PlotType.PIE: 1,
-        PlotType.SMOOTH: 1,
-        PlotType.CANDLESTICK: 1,
-        PlotType.VIOLIN_KDE: 1,
-        PlotType.VIOLIN_BOX: 1,
-        PlotType.ERRORBAR: 1,
-        PlotType.AREA: 1,
-        PlotType.STACKED_AREA: 2,
-    }
 
     _instance = None
     _lock = threading.Lock()
@@ -103,15 +78,22 @@ class FigureManager:
         """
         Retrieve or create a Maidr instance for the given Figure.
 
-        If a Maidr instance already exists for the figure, update its plot type
-        if the new plot type has higher priority (DODGED/STACKED > BAR).
+        A figure that already has one is returned as it is. It used to have
+        its ``plot_type`` raised here whenever a layer of higher priority was
+        registered -- DODGED and STACKED outranking everything else -- so that
+        ``_flatten_maidr`` could consult one figure-wide answer to decide
+        whether bar layers should be collapsed. That is what made a stacked
+        bar in one panel delete layers from every other panel, and the
+        question is asked per position now, so the table and the update it
+        served are both gone (#376).
 
         Parameters
         ----------
         fig : Figure
             The matplotlib figure to get or create a Maidr instance for.
         plot_type : PlotType
-            The plot type to set or update for the Maidr instance.
+            The type of the layer being registered. Used only when the figure
+            is new, to record what it started as.
 
         Returns
         -------
@@ -120,14 +102,6 @@ class FigureManager:
         """
         if fig not in cls.figs.keys():
             cls.figs[fig] = Maidr(fig, plot_type)
-        else:
-            # Update plot type if the new type has higher priority
-            maidr = cls.figs[fig]
-            current_priority = cls.PLOT_TYPE_PRIORITY.get(maidr.plot_type, 0)
-            new_priority = cls.PLOT_TYPE_PRIORITY.get(plot_type, 0)
-
-            if new_priority > current_priority:
-                maidr.plot_type = plot_type
         return cls.figs[fig]
 
     @classmethod

@@ -74,7 +74,18 @@ class Maidr:
     """
 
     def __init__(self, fig: Figure, plot_type: PlotType = PlotType.LINE) -> None:
-        """Create a new Maidr for the given ``matplotlib.figure.Figure``."""
+        """
+        Create a new Maidr for the given ``matplotlib.figure.Figure``.
+
+        ``plot_type`` records the type of the first layer registered for the
+        figure and is **descriptive only** -- nothing reads it to decide
+        anything. It used to be maintained as a figure-wide "highest priority
+        type seen" and consulted to decide whether bar layers should be
+        collapsed, which is how a stacked bar in one panel came to delete
+        layers from every other panel (#376). The question is asked per
+        position now, so the priority table that maintained this is gone. The
+        parameter is kept because ``Maidr`` is exported.
+        """
         self._fig = fig
         self._plots = []
         self.maidr_id = None
@@ -445,14 +456,18 @@ class Maidr:
         for plot in self._plots:
             positions[self._subplot_position(plot)].append(plot)
 
-        superseded: set[int] = set()
+        # A set of the layers themselves: `MaidrPlot` defines neither
+        # `__eq__` nor `__hash__`, so membership is identity, which is what
+        # this wants -- two layers of the same type over the same bars are
+        # still two objects and only one of them is dropped.
+        superseded: set[MaidrPlot] = set()
         for group in positions.values():
             segmented = [plot for plot in group if plot.type in _SEGMENTED_BAR_TYPES]
             if not segmented:
                 continue
             survivor = segmented[0]
             superseded.update(
-                id(plot)
+                plot
                 for plot in group
                 if plot is not survivor and plot.type in _AXES_WIDE_BAR_TYPES
             )
@@ -463,7 +478,7 @@ class Maidr:
         kept = [
             (plot, selector_id)
             for plot, selector_id in zip(self._plots, self.selector_ids)
-            if id(plot) not in superseded
+            if plot not in superseded
         ]
         self._plots = [plot for plot, _ in kept]
         self.selector_ids = [selector_id for _, selector_id in kept]
