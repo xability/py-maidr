@@ -50,7 +50,51 @@ def _baseline_is_zero(wrapped, args: tuple, kwargs: dict, name: str) -> bool:
         values = np.asarray(other, dtype=float)
     except (TypeError, ValueError):
         return False
-    return values.ndim == 0 and values == 0
+    # An array of zeros is the same chart as the default, spelled out. Only
+    # a *non-zero* edge changes what the heights are measured from.
+    return bool(values.size > 0 and np.all(values == 0))
+
+
+def _fills_the_whole_range(wrapped, args: tuple, kwargs: dict) -> bool:
+    """
+    Whether the fill covers every position, rather than a masked subset.
+
+    ``where=`` fills only where the mask holds, leaving the chart blank
+    elsewhere -- ``fill_between(x, y, where=y > 0)`` draws three separate
+    bands out of an eight-point series, and matplotlib returns three paths
+    for it rather than one.
+
+    An area layer is one continuous series, so announcing the masked call as
+    one would report every position as filled, gaps included: a complete,
+    confident description of a chart that was not drawn. Which is the same
+    thing declining the two-curve form avoids, so it is declined the same
+    way.
+
+    A mask that holds everywhere is not a mask. It draws the single band the
+    default draws, and reads as one.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        The original function, used for its parameter order.
+    args : tuple
+        Positional arguments the caller passed.
+    kwargs : dict
+        Keyword arguments the caller passed.
+
+    Returns
+    -------
+    bool
+        True when no mask was given, or the mask holds at every position.
+    """
+    where = _argument("where", wrapped, args, kwargs)
+    if where is None:
+        return True
+    try:
+        mask = np.asarray(where, dtype=bool)
+    except (TypeError, ValueError):
+        return False
+    return bool(mask.size > 0 and np.all(mask))
 
 
 def _magnitudes(wrapped, args: tuple, kwargs: dict, position: str, value: str):
@@ -146,6 +190,9 @@ def _fill(wrapped, instance, args, kwargs, position: str, value: str, other: str
         collection = _draw_quietly(wrapped, args, kwargs)
 
     if not _baseline_is_zero(wrapped, args, kwargs, other):
+        return collection
+
+    if not _fills_the_whole_range(wrapped, args, kwargs):
         return collection
 
     positions, values = _magnitudes(wrapped, args, kwargs, position, value)

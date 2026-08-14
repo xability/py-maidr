@@ -145,6 +145,64 @@ def test_a_line_keeps_its_band_unannounced_rather_than_misannounced():
     assert _layers(fig) == [PlotType.LINE]
 
 
+def test_a_masked_fill_is_declined():
+    """``where=`` draws several bands, and an area layer is one series.
+
+    ``fill_between(x, y, where=y > 0)`` fills only where the mask holds and
+    leaves the chart blank elsewhere -- matplotlib returns three paths for
+    the eight-point series below, against one for the unmasked call.
+
+    Announced as an area it would report every position as filled, gaps
+    included. That is the same thing declining the two-curve form avoids,
+    so it is declined the same way rather than described partially: a reader
+    walking left to right would otherwise cross a gap without being told
+    there was one.
+    """
+    signed = np.array([1.0, 3.0, -2.0, 5.0, -4.0, 2.0, 6.0, 1.0])
+    positions = np.arange(len(signed))
+
+    fig, ax = plt.subplots()
+    ax.fill_between(positions, signed, where=signed > 0)
+
+    assert _layers(fig) == []
+
+
+def test_a_mask_that_holds_everywhere_is_not_a_mask():
+    """It draws the single band the default draws, and reads as one.
+
+    Declining on the presence of the argument rather than on what it says
+    would refuse a chart that is identical to one already accepted.
+    """
+    fig, ax = plt.subplots()
+    ax.fill_between(X, Y, where=np.ones_like(Y, dtype=bool))
+
+    assert _layers(fig) == [PlotType.AREA]
+    assert [point["y"] for point in _layer(fig)["data"][0]] == Y.tolist()
+
+
+def test_an_array_of_zeros_is_the_default_spelled_out():
+    """``fill_between(x, y, np.zeros_like(x))`` is the same chart as omitting it.
+
+    Only a *non-zero* edge changes what the heights are measured from, so
+    testing for a scalar zero alone would decline a chart identical to one
+    already accepted.
+    """
+    fig, ax = plt.subplots()
+    ax.fill_between(X, Y, np.zeros_like(X, dtype=float))
+
+    assert _layers(fig) == [PlotType.AREA]
+    assert [point["y"] for point in _layer(fig)["data"][0]] == Y.tolist()
+
+
+def test_the_pyplot_entry_point_is_covered_too():
+    """``plt.fill_between`` reaches the same bound method through ``gca()``."""
+    fig = plt.figure()
+    fig.add_subplot()
+    plt.fill_between(X, Y)
+
+    assert _layers(fig) == [PlotType.AREA]
+
+
 def test_fill_betweenx_is_the_same_chart_turned_over():
     """The shared axis is y and the magnitude runs along x.
 
