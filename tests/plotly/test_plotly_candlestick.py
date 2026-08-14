@@ -132,12 +132,44 @@ def test_a_candle_without_an_x_is_named_by_its_index() -> None:
     saying the same thing.
     """
     figure = go.Figure(
-        [go.Candlestick(open=[1.0, 2.0], high=[2.0, 3.0], low=[0.0, 1.0], close=[1.5, 2.5])]
+        [
+            go.Candlestick(
+                open=[1.0, 2.0], high=[2.0, 3.0], low=[0.0, 1.0], close=[1.5, 2.5]
+            )
+        ]
     )
 
     (layer,) = _layers(figure)
 
     assert [candle["value"] for candle in layer["data"]] == ["0", "1"]
+
+
+def test_a_gap_in_the_middle_drops_only_that_candle() -> None:
+    """A missing number mid-series is a candle plotly leaves blank.
+
+    The trailing case is covered by the ragged test below, but a `None` among
+    otherwise equal-length arrays takes the other branch — the per-candle
+    `except`, not the shortest-array count. Skipping keeps the announced
+    candles aligned with the drawn ones; a placeholder would put a candle at
+    a price nothing was traded at, and carrying the gap forward would shift
+    every later candle onto the wrong date.
+    """
+    figure = go.Figure(
+        [
+            go.Candlestick(
+                x=["d1", "d2", "d3"],
+                open=[1.0, None, 3.0],
+                high=[2.0, 3.0, 4.0],
+                low=[0.0, 1.0, 2.0],
+                close=[1.5, 2.5, 3.5],
+            )
+        ]
+    )
+
+    (layer,) = _layers(figure)
+
+    assert [candle["value"] for candle in layer["data"]] == ["d1", "d3"]
+    assert [candle["open"] for candle in layer["data"]] == [1.0, 3.0]
 
 
 def test_a_ragged_trace_stops_at_the_shortest_series() -> None:
