@@ -53,7 +53,9 @@ def layer_position(traces: list[dict], trace: dict) -> int:
     Parameters
     ----------
     traces : list of dict
-        Every trace on the subplot, in declaration order.
+        The subplot's *drawn* traces, in declaration order. A hidden trace
+        gets no group in the layer, so passing one would push this trace's
+        index onto a group that does not exist.
     trace : dict
         The trace to locate.
 
