@@ -170,6 +170,55 @@ def _auto_shift_bins(
 _HORIZONTAL = "h"
 
 
+def _occupied_span(counts: np.ndarray) -> tuple[int | None, int | None]:
+    """Return the first and last bin index that anything landed in.
+
+    Plotly emits bins from the first that holds an observation to the last,
+    and keeps every empty bin between them. It does **not** emit the empty
+    ones outside that span, however the grid came to reach past the data
+    (#402).
+
+    The rule is exactly that -- trim the ends, keep the middle -- and it took
+    a figure narrower than its data on both sides to establish it. The reading
+    it replaced was "span the data, clamped to the caller's ``[start, end)``",
+    which fits every wider window and predicts one bin too many here:
+
+    ==========================================  ==============  ============
+    ``xbins`` on ``[-2.8, -1.2, .3, 1.1, 2.4, 3.3]``  Plotly.js       clamping
+    ==========================================  ==============  ============
+    ``start=-1, end=2, size=1``                 ``(0,1) (1,2)`` adds ``(-1,0)``
+    ==========================================  ==============  ============
+
+    Data exists below ``start``, so clamping keeps bin ``(-1, 0)``; plotly
+    drops it because nothing landed *in* it, discarding the out-of-window
+    values rather than piling them into the edge bin.
+
+    Trimming subsumes the other half of #402 as well. The explicit-size path
+    computed ``end`` one bin past plotly's, and that surplus bin is empty and
+    at the end, so it goes without the arithmetic needing to be reasoned about
+    separately.
+
+    Empty bins matter beyond the announced values: plotly draws no ``.point``
+    element for one, and the layer's selector resolves positionally, so a
+    phantom bin shifts the highlight of every bin after it.
+
+    Parameters
+    ----------
+    counts : np.ndarray
+        Per-bin counts, in bin order.
+
+    Returns
+    -------
+    tuple[int | None, int | None]
+        Inclusive first and last occupied index, or ``(None, None)`` when
+        every bin is empty.
+    """
+    occupied = np.flatnonzero(counts)
+    if not occupied.size:
+        return None, None
+    return int(occupied[0]), int(occupied[-1])
+
+
 def binned_axis(trace: dict) -> str:
     """Return which of ``x``/``y`` plotly bins for *trace*.
 
@@ -258,6 +307,9 @@ class PlotlyHistogramPlot(PlotlyPlot):
 
         bin_edges = self._compute_bin_edges(arr)
         counts, bin_edges = np.histogram(arr, bins=bin_edges)
+        first, last = _occupied_span(counts)
+        if first is None:
+            return []
 
         # The binned axis carries the bin, the other one the count. Naming the
         # keys off the orientation rather than hardcoding ``x`` keeps the
@@ -275,7 +327,8 @@ class PlotlyHistogramPlot(PlotlyPlot):
         count_min, count_max = bounds[counted]
 
         data = []
-        for i, count in enumerate(counts):
+        for i in range(first, last + 1):
+            count = counts[i]
             low = float(bin_edges[i])
             high = float(bin_edges[i + 1])
             data.append(
@@ -355,18 +408,38 @@ class PlotlyHistogramPlot(PlotlyPlot):
         """
         bins = self._trace.get(f"{self._binned}bins", None)
 
-        # Explicit bin size — use it directly.
+        # Explicit bin size — the width is used as given, without the 'nice'
+        # rounding an `nbins` hint goes through.
         if bins is not None and "size" in bins:
             size = float(bins["size"])
-            start = (
-                float(bins["start"])
-                if "start" in bins
-                else math.floor(arr.min() / size) * size
-            )
+            data_min, data_max = float(arr.min()), float(arr.max())
+
+            # An explicit `start` is honoured verbatim. Without one, plotly
+            # still runs the same anti-clustering shift it applies when
+            # autobinning, which the round multiple of `size` alone does not
+            # reproduce: `go.Histogram(x=[0, 1, 2, 3, 4], xbins=dict(size=2))`
+            # is drawn from -0.5, not 0, because every value is an integer and
+            # they would otherwise sit on the bin edges.
+            if "start" in bins:
+                start = float(bins["start"])
+            else:
+                start = _auto_shift_bins(
+                    math.floor(data_min / size) * size,
+                    arr,
+                    size,
+                    data_min,
+                    data_max,
+                )
+
+            # One bin past the last value, so a value sitting exactly on a
+            # grid multiple gets the bin starting there rather than being
+            # folded into the one below by numpy's closed final interval.
+            # Any bin this reaches past the data is empty, and `_occupied_span`
+            # trims it back off.
             end = (
                 float(bins["end"])
                 if "end" in bins
-                else math.ceil(arr.max() / size) * size + size
+                else math.floor((data_max - start) / size) * size + start + size
             )
             return np.arange(start, end + size / 2, size)
 
