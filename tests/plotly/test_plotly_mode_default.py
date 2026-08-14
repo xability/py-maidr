@@ -217,8 +217,15 @@ class TestTheExportedLayer:
         # explicit "lines+markers" is classified the same way.
         assert self._types(6) == [PlotType.SCATTER]
 
-    def test_a_stacked_modeless_chart_is_a_line_at_any_size(self):
-        assert self._types(6, stackgroup="one") == [PlotType.LINE]
+    def test_a_stacked_modeless_chart_is_connected_at_any_size(self):
+        # `stackgroup` makes plotly connect the samples whatever the mode
+        # default would have been, so six points is a band rather than the
+        # loose markers a mode-less six-point scatter gets. This asserted
+        # `LINE` until #392 taught the adapter that a stacked trace is a
+        # filled area -- a stricter reading of the same figure, and the
+        # property being guarded here is unchanged: not `SCATTER`.
+        assert self._types(6, stackgroup="one") == [PlotType.AREA]
+        assert self._types(6) == [PlotType.SCATTER]
 
     def test_the_rescued_line_gets_a_scoped_selector(self):
         # Reclassifying is only half the job -- the layer has to carry a

@@ -25,6 +25,12 @@ class PlotType(str, Enum):
     #: a line layer announces one number per point with nothing to say which
     #: of those two it is.
     STACKED_AREA = "stacked_area"
+    #: A stacked area rescaled so every position totals the same, the area
+    #: counterpart of :attr:`NORMALIZED`. Distinct for the same reason: a band
+    #: is a *share* of its position's total rather than a magnitude, and read
+    #: as a plain stack the equal totals look like a property of the data
+    #: rather than of the chart.
+    NORMALIZED_AREA = "stacked_normalized_area"
     PIE = "pie"
     SCATTER = "point"
     STACKED = "stacked_bar"
@@ -67,6 +73,7 @@ _DISPLAY_NAMES = {
     PlotType.NORMALIZED: "100% stacked bar",
     PlotType.STACKED: "stacked bar",
     PlotType.STACKED_AREA: "stacked area",
+    PlotType.NORMALIZED_AREA: "100% stacked area",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",
 }

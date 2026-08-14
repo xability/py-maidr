@@ -12,6 +12,7 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.candlestick import is_ohlc_trace, layer_position
+from maidr.plotly.area import is_area_trace
 from maidr.plotly.grouped_histogram import is_histogram_trace
 from maidr.plotly.plotly_plot import (
     PlotlyPlot,
@@ -346,8 +347,16 @@ class PlotlyMaidr:
             bar_traces = [
                 t for t in group_traces if t.get("type") == "bar"
             ]
+            # An area trace is a scatter trace that plotly fills, so it is a
+            # "connected line" by every structural test -- and left in the
+            # line grouping it would be emitted twice, once as its own layer
+            # and once inside the multi-line one. Split out here, before any
+            # of the line/step machinery sees the group.
+            area_traces = [t for t in group_traces if is_area_trace(t)]
             connected_traces = [
-                t for t in group_traces if is_connected_line_trace(t)
+                t
+                for t in group_traces
+                if is_connected_line_trace(t) and not is_area_trace(t)
             ]
             box_traces = [
                 t for t in group_traces if t.get("type") == "box"
@@ -417,6 +426,32 @@ class PlotlyMaidr:
                 if layout.get("barnorm") in _NORMALISING_BARNORMS:
                     return PlotType.NORMALIZED
                 return PlotType.STACKED
+
+            # Filled bands, one layer per stack group. `px.area` produces a
+            # `Scatter` whose only mark of being an area is `stackgroup`, and
+            # with that unread every one of them fell through to `line` --
+            # so a reader was told neither that the bands are filled nor that
+            # they stack, which is the reason the chart is drawn at all
+            # (#392).
+            if area_traces:
+                from maidr.plotly.area import (
+                    PlotlyAreaPlot,
+                    area_plot_type,
+                    area_stack_groups,
+                )
+
+                for stack in area_stack_groups(area_traces):
+                    plot = PlotlyAreaPlot(
+                        stack,
+                        layout,
+                        area_plot_type(stack),
+                        scatter_positions=[position_of[id(t)] for t in stack],
+                        **axis_kwargs,
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in area_traces)
 
             # Grouped / stacked bars
             if len(bar_traces) > 1 and barmode in _COMBINED_BARMODES:
