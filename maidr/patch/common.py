@@ -314,8 +314,6 @@ def wrap_seaborn(name: str, wrapper: Callable) -> None:
         _warn_root_binding_only(name, f"{defining} could not be imported")
         return
     if getattr(module, name, None) is not original:  # pragma: no cover
-        _warn_root_binding_only(
-            name, f"{defining}.{name} is a different object"
-        )
+        _warn_root_binding_only(name, f"{defining}.{name} is a different object")
         return
     wrapt.wrap_function_wrapper(module, name, wrapper)

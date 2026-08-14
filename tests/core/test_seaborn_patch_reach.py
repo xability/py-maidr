@@ -65,6 +65,7 @@ import seaborn.relational  # noqa: E402
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.patch.common import _warn_root_binding_only  # noqa: E402
 
 
 #: Every seaborn function MAIDR patches, with the module that defines it.
@@ -233,6 +234,32 @@ def test_a_categorical_plot_reads_the_same_from_either_binding(
 
     assert readings[0] == expected
     assert readings[1] == expected
+
+
+def test_the_root_binding_warning_says_what_breaks() -> None:
+    """The warning helper, driven directly, because nothing else reaches it.
+
+    Its four call sites are all unreachable on any seaborn MAIDR has been
+    measured against -- they are for the release that moves a function or
+    renames a module -- so the body would otherwise be untested by
+    construction, and its whole job is to be readable by someone who has
+    just hit it once, years from now, with no idea what a binding is.
+
+    The consequence is pinned rather than the wording: a grid runs the
+    unpatched function, so the panel is read as the artists it drew.
+    """
+    with pytest.warns(UserWarning) as caught:
+        _warn_root_binding_only("histplot", "seaborn.distributions moved")
+
+    message = str(caught[0].message)
+
+    assert "histplot" in message
+    assert "seaborn.distributions moved" in message
+    # The grids that take the defining-module binding, and only those.
+    for grid in ("pairplot", "jointplot", "relplot", "lmplot"):
+        assert grid in message
+    for unreached in ("catplot", "displot"):
+        assert unreached not in message
 
 
 def test_the_grids_this_does_not_reach_are_named() -> None:
