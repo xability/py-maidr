@@ -215,19 +215,44 @@ def common(
     return plot
 
 
-def _warn_root_binding_only(name: str, reason: str) -> None:
+def _warn_unpatched(name: str) -> None:
     """
-    Say so when only the re-export could be wrapped.
+    Say so when neither binding could be wrapped.
 
-    Every early return in ``wrap_seaborn`` below has the same consequence and
-    it is not a visible one: seaborn's own grids call the defining module's
-    binding, so the function goes on being drawn by an unpatched code path
-    and the panel is read by the matplotlib-level patches alone. That is a
-    wrong reading rather than a missing one -- a histogram announced as a
-    grouped bar chart -- which nothing downstream can detect and no user can
-    trace back to here.
+    Parameters
+    ----------
+    name : str
+        The function seaborn no longer exports.
+    """
+    warnings.warn(
+        f"maidr: seaborn no longer exports {name}, so neither binding is "
+        f"patched. A {name} will be read by the matplotlib-level patches "
+        f"alone and announced as the artists it drew.",
+        stacklevel=3,
+    )
 
-    A warning is the only thing that makes it findable. None of these
+
+def _warn_partial_patch(name: str, binding: str, reason: str) -> None:
+    """
+    Say so when the re-export was wrapped and the second binding was not.
+
+    Every early return this serves has the same consequence and it is not a
+    visible one: the function goes on being reachable through an unwrapped
+    name, and a call through that name is read by the matplotlib-level
+    patches alone. That is a wrong reading rather than a missing one -- a
+    histogram announced as a grouped bar chart -- which nothing downstream
+    can detect and no user can trace back to here.
+
+    Deliberately *not* phrased in terms of which grids are affected. That
+    varies by function: ``pairplot``, ``jointplot``, ``relplot`` and
+    ``lmplot`` take the defining module's binding, ``catplot`` and
+    ``displot`` reach neither, and for `boxplot` and `violinplot` no grid
+    reaches it at all -- there the exposure is a direct import. A message
+    naming grids would send the reader of a `violinplot` warning to look at
+    four functions that were never on the path, which is the same mistake
+    this helper's own docstring once made.
+
+    A warning is the only thing that makes any of it findable. None of these
     branches fire against any seaborn MAIDR has been measured on; they exist
     for the release that moves a function or renames a module.
 
@@ -235,16 +260,21 @@ def _warn_root_binding_only(name: str, reason: str) -> None:
     ----------
     name : str
         The function that could only be wrapped at ``seaborn.<name>``.
+    binding : str
+        The binding that was missed, named the way a reader would look for
+        it -- ``"seaborn.categorical.boxplot"``, or a description when the
+        module could not be identified.
     reason : str
-        What stopped the defining module from being reached, phrased to
-        complete "because ...".
+        What stopped that binding from being reached, phrased to complete
+        "because ...".
     """
     warnings.warn(
-        f"maidr: patched seaborn.{name} but not the module that defines it, "
-        f"because {reason}. seaborn's figure-level grids -- pairplot, "
-        f"jointplot, relplot, lmplot -- call the defining module's binding, "
-        f"so a {name} panel inside one of them will be read as the artists it "
-        f"drew rather than as a {name}.",
+        f"maidr: patched seaborn.{name} but not {binding}, because {reason}. "
+        f"Both names reach the same function and only the patched one is read "
+        f"as a {name}: anything calling the other -- one of seaborn's own "
+        f"figure-level grids, or a direct import from the defining module -- "
+        f"gets a panel read by the matplotlib-level patches alone, and "
+        f"announced as the artists it drew.",
         stacklevel=3,
     )
 
@@ -294,26 +324,38 @@ def wrap_seaborn(name: str, wrapper: Callable) -> None:
     import seaborn
 
     original = getattr(seaborn, name, None)
-    if original is None:  # pragma: no cover - seaborn dropped the function
-        warnings.warn(
-            f"maidr: seaborn no longer exports {name}, so it is not patched "
-            f"at all and a {name} will be read as the artists it drew.",
-            stacklevel=2,
-        )
+    if original is None:
+        _warn_unpatched(name)
         return
 
     defining = getattr(original, "__module__", None)
     wrapt.wrap_function_wrapper(seaborn, name, wrapper)
 
-    if not defining or defining == "seaborn":  # pragma: no cover
-        _warn_root_binding_only(name, f"its __module__ is {defining!r}")
+    if defining == "seaborn":
+        # Not a gap, and so not a warning: the function is defined at the
+        # package root, which makes ``seaborn.<name>`` the defining binding.
+        # The wrap above is the whole job. None of the eleven functions
+        # patched today take this branch, and reporting a missing second
+        # binding for one that does not exist would send a reader looking
+        # for something that is not wrong.
+        return
+    if not defining:  # pragma: no cover - a function with no __module__
+        _warn_partial_patch(
+            name,
+            "the module that defines it",
+            "__module__ did not say which module that is",
+        )
         return
     try:
         module = importlib.import_module(defining)
     except ImportError:  # pragma: no cover - a module seaborn does not ship
-        _warn_root_binding_only(name, f"{defining} could not be imported")
+        _warn_partial_patch(
+            name, f"{defining}.{name}", f"{defining} could not be imported"
+        )
         return
     if getattr(module, name, None) is not original:  # pragma: no cover
-        _warn_root_binding_only(name, f"{defining}.{name} is a different object")
+        _warn_partial_patch(
+            name, f"{defining}.{name}", f"{defining}.{name} is a different object"
+        )
         return
     wrapt.wrap_function_wrapper(module, name, wrapper)

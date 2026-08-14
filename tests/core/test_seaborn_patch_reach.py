@@ -47,6 +47,8 @@ fails the moment a new patch is added at one name and not the other.
 
 from __future__ import annotations
 
+import warnings
+
 import matplotlib
 import numpy as np
 import pandas as pd
@@ -65,7 +67,7 @@ import seaborn.relational  # noqa: E402
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
-from maidr.patch.common import _warn_root_binding_only  # noqa: E402
+from maidr.patch.common import _warn_partial_patch, wrap_seaborn  # noqa: E402
 
 
 #: Every seaborn function MAIDR patches, with the module that defines it.
@@ -236,30 +238,78 @@ def test_a_categorical_plot_reads_the_same_from_either_binding(
     assert readings[1] == expected
 
 
-def test_the_root_binding_warning_says_what_breaks() -> None:
+def test_the_partial_patch_warning_names_no_grids() -> None:
     """The warning helper, driven directly, because nothing else reaches it.
 
-    Its four call sites are all unreachable on any seaborn MAIDR has been
+    Its three call sites are unreachable on any seaborn MAIDR has been
     measured against -- they are for the release that moves a function or
     renames a module -- so the body would otherwise be untested by
     construction, and its whole job is to be readable by someone who has
     just hit it once, years from now, with no idea what a binding is.
 
-    The consequence is pinned rather than the wording: a grid runs the
-    unpatched function, so the panel is read as the artists it drew.
+    What is pinned is that it does *not* name grids. Which grids are exposed
+    varies per function: `pairplot`, `jointplot`, `relplot` and `lmplot` take
+    the defining-module binding, `catplot` and `displot` reach neither, and
+    for `boxplot` and `violinplot` no grid reaches it at all -- the exposure
+    there is a direct import. A message that named four grids would send the
+    reader of a `violinplot` warning to look at functions that were never on
+    the path, which is the same mistake this file's own docstring once made.
     """
     with pytest.warns(UserWarning) as caught:
-        _warn_root_binding_only("histplot", "seaborn.distributions moved")
+        _warn_partial_patch(
+            "violinplot",
+            "seaborn.categorical.violinplot",
+            "seaborn.categorical could not be imported",
+        )
 
     message = str(caught[0].message)
 
-    assert "histplot" in message
-    assert "seaborn.distributions moved" in message
-    # The grids that take the defining-module binding, and only those.
-    for grid in ("pairplot", "jointplot", "relplot", "lmplot"):
-        assert grid in message
-    for unreached in ("catplot", "displot"):
-        assert unreached not in message
+    assert "violinplot" in message
+    assert "seaborn.categorical.violinplot" in message
+    assert "seaborn.categorical could not be imported" in message
+    # Both routes to the unwrapped binding, and neither named as a specific
+    # function that may not apply.
+    assert "grids" in message
+    assert "direct import" in message
+    for grid in ("pairplot", "jointplot", "relplot", "lmplot", "catplot"):
+        assert grid not in message
+
+
+def test_a_function_defined_at_the_package_root_is_not_a_gap(monkeypatch) -> None:
+    """``__module__ == "seaborn"`` means the wrap is complete, not partial.
+
+    There is no second binding to miss when the function is defined at the
+    package root: ``seaborn.<name>`` *is* the defining binding. Warning there
+    would report a gap that does not exist, and the reader would go looking
+    for a module that is already patched.
+
+    None of the eleven functions patched today takes this branch, so it is
+    driven with a stand-in installed on the seaborn module and removed again
+    by ``monkeypatch``.
+    """
+    import seaborn
+
+    def defined_at_the_root(*args, **kwargs):
+        return None
+
+    defined_at_the_root.__module__ = "seaborn"
+    monkeypatch.setattr(seaborn, "_maidr_root_probe", defined_at_the_root, raising=False)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # any warning here fails the test
+        wrap_seaborn("_maidr_root_probe", lambda w, i, a, k: w(*a, **k))
+
+    assert _is_wrapped(seaborn._maidr_root_probe)
+
+
+def test_a_function_seaborn_no_longer_exports_warns() -> None:
+    """Neither binding wrapped, which is worse than one of two.
+
+    The function is simply read by the matplotlib-level patches from then on,
+    with nothing anywhere saying so.
+    """
+    with pytest.warns(UserWarning, match="no longer exports"):
+        wrap_seaborn("a_function_seaborn_has_never_had", lambda w, i, a, k: w(*a, **k))
 
 
 def test_the_grids_this_does_not_reach_are_named() -> None:
