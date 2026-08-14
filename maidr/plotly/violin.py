@@ -89,17 +89,23 @@ class Violin(NamedTuple):
     box_selector : str
         Addresses the inner box. Written whether or not this trace draws one:
         the position holds no ``path.box`` otherwise, so the selector finds
-        nothing and leaves its neighbours alone.
-    has_mean : bool
-        Whether this trace draws a mean line, which decides whether the box
-        layer offers a mean section.
+        nothing and leaves the violins that do have one alone.
+    mean_selector : str or None
+        Addresses the mean line, when the trace draws one. ``None`` otherwise,
+        which is what keeps the box layer from offering a section for a mark
+        that is not on the chart.
+    has_box : bool
+        Whether this trace draws the inner box. Decides whether the layer
+        emits selectors at all -- a layer of violins that drew no boxes has
+        nothing to highlight.
     """
 
     label: str
     stats: ViolinStats
     kde_selector: str
     box_selector: str
-    has_mean: bool
+    mean_selector: str | None
+    has_box: bool
 
 
 def _grouped(labels: list, values: list) -> list[tuple[str, np.ndarray]]:
@@ -178,23 +184,46 @@ def collect_violins(traces: list[dict], prefix: str) -> list[Violin]:
 
         rendered += 1
         group = f"{prefix}.violinlayer > g:nth-child({rendered})"
+        has_box = bool((trace.get("box") or {}).get("visible"))
         has_mean = bool((trace.get("meanline") or {}).get("visible"))
 
-        for index, (label, stats) in enumerate(computed):
-            # A position with no curve would become a violin of zeroes.
-            # Skipping it leaves its neighbours' indices alone, since plotly
-            # renders an element per sample either way.
+        # Plotly draws the mean inside the box as `path.mean`, and as
+        # `path.meanline` when there is no box to draw it in -- measured, not
+        # assumed. Using one name for both would address nothing in half the
+        # figures that ask for a mean line.
+        mean_mark = "path.mean" if has_box else "path.meanline"
+
+        # Plotly draws one `path.violin` per category it has numbers for, and
+        # omits a category entirely when it has none -- measured: a trace with
+        # an all-missing category and a real one puts a single `path.violin`
+        # in its group, not two. So the index counts the drawn violins rather
+        # than the samples; counting samples pushed every category after a
+        # missing one onto a shape that does not exist, and a selector
+        # matching nothing loses the highlight silently.
+        #
+        # `stats is None` is exactly that set: it is returned only for a
+        # sample with no finite values, which is the case plotly drops. A
+        # sample whose values are all equal keeps its stats, because plotly
+        # keeps drawing it.
+        drawn = 0
+
+        for label, stats in computed:
             if stats is None:
                 continue
+            drawn += 1
+            nth = drawn
             violins.append(
                 Violin(
                     label=label,
                     stats=stats,
-                    kde_selector=(
-                        f"{group} > :nth-child({index + 1} of path.violin)"
+                    kde_selector=f"{group} > :nth-child({nth} of path.violin)",
+                    box_selector=f"{group} > :nth-child({nth} of path.box)",
+                    mean_selector=(
+                        f"{group} > :nth-child({nth} of {mean_mark})"
+                        if has_mean
+                        else None
                     ),
-                    box_selector=f"{group} > :nth-child({index + 1} of path.box)",
-                    has_mean=has_mean,
+                    has_box=has_box,
                 )
             )
 
@@ -227,9 +256,7 @@ class _PlotlyViolinLayer(PlotlyPlot):
     def render(self) -> dict:
         """Add ``orientation`` to the base schema."""
         schema = super().render()
-        schema[MaidrKey.ORIENTATION] = (
-            "horz" if self._horizontal else "vert"
-        )
+        schema[MaidrKey.ORIENTATION] = "horz" if self._horizontal else "vert"
         return schema
 
     def _ordered(self) -> list[Violin]:
@@ -255,8 +282,55 @@ class PlotlyViolinBoxPlot(_PlotlyViolinLayer):
     ) -> None:
         super().__init__(traces, layout, PlotType.VIOLIN_BOX, violins, **kwargs)
 
-    def _get_selector(self) -> list[str]:
-        return [violin.box_selector for violin in self._ordered()]
+    def _get_selector(self) -> list[dict]:
+        """Return one ``BoxSelector`` per violin, or none when no box is drawn.
+
+        A flat list of strings would be the wrong shape: the frontend reads
+        ``selectors[i].min``, ``selectors[i].q2`` and so on off an object, so
+        a string there addresses nothing at best. `PlotlyBoxPlot` and the
+        matplotlib `ViolinBoxPlot` both build the dict for the same reason.
+
+        Every section shares one selector because plotly draws the whole box
+        -- whiskers, quartile box and median together -- as a single
+        ``path.box``. There is nothing finer to point at, so pointing all of
+        them at the box is honest rather than lossy.
+
+        ``mean`` is separate, because plotly draws it as its own path. It
+        appears only for the violins whose trace asked for a mean line;
+        offering the section otherwise would highlight the box for a mark that
+        is not on the chart.
+
+        A layer whose violins drew neither a box nor a mean line has nothing
+        to point at, and emits no selectors rather than a set that matches
+        nothing. A mean line on its own is enough, though: it is a mark a
+        reader can be taken to, and withholding the whole set for want of a
+        box would leave it unreachable -- ``box_visible`` is off by default,
+        so that is the common case rather than an unusual one.
+
+        Where some violins drew a box and others did not, every violin still
+        gets its entry: the ones without simply hold a position no
+        ``path.box`` occupies, which leaves their neighbours' indices alone.
+        """
+        ordered = self._ordered()
+        if not any(
+            violin.has_box or violin.mean_selector is not None for violin in ordered
+        ):
+            return []
+
+        selectors = []
+        for violin in ordered:
+            selector = {
+                MaidrKey.LOWER_OUTLIER: [],
+                MaidrKey.MIN: violin.box_selector,
+                "iq": violin.box_selector,
+                MaidrKey.Q2: violin.box_selector,
+                MaidrKey.MAX: violin.box_selector,
+                MaidrKey.UPPER_OUTLIER: [],
+            }
+            if violin.mean_selector is not None:
+                selector[MaidrKey.MEAN] = violin.mean_selector
+            selectors.append(selector)
+        return selectors
 
     def _extract_plot_data(self) -> list[dict]:
         """
@@ -281,7 +355,7 @@ class PlotlyViolinBoxPlot(_PlotlyViolinLayer):
                 MaidrKey.MAX: stats.maximum,
                 MaidrKey.UPPER_OUTLIER: [],
             }
-            if violin.has_mean:
+            if violin.mean_selector is not None:
                 summary[MaidrKey.MEAN] = stats.mean
             summaries.append(summary)
         return summaries

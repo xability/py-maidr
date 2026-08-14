@@ -205,17 +205,22 @@ def test_the_two_layers_describe_the_violins_in_the_same_order() -> None:
     reader moving between them would hear one violin's quartiles against
     another's shape with nothing signalling the swap.
     """
-    figure = go.Figure(
-        [go.Violin(y=LOWER, name="A"), go.Violin(y=UPPER, name="B")]
+    # Boxes drawn, so the box layer has selectors to compare against the KDE's
+    # -- the pairing this test is about is between the two layers, and without
+    # a box the box layer honestly emits none.
+    figure_with_boxes = go.Figure(
+        [
+            go.Violin(y=LOWER, name="A", box_visible=True),
+            go.Violin(y=UPPER, name="B", box_visible=True),
+        ]
     )
-
-    box = _of_type(figure, PlotType.VIOLIN_BOX)
-    kde = _of_type(figure, PlotType.VIOLIN_KDE)
+    box = _of_type(figure_with_boxes, PlotType.VIOLIN_BOX)
+    kde = _of_type(figure_with_boxes, PlotType.VIOLIN_KDE)
 
     assert [row["z"] for row in box["data"]] == [
         curve[0]["x"] for curve in kde["data"]
     ]
-    assert box["selectors"] == [
+    assert [selector["min"] for selector in box["selectors"]] == [
         selector.replace("path.violin", "path.box") for selector in kde["selectors"]
     ]
 
@@ -339,7 +344,7 @@ def test_reversal_survives_a_second_render() -> None:
 
     assert [row["z"] for row in first[0]["data"]] == ["B", "A"]
     assert [row["z"] for row in second[0]["data"]] == ["B", "A"]
-    assert first[0]["selectors"] == second[0]["selectors"]
+    assert first[1]["selectors"] == second[1]["selectors"]
 
 
 def test_the_selectors_address_one_violin_each() -> None:
@@ -494,6 +499,139 @@ def test_a_figure_of_only_hidden_violins_emits_no_layers() -> None:
     figure = go.Figure([go.Violin(y=LOWER, name="A", visible=False)])
 
     assert _layers(figure) == []
+
+
+def test_the_box_selectors_are_box_shaped() -> None:
+    """The frontend reads `selectors[i].min`, not `selectors[i]`.
+
+    A flat list of strings is the wrong shape for a `violin_box` layer, and
+    nothing in the emitted data would show it: the layer is present, the
+    statistics are right, and the highlight simply never resolves. This is the
+    assertion that was missing when that is exactly what this layer emitted.
+
+    `PlotlyBoxPlot` and the matplotlib `ViolinBoxPlot` both build the same
+    dict, so the shape is the codebase's own convention rather than a guess at
+    what the frontend wants.
+    """
+    figure = go.Figure([go.Violin(y=LOWER, name="A", box_visible=True)])
+
+    (selector,) = _of_type(figure, PlotType.VIOLIN_BOX)["selectors"]
+
+    assert isinstance(selector, dict)
+    assert set(selector) == {"lowerOutliers", "min", "iq", "q2", "max", "upperOutliers"}
+    assert selector["lowerOutliers"] == []
+    assert selector["upperOutliers"] == []
+    # Plotly draws whiskers, quartile box and median as one `path.box`, so
+    # every section points at it. There is nothing finer to address.
+    assert (
+        selector["min"]
+        == selector["iq"]
+        == selector["q2"]
+        == selector["max"]
+        == ".subplot.xy .violinlayer > g:nth-child(1) > :nth-child(1 of path.box)"
+    )
+
+
+def test_a_layer_with_nothing_drawn_to_point_at_emits_no_selectors() -> None:
+    """Neither a box nor a mean line, so there is nothing to highlight.
+
+    Every box selector would address a `path.box` plotly never drew. Emitting
+    none says "nothing to point at here" honestly, where a full set says
+    "highlight these" and then resolves to nothing. A mean line alone is
+    enough to change the answer -- see the meanline test below.
+    """
+    figure = go.Figure([go.Violin(y=LOWER, name="A")])
+
+    assert "selectors" not in _of_type(figure, PlotType.VIOLIN_BOX)
+
+
+def test_a_mean_line_gets_a_selector_of_its_own() -> None:
+    """Plotly draws the mean as its own path, so it is separately addressable.
+
+    Without this the `mean` section would highlight the box -- a mark next to
+    the one being announced, which is worse than no highlight because it looks
+    right.
+    """
+    figure = go.Figure(
+        [go.Violin(y=LOWER, name="A", box_visible=True, meanline_visible=True)]
+    )
+
+    (selector,) = _of_type(figure, PlotType.VIOLIN_BOX)["selectors"]
+
+    assert selector["mean"] == (
+        ".subplot.xy .violinlayer > g:nth-child(1) > :nth-child(1 of path.mean)"
+    )
+    assert selector["mean"] != selector["q2"]
+
+
+def test_a_mean_without_a_box_is_drawn_as_a_meanline() -> None:
+    """The element's name depends on whether there is a box to draw it in.
+
+    Measured in Chromium: with a box the children are
+    `path.violin, path.box, path.mean`; without one they are
+    `path.violin, path.meanline`. One name for both would address nothing in
+    half the figures that ask for a mean line -- and this is the half that is
+    plotly's default, since `box_visible` is off.
+    """
+    figure = go.Figure([go.Violin(y=LOWER, name="A", meanline_visible=True)])
+
+    (selector,) = _of_type(figure, PlotType.VIOLIN_BOX)["selectors"]
+
+    assert selector["mean"] == (
+        ".subplot.xy .violinlayer > g:nth-child(1) > :nth-child(1 of path.meanline)"
+    )
+    # The box sections still name `path.box`, which this figure has none of,
+    # so they resolve to nothing -- the same graceful miss a violin without a
+    # box takes when it shares a layer with one that has it. What matters is
+    # that the mean, which *is* drawn, stays reachable.
+    assert "path.box" in selector["q2"]
+
+
+def test_the_mean_is_announced_only_when_it_is_drawn() -> None:
+    """`meanline_visible` is plotly's switch, so it decides both.
+
+    Kept alongside the selector tests because the data and the selector have
+    to agree: a `mean` value with no way to point at it, or a pointer to a
+    statistic that is not announced, are both half-states.
+    """
+    sample = np.array(LOWER)
+    shown = go.Figure(
+        [go.Violin(y=LOWER, name="A", box_visible=True, meanline_visible=True)]
+    )
+    hidden = go.Figure([go.Violin(y=LOWER, name="A", box_visible=True)])
+
+    (with_mean,) = _of_type(shown, PlotType.VIOLIN_BOX)["data"]
+    (without,) = _of_type(hidden, PlotType.VIOLIN_BOX)["data"]
+    (selector,) = _of_type(hidden, PlotType.VIOLIN_BOX)["selectors"]
+
+    assert with_mean["mean"] == pytest.approx(sample.mean())
+    assert "mean" not in without
+    assert "mean" not in selector
+
+
+def test_a_category_with_no_values_takes_no_slot() -> None:
+    """Plotly omits it entirely, which is not what it does for a flat one.
+
+    The two empty-ish cases pull opposite ways, and getting them confused
+    breaks the other. Measured in Chromium:
+
+      all values equal    -> plotly draws a degenerate violin, one `path.violin`
+      all values missing  -> plotly draws nothing, no element at all
+
+    So a missing category must *not* reserve an index while a flat one must.
+    Counting samples rather than drawn violins put `q` at
+    `nth-child(2 of path.violin)` in a group holding one, matching nothing.
+    """
+    figure = go.Figure(
+        [go.Violin(x=["p"] * 5 + ["q"] * 30, y=[None] * 5 + UPPER, name="A")]
+    )
+
+    kde = _of_type(figure, PlotType.VIOLIN_KDE)
+
+    assert [curve[0]["x"] for curve in kde["data"]] == ["q"]
+    assert kde["selectors"] == [
+        ".subplot.xy .violinlayer > g:nth-child(1) > :nth-child(1 of path.violin)"
+    ]
 
 
 def test_a_violin_beside_other_traces_is_unaffected() -> None:
