@@ -161,6 +161,34 @@ def test_an_overlay_survives_whichever_order_it_was_drawn_in(line_first) -> None
     assert _emitted(fig) == [[expected]]
 
 
+def test_a_twinned_axes_keeps_its_own_stacked_bar() -> None:
+    """Two axes in one grid cell are two charts, not one chart twice.
+
+    The duplication this collapse resolves comes from the extractor reading
+    every container on ``self.ax``, so the axes is what makes two layers
+    descriptions of the same bars. ``ax.twinx()`` gives a *second* axes at the
+    *same* ``(row, col)`` -- so keyed by grid cell, a stacked bar on each side
+    of a twinned pair collapsed to one and the right-hand chart was announced
+    nowhere.
+
+    Both layers are asserted by their data rather than only by count, since
+    two layers of the right type could still both be the left-hand chart.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(CATEGORIES, SERIES_0, bottom=np.zeros(len(CATEGORIES)), label="l0")
+    ax.bar(CATEGORIES, SERIES_1, bottom=SERIES_0, label="l1")
+
+    right = ax.twinx()
+    right.bar(CATEGORIES, SERIES_1 * 2, bottom=np.zeros(len(CATEGORIES)), label="r0")
+    right.bar(CATEGORIES, SERIES_0 * 2, bottom=SERIES_1 * 2, label="r1")
+
+    grid = FigureManager.get_maidr(fig)._flatten_maidr()["subplots"]
+    layers = grid[0][0]["layers"]
+
+    assert [layer["type"].value for layer in layers] == ["stacked_bar"] * 2
+    assert [layer["data"][0][0]["y"] for layer in layers] == [10.0, 60.0]
+
+
 def test_every_layer_keeps_its_own_selector_id() -> None:
     """The pairing that a naive filter would break silently.
 

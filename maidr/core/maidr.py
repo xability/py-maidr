@@ -45,7 +45,7 @@ _AXES_WIDE_BAR_TYPES = frozenset(
 )
 
 #: The subset of the above that describes a whole segmented chart, and so is
-#: the layer to keep when a position holds more than one of the family.
+#: the layer to keep when one axes holds more than one of the family.
 _SEGMENTED_BAR_TYPES = frozenset({PlotType.DODGED, PlotType.STACKED})
 
 
@@ -403,9 +403,25 @@ class Maidr:
         )
 
     @staticmethod
-    def _subplot_position(plot: MaidrPlot) -> tuple[int, int]:
-        """The ``(row, col)`` cell a layer belongs to, defaulting to ``(0, 0)``."""
-        return (getattr(plot, "row_index", 0), getattr(plot, "col_index", 0))
+    def _layer_axes_key(plot: MaidrPlot) -> Any:
+        """
+        What decides whether two layers can supersede one another.
+
+        The axes itself, not the grid cell it sits in. The duplication this
+        resolves comes from the extractor reading every container on
+        ``self.ax``, so ``self.ax`` is the thing that makes two layers
+        descriptions of the same bars -- and ``ax.twinx()`` gives a *second*
+        axes at the *same* ``(row, col)``. Keyed by position, a stacked bar on
+        each side of a twinned pair collapsed to one layer and the right-hand
+        chart was announced nowhere.
+
+        Falls back to the grid cell for a layer that carries no axes, which is
+        no coarser than the position-keyed grouping this replaced.
+        """
+        ax = getattr(plot, "ax", None)
+        if ax is not None:
+            return id(ax)
+        return ("position", getattr(plot, "row_index", 0), getattr(plot, "col_index", 0))
 
     def _collapse_segmented_bar_layers(self) -> None:
         """
@@ -436,10 +452,11 @@ class Maidr:
           on the first call avoided it, which is why every test wrote it that
           way.
 
-        So the question is asked per position and answered by type: a position
+        So the question is asked per *axes* and answered by type: an axes
         holding a segmented layer keeps the first of those and drops the other
-        axes-wide bar layers there. Layers of any other type are left alone --
+        axes-wide bar layers on it. Layers of any other type are left alone --
         a line over a stacked bar is a second layer, not a duplicate of it.
+        See ``_layer_axes_key`` for why the axes and not the grid cell.
 
         Idempotent, and it has to be: it runs from ``_create_html_tag`` before
         the elements are collected *and* from ``_flatten_maidr``, which can be
@@ -452,16 +469,16 @@ class Maidr:
         a layer without dropping its id would hand every surviving layer its
         neighbour's, and the highlight would land on the wrong bar.
         """
-        positions: dict[tuple[int, int], list[MaidrPlot]] = defaultdict(list)
+        by_axes: dict[Any, list[MaidrPlot]] = defaultdict(list)
         for plot in self._plots:
-            positions[self._subplot_position(plot)].append(plot)
+            by_axes[self._layer_axes_key(plot)].append(plot)
 
         # A set of the layers themselves: `MaidrPlot` defines neither
         # `__eq__` nor `__hash__`, so membership is identity, which is what
         # this wants -- two layers of the same type over the same bars are
         # still two objects and only one of them is dropped.
         superseded: set[MaidrPlot] = set()
-        for group in positions.values():
+        for group in by_axes.values():
             segmented = [plot for plot in group if plot.type in _SEGMENTED_BAR_TYPES]
             if not segmented:
                 continue
@@ -527,8 +544,8 @@ class Maidr:
         """Return the top-level MAIDR schema for this figure."""
         # A segmented bar layer describes every bar on its axes, so the sibling
         # registrations from the same chart are duplicates of it. Asked per
-        # position rather than per figure -- see the method for what asking it
-        # per figure cost (#376).
+        # axes rather than per figure -- see the method for what asking it per
+        # figure cost (#376).
         self._collapse_segmented_bar_layers()
 
         # Deduplicate: if any SMOOTH plots exist, remove LINE plots
