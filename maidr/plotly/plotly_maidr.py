@@ -11,6 +11,7 @@ from typing import Any, Literal, cast
 from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.plotly.candlestick import is_ohlc_trace, layer_position
 from maidr.plotly.plotly_plot import PlotlyPlot, domain_interval
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.plotly.step_shape import (
@@ -564,6 +565,33 @@ class PlotlyMaidr:
                     )
                     self._plots.append(plot)
                 merged.update(id(t) for t in pie_traces)
+
+            # OHLC series, one layer each. Built here rather than left to
+            # `PlotlyPlotFactory` for the same reason a lone line is: the
+            # selector needs the trace's position among its DOM layer-mates,
+            # and only this loop knows what else is on the subplot.
+            #
+            # Layer-mates rather than traces, because plotly appends one group
+            # per trace to the layer that trace's *type* draws into. A
+            # `candlestick` shares `g.boxlayer` with every `go.Box` beside it
+            # -- which draws a `path.box` of its own -- while an `ohlc` gets
+            # `g.ohlclayer` to itself. Counting either one against all the
+            # subplot's traces would scope the selector to nothing.
+            ohlc_traces = [t for t in group_traces if is_ohlc_trace(t)]
+            if ohlc_traces:
+                from maidr.plotly.candlestick import PlotlyCandlestickPlot
+
+                for ohlc_trace in ohlc_traces:
+                    plot = PlotlyCandlestickPlot(
+                        ohlc_trace,
+                        layout,
+                        layer_position=layer_position(group_traces, ohlc_trace),
+                        **axis_kwargs,
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in ohlc_traces)
 
             # Remaining traces
             for trace in group_traces:

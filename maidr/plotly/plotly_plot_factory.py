@@ -105,6 +105,17 @@ class PlotlyPlotFactory:
 
             return PlotlyBoxPlot(trace, layout, **axis_kwargs)
 
+        if trace_type in ("candlestick", "ohlc"):
+            from maidr.plotly.candlestick import PlotlyCandlestickPlot
+
+            # ``layer_position`` is left at its default for the same reason
+            # the lines branch leaves ``scatter_position`` at 0: this factory
+            # sees one trace with no idea what else shares its DOM layer, and
+            # "assume it is the only one" is the only assumption available.
+            # ``PlotlyMaidr`` never reaches here precisely because it does
+            # know, and passes real positions.
+            return PlotlyCandlestickPlot(trace, layout, **axis_kwargs)
+
         if trace_type == "heatmap":
             from maidr.plotly.heatmap import PlotlyHeatmapPlot
 
