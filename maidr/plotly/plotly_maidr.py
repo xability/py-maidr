@@ -15,6 +15,7 @@ from maidr.plotly.candlestick import is_ohlc_trace, layer_position
 from maidr.plotly.plotly_plot import (
     PlotlyPlot,
     domain_interval,
+    is_drawn,
     subplot_css_prefix,
 )
 from maidr.plotly.violin import (
@@ -300,7 +301,15 @@ class PlotlyMaidr:
         """
         fig_dict = self._fig.to_dict()
         layout = fig_dict.get("layout", {})
-        traces = fig_dict.get("data", [])
+        # Dropped once, here, rather than in each branch below. Plotly renders
+        # no group at all for a hidden trace, so one that is `visible=False`
+        # or `"legendonly"` is not on the chart: reading it announces marks
+        # nobody can see, and letting it occupy a position pushes its
+        # neighbours' selectors onto groups that do not exist. Filtering at
+        # the source means every downstream reader -- bar merging, line
+        # grouping, pie and candlestick positions, the subplot grid -- sees
+        # only what was drawn, and none of them has to remember to ask.
+        traces = [trace for trace in fig_dict.get("data", []) if is_drawn(trace)]
         # Plotly's own default is `relative`, which stacks. Defaulting to
         # `group` here meant a figure that plotly drew stacked was announced
         # as *dodged* -- not a lost relationship but an inverted one, telling

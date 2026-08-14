@@ -356,6 +356,60 @@ def test_a_candlestick_on_a_second_subplot_is_scoped_to_it() -> None:
     ]
 
 
+@pytest.mark.parametrize("hidden", [False, "legendonly"], ids=["false", "legendonly"])
+def test_a_hidden_neighbour_takes_no_slot(hidden) -> None:
+    """A trace plotly did not draw gets no group, so it cannot hold a slot.
+
+    Measured in Chromium: a hidden `go.Box` beside a candlestick leaves the
+    `boxlayer` holding a single child. Counting it put the candlestick at
+    `nth-child(2)` of a one-child layer, so its selector matched nothing --
+    the highlight silently stopping while the audio, braille and text stayed
+    correct, with nothing in the output to say why.
+
+    Clicking a legend entry sets `visible="legendonly"` and re-renders, so
+    this is reached by ordinary use rather than an exotic figure.
+    """
+    figure = go.Figure(
+        [
+            go.Box(y=[1.0, 2.0, 3.0, 4.0], name="spread", visible=hidden),
+            go.Candlestick(name="A", **OHLC),
+        ]
+    )
+
+    candle = next(
+        layer for layer in _layers(figure) if layer["type"] is PlotType.CANDLESTICK
+    )
+
+    assert candle["selectors"] == (
+        ".subplot.xy .boxlayer > .trace.boxes:nth-child(1) path.box"
+    )
+
+
+@pytest.mark.parametrize("hidden", [False, "legendonly"], ids=["false", "legendonly"])
+def test_a_hidden_candlestick_is_not_read(hidden) -> None:
+    """It is not on the chart, so it is not in the reading.
+
+    Announcing it would describe candles a reader cannot see -- with prices,
+    dates and trends, and nothing saying the series is switched off.
+    """
+    figure = go.Figure(
+        [
+            go.Candlestick(name="hidden", visible=hidden, **OHLC),
+            go.Candlestick(name="shown", **OTHER),
+        ]
+    )
+
+    layers = [
+        layer for layer in _layers(figure) if layer["type"] is PlotType.CANDLESTICK
+    ]
+
+    assert len(layers) == 1
+    assert layers[0]["data"][0]["open"] == OTHER["open"][0]
+    assert layers[0]["selectors"] == (
+        ".subplot.xy .boxlayer > .trace.boxes:nth-child(1) path.box"
+    )
+
+
 def test_a_figure_of_other_traces_is_unchanged() -> None:
     """The control: recognising a new type must cost the existing ones nothing.
 

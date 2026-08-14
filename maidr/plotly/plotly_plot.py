@@ -605,6 +605,42 @@ def domain_interval(box: Any, key: str) -> tuple[float, float]:
         return whole
 
 
+#: The values of ``trace.visible`` that mean plotly drew nothing. ``False``
+#: hides a trace outright; ``"legendonly"`` is what clicking a legend entry
+#: sets, so a reader reaches it by ordinary use rather than an exotic figure.
+_HIDDEN = (False, "legendonly")
+
+
+def is_drawn(trace: dict) -> bool:
+    """
+    Return whether plotly drew this trace at all.
+
+    Plotly renders no group whatsoever for a hidden trace -- measured across
+    bar, scatter, pie, box and violin: two traces with one hidden produce a
+    single group in the layer. So a hidden trace must be dropped before
+    anything reads it, for two reasons at once.
+
+    It must not be *announced*: describing it tells a reader about marks that
+    are not on the chart, with nothing saying the series is switched off. And
+    it must not take a *slot*: every selector scoped by position among its
+    layer-mates would be pushed onto a group that does not exist, and a
+    selector matching nothing loses the highlight silently while the audio,
+    braille and text stay correct.
+
+    Parameters
+    ----------
+    trace : dict
+        A plotly trace dictionary.
+
+    Returns
+    -------
+    bool
+        ``True`` unless ``visible`` says otherwise. An absent ``visible`` is
+        plotly's default of drawn.
+    """
+    return trace.get("visible") not in _HIDDEN
+
+
 def subplot_css_prefix(xaxis_name: str, yaxis_name: str) -> str:
     """
     Return the CSS prefix scoping selectors to one subplot.
