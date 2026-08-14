@@ -61,7 +61,7 @@ class MaidrPlotFactory:
             if PlotDetectionUtils.is_mplfinance_bar_plot(**kwargs):
                 return MplfinanceBarPlot(single_ax, **kwargs)
             else:
-                return BarPlot(single_ax)
+                return BarPlot(single_ax, **kwargs)
         elif PlotType.BOX == plot_type:
             return BoxPlot(single_ax, **kwargs)
         elif PlotType.ERRORBAR == plot_type:

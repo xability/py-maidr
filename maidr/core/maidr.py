@@ -37,9 +37,13 @@ from maidr.util.dependencies import (
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
 
-#: Layer classes whose extractor reads every ``BarContainer`` on its axes
-#: rather than the bars its own call drew, so two of them on one axes describe
-#: the same chart twice.
+#: Layer classes a segmented bar layer on the same axes can supersede.
+#:
+#: ``GroupedBarPlot`` reads every ``BarContainer`` on its axes, so it already
+#: describes whatever a ``BarPlot`` beside it would -- whether that ``BarPlot``
+#: swept the axes too (the seaborn path) or narrowed to the one container its
+#: own ``ax.bar()`` call drew (the matplotlib path, since #380). Either way the
+#: segmented layer covers it, which is what makes it superseded.
 #:
 #: Asked by class rather than by ``plot.type``, and that distinction is not
 #: pedantic: ``MplfinanceBarPlot`` also carries ``PlotType.BAR``, and it reads
@@ -433,11 +437,12 @@ class Maidr:
         """
         The bar layers a segmented layer on the same axes already describes.
 
-        ``BarPlot`` and ``GroupedBarPlot`` both read *every* ``BarContainer``
-        on their axes rather than the bars their own call drew, so a stacked
-        chart built from three ``ax.bar()`` calls registers three layers that
-        each describe the whole chart. The first segmented one survives; the
-        other axes-wide bar layers on that axes are duplicates of it.
+        ``GroupedBarPlot`` reads *every* ``BarContainer`` on its axes, so a
+        stacked chart built from three ``ax.bar()`` calls registers three
+        layers that each describe the whole chart. The first survives; the
+        rest are duplicates, and so is any ``BarPlot`` beside them -- whose
+        bars, whether it swept the axes or narrowed to its own call's
+        container, the segmented layer already covers.
 
         Layers of any other kind are left alone -- a line over a stacked bar
         is a second layer, not a duplicate of it.
@@ -536,11 +541,10 @@ class Maidr:
         """
         Drop every layer another layer on the same axes already describes.
 
-        ``BarPlot`` and ``GroupedBarPlot`` both read *every* ``BarContainer``
-        on their axes rather than the bars their own call drew, so a stacked
-        chart built from three ``ax.bar()`` calls registers three layers that
-        each describe the whole chart. One has to survive and the rest are
-        duplicates.
+        ``GroupedBarPlot`` reads *every* ``BarContainer`` on its axes, so a
+        stacked chart built from three ``ax.bar()`` calls registers three
+        layers that each describe the whole chart. One has to survive and the
+        rest are duplicates.
 
         Which one survives is the part that was wrong. This used to key off
         ``self.plot_type`` -- a *figure-wide* "highest priority type seen",
