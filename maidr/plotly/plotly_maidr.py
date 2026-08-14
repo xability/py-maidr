@@ -83,6 +83,20 @@ def _is_domain_trace(trace: dict) -> bool:
     return trace.get("type") in _DOMAIN_TRACE_TYPES
 
 
+#: Plotly's own default when a figure sets no ``barmode``. It stacks -- and
+#: it is the value `px.bar(color=...)` leaves behind, so it is the ordinary
+#: way a stacked bar chart arrives rather than an exotic one.
+_PLOTLY_DEFAULT_BARMODE = "relative"
+
+#: The barmodes under which plotly *combines* several bar traces into one
+#: chart, and so the ones MAIDR merges into a single layer. ``relative`` is
+#: plotly's name for a stack that lets negative values run below the axis.
+#:
+#: ``overlay`` is deliberately absent: those bars are drawn over one another
+#: rather than joined, so separate layers is the honest reading.
+_COMBINED_BARMODES = frozenset({"group", "stack", "relative"})
+
+
 class PlotlyMaidr:
     """
     Handles rendering Plotly figures as accessible MAIDR HTML.
@@ -230,8 +244,11 @@ class PlotlyMaidr:
         Groups traces by their subplot position (axis pair), then applies
         merging rules within each group:
 
-        * Multiple bar traces with ``barmode='group'`` or ``'stack'`` are
-          merged into a single :class:`PlotlyGroupedBarPlot`.
+        * Multiple bar traces that plotly combines -- ``barmode`` of
+          ``'group'``, ``'stack'`` or ``'relative'`` -- are merged into a
+          single :class:`PlotlyGroupedBarPlot`. ``'overlay'`` is not combined:
+          those bars are drawn over one another rather than joined, so they
+          stay separate layers.
         * Scatter/lines traces are split by *renderer* first — SVG traces
           apart from canvas-painted ``scattergl`` ones — because a layer's
           selector list is all-or-nothing, so a mixed layer could only claim a
@@ -267,7 +284,13 @@ class PlotlyMaidr:
         fig_dict = self._fig.to_dict()
         layout = fig_dict.get("layout", {})
         traces = fig_dict.get("data", [])
-        barmode = layout.get("barmode", "group")
+        # Plotly's own default is `relative`, which stacks. Defaulting to
+        # `group` here meant a figure that plotly drew stacked was announced
+        # as *dodged* -- not a lost relationship but an inverted one, telling
+        # a reader the bars sit side by side when they sit on top of each
+        # other, so every segment means something other than what is said and
+        # the totals a stack is read for are absent (#390).
+        barmode = layout.get("barmode") or _PLOTLY_DEFAULT_BARMODE
 
         # Group traces by their subplot axis pair
         axis_groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
@@ -351,14 +374,12 @@ class PlotlyMaidr:
             merged: set[int] = set()
 
             # Grouped / stacked bars
-            if len(bar_traces) > 1 and barmode in ("group", "stack"):
+            if len(bar_traces) > 1 and barmode in _COMBINED_BARMODES:
                 from maidr.core.enum.plot_type import PlotType
                 from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
 
                 plot_type = (
-                    PlotType.DODGED
-                    if barmode == "group"
-                    else PlotType.STACKED
+                    PlotType.DODGED if barmode == "group" else PlotType.STACKED
                 )
                 plot = PlotlyGroupedBarPlot(
                     bar_traces, layout, plot_type, **axis_kwargs
