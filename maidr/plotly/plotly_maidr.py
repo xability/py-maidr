@@ -88,6 +88,12 @@ def _is_domain_trace(trace: dict) -> bool:
 #: way a stacked bar chart arrives rather than an exotic one.
 _PLOTLY_DEFAULT_BARMODE = "relative"
 
+#: The values `layout.barnorm` takes when plotly normalises each stack to a
+#: common total -- its own switch for a 100% stacked bar. `percent` scales to
+#: 100 and `fraction` to 1; both mean the segment values are *shares of their
+#: category* rather than counts, which is what the distinct trace type says.
+_NORMALISING_BARNORMS = frozenset({"percent", "fraction"})
+
 #: The barmodes under which plotly *combines* several bar traces into one
 #: chart, and so the ones MAIDR merges into a single layer. ``relative`` is
 #: plotly's name for a stack that lets negative values run below the axis.
@@ -382,9 +388,19 @@ class PlotlyMaidr:
                 from maidr.core.enum.plot_type import PlotType
                 from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
 
-                plot_type = (
-                    PlotType.DODGED if barmode == "group" else PlotType.STACKED
-                )
+                # `barnorm` only means anything for a stack: plotly scales
+                # each category's segments to a common total, so the values
+                # are shares rather than counts. Read as a plain `stacked_bar`
+                # a reader is told nothing about that, and is left to suppose
+                # the equal totals are a property of the data rather than of
+                # the chart (#338).
+                normalised = layout.get("barnorm") in _NORMALISING_BARNORMS
+                if barmode == "group":
+                    plot_type = PlotType.DODGED
+                elif normalised:
+                    plot_type = PlotType.NORMALIZED
+                else:
+                    plot_type = PlotType.STACKED
                 plot = PlotlyGroupedBarPlot(
                     bar_traces, layout, plot_type, **axis_kwargs
                 )

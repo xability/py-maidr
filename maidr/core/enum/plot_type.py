@@ -28,6 +28,7 @@ class PlotType(str, Enum):
     PIE = "pie"
     SCATTER = "point"
     STACKED = "stacked_bar"
+    NORMALIZED = "stacked_normalized_bar"
     STEP = "step"
     SMOOTH = "smooth"
     CANDLESTICK = "candlestick"
@@ -63,6 +64,7 @@ _DISPLAY_NAMES = {
     PlotType.HEAT: "heatmap",
     PlotType.HIST: "histogram",
     PlotType.SCATTER: "scatter",
+    PlotType.NORMALIZED: "100% stacked bar",
     PlotType.STACKED: "stacked bar",
     PlotType.STACKED_AREA: "stacked area",
     PlotType.VIOLIN_BOX: "violin",

@@ -6,7 +6,14 @@ from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
 
 class PlotlyGroupedBarPlot(PlotlyPlot):
-    """Extract data from multiple Plotly bar traces (dodged or stacked).
+    """Extract data from multiple Plotly bar traces (dodged, stacked or
+    normalised).
+
+    The class does not branch on *plot_type*: every combination hands the
+    traces' own ``x``/``y``/``fill`` through unchanged, and the type decides
+    only how the MAIDR core reads them. Which one applies is worked out from
+    ``layout.barmode`` and ``layout.barnorm`` by
+    :meth:`~maidr.plotly.plotly_maidr.PlotlyMaidr._extract_plots`.
 
     Parameters
     ----------
@@ -15,7 +22,8 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
     layout : dict
         The Plotly figure layout.
     plot_type : PlotType
-        Either ``PlotType.DODGED`` or ``PlotType.STACKED``.
+        ``PlotType.DODGED``, ``PlotType.STACKED`` or
+        ``PlotType.NORMALIZED``.
     """
 
     def __init__(
