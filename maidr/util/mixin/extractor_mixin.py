@@ -15,24 +15,38 @@ class ContainerExtractorMixin:
         container_type: type,
         include_all: bool = False,
     ) -> Any:
-        """Retrieve containers of a specified type from an Axes object."""
+        """
+        Retrieve containers of a specified type from an Axes object.
+
+        Returns ``None`` when the axes holds none of that type, which is what
+        every caller is written for -- ``HistPlot._extract_bar_container_data``
+        opens with ``if plot is None``. The single-container branch used to
+        reach that answer through a bare ``next()`` and raise
+        ``StopIteration`` instead, so the ``None`` handling below it could
+        never run and a `sns.histplot(x=..., y=...)` -- a 2D histogram, drawn
+        as a mesh rather than as bars -- killed the whole render with an
+        exception that named nothing (#388).
+
+        A bare ``StopIteration`` is never a useful failure, and inside a
+        generator PEP 479 turns it into a ``RuntimeError`` with the cause
+        obscured. The two branches now agree: nothing found is ``[]`` or
+        ``None``, not an exception.
+        """
         if ax is None or ax.containers is None:
             return None
 
-        # If include_all is True, return a list of all containers of the specified type.
-        if include_all:
-            return [
-                container
-                for container in ax.containers
-                if isinstance(container, container_type)
-            ]
-
-        # Otherwise, return the first container of the specified type.
-        return next(
+        matches = [
             container
             for container in ax.containers
             if isinstance(container, container_type)
-        )
+        ]
+
+        # If include_all is True, return a list of all containers of the specified type.
+        if include_all:
+            return matches
+
+        # Otherwise, return the first container of the specified type.
+        return matches[0] if matches else None
 
 
 class LevelExtractorMixin:

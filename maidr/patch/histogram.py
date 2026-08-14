@@ -43,12 +43,58 @@ def mpl_hist(
     return n, bins, plot
 
 
+def _drew_bars(plot) -> bool:
+    """
+    Whether the call that produced *plot* drew a histogram made of bars.
+
+    `sns.histplot(x=..., y=...)` is a **2D** histogram: seaborn draws it as a
+    ``QuadMesh`` of joint counts, not as bars. `hist` promises one bin per bar
+    with a count, which such a layer has neither of -- so registering it
+    promises a reading nothing can produce, and extraction then took the whole
+    figure down with it. `sns.jointplot(kind="hist")` produced no HTML at all,
+    and so did any supported chart that happened to share the axes (#388).
+
+    Asked of the axes rather than of the arguments, because "did this draw
+    bars" is the question the extractor actually needs answered, and a `y=`
+    keyword is seaborn's spelling of it rather than the thing itself.
+
+    Parameters
+    ----------
+    plot : Any
+        Whatever the patched call returned.
+
+    Returns
+    -------
+    bool
+        True when the axes holds at least one ``BarContainer``.
+    """
+    try:
+        ax = FigureManager.get_axes(plot)
+    except Exception:  # pragma: no cover - `common` already resolved this once
+        return False
+    return bool(ax is not None and ax.containers and any(
+        isinstance(container, BarContainer) for container in ax.containers
+    ))
+
+
 def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     """
     Patch seaborn.histplot to register HIST and (if kde=True) SMOOTH layers for MAIDR.
+
+    A bivariate histogram is left unregistered rather than read wrongly; see
+    `_drew_bars`.
     """
+    if ContextManager.is_internal_context():
+        return _draw_quietly(wrapped, args, kwargs)
+
+    with ContextManager.set_internal_context():
+        drawn = _draw_quietly(wrapped, args, kwargs)
+
+    if not _drew_bars(drawn):
+        return drawn
+
     # Register the histogram as HIST as before
-    ax = common(PlotType.HIST, wrapped, instance, args, kwargs)
+    ax = common(PlotType.HIST, lambda *a, **k: drawn, instance, args, kwargs)
     # Only register KDE overlay as SMOOTH if kde=True was set
     kde_enabled = kwargs.get("kde", False)
     if kde_enabled:
