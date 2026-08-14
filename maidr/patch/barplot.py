@@ -20,7 +20,8 @@ def bar(
 
     This function patches the bar plotting functions to identify whether the
     plot should be rendered as a normal, stacked, or dodged bar plot.
-    It uses the 'bottom' keyword to identify stacked bar plots. For dodged
+    It uses the 'bottom' keyword -- or 'left', which is how a horizontal bar
+    spells the same thing -- to identify stacked bar plots. For dodged
     plots, it uses robust detection logic that considers both width and
     context to avoid misclassifying simple bar plots with narrow widths as
     dodged plots. Seaborn's bar plots do not come through here — they are

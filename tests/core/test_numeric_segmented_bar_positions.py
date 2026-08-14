@@ -178,3 +178,28 @@ def test_a_plain_horizontal_bar_is_still_plain() -> None:
     grid = FigureManager.get_maidr(fig)._flatten_maidr()["subplots"]
 
     assert [layer["type"].value for layer in grid[0][0]["layers"]] == ["bar"]
+
+
+def test_an_explicit_none_baseline_still_reaches_dodge_detection() -> None:
+    """`bottom=None` is not a baseline, and used to skip the dodge check.
+
+    The old test was ``if "bottom" in kwargs``, so passing it explicitly as
+    ``None`` -- which matplotlib treats exactly as omitting it -- took the
+    stacked branch's `else` away and dodge detection never ran. The inner
+    ``is not None`` guard kept the layer from being called stacked, so the
+    result was a *plain* bar where a dodged one was drawn.
+
+    Reading the value rather than the key fixes it as a side effect, and this
+    is here so the fix is deliberate rather than incidental.
+    """
+    fig, ax = plt.subplots()
+    positions = np.arange(len(SPECIES), dtype=float)
+    ax.bar(positions - 0.2, LOWER, 0.4, bottom=None, label="lower")
+    ax.bar(positions + 0.2, UPPER, 0.4, bottom=None, label="upper")
+    ax.legend()
+
+    grid = FigureManager.get_maidr(fig)._flatten_maidr()["subplots"]
+    types = [layer["type"].value for layer in grid[0][0]["layers"]]
+
+    assert "stacked_bar" not in types, "None is not a baseline"
+    assert types == ["dodged_bar"], types
