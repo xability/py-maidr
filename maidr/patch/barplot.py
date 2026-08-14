@@ -51,11 +51,16 @@ def bar(
     """
     plot_type = PlotType.BAR
 
-    # Check for stacked plots first (explicit bottom parameter)
-    if "bottom" in kwargs:
-        bottom = kwargs.get("bottom")
-        if bottom is not None:
-            plot_type = PlotType.STACKED
+    # A stacked bar is the one that says where its baseline is. `bottom` is
+    # how a vertical bar says it and `left` is how a horizontal one does --
+    # the same argument for the two orientations, and reading only the first
+    # meant `ax.barh(..., left=...)` arrived as two independent bar layers.
+    # The numbers were right and the layer count was plausible; what a reader
+    # was not told is that the second bar sits on top of the first, which is
+    # the whole content of a stacked chart (#385).
+    baseline = kwargs.get("bottom", kwargs.get("left"))
+    if baseline is not None:
+        plot_type = PlotType.STACKED
     else:
         # Extract width and align parameters
         if len(args) >= 3:
