@@ -76,6 +76,26 @@ def test_two_overlaid_bar_calls_each_read_their_own_bars() -> None:
     assert maidr.render(fig) is not None
 
 
+def test_two_overlaid_barh_calls_read_their_own_bars_too() -> None:
+    """The other half of what the patch wraps.
+
+    ``Axes.barh`` shares ``bar()``'s code path exactly, so this cannot fail
+    while the vertical case passes — which is the argument for testing it, not
+    against. A horizontal bar's magnitude is its width rather than its height,
+    read through a different branch of the extractor, so "shares the path"
+    stops being true one layer down.
+    """
+    fig, ax = plt.subplots()
+    ax.barh(CATEGORIES, SERIES_0, alpha=0.6)
+    ax.barh(CATEGORIES, SERIES_1, alpha=0.6)
+
+    layers = _layers(fig)
+
+    assert [layer["type"].value for layer in layers] == ["bar", "bar"]
+    assert [point["x"] for point in layers[0]["data"]] == list(SERIES_0)
+    assert [point["x"] for point in layers[1]["data"]] == list(SERIES_1)
+
+
 def test_one_bar_call_is_unchanged() -> None:
     """The control, and the overwhelmingly common case.
 
