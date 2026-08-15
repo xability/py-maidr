@@ -102,12 +102,6 @@ def _is_domain_trace(trace: dict) -> bool:
 #: way a stacked bar chart arrives rather than an exotic one.
 _PLOTLY_DEFAULT_BARMODE = "relative"
 
-#: The values `layout.barnorm` takes when plotly normalises each stack to a
-#: common total -- its own switch for a 100% stacked bar. `percent` scales to
-#: 100 and `fraction` to 1; both mean the segment values are *shares of their
-#: category* rather than counts, which is what the distinct trace type says.
-_NORMALISING_BARNORMS = frozenset({"percent", "fraction"})
-
 #: The barmodes under which plotly *combines* several bar traces into one
 #: chart, and so the ones MAIDR merges into a single layer. ``relative`` is
 #: plotly's name for a stack that lets negative values run below the axis.
@@ -420,10 +414,19 @@ class PlotlyMaidr:
             # are a property of the data rather than of the chart (#338).
             def _combined_type() -> Any:
                 from maidr.core.enum.plot_type import PlotType
+                from maidr.plotly.barnorm import barnorm_scale
 
                 if barmode == "group":
                     return PlotType.DODGED
-                if layout.get("barnorm") in _NORMALISING_BARNORMS:
+                # Asked of the same function that does the rescaling, rather
+                # than of a second copy of the value list. Two copies is how
+                # #409 comes back: a `barnorm` one of them recognised and the
+                # other did not would type the layer
+                # `stacked_normalized_bar` while leaving its values the raw
+                # counts -- the type and the numbers contradicting each other
+                # again, and silently, which is the defect this pair of
+                # readings was reconciled to end.
+                if barnorm_scale(layout.get("barnorm")) is not None:
                     return PlotType.NORMALIZED
                 return PlotType.STACKED
 

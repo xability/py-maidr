@@ -55,6 +55,11 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         traces' own numbers, because that is what plotly draws and what the
         type claims. See :mod:`maidr.plotly.barnorm`.
         """
+        # Resolved before the loop so the ordinary, un-normalised layer does
+        # not build the `(position, value)` tuples only to discard them.
+        scale = barnorm_scale(self._layout.get("barnorm"))
+        normalising = scale is not None and self.type == PlotType.NORMALIZED
+
         data: list[list[dict]] = []
         pairs: list[list[tuple]] = []
 
@@ -74,18 +79,21 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
                         MaidrKey.Y.value: self._to_native(yv),
                     }
                 )
-                # Keyed by the *category* and valued by the magnitude, which
-                # swap with the orientation. Matched by category rather than
-                # by index so a series that skips one contributes nothing
-                # there instead of shifting every later position.
-                position, value = (yv, xv) if horizontal else (xv, yv)
-                group_pairs.append((self._to_native(position), self._to_native(value)))
+                if normalising:
+                    # Keyed by the *category* and valued by the magnitude,
+                    # which swap with the orientation. Matched by category
+                    # rather than by index so a series that skips one
+                    # contributes nothing there instead of shifting every
+                    # later position.
+                    position, value = (yv, xv) if horizontal else (xv, yv)
+                    group_pairs.append(
+                        (self._to_native(position), self._to_native(value))
+                    )
 
             data.append(group)
             pairs.append(group_pairs)
 
-        scale = barnorm_scale(self._layout.get("barnorm"))
-        if scale is None or self.type != PlotType.NORMALIZED:
+        if not normalising:
             return data
 
         shares = stack_shares(pairs, self._layout.get("barmode"), scale)
