@@ -211,3 +211,71 @@ class TestTheGlSideStaysWellFormed:
         assert len(found) == 2
         assert "nth-child(1)" in found[0]
         assert "nth-child(2)" in found[1]
+
+
+class TestATraceThatDrawsNothingFormsNoLayer:
+    """A layer for an undrawn trace is not merely empty -- it crashes (#421).
+
+    Plotly gives such a trace no group, so there is nothing to announce and
+    nothing to highlight. The core does worse than ignore the layer: reading
+    the state of a series with no points dereferences an undefined point in
+    `LineTrace.text` and throws, and a throw out of trace construction
+    propagates out of `Figure`, taking the whole render with it rather than
+    the one layer (xability/maidr#905).
+
+    The multi-trace paths already reached this answer inside
+    `_drawn_line_series`; a lone trace bypassed it through the single-trace
+    branches.
+    """
+
+    @pytest.mark.parametrize(
+        "trace",
+        [
+            go.Scatter(x=[], y=[], mode="lines", name="a"),
+            go.Scatter(x=[], y=[], mode="markers", name="a"),
+            go.Scatter(x=[], y=[], stackgroup="one", name="a"),
+            go.Scatter(x=[], y=[], line=dict(shape="hv"), name="a"),
+        ],
+        ids=["line", "markers", "area", "step"],
+    )
+    def test_a_lone_undrawn_trace_emits_no_layer(self, trace):
+        layers = PlotlyMaidr(go.Figure([trace]))._flatten_maidr()["subplots"][0][0][
+            "layers"
+        ]
+        assert layers == []
+
+    def test_a_drawn_neighbour_still_gets_its_layer(self):
+        fig = go.Figure([line("a", [1, 2]), line("e")])
+        layers = PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]
+        assert len(layers) == 1
+        assert len(layers[0]["data"]) == 1
+
+    def test_no_layer_carries_an_empty_series(self):
+        # The shape that throws in the core. Asserted over every layer rather
+        # than the first, since the fallback factory builds them separately.
+        fig = go.Figure([line("a", [1, 2]), line("e1"), line("e2")])
+        for layer in PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]:
+            data = layer["data"]
+            # `data` is a flat list of points for a single-series layer and a
+            # list of series for a multi-series one. Both shapes have to be
+            # checked: an empty series is the thing that throws, and in the
+            # flat shape "empty" is the whole list.
+            assert data, "a layer carries no data at all"
+            series = data if isinstance(data[0], list) else [data]
+            assert all(s for s in series), "a layer carries an empty series"
+
+    def test_a_pie_is_not_mistaken_for_undrawn(self):
+        # `draws_marks` reads `x`/`y`, and a pie carries neither. Scoping the
+        # exclusion to the scatter family is what keeps it.
+        fig = go.Figure([go.Pie(labels=["a", "b"], values=[1, 2])])
+        layers = PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]
+        assert len(layers) == 1
+        assert len(layers[0]["data"]) == 2
+
+    def test_a_bar_with_no_data_is_left_to_its_own_path(self):
+        # Bars are not scatter-family, so this exclusion does not reach them.
+        # Pinned so a later widening of the predicate is a deliberate choice
+        # rather than a side effect.
+        fig = go.Figure([go.Bar(x=[], y=[], name="a")])
+        layers = PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]
+        assert len(layers) == 1
