@@ -359,7 +359,62 @@ class TestDodgedIsLeftAlone:
         assert values(fig) == [[3, 2], [1, 6]]
 
 
+class TestTheTypeAndTheScalingCannotDrift:
+    """One source of truth, asserted as a property rather than a value.
+
+    The classification in `plotly_maidr` and the rescaling in `barnorm` used
+    to hold separate copies of the same two-value set, under the same name in
+    two modules. Extending or editing one without the other would type a layer
+    `stacked_normalized_bar` while leaving its values the raw counts -- #409
+    exactly, and silently. The classification now asks `barnorm_scale`, and
+    this pins the equivalence so a second copy cannot come back unnoticed.
+    """
+
+    @pytest.mark.parametrize("barnorm", ["percent", "fraction", "", None])
+    def test_normalised_typing_agrees_with_being_scaled(self, barnorm):
+        # Only the values plotly will accept: `update_layout(barnorm="x")`
+        # raises on anything else, so a figure cannot carry an unrecognised
+        # one and the equivalence is asserted over the whole reachable set.
+        layer_types = _types(_figure("stack", barnorm))
+        typed_normalised = layer_types == ["stacked_normalized_bar"]
+        assert typed_normalised is (barnorm_scale(barnorm) is not None)
+
+    @pytest.mark.parametrize("barnorm", ["nonsense", "PERCENT", 5, True])
+    def test_an_unreachable_value_scales_nothing(self, barnorm):
+        # Plotly rejects these at `update_layout`, so they cannot arrive from
+        # a real figure -- but `barnorm_scale` is also reached from a
+        # hand-built layout dict, where nothing validates. Case-sensitive on
+        # purpose: plotly's own enum is lower-case.
+        assert barnorm_scale(barnorm) is None
+
+    def test_only_one_definition_of_the_normalising_values_survives(self):
+        # The frozenset in `plotly_maidr` is gone; asked of the module rather
+        # than of the text so a re-added copy fails here rather than drifting.
+        from maidr.plotly import plotly_maidr
+
+        assert not hasattr(plotly_maidr, "_NORMALISING_BARNORMS")
+
+
 class TestTheEmittedHistogramLayer:
+    def test_a_dodged_histogram_is_left_alone_too(self):
+        # The bar path's analog is `TestDodgedIsLeftAlone`. Both route
+        # through `_combined_type()`, so this looks redundant today -- and
+        # "shares a helper today" is the assumption that ages worst, which is
+        # the whole reason the two paths are pinned against each other.
+        fig = go.Figure(
+            [
+                go.Histogram(x=[1, 1, 2], name="x", xbins=dict(start=0, end=3, size=1)),
+                go.Histogram(x=[1, 2, 2], name="y", xbins=dict(start=0, end=3, size=1)),
+            ]
+        ).update_layout(barmode="group", barnorm="percent")
+        layer = only_layer(fig)
+        assert layer["type"] == PlotType.DODGED.value
+        assert [[point["y"] for point in series] for series in layer["data"]] == [
+            [2, 1],
+            [1, 2],
+        ]
+
+
     def bins(self, **layout):
         fig = go.Figure(
             [
