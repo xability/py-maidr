@@ -82,6 +82,19 @@ class TestIsAreaTrace:
     def test_no_stackgroup_at_all_is_a_line(self):
         assert is_area_trace({"type": "scatter", "y": LOW}) is False
 
+    def test_a_markers_only_trace_with_a_stackgroup_is_still_an_area(self):
+        # Plotly fills from `stackgroup` alone -- `mode` chooses whether the
+        # boundary is drawn as a line or as points, not whether the band is
+        # filled. Pinned so the classifier is not later narrowed to require
+        # `"lines"` in `mode`, which would drop a real filled band back onto
+        # the scatter path.
+        assert (
+            is_area_trace(
+                {"type": "scatter", "stackgroup": "one", "mode": "markers"}
+            )
+            is True
+        )
+
     def test_a_bar_with_a_stackgroup_is_not_an_area(self):
         # Guards the scatter-family half of the test: `stackgroup` alone is
         # not enough, or a mislabelled trace of another type would be filled.
@@ -147,6 +160,13 @@ class TestPlotType:
             {"stackgroup": "one"},
         ]
         assert area_plot_type(traces) == PlotType.NORMALIZED_AREA
+
+    def test_the_normalised_type_reads_naturally_to_a_user(self):
+        # The wire value is `stacked_normalized_area`, which is not what
+        # anyone would call it out loud. Asserted here because every other
+        # user-facing name for this layer family is.
+        assert PlotType.NORMALIZED_AREA.display_name == "100% stacked area"
+        assert PlotType.STACKED_AREA.display_name == "stacked area"
 
     def test_an_unrecognised_groupnorm_is_left_alone(self):
         traces = [{"stackgroup": "one", "groupnorm": ""}, {"stackgroup": "one"}]
