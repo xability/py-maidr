@@ -12,6 +12,7 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
+from maidr.plotly.barnorm import barnorm_scale, stack_shares
 from maidr.plotly.histogram import (
     _UNDEFINED_WHEN_EMPTY,
     _occupied_span,
@@ -189,6 +190,32 @@ class PlotlyGroupedHistogramPlot(PlotlyPlot):
                 )
             data.append(series)
 
+        return self._normalised(data)
+
+    def _normalised(self, data: list[list[dict]]) -> list[list[dict]]:
+        """Rescale each bin to a common total when ``barnorm`` says to.
+
+        Applied to the bar values rather than the raw counts, so it composes
+        with ``histnorm`` in plotly's own order -- ``histnorm`` first, then
+        the stack rescaled. Bins are matched by centre, which is shared: the
+        group already bins on one grid, so two series' bars at the same
+        position carry the same centre.
+
+        The bar path does the same thing through the same helper; see
+        :mod:`maidr.plotly.barnorm` for why the two must move together.
+        """
+        scale = barnorm_scale(self._layout.get("barnorm"))
+        if scale is None or self.type != PlotType.NORMALIZED:
+            return data
+
+        pairs = [
+            [(point[MaidrKey.X.value], point[MaidrKey.Y.value]) for point in series]
+            for series in data
+        ]
+        shares = stack_shares(pairs, self._layout.get("barmode"), scale)
+        for series, series_shares in zip(data, shares):
+            for point, share in zip(series, series_shares):
+                point[MaidrKey.Y.value] = share
         return data
 
 
