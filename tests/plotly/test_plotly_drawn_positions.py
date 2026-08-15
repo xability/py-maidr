@@ -35,7 +35,8 @@ plotly = pytest.importorskip("plotly")
 
 import plotly.graph_objects as go  # noqa: E402
 
-from maidr.plotly.plotly_maidr import PlotlyMaidr, _draws_marks  # noqa: E402
+from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
+from maidr.plotly.plotly_plot import draws_marks  # noqa: E402
 
 X = [1, 2, 3]
 
@@ -43,7 +44,12 @@ X = [1, 2, 3]
 def selectors(fig) -> list[str]:
     found: list[str] = []
     for layer in PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]:
-        entry = layer["selectors"]
+        # A WebGL layer omits the key entirely rather than carrying an empty
+        # list -- `render()` drops it, which is the documented answer for a
+        # layer with no highlightable geometry.
+        entry = layer.get("selectors")
+        if entry is None:
+            continue
         found += entry if isinstance(entry, list) else [entry]
     return [s for s in found if isinstance(s, str)]
 
@@ -56,24 +62,24 @@ def line(name: str, y: list | None = None) -> go.Scatter:
 
 class TestDrawsMarks:
     def test_a_trace_with_both_arrays_draws(self):
-        assert _draws_marks({"x": [1, 2], "y": [3, 4]}) is True
+        assert draws_marks({"x": [1, 2], "y": [3, 4]}) is True
 
     def test_an_empty_trace_does_not(self):
-        assert _draws_marks({"x": [], "y": []}) is False
+        assert draws_marks({"x": [], "y": []}) is False
 
     def test_a_trace_missing_one_array_still_draws(self):
         # Agrees with the extraction after #418: plotly generates the absent
         # array, so such a trace has a group and must take a position.
-        assert _draws_marks({"y": [1, 2, 3]}) is True
-        assert _draws_marks({"x": [1, 2, 3]}) is True
+        assert draws_marks({"y": [1, 2, 3]}) is True
+        assert draws_marks({"x": [1, 2, 3]}) is True
 
     def test_a_trace_with_one_empty_array_does_not(self):
         # `y: []` is explicitly empty rather than absent, and plotly draws
         # nothing for it -- the distinction #418 turned on.
-        assert _draws_marks({"x": [1, 2], "y": []}) is False
+        assert draws_marks({"x": [1, 2], "y": []}) is False
 
     def test_a_trace_with_no_arrays_at_all_does_not(self):
-        assert _draws_marks({}) is False
+        assert draws_marks({}) is False
 
 
 class TestNumberingFollowsWhatIsDrawn:
@@ -158,6 +164,50 @@ class TestItComposesWithTheHiddenTraceRule:
         found = selectors(fig)
         # Two drawn traces, so two DOM nodes -- measured -- and the second
         # must be `nth-child(2)` despite being declared fourth.
+        assert len(found) == 2
+        assert "nth-child(1)" in found[0]
+        assert "nth-child(2)" in found[1]
+
+
+class TestTheGlSideStaysWellFormed:
+    """The indices that are validated but never rendered.
+
+    A WebGL layer emits no selectors at all, so a gl trace's position is never
+    turned into CSS. It is still handed to the layer classes, which validate
+    the list -- a duplicate or a negative index raises. Numbering gl traces
+    from their own zero, and undrawn ones after the drawn ones, keeps that
+    true by construction; this asserts it rather than leaving it reasoned
+    about, since nothing downstream would complain if it broke.
+    """
+
+    def gl(self, name: str, y: list | None = None) -> go.Scattergl:
+        if y is None:
+            return go.Scattergl(x=[], y=[], mode="lines", name=name)
+        return go.Scattergl(x=X, y=y, mode="lines", name=name)
+
+    def test_an_empty_gl_trace_between_two_drawn_ones_does_not_raise(self):
+        fig = go.Figure(
+            [self.gl("a", [1, 2, 3]), self.gl("e"), self.gl("c", [7, 8, 9])]
+        )
+        layers = PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]
+        # A WebGL layer carries no selectors, so the assertion is that it
+        # builds at all -- construction is where the validation lives.
+        assert layers
+        assert selectors(fig) == []
+
+    def test_gl_and_svg_traces_are_numbered_independently(self):
+        fig = go.Figure(
+            [
+                self.gl("gl-empty"),
+                line("svg-a", [1, 2, 3]),
+                self.gl("gl-b", [4, 5, 6]),
+                line("svg-c", [7, 8, 9]),
+            ]
+        )
+        found = selectors(fig)
+        # Only the two svg traces are addressable, and they take the first
+        # two positions in the `scatterlayer` -- the gl traces draw into the
+        # canvas and occupy none of it.
         assert len(found) == 2
         assert "nth-child(1)" in found[0]
         assert "nth-child(2)" in found[1]

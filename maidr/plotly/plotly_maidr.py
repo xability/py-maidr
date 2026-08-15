@@ -17,8 +17,8 @@ from maidr.plotly.grouped_histogram import is_histogram_trace
 from maidr.plotly.plotly_plot import (
     PlotlyPlot,
     domain_interval,
+    draws_marks,
     is_drawn,
-    paired_axes,
     subplot_css_prefix,
 )
 from maidr.plotly.violin import (
@@ -96,38 +96,6 @@ def _is_domain_trace(trace: dict) -> bool:
         ``type`` at all is a ``scatter``, which is cartesian.
     """
     return trace.get("type") in _DOMAIN_TRACE_TYPES
-
-
-def _draws_marks(trace: dict) -> bool:
-    """Whether this trace puts any geometry in its layer.
-
-    The empty sibling of :func:`~maidr.plotly.plotly_plot.is_drawn`, which
-    answers the same question for a *hidden* trace. Both end the same way:
-    plotly renders no group for it, so every trace after it shifts up one in
-    the layer and a selector numbered by declaration lands on the wrong
-    element or on none (#412, and #400 for the hidden case).
-
-    Measured in Chromium -- three line traces with an empty one in the middle
-    produce two ``.trace.scatter`` nodes, and ``nth-child(2)`` resolves to
-    the *third* trace.
-
-    Asked through ``paired_axes`` so it agrees with the extraction: a trace
-    that omits one axis is drawn, because plotly generates the missing array
-    for it, and only a trace with nothing left after pairing is absent from
-    the layer.
-
-    Parameters
-    ----------
-    trace : dict
-        A plotly trace dictionary.
-
-    Returns
-    -------
-    bool
-        True when plotly gives this trace a group of its own.
-    """
-    xs, ys = paired_axes(trace)
-    return bool(xs) and bool(ys)
 
 
 #: Plotly's own default when a figure sets no ``barmode``. It stacks -- and
@@ -450,8 +418,8 @@ class PlotlyMaidr:
             # does for the same reason.
             position_of: dict[int, int] = {}
             for renderer in (svg_scatter, gl_scatter):
-                drawn = [t for t in renderer if _draws_marks(t)]
-                undrawn = [t for t in renderer if not _draws_marks(t)]
+                drawn = [t for t in renderer if draws_marks(t)]
+                undrawn = [t for t in renderer if not draws_marks(t)]
                 for index, t in enumerate(drawn):
                     position_of[id(t)] = index
                 for offset, t in enumerate(undrawn):
