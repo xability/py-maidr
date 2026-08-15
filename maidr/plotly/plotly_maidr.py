@@ -591,7 +591,31 @@ class PlotlyMaidr:
                 from maidr.plotly.multibox import PlotlyMultiBoxPlot
 
                 plot = PlotlyMultiBoxPlot(
-                    box_traces, layout, **axis_kwargs
+                    box_traces,
+                    layout,
+                    layer_positions=[
+                        layer_position(group_traces, t) for t in box_traces
+                    ],
+                    **axis_kwargs,
+                )
+                plot.row_index = row
+                plot.col_index = col
+                self._plots.append(plot)
+                merged.update(id(t) for t in box_traces)
+
+            # A lone box is built here rather than left to the factory for
+            # one reason: the factory sees a single trace and cannot know
+            # what shares its `boxlayer`. A `go.Candlestick` declared first
+            # draws its own `path.box` group there, so the box's group is
+            # not necessarily the first (#395).
+            elif len(box_traces) == 1:
+                from maidr.plotly.box import PlotlyBoxPlot
+
+                plot = PlotlyBoxPlot(
+                    box_traces[0],
+                    layout,
+                    layer_position=layer_position(group_traces, box_traces[0]),
+                    **axis_kwargs,
                 )
                 plot.row_index = row
                 plot.col_index = col

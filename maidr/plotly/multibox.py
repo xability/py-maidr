@@ -27,32 +27,59 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         The Plotly figure layout.
     """
 
-    def __init__(self, traces: list[dict], layout: dict, **kwargs: str) -> None:
+    def __init__(
+        self,
+        traces: list[dict],
+        layout: dict,
+        layer_positions: list[int] | None = None,
+        **kwargs: str,
+    ) -> None:
         super().__init__(traces[0], layout, PlotType.BOX, **kwargs)
         self._traces = traces
-        # Populated by _extract_plot_data before _get_selector runs.
+        # Each trace's zero-based group position in the boxlayer. Defaulted
+        # to declaration order for the factory, which cannot see what else
+        # shares the layer; `PlotlyMaidr` passes the measured ones.
+        self._layer_positions = (
+            list(layer_positions)
+            if layer_positions is not None
+            else list(range(len(traces)))
+        )
+        # Both populated by _extract_plot_data before _get_selector runs.
         self._outlier_counts: list[tuple[int, int]] = []
+        self._boxes_per_trace: list[int] = []
 
     def _get_selector(self) -> list[dict]:
-        """Return structured per-box selectors with split outliers.
+        """Return one structured selector per box, in the order of the data.
 
-        Each box gets a dict with keys for each part (min, max, q2, iq,
-        lowerOutliers, upperOutliers).  Plotly renders outlier points in
-        sorted ascending order so CSS nth-child can split them.
+        Two indices per box, and both were wrong before (#395). A box is
+        addressed by its trace's group in the ``boxlayer`` *and* by its
+        position inside that group, because a trace with a categorical axis
+        draws all of its boxes into one group.
+
+        Numbering by trace alone also emitted the wrong *number* of
+        selectors: two traces of two categories each produced four boxes of
+        data and two selectors, so half the boxes addressed nothing while
+        the frontend paired the rest positionally.
         """
         prefix = self._subplot_css_prefix()
         selectors = []
-        for i in range(len(self._traces)):
-            n = i + 1
-            box_sel = f"{prefix}.boxlayer > g:nth-child({n}) > path.box"
-            lower_count, upper_count = (
-                self._outlier_counts[i]
-                if i < len(self._outlier_counts)
-                else (0, 0)
-            )
-            selectors.append(
-                _build_box_selector(prefix, n, box_sel, lower_count, upper_count)
-            )
+        box = 0
+        for trace_index, count in enumerate(self._boxes_per_trace):
+            group = (
+                self._layer_positions[trace_index]
+                if trace_index < len(self._layer_positions)
+                else trace_index
+            ) + 1
+            for within in range(count):
+                lower, upper = (
+                    self._outlier_counts[box]
+                    if box < len(self._outlier_counts)
+                    else (0, 0)
+                )
+                selectors.append(
+                    _build_box_selector(prefix, group, within + 1, lower, upper)
+                )
+                box += 1
         return selectors
 
     def _is_horizontal(self) -> bool:
@@ -72,22 +99,34 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         return schema
 
     def _extract_plot_data(self) -> list[dict]:
-        """Return box stats for all traces as a flat list."""
+        """Return box stats for all traces as a flat list.
+
+        The list is trace-major and so is the DOM: plotly gives each trace
+        one group and draws that trace's boxes inside it, in order. How many
+        each trace contributed is recorded as it goes, because the selectors
+        need it and it cannot be recovered afterwards -- a trace can draw one
+        box or one per category, and a flat list of stats no longer says
+        which.
+        """
         all_boxes: list[dict] = []
+        self._boxes_per_trace = []
 
         for trace in self._traces:
             y = trace.get("y", None)
             x = trace.get("x", None)
             name = trace.get("name", "")
+            before = len(all_boxes)
 
             # Pre-computed stats
             if "q1" in trace and "median" in trace:
                 all_boxes.extend(self._extract_precomputed(trace))
+                self._boxes_per_trace.append(len(all_boxes) - before)
                 continue
 
             # Grouped by x
             if x is not None and y is not None:
                 all_boxes.extend(self._extract_grouped(x, y))
+                self._boxes_per_trace.append(len(all_boxes) - before)
                 continue
 
             # Single box — data may be in y (vertical) or x (horizontal)
@@ -97,6 +136,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 stats = self._compute_stats(arr, label=name)
                 if stats is not None:
                     all_boxes.append(stats)
+            self._boxes_per_trace.append(len(all_boxes) - before)
 
         # Record outlier counts so _get_selector can split them.
         self._outlier_counts = [

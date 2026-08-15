@@ -65,7 +65,13 @@ def layer_position(traces: list[dict], trace: dict) -> int:
         The zero-based position among traces drawing into the same layer.
     """
     kind = trace.get("type")
-    if kind == "candlestick":
+    if kind in _BOXLAYER_TRACE_TYPES:
+        # Both directions, not just the candlestick's. `go.Box` and
+        # `go.Candlestick` draw into the same `g.boxlayer`, so each shifts
+        # the other's group index. Counting only same-typed traces was
+        # symmetric-looking and wrong in one direction: a candlestick
+        # counted the boxes beside it, while a box ignored the candlestick
+        # and claimed the group the candlestick had already taken (#395).
         mates = _BOXLAYER_TRACE_TYPES
     else:
         mates = frozenset({kind}) if kind else frozenset()
