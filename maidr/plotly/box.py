@@ -14,19 +14,48 @@ _logger = logging.getLogger(__name__)
 
 def _build_box_selector(
     prefix: str,
-    nth_child: int,
-    box_sel: str,
+    group: int,
+    box: int,
     lower_count: int,
     upper_count: int,
 ) -> dict:
     """Build a ``BoxSelector``-compatible dict with split outlier selectors.
 
+    A box needs *two* indices, not one. Plotly gives each trace one
+    ``<g>`` in the ``boxlayer`` and draws that trace's boxes as direct
+    ``path.box`` children of it, so a categorical trace puts every one of
+    its boxes inside a single group. Numbering boxes as though each were
+    its own group -- which this did -- made box 1 match all of them and
+    boxes 2..n match nothing (#395).
+
+    Measured in Chromium: one ``go.Box`` over three categories produces one
+    ``.trace.boxes`` group holding three ``path.box`` children and three
+    ``g.points`` children, and the *j*-th of each pair up positionally --
+    including an empty ``g.points`` for a category with no outliers, which
+    is what keeps the pairing positional rather than a count of which
+    categories happen to have any.
+
     Plotly renders outlier ``path.point`` elements in value-sorted order
-    (ascending).  Lower outliers come first, upper outliers last.  We use
+    (ascending). Lower outliers come first, upper outliers last. We use
     CSS ``:nth-child(An+B of S)`` to address each group separately, the
     same technique matplotlib uses.
+
+    Parameters
+    ----------
+    prefix : str
+        The subplot CSS prefix.
+    group : int
+        One-based position of the trace's ``<g>`` among the ``boxlayer``'s
+        children -- ``layer_position`` + 1, so a candlestick sharing the
+        layer is counted.
+    box : int
+        One-based position of this box among its own trace's boxes.
+    lower_count, upper_count : int
+        How many outliers fall below and above the whiskers.
     """
-    base = f"{prefix}.boxlayer > g:nth-child({nth_child}) .points"
+    group_sel = f"{prefix}.boxlayer > g:nth-child({group})"
+    box_sel = f"{group_sel} > :nth-child({box} of path.box)"
+    base = f"{group_sel} > :nth-child({box} of g.points)"
 
     if lower_count > 0:
         lower_sel = [
@@ -57,33 +86,40 @@ def _build_box_selector(
 class PlotlyBoxPlot(PlotlyPlot):
     """Extract data from a Plotly box trace."""
 
-    def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
+    def __init__(
+        self,
+        trace: dict,
+        layout: dict,
+        layer_position: int = 0,
+        **kwargs: str,
+    ) -> None:
         super().__init__(trace, layout, PlotType.BOX, **kwargs)
+        # Zero-based position of this trace's group among the boxlayer's
+        # children. Defaulted for the factory, which sees one trace and has
+        # no idea what shares its layer -- the same reason
+        # `PlotlyCandlestickPlot` defaults it. `PlotlyMaidr` passes the real
+        # one, and a `go.Candlestick` declared first is exactly what makes it
+        # non-zero.
+        self._layer_position = layer_position
         # Populated by _extract_plot_data before _get_selector runs.
         self._outlier_counts: list[tuple[int, int]] = []
 
     def _get_selector(self) -> list[dict]:
         """Return structured per-box selectors with split outliers.
 
-        Plotly renders outlier points in sorted ascending order, so lower
-        outliers appear first in the DOM.  CSS ``:nth-child`` selectors
-        split them the same way matplotlib does.
+        One trace, so every box shares a group and is told apart by its
+        position *within* that group. A categorical `go.Box` draws one box
+        per category into one `<g>`, which is why the group index alone
+        cannot address them (#395).
         """
         prefix = self._subplot_css_prefix()
-        selectors: list[dict] = []
-        num_boxes = max(len(self._outlier_counts), 1)
-        for i in range(num_boxes):
-            n = i + 1
-            box_sel = f"{prefix}.boxlayer > g:nth-child({n}) > path.box"
-            lower_count, upper_count = (
-                self._outlier_counts[i]
-                if i < len(self._outlier_counts)
-                else (0, 0)
+        group = self._layer_position + 1
+        return [
+            _build_box_selector(prefix, group, index + 1, lower, upper)
+            for index, (lower, upper) in enumerate(
+                self._outlier_counts or [(0, 0)]
             )
-            selectors.append(
-                _build_box_selector(prefix, n, box_sel, lower_count, upper_count)
-            )
-        return selectors
+        ]
 
     def _is_horizontal(self) -> bool:
         """Detect if this box trace is horizontal."""
