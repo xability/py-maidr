@@ -170,6 +170,69 @@ class TestSeveralTracesWithCategories:
         )
 
 
+class TestTheLoneBoxIsBuiltOnce:
+    """Guards the fall-through the two-branch structure makes possible.
+
+    A lone box is built in `_extract_plots` so it can be told its real group.
+    If that branch forgot to mark the trace merged, the trace would reach the
+    "remaining traces" loop and `PlotlyPlotFactory` would build a *second*
+    box for it -- with `layer_position` left at its default 0, which is
+    exactly #395 again for the one figure this fix is about.
+
+    Cheap to assert and invisible otherwise: the duplicate would announce the
+    same boxes twice and the wrong one might win.
+    """
+
+    def test_a_candlestick_and_a_box_make_exactly_one_box_layer(self):
+        fig = go.Figure([candle(), go.Box(y=VALUES[:15], name="b")])
+        layers = PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]
+        assert sum(1 for layer in layers if layer["type"] is PlotType.BOX) == 1
+
+    def test_the_surviving_layer_is_the_one_that_knows_its_group(self):
+        # The factory-built fallback would carry `layer_position=0`, so this
+        # distinguishes "built once, correctly" from "built twice, wrong one
+        # kept".
+        fig = go.Figure([candle(), go.Box(y=VALUES[:15], name="b")])
+        assert "g:nth-child(2)" in box_selectors(fig)[0]
+
+    def test_a_lone_box_alone_is_also_built_once(self):
+        fig = go.Figure([go.Box(y=VALUES[:15], name="b")])
+        layers = PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]
+        assert sum(1 for layer in layers if layer["type"] is PlotType.BOX) == 1
+
+
+class TestTheDomContractTheSelectorsAssume:
+    """The measured facts the selector shape depends on, named so a change
+    to plotly's DOM has somewhere to fail.
+
+    These assert the emitted strings, not a rendered document -- the Python
+    suite has no browser. The resolution check (15 of 15 selectors matching
+    exactly one element) was run separately against real Plotly.js in
+    Chromium, and is what the shape below was derived from rather than
+    guessed at. What these can still catch is the shape drifting back.
+    """
+
+    def test_a_box_is_addressed_inside_its_group_not_as_a_group(self):
+        # The regression that started #395: `> path.box` with no index
+        # matches every box the trace drew.
+        for selector in box_selectors(
+            go.Figure([go.Box(x=["a"] * 10 + ["b"] * 10, y=VALUES[:20], name="t")])
+        ):
+            assert "of path.box)" in selector
+            assert not selector.endswith("> path.box")
+
+    def test_outliers_are_scoped_to_one_points_group(self):
+        fig = go.Figure(
+            [go.Box(y=[-100, 1, 2, 3, 4, 5, 6, 7, 8, 100], name="o")]
+        )
+        selector = box_layer(fig)["selectors"][0]
+        for found in selector["lowerOutliers"] + selector["upperOutliers"]:
+            # `.points` as a descendant would reach every box's outliers in
+            # the trace; the indexed child reaches one box's.
+            assert "of g.points)" in found
+            assert " .points" not in found
+
+
 class TestOutliersFollowTheirBox:
     """The outlier groups are per box and positionally aligned."""
 

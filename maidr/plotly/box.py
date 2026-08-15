@@ -90,6 +90,7 @@ class PlotlyBoxPlot(PlotlyPlot):
         self,
         trace: dict,
         layout: dict,
+        *,
         layer_position: int = 0,
         **kwargs: str,
     ) -> None:
