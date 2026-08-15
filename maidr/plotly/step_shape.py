@@ -310,6 +310,39 @@ def step_direction_of(trace: dict) -> str | None:
     return None if shape is None else STEP_SHAPE_DIRECTION.get(shape)
 
 
+def shared_step_direction(traces: list[dict]) -> str | None:
+    """
+    Resolve the one step convention a set of traces all author.
+
+    A MAIDR layer carries a single ``stepDirection`` for all of its series, so
+    a layer whose traces disagree cannot describe every one of them and says
+    nothing rather than describing one wrongly.
+
+    Shared by the step and area layers because they reach this question from
+    opposite directions and must not answer it differently. A step layer is
+    *split* by direction before construction, so disagreement there is a guard
+    against a caller that skipped the grouping. An area layer cannot be split
+    — the bands of one ``stackgroup`` are one stack, and separating them would
+    leave the core summing part of it — so a mixed stack reaching here is
+    expected, and withholding the key is the honest answer for it.
+
+    Parameters
+    ----------
+    traces : list of dict
+        The traces forming one layer.
+
+    Returns
+    -------
+    str or None
+        The shared direction, or None when the traces disagree, author no
+        shape, or author one MAIDR has no name for (``vhv``).
+    """
+    directions = {step_direction_of(trace) for trace in traces}
+    if len(directions) != 1:
+        return None
+    return directions.pop()
+
+
 def group_by_direction(traces: list[dict]) -> list[list[dict]]:
     """
     Split step traces into groups that share one step convention.

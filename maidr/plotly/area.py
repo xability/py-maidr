@@ -9,9 +9,14 @@ draws this chart rather than a multi-line one (#392).
 
 from __future__ import annotations
 
+from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
-from maidr.plotly.step_shape import is_scatter_family_trace, renders_through_webgl
+from maidr.plotly.step_shape import (
+    is_scatter_family_trace,
+    renders_through_webgl,
+    shared_step_direction,
+)
 
 #: The values ``groupnorm`` takes when plotly rescales a stack to a common
 #: total -- its own switch for a 100% stacked area, and the counterpart of
@@ -150,6 +155,40 @@ class PlotlyAreaPlot(PlotlyPlot):
         # same wrong-element failure the required parameter exists to end.
         self._traces = list(traces)
         self._scatter_positions = list(scatter_positions)
+
+    def render(self) -> dict:
+        """Build the base layer schema, then add the step convention.
+
+        ``line.shape`` and a fill are independent attributes in plotly, so a
+        band can be a staircase: a stacked step area is the standard way to
+        draw a cumulative count that changes at discrete events. Read as a
+        smoothly interpolated band it tells a reader the wrong thing about
+        every interval -- that the value slid between samples when it in fact
+        held and then jumped (#413).
+
+        The two facts ride together rather than one displacing the other. An
+        area that is also a staircase is still an area, so the layer keeps its
+        area type and carries ``stepDirection`` alongside it; the core reads
+        both, and announces the fill *and* what happens between samples.
+
+        Returns
+        -------
+        dict
+            The MAIDR layer schema, carrying ``stepDirection`` only when every
+            band in the stack authored one shape MAIDR has a name for.
+        """
+        schema = super().render()
+
+        # A stack cannot be split by direction the way the step layers are:
+        # the bands of one `stackgroup` are one stack, and separating them
+        # would leave the core summing a part of it and announcing that as the
+        # total. So a mixed stack is expected here, and it says nothing rather
+        # than describing one of its bands wrongly.
+        direction = shared_step_direction(self._traces)
+        if direction is not None:
+            schema[MaidrKey.STEP_DIRECTION] = direction
+
+        return schema
 
     def _get_selector(self) -> list[str]:
         """One selector per drawn band, in the order the bands are emitted.
