@@ -3,7 +3,7 @@ from __future__ import annotations
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.barnorm import barnorm_scale, stack_shares
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.plotly_plot import PlotlyPlot, paired_axes
 
 
 class PlotlyGroupedBarPlot(PlotlyPlot):
@@ -64,8 +64,7 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         pairs: list[list[tuple]] = []
 
         for trace in self._traces:
-            x_vals = as_list(trace.get("x"))
-            y_vals = as_list(trace.get("y"))
+            x_vals, y_vals = paired_axes(trace)
             fill = trace.get("name", "")
             horizontal = self._horizontal(trace)
 
