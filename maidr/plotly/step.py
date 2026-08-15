@@ -3,7 +3,7 @@ from __future__ import annotations
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
-from maidr.plotly.step_shape import step_direction_of
+from maidr.plotly.step_shape import shared_step_direction
 
 
 class PlotlyStepPlot(PlotlyPlot):
@@ -109,29 +109,16 @@ class PlotlyStepPlot(PlotlyPlot):
         """
         schema = super().render()
 
-        direction = self._resolve_direction()
+        # Disagreement should not reach here -- the traces are grouped by
+        # direction before construction -- so a None from a mixed set is a
+        # guard against a caller that skipped the grouping rather than an
+        # expected case. `vhv` reaching it is expected: MAIDR has no name for
+        # that convention.
+        direction = shared_step_direction(self._traces)
         if direction is not None:
             schema[MaidrKey.STEP_DIRECTION] = direction
 
         return schema
-
-    def _resolve_direction(self) -> str | None:
-        """
-        Resolve the one step convention these traces share.
-
-        Returns
-        -------
-        str or None
-            The shared direction, or None when the traces disagree or their
-            shape has no MAIDR equivalent. Disagreement should not reach here
-            — the traces are grouped by direction before construction — so the
-            check is a guard against a caller that skipped the grouping rather
-            than an expected case.
-        """
-        directions = {step_direction_of(trace) for trace in self._traces}
-        if len(directions) != 1:
-            return None
-        return directions.pop()
 
     def _extract_plot_data(self) -> list[list[dict]]:
         """
