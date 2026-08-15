@@ -256,7 +256,12 @@ class TestATraceThatDrawsNothingFormsNoLayer:
         fig = go.Figure([line("a", [1, 2]), line("e1"), line("e2")])
         for layer in PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]:
             data = layer["data"]
-            series = data if not data or isinstance(data[0], dict) else data
+            # `data` is a flat list of points for a single-series layer and a
+            # list of series for a multi-series one. Both shapes have to be
+            # checked: an empty series is the thing that throws, and in the
+            # flat shape "empty" is the whole list.
+            assert data, "a layer carries no data at all"
+            series = data if isinstance(data[0], list) else [data]
             assert all(s for s in series), "a layer carries an empty series"
 
     def test_a_pie_is_not_mistaken_for_undrawn(self):
