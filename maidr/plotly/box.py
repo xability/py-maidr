@@ -29,11 +29,16 @@ def _build_box_selector(
     boxes 2..n match nothing (#395).
 
     Measured in Chromium: one ``go.Box`` over three categories produces one
-    ``.trace.boxes`` group holding three ``path.box`` children and three
+    group in the ``boxlayer`` holding three ``path.box`` children and three
     ``g.points`` children, and the *j*-th of each pair up positionally --
     including an empty ``g.points`` for a category with no outliers, which
     is what keeps the pairing positional rather than a count of which
     categories happen to have any.
+
+    The group is matched by position rather than by class. A candlestick's
+    group in this layer is built the same way, so a class would not tell the
+    two apart; ``layer_position`` counts both types for that reason, and the
+    index it returns is what distinguishes them.
 
     Plotly renders outlier ``path.point`` elements in value-sorted order
     (ascending). Lower outliers come first, upper outliers last. We use
