@@ -111,20 +111,15 @@ class ViolinBoxPlot(MaidrPlot):
 
         Notes
         -----
-        The statistics are emitted raw. They were rounded to four decimals,
-        which sounds like precision and is not: ``round(x, 4)`` is absolute,
-        so nothing below ``1e-4`` survives it. For data in micrograms, molar
-        concentrations, failure probabilities or seconds of a fast benchmark,
-        every one of ``min``/``q1``/``q2``/``q3``/``max`` came out ``0.0`` and
-        the box read as a flat line at zero -- silently, since the chart drew
-        correctly and only the numbers were gone. At the other end a dataset
-        in millions carried four decimals of noise no one can hear.
+        Emitted raw. Rounding to four decimals here is absolute, not
+        significant, so data below ``1e-4`` collapsed to five identical
+        ``0.0``\\ s and the box read as a flat line at zero (#398).
 
-        How many digits a reader hears is the frontend's decision, and it is
-        the only place that can make it relative to the magnitude. Emitting
-        raw also settles two disagreements this file was on the wrong side
-        of: the outliers beside these keys were never rounded, and neither
-        the matplotlib box plot nor the plotly violin path rounds at all.
+        The frontend already handles this correctly and needs the raw value
+        to do it: ``defaultFormat`` rounds to two decimals for the
+        announcement, then falls back to three significant digits when that
+        would erase a non-zero value. Rounding here defeated that guard
+        before the number reached it.
         """
         # Tag artists and register elements for SVG highlighting.
         self._tag_artists()

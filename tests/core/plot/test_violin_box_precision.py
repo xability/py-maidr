@@ -27,6 +27,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 import maidr  # noqa: E402,F401
+from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 
 sns = pytest.importorskip("seaborn")
@@ -44,7 +45,7 @@ def box_layer(frame) -> dict:
             "layers"
         ]
         return next(
-            layer for layer in layers if layer["type"].name == "VIOLIN_BOX"
+            layer for layer in layers if layer["type"] is PlotType.VIOLIN_BOX
         )["data"][0]
     finally:
         plt.close(figure)
