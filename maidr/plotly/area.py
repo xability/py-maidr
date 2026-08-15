@@ -112,9 +112,16 @@ class PlotlyAreaPlot(PlotlyPlot):
         scatter_positions: list[int],
         **kwargs: str,
     ) -> None:
+        if not traces:
+            raise ValueError("an area layer needs at least one trace")
+        PlotlyPlot._validate_scatter_positions(scatter_positions, len(traces))
+
         super().__init__(traces[0], layout, plot_type, **kwargs)
-        self._traces = traces
-        self._scatter_positions = scatter_positions
+        # Copied, not aliased: a caller mutating its list afterwards would
+        # silently change this layer's selectors on the next render -- the
+        # same wrong-element failure the required parameter exists to end.
+        self._traces = list(traces)
+        self._scatter_positions = list(scatter_positions)
 
     def _get_selector(self) -> list[str]:
         """One selector per band, in the order the bands are emitted.
@@ -131,14 +138,19 @@ class PlotlyAreaPlot(PlotlyPlot):
             xs = as_list(trace.get("x"))
             ys = as_list(trace.get("y"))
             fill = str(trace.get("name", ""))
-            data.append(
-                [
-                    {
-                        MaidrKey.X.value: self._to_native(x),
-                        MaidrKey.Y.value: self._to_native(y),
-                        MaidrKey.Z.value: fill,
-                    }
-                    for x, y in zip(xs, ys)
-                ]
-            )
+            series: list[dict] = []
+            for x, y in zip(xs, ys):
+                point = {
+                    MaidrKey.X.value: self._to_native(x),
+                    MaidrKey.Y.value: self._to_native(y),
+                }
+                # Omitted rather than emitted blank, matching every sibling
+                # extractor -- `PlotlyPlot._line_series_with_positions` and
+                # the matplotlib `AreaPlot` both guard the same way. A single
+                # unnamed band is the ordinary `px.area(...)` call with no
+                # `color=`, and its traces carry `name: ""`.
+                if fill:
+                    point[MaidrKey.Z.value] = fill
+                series.append(point)
+            data.append(series)
         return data

@@ -43,6 +43,7 @@ from maidr.plotly.area import (  # noqa: E402
     area_stack_groups,
     is_area_trace,
 )
+from maidr.plotly.area import PlotlyAreaPlot  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
 X = [1, 2, 3]
@@ -186,6 +187,57 @@ class TestTheEmittedLayer:
         ]
 
 
+class TestTheConstructorRefusesPositionsItCannotDescribe:
+    """The same guard `PlotlyMultiLinePlot` and `PlotlyStepPlot` enforce.
+
+    Selectors are emitted positionally -- the frontend pairs selector *i* with
+    series *i* -- so a length mismatch slides every later band onto another
+    element, a negative index builds `nth-child(0)` and matches nothing, and a
+    repeat points two bands at one element. None of those raise on their own;
+    they highlight the wrong geometry, which is what the guard exists to stop.
+    An area trace shares `scatterlayer` with the lines beside it, so it is
+    exposed to exactly the failure mode the other two were hardened against.
+    """
+
+    def build(self, positions, count=1):
+        traces = [{"type": "scatter", "x": X, "y": LOW, "stackgroup": "one"}] * count
+        return PlotlyAreaPlot(traces, {}, PlotType.AREA, positions)
+
+    def test_no_traces_is_refused(self):
+        with pytest.raises(ValueError):
+            PlotlyAreaPlot([], {}, PlotType.AREA, [])
+
+    def test_a_length_mismatch_is_refused(self):
+        with pytest.raises(ValueError):
+            self.build([0, 1], count=1)
+
+    def test_a_negative_position_is_refused(self):
+        with pytest.raises(ValueError):
+            self.build([-1])
+
+    def test_a_repeated_position_is_refused(self):
+        with pytest.raises(ValueError):
+            self.build([0, 0], count=2)
+
+    def test_a_non_list_is_refused(self):
+        with pytest.raises(TypeError):
+            self.build(None)
+
+    def test_well_formed_positions_are_accepted(self):
+        assert self.build([0]) is not None
+
+    def test_the_lists_are_copied_not_aliased(self):
+        # A caller mutating its list afterwards would otherwise silently
+        # change this layer's selectors on the next render.
+        traces = [{"type": "scatter", "x": X, "y": LOW, "stackgroup": "one"}]
+        positions = [0]
+        plot = PlotlyAreaPlot(traces, {}, PlotType.AREA, positions)
+        positions.append(7)
+        traces.append({"type": "scatter", "x": X, "y": HIGH, "stackgroup": "one"})
+        assert len(plot._scatter_positions) == 1
+        assert len(plot._traces) == 1
+
+
 class TestAreasAndLinesCoexist:
     """An area is a scatter trace, so the two compete for the same positions."""
 
@@ -229,6 +281,26 @@ class TestAreasAndLinesCoexist:
         # Scoped by position among the subplot's scatter traces, so the two
         # layers cannot both claim `nth-child(1)`.
         assert "nth-child" in selectors[0]
+
+    def test_an_unnamed_band_omits_z_rather_than_sending_it_blank(self):
+        # `px.area` with no `color=` is the ordinary way to draw one band, and
+        # its trace carries `name: ""`. Every sibling extractor omits the key
+        # in that case -- `PlotlyPlot._line_series_with_positions` guards with
+        # `if name:`, the matplotlib `AreaPlot` with `if label:`.
+        #
+        # Not a mis-announcement either way: maidr's `LineTrace`, which
+        # `AreaTrace` extends, reads `z` through a truthiness guard
+        # (`point.z ? ... : {}`), so `""` already degrades to the absent-key
+        # behaviour. This keeps the emitted schema free of a key whose value
+        # carries nothing.
+        single = frame()[lambda d: d.g == "a"]
+        point = only_layer(px.area(single, x="x", y="y"))["data"][0][0]
+        assert "z" not in point
+        assert point["x"] == 1
+
+    def test_a_named_band_still_carries_z(self):
+        fig = px.area(frame(), x="x", y="y", color="g")
+        assert only_layer(fig)["data"][0][0]["z"] == "a"
 
     def test_the_two_layers_do_not_share_a_position(self):
         fig = go.Figure(
