@@ -9,10 +9,9 @@ draws this chart rather than a multi-line one (#392).
 
 from __future__ import annotations
 
-from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list
-from maidr.plotly.step_shape import is_scatter_family_trace
+from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.step_shape import is_scatter_family_trace, renders_through_webgl
 
 #: The values ``groupnorm`` takes when plotly rescales a stack to a common
 #: total -- its own switch for a 100% stacked area, and the counterpart of
@@ -30,6 +29,14 @@ def is_area_trace(trace: dict) -> bool:
     holding the series' own value, while a plain line resolves to
     ``fill: "none"`` and has no ``s`` at all.
 
+    A WebGL trace is excluded because plotly does not stack one. ``scattergl``
+    has no ``stackgroup`` attribute at all -- ``go.Scattergl(stackgroup="one")``
+    raises ``Bad property path`` -- and plotly.js ignores the key on a raw
+    ``scattergl`` dict that carries it anyway: measured in Chromium, such a
+    trace comes back with ``fill: "none"``, no ``stackgroup`` in ``_fullData``
+    and nothing accumulated. Reading it as an area would announce a filled,
+    stacked band where plotly draws a plain line.
+
     Parameters
     ----------
     trace : dict
@@ -40,7 +47,11 @@ def is_area_trace(trace: dict) -> bool:
     bool
         True when the trace is drawn as a filled band.
     """
-    return bool(trace.get("stackgroup")) and is_scatter_family_trace(trace)
+    return (
+        bool(trace.get("stackgroup"))
+        and is_scatter_family_trace(trace)
+        and not renders_through_webgl(trace)
+    )
 
 
 def area_stack_groups(traces: list[dict]) -> list[list[dict]]:
@@ -102,6 +113,23 @@ class PlotlyAreaPlot(PlotlyPlot):
     own value and needs no un-accumulating. That is the opposite of the
     matplotlib and ggplot2 hazard, where the built data holds the cumulative
     top and reading it straight through announces totals as values.
+
+    Parameters
+    ----------
+    traces : list of dict
+        The stack's traces, in declaration order. At least one is required.
+    layout : dict
+        The figure layout the axis titles and ranges come from.
+    plot_type : PlotType
+        Which of ``AREA``/``STACKED_AREA``/``NORMALIZED_AREA`` this stack is,
+        as resolved by :func:`area_plot_type`.
+    scatter_positions : list of int
+        Each trace's zero-based position among the subplot's scatter-family
+        traces. Required rather than defaulted: an area shares its
+        ``scatterlayer`` with the lines beside it, so numbering from zero
+        here would point each band at another layer's element.
+    **kwargs
+        Forwarded to :class:`~maidr.plotly.plotly_plot.PlotlyPlot`.
     """
 
     def __init__(
@@ -124,33 +152,37 @@ class PlotlyAreaPlot(PlotlyPlot):
         self._scatter_positions = list(scatter_positions)
 
     def _get_selector(self) -> list[str]:
-        """One selector per band, in the order the bands are emitted.
+        """One selector per drawn band, in the order the bands are emitted.
 
         Reuses the scatter-family positions the subplot already assigns, since
         an area trace is a scatter trace and sits in the same ``scatterlayer``
         as the lines beside it.
+
+        Positions are filtered by the same predicate that filters the data, so
+        band *i* always addresses the element band *i* is drawn as. A band with
+        no points is not merely empty in the schema -- plotly gives it no DOM
+        node at all, so every later band shifts up one. Measured in Chromium
+        with an empty band between two drawn ones: the ``scatterlayer`` holds
+        two ``.trace.scatter`` nodes, ``nth-child(2)`` resolves to the *third*
+        band and ``nth-child(3)`` to nothing. That is #316's misalignment, and
+        this is the helper written to end it.
+
+        Returns
+        -------
+        list of str
+            One CSS selector per drawn band, in trace order.
         """
-        return self._scatter_line_selectors(self._traces, self._scatter_positions)
+        _, drawn_positions = self._drawn_line_series(
+            self._traces, self._scatter_positions
+        )
+        return self._scatter_line_selectors(self._traces, drawn_positions)
 
     def _extract_plot_data(self) -> list[list[dict]]:
-        data: list[list[dict]] = []
-        for trace in self._traces:
-            xs = as_list(trace.get("x"))
-            ys = as_list(trace.get("y"))
-            fill = str(trace.get("name", ""))
-            series: list[dict] = []
-            for x, y in zip(xs, ys):
-                point = {
-                    MaidrKey.X.value: self._to_native(x),
-                    MaidrKey.Y.value: self._to_native(y),
-                }
-                # Omitted rather than emitted blank, matching every sibling
-                # extractor -- `PlotlyPlot._line_series_with_positions` and
-                # the matplotlib `AreaPlot` both guard the same way. A single
-                # unnamed band is the ordinary `px.area(...)` call with no
-                # `color=`, and its traces carry `name: ""`.
-                if fill:
-                    point[MaidrKey.Z.value] = fill
-                series.append(point)
-            data.append(series)
-        return data
+        """Return one series of ``{x, y}`` per drawn band, ``z`` its name.
+
+        Shares the single pass with :meth:`_get_selector` rather than walking
+        the traces again -- see ``_drawn_line_series`` for why the pass cannot
+        simply be repeated.
+        """
+        bands, _ = self._drawn_line_series(self._traces, self._scatter_positions)
+        return bands

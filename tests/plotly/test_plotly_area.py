@@ -87,8 +87,17 @@ class TestIsAreaTrace:
         # not enough, or a mislabelled trace of another type would be filled.
         assert is_area_trace({"type": "bar", "stackgroup": "one"}) is False
 
-    def test_scattergl_counts_too(self):
-        assert is_area_trace({"type": "scattergl", "stackgroup": "one"}) is True
+    def test_a_webgl_trace_is_not_an_area_even_carrying_a_stackgroup(self):
+        # Plotly does not stack one, at either level. `scattergl` has no
+        # `stackgroup` attribute -- `go.Scattergl(stackgroup="one")` raises
+        # `Bad property path` on plotly 6.7.0 -- and plotly.js ignores the key
+        # on a raw dict that carries it anyway: measured in Chromium, the gl
+        # trace came back `fill: "none"`, with no `stackgroup` in `_fullData`
+        # and nothing accumulated, while the svg trace beside it stacked
+        # normally. Reading it as an area would announce a filled, stacked
+        # band where plotly draws a plain line -- and, since a WebGL layer can
+        # carry no selectors, silently take the highlight away too.
+        assert is_area_trace({"type": "scattergl", "stackgroup": "one"}) is False
 
 
 class TestStackGroups:
@@ -301,6 +310,68 @@ class TestAreasAndLinesCoexist:
     def test_a_named_band_still_carries_z(self):
         fig = px.area(frame(), x="x", y="y", color="g")
         assert only_layer(fig)["data"][0][0]["z"] == "a"
+
+    def test_a_band_with_no_points_is_dropped_from_data_and_selectors(self):
+        # Not merely cosmetic. Plotly gives an empty trace no DOM node at
+        # all, so every later band shifts up one in the `scatterlayer`.
+        # Measured in Chromium with an empty band between two drawn ones:
+        # the layer holds two `.trace.scatter` nodes, `nth-child(2)` resolves
+        # to the *third* band and `nth-child(3)` to nothing. Emitting the
+        # phantom series would hand band 2's selector to band 3 and leave
+        # band 3 pointing at no element -- #316's misalignment exactly.
+        fig = go.Figure(
+            [
+                go.Scatter(x=X, y=LOW, stackgroup="one", name="a"),
+                go.Scatter(x=[], y=[], stackgroup="one", name="empty"),
+                go.Scatter(x=X, y=HIGH, stackgroup="one", name="c"),
+            ]
+        )
+        layer = only_layer(fig)
+        assert [len(series) for series in layer["data"]] == [3, 3]
+        assert len(layer["selectors"]) == 2
+
+    def test_a_band_after_an_empty_one_is_still_numbered_by_declaration(self):
+        """Pins a pre-existing defect this layer shares with lines and steps.
+
+        Dropping the empty band from `data` and `selectors` is only half the
+        problem. The positions that survive are the *declared* indices among
+        the subplot's scatter traces, and plotly numbers the DOM by what it
+        actually draws -- measured in Chromium, three traces with an empty one
+        in the middle produce two `.trace.scatter` nodes, so the third band is
+        `nth-child(2)` and `nth-child(3)` matches nothing.
+
+        Not introduced here, and not specific to areas: the same figure built
+        from `mode="lines"` traces already emits `nth-child(1)` and
+        `nth-child(3)` on `main`, because `_drawn_line_series` filters the
+        position *list* without renumbering what remains. Fixing it means
+        compacting positions across the whole subplot -- one layer cannot do
+        it alone, since an empty trace in another layer shifts this one too --
+        so it is filed separately rather than folded into #392.
+
+        Asserting the wrong-but-current value deliberately, so whoever takes
+        that issue sees this test fail rather than having to discover it.
+        """
+        fig = go.Figure(
+            [
+                go.Scatter(x=X, y=LOW, stackgroup="one", name="a"),
+                go.Scatter(x=[], y=[], stackgroup="one", name="empty"),
+                go.Scatter(x=X, y=HIGH, stackgroup="one", name="c"),
+            ]
+        )
+        selectors = only_layer(fig)["selectors"]
+        assert "nth-child(1)" in selectors[0]
+        assert "nth-child(3)" in selectors[1]
+
+    def test_the_surviving_bands_keep_their_own_names(self):
+        fig = go.Figure(
+            [
+                go.Scatter(x=X, y=LOW, stackgroup="one", name="a"),
+                go.Scatter(x=[], y=[], stackgroup="one", name="empty"),
+                go.Scatter(x=X, y=HIGH, stackgroup="one", name="c"),
+            ]
+        )
+        names = [series[0]["z"] for series in only_layer(fig)["data"]]
+        assert names == ["a", "c"]
 
     def test_the_two_layers_do_not_share_a_position(self):
         fig = go.Figure(
