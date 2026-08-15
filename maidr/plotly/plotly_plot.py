@@ -841,3 +841,35 @@ def paired_axes(trace: dict) -> tuple:
     if trace.get("x") is None:
         return list(range(len(ys))), ys
     return xs, ys
+
+
+def draws_marks(trace: dict) -> bool:
+    """Whether this trace puts any geometry in its layer.
+
+    The empty sibling of :func:`~maidr.plotly.plotly_plot.is_drawn`, which
+    answers the same question for a *hidden* trace. Both end the same way:
+    plotly renders no group for it, so every trace after it shifts up one in
+    the layer and a selector numbered by declaration lands on the wrong
+    element or on none (#412, and #400 for the hidden case).
+
+    Measured in Chromium -- three line traces with an empty one in the middle
+    produce two ``.trace.scatter`` nodes, and ``nth-child(2)`` resolves to
+    the *third* trace.
+
+    Asked through ``paired_axes`` so it agrees with the extraction: a trace
+    that omits one axis is drawn, because plotly generates the missing array
+    for it, and only a trace with nothing left after pairing is absent from
+    the layer.
+
+    Parameters
+    ----------
+    trace : dict
+        A plotly trace dictionary.
+
+    Returns
+    -------
+    bool
+        True when plotly gives this trace a group of its own.
+    """
+    xs, ys = paired_axes(trace)
+    return bool(xs) and bool(ys)

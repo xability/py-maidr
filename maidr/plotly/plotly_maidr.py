@@ -17,6 +17,7 @@ from maidr.plotly.grouped_histogram import is_histogram_trace
 from maidr.plotly.plotly_plot import (
     PlotlyPlot,
     domain_interval,
+    draws_marks,
     is_drawn,
     subplot_css_prefix,
 )
@@ -399,11 +400,30 @@ class PlotlyMaidr:
             # zero keeps them unique and correct-by-construction rather than
             # padding with a placeholder, which collided the moment two gl
             # traces shared a subplot.
-            position_of = {
-                id(t): index
-                for renderer in (svg_scatter, gl_scatter)
-                for index, t in enumerate(renderer)
-            }
+            # Numbered by what plotly *draws*, not by what was declared.
+            # A trace with nothing to plot gets no group in the layer at all
+            # -- measured in Chromium, three traces with an empty one in the
+            # middle produce two `.trace.scatter` nodes -- so every trace
+            # after it shifts up one. Numbering by declaration therefore
+            # handed the third trace `nth-child(3)`, which matches nothing,
+            # while `nth-child(2)` reached it instead (#412).
+            #
+            # An undrawn trace is numbered after the drawn ones rather than
+            # skipped. Its index is never rendered, because
+            # `_line_series_with_positions` drops the series and its position
+            # together, but the layer classes validate the list they are
+            # handed and a duplicate or a gap would fail that check. Counting
+            # them from the end keeps every index unique and
+            # correct-by-construction, which is what the gl numbering above
+            # does for the same reason.
+            position_of: dict[int, int] = {}
+            for renderer in (svg_scatter, gl_scatter):
+                drawn = [t for t in renderer if draws_marks(t)]
+                undrawn = [t for t in renderer if not draws_marks(t)]
+                for index, t in enumerate(drawn):
+                    position_of[id(t)] = index
+                for offset, t in enumerate(undrawn):
+                    position_of[id(t)] = len(drawn) + offset
 
             merged: set[int] = set()
 

@@ -350,26 +350,23 @@ class TestAreasAndLinesCoexist:
         assert [len(series) for series in layer["data"]] == [3, 3]
         assert len(layer["selectors"]) == 2
 
-    def test_a_band_after_an_empty_one_is_still_numbered_by_declaration(self):
-        """Pins a pre-existing defect this layer shares with lines and steps.
+    def test_a_band_after_an_empty_one_is_numbered_by_what_is_drawn(self):
+        """The other half of the empty-band problem, fixed in #412.
 
-        Dropping the empty band from `data` and `selectors` is only half the
-        problem. The positions that survive are the *declared* indices among
-        the subplot's scatter traces, and plotly numbers the DOM by what it
-        actually draws -- measured in Chromium, three traces with an empty one
-        in the middle produce two `.trace.scatter` nodes, so the third band is
+        Dropping the empty band from `data` and `selectors` was only part of
+        it. The positions that survived were the *declared* indices among the
+        subplot's scatter traces, and plotly numbers the DOM by what it draws
+        -- measured in Chromium, three traces with an empty one in the middle
+        produce two `.trace.scatter` nodes, so the third band is
         `nth-child(2)` and `nth-child(3)` matches nothing.
 
-        Not introduced here, and not specific to areas: the same figure built
-        from `mode="lines"` traces already emits `nth-child(1)` and
-        `nth-child(3)` on `main`, because `_drawn_line_series` filters the
-        position *list* without renumbering what remains. Fixing it means
-        compacting positions across the whole subplot -- one layer cannot do
-        it alone, since an empty trace in another layer shifts this one too --
-        so it is filed separately rather than folded into #392.
+        This test previously asserted `nth-child(3)`, pinning the defect so
+        whoever took #412 would see it fail rather than have to find it. That
+        is what happened.
 
-        Asserting the wrong-but-current value deliberately, so whoever takes
-        that issue sees this test fail rather than having to discover it.
+        Not area-specific: the same figure built from `mode="lines"` traces
+        had the identical defect, which is why the fix compacts positions
+        once for the whole subplot rather than per layer.
         """
         fig = go.Figure(
             [
@@ -380,7 +377,7 @@ class TestAreasAndLinesCoexist:
         )
         selectors = only_layer(fig)["selectors"]
         assert "nth-child(1)" in selectors[0]
-        assert "nth-child(3)" in selectors[1]
+        assert "nth-child(2)" in selectors[1]
 
     def test_the_surviving_bands_keep_their_own_names(self):
         fig = go.Figure(
