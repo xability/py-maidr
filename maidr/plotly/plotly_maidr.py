@@ -18,6 +18,7 @@ from maidr.plotly.plotly_plot import (
     PlotlyPlot,
     domain_interval,
     is_drawn,
+    paired_axes,
     subplot_css_prefix,
 )
 from maidr.plotly.violin import (
@@ -95,6 +96,38 @@ def _is_domain_trace(trace: dict) -> bool:
         ``type`` at all is a ``scatter``, which is cartesian.
     """
     return trace.get("type") in _DOMAIN_TRACE_TYPES
+
+
+def _draws_marks(trace: dict) -> bool:
+    """Whether this trace puts any geometry in its layer.
+
+    The empty sibling of :func:`~maidr.plotly.plotly_plot.is_drawn`, which
+    answers the same question for a *hidden* trace. Both end the same way:
+    plotly renders no group for it, so every trace after it shifts up one in
+    the layer and a selector numbered by declaration lands on the wrong
+    element or on none (#412, and #400 for the hidden case).
+
+    Measured in Chromium -- three line traces with an empty one in the middle
+    produce two ``.trace.scatter`` nodes, and ``nth-child(2)`` resolves to
+    the *third* trace.
+
+    Asked through ``paired_axes`` so it agrees with the extraction: a trace
+    that omits one axis is drawn, because plotly generates the missing array
+    for it, and only a trace with nothing left after pairing is absent from
+    the layer.
+
+    Parameters
+    ----------
+    trace : dict
+        A plotly trace dictionary.
+
+    Returns
+    -------
+    bool
+        True when plotly gives this trace a group of its own.
+    """
+    xs, ys = paired_axes(trace)
+    return bool(xs) and bool(ys)
 
 
 #: Plotly's own default when a figure sets no ``barmode``. It stacks -- and
@@ -399,11 +432,30 @@ class PlotlyMaidr:
             # zero keeps them unique and correct-by-construction rather than
             # padding with a placeholder, which collided the moment two gl
             # traces shared a subplot.
-            position_of = {
-                id(t): index
-                for renderer in (svg_scatter, gl_scatter)
-                for index, t in enumerate(renderer)
-            }
+            # Numbered by what plotly *draws*, not by what was declared.
+            # A trace with nothing to plot gets no group in the layer at all
+            # -- measured in Chromium, three traces with an empty one in the
+            # middle produce two `.trace.scatter` nodes -- so every trace
+            # after it shifts up one. Numbering by declaration therefore
+            # handed the third trace `nth-child(3)`, which matches nothing,
+            # while `nth-child(2)` reached it instead (#412).
+            #
+            # An undrawn trace is numbered after the drawn ones rather than
+            # skipped. Its index is never rendered, because
+            # `_line_series_with_positions` drops the series and its position
+            # together, but the layer classes validate the list they are
+            # handed and a duplicate or a gap would fail that check. Counting
+            # them from the end keeps every index unique and
+            # correct-by-construction, which is what the gl numbering above
+            # does for the same reason.
+            position_of: dict[int, int] = {}
+            for renderer in (svg_scatter, gl_scatter):
+                drawn = [t for t in renderer if _draws_marks(t)]
+                undrawn = [t for t in renderer if not _draws_marks(t)]
+                for index, t in enumerate(drawn):
+                    position_of[id(t)] = index
+                for offset, t in enumerate(undrawn):
+                    position_of[id(t)] = len(drawn) + offset
 
             merged: set[int] = set()
 
