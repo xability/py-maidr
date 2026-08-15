@@ -399,6 +399,44 @@ class TestTheEmittedHistogramLayer:
         assert got[0][1] is None and got[1][1] is None
         assert got[0] == pytest.approx([200 / 3, None, 100 / 3], nan_ok=True)
 
+    def uneven(self, histnorm=None, barnorm="percent"):
+        """Series of six and three observations, so `histnorm` scales them by
+        different factors and the composition order is actually visible.
+
+        With two equal-sized series it is not: `percent` divides each by its
+        own total, those totals agree, and the shares come out the same
+        whichever order the two are applied in. That degenerate case is why
+        this needs its own figure.
+        """
+        kw = dict(xbins=dict(start=0, end=4, size=1))
+        low = go.Histogram(x=[1, 1, 1, 1, 2, 2], name="x", **kw)
+        high = go.Histogram(x=[1, 2, 2], name="y", **kw)
+        if histnorm:
+            low.histnorm = histnorm
+            high.histnorm = histnorm
+        figure = go.Figure([low, high]).update_layout(barmode="stack")
+        return figure.update_layout(barnorm=barnorm) if barnorm else figure
+
+    def test_barnorm_rescales_the_histnormed_values_not_the_raw_counts(self):
+        # Measured. Raw counts are 4,2 and 1,2, so `barnorm` alone gives
+        # 80/20 and 50/50. Under `histnorm="percent"` the same figure draws
+        # 66.7/33.3 and 33.3/66.7 -- which is `barnorm` applied to the
+        # histnormed values. Were it applied to the counts, `histnorm` could
+        # not change the answer at all.
+        assert values(self.uneven())[0] == pytest.approx([80.0, 50.0])
+
+        composed = values(self.uneven(histnorm="percent"))
+        assert composed[0] == pytest.approx([200 / 3, 100 / 3])
+        assert composed[1] == pytest.approx([100 / 3, 200 / 3])
+
+    @pytest.mark.parametrize("histnorm", ["percent", "probability"])
+    def test_the_share_does_not_depend_on_which_histnorm(self, histnorm):
+        # Both scale a series by its own total, differing only in the factor,
+        # so once each position is rescaled to a common total the shares
+        # coincide. Measured for both.
+        got = values(self.uneven(histnorm=histnorm))
+        assert got[0] == pytest.approx([200 / 3, 100 / 3])
+
     def test_the_bar_and_histogram_paths_agree(self):
         # #409 covers both together because `PlotlyGroupedHistogramPlot`
         # matched `PlotlyGroupedBarPlot` on purpose. Same underlying tallies

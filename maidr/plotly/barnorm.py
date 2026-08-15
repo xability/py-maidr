@@ -35,6 +35,14 @@ _NORMALISING_BARNORMS: dict[str, float] = {"percent": 100.0, "fraction": 1.0}
 #: The one barmode that pools positive and negative into a single stack. Every
 #: other combining mode -- ``relative``, which is plotly's default and what
 #: ``px.bar`` leaves behind -- stacks the two sides separately.
+#:
+#: Tested for equality rather than resolved against a default, and that is
+#: deliberate: an unset ``barmode`` must take the ``relative`` branch, which
+#: ``!= "stack"`` already gives. It agrees with
+#: ``PlotlyMaidr._PLOTLY_DEFAULT_BARMODE``, which spells the same default the
+#: other way round, only because these are the two states that reach here --
+#: ``group`` never does, since a dodged layer is not ``NORMALIZED``. A third
+#: combining mode would have to be added in both places, not just one.
 _POOLED_BARMODE = "stack"
 
 
@@ -66,9 +74,9 @@ def _measured(value: Any) -> bool:
     ``[None, 4]`` came back ``[None, 100]``, so the null neither contributed
     to the total nor became a zero share.
     """
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and (
-        math.isfinite(value)
-    )
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    return math.isfinite(value)
 
 
 def stack_totals(
