@@ -108,6 +108,23 @@ class ViolinBoxPlot(MaidrPlot):
         list[dict]
             One dict per violin with keys: ``z, lowerOutliers, min,
             q1, q2, q3, max, upperOutliers, mean?``.
+
+        Notes
+        -----
+        The statistics are emitted raw. They were rounded to four decimals,
+        which sounds like precision and is not: ``round(x, 4)`` is absolute,
+        so nothing below ``1e-4`` survives it. For data in micrograms, molar
+        concentrations, failure probabilities or seconds of a fast benchmark,
+        every one of ``min``/``q1``/``q2``/``q3``/``max`` came out ``0.0`` and
+        the box read as a flat line at zero -- silently, since the chart drew
+        correctly and only the numbers were gone. At the other end a dataset
+        in millions carried four decimals of noise no one can hear.
+
+        How many digits a reader hears is the frontend's decision, and it is
+        the only place that can make it relative to the magnitude. Emitting
+        raw also settles two disagreements this file was on the wrong side
+        of: the outliers beside these keys were never rounded, and neither
+        the matplotlib box plot nor the plotly violin path rounds at all.
         """
         # Tag artists and register elements for SVG highlighting.
         self._tag_artists()
@@ -124,11 +141,11 @@ class ViolinBoxPlot(MaidrPlot):
             record: dict = {
                 MaidrKey.Z.value: str(group),
                 MaidrKey.LOWER_OUTLIER.value: stats[MaidrKey.LOWER_OUTLIER.value],
-                MaidrKey.MIN.value: round(stats[MaidrKey.MIN.value], 4),
-                MaidrKey.Q1.value: round(stats[MaidrKey.Q1.value], 4),
-                MaidrKey.Q2.value: round(stats[MaidrKey.Q2.value], 4),
-                MaidrKey.Q3.value: round(stats[MaidrKey.Q3.value], 4),
-                MaidrKey.MAX.value: round(stats[MaidrKey.MAX.value], 4),
+                MaidrKey.MIN.value: stats[MaidrKey.MIN.value],
+                MaidrKey.Q1.value: stats[MaidrKey.Q1.value],
+                MaidrKey.Q2.value: stats[MaidrKey.Q2.value],
+                MaidrKey.Q3.value: stats[MaidrKey.Q3.value],
+                MaidrKey.MAX.value: stats[MaidrKey.MAX.value],
                 MaidrKey.UPPER_OUTLIER.value: stats[MaidrKey.UPPER_OUTLIER.value],
             }
 
@@ -139,7 +156,7 @@ class ViolinBoxPlot(MaidrPlot):
                 else False
             )
             if show_mean and MaidrKey.MEAN.value in stats:
-                record[MaidrKey.MEAN.value] = round(stats[MaidrKey.MEAN.value], 4)
+                record[MaidrKey.MEAN.value] = stats[MaidrKey.MEAN.value]
 
             box_data.append(record)
 
