@@ -785,22 +785,35 @@ def _extract_decimals(fmt: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def paired_axes(trace: dict, value_key: str = "y", position_key: str = "x") -> tuple:
-    """Return a trace's position and value arrays, generating positions.
+def paired_axes(trace: dict) -> tuple:
+    """Return a trace's ``x`` and ``y`` arrays, generating whichever is absent.
 
-    ``x`` is optional in plotly: omit it and the trace is drawn at
-    ``0, 1, 2, ...``. Measured in Chromium rather than assumed --
-    ``go.Scatter(y=[1, 2, 3])`` comes back with ``calcdata`` x of
-    ``[0, 1, 2]`` and one drawn ``path.js-line``, and ``go.Bar(y=[3, 1, 2])``
-    with the same x and three drawn bars.
+    Both are optional in plotly, and it fills in the missing one with
+    ``0, 1, 2, ...``. Measured in Chromium rather than assumed, in both
+    directions:
 
+    ===========================================  ===========  ===========
+    trace                                        calcdata x   calcdata y
+    ===========================================  ===========  ===========
+    ``go.Scatter(y=[1,2,3], mode="lines")``      ``0,1,2``    ``1,2,3``
+    ``go.Bar(y=[3,1,2])``                        ``0,1,2``    ``3,1,2``
+    ``go.Bar(x=[3,1,2], orientation="h")``       ``3,1,2``    ``0,1,2``
+    ``go.Scatter(x=[3,1,2], mode="lines")``      ``3,1,2``    ``0,1,2``
+    ===========================================  ===========  ===========
+
+    Each of those draws normally -- one ``path.js-line`` or three bars.
     Reading the absent array through :func:`as_list`, which answers ``[]``,
-    and pairing the two with ``zip`` then yielded nothing, so every such
-    trace announced a layer of the right type carrying no data at all
-    (#418). Omitting ``x`` is how most quick plots are written, so this was
-    not a corner.
+    and pairing the two with ``zip`` yielded nothing, so every such trace
+    announced a layer of the right type carrying no data at all (#418).
+    Omitting one axis is how most quick plots are written, so this was not a
+    corner.
 
-    Generated only when the array is missing entirely. A short one is left
+    Symmetric rather than keyed by which axis carries the magnitudes: a
+    horizontal bar puts its values on ``x`` and needs ``y`` generated, and
+    naming one of them "the value axis" here would make every caller decide
+    an orientation question it does not otherwise ask.
+
+    Generated only when an array is missing entirely. A short one is left
     short, because plotly pairs the two positionally and draws only as far
     as the shorter reaches -- truncating is its behaviour, not an error to
     repair here.
@@ -809,16 +822,22 @@ def paired_axes(trace: dict, value_key: str = "y", position_key: str = "x") -> t
     ----------
     trace : dict
         The plotly trace dictionary.
-    value_key : str, default "y"
-        The key holding the magnitudes. ``"x"`` for a horizontal trace.
-    position_key : str, default "x"
-        The key holding the positions, which is the one plotly generates.
 
     Returns
     -------
     tuple of (list, list)
-        The positions and the values, in that order.
+        The ``x`` and ``y`` arrays, in that order.
     """
-    values = as_list(trace.get(value_key))
-    positions = as_list(trace.get(position_key))
-    return (positions or list(range(len(values)))), values
+    xs = as_list(trace.get("x"))
+    ys = as_list(trace.get("y"))
+    # Absent, not merely empty. Plotly draws the two cases differently and
+    # measurably: with `y` absent it generates `0, 1, 2` and draws normally,
+    # while `y: []` comes back as one null point and draws nothing at all.
+    # `as_list` answers `[]` for both, so the raw key is the only thing that
+    # tells them apart -- and reading it wrongly would invent points for a
+    # trace plotly leaves blank.
+    if trace.get("y") is None and xs:
+        return xs, list(range(len(xs)))
+    if trace.get("x") is None and ys:
+        return list(range(len(ys))), ys
+    return xs, ys
