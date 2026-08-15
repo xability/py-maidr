@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
+from maidr.plotly.barnorm import barnorm_scale, stack_shares
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
 
@@ -40,20 +41,31 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
     def _get_selector(self) -> str:
         return f"{self._subplot_css_prefix()}.trace.bars .point > path"
 
+    def _horizontal(self, trace: dict) -> bool:
+        """Whether this trace's value runs along ``x`` rather than ``y``."""
+        return trace.get("orientation") == "h"
+
     def _extract_plot_data(self) -> list[list[dict]]:
         """Return grouped bar data as a list-of-lists.
 
         Each inner list represents one group (hue value).  Every item has
         ``x``, ``fill`` (group name), and ``y`` keys.
+
+        A ``stacked_normalized_bar`` layer carries *shares* rather than the
+        traces' own numbers, because that is what plotly draws and what the
+        type claims. See :mod:`maidr.plotly.barnorm`.
         """
         data: list[list[dict]] = []
+        pairs: list[list[tuple]] = []
 
         for trace in self._traces:
             x_vals = as_list(trace.get("x"))
             y_vals = as_list(trace.get("y"))
             fill = trace.get("name", "")
+            horizontal = self._horizontal(trace)
 
             group: list[dict] = []
+            group_pairs: list[tuple] = []
             for xv, yv in zip(x_vals, y_vals):
                 group.append(
                     {
@@ -62,6 +74,24 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
                         MaidrKey.Y.value: self._to_native(yv),
                     }
                 )
+                # Keyed by the *category* and valued by the magnitude, which
+                # swap with the orientation. Matched by category rather than
+                # by index so a series that skips one contributes nothing
+                # there instead of shifting every later position.
+                position, value = (yv, xv) if horizontal else (xv, yv)
+                group_pairs.append((self._to_native(position), self._to_native(value)))
+
             data.append(group)
+            pairs.append(group_pairs)
+
+        scale = barnorm_scale(self._layout.get("barnorm"))
+        if scale is None or self.type != PlotType.NORMALIZED:
+            return data
+
+        shares = stack_shares(pairs, self._layout.get("barmode"), scale)
+        for group, group_shares, trace in zip(data, shares, self._traces):
+            key = MaidrKey.X.value if self._horizontal(trace) else MaidrKey.Y.value
+            for point, share in zip(group, group_shares):
+                point[key] = share
 
         return data

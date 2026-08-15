@@ -233,15 +233,15 @@ class TestCategoricalGroupDeclines:
 
 
 class TestBarnormValuesStayRaw:
-    """Deliberate, and shared with the bar path -- see #409."""
+    """Now the shares, matching the bar path -- #409, which this pinned."""
 
-    def test_the_values_are_the_counts_rather_than_the_shares(self):
+    def test_the_values_are_the_shares_rather_than_the_counts(self):
         layer = only_layer(stacked(SMALL_A, SMALL_B, barnorm="percent"))
         first = [point["y"] for point in layer["data"][0]]
-        # Plotly draws 100 and 25 for these; the counts are 4 and 1. Pinned so
-        # that whoever takes #409 sees this test fail rather than discovering
-        # the divergence from the chart.
-        assert first == [4, 1]
+        # Plotly draws 100 and 25 for these; the counts were 4 and 1. This
+        # test previously asserted the counts, to pin the divergence until
+        # #409 was taken.
+        assert first == [100.0, 25.0]
 
     def test_the_type_still_reports_the_normalisation(self):
         layer = only_layer(stacked(SMALL_A, SMALL_B, barnorm="percent"))
