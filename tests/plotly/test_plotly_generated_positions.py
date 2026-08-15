@@ -221,3 +221,86 @@ class TestTheHorizontalDirection:
         )
         assert xs(fig) == [3, 1, 2]
         assert ys(fig) == ["a", "b", "c"]
+
+
+class TestTheAxesRangeCoversTheGeneratedPositions:
+    """The half the first fix left inconsistent.
+
+    `PlotlyScatterPlot._extract_axes_data` computes `min`/`max` from the
+    trace's own arrays, and read them raw. For a trace that omits an axis
+    that array was empty, so the range came back `None`, the grid
+    precondition failed, and `min`/`max`/`tickStep` were dropped -- the
+    layer announcing points at `0, 1, 2` while its axes claimed no range at
+    all. Only visible with `dtick` set, since the precondition needs a tick
+    step too, which is why the first pass missed it.
+    """
+
+    GRID = dict(xaxis=dict(dtick=1), yaxis=dict(dtick=1))
+
+    def axes(self, fig) -> dict:
+        found = only_layer(fig)["axes"]
+        return {
+            (k.value if hasattr(k, "value") else k): {
+                (ik.value if hasattr(ik, "value") else ik): iv
+                for ik, iv in v.items()
+            }
+            for k, v in found.items()
+        }
+
+    def test_a_y_only_scatter_reports_its_generated_x_range(self):
+        fig = go.Figure(
+            [go.Scatter(y=Y, mode="markers", name="a")]
+        ).update_layout(**self.GRID)
+        assert self.axes(fig)["x"]["min"] == 0.0
+        assert self.axes(fig)["x"]["max"] == 2.0
+
+    def test_an_x_only_scatter_reports_its_generated_y_range(self):
+        fig = go.Figure(
+            [go.Scatter(x=[1, 2, 3], mode="markers", name="a")]
+        ).update_layout(**self.GRID)
+        assert self.axes(fig)["y"]["min"] == 0.0
+        assert self.axes(fig)["y"]["max"] == 2.0
+
+    def test_the_value_axis_range_is_unaffected(self):
+        fig = go.Figure(
+            [go.Scatter(y=Y, mode="markers", name="a")]
+        ).update_layout(**self.GRID)
+        assert self.axes(fig)["y"]["min"] == 1.0
+        assert self.axes(fig)["y"]["max"] == 3.0
+
+    def test_an_explicit_pair_is_unchanged(self):
+        fig = go.Figure(
+            [go.Scatter(x=[0, 1, 2], y=Y, mode="markers", name="a")]
+        ).update_layout(**self.GRID)
+        found = self.axes(fig)
+        assert found["x"]["min"] == 0.0 and found["x"]["max"] == 2.0
+        assert found["y"]["min"] == 1.0 and found["y"]["max"] == 3.0
+
+
+class TestAMixedNormalisedStack:
+    """Generated integers beside explicit categories, raised in review.
+
+    The worry was that a normalised group matching by category would fail to
+    line generated integer keys up with real labels. Measured: plotly does
+    not line them up either -- it places the generated `0, 1` as two *new*
+    categories after `a` and `b`, so the figure draws four bars at four
+    positions, each alone in its stack and therefore each at 100%.
+
+    So the keys differing is the correct reading rather than a mismatch: the
+    positions genuinely differ. Pinned because it looks like a bug and is
+    not, and because a future change to key matching would quietly alter it.
+    """
+
+    def fig(self) -> go.Figure:
+        return go.Figure(
+            [
+                go.Bar(x=["a", "b"], y=[3, 1], name="p"),
+                go.Bar(y=[1, 3], name="q"),
+            ]
+        ).update_layout(barmode="stack", barnorm="percent")
+
+    def test_every_bar_is_alone_at_its_position(self):
+        assert ys(self.fig()) == [100.0, 100.0, 100.0, 100.0]
+
+    def test_the_generated_keys_stay_distinct_from_the_labels(self):
+        assert xs(self.fig()) == ["a", "b", 0, 1]

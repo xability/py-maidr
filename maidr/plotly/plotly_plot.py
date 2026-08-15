@@ -836,8 +836,8 @@ def paired_axes(trace: dict) -> tuple:
     # `as_list` answers `[]` for both, so the raw key is the only thing that
     # tells them apart -- and reading it wrongly would invent points for a
     # trace plotly leaves blank.
-    if trace.get("y") is None and xs:
+    if trace.get("y") is None:
         return xs, list(range(len(xs)))
-    if trace.get("x") is None and ys:
+    if trace.get("x") is None:
         return list(range(len(ys))), ys
     return xs, ys

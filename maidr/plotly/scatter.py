@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list, paired_axes
+from maidr.plotly.plotly_plot import PlotlyPlot, paired_axes
 from maidr.plotly.step_shape import renders_through_webgl
 
 
@@ -53,9 +53,14 @@ class PlotlyScatterPlot(PlotlyPlot):
         x_fmt = format_config.get("x")
         y_fmt = format_config.get("y")
 
-        # Get range: explicit from layout OR compute from trace data
-        x_data = as_list(self._trace.get("x"))
-        y_data = as_list(self._trace.get("y"))
+        # Get range: explicit from layout OR compute from trace data.
+        # Through `paired_axes`, so a trace that omits an axis is measured
+        # over the positions plotly generates for it rather than over an
+        # empty list. Reading the raw arrays left `x_min`/`x_max` at `None`
+        # for such a trace, which fails the grid precondition below and
+        # silently drops `min`/`max`/`tickStep` -- announcing points the
+        # axes then claimed no range for (#418).
+        x_data, y_data = paired_axes(self._trace)
         x_min, x_max = self._get_axis_range(xaxis, x_data)
         y_min, y_max = self._get_axis_range(yaxis, y_data)
 
