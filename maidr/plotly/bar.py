@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.plotly_plot import PlotlyPlot, paired_axes
 
 
 class PlotlyBarPlot(PlotlyPlot):
@@ -15,8 +15,7 @@ class PlotlyBarPlot(PlotlyPlot):
         return f"{self._subplot_css_prefix()}.trace.bars .point > path"
 
     def _extract_plot_data(self) -> list[dict]:
-        x = as_list(self._trace.get("x"))
-        y = as_list(self._trace.get("y"))
+        x, y = paired_axes(self._trace)
 
         return [
             {MaidrKey.X: self._to_native(xv), MaidrKey.Y: self._to_native(yv)}

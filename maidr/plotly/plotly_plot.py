@@ -208,8 +208,7 @@ class PlotlyPlot(ABC):
         drawn_positions: list[int] = []
 
         for trace, position in zip(traces, positions):
-            x_values = as_list(trace.get("x"))
-            y_values = as_list(trace.get("y"))
+            x_values, y_values = paired_axes(trace)
             name = trace.get("name", "")
 
             series: list[dict] = []
@@ -784,3 +783,42 @@ def _extract_decimals(fmt: str) -> int | None:
         return None
     match = re.search(r"\.(\d+)", fmt)
     return int(match.group(1)) if match else None
+
+
+def paired_axes(trace: dict, value_key: str = "y", position_key: str = "x") -> tuple:
+    """Return a trace's position and value arrays, generating positions.
+
+    ``x`` is optional in plotly: omit it and the trace is drawn at
+    ``0, 1, 2, ...``. Measured in Chromium rather than assumed --
+    ``go.Scatter(y=[1, 2, 3])`` comes back with ``calcdata`` x of
+    ``[0, 1, 2]`` and one drawn ``path.js-line``, and ``go.Bar(y=[3, 1, 2])``
+    with the same x and three drawn bars.
+
+    Reading the absent array through :func:`as_list`, which answers ``[]``,
+    and pairing the two with ``zip`` then yielded nothing, so every such
+    trace announced a layer of the right type carrying no data at all
+    (#418). Omitting ``x`` is how most quick plots are written, so this was
+    not a corner.
+
+    Generated only when the array is missing entirely. A short one is left
+    short, because plotly pairs the two positionally and draws only as far
+    as the shorter reaches -- truncating is its behaviour, not an error to
+    repair here.
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace dictionary.
+    value_key : str, default "y"
+        The key holding the magnitudes. ``"x"`` for a horizontal trace.
+    position_key : str, default "x"
+        The key holding the positions, which is the one plotly generates.
+
+    Returns
+    -------
+    tuple of (list, list)
+        The positions and the values, in that order.
+    """
+    values = as_list(trace.get(value_key))
+    positions = as_list(trace.get(position_key))
+    return (positions or list(range(len(values)))), values
