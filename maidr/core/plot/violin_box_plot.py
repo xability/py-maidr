@@ -108,6 +108,18 @@ class ViolinBoxPlot(MaidrPlot):
         list[dict]
             One dict per violin with keys: ``z, lowerOutliers, min,
             q1, q2, q3, max, upperOutliers, mean?``.
+
+        Notes
+        -----
+        Emitted raw. Rounding to four decimals here is absolute, not
+        significant, so data below ``1e-4`` collapsed to five identical
+        ``0.0``\\ s and the box read as a flat line at zero (#398).
+
+        The frontend already handles this correctly and needs the raw value
+        to do it: ``defaultFormat`` rounds to two decimals for the
+        announcement, then falls back to three significant digits when that
+        would erase a non-zero value. Rounding here defeated that guard
+        before the number reached it.
         """
         # Tag artists and register elements for SVG highlighting.
         self._tag_artists()
@@ -124,11 +136,11 @@ class ViolinBoxPlot(MaidrPlot):
             record: dict = {
                 MaidrKey.Z.value: str(group),
                 MaidrKey.LOWER_OUTLIER.value: stats[MaidrKey.LOWER_OUTLIER.value],
-                MaidrKey.MIN.value: round(stats[MaidrKey.MIN.value], 4),
-                MaidrKey.Q1.value: round(stats[MaidrKey.Q1.value], 4),
-                MaidrKey.Q2.value: round(stats[MaidrKey.Q2.value], 4),
-                MaidrKey.Q3.value: round(stats[MaidrKey.Q3.value], 4),
-                MaidrKey.MAX.value: round(stats[MaidrKey.MAX.value], 4),
+                MaidrKey.MIN.value: stats[MaidrKey.MIN.value],
+                MaidrKey.Q1.value: stats[MaidrKey.Q1.value],
+                MaidrKey.Q2.value: stats[MaidrKey.Q2.value],
+                MaidrKey.Q3.value: stats[MaidrKey.Q3.value],
+                MaidrKey.MAX.value: stats[MaidrKey.MAX.value],
                 MaidrKey.UPPER_OUTLIER.value: stats[MaidrKey.UPPER_OUTLIER.value],
             }
 
@@ -139,7 +151,7 @@ class ViolinBoxPlot(MaidrPlot):
                 else False
             )
             if show_mean and MaidrKey.MEAN.value in stats:
-                record[MaidrKey.MEAN.value] = round(stats[MaidrKey.MEAN.value], 4)
+                record[MaidrKey.MEAN.value] = stats[MaidrKey.MEAN.value]
 
             box_data.append(record)
 
