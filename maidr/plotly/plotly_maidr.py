@@ -347,11 +347,27 @@ class PlotlyMaidr:
             # line grouping it would be emitted twice, once as its own layer
             # and once inside the multi-line one. Split out here, before any
             # of the line/step machinery sees the group.
-            area_traces = [t for t in group_traces if is_area_trace(t)]
+            # A trace that draws nothing forms no layer. Plotly gives it no
+            # group, so there is nothing to announce and nothing to highlight,
+            # and the core does worse than ignore such a layer: a series with
+            # no points makes `LineTrace.text` dereference an undefined point
+            # and throw, which propagates out of `Figure` and takes the whole
+            # render with it (#421, and xability/maidr#905 for the core half).
+            #
+            # The multi-trace paths already reach this answer inside
+            # `_drawn_line_series`, which drops an undrawn series and its
+            # position together. Excluding them here means a lone one reaches
+            # it too, rather than bypassing it through the single-trace
+            # branches below.
+            area_traces = [
+                t for t in group_traces if is_area_trace(t) and draws_marks(t)
+            ]
             connected_traces = [
                 t
                 for t in group_traces
-                if is_connected_line_trace(t) and not is_area_trace(t)
+                if is_connected_line_trace(t)
+                and not is_area_trace(t)
+                and draws_marks(t)
             ]
             box_traces = [
                 t for t in group_traces if t.get("type") == "box"
@@ -425,7 +441,15 @@ class PlotlyMaidr:
                 for offset, t in enumerate(undrawn):
                     position_of[id(t)] = len(drawn) + offset
 
-            merged: set[int] = set()
+            # Undrawn scatter-family traces are marked handled up front, so
+            # the fallback loop at the end does not build a layer for one that
+            # the groupings above deliberately skipped. Scoped to the scatter
+            # family because `draws_marks` reads `x`/`y`: a pie carries neither
+            # and draws perfectly well, so asking it globally would drop every
+            # pie in the figure.
+            merged: set[int] = {
+                id(t) for t in scatter_family if not draws_marks(t)
+            }
 
             # `barnorm` only means anything for a stack: plotly scales each
             # category's segments to a common total, so the values are shares
