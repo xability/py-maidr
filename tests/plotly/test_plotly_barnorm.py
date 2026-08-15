@@ -359,6 +359,33 @@ class TestDodgedIsLeftAlone:
         assert values(fig) == [[3, 2], [1, 6]]
 
 
+class TestDodgedHistogramsAreLeftAloneToo:
+    """The histogram half of :class:`TestDodgedIsLeftAlone`, stated as its own
+    class so the parity is visible from the structure rather than only from a
+    comment.
+
+    Both paths route through ``_combined_type()``, so this is redundant today.
+    That is the point: "shares a helper today" is the assumption that ages
+    worst, and it is the same reason ``test_the_bar_and_histogram_paths_agree``
+    exists.
+    """
+
+    def test_a_dodged_histogram_keeps_its_counts(self):
+        bins = dict(start=0, end=3, size=1)
+        fig = go.Figure(
+            [
+                go.Histogram(x=[1, 1, 2], name="x", xbins=bins),
+                go.Histogram(x=[1, 2, 2], name="y", xbins=bins),
+            ]
+        ).update_layout(barmode="group", barnorm="percent")
+        layer = only_layer(fig)
+        assert layer["type"] == PlotType.DODGED.value
+        assert [[point["y"] for point in series] for series in layer["data"]] == [
+            [2, 1],
+            [1, 2],
+        ]
+
+
 class TestTheTypeAndTheScalingCannotDrift:
     """One source of truth, asserted as a property rather than a value.
 
@@ -396,25 +423,6 @@ class TestTheTypeAndTheScalingCannotDrift:
 
 
 class TestTheEmittedHistogramLayer:
-    def test_a_dodged_histogram_is_left_alone_too(self):
-        # The bar path's analog is `TestDodgedIsLeftAlone`. Both route
-        # through `_combined_type()`, so this looks redundant today -- and
-        # "shares a helper today" is the assumption that ages worst, which is
-        # the whole reason the two paths are pinned against each other.
-        fig = go.Figure(
-            [
-                go.Histogram(x=[1, 1, 2], name="x", xbins=dict(start=0, end=3, size=1)),
-                go.Histogram(x=[1, 2, 2], name="y", xbins=dict(start=0, end=3, size=1)),
-            ]
-        ).update_layout(barmode="group", barnorm="percent")
-        layer = only_layer(fig)
-        assert layer["type"] == PlotType.DODGED.value
-        assert [[point["y"] for point in series] for series in layer["data"]] == [
-            [2, 1],
-            [1, 2],
-        ]
-
-
     def bins(self, **layout):
         fig = go.Figure(
             [
