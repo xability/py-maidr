@@ -14,6 +14,7 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.candlestick import is_ohlc_trace, layer_position
 from maidr.plotly.area import is_area_trace
 from maidr.plotly.grouped_histogram import is_histogram_trace
+from maidr.plotly.trendline import is_trendline_trace
 from maidr.plotly.plotly_plot import (
     PlotlyPlot,
     domain_interval,
@@ -564,8 +565,21 @@ class PlotlyMaidr:
                 step_traces = [
                     t for t in renderer_traces if is_step_trace(t)
                 ]
+                # A `plotly.express` trendline is a fitted curve, not drawn
+                # data, and nothing structural says so -- same `type`, same
+                # `mode`, no `name`, the scatter's own colour. Merged into the
+                # multi-line layer it was announced as one more series of the
+                # user's data, so a reader was told a model's prediction was a
+                # measurement (#343).
+                #
+                # Split before the line branches rather than typed afterwards,
+                # because a layer carries one type for every series it holds:
+                # a trendline sharing a layer with the lines beside it could
+                # only be `line` or make them all `smooth`.
+                unstepped = [t for t in renderer_traces if not is_step_trace(t)]
+                trendline_traces = [t for t in unstepped if is_trendline_trace(t)]
                 line_traces = [
-                    t for t in renderer_traces if not is_step_trace(t)
+                    t for t in unstepped if not is_trendline_trace(t)
                 ]
 
                 # Multi-line
@@ -604,6 +618,35 @@ class PlotlyMaidr:
                     plot.col_index = col
                     self._plots.append(plot)
                     merged.add(id(only_line))
+
+                # Fitted trends, as their own layer. One layer for all of them
+                # rather than one each: `px.scatter(..., color=...,
+                # trendline="ols")` fits per colour group, and those are the
+                # same kind of thing navigated together, exactly as the
+                # multi-line layer holds the series they were fitted to.
+                #
+                # Built through `PlotlyMultiLinePlot` at any count, including
+                # one, so a lone trendline gets a position-scoped selector.
+                # The lone-line branch below uses `PlotlyLinePlot` instead,
+                # whose unscoped form would also match the scatter's own
+                # elements.
+                if trendline_traces:
+                    from maidr.core.enum.plot_type import PlotType
+                    from maidr.plotly.multiline import PlotlyMultiLinePlot
+
+                    plot = PlotlyMultiLinePlot(
+                        trendline_traces,
+                        layout,
+                        scatter_positions=[
+                            position_of[id(t)] for t in trendline_traces
+                        ],
+                        plot_type=PlotType.SMOOTH,
+                        **axis_kwargs,
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                    merged.update(id(t) for t in trendline_traces)
 
                 # Steps, one layer per step convention. A MAIDR layer carries a
                 # single ``stepDirection`` for all of its series, so merging an

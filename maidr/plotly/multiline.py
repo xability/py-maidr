@@ -20,6 +20,13 @@ class PlotlyMultiLinePlot(PlotlyPlot):
     scatter_positions : list of int
         Each trace's zero-based position among the subplot's scatter-family
         traces, in trace order. Required: see the note below.
+    plot_type : PlotType, optional
+        Which line-shaped type this layer is, defaulting to ``LINE``.
+        ``SMOOTH`` is the other case: a ``plotly.express`` trendline draws the
+        same geometry and navigates the same way, and differs only in what a
+        reader must be told it is. ``SmoothTrace`` extends ``LineTrace`` in
+        the core for exactly that reason, so one class serving both here
+        mirrors the arrangement it is emitting into.
     **kwargs : str
         Axis names forwarded to the parent class.
 
@@ -40,13 +47,14 @@ class PlotlyMultiLinePlot(PlotlyPlot):
         traces: list[dict],
         layout: dict,
         scatter_positions: list[int],
+        plot_type: PlotType = PlotType.LINE,
         **kwargs: str,
     ) -> None:
         if not traces:
             raise ValueError("a multi-line layer needs at least one trace")
         PlotlyPlot._validate_scatter_positions(scatter_positions, len(traces))
 
-        super().__init__(traces[0], layout, PlotType.LINE, **kwargs)
+        super().__init__(traces[0], layout, plot_type, **kwargs)
         # Copied, not aliased: a caller mutating its list afterwards would
         # silently change this layer's selectors on the next render -- the
         # same wrong-element failure the required parameter exists to end.
