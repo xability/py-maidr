@@ -23,7 +23,7 @@ from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
 DRAWN_POINTS = "_maidr_points"
 
 
-class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
+class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
     def __init__(self, ax: Axes, **kwargs) -> None:
         super().__init__(ax, PlotType.SCATTER)
         # The collection this layer's own call drew, when the patch could say.
@@ -188,8 +188,8 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
         # height, while a marker at no coordinates has neither. Dropping is the
         # whole answer here rather than half of one. Masked entries arrive as
         # `NaN` through `getdata`, so they take the same path.
-        x_slots = sorted(LineExtractorMixin._category_tick_labels(self.ax, "x"))
-        y_slots = sorted(LineExtractorMixin._category_tick_labels(self.ax, "y"))
+        x_slots = sorted(self._category_tick_labels(self.ax, "x"))
+        y_slots = sorted(self._category_tick_labels(self.ax, "y"))
 
         return [
             {

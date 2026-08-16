@@ -526,6 +526,34 @@ class TestALadderThatCannotBeRead:
         with pytest.raises(ExtractionError):
             BoxenPlot(ax).render()
 
+    def test_a_ladder_that_cannot_be_named_says_so(self):
+        # The naming side of the same rule. If the measured dodge lattice ever
+        # held more positions than the legend has levels, a ladder would fall
+        # back to the bare category -- and a chart quietly losing its hue split
+        # reads as one that never had a split, not one whose split went
+        # missing.
+        #
+        # Driven directly, because seaborn draws one dodge position per level
+        # and nothing measured reaches this. An unexercised branch in a class
+        # written around "say so when you cannot read something" is worth
+        # holding to the same rule as the reachable ones.
+        from maidr.core.plot.boxenplot import BoxenPlot
+
+        _, ax = plt.subplots()
+        sns.boxenplot(hue_frame(), x="g", y="v", hue="h", ax=ax)
+        layer = layers(ax)[0]
+
+        with pytest.warns(UserWarning, match="legend lists 2 levels"):
+            named = BoxenPlot._category_of(
+                layer,
+                centre=0.2,
+                offsets=[-0.2, 0.0, 0.2],
+                ticks=[(0.0, "a"), (1.0, "b")],
+                levels=["p", "q"],
+            )
+
+        assert named == "a"
+
     def test_a_complete_chart_warns_about_nothing(self):
         # The guard on the guard: a warning on every ordinary chart would be
         # noise, and noise is how a real one gets missed.

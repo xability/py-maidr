@@ -521,6 +521,20 @@ class BoxenPlot(MaidrPlot):
         if index < len(levels):
             return f"{label}, {levels[index]}"
 
+        # The lattice found more dodge positions than the legend has levels,
+        # so this ladder cannot be named. Unreachable as far as anything
+        # measured goes -- seaborn draws one position per level -- but the
+        # rest of this class says so when it cannot read something, and a
+        # category silently losing its level reads as a chart that never had
+        # a hue split rather than one whose split went missing.
+        warnings.warn(
+            f"maidr: a boxen ladder at {offset:+.4f} from the {label!r} tick "
+            f"ranks {index} among {len(offsets)} dodge positions, but the "
+            f"legend lists {len(levels)} levels; announcing the category "
+            "without its level.",
+            UserWarning,
+            stacklevel=2,
+        )
         return label
 
     @staticmethod
