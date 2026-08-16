@@ -435,8 +435,7 @@ def render(
             maidr = FigureManager.get_maidr(ax.get_figure())
             return maidr.render(use_cdn=use_cdn)
     except UnsupportedPlotError as error:
-        # stacklevel=2: user code -> render() -> warn_unsupported().
-        warn_unsupported(error.fig, stacklevel=3)
+        warn_unsupported(error, stacklevel=3)
         return fallback_tag(error.fig, error.message)
 
 
@@ -495,7 +494,7 @@ def show(
             maidr = FigureManager.get_maidr(ax.get_figure())
             return maidr.show(renderer, clear_fig=clear_fig, use_cdn=use_cdn)
     except UnsupportedPlotError as error:
-        warn_unsupported(error.fig, stacklevel=3)
+        warn_unsupported(error, stacklevel=3)
         return fallback_tag(error.fig, error.message).show()
 
 
@@ -601,7 +600,7 @@ def save_html(
         # instead would leave a build step that expected an artefact with
         # nothing on disk and a traceback, which is the worse of the two
         # failures -- and it is what `plt.show()` has always avoided.
-        warn_unsupported(error.fig, stacklevel=3)
+        warn_unsupported(error, stacklevel=3)
         return fallback_tag(error.fig, error.message).save_html(file)
 
 

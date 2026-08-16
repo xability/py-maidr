@@ -102,6 +102,24 @@ class UnsupportedPlotError(KeyError):
         self.is_empty = not has_drawn_artists(fig)
         super().__init__(self.message)
 
+    def __str__(self) -> str:
+        """
+        The message, unquoted.
+
+        ``KeyError.__str__`` special-cases a single argument and returns
+        ``repr(args[0])``, because a key is usually a short value worth
+        showing as a literal. Inheriting that would print the sentence
+        wrapped in a stray quote::
+
+            UnsupportedPlotError: 'This figure contains plot type(s) ...'
+
+        Which is the shape this class exists to remove -- an uncaught one in a
+        notebook traceback would look exactly like the dict-lookup failure the
+        bare ``KeyError`` used to imply. The base class is kept for what
+        catches it, not for how it reads.
+        """
+        return self.message
+
     @property
     def message(self) -> str:
         """The sentence a user should be shown, whether raised or warned."""

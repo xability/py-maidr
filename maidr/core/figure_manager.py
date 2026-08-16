@@ -11,6 +11,7 @@ from matplotlib.figure import Figure
 from maidr.core import Maidr
 from maidr.core.enum import PlotType
 from maidr.core.plot import MaidrPlotFactory
+from maidr.exception.unsupported_plot_error import UnsupportedPlotError
 
 
 class FigureManager:
@@ -119,8 +120,6 @@ class FigureManager:
             is the change, since "No MAIDR found for figure" described maidr's
             own bookkeeping rather than anything a user could act on (#443).
         """
-        from maidr.exception.unsupported_plot_error import UnsupportedPlotError
-
         if fig not in cls.figs.keys():
             raise UnsupportedPlotError(fig)
         return cls.figs[fig]

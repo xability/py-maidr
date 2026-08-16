@@ -28,14 +28,21 @@ from matplotlib.figure import Figure
 from maidr.exception.unsupported_plot_error import UnsupportedPlotError
 
 
-def warn_unsupported(fig: Figure, *, stacklevel: int) -> UnsupportedPlotError:
+def warn_unsupported(
+    source: Figure | UnsupportedPlotError, *, stacklevel: int
+) -> UnsupportedPlotError:
     """
-    Warn that ``fig`` cannot be described, and say why.
+    Warn that a figure cannot be described, and say why.
 
     Parameters
     ----------
-    fig : Figure
-        The figure with no MAIDR instance.
+    source : Figure or UnsupportedPlotError
+        The figure with no MAIDR instance, or an error already describing it.
+        Both are accepted because the two callers arrive differently: the
+        backend has only a figure, while the API entry points are inside an
+        ``except`` block and already hold the error. Passing the error avoids
+        re-walking the figure's artist lists to re-decide something already
+        decided.
     stacklevel : int
         Passed to :func:`warnings.warn`. Keyword-only because it counts frames
         through a call chain that differs per caller, so a positional value
@@ -45,10 +52,14 @@ def warn_unsupported(fig: Figure, *, stacklevel: int) -> UnsupportedPlotError:
     -------
     UnsupportedPlotError
         The error describing the figure, in case the caller wants to raise it
-        rather than continue. Built here so the warning and the exception
-        always carry the same sentence.
+        rather than continue. The warning and the exception therefore always
+        carry the same sentence.
     """
-    error = UnsupportedPlotError(fig)
+    error = (
+        source
+        if isinstance(source, UnsupportedPlotError)
+        else UnsupportedPlotError(source)
+    )
     warnings.warn(
         f"{error.message} Falling back to static image.",
         stacklevel=stacklevel,

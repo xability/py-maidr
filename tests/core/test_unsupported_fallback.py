@@ -256,3 +256,24 @@ class TestWhatMustNotChange:
 
         assert "maidr" in written
         assert "data:image/png;base64," not in written
+
+    def test_it_reads_as_a_sentence_rather_than_a_quoted_key(self):
+        # `KeyError.__str__` special-cases a single argument and returns
+        # `repr(args[0])`, because a key is usually a short value worth showing
+        # as a literal. Inherited, that wraps the sentence in a stray quote:
+        #
+        #     UnsupportedPlotError: 'This figure contains plot type(s) ...'
+        #
+        # Which is the shape this whole change exists to remove -- an uncaught
+        # one in a notebook traceback would look exactly like the dict-lookup
+        # failure the bare KeyError used to imply. The base class is kept for
+        # what catches it, not for how it reads.
+        _, ax = plt.subplots()
+
+        assert not str(UnsupportedPlotError(ax.get_figure())).startswith("'")
+
+    def test_str_is_the_message(self):
+        _, ax = plt.subplots()
+        error = UnsupportedPlotError(ax.get_figure())
+
+        assert str(error) == error.message
