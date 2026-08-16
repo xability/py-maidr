@@ -17,6 +17,14 @@ The guard is in two halves, because either alone can drift:
   which is what catches the next rename;
 * the declared floor must be at least the release that introduced it, which
   is what catches the floor being lowered back under it.
+
+It covers every private seaborn attribute a patch reaches for at import time,
+not only the one that caused #441. `maidr/patch/histogram.py` and
+`maidr/patch/kdeplot.py` reach `_DistributionPlotter.plot_univariate_histogram`
+and `plot_univariate_density` so that `sns.displot` reads as the distribution
+it draws (#446), and those carry the same risk for the same reason: an
+attribute that moves breaks `import maidr` for **everyone**, not only for
+users of that chart type.
 """
 
 from __future__ import annotations
@@ -32,11 +40,40 @@ from packaging.version import Version  # noqa: E402
 
 PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 
-#: The release that introduced `_CategoricalPlotter.plot_boxes`, and so the
-#: earliest seaborn `maidr/patch/boxplot.py` can import against. A fact about
-#: seaborn rather than a preference, which is why it is written down rather
-#: than derived.
-PLOT_BOXES_SINCE = Version("0.13")
+#: Every *private* seaborn attribute a patch reaches for at import time, with
+#: the release that introduced it: module path, class, attribute, since.
+#:
+#: One entry per `wrapt.wrap_function_wrapper` call on a seaborn internal. The
+#: risk they share is the one #441 was filed for -- an attribute that moves
+#: breaks `import maidr` for **every** user, not only users of that chart --
+#: so the list has to grow whenever a patch reaches for a new one. A patch
+#: added without an entry here is exactly the case this file cannot catch.
+#:
+#: The versions are facts about seaborn rather than preferences, which is why
+#: they are written down rather than derived.
+PATCHED_INTERNALS = [
+    (
+        "seaborn.categorical",
+        "_CategoricalPlotter",
+        "plot_boxes",
+        Version("0.13"),
+    ),
+    (
+        "seaborn.distributions",
+        "_DistributionPlotter",
+        "plot_univariate_histogram",
+        Version("0.11"),
+    ),
+    (
+        "seaborn.distributions",
+        "_DistributionPlotter",
+        "plot_univariate_density",
+        Version("0.11"),
+    ),
+]
+
+#: The highest of them, which is what the declared floor has to clear.
+REQUIRED_SINCE = max(since for *_, since in PATCHED_INTERNALS)
 
 
 def declared_floors() -> list[Version]:
@@ -47,22 +84,35 @@ def declared_floors() -> list[Version]:
     return [Version(text) for text in found]
 
 
-def test_the_patched_attribute_exists_on_the_installed_seaborn():
-    # What the patch does at import time, asked directly. If seaborn renames
-    # or moves it, this says so instead of `import maidr` raising.
-    from seaborn.categorical import _CategoricalPlotter
+@pytest.mark.parametrize(
+    "module,cls,attribute,_since",
+    PATCHED_INTERNALS,
+    ids=[f"{cls}.{attribute}" for _, cls, attribute, _ in PATCHED_INTERNALS],
+)
+def test_the_patched_attribute_exists_on_the_installed_seaborn(
+    module, cls, attribute, _since
+):
+    # What each patch does at import time, asked directly. If seaborn renames
+    # or moves one, this says so instead of `import maidr` raising -- and it
+    # names which attribute, which the AttributeError does too but only for
+    # whichever patch happens to import first.
+    import importlib
 
-    assert hasattr(_CategoricalPlotter, "plot_boxes")
+    owner = getattr(importlib.import_module(module), cls)
+
+    assert hasattr(owner, attribute)
 
 
 def test_every_declared_floor_can_actually_import():
     # Both dependency groups declare seaborn, and they drifted apart before.
     for floor in declared_floors():
-        assert floor >= PLOT_BOXES_SINCE, (
-            f"pyproject.toml allows seaborn {floor}, but "
-            f"`_CategoricalPlotter.plot_boxes` only exists from "
-            f"{PLOT_BOXES_SINCE} -- `import maidr` raises below that."
-        )
+        for module, cls, attribute, since in PATCHED_INTERNALS:
+            assert floor >= since, (
+                f"pyproject.toml allows seaborn {floor}, but "
+                f"`{cls}.{attribute}` only exists from {since} -- "
+                f"`import maidr` raises below that."
+            )
+        assert floor >= REQUIRED_SINCE
 
 
 def test_the_installed_seaborn_satisfies_what_is_declared():
