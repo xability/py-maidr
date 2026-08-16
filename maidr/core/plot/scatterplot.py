@@ -11,9 +11,32 @@ from maidr.exception import ExtractionError
 from maidr.util.mixin import CollectionExtractorMixin
 
 
+#: The keyword ``Axes.scatter`` hands its own ``PathCollection`` to this layer
+#: under. Named once and imported at both ends rather than spelled twice:
+#: ``kwargs.get`` falls back to sweeping the axes on a mismatch, so a typo
+#: would not raise -- it would quietly restore the behaviour #426 removed.
+#:
+#: Lives here rather than beside ``common.drawn_as`` because ``maidr.patch``
+#: imports ``maidr.core`` and not the other way about.
+DRAWN_POINTS = "_maidr_points"
+
+
 class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
-    def __init__(self, ax: Axes) -> None:
+    def __init__(self, ax: Axes, **kwargs) -> None:
         super().__init__(ax, PlotType.SCATTER)
+        # The collection this layer's own call drew, when the patch could say.
+        # `None` falls back to the first collection on the axes, which is the
+        # right answer only while a layer *is* one collection.
+        #
+        # Guarded on the type rather than on presence: `seaborn.scatterplot`
+        # is patched through the same wrapper and returns an `Axes`, not the
+        # collection. Falling back is correct there -- measured, it draws a
+        # single `PathCollection` of every point even under `hue`, so the
+        # sweep finds exactly the right one.
+        own_points = kwargs.get(DRAWN_POINTS, None)
+        self._own_points = (
+            own_points if isinstance(own_points, PathCollection) else None
+        )
 
     def _get_selector(self) -> str | list[str]:
         return ["g[maidr='true'] > g > use"]
@@ -128,7 +151,9 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
         return True
 
     def _extract_plot_data(self) -> list[dict]:
-        plot = self.extract_collection(self.ax, PathCollection)
+        plot = self._own_points
+        if plot is None:
+            plot = self.extract_collection(self.ax, PathCollection)
         data = self._extract_point_data(plot)
 
         if data is None:

@@ -88,7 +88,7 @@ class MaidrPlotFactory:
         elif PlotType.PIE == plot_type:
             return PiePlot(single_ax, **kwargs)
         elif PlotType.SCATTER == plot_type:
-            return ScatterPlot(single_ax)
+            return ScatterPlot(single_ax, **kwargs)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
             return GroupedBarPlot(single_ax, plot_type, **kwargs)
         elif PlotType.SMOOTH == plot_type:
