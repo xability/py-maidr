@@ -24,6 +24,14 @@ def boxen(wrapped, instance, args, kwargs) -> Axes:
     Suppressing them here is therefore not tidying: it removes a chart that
     claimed to be complete and was describing the scaffolding (#253).
 
+    Written out rather than routed through :func:`maidr.patch.common.common`,
+    which every other seaborn categorical patch uses. ``common`` draws inside
+    the internal context and registers in one step, and this layer needs to
+    know which collections were on the axes *before* the call -- see below for
+    why. There is no hook for that between the two halves, and widening
+    ``common`` for one caller would put a before/after snapshot in the path of
+    every patch that does not need one.
+
     Parameters
     ----------
     wrapped : Callable
