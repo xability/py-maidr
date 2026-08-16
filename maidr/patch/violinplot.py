@@ -33,6 +33,7 @@ from maidr.patch.common import (
     _argument,
     _draw_quietly,
     plotter_axes,
+    plotter_panels,
     resolve_orientation,
     wrap_seaborn,
 )
@@ -119,40 +120,6 @@ def _levels(declared: Any, column: pd.Series) -> list:
     if declared is not None and len(declared):
         return list(declared)
     return list(pd.unique(column.dropna()))
-
-
-def _panels(plotter: Any) -> list[tuple[Axes, pd.DataFrame]]:
-    """
-    One ``(axes, data)`` pair per panel this call draws.
-
-    A single-axes plot is answered without asking seaborn to group anything:
-    there is one axes and it gets all the data. Only a real grid needs
-    ``iter_data``/``_get_axes``, so the ordinary ``sns.violinplot(ax=ax)``
-    path does not depend on either of them.
-
-    Parameters
-    ----------
-    plotter : Any
-        The ``_CategoricalPlotter`` the wrapped method is bound to.
-
-    Returns
-    -------
-    list of (Axes, DataFrame)
-        Possibly empty, which makes the caller a no-op rather than a guess.
-    """
-    axes = plotter_axes(plotter)
-    data = getattr(plotter, "plot_data", None)
-    if not isinstance(data, pd.DataFrame) or data.empty:
-        return []
-    if len(axes) <= 1:
-        return [(axes[0], data)] if axes else []
-
-    panels: list[tuple[Axes, pd.DataFrame]] = []
-    for sub_vars, sub_data in plotter.iter_data(allow_empty=False):
-        panel_ax = plotter._get_axes(sub_vars)
-        if isinstance(panel_ax, Axes):
-            panels.append((panel_ax, sub_data))
-    return panels
 
 
 def _panel_groups(
@@ -321,7 +288,7 @@ def sns_categorical_violins(
     # nothing for the box layer's selectors to point at.
     inner = _argument("inner", wrapped, args, kwargs)
 
-    for panel_ax, panel in _panels(instance):
+    for panel_ax, panel in plotter_panels(instance):
         groups, values = _panel_groups(panel, instance)
 
         if inner in ("box", "boxplot"):

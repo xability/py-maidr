@@ -6,9 +6,16 @@ import wrapt
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
 
+from maidr.core.context_manager import ContextManager
 from maidr.core.enum import MaidrKey, PlotType
+from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS
-from maidr.patch.common import common, wrap_seaborn
+from maidr.patch.common import (
+    _draw_quietly,
+    common,
+    plotter_panels,
+    wrap_seaborn,
+)
 from maidr.util.mixin import LevelExtractorMixin
 
 
@@ -222,14 +229,21 @@ def sns_bar(
     wrapped: Callable, instance: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]
 ) -> Axes:
     """
-    Patch function for `seaborn.barplot` and `seaborn.countplot`.
+    Draw `seaborn.barplot`/`countplot` quietly and leave the reading to the
+    plotter.
 
-    Whether a hue splits the layer into groups is seaborn's decision, and it
-    is not one the arguments alone answer: `dodge` defaults to `"auto"`, and
-    a hue that repeats the category variable is drawn as a plain bar layer
-    wearing a legend. Seaborn does not forward `hue` or `dodge` to
-    `Axes.bar` either — and those inner calls are suppressed as internal
-    anyway — so the layer is classified from the bars seaborn drew.
+    Registration used to happen here and no longer does; see
+    `sns_categorical_bars`, which wraps the method both these functions and
+    `sns.catplot` drive. Whether a hue splits the layer into groups is still
+    seaborn's decision rather than the arguments' -- `dodge` defaults to
+    `"auto"`, and a hue that repeats the category variable is drawn as a plain
+    bar layer wearing a legend -- so the layer is still classified from the
+    bars seaborn drew, one level down.
+
+    What remains here is `_draw_quietly` over the whole seaborn call and the
+    `wrap_seaborn` that keeps both bindings of each name wrapped. Nothing sets
+    the internal context, which is what would silence the plotter patch; the
+    `Axes.bar` calls it used to suppress are made inside `plot_bars`.
 
     Parameters
     ----------
@@ -255,7 +269,62 @@ def sns_bar(
     >>> # Not grouped: the hue repeats `x`, so each container holds one bar.
     >>> sns.barplot(data=df, x="day", y="tip", hue="day")
     """
-    return common(_seaborn_bar_type, wrapped, instance, args, kwargs)
+    return _draw_quietly(wrapped, args, kwargs)
+
+
+def sns_categorical_bars(
+    wrapped: Callable, instance: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]
+) -> Any:
+    """
+    Register every bar panel seaborn draws, whichever interface drew it.
+
+    One registrar for both. ``seaborn.barplot``/``countplot`` and
+    ``sns.catplot(kind="bar"/"count")`` share no code above this method --
+    ``catplot`` drives ``_CategoricalPlotter`` directly and imports nothing --
+    so a patch on the functions reached one of them and a patch here reaches
+    both. Measured on three categories (#448)::
+
+        sns.catplot(df, x="g", y="v", kind="bar")    dodged_bar(3), line(2)
+        sns.barplot(df, x="g", y="v", ax=ax)         bar(3)
+
+    Two things wrong, and both are the panel being read by the
+    matplotlib-level patches alone. `dodged_bar` names a chart that compares
+    groups side by side, which a chart with no hue is not, so a reader is
+    oriented to a chart that is not there -- ``Axes.bar`` has to guess at that
+    from bar widths and positions, because seaborn does not forward the
+    decision to it, and here it guessed wrong. And the ``line`` layer is the
+    error-bar geometry travelling as a two-sample series of its own, the
+    #440 shape.
+
+    Both fall out of registering here: the type comes from
+    :func:`_seaborn_bar_type`, which asks the drawn containers rather than the
+    arguments, and the error bars are drawn *inside* this method, so the
+    internal context set around the draw suppresses them.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        ``_CategoricalPlotter.plot_bars``.
+    instance : Any
+        The plotter the method is bound to.
+    args, kwargs
+        The method's own arguments, passed through untouched.
+
+    Returns
+    -------
+    Any
+        Whatever seaborn returned.
+    """
+    if ContextManager.is_internal_context():
+        return _draw_quietly(wrapped, args, kwargs)
+
+    with ContextManager.set_internal_context():
+        drawn = _draw_quietly(wrapped, args, kwargs)
+
+    for ax, _ in plotter_panels(instance):
+        FigureManager.create_maidr(ax, _seaborn_bar_type(ax))
+
+    return drawn
 
 
 def _seaborn_bar_type(ax: Axes) -> PlotType:
@@ -307,3 +376,12 @@ wrapt.wrap_function_wrapper(Axes, "barh", bar)
 # Patch seaborn functions.
 wrap_seaborn("barplot", sns_bar)
 wrap_seaborn("countplot", sns_bar)
+
+# And the plotter method beneath both of them, which is the only thing
+# `catplot` drives. Wrapped by module path rather than by importing the private
+# class, matching how `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
+wrapt.wrap_function_wrapper(
+    "seaborn.categorical",
+    "_CategoricalPlotter.plot_bars",
+    sns_categorical_bars,
+)

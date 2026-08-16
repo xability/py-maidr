@@ -39,10 +39,10 @@ drive seaborn's plotter classes directly rather than importing the
 module-level functions. Both have since been reached one level down, by
 patching the plotter method the grid and the axes-level function share:
 `displot` through `_DistributionPlotter` (#446), and `catplot` through the
-`_CategoricalPlotter` methods behind each `kind` (#448, #449). `catplot` is
-reached one `kind` at a time, though, since each is drawn by a different
-method -- so the kinds still unreached are pinned at the foot of this file,
-and the boundary stays visible rather than being discovered.
+`_CategoricalPlotter` method behind each `kind` (#448, #449). `catplot` took
+one reach per `kind`, since each is drawn by a different method -- so the foot
+of this file asserts all eight against their axes-level equivalents rather
+than naming the ones that agree.
 
 The failure was invisible from a direct call -- `sns.histplot(ax=ax)` has
 always given `hist` -- which is why it survived this long. So the first test
@@ -69,7 +69,7 @@ import seaborn.matrix  # noqa: E402
 import seaborn.regression  # noqa: E402
 import seaborn.relational  # noqa: E402
 
-import maidr  # noqa: F401,E402  # activates patches
+import maidr  # noqa: E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.patch.common import _warn_partial_patch, wrap_seaborn  # noqa: E402
@@ -357,63 +357,141 @@ def test_displot_panels_are_each_read() -> None:
     ) == [PlotType.HIST, PlotType.HIST]
 
 
+#: Every `kind` `sns.catplot` accepts, with the axes-level function that draws
+#: the same chart. Six of the eight disagreed (#448), and the two that did not
+#: are here as well, because "these two happen to agree" is not something a
+#: reader can tell from a table that lists only the six.
+CATPLOT_KINDS = [
+    ("strip", "stripplot"),
+    ("swarm", "swarmplot"),
+    ("box", "boxplot"),
+    ("violin", "violinplot"),
+    ("boxen", "boxenplot"),
+    ("point", "pointplot"),
+    ("bar", "barplot"),
+    ("count", "countplot"),
+]
+
+
+@pytest.mark.parametrize("kind,axes_level", CATPLOT_KINDS, ids=[k for k, _ in CATPLOT_KINDS])
+def test_a_catplot_kind_reads_the_same_as_its_axes_level_function(
+    kind, axes_level
+) -> None:
+    """The whole of #448, as one assertion per `kind`.
+
+    `catplot` drives `_CategoricalPlotter` directly and imports nothing, so
+    neither the defining-module patching this file is about nor #446's
+    plotter-level patching of `_DistributionPlotter` touched it -- and every
+    panel was read by the matplotlib-level patches alone. Measured against the
+    axes-level function that draws the same chart, six of eight disagreed, and
+    they failed in three distinct ways::
+
+        kind      catplot read              axes-level read
+        strip     point, point              point, point        ok
+        swarm     point, point              point, point        ok
+        box       box                       box                 ok
+        violin    line                      violin_box, violin_kde
+        boxen     line, point, point        boxen
+        point     line                      error_bar
+        bar       dodged_bar, line          bar
+        count     dodged_bar                bar
+
+    A **distribution announced as a line chart** for `violin` and `boxen`: the
+    violin's line is its inner box, the boxen's its median segments, with the
+    point layers holding the outliers alone. **Uncertainty dropped** for
+    `point`: the estimates read correctly and the confidence intervals had
+    nowhere to go, so a reading with no intervals in it sounded exactly like a
+    correct reading of a chart that draws none. And a **wrong type plus a
+    phantom layer** for `bar`/`count`: `dodged_bar` names a chart that compares
+    groups side by side, which a chart with no hue is not, and the extra `line`
+    was the error-bar geometry travelling as a series of its own.
+
+    `box` already agreed, and that is the evidence the approach works rather
+    than a coincidence: `_CategoricalPlotter.plot_boxes` was already patched,
+    for `seaborn.boxplot`. Each of the other five went the same way, to the
+    plotter method the grid and the axes-level function share (#448, #449).
+
+    Asserted as equality between the two interfaces rather than against
+    expected types, because that is the property being fixed -- and because
+    either alone would pass if both interfaces broke together.
+    """
+    frame = _frame()
+    frame["group"] = ["x", "y"] * 30
+    variables = {"x": "group"} if kind == "count" else {"x": "group", "y": "a"}
+
+    grid = sns.catplot(data=frame, kind=kind, **variables)
+    figure_level = _layers(grid.figure)
+    plt.close("all")
+
+    fig, ax = plt.subplots()
+    getattr(sns, axes_level)(data=frame, ax=ax, **variables)
+
+    assert figure_level == _layers(fig)
+    assert figure_level, f"catplot(kind={kind!r}) registered nothing at all"
+
+
 @pytest.mark.parametrize(
-    "kind,expected",
-    [
-        ("violin", [PlotType.VIOLIN_BOX, PlotType.VIOLIN_KDE]),
-        ("boxen", [PlotType.BOXEN]),
-        ("point", [PlotType.ERRORBAR]),
-    ],
+    "kind", ["bar", "count", "violin", "boxen", "point"], ids=lambda k: k
 )
-def test_a_catplot_kind_reached_through_the_plotter_class(kind, expected) -> None:
-    """`catplot` is reached one `kind` at a time, because each has its own method.
+def test_an_unbalanced_facet_grid_still_renders(kind) -> None:
+    """A `row`/`col` grid allocates an axes for combinations the data lacks.
 
-    It drives `_CategoricalPlotter` directly and imports nothing, so neither
-    the defining-module patching this file is about nor #446's plotter-level
-    patching of `_DistributionPlotter` touched it. Every one of these
-    panels was read only by the matplotlib-level patches, and every one
-    arrived as a **line chart** (#448)::
+    Seaborn draws nothing into those, and a patch that registered every axes
+    the grid holds would promise a layer whose extraction has nothing to
+    read -- which raises, and takes the **whole figure's** HTML down with it
+    rather than only the empty panel's::
 
-        catplot(kind="violin")   line
-        catplot(kind="boxen")    line, point, point
-        catplot(kind="point")    line
+        ExtractionError: Error extracting data for bar plot type from <class 'list'>
 
-    The violin's line was its inner box; the boxen's was its median segments,
-    with the point layers holding the outliers alone -- every rung of every
-    ladder absent, which is the reading `BoxenPlot` exists to replace. The
-    point plot's line was right about its estimates and had nowhere to put its
-    confidence intervals, which is the quietest of the three: a reading with
-    no intervals in it sounds exactly like a correct reading of a chart that
-    draws none.
+    So the panels come from seaborn's own `iter_data(allow_empty=False)`
+    rather than from the grid, and the layer count is the number of
+    combinations that exist, not the number of axes.
 
-    Each fix went to the plotter method the grid and the axes-level function
-    share, so the two interfaces agree by construction rather than by being
-    kept in step (#449).
+    Every kind whose registration moved to a plotter method is checked,
+    because the guard lives in one shared helper and a caller that stops using
+    it fails silently everywhere else -- the figure renders fine until someone
+    facets it two ways.
     """
-    frame = _frame()
-    frame["group"] = ["x", "y"] * 30
+    rng = np.random.default_rng(20260816)
+    frame = pd.DataFrame(
+        {
+            "a": rng.normal(size=90),
+            "group": list("abc") * 30,
+            "col": ["x"] * 45 + ["y"] * 45,
+            "row": ["p"] * 30 + ["q"] * 15 + ["p"] * 45,
+        }
+    )
+    variables = {"x": "group"} if kind == "count" else {"x": "group", "y": "a"}
 
-    assert _layers(
-        sns.catplot(data=frame, x="group", y="a", kind=kind).figure
-    ) == expected
+    grid = sns.catplot(data=frame, kind=kind, col="col", row="row", **variables)
+
+    # Four axes, three combinations the data actually holds.
+    assert len(list(grid.axes.flat)) == 4
+    assert len(frame.groupby(["row", "col"], observed=True)) == 3
+    assert "maidr" in str(maidr.render(grid.figure))
 
 
-def test_the_kind_of_catplot_this_does_not_reach_is_named() -> None:
-    """The boundary that remains, asserted rather than left to a bug report.
+def test_every_catplot_kind_seaborn_dispatches_is_covered() -> None:
+    """The table above has to keep up with seaborn.
 
-    `kind` selects which plotter method draws, and each is a separate reach:
-    `plot_violins`, `plot_boxens` and `plot_points` are patched, `plot_bars`
-    is not. So a `catplot` bar is still read only by the matplotlib-level
-    patches -- bars plus the error-bar lines, neither read as what it is
-    (#448).
+    A ninth `kind` is a panel nothing above reads, and the test that would
+    have caught it is the one that does not exist yet. So the list is checked
+    against `catplot`'s own dispatch rather than trusted -- it branches on
+    `kind == "..."` once per kind, and every one of those has to appear here.
 
-    Pinned here so that the day it is fixed, this test fails and has to be
-    rewritten -- the way this file pinned `displot`, the violin, the boxen and
-    the point plot until they were.
+    The count is asserted first because the reading is the fragile half: if
+    seaborn ever replaces the chain with a table lookup, the regex finds
+    nothing and a subset check against an empty set passes while proving
+    nothing. Failing loudly there is the point -- it means this test needs
+    rewriting, not that the coverage is fine.
     """
-    frame = _frame()
-    frame["group"] = ["x", "y"] * 30
+    import inspect
+    import re
 
-    assert _layers(
-        sns.catplot(data=frame, x="group", y="a", kind="bar").figure
-    ) == [PlotType.DODGED, PlotType.LINE]
+    dispatched = set(re.findall(r'kind == "(\w+)"', inspect.getsource(sns.catplot)))
+
+    assert len(dispatched) >= 8, (
+        "could not read catplot's kinds from its source -- it no longer "
+        f"branches on `kind == \"...\"` (found {sorted(dispatched)})"
+    )
+    assert dispatched <= {kind for kind, _ in CATPLOT_KINDS}

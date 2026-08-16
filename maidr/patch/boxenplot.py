@@ -9,7 +9,12 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.boxenplot import DRAWN_LADDERS
-from maidr.patch.common import _draw_quietly, plotter_axes, wrap_seaborn
+from maidr.patch.common import (
+    _draw_quietly,
+    plotter_axes,
+    plotter_panels,
+    wrap_seaborn,
+)
 
 
 def boxen(
@@ -127,7 +132,7 @@ def sns_categorical_boxens(
     # patches do: a panel seaborn drew a ladder onto and MAIDR could not read
     # is worth an error rather than a chart that quietly has no boxen layer
     # in it.
-    for ax in plotter_axes(instance):
+    for ax, _ in plotter_panels(instance):
         added = [
             collection
             for collection in ax.collections

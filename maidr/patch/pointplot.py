@@ -9,7 +9,12 @@ from matplotlib.lines import Line2D
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly, plotter_axes, wrap_seaborn
+from maidr.patch.common import (
+    _draw_quietly,
+    plotter_axes,
+    plotter_panels,
+    wrap_seaborn,
+)
 
 # The marker seaborn leaves on the lines it draws the intervals with. The
 # estimate line carries a real one -- `"o"` by default, and the empty string
@@ -290,7 +295,7 @@ def sns_categorical_points(wrapped, instance, args, kwargs):
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
 
-    for ax in plotter_axes(instance):
+    for ax, _ in plotter_panels(instance):
         _register_point_layer(ax, before.get(id(ax), []))
 
     return drawn

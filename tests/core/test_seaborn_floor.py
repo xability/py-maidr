@@ -23,8 +23,9 @@ not only the one that caused #441. `maidr/patch/histogram.py` and
 `maidr/patch/kdeplot.py` reach `_DistributionPlotter.plot_univariate_histogram`
 and `plot_univariate_density` so that `sns.displot` reads as the distribution
 it draws (#446), and `maidr/patch/violinplot.py` and
-`maidr/patch/boxenplot.py` and `maidr/patch/pointplot.py` reach
-`_CategoricalPlotter.plot_violins`, `plot_boxens` and `plot_points` so that `sns.catplot` reads the chart it drew rather than the
+`maidr/patch/boxenplot.py`, `maidr/patch/pointplot.py` and
+`maidr/patch/barplot.py` reach `_CategoricalPlotter.plot_violins`,
+`plot_boxens`, `plot_points` and `plot_bars` so that `sns.catplot` reads the chart it drew rather than the
 scaffolding underneath it (#448, #449). Those carry the same risk for the same
 reason: an attribute that moves breaks
 `import maidr` for **everyone**, not only for users of that chart type.
@@ -77,6 +78,12 @@ PATCHED_INTERNALS = [
         "seaborn.categorical",
         "_CategoricalPlotter",
         "plot_points",
+        Version("0.13"),
+    ),
+    (
+        "seaborn.categorical",
+        "_CategoricalPlotter",
+        "plot_bars",
         Version("0.13"),
     ),
     (

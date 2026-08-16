@@ -416,3 +416,54 @@ def plotter_axes(plotter: Any) -> list[Axes]:
     if grid is None:
         return []
     return [axes for axes in np.asarray(grid).flat if isinstance(axes, Axes)]
+
+
+def plotter_panels(plotter: Any) -> list[tuple[Axes, Any]]:
+    """
+    One ``(axes, data)`` pair per panel a seaborn plotter actually drew into.
+
+    Not the same list as :func:`plotter_axes`, and the difference is the whole
+    point: a ``row``/``col`` grid allocates an axes for **every** combination
+    of the two, including the ones the data does not hold. Seaborn draws
+    nothing into those, and registering them promises a layer whose extraction
+    has nothing to read -- which raises, and takes the whole figure's HTML down
+    with it rather than only the empty panel's::
+
+        catplot(kind="bar", col=..., row=...)  with one combination missing
+          ExtractionError: Error extracting data for bar plot type
+
+    Seaborn's own ``iter_data(allow_empty=False)`` is what knows which
+    combinations exist, and ``_get_axes`` maps each to the axes it was drawn
+    on. A single-axes plot skips both: there is one axes and it gets all the
+    data, so the ordinary ``sns.violinplot(ax=ax)`` path does not depend on
+    either of them.
+
+    Parameters
+    ----------
+    plotter : Any
+        The plotter instance the wrapped method is bound to.
+
+    Returns
+    -------
+    list of (Axes, data)
+        Possibly empty, which makes the caller a no-op rather than a guess.
+        The data is the plotter's own frame for that panel; a caller that only
+        needs the axes can ignore it.
+    """
+    axes = plotter_axes(plotter)
+    data = getattr(plotter, "plot_data", None)
+    if data is None or not hasattr(data, "empty") or data.empty:
+        return []
+    if len(axes) <= 1:
+        return [(axes[0], data)] if axes else []
+
+    panels: list[tuple[Axes, Any]] = []
+    seen: set[int] = set()
+    for sub_vars, sub_data in plotter.iter_data(allow_empty=False):
+        panel = plotter._get_axes(sub_vars)
+        # Deduplicated by axes, because a caller that groups by hue as well
+        # would otherwise be handed the same panel once per level.
+        if isinstance(panel, Axes) and id(panel) not in seen:
+            seen.add(id(panel))
+            panels.append((panel, sub_data))
+    return panels
