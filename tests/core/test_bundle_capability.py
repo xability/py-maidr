@@ -98,8 +98,30 @@ def test_the_bundle_names_the_types_it_can_build():
     """
     types = bundle_trace_types()
 
-    assert len(types) > 100
-    for expected in ("bar", "box", "heat", "line", "pie", "scatter"):
+    # Every type this package can emit, rather than a count. The count was
+    # `> 100` while the scan matched any quoted lower-snake string anywhere:
+    # a threshold calibrated against noise, which 4.3.0 pushed to 1265 tokens
+    # and which said nothing about whether the *right* words were found.
+    # Anchoring the scan on the enum's `.UPPER_SNAKE =` brings it to 60 real
+    # ones, so the meaningful assertion is coverage of what we emit (#436).
+    emitted = {
+        plot_type.value
+        for plot_type in PlotType
+        # `count` is classified but never emitted -- a `countplot` travels as
+        # `bar`, which is what the case below this one is about.
+        if plot_type is not PlotType.COUNT
+    }
+    missing = sorted(emitted - types)
+
+    assert not missing, f"bundle names no builder for: {missing}"
+
+    # Spot-checked against what a layer is actually *called* on the wire. The
+    # old list asked for `"scatter"`, which is not a trace type at all --
+    # `PlotType.SCATTER.value` is `point`, and the bundle agrees
+    # (`e.SCATTER=\`point\``). It passed only because the loose scan caught
+    # the word somewhere else in the file, which is the same accident this
+    # case exists to rule out.
+    for expected in ("bar", "box", "heat", "line", "pie", "point"):
         assert expected in types, expected
 
 
