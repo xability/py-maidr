@@ -187,6 +187,27 @@ class TestTheCategoriesAreNamed:
             "b, q",
         ]
 
+    @pytest.mark.parametrize("gap", [0.0, 0.3, 0.6], ids=["flush", "gap", "wide-gap"])
+    def test_a_gap_between_dodged_boxes_does_not_rename_the_levels(self, gap):
+        # `gap=` shrinks each box within its dodge slot, so the drawn box is
+        # narrower than the centre-to-centre spacing. Taking the box's width
+        # for the spacing therefore drifts, and the drift compounds outward.
+        # Measured on four levels: `gap=0.3` left the two outer ladders with
+        # no level name at all, and `gap=0.6` gave them the *wrong* one --
+        # "a, p" where the chart drew "a, q".
+        #
+        # The lattice is read from where the ladders actually sit instead, so
+        # the gap is irrelevant to it.
+        df = hue_frame()
+        df["h"] = np.tile(np.repeat(list("pqrs"), 50), 2)
+        ax = sns.boxenplot(df, x="g", y="v", hue="h", gap=gap)
+
+        assert [point["z"] for point in ladders(ax)] == [
+            f"{category}, {level}"
+            for category in ("a", "b")
+            for level in ("p", "q", "r", "s")
+        ]
+
     def test_the_hue_dimension_itself_is_named(self):
         ax = sns.boxenplot(hue_frame(), x="g", y="v", hue="h")
         schema = [plot.schema for plot in layers(ax)][0]
@@ -250,6 +271,24 @@ class TestAnotherLineOnTheAxes:
     @pytest.mark.parametrize("first", [True, False], ids=["before", "after"])
     def test_the_threshold_is_not_read_as_a_ladder(self, first):
         assert len(ladders(self._axes(first))) == len(GROUPS)
+
+    def test_a_threshold_spanning_part_of_the_axes_is_still_not_a_median(self):
+        # Containment alone is not enough. `axhline` blends the *axes*
+        # transform on x, so its stored coordinates run 0 to 1 and describe
+        # the width of the axes rather than any data position -- and given an
+        # explicit span they land inside a category's box range by
+        # coincidence. Measured on `axhline(0.0, xmin=.15, xmax=.35)` over two
+        # categories: the first category's median was announced as 0.0, where
+        # the data says 0.0484.
+        #
+        # A genuinely flat data line is still a median, so the test is the
+        # transform rather than the shape.
+        _, ax = plt.subplots()
+        ax.axhline(0.0, xmin=0.15, xmax=0.35, color="grey")
+        sns.boxenplot(frame(), x="g", y="v", ax=ax)
+
+        for point, values in zip(ladders(ax), GROUPS.values()):
+            assert point["median"] == pytest.approx(float(np.median(values)))
 
 
 class TestWhichWayRoundItIsDrawn:

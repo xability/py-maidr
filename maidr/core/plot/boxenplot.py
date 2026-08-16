@@ -255,6 +255,17 @@ class BoxenPlot(MaidrPlot):
         pad_y = (y1 - y0) * 1e-6
 
         for line in self.ax.get_lines():
+            # `axhline`/`axvline` blend the *axes* transform on one axis, so
+            # their stored coordinates run 0 to 1 and describe the extent of
+            # the axes rather than any value. Those numbers land in data space
+            # by coincidence, and a threshold given an explicit span does land
+            # inside a ladder: measured on `axhline(0.0, xmin=.15, xmax=.35)`
+            # over two categories, containment matched and the first
+            # category's median was announced as 0.0 where the data says
+            # 0.0484. Asking the transform is the same test `MultiLinePlot`
+            # uses to keep a reference line out of a line layer (#434).
+            if line.get_transform() is not self.ax.transData:
+                continue
             xy = line.get_xydata()
             if xy is None or len(xy) != 2:  # type: ignore[arg-type]
                 continue
@@ -290,27 +301,73 @@ class BoxenPlot(MaidrPlot):
             for position, text in zip(axis.get_ticklocs(), axis.get_ticklabels())
         ]
 
-    def _category_of(self, centre: float, width: float, vertical: bool) -> str:
+    def _dodge_offsets(self, centres: List[float], vertical: bool) -> List[float]:
+        """
+        The distinct offsets from a tick at which ladders are drawn.
+
+        A hue split dodges ``n`` ladders into each category's slot, and every
+        slot uses the same offsets. Collecting them across the whole chart and
+        sorting gives the dodge lattice directly, so a ladder's level is its
+        offset's rank -- no pitch, slot width or gap arithmetic involved.
+
+        That is what makes it hold under ``gap=``. Deriving the pitch from the
+        widest drawn box assumes a box fills its slot, and ``gap=`` is exactly
+        the parameter that stops it: measured on four hue levels, ``gap=0.3``
+        left two ladders with no level name and ``gap=0.6`` gave two of them
+        the *wrong* one -- ``a, p`` where the chart drew ``a, q``.
+
+        Reading the lattice from every ladder rather than per category also
+        survives a category that is missing a level, so long as some other
+        category draws it: the offsets are a property of the dodge, not of the
+        data in one slot.
+
+        Parameters
+        ----------
+        centres : list of float
+            Every ladder's midpoint on the category axis.
+        vertical : bool
+            Whether the category axis is x.
+
+        Returns
+        -------
+        list of float
+            Distinct offsets, ascending. Empty when there are no ticks to
+            measure from.
+        """
+        ticks = self._tick_labels(vertical)
+        if not ticks:
+            return []
+
+        offsets: List[float] = []
+        for centre in centres:
+            position = min(ticks, key=lambda tick: abs(tick[0] - centre))[0]
+            offset = centre - position
+            # Clustered rather than compared exactly: the same lattice
+            # position arrives with different last bits from category to
+            # category.
+            if not any(abs(offset - seen) < 1e-6 for seen in offsets):
+                offsets.append(offset)
+
+        return sorted(offsets)
+
+    def _category_of(self, centre: float, vertical: bool, offsets: List[float]) -> str:
         """
         Name the distribution a ladder at ``centre`` summarises.
 
         Without a hue split a ladder sits on its tick and the tick's label is
-        the answer. With one, seaborn dodges ``n`` ladders into the slot, each
-        ``width`` wide, so level ``j`` is centred ``width * (j + 0.5)`` from the
-        slot's left edge. Inverting that gives the level, which is why the
-        arithmetic is here rather than a left-to-right walk: a category that is
-        missing a level would shift every later ladder along and rename them
-        all.
+        the answer. With one, the ladder sits at one of the dodge lattice's
+        offsets from its tick, and which one it is says which level it belongs
+        to -- see :meth:`_dodge_offsets` for why the lattice is measured
+        rather than computed.
 
         Parameters
         ----------
         centre : float
             The ladder's midpoint on the category axis.
-        width : float
-            The widest box's extent along the category axis, which is the
-            per-level slot width.
         vertical : bool
             Whether the category axis is x.
+        offsets : list of float
+            The dodge lattice, from :meth:`_dodge_offsets`.
 
         Returns
         -------
@@ -325,11 +382,12 @@ class BoxenPlot(MaidrPlot):
 
         legend = self.ax.get_legend()
         levels = [text.get_text() for text in legend.get_texts()] if legend else []
-        if len(levels) < 2 or width <= 0:
+        if len(levels) < 2 or len(offsets) < 2:
             return label
 
-        index = round((centre - position + width * len(levels) / 2) / width - 0.5)
-        if 0 <= index < len(levels):
+        offset = centre - position
+        index = min(range(len(offsets)), key=lambda rank: abs(offsets[rank] - offset))
+        if index < len(levels):
             return f"{label}, {levels[index]}"
 
         return label
@@ -418,7 +476,11 @@ class BoxenPlot(MaidrPlot):
         ExtractionError
             When nothing on the axes reads as a letter-value ladder.
         """
-        points = []
+        # Read every ladder's geometry first, then name them. Naming needs the
+        # dodge lattice, and the lattice is only visible once every ladder's
+        # centre is known -- a ladder cannot say which hue level it is from
+        # its own position alone.
+        read = []
 
         for ladder, fliers in self._ladders():
             bounds = self._box_bounds(ladder)
@@ -444,7 +506,6 @@ class BoxenPlot(MaidrPlot):
             if not levels:
                 continue
 
-            widest = max(span[1] - span[0] for span in spans)
             centre = (
                 min(span[0] for span in spans) + max(span[1] for span in spans)
             ) / 2
@@ -454,9 +515,17 @@ class BoxenPlot(MaidrPlot):
                 levels[0][MaidrKey.LO.value],
                 levels[0][MaidrKey.HI.value],
             )
+            read.append((centre, vertical, median, levels, lower, upper))
 
+        points = []
+        offsets = self._dodge_offsets(
+            [entry[0] for entry in read],
+            read[0][1] if read else True,
+        )
+
+        for centre, vertical, median, levels, lower, upper in read:
             point = {
-                MaidrKey.Z.value: self._category_of(centre, widest, vertical),
+                MaidrKey.Z.value: self._category_of(centre, vertical, offsets),
                 MaidrKey.MEDIAN.value: median,
                 MaidrKey.LEVELS.value: levels,
             }
