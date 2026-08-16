@@ -404,21 +404,21 @@ class TestStepUtils:
             ax.plot([], [])  # empty: carries no data, must be ignored by both
             ax.step([0, 1, 2], [3, 2, 1], where="post")
 
-            counted = data_bearing_lines(ax)
+            counted = data_bearing_lines(ax.get_lines())
             extracted = _only_layer(fig)["data"]
 
             assert len(counted) == len(extracted) == 2
         finally:
             plt.close(fig)
 
-    def test_an_empty_line_does_not_make_an_axes_a_step_plot(self):
-        """An axes with no data-bearing line is not a step plot."""
-        from maidr.util.step_utils import is_step_axes
+    def test_an_empty_line_does_not_make_a_layer_a_step_plot(self):
+        """A layer with no data-bearing line is not a step plot."""
+        from maidr.util.step_utils import is_step_layer
 
         fig, ax = plt.subplots()
         try:
             ax.plot([], [])
-            assert is_step_axes(ax) is False
+            assert is_step_layer(ax.get_lines()) is False
         finally:
             plt.close(fig)
 

@@ -67,7 +67,11 @@ class StepPlot(MultiLinePlot):
         """
         schema = super().render()
 
-        direction = resolve_step_direction(self.ax)
+        # Resolved from the lines this layer describes, not from the axes.
+        # `render()` runs at `save_html()` time, so anything drawn onto the
+        # axes in between reached the sweep -- a box plot added after the step
+        # line was enough to make the drawstyles "disagree" and drop the field.
+        direction = resolve_step_direction(self._series())
         if direction is not None:
             schema[MaidrKey.STEP_DIRECTION] = direction
 

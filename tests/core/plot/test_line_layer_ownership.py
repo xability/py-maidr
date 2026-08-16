@@ -201,6 +201,98 @@ class TestSeveralCallsAreStillOneLayer:
         ]
 
 
+@pytest.mark.parametrize("companion", ["boxplot", "violinplot", "boxenplot"])
+class TestAStepChartSharingItsAxes:
+    """The same sweep, one level down, in ``maidr/util/step_utils.py``.
+
+    Narrowing ``_series()`` fixed which lines a layer *describes*. It left two
+    reads of the axes behind, and both decide things about a step chart:
+
+    ``is_step_layer`` (classification, at registration)
+        A step chart drawn *after* a companion saw the box's whiskers in the
+        mix, concluded the axes was not piecewise-constant, and registered as
+        ``line``. That is not a cosmetic mislabel -- ``line`` builds
+        ``MultiLinePlot`` rather than ``StepPlot``, so the ordinal level names
+        go with it, and a hypnogram announces ``3`` where it should say
+        ``REM``.
+
+    ``resolve_step_direction`` (the field, at render)
+        Read at ``save_html()`` time, so a companion drawn *after* the step
+        line was enough: the step line was unambiguous, box geometry disagreed
+        with it, and ``stepDirection`` was silently dropped.
+
+    Measured, per ordering::
+
+        sns.boxplot(...); ax.step(...)   type "line"   stepDirection n/a
+        ax.step(...); sns.boxplot(...)   type "step"   stepDirection absent
+
+    Both orderings are covered because they fail through different functions.
+    """
+
+    @staticmethod
+    def _levels(ax):
+        # A hypnogram, which is what makes the classification loss legible:
+        # the level names only exist on a StepPlot.
+        ax.set_yticks([1, 2, 3], labels=["N3", "N2", "REM"])
+
+    def _companion_first(self, companion: str):
+        _, ax = plt.subplots()
+        getattr(sns, companion)(frame(), x="g", y="v", ax=ax)
+        ax.step([0, 1, 2], [1, 2, 3], where="post")
+        self._levels(ax)
+        return ax
+
+    def _step_first(self, companion: str):
+        _, ax = plt.subplots()
+        ax.step([0, 1, 2], [1, 2, 3], where="post")
+        getattr(sns, companion)(frame(), x="g", y="v", ax=ax)
+        self._levels(ax)
+        return ax
+
+    @staticmethod
+    def _step_layer(ax):
+        maidr = FigureManager.get_maidr(ax.get_figure())
+        steps = [plot for plot in maidr._plots if plot.type.value == "step"]
+
+        assert len(steps) == 1, [plot.type.value for plot in maidr._plots]
+        return steps[0].schema
+
+    def test_a_step_drawn_after_a_companion_is_still_a_step(self, companion):
+        assert self._step_layer(self._companion_first(companion))
+
+    def test_it_keeps_its_direction_when_drawn_after(self, companion):
+        assert self._step_layer(self._companion_first(companion))["stepDirection"] == (
+            "hv"
+        )
+
+    def test_it_keeps_its_level_names_when_drawn_after(self, companion):
+        # What the misclassification actually cost. `MultiLinePlot` has no
+        # `_attach_level_labels`, so a chart typed `line` announces the stage
+        # code and never the stage.
+        schema = self._step_layer(self._companion_first(companion))
+
+        assert [point["label"] for point in schema["data"][0]] == ["N3", "N2", "REM"]
+
+    def test_a_companion_drawn_after_does_not_take_the_direction(self, companion):
+        assert self._step_layer(self._step_first(companion))["stepDirection"] == "hv"
+
+    def test_the_step_layer_holds_only_its_own_line(self, companion):
+        # The guard against fixing the type by widening what it reads.
+        #
+        # The first two x arrive as `a` and `b` for the reason the reference
+        # line above does: the companion makes the axis categorical and #353's
+        # label recovery names the positions the step was drawn at. The third
+        # sits past the last category, where there is no tick to name, so it
+        # stays numeric.
+        schema = self._step_layer(self._companion_first(companion))
+
+        assert [(point["x"], point["y"]) for point in schema["data"][0]] == [
+            ("a", 1.0),
+            ("b", 2.0),
+            (2.0, 3.0),
+        ]
+
+
 class TestWhatMustNotChange:
     def test_a_plain_line_chart_is_unaffected(self):
         _, ax = plt.subplots()

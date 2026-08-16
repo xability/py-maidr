@@ -9,7 +9,7 @@ from maidr.core.enum import PlotType
 from maidr.patch.common import _draw_quietly, common, wrap_seaborn
 from maidr.core.context_manager import ContextManager
 from maidr.core.figure_manager import FigureManager
-from maidr.util.step_utils import is_step_axes
+from maidr.util.step_utils import is_step_layer
 
 #: The attribute the accumulated series live on. A layer describes the lines
 #: its own calls drew; see `line()` for what sweeping the axes collected.
@@ -37,12 +37,19 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
 
     # `seaborn.lineplot` returns an Axes rather than the lines it drew, so the
     # only way to know which of them are its own is to look before and after.
+    # `Axes.plot` hands its lines straight back, so it needs no snapshot -- and
+    # `instance` tells the two apart before the call, being the Axes for the
+    # bound method and None for the module-level seaborn function.
     #
-    # Resolved the way seaborn resolves it, `plt.gca()` and all. `wrap_seaborn`
-    # wraps it as a module-level function, so `instance` is None, and the
-    # common idiom passes no `ax=` either -- which left the snapshot empty and
-    # made *every* line on the axes look newly drawn. Measured on the pairing
-    # this whole change is about::
+    # Worth splitting rather than snapshotting unconditionally. Measured on an
+    # axes carrying 2,000 lines, `list(ax.get_lines())` costs 369 us per call
+    # against roughly 600 us for the whole patched `ax.plot` -- a third of it,
+    # on the path that never reads the result.
+    #
+    # On the seaborn side the target is resolved the way seaborn resolves it,
+    # `plt.gca()` and all: the common idiom passes no `ax=` either, which left
+    # the snapshot empty and made *every* line on the axes look newly drawn.
+    # Measured on the pairing this whole change is about::
     #
     #     sns.boxplot(data=df, x="g", y="v")        # no ax=
     #     sns.lineplot(data=summary, x="g", y="v")  # no ax=
@@ -51,10 +58,12 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     # `plt.gca()` creates an axes when there is none, which is not a side
     # effect worth avoiding here: seaborn is about to call it and create the
     # same one a moment later.
-    target = kwargs.get("ax")
-    if target is None:
-        target = instance if isinstance(instance, Axes) else plt.gca()
-    before = list(target.get_lines()) if isinstance(target, Axes) else []
+    before = None
+    if not isinstance(instance, Axes):
+        target = kwargs.get("ax")
+        if target is None:
+            target = plt.gca()
+        before = list(target.get_lines()) if isinstance(target, Axes) else []
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
@@ -83,15 +92,23 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     # the moment the decision is made, so detachment is not observable yet.
     # It also agrees with #421: a layer with no points is a phantom, not an
     # empty reading.
-    drawn = (
-        [line for line in plot if isinstance(line, Line2D)]
-        if isinstance(plot, list)
-        else [
+    # Which branch runs is decided by whether a snapshot was taken, not by the
+    # shape of the return value. Tying them together is what keeps a surprise
+    # from `Axes.plot` -- a future release returning something other than a
+    # list -- from silently falling through to the sweep this change removes.
+    # Drawing nothing is the safe answer there; describing the axes is not.
+    if before is None:
+        drawn = (
+            [line for line in plot if isinstance(line, Line2D)]
+            if isinstance(plot, list)
+            else []
+        )
+    else:
+        drawn = [
             line
             for line in (ax.get_lines() if ax is not None else [])
             if line not in before
         ]
-    )
     if drawn and all(line.get_xydata().size == 0 for line in drawn):
         return plot
 
@@ -134,9 +151,15 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
 
     # Check if a MAIDR plot already exists for this axes
     if not hasattr(ax, "_maidr_plot_created"):
-        # Classify from the rendered artists: an axes is a step plot only when
-        # every data-bearing line on it is a step line.
-        plot_type = PlotType.STEP if is_step_axes(ax) else PlotType.LINE
+        # Classify from the rendered artists: a layer is a step plot only when
+        # every data-bearing line *it owns* is a step line.
+        #
+        # Asked of `series` rather than the axes for the reason above. A step
+        # chart drawn over a box plot saw the box's whiskers in the mix and
+        # concluded the axes was not piecewise-constant, so it registered as
+        # LINE -- which means `MultiLinePlot` instead of `StepPlot`, and the
+        # ordinal level names go with it.
+        plot_type = PlotType.STEP if is_step_layer(series) else PlotType.LINE
         # Create MAIDR plot only once for this axes using common()
         common(
             plot_type,
