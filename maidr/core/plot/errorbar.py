@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from typing import Any, Sequence
 
 import numpy as np
@@ -11,6 +13,31 @@ from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
 from maidr.util.mixin import DictMergerMixin
+
+
+
+def _is_drawn(value: object) -> bool:
+    """
+    Whether matplotlib put this coordinate anywhere.
+
+    A non-finite number has no position, so nothing is rendered for it.
+    Anything ``math.isfinite`` cannot judge is a categorical coordinate,
+    which is always drawn and is never a JSON hazard.
+
+    Parameters
+    ----------
+    value : object
+        A coordinate as read off the container.
+
+    Returns
+    -------
+    bool
+        False only for a number that is NaN or infinite.
+    """
+    try:
+        return math.isfinite(value)  # type: ignore[arg-type]
+    except TypeError:
+        return True
 
 
 class ErrorBarPlot(MaidrPlot, DictMergerMixin):
@@ -135,6 +162,26 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
 
         data = []
         for index, (category, value) in enumerate(zip(categories, values)):
+            # Only the samples matplotlib drew. It renders neither a marker
+            # nor a bar for a non-finite estimate, so emitting one leaves the
+            # layer longer than the elements the selector resolves to and
+            # every sample after it is highlighted at its neighbour's. It also
+            # keeps the payload loadable: `json.dumps` writes `NaN` as a bare
+            # token, which is legal JavaScript and invalid JSON, and the core
+            # parses the SVG's `maidr` attribute with `JSON.parse` (#429).
+            #
+            # A missing *bound* is a different case and needs nothing here.
+            # `_extract_bounds` already returns None for one, the point keeps
+            # its estimate, and the interval is simply absent -- an estimate
+            # with no interval is a reading, not a gap.
+            #
+            # `index` goes on counting over every sample, because it addresses
+            # the segments matplotlib built for the whole series. Renumbering
+            # it against the survivors would pair each remaining estimate with
+            # the next one's bounds.
+            if not (_is_drawn(category) and _is_drawn(value)):
+                continue
+
             point = {
                 MaidrKey.X: self._scalar(category),
                 MaidrKey.Y: self._scalar(value),
