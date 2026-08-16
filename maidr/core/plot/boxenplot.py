@@ -450,6 +450,14 @@ class BoxenPlot(MaidrPlot):
             # Clustered rather than compared exactly: the same lattice
             # position arrives with different last bits from category to
             # category.
+            #
+            # An absolute tolerance is safe because the scale is fixed rather
+            # than data-dependent: a category axis puts its ticks one unit
+            # apart whatever the values are, so a dodge offset is a fraction
+            # of 1 and two *distinct* lattice positions are separated by
+            # `width / n` -- 0.1 at eight levels in a full-width slot, five
+            # orders of magnitude above this. What is being merged differs
+            # only in the last bits of the same arithmetic.
             if not any(abs(offset - seen) < 1e-6 for seen in offsets):
                 offsets.append(offset)
 
