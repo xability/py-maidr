@@ -119,6 +119,44 @@ class TestAReferenceLineOverADistributionChart:
         assert kinds & {"box", "violin_box", "violin_kde", "boxen"}
 
 
+@pytest.mark.parametrize("companion", ["boxplot", "violinplot", "boxenplot"])
+class TestNeitherCallNamesItsAxes:
+    """The idiom that leaves ``ax=`` off both calls, which is the common one.
+
+    ``wrap_seaborn`` wraps ``seaborn.lineplot`` as a module-level function, so
+    the wrapper's ``instance`` is always None; with no ``ax=`` either, there
+    was nothing to take a before-snapshot of and every line on the axes looked
+    newly drawn. Measured on ``sns.boxplot`` then ``sns.lineplot``, neither
+    passing ``ax=``: 11 series again, values being whisker endpoints -- the
+    defect this file exists to close, left intact for the more common spelling
+    of it.
+
+    Parametrized over all three companions rather than just the box plot,
+    since the snapshot is what fails and it does not know which chart drew
+    what.
+    """
+
+    @staticmethod
+    def _figure(companion: str):
+        plt.figure()
+        getattr(sns, companion)(data=frame(), x="g", y="v")
+        sns.lineplot(
+            data=pd.DataFrame({"g": ["a", "b"], "v": [0.5, 0.4]}), x="g", y="v"
+        )
+        return plt.gca()
+
+    def test_the_layer_holds_only_the_line_that_was_plotted(self, companion):
+        assert len(line_series(self._figure(companion))) == 1
+
+    def test_it_is_the_summary_line(self, companion):
+        series = line_series(self._figure(companion))[0]
+
+        assert [(point["x"], point["y"]) for point in series] == [
+            ("a", 0.5),
+            ("b", 0.4),
+        ]
+
+
 class TestSeveralCallsAreStillOneLayer:
     """What the sweep was right about, and the half a naive fix breaks.
 

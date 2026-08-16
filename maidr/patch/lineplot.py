@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import matplotlib.pyplot as plt
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -36,9 +37,23 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
 
     # `seaborn.lineplot` returns an Axes rather than the lines it drew, so the
     # only way to know which of them are its own is to look before and after.
+    #
+    # Resolved the way seaborn resolves it, `plt.gca()` and all. `wrap_seaborn`
+    # wraps it as a module-level function, so `instance` is None, and the
+    # common idiom passes no `ax=` either -- which left the snapshot empty and
+    # made *every* line on the axes look newly drawn. Measured on the pairing
+    # this whole change is about::
+    #
+    #     sns.boxplot(data=df, x="g", y="v")        # no ax=
+    #     sns.lineplot(data=summary, x="g", y="v")  # no ax=
+    #     -> line layer: 11 series, values are whisker endpoints
+    #
+    # `plt.gca()` creates an axes when there is none, which is not a side
+    # effect worth avoiding here: seaborn is about to call it and create the
+    # same one a moment later.
     target = kwargs.get("ax")
-    if target is None and isinstance(instance, Axes):
-        target = instance
+    if target is None:
+        target = instance if isinstance(instance, Axes) else plt.gca()
     before = list(target.get_lines()) if isinstance(target, Axes) else []
 
     # Set the internal context to avoid cyclic processing.
