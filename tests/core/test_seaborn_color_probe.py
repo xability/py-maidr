@@ -23,7 +23,8 @@ Measured across seaborn, before and after:
                                                 fatal to the whole figure)
     ecdfplot    line            -> step        (same data, wrong chart)
     stripplot   4 layers        -> 3           (one per group, and one more)
-    boxenplot   area, line, ... -> line, ...
+    boxenplot   area, line, ... -> line, ...   (a real `boxen` layer
+                                                since #253)
 
 The `ecdfplot` row is the one worth reading twice. The layer count was
 already right and the numbers were already right; the probe simply got
@@ -76,9 +77,7 @@ def _close_figures():
 def _frame() -> pd.DataFrame:
     """Three groups and a numeric column, enough for a categorical plot."""
     rng = np.random.default_rng(20260814)
-    return pd.DataFrame(
-        {"group": list("abc") * 8, "value": rng.normal(size=24)}
-    )
+    return pd.DataFrame({"group": list("abc") * 8, "value": rng.normal(size=24)})
 
 
 def _is_wrapped(function) -> bool:
@@ -201,9 +200,12 @@ def test_a_strip_plot_registers_one_layer_per_group() -> None:
 def test_a_boxen_plot_carries_no_phantom_area() -> None:
     """The reproduction from the issue.
 
-    ``boxenplot`` is not a supported plot type and this does not make it one:
-    what it registers is still not a boxen plot. But the leading ``area`` was
-    a fill of two empty arrays, and it is gone.
+    The leading ``area`` was a fill of two empty arrays, and it is gone.
+
+    When this was written ``boxenplot`` was not a supported plot type, so the
+    case could only say what the layer is *not*. #253 gave it a real one, and
+    the assertion is unchanged by that: a phantom area is wrong whether or not
+    the layer beside it is now a letter-value ladder.
     """
     fig, ax = plt.subplots()
     sns.boxenplot(data=_frame(), x="group", y="value", ax=ax)

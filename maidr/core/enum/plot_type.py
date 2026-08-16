@@ -6,6 +6,12 @@ class PlotType(str, Enum):
 
     BAR = "bar"
     BOX = "box"
+    #: A letter-value plot: the box plot's five-number summary generalised to a
+    #: variable-depth ladder of quantiles, so a large sample's tails stay
+    #: legible instead of collapsing into a whisker and a cloud of dots. A
+    #: distinct type because :attr:`BOX` is fixed at one rung, and depth is the
+    #: whole point of the chart.
+    BOXEN = "boxen"
     COUNT = "count"
     DODGED = "dodged_bar"
     ERRORBAR = "error_bar"

@@ -35,6 +35,15 @@ class MaidrKey(str, Enum):
     IQ = "iq"
     MEDIAN = "median"
 
+    # Boxen (letter-value) plot keys. A rung is a pair of quantiles symmetric
+    # about the median, named by its *tail* probability -- `p = 0.25` spans the
+    # middle half, `p = 0.125` the middle three quarters -- which is how the
+    # letter-value literature defines it and how seaborn reports it.
+    LEVELS = "levels"
+    P = "p"
+    LO = "lo"
+    HI = "hi"
+
     # Grouped bar, heatmap, and z-axis keys.
     Z = "z"
     LABELS = "labels"

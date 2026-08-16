@@ -2,6 +2,7 @@
 from . import (  # noqa: F401
     areaplot,
     barplot,
+    boxenplot,
     boxplot,
     clear,
     colorbar,

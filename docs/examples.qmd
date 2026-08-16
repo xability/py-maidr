@@ -576,6 +576,36 @@ ax.xaxis.set_major_formatter("{x:.1f}")
 plt.show() #<<
 ```
 
+### Boxen Plot (Letter-Value Plot)
+
+```{python}
+#| fig-alt: Boxen plot of diamond price by cut quality, showing the letter-value ladder
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from seaborn import load_dataset
+
+import maidr #<<
+
+diamonds = load_dataset("diamonds")
+
+fig, ax = plt.subplots()
+sns.boxenplot(data=diamonds, x="cut", y="price", ax=ax) #<<
+ax.set_xlabel("Cut")
+ax.set_ylabel("Price (USD)")
+ax.set_title("Diamond Price by Cut Quality")
+
+plt.show() #<<
+```
+
+A boxen plot is a box plot whose tails keep resolving: instead of one quartile
+box and a cloud of outliers, it draws a *ladder* of quantile pairs, and a
+larger sample earns more rungs. maidr announces each rung as the percentile it
+actually is -- "the 12.5th percentile" rather than a rung number -- and moving
+outward from the median walks the ladder in value order. `k_depth=` controls
+how deep it goes, and the announcement follows it.
+
 ### Violin Plot
 
 #### Seaborn Violin Plot (Horizontal)
