@@ -490,6 +490,19 @@ class BoxenPlot(MaidrPlot):
         if not ticks:
             return ""
 
+        # Nearest tick, which is safe by construction rather than by luck.
+        # seaborn dodges `n` levels into a slot `width` wide, so the outermost
+        # ladder's centre sits `width * (n - 1) / (2n)` from its tick -- always
+        # under `width / 2`, and `width` is a fraction of the categorical unit
+        # whose spacing is 1. Measured, against a half-spacing of 0.5::
+        #
+        #     n=2 width=0.8  ->  0.2000
+        #     n=6 width=1.0  ->  0.4167
+        #     n=8 width=1.0  ->  0.4375
+        #
+        # The bound tightens toward 0.5 as levels are added and only reaches
+        # it in the limit, at a width that would already have adjacent
+        # categories touching.
         position, label = min(ticks, key=lambda tick: abs(tick[0] - centre))
 
         if len(levels) < 2 or len(offsets) < 2:
@@ -817,6 +830,19 @@ class BoxenPlot(MaidrPlot):
         if not ticks:
             return ""
 
+        # Nearest tick, which is safe by construction rather than by luck.
+        # seaborn dodges `n` levels into a slot `width` wide, so the outermost
+        # ladder's centre sits `width * (n - 1) / (2n)` from its tick -- always
+        # under `width / 2`, and `width` is a fraction of the categorical unit
+        # whose spacing is 1. Measured, against a half-spacing of 0.5::
+        #
+        #     n=2 width=0.8  ->  0.2000
+        #     n=6 width=1.0  ->  0.4167
+        #     n=8 width=1.0  ->  0.4375
+        #
+        # The bound tightens toward 0.5 as levels are added and only reaches
+        # it in the limit, at a width that would already have adjacent
+        # categories touching.
         position, label = min(ticks, key=lambda tick: abs(tick[0] - centre))
 
         if len(levels) < 2 or len(offsets) < 2:
@@ -976,8 +1002,9 @@ class BoxenPlot(MaidrPlot):
         # centre is known -- a ladder cannot say which hue level it is from
         # its own position alone.
         read = []
+        ladders = self._ladders()
 
-        for ladder, fliers in self._ladders():
+        for ladder, fliers in ladders:
             bounds = self._box_bounds(ladder)
             median_line = self._median_of(ladder)
             if not bounds or median_line is None:
@@ -1043,7 +1070,7 @@ class BoxenPlot(MaidrPlot):
         # written to remove -- a reader is given a complete-sounding reading
         # of fewer groups than the chart has. Nothing here can repair it, so
         # it is said out loud instead.
-        drawn = len(self._ladders())
+        drawn = len(ladders)
         if len(points) < drawn:
             warnings.warn(
                 f"maidr: read {len(points)} of {drawn} boxen distributions on "

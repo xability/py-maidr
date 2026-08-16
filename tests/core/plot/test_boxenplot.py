@@ -241,6 +241,28 @@ class TestTheCategoriesAreNamed:
             f"{category}, {level}" for category in ("a", "b") for level in order
         ]
 
+    def test_many_levels_in_a_full_width_slot_still_land_on_their_own_tick(self):
+        # A ladder is named by its nearest tick, which is safe by
+        # construction: seaborn dodges `n` levels into a slot `width` wide, so
+        # the outermost centre sits `width * (n - 1) / (2n)` from its tick --
+        # under `width / 2`, against a tick spacing of 1. This is the tightest
+        # case reachable, and the measured offset is 0.4375 against a
+        # half-spacing of 0.5.
+        rng = np.random.default_rng(9)
+        levels = list("pqrstuvw")
+        df = pd.DataFrame(
+            {
+                "g": np.repeat(["a", "b"], 100 * len(levels)),
+                "h": np.tile(np.repeat(levels, 100), 2),
+                "v": rng.normal(0, 1, 200 * len(levels)),
+            }
+        )
+        ax = sns.boxenplot(df, x="g", y="v", hue="h", width=1.0)
+
+        assert [point["z"] for point in ladders(ax)] == [
+            f"{category}, {level}" for category in ("a", "b") for level in levels
+        ]
+
     def test_the_hue_dimension_itself_is_named(self):
         ax = sns.boxenplot(hue_frame(), x="g", y="v", hue="h")
         schema = [plot.schema for plot in layers(ax)][0]
@@ -487,6 +509,22 @@ class TestALadderThatCannotBeRead:
             drawn = ladders(ax)
 
         assert len(drawn) == 1
+
+    def test_nothing_readable_at_all_raises(self):
+        # The other end of the same scale. One unreadable ladder among several
+        # warns; none readable is not a chart, and `ExtractionError` is what
+        # the rest of `maidr/core/plot/` raises for that. Reached by
+        # constructing the layer without the collections the patch hands over
+        # -- which also pins that the handover is required rather than an
+        # optimisation.
+        from maidr.core.plot.boxenplot import BoxenPlot
+        from maidr.exception import ExtractionError
+
+        _, ax = plt.subplots()
+        sns.boxenplot(frame(), x="g", y="v", ax=ax)
+
+        with pytest.raises(ExtractionError):
+            BoxenPlot(ax).render()
 
     def test_a_complete_chart_warns_about_nothing(self):
         # The guard on the guard: a warning on every ordinary chart would be
