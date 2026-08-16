@@ -13,6 +13,12 @@ are heard at one x rather than by switching layers. ``SmoothTrace`` extends
 Two facts about seaborn's band decided the implementation, and both were
 measured rather than assumed:
 
+* A class test cannot identify the band. seaborn draws a violin body with
+  ``fill_betweenx``, so a violin is the same class however that class is
+  spelled -- and ``FillBetweenPolyCollection`` is matplotlib 3.10's, absent on
+  the older matplotlib the Python 3.9 floor resolves to. The reading validates
+  itself instead: a region is this fit's band only if it brackets every fitted
+  sample.
 * Its polygon runs out along one edge and back along the other. On a
   100-sample fit that is **203 vertices**, with individual x values appearing
   2, 3 or 4 times, so a positional split of the ring would be fragile in the
@@ -37,6 +43,7 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.collections import PolyCollection  # noqa: E402
 
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 
@@ -143,10 +150,8 @@ class TestTheBandIsReadRatherThanGuessed:
         rng = np.random.default_rng(1)
         violin_ax = sns.violinplot(x=rng.normal(size=60))
         assert [
-            c
-            for c in violin_ax.collections
-            if type(c).__name__ == "FillBetweenPolyCollection"
-        ], "expected seaborn to draw the violin body with fill_betweenx"
+            c for c in violin_ax.collections if isinstance(c, PolyCollection)
+        ], "expected seaborn to shade the violin body with a PolyCollection"
         plt.close("all")
 
         # A regression with its own band switched off, beside a shaded region
@@ -159,8 +164,6 @@ class TestTheBandIsReadRatherThanGuessed:
         ax.fill_between(x, y - 100, y - 90, alpha=0.2)
 
         assert [
-            c
-            for c in ax.collections
-            if type(c).__name__ == "FillBetweenPolyCollection"
+            c for c in ax.collections if isinstance(c, PolyCollection)
         ], "the decoy region should be on the axes"
         assert all("yMin" not in point for point in smooth_points(ax))

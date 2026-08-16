@@ -182,9 +182,13 @@ class SmoothPlot(MaidrPlot):
             chart draws no band (``ci=None``).
         """
         for collection in self.ax.collections:
+            # Every shaded region is a candidate, and the bracketing test in
+            # `_edges_of` decides. Filtering on `FillBetweenPolyCollection`
+            # first looks tighter and is not portable: matplotlib split that
+            # subclass out of `PolyCollection` in 3.10, so on an older one --
+            # which the Python 3.9 floor still resolves to -- no band exists by
+            # that name and every regression silently lost its interval.
             if not isinstance(collection, PolyCollection):
-                continue
-            if type(collection).__name__ != "FillBetweenPolyCollection":
                 continue
             bounds = self._edges_of(collection, x_data, y_data)
             if bounds is not None:
@@ -195,11 +199,13 @@ class SmoothPlot(MaidrPlot):
         """
         Read one shaded region's edges, if it is this fit's band.
 
-        The type test alone does not identify it. ``FillBetweenPolyCollection``
-        is the subclass matplotlib 3.10 split out for ``fill_between``, and
-        seaborn draws a **violin body** with ``fill_betweenx`` -- so a violin on
-        the same axes is the same class, and reading its outline would announce
-        a distribution's silhouette as a regression's uncertainty.
+        A type test cannot identify it, which is why this exists. seaborn
+        draws a **violin body** with ``fill_betweenx``, so a violin is the same
+        class as a band however that class is spelled, and reading its outline
+        would announce a distribution's silhouette as a regression's
+        uncertainty. ``FillBetweenPolyCollection`` does not help either: it is
+        the subclass matplotlib 3.10 split out, absent on the older matplotlib
+        the Python 3.9 floor resolves to.
 
         So the reading validates itself: a region is this fit's band only if it
         brackets every fitted sample. That is the property a confidence band
