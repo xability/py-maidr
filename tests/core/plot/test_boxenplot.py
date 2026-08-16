@@ -252,6 +252,81 @@ class TestAnotherLineOnTheAxes:
         assert len(ladders(self._axes(first))) == len(GROUPS)
 
 
+class TestWhichWayRoundItIsDrawn:
+    """The orientation has to reach the schema, not just the extraction.
+
+    The core reads ``layer.orientation`` and falls back to vertical when it is
+    absent, and ``BoxenTrace.text`` picks the announcement's two axis labels
+    off that flag. So a horizontal boxen that omits it is not unlabelled, it is
+    labelled backwards: the category arrives under the value axis's name and
+    the quantile under the category axis's.
+
+    Asserting the point values match between orientations -- which is all
+    ``TestOrientation`` does -- never touches the schema, so it passed
+    throughout.
+    """
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [({"x": "g", "y": "v"}, "vert"), ({"y": "g", "x": "v"}, "horz")],
+        ids=["vertical", "horizontal"],
+    )
+    def test_the_schema_says_so(self, kwargs, expected):
+        ax = sns.boxenplot(frame(), **kwargs)
+        schema = [plot.schema for plot in layers(ax)][0]
+
+        assert schema["orientation"] == expected
+
+
+class TestSomethingElseDrawnOnTheSameAxes:
+    """A ladder reads the collections its own call drew.
+
+    A strip plot over a boxen is a standard idiom -- the ladder summarises the
+    distribution the points make up -- and it is what breaks a positional
+    pairing. With ``showfliers=False`` seaborn adds no flier collection at
+    all, so the run stops alternating and the last ladder takes the strip
+    plot's first cloud as its own::
+
+        collections: Patch Patch Patch Path Path Path
+        z=a low=0 up=0    z=b low=0 up=0    z=c low=7 up=7
+
+    Fourteen outliers on a chart whose author asked for none, with the values
+    taken from a different layer.
+    """
+
+    @staticmethod
+    def _overlaid(**kwargs):
+        _, ax = plt.subplots()
+        sns.boxenplot(frame(), x="g", y="v", ax=ax, **kwargs)
+        sns.stripplot(frame(), x="g", y="v", ax=ax, color="k")
+        return ax
+
+    def test_suppressed_fliers_stay_suppressed_under_an_overlay(self):
+        for point in ladders(self._overlaid(showfliers=False)):
+            assert point.get("lowerOutliers", []) == []
+            assert point.get("upperOutliers", []) == []
+
+    def test_a_full_ladder_gains_none_from_the_overlay(self):
+        # The other way in: `k_depth="full"` draws an empty flier collection
+        # rather than none, so the run still alternates -- and the strip
+        # plot's clouds sit past the end of it.
+        for point in ladders(self._overlaid(k_depth="full")):
+            assert point.get("lowerOutliers", []) == []
+            assert point.get("upperOutliers", []) == []
+
+    def test_the_overlay_does_not_become_a_ladder(self):
+        assert len(ladders(self._overlaid(showfliers=False))) == len(GROUPS)
+
+    def test_real_fliers_are_still_read_under_an_overlay(self):
+        # The guard on the guard: reading only this call's collections must
+        # not lose the ones it did draw.
+        drawn = ladders(self._overlaid())
+
+        assert all(
+            point.get("lowerOutliers") or point.get("upperOutliers") for point in drawn
+        )
+
+
 class TestDepth:
     @pytest.mark.parametrize("depth", [1, 2, 3, 5])
     def test_an_explicit_depth_is_the_depth_emitted(self, depth):

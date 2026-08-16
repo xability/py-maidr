@@ -19,6 +19,12 @@ from maidr.exception import ExtractionError
 #: chosen here.
 _WIDEST_RUNG_P = 0.25
 
+#: The keyword the patch hands this layer its own collections under. Named
+#: once and imported at both ends rather than spelled twice, for the reason
+#: ``ScatterPlot.DRAWN_POINTS`` gives: a mismatch falls back to sweeping the
+#: axes, so a typo would restore the behaviour rather than raise.
+DRAWN_LADDERS = "_maidr_ladders"
+
 
 def _ladder_probabilities(depth: int) -> List[float]:
     """
@@ -105,7 +111,50 @@ class BoxenPlot(MaidrPlot):
 
     def __init__(self, ax: Axes, **kwargs) -> None:
         super().__init__(ax, PlotType.BOXEN)
+
+        # No selector, because the grammar has no shape for one. A box plot
+        # highlights through ``BoxSelector``, which names an element per
+        # summary value -- ``min``, ``iq``, ``q2``, ``max`` and the two
+        # outlier lists. A boxen's ladder has no fixed depth, so there is no
+        # fixed set of names to fill in, and the core declares no boxen
+        # counterpart. Emitting a selector list against a shape the frontend
+        # does not read would attach an outline to nothing.
         self._support_highlighting = False
+
+        # Filled in during extraction, from the median segment of the first
+        # ladder read. Vertical is the right default: it is what the core
+        # falls back to (``layer.orientation ?? Orientation.VERTICAL``) and
+        # what seaborn draws unless told otherwise.
+        self._orientation = "vert"
+
+        drawn = kwargs.get(DRAWN_LADDERS, None)
+        self._own_collections = drawn if isinstance(drawn, list) else None
+
+    def render(self) -> dict:
+        """
+        Emit the layer, carrying which way round it is drawn.
+
+        The core reads ``layer.orientation`` and falls back to vertical when
+        it is absent, so a horizontal boxen without it is not merely
+        unlabelled -- it is labelled *backwards*. ``BoxenTrace.text`` picks
+        the announcement's two axis labels off this flag::
+
+            label: isHorizontal ? this.yAxis : this.xAxis,   // the category
+            label: isHorizontal ? this.xAxis : this.yAxis,   // the quantile
+
+        so ``sns.boxenplot(y="g", x="v")`` announced the category under the
+        *value* axis's name and the quantile under the *category* axis's:
+        "v is a", "g is 1.23". The values were right and the two things
+        naming them were swapped, which is the reading that sounds complete.
+
+        Returns
+        -------
+        dict
+            The base schema with ``orientation`` merged in.
+        """
+        schema = super().render()
+        schema[MaidrKey.ORIENTATION] = self._orientation
+        return schema
 
     def _extract_axes_data(self) -> dict:
         """
@@ -140,7 +189,11 @@ class BoxenPlot(MaidrPlot):
         list of (PatchCollection, PathCollection or None)
             One entry per boxen, in draw order.
         """
-        collections: Sequence[Collection] = self.ax.collections
+        collections: Sequence[Collection] = (
+            self._own_collections
+            if self._own_collections is not None
+            else self.ax.collections
+        )
         pairs = []
 
         for index, collection in enumerate(collections):
@@ -374,6 +427,7 @@ class BoxenPlot(MaidrPlot):
                 continue
 
             vertical = self._is_vertical(median_line)
+            self._orientation = "vert" if vertical else "horz"
             xy = median_line.get_xydata()
             median = float(xy[0][1] if vertical else xy[0][0])  # type: ignore[index]
 
