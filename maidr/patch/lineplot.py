@@ -10,6 +10,10 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.figure_manager import FigureManager
 from maidr.util.step_utils import is_step_axes
 
+#: The attribute the accumulated series live on. A layer describes the lines
+#: its own calls drew; see `line()` for what sweeping the axes collected.
+DRAWN_SERIES = "_maidr_line_series"
+
 
 def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     """
@@ -29,6 +33,13 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     # Don't proceed if the call is made internally by the patched function.
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
+
+    # `seaborn.lineplot` returns an Axes rather than the lines it drew, so the
+    # only way to know which of them are its own is to look before and after.
+    target = kwargs.get("ax")
+    if target is None and isinstance(instance, Axes):
+        target = instance
+    before = list(target.get_lines()) if isinstance(target, Axes) else []
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
@@ -60,18 +71,65 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     drawn = (
         [line for line in plot if isinstance(line, Line2D)]
         if isinstance(plot, list)
-        else []
+        else [
+            line
+            for line in (ax.get_lines() if ax is not None else [])
+            if line not in before
+        ]
     )
     if drawn and all(line.get_xydata().size == 0 for line in drawn):
         return plot
 
+    if ax is None:
+        return plot
+
+    # Keep the lines this layer's own calls drew, so extraction describes those
+    # rather than sweeping the axes.
+    #
+    # A box plot, violin or boxen renders its whiskers, caps and medians as
+    # `Line2D` objects in data space, so a sweep collects them too. One
+    # `ax.plot()` over such a chart -- a target, a control limit, last year's
+    # median -- is enough. Measured, with a single reference line:
+    #
+    #     ax.plot + sns.boxplot     line layer: 11 series   (should be 1)
+    #     ax.plot + sns.violinplot  line layer:  7 series
+    #     ax.plot + sns.boxenplot   line layer:  3 series
+    #
+    # Every extra series is two points long, because a whisker is a segment.
+    # The reader is walked through box geometry announced exactly as data
+    # would be (#440).
+    #
+    # The internal context already separates the two, which is what makes this
+    # cheap: a companion chart draws its lines inside its own patch's context,
+    # so `line()` returns above without recording them, while a user's
+    # `ax.plot` reaches here. Measured on that same chart -- the user's call
+    # arrives with the context clear, all twelve of the box plot's arrive with
+    # it set.
+    #
+    # Accumulated on the axes rather than passed per call, because several
+    # `ax.plot()` calls are meant to be *one* multi-series layer. The list is
+    # handed over by reference and extraction is lazy, so lines added after the
+    # layer is registered still reach it -- which is what the sweep provided
+    # and the only part of it worth keeping.
+    series = getattr(ax, DRAWN_SERIES, None)
+    if series is None:
+        series = []
+        setattr(ax, DRAWN_SERIES, series)
+    series.extend(item for item in drawn if item not in series)
+
     # Check if a MAIDR plot already exists for this axes
-    if ax is not None and not hasattr(ax, "_maidr_plot_created"):
+    if not hasattr(ax, "_maidr_plot_created"):
         # Classify from the rendered artists: an axes is a step plot only when
         # every data-bearing line on it is a step line.
         plot_type = PlotType.STEP if is_step_axes(ax) else PlotType.LINE
         # Create MAIDR plot only once for this axes using common()
-        common(plot_type, lambda *a, **k: plot, instance, args, kwargs)
+        common(
+            plot_type,
+            lambda *a, **k: plot,
+            instance,
+            args,
+            dict(kwargs, lines=series),
+        )
         # Mark that a MAIDR plot has been created for this axes
         setattr(ax, "_maidr_plot_created", True)
 
