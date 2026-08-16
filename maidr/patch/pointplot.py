@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
+import wrapt
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly, wrap_seaborn
+from maidr.patch.common import _draw_quietly, plotter_axes, wrap_seaborn
 
 # The marker seaborn leaves on the lines it draws the intervals with. The
 # estimate line carries a real one -- `"o"` by default, and the empty string
@@ -24,22 +25,21 @@ _MAX_INTERVAL_VERTICES = 8
 
 def point(wrapped, instance, args, kwargs) -> Axes:
     """
-    Register a ``seaborn.pointplot`` call as the layer it actually drew.
+    Draw ``seaborn.pointplot`` quietly and leave the reading to the plotter.
 
-    A point plot is patched by name rather than left to the ``Axes.plot``
-    wrapper it goes through, because only the name says the artists mean
-    something other than what they look like. Seaborn draws the intervals as
-    ordinary lines, so the generic wrapper described a four-category chart as
-    five series: the estimates, and then four interval polylines whose cap
-    geometry reached the reader as data, NaN coordinates and raw offsets like
-    ``1.95`` among the category names.
+    Registration used to happen here and no longer does. ``sns.catplot(
+    kind="point")`` reaches this function not at all -- it drives
+    ``_CategoricalPlotter`` directly and imports nothing -- so its panels were
+    left to the ``Axes.plot`` wrapper and arrived as ``line`` where this gives
+    ``error_bar``. The estimates survived and the intervals did not (#448).
+    :func:`sns_categorical_points` wraps the method both interfaces drive and
+    registers there, through the same :func:`_register_point_layer`.
 
-    Sorting them out needs the estimates and the intervals told apart, and the
-    split is verified rather than assumed: the estimates must pair one-to-one
-    with the intervals, group by group. When they do not -- because a future
-    seaborn renders this differently -- the layer falls back to describing
-    every drawn line, which is what the generic wrapper did, rather than
-    emitting bounds read off artists that are not intervals.
+    What remains here is ``_draw_quietly`` over the whole seaborn call and the
+    ``wrap_seaborn`` that keeps both bindings of the name wrapped. Nothing sets
+    the internal context, which is what would silence the plotter patch; the
+    ``Axes.plot`` calls it used to suppress are made inside ``plot_points``,
+    and so inside the context that patch sets.
 
     Parameters
     ----------
@@ -57,20 +57,30 @@ def point(wrapped, instance, args, kwargs) -> Axes:
     Axes
         Whatever the wrapped function returned, unchanged.
     """
-    # Don't proceed if the call is made internally by the patched function.
-    if ContextManager.is_internal_context():
-        return _draw_quietly(wrapped, args, kwargs)
+    return _draw_quietly(wrapped, args, kwargs)
 
-    existing = _lines_before(kwargs)
 
-    # Set the internal context so the `Axes.plot` calls seaborn makes inside
-    # do not register a line layer of their own.
-    with ContextManager.set_internal_context():
-        ax = _draw_quietly(wrapped, args, kwargs)
+def _register_point_layer(ax: Axes, existing: list[Line2D]) -> None:
+    """
+    Describe one panel of a point plot as the layer it actually drew.
 
-    if not isinstance(ax, Axes):
-        return ax
+    Split out of :func:`point` so ``sns.catplot(kind="point")`` can reuse it.
+    ``catplot`` drives ``_CategoricalPlotter`` directly rather than importing
+    ``pointplot``, so its panels reached neither name ``wrap_seaborn`` patches
+    and were left to the ``Axes.plot`` wrapper -- which gave ``line`` where the
+    axes-level function gives ``error_bar``. The estimates survived and the
+    confidence intervals #246 added did not, so a reader was handed the means
+    with no indication that the chart draws intervals around them, which is
+    the thing a point plot exists to show (#448).
 
+    Parameters
+    ----------
+    ax : Axes
+        The panel to read.
+    existing : list of Line2D
+        The lines the panel held before the call, so this describes only the
+        ones it drew.
+    """
     drawn = [line for line in ax.lines if line not in existing]
     estimates, intervals = _split(drawn)
 
@@ -82,7 +92,7 @@ def point(wrapped, instance, args, kwargs) -> Axes:
         # one the generic wrapper already gave.
         if drawn:
             FigureManager.create_maidr(ax, PlotType.LINE, lines=drawn)
-        return ax
+        return
 
     paired = _pairs_up(estimates, intervals)
     measured = any(_is_drawn(line.get_xydata()) for line in intervals)
@@ -91,7 +101,7 @@ def point(wrapped, instance, args, kwargs) -> Axes:
         FigureManager.create_maidr(
             ax, PlotType.ERRORBAR, estimate=estimates[0], intervals=intervals
         )
-        return ax
+        return
 
     # Everything else is a line chart. `errorbar=None` draws no intervals to
     # carry, a chart whose every group holds one observation has none to draw,
@@ -107,8 +117,6 @@ def point(wrapped, instance, args, kwargs) -> Axes:
     FigureManager.create_maidr(
         ax, PlotType.LINE, lines=estimates if paired else drawn
     )
-
-    return ax
 
 
 def _lines_before(kwargs: dict) -> list[Line2D]:
@@ -249,3 +257,50 @@ def _pairs_up(estimates: list[Line2D], intervals: list[Line2D]) -> bool:
 
 # Patch seaborn function.
 wrap_seaborn("pointplot", point)
+
+
+def sns_categorical_points(wrapped, instance, args, kwargs):
+    """
+    Register every point-plot panel seaborn draws, whichever interface drew it.
+
+    One registrar for both. ``seaborn.pointplot`` and
+    ``sns.catplot(kind="point")`` share no code above this method, so a patch
+    on the function reached one of them and a patch here reaches both -- the
+    idiom ``maidr/patch/boxplot.py`` uses for ``plot_boxes`` and #446 used for
+    ``_DistributionPlotter``.
+
+    The loss this closes is the quietest of the ``catplot`` kinds. A point
+    plot's estimates read correctly as a line either way; what went missing is
+    the confidence intervals #246 added, so the reader was given three means
+    with nothing saying the chart draws intervals around them -- which is the
+    thing a point plot exists to show::
+
+        sns.catplot(df, x="g", y="v", kind="point")   line(3)
+        sns.pointplot(df, x="g", y="v", ax=ax)        error_bar(3)
+
+    Snapshotting per panel is what makes it work on a grid, and matters on a
+    single axes too: the panel may already hold lines that are not this call's,
+    and an estimate taken from another chart is worse than no layer at all.
+    """
+    if ContextManager.is_internal_context():
+        return _draw_quietly(wrapped, args, kwargs)
+
+    before = {id(ax): list(ax.lines) for ax in plotter_axes(instance)}
+
+    with ContextManager.set_internal_context():
+        drawn = _draw_quietly(wrapped, args, kwargs)
+
+    for ax in plotter_axes(instance):
+        _register_point_layer(ax, before.get(id(ax), []))
+
+    return drawn
+
+
+# And the plotter method beneath `seaborn.pointplot`, which is the only thing
+# `catplot` drives. Wrapped by module path rather than by importing the private
+# class, matching how `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
+wrapt.wrap_function_wrapper(
+    "seaborn.categorical",
+    "_CategoricalPlotter.plot_points",
+    sns_categorical_points,
+)

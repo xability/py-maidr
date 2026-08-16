@@ -38,11 +38,11 @@ already right. `displot` and `catplot` were **not** fixed by this -- they
 drive seaborn's plotter classes directly rather than importing the
 module-level functions. Both have since been reached one level down, by
 patching the plotter method the grid and the axes-level function share:
-`displot` through `_DistributionPlotter` (#446), and `catplot(kind="violin")`
-through `_CategoricalPlotter.plot_violins` (#448, #449). `catplot` is reached
-one `kind` at a time, though, since each is drawn by a different method -- so
-the kinds still unreached are pinned at the foot of this file, and the
-boundary stays visible rather than being discovered.
+`displot` through `_DistributionPlotter` (#446), and `catplot` through the
+`_CategoricalPlotter` methods behind each `kind` (#448, #449). `catplot` is
+reached one `kind` at a time, though, since each is drawn by a different
+method -- so the kinds still unreached are pinned at the foot of this file,
+and the boundary stays visible rather than being discovered.
 
 The failure was invisible from a direct call -- `sns.histplot(ax=ax)` has
 always given `hist` -- which is why it survived this long. So the first test
@@ -362,6 +362,7 @@ def test_displot_panels_are_each_read() -> None:
     [
         ("violin", [PlotType.VIOLIN_BOX, PlotType.VIOLIN_KDE]),
         ("boxen", [PlotType.BOXEN]),
+        ("point", [PlotType.ERRORBAR]),
     ],
 )
 def test_a_catplot_kind_reached_through_the_plotter_class(kind, expected) -> None:
@@ -369,18 +370,23 @@ def test_a_catplot_kind_reached_through_the_plotter_class(kind, expected) -> Non
 
     It drives `_CategoricalPlotter` directly and imports nothing, so neither
     the defining-module patching this file is about nor #446's plotter-level
-    patching of `_DistributionPlotter` touched it. Both of these panels were
-    read only by the matplotlib-level patches, and both arrived as a **line
-    chart** built out of the scaffolding (#448)::
+    patching of `_DistributionPlotter` touched it. Every one of these
+    panels was read only by the matplotlib-level patches, and every one
+    arrived as a **line chart** (#448)::
 
         catplot(kind="violin")   line
         catplot(kind="boxen")    line, point, point
+        catplot(kind="point")    line
 
     The violin's line was its inner box; the boxen's was its median segments,
     with the point layers holding the outliers alone -- every rung of every
-    ladder absent, which is the reading `BoxenPlot` exists to replace.
+    ladder absent, which is the reading `BoxenPlot` exists to replace. The
+    point plot's line was right about its estimates and had nowhere to put its
+    confidence intervals, which is the quietest of the three: a reading with
+    no intervals in it sounds exactly like a correct reading of a chart that
+    draws none.
 
-    Both fixes went to the plotter method the grid and the axes-level function
+    Each fix went to the plotter method the grid and the axes-level function
     share, so the two interfaces agree by construction rather than by being
     kept in step (#449).
     """
@@ -396,13 +402,14 @@ def test_the_kind_of_catplot_this_does_not_reach_is_named() -> None:
     """The boundary that remains, asserted rather than left to a bug report.
 
     `kind` selects which plotter method draws, and each is a separate reach:
-    `plot_violins` and `plot_boxens` are patched, `plot_bars` is not. So a
-    `catplot` bar is still read only by the matplotlib-level patches -- bars
-    plus the error-bar lines, neither read as what it is (#448).
+    `plot_violins`, `plot_boxens` and `plot_points` are patched, `plot_bars`
+    is not. So a `catplot` bar is still read only by the matplotlib-level
+    patches -- bars plus the error-bar lines, neither read as what it is
+    (#448).
 
     Pinned here so that the day it is fixed, this test fails and has to be
-    rewritten -- the way this file pinned `displot`, the violin and the boxen
-    until they were.
+    rewritten -- the way this file pinned `displot`, the violin, the boxen and
+    the point plot until they were.
     """
     frame = _frame()
     frame["group"] = ["x", "y"] * 30
