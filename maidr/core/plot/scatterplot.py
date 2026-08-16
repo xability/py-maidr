@@ -34,7 +34,9 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
         # single `PathCollection` of every point even under `hue`, so the
         # sweep finds exactly the right one.
         own_points = kwargs.get(DRAWN_POINTS, None)
-        self._own_points = own_points if isinstance(own_points, PathCollection) else None
+        self._own_points = (
+            own_points if isinstance(own_points, PathCollection) else None
+        )
 
     def _get_selector(self) -> str | list[str]:
         return ["g[maidr='true'] > g > use"]
