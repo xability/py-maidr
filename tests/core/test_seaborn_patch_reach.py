@@ -36,10 +36,13 @@ Measured on a two-variable `pairplot`, which draws four panels::
 Three grids change: `pairplot`, `jointplot` and `lmplot`. `relplot` was
 already right. `displot` and `catplot` were **not** fixed by this -- they
 drive seaborn's plotter classes directly rather than importing the
-module-level functions. `displot` has since been reached one level down, by
-patching the plotter method both it and `histplot` drive (#446); `catplot` has
-not, and is pinned at the foot of this file so the boundary stays visible
-rather than being discovered.
+module-level functions. Both have since been reached one level down, by
+patching the plotter method the grid and the axes-level function share:
+`displot` through `_DistributionPlotter` (#446), and `catplot(kind="violin")`
+through `_CategoricalPlotter.plot_violins` (#448, #449). `catplot` is reached
+one `kind` at a time, though, since each is drawn by a different method -- so
+the kinds still unreached are pinned at the foot of this file, and the
+boundary stays visible rather than being discovered.
 
 The failure was invisible from a direct call -- `sns.histplot(ax=ax)` has
 always given `hist` -- which is why it survived this long. So the first test
@@ -354,17 +357,40 @@ def test_displot_panels_are_each_read() -> None:
     ) == [PlotType.HIST, PlotType.HIST]
 
 
-def test_the_grid_this_does_not_reach_is_named() -> None:
+def test_a_catplot_violin_is_reached_through_the_plotter_class() -> None:
+    """`catplot` is reached one `kind` at a time, and this is the first.
+
+    It drives `_CategoricalPlotter` directly and imports nothing, so neither
+    the defining-module patching this file is about nor #446's plotter-level
+    patching of `_DistributionPlotter` touched it. Its violin panel was read
+    only by the matplotlib-level patches and arrived as **`line`** -- a
+    distribution announced as a two-point series (#448).
+
+    The fix went to `_CategoricalPlotter.plot_violins`, which `seaborn.violinplot`
+    drives as well, so the two interfaces now agree by construction rather than
+    by being kept in step (#449).
+    """
+    frame = _frame()
+    frame["group"] = ["x", "y"] * 30
+
+    assert _layers(
+        sns.catplot(data=frame, x="group", y="a", kind="violin").figure
+    ) == [PlotType.VIOLIN_BOX, PlotType.VIOLIN_KDE]
+
+
+def test_the_kinds_of_catplot_this_does_not_reach_are_named() -> None:
     """The boundary that remains, asserted rather than left to a bug report.
 
-    `catplot` drives `_CategoricalPlotter` directly and imports nothing, so
-    neither the defining-module patching nor #446's plotter-level patching
-    touches it. Its panels are still read only by the matplotlib-level
-    patches, and still wrong: bars plus the error-bar lines, neither read as
-    what it is.
+    `kind` selects which plotter method draws, and each is a separate reach:
+    `plot_violins` is patched, `plot_bars` and `plot_boxens` are not. So a
+    `catplot` bar is still read only by the matplotlib-level patches -- bars
+    plus the error-bar lines, neither read as what it is -- and a `boxen`
+    still arrives as a line of medians plus a scatter of outliers per
+    category, which is the reading `BoxenPlot` exists to replace (#448).
 
-    Pinned here so that the day it is fixed, this test fails and has to be
-    rewritten -- the way this file pinned `displot` until it was.
+    Pinned here so that the day either is fixed, this test fails and has to be
+    rewritten -- the way this file pinned `displot` and the violin until they
+    were.
     """
     frame = _frame()
     frame["group"] = ["x", "y"] * 30
@@ -372,3 +398,7 @@ def test_the_grid_this_does_not_reach_is_named() -> None:
     assert _layers(
         sns.catplot(data=frame, x="group", y="a", kind="bar").figure
     ) == [PlotType.DODGED, PlotType.LINE]
+
+    assert _layers(
+        sns.catplot(data=frame, x="group", y="a", kind="boxen").figure
+    ) == [PlotType.LINE, PlotType.SCATTER, PlotType.SCATTER]

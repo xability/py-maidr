@@ -8,8 +8,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
 from maidr.core.enum import PlotType
-from maidr.patch.common import _draw_quietly, common, wrap_seaborn
-from maidr.patch.histogram import _plotter_axes
+from maidr.patch.common import _draw_quietly, common, plotter_axes, wrap_seaborn
 from maidr.core.context_manager import ContextManager
 from maidr.util.svg_utils import unique_lines_by_xy
 
@@ -100,8 +99,8 @@ def sns_distribution_density(wrapped, instance, args, kwargs):
     declines when it is the one driving and no panel registers twice.
 
     One call covers the whole grid, so every panel is registered rather than
-    only ``plotter.ax`` -- see ``_plotter_axes`` in
-    :mod:`maidr.patch.histogram` for why that matters.
+    only ``plotter.ax`` -- see :func:`maidr.patch.common.plotter_axes` for why
+    that matters.
     """
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
@@ -109,7 +108,7 @@ def sns_distribution_density(wrapped, instance, args, kwargs):
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
 
-    for ax in _plotter_axes(instance):
+    for ax in plotter_axes(instance):
         _register_smooth(ax, instance, args, kwargs)
 
     return drawn

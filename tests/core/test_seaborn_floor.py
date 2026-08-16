@@ -22,9 +22,11 @@ It covers every private seaborn attribute a patch reaches for at import time,
 not only the one that caused #441. `maidr/patch/histogram.py` and
 `maidr/patch/kdeplot.py` reach `_DistributionPlotter.plot_univariate_histogram`
 and `plot_univariate_density` so that `sns.displot` reads as the distribution
-it draws (#446), and those carry the same risk for the same reason: an
-attribute that moves breaks `import maidr` for **everyone**, not only for
-users of that chart type.
+it draws (#446), and `maidr/patch/violinplot.py` reaches
+`_CategoricalPlotter.plot_violins` so that a violin is read from what seaborn
+resolved rather than from how the caller spelled it (#448, #449). Those carry
+the same risk for the same reason: an attribute that moves breaks
+`import maidr` for **everyone**, not only for users of that chart type.
 """
 
 from __future__ import annotations
@@ -56,6 +58,12 @@ PATCHED_INTERNALS = [
         "seaborn.categorical",
         "_CategoricalPlotter",
         "plot_boxes",
+        Version("0.13"),
+    ),
+    (
+        "seaborn.categorical",
+        "_CategoricalPlotter",
+        "plot_violins",
         Version("0.13"),
     ),
     (

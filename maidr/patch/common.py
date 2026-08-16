@@ -5,6 +5,7 @@ import threading
 import warnings
 from typing import Any, Callable
 
+import numpy as np
 import wrapt
 
 from matplotlib.axes import Axes
@@ -373,3 +374,45 @@ def wrap_seaborn(name: str, wrapper: Callable) -> None:
         )
         return
     wrapt.wrap_function_wrapper(module, name, wrapper)
+
+
+def plotter_axes(plotter: Any) -> list[Axes]:
+    """
+    Every axes one call to a seaborn plotter method draws on.
+
+    One call covers the whole grid: ``sns.displot(col="g")`` over two groups
+    reaches ``plot_univariate_histogram`` **once** and draws two panels, and
+    ``sns.catplot(col="g", kind="violin")`` reaches ``plot_violins`` once for
+    the same reason. A wrapper that registered only ``plotter.ax`` would leave
+    every panel but the first unread.
+
+    ``ax`` is set for a single-axes plot and ``None`` for a faceted one, where
+    the panels hang off the ``FacetGrid`` instead -- so on the faceted path
+    reading ``ax`` alone leaves *all* of them unread, not merely the tail.
+    Both are asked rather than one being derived from the other, because the
+    attribute that is set is the plotter's own record of where it drew.
+
+    Written against the attributes rather than a plotter class, because
+    ``_DistributionPlotter`` and ``_CategoricalPlotter`` both carry them --
+    they are ``VectorPlotter`` and ``FacetGrid`` conventions, not per-plot
+    ones.
+
+    Parameters
+    ----------
+    plotter : Any
+        The plotter instance the wrapped method is bound to.
+
+    Returns
+    -------
+    list of Axes
+        Possibly empty, which makes the caller a no-op rather than a guess.
+    """
+    ax = getattr(plotter, "ax", None)
+    if isinstance(ax, Axes):
+        return [ax]
+
+    facets = getattr(plotter, "facets", None)
+    grid = getattr(facets, "axes", None)
+    if grid is None:
+        return []
+    return [axes for axes in np.asarray(grid).flat if isinstance(axes, Axes)]
