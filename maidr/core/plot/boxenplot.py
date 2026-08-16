@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from typing import Sequence
 
 from matplotlib.axes import Axes
@@ -309,6 +310,26 @@ class BoxenPlot(MaidrPlot):
         xy = median.get_xydata()
         return float(xy[0][0]) != float(xy[1][0])  # type: ignore[index]
 
+    def _hue_levels(self) -> list[str]:
+        """
+        The hue levels, in the order the legend lists them.
+
+        Load-bearing, and worth saying so: a ladder's level is decided by its
+        rank in the dodge lattice, and that rank is looked up in this list. The
+        two agree because seaborn lays the dodge out in legend order --
+        verified against ``hue_order``, which reorders both together::
+
+            hue_order=["r","q","p"]  legend ['r','q','p']  z 'a, r' 'a, q' 'a, p'
+            hue_order=["q","p","r"]  legend ['q','p','r']  z 'a, q' 'a, p' 'a, r'
+
+        If a future seaborn ever ordered the legend independently of the
+        dodge, every level would be silently mislabelled rather than raising,
+        which is why ``test_a_reordered_hue_keeps_each_ladder_with_its_level``
+        exists rather than the assumption being left implicit.
+        """
+        legend = self.ax.get_legend()
+        return [text.get_text() for text in legend.get_texts()] if legend else []
+
     def _tick_labels(self, vertical: bool) -> list[tuple[float, str]]:
         """Category tick positions paired with their rendered labels."""
         axis = self.ax.xaxis if vertical else self.ax.yaxis
@@ -366,7 +387,13 @@ class BoxenPlot(MaidrPlot):
 
         return sorted(offsets)
 
-    def _category_of(self, centre: float, vertical: bool, offsets: list[float]) -> str:
+    def _category_of(
+        self,
+        centre: float,
+        offsets: list[float],
+        ticks: list[tuple[float, str]],
+        levels: list[str],
+    ) -> str:
         """
         Name the distribution a ladder at ``centre`` summarises.
 
@@ -380,24 +407,23 @@ class BoxenPlot(MaidrPlot):
         ----------
         centre : float
             The ladder's midpoint on the category axis.
-        vertical : bool
-            Whether the category axis is x.
         offsets : list of float
             The dodge lattice, from :meth:`_dodge_offsets`.
+        ticks : list of (float, str)
+            Category tick positions and labels, read once for the whole layer.
+        levels : list of str
+            Hue levels in legend order, read once for the whole layer.
 
         Returns
         -------
         str
             The category, or ``"category, level"`` when a hue split is drawn.
         """
-        ticks = self._tick_labels(vertical)
         if not ticks:
             return ""
 
         position, label = min(ticks, key=lambda tick: abs(tick[0] - centre))
 
-        legend = self.ax.get_legend()
-        levels = [text.get_text() for text in legend.get_texts()] if legend else []
         if len(levels) < 2 or len(offsets) < 2:
             return label
 
@@ -533,15 +559,19 @@ class BoxenPlot(MaidrPlot):
             )
             read.append((centre, vertical, median, levels, lower, upper))
 
-        points = []
-        offsets = self._dodge_offsets(
-            [entry[0] for entry in read],
-            read[0][1] if read else True,
-        )
+        # Read once for the layer rather than once per ladder: the ticks and
+        # the legend belong to the axes, not to any one ladder, and asking
+        # them per ladder was the only reason this needed the axes at all
+        # inside the naming loop.
+        upright = read[0][1] if read else True
+        offsets = self._dodge_offsets([entry[0] for entry in read], upright)
+        ticks = self._tick_labels(upright)
+        hue_levels = self._hue_levels()
 
-        for centre, vertical, median, levels, lower, upper in read:
+        points = []
+        for centre, _vertical, median, levels, lower, upper in read:
             point = {
-                MaidrKey.Z.value: self._category_of(centre, vertical, offsets),
+                MaidrKey.Z.value: self._category_of(centre, offsets, ticks, hue_levels),
                 MaidrKey.MEDIAN.value: median,
                 MaidrKey.LEVELS.value: levels,
             }
@@ -554,5 +584,20 @@ class BoxenPlot(MaidrPlot):
 
         if not points:
             raise ExtractionError(self.type, self.ax)
+
+        # A ladder that was drawn but could not be read is dropped above, and
+        # a chart quietly missing a distribution is the failure this class was
+        # written to remove -- a reader is given a complete-sounding reading
+        # of fewer groups than the chart has. Nothing here can repair it, so
+        # it is said out loud instead.
+        drawn = len(self._ladders())
+        if len(points) < drawn:
+            warnings.warn(
+                f"maidr: read {len(points)} of {drawn} boxen distributions on "
+                f"these axes; {drawn - len(points)} had no median segment or "
+                "no boxes and are absent from the chart.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         return points

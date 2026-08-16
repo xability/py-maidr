@@ -28,6 +28,7 @@ quantiles seaborn computed.
 from __future__ import annotations
 
 import json
+import warnings
 
 import numpy as np
 import pytest
@@ -69,6 +70,23 @@ def hue_frame() -> pd.DataFrame:
     df = frame()
     df["h"] = np.tile(np.repeat(["p", "q"], 100), 2)
     return df
+
+
+def three_level_frame() -> pd.DataFrame:
+    """Two categories, three hue levels, every combination drawn.
+
+    Balanced on purpose: a category missing a level draws fewer ladders, and a
+    test asserting a full grid of names against that fixture fails for a
+    reason that has nothing to do with what it is checking.
+    """
+    rng = np.random.default_rng(3)
+    return pd.DataFrame(
+        {
+            "g": np.repeat(["a", "b"], 300),
+            "h": np.tile(np.repeat(["p", "q", "r"], 100), 2),
+            "v": rng.normal(0, 1, 600),
+        }
+    )
 
 
 def layers(ax) -> list:
@@ -206,6 +224,21 @@ class TestTheCategoriesAreNamed:
             f"{category}, {level}"
             for category in ("a", "b")
             for level in ("p", "q", "r", "s")
+        ]
+
+    @pytest.mark.parametrize(
+        "order", [["r", "q", "p"], ["q", "p", "r"]], ids=["reversed", "shuffled"]
+    )
+    def test_a_reordered_hue_keeps_each_ladder_with_its_level(self, order):
+        # A ladder's level is its rank in the dodge lattice, looked up in the
+        # legend's list. That only works because seaborn lays the dodge out in
+        # legend order, and nothing raises if it ever stops -- every level
+        # would simply be announced as its neighbour. `hue_order` is the
+        # available way to move both, so it is what pins the coupling.
+        ax = sns.boxenplot(three_level_frame(), x="g", y="v", hue="h", hue_order=order)
+
+        assert [point["z"] for point in ladders(ax)] == [
+            f"{category}, {level}" for category in ("a", "b") for level in order
         ]
 
     def test_the_hue_dimension_itself_is_named(self):
@@ -435,6 +468,35 @@ class TestOutliers:
 
         assert point.get("lowerOutliers", []) == []
         assert point.get("upperOutliers", []) == []
+
+
+class TestALadderThatCannotBeRead:
+    def test_it_is_said_out_loud_rather_than_dropped_quietly(self):
+        # Every other guard in this file stops a wrong reading. This one is
+        # about a *short* one: a ladder drawn but not matched is skipped, and
+        # a chart announcing two distributions where three were drawn sounds
+        # exactly as complete as a correct one. Nothing here can repair it, so
+        # the least it can do is say so.
+        #
+        # Provoked by removing a median segment, which is what matching needs.
+        _, ax = plt.subplots()
+        sns.boxenplot(frame(), x="g", y="v", ax=ax)
+        ax.get_lines()[0].remove()
+
+        with pytest.warns(UserWarning, match="of 2 boxen distributions"):
+            drawn = ladders(ax)
+
+        assert len(drawn) == 1
+
+    def test_a_complete_chart_warns_about_nothing(self):
+        # The guard on the guard: a warning on every ordinary chart would be
+        # noise, and noise is how a real one gets missed.
+        _, ax = plt.subplots()
+        sns.boxenplot(frame(), x="g", y="v", ax=ax)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            assert len(ladders(ax)) == len(GROUPS)
 
 
 class TestThePayloadLoads:
