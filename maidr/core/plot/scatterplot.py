@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import numpy.ma as ma
 from matplotlib.axes import Axes
@@ -168,10 +170,29 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
         # Tag the elements for highlighting.
         self._elements.append(plot)
 
+        # Only the points matplotlib actually drew. A marker with a non-finite
+        # coordinate is not rendered -- there is nowhere to put it -- so
+        # emitting one leaves the layer with more entries than the selector
+        # resolves to `<use>` elements, and every point after it is highlighted
+        # at its neighbour's marker while the last has none left. That is worse
+        # than an absent point: the reader is shown a mark that does not
+        # correspond to the value being announced, and nothing says so (#429).
+        #
+        # It is also what keeps the payload loadable. `json.dumps` writes `NaN`
+        # as a bare token, which is legal JavaScript and invalid JSON, and the
+        # core parses the SVG's `maidr` attribute with `JSON.parse` -- so one
+        # of them stops the chart initialising at all (#427).
+        #
+        # Unlike a bar, a scatter point has nothing left to announce once its
+        # position is gone: a bar keeps its category and reports a missing
+        # height, while a marker at no coordinates has neither. Dropping is the
+        # whole answer here rather than half of one. Masked entries arrive as
+        # `NaN` through `getdata`, so they take the same path.
         return [
             {
                 MaidrKey.X: float(x),
                 MaidrKey.Y: float(y),
             }
             for x, y in ma.getdata(plot.get_offsets())
+            if math.isfinite(x) and math.isfinite(y)
         ]
