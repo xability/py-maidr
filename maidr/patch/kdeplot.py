@@ -9,6 +9,7 @@ from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
 from maidr.core.enum import PlotType
 from maidr.patch.common import _draw_quietly, common, wrap_seaborn
+from maidr.patch.histogram import _plotter_axes
 from maidr.core.context_manager import ContextManager
 from maidr.util.svg_utils import unique_lines_by_xy
 
@@ -107,8 +108,6 @@ def sns_distribution_density(wrapped, instance, args, kwargs):
 
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
-
-    from maidr.patch.histogram import _plotter_axes
 
     for ax in _plotter_axes(instance):
         _register_smooth(ax, instance, args, kwargs)
