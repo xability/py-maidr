@@ -11,6 +11,8 @@ from matplotlib.container import BarContainer
 from maidr.core import Maidr
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.exception.unsupported_plot_error import UnsupportedPlotError
+from maidr.util.fallback import fallback_tag, warn_unsupported
 
 
 def _is_altair_chart(plot: Any) -> bool:
@@ -424,13 +426,17 @@ def render(
     plot = _get_plot_or_current(plot)
 
     ax = FigureManager.get_axes(plot)
-    if isinstance(ax, list):
-        for axes in ax:
-            maidr = FigureManager.get_maidr(axes.get_figure())
-        return maidr.render(use_cdn=use_cdn)
-    else:
-        maidr = FigureManager.get_maidr(ax.get_figure())
-        return maidr.render(use_cdn=use_cdn)
+    try:
+        if isinstance(ax, list):
+            for axes in ax:
+                maidr = FigureManager.get_maidr(axes.get_figure())
+            return maidr.render(use_cdn=use_cdn)
+        else:
+            maidr = FigureManager.get_maidr(ax.get_figure())
+            return maidr.render(use_cdn=use_cdn)
+    except UnsupportedPlotError as error:
+        warn_unsupported(error, stacklevel=3)
+        return fallback_tag(error.fig, error.message)
 
 
 def show(
@@ -479,13 +485,17 @@ def show(
     plot = _get_plot_or_current(plot)
 
     ax = FigureManager.get_axes(plot)
-    if isinstance(ax, list):
-        for axes in ax:
-            maidr = FigureManager.get_maidr(axes.get_figure())
-        return maidr.show(renderer, use_cdn=use_cdn)
-    else:
-        maidr = FigureManager.get_maidr(ax.get_figure())
-        return maidr.show(renderer, clear_fig=clear_fig, use_cdn=use_cdn)
+    try:
+        if isinstance(ax, list):
+            for axes in ax:
+                maidr = FigureManager.get_maidr(axes.get_figure())
+            return maidr.show(renderer, use_cdn=use_cdn)
+        else:
+            maidr = FigureManager.get_maidr(ax.get_figure())
+            return maidr.show(renderer, clear_fig=clear_fig, use_cdn=use_cdn)
+    except UnsupportedPlotError as error:
+        warn_unsupported(error, stacklevel=3)
+        return fallback_tag(error.fig, error.message).show()
 
 
 def save_html(
@@ -562,28 +572,36 @@ def save_html(
 
     ax = FigureManager.get_axes(plot)
     htmls = []
-    if isinstance(ax, list):
-        for axes in ax:
-            maidr = FigureManager.get_maidr(axes.get_figure())
-            htmls.append(
-                maidr._create_html_doc(
-                    use_iframe=False,
-                    data_in_svg=data_in_svg,
-                    use_cdn=use_cdn,
+    try:
+        if isinstance(ax, list):
+            for axes in ax:
+                maidr = FigureManager.get_maidr(axes.get_figure())
+                htmls.append(
+                    maidr._create_html_doc(
+                        use_iframe=False,
+                        data_in_svg=data_in_svg,
+                        use_cdn=use_cdn,
+                    )
                 )
+            return htmls[-1].save_html(
+                file, libdir=lib_dir, include_version=include_version
             )
-        return htmls[-1].save_html(
-            file, libdir=lib_dir, include_version=include_version
-        )
-    else:
-        maidr = FigureManager.get_maidr(ax.get_figure())
-        return maidr.save_html(
-            file,
-            lib_dir=lib_dir,
-            include_version=include_version,
-            data_in_svg=data_in_svg,
-            use_cdn=use_cdn,
-        )
+        else:
+            maidr = FigureManager.get_maidr(ax.get_figure())
+            return maidr.save_html(
+                file,
+                lib_dir=lib_dir,
+                include_version=include_version,
+                data_in_svg=data_in_svg,
+                use_cdn=use_cdn,
+            )
+    except UnsupportedPlotError as error:
+        # A file still gets written, holding the image and the reason. Raising
+        # instead would leave a build step that expected an artefact with
+        # nothing on disk and a traceback, which is the worse of the two
+        # failures -- and it is what `plt.show()` has always avoided.
+        warn_unsupported(error, stacklevel=3)
+        return fallback_tag(error.fig, error.message).save_html(file)
 
 
 def stacked(plot: Axes | BarContainer) -> Maidr:
