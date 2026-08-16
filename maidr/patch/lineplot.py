@@ -58,12 +58,21 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     # `plt.gca()` creates an axes when there is none, which is not a side
     # effect worth avoiding here: seaborn is about to call it and create the
     # same one a moment later.
+    # Keyed by `id()` rather than kept as a list, matching what the boxen patch
+    # already does with the collections it snapshots. `Line2D` defines no
+    # `__eq__`, so the two agree today; the set is O(1) per lookup where the
+    # list was O(n), which turns the diff below from quadratic in the lines on
+    # the axes into linear.
     before = None
     if not isinstance(instance, Axes):
         target = kwargs.get("ax")
         if target is None:
             target = plt.gca()
-        before = list(target.get_lines()) if isinstance(target, Axes) else []
+        before = (
+            {id(line) for line in target.get_lines()}
+            if isinstance(target, Axes)
+            else set()
+        )
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
@@ -107,7 +116,7 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
         drawn = [
             line
             for line in (ax.get_lines() if ax is not None else [])
-            if line not in before
+            if id(line) not in before
         ]
     if drawn and all(line.get_xydata().size == 0 for line in drawn):
         return plot
