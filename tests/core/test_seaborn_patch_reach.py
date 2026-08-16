@@ -357,40 +357,52 @@ def test_displot_panels_are_each_read() -> None:
     ) == [PlotType.HIST, PlotType.HIST]
 
 
-def test_a_catplot_violin_is_reached_through_the_plotter_class() -> None:
-    """`catplot` is reached one `kind` at a time, and this is the first.
+@pytest.mark.parametrize(
+    "kind,expected",
+    [
+        ("violin", [PlotType.VIOLIN_BOX, PlotType.VIOLIN_KDE]),
+        ("boxen", [PlotType.BOXEN]),
+    ],
+)
+def test_a_catplot_kind_reached_through_the_plotter_class(kind, expected) -> None:
+    """`catplot` is reached one `kind` at a time, because each has its own method.
 
     It drives `_CategoricalPlotter` directly and imports nothing, so neither
     the defining-module patching this file is about nor #446's plotter-level
-    patching of `_DistributionPlotter` touched it. Its violin panel was read
-    only by the matplotlib-level patches and arrived as **`line`** -- a
-    distribution announced as a two-point series (#448).
+    patching of `_DistributionPlotter` touched it. Both of these panels were
+    read only by the matplotlib-level patches, and both arrived as a **line
+    chart** built out of the scaffolding (#448)::
 
-    The fix went to `_CategoricalPlotter.plot_violins`, which `seaborn.violinplot`
-    drives as well, so the two interfaces now agree by construction rather than
-    by being kept in step (#449).
+        catplot(kind="violin")   line
+        catplot(kind="boxen")    line, point, point
+
+    The violin's line was its inner box; the boxen's was its median segments,
+    with the point layers holding the outliers alone -- every rung of every
+    ladder absent, which is the reading `BoxenPlot` exists to replace.
+
+    Both fixes went to the plotter method the grid and the axes-level function
+    share, so the two interfaces agree by construction rather than by being
+    kept in step (#449).
     """
     frame = _frame()
     frame["group"] = ["x", "y"] * 30
 
     assert _layers(
-        sns.catplot(data=frame, x="group", y="a", kind="violin").figure
-    ) == [PlotType.VIOLIN_BOX, PlotType.VIOLIN_KDE]
+        sns.catplot(data=frame, x="group", y="a", kind=kind).figure
+    ) == expected
 
 
-def test_the_kinds_of_catplot_this_does_not_reach_are_named() -> None:
+def test_the_kind_of_catplot_this_does_not_reach_is_named() -> None:
     """The boundary that remains, asserted rather than left to a bug report.
 
     `kind` selects which plotter method draws, and each is a separate reach:
-    `plot_violins` is patched, `plot_bars` and `plot_boxens` are not. So a
+    `plot_violins` and `plot_boxens` are patched, `plot_bars` is not. So a
     `catplot` bar is still read only by the matplotlib-level patches -- bars
-    plus the error-bar lines, neither read as what it is -- and a `boxen`
-    still arrives as a line of medians plus a scatter of outliers per
-    category, which is the reading `BoxenPlot` exists to replace (#448).
+    plus the error-bar lines, neither read as what it is (#448).
 
-    Pinned here so that the day either is fixed, this test fails and has to be
-    rewritten -- the way this file pinned `displot` and the violin until they
-    were.
+    Pinned here so that the day it is fixed, this test fails and has to be
+    rewritten -- the way this file pinned `displot`, the violin and the boxen
+    until they were.
     """
     frame = _frame()
     frame["group"] = ["x", "y"] * 30
@@ -398,7 +410,3 @@ def test_the_kinds_of_catplot_this_does_not_reach_are_named() -> None:
     assert _layers(
         sns.catplot(data=frame, x="group", y="a", kind="bar").figure
     ) == [PlotType.DODGED, PlotType.LINE]
-
-    assert _layers(
-        sns.catplot(data=frame, x="group", y="a", kind="boxen").figure
-    ) == [PlotType.LINE, PlotType.SCATTER, PlotType.SCATTER]
