@@ -71,23 +71,33 @@ def sns_infer_new_orient(wrapped, instance, args, kwargs) -> str:
 
 
 def patch_seaborn():
-    import packaging.version as version
-    import seaborn
+    """
+    Wrap the seaborn internal that reports a categorical plot's orientation.
 
-    sns_version = seaborn.__version__
-    min_version = "0.12"
+    ``_CategoricalPlotter.plot_boxes`` arrived with the categorical rewrite in
+    seaborn **0.13**, and this used to branch on ``"0.12"`` -- so 0.12 took the
+    0.13 path and ``wrapt`` raised while resolving the attribute. At import
+    time, which meant ``import maidr`` did not survive a seaborn the package
+    declared support for::
 
-    if version.parse(sns_version) < version.parse(min_version):
-        wrapt.wrap_function_wrapper(
-            "seaborn.categorical", "_BoxPlotter.plot", sns_version
-        )
-    else:
-        wrapt.wrap_function_wrapper(
-            "seaborn.categorical",
-            "_CategoricalPlotter.plot_boxes",
-            sns_infer_new_orient,
-        )
+        AttributeError: type object '_CategoricalPlotter' has no attribute 'plot_boxes'
+
+    The other branch could not have helped: it passed ``sns_version``, a
+    *string*, where the wrapper function goes. Nothing was ever ``< 0.12`` and
+    installable, so the mistake never surfaced.
+
+    Rather than repair a path nothing runs, ``pyproject.toml`` now declares
+    ``seaborn>=0.13`` -- which is what CI installs and the only version any
+    test has run against, and which breaks no working installation because
+    0.12 could not import in the first place. Making 0.12 genuinely work is
+    still open as the other half of #441; it would need the boxen extraction
+    to read that release's nested ladder as well.
+    """
+    wrapt.wrap_function_wrapper(
+        "seaborn.categorical",
+        "_CategoricalPlotter.plot_boxes",
+        sns_infer_new_orient,
+    )
 
 
-# Apply the appropriate patches based on the Seaborn version
 patch_seaborn()

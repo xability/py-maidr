@@ -15,9 +15,8 @@ by the time these functions run.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
-from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
 #: matplotlib ``drawstyle`` -> MAIDR ``stepDirection``.
@@ -50,9 +49,9 @@ def is_step_drawstyle(drawstyle: object) -> bool:
     return str(drawstyle).startswith("steps")
 
 
-def data_bearing_lines(ax: Axes) -> List[Line2D]:
+def data_bearing_lines(lines: Iterable[Line2D]) -> List[Line2D]:
     """
-    Return the ``Line2D`` artists on ``ax`` that actually carry data.
+    Return the given ``Line2D`` artists that actually carry data.
 
     Mirrors the empty-data filter used by
     :meth:`maidr.core.plot.lineplot.MultiLinePlot._extract_line_data` so that
@@ -60,8 +59,8 @@ def data_bearing_lines(ax: Axes) -> List[Line2D]:
 
     Parameters
     ----------
-    ax : Axes
-        The matplotlib axes to inspect.
+    lines : iterable of Line2D
+        The lines a layer owns. Never the axes: see :func:`is_step_layer`.
 
     Returns
     -------
@@ -69,13 +68,13 @@ def data_bearing_lines(ax: Axes) -> List[Line2D]:
         Possibly empty list of non-empty lines.
     """
     try:
-        lines = ax.get_lines()
-    except (AttributeError, TypeError):
-        # Defensive: the patch layer may hand us a non-Axes (e.g. a Mock).
+        candidates = list(lines)
+    except TypeError:
+        # Defensive: the patch layer may hand us a non-iterable (e.g. a Mock).
         return []
 
     data_lines = []
-    for line in lines:
+    for line in candidates:
         try:
             xydata = line.get_xydata()
         except (AttributeError, TypeError):
@@ -86,14 +85,29 @@ def data_bearing_lines(ax: Axes) -> List[Line2D]:
     return data_lines
 
 
-def is_step_axes(ax: Axes) -> bool:
+def is_step_layer(lines: Iterable[Line2D]) -> bool:
     """
-    Report whether ``ax`` should be classified as a step plot.
+    Report whether a layer's own lines should be classified as a step plot.
 
-    The rule for a mixed axes: it is a step plot only when *every*
-    data-bearing line on it is a step line. One ordinary line mixed in means
-    the axes as a whole is not piecewise-constant, and MAIDR emits a single
+    The rule for a mixed layer: it is a step plot only when *every*
+    data-bearing line in it is a step line. One ordinary line mixed in means
+    the layer as a whole is not piecewise-constant, and MAIDR emits a single
     layer per axes, so the conservative ``line`` classification wins.
+
+    Asked of the layer's lines rather than the axes'. Sweeping ``ax.get_lines()``
+    was the same defect #440 closed one level up: a box plot, violin or boxen
+    renders its whiskers, caps and medians as ordinary data-space ``Line2D``
+    objects, so a step chart sharing an axes with one saw those in the mix and
+    concluded the axes was not piecewise-constant. Measured, drawing the
+    companion first so it is on the axes when classification runs::
+
+        sns.boxplot(...); ax.step(...)     -> type "line"    (should be "step")
+        sns.violinplot(...); ax.step(...)  -> type "line"
+
+    Which is not a cosmetic mislabel: ``line`` means :class:`MultiLinePlot`
+    rather than :class:`~maidr.core.plot.stepplot.StepPlot`, so the ordinal
+    level names go too -- a hypnogram announces ``3`` where it should say
+    ``REM``.
 
     The predicate is evaluated once, when the layer is registered — that is,
     on the first plotting call for the axes, which is the same moment the
@@ -107,43 +121,53 @@ def is_step_axes(ax: Axes) -> bool:
 
     Parameters
     ----------
-    ax : Axes
-        The matplotlib axes to inspect.
+    lines : iterable of Line2D
+        The lines the layer owns.
 
     Returns
     -------
     bool
-        ``True`` when the axes holds at least one line and all of them are
+        ``True`` when the layer holds at least one line and all of them are
         step lines.
     """
-    lines = data_bearing_lines(ax)
-    if not lines:
+    data_lines = data_bearing_lines(lines)
+    if not data_lines:
         return False
-    return all(is_step_drawstyle(line.get_drawstyle()) for line in lines)
+    return all(is_step_drawstyle(line.get_drawstyle()) for line in data_lines)
 
 
-def resolve_step_direction(ax: Axes) -> Optional[str]:
+def resolve_step_direction(lines: Iterable[Line2D]) -> Optional[str]:
     """
-    Resolve the single ``stepDirection`` authored on ``ax``, if there is one.
+    Resolve the single ``stepDirection`` a layer authors, if there is one.
 
-    Returns ``None`` — meaning "omit the field" — whenever the axes does not
+    Returns ``None`` — meaning "omit the field" — whenever the layer does not
     unambiguously author one direction: no lines, a non-step drawstyle, an
     unrecognised ``steps-*`` variant, or several series disagreeing. MAIDR's
     description only names a direction when the data actually reported one,
     so guessing here would put a claim in the audio that nothing supports.
 
+    Asked of the layer's lines for the reason :func:`is_step_layer` gives, and
+    the failure here was the quieter of the two: read at *render* time, so a
+    companion chart drawn after the step line was enough. Measured::
+
+        ax.step(...); sns.boxplot(...)   -> stepDirection absent
+
+    The step line itself was unambiguous. What disagreed with it was box
+    geometry, and the reader simply never heard which side of each sample the
+    value is held on.
+
     Parameters
     ----------
-    ax : Axes
-        The matplotlib axes to inspect.
+    lines : iterable of Line2D
+        The lines the layer owns.
 
     Returns
     -------
     str or None
         One of ``"hv"``, ``"vh"``, ``"mid"``, or ``None``.
     """
-    lines = data_bearing_lines(ax)
-    if not lines:
+    data_lines = data_bearing_lines(lines)
+    if not data_lines:
         return None
 
     directions = {
