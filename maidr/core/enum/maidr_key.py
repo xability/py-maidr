@@ -63,3 +63,11 @@ class MaidrKey(str, Enum):
     X_MAX = "xMax"
     Y_MIN = "yMin"
     Y_MAX = "yMax"
+
+    # Scatter plot keys. The category a coordinate is a *position* for, when
+    # the axis carries names -- a strip plot, a swarm plot, any scatter on a
+    # discrete scale. Suffixed per axis because either one can be the
+    # categorical one, unlike LABEL above, which a step layer only ever needs
+    # for its y.
+    X_LABEL = "xLabel"
+    Y_LABEL = "yLabel"
