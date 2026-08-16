@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
 from matplotlib.patches import Rectangle
@@ -23,6 +25,48 @@ from maidr.util.mixin import (
 #: Lives here rather than beside ``common.drawn_as`` because ``maidr.patch``
 #: imports ``maidr.core`` and not the other way about.
 DRAWN_BARS = "_maidr_bars"
+
+
+def _magnitude(raw: float) -> float | None:
+    """
+    A bar's height, or ``None`` where it has none.
+
+    matplotlib draws a rectangle for a ``NaN`` height, so a gap in the data
+    survives as a bar with no magnitude rather than being dropped. Two things
+    then go wrong at once if it is emitted as it stands.
+
+    ``json.dumps`` writes ``NaN`` as a bare token, which is legal JavaScript
+    and invalid JSON, and the core parses the SVG's ``maidr`` attribute with
+    ``JSON.parse`` -- so one of them stops the chart initialising at all
+    (#427). And ``Number(NaN)`` is not the reading a listener wants either.
+
+    ``None`` serialises to ``null``, which is exactly what the core's
+    ``toBarValue`` has read as a gap since the bar family gained the concept:
+    it becomes ``NaN`` inside the model, is kept out of the range, sounds as
+    the empty tone rather than a floor tone, and announces as "missing". A
+    zero would be the wrong answer here for the reason that helper exists --
+    an absent bar is not one measured at zero.
+
+    Parameters
+    ----------
+    raw : float
+        The dimension the bar grows along, as matplotlib recorded it.
+
+    Returns
+    -------
+    float or None
+        The magnitude as a plain ``float``, or ``None`` when the bar has no
+        measurable one.
+
+    Notes
+    -----
+    The ``float()`` is not decoration. matplotlib hands back whatever numpy
+    type the caller's data carried, and ``json.dumps`` cannot serialise a
+    ``numpy.int64`` -- dropping the cast raised ``TypeError: Object of type
+    int64 is not JSON serializable`` on 28 tests, which is the whole render
+    rather than one bar.
+    """
+    return float(raw) if math.isfinite(raw) else None
 
 
 class BarPlot(
@@ -223,6 +267,6 @@ class BarPlot(
         # A bar's magnitude is the dimension it grows along: the width of a
         # horizontal bar, the height of a vertical one.
         if self._is_horizontal:
-            return [float(patch.get_width()) for patch in plot]
+            return [_magnitude(patch.get_width()) for patch in plot]
 
-        return [float(patch.get_height()) for patch in plot]
+        return [_magnitude(patch.get_height()) for patch in plot]
