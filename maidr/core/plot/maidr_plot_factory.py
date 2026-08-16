@@ -5,6 +5,7 @@ from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
 from maidr.core.plot.areaplot import AreaPlot
 from maidr.core.plot.barplot import BarPlot
+from maidr.core.plot.boxenplot import BoxenPlot
 from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
@@ -64,6 +65,8 @@ class MaidrPlotFactory:
                 return BarPlot(single_ax, **kwargs)
         elif PlotType.BOX == plot_type:
             return BoxPlot(single_ax, **kwargs)
+        elif PlotType.BOXEN == plot_type:
+            return BoxenPlot(single_ax, **kwargs)
         elif PlotType.ERRORBAR == plot_type:
             # Both read an estimate and the interval around it, and both emit
             # the same layer; they differ only in what the library drew.
