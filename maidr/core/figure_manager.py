@@ -106,9 +106,23 @@ class FigureManager:
 
     @classmethod
     def get_maidr(cls, fig: Figure) -> Maidr:
-        """Retrieve the Maidr instance for the given Figure."""
+        """
+        Retrieve the Maidr instance for the given Figure.
+
+        Raises
+        ------
+        UnsupportedPlotError
+            When maidr never registered the figure -- because its chart type
+            is not supported, or because nothing has been drawn on it yet.
+            A subclass of ``KeyError``, so the matplotlib backend's existing
+            ``except KeyError`` around this call still catches it; the message
+            is the change, since "No MAIDR found for figure" described maidr's
+            own bookkeeping rather than anything a user could act on (#443).
+        """
+        from maidr.exception.unsupported_plot_error import UnsupportedPlotError
+
         if fig not in cls.figs.keys():
-            raise KeyError(f"No MAIDR found for figure: {fig}.")
+            raise UnsupportedPlotError(fig)
         return cls.figs[fig]
 
     @classmethod
