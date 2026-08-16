@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Sequence, Tuple
+from typing import Sequence
 
 from matplotlib.axes import Axes
 from matplotlib.collections import Collection, PatchCollection, PathCollection
@@ -26,7 +26,7 @@ _WIDEST_RUNG_P = 0.25
 DRAWN_LADDERS = "_maidr_ladders"
 
 
-def _ladder_probabilities(depth: int) -> List[float]:
+def _ladder_probabilities(depth: int) -> list[float]:
     """
     The tail probabilities of a ``depth``-rung letter-value ladder, deepest first.
 
@@ -176,7 +176,7 @@ class BoxenPlot(MaidrPlot):
 
         return axes_data
 
-    def _ladders(self) -> List[Tuple[PatchCollection, Optional[PathCollection]]]:
+    def _ladders(self) -> list[tuple[PatchCollection, PathCollection | None]]:
         """
         Pair each drawn ladder with the flier cloud beside it.
 
@@ -205,7 +205,7 @@ class BoxenPlot(MaidrPlot):
         return pairs
 
     @staticmethod
-    def _box_bounds(ladder: PatchCollection) -> List[Tuple[float, float, float, float]]:
+    def _box_bounds(ladder: PatchCollection) -> list[tuple[float, float, float, float]]:
         """Every box of a ladder as ``(x0, x1, y0, y1)`` in data coordinates."""
         bounds = []
         for path in ladder.get_paths():
@@ -220,7 +220,7 @@ class BoxenPlot(MaidrPlot):
             )
         return bounds
 
-    def _median_of(self, ladder: PatchCollection) -> Optional[Line2D]:
+    def _median_of(self, ladder: PatchCollection) -> Line2D | None:
         """
         The median segment drawn across ``ladder``.
 
@@ -228,8 +228,20 @@ class BoxenPlot(MaidrPlot):
         Order would work for a chart seaborn drew by itself, but a reference
         line or any other line the user added lands in the same list, and a
         positional match would then pair a ladder with something that is not
-        its median and read a value off it. Containment cannot: a line is this
-        ladder's median only if it lies inside this ladder's own footprint.
+        its median and read a value off it.
+
+        Containment alone is not enough either. A short segment a user drew in
+        data space can sit entirely inside a ladder's footprint: measured on
+        ``ax.plot([-0.1, 0.1], [0.5, 0.5])`` under a two-category boxen, the
+        first category's median was announced as 0.5 where the data says
+        0.0484. What separates the two is *span*. seaborn draws a median
+        across the whole ladder, so its endpoints are the ladder's own extent
+        on the category axis -- measured, -0.4 to 0.4 against a widest box of
+        exactly that width, where the user's segment spanned -0.1 to 0.1.
+
+        So a median is a segment that spans the ladder end to end on one axis
+        and holds a single value inside it on the other. That is orientation
+        agnostic, which is what lets this run before orientation is known.
 
         Parameters
         ----------
@@ -249,8 +261,9 @@ class BoxenPlot(MaidrPlot):
         x1 = max(bound[1] for bound in bounds)
         y0 = min(bound[2] for bound in bounds)
         y1 = max(bound[3] for bound in bounds)
-        # Widened by a whisker so a median sitting exactly on a box edge, or
-        # nudged by floating point, is still inside its own ladder.
+        # A matching tolerance rather than slack: the endpoints seaborn drew
+        # are the ladder's own extent, so they agree to floating point and
+        # this only absorbs the last bits.
         pad_x = (x1 - x0) * 1e-6
         pad_y = (y1 - y0) * 1e-6
 
@@ -273,9 +286,12 @@ class BoxenPlot(MaidrPlot):
             ys = [float(point[1]) for point in xy]
             if not all(math.isfinite(value) for value in xs + ys):
                 continue
-            if all(x0 - pad_x <= x <= x1 + pad_x for x in xs) and all(
-                y0 - pad_y <= y <= y1 + pad_y for y in ys
-            ):
+            spans_x = abs(min(xs) - x0) <= pad_x and abs(max(xs) - x1) <= pad_x
+            spans_y = abs(min(ys) - y0) <= pad_y and abs(max(ys) - y1) <= pad_y
+            level_y = abs(ys[0] - ys[1]) <= pad_y and y0 - pad_y <= ys[0] <= y1 + pad_y
+            level_x = abs(xs[0] - xs[1]) <= pad_x and x0 - pad_x <= xs[0] <= x1 + pad_x
+
+            if (spans_x and level_y) or (spans_y and level_x):
                 return line
 
         return None
@@ -293,7 +309,7 @@ class BoxenPlot(MaidrPlot):
         xy = median.get_xydata()
         return float(xy[0][0]) != float(xy[1][0])  # type: ignore[index]
 
-    def _tick_labels(self, vertical: bool) -> List[Tuple[float, str]]:
+    def _tick_labels(self, vertical: bool) -> list[tuple[float, str]]:
         """Category tick positions paired with their rendered labels."""
         axis = self.ax.xaxis if vertical else self.ax.yaxis
         return [
@@ -301,7 +317,7 @@ class BoxenPlot(MaidrPlot):
             for position, text in zip(axis.get_ticklocs(), axis.get_ticklabels())
         ]
 
-    def _dodge_offsets(self, centres: List[float], vertical: bool) -> List[float]:
+    def _dodge_offsets(self, centres: list[float], vertical: bool) -> list[float]:
         """
         The distinct offsets from a tick at which ladders are drawn.
 
@@ -338,7 +354,7 @@ class BoxenPlot(MaidrPlot):
         if not ticks:
             return []
 
-        offsets: List[float] = []
+        offsets: list[float] = []
         for centre in centres:
             position = min(ticks, key=lambda tick: abs(tick[0] - centre))[0]
             offset = centre - position
@@ -350,7 +366,7 @@ class BoxenPlot(MaidrPlot):
 
         return sorted(offsets)
 
-    def _category_of(self, centre: float, vertical: bool, offsets: List[float]) -> str:
+    def _category_of(self, centre: float, vertical: bool, offsets: list[float]) -> str:
         """
         Name the distribution a ladder at ``centre`` summarises.
 
@@ -393,7 +409,7 @@ class BoxenPlot(MaidrPlot):
         return label
 
     @staticmethod
-    def _levels(boxes: List[Tuple[float, float]]) -> List[dict]:
+    def _levels(boxes: list[tuple[float, float]]) -> list[dict]:
         """
         Turn a ladder's boxes into rungs, deepest first.
 
@@ -443,8 +459,8 @@ class BoxenPlot(MaidrPlot):
 
     @staticmethod
     def _outliers(
-        fliers: Optional[PathCollection], vertical: bool, low: float, high: float
-    ) -> Tuple[List[float], List[float]]:
+        fliers: PathCollection | None, vertical: bool, low: float, high: float
+    ) -> tuple[list[float], list[float]]:
         """Split a flier cloud into the values below and above the deepest rung."""
         if fliers is None:
             return [], []
@@ -461,7 +477,7 @@ class BoxenPlot(MaidrPlot):
             sorted(value for value in values if value > high),
         )
 
-    def _extract_plot_data(self) -> List[dict]:
+    def _extract_plot_data(self) -> list[dict]:
         """
         One :class:`BoxenPoint` per drawn ladder.
 

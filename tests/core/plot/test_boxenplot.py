@@ -272,6 +272,24 @@ class TestAnotherLineOnTheAxes:
     def test_the_threshold_is_not_read_as_a_ladder(self, first):
         assert len(ladders(self._axes(first))) == len(GROUPS)
 
+    def test_a_short_data_space_segment_is_not_a_median(self):
+        # The transform check rules out `axhline`/`axvline`, and containment
+        # alone does not rule out this: a segment a user drew in real data
+        # coordinates, short enough to sit entirely inside a ladder. Measured
+        # on `ax.plot([-0.1, 0.1], [0.5, 0.5])` under two categories, the
+        # first category's median was announced as 0.5 where the data says
+        # 0.0484.
+        #
+        # What separates it is span: seaborn draws a median across the whole
+        # ladder, so its endpoints are the ladder's own extent -- -0.4 to 0.4
+        # here, against this segment's -0.1 to 0.1.
+        _, ax = plt.subplots()
+        ax.plot([-0.1, 0.1], [0.5, 0.5], color="grey")
+        sns.boxenplot(frame(), x="g", y="v", ax=ax)
+
+        for point, values in zip(ladders(ax), GROUPS.values()):
+            assert point["median"] == pytest.approx(float(np.median(values)))
+
     def test_a_threshold_spanning_part_of_the_axes_is_still_not_a_median(self):
         # Containment alone is not enough. `axhline` blends the *axes*
         # transform on x, so its stored coordinates run 0 to 1 and describe

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 from maidr.core.context_manager import ContextManager
@@ -69,10 +70,12 @@ def boxen(wrapped, instance, args, kwargs) -> Axes:
     # Identity rather than a count, so it holds however the list is reordered,
     # and `plt.gca()` because that is the axes seaborn itself falls back to
     # when none is passed.
+    #
+    # `id()` is sound here because every collection counted stays referenced
+    # by `ax.collections` for the whole window, so none can be freed and have
+    # its address reused by one of the collections seaborn is about to add.
     target = kwargs.get("ax")
     if target is None:
-        import matplotlib.pyplot as plt
-
         target = plt.gca()
     before = {id(collection) for collection in target.collections}
 
