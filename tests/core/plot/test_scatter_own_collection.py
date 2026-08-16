@@ -73,12 +73,43 @@ def scatter_layers(ax) -> list[list[dict]]:
 
 
 def drawn_points(ax) -> set[tuple[float, float]]:
-    """Every point matplotlib actually put on the axes."""
+    """Every point matplotlib actually put on the axes.
+
+    Sound on a numeric axis, where the position a point is drawn at *is* its
+    value. The categorical charts use :func:`drawn_values` instead.
+    """
     return {
         (round(float(x), 9), round(float(y), 9))
         for collection in ax.collections
         if isinstance(collection, PathCollection)
         for x, y in collection.get_offsets()
+    }
+
+
+def drawn_values(ax) -> set[float]:
+    """Every observation matplotlib actually put on the axes.
+
+    Identified by its ``y`` alone, which on these charts is the measurement --
+    the ``x`` a strip or swarm point is drawn at is a jitter or a packing
+    offset chosen by the renderer, and #439 stopped announcing it. Comparing
+    against the drawn ``x`` would now be comparing against the artefact, and
+    snapping it here as well would only restate the implementation.
+    """
+    return {
+        round(float(y), 9)
+        for collection in ax.collections
+        if isinstance(collection, PathCollection)
+        for _, y in collection.get_offsets()
+    }
+
+
+def drawn_values_on_x(ax) -> set[float]:
+    """:func:`drawn_values` for a chart turned on its side."""
+    return {
+        round(float(x), 9)
+        for collection in ax.collections
+        if isinstance(collection, PathCollection)
+        for x, _ in collection.get_offsets()
     }
 
 
@@ -108,8 +139,17 @@ class TestACategoricalScatter:
         announced = announced_points(ax)
 
         assert len(announced) == PER_CATEGORY * len(CATEGORIES)
-        assert set(announced) == drawn_points(ax)
+        assert {y for _, y in announced} == drawn_values(ax)
         assert len(set(announced)) == len(announced)
+
+    def test_the_points_sit_on_the_ticks_rather_than_where_jitter_put_them(self, plot):
+        # The other half of #439. Both charts scatter their points sideways so
+        # overlapping observations stay separable -- randomly for a strip, by a
+        # packing algorithm for a swarm -- and that offset was announced as the
+        # value of an axis whose ticks read a, b and c.
+        ax = getattr(sns, plot)(data=frame(), x="g", y="y")
+
+        assert {x for x, _ in announced_points(ax)} == {0.0, 1.0, 2.0}
 
     def test_the_layers_sit_at_the_three_category_positions(self, plot):
         # Each category is drawn around its own tick, so the layers' x values
@@ -152,6 +192,28 @@ class TestTheSingleCollectionCasesAreUnchanged:
     These are the shapes the existing tests cover, which is why the defect
     stayed invisible -- so they are the ones a fix has to leave alone.
     """
+
+    def test_a_numeric_axis_keeps_every_coordinate_exactly(self):
+        # The guard on #439's snapping. On a numeric axis the position a point
+        # is drawn at *is* its value, so snapping it to a tick would round 90
+        # measurements onto a handful of gridlines -- silently, and with the
+        # payload still looking like a scatter plot.
+        data = frame()
+        collection = plt.scatter(data.x, data.y)
+        announced = announced_points(collection.axes)
+
+        assert set(announced) == drawn_points(collection.axes)
+
+    def test_a_horizontal_strip_snaps_the_category_axis_not_the_values(self):
+        # Categories sit on y when the chart is turned on its side, and the
+        # axis carrying them is the one to snap. Asking about x alone was
+        # exactly the defect #353 fixed for lines, so it is pinned here rather
+        # than left to the helper being symmetric.
+        ax = sns.stripplot(data=frame(), y="g", x="y")
+        announced = announced_points(ax)
+
+        assert {y for _, y in announced} == {0.0, 1.0, 2.0}
+        assert {x for x, _ in announced} == drawn_values_on_x(ax)
 
     def test_a_plain_scatter_is_one_layer_of_every_point(self):
         data = frame()

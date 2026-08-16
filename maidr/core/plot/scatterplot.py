@@ -10,7 +10,7 @@ from matplotlib.collections import PathCollection
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
-from maidr.util.mixin import CollectionExtractorMixin
+from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
 
 
 #: The keyword ``Axes.scatter`` hands its own ``PathCollection`` to this layer
@@ -188,11 +188,68 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin):
         # height, while a marker at no coordinates has neither. Dropping is the
         # whole answer here rather than half of one. Masked entries arrive as
         # `NaN` through `getdata`, so they take the same path.
+        x_slots = sorted(LineExtractorMixin._category_tick_labels(self.ax, "x"))
+        y_slots = sorted(LineExtractorMixin._category_tick_labels(self.ax, "y"))
+
         return [
             {
-                MaidrKey.X: float(x),
-                MaidrKey.Y: float(y),
+                MaidrKey.X: self._on_axis(float(x), x_slots),
+                MaidrKey.Y: self._on_axis(float(y), y_slots),
             }
             for x, y in ma.getdata(plot.get_offsets())
             if math.isfinite(x) and math.isfinite(y)
         ]
+
+    @staticmethod
+    def _on_axis(coordinate: float, slots: list[float]) -> float:
+        """
+        Where a point sits on its axis, rather than where it was drawn.
+
+        On a category axis the two are not the same. ``sns.stripplot`` scatters
+        each point sideways by a random offset so overlapping observations stay
+        separable, and ``sns.swarmplot`` runs a packing algorithm to the same
+        end. Neither offset is an observation -- both are chosen by the
+        renderer, and the jitter is literally random -- but the offset is what
+        ``get_offsets`` returns, so it is what was announced. Measured on a
+        three-category strip plot::
+
+            {"x": -0.0399..., "y": 0.1257...}
+            {"x":  0.0629..., "y": -0.1321...}
+            {"x": -0.0739..., "y": 0.6404...}
+
+        against an axis labelled ``g`` whose ticks read ``a``, ``b``, ``c``. A
+        reader was given a precise number for a quantity that does not exist,
+        where the chart says a name.
+
+        Snapping also restores the chart's shape. ``ScatterTrace`` groups
+        points into columns by exact ``x`` equality, so 90 jittered points
+        became 90 columns of one point each instead of 3 columns of 30 --
+        column navigation stepped through individual observations and never
+        through categories.
+
+        This does not put the *name* in the payload: ``ScatterPoint.x`` is
+        typed ``number`` in the grammar and the trace subtracts x values to
+        sort and to group, so a string there would not survive
+        (xability/maidr#927). What it does is stop a rendering artefact being
+        reported as a measurement, and put the point on the tick a sighted
+        reader sees it against.
+
+        Parameters
+        ----------
+        coordinate : float
+            The drawn coordinate.
+        slots : list of float
+            Tick coordinates of the category axis, ascending, or empty when
+            the axis is numeric.
+
+        Returns
+        -------
+        float
+            The nearest category slot, or the coordinate unchanged on a
+            numeric axis -- where the drawn position *is* the value, and
+            snapping it would destroy the data.
+        """
+        if not slots:
+            return coordinate
+
+        return min(slots, key=lambda slot: abs(slot - coordinate))
