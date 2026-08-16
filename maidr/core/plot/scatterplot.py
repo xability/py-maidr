@@ -188,17 +188,73 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # height, while a marker at no coordinates has neither. Dropping is the
         # whole answer here rather than half of one. Masked entries arrive as
         # `NaN` through `getdata`, so they take the same path.
-        x_slots = sorted(self._category_tick_labels(self.ax, "x"))
-        y_slots = sorted(self._category_tick_labels(self.ax, "y"))
+        x_ticks = self._category_tick_labels(self.ax, "x")
+        y_ticks = self._category_tick_labels(self.ax, "y")
 
         return [
-            {
-                MaidrKey.X: self._on_axis(float(x), x_slots),
-                MaidrKey.Y: self._on_axis(float(y), y_slots),
-            }
+            self._sample(float(x), float(y), x_ticks, y_ticks)
             for x, y in ma.getdata(plot.get_offsets())
             if math.isfinite(x) and math.isfinite(y)
         ]
+
+    @classmethod
+    def _sample(
+        cls,
+        x: float,
+        y: float,
+        x_ticks: dict[float, str],
+        y_ticks: dict[float, str],
+    ) -> dict:
+        """
+        One point, positioned on its axis and named after it where it has a name.
+
+        The position and the name are the two halves of the same fix.
+        :meth:`_on_axis` stops a rendering artefact being announced as a
+        measurement; the name stops the reader being handed a slot index where
+        the chart shows a word. Without it a strip plot announced "g is 0"
+        against ticks reading ``a``, ``b``, ``c`` (#439).
+
+        The name travels *alongside* the coordinate rather than replacing it,
+        because the core sorts on the number, measures distance with it and
+        groups columns by it -- ``'a' - 'b'`` is ``NaN``, so a string in ``x``
+        would give an unstable sort and a highlight that lands nowhere. That is
+        the shape ``ScatterPoint.xLabel`` was added for
+        (xability/maidr#927).
+
+        Both axes are asked. A strip plot drawn ``sns.stripplot(df, x='g',
+        y='v')`` puts the names on x and ``sns.stripplot(df, y='g', x='v')``
+        puts them on y, and asking about x alone was itself the #353 defect.
+
+        Parameters
+        ----------
+        x, y : float
+            The drawn coordinates.
+        x_ticks, y_ticks : dict of float to str
+            Each axis's tick names, from :meth:`_category_tick_labels`. Empty
+            on a numeric axis, which is what keeps a measurement from being
+            renamed after whichever tick it falls nearest.
+
+        Returns
+        -------
+        dict
+            The sample, carrying a label only for an axis that has one.
+        """
+        x_slots = sorted(x_ticks)
+        y_slots = sorted(y_ticks)
+        sample = {
+            MaidrKey.X: cls._on_axis(x, x_slots),
+            MaidrKey.Y: cls._on_axis(y, y_slots),
+        }
+
+        for key, ticks, position in (
+            (MaidrKey.X_LABEL, x_ticks, sample[MaidrKey.X]),
+            (MaidrKey.Y_LABEL, y_ticks, sample[MaidrKey.Y]),
+        ):
+            name = ticks.get(position)
+            if name:
+                sample[key] = name
+
+        return sample
 
     @staticmethod
     def _on_axis(coordinate: float, slots: list[float]) -> float:
