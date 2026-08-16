@@ -194,5 +194,99 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     return ax
 
 
+def _plotter_axes(plotter: Any) -> list[Axes]:
+    """
+    Every axes a ``_DistributionPlotter`` draws on in one call.
+
+    One call covers the whole grid: ``sns.displot(col="g")`` over two groups
+    reaches ``plot_univariate_histogram`` **once** and draws two panels, so a
+    wrapper that registered only ``plotter.ax`` would leave every panel but
+    the first unread.
+
+    ``ax`` is set for a single-axes plot and ``None`` for a faceted one, where
+    the panels hang off the ``FacetGrid`` instead. Both are asked rather than
+    one being derived from the other, because the attribute that is set is the
+    plotter's own record of where it drew.
+
+    Parameters
+    ----------
+    plotter : Any
+        The ``_DistributionPlotter`` instance the wrapped method is bound to.
+
+    Returns
+    -------
+    list of Axes
+        Possibly empty, which makes the caller a no-op rather than a guess.
+    """
+    ax = getattr(plotter, "ax", None)
+    if isinstance(ax, Axes):
+        return [ax]
+
+    facets = getattr(plotter, "facets", None)
+    grid = getattr(facets, "axes", None)
+    if grid is None:
+        return []
+    return [axes for axes in np.asarray(grid).flat if isinstance(axes, Axes)]
+
+
+def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
+    """
+    Register the panels ``seaborn.displot`` draws, which reach no other patch.
+
+    ``displot`` does not import ``histplot`` -- it drives
+    ``_DistributionPlotter`` directly -- so neither name ``wrap_seaborn``
+    patches is ever bound, and the panel was seen only by ``Axes.bar``. That
+    cannot know it is drawing a histogram, so a distribution arrived as a
+    **dodged bar chart** with its bin edges gone (#446)::
+
+        sns.displot(df, x="v", bins=3)
+          dodged_bar   {'x': '-1.61082', 'z': '_container0', 'y': 9.0}
+        sns.histplot(df, x="v", bins=3)
+          hist         {'y': 9.0, 'x': -1.6108, 'xMin': -2.3250, 'xMax': -0.8966, ...}
+
+    Three losses at once: the type names a chart that compares groups side by
+    side; `xMin`/`xMax` are gone, so the bin *centre* is announced as though
+    it were the bar's label, a precise number that is neither an observation
+    nor a boundary; and `z` -- the name a reader hears to tell series apart --
+    carried ``_container0``, maidr's own internal identifier for a
+    ``BarContainer``.
+
+    Patching the plotter method rather than ``displot`` covers ``histplot``
+    too, since both drive it. ``histplot``'s own patch runs first and sets the
+    internal context, so this one declines and no panel registers twice --
+    the recursion guard the box and boxen patches already rely on.
+
+    Each panel is asked separately whether *it* drew bars, so a bivariate
+    histogram keeps declining for the reason ``_drew_bars`` gives: seaborn
+    draws that as a ``QuadMesh`` of joint counts, and `hist` promises one bin
+    per bar with a count, which such a layer has neither of.
+    """
+    if ContextManager.is_internal_context():
+        return _draw_quietly(wrapped, args, kwargs)
+
+    # Snapshot per axes before the call, so a panel that already held bars --
+    # someone else's `barplot` on the same axes -- is not claimed as this
+    # histogram's. Empty for a faceted call, whose panels do not exist yet.
+    before = {id(ax): _containers_of(ax) for ax in _plotter_axes(instance)}
+
+    with ContextManager.set_internal_context():
+        drawn = _draw_quietly(wrapped, args, kwargs)
+
+    for ax in _plotter_axes(instance):
+        if _drew_bars(ax, before.get(id(ax), [])):
+            FigureManager.create_maidr(ax, PlotType.HIST)
+
+    return drawn
+
+
 # Patch seaborn function at both names it answers to; see `wrap_seaborn`.
 wrap_seaborn("histplot", sns_hist)
+
+# And the plotter class beneath them, which is the only thing `displot`
+# drives. Wrapped by module path rather than by importing the private class,
+# matching how `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
+wrapt.wrap_function_wrapper(
+    "seaborn.distributions",
+    "_DistributionPlotter.plot_univariate_histogram",
+    sns_distribution_hist,
+)

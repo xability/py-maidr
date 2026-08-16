@@ -34,10 +34,12 @@ Measured on a two-variable `pairplot`, which draws four panels::
     after    hist, hist, point, point
 
 Three grids change: `pairplot`, `jointplot` and `lmplot`. `relplot` was
-already right. `displot` and `catplot` are **not** fixed by this -- they drive
-seaborn's plotter classes directly rather than importing the module-level
-functions -- and are pinned at the foot of this file so the boundary is
-visible rather than discovered.
+already right. `displot` and `catplot` were **not** fixed by this -- they
+drive seaborn's plotter classes directly rather than importing the
+module-level functions. `displot` has since been reached one level down, by
+patching the plotter method both it and `histplot` drive (#446); `catplot` has
+not, and is pinned at the foot of this file so the boundary stays visible
+rather than being discovered.
 
 The failure was invisible from a direct call -- `sns.histplot(ax=ax)` has
 always given `hist` -- which is why it survived this long. So the first test
@@ -312,25 +314,61 @@ def test_a_function_seaborn_no_longer_exports_warns() -> None:
         wrap_seaborn("a_function_seaborn_has_never_had", lambda w, i, a, k: w(*a, **k))
 
 
-def test_the_grids_this_does_not_reach_are_named() -> None:
-    """The boundary, asserted rather than left to be discovered per bug report.
+def test_displot_is_reached_through_the_plotter_class() -> None:
+    """`displot` was the half of this boundary that has since been closed.
 
-    `displot` and `catplot` do not import the module-level functions at all --
-    they drive `_DistributionPlotter` and `_CategoricalPlotter` directly -- so
-    patching the defining module does not touch them. They are still read only
-    by the matplotlib-level patches, and still wrong: a distribution arrives as
-    a grouped bar chart.
+    It still imports nothing -- it drives `_DistributionPlotter` directly --
+    so the defining-module patching this file is about never touched it, and
+    its panels were read only by the matplotlib-level patches. A histogram
+    arrived as a **grouped bar chart** with its bin edges gone (#446).
 
-    Pinned here so that the day either is fixed, this test fails and has to be
-    rewritten, the way `test_hist2d.py` pinned `hexbin` before #368.
+    The fix went one level down, to the plotter method both interfaces drive,
+    which is the same idiom `maidr/patch/boxplot.py` uses for
+    `_CategoricalPlotter.plot_boxes`. So the assertion here inverts: what this
+    test pinned as wrong is now pinned as right.
+    """
+    frame = _frame()
+
+    # A histogram, read as one.
+    assert _layers(sns.displot(data=frame, x="a").figure) == [PlotType.HIST]
+
+    # A fitted curve, read as a curve rather than as a series of samples.
+    assert _layers(
+        sns.displot(data=frame, x="a", kind="kde").figure
+    ) == [PlotType.SMOOTH]
+
+
+def test_displot_panels_are_each_read() -> None:
+    """One call to the plotter method covers the whole grid.
+
+    `plot_univariate_histogram` is reached **once** for a faceted `displot`
+    and draws every panel, so a wrapper that registered only `plotter.ax`
+    would leave all but the first unread -- and `ax` is `None` in exactly that
+    case, so it would in fact leave *all* of them unread.
     """
     frame = _frame()
     frame["group"] = ["x", "y"] * 30
 
-    # A histogram, announced as a grouped bar chart.
-    assert _layers(sns.displot(data=frame, x="a").figure) == [PlotType.DODGED]
+    assert _layers(
+        sns.displot(data=frame, x="a", col="group").figure
+    ) == [PlotType.HIST, PlotType.HIST]
 
-    # Bars plus the error-bar lines, neither read as what it is.
+
+def test_the_grid_this_does_not_reach_is_named() -> None:
+    """The boundary that remains, asserted rather than left to a bug report.
+
+    `catplot` drives `_CategoricalPlotter` directly and imports nothing, so
+    neither the defining-module patching nor #446's plotter-level patching
+    touches it. Its panels are still read only by the matplotlib-level
+    patches, and still wrong: bars plus the error-bar lines, neither read as
+    what it is.
+
+    Pinned here so that the day it is fixed, this test fails and has to be
+    rewritten -- the way this file pinned `displot` until it was.
+    """
+    frame = _frame()
+    frame["group"] = ["x", "y"] * 30
+
     assert _layers(
         sns.catplot(data=frame, x="group", y="a", kind="bar").figure
     ) == [PlotType.DODGED, PlotType.LINE]
