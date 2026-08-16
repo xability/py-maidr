@@ -124,7 +124,47 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         if self._lines is not None:
             return self._lines
 
-        return self.ax.get_lines()
+        return [line for line in self.ax.get_lines() if self._is_in_data_space(line)]
+
+    def _is_in_data_space(self, line: Line2D) -> bool:
+        """
+        Whether a line's coordinates mean what the axes say they mean.
+
+        ``axhline`` and ``axvline`` blend the *axes* transform on one axis with
+        the data transform on the other, so their stored coordinates run 0 to 1
+        and describe the extent of the axes rather than any value. Measured on
+        ``ax.plot([10, 20, 30], [1, 2, 3])`` followed by ``ax.axhline(2)``::
+
+            [{"x": 10.0, ...}, {"x": 20.0, ...}, {"x": 30.0, ...}]
+            [{"x":  0.0, "y": 2.0}, {"x": 1.0, "y": 2.0}]   <- the axhline
+
+        The chart's x runs 10 to 30, and the reference line was announced at
+        0 and 1. That is not a degraded reading of a real series; it is a
+        confident reading of one that is not there, and nothing in the output
+        says its numbers are in a different space from every other number in
+        the chart (#434).
+
+        A reference line is decoration rather than data, and the grammar has no
+        annotation to put it in, so it is left out. Describing the threshold
+        somewhere is worth doing separately -- it is genuinely useful to know
+        one is drawn -- but that is a grammar question and should not keep a
+        wrong reading in the meantime.
+
+        Only the transform is asked about, never the values. A genuinely flat
+        data line -- ``ax.plot([1, 2], [5, 5])`` -- is drawn in data space and
+        stays, which a shape test would have thrown away.
+
+        Parameters
+        ----------
+        line : Line2D
+            A line found on the axes.
+
+        Returns
+        -------
+        bool
+            True when the line is positioned by the data transform.
+        """
+        return line.get_transform() is self.ax.transData
 
     def _extract_axes_data(self) -> dict:
         """
