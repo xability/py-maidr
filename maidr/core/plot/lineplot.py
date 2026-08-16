@@ -39,11 +39,8 @@ def _has_position(x: object) -> bool:
     non-finite ``y`` is a different thing: it has a position and no value,
     which is how ``seaborn.pointplot`` pads a hue level missing from one
     category so its two estimate lines stay the same length. Dropping it
-    would break that pairing, and emitting the value as ``null`` measurably
-    makes the core sonify the gap as a floor tone and announce it as
-    ``null`` -- a wrong reading in place of a missing one. Naming it properly
-    needs a per-point empty state the grammar does not have yet, so those are
-    left alone here and tracked in #429.
+    would break that pairing, so it is kept and its value emitted as ``null``
+    by :func:`_reading` instead.
 
     Parameters
     ----------
@@ -61,6 +58,44 @@ def _has_position(x: object) -> bool:
         return math.isfinite(x)  # type: ignore[arg-type]
     except TypeError:
         return True
+
+
+
+def _reading(y: object) -> object:
+    """
+    A sample's value, or ``None`` where it was positioned but never measured.
+
+    ``seaborn.pointplot`` pads a hue level missing from one category so its
+    estimate lines stay the same length, which is what keeps the pairing
+    working and the interval polylines out of the data. That padding has a
+    real x and no y: something to navigate to, nothing to report.
+
+    ``None`` serialises to ``null``, which the core has read as a gap since
+    maidr 4.3.0 (xability/maidr#926) -- it becomes ``NaN`` inside
+    ``LineTrace``, stays out of the range, sounds as the empty tone rather
+    than a floor tone, and announces as "missing". Before that release there
+    was no honest way to say it: the bare ``NaN`` stopped the chart
+    initialising at all, and a zero would have claimed a reading of zero
+    (#429).
+
+    Distinct from {@link _has_position}, which drops a sample outright. A
+    sample with no *position* is not on the chart; this one is.
+
+    Parameters
+    ----------
+    y : object
+        A sample's value as extracted, numeric or categorical.
+
+    Returns
+    -------
+    object
+        The value, or ``None`` when it is a non-finite number. A categorical
+        value is returned untouched.
+    """
+    try:
+        return y if math.isfinite(y) else None  # type: ignore[arg-type]
+    except TypeError:
+        return y
 
 
 class MultiLinePlot(MaidrPlot, LineExtractorMixin):
@@ -268,7 +303,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             line_data = [
                 {
                     MaidrKey.X: x,
-                    MaidrKey.Y: y,
+                    MaidrKey.Y: _reading(y),
                     **({MaidrKey.Z: line_type} if line_type else {}),
                 }
                 for x, y in line_coords

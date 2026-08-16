@@ -1623,13 +1623,28 @@ def _bundle_warning_enabled() -> bool:
 # Bundled-copy capability
 # ---------------------------------------------------------------------------
 
-#: A quoted lower-snake identifier, which is how the bundle spells a trace
-#: type.  All three quote characters, because the minifier picks whichever
-#: is shortest for the surrounding context -- the 4.1.0 bundle uses
-#: backticks throughout, and a check written for double quotes alone would
-#: have reported every type missing.
+#: An enum member assignment, which is how the bundle spells a trace type.
+#: TypeScript compiles ``TraceType`` to a run of them, so the 4.3.0 bundle
+#: carries ``e.AREA=`area`,e.ALLUVIAL=`alluvial`,e.BAR=`bar`,...``.
+#:
+#: All three quote characters, because the minifier picks whichever is
+#: shortest for the surrounding context -- the 4.1.0 bundle uses backticks
+#: throughout, and a check written for double quotes alone would have
+#: reported every type missing.
+#:
+#: Anchored on the ``.UPPER_SNAKE =`` rather than matching every quoted
+#: lower-snake string anywhere. The looser form was tenable while the bundle
+#: was small, and stopped being so at 4.3.0: nine adapters gained chart types
+#: and the vocabularies that came with them (MathML attribute names among
+#: others) took the scrape from a few hundred tokens to **1265**, including
+#: ordinary words like ``count``, ``above`` and ``accent``. A capability
+#: check whose vocabulary contains most of the dictionary answers "yes, your
+#: bundle knows that" to anything, so it can no longer raise the warning it
+#: exists for -- failing silent rather than merely failing safe (#436).
+#: Narrowed, 4.3.0 yields 60.
 _BUNDLE_TOKEN_RE = re.compile(
-    r"(?P<quote>[`\"'])(?P<token>[a-z][a-z0-9_]{1,39})(?P=quote)"
+    r"\.[A-Z][A-Z0-9_]*\s*=\s*(?P<quote>[`\"'])"
+    r"(?P<token>[a-z][a-z0-9_]{1,39})(?P=quote)"
 )
 
 #: Parsed once; the bundle does not change under a running process.

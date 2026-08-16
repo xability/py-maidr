@@ -129,59 +129,68 @@ class TestALineBrokenByNaN:
 
 
 class TestASampleWithAPositionButNoValue:
-    """The boundary, drawn on purpose rather than by accident.
+    """Kept and reported as missing, rather than dropped or faked.
 
     ``seaborn.pointplot`` NaN-pads a hue level that never appears in some
     category, and that padding is load-bearing: it keeps both estimate lines
     at one vertex per category, which is what stops the pairing failing and
     the interval polylines travelling as data (see ``test_pointplot.py``).
 
-    So a real x with a non-finite y is *not* the same thing as a point with
-    no position, and the rule asks about x alone. Emitting the value as
-    ``null`` instead was measured against the core and is worse than it
-    looks: ``LineTrace`` yields ``audio.freq.raw = 0`` and
-    ``text.cross.value = null``, so the gap is sonified as a floor tone and
-    announced as a word. Naming it properly needs a per-point empty state the
-    grammar does not have, which is #429.
+    So a real x with a non-finite y is *not* the same thing as a point with no
+    position, and the position rule asks about x alone. The value is emitted
+    as ``None`` -> ``null``, which the core has read as a gap since maidr
+    4.3.0 (xability/maidr#926): it becomes ``NaN`` inside ``LineTrace``, stays
+    out of the range, sounds as the empty tone rather than a floor tone, and
+    announces as "missing".
+
+    This was a strict ``xfail`` when #430 landed, because before that release
+    there was no honest representation -- a bare ``NaN`` stopped the chart
+    initialising and a zero would have claimed a reading of zero.
     """
 
-    def test_the_padded_sample_is_kept(self):
+    @staticmethod
+    def _unbalanced():
         import pandas as pd
 
-        unbalanced = pd.DataFrame(
+        return pd.DataFrame(
             {
                 "g": ["a"] * 4 + ["b"] * 4 + ["c"] * 2,
                 "half": ["x", "x", "y", "y", "x", "x", "y", "y", "x", "x"],
                 "v": [1.0, 2.0, 5.0, 6.0, 10.0, 11.0, 14.0, 15.0, 20.0, 21.0],
             }
         )
-        _, ax = plt.subplots()
-        sns.pointplot(unbalanced, x="g", y="v", hue="half", dodge=True, ax=ax)
 
-        series = series_of(ax)
+    def _axes(self):
+        _, ax = plt.subplots()
+        sns.pointplot(self._unbalanced(), x="g", y="v", hue="half", dodge=True, ax=ax)
+        return ax
+
+    def test_the_padded_sample_is_kept(self):
+        series = series_of(self._axes())
 
         assert len(series) == 2
         assert all(len(one) == 3 for one in series)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="#429: a positioned sample with no value has no JSON-safe "
-        "representation until the grammar can express an empty point",
-    )
-    def test_its_payload_is_not_parseable_yet(self):
-        import pandas as pd
+    def test_its_value_is_null_rather_than_a_number(self):
+        # The distinction the whole thing rests on: `null` is "no reading
+        # here", where `0` would be a reading of zero at a category whose
+        # data does not exist.
+        padded = [point for one in series_of(self._axes()) for point in one]
+        gaps = [point for point in padded if point["y"] is None]
 
-        unbalanced = pd.DataFrame(
-            {
-                "g": ["a"] * 4 + ["b"] * 4 + ["c"] * 2,
-                "half": ["x", "x", "y", "y", "x", "x", "y", "y", "x", "x"],
-                "v": [1.0, 2.0, 5.0, 6.0, 10.0, 11.0, 14.0, 15.0, 20.0, 21.0],
-            }
-        )
-        _, ax = plt.subplots()
-        sns.pointplot(unbalanced, x="g", y="v", hue="half", dodge=True, ax=ax)
+        assert len(gaps) == 1
+        assert gaps[0]["x"] == "c"
 
-        parses_as_strict_json(ax)
+    def test_it_keeps_its_position(self):
+        # Dropping it would break the pairing the padding exists for.
+        series = series_of(self._axes())
+
+        for one in series:
+            assert [point["x"] for point in one] == ["a", "b", "c"]
+
+    def test_the_payload_is_loadable(self):
+        # This is the assertion that was a strict xfail until maidr 4.3.0.
+        parses_as_strict_json(self._axes())
 
 
 class TestWhatMustNotChange:
