@@ -654,7 +654,13 @@ def test_a_hue_level_missing_a_category_does_not_break_the_pairing():
     assert [point["x"] for point in data[1]] == ["a", "b", "c"]
     # The combination the data does not have arrives as a gap, which the
     # consumer names rather than reading out -- not as cap geometry.
-    assert np.isnan(data[1][2]["y"])
+    #
+    # `None` rather than `NaN` since #429: a bare `NaN` is not JSON, so it
+    # stopped the chart initialising at all, and the core has read `null` as
+    # "positioned, no reading" since maidr 4.3.0 (xability/maidr#926). What
+    # this case is really pinning is unchanged -- the padding survives, so
+    # both estimate lines keep one vertex per category.
+    assert data[1][2]["y"] is None
 
 
 def test_an_estimate_line_without_a_marker_is_still_an_estimate():
