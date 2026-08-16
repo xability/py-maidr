@@ -128,8 +128,17 @@ class BoxenPlot(MaidrPlot):
         # what seaborn draws unless told otherwise.
         self._orientation = "vert"
 
+        # The collections this layer's own call drew, handed over by the
+        # patch. Absent means none rather than "sweep the axes": a fallback
+        # sweep is what pairs each ladder with whatever collection follows it,
+        # and that is the defect two commits of this change went to remove. It
+        # is unreachable through the patch, which always supplies these, so
+        # keeping it would only arm a trap for a future caller that constructs
+        # this class directly -- and arm it silently, since a swept chart
+        # reads as a complete one. With no collections there are no ladders,
+        # and `_extract_plot_data` raises.
         drawn = kwargs.get(DRAWN_LADDERS, None)
-        self._own_collections = drawn if isinstance(drawn, list) else None
+        self._own_collections = drawn if isinstance(drawn, list) else []
 
     def render(self) -> dict:
         """
@@ -190,11 +199,7 @@ class BoxenPlot(MaidrPlot):
         list of (PatchCollection, PathCollection or None)
             One entry per boxen, in draw order.
         """
-        collections: Sequence[Collection] = (
-            self._own_collections
-            if self._own_collections is not None
-            else self.ax.collections
-        )
+        collections: Sequence[Collection] = self._own_collections
         pairs = []
 
         for index, collection in enumerate(collections):
