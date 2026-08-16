@@ -8,7 +8,59 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.exception.extraction_error import ExtractionError
 from maidr.util.mixin.extractor_mixin import LineExtractorMixin
+import math
 import uuid
+
+
+def _has_position(x: object) -> bool:
+    """
+    Whether a sample sits anywhere a reader could be sent.
+
+    A point whose ``x`` is not finite has no position on the axis, so there is
+    nothing to announce and nothing to navigate to. Two ordinary idioms
+    produce them, and neither is an observation:
+
+    * ``sns.ecdfplot`` starts its staircase at ``-inf`` so the first step has
+      somewhere to come from;
+    * ``NaN`` is matplotlib's own way of *breaking* a line into segments --
+      it sets **both** coordinates -- and a masked array becomes one on the
+      way through.
+
+    Dropping them is also what keeps the payload loadable at all.
+    ``json.dumps`` writes ``NaN``, ``Infinity`` and ``-Infinity`` as bare
+    tokens, which are legal JavaScript but not JSON, and the core parses the
+    SVG's ``maidr`` attribute with ``JSON.parse``. One of them does not
+    degrade the chart -- ``initMaidrOnElement`` is never reached, so audio,
+    text, braille and highlight are all absent and the only trace is a
+    ``console.error`` a screen reader user has no reason to be watching
+    (#427).
+
+    Deliberately asked of ``x`` alone. A sample with a real x and a
+    non-finite ``y`` is a different thing: it has a position and no value,
+    which is how ``seaborn.pointplot`` pads a hue level missing from one
+    category so its two estimate lines stay the same length. Dropping it
+    would break that pairing, and emitting the value as ``null`` measurably
+    makes the core sonify the gap as a floor tone and announce it as
+    ``null`` -- a wrong reading in place of a missing one. Naming it properly
+    needs a per-point empty state the grammar does not have yet, so those are
+    left alone here and tracked in #429.
+
+    Parameters
+    ----------
+    x : object
+        A sample's x coordinate as extracted, numeric or categorical.
+
+    Returns
+    -------
+    bool
+        False only for a number that is NaN or infinite. A categorical x
+        arrives as its label, which is both positioned and never a JSON
+        hazard, so anything ``math.isfinite`` cannot judge is kept.
+    """
+    try:
+        return math.isfinite(x)  # type: ignore[arg-type]
+    except TypeError:
+        return True
 
 
 class MultiLinePlot(MaidrPlot, LineExtractorMixin):
@@ -180,6 +232,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                     **({MaidrKey.Z: line_type} if line_type else {}),
                 }
                 for x, y in line_coords
+                if _has_position(x)
             ]
 
             if line_data:
