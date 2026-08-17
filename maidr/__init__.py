@@ -155,11 +155,7 @@ def set_backend(use_maidr: bool = True) -> None:
     active backend.  ``set_backend`` only controls the behavior of
     ``plt.show()``.
     """
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError:
-        _logger.debug("matplotlib is not installed; cannot set backend.")
-        return
+    import matplotlib.pyplot as plt
 
     if use_maidr:
         plt.switch_backend("module://maidr.backend")
