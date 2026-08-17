@@ -1111,6 +1111,12 @@ class PlotlyMaidr:
             CDN was simply unreachable and the fix is ``use_cdn=False``.
             Sharing one message would send half the callers somewhere useless.
 
+            Built by placeholder replacement rather than as an f-string,
+            unlike everything else in this file: the JS body is full of
+            literal braces, and an f-string would need every one of them
+            doubled -- which is how a template like this acquires a
+            mismatched brace that only shows up as broken JS in a browser.
+
             Parameters
             ----------
             on_missing : str
