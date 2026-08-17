@@ -29,7 +29,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 import maidr  # noqa: E402,F401
 from maidr.core.figure_manager import FigureManager  # noqa: E402
-from maidr.core.maidr import _OFFLINE_FALLBACK_REPORT  # noqa: E402
+from maidr.util.dependencies import (  # noqa: E402
+    OFFLINE_FALLBACK_REPORT as _OFFLINE_FALLBACK_REPORT,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -108,3 +110,121 @@ class TestEveryAutoPathCanReport:
 
         assert "fb.onerror" in rendered
         assert "did not load" in rendered
+
+
+class TestThePlotlyRenderReportsToo:
+    """The same failure reaches Plotly charts, on both of its loader paths.
+
+    Plotly has the two branches matplotlib has -- the notebook one reading
+    the parent-window stash, and the one falling back to a relative path --
+    and neither reported. A Plotly chart with no network became an image
+    with no runtime and no explanation, which is the matplotlib case on a
+    path the fix for it did not reach.
+    """
+
+    @staticmethod
+    def _plotly_rendered(monkeypatch, *, notebook: bool) -> str:
+        """Render a Plotly chart as the given environment would.
+
+        Named apart from the module-level ``_rendered`` deliberately. A bare
+        ``_rendered(...)`` inside a method resolves to the module-level one
+        -- class scope is not in the lookup chain -- so two same-named
+        helpers read as a typo even where the behaviour is intended.
+        """
+        import html as html_module
+        import re
+
+        px = pytest.importorskip("plotly.express")
+        monkeypatch.setattr(
+            "maidr.util.environment.Environment.is_notebook", lambda: notebook
+        )
+        monkeypatch.setattr(
+            "maidr.util.environment.Environment.is_shiny", lambda: not notebook
+        )
+        monkeypatch.setattr(
+            "maidr.util.environment.Environment.is_flask", lambda: False
+        )
+
+        tag = maidr.render(px.bar(x=["a", "b"], y=[1, 2]), use_cdn="auto")
+        html = str(tag.get_html_string())
+        match = re.search(r'srcdoc="(.*?)"\s+width', html, re.S)
+        # Asserted rather than fallen back from: both environments here
+        # produce an iframe, so a miss means the attribute order moved --
+        # and returning the outer HTML would quietly check the wrong
+        # document while still passing.
+        assert match is not None, "could not find the iframe's srcdoc"
+        return html_module.unescape(match.group(1))
+
+    @pytest.mark.parametrize("notebook", [True, False])
+    def test_every_plotly_auto_path_defines_the_reporter(
+        self, monkeypatch, notebook
+    ) -> None:
+        """Parametrized because only one of the two paths was covered.
+
+        Forcing ``is_shiny`` alone leaves ``is_notebook`` false, so a test
+        that mocks only that exercises the relative-path branch twice and
+        the notebook branch never.
+        """
+        document = self._plotly_rendered(monkeypatch, notebook=notebook)
+        assert "function reportNoRuntime" in document
+
+    @pytest.mark.parametrize("notebook", [True, False])
+    def test_every_plotly_auto_path_reports(self, monkeypatch, notebook) -> None:
+        document = self._plotly_rendered(monkeypatch, notebook=notebook)
+        called = document.replace("function reportNoRuntime(", "")
+        assert "reportNoRuntime(" in called
+
+    def test_the_iframe_path_reports_a_dead_relative_fallback(
+        self, monkeypatch
+    ) -> None:
+        """The branch that had no ``onerror`` at all."""
+        document = self._plotly_rendered(monkeypatch, notebook=False)
+        assert "fb.onerror" in document
+
+    def test_use_cdn_false_still_advises_init_notebook(self, monkeypatch) -> None:
+        """The two modes fail for different reasons and need different advice.
+
+        A caller who already passed ``use_cdn=False`` is not helped by being
+        told to pass ``use_cdn=False``; what they need is
+        ``init_notebook()``. Sharing one message would have cost them that.
+        """
+        px = pytest.importorskip("plotly.express")
+        monkeypatch.setattr(
+            "maidr.util.environment.Environment.is_notebook", lambda: True
+        )
+        monkeypatch.setattr(
+            "maidr.util.environment.Environment.is_shiny", lambda: False
+        )
+        # Pinned like its siblings: a real Flask context would change which
+        # branch renders, so the test should not depend on not being in one.
+        monkeypatch.setattr(
+            "maidr.util.environment.Environment.is_flask", lambda: False
+        )
+        document = str(
+            maidr.render(px.bar(x=["a"], y=[1]), use_cdn=False).get_html_string()
+        )
+        assert "init_notebook()" in document
+
+    def test_both_renderers_say_the_same_thing(self, monkeypatch) -> None:
+        """One failure, one wording -- the point of sharing the constant.
+
+        Two diagnostics for one failure is the drift this consolidation
+        exists to prevent, and it would be invisible from either file alone.
+        """
+        marker = "The chart loaded but its runtime did not"
+        assert marker in _OFFLINE_FALLBACK_REPORT
+        # One from each renderer: the drift this guards against is invisible
+        # from either file alone.
+        assert marker in self._plotly_rendered(monkeypatch, notebook=False)
+        assert marker in _rendered(monkeypatch, notebook=False)
+
+    def test_the_two_notebook_failures_are_told_apart(self, monkeypatch) -> None:
+        """An unreachable parent is not a missing stash.
+
+        Both end the same way -- no runtime -- but they send the reader to
+        different places, so reporting one as the other is worse than
+        generic. Matches how the matplotlib path words the same pair.
+        """
+        document = self._plotly_rendered(monkeypatch, notebook=True)
+        assert "the notebook page has no stashed copy" in document
+        assert "the parent page is unreachable" in document

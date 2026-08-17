@@ -37,6 +37,7 @@ from maidr.plotly.step_shape import (
 )
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
+    OFFLINE_FALLBACK_REPORT,
     bundled_cdn_url,
     inline_bundle_tags,
     maidr_bundled_files_dependency,
@@ -1099,7 +1100,43 @@ class PlotlyMaidr:
         # KaTeX travels as a string because ``maidr.js`` resolves
         # ``maidr-math.css`` against the URL it was loaded from, and an
         # inline script inside a srcdoc iframe has no URL to offer it.
-        parent_source_snippet = """
+        def parent_source(
+            on_missing: str, on_unreachable: str | None = None
+        ) -> str:
+            """Return the parent-window loader, reporting failure as told.
+
+            The two ``use_cdn`` modes reach this for different reasons and so
+            need different advice. Under ``False`` the caller asked for the
+            bundle and the fix is ``init_notebook()``; under ``"auto"`` the
+            CDN was simply unreachable and the fix is ``use_cdn=False``.
+            Sharing one message would send half the callers somewhere useless.
+
+            Built by placeholder replacement rather than as an f-string,
+            unlike everything else in this file: the JS body is full of
+            literal braces, and an f-string would need every one of them
+            doubled -- which is how a template like this acquires a
+            mismatched brace that only shows up as broken JS in a browser.
+
+            Parameters
+            ----------
+            on_missing : str
+                JS run when the parent is readable but holds no stash.
+            on_unreachable : str or None, optional
+                JS run when the parent could not be read at all -- a
+                cross-origin frame, or no parent. ``None`` reuses
+                ``on_missing``, which is right only where the two have the
+                same answer; under ``"auto"`` they do not, and reporting a
+                missing stash for an unreachable parent sends the reader
+                looking in the wrong place. ``None`` rather than ``""`` so
+                that "same answer" and "say nothing" stay distinguishable
+                if a caller ever wants the latter.
+
+            Returns
+            -------
+            str
+                The loader, as JS.
+            """
+            return """
             (function() {
                 try {
                     var jsSrc = window.parent && window.parent.__maidrJsSource;
@@ -1122,7 +1159,21 @@ class PlotlyMaidr:
                         document.head.appendChild(s);
                         return true;
                     }
-                } catch (_) { /* cross-origin or missing parent */ }
+                    __ON_MISSING__
+                    return false;
+                } catch (_) {
+                    __ON_UNREACHABLE__
+                    return false;
+                }
+            })();
+        """.replace("__ON_MISSING__", on_missing).replace(
+                "__ON_UNREACHABLE__",
+                on_missing if on_unreachable is None else on_unreachable,
+            )
+
+        # ``use_cdn=False``: the caller asked for the bundle, so the fix is
+        # to stash it, not to change the mode.
+        notebook_stash_missing = """
                 if (window.console) {
                     console.warn(
                         'maidr: use_cdn=False requires maidr.init_notebook() ' +
@@ -1130,9 +1181,9 @@ class PlotlyMaidr:
                         'to be available on window.parent.__maidrJsSource.'
                     );
                 }
-                return false;
-            })();
         """
+
+        parent_source_snippet = parent_source(notebook_stash_missing)
 
         if use_cdn is False:
             if iframe_in_notebook:
@@ -1153,14 +1204,24 @@ class PlotlyMaidr:
                 # Iframe path: try the CDN first, fall back to the
                 # parent-window source on ``onerror``.  Relative
                 # ``lib/`` paths cannot be resolved inside srcdoc.
+                # Under "auto" the CDN was simply unreachable, so the
+                # stash being empty too means there is no source left --
+                # which is what ``reportNoRuntime`` is for. Under
+                # ``use_cdn=False`` the same miss means something else
+                # (see ``parent_source``), hence the separate wording.
+                auto_parent_source = parent_source(
+                    "reportNoRuntime('the notebook page has no stashed copy');",
+                    "reportNoRuntime('the parent page is unreachable');",
+                )
                 loader = f"""
+{OFFLINE_FALLBACK_REPORT}
                     var existing = document.querySelector(
                         'script[src="{js_cdn_url}"]'
                     );
                     if (!existing) {{
                         var s = document.createElement('script');
                         s.src = '{js_cdn_url}';
-                        s.onerror = function() {{{parent_source_snippet}}};
+                        s.onerror = function() {{{auto_parent_source}}};
                         document.head.appendChild(s);
                     }}
                 """
@@ -1168,6 +1229,7 @@ class PlotlyMaidr:
                 rel_dir = maidr_bundled_relative_dir()
                 bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
                 loader = f"""
+{OFFLINE_FALLBACK_REPORT}
                     var existing = document.querySelector(
                         'script[src="{js_cdn_url}"]'
                     );
@@ -1177,6 +1239,17 @@ class PlotlyMaidr:
                         s.onerror = function() {{
                             var fb = document.createElement('script');
                             fb.src = '{bundled_js_rel}';
+                            // The relative path resolves wherever the host
+                            // serves the copied bundle -- save_html -- and
+                            // cannot inside a srcdoc iframe nobody serves
+                            // those files for. Without this the chart is an
+                            // image with no runtime and nothing said.
+                            fb.onerror = function() {{
+                                reportNoRuntime(
+                                    'the bundled copy at {bundled_js_rel} '
+                                    + 'did not load'
+                                );
+                            }};
                             document.head.appendChild(fb);
                         }};
                         document.head.appendChild(s);
