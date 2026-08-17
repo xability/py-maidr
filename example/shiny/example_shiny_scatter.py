@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from shiny import App, ui
 
-from maidr.widget.shiny import render_maidr
+from maidr.widget.shiny import output_maidr, render_maidr
 
 # Load the dataset
 iris = sns.load_dataset("iris")
@@ -25,7 +25,7 @@ app_ui = ui.page_fluid(
                 selected="sepal_width",
             ),
         ),
-        ui.column(9, ui.output_ui("create_barplot")),
+        ui.column(9, output_maidr("create_scatterplot")),
     )
 )
 
@@ -33,7 +33,7 @@ app_ui = ui.page_fluid(
 # Define the server
 def server(inp, _, __):
     @render_maidr
-    def create_barplot():
+    def create_scatterplot():
         fig, ax = plt.subplots(figsize=(10, 6))
         s_plot = sns.scatterplot(
             data=iris, x=inp.x_var(), y=inp.y_var(), hue="species", ax=ax

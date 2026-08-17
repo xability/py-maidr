@@ -37,6 +37,8 @@ from maidr.plotly.step_shape import (
 )
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
+    bundled_cdn_url,
+    inline_bundle_tags,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
     maidr_html_dependency,
@@ -1231,9 +1233,17 @@ class PlotlyMaidr:
         # :func:`maidr.api.init_notebook` has stashed on
         # ``window.__maidrJsSource`` in the parent document.  Mirrors
         # the matplotlib ``_inject_plot`` logic.
-        iframe_in_notebook = use_iframe and (
-            Environment.is_notebook() or Environment.is_shiny()
+        #
+        # The parent-window stash only exists in a notebook, because
+        # ``init_notebook()`` returns early everywhere else.  Any other
+        # iframed render -- Shiny, Flask -- carries the bundle inline
+        # instead; see ``iframe_inline_bundle``.
+        in_notebook = Environment.is_notebook()
+        will_iframe = use_iframe and (
+            Environment.is_flask() or in_notebook or Environment.is_shiny()
         )
+        iframe_in_notebook = will_iframe and in_notebook
+        iframe_inline_bundle = will_iframe and not in_notebook
 
         schema = self._flatten_maidr()
 
@@ -1264,6 +1274,23 @@ class PlotlyMaidr:
                 # parent-source loader carries both the JS and KaTeX, so
                 # no extra children are needed here.
                 pass
+            elif iframe_inline_bundle:
+                # An iframe outside a notebook: the dependency below would
+                # be dropped by ``get_html_string()`` and there is no
+                # parent stash to read, so the bundle travels inline.
+                # These tags precede the init script, so ``maidr.js`` is
+                # in the document by the time the loader would have run --
+                # which is why the loader for this case is empty, exactly
+                # as it is for the non-iframe dependency path.
+                inline_tags = inline_bundle_tags()
+                if inline_tags is None:
+                    # Bundle unreadable; already warned.  A CDN tag is the
+                    # only remaining source, and a chart that needs the
+                    # network beats one that cannot be read at all.
+                    inline_tags = [
+                        tags.script(src=bundled_cdn_url(MAIDR_JS_FILENAME))
+                    ]
+                children.extend(inline_tags)
             else:
                 # The dependency copies the whole bundle, so ``maidr.js``
                 # finds ``maidr-math.css`` beside itself; no ``<link>``
@@ -1283,11 +1310,10 @@ class PlotlyMaidr:
 
         base_html = tags.div(*children)
 
-        if use_iframe and (
-            Environment.is_flask()
-            or Environment.is_notebook()
-            or Environment.is_shiny()
-        ):
+        # Same condition as ``will_iframe`` above, reused so the branch
+        # that picks a source for ``maidr.js`` and the branch that wraps
+        # the result cannot disagree about whether there is an iframe.
+        if will_iframe:
             base_html = wrap_in_iframe_plotly(base_html)
 
         return base_html

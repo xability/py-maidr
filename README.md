@@ -49,3 +49,6 @@ See [Offline Use and the JavaScript Bundle](https://xability.github.io/py-maidr/
 ## Example Code
 
 We provide [some example code](https://github.com/xability/py-maidr/blob/main/example) for using py-maidr with matplotlib, seaborn, Jupyter Notebook, Quarto, Shiny, and Streamlit.
+
+Shiny support requires the optional extra `pip install "maidr[shiny]"`, which
+provides `output_maidr()` and `@render_maidr` in `maidr.widget.shiny`.

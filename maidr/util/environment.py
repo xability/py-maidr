@@ -83,12 +83,42 @@ class Environment:
 
     @staticmethod
     def is_shiny() -> bool:
-        """Return True if the environment is a Shiny app."""
-        try:
-            import shiny
+        """
+        Check if the current code is running inside an active Shiny session.
 
-            return shiny.__name__ == "shiny"
-        except ImportError:
+        Mirrors :meth:`is_flask`, which asks Flask whether an app context is
+        live rather than whether Flask is installed.  ``get_current_session()``
+        is Shiny's equivalent: it returns the session only while a render
+        function, reactive effect, or session-scoped callback is executing,
+        which is exactly where :class:`maidr.widget.shiny.render_maidr` runs.
+
+        Asking whether ``shiny`` merely imports would answer a different
+        question.  Every process that happens to have Shiny installed --
+        a plain script, a pytest run, a Flask or Streamlit app -- would take
+        the Shiny rendering path and get iframe-wrapped output it never
+        asked for.
+
+        Returns
+        -------
+        bool
+            True if a Shiny session is currently active, False otherwise.
+
+        Examples
+        --------
+        >>> from maidr.util.environment import Environment
+        >>> Environment.is_shiny()
+        False  # When not inside a Shiny session
+        """
+        try:
+            from shiny.session import get_current_session
+
+            return get_current_session() is not None
+        except Exception:
+            # Broader than ImportError on purpose: an environment probe must
+            # never be the reason a render fails.  A partially installed or
+            # version-skewed Shiny (its import chain reaches htmltools and
+            # shinychat) raises other exception types, and a user who never
+            # asked for Shiny should not see them.
             return False
 
     @staticmethod

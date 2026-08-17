@@ -1125,6 +1125,57 @@ plt.show() #<<
 
 ### Shiny
 
+Shiny support ships as an optional extra:
+
+```bash
+pip install "maidr[shiny]"
+```
+
+Pair `output_maidr()` in the UI with `@render_maidr` in the server, the same
+way you would pair `ui.output_plot()` with `@render.plot`:
+
+```python
+import matplotlib.pyplot as plt
+from shiny import App, ui
+
+from maidr.widget.shiny import output_maidr, render_maidr
+
+app_ui = ui.page_fluid(
+    ui.input_slider("n", "Bars", min=2, max=10, value=4),
+    output_maidr("bars"),
+)
+
+
+def server(input, output, session):
+    @render_maidr
+    def bars():
+        fig, ax = plt.subplots()
+        ax.bar(range(input.n()), range(1, input.n() + 1))
+        return ax
+
+
+app = App(app_ui, server)
+```
+
+The decorated function may return a matplotlib or seaborn artist, a Plotly
+`Figure`, or an Altair chart. Returning `None` leaves the output blank.
+
+`@render_maidr` accepts `width`, `height`, and `use_cdn`. Prefer `use_cdn`
+here over `maidr.set_use_cdn()`: the setter is process-wide state shared by
+every concurrent session, while the argument is scoped to one output.
+
+```python
+@render_maidr(width="600px", use_cdn=False)
+def bars():
+    ...
+```
+
+`use_cdn=False` is the setting for an air-gapped deployment. The chart is
+rendered in an iframe, and an iframe's `srcdoc` cannot reach assets the app
+serves, so the bundled `maidr.js` travels inline in the document -- correct
+offline, but roughly 2 MB per chart. The default (`"auto"`) loads from the
+CDN and stays around 30 KB.
+
 Check out [a reactive Shiny dashboard example with maidr](https://xabilitylab.shinyapps.io/a11y_dashboard/) and its source code is available on [GitHub](https://github.com/xability/a11y_dashboard).
 
 ### Streamlit
