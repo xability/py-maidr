@@ -89,7 +89,7 @@ async def _longest_gap_around_one_render() -> tuple[float, float]:
 
 
 @pytest.mark.benchmark
-def test_one_render_blocks_the_event_loop() -> None:
+def test_one_render_blocks_the_event_loop(monkeypatch) -> None:
     """A render holds the loop for its whole duration.
 
     ``maidr.render()`` is synchronous and never awaits, so nothing can
@@ -98,6 +98,15 @@ def test_one_render_blocks_the_event_loop() -> None:
     fixed millisecond count, which would fail on a loaded CI box while
     telling nobody anything.
     """
+    # `_render_once` renders with `use_cdn=True`, and building that URL
+    # would resolve the published version over the network. Pinning skips
+    # the lookup while leaving the CPU-bound work being measured alone.
+    # `tests/conftest.py`'s autouse fixture already pins this and stubs
+    # `urlopen`, so the suite is safe without it -- repeated here because a
+    # benchmark meant to be run deliberately, often in a sandbox, should
+    # not be one global fixture away from stalling on MAIDR_CDN_TIMEOUT.
+    monkeypatch.setenv("MAIDR_CDN_VERSION", "latest")
+
     # Warm up: the first render pays for imports, the font cache and the
     # matplotlib backend, and is worth roughly thirty steady-state ones.
     for _ in range(5):
