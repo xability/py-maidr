@@ -1100,7 +1100,26 @@ class PlotlyMaidr:
         # KaTeX travels as a string because ``maidr.js`` resolves
         # ``maidr-math.css`` against the URL it was loaded from, and an
         # inline script inside a srcdoc iframe has no URL to offer it.
-        parent_source_snippet = """
+        def parent_source(on_missing: str) -> str:
+            """Return the parent-window loader, reporting failure as told.
+
+            The two ``use_cdn`` modes reach this for different reasons and so
+            need different advice. Under ``False`` the caller asked for the
+            bundle and the fix is ``init_notebook()``; under ``"auto"`` the
+            CDN was simply unreachable and the fix is ``use_cdn=False``.
+            Sharing one message would send half the callers somewhere useless.
+
+            Parameters
+            ----------
+            on_missing : str
+                JS run when no stashed copy can be reached.
+
+            Returns
+            -------
+            str
+                The loader, as JS.
+            """
+            return """
             (function() {
                 try {
                     var jsSrc = window.parent && window.parent.__maidrJsSource;
@@ -1124,6 +1143,14 @@ class PlotlyMaidr:
                         return true;
                     }
                 } catch (_) { /* cross-origin or missing parent */ }
+                __ON_MISSING__
+                return false;
+            })();
+        """.replace("__ON_MISSING__", on_missing)
+
+        #: ``use_cdn=False``: the caller asked for the bundle, so the fix is
+        #: to stash it, not to change the mode.
+        _NOTEBOOK_STASH_MISSING = """
                 if (window.console) {
                     console.warn(
                         'maidr: use_cdn=False requires maidr.init_notebook() ' +
@@ -1131,9 +1158,9 @@ class PlotlyMaidr:
                         'to be available on window.parent.__maidrJsSource.'
                     );
                 }
-                return false;
-            })();
         """
+
+        parent_source_snippet = parent_source(_NOTEBOOK_STASH_MISSING)
 
         if use_cdn is False:
             if iframe_in_notebook:
@@ -1154,14 +1181,23 @@ class PlotlyMaidr:
                 # Iframe path: try the CDN first, fall back to the
                 # parent-window source on ``onerror``.  Relative
                 # ``lib/`` paths cannot be resolved inside srcdoc.
+                # Under "auto" the CDN was simply unreachable, so the
+                # stash being empty too means there is no source left --
+                # which is what ``reportNoRuntime`` is for. Under
+                # ``use_cdn=False`` the same miss means something else
+                # (see ``parent_source``), hence the separate wording.
+                auto_parent_source = parent_source(
+                    "reportNoRuntime('the notebook page has no stashed copy');"
+                )
                 loader = f"""
+{OFFLINE_FALLBACK_REPORT}
                     var existing = document.querySelector(
                         'script[src="{js_cdn_url}"]'
                     );
                     if (!existing) {{
                         var s = document.createElement('script');
                         s.src = '{js_cdn_url}';
-                        s.onerror = function() {{{parent_source_snippet}}};
+                        s.onerror = function() {{{auto_parent_source}}};
                         document.head.appendChild(s);
                     }}
                 """

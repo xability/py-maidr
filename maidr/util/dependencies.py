@@ -2219,6 +2219,13 @@ def inline_bundle_tags() -> "list | None":
     ]
 
 
+#: What the browser says when ``use_cdn="auto"`` runs out of sources.
+#:
+#: Every fallback can fail to resolve, and each used to do it in silence: the
+#: notebook ones only act ``if (jsSrc)`` and swallow the miss, and the bundled
+#: ones set no ``onerror`` at all. What the reader gets either way is a chart
+#: with no MAIDR runtime -- a picture, with nothing saying why (#455).
+#:
 #: Names the setting that works rather than describing the failure, because
 #: the person who hits this is on an air-gapped deployment and the answer
 #: (``use_cdn=False``) is otherwise only discoverable by reading the source.

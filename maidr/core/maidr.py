@@ -61,15 +61,6 @@ _AXES_WIDE_BAR_PLOTS = (BarPlot, GroupedBarPlot)
 #: the layer to keep when one axes holds more than one of the family.
 _SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 
-#: What the browser says when ``use_cdn="auto"`` runs out of sources.
-#:
-#: Both fallbacks can fail to resolve, and both used to do it in silence: the
-#: notebook one only acts ``if (jsSrc)`` and swallows the miss, and the other
-#: never set ``onerror`` at all. What the reader gets either way is a chart
-#: with no MAIDR runtime -- a picture, with nothing saying why (#455).
-#:
-
-
 class Maidr:
     """
     A class to handle the rendering and interaction
