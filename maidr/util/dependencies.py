@@ -2132,3 +2132,88 @@ def maidr_bundled_files_dependency():
         stylesheet=[],
         all_files=True,
     )
+
+
+@lru_cache(maxsize=1)
+def _inline_bundle_sources() -> "tuple[str, str]":
+    """Return the bundled ``maidr-math.css`` and ``maidr.js`` as strings.
+
+    Memoised because :func:`inline_bundle_tags` runs once per render and a
+    Shiny app renders once per reactive flush, while the files ship inside
+    the wheel and cannot change under a running interpreter.  Uncached,
+    each flush re-read and re-decoded about 1.9 MB.
+
+    The public :func:`read_bundled_js` / :func:`read_bundled_math_css` are
+    left uncached so that callers -- and tests -- can still stub the paths
+    behind them.  Call ``.cache_clear()`` on this function if a test needs
+    the same for the inline path.
+
+    Returns
+    -------
+    tuple of (str, str)
+        The maths stylesheet source and the ``maidr.js`` source.
+
+    Raises
+    ------
+    FileNotFoundError
+        If either asset is missing from the installed package.
+    OSError
+        If either asset cannot be read.
+    """
+    return read_bundled_math_css(), read_bundled_js()
+
+
+def inline_bundle_tags() -> "list | None":
+    """Return tags that embed the bundled ``maidr.js`` and KaTeX CSS inline.
+
+    An ``HTMLDependency`` is the right way to ship the bundle whenever the
+    host serves the assets and htmltools can materialise them.  It is not
+    an option for output that is serialised with
+    :meth:`htmltools.Tag.get_html_string` -- which silently drops
+    ``HTMLDependency`` children -- and then embedded in an iframe
+    ``srcdoc``.  A ``srcdoc`` document also has no reachable
+    ``window.parent.__maidrJsSource`` unless
+    :func:`maidr.api.init_notebook` populated it, which only happens in a
+    notebook.  Outside a notebook those two facts leave an iframed
+    ``use_cdn=False`` render with no source for ``maidr.js`` at all, so the
+    source itself has to travel inline.
+
+    The bare ``<link data-maidr-math>`` marker mirrors the notebook
+    bootstrap: ``maidr.js`` decides whether to fetch ``maidr-math.css`` by
+    looking for a link carrying that attribute, and a ``<style>`` element
+    never matches.  Without the marker it reports the maths rules missing
+    even though they are already on the page.
+
+    Returns
+    -------
+    list of htmltools.Tag, or None
+        ``<style>``, the ``data-maidr-math`` marker, and ``<script>``, in
+        the order they must appear in the document.  ``None`` when the
+        bundle cannot be read, leaving the caller to fall back to the CDN.
+
+    Notes
+    -----
+    A bundle that predates maidr 3.75.1 ships no ``maidr-math.css``, and
+    :func:`bundled_math_css_path` raises for it.  :func:`maidr.init_notebook`
+    already treats that as "warn and use the CDN" rather than as a failed
+    render, and so does this: a broken install rendered a degraded chart
+    before this path existed, and it should not start raising instead.
+    """
+    from htmltools import tags
+
+    try:
+        math_css, js_source = _inline_bundle_sources()
+    except (OSError, ValueError):
+        # ``OSError`` covers missing and unreadable files (``FileNotFoundError``
+        # is one).  ``ValueError`` is here for ``UnicodeDecodeError``, which a
+        # truncated or corrupted asset raises out of ``read_text`` and which is
+        # *not* an ``OSError`` -- so catching only file errors would let a
+        # damaged bundle crash the render this exists to keep alive.
+        warn_bundle_unreadable()
+        return None
+
+    return [
+        tags.style(math_css),
+        tags.link(**{"data-maidr-math": ""}),
+        tags.script(js_source, type="text/javascript"),
+    ]
