@@ -12,13 +12,22 @@ Requires the optional ``streamlit`` extra::
 Notes
 -----
 The chart is embedded in an iframe, and that is deliberate rather than
-incidental.  Streamlit's own app binds ``r``, ``c`` and ``esc`` at the
-document level, exempting only form fields, and maidr binds all three for
-replay, braille and dismissing panels.  Two listeners on one document
-cannot both win, and ``preventDefault`` in one does not stop the other.
-The iframe is what keeps maidr's keyboard interface intact, so an
-embedding that renders the chart directly into the Streamlit page would
-take those keys away from it.
+incidental.  Streamlit binds ``r`` at the document level -- it reruns the
+script -- exempting only form fields, and maidr binds ``r`` for review
+mode.  Two listeners on one document cannot both win, and
+``preventDefault`` in one does not stop the other.  The iframe is what
+keeps maidr's keyboard interface intact, so an embedding that renders the
+chart directly into the Streamlit page would take that key away from it.
+
+Measured rather than inferred, on Streamlit 1.61.1 in Chromium.  From the
+page, ``r`` reruns the script; from inside the frame, the same keystroke
+reaches maidr (``Review is on``) and the script does not rerun.  One
+document-level collision is enough to make the frame load-bearing, which
+is why this note now claims only the key that was measured: an earlier
+version of it also named ``c`` and ``esc``, neither of which produced an
+observable rerun.  That is not proof they are unbound -- they may drive
+something else that collides just as badly -- but it was more than the
+evidence supported.
 """
 
 from __future__ import annotations
