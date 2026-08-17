@@ -188,6 +188,42 @@ def test_payload_has_the_shape_shiny_expects(fake_session):
     assert set(payload) == {"deps", "html"}
 
 
+def test_the_payload_carries_the_focus_restore_script(fake_session):
+    """Every render ships the hook that survives a re-render (#484).
+
+    Shiny replaces the output container on each reactive flush, taking the
+    focused element with it, which drops a reader out of the chart they
+    were navigating. The script rides with the chart rather than with the
+    container because ``output_maidr`` is not always what places the
+    output -- Express mode goes through ``auto_output_ui``, and an app may
+    write its own ``ui.output_ui`` -- but every chart comes through the
+    renderer.
+    """
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+    assert "__maidrShinyFocusRestore" in html
+
+
+def test_the_focus_script_only_installs_once_per_page(fake_session):
+    """It arrives on every render, so it has to be idempotent.
+
+    Without the guard, N flushes would leave N samplers and N observers
+    running, each restoring focus -- the cost of shipping it per render
+    rather than per container.
+    """
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+    assert "if (window.__maidrShinyFocusRestore) return;" in html
+
+
 @pytest.mark.parametrize(
     ("use_cdn", "expect_cdn", "expect_inline_bundle"),
     [(True, True, False), ("auto", True, False), (False, False, True)],

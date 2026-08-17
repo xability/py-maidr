@@ -15,7 +15,7 @@ import warnings
 from typing import Any, Literal, Optional, Union
 
 try:
-    from htmltools import Tag
+    from htmltools import Tag, TagList, tags
     from shiny import ui as _shiny_ui
     from shiny.render.renderer import Jsonifiable, Renderer, ValueFn
     from shiny.session import require_active_session
@@ -26,6 +26,7 @@ except ImportError as error:
 
 import maidr
 from maidr.core.figure_manager import FigureManager
+from maidr.widget._focus import FOCUS_RESTORE_JS
 
 #: Accepted by ``use_cdn`` on :class:`render_maidr`; ``None`` defers to the
 #: process-wide default (:func:`maidr.get_use_cdn`).
@@ -331,10 +332,18 @@ class render_maidr(Renderer[Any]):
         finally:
             _close_new_figures(open_before)
 
+        # The script rides with the chart rather than with the container:
+        # ``output_maidr`` is not always what places the output -- Express
+        # mode goes through ``auto_output_ui``, and an app may write its
+        # own ``ui.output_ui`` -- but every chart comes through here. It
+        # guards itself, so arriving once per render costs nothing after
+        # the first.
+        payload = TagList(rendered, tags.script(FOCUS_RESTORE_JS))
+
         # The same call ``shiny.render.ui`` makes: it resolves any
         # ``HTMLDependency`` on the rendered tag, registers it with the
         # app so the asset is served, and returns ``{"deps", "html"}``.
-        return session._process_ui(rendered)
+        return session._process_ui(payload)
 
 
 __all__ = ["output_maidr", "render_maidr"]
