@@ -193,9 +193,44 @@ class TestReversedAxis:
         assert _emit(layout)["x"] == ["charlie", "bravo", "alpha"]
         assert _emit(layout)["points"][2] == [11, 13, 12]
 
+    def test_composes_on_the_rows_too(self) -> None:
+        # The x composition above is the one that reads naturally; the y one
+        # runs the other way round -- the resolved order counts from the
+        # bottom, so a *reversed* y axis is the case where it is left alone --
+        # and that asymmetry is exactly what a later change could break.
+        layout = {
+            "yaxis": {
+                "categoryorder": "category ascending",
+                "autorange": "reversed",
+            }
+        }
+
+        assert _emit(layout)["y"] == ["r1", "r2", "r3"]
+        assert _emit(layout)["points"] == [
+            [31, 32, 33],
+            [11, 12, 13],
+            [21, 22, 23],
+        ]
+
 
 class TestNumericLabels:
-    """Categories that are numbers rather than names."""
+    """Categories that look like numbers.
+
+    Measured, and the reason these decline rather than sort. Plotly resolves
+    the axis *type* before it resolves any order, and numeric-looking labels
+    give it a linear axis, on which ``categoryorder`` and ``categoryarray``
+    are ignored outright::
+
+        x                 xaxis                            type      drawn
+        [1, 2, 3]         array [3, 1, 2]                   linear    1, 2, 3
+        [1, 2, 3]         type category, array [3, 1, 2]    category  3, 1, 2
+        ['1', '2', '3']   array ['3', '1', '2']             linear    1, 2, 3
+        [1, 3, 'b']       array ['b', 3, 1]                 linear    1, 2, 3
+        ['a', 'c', 'b']   array ['c', 'a', 'b']             category  c, a, b
+
+    So a numeric label anywhere sends the axis linear -- all of them or only
+    some -- and only a declared ``type: "category"`` brings the order back.
+    """
 
     @staticmethod
     def _emit_numeric(layout: dict) -> dict:
@@ -206,22 +241,56 @@ class TestNumericLabels:
         data = PlotlyHeatmapPlot(trace, layout)._extract_plot_data()
         return {str(getattr(k, "value", k)): v for k, v in data.items()}
 
-    def test_sorts_them_by_an_array_of_numbers(self) -> None:
-        # ``_to_native`` floats an integer label, so a categoryarray compared
-        # in its raw form never matched and the sort was declined silently.
+    def test_declines_an_array_of_numbers(self) -> None:
+        # Plotly draws 1, 2, 3 here regardless of the array, so applying it
+        # would reorder a chart that was never reordered.
         layout = {"xaxis": {"categoryorder": "array", "categoryarray": [3, 1, 2]}}
+        emitted = self._emit_numeric(layout)
+
+        assert emitted["x"] == [1.0, 2.0, 3.0]
+        assert emitted["points"] == [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
+
+    def test_declines_a_numeric_array_with_no_order_declared(self) -> None:
+        assert self._emit_numeric({"xaxis": {"categoryarray": [2, 3, 1]}})["x"] == [
+            1.0,
+            2.0,
+            3.0,
+        ]
+
+    def test_sorts_them_once_the_axis_is_declared_categorical(self) -> None:
+        # ``type: "category"`` is what makes plotly honour the array, and it
+        # is also what makes the labels comparable: ``_to_native`` floats an
+        # integer, so both sides have to normalise the same way.
+        layout = {
+            "xaxis": {
+                "type": "category",
+                "categoryorder": "array",
+                "categoryarray": [3, 1, 2],
+            }
+        }
         emitted = self._emit_numeric(layout)
 
         assert emitted["x"] == [3.0, 1.0, 2.0]
         assert emitted["points"] == [[6.0, 4.0, 5.0], [3.0, 1.0, 2.0]]
 
-    def test_reads_a_numeric_array_with_no_order_declared(self) -> None:
-        emitted = self._emit_numeric({"xaxis": {"categoryarray": [2, 3, 1]}})
+    def test_declines_when_only_some_labels_are_numeric(self) -> None:
+        # Measured: a mixed set still sends the axis linear.
+        fig = go.Figure(go.Heatmap(x=[1, 3, "b"], y=["r1"], z=[[1, 2, 3]]))
+        trace = fig.to_dict()["data"][0]
+        layout = {"xaxis": {"categoryorder": "array", "categoryarray": ["b", 3, 1]}}
+        data = PlotlyHeatmapPlot(trace, layout)._extract_plot_data()
+        emitted = {str(getattr(k, "value", k)): v for k, v in data.items()}
 
-        assert emitted["x"] == [2.0, 3.0, 1.0]
+        assert emitted["x"] == [1.0, 3.0, "b"]
 
     def test_still_declines_a_number_the_trace_does_not_carry(self) -> None:
-        layout = {"xaxis": {"categoryorder": "array", "categoryarray": [3, 1, 9]}}
+        layout = {
+            "xaxis": {
+                "type": "category",
+                "categoryorder": "array",
+                "categoryarray": [3, 1, 9],
+            }
+        }
 
         assert self._emit_numeric(layout)["x"] == [1.0, 2.0, 3.0]
 
@@ -249,6 +318,15 @@ class TestRaggedGrid:
 
         assert emitted["points"] == [[4, 5], [1, 2, 3]]
         assert emitted["x"] == X
+
+    def test_still_sorts_its_rows(self) -> None:
+        # Row moves select whole rows, so they stay well defined however
+        # ragged the rows themselves are -- which is why the guard covers the
+        # columns only.
+        emitted = self._ragged({"yaxis": {"categoryorder": "category descending"}})
+
+        assert emitted["y"] == ["r1", "r2"]
+        assert emitted["points"] == [[1, 2, 3], [4, 5]]
 
     def test_still_turns_its_rows_over(self) -> None:
         # The rows are whole even when their contents are not, so the one

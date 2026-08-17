@@ -32,6 +32,33 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         except (TypeError, ValueError):
             return val
 
+    @staticmethod
+    def _looks_numeric(value: Any) -> bool:
+        """Whether plotly would read a label as a number rather than a name.
+
+        Numeric strings count: plotly resolves a linear axis for ``"1"`` just
+        as it does for ``1``.
+
+        Parameters
+        ----------
+        value : Any
+            One axis label.
+
+        Returns
+        -------
+        bool
+            True when the label parses as a number.
+        """
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, (int, float)):
+            return True
+        try:
+            float(value)
+        except (TypeError, ValueError):
+            return False
+        return True
+
     def _axis_runs_backwards(self, axis_name: str) -> bool:
         """Whether plotly draws an axis from its high end to its low one.
 
@@ -107,6 +134,18 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         """
         axis = self._layout.get(axis_name, {})
         if not isinstance(axis, dict):
+            return None
+
+        # Only a categorical axis has categories to put in an order. Measured:
+        # plotly resolves a *linear* axis as soon as the labels look like
+        # numbers -- all of them, or merely some of them -- and then ignores
+        # ``categoryorder`` and ``categoryarray`` outright, drawing in numeric
+        # order instead. Applying a declared order there would reorder a chart
+        # plotly did not reorder. Declaring ``type: "category"`` is what makes
+        # it categorical again, and then the order is honoured.
+        if axis.get("type") != "category" and any(
+            self._looks_numeric(label) for label in labels
+        ):
             return None
 
         order = axis.get("categoryorder")
