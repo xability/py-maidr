@@ -37,7 +37,7 @@ from maidr.util.dependencies import (
     warn_if_bundle_is_stale,
 )
 from maidr.util.environment import Environment
-from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
+from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_matplotlib
 
 #: Layer classes a segmented bar layer on the same axes can supersede.
 #:
@@ -390,7 +390,9 @@ class Maidr:
             maidr = f"\nvar maidr = {json.dumps(schema, indent=2)}\n"
 
         # Inject plot's svg and MAIDR structure into html tag.
-        return Maidr._inject_plot(svg, maidr, self.maidr_id, use_iframe, use_cdn)
+        return Maidr._inject_plot(
+            svg, maidr, self.maidr_id, use_iframe, use_cdn, chart_title_of(schema)
+        )
 
     def _create_html_doc(
         self,
@@ -775,6 +777,7 @@ class Maidr:
         maidr_id,
         use_iframe: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        chart_title: str = "",
     ) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure.
 
@@ -787,6 +790,10 @@ class Maidr:
             schema is not embedded in the SVG ``maidr`` attribute).
         maidr_id : Any
             Unused placeholder retained for backwards compatibility.
+        chart_title : str, default=""
+            The chart's title, used to name the iframe for screen readers.
+            Passed in rather than read here because this is a static method
+            and the schema it comes from belongs to the caller (#453).
         use_iframe : bool, default=True
             Whether to wrap the output in an iframe for notebook display.
         use_cdn : bool or {"auto"}, default="auto"
@@ -1083,6 +1090,6 @@ class Maidr:
         # branch that picks a source for ``maidr.js`` and the branch that
         # wraps the result cannot disagree about whether there is an iframe.
         if will_iframe:
-            base_html = wrap_in_iframe_matplotlib(base_html)
+            base_html = wrap_in_iframe_matplotlib(base_html, chart_title)
 
         return base_html

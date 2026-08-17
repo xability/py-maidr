@@ -171,3 +171,58 @@ class TestSpecSafety:
         encoded = _spec_to_safe_json(spec)
         decoded = json.loads(encoded)
         assert decoded == spec
+
+
+class TestTheFrameIsNamed:
+    """An Altair frame is named after its chart (#453).
+
+    Altair builds no MAIDR schema on the Python side -- the JS adapter reads
+    the Vega-Lite spec -- so the name is read off the spec instead, and this
+    covers the three ways Vega-Lite spells a title.
+    """
+
+    def _renderer(self, chart):
+        return AltairMaidr(chart)
+
+    def test_a_bare_string_title(self):
+        chart = _simple_chart().properties(title="Sales by region")
+
+        assert self._renderer(chart)._spec_title() == "Sales by region"
+
+    def test_a_title_object(self):
+        chart = _simple_chart().properties(
+            title=alt.Title("Sales by region", subtitle="2026")
+        )
+
+        # `alt.Title` emits `{"text": ...}`, and the subtitle is not part of
+        # the name -- the frame is named after the chart, not described by it.
+        assert self._renderer(chart)._spec_title() == "Sales by region"
+
+    def test_a_multi_line_title(self):
+        chart = _simple_chart().properties(title=["Sales by region", "2026"])
+
+        # Joined rather than truncated: the first line alone may not be the
+        # name a reader is looking for.
+        assert self._renderer(chart)._spec_title() == "Sales by region 2026"
+
+    def test_no_title(self):
+        assert self._renderer(_simple_chart())._spec_title() == ""
+
+    def test_the_name_reaches_the_frame(self):
+        from htmltools import tags
+
+        renderer = self._renderer(_simple_chart().properties(title="Sales by region"))
+        rendered = str(renderer._wrap_in_iframe(tags.div("chart")).get_html_string())
+
+        assert 'title="Sales by region, accessible chart"' in rendered
+
+    def test_an_untitled_chart_still_names_its_frame(self):
+        from htmltools import tags
+
+        rendered = str(
+            self._renderer(_simple_chart())
+            ._wrap_in_iframe(tags.div("chart"))
+            .get_html_string()
+        )
+
+        assert 'title="Accessible chart"' in rendered

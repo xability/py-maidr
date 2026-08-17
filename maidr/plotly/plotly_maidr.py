@@ -48,7 +48,7 @@ from maidr.util.dependencies import (
     warn_if_bundle_is_stale,
 )
 from maidr.util.environment import Environment
-from maidr.util.iframe_utils import wrap_in_iframe_plotly
+from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly
 
 
 #: Trace types placed by their own ``domain`` rectangle that maidr renders as
@@ -1314,7 +1314,7 @@ class PlotlyMaidr:
         # that picks a source for ``maidr.js`` and the branch that wraps
         # the result cannot disagree about whether there is an iframe.
         if will_iframe:
-            base_html = wrap_in_iframe_plotly(base_html)
+            base_html = wrap_in_iframe_plotly(base_html, chart_title_of(schema))
 
         return base_html
 

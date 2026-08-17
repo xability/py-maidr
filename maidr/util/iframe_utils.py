@@ -9,19 +9,103 @@ import uuid
 
 from htmltools import Tag, tags
 
+# What the frame is called when the chart it holds has no title of its own.
+_UNTITLED_NAME = "Accessible chart"
+
 
 def _generate_unique_id() -> str:
     """Generate a unique iframe ID."""
     return "iframe_" + str(uuid.uuid4())
 
 
-def wrap_in_iframe_matplotlib(base_html: Tag) -> Tag:
+def iframe_title(chart_title: str | None = None) -> str:
+    """
+    Build the accessible name for the frame holding a chart.
+
+    An ``iframe`` with no ``title`` is announced as an unnamed frame, so a
+    reader arriving at one is told only that a frame is there -- not that it
+    holds a chart, and not which chart. Every iframed render goes through
+    here, so this is the one place that decides (#453).
+
+    The chart's own title leads, because that is the part that distinguishes
+    one frame from the next. A page carrying three charts named alike gives a
+    reader tabbing between them no way to tell which they have reached, which
+    is the failure a generic name would still leave in place.
+
+    The qualifier follows so the name also says what kind of thing the frame
+    is: an interactive chart to enter rather than a picture to skip. It is
+    the shape ``Description.tsx`` uses for its own table -- a name for the
+    chart when there is one, a bare label when there is not.
+
+    Parameters
+    ----------
+    chart_title : str, optional
+        The chart's title. Whitespace-only counts as absent, matching the
+        MAIDR engine's trimmed "authored" check.
+
+    Returns
+    -------
+    str
+        The accessible name for the ``iframe``.
+    """
+    name = (chart_title or "").strip()
+    return f"{name}, accessible chart" if name else _UNTITLED_NAME
+
+
+def chart_title_of(schema: dict) -> str:
+    """
+    The name a rendered figure is known by, or ``""`` when it has none.
+
+    Read back off the emitted schema rather than off the figure object, for
+    two reasons. It is the one shape matplotlib, Plotly and Altair all
+    produce, so the rule lives here once instead of drifting between three
+    renderers; and it names the frame the same thing the chart announces
+    itself as, where reading the figure separately could let the two come
+    apart and leave a reader hunting for a frame whose name no chart says.
+
+    A figure-level title wins where there is one. Failing that, a single
+    title shared by every layer is the figure's name too: a one-axes figure
+    carries its title on the layer, which is where ``ax.set_title()`` puts it
+    and much the commoner spelling.
+
+    A multi-panel figure whose panels are titled differently has no one name.
+    Naming the frame after the first panel would name it after a part of what
+    it holds, so those fall back to the bare label.
+
+    Parameters
+    ----------
+    schema : dict
+        A flattened MAIDR schema.
+
+    Returns
+    -------
+    str
+        The title, or an empty string when the figure has no single one.
+    """
+    figure_title = str(schema.get("title", "") or "").strip()
+    if figure_title:
+        return figure_title
+
+    titles = {
+        str(layer.get("title", "") or "").strip()
+        for row in schema.get("subplots", [])
+        for panel in row
+        for layer in panel.get("layers", [])
+    }
+    titles.discard("")
+    return titles.pop() if len(titles) == 1 else ""
+
+
+def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) -> Tag:
     """Wrap matplotlib HTML in an auto-resizing iframe for notebooks.
 
     Parameters
     ----------
     base_html : Tag
         The HTML tag containing the matplotlib plot and MAIDR scripts.
+    chart_title : str, optional
+        The chart's own title, which leads the frame's accessible name. See
+        :func:`iframe_title`.
 
     Returns
     -------
@@ -155,6 +239,7 @@ def wrap_in_iframe_matplotlib(base_html: Tag) -> Tag:
 
     return tags.iframe(
         id=unique_id,
+        title=iframe_title(chart_title),
         srcdoc=str(base_html.get_html_string()),
         width="100%",
         height="100%",
@@ -165,7 +250,7 @@ def wrap_in_iframe_matplotlib(base_html: Tag) -> Tag:
     )
 
 
-def wrap_in_iframe_plotly(base_html: Tag) -> Tag:
+def wrap_in_iframe_plotly(base_html: Tag, chart_title: str | None = None) -> Tag:
     """Wrap Plotly HTML in an auto-resizing iframe for notebooks.
 
     Mirrors the focus-delegation logic from the matplotlib wrapper
@@ -176,6 +261,9 @@ def wrap_in_iframe_plotly(base_html: Tag) -> Tag:
     ----------
     base_html : Tag
         The HTML tag containing the Plotly chart and MAIDR scripts.
+    chart_title : str, optional
+        The chart's own title, which leads the frame's accessible name. See
+        :func:`iframe_title`.
 
     Returns
     -------
@@ -287,6 +375,7 @@ def wrap_in_iframe_plotly(base_html: Tag) -> Tag:
 
     return tags.iframe(
         id=unique_id,
+        title=iframe_title(chart_title),
         srcdoc=str(base_html.get_html_string()),
         width="100%",
         height="100%",

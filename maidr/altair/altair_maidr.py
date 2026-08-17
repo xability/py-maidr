@@ -277,8 +277,37 @@ class AltairMaidr:
         ``iframe.onload`` has already fired. The Plotly helper handles this
         with delayed retries (500/1500/3000 ms) plus a ResizeObserver
         (MutationObserver fallback) on ``document.body``.
+
+        The frame's accessible name comes from the Vega-Lite spec rather than
+        from a MAIDR schema, because this renderer builds none -- the JS
+        adapter reads the spec directly. Without a name the frame is
+        announced as an unnamed frame (#453).
         """
-        return wrap_in_iframe_plotly(inner)
+        return wrap_in_iframe_plotly(inner, self._spec_title())
+
+    def _spec_title(self) -> str:
+        """
+        The chart's title as written in the Vega-Lite spec.
+
+        Vega-Lite spells a title three ways -- a bare string, an object with
+        a ``text`` string, and an object whose ``text`` is a list of lines
+        for a multi-line title -- and Altair emits whichever the caller's
+        ``title=`` produced. All three are read here so the frame is named
+        after the chart in each, rather than only in the simplest.
+
+        Returns
+        -------
+        str
+            The title, or an empty string when the spec carries none.
+        """
+        title = self._spec.get("title")
+        if isinstance(title, dict):
+            title = title.get("text")
+        if isinstance(title, (list, tuple)):
+            # A multi-line title is a list of lines; joined rather than
+            # truncated, because the first line alone may not be the name.
+            title = " ".join(str(line) for line in title)
+        return str(title or "").strip()
 
     def _open_in_browser(self) -> None:
         """Save to a temp HTML file and open it in the default browser."""
