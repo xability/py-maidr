@@ -5,6 +5,13 @@ These functions are used by both matplotlib and Plotly renderers to embed
 plots in Jupyter notebooks, Google Colab, VSCode, Flask, and Shiny environments.
 """
 
+# Python 3.9 -- which pyproject.toml supports -- evaluates annotations at
+# definition time, so a bare `str | None` in a signature here raises
+# TypeError on import rather than failing a type check. This module is
+# imported by `maidr/core/maidr.py`, so that would break `import maidr`
+# outright on the oldest supported interpreter.
+from __future__ import annotations
+
 import uuid
 
 from htmltools import Tag, tags
