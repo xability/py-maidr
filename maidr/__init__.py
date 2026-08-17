@@ -210,6 +210,7 @@ from .patch import (  # noqa: E402, F401
     mplfinance,
     violinplot,
 )
+from .util.bundle_capability import MaidrBundleTraceWarning  # noqa: E402
 from .util.dependencies import (  # noqa: E402
     BUNDLE_WARNING_ENV_VAR,
     BUNDLED_TAG,
@@ -220,7 +221,6 @@ from .util.dependencies import (  # noqa: E402
     BundleStatus,
     ResolverOutcome,
     MaidrBundleStaleWarning,
-    MaidrBundleTraceWarning,
     bundle_status,
     resolver_outcome,
     bundled_css_path,

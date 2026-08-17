@@ -17,6 +17,7 @@ reads the installed file and needs no network at all.
 
 from __future__ import annotations
 
+import pathlib
 import warnings
 
 import matplotlib.pyplot as plt
@@ -25,8 +26,8 @@ import pytest
 import maidr
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.util import dependencies
-from maidr.util.dependencies import (
+from maidr.util import bundle_capability, dependencies
+from maidr.util.bundle_capability import (
     MaidrBundleTraceWarning,
     bundle_trace_types,
     schema_trace_types,
@@ -42,7 +43,7 @@ def _fresh_latch(monkeypatch):
     process, which is the behaviour a user wants and the one that would
     otherwise make every test after the first pass vacuously.
     """
-    monkeypatch.setattr(dependencies, "_bundle_trace_warned", set())
+    monkeypatch.setattr(bundle_capability, "_bundle_trace_warned", set())
 
 
 @pytest.fixture
@@ -142,7 +143,7 @@ def test_an_unreadable_bundle_reports_nothing_rather_than_everything():
     assert loud
 
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(dependencies, "_bundle_tokens", frozenset())
+        patch.setattr(bundle_capability, "_bundle_tokens", frozenset())
         assert _caught(
             lambda: warn_if_bundle_cannot_render(["definitely_not_a_trace_type"])
         ) == []
@@ -281,7 +282,7 @@ def test_the_auto_path_reports_to_the_logger_rather_than_warning(caplog):
     it would redden a downstream suite over it. Same reasoning the
     staleness warning already applies.
     """
-    with caplog.at_level("WARNING", logger="maidr.util.dependencies"):
+    with caplog.at_level("WARNING", logger="maidr.util.bundle_capability"):
         messages = _caught(
             lambda: warn_if_bundle_cannot_render([UNBUILDABLE], bundle_is_primary=False)
         )
@@ -336,7 +337,7 @@ def test_rendering_asks_the_bundle_about_what_it_is_about_to_emit(
     only way to exercise the wiring without a layer type this package
     cannot yet emit.
     """
-    monkeypatch.setattr(dependencies, "_bundle_tokens", frozenset({"line"}))
+    monkeypatch.setattr(bundle_capability, "_bundle_tokens", frozenset({"line"}))
 
     messages = _caught(lambda: maidr.render(bar_plot, use_cdn=False))
 
@@ -352,7 +353,7 @@ def test_the_cdn_only_path_says_nothing_about_a_bundle_that_will_not_run(
 
     Warning there would be about a file the page does not reference.
     """
-    monkeypatch.setattr(dependencies, "_bundle_tokens", frozenset({"line"}))
+    monkeypatch.setattr(bundle_capability, "_bundle_tokens", frozenset({"line"}))
 
     assert _caught(lambda: maidr.render(bar_plot, use_cdn=True)) == []
 
@@ -371,3 +372,127 @@ def test_the_warning_category_is_reachable_from_the_package():
     assert package.MaidrBundleTraceWarning is MaidrBundleTraceWarning
     assert "MaidrBundleTraceWarning" in package.__all__
     assert "MaidrBundleStaleWarning" in package.__all__
+
+
+# ---------------------------------------------------------------------------
+# The compatibility shim left behind by the split (#293)
+# ---------------------------------------------------------------------------
+#
+# The move itself is covered by every test above -- they exercise the moved
+# code wherever it lives. What is genuinely *new* here is the lazy
+# ``__getattr__`` in ``maidr.util.dependencies``, and it is the one thing a
+# verbatim-motion PR can get wrong without a single existing test noticing.
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "MaidrBundleTraceWarning",
+        "bundle_trace_types",
+        "schema_trace_types",
+        "warn_if_bundle_cannot_render",
+    ],
+)
+def test_the_old_import_path_still_resolves(name):
+    """``maidr.util.dependencies`` is an import path other code already uses.
+
+    Splitting a module is not a reason to break it, so each moved name has
+    to stay reachable from where it used to live.
+    """
+    assert getattr(dependencies, name) is getattr(bundle_capability, name)
+
+
+def test_the_shim_returns_the_object_rather_than_a_copy():
+    """Identity, not just resolvability.
+
+    ``except MaidrBundleTraceWarning`` and ``pytest.warns`` compare class
+    objects. A shim that handed back a lookalike would satisfy an
+    ``is not None`` check and still fail to catch the warning it names.
+    """
+    from maidr.util.dependencies import MaidrBundleTraceWarning as viaShim
+
+    assert viaShim is bundle_capability.MaidrBundleTraceWarning
+
+
+def test_an_unknown_attribute_still_raises_attribute_error():
+    """The fallback branch has to keep failing.
+
+    A ``__getattr__`` that returned ``None`` -- or raised something other
+    than ``AttributeError`` -- would quietly break every ``hasattr`` and
+    ``getattr(..., default)`` probe against this module, including the ones
+    other libraries make.
+    """
+    with pytest.raises(AttributeError, match="no attribute"):
+        dependencies.definitely_not_a_real_name
+
+    assert not hasattr(dependencies, "definitely_not_a_real_name")
+
+
+def test_the_shim_must_stay_lazy():
+    """``dependencies`` must not import ``bundle_capability`` at module scope.
+
+    This is not hygiene, it is the thing holding the package together.
+    Since the internal call sites were repointed, ``maidr/core/maidr.py``
+    imports ``bundle_capability``, which imports ``dependencies`` -- so
+    ``bundle_capability`` now *starts* loading first, and an eager
+    re-export at the bottom of ``dependencies`` finds it half-built::
+
+        ImportError: cannot import name 'MaidrBundleTraceWarning' from
+        partially initialized module 'maidr.util.bundle_capability'
+        (most likely due to a circular import)
+
+    Verified by making that exact substitution: the suite then dies at
+    ``conftest`` import, before a single test runs, with a traceback that
+    names neither this invariant nor the shim.
+
+    Asserted on the parse tree rather than by importing, which is what
+    makes it worth having. While the cycle is live an eager re-export is
+    impossible to miss -- nothing imports at all. The case this catches is
+    the quiet one: if the internal call sites are ever pointed back at
+    ``dependencies``, the cycle stops being live, an eager re-export
+    starts working again, and the trap is rearmed for whoever repoints
+    them next. The shape is the invariant, not the symptom.
+    """
+    import ast
+
+    source = pathlib.Path(dependencies.__file__).read_text()
+    tree = ast.parse(source)
+
+    offenders = [
+        node.lineno
+        for node in tree.body  # module scope only; the shim's own import is nested
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        and "bundle_capability" in ast.unparse(node)
+    ]
+
+    assert not offenders, (
+        "maidr.util.dependencies imports bundle_capability at module scope "
+        f"(line {offenders}); that makes the import cycle real. The shim has "
+        "to resolve it inside __getattr__ instead."
+    )
+
+
+def test_a_fresh_interpreter_resolves_a_moved_name_through_the_old_path():
+    """End-to-end cover for the shim in an interpreter starting cold.
+
+    Needs a subprocess: within this session both modules have long since
+    been imported, so nothing about import time is observable here.
+    """
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import maidr.util.bundle_capability\n"
+            "from maidr.util.dependencies import schema_trace_types\n"
+            "print(schema_trace_types.__module__)",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "maidr.util.bundle_capability" in result.stdout
