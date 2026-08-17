@@ -1,6 +1,1958 @@
 # CHANGELOG
 
 
+## v1.21.0 (2026-08-17)
+
+### Bug Fixes
+
+- Describe the lines a layer's own calls drew, and declare a seaborn floor that imports
+  ([#442](https://github.com/xability/py-maidr/pull/442),
+  [`7890d33`](https://github.com/xability/py-maidr/commit/7890d333bab1808843f131d551494ac06aa76895))
+
+`MultiLinePlot._series()` swept every data-space line on the axes. Box plots, violins and boxen
+  plots render their whiskers, caps and medians as `Line2D` objects in data space, so one reference
+  line over any of them made the line layer describe the box's own geometry as a chart -- 11 series
+  where there was 1, each two points long, announced exactly as data would be.
+
+The internal context already separated the two, so the fix turns on something that was there: a
+  companion chart draws its lines inside its own patch's context, while a user's `ax.plot` arrives
+  with the context clear. The lines accumulate on the axes and the list is handed over by reference,
+  which keeps the one thing the sweep was right about -- several `ax.plot()` calls forming one
+  multi-series layer.
+
+Two reads of the axes remained a level down, in `step_utils`, and both decide things about a step
+  chart: a step drawn after a box plot registered as `line` rather than `step`, losing the ordinal
+  level names with it, and a box plot drawn after a step line was enough for `stepDirection` to be
+  dropped at render time. Both helpers now take the lines a layer owns, and `is_step_axes` is
+  renamed `is_step_layer` because "axes" was the scope that invited the bug.
+
+The before-snapshot is skipped on the `Axes.plot` path, where the return value already is the lines
+  the call drew: measured at 2,000 lines on one axes, `list(ax.get_lines())` cost 369 us against
+  ~600 us for the whole patched call, and 2,000 calls in a loop went from 1213 ms to 749 ms.
+
+Separately, `pyproject.toml` declared `seaborn>=0.12` while `patch/boxplot.py` reached for
+  `_CategoricalPlotter.plot_boxes`, which arrived in 0.13 -- so `import maidr` raised an
+  `AttributeError` on any 0.12 environment, before anything the user wrote could run. The floor is
+  raised to what the package can actually import, and the dead version branch (which passed a
+  version string where the wrapper function goes) is dropped rather than repaired.
+
+Closes #440, #441
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- Highlight the mark being read, and name the axis that carries the categories
+  ([#359](https://github.com/xability/py-maidr/pull/359),
+  [`8f5e8ed`](https://github.com/xability/py-maidr/commit/8f5e8ede214cc9f8a2f45c3d9ce65193d4e9f064))
+
+Closes #354 and #353.
+
+MaidrPlot._elements was appended to during extraction and never cleared, so it grew by a full set of
+  artists per render. It is the ordered list the highlight machinery tags, and the frontend indexes
+  into it by point index, so a doubled list left point n pointing at the artist for point n mod
+  count. Extraction owns the list now: render() clears it first.
+
+Three things that alone would have left it wrong. ViolinKdePlot registered its bodies in __init__,
+  so a central clear would have dropped them; CandlestickPlot, MplfinanceBarPlot and
+  MplfinanceLinePlot re-ran their own extraction inside render(), which doubled within one render
+  and after the clear; and BoxPlot, ViolinBoxPlot and ViolinKdePlot each keep gid lists beside
+  _elements that accumulated or were reversed in place, so a box chart emitted three selectors per
+  box after a third render and a horizontal violin paired its selectors with the wrong bodies on
+  every even one.
+
+Separately, LineExtractorMixin recovered category names from the x ticks only, so a horizontal
+  categorical chart announced the positions its groups were drawn at -- and a dodged one the offsets
+  it shifted them to. Both axes are asked the same question now, gated on which one matplotlib
+  actually mapped strings onto. That gate also stops a point sitting on a numeric tick from taking
+  the tick's label text, so a plain line chart reports x as 1.0 rather than as the string "1.00".
+
+- Read trace types from the enum, and report a positioned sample with no reading
+  ([#437](https://github.com/xability/py-maidr/pull/437),
+  [`05f9f15`](https://github.com/xability/py-maidr/commit/05f9f1548f56054b73babb9e5878d82ec922219f))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **a11y**: Name the iframe every chart is rendered into
+  ([#463](https://github.com/xability/py-maidr/pull/463),
+  [`388885e`](https://github.com/xability/py-maidr/commit/388885ea12e0d08a7680d31c83714f1078ca1776))
+
+Every iframed render -- notebook, Shiny, Flask -- emitted an <iframe> with no title, so a screen
+  reader announced an unnamed frame. A reader arriving at a chart was told a frame was there and
+  nothing else: not that it held a chart, and on a page carrying several, not which one.
+
+The chart's own title now leads the name, because that is the part that tells one frame from the
+  next; the qualifier follows so the name also says what kind of thing the frame is.
+
+ax.set_title("Body mass by species") "Body mass by species, accessible chart" no title "Accessible
+  chart"
+
+The title is read off the emitted schema rather than the figure, so the frame is named what the
+  chart announces itself as and the rule lives once for matplotlib, Plotly and Altair. A
+  figure-level title wins; failing that a single title shared by every layer is the figure's name
+  too. Panels titled differently take the bare label.
+
+Also fixes a Python 3.9 import break the first version introduced -- a PEP 604 union with no future
+  import, which raises at definition time on the oldest supported interpreter -- and enables ruff's
+  FA102 with a CI step that can fail on it, since `check --diff` cannot.
+
+Closes #453
+
+- **api**: Fall back to a static image instead of raising a KeyError
+  ([#444](https://github.com/xability/py-maidr/pull/444),
+  [`7e88d90`](https://github.com/xability/py-maidr/commit/7e88d9042fbb8bdf0e0a95d56571077e5bb4216d))
+
+The same figure behaved two completely different ways depending on which door the user went through.
+  `plt.show()` warned and drew a static image; `maidr.render()`, `maidr.show()` and
+  `maidr.save_html()` raised `KeyError: 'No MAIDR found for figure'`. Measured through
+  `maidr.render()`: `sns.rugplot`, `ax.quiver`, `ax.pcolorfast` and a bare `plt.subplots()` all
+  reached the same line.
+
+The graceful path existed and worked -- it was wired into the matplotlib backend and nothing else,
+  so the three functions a user is actually told to call were the ones that crashed.
+
+`KeyError` was the wrong shape as well as the wrong outcome. It is what Python raises when you index
+  a dict wrong, and "No MAIDR found for figure" describes maidr's own bookkeeping: no chart type, no
+  supported list, no next step, even though the backend already computed exactly that sentence a few
+  modules away. For an accessibility library the asymmetry ran the wrong way: the user who
+  explicitly asked for accessible output was the one who got nothing.
+
+All four paths now fall back, which is what r-maidr does through every one of its entry points. The
+  HTML carries the reason as well as the image, since a warning is seen by whoever ran the code and
+  the page is what reaches everyone afterwards.
+
+An empty figure gets its own message -- "your chart type is unsupported" is misleading advice for
+  someone who called `maidr.render()` a moment too early, and telling the two apart is one pass over
+  the axes' artist lists.
+
+`UnsupportedPlotError` subclasses `KeyError` so the backend's existing `except KeyError` still
+  catches it, and overrides `__str__` so it does not inherit `KeyError`'s quoting -- an uncaught one
+  in a traceback would otherwise read as the dict-lookup failure this change exists to remove.
+
+Closes #443
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **bar**: Announce a bar's position when no tick label names it
+  ([#383](https://github.com/xability/py-maidr/pull/383),
+  [`7b9ae9c`](https://github.com/xability/py-maidr/commit/7b9ae9c7480897fc1c7e542431889b03054b8f0d))
+
+`BarPlot` paired its bars with the labels on the categorical axis and raised when the counts
+  disagreed. For a categorical x matplotlib puts exactly one tick per category, so they agree by
+  construction. For a numeric x the tick locator picks its own breaks, so they have no reason to --
+  and `ExtractionError` is fatal to the whole render, so the figure produced no HTML at all.
+
+bars labels render x = np.arange(len(labels)) [mpl's own recipe] 3 5 raised x = np.arange(...), +
+  set_xticks(x, labels) 3 3 ok plain categorical strings 3 3 ok numeric x, barh 3 8 raised numeric
+  x, many bars (20) 20 8 raised
+
+The first row is matplotlib's own grouped bar chart, which survives in the gallery only because the
+  example goes on to call `set_xticks(x + width, species)` and make the counts line up by accident.
+  Hiding tick marks -- a styling choice -- deleted the chart for the same reason.
+
+The count check was guarding something real: three bars against five labels would announce the wrong
+  name for every bar. So it still decides, but between labels when they line up and the bars' own
+  drawn centres when they do not, rather than between a reading and nothing. Labels are one
+  presentation of x, not x itself.
+
+Positions are printed the way an axis prints them: integers exactly, so a bar at 1234567 does not
+  become "1.23457e+06", and fractions through `:g`, since the centre comes from the rectangle's
+  geometry and printing float noise exactly would be worse than printing it short.
+
+Two existing tests asserted the old raising and now assert the new reading. Both were rewritten
+  rather than deleted: neither argued that raising was right -- one guarded `ExtractionError` rather
+  than `TypeError`, the other guarded against blank labels -- and both guarantees survive.
+
+Scope: this fixes the plain `ax.bar()`/`ax.barh()` half. `GroupedBarPlot` carries its own copy of
+  the count check and a stacked chart over numeric x still renders nothing; that is #384, since its
+  fix has to decide per container and agree across the `z` series.
+
+Full suite: 1218 passed.
+
+Closes #382.
+
+- **bar**: Announce a segmented bar's position when no tick label names it
+  ([#386](https://github.com/xability/py-maidr/pull/386),
+  [`d2d3810`](https://github.com/xability/py-maidr/commit/d2d38105b9936dbed28602bb4357ac0385861ad7))
+
+The segmented half of #382. `GroupedBarPlot` carried its own copy of the count check that #383
+  replaced in `BarPlot`, so a stacked chart over numeric positions produced no HTML at all:
+
+stacked, categorical x ok stacked, NUMERIC x ** ExtractionError stacked, numeric x + set_xticks ok
+
+which is the stacked half of how anyone writes it:
+
+x = np.arange(len(species)) ax.bar(x, first, label="first") ax.bar(x, second, bottom=first,
+  label="second")
+
+Same rule as #383 -- tick labels when there is one per bar, the bars' own drawn centres otherwise --
+  with one difference that is why it was not a transplant: the labels are decided once for the layer
+  rather than per container. Every series of a segmented chart shares one category axis, so a
+  per-container answer could name a category in one series and a position in the next. The
+  per-container length check stays, guarding only what that cannot: a container of a different
+  length from its siblings.
+
+`z` comes from the legend and is untouched, asserted in both readings -- a reader who loses "upper"
+  and "lower" cannot tell the series apart however good the categories are.
+
+`_bar_position` is now `BarPositionMixin` in `maidr/util/mixin/`, shared by both extractors. This
+  change created the second caller, and two copies of the geometry would drift: the horizontal
+  branch is the kind of thing that gets corrected in one extractor and not the other, and a chart
+  whose bars are announced at the wrong positions reads as a working chart.
+
+Also pins a boundary found while writing the horizontal mirror: `ax.barh(..., left=...)` is not
+  recognised as stacked at all, since the patch classifies on `"bottom" in kwargs` alone, so a
+  horizontal stack arrives as two independent bar layers. Filed as #385.
+
+Full suite: 1223 passed.
+
+Closes #384.
+
+- **bar**: Ask per axes which bar layer supersedes which
+  ([#377](https://github.com/xability/py-maidr/pull/377),
+  [`b7d7f33`](https://github.com/xability/py-maidr/commit/b7d7f3375faf294e996728f9cbcb699a58819ae1))
+
+`BarPlot` and `GroupedBarPlot` both read every `BarContainer` on their axes rather than the bars
+  their own call drew, so a stacked chart built from three `ax.bar()` calls registers three layers
+  that each describe the whole chart. One has to survive and the rest are duplicates. How the
+  survivor was chosen was the bug: a figure-wide "highest priority type seen" gated the collapse,
+  and it then kept the first layer registered at each grid cell, whatever its type.
+
+Three things followed, and none of them errored:
+
+* a stacked bar in one panel deleted an unrelated scatter overlay from another panel, one with no
+  bars in it at all; * which layer survived was registration order, so a reference line drawn before
+  the bars meant the bar chart was the thing dropped; * matplotlib's own documented stacked bar --
+  `bottom` omitted on the first call, as the gallery writes it -- registered BAR then STACKED, kept
+  the BAR, and that layer's extractor found six patches against three tick labels and raised
+  `ExtractionError`, which is fatal to the whole figure. Writing `bottom=np.zeros(n)` on the first
+  call avoided it, which is why every test wrote it that way.
+
+The question is now asked per axes and answered by class. The axes, not the grid cell, because
+  `ax.twinx()` puts a second axes in the same cell and keying by cell dropped one of two independent
+  stacked bars. By class, not by `PlotType`, because `MplfinanceBarPlot` also carries `PlotType.BAR`
+  while reading the volume patches handed to it rather than sweeping the axes -- the premise that
+  justifies dropping a layer is a property of its extractor.
+
+Two details are load-bearing: the collapse runs before the artists are collected, since reading
+  `plot.elements` renders the layer and the superseded `BarPlot` raised there, one step before the
+  schema was built; and `selector_ids` is filtered in step with `_plots`, since the two are paired
+  by index in both directions and a shift would hand every surviving layer its neighbour's id,
+  moving the highlight with nothing raised.
+
+`FigureManager.PLOT_TYPE_PRIORITY` and the priority-raising it served are removed, since nothing
+  consults the figure-wide type any more.
+
+Full suite: 1200 passed.
+
+Closes #376.
+
+- **bar**: Emit a bar with no height as a gap rather than as NaN
+  ([#431](https://github.com/xability/py-maidr/pull/431),
+  [`51ab7d4`](https://github.com/xability/py-maidr/commit/51ab7d494e4bf5e3a01b21a9c8e4f129e0edec18))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **bar**: Read `left` as a stacked bar's baseline, as `bottom` is
+  ([#387](https://github.com/xability/py-maidr/pull/387),
+  [`ebf3fdc`](https://github.com/xability/py-maidr/commit/ebf3fdcaea3015a43bd97be89c24e56405e2edff))
+
+A stacked bar is the one that says where its baseline is. `bottom` is how a vertical bar says it and
+  `left` is how a horizontal one does -- the same argument for the two orientations -- and only the
+  first was read. So the standard horizontal stacked bar arrived as two independent bar layers:
+
+horizontal stack (left=) before ['bar', 'bar'] after ['stacked_bar']
+
+The numbers were right and the layer count was plausible, so nothing looked wrong. What a reader was
+  not told is that the second bar sits on top of the first -- the whole content of a stacked chart,
+  and the reason `stacked_bar` exists as a distinct trace rather than as a label.
+
+`test_a_horizontal_stack_is_not_recognised_as_one`, added by #386 and named for the defect precisely
+  so it would fail the day it was fixed, did exactly that. It is rewritten as the horizontal mirror
+  #386 could not write, since the case never reached `GroupedBarPlot` at all.
+
+Reading the baseline's value rather than testing for its key also fixes a second defect:
+  `bottom=None`, which matplotlib treats as omitting it, used to skip the dodge-detection branch
+  entirely, so a dodged chart spelled that way was announced as a plain bar. Covered by its own test
+  so it is deliberate rather than incidental.
+
+Falsification: reading `bottom` only fails 1 of 7; treating every bar as stacked fails 23 of the
+  suite -- the second being the regression that matters, since a baseline check firing
+  unconditionally would announce every plain bar chart as a stack of one.
+
+Full suite: 1225 passed.
+
+Closes #385.
+
+- **bar**: Read the bars this call drew, not every bar on the axes
+  ([#381](https://github.com/xability/py-maidr/pull/381),
+  [`faba998`](https://github.com/xability/py-maidr/commit/faba9985e8fec9da09a1ada5c6dfc6f01c091738))
+
+`BarPlot` swept every `BarContainer` on its axes rather than the bars its own call drew, so two
+  overlaid `ax.bar()` calls each found six patches against three tick labels, failed the count
+  check, and raised `ExtractionError` -- fatal to the whole figure rather than to its own layer.
+
+2 calls, no bottom (overlaid) before ExtractionError after ['bar', 'bar'] 10/20/30 and 30/20/10
+
+#377 fixed the neighbouring case, where one call passes `bottom` and so registers a segmented layer
+  for the collapse to keep. Here neither does, both register as plain BAR, and nothing supersedes
+  anything. The twin axes case was always the tell: two `BarPlot`s are fine on different axes,
+  because then each sweeps only its own containers.
+
+What two overlapping bar layers should be announced as is a real question rather than an oversight.
+  Two series drawn over one another with alpha are two series, so two layers -- each describing its
+  own bars -- is the reading that loses no data and matches what is drawn.
+
+Only the matplotlib entry point can name the container, so `common()` gains an optional `drawn_as`:
+  the artist the call returned is handed to the layer under that keyword, after the draw so it
+  cannot reach the wrapped function.
+
+The sweep stays where it is right. seaborn draws one bar layer as several containers, one per hue
+  group, and registers it from `sns_bar`, where no single container is the answer; narrowing that
+  path would announce a hued chart as one group and drop the rest. `GroupedBarPlot` keeps sweeping
+  too, since a stacked layer describes every bar on its axes by design. Both have their own
+  regression guard.
+
+The superseding rationale in `maidr.py` is corrected with it: it rested on `BarPlot` and
+  `GroupedBarPlot` both sweeping, which is now only half true. The collapse is class-based rather
+  than behaviour-based, so it still fires correctly -- but the reason is that the segmented layer
+  covers the `BarPlot`'s bars either way, and that is what the comments say now.
+
+Full suite: 1212 passed.
+
+Closes #380.
+
+- **ci**: Keep breaking commits in the changelog
+  ([#336](https://github.com/xability/py-maidr/pull/336),
+  [`2d3ba0f`](https://github.com/xability/py-maidr/commit/2d3ba0fdd650eca19efcc7694a982d3bd80dea09))
+
+`exclude_commit_patterns` is an allowlist written out type by type, and every alternative ended in a
+  literal `): ` or `: `. A breaking subject is `feat(deps)!: ...` -- after `feat(` the regex looks
+  for `): ` and finds `)!: `, so no alternative matched and the commit was dropped.
+
+The parser reads `!` correctly and returns `bump: major`, so a breaking change cut a major release
+  whose changelog did not mention it. With `!` used without a `BREAKING CHANGE:` footer there is no
+  breaking-changes section to fall back on either: the version jumped and nothing said why.
+
+Collapsing the alternation to one pattern with an optional `!` fixes it. Compared against the
+  written-out form over 125 subjects, the only treatment that changes is of the `!`-marked ones;
+  `chore` stays out, marker or not.
+
+The new test reads the pattern from `pyproject.toml` rather than restating it, and applies it the
+  way `ReleaseHistory.from_git_history` does. This value has been wrong twice, both times silently,
+  because nothing read it back.
+
+Closes #335.
+
+- **colorbar**: A colorbar is a legend, not a second chart
+  ([#370](https://github.com/xability/py-maidr/pull/370),
+  [`344caec`](https://github.com/xability/py-maidr/commit/344caec2ae75bfcc462f3ede00b73c9f9953b6a4))
+
+A colorbar paints its gradient onto its own axes through the same entry points the heatmap patch
+  wraps, so MAIDR registered it as a `heat` layer of its own. A phantom layer first -- a reader
+  handed a second "heatmap" to page through that the figure does not contain -- and then the render
+  died: extraction reaches the colorbar's outline, a LineCollection where a mappable is expected,
+  and raises. `ExtractionError` is not confined to the layer that raised it, so a chart that would
+  have read perfectly well produced nothing at all.
+
+Not specific to heatmaps. `pcolormesh`, `scatter` and `hexbin` all came out with a spurious second
+  layer and all three failed to render.
+
+Hidden this long because `sns.heatmap()` creates its colorbar inside the patched call, where the
+  recursion guard already suppressed it, and every worked example in the documentation happens to
+  take that path.
+
+The guard runs `Colorbar._draw_all` inside that same recursion context. There rather than on a test
+  for "is this axes a colorbar", because `Figure.colorbar`, `plt.colorbar` and an explicitly
+  supplied `cax` diverge well before the draw and converge on it -- and because `ax._colorbar` is
+  not assigned until after the draw that registers the layer.
+
+Closes #369.
+
+- **deps**: Declare the packages `import maidr` needs
+  ([#474](https://github.com/xability/py-maidr/pull/474),
+  [`da5e0e8`](https://github.com/xability/py-maidr/commit/da5e0e868b4f1725a159fdc6cd335c63295cc9a0))
+
+`pip install -U maidr` -- the install the README and the docs both give -- produces a package that
+  raises `ModuleNotFoundError` on import. scipy is declared nowhere and is imported by
+  `violin_kde_plot`; seaborn is declared only in extras and is imported by `wrap_seaborn` at import
+  time; matplotlib is declared only in extras and survives on being an mplfinance dependency.
+
+Every CI job installs `--all-extras`, so none of them sees the environment a user gets. Adds one
+  that installs the package alone and imports it.
+
+Closes #473
+
+- **deps**: Never resolve the CDN version on an event loop
+  ([#363](https://github.com/xability/py-maidr/pull/363),
+  [`b7d5294`](https://github.com/xability/py-maidr/commit/b7d52947755899669689c12c0b4f9a5cd709c8f8))
+
+`maidr.render()` is synchronous and Shiny calls it from `render_maidr.render()`, which is `async` --
+  so under the default `use_cdn="auto"` the first figure in an app performed a blocking `urlopen` on
+  the event loop. Every concurrent session queued behind it on `_fetch_lock` while it ran, for up to
+  `MAIDR_CDN_TIMEOUT`, and that budget is only approximate: `urlopen`'s timeout applies per socket
+  operation and does not reliably cover `getaddrinfo`.
+
+`get_cdn_version()` now answers from the bundled version when a lookup would have to be made from a
+  thread running a loop. The bundled version is a real published one, so the URL resolves and is
+  immutable -- not the mutable `@latest` tag this module exists to stop emitting.
+
+The trade is that an async app no longer picks up a release newer than its wheel automatically. That
+  is the trade the docs already recommended making by hand: `MAIDR_CDN_VERSION=bundled` was the
+  advice for Shiny apps, and this makes the default do it in the context the advice was written for.
+  An app that wants the newer release can pin, or call `get_cdn_version()` once from synchronous
+  code at start-up -- which is also what keeps this from being context-dependent for the life of the
+  process, since a completed lookup is used on the loop like anywhere else.
+
+`bundled_cdn_url()` spelled out the same pin-then-cache-then-bundled fallback separately, and its
+  own comment records what happened when the two disagreed: one page loading two builds of maidr.js.
+  Both now read `_offline_version()`.
+
+Not fixed, and said so rather than implied: synchronous threads still queue on `_fetch_lock` while
+  the first of them resolves. It is the event loop specifically that must not be made to wait.
+
+Closes #296
+
+- **deps**: Stop emitting @latest on the failure path, and warn on a mistyped pin
+  ([#367](https://github.com/xability/py-maidr/pull/367),
+  [`1594502`](https://github.com/xability/py-maidr/commit/159450272a04ea2e600d5bd0058858f485ca2fba))
+
+Three follow-ups from #291.
+
+A failed lookup emitted the mutable tag. `@latest` carries a seven-day `Cache-Control`, which is the
+  whole of #290, so degrading to it when the lookup failed meant the fix stopped applying in exactly
+  the case it was written to survive -- an offline browser could still be handed a week-old build.
+  It now falls back to the bundled version: a real published release, immutable, and the same copy
+  py-maidr would serve with `use_cdn=False`. Three other paths had already moved there (#363, #366),
+  and being the last one still emitting the mutable tag was not a place worth defending. An explicit
+  `latest` pin is untouched -- asking for the mutable tag is not a failure.
+
+`set_cdn_version("3.74")` did nothing, quietly. A missing patch component logged a line and was
+  otherwise ignored, so the caller got no return value, no exception, and a log line they may never
+  see. It now raises a `FutureWarning` at the call, and says a future major will raise `ValueError`
+  instead. Not raising today, because that would break a script quietly mistyping its pin and
+  rendering fine -- which is exactly the caller this is trying to reach. `MAIDR_CDN_VERSION` stays
+  lenient, and the asymmetry is documented rather than implicit.
+
+`STALE_MINOR_GAP = 5` was picked without the release histories. Measured against them, the deciding
+  number is not upstream's cadence but how many minors accumulate between the py-maidr releases that
+  refresh the bundle: over seventeen cycles, median 1, and 5 is reached once -- the 68-day gap with
+  nothing released. 3 would fire on a third of all cycles. The measurement is recorded beside the
+  constant, re-derived from npm and PyPI as well as from the GitHub API.
+
+Closes #295 Closes #294 Closes #292
+
+- **errorbar**: Emit only the estimates matplotlib drew
+  ([#433](https://github.com/xability/py-maidr/pull/433),
+  [`51c27d0`](https://github.com/xability/py-maidr/commit/51c27d049d2877a20ee542fbc33a6631abe987c1))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **hist**: Do not read a 2D histogram as a bar histogram
+  ([#389](https://github.com/xability/py-maidr/pull/389),
+  [`b1e3ff3`](https://github.com/xability/py-maidr/commit/b1e3ff360d76594e3451150221d94fe2465302dd))
+
+`sns.histplot(x=..., y=...)` is a bivariate histogram: seaborn draws it as a `QuadMesh` of joint
+  counts, not as bars. It registered as `hist` anyway, and extraction reached for the first
+  `BarContainer` on an axes that has none -- raising a bare `StopIteration`, fatal to the whole
+  figure and naming nothing.
+
+2D histplot alone ['hist'] ** StopIteration scatter + 2D histplot overlay ['point', 'hist'] **
+  StopIteration jointplot(kind='hist') ** StopIteration
+
+`sns.jointplot(kind="hist")` is a documented, mainstream call and produced no HTML at all -- as did
+  any supported chart sharing the axes.
+
+Two defects, and fixing either alone is not enough. `extract_container`'s branches disagreed: the
+  list branch returned empty, the single branch raised, so the `if plot is None` handling every
+  caller opens with could never run. Both now answer with a value. That alone turns `StopIteration`
+  into `ExtractionError`, still fatal -- so the patch also declines to register when its call drew
+  no `BarContainer`.
+
+Asked of the containers *this call added*, not of everything on the axes, which is the difference
+  between declining and lying. An axes that already holds bars would otherwise answer for someone
+  else's artists and the `hist` layer would describe the barplot's bars with bin edges invented for
+  them -- right numbers, wrong chart, nothing raised. The snapshot holds the containers by reference
+  rather than by `id()`, since an id is unique only while its object lives, and a set would hash
+  `BarContainer` by value because it extends `tuple`.
+
+A bivariate histogram is now simply unsupported, as `sns.kdeplot(x=..., y=...)` already was -- and
+  the figure it appears in survives.
+
+Full suite: 1235 passed.
+
+Closes #388.
+
+- **line**: Drop samples that have no position on the axis
+  ([#430](https://github.com/xability/py-maidr/pull/430),
+  [`ed59a84`](https://github.com/xability/py-maidr/commit/ed59a8465db40df1b88008cfc940e9af0dcdca43))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **line**: Stop announcing a reference line as data
+  ([#435](https://github.com/xability/py-maidr/pull/435),
+  [`e745b24`](https://github.com/xability/py-maidr/commit/e745b246ea85e9dea3033434bdc203ea0575a589))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **mplfinance**: Keep the title the caller gave the chart
+  ([#465](https://github.com/xability/py-maidr/pull/465),
+  [`554db5b`](https://github.com/xability/py-maidr/commit/554db5bc034934c6bcc86fe40426acbeb4c1b818))
+
+CandlestickPlot, MplfinanceBarPlot and MplfinanceLinePlot each overwrote the layer's title with a
+  fixed description of the chart type, so a caller naming their chart with ax.set_title() lost that
+  name.
+
+It mattered more after #453, which names the iframe every chart renders into after the chart's own
+  title: the fixed string became the accessible name too, so every candlestick on a page was
+  announced identically and a reader tabbing between them could not tell which they had reached.
+
+The caller's title now wins and the description stays as the fallback, which tells a reader given no
+  name what kind of chart they are on. Whitespace counts as absent, matching the trimmed check used
+  elsewhere.
+
+mpf.plot(title=...) was never affected -- it sets the figure suptitle -- and is covered so the two
+  spellings are pinned as agreeing.
+
+Also removes MplfinanceBarPlot.set_title, which nothing called and whose `self._title` was never
+  read.
+
+Closes #464
+
+- **plotly**: Address a box by its trace group and its position within it
+  ([#417](https://github.com/xability/py-maidr/pull/417),
+  [`a9cd784`](https://github.com/xability/py-maidr/commit/a9cd7841e43f037b380f0209c4bbf6c8f74ba12a))
+
+A box needs two indices and was given one. Plotly puts one `<g>` in the `boxlayer` per trace and
+  draws that trace's boxes as direct `path.box` children of it, so a categorical `go.Box` puts all
+  of its boxes inside a single group. Numbering them as though each were its own group made box 1
+  match every box in the trace and boxes 2..n match nothing.
+
+Three failures, each measured in Chromium. A trace with three categories emitted `g:nth-child(1..3)`
+  into a DOM holding one group of three boxes. `layer_position` widened its search to boxlayer-mates
+  only when the trace was itself a candlestick, so a candlestick counted the boxes beside it while a
+  box ignored the candlestick and claimed the group it had already taken. And `PlotlyMultiBoxPlot`
+  looped over traces rather than boxes, so two traces of two categories produced four boxes of data
+  and two selectors -- half addressing nothing while the frontend paired the rest positionally.
+
+A lone box is built in `_extract_plots` rather than left to the factory, which sees one trace and
+  cannot know what shares its layer.
+
+Verified in Chromium: 15 of 15 box selectors resolve to exactly one element across a categorical
+  trace, three plain traces, two categorical traces, both candlestick orderings, and a figure whose
+  outliers fall in some categories and not others.
+
+Closes #395.
+
+- **plotly**: Aggregate a histogram's bars the way histfunc does
+  ([#408](https://github.com/xability/py-maidr/pull/408),
+  [`36a1e32`](https://github.com/xability/py-maidr/commit/36a1e323af88c95259018e464f9afa95337f9679))
+
+`histfunc` selects what a bar measures. `_extract_plot_data` called `np.histogram`, which returns
+  bin populations, and never read the attribute, so every aggregating mode was announced as a count.
+
+Two things widen this past how it was raised in review. It is not only `sum` -- `avg`, `min` and
+  `max` are ignored too. And it is not only the categorical path: numeric binning has it as well,
+  where a reader gets 2 for a bar the chart draws at 30, inside a layer whose bin bounds are all
+  correct, so nothing else in the announcement looks wrong.
+
+The empty-bin behaviour could not be reasoned out and was measured. `count` and `sum` announce a
+  zero for a bin nothing landed in; `avg`, `min` and `max` have no answer and plotly emits no point
+  at all -- interior bins included, not just the edges #402 trims. But setting any `histnorm` brings
+  them back as zeros, across all three functions and all four norms. So the two attributes do not
+  compose as one step after the other, and applying them in sequence would be wrong for exactly the
+  figures that use both.
+
+A non-numeric value is dropped rather than counted as zero -- a bin holding ['z', 'w', 8] averages
+  to 8, not 8/3, and its min and max are 8 as well. A bin left with nothing numeric is then empty,
+  and takes the same path as a bin nothing landed in.
+
+Plotly also pairs the two arrays positionally and reads only as far as the shorter one, for the
+  binning as well as the values and whatever `histfunc` says. `go.Histogram(x=[1..9], y=[10..50])`
+  draws three bins spanning 1 to 5, so the count path was already wrong for such a figure before any
+  aggregation existed; slicing only the value array left it shorter than the bin assignment and
+  raised an IndexError out of a rendering path.
+
+Verified against `gd.calcdata[0]` after `Plotly.newPlot` in Chromium: all 60 figure shapes agree
+  elementwise, both orientations.
+
+Closes #405
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **plotly**: Announce a barnorm layer's shares rather than its counts
+  ([#414](https://github.com/xability/py-maidr/pull/414),
+  [`86d032b`](https://github.com/xability/py-maidr/commit/86d032b37ed1a0d445abdf65e7d47042e97bd584))
+
+`layout.barnorm` rescales each stack position to a common total, so the bars a reader sees are
+  shares of their category. The layer was typed `stacked_normalized_bar` for it while the values
+  underneath stayed the raw counts -- the type saying the bars are proportions while the numbers
+  were the tallies, so adding them up never reached 100.
+
+Adds `maidr/plotly/barnorm.py` and applies it to the bar and histogram paths together, since the two
+  were matched on purpose and changing one alone would make them disagree. The core does not do this
+  arithmetic: `SegmentedTrace` normalises nothing, so a normalised layer is expected to arrive
+  carrying shares, as both r-maidr paths already do.
+
+Rules measured against calcdata in Chromium, two of them non-obvious. The denominator depends on the
+  barmode -- `relative` normalises each sign against its own total, `stack` pools them -- and under
+  `stack` it is the absolute value of the signed sum, so `[0, -4]` draws `0, -100` where a plain
+  signed sum would give `+100`. A position totalling zero becomes a gap that keeps its x, matching
+  plotly, so the point count never changes. `barnorm` rescales the histnormed values rather than the
+  raw counts, which only an unequal-sized pair of series can demonstrate.
+
+Closes #409.
+
+- **plotly**: Build no layer for a scatter trace that draws nothing
+  ([#422](https://github.com/xability/py-maidr/pull/422),
+  [`740068d`](https://github.com/xability/py-maidr/commit/740068d0223055ff70cec0bbf1737f7ce7811552))
+
+A trace with nothing to plot gets no group from plotly, so there is nothing to announce and nothing
+  to highlight. The core does worse than ignore such a layer: a series with no points makes
+  LineTrace.text dereference an undefined point and throw, and the throw propagates out of Figure,
+  taking the whole render rather than the one layer.
+
+Exclude undrawn scatter-family traces from the line and area groupings, and seed the handled set
+  with their ids so the fallback factory does not build them either. Scoped to the scatter family
+  because draws_marks reads x/y, which a pie carries neither of.
+
+Closes #421.
+
+- **plotly**: Do not read a trace the chart does not draw
+  ([#400](https://github.com/xability/py-maidr/pull/400),
+  [`19869e5`](https://github.com/xability/py-maidr/commit/19869e55fda3a95d5cc7717c00f712fe8d13692f))
+
+`visible=False` and `visible="legendonly"` both tell plotly to draw nothing, and plotly obeys
+  completely: it renders no group at all for such a trace. Measured across bar, scatter, pie, box
+  and violin, two traces with one hidden produce a single group in the layer.
+
+`_extract_plots` read `to_dict()["data"]` without asking, so every hidden trace became a layer.
+  Nothing errored -- a reader was told about series that are not on the chart, with nothing saying
+  the series is switched off.
+
+The bar case was the worst: plotly's default barmode stacks, so a hidden bar trace beside a visible
+  one was merged into a `stacked_bar`. A plain one-series bar chart was announced as a stack of two,
+  with the invisible series contributing segments nobody can see and totals that do not exist.
+
+Underneath that, every selector scoped by position among its layer-mates -- candlestick, violin, pie
+  -- counted the hidden trace as holding a slot it does not have, so the drawn trace's selector
+  pointed at a group that does not exist. The audio, braille and text stayed correct, so only a
+  sighted reader could tell the highlight had stopped.
+
+Filtered once where the traces enter rather than guarded in each branch, so bar merging, line
+  grouping, the position counters and the subplot grid all see only what was drawn. `visible` is
+  read by membership rather than truthiness, since `visible=True` is a value a figure may set
+  explicitly.
+
+Closes #399
+
+- **plotly**: Emit the histogram bins plotly actually draws
+  ([#406](https://github.com/xability/py-maidr/pull/406),
+  [`d62760b`](https://github.com/xability/py-maidr/commit/d62760baceb19dff144dbf9412baa977d12f0b76))
+
+Three defects on the explicit-bin-size path, all identical on both orientations. An empty bin is not
+  a harmless extra row: plotly draws no `.point` element for one, and the layer's selector resolves
+  positionally, so a phantom bin shifts the highlight of every bin after it. A leading phantom
+  shifts all of them.
+
+Empty edge bins were emitted. Plotly emits bins from the first that holds an observation to the last
+  and keeps every empty bin between them, but not the empty ones outside that span -- so a window
+  wider than the data announced thirteen phantom bins, all before the first real one.
+
+The bin start skipped plotly's anti-clustering shift. Only the autobin path ran `_auto_shift_bins`;
+  an explicit `size` took a bare round multiple. `go.Histogram(x=[0, 1, 2, 3, 4],
+  xbins=dict(size=2))` was therefore announced from 0 where plotly draws from -0.5, putting every
+  value in a different bin than the one drawn around it, with the bin count unchanged.
+
+The `end` fallback is now expressed on the grid the bins actually use. That change is not observable
+  -- both forms reach at least the upper edge of the bin holding the maximum, and the trim removes
+  the surplus either way.
+
+The trimming rule took a window narrower than its data on both sides to pin down. "Span the data,
+  clamped to the caller's range" fits every wider window and predicts one bin too many there: plotly
+  discards the out-of-window values rather than piling them into the edge bin.
+
+`_auto_shift_bins` now states the contract its two callers depend on -- the seed need only be some
+  multiple of the width within one width of the true start, not one particular formula -- and a
+  parametrised test pins the convergence rather than leaving it to be re-derived.
+
+Measured against `gd.calcdata[0]` after `Plotly.newPlot` in Chromium. All 29 figure shapes agree
+  elementwise, bin bounds and counts alike, on both orientations -- up from 16. Six of the thirteen
+  disagreements had the right number of bins on the wrong grid, so a length comparison would have
+  called them equal.
+
+Closes #402
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **plotly**: Generate the positions plotly generates when an axis is omitted
+  ([#419](https://github.com/xability/py-maidr/pull/419),
+  [`c8d3669`](https://github.com/xability/py-maidr/commit/c8d36693a1f86442237e929b61a214c811196643))
+
+Both `x` and `y` are optional in plotly, and it fills in whichever is missing with `0, 1, 2, ...` --
+  which is how most quick plots are written. py-maidr paired the two arrays with `zip(as_list(x),
+  as_list(y))`, and `as_list(None)` answers `[]`, so the zip yielded nothing: every such trace
+  produced a layer of the right type carrying no data at all, and hid the traces beside it in the
+  same layer.
+
+One shared `paired_axes` helper replaces the same pairing in the bar, scatter, line, grouped-bar and
+  line-series paths, and the scatter's axis range is measured over the generated positions too --
+  reading them raw left min/max at None, which failed the grid precondition and dropped
+  min/max/tickStep for a layer that now carries points.
+
+Symmetric rather than keyed by which axis holds the magnitudes: a horizontal bar puts its values on
+  `x` and needs `y` supplied. An absent array is distinguished from an explicitly empty one, because
+  plotly draws those differently -- `y` absent generates and draws, `y: []` comes back a single null
+  point and draws nothing -- and conflating them would have put back the phantom-series misalignment
+  #316 removed.
+
+Closes #418.
+
+- **plotly**: Keep data and selector aligned when a series is empty
+  ([#350](https://github.com/xability/py-maidr/pull/350),
+  [`0faa7fc`](https://github.com/xability/py-maidr/commit/0faa7fc46677557afecb8430e2034b857afa7a36))
+
+`PlotlyStepPlot` and `PlotlyMultiLinePlot` built `data` and `selector` from the same traces by two
+  different rules: a trace whose `x`/`y` came out empty was dropped from the data and still consumed
+  a selector. The frontend pairs selector *i* with series *i*, so every series after the empty one
+  addressed its predecessor's element.
+
+The failure was silent in the way `nth-child` failures always are -- audio, braille and text were
+  all correct, and only the visual highlight was wrong, so a sighted collaborator saw the wrong line
+  highlighted while the person using the announcements had no way to notice.
+
+Both lists now come from `_line_series_with_positions`, which filters the series and the positions
+  by the same predicate. `data` is unchanged: an empty trace still produces no series, it just no
+  longer takes a selector with it.
+
+Closes #316
+
+- **plotly**: Match a grouped histogram's layout to the orientation it declares
+  ([#483](https://github.com/xability/py-maidr/pull/483),
+  [`6f75119`](https://github.com/xability/py-maidr/commit/6f75119a3c61c684fb5a810c0cd293e24b079003))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **plotly**: Number scatter positions by what plotly draws
+  ([#420](https://github.com/xability/py-maidr/pull/420),
+  [`2a2d6f3`](https://github.com/xability/py-maidr/commit/2a2d6f3361a89b2dbaa48cf0df034bf9729b2a52))
+
+A scatter-family trace with nothing to plot gets no DOM node at all -- not an empty one -- so every
+  trace after it moves up a position in the `scatterlayer`. Selectors were numbered by declared
+  index, so three lines with an empty one in the middle emitted `nth-child(1)` and `nth-child(3)`
+  into a two-node layer: the second surviving line announced correctly and highlighted nothing.
+
+The empty sibling of the hidden-trace rule `is_drawn` implements for #400. `draws_marks` asks
+  through `paired_axes`, so it agrees with #418 -- a trace omitting one axis is drawn, because
+  plotly generates the missing array. Undrawn traces are numbered after the drawn ones rather than
+  skipped: their indices are never rendered but are still validated, so uniqueness has to hold.
+
+Fixes the line, step and area paths together, since all three read the same map, and a per-layer fix
+  was impossible anyway -- an empty trace in one layer shifts the traces in another.
+
+Verified in Chromium: 10 of 10 selectors resolve to exactly one element.
+
+Closes #412.
+
+- **plotly**: Read a histogram's bins from the axis it bins
+  ([#403](https://github.com/xability/py-maidr/pull/403),
+  [`5eadbd9`](https://github.com/xability/py-maidr/commit/5eadbd974f9aee163cac7f008e8d47e2c19c96e3))
+
+A histogram bins one axis and counts into the other. `PlotlyHistogramPlot` read the sample from `x`
+  and returned early when it was absent, so every horizontal histogram emitted a layer with an empty
+  `data` list -- correctly typed, both axes correctly named from `layout`, and nothing in it to
+  navigate. Nothing errored, and nothing in the schema's metadata showed the emptiness, so it read
+  as a histogram of nothing rather than one that failed to read.
+
+Which axis is binned is not always stated: `px.histogram(y=...)` writes `orientation` onto the
+  trace, `go.Histogram(y=...)` writes nothing and leaves Plotly.js to infer it. `binned_axis`
+  applies plotly's own rule, taken from `gd._fullData[i].orientation` read back out of Chromium
+  rather than from the documentation. `go.Histogram(x=v, orientation='h')` settles the precedence:
+  plotly honours the attribute and bins the absent `y`, drawing an empty trace rather than falling
+  back to `x`.
+
+The bin spec follows the binned axis too. Plotly discards the other axis's spec outright instead of
+  falling back to it -- a horizontal trace given `xbins` autobins exactly as if none were given, and
+  a vertical one given `ybins` does the same -- so reading `xbins`/`nbinsx` for every trace both
+  honoured a spec plotly ignores and missed the one it uses.
+
+Categorical samples move with it: plotly draws those as a count bar chart, and on a horizontal one
+  the labels belong on `y`. Left on `x` they would be announced as counts and the counts as labels.
+
+Verified against what Plotly.js drew for the same figures -- `gd.calcdata[0]` after `Plotly.newPlot`
+  in Chromium. Across eighteen shapes the emitted bins agree elementwise on both orientations. Four
+  still disagree, all on the explicit-bin-size path and all identically on `x` and `y`; that is
+  #402, which predates this.
+
+Closes #401
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **plotly**: Read a stacked bar chart as stacked
+  ([#391](https://github.com/xability/py-maidr/pull/391),
+  [`4b55b66`](https://github.com/xability/py-maidr/commit/4b55b66b0e3478687a67bb41c31726b2281b9d0e))
+
+The plotly bar classification is a lookup on `layout.barmode`, and it was missing a row while
+  carrying the wrong fallback:
+
+plotly draws maidr said no barmode relative (default) ['dodged_bar'] barmode=relative relative
+  ['bar', 'bar'] barmode=stack stack ['stacked_bar'] barmode=group group ['dodged_bar']
+  barmode=overlay overlay ['bar', 'bar']
+
+Row 1 inverts the relationship rather than losing it. Plotly's default barmode is `relative`, which
+  stacks; the code defaulted to `group`, which dodges. A reader was told the bars sit side by side
+  when plotly drew them on top of each other -- so every segment means something other than what was
+  announced, and the totals a stack is read for are absent from the reading entirely. Nothing
+  errored.
+
+Row 2 is how `px.bar(color=...)` arrives, the ordinary way to draw a stacked bar chart in plotly
+  express: asking for stacking explicitly fell through to two independent layers.
+
+`relative` is plotly's name for a stack that lets negative values run below the axis, so it joins
+  `group` and `stack` as a mode that combines traces. `overlay` deliberately does not -- those bars
+  are drawn over one another rather than joined.
+
+Unlike the matplotlib side, where stacking has to be inferred from a `bottom=` argument, plotly
+  states this in the layout, so this is a table to correct rather than a heuristic to design. Every
+  value plotly accepts is enumerated in a test, three of the five rows having been wrong in a way
+  nothing downstream could detect, and the default is asserted against plotly's own reported value
+  rather than a literal.
+
+Full suite: 1243 passed.
+
+Closes #390.
+
+- **plotly**: Report when a plotly chart runs out of maidr.js sources
+  ([#467](https://github.com/xability/py-maidr/pull/467),
+  [`7e7ab26`](https://github.com/xability/py-maidr/commit/7e7ab26e09cd427a89774c9a5062872c464fc684))
+
+#468 gave the matplotlib loader a `reportNoRuntime` for the case where neither the CDN nor the
+  bundled fallback loads. The Plotly loader has the same shape and the same failure, and was not
+  covered: its relative-path fallback set `fb.src` and appended it with no `onerror` at all, and its
+  notebook path swallowed a missing parent-window stash in a bare `catch`.
+
+So a Plotly chart in a Shiny, Flask, or Jupyter frame with no network became an image with no MAIDR
+  runtime -- no sonification, no braille, no keyboard navigation -- and said nothing, which is what
+  #468 fixed one file over.
+
+Rather than a second diagnostic, the helper moves from `maidr/core/maidr.py` to
+  `maidr/util/dependencies.py`, which both renderers already import from, and Plotly calls the same
+  `reportNoRuntime`. Leaving it beside one renderer would have meant either the Plotly path
+  importing from `maidr.core` for a JS string, or two wordings for one failure -- and an earlier
+  revision of this branch did exactly the latter before #468 landed, which is what the shared
+  constant and `test_both_renderers_say_the_same_thing` now prevent.
+
+The two notebook failures are reported apart, matching the matplotlib path: a readable parent with
+  no stash and an unreachable parent end the same way but send the reader somewhere different.
+  `use_cdn=False` keeps its own single message, because there the fix is `init_notebook()` whichever
+  happened, and telling a caller who already passed `use_cdn=False` to pass `use_cdn=False` helps
+  nobody.
+
+Not verified in a browser: the tests assert on emitted script text, so that a 404 on a `<script>`
+  fires `onerror` remains the one behavioural assumption underneath this that nothing here proves.
+
+- **plotly**: Rescale a histogram's bars the way histnorm does
+  ([#407](https://github.com/xability/py-maidr/pull/407),
+  [`8aab79e`](https://github.com/xability/py-maidr/commit/8aab79ebd6a2bccdaa3c5c76785e5e1156e3b8fe))
+
+`histnorm` decides what a bar measures. `_extract_plot_data` called `np.histogram`, which returns
+  counts, and never read the attribute -- so a `px.histogram(histnorm='percent')` layer carried an
+  axis labelled "percent" and a first value of 2, where plotly draws 3.33.
+
+The label was right; it comes from `layout`, which plotly express fills in from `histnorm`. Only the
+  values were untransformed, so the two halves of one layer disagreed with nothing marking which to
+  trust. A reader working from the announced numbers concludes the first bin holds 2% where it holds
+  3.33%, and finds the bars do not sum to 100 either.
+
+The denominator is the part worth stating. It is the total of the bars' own values, not the number
+  of observations. Those coincide under the default `histfunc='count'`, which is why the wrong
+  reading survives the obvious test: measured with `histfunc='sum'` and `histfunc='avg'` over the
+  same data, `histnorm='percent'` returns identical output -- impossible if the denominator were the
+  sample size, since the two aggregates differ by a constant factor, and required if it is their own
+  total. `apply_histnorm` therefore takes the values it is handed rather than recomputing from the
+  sample, so the aggregate flows through unchanged when #405 lands.
+
+The trim from #402 still runs on the raw counts rather than the rescaled values, because that is
+  what "a bin nothing landed in" means. Every mode maps zero to zero so the two agree, but only the
+  counts say it without depending on that.
+
+A count stays an integer. Rescaled values do not become integers, since rounding a 3.33% share to 3
+  would put back the defect this removes from the other side.
+
+Verified against `gd.calcdata[0]` after `Plotly.newPlot` in Chromium: all 38 figure shapes agree
+  elementwise, both orientations, including the nine new histnorm ones.
+
+Closes #404
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **plotly**: Run the shared line-series pass once per render
+  ([#362](https://github.com/xability/py-maidr/pull/362),
+  [`897baa9`](https://github.com/xability/py-maidr/commit/897baa948347ad646805abf6038d8cd9282cddff))
+
+`PlotlyStepPlot` and `PlotlyMultiLinePlot` filter their series and their positions by one predicate
+  so that series *i* always addresses the element series *i* is drawn as (#316). `render()` asks for
+  the two halves separately, and each half was calling that pass for itself -- so the pass that
+  exists to be shared ran twice.
+
+Repeating it also assumes it can be repeated, and it cannot. `as_list` materialises a trace array
+  with `list(value)`, so a one-shot iterable is spent by the first walk and reads as empty on the
+  second: the layer reports its series and then no selector at all. That is the same silent
+  no-highlight the pairing was written to prevent, reached from the other side. `Figure.to_dict()`
+  never produces an iterator, so the export path does not hit it; a caller constructing a layer
+  directly does.
+
+`_drawn_line_series` caches the pass against the identity of the two lists it was built from, so
+  whichever of `_extract_plot_data` / `_get_selector` runs first computes it and the other reads it.
+  Keying on the inputs rather than stashing the result during `_extract_plot_data` -- the
+  `PlotlyBoxPlot` idiom -- keeps it independent of `render()`'s call order.
+
+The performance point the review on #350 raised is the same fix. 50 series x 10,000 points,
+  `PlotlyMultiLinePlot.render()`, median of five: 1.859s before, 0.923s after, which is the 2x a
+  doubled walk predicts.
+
+Closes #361
+
+- **plotly**: Say a horizontal bar chart is horizontal
+  ([#481](https://github.com/xability/py-maidr/pull/481),
+  [`a66b8f9`](https://github.com/xability/py-maidr/commit/a66b8f9a3fcd597bc7acc38dbdaa7da1a74686f3))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **render**: Report when use_cdn="auto" runs out of sources
+  ([#468](https://github.com/xability/py-maidr/pull/468),
+  [`e92154e`](https://github.com/xability/py-maidr/commit/e92154ef6395a64bb9639f4fb52f1a9eae94d630))
+
+`use_cdn="auto"` is documented as "try the CDN, fall back to the bundled copy". Inside a `srcdoc`
+  iframe -- what a notebook, Shiny or Flask render produces -- neither fallback can resolve, and
+  both failed in silence: the notebook path acts only `if (jsSrc)` and swallowed the miss in a bare
+  `catch`, and the other never set `onerror` at all.
+
+The reader was left with a chart that renders, looks like a chart, and says nothing about why it
+  cannot be navigated -- while the setting that works, `use_cdn=False`, is otherwise only
+  discoverable by reading the source.
+
+Every path out of the fallback now reports through one `reportNoRuntime` helper that names the fix.
+
+Closes #455
+
+- **scatter**: Emit only the points matplotlib drew
+  ([#432](https://github.com/xability/py-maidr/pull/432),
+  [`9b5f967`](https://github.com/xability/py-maidr/commit/9b5f967641570682220ca3d3a1f2cddbcdbee04c))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **scatter**: Read the collection each scatter call drew
+  ([#428](https://github.com/xability/py-maidr/pull/428),
+  [`ac040cd`](https://github.com/xability/py-maidr/commit/ac040cdb51df844d793e4e45cf45fb0ea03de509))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **seaborn**: A colour probe is not a chart ([#375](https://github.com/xability/py-maidr/pull/375),
+  [`b2ff1eb`](https://github.com/xability/py-maidr/commit/b2ff1ebfff24bdb44cbe3facc94dfb0a15ed5462))
+
+`seaborn.utils._default_color` resolves a default colour by drawing a throwaway artist, reading its
+  face colour, and removing it again. Every branch ends in `scout.remove()` -- it is a probe, never
+  a chart. But it draws through `Axes.fill_between`, `Axes.plot`, `Axes.scatter` and `Axes.bar`, all
+  of which are patched, and it runs before any seaborn-level patch has set a recursion context, so
+  nothing suppressed it. Since #339 taught MAIDR to read `fill_between` as an area chart, the probe
+  registered a layer describing a fill of two empty arrays.
+
+rugplot ExtractionError -> renders ecdfplot line -> step stripplot 4 layers -> 3 boxenplot area,
+  line, ... -> line, ...
+
+`rugplot` is the #369 shape exactly. Its ticks are a `LineCollection` MAIDR does not read, so the
+  probe's layer was the only one registered -- and reading its data raised `ExtractionError`, which
+  is fatal to the whole render rather than to its own layer. A scatter with a rug over it, which is
+  how `rugplot` is actually used, produced no HTML at all.
+
+`ecdfplot` is the one worth reading twice: the layer count and the numbers were already right, but
+  the probe registered first and its `ax.plot([], [])` carried no `drawstyle`, so the shared line
+  pass settled on `line` for a curve drawn `steps-post`.
+
+Suppressing the whole function rather than teaching `fill_between` to decline an empty call is the
+  honest scope: the probe also drives `plot`, `scatter` and `bar`, and the next patch added to any
+  of them would reintroduce this somewhere new.
+
+Wrapped at every seaborn module holding a reference rather than at `__module__` alone:
+  `_default_color` is a private helper imported by name into `categorical`, `distributions` and
+  `relational`, so `__module__` names one binding out of four and the call sites take the other
+  three.
+
+Full suite: 1191 passed.
+
+Closes #373.
+
+- **seaborn**: Patch boxplot and violinplot at both names too
+  ([#374](https://github.com/xability/py-maidr/pull/374),
+  [`c926e40`](https://github.com/xability/py-maidr/commit/c926e40d47ce712d8c2b0030cc560a05a000be77))
+
+#372 wrapped nine seaborn functions at both the package re-export and the module that defines them,
+  and left `boxplot` and `violinplot` on the re-export alone. Measured, the gap was a real reading,
+  not a consistency nicety:
+
+seaborn.violinplot violin_box, violin_kde seaborn.categorical.violinplot area, line seaborn.boxplot
+  box seaborn.categorical.boxplot area, box
+
+A violin announced as a line chart -- not a degraded violin, a different chart -- plus a phantom
+  area layer from the colour probe in `seaborn.utils._default_color`, which had no recursion context
+  to suppress it because no seaborn-level patch had run.
+
+Unlike the other nine, no seaborn grid reaches these two: `catplot` drives `_CategoricalPlotter`
+  directly. What took the unpatched binding is ordinary user code importing from the defining
+  module. The phantom area is fixed here only for these two functions; the probe still registers one
+  wherever no seaborn-level patch runs, filed as #373.
+
+Two corrections. The `wrap_seaborn` docstring listed `catplot` and `displot` among the grids that
+  ran the unpatched function; measured by counting calls that reach the defining-module binding, the
+  grids that did are `pairplot`, `jointplot`, `relplot` and `lmplot`. And a comment on #344 said
+  these two were matplotlib-level only, which was wrong.
+
+Every early return in `wrap_seaborn` now warns, except the one that is not a gap: a function whose
+  `__module__` is `seaborn` is defined at the package root, so the re-export IS the defining binding
+  and the wrap is complete. The warning names no grids -- which grids are exposed varies per
+  function, and a fixed list would be wrong for someone.
+
+Full suite: 1180 passed.
+
+- **seaborn**: Patch each function at both names it answers to
+  ([#372](https://github.com/xability/py-maidr/pull/372),
+  [`4fbc97f`](https://github.com/xability/py-maidr/commit/4fbc97f4a8eb7690594d29569563ba98a704615c))
+
+seaborn re-exports its plotting functions from the package root, and its own figure-level functions
+  import them from the defining module, inside the function body (`from .relational import
+  scatterplot # Avoid circular import`). Those are two separate bindings to one function object, so
+  wrapping `seaborn.scatterplot` left `seaborn.relational.scatterplot` untouched and every grid in
+  `seaborn/axisgrid.py` ran the unpatched function.
+
+A `histplot` panel therefore arrived as bars -- `Axes.bar` cannot know it is drawing a histogram,
+  and the seaborn-level patch that would have known never ran. And every panel registered twice:
+  `seaborn.utils._default_color` draws a throwaway artist to resolve a default colour and removes it
+  again, and with no seaborn-level patch there was no recursion context to suppress it.
+
+pairplot before bar, dodged_bar, bar, dodged_bar, point x 4 after hist, hist, point, point jointplot
+  before point, dodged_bar, dodged_bar after point, hist, hist lmplot before point, line after
+  point, smooth
+
+`lmplot` is the clearest illustration: its layer count was already right, so nothing looked wrong,
+  while the fitted curve was announced as though it were the data.
+
+`wrap_seaborn()` locates the defining module through `__module__` rather than a table of names, and
+  checks identity before wrapping.
+
+`displot` and `catplot` drive seaborn's plotter classes directly rather than importing the
+  module-level functions, so they are untouched and still wrong; both are pinned by a test so the
+  boundary is visible.
+
+Closes #344.
+
+- **seaborn**: Read a binned regplot's intervals as uncertainty, not as fits
+  ([#458](https://github.com/xability/py-maidr/pull/458),
+  [`75c2c37`](https://github.com/xability/py-maidr/commit/75c2c375f865fb53bacdcbbe6adcef01642f95f7))
+
+sns.regplot(x_estimator=...) drew a confidence bar per bin as an ordinary line, and the patch asked
+  the axes which of its lines were fits rather than knowing which lines its own call drew. Each
+  interval became its own two-point `smooth` layer, so the layer count scaled with the data (61
+  layers for a continuous x) and the uncertainty was unreachable from the estimate it bounds.
+
+The same label heuristic matched `_child0`, which is what matplotlib names any unlabelled artist, so
+  a line drawn before a regplot was announced twice -- once correctly and once as a model of itself.
+
+Replaced by a before/after artist snapshot plus a geometric split: an interval bar stands at one x,
+  the fitted curve spans the axis. The estimates and their intervals then travel as one ERRORBAR
+  layer through the same PointPlot that sns.pointplot uses, so the two now agree.
+
+Collections are snapshotted too, so the scatter layer is handed its own points rather than sweeping
+  the axes.
+
+Closes #451
+
+- **seaborn**: Read displot as the distribution it draws
+  ([#447](https://github.com/xability/py-maidr/pull/447),
+  [`66e5383`](https://github.com/xability/py-maidr/commit/66e538378dcfca8bd97be476c286c06ce290447d))
+
+`displot` is seaborn's figure-level interface for distributions, and its default kind draws a
+  histogram. maidr read it as a dodged bar chart.
+
+It does not import `histplot` -- it drives `_DistributionPlotter` directly -- so neither name
+  `wrap_seaborn` patches was ever bound, and the panel was seen only by `Axes.bar`, which cannot
+  know it is drawing a histogram:
+
+sns.displot(df, x="v", bins=3) dodged_bar {'x': '-1.61082', 'z': '_container0', 'y': 9.0}
+  sns.histplot(df, x="v", bins=3) hist {'y': 9.0, 'x': -1.6108, 'xMin': -2.3250, 'xMax': -0.8966}
+
+Three losses at once. The type names a chart that compares groups side by side, which a distribution
+  is not. The bin edges are gone, so the bin centre is announced where a bar chart puts its category
+  name -- a precise-looking number that is neither an observation nor a boundary. And `z`, the name
+  a reader hears to tell series apart, carried `_container0`, maidr's own internal identifier for a
+  `BarContainer`.
+
+`kind="kde"` had the smaller version: `line` where `kdeplot` gives `smooth`. A fitted curve is not a
+  series of observations.
+
+Both are fixed by patching the plotter methods the two interfaces share, the idiom
+  `maidr/patch/boxplot.py` already uses for `_CategoricalPlotter.plot_boxes`. `histplot` and
+  `kdeplot` set the internal context before calling through, so the inner patch declines for them
+  and nothing registers twice.
+
+One call covers the whole grid, and `plotter.ax` is None in exactly the faceted case, so the panels
+  are taken from the `FacetGrid` -- reading `ax` alone would have registered nothing at all there.
+
+`test_seaborn_floor.py` now guards every private seaborn attribute a patch reaches at import time,
+  not only the one that caused #441: an attribute that moves breaks `import maidr` for every user,
+  not only users of that chart type.
+
+`catplot` remains unreached and is still pinned in `tests/core/test_seaborn_patch_reach.py`, which
+  is where `displot` was pinned until now.
+
+Closes #446
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **seaborn**: Read every catplot kind as the chart it draws
+  ([#450](https://github.com/xability/py-maidr/pull/450),
+  [`1d42eed`](https://github.com/xability/py-maidr/commit/1d42eed9e11c7e3ec2a18e5db6eef8a889c5610e))
+
+`sns.catplot` drives `_CategoricalPlotter` directly and imports nothing, so it reached neither
+  binding `wrap_seaborn` patches and its panels were read by the matplotlib-level patches alone. Six
+  of eight kinds disagreed with the axes-level function that draws the same chart, failing in three
+  ways: a distribution announced as a line chart (`violin`, `boxen`), uncertainty dropped (`point`),
+  and a wrong type plus a phantom layer (`bar`, `count`).
+
+Registration moves to the plotter method the grid and the axes-level function share, so the two
+  interfaces agree by construction. All eight kinds are now asserted equal to their axes-level
+  equivalents.
+
+Two further defects surfaced on the way, both from the same cause -- the patch re-reading the
+  caller's keywords instead of asking seaborn what it resolved. An inferred-horizontal violin raised
+  `TypeError` out of `render()` and produced no HTML for the figure, and a positionally-passed frame
+  silently lost its `violin_box` layer. Both are answered by reading `plotter.orient`,
+  `plotter.plot_data` and `plotter.var_levels`.
+
+Registering per panel also needed a guard: a `row`/`col` grid allocates an axes for combinations the
+  data does not hold, and registering those promised a layer whose extraction has nothing to read,
+  taking the whole figure's HTML down. The panel list now comes from seaborn's own
+  `iter_data(allow_empty=False)`.
+
+Review found a real collision in the hue labelling -- two unnamed variables compared equal, so four
+  violins came out under two names -- and a live sweep in `_register_kde_layer`, where a
+  `fill_between` already on the axes replaced the violin's density with its own four vertices.
+
+Closes #448. Closes #449.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **shiny**: Let @output_args size a chart in Shiny Express
+  ([#472](https://github.com/xability/py-maidr/pull/472),
+  [`bf3ee9d`](https://github.com/xability/py-maidr/commit/bf3ee9d206d90638d080056ccbf3ccd78bdb2cdd))
+
+Shiny splats `@output_args(...)` into `auto_output_ui()`, so a renderer that takes no keywords there
+  raises `TypeError` rather than sizing the container. `shiny.render.plot` accepts `**kwargs` for
+  exactly this reason; `render_maidr` did not, which left the documented way to size an Express
+  output broken.
+
+Arguments given to `@output_args` now take precedence over the ones given to the decorator, and
+  anything `output_maidr` does not know raises there rather than being absorbed.
+
+- **smooth**: Ask per axes which curve supersedes which line
+  ([#379](https://github.com/xability/py-maidr/pull/379),
+  [`fe7b429`](https://github.com/xability/py-maidr/commit/fe7b4292ff45aa1acf6e3c55831b658fee888948))
+
+`regplot` draws its fit through `ax.plot`, so one curve registers both a LINE and a SMOOTH, and the
+  line is the duplicate. That much was right. The question was asked of the whole figure -- any
+  smooth anywhere, then drop every line anywhere -- which is the same shape of defect as #376, one
+  function call below the code that fixed it.
+
+A regression line in one panel deleted an unrelated line chart in another, and took that panel with
+  it: the grid's column count comes from the surviving layers' indices, and nothing left carried
+  column 1.
+
+registered ['point', 'smooth', 'line'] before [[['point', 'smooth']]] after [[['point', 'smooth'],
+  ['line']]]
+
+Neither that filter nor the duplicate-gid one touched `selector_ids`, which is paired with `_plots`
+  by index in both directions, so every layer after a dropped one inherited its predecessor's id and
+  the highlight landed one layer off with nothing raised. It only bites when the drop is not last,
+  which is why it survived.
+
+All three rules -- segmented bars, fitted curves, duplicate gids -- now answer into one set and one
+  lockstep filter, so there is one place the pairing invariant is stated instead of three that could
+  each forget it. `maidr/util/dedup_utils.py` is deleted: leaving a helper whose whole shape is the
+  bug invites it back.
+
+Two limits are deliberate and pinned by tests rather than left implicit. The gid rule stays
+  figure-wide, since whether one `_smooth_gid` can span two axes was not measured here; it also sees
+  a later snapshot than its neighbours, because the gid is assigned during extraction, and its
+  docstring records why that is inert rather than a misattribution. And a reference line on the same
+  axes as a fit is still dropped, because per-axes scoping cannot tell an annotation from the fit's
+  own line.
+
+Full suite: 1207 passed.
+
+Closes #378.
+
+- **violin**: Emit box statistics raw instead of rounded to four decimals
+  ([#415](https://github.com/xability/py-maidr/pull/415),
+  [`89f15a4`](https://github.com/xability/py-maidr/commit/89f15a4ae7b3f2ede390a88e127a49a59b6b9718))
+
+`round(x, 4)` is absolute, not significant: it discards everything below 1e-4 rather than keeping
+  four digits of precision. For data in micrograms, molar concentrations, failure probabilities or
+  seconds of a fast benchmark, min/q1/q2/q3/max all came out 0.0, so the box read as a flat line at
+  zero and the distribution stopped being announced. Nothing errored -- the chart drew correctly and
+  only the numbers were gone.
+
+The frontend already guards this and needs the raw value to do it: `defaultFormat` rounds to two
+  decimals for the announcement, then falls back to three significant digits when that would erase a
+  non-zero value. Rounding here destroyed the small value before that guard could see it, and
+  sonification, braille and extrema read the underlying numbers too.
+
+Also brings this path in line with `boxplot.py` and the plotly violin path, which both emit raw, and
+  with the outliers in its own record, which were never rounded.
+
+Closes #398.
+
+- **violin**: Stop naming a violin after an axis tick
+  ([#470](https://github.com/xability/py-maidr/pull/470),
+  [`2725364`](https://github.com/xability/py-maidr/commit/2725364898eb6f39e05a097e548eb0adb95f5e1c))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+### Continuous Integration
+
+- Refresh the bundled maidr.js when upstream publishes
+  ([#355](https://github.com/xability/py-maidr/pull/355),
+  [`03228f7`](https://github.com/xability/py-maidr/commit/03228f704a1303dccbf73fe11ddf1f3a447ca960))
+
+The bundle only ever moved at py-maidr release time, so between releases `main` carried whatever
+  upstream version the last release happened to pin. Checking out `main` to reproduce or test a
+  freshly published upstream fix meant refreshing the bundle by hand first.
+
+maidr's release workflow now sends a repository_dispatch here the moment `npm publish` succeeds,
+  carrying the version it just published, and this workflow commits the refresh to `main` as it
+  already did on manual dispatch. The payload names the version rather than leaving this side to
+  re-resolve `latest`, which sidesteps the window where the dist-tag has not propagated; with
+  neither supplied the script resolves `latest` exactly as before.
+
+What users receive is unchanged, and deliberately so. The commit keeps its `chore:` prefix, so
+  python-semantic-release still does not treat a bundle refresh as a release: an upstream release
+  alone does not reach PyPI, and the refreshed bundle ships with the next feat:/fix:/perf: release.
+  This makes `main` current, not PyPI. release.yml remains the authority on the released artifact --
+  it re-resolves the newest upstream at release time and now simply finds nothing to commit when
+  `main` is already current.
+
+No scheduled backstop is added, unlike r-maidr's. That repository has no release pipeline --
+  whatever sits on `main` at CRAN submission time is what ships -- so a missed refresh there is a
+  missed shipment. Here the release-time refresh already re-resolves upstream, so a missed dispatch
+  costs only the currency of `main`, never the released artifact.
+
+The updater job joins release.yml's concurrency group. A group is scoped to the repository rather
+  than to a workflow, so sharing the name is what serialises them, and they need serialising: both
+  push to `main`, one through git-auto-commit-action and the other through semantic-release, and
+  overlapping the second push is a non-fast-forward whose loser is a failed release. The schedules
+  used to keep them apart and no longer do, since an off-schedule upstream release now fires a
+  dispatch at any hour.
+
+No new trust is granted. `client_payload` is written by whoever holds the sending token, but that
+  token already needs write access here, and the version still goes through the same strict pattern
+  check in fetch-maidr-bundle.sh and the same registry integrity verification.
+
+Also corrects the release.yml comment that claimed the bundle never reaches `main` between releases,
+  which this change makes untrue.
+
+Sending side: xability/maidr#832.
+
+### Documentation
+
+- Say that the render blocks the loop, and that "auto" has no offline path
+  ([#471](https://github.com/xability/py-maidr/pull/471),
+  [`7e2d4da`](https://github.com/xability/py-maidr/commit/7e2d4da3b0b4d5f528a54779245ca660e0b07973))
+
+The async callout was headed "No lookup happens on an event loop", which is true of the version
+  lookup and easy to read as "the loop is fine". maidr.render() is synchronous and never awaits, so
+  nothing preempts it: for as long as one render runs, the loop does not run at all.
+
+The offline section did not mention that "auto" cannot fall back inside a srcdoc iframe, so on the
+  default setting an air-gapped notebook, Shiny or Flask deployment gets the CDN or nothing. Stated
+  as intended behaviour rather than a pending fix.
+
+Adds tests/core/test_render_is_synchronous.py, skipped unless --run-benchmark, so the timing claim
+  can be re-checked.
+
+Documents #454.
+
+### Features
+
+- Give a seaborn regression its confidence band
+  ([#425](https://github.com/xability/py-maidr/pull/425),
+  [`14a6477`](https://github.com/xability/py-maidr/commit/14a6477f9ac217dda75614a9b1d098563075532f))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- Read seaborn's categorical charts as their data rather than as how they were drawn
+  ([#438](https://github.com/xability/py-maidr/pull/438),
+  [`289c699`](https://github.com/xability/py-maidr/commit/289c699f8d6e4ed8fce273834d6c481471a41975))
+
+Two defects of one kind: a seaborn categorical chart announcing something the renderer invented as
+  though it were a measurement.
+
+**boxen (#253).** `sns.boxenplot` draws a letter-value plot -- the box plot's five-number summary
+  generalised to a variable-depth ladder of quantiles. MAIDR had no type that could hold that, so
+  the chart fell through to the generic matplotlib patches and produced a reading that was wrong
+  rather than partial: a `line` layer of the three median segments, each read as a two-sample
+  series, plus one `point` layer per category holding only the outliers at numeric slots. Every rung
+  of every ladder -- the entire chart -- was absent, and nothing said so.
+
+maidr 4.3.0 shipped `TraceType.BOXEN`. `BoxenPlot` emits it, reading the ladder off the boxes
+  seaborn drew rather than recomputing statistics: rungs from the box edges, the median from the
+  segment spanning the ladder, the fliers from the collection on its own category slot, and only the
+  tail probability inferred -- from seaborn's own `LetterValues` construction.
+
+**strip and swarm (#439).** Both scatter points sideways so overlapping observations stay separable,
+  and that offset is what `get_offsets` returns, so it is what was announced -- a precise number for
+  a quantity that does not exist, on an axis whose ticks read a, b, c, and for a strip plot a
+  different number on every run. It also cost the chart its shape: `ScatterTrace` groups by exact x,
+  so 90 jittered points became 90 columns of one instead of 3 of 30. Points now report their nearest
+  tick when, and only when, the axis is genuinely categorical.
+
+Nine rounds of review found real defects, each reproduced before being fixed: a horizontal boxen had
+  its axis labels swapped; `showfliers=False` plus a strip overlay made a ladder claim 14 outliers
+  from the other layer; an `axhline` with an explicit span, and a short data-space segment, were
+  each read as a median; `gap=` renamed hue levels outright; and nine methods were defined twice,
+  with the live `_levels` being the version an edit had meant to replace.
+
+Closes #253, #439
+
+- **area**: Read a baseline-to-curve fill_between as an area chart
+  ([#371](https://github.com/xability/py-maidr/pull/371),
+  [`0450d0e`](https://github.com/xability/py-maidr/commit/0450d0ebb2a36da17d3fc6fc8a00ce9bcc29acb9))
+
+`Axes.fill_between` was unregistered, so a filled area chart drew and read as a static image --
+  while `ax.stackplot()` already emitted an area layer for the same picture, making the gap
+  arbitrary from a reader's side.
+
+`fill_between(x, y1)` fills from zero up to a curve, which measures what a one-series stackplot band
+  measures, and is registered as an area.
+
+Three shapes are declined rather than described, because each draws something an area layer would
+  misreport:
+
+- a band between two curves, whose content is the gap rather than either edge, so an area would
+  announce `hi` as a magnitude and drop `lo`; - a constant non-zero second edge, whose heights are
+  measured from somewhere the announcement would not mention; - a `where=` mask, which fills only
+  part of the range -- three separate bands out of an eight-point series -- where an area layer is
+  one continuous series and would report the gaps as filled.
+
+A mask that holds everywhere, and an explicit array of zeros, are the default spelled out and read
+  as the areas they draw.
+
+Values come from the call's own arguments rather than the polygon, as `stackplot`'s patch already
+  does: the artist is a closed outline running forward along the curve and back along the baseline.
+  `fill_betweenx` is the same chart turned over.
+
+Part of #339; the band-around-a-line case stays open there.
+
+- **area**: Read a stackplot as the area chart it is
+  ([#356](https://github.com/xability/py-maidr/pull/356),
+  [`23c49e3`](https://github.com/xability/py-maidr/commit/23c49e309b489a475742dfc8c5cdb0fd18c096a7))
+
+`Axes.stackplot` registered nothing at all, so a stacked area chart was invisible to a MAIDR reader
+  rather than partially described.
+
+The area layer reads its arguments rather than its drawn geometry, which is the inverse of
+  ErrorBarPlot and PointPlot and for the same reason: a stackplot's polygons carry the running
+  total, and the band height a reader wants is not recoverable from them. A single series is AREA
+  and several is STACKED_AREA -- the count is the whole rule, since a baseline mode changes where
+  the stack sits rather than what is stacked.
+
+A DataFrame argument is read by row, as matplotlib's own np.row_stack does, via np.asarray(...).ndim
+  rather than by shape guessing.
+
+`ax.fill_between` is deliberately not registered: a two-curve uncertainty ribbon is not a value
+  against a baseline, and reading it as one would misdescribe it.
+
+- **bundle**: Warn when the bundle cannot draw the layer being emitted
+  ([#360](https://github.com/xability/py-maidr/pull/360),
+  [`331b3b8`](https://github.com/xability/py-maidr/commit/331b3b824279122cd27613795b4d0ebf2e124c42))
+
+Closes #358.
+
+STALE_MINOR_GAP measures drift in minor versions, which answers how old a bundle is. The question a
+  reader needs answered is whether it can draw what is about to be handed to it, and the two come
+  apart in both directions: a bundle five minors behind may render everything, and one minor behind
+  may render none of a newly added type. The gap that prompted this was a bundle nine minors short
+  of qualifying as stale while unable to render seven of the emitted layer types.
+
+Asked of the bundle rather than of a table kept in step by hand: its own factory switches on the
+  trace-type strings, so the shipped file already knows the answer and cannot forget a line when a
+  type is added.
+
+It also reaches an audience the staleness warning documents itself as unable to reach. That one
+  compares against a published version it will not fetch, so a process rendering use_cdn=False
+  offline stays silent however old its bundle is. This reads the installed file and makes no request
+  at all.
+
+Deliberately biased towards silence: an unreadable bundle, a CDN-only render and a supported chart
+  all say nothing, each with a test. The warning names every unsupported type at once, once per type
+  per severity, and is silenced by the same env switch as the staleness one.
+
+- **deps**: Give the resolver's two silent failures a voice
+  ([#366](https://github.com/xability/py-maidr/pull/366),
+  [`0f3c5cf`](https://github.com/xability/py-maidr/commit/0f3c5cfd013a5dcfbb593298e2c7000a27b516b7))
+
+Two silent failures on the CDN version path, one facing a user and one facing a monitor.
+
+A broken bundle emitted `@latest` with nothing said. `_offline_version()` ended at `LATEST_TAG` when
+  `maidr/static/VERSION` would not read -- the mutable dist-tag this module exists to stop emitting,
+  which jsDelivr serves with a seven-day `max-age`. The URL is well-formed and the page works, so
+  the only symptom was someone occasionally being served an old bundle for reasons nothing in the
+  output explained. Only the broken-install road warns; a failed lookup is a routine operating
+  condition and stays quiet, because warning on both would train people to ignore the message. The
+  message names the consequence, and says which fault it is -- an absent VERSION reported as `is
+  unreadable ('0.0.0')` claims the file contains those characters, which is the one thing it does
+  not.
+
+The freshness job went green forever when the resolver died. Passing on a failed lookup is right for
+  a hiccup and wrong for a persistent failure: a green check that verifies nothing is worse than a
+  red one because it is indistinguishable from a real pass. `ResolverOutcome` splits the endpoints
+  into those that never answered -- the network, which nobody reading the job can fix -- and those
+  that answered with something py-maidr could not use, which is py-maidr being wrong about their
+  shape and will not fix itself. An unrecognised failure counts as unreachable, the quiet direction;
+  an endpoint the budget never reached counts as neither.
+
+Kept as a separate accessor rather than a wider `BundleStatus`, so the render path keeps its shape
+  and its contract that a lookup failure cannot break a chart.
+
+Closes #364 Closes #298
+
+- **deps**: Warn that the placeholder maidr.css accessors are going
+  ([#334](https://github.com/xability/py-maidr/pull/334),
+  [`0e5b645`](https://github.com/xability/py-maidr/commit/0e5b64526cd82445d8dfa70c67b7107cadb657f1))
+
+`maidr/static/maidr.css` has been a 406-byte placeholder since maidr 3.75.1, nothing in `maidr/`
+  links a stylesheet, and r-maidr stopped bundling it on the same upstream release. It cannot simply
+  be deleted: `bundled_css_path` is in `__all__`, so removing the file would leave a public function
+  returning a path that does not exist. Both accessors warn now, the file keeps shipping, and the
+  two go together at the next major.
+
+`FutureWarning` rather than `DeprecationWarning`. Python's guidance splits them by audience, and
+  someone calling this is assembling a dashboard rather than extending py-maidr. The practical half
+  matters more: `DeprecationWarning` is silenced by default outside `__main__`, so a caller inside a
+  Shiny app would meet the removal as a breakage instead of a warning.
+
+Each accessor names a replacement of its own return type and spelled as a path that actually imports
+  -- one returns a `Path` and the other a URL, and only one of the two is re-exported at top level.
+  The tests resolve every symbol the messages name rather than substring-matching them, and check
+  that the filter muting this in `test_cdn_version.py` has not gone stale.
+
+Not touched, deliberately: `maidr-math.css` keeps its base64 KaTeX fonts. r-maidr strips them for
+  CRAN's size limit at the cost of glyph fallback; py-maidr has no such limit and the saving is
+  under 9% of a package whose JS bundle is five times larger.
+
+Refs #333.
+
+- **errorbar**: Read an estimate together with its interval
+  ([#349](https://github.com/xability/py-maidr/pull/349),
+  [`791df0d`](https://github.com/xability/py-maidr/commit/791df0d5627532108b17edf824aebf08aa633362))
+
+`Axes.errorbar` was not patched, so any chart carrying uncertainty -- the majority of published
+  statistical figures -- lost that information entirely.
+
+Bounds are read off the drawn LineCollection rather than recomputed from the `yerr` the caller
+  passed. Those are different quantities: matplotlib takes an offset while the schema carries an
+  absolute position, and the offset has three shapes (scalar, (N,), (2, N)) before uplims/lolims
+  change what the bar means again. The rendered geometry has already resolved all of them.
+
+The patch hands the layer the exact container its own call produced. Looking one up on the axes
+  would find the first container for both layers of a figure with two errorbar calls, describing one
+  series twice and dropping the other.
+
+Handles fmt="none" (no data line, so centres come from the call arguments, since an asymmetric bar
+  is not centred on its midpoint), NaN errors (an empty segment that keeps its position, emitted as
+  a sample with no bounds rather than as NaN, which would poison the trace's pitch range), xerr
+  (horz orientation), both errors at once (y wins, and the collection order is x-first), capsize,
+  and date axes (which previously raised, taking out the user's whole figure -- errorbar was the
+  only patched type that crashed rather than degrading).
+
+Derived bounds are cleaned of float noise: matplotlib draws at y - err, and 4.2 - 0.4 is
+  3.8000000000000003, which a screen reader spells out in full.
+
+`x` and `y` mean category and magnitude here in both orientations, unlike BarPlot and HistPlot,
+  because ErrorBarTrace reads the magnitude as y/yMin/yMax with no orientation branch and
+  ErrorBarPoint declares no xMin/xMax to hold a bound. The axis labels stay screen-aligned and the
+  trace pairs them; both halves are asserted together so neither can drift alone.
+
+- **heatmap**: Highlight a pcolor grid, and cover z_label
+  ([#347](https://github.com/xability/py-maidr/pull/347),
+  [`cbb13c0`](https://github.com/xability/py-maidr/commit/cbb13c0f11e6358ad3a317470bfde5caf3666700))
+
+`Axes.pcolor` renders a PolyQuadMesh where `pcolormesh` renders a QuadMesh, and `patch/highlight.py`
+  tagged only the latter. A pcolor heatmap read through audio, text and braille but carried no
+  visual highlight, leaving low-vision users without a cursor on a chart every other reader could
+  follow.
+
+The wrapper goes on PolyQuadMesh and deliberately NOT on its PolyCollection base, which also backs
+  violin bodies and `fill_between`. PolyQuadMesh inherits `draw` rather than defining one, so
+  wrapping it installs a subclass-only override and the base keeps the unwrapped method; a test
+  asserts both halves of that.
+
+The two mesh classes also disagree about the shape they keep values in, so the reshape is now driven
+  by the array's dimensionality rather than by the class.
+
+Also adds the `z_label` coverage the previous round left open, across all three matplotlib entry
+  points, and the NumPy docstring `heat` never had.
+
+- **heatmap**: Register pcolormesh and pcolor heatmaps
+  ([#346](https://github.com/xability/py-maidr/pull/346),
+  [`54cb65a`](https://github.com/xability/py-maidr/commit/54cb65af1adf1d74f9163d8ae760c92d34ec37b5))
+
+Only `Axes.imshow` and `seaborn.heatmap` were patched, so a heatmap drawn with `pcolormesh`
+  registered nothing at all -- no layer, no warning, just silence. That is not an obscure path:
+  `pcolormesh` is what you reach for whenever the grid is irregular or the axes carry real
+  coordinates rather than array indices.
+
+The extraction side already worked, because `seaborn.heatmap` draws through `pcolormesh` and has
+  always taken that branch. Only the patch registration was missing.
+
+Patching it exposed two more things. `heat` never consulted ContextManager, so with both
+  `seaborn.heatmap` and `Axes.pcolormesh` patched the inner call registered a duplicate layer. And
+  `fmt` -- which is seaborn's parameter -- was left in kwargs, where `pcolormesh` swallows it into
+  `**kwargs` and the artist raises `AttributeError: QuadMesh.set() got an unexpected keyword
+  argument 'fmt'`. It is now forwarded only to a function that declares it.
+
+Closes #337.
+
+- **hexbin**: Read Axes.hexbin as a hexagonal bin lattice
+  ([#368](https://github.com/xability/py-maidr/pull/368),
+  [`f723a86`](https://github.com/xability/py-maidr/commit/f723a86044247551d363d04f2acb008ba646a6de))
+
+A hexbin is the standard answer to an overplotted scatter: bin the points into hexagons and encode
+  the count as fill. Read that way it is a heatmap, and the navigation, braille and pitch all
+  transfer. maidr.js has carried a `hexbin` trace since v4.2.0 and nothing here emitted one.
+
+Two things about how matplotlib builds the lattice do not survive a naive reading. `get_offsets()`
+  is built lattice by lattice and, within each, x index by x index, so consecutive offsets walk up a
+  column and the offset rows come after the aligned ones -- grouping into rows is a permutation, and
+  the selector list is permuted with them, or every bin past the first row boundary highlights
+  someone else's hexagon while still announcing a real centre and a real count. And the rows are
+  ragged by construction, so they are left that way rather than padded with bins that were never
+  drawn.
+
+The colour axis is named for what the fill encodes rather than always "count": `C=` replaces it with
+  a reduction, a numeric `bins=` replaces it with the interval the value landed in, and `bins=` wins
+  over `C=` because matplotlib applies it last.
+
+A log-scaled lattice is declined rather than translated. matplotlib bins in the transformed space
+  and hands the offsets back in it, so a bin centred at x = 3.4 would announce 0.53; on 3.9 the
+  centres are not in `get_offsets()` at all. The figure keeps its static image instead.
+
+The selector test resolves the emitted CSS against the real exported SVG and checks each match is
+  the hexagon whose centre and count that bin announces.
+
+Closes #341.
+
+- **plotly**: Keep the step convention of a filled staircase
+  ([#423](https://github.com/xability/py-maidr/pull/423),
+  [`24734c0`](https://github.com/xability/py-maidr/commit/24734c0b0850829323d4f1002b6e698794389f61))
+
+line.shape and stackgroup are independent plotly attributes, so a trace can be both a staircase and
+  a filled band. The area classification runs first, so such a trace became a plain area layer with
+  no stepDirection; before that it kept the direction but was announced as a line. One of the two
+  facts was always dropped.
+
+They are orthogonal, so the layer carries both. A stack cannot be split by direction the way the
+  step layers are, so a stack whose bands disagree withholds the key rather than describing one of
+  them wrongly. Both layer types now read one resolver, shared_step_direction.
+
+Closes #413.
+
+- **plotly**: Read a 100% stacked bar as one ([#393](https://github.com/xability/py-maidr/pull/393),
+  [`1d5c9c7`](https://github.com/xability/py-maidr/commit/1d5c9c7901ceee55330e276f1d400b4e34b67b6e))
+
+`layout.barnorm` is plotly's switch for normalising each stack to a common total -- `percent` scales
+  to 100, `fraction` to 1. Either way the segment values are shares of their category rather than
+  counts. MAIDR did not read it, so such a chart arrived as `stacked_bar`.
+
+The numbers were announced correctly; what was lost is what they are. A `stacked_bar` invites the
+  reading that each segment is a count and that the categories happen to total the same, when the
+  equal totals are a property of the chart rather than of the data.
+
+The core has carried `TraceType.NORMALIZED = 'stacked_normalized_bar'` for some time; `PlotType` had
+  no member to emit it with, so the type was unreachable from Python. This adds it.
+
+Read as a lookup rather than a heuristic, and only where plotly declares it. matplotlib and seaborn
+  have no equivalent, so those paths are untouched. The dodge check stays ahead of the normalisation
+  check, and membership of the normalising set decides rather than key presence -- plotly's own
+  "off" value is the empty string.
+
+Closes #338
+
+- **plotly**: Read a plotly.express trendline as a smooth layer
+  ([#424](https://github.com/xability/py-maidr/pull/424),
+  [`386eb38`](https://github.com/xability/py-maidr/commit/386eb3820600325d76d9d0676471706456061dd2))
+
+px.scatter(..., trendline="ols") appends a second scatter trace carrying the fit. Nothing structural
+  separates it from a line the user drew -- same type, same mode, no name, the scatter's own colour
+  -- so it was merged into the multi-line layer and read as data, and a reader was told a model's
+  prediction was a measurement.
+
+The one thing that separates it is hovertemplate, a display string, and that is the convention this
+  package already uses for the same question: SMOOTH_KEYWORDS has matched a matplotlib artist's
+  label to find seaborn's regression lines since long before the plotly path existed.
+
+The rule matches the shape plotly generates rather than scanning for a word: the fit's name in bold
+  as the whole opening of the template, which all five px trendline modes write and which prose
+  about a chart does not. Split before the line branches, because a layer carries one type for every
+  series it holds.
+
+Closes the remaining sub-item of #343.
+
+- **plotly**: Read an area chart as an area rather than a line
+  ([#411](https://github.com/xability/py-maidr/pull/411),
+  [`86e3816`](https://github.com/xability/py-maidr/commit/86e3816159b81f4084fc84d20d0622d9e03e612a))
+
+`px.area` produces a `Scatter` whose only mark of being an area is `stackgroup`, and the adapter had
+  no area handling, so every one fell through to `line`. The numbers were already right -- plotly
+  keeps each series' own values in `trace.y` and stacks in the browser -- so what was missing is the
+  name and the relationship: a reader was not told the bands are filled, that they stack, or what
+  the total at each x is.
+
+Adds `maidr/plotly/area.py` with `is_area_trace`, `area_stack_groups`, `area_plot_type` and
+  `PlotlyAreaPlot`, plus `PlotType.NORMALIZED_AREA` for `groupnorm`. Area traces are split out of
+  `connected_traces` before the line machinery sees them, or an area -- which passes every
+  structural test for a connected line -- is emitted twice.
+
+Measured against real Plotly.js in Chromium rather than documentation: a `stackgroup` trace resolves
+  to `fill: "tonexty"` with calcdata carrying both `s` (own value) and `y` (running total);
+  `scattergl` is excluded because plotly stacks no such thing; and an empty band gets no DOM node,
+  so it is dropped from data and selectors together.
+
+Closes #392.
+
+- **plotly**: Read candlestick and OHLC charts
+  ([#396](https://github.com/xability/py-maidr/pull/396),
+  [`393539c`](https://github.com/xability/py-maidr/commit/393539c3326cffa3000a930bb1a3db962c8c14d1))
+
+`maidr/plotly/` builds its schema in Python and needs its own handling per trace type. It had none
+  for `candlestick` or `ohlc`, and neither errored -- both fell through to the factory, which
+  returned `None`, so the figure arrived with no layers at all. The HTML rendered and MAIDR loaded;
+  what a reader got was an empty shell with nothing to navigate and no error saying why.
+
+Nothing is inferred: both trace types state every number they draw. `trend` and `volatility` are not
+  emitted because the core derives both from OHLC and overwrites what it is sent, and no plotly OHLC
+  trace carries a volume.
+
+The selectors were measured in a browser rather than reasoned about. Plotly gives a candlestick
+  chart a rangeslider by default, holding a full second copy of the plot, so an unscoped selector
+  matches every mark twice; a `go.Box` shares `g.boxlayer` and draws its own `path.box`, so the
+  position is an index among box-family traces; and `ohlc` draws into `g.ohlclayer` entirely,
+  needing a different selector despite being one MAIDR type.
+
+Part of #343; violin and the smooth/trendline naming remain.
+
+- **plotly**: Read stacked and dodged histograms as one layer
+  ([#410](https://github.com/xability/py-maidr/pull/410),
+  [`879a40b`](https://github.com/xability/py-maidr/commit/879a40bcb40b26829848f9269830267dbe0839b4))
+
+`_extract_plots` collected `bar` traces for merging and left `histogram` traces to the factory, one
+  layer each. So every multi-series histogram -- `px.histogram(color=...)` is the ordinary way to
+  draw one, and plotly's default barmode stacks -- was announced as several separate distributions,
+  with nothing saying the bars stack or that `barnorm` had rescaled them.
+
+The bins were wrong as well, which the issue did not name and which is worse than the missing
+  relationship. Plotly bins a group jointly: one grid from every trace's values together. Binned per
+  trace, two well-separated samples had the first announced as 13 bins of width 0.2 where the chart
+  draws 4 of width 1.
+
+That needed no new arithmetic. Feeding the existing autoBin port the union returns plotly's own
+  `size=1, start=-2, end=12` for that figure, so what the issue called inference was transcription
+  with the wrong input.
+
+The group's bin spec comes from whichever trace supplies one rather than from the first: with
+  `xbins=dict(size=3)` on the second of two traces, plotly resolves it onto both and bins the pair
+  at that width.
+
+Merging settles the highlight too. Left separate, every histogram in a subplot emitted the identical
+  selector -- `.trace.bars .point > path` matches every bar in the panel -- so each layer
+  highlighted its neighbours' bars as well as its own.
+
+A categorical group declines rather than half-describing itself, and `overlay` stays separate layers
+  as it does for bars.
+
+Values under `barnorm` stay raw, matching what the merged bar path has emitted since #338 and #393.
+  Plotly draws shares and both paths diverge from it identically; that is #409, filed to cover the
+  two together.
+
+Measured against `gd.calcdata[i][j]` in Chromium, per series: eight of ten grouped shapes agree
+  elementwise, and the two that do not are the `barnorm` pair above.
+
+Closes #394
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **plotly**: Read violin plots ([#397](https://github.com/xability/py-maidr/pull/397),
+  [`9ffc510`](https://github.com/xability/py-maidr/commit/9ffc510d76b8476083409320642cffb74e95a6ec))
+
+`_extract_plots` had no branch for the `violin` trace type, so a violin fell through to the factory,
+  which returned `None`, and the figure arrived with no layers at all. Nothing errored -- what a
+  reader got was an empty shell.
+
+A violin is announced as two layers, matching the matplotlib path and the browser-side plotly
+  adapter: `violin_box` summarises the distribution and `violin_kde` is the shape the chart draws.
+  Both are built from one list of violins, so row `i` of the box and curve `i` of the KDE cannot
+  come to mean different violins.
+
+Plotly runs the kernel density estimate in the browser, so the curve is not in the Python figure and
+  has to be recomputed. That is only honest if it reproduces the curve plotly draws, so
+  `violin_stats` ports plotly's own rules -- the Silverman bandwidth with its range floor, the soft
+  span, the third-of-a-bandwidth sampling, and quartiles by the Hazen rule rather than numpy's
+  default -- and the port is pinned against density values captured from plotly's `calcdata` in a
+  browser. Measured agreement across eight sample sizes is 5.9e-15 relative at worst, with identical
+  point counts.
+
+The three ways a sample can be empty pull against each other, and all three were measured: a
+  category whose values are all equal is drawn by plotly and so is announced and takes an index; one
+  whose values are all missing is drawn as nothing and takes neither; a hidden trace likewise takes
+  no group slot and is not announced at all.
+
+The box layer emits `BoxSelector` objects rather than strings, since the frontend reads the sections
+  off an object, with `mean` addressed separately -- `path.mean` inside a box and `path.meanline`
+  without one.
+
+Part of #343.
+
+- **pointplot**: Read a seaborn point plot's estimates with their intervals
+  ([#352](https://github.com/xability/py-maidr/pull/352),
+  [`e3a64c5`](https://github.com/xability/py-maidr/commit/e3a64c514ea32489e792b716d8b76c963cf0b1c8))
+
+A point plot estimates a group mean and draws the interval around it, which is the same quantity
+  Axes.errorbar carries, so it emits the same error bar layer.
+
+Seaborn draws no container to read it from -- the estimates are one line and each interval another
+  -- so the generic Axes.plot wrapper had been describing a three-group chart as four series, three
+  of them cap geometry with NaN coordinates and raw offsets among the category names. This is as
+  much a removal as an addition.
+
+The split into estimates and intervals is verified rather than assumed, falling back to describing
+  the drawn lines when a future seaborn renders this differently. A group with a single observation
+  draws no interval and keeps its place rather than shifting the others'; a chart where none does
+  reads as the line of estimates it is. Orientation comes from the string-category machinery seaborn
+  leaves on its category axis, and from the intervals themselves under native_scale.
+
+A hue splits the chart into series the error bar layer cannot yet name, so it reads as the
+  multi-line chart it is -- with each series now named after its hue level and the interval
+  polylines no longer travelling as series of their own.
+
+- **scatter**: Name the category a point sits in
+  ([#445](https://github.com/xability/py-maidr/pull/445),
+  [`64a1ef9`](https://github.com/xability/py-maidr/commit/64a1ef95cd3cf353f14bbd32ece65c71d14888e4))
+
+#439 fixed the position: a strip plot's jitter and a swarm plot's packing are chosen by the
+  renderer, and the offset -- not the observation -- was what `get_offsets()` returned and what was
+  announced. Snapping to the tick stopped a rendering artefact being reported as a measurement.
+
+It could not fix the name. `ScatterPoint.x` was typed `number`, and the core subtracts x values to
+  sort, to index columns and to resolve a highlight, so a string there gives an unstable sort and a
+  broken index rather than an announcement. A reader still heard "g is 0" where the chart says "a".
+
+xability/maidr#927 added `xLabel` / `yLabel` for exactly this, so the name now travels alongside the
+  position rather than in place of it -- which is also what the chart is: a category at a slot.
+
+The map was already being built and then thrown away down to its keys: `_category_tick_labels`
+  returns {tick coordinate: name}, and the snapping only ever needed the coordinates. Naming the
+  point costs one lookup in a dict that was already in hand.
+
+Both axes are asked, because either can be the categorical one. A numeric axis is untouched:
+  `_category_tick_labels` is empty unless matplotlib mapped strings onto the axis, so a measurement
+  cannot be renamed after whichever tick it falls nearest.
+
+Closes #439
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- **shiny**: Rebuild render_maidr on Shiny's Renderer contract
+  ([#452](https://github.com/xability/py-maidr/pull/452),
+  [`2197548`](https://github.com/xability/py-maidr/commit/2197548420ef99db5891cda5dc9be3875bba4846))
+
+`render_maidr` subclassed `shiny.render.ui` and overrode `render()` with a copy of the base
+  implementation. Shiny's documented extension point is `Renderer`; subclassing a concrete renderer
+  inherits its value type, so the class was typed `Renderer[TagChild]` and a checker rejected this
+  repository's own example, whose render function returns an `Axes`. There was no UI function to
+  pair it with, no options, no declared dependency on `shiny`, and no test had ever imported the
+  file.
+
+`output_maidr()` is now the container and `auto_output_ui()` returns it, so Shiny Express places it
+  too. `render()` rather than `transform()` is overridden, matching `shiny.render.plot`, which does
+  the same because it too needs to bracket the value function -- here to close the pyplot figures a
+  render opened, since a render function runs once per reactive flush and 25 flushes left 25 figures
+  open. Only figures that were not open beforehand are closed, so a figure the app builds lazily and
+  caches keeps maidr's record of it and does not degrade to a static image. `width`, `height` and
+  `use_cdn` are new; `use_cdn` in particular, since the only previous lever was the process-wide
+  `maidr.set_use_cdn()` that the docs already warn against for multi-session apps.
+
+Two defects found while doing it:
+
+`Environment.is_shiny()` asked whether `import shiny` succeeds, and the comparison it made is true
+  for any successful import. Six call sites gate on it, so every process that merely had Shiny
+  installed took the Shiny path -- a plain script got a 28 KB iframe carrying no dependency instead
+  of a 15 KB div carrying one, and a Streamlit app got a maidr iframe nested inside Streamlit's own.
+  It now asks `get_current_session()`, mirroring `is_flask()`.
+
+An iframed `use_cdn=False` render shipped no source for `maidr.js` at all, in both Shiny and Flask:
+  `Tag.get_html_string()` drops `HTMLDependency` children, and the other branch reads a global that
+  only `init_notebook()` populates. The chart arrived as a picture -- no sonification, no braille,
+  no keyboard navigation, and nothing to say why. The bundle now travels inline, read once per
+  process, falling back to the CDN with a warning if it cannot be read.
+
+Backwards compatible: `from maidr.widget.shiny import render_maidr` is unchanged, both decorator
+  spellings work, and `ui.output_ui("id")` still pairs with it.
+
+Follow-ups filed as #453, #454, #455, #456 and #457.
+
+- **streamlit**: Add a first-class Streamlit integration
+  ([#459](https://github.com/xability/py-maidr/pull/459),
+  [`1087b7a`](https://github.com/xability/py-maidr/commit/1087b7aca07f223940bf3d6e77bf616e0caaf833))
+
+py-maidr had no Streamlit code at all. The only guidance was the example app, which hand-rolled
+  `components.html(maidr.render(plot).get_html_string(), scrolling=True, height=fig_height * 100,
+  ...)` -- and every part of that line is now wrong, one part always was.
+
+`components.v1.html` is deprecated with a removal date that has passed. Its height had to be guessed
+  from the figure size, because its own default renders as 150 px and crops the chart. It sets no
+  tab order. And `get_html_string()` drops `HTMLDependency` children, so `use_cdn=False` produced a
+  chart with no MAIDR runtime behind it at all: the same silent failure #452 fixed on the Shiny
+  path, by the same mechanism.
+
+`render_maidr()` answers all four. It prefers `st.iframe` and falls back to `components.v1.html`,
+  where a symbolic size becomes a concrete one rather than cropping, and where `tab_index` is
+  forwarded when the installed function accepts it -- it reached `components.v1.html` eleven
+  releases before `st.iframe` existed, so "no st.iframe" does not mean "no tab_index".
+  `height="content"` lets Streamlit measure the chart, which is what keeps maidr's braille and text
+  panels visible when they open. `use_cdn=False` inlines the bundle, reusing the helper added for
+  Shiny.
+
+`maidr_html()` is separate because the useful lever against Streamlit's rerun-everything model is
+  caching the *string*, and that needs a string-returning entry point to cache.
+
+`_warn_if_no_runtime` checks the emitted HTML actually carries a source for maidr.js, naming the
+  maidr package specifically -- every Plotly chart carries a `cdn.plot.ly` tag of its own, and
+  vouching for a runtime on the strength of an unrelated one is the failure this exists to catch. A
+  chart with no runtime still looks right, being the SVG unchanged, while being silently unusable,
+  and that is invisible to a sighted developer testing their own app.
+
+The chart stays inside an iframe deliberately, and the module says why: Streamlit binds `r`, `c` and
+  `esc` at the document level, exempting only form fields, and maidr binds all three. The iframe is
+  what keeps maidr's keyboard interface intact, which is also why components v2 is not the target.
+
+`streamlit` is an optional extra, imported lazily so `maidr_html` works without it, and reporting a
+  missing package differently from a broken one via the `_extras` helper now shared with the Shiny
+  integration.
+
+Follow-ups filed as #460 and #461.
+
+### Refactoring
+
+- Drop the unreachable pyplot guard in `set_backend`
+  ([#478](https://github.com/xability/py-maidr/pull/478),
+  [`14faf9c`](https://github.com/xability/py-maidr/commit/14faf9ce09868c7e77b216a128cffa9dccb75a9c))
+
+`set_backend()` is reachable only after `import maidr` succeeded, and `import maidr` loads pyplot on
+  the way through -- the module docstring at the top of this file exists to work around exactly
+  that. So the `import matplotlib.pyplot` here is a `sys.modules` lookup and cannot raise
+  `ImportError`.
+
+Were the branch ever taken it would fail badly for public API: `return` is `set_backend`'s ordinary
+  return, so a caller would get `None` back having changed no backend, told only at `DEBUG`.
+  `_activate_backend` already imports pyplot unguarded a few lines above.
+
+Closes #477
+
+- Drop the useless matplotlib guard in `_activate_backend`
+  ([#476](https://github.com/xability/py-maidr/pull/476),
+  [`8e7836b`](https://github.com/xability/py-maidr/commit/8e7836b01eb618ff0466739a7bf91147d4823db3))
+
+The `except ImportError` is reachable, on the first of the two calls (`maidr/__init__.py:192`,
+  before `from .api import` at 194) -- but it cannot do what it says. It returns, and two lines
+  later `maidr/api.py:8` imports `matplotlib.axes` at module scope and `import maidr` fails anyway.
+  All it buys is a traceback pointing at `api.py` instead of at the line that actually wanted
+  matplotlib.
+
+The cost is the comment rather than the branch: it tells the next reader that maidr degrades
+  gracefully without matplotlib, which no part of this codebase does, and which the package metadata
+  has contradicted since #474.
+
+Closes #475
+
+- **plotly**: Read the normalising barnorm values from one place
+  ([#416](https://github.com/xability/py-maidr/pull/416),
+  [`837bb36`](https://github.com/xability/py-maidr/commit/837bb360ca3e7c61192e75602bb7575ea05a7b53))
+
+`plotly_maidr` and `barnorm` each held their own copy of the two values `layout.barnorm` takes when
+  plotly rescales a stack, under the same name in two modules -- one deciding the layer's type, the
+  other whether its values were actually rescaled.
+
+They agreed, so nothing was broken. But editing either without the other is how #409 comes back: a
+  `barnorm` one recognised and the other did not would type the layer `stacked_normalized_bar` while
+  leaving its values the raw counts, contradicting each other silently. The classification now asks
+  `barnorm_scale`, so there is one list, and a test asserts the equivalence over every value plotly
+  will accept rather than over a remembered pair.
+
+Also skips building the `(position, value)` tuples on the un-normalised path, and gives the
+  dodged-histogram case its own class beside the bar one so the parity between the two paths is
+  visible from the structure.
+
+### Testing
+
+- **bundle**: Stand in for an unbuildable trace with a name no release can ship
+  ([#365](https://github.com/xability/py-maidr/pull/365),
+  [`73b231a`](https://github.com/xability/py-maidr/commit/73b231ada4a2d5644c623ecffe771ca0ead26e8f))
+
+`test_bundle_capability.py` used "treemap" and "sankey" as its examples of a type the bundle cannot
+  build. They were real types the bundle genuinely lacked when the file was written. maidr 4.2.0
+  shipped both, `a734020` updated the bundle, and six cases went from testing the warning to
+  asserting that a supported type warns.
+
+They failed, which is not the same as being caught. The same release could as easily have made them
+  pass -- the file would have stayed green while testing nothing, which is one version of the
+  failure mode the check itself exists to prevent.
+
+Nothing about the check depends on the name being real: it is a set difference between the types a
+  schema carries and the types the bundle quotes, so an absent name is an absent name. The stand-ins
+  are now spelled so that no release can turn them into types it can build, and
+  `test_the_stand_ins_are_really_absent` asserts they stay outside `bundle_trace_types()` -- with
+  "bar" asserted inside it, so an empty set cannot satisfy that vacuously.
+
+- **heatmap**: Pin hist2d, which reads only by accident
+  ([#348](https://github.com/xability/py-maidr/pull/348),
+  [`b74a51e`](https://github.com/xability/py-maidr/commit/b74a51e1ba51bc59e66da669f93e62ae02fd07eb))
+
+`Axes.hist2d` draws through `Axes.pcolormesh`, so patching the latter made a rectangular 2D
+  histogram register as a heatmap without anyone deciding it should. That works, and would break
+  silently: narrowing the heatmap patch or adding a nested-draw guard would leave a chart that used
+  to be navigable simply not, with no error anywhere.
+
+Pins the layer type, the single registration through the recursion guard, the mesh tagging, and the
+  transposition -- `hist2d` returns counts indexed [x, y] while the mesh it draws is [y, x], so a
+  grid the wrong way round would still navigate and merely describe a different chart.
+
+Also pins `hexbin` and bivariate `kdeplot` as NOT registering, so the boundary sits in one place
+  rather than being found per bug report. Both are written to fail the day core support lands, which
+  is the reminder to rewrite them.
+
+- **streamlit**: Cover the `components.v1.html` fallback end to end
+  ([#479](https://github.com/xability/py-maidr/pull/479),
+  [`93266d4`](https://github.com/xability/py-maidr/commit/93266d4577596430d15a275babc2d92b700842a0))
+
+The one real-Streamlit test skipped itself when `st.iframe` was absent, on the grounds that "the
+  fallback covers it" -- but nothing did. The fallback had stub coverage only, and it is the path
+  every user on a pre-1.56 Streamlit takes, including CI's own Python 3.9 job, which pins streamlit
+  1.50.
+
+Both APIs marshal into the same `IFrame` proto, so one set of assertions covers both and the skip is
+  unnecessary. Verified on Python 3.9 with streamlit 1.50 (the fallback) and Python 3.11 with 1.61.1
+  (`st.iframe`).
+
+Also asserts that `tab_index=None` reaches the frame absent rather than as 0, which are different
+  behaviours the default depends on telling apart.
+
+
 ## v1.20.0 (2026-08-10)
 
 ### Bug Fixes

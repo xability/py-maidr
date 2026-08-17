@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maidr"
-version = "1.20.0"
+version = "1.21.0"
 description = "Multimodal Access and Interactive Data Representations"
 authors = [
     { name = "JooYoung Seo", email = "jseo1005@illinois.edu" },
@@ -90,6 +90,12 @@ shiny = [
 # 3.9 is 1.50, and it caps altair there. Python 3.10+ is unaffected.
 streamlit = [
     "streamlit>=1.30",
+]
+# Drives a real browser for the accessibility tests. Kept out of `test`
+# because it needs a browser binary as well as the wheel, so a plain
+# `uv sync --all-extras` should not imply the browser tests can run.
+browser = [
+    "playwright>=1.40",
 ]
 test = [
     "matplotlib>=3.8",
