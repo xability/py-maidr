@@ -390,7 +390,9 @@ class Maidr:
             maidr = f"\nvar maidr = {json.dumps(schema, indent=2)}\n"
 
         # Inject plot's svg and MAIDR structure into html tag.
-        return Maidr._inject_plot(svg, maidr, self.maidr_id, use_iframe, use_cdn)
+        return Maidr._inject_plot(
+            svg, maidr, self.maidr_id, use_iframe, use_cdn, self._chart_title()
+        )
 
     def _create_html_doc(
         self,
@@ -610,6 +612,31 @@ class Maidr:
         self._plots = [plot for plot, _ in kept]
         self.selector_ids = [selector_id for _, selector_id in kept]
 
+    def _chart_title(self) -> str | None:
+        """Return a name for this figure, for the iframe's accessible name.
+
+        The figure's suptitle first, since that names the whole figure --
+        which is what the frame contains.  Falling back to an axes title
+        only when there is exactly one axes: on a multi-panel figure one
+        panel's title names a part, not the whole, and a frame announced by
+        the name of something inside it is worse than a generic one.
+
+        Returns
+        -------
+        str or None
+            The title, or ``None`` when the figure has no usable one.
+        """
+        suptitle = self._fig.get_suptitle().strip()
+        if suptitle:
+            return suptitle
+
+        axes = self._fig.get_axes()
+        if len(axes) == 1:
+            title = axes[0].get_title().strip()
+            if title:
+                return title
+        return None
+
     def _figure_metadata(self) -> dict:
         """
         Extract figure-wide metadata for the top-level MAIDR schema.
@@ -775,6 +802,7 @@ class Maidr:
         maidr_id,
         use_iframe: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        title: str | None = None,
     ) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure.
 
@@ -800,6 +828,9 @@ class Maidr:
               bundled copy.  A no-tag dependency ensures the bundled
               files are copied to ``lib_dir`` so the fallback works
               without network access.
+        title : str, optional
+            The chart's own title, used as the accessible name of the
+            iframe when one is emitted.
         """
         # Decide whether the iframe-in-notebook "load-once" fast path applies.
         # ``Tag.get_html_string()`` (used by ``wrap_in_iframe_matplotlib``)
@@ -1083,6 +1114,6 @@ class Maidr:
         # branch that picks a source for ``maidr.js`` and the branch that
         # wraps the result cannot disagree about whether there is an iframe.
         if will_iframe:
-            base_html = wrap_in_iframe_matplotlib(base_html)
+            base_html = wrap_in_iframe_matplotlib(base_html, title)
 
         return base_html

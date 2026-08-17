@@ -918,6 +918,23 @@ class PlotlyMaidr:
         del self._plots
         del self._fig
 
+    def _chart_title(self) -> str | None:
+        """Return a name for this figure, for the iframe's accessible name.
+
+        Reads ``layout.title.text`` directly rather than through
+        ``Figure.to_dict()``, which would re-serialise every trace's data
+        just to reach one string.  ``getattr`` guards keep this safe on
+        figures whose ``layout.title`` is unset.
+
+        Returns
+        -------
+        str or None
+            The title, or ``None`` when the figure has no usable one.
+        """
+        title = getattr(getattr(self._fig.layout, "title", None), "text", None)
+        cleaned = (title or "").strip()
+        return cleaned or None
+
     def _figure_metadata(self) -> dict:
         """
         Extract figure-wide metadata for the top-level MAIDR schema.
@@ -1314,7 +1331,7 @@ class PlotlyMaidr:
         # that picks a source for ``maidr.js`` and the branch that wraps
         # the result cannot disagree about whether there is an iframe.
         if will_iframe:
-            base_html = wrap_in_iframe_plotly(base_html)
+            base_html = wrap_in_iframe_plotly(base_html, self._chart_title())
 
         return base_html
 

@@ -38,7 +38,7 @@ import tempfile
 import uuid
 import webbrowser
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal, Optional, cast
 
 from htmltools import HTML, HTMLDocument, Tag, tags
 
@@ -278,7 +278,26 @@ class AltairMaidr:
         with delayed retries (500/1500/3000 ms) plus a ResizeObserver
         (MutationObserver fallback) on ``document.body``.
         """
-        return wrap_in_iframe_plotly(inner)
+        return wrap_in_iframe_plotly(inner, self._chart_title())
+
+    def _chart_title(self) -> Optional[str]:
+        """Return a name for this chart, for the iframe's accessible name.
+
+        Altair allows a title to be a plain string or a ``TitleParams``
+        carrying one, and ``Undefined`` when unset -- so the text is reached
+        defensively rather than assumed.
+
+        Returns
+        -------
+        str or None
+            The title, or ``None`` when the chart has no usable one.
+        """
+        title = getattr(self._chart, "title", None)
+        if not isinstance(title, str):
+            title = getattr(title, "text", None)
+        if not isinstance(title, str):
+            return None
+        return title.strip() or None
 
     def _open_in_browser(self) -> None:
         """Save to a temp HTML file and open it in the default browser."""
