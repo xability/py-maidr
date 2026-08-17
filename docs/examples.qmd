@@ -1208,9 +1208,12 @@ The defaults are chosen for accessibility rather than for layout:
 
 - `height="content"` lets Streamlit measure the chart, so maidr's braille and
   text panels stay visible when they open. A fixed height crops them.
-- `tab_index=0` puts the chart in the page's tab order. The browser default
-  leaves the frame unreachable from the keyboard, which for a library whose
-  entire interface is keyboard-driven means unreachable without a mouse.
+- `tab_index=None` leaves the frame's tab order to the browser. The chart is
+  still reached by tabbing: an iframe's contents take part in sequential focus
+  navigation, and maidr gives the chart inside its own tab stop. Passing `0`
+  makes the frame a stop as well, which is one extra Tab before the chart, and
+  Streamlit hardcodes the frame's accessible name as `st.iframe`, so that stop
+  announces identically on every chart on the page.
 
 ::: {.callout-note}
 ## Streamlit reruns the whole script on every interaction
@@ -1220,14 +1223,20 @@ open panel, and the audio state. Caching the *HTML* rather than the render
 call is the lever that helps:
 
 ```python
-from maidr.widget.streamlit import maidr_html
+from maidr.widget.streamlit import maidr_html, render_maidr
 
 @st.cache_data
-def chart_html(_fig):          # the underscore skips hashing the figure
+def chart_html(_fig, key):     # `_fig` is not hashed; `key` is the cache key
     return maidr_html(_fig)
 
-st.iframe(chart_html(fig), height="content", tab_index=0)
+render_maidr(fig)              # or place chart_html(fig, key=day) yourself
 ```
+
+Both arguments matter. The leading underscore tells Streamlit not to hash the
+figure, which a matplotlib `Figure` does not support -- which leaves `key` as
+the only thing it *can* hash. Drop it and every argument is skipped, the cache
+key is constant, and the first chart is handed back for the rest of the
+session: a chart that quietly stops matching its own controls.
 :::
 
 ::: {.callout-note}
