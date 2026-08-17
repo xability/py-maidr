@@ -195,6 +195,11 @@ class TestThePlotlyRenderReportsToo:
         monkeypatch.setattr(
             "maidr.util.environment.Environment.is_shiny", lambda: False
         )
+        # Pinned like its siblings: a real Flask context would change which
+        # branch renders, so the test should not depend on not being in one.
+        monkeypatch.setattr(
+            "maidr.util.environment.Environment.is_flask", lambda: False
+        )
         document = str(
             maidr.render(px.bar(x=["a"], y=[1]), use_cdn=False).get_html_string()
         )
