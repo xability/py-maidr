@@ -122,6 +122,26 @@ class TestSortedColumns:
         assert _emit(layout)["x"] == ["bravo", "charlie", "alpha"]
         assert _emit(layout)["points"][2] == [13, 11, 12]
 
+    def test_reads_an_array_with_no_order_declared(self) -> None:
+        # Measured: plotly resolves `categoryorder` to "array" whenever
+        # `categoryarray` is non-empty and nothing was declared, and draws in
+        # it. A hand-built figure that sets only the array is still sorted.
+        layout = {"xaxis": {"categoryarray": ["bravo", "charlie", "alpha"]}}
+
+        assert _emit(layout)["x"] == ["bravo", "charlie", "alpha"]
+        assert _emit(layout)["points"][2] == [13, 11, 12]
+
+    def test_lets_a_declared_order_beat_the_array(self) -> None:
+        # Measured: the declared order wins; the array is ignored.
+        layout = {
+            "xaxis": {
+                "categoryorder": "category ascending",
+                "categoryarray": ["bravo", "charlie", "alpha"],
+            }
+        }
+
+        assert _emit(layout)["x"] == ["alpha", "bravo", "charlie"]
+
 
 class TestSortedRows:
     """A heatmap whose rows plotly re-sorts."""
@@ -172,6 +192,39 @@ class TestReversedAxis:
 
         assert _emit(layout)["x"] == ["charlie", "bravo", "alpha"]
         assert _emit(layout)["points"][2] == [11, 13, 12]
+
+
+class TestRaggedGrid:
+    """A ``z`` whose rows are not all the same length."""
+
+    @staticmethod
+    def _ragged(layout: dict) -> dict:
+        fig = go.Figure(go.Heatmap(x=X, y=["r1", "r2"], z=[[1, 2, 3], [4, 5]]))
+        trace = fig.to_dict()["data"][0]
+        data = PlotlyHeatmapPlot(trace, layout)._extract_plot_data()
+        return {str(getattr(k, "value", k)): v for k, v in data.items()}
+
+    def test_survives_a_reversed_x_axis(self) -> None:
+        # There is no third value in the short row to move, so nothing touches
+        # the columns. Reversing them would have indexed past its end.
+        emitted = self._ragged({"xaxis": {"autorange": "reversed"}})
+
+        assert emitted["points"] == [[4, 5], [1, 2, 3]]
+        assert emitted["x"] == X
+
+    def test_survives_a_sorted_x_axis(self) -> None:
+        emitted = self._ragged({"xaxis": {"categoryorder": "category ascending"}})
+
+        assert emitted["points"] == [[4, 5], [1, 2, 3]]
+        assert emitted["x"] == X
+
+    def test_still_turns_its_rows_over(self) -> None:
+        # The rows are whole even when their contents are not, so the one
+        # reordering that is still well defined still happens.
+        emitted = self._ragged({})
+
+        assert emitted["y"] == ["r2", "r1"]
+        assert emitted["points"] == [[4, 5], [1, 2, 3]]
 
 
 class TestDeclines:
@@ -229,6 +282,25 @@ class TestDeclines:
 
     def test_declines_an_array_order_with_no_array(self) -> None:
         assert _emit({"xaxis": {"categoryorder": "array"}})["x"] == X
+
+    def test_declines_an_empty_array(self) -> None:
+        # Measured: an empty `categoryarray` leaves the resolved order at
+        # "trace", so there is nothing to apply.
+        assert _emit({"xaxis": {"categoryarray": []}})["x"] == X
+
+    def test_declines_an_array_that_repeats_an_entry(self) -> None:
+        # Names every label the right number of times without being a
+        # permutation of them: 'alpha' twice, 'bravo' never. Honouring it
+        # would emit one column's values twice and lose another's.
+        layout = {
+            "xaxis": {
+                "categoryorder": "array",
+                "categoryarray": ["charlie", "alpha", "alpha"],
+            }
+        }
+
+        assert _emit(layout)["x"] == X
+        assert _emit(layout)["points"][2] == [11, 12, 13]
 
     def test_declines_when_the_trace_repeats_a_label(self) -> None:
         # There is no unambiguous cell to send each category to.

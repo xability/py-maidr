@@ -110,8 +110,15 @@ class PlotlyHeatmapPlot(PlotlyPlot):
             return None
 
         order = axis.get("categoryorder")
+        declared = axis.get("categoryarray")
+        # Measured: plotly resolves ``categoryorder`` to ``"array"`` whenever
+        # ``categoryarray`` is non-empty and no order was declared, and draws
+        # in it -- so a figure that sets only the array is still sorted. An
+        # order that *was* declared wins over the array, empty or not.
+        if order is None and isinstance(declared, (list, tuple)) and len(declared) > 0:
+            order = "array"
+
         if order == "array":
-            declared = axis.get("categoryarray")
             if not isinstance(declared, (list, tuple)):
                 return None
             drawn = [str(v) for v in declared]
@@ -142,6 +149,13 @@ class PlotlyHeatmapPlot(PlotlyPlot):
             if index is None:
                 return None
             resolved.append(index)
+
+        # A ``categoryarray`` that repeats an entry can name every label the
+        # right number of times without being a permutation of them, which
+        # would emit one column's values twice and lose another's.
+        if len(set(resolved)) != len(labels):
+            return None
+
         return resolved
 
     def _extract_plot_data(self) -> dict:
@@ -161,9 +175,13 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         y_labels = [self._to_native(v) for v in as_list(y)] if y is not None else None
 
         width = len(points[0]) if points else 0
-        # A ragged grid has no column to permute to; plotly would not draw one
-        # either, so the columns are left exactly as they arrived.
+        # A ragged grid has no column to move a value to, so nothing touches
+        # its columns -- neither the sort below nor the reversal. Plotly would
+        # not draw a rectangle from it either.
         rectangular = all(len(row) == width for row in points)
+
+        y_backwards = self._axis_runs_backwards(self._yaxis_name)
+        x_backwards = self._axis_runs_backwards(self._xaxis_name)
 
         # The trace's order is not necessarily the drawn one: ``categoryorder``
         # sorts an axis and leaves ``x``, ``y`` and ``z`` alone (#489). Both of
@@ -175,22 +193,23 @@ class PlotlyHeatmapPlot(PlotlyPlot):
                 rows = resolved
 
         cols = list(range(width))
-        if rectangular and x_labels is not None and len(x_labels) == width:
-            resolved = self._drawn_category_order(self._xaxis_name, x_labels)
-            if resolved is not None:
-                cols = resolved
+        if rectangular:
+            if x_labels is not None and len(x_labels) == width:
+                resolved = self._drawn_category_order(self._xaxis_name, x_labels)
+                if resolved is not None:
+                    cols = resolved
+            # Inside the guard with the sort: reversing a ragged grid's columns
+            # would index past the end of its short rows.
+            if x_backwards:
+                cols.reverse()
 
         # The schema's rows run top-first, and the core reverses them so its
         # own row 0 is the bottom of the drawn grid -- which is what makes
         # ArrowUp move visually up. So the rows turn over unless the y axis is
         # drawn reversed and already counts from the top (#487); the columns,
         # which start at the left, turn over only when the x axis is (#489).
-        y_backwards = self._axis_runs_backwards(self._yaxis_name)
-        x_backwards = self._axis_runs_backwards(self._xaxis_name)
         if not y_backwards:
             rows.reverse()
-        if x_backwards:
-            cols.reverse()
 
         # A row whose columns do not move keeps the list already built for it.
         columns_moved = any(col != index for index, col in enumerate(cols))
