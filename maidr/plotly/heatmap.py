@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
@@ -32,12 +33,43 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         except (TypeError, ValueError):
             return val
 
-    def _draws_first_row_at_top(self) -> bool:
-        """Whether plotly draws this trace's first row at the top.
+    @staticmethod
+    def _looks_numeric(value: Any) -> bool:
+        """Whether plotly would read a label as a number rather than a name.
 
-        True only when the author asked for a reversed y axis, the idiom for
-        showing a matrix in reading order. Ordinarily plotly numbers a
-        heatmap's rows from the bottom.
+        Numeric strings count: plotly resolves a linear axis for ``"1"`` just
+        as it does for ``1``, and for ``"1e10"``.
+
+        ``nan`` and ``inf`` do not, in either spelling. Python parses both,
+        where the JavaScript coercion plotly tests with does not -- measured,
+        a heatmap over ``['nan', 'inf', 'zeta']`` gets a *category* axis and
+        honours its ``categoryarray``. Reading them as numbers here would
+        decline a sort plotly applies.
+
+        Parameters
+        ----------
+        value : Any
+            One axis label.
+
+        Returns
+        -------
+        bool
+            True when the label parses as a finite number.
+        """
+        if isinstance(value, bool):
+            return False
+        try:
+            return math.isfinite(float(value))
+        except (TypeError, ValueError):
+            return False
+
+    def _axis_runs_backwards(self, axis_name: str) -> bool:
+        """Whether plotly draws an axis from its high end to its low one.
+
+        True only when the author asked for a reversed axis. On y that means
+        the first category is drawn at the top -- the idiom for showing a
+        matrix in reading order -- where plotly ordinarily numbers a heatmap's
+        rows from the bottom. On x it means the columns run right to left.
 
         Read from the declared layout rather than a resolved one, because
         there is no browser here to resolve it. That is why ``autorange`` is
@@ -45,19 +77,24 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         the rendered figure would report a plain ``True`` for both the
         default and the reversed case.
 
+        Parameters
+        ----------
+        axis_name : str
+            The layout key for the axis, e.g. ``"yaxis"`` or ``"xaxis2"``.
+
         Returns
         -------
         bool
-            True when row 0 is already the top row.
+            True when the axis runs backwards.
         """
-        yaxis = self._layout.get(self._yaxis_name, {})
-        if not isinstance(yaxis, dict):
+        axis = self._layout.get(axis_name, {})
+        if not isinstance(axis, dict):
             return False
 
-        if yaxis.get("autorange") == "reversed":
+        if axis.get("autorange") == "reversed":
             return True
 
-        axis_range = yaxis.get("range")
+        axis_range = axis.get("range")
         if isinstance(axis_range, (list, tuple)) and len(axis_range) >= 2:
             try:
                 return float(axis_range[0]) > float(axis_range[1])
@@ -65,6 +102,108 @@ class PlotlyHeatmapPlot(PlotlyPlot):
                 return False
 
         return False
+
+    def _drawn_category_order(self, axis_name: str, labels: list) -> list[int] | None:
+        """Where each of an axis's drawn categories sits in the trace's labels.
+
+        ``categoryorder`` sorts a categorical axis and leaves the trace's own
+        ``x``, ``y`` and ``z`` exactly as the author wrote them, so the labels
+        alone do not say what the chart shows. This resolves the sort from the
+        declared layout, in the order plotly lays the categories out from the
+        axis origin -- left for x, bottom for y. It says nothing about a
+        reversed axis, which flips the drawn direction without touching the
+        order; :meth:`_axis_runs_backwards` answers that.
+
+        Only the forms a declared spec can answer exactly are resolved:
+        ``"array"`` with a ``categoryarray`` (which is what plotly express's
+        ``category_orders`` compiles to) and the two ``"category"`` sorts. The
+        aggregate orders -- ``total``, ``sum``, ``mean``, ``min``, ``max``,
+        ``median`` -- are declined. They do apply to a heatmap, measured, but
+        resolving them means reimplementing plotly's own aggregation and
+        tie-breaking offline, and a sort that is subtly not plotly's would
+        leave the chart confidently wrong in the same way reading the trace's
+        order does. Leaving the sort unapplied is the smaller error.
+
+        Parameters
+        ----------
+        axis_name : str
+            The layout key for the axis, e.g. ``"xaxis"``.
+        labels : list
+            The labels the trace carries, in its own order.
+
+        Returns
+        -------
+        list[int] | None
+            Indices into ``labels`` in drawn order, or None to decline.
+        """
+        axis = self._layout.get(axis_name, {})
+        if not isinstance(axis, dict):
+            return None
+
+        # Only a categorical axis has categories to put in an order. Measured:
+        # plotly resolves a *linear* axis as soon as the labels look like
+        # numbers -- all of them, or merely some of them -- and then ignores
+        # ``categoryorder`` and ``categoryarray`` outright, drawing in numeric
+        # order instead. Applying a declared order there would reorder a chart
+        # plotly did not reorder. Declaring ``type: "category"`` is what makes
+        # it categorical again, and then the order is honoured.
+        if axis.get("type") != "category" and any(
+            self._looks_numeric(label) for label in labels
+        ):
+            return None
+
+        order = axis.get("categoryorder")
+        declared = as_list(axis.get("categoryarray"))
+        # Measured: plotly resolves ``categoryorder`` to ``"array"`` whenever
+        # ``categoryarray`` is non-empty and no order was declared, and draws
+        # in it -- so a figure that sets only the array is still sorted. An
+        # order that *was* declared wins over the array, empty or not.
+        if order is None and declared:
+            order = "array"
+
+        if order == "array":
+            if not declared:
+                return None
+            # Through ``_to_native`` because ``labels`` came through it too: it
+            # floats an integer, so a categoryarray of ``3`` compared raw would
+            # never match a label of ``3.0`` and the sort would be declined
+            # without a word. Both sides normalise the same way or neither can.
+            drawn = [str(self._to_native(v)) for v in declared]
+        elif order in ("category ascending", "category descending"):
+            drawn = sorted(str(v) for v in labels)
+            if order == "category descending":
+                drawn.reverse()
+        else:
+            return None
+
+        if len(drawn) != len(labels):
+            # A ``categoryarray`` naming categories the trace does not carry
+            # makes plotly draw empty columns, which ``points`` has no way to
+            # say. Inventing or dropping one would be worse than leaving the
+            # sort unapplied.
+            return None
+
+        position: dict[str, int] = {}
+        for index, label in enumerate(labels):
+            position.setdefault(str(label), index)
+        # A repeated label leaves no unambiguous cell to send a category to.
+        if len(position) != len(labels):
+            return None
+
+        resolved = []
+        for name in drawn:
+            index = position.get(name)
+            if index is None:
+                return None
+            resolved.append(index)
+
+        # A ``categoryarray`` that repeats an entry can name every label the
+        # right number of times without being a permutation of them, which
+        # would emit one column's values twice and lose another's.
+        if len(set(resolved)) != len(labels):
+            return None
+
+        return resolved
 
     def _extract_plot_data(self) -> dict:
         # ``z`` is the one two-dimensional array a trace carries, so it is
@@ -79,24 +218,71 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         for row in z:
             points.append([self._to_native(v) for v in row])
 
+        x_labels = [self._to_native(v) for v in as_list(x)] if x is not None else None
+        y_labels = [self._to_native(v) for v in as_list(y)] if y is not None else None
+
+        width = len(points[0]) if points else 0
+        # A ragged grid has no column to move a value to, so nothing touches
+        # its columns -- neither the sort below nor the reversal. Plotly would
+        # not draw a rectangle from it either.
+        rectangular = all(len(row) == width for row in points)
+
+        y_backwards = self._axis_runs_backwards(self._yaxis_name)
+        x_backwards = self._axis_runs_backwards(self._xaxis_name)
+
+        # The trace's order is not necessarily the drawn one: ``categoryorder``
+        # sorts an axis and leaves ``x``, ``y`` and ``z`` alone (#489). Both of
+        # these count from the axis origin -- bottom for y, left for x.
+        rows = list(range(len(points)))
+        if y_labels is not None and len(y_labels) == len(rows):
+            resolved = self._drawn_category_order(self._yaxis_name, y_labels)
+            if resolved is not None:
+                rows = resolved
+
+        cols = list(range(width))
+        if rectangular:
+            if x_labels is not None and len(x_labels) == width:
+                resolved = self._drawn_category_order(self._xaxis_name, x_labels)
+                if resolved is not None:
+                    cols = resolved
+            # Inside the guard with the sort: reversing a ragged grid's columns
+            # would index past the end of its short rows.
+            if x_backwards:
+                cols.reverse()
+
         # The schema's rows run top-first, and the core reverses them so its
         # own row 0 is the bottom of the drawn grid -- which is what makes
-        # ArrowUp move visually up. Plotly numbers a heatmap's rows from the
-        # bottom, so they are turned over here, unless the axis is drawn
-        # reversed and already counts from the top (#487).
-        top_first = self._draws_first_row_at_top()
-        if not top_first:
-            points.reverse()
+        # ArrowUp move visually up. So the rows turn over unless the y axis is
+        # drawn reversed and already counts from the top (#487); the columns,
+        # which start at the left, turn over only when the x axis is (#489).
+        if not y_backwards:
+            rows.reverse()
+
+        # A row whose columns do not move keeps the list already built for it.
+        columns_moved = any(col != index for index, col in enumerate(cols))
+        points = [
+            [points[row][col] for col in cols] if columns_moved else points[row]
+            for row in rows
+        ]
 
         result: dict = {MaidrKey.POINTS: points}
 
-        if x is not None:
-            result[MaidrKey.X] = [self._to_native(v) for v in as_list(x)]
-        if y is not None:
-            y_labels = [self._to_native(v) for v in as_list(y)]
-            if not top_first:
-                y_labels.reverse()
-            result[MaidrKey.Y] = y_labels
+        # A label list that does not describe the grid cannot be permuted onto
+        # it, so it keeps the plain reversal it would have had.
+        if x_labels is not None:
+            if len(x_labels) == width:
+                result[MaidrKey.X] = [x_labels[col] for col in cols]
+            elif x_backwards:
+                result[MaidrKey.X] = list(reversed(x_labels))
+            else:
+                result[MaidrKey.X] = x_labels
+        if y_labels is not None:
+            if len(y_labels) == len(rows):
+                result[MaidrKey.Y] = [y_labels[row] for row in rows]
+            elif y_backwards:
+                result[MaidrKey.Y] = y_labels
+            else:
+                result[MaidrKey.Y] = list(reversed(y_labels))
 
         return result
 
