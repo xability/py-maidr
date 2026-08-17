@@ -198,7 +198,19 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
         labels through ``_extract_axes_data``.
         """
         base_schema = super().render()
-        base_schema[MaidrKey.TITLE] = "Moving Average Line Plot"
+        # The caller's own title wins. This used to overwrite it, so a chart
+        # named with ``ax.set_title()`` announced "Moving Average Line Plot" instead --
+        # and since #453 that fixed string became its accessible name too, so
+        # every moving average chart on a page was announced identically and a reader
+        # tabbing between them could not tell which they had reached (#464).
+        #
+        # The label stays as the fallback, because it says what the chart *is*
+        # to a reader who was given no name for it, which is better than the
+        # empty string the base render leaves for an untitled layer.
+        base_schema[MaidrKey.TITLE] = (
+            str(base_schema.get(MaidrKey.TITLE, "") or "").strip()
+            or "Moving Average Line Plot"
+        )
 
         previous_axes = base_schema.get(MaidrKey.AXES, {}) or {}
         axes_data = self._extract_axes_data()

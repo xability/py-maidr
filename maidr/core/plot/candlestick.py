@@ -221,7 +221,19 @@ class CandlestickPlot(MaidrPlot):
         sibling of ``x``/``y``.
         """
         base_schema = super().render()
-        base_schema[MaidrKey.TITLE] = "Candlestick Chart"
+        # The caller's own title wins. This used to overwrite it, so a chart
+        # named with ``ax.set_title()`` announced "Candlestick Chart" instead --
+        # and since #453 that fixed string became its accessible name too, so
+        # every candlestick chart on a page was announced identically and a reader
+        # tabbing between them could not tell which they had reached (#464).
+        #
+        # The label stays as the fallback, because it says what the chart *is*
+        # to a reader who was given no name for it, which is better than the
+        # empty string the base render leaves for an untitled layer.
+        base_schema[MaidrKey.TITLE] = (
+            str(base_schema.get(MaidrKey.TITLE, "") or "").strip()
+            or "Candlestick Chart"
+        )
 
         # Preserve per-axis format (nested inside each AxisConfig) while
         # refreshing labels through _extract_axes_data().

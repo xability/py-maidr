@@ -35,12 +35,6 @@ class MplfinanceBarPlot(
         # Store datetime converter if available
         self._maidr_datetime_converter = kwargs.get("_maidr_datetime_converter", None)
 
-        # Store custom title
-
-    def set_title(self, title: str) -> None:
-        """Set a custom title for this volume bar plot."""
-        self._title = title
-
     def _extract_plot_data(self) -> list:
         """Extract data from mplfinance volume patches."""
         if self._custom_patches:
@@ -160,7 +154,19 @@ class MplfinanceBarPlot(
         labels through the mplfinance-specific ``_extract_axes_data``.
         """
         base_schema = super().render()
-        base_schema[MaidrKey.TITLE] = "Volume Bar Plot"
+        # The caller's own title wins. This used to overwrite it, so a chart
+        # named with ``ax.set_title()`` announced "Volume Bar Plot" instead --
+        # and since #453 that fixed string became its accessible name too, so
+        # every volume bar chart on a page was announced identically and a reader
+        # tabbing between them could not tell which they had reached (#464).
+        #
+        # The label stays as the fallback, because it says what the chart *is*
+        # to a reader who was given no name for it, which is better than the
+        # empty string the base render leaves for an untitled layer.
+        base_schema[MaidrKey.TITLE] = (
+            str(base_schema.get(MaidrKey.TITLE, "") or "").strip()
+            or "Volume Bar Plot"
+        )
 
         previous_axes = base_schema.get(MaidrKey.AXES, {}) or {}
         axes_data = self._extract_axes_data()
