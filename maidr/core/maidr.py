@@ -777,7 +777,7 @@ class Maidr:
         maidr_id,
         use_iframe: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
-        chart_title: str = "",
+        chart_title: str | None = None,
     ) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure.
 
@@ -790,10 +790,6 @@ class Maidr:
             schema is not embedded in the SVG ``maidr`` attribute).
         maidr_id : Any
             Unused placeholder retained for backwards compatibility.
-        chart_title : str, default=""
-            The chart's title, used to name the iframe for screen readers.
-            Passed in rather than read here because this is a static method
-            and the schema it comes from belongs to the caller (#453).
         use_iframe : bool, default=True
             Whether to wrap the output in an iframe for notebook display.
         use_cdn : bool or {"auto"}, default="auto"
@@ -807,6 +803,10 @@ class Maidr:
               bundled copy.  A no-tag dependency ensures the bundled
               files are copied to ``lib_dir`` so the fallback works
               without network access.
+        chart_title : str, optional
+            The chart's title, which names the iframe for screen readers.
+            Passed in rather than read here: this is a static method, and the
+            schema the title comes from belongs to the caller (#453).
         """
         # Decide whether the iframe-in-notebook "load-once" fast path applies.
         # ``Tag.get_html_string()`` (used by ``wrap_in_iframe_matplotlib``)

@@ -162,6 +162,30 @@ class TestTheRenderedChartCarriesItsName:
             == "Body mass by species, accessible chart"
         )
 
+    def test_a_plotly_title_reaches_the_frame(self) -> None:
+        # The Plotly renderer builds its own schema, so nothing guarantees it
+        # keeps the keys `chart_title_of` reads. A synthetic dict cannot
+        # notice that drift; only a real figure can.
+        px = pytest.importorskip("plotly.express")
+        from maidr.plotly.plotly_maidr import PlotlyMaidr
+
+        fig = px.bar(x=["a", "b"], y=[1, 2], title="Revenue by quarter")
+        schema = PlotlyMaidr(fig)._flatten_maidr()
+
+        assert chart_title_of(schema) == "Revenue by quarter"
+        assert (
+            iframe_title(chart_title_of(schema))
+            == "Revenue by quarter, accessible chart"
+        )
+
+    def test_an_untitled_plotly_figure_still_names_its_frame(self) -> None:
+        px = pytest.importorskip("plotly.express")
+        from maidr.plotly.plotly_maidr import PlotlyMaidr
+
+        schema = PlotlyMaidr(px.bar(x=["a", "b"], y=[1, 2]))._flatten_maidr()
+
+        assert iframe_title(chart_title_of(schema)) == "Accessible chart"
+
     def test_a_suptitle_reaches_the_frame(self) -> None:
         from maidr.core.figure_manager import FigureManager
 

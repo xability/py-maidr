@@ -85,6 +85,24 @@ jobs:
           args: "check --diff"
           version: "0.3.4"
 
+      # A separate step because the one above cannot fail on this. FA102's
+      # only fix is an unsafe one, so `check --diff` -- which reports fixable
+      # diffs -- exits 0 with the fault present and the rule enabled.
+      #
+      # What it guards is not a style preference: a PEP 604 union (`str |
+      # None`) in an annotation raises TypeError on Python 3.9, which
+      # `requires-python` still promises, while the module is being imported.
+      # Anything reachable from `maidr/__init__.py` therefore takes `import
+      # maidr` down with it, and every interpreter from 3.10 up sees nothing.
+      #
+      # Scoped to this one rule rather than switching the step above to a
+      # plain `check`, which would fail on findings that predate it.
+      - name: Check Python 3.9 annotations with ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "check --select FA102"
+          version: "0.3.4"
+
   commit-lint:
     runs-on: ubuntu-latest
 
