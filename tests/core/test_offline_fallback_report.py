@@ -123,8 +123,14 @@ class TestThePlotlyRenderReportsToo:
     """
 
     @staticmethod
-    def _rendered(monkeypatch, *, notebook: bool) -> str:
-        """Render a Plotly chart as the given environment would."""
+    def _plotly_rendered(monkeypatch, *, notebook: bool) -> str:
+        """Render a Plotly chart as the given environment would.
+
+        Named apart from the module-level ``_rendered`` deliberately. A bare
+        ``_rendered(...)`` inside a method resolves to the module-level one
+        -- class scope is not in the lookup chain -- so two same-named
+        helpers read as a typo even where the behaviour is intended.
+        """
         import html as html_module
         import re
 
@@ -154,12 +160,12 @@ class TestThePlotlyRenderReportsToo:
         that mocks only that exercises the relative-path branch twice and
         the notebook branch never.
         """
-        document = self._rendered(monkeypatch, notebook=notebook)
+        document = self._plotly_rendered(monkeypatch, notebook=notebook)
         assert "function reportNoRuntime" in document
 
     @pytest.mark.parametrize("notebook", [True, False])
     def test_every_plotly_auto_path_reports(self, monkeypatch, notebook) -> None:
-        document = self._rendered(monkeypatch, notebook=notebook)
+        document = self._plotly_rendered(monkeypatch, notebook=notebook)
         called = document.replace("function reportNoRuntime(", "")
         assert "reportNoRuntime(" in called
 
@@ -167,7 +173,7 @@ class TestThePlotlyRenderReportsToo:
         self, monkeypatch
     ) -> None:
         """The branch that had no ``onerror`` at all."""
-        document = self._rendered(monkeypatch, notebook=False)
+        document = self._plotly_rendered(monkeypatch, notebook=False)
         assert "fb.onerror" in document
 
     def test_use_cdn_false_still_advises_init_notebook(self, monkeypatch) -> None:
@@ -197,5 +203,7 @@ class TestThePlotlyRenderReportsToo:
         """
         marker = "The chart loaded but its runtime did not"
         assert marker in _OFFLINE_FALLBACK_REPORT
-        assert marker in self._rendered(monkeypatch, notebook=False)
+        # One from each renderer: the drift this guards against is invisible
+        # from either file alone.
+        assert marker in self._plotly_rendered(monkeypatch, notebook=False)
         assert marker in _rendered(monkeypatch, notebook=False)
