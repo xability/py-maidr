@@ -115,8 +115,22 @@ def _check_supported(value: Any, fn_name: str) -> None:
     """
     if _is_foreign_figure(value):
         return
-    if FigureManager.get_axes(value):
+
+    # ``get_axes`` is a resolver, not a validator: handed something it does
+    # not understand it raises whatever the traversal happens to hit -- an
+    # ``AttributeError`` for a list of non-artists, and a bare
+    # ``StopIteration`` for an empty list or dict, which Python then turns
+    # into ``RuntimeError: coroutine raised StopIteration`` on the way out
+    # of the async render.  Whatever it raises, the answer to the question
+    # asked here is the same, and it is worth saying plainly.
+    try:
+        resolved = FigureManager.get_axes(value)
+    except Exception:
+        resolved = None
+
+    if resolved:
         return
+
     raise TypeError(
         f"@render_maidr function {fn_name!r} returned "
         f"{type(value).__name__}; expected a matplotlib or seaborn artist, "

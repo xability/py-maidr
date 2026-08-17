@@ -976,3 +976,23 @@ def test_inline_bundle_sources_are_read_once():
     dependencies.inline_bundle_tags()
     dependencies.inline_bundle_tags()
     assert dependencies._inline_bundle_sources.cache_info().hits >= 1
+
+
+def test_inline_bundle_tags_survive_a_corrupted_bundle(monkeypatch):
+    """A truncated asset raises ``UnicodeDecodeError``, not ``OSError``.
+
+    It is a ``ValueError``, so an except clause naming only file errors
+    would let a damaged install crash the render that this fallback exists
+    to keep alive.
+    """
+    from maidr.util import dependencies
+
+    def undecodable():
+        raise UnicodeDecodeError("utf-8", b"\xff\xfe", 0, 1, "invalid start byte")
+
+    dependencies._inline_bundle_sources.cache_clear()
+    monkeypatch.setattr(dependencies, "read_bundled_js", undecodable)
+    try:
+        assert dependencies.inline_bundle_tags() is None
+    finally:
+        dependencies._inline_bundle_sources.cache_clear()

@@ -2203,7 +2203,12 @@ def inline_bundle_tags() -> "list | None":
 
     try:
         math_css, js_source = _inline_bundle_sources()
-    except (FileNotFoundError, OSError):
+    except (OSError, ValueError):
+        # ``OSError`` covers missing and unreadable files (``FileNotFoundError``
+        # is one).  ``ValueError`` is here for ``UnicodeDecodeError``, which a
+        # truncated or corrupted asset raises out of ``read_text`` and which is
+        # *not* an ``OSError`` -- so catching only file errors would let a
+        # damaged bundle crash the render this exists to keep alive.
         warn_bundle_unreadable()
         return None
 

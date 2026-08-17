@@ -199,14 +199,31 @@ def test_none_renders_nothing(fake_session):
     assert _render(blank) is None
 
 
-def test_unsupported_return_value_names_the_function_and_the_type(fake_session):
-    """The error says what came back and from where."""
+@pytest.mark.parametrize(
+    ("value", "type_name"),
+    [
+        ("not a plot", "str"),
+        (42, "int"),
+        # ``FigureManager.get_axes`` is a resolver, not a validator. An
+        # empty container makes it raise a bare ``StopIteration``, which
+        # the async render turns into ``RuntimeError: coroutine raised
+        # StopIteration``; a list of non-artists makes it raise
+        # ``AttributeError``. Both used to escape as themselves.
+        ([], "list"),
+        ({}, "dict"),
+        ([1, 2], "list"),
+    ],
+)
+def test_unsupported_return_value_names_the_function_and_the_type(
+    fake_session, value, type_name
+):
+    """The error says what came back and from where, whatever came back."""
 
     @render_maidr
     def wrong():
-        return "not a plot"
+        return value
 
-    with pytest.raises(TypeError, match=r"'wrong'.*\bstr\b"):
+    with pytest.raises(TypeError, match=rf"'wrong'.*\b{type_name}\b"):
         _render(wrong)
 
 
