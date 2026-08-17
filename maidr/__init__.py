@@ -69,11 +69,7 @@ def _activate_backend() -> None:
     """
     global _original_backend, _backend_message_shown
 
-    try:
-        import matplotlib
-    except ImportError:
-        # matplotlib is not installed — nothing to activate.
-        return
+    import matplotlib
 
     # Save the original backend once, before we override it.
     # Guard against saving our own backend (could happen if _activate_backend
