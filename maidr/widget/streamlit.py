@@ -62,8 +62,10 @@ def maidr_html(
         Where the chart loads ``maidr.js`` from; see :func:`maidr.render`.
         ``None`` defers to the process-wide default.
     _stacklevel : int, default 3
-        Frames to skip when warning, so the warning points at the caller.
-        Raised by one when :func:`render_maidr` calls through.
+        Internal. Frames to skip when warning, so a warning points at the
+        caller's own line; :func:`render_maidr` raises it by one because it
+        sits a frame further out. Not part of the public API -- the
+        underscore is the only thing stopping an IDE from offering it.
 
     Returns
     -------
@@ -111,7 +113,11 @@ def maidr_html(
                 "loads maidr.js from the CDN regardless, so the embed still "
                 "requires network access.",
                 UserWarning,
-                stacklevel=stacklevel,
+                # One less than ``_warn_if_no_runtime`` gets: this warns from
+                # inside this function, while that one warns from inside its
+                # own, a frame deeper.  Sharing the number would point this
+                # warning one frame past the caller.
+                stacklevel=stacklevel - 1,
             )
         else:
             inline_tags = inline_bundle_tags()

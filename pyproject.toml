@@ -70,6 +70,11 @@ plotly = [
 shiny = [
     "shiny>=1.0",
 ]
+# `tests/widget/test_streamlit.py` stubs `streamlit` rather than importing
+# it, so this extra is not listed under `test`: it would add nothing to what
+# CI exercises. `uv sync --all-extras` installs it regardless, which is what
+# locks `altair` to <6 on Python 3.9 -- the newest Streamlit that supports
+# 3.9 is 1.50, and it caps altair there. Python 3.10+ is unaffected.
 streamlit = [
     "streamlit>=1.30",
 ]
@@ -88,7 +93,6 @@ test = [
     "flask>=3.0.0",
     "plotly>=5.0",
     "shiny>=1.0",
-    "streamlit>=1.30",
 ]
 
 # Allows ``matplotlib.use("maidr")`` (without the ``module://`` prefix).

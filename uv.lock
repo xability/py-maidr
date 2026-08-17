@@ -2865,8 +2865,6 @@ test = [
     { name = "seaborn" },
     { name = "shiny", version = "1.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "shiny", version = "1.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "streamlit", version = "1.50.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "streamlit", version = "1.61.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 visualization = [
     { name = "flask" },
@@ -2916,7 +2914,6 @@ requires-dist = [
     { name = "shiny", marker = "extra == 'test'", specifier = ">=1.0" },
     { name = "statsmodels", marker = "extra == 'visualization'", specifier = ">=0.14.4" },
     { name = "streamlit", marker = "extra == 'streamlit'", specifier = ">=1.30" },
-    { name = "streamlit", marker = "extra == 'test'", specifier = ">=1.30" },
     { name = "wrapt", specifier = ">=1.16.0,<2" },
 ]
 provides-extras = ["visualization", "altair", "jupyter", "plotly", "shiny", "streamlit", "test"]

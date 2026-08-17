@@ -289,10 +289,22 @@ def test_a_chart_that_only_loads_maidr_remotely_is_not_inlined(
 
     monkeypatch.setattr(widget.maidr, "render", lambda *a, **k: _Remote())
 
-    with pytest.warns(UserWarning, match="cannot be honoured"):
-        html = maidr_html(bar_axes, use_cdn=False)
+    _stub_streamlit(monkeypatch, with_iframe=True)
+    library = widget.__file__
 
-    assert _BUNDLE_HEAD not in html
+    # Both entry points, because they sit at different call depths and this
+    # warning is raised a frame shallower than the no-runtime one.
+    for call in (
+        lambda: maidr_html(bar_axes, use_cdn=False),
+        lambda: render_maidr(bar_axes, use_cdn=False),
+    ):
+        with pytest.warns(UserWarning, match="cannot be honoured") as caught:
+            call()
+        assert caught[0].filename == __file__, (
+            f"warning was blamed on {caught[0].filename}, not the caller"
+        )
+
+    assert _BUNDLE_HEAD not in maidr_html(bar_axes, use_cdn=False)
 
 
 def test_an_empty_bundle_does_not_vouch_for_a_missing_runtime(
