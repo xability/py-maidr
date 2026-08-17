@@ -2,24 +2,17 @@ from __future__ import annotations
 
 import math
 import re
+from datetime import date
 from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
-#: The date spellings plotly reads as a date axis rather than as names.
-#:
-#: Measured, with a ``categoryarray`` declared on each. Year-first and
-#: hyphen-separated is a date; anything else is a category, and plotly checks
-#: the parts rather than the shape -- ``2024-13-45`` stays a category::
-#:
-#:     2024-03-01           date        2024/03/01     category
-#:     2024-03              date        03-01-2024     category
-#:     2024-03-01 12:00     date        Mar 2024       category
-#:                                      Q1             category
-#:                                      2024-13-45     category
-_ISO_DATE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?([ T].*)?$")
+#: A year-first date, leniently spelled. Plotly accepts single digits and
+#: leading whitespace, so the shape is matched loosely here and the parts are
+#: checked separately -- see :meth:`PlotlyHeatmapPlot._looks_like_date`.
+_ISO_DATE = re.compile(r"^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[ T].*)?$")
 
 
 class PlotlyHeatmapPlot(PlotlyPlot):
@@ -86,8 +79,22 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         chronologically and ``_categories`` empty -- so an order applied to
         one would reorder a chart plotly draws by time.
 
-        See :data:`_ISO_DATE` for the spellings this covers and the ones
-        plotly leaves as categories.
+        Year-first and hyphen-separated is the whole shape, and plotly checks
+        that the parts make a real day rather than that they look like one --
+        so this parses them rather than matching a stricter pattern. Measured::
+
+            2024-03-01           date        2024/03/01     category
+            2024-03              date        03-01-2024     category
+            2024-03-01 12:00     date        Mar 2024       category
+            2024-03-01T12:00:00  date        Q1             category
+            2024-3-1             date        2024-13-45     category
+            ' 2024-03-01'        date        2024-02-30     category
+                                             2024-04-31     category
+
+        The last two columns are why a tighter regex was the wrong tool: it
+        missed single digits and leading whitespace, which plotly accepts --
+        the direction that *applies* an order plotly ignores -- and it let
+        through impossible days, which plotly rejects.
 
         Parameters
         ----------
@@ -99,7 +106,21 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         bool
             True when the label parses as a date.
         """
-        return isinstance(value, str) and _ISO_DATE.match(value) is not None
+        if not isinstance(value, str):
+            return False
+
+        match = _ISO_DATE.match(value.strip())
+        if match is None:
+            return False
+
+        year, month, day = match.groups()
+        try:
+            # A year and month alone is a date to plotly, so the day defaults
+            # to one that every month has.
+            date(int(year), int(month), int(day) if day else 1)
+        except ValueError:
+            return False
+        return True
 
     def _axis_runs_backwards(self, axis_name: str) -> bool:
         """Whether plotly draws an axis from its high end to its low one.

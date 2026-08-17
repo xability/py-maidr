@@ -357,6 +357,12 @@ class TestDateLabels:
             ["2024-03-01", "2024-01-01", "2024-02-01"],
             ["2024-03", "2024-01", "2024-02"],
             ["2024-03-01 12:00", "2024-01-01 09:00", "2024-02-01 15:00"],
+            ["2024-03-01T12:00:00", "2024-01-01T09:00:00", "2024-02-01T15:00:00"],
+            # Plotly accepts a date spelled without zero padding, and one with
+            # leading whitespace. Both are the direction that matters: missing
+            # them applies an order plotly ignores.
+            ["2024-3-1", "2024-1-1", "2024-2-1"],
+            [" 2024-03-01", " 2024-01-01", " 2024-02-01"],
         ],
     )
     def test_declines_an_iso_date_axis(self, dates: list) -> None:
@@ -376,6 +382,10 @@ class TestDateLabels:
             ["03-01-2024", "01-01-2024", "02-01-2024"],
             ["Mar 2024", "Jan 2024", "Feb 2024"],
             ["2024-13-45", "2024-99-99", "2024-77-77"],
+            # Plotly checks the parts make a real day, so a February 30th is a
+            # name. A pattern that only bounded the day at 31 let these
+            # through and declined a sort that does apply.
+            ["2024-02-30", "2024-04-31", "2024-06-31"],
         ],
     )
     def test_sorts_labels_plotly_leaves_as_names(self, labels: list) -> None:
