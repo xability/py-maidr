@@ -24,6 +24,10 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
+from maidr.util.bundle_capability import (
+    schema_trace_types,
+    warn_if_bundle_cannot_render,
+)
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
     OFFLINE_FALLBACK_REPORT,
@@ -33,8 +37,6 @@ from maidr.util.dependencies import (
     maidr_bundled_relative_dir,
     maidr_html_dependency,
     maidr_js_cdn_url,
-    schema_trace_types,
-    warn_if_bundle_cannot_render,
     warn_if_bundle_is_stale,
 )
 from maidr.util.environment import Environment
