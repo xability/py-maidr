@@ -148,7 +148,12 @@ class TestThePlotlyRenderReportsToo:
         tag = maidr.render(px.bar(x=["a", "b"], y=[1, 2]), use_cdn="auto")
         html = str(tag.get_html_string())
         match = re.search(r'srcdoc="(.*?)"\s+width', html, re.S)
-        return html_module.unescape(match.group(1)) if match else html
+        # Asserted rather than fallen back from: both environments here
+        # produce an iframe, so a miss means the attribute order moved --
+        # and returning the outer HTML would quietly check the wrong
+        # document while still passing.
+        assert match is not None, "could not find the iframe's srcdoc"
+        return html_module.unescape(match.group(1))
 
     @pytest.mark.parametrize("notebook", [True, False])
     def test_every_plotly_auto_path_defines_the_reporter(

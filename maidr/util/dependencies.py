@@ -2236,13 +2236,13 @@ def inline_bundle_tags() -> "list | None":
 #: Lives here rather than beside either renderer because both emit the same
 #: failure, and one wording in two files is one wording that can drift.
 OFFLINE_FALLBACK_REPORT = """
-                        function reportNoRuntime(why) {
-                            console.error(
-                                '[maidr] The chart loaded but its runtime did not: '
-                                + why + '. The CDN was unreachable and the bundled '
-                                + 'copy could not be resolved from inside this frame. '
-                                + 'Re-render with use_cdn=False to inline the bundle, '
-                                + 'which works without network access.'
-                            );
-                        }
+    function reportNoRuntime(why) {
+        console.error(
+            '[maidr] The chart loaded but its runtime did not: '
+            + why + '. The CDN was unreachable and the bundled '
+            + 'copy could not be resolved from inside this frame. '
+            + 'Re-render with use_cdn=False to inline the bundle, '
+            + 'which works without network access.'
+        );
+    }
 """
