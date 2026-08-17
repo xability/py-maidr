@@ -32,6 +32,40 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         except (TypeError, ValueError):
             return val
 
+    def _draws_first_row_at_top(self) -> bool:
+        """Whether plotly draws this trace's first row at the top.
+
+        True only when the author asked for a reversed y axis, the idiom for
+        showing a matrix in reading order. Ordinarily plotly numbers a
+        heatmap's rows from the bottom.
+
+        Read from the declared layout rather than a resolved one, because
+        there is no browser here to resolve it. That is why ``autorange`` is
+        usable: it still carries the author's ``"reversed"`` verbatim, where
+        the rendered figure would report a plain ``True`` for both the
+        default and the reversed case.
+
+        Returns
+        -------
+        bool
+            True when row 0 is already the top row.
+        """
+        yaxis = self._layout.get(self._yaxis_name, {})
+        if not isinstance(yaxis, dict):
+            return False
+
+        if yaxis.get("autorange") == "reversed":
+            return True
+
+        axis_range = yaxis.get("range")
+        if isinstance(axis_range, (list, tuple)) and len(axis_range) >= 2:
+            try:
+                return float(axis_range[0]) > float(axis_range[1])
+            except (TypeError, ValueError):
+                return False
+
+        return False
+
     def _extract_plot_data(self) -> dict:
         # ``z`` is the one two-dimensional array a trace carries, so it is
         # also the one whose exported spec names a ``shape``; decoding it
@@ -45,12 +79,24 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         for row in z:
             points.append([self._to_native(v) for v in row])
 
+        # The schema's rows run top-first, and the core reverses them so its
+        # own row 0 is the bottom of the drawn grid -- which is what makes
+        # ArrowUp move visually up. Plotly numbers a heatmap's rows from the
+        # bottom, so they are turned over here, unless the axis is drawn
+        # reversed and already counts from the top (#487).
+        top_first = self._draws_first_row_at_top()
+        if not top_first:
+            points.reverse()
+
         result: dict = {MaidrKey.POINTS: points}
 
         if x is not None:
             result[MaidrKey.X] = [self._to_native(v) for v in as_list(x)]
         if y is not None:
-            result[MaidrKey.Y] = [self._to_native(v) for v in as_list(y)]
+            y_labels = [self._to_native(v) for v in as_list(y)]
+            if not top_first:
+                y_labels.reverse()
+            result[MaidrKey.Y] = y_labels
 
         return result
 
