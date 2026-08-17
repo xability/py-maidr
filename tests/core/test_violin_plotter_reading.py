@@ -368,6 +368,34 @@ class TestTheInnerBox:
         for one in selector:
             assert all(one.get(key) for key in ("min", "iq", "q2", "max"))
 
+    def test_the_density_is_the_one_this_call_drew(self):
+        # A `PolyCollection` is not a violin-specific artist -- `fill_between`,
+        # `stackplot` and a filled `kdeplot` all produce one -- and the KDE
+        # layer swept the axes for them. So a band already on the axes was
+        # taken as the density:
+        #
+        #     ax.fill_between([0, 1], [0, 0], [1, 1])
+        #     sns.violinplot(...)
+        #       violin_box(2), violin_kde(4)
+        #
+        # Four samples where the density has thirty. Not a partial reading:
+        # the band's four vertices announced under the violin's name, with the
+        # curve the violin drew absent from the chart entirely.
+        _, ax = plt.subplots()
+        ax.fill_between([0, 1], [0, 0], [1, 1])
+        sns.violinplot(data=frame(), x="g", y="v", ax=ax)
+
+        registered = FigureManager.get_maidr(ax.get_figure())
+        density = [
+            plot for plot in registered._plots if plot.type.value == "violin_kde"
+        ]
+
+        assert len(density) == 1
+        curves = density[0].schema["data"]
+        assert len(curves) == 2
+        for curve in curves:
+            assert len(curve) > 4
+
     def test_no_inner_box_means_no_box_layer(self):
         # `inner=None` draws nothing inside the violin, so the box layer's
         # selectors would have nothing to point at.

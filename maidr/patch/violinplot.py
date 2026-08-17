@@ -15,7 +15,7 @@ rather than how the caller happened to spell it; see
 from __future__ import annotations
 
 import uuid
-from typing import Any, Callable
+from typing import Any, Callable, Collection
 
 import numpy as np
 import pandas as pd
@@ -289,7 +289,10 @@ def sns_categorical_violins(
     # classification below sees only the ones seaborn is about to add.
     # By identity: every line counted stays referenced by `ax.lines` for the
     # whole window, so none can be freed and have another take its address.
-    before = {id(ax): set(ax.lines) for ax in plotter_axes(instance)}
+    panels = plotter_axes(instance)
+    before = {id(ax): set(ax.lines) for ax in panels}
+    # The same snapshot for the density polygons; see `_register_kde_layer`.
+    before_polys = {id(ax): set(ax.collections) for ax in panels}
 
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
@@ -322,7 +325,15 @@ def sns_categorical_violins(
                 sns_box_lines=_classify_sns_box_lines(added, orientation),
             )
 
-        _register_kde_layer(panel_ax, orientation)
+        _register_kde_layer(
+            panel_ax,
+            orientation,
+            [
+                collection
+                for collection in panel_ax.collections
+                if collection not in before_polys.get(id(panel_ax), set())
+            ],
+        )
 
     return drawn
 
@@ -379,7 +390,9 @@ def mpl_violinplot(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict)
         mpl_artists=mpl_artists,
     )
 
-    _register_kde_layer(plot_ax, orientation)
+    # `bodies` is matplotlib's own name for the density polygons this call
+    # drew, so the mpl side needs no snapshot to know its own artists.
+    _register_kde_layer(plot_ax, orientation, plot.get("bodies", []) or [])
 
     return plot
 
@@ -387,9 +400,46 @@ def mpl_violinplot(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict)
 # ======================================================================
 # Layer registration helpers
 # ======================================================================
-def _register_kde_layer(plot_ax: Axes, orientation: str) -> None:
-    """Detect PolyCollections on *plot_ax* and register a VIOLIN_KDE layer."""
-    kde_polys = [c for c in plot_ax.collections if isinstance(c, PolyCollection)]
+def _register_kde_layer(
+    plot_ax: Axes, orientation: str, drawn: Collection[Any]
+) -> None:
+    """
+    Register the density curves *this call* drew as a VIOLIN_KDE layer.
+
+    Which collections the call drew, rather than which the axes holds. A
+    ``PolyCollection`` is not a violin-specific artist -- ``fill_between``,
+    ``stackplot`` and a filled ``kdeplot`` all produce one -- and sweeping the
+    axes took whichever came first as the density::
+
+        ax.fill_between([0, 1], [0, 0], [1, 1])
+        sns.violinplot(data=df, x="g", y="v", ax=ax)
+          violin_box(2), violin_kde(4)
+
+    Four samples where the density has thirty: the layer described the band's
+    four vertices under the violin's name, and the curve the violin actually
+    drew was not in the reading at all. Not a partial answer -- a different
+    artist's geometry announced as this chart's distribution.
+
+    Filtered out of ``plot_ax.collections`` rather than iterated directly, so
+    the order stays the axes' own: the ``x_levels`` below are paired with the
+    curves positionally, and a violin named for its neighbour's category is
+    the same defect one column along.
+
+    Parameters
+    ----------
+    plot_ax : Axes
+        The axes the violins were drawn on.
+    orientation : str
+        ``"vert"`` or ``"horz"``.
+    drawn : Collection
+        The collections this call added, by identity.
+    """
+    own = {id(collection) for collection in drawn}
+    kde_polys = [
+        collection
+        for collection in plot_ax.collections
+        if isinstance(collection, PolyCollection) and id(collection) in own
+    ]
     if not kde_polys:
         return
 
