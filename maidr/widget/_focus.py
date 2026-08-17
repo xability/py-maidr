@@ -25,6 +25,15 @@ from __future__ import annotations
 #: A reader who tabs away, clicks another control, or moves focus on
 #: purpose is never pulled back, and a chart nobody had focused never
 #: takes focus at all.
+#:
+#: The price of not being event-driven is a poll that never stops: a
+#: 200 ms timer, running for the life of the tab, re-scanning
+#: ``.shiny-html-output`` on every tick. On a dashboard with many charts
+#: that is a small continuous cost paid whether or not anyone ever
+#: touches a chart. It is deliberate rather than overlooked -- there is
+#: no signal to wait on instead -- and it is the first thing to revisit
+#: if the runtime ever exposes a focus event that crosses the frame
+#: boundary.
 FOCUS_RESTORE_JS = """
 (function () {
   if (window.__maidrShinyFocusRestore) return;

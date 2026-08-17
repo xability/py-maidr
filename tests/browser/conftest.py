@@ -17,6 +17,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -74,9 +75,13 @@ def browser():
         b.close()
 
 
-def _serve(app: str):
-    """Run one of ``apps/`` under Shiny and yield its URL, then stop it."""
-    pytest.importorskip("shiny")
+def _serve(app: str, *, runner: str = "shiny"):
+    """Run one of ``apps/`` and yield its URL, then stop it.
+
+    ``runner`` picks the framework's own launcher, so the app is served
+    the way a user serves it rather than through a test harness.
+    """
+    pytest.importorskip(runner)
     port = _free_port()
     env = {
         **os.environ,
@@ -85,26 +90,49 @@ def _serve(app: str):
         "MAIDR_CDN_VERSION": "latest",
         "MPLBACKEND": "Agg",
     }
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "shiny", "run", "--port", str(port), str(APPS / app)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        env=env,
-        text=True,
+    if runner == "streamlit":
+        command = [
+            sys.executable, "-m", "streamlit", "run", str(APPS / app),
+            "--server.port", str(port),
+            "--server.headless", "true",
+            "--browser.gatherUsageStats", "false",
+        ]
+    else:
+        command = [
+            sys.executable, "-m", "shiny", "run", "--port", str(port), str(APPS / app)
+        ]
+
+    # A file rather than a pipe, and nobody has to drain it. A pipe holds
+    # about 64 KB before the writer blocks, and nothing here reads it
+    # until the app exits -- so a chatty enough server (Streamlit's access
+    # logs, several re-renders per test) would wedge on write and the
+    # fixture would hang rather than fail, which is the worst way for a
+    # CI job to go wrong.
+    log = tempfile.NamedTemporaryFile(  # noqa: SIM115 - closed in `finally`
+        mode="w+", suffix=".log", prefix=f"{app}.", delete=False
     )
+    proc = subprocess.Popen(
+        command, stdout=log, stderr=subprocess.STDOUT, env=env, text=True
+    )
+
+    def _output() -> str:
+        log.flush()
+        log.seek(0)
+        return log.read()[-4000:]
+
     url = f"http://127.0.0.1:{port}"
     deadline = time.time() + _BOOT_TIMEOUT
     try:
         while time.time() < deadline:
             if proc.poll() is not None:
-                pytest.fail(f"the app exited early:\n{proc.stdout.read()}")
+                pytest.fail(f"the app exited early:\n{_output()}")
             try:
                 with socket.create_connection(("127.0.0.1", port), timeout=0.5):
                     break
             except OSError:
                 time.sleep(0.25)
         else:  # pragma: no cover - only on a very slow machine
-            pytest.fail(f"the app did not start within {_BOOT_TIMEOUT}s")
+            pytest.fail(f"the app did not start within {_BOOT_TIMEOUT}s:\n{_output()}")
         yield url
     finally:
         proc.terminate()
@@ -112,6 +140,8 @@ def _serve(app: str):
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:  # pragma: no cover
             proc.kill()
+        log.close()
+        os.unlink(log.name)
 
 
 @pytest.fixture(scope="session")
@@ -128,8 +158,14 @@ def offline_app_url():
 
 @pytest.fixture(scope="session")
 def two_charts_app_url():
-    """Two charts, one of which never re-renders, for the isolation test."""
+    """Two charts, both re-rendering, for the isolation test."""
     yield from _serve("two_charts_app.py")
+
+
+@pytest.fixture(scope="session")
+def streamlit_keys_app_url():
+    """A Streamlit app with a rerun counter, for the key-collision test."""
+    yield from _serve("streamlit_keys_app.py", runner="streamlit")
 
 
 @pytest.fixture
