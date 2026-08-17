@@ -19,25 +19,10 @@ try:
     from shiny import ui as _shiny_ui
     from shiny.render.renderer import Jsonifiable, Renderer, ValueFn
     from shiny.session import require_active_session
-except ImportError as error:  # pragma: no cover - needs shiny absent or broken
-    # Two failures arrive here and they need opposite advice, so they are
-    # told apart rather than given one message.  Shiny reaches htmltools
-    # through shinychat, and a version skew fails as an ImportError for a
-    # missing *name* -- telling someone in that state to install the extra
-    # sends them to reinstall a package they already have.
-    _absent = isinstance(error, ModuleNotFoundError) and (
-        error.name or ""
-    ).partition(".")[0] in {"shiny", "htmltools"}
-    raise ImportError(
-        "maidr's Shiny integration requires the `shiny` package. "
-        'Install it with: pip install "maidr[shiny]"'
-        if _absent
-        else "maidr's Shiny integration could not import `shiny`. The "
-        "package is installed but its imports failed, which usually "
-        "means a version skew between shiny and htmltools; try "
-        'pip install --upgrade "maidr[shiny]". Original error: '
-        f"{error}"
-    ) from error
+except ImportError as error:
+    from maidr.widget._extras import missing_extra_error
+
+    raise missing_extra_error(error, "shiny", "shiny") from error
 
 import maidr
 from maidr.core.figure_manager import FigureManager

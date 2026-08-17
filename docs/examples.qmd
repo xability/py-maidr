@@ -1180,6 +1180,80 @@ Check out [a reactive Shiny dashboard example with maidr](https://xabilitylab.sh
 
 ### Streamlit
 
+Streamlit support ships as an optional extra:
+
+```bash
+pip install "maidr[streamlit]"
+```
+
+```python
+import matplotlib.pyplot as plt
+import streamlit as st
+
+from maidr.widget.streamlit import render_maidr
+
+day = st.selectbox("Day", ["Thu", "Fri", "Sat", "Sun"])
+
+fig, ax = plt.subplots()
+ax.bar(["lunch", "dinner"], [12, 30])
+ax.set_title(f"Tips on {day}")
+
+render_maidr(ax)
+```
+
+`render_maidr()` accepts a matplotlib or seaborn artist, a Plotly `Figure`, or
+an Altair chart, plus `height`, `width`, `tab_index`, and `use_cdn`.
+
+The defaults are chosen for accessibility rather than for layout:
+
+- `height="content"` lets Streamlit measure the chart, so maidr's braille and
+  text panels stay visible when they open. A fixed height crops them.
+- `tab_index=None` leaves the frame's tab order to the browser. The chart is
+  still reached by tabbing: an iframe's contents take part in sequential focus
+  navigation, and maidr gives the chart inside its own tab stop. Passing `0`
+  makes the frame a stop as well, which is one extra Tab before the chart, and
+  Streamlit hardcodes the frame's accessible name as `st.iframe`, so that stop
+  announces identically on every chart on the page.
+
+::: {.callout-note}
+## Streamlit reruns the whole script on every interaction
+
+Each rerun rebuilds the chart from scratch, so maidr loses its position, any
+open panel, and the audio state. Caching the *HTML* rather than the render
+call is the lever that helps:
+
+```python
+from maidr.widget.streamlit import maidr_html
+
+@st.cache_data
+def chart_html(_fig, key):     # `_fig` is not hashed; `key` is the cache key
+    return maidr_html(_fig)
+
+st.iframe(chart_html(fig, key=day), height="content", width="stretch")
+```
+
+`st.iframe` arrived in Streamlit 1.56. On older versions place the same
+cached string with `st.components.v1.html(chart_html(fig, key=day),
+height=600, scrolling=True)` — it cannot size itself, so give it a height.
+`render_maidr()` handles that difference for you, which is why it is the
+better default when you are not caching.
+
+Both arguments matter. The leading underscore tells Streamlit not to hash the
+figure, which a matplotlib `Figure` does not support -- which leaves `key` as
+the only thing it *can* hash. Drop it and every argument is skipped, the cache
+key is constant, and the first chart is handed back for the rest of the
+session: a chart that quietly stops matching its own controls.
+:::
+
+::: {.callout-note}
+## Air-gapped deployments
+
+`use_cdn=False` embeds the ~1.9 MB `maidr.js` bundle in the page. That is
+required rather than wasteful: the chart is rendered inside an iframe, and an
+iframe built from an HTML string cannot fetch anything the app serves. The
+default loads from the CDN and stays around 15 KB.
+:::
+
 Check out [this Streamlit dashboard](https://0193dbe9-1a63-183e-ba7f-b62075dd1d71.share.connect.posit.cloud/) with maidr, and its source code is available on [GitHub](https://github.com/xability/maidr_streamlit).
 
     * Note: `Streamlit` framework has some "Unlabeled 0 Button" which does not have to do with our maidr package. This issue needs to be addressed by the `Streamlit` team.

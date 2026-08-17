@@ -1,9 +1,8 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
-import streamlit.components.v1 as components
 
-import maidr
+from maidr.widget.streamlit import render_maidr
 
 # Streamlit app setup
 st.title("Maidr Streamlit Example")
@@ -63,12 +62,7 @@ elif plot_type == "Scatter Plot":
     ax.xaxis.set_major_formatter("${x:.2f}")
     ax.yaxis.set_major_formatter("${x:.2f}")
 
-# Display the plot using Streamlit
-components.html(
-    maidr.render(
-        plot,
-    ).get_html_string(),
-    scrolling=True,
-    height=fig_height * 100,
-    width=fig_width * 100,
-)
+# Display the plot using maidr's Streamlit helper. `height="content"` lets
+# Streamlit measure the chart, so maidr's braille and text panels stay
+# visible when they open -- a fixed height would crop them.
+render_maidr(plot)

@@ -52,3 +52,5 @@ We provide [some example code](https://github.com/xability/py-maidr/blob/main/ex
 
 Shiny support requires the optional extra `pip install "maidr[shiny]"`, which
 provides `output_maidr()` and `@render_maidr` in `maidr.widget.shiny`.
+Streamlit support requires `pip install "maidr[streamlit]"`, which provides
+`render_maidr()` and `maidr_html()` in `maidr.widget.streamlit`.
