@@ -158,16 +158,36 @@ class ViolinKdePlot(MaidrPlot):
 
         This must happen at *render* time (not patch time) because users
         often call ``ax.set_xticklabels()`` after ``ax.violinplot()``.
+
+        Each strategy has to produce exactly one label per violin to be
+        believed. A bare ``ax.violinplot()`` leaves the category axis numeric,
+        so its ticks are values at whatever steps matplotlib chose -- seven of
+        them at half-units for three violins -- and the caller pairs them with
+        violins by index. That named the violin drawn at x = 2 ``"1.5"``, and
+        left the KDE layer disagreeing with the box layer of the same chart,
+        which calls the same three ``Group 1/2/3`` (#469).
+
+        The count test is the one ``ViolinBoxPlot._resolve_groups()`` already
+        applies to the same tick labels, which is why only this layer was
+        wrong. A categorical axis -- what ``sns.violinplot()`` produces, and
+        what ``ax.set_xticklabels()`` makes -- has one tick per violin and
+        passes it.
+
+        When nothing passes, the violins are named the way the box layer names
+        them. Falling back to a number that came off the axis would be the bug
+        again in a quieter form: it reads like a category and is not one, and
+        it would still disagree with the other half of the same chart.
         """
         is_horz = self._orientation == "horz"
         tick_getter = self.ax.get_yticklabels if is_horz else self.ax.get_xticklabels
         maidr_key = MaidrKey.Y if is_horz else MaidrKey.X
+        violin_count = len(self._kde_lines)
 
         # Strategy 1 — current tick labels on the axes.
         try:
             raw = [lbl.get_text() for lbl in tick_getter()]
             labels = [label for label in raw if label.strip()]
-            if labels:
+            if len(labels) == violin_count:
                 return labels
         except Exception:
             pass
@@ -176,11 +196,15 @@ class ViolinKdePlot(MaidrPlot):
         levels = LevelExtractorMixin.extract_level(self.ax, maidr_key)
         if levels:
             filtered = [level for level in levels if str(level).strip()]
-            if filtered:
+            if len(filtered) == violin_count:
                 return filtered
 
-        # Strategy 3 — patch-time fallback.
-        return self._x_levels
+        # Strategy 3 — patch-time fallback, held to the same count.
+        if self._x_levels and len(self._x_levels) == violin_count:
+            return self._x_levels
+
+        # Nothing named these violins, so name them as the box layer does.
+        return [f"Group {i + 1}" for i in range(violin_count)]
 
     def _interpolate_violin(
         self,
