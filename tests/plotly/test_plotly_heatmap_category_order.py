@@ -328,6 +328,77 @@ class TestNumericLabels:
         assert self._emit_numeric(layout)["x"] == [1.0, 2.0, 3.0]
 
 
+class TestDateLabels:
+    """Categories that look like dates.
+
+    A date axis ignores ``categoryorder`` exactly as a linear one does.
+    Measured, with a ``categoryarray`` declared on each::
+
+        2024-03-01           date        2024/03/01     category
+        2024-03              date        03-01-2024     category
+        2024-03-01 12:00     date        Mar 2024       category
+                                         Q1             category
+                                         2024-13-45     category
+
+    Year-first and hyphen-separated is a date, and plotly checks the parts
+    rather than the shape -- month 13 and day 45 leave it a category.
+    """
+
+    @staticmethod
+    def _emit(x: list, layout: dict) -> dict:
+        fig = go.Figure(go.Heatmap(x=x, y=["r1"], z=[[1, 2, 3]]))
+        trace = fig.to_dict()["data"][0]
+        data = PlotlyHeatmapPlot(trace, layout)._extract_plot_data()
+        return {str(getattr(k, "value", k)): v for k, v in data.items()}
+
+    @pytest.mark.parametrize(
+        "dates",
+        [
+            ["2024-03-01", "2024-01-01", "2024-02-01"],
+            ["2024-03", "2024-01", "2024-02"],
+            ["2024-03-01 12:00", "2024-01-01 09:00", "2024-02-01 15:00"],
+        ],
+    )
+    def test_declines_an_iso_date_axis(self, dates: list) -> None:
+        layout = {
+            "xaxis": {
+                "categoryorder": "array",
+                "categoryarray": [dates[2], dates[0], dates[1]],
+            }
+        }
+
+        assert self._emit(dates, layout)["x"] == dates
+
+    @pytest.mark.parametrize(
+        "labels",
+        [
+            ["2024/03/01", "2024/01/01", "2024/02/01"],
+            ["03-01-2024", "01-01-2024", "02-01-2024"],
+            ["Mar 2024", "Jan 2024", "Feb 2024"],
+            ["2024-13-45", "2024-99-99", "2024-77-77"],
+        ],
+    )
+    def test_sorts_labels_plotly_leaves_as_names(self, labels: list) -> None:
+        # These all stay category axes, so their array is honoured.
+        order = [labels[2], labels[0], labels[1]]
+        layout = {"xaxis": {"categoryorder": "array", "categoryarray": order}}
+
+        assert self._emit(labels, layout)["x"] == order
+
+    def test_sorts_dates_once_the_axis_is_declared_categorical(self) -> None:
+        dates = ["2024-03-01", "2024-01-01", "2024-02-01"]
+        order = [dates[2], dates[0], dates[1]]
+        layout = {
+            "xaxis": {
+                "type": "category",
+                "categoryorder": "array",
+                "categoryarray": order,
+            }
+        }
+
+        assert self._emit(dates, layout)["x"] == order
+
+
 class TestRaggedGrid:
     """A ``z`` whose rows are not all the same length."""
 
