@@ -1100,7 +1100,9 @@ class PlotlyMaidr:
         # KaTeX travels as a string because ``maidr.js`` resolves
         # ``maidr-math.css`` against the URL it was loaded from, and an
         # inline script inside a srcdoc iframe has no URL to offer it.
-        def parent_source(on_missing: str, on_unreachable: str = "") -> str:
+        def parent_source(
+            on_missing: str, on_unreachable: str | None = None
+        ) -> str:
             """Return the parent-window loader, reporting failure as told.
 
             The two ``use_cdn`` modes reach this for different reasons and so
@@ -1113,13 +1115,15 @@ class PlotlyMaidr:
             ----------
             on_missing : str
                 JS run when the parent is readable but holds no stash.
-            on_unreachable : str, optional
+            on_unreachable : str or None, optional
                 JS run when the parent could not be read at all -- a
-                cross-origin frame, or no parent. Defaults to
+                cross-origin frame, or no parent. ``None`` reuses
                 ``on_missing``, which is right only where the two have the
                 same answer; under ``"auto"`` they do not, and reporting a
                 missing stash for an unreachable parent sends the reader
-                looking in the wrong place.
+                looking in the wrong place. ``None`` rather than ``""`` so
+                that "same answer" and "say nothing" stay distinguishable
+                if a caller ever wants the latter.
 
             Returns
             -------
@@ -1157,7 +1161,8 @@ class PlotlyMaidr:
                 }
             })();
         """.replace("__ON_MISSING__", on_missing).replace(
-                "__ON_UNREACHABLE__", on_unreachable or on_missing
+                "__ON_UNREACHABLE__",
+                on_missing if on_unreachable is None else on_unreachable,
             )
 
         #: ``use_cdn=False``: the caller asked for the bundle, so the fix is
