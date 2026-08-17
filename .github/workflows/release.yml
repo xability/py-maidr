@@ -36,12 +36,62 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # `ci.yml` runs this before every install and `release.yml` never did.
+      # `uv sync --locked` below fails on a stale lockfile anyway, but with a
+      # resolver error rather than the sentence saying what to do about it --
+      # and this is the run that publishes, so the difference is worth the
+      # four lines.
+      - name: Check lockfile sync
+        run: |
+          if ! uv lock --check; then
+            echo "Error: Lockfile is out of sync with pyproject.toml"
+            echo "Please run 'uv lock' locally and commit the changes"
+            exit 1
+          fi
+
+      # Matches `ci.yml` rather than naming extras. A narrower install here
+      # silently skipped every test guarded by `importorskip` -- the whole
+      # Streamlit integration, because `streamlit` is deliberately not in the
+      # `test` extra -- so the release ran a weaker suite than the pull
+      # request that produced it.
       - name: Install the project
-        run: uv sync --locked --extra test --extra visualization
+        run: uv sync --locked --all-extras --dev
 
       - name: Run tests
         id: tests
         run: uv run pytest -vvv
+
+  browser:
+    name: Accessibility tests in a browser
+
+    runs-on: ubuntu-latest
+
+    # `release` needs this job, so a chart that cannot be driven from the
+    # keyboard blocks the publish. That is the point: everything else in
+    # the suite asserts on emitted markup, which cannot tell a working
+    # chart from a well-formed one, and the release refreshes the bundled
+    # `maidr.js` -- the change most able to break navigation while every
+    # markup assertion still passes.
+    #
+    # No `if:` guard, unlike `ci.yml`: this workflow runs only on a
+    # schedule or a manual dispatch, so there is no second event to
+    # deduplicate against.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Install the browser Playwright drives
+        run: uv run playwright install --with-deps chromium
+
+      - name: Run the browser tests
+        run: uv run pytest tests/browser -vv --run-browser
 
   lint:
     runs-on: ubuntu-latest
@@ -75,7 +125,7 @@ jobs:
     name: Semantic Release
     runs-on: ubuntu-latest
     concurrency: release
-    needs: [test, lint]
+    needs: [test, lint, browser]
     if: github.repository == 'xability/py-maidr'
     environment:
       name: pypi
