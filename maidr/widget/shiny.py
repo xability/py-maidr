@@ -11,6 +11,7 @@ Requires the optional ``shiny`` extra::
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, Literal, Optional, Union
 
 try:
@@ -43,6 +44,12 @@ from maidr.core.figure_manager import FigureManager
 
 #: Accepted by ``use_cdn`` on :class:`render_maidr`; ``None`` defers to the
 #: process-wide default (:func:`maidr.get_use_cdn`).
+#:
+#: Spelled with ``Optional``/``Union`` rather than ``|`` because this is an
+#: assignment, not an annotation: ``from __future__ import annotations``
+#: defers annotations only, so ``bool | Literal["auto"] | None`` would be
+#: evaluated here and raises ``TypeError`` on Python 3.9, which this
+#: package supports.
 UseCdn = Optional[Union[bool, Literal["auto"]]]
 
 
@@ -196,10 +203,18 @@ def _close_new_figures(before: set) -> None:
 
         for num in set(plt.get_fignums()) - before:
             plt.close(plt.figure(num))
-    except Exception:
-        # Cleanup is housekeeping; it must never replace the user's own
-        # error, nor fail a render that otherwise succeeded.
-        pass
+    except Exception as error:
+        # Cleanup is housekeeping: it runs in a ``finally``, so raising
+        # here would replace whatever the render was already failing with.
+        # Swallowed, but not silently -- a bug in this function would
+        # otherwise present as figures quietly accumulating, which is the
+        # symptom it exists to prevent and gives no hint where to look.
+        warnings.warn(
+            f"maidr: could not close the figures this render opened ({error}). "
+            "They will stay open for the life of the process.",
+            UserWarning,
+            stacklevel=2,
+        )
 
 
 class render_maidr(Renderer[Any]):

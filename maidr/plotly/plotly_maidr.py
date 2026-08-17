@@ -37,12 +37,12 @@ from maidr.plotly.step_shape import (
 )
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
+    bundled_cdn_url,
+    inline_bundle_tags,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
     maidr_html_dependency,
     maidr_js_cdn_url,
-    bundled_cdn_url,
-    inline_bundle_tags,
     schema_trace_types,
     warn_if_bundle_cannot_render,
     warn_if_bundle_is_stale,
