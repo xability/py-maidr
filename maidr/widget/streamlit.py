@@ -274,7 +274,7 @@ def render_maidr(
     """
     try:
         import streamlit as st
-    except ImportError as error:  # pragma: no cover - needs streamlit absent
+    except ImportError as error:
         raise ImportError(
             "maidr's Streamlit integration requires the `streamlit` "
             'package. Install it with: pip install "maidr[streamlit]"'

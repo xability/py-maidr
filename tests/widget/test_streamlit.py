@@ -7,6 +7,7 @@ because what they check is which API is called with which arguments.
 
 from __future__ import annotations
 
+import pathlib
 import sys
 import types
 import warnings
@@ -401,3 +402,33 @@ def test_a_normal_render_is_recognised_as_having_a_runtime(bar_axes, use_cdn):
         warnings.simplefilter("always")
         maidr_html(bar_axes, use_cdn=use_cdn)
     assert not [w for w in caught if "no source for maidr.js" in str(w.message)]
+
+
+def test_a_real_streamlit_app_embeds_the_chart_as_srcdoc(monkeypatch):
+    """Drive the real Streamlit, not a stub, once end to end.
+
+    The stubbed dispatch tests assert which function is called with which
+    arguments; they cannot see what Streamlit then *does* with them. This
+    is the check that ``st.iframe``'s positional argument really carries a
+    self-contained document into the frame's ``srcdoc`` rather than being
+    treated as a URL -- a mistake that would raise nothing in Python and
+    show up only as a blank embed in a browser.
+    """
+    st = pytest.importorskip("streamlit")
+    if not hasattr(st, "iframe"):
+        pytest.skip("this Streamlit predates st.iframe; the fallback covers it")
+
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.setenv("MAIDR_CDN_VERSION", "latest")
+    app = pathlib.Path(__file__).parent / "apps" / "streamlit_smoke_app.py"
+    at = AppTest.from_file(str(app), default_timeout=120).run()
+
+    assert list(at.exception) == []
+
+    proto = at.get("iframe")[0].proto
+    assert not proto.src, "the HTML was treated as a URL, not as a document"
+    assert proto.srcdoc, "no document reached the frame"
+    # The chart and its runtime both have to survive the trip.
+    assert "maidr=" in proto.srcdoc
+    assert "cdn.jsdelivr" in proto.srcdoc
