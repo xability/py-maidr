@@ -74,9 +74,8 @@ def browser():
         b.close()
 
 
-@pytest.fixture(scope="session")
-def focus_app_url() -> str:
-    """Serve ``apps/focus_app.py`` for the session and yield its URL."""
+def _serve(app: str):
+    """Run one of ``apps/`` under Shiny and yield its URL, then stop it."""
     pytest.importorskip("shiny")
     port = _free_port()
     env = {
@@ -87,8 +86,7 @@ def focus_app_url() -> str:
         "MPLBACKEND": "Agg",
     }
     proc = subprocess.Popen(
-        [sys.executable, "-m", "shiny", "run", "--port", str(port),
-         str(APPS / "focus_app.py")],
+        [sys.executable, "-m", "shiny", "run", "--port", str(port), str(APPS / app)],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
@@ -114,6 +112,18 @@ def focus_app_url() -> str:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:  # pragma: no cover
             proc.kill()
+
+
+@pytest.fixture(scope="session")
+def focus_app_url():
+    """The app used by the focus-restore tests."""
+    yield from _serve("focus_app.py")
+
+
+@pytest.fixture(scope="session")
+def offline_app_url():
+    """The app used by the offline-report test, on the default ``use_cdn``."""
+    yield from _serve("offline_app.py")
 
 
 @pytest.fixture
