@@ -38,9 +38,11 @@ _TICK = 0.001
 def _render_once() -> None:
     """Render one trivial chart and drop it."""
     fig, ax = plt.subplots()
-    ax.bar(["a", "b"], [1, 2])
-    maidr.render(ax, use_cdn=True)
-    plt.close(fig)
+    try:
+        ax.bar(["a", "b"], [1, 2])
+        maidr.render(ax, use_cdn=True)
+    finally:
+        plt.close(fig)
 
 
 async def _ticks_while_idle() -> int:
@@ -85,7 +87,7 @@ async def _ticks_while_rendering() -> tuple[int, float, int]:
 
 
 @pytest.mark.benchmark
-def test_rendering_starves_the_event_loop() -> None:
+def test_rendering_starves_the_event_loop(monkeypatch) -> None:
     """Rendering costs the loop most of its wakeups, but not all of them.
 
     Asserted as a wide band rather than a fixed number: the point is the
@@ -93,8 +95,14 @@ def test_rendering_starves_the_event_loop() -> None:
     documentation says. A tight threshold here would fail on a loaded CI
     box while telling nobody anything they did not already know.
     """
+    # Pinned so building a CDN URL resolves no version over the network.
+    # Measuring CPU-bound render work should not depend on reaching
+    # jsDelivr -- and a benchmark that stalls on MAIDR_CDN_TIMEOUT in the
+    # air-gapped setup this same change documents would be a poor joke.
+    monkeypatch.setenv("MAIDR_CDN_VERSION", "latest")
+
     # Warm up: the first render pays for imports, the font cache and the
-    # CDN version lookup, and is worth roughly thirty steady-state ones.
+    # matplotlib backend, and is worth roughly thirty steady-state ones.
     for _ in range(5):
         _render_once()
 
@@ -102,16 +110,22 @@ def test_rendering_starves_the_event_loop() -> None:
     busy_ticks, elapsed, renders = asyncio.run(_ticks_while_rendering())
 
     assert renders > 0, "no render completed inside the measurement window"
+
+    # Compared as rates, not counts: the rendering window overshoots by up
+    # to one render, since the loop only checks the clock between them.
+    idle_rate = idle_ticks / _WINDOW
+    busy_rate = busy_ticks / elapsed
     per_render_ms = elapsed / renders * 1000
 
-    assert idle_ticks > busy_ticks, (
-        f"rendering did not slow the loop at all ({busy_ticks} vs {idle_ticks})"
+    assert idle_rate > busy_rate, (
+        f"rendering did not slow the loop at all "
+        f"({busy_rate:.0f}/s vs {idle_rate:.0f}/s)"
     )
-    assert busy_ticks > 0, (
+    assert busy_rate > 0, (
         "the loop never ran during rendering -- the docs say starved, not "
         "frozen, so either the docs or this is now wrong"
     )
     print(
-        f"\nidle {idle_ticks} ticks / rendering {busy_ticks} ticks "
+        f"\nidle {idle_rate:.0f} wakeups/s / rendering {busy_rate:.0f}/s "
         f"({renders} renders, {per_render_ms:.0f} ms each)"
     )
