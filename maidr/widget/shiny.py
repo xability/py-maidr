@@ -273,9 +273,32 @@ class render_maidr(Renderer[Any]):
         self.use_cdn = use_cdn
         super().__init__(_fn)
 
-    def auto_output_ui(self) -> Tag:
-        """Return the container Shiny Express places for this output."""
-        return output_maidr(self.output_id, width=self.width, height=self.height)
+    def auto_output_ui(self, **kwargs: Any) -> Tag:
+        """Return the container Shiny Express places for this output.
+
+        Parameters
+        ----------
+        **kwargs : Any
+            Arguments for :func:`output_maidr`, supplied by
+            :func:`shiny.express.output_args` and taking precedence over
+            the ones given to the decorator.  Shiny splats
+            ``@output_args(...)`` into this method, so a renderer whose
+            signature takes nothing raises ``TypeError`` there --
+            ``shiny.render.plot`` accepts ``**kwargs`` here for the same
+            reason.
+
+        Returns
+        -------
+        htmltools.Tag
+            The output container.
+        """
+        # `setdefault` rather than Shiny's `set_kwargs_value` helper: that
+        # one exists to skip `MISSING`/`None` so an unset argument does not
+        # override the UI function's own default, and neither of these can
+        # be either.
+        kwargs.setdefault("width", self.width)
+        kwargs.setdefault("height", self.height)
+        return output_maidr(self.output_id, **kwargs)
 
     async def render(self) -> Optional[Jsonifiable]:
         """

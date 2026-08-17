@@ -97,3 +97,36 @@ def axes():
     fig, ax = plt.subplots()
     yield ax
     plt.close(fig)
+
+
+def pytest_addoption(parser):
+    """Register the opt-in flag for the timing benchmarks."""
+    parser.addoption(
+        "--run-benchmark",
+        action="store_true",
+        default=False,
+        help="run the timing benchmarks, which are skipped by default",
+    )
+
+
+def pytest_configure(config):
+    """Declare the ``benchmark`` marker so strict-marker runs accept it."""
+    config.addinivalue_line(
+        "markers", "benchmark: a timing measurement, skipped unless asked for"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip anything marked ``benchmark`` unless ``--run-benchmark`` is given.
+
+    Timing is machine- and load-dependent, so gating CI on it would buy
+    flakes rather than information. The measurement still lives in the
+    suite so the numbers quoted in the docs can be re-checked on demand
+    rather than re-derived from scratch.
+    """
+    if config.getoption("--run-benchmark"):
+        return
+    skip = pytest.mark.skip(reason="timing benchmark; pass --run-benchmark")
+    for item in items:
+        if "benchmark" in item.keywords:
+            item.add_marker(skip)

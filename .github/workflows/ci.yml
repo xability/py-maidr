@@ -57,6 +57,45 @@ jobs:
         id: tests
         run: uv run pytest -vvv
 
+  bare-install:
+    name: Import with no extras
+
+    # Guarded like `test` rather than like the lint jobs: an internal PR
+    # fires both `push` and `pull_request`, and this job resolves and
+    # installs matplotlib, scipy and seaborn from the index, which is a
+    # test-sized cost rather than a lint-sized one.
+    if:
+      github.event_name == 'push' || github.event.pull_request.head.repo.full_name !=
+      github.repository
+
+    runs-on: ubuntu-latest
+
+    # Every other job installs `--all-extras`, so none of them can see a
+    # dependency that is imported but declared only as an extra -- or not
+    # declared at all. That is how `pip install -U maidr`, the install both
+    # the README and the docs give, shipped three releases that raised
+    # `ModuleNotFoundError` on `import maidr`.
+    #
+    # Deliberately the documented install and nothing else: no extras, no
+    # dev group, no test dependencies, and an import rather than a test run.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          # The floor `requires-python` promises, and the version where a
+          # dependency is most likely to resolve differently.
+          python-version: "3.9"
+
+      - name: Install the package with no extras
+        run: |
+          uv venv /tmp/bare
+          uv pip install --python /tmp/bare/bin/python .
+
+      - name: Import it
+        run: /tmp/bare/bin/python -c "import maidr; print(maidr.__file__)"
+
   lint:
     runs-on: ubuntu-latest
 

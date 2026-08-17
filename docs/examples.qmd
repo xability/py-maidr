@@ -1176,6 +1176,19 @@ serves, so the bundled `maidr.js` travels inline in the document -- correct
 offline, but roughly 2 MB per chart. The default (`"auto"`) loads from the
 CDN and stays around 30 KB.
 
+In Shiny Express there is no separate UI call: the decorated function places
+its own container, and `@output_args()` sizes it, exactly as it does for
+`@render.plot`.
+
+```python
+from shiny.express import output_args
+
+@output_args(width="600px")
+@render_maidr
+def bars():
+    ...
+```
+
 Check out [a reactive Shiny dashboard example with maidr](https://xabilitylab.shinyapps.io/a11y_dashboard/) and its source code is available on [GitHub](https://github.com/xability/a11y_dashboard).
 
 ### Streamlit

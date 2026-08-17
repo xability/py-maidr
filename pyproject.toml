@@ -48,6 +48,19 @@ dependencies = [
     "htmltools>=0.5",
     "wrapt>=1.16.0,<2",
     "mplfinance>=0.12.10b0",
+    # Imported while `import maidr` runs, so they are requirements rather
+    # than extras whatever the `visualization` extra suggests: matplotlib
+    # throughout the model layer, seaborn by `wrap_seaborn` in
+    # `maidr/patch/barplot.py`, scipy by `maidr/core/plot/violin_kde_plot.py`.
+    # matplotlib had been arriving only as an mplfinance dependency, which is
+    # an accident rather than a promise.
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    # 1.11 is the first scipy installable on every interpreter
+    # `requires-python` promises: 1.10 caps itself at `<3.12`. The API used
+    # (`interpolate.interp1d`) is far older than either, so the floor is
+    # about which wheels exist, not about what the code needs.
+    "scipy>=1.11",
 ]
 
 [project.optional-dependencies]

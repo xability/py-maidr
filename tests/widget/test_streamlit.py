@@ -406,20 +406,15 @@ def test_a_normal_render_is_recognised_as_having_a_runtime(bar_axes, use_cdn):
     assert not [w for w in caught if "no source for maidr.js" in str(w.message)]
 
 
-def test_a_real_streamlit_app_embeds_the_chart_as_srcdoc(monkeypatch):
-    """Drive the real Streamlit, not a stub, once end to end.
+def _run_smoke_app(monkeypatch):
+    """Run the smoke app under Streamlit's own script runner.
 
-    The stubbed dispatch tests assert which function is called with which
-    arguments; they cannot see what Streamlit then *does* with them. This
-    is the check that ``st.iframe``'s positional argument really carries a
-    self-contained document into the frame's ``srcdoc`` rather than being
-    treated as a URL -- a mistake that would raise nothing in Python and
-    show up only as a blank embed in a browser.
+    Returns the emitted ``IFrame`` proto.  Which of the two embedding APIs
+    produced it depends on the installed Streamlit, and deliberately is not
+    asserted here -- both marshal into the same proto, which is what lets
+    one set of assertions cover both.
     """
-    st = pytest.importorskip("streamlit")
-    if not hasattr(st, "iframe"):
-        pytest.skip("this Streamlit predates st.iframe; the fallback covers it")
-
+    pytest.importorskip("streamlit")
     from streamlit.testing.v1 import AppTest
 
     monkeypatch.setenv("MAIDR_CDN_VERSION", "latest")
@@ -428,12 +423,53 @@ def test_a_real_streamlit_app_embeds_the_chart_as_srcdoc(monkeypatch):
 
     assert list(at.exception) == []
 
-    proto = at.get("iframe")[0].proto
+    frames = at.get("iframe")
+    assert len(frames) == 1, f"expected one embed, got {len(frames)}"
+    return frames[0].proto
+
+
+def test_a_real_streamlit_app_embeds_the_chart_as_srcdoc(monkeypatch):
+    """Drive the real Streamlit, not a stub, once end to end.
+
+    The stubbed dispatch tests assert which function is called with which
+    arguments; they cannot see what Streamlit then *does* with them. This
+    is the check that the HTML really carries a self-contained document
+    into the frame's ``srcdoc`` rather than being treated as a URL -- a
+    mistake that would raise nothing in Python and show up only as a blank
+    embed in a browser.
+
+    Runs on whichever embedding API the installed Streamlit provides.
+    ``st.iframe`` arrived in 1.56, and the extra allows 1.30, so on an
+    older one this exercises the ``components.v1.html`` fallback instead --
+    the path every user on a pre-1.56 Streamlit takes, and the one that had
+    no end-to-end coverage at all while this test skipped itself there.
+    """
+    proto = _run_smoke_app(monkeypatch)
+
     assert not proto.src, "the HTML was treated as a URL, not as a document"
     assert proto.srcdoc, "no document reached the frame"
     # The chart and its runtime both have to survive the trip.
     assert "maidr=" in proto.srcdoc
     assert "cdn.jsdelivr" in proto.srcdoc
+
+
+def test_a_real_streamlit_app_leaves_tab_index_unset(monkeypatch):
+    """``tab_index=None`` has to reach the frame as *absent*, not as 0.
+
+    The two mean different things -- absent is the browser default, 0 makes
+    the frame itself a tab stop ahead of the chart inside it -- and a
+    protobuf scalar cannot tell them apart on its own. The field is
+    declared with explicit presence, so ``HasField`` can; a Streamlit that
+    dropped that would silently turn the default into an extra tab stop on
+    every chart.
+    """
+    proto = _run_smoke_app(monkeypatch)
+
+    assert proto.DESCRIPTOR.fields_by_name["tab_index"].has_presence, (
+        "IFrame.tab_index lost explicit presence; unset is now "
+        "indistinguishable from 0 and the default cannot be checked"
+    )
+    assert not proto.HasField("tab_index")
 
 
 def test_tab_index_support_is_detected_on_the_real_streamlit():

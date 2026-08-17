@@ -125,6 +125,47 @@ def test_auto_output_ui_delegates_to_output_maidr(fake_session):
     assert "height: 7em" in rendered
 
 
+def test_output_args_reaches_the_container(fake_session):
+    """``@output_args`` is Shiny's documented way to size an Express output.
+
+    Shiny splats it into ``auto_output_ui``, so a renderer that takes no
+    keywords there raises ``TypeError`` -- which is what this one did, and
+    is why ``shiny.render.plot`` accepts ``**kwargs``.  Driven through
+    ``_render_auto_output_ui`` rather than ``auto_output_ui`` directly,
+    since that splat is the step being tested.
+    """
+    from shiny.express import output_args
+
+    @output_args(width="50%")
+    @render_maidr(width="42px", height="7em")
+    def sized():
+        return _bar_axes()
+
+    rendered = str(sized._render_auto_output_ui())
+    assert "width: 50%" in rendered
+    # Unmentioned arguments still come from the decorator: `@output_args`
+    # overrides, it does not reset.
+    assert "height: 7em" in rendered
+
+
+def test_an_unknown_output_arg_names_the_ui_function(fake_session):
+    """Forwarded rather than swallowed, so a typo is not silence.
+
+    ``output_maidr`` takes a deliberately narrow set of arguments, and a
+    keyword it does not know is a mistake worth raising -- an
+    ``**kwargs``-absorbing container would drop it on the floor.
+    """
+    from shiny.express import output_args
+
+    @output_args(not_an_argument=1)
+    @render_maidr
+    def sized():
+        return _bar_axes()
+
+    with pytest.raises(TypeError, match="output_maidr"):
+        sized._render_auto_output_ui()
+
+
 def test_output_maidr_applies_module_namespacing():
     """A module's output id is namespaced, so modules keep working."""
     with module.namespace_context("mod1"):

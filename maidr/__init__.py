@@ -69,11 +69,7 @@ def _activate_backend() -> None:
     """
     global _original_backend, _backend_message_shown
 
-    try:
-        import matplotlib
-    except ImportError:
-        # matplotlib is not installed — nothing to activate.
-        return
+    import matplotlib
 
     # Save the original backend once, before we override it.
     # Guard against saving our own backend (could happen if _activate_backend
@@ -159,11 +155,7 @@ def set_backend(use_maidr: bool = True) -> None:
     active backend.  ``set_backend`` only controls the behavior of
     ``plt.show()``.
     """
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError:
-        _logger.debug("matplotlib is not installed; cannot set backend.")
-        return
+    import matplotlib.pyplot as plt
 
     if use_maidr:
         plt.switch_backend("module://maidr.backend")

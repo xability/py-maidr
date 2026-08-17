@@ -298,6 +298,8 @@ The trade is that a network hiccup pins that page to the version you installed r
 
 In sandboxed or egress-blocked environments (CI, air-gapped machines), `MAIDR_CDN_VERSION=bundled` is usually the best setting: zero requests, and still an immutable URL so caching behaves correctly. `MAIDR_USE_CDN=false` skips the CDN altogether, and `MAIDR_CDN_VERSION=latest` keeps the CDN but not the lookup.
 
+**`"auto"` has no offline fallback inside an iframe.** Notebook, Shiny and Flask renders are wrapped in a `srcdoc` iframe, and its fallback is a relative path that only resolves where the host serves the copied bundle — which nobody does for a `srcdoc` document. So on the default setting an air-gapped deployment gets the CDN or nothing. This is how `"auto"` behaves rather than a gap waiting on a fix: inlining the bundle unconditionally is what `use_cdn=False` is for, and doing it in `"auto"` would cost every online reader ~1.9 MB to serve the offline one. What changed is that the failure now says so in the browser console instead of leaving a chart that looks fine and does nothing. **Use `use_cdn=False` for an air-gapped deployment.**
+
 One exception is worth knowing about: **Altair** charts always load `maidr.js` from the CDN. That adapter has no bundled/offline path — `use_cdn` and `MAIDR_USE_CDN` are not plumbed through it — so `MAIDR_USE_CDN=false` will not make an Altair chart self-contained. `MAIDR_CDN_VERSION=bundled` does still remove the version lookup for Altair, which is why it is the better setting when any part of your work is air-gapped.
 
 ::: {.callout-note}
@@ -311,6 +313,8 @@ You give up picking up a release newer than your wheel, automatically, in an asy
 - Call `maidr.get_cdn_version()` once from synchronous code at startup. That resolves and caches, and every async render then uses the resolved version — the request is paid for once, by your startup, not by a render.
 
 The same caching means this is not "async gets a different answer forever": after any resolution anywhere in the process, the loop and the main thread agree. It also means `warn_if_bundle_is_stale()` stays quiet in an app that never resolves, since it reads only an already-completed lookup.
+
+**The render itself still blocks, though.** The heading above is about the version *lookup*; do not read it as "nothing blocks the loop". `maidr.render()` is synchronous and CPU-bound — matplotlib's SVG writer, then lxml — so it runs on the event loop and every other session on that worker waits. It never awaits, so nothing preempts it: for as long as one render runs, the loop does not run at all. Measured on a trivial two-bar chart, one render holds the loop for about 55 ms, against 1.5 ms of ordinary scheduler jitter — every other session on that worker waits the whole time. A large scatter or heatmap is worse, and the cost is paid per session per input change. Re-run it with `uv run pytest tests/core/test_render_is_synchronous.py --run-benchmark`. Tracked in [#454](https://github.com/xability/py-maidr/issues/454).
 :::
 
 `bundle_status()` is the one deliberate exception: it resolves even when pinned, because "how does my bundle compare to what's published?" has no answer otherwise. Pass `resolve=False` if you need it silent.
