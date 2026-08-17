@@ -29,7 +29,13 @@ def _prospective_axes(kwargs: dict) -> Axes | None:
     Named without drawing anything: an explicit ``ax=`` is the answer when
     given, and otherwise seaborn takes ``plt.gca()``, which is only asked for
     when a figure already exists so that a call on a clean slate does not
-    conjure one early.
+    conjure one *figure* early.
+
+    On a figure that exists but holds no axes, ``gca()`` does create one, a
+    beat before ``regplot`` would have. That is deliberate and costs nothing:
+    seaborn's own ``plt.gca()`` a moment later returns the same axes, so the
+    snapshot is taken on the axes actually drawn on -- and an axes with
+    nothing on it snapshots as empty either way.
     """
     ax = kwargs.get("ax")
     if isinstance(ax, Axes):
