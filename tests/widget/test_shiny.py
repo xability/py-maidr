@@ -188,6 +188,79 @@ def test_payload_has_the_shape_shiny_expects(fake_session):
     assert set(payload) == {"deps", "html"}
 
 
+def test_the_payload_carries_the_focus_restore_script(fake_session):
+    """Every render ships the hook that survives a re-render (#484).
+
+    Shiny replaces the output container on each reactive flush, taking the
+    focused element with it, which drops a reader out of the chart they
+    were navigating. The script rides with the chart rather than with the
+    container because ``output_maidr`` is not always what places the
+    output -- Express mode goes through ``auto_output_ui``, and an app may
+    write its own ``ui.output_ui`` -- but every chart comes through the
+    renderer.
+    """
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+    assert "__maidrShinyFocusRestore" in html
+
+
+def test_the_rendered_iframe_is_marked_as_maidrs_own(fake_session):
+    """The focus script must be able to tell our frame from anyone else's.
+
+    Keying off a bare ``iframe`` would let the restore force focus onto an
+    unrelated embed an app happened to put in the same output container.
+    The marker is what makes the selector precise, so both sides of it are
+    pinned here.
+    """
+    from maidr.widget._focus import FOCUS_RESTORE_JS
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+    assert "data-maidr-chart" in html
+    assert "data-maidr-chart" in FOCUS_RESTORE_JS
+
+
+def test_the_container_class_the_focus_script_looks_for_still_exists():
+    """The script finds its container by a Shiny-internal class.
+
+    ``.shiny-html-output`` is an implementation detail of
+    ``ui.output_ui``, not a documented contract. If Shiny renames it, the
+    script finds no containers and the fix goes silently inert -- no
+    exception, no warning, and the only thing that would notice is the
+    browser suite, which is opt-in and so not what a contributor runs.
+
+    This ties the two sides together in the default suite, so a Shiny
+    upgrade that moves the class fails here instead.
+    """
+    from maidr.widget._focus import FOCUS_RESTORE_JS
+
+    assert "shiny-html-output" in FOCUS_RESTORE_JS
+    assert "shiny-html-output" in str(output_maidr("chart"))
+
+
+def test_the_focus_script_only_installs_once_per_page(fake_session):
+    """It arrives on every render, so it has to be idempotent.
+
+    Without the guard, N flushes would leave N samplers and N observers
+    running, each restoring focus -- the cost of shipping it per render
+    rather than per container.
+    """
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+    assert "if (window.__maidrShinyFocusRestore) return;" in html
+
+
 @pytest.mark.parametrize(
     ("use_cdn", "expect_cdn", "expect_inline_bundle"),
     [(True, True, False), ("auto", True, False), (False, False, True)],

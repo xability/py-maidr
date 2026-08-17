@@ -247,6 +247,11 @@ def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) ->
     return tags.iframe(
         id=unique_id,
         title=iframe_title(chart_title),
+        # Marks this frame as maidr's own. A host page may put other
+        # iframes in the same container, and anything keying off "an
+        # iframe is the chart" -- the Shiny focus restore does -- would
+        # otherwise act on one of those. See `maidr/widget/_focus.py`.
+        **{"data-maidr-chart": ""},
         srcdoc=str(base_html.get_html_string()),
         width="100%",
         height="100%",
@@ -383,6 +388,11 @@ def wrap_in_iframe_plotly(base_html: Tag, chart_title: str | None = None) -> Tag
     return tags.iframe(
         id=unique_id,
         title=iframe_title(chart_title),
+        # Marks this frame as maidr's own. A host page may put other
+        # iframes in the same container, and anything keying off "an
+        # iframe is the chart" -- the Shiny focus restore does -- would
+        # otherwise act on one of those. See `maidr/widget/_focus.py`.
+        **{"data-maidr-chart": ""},
         srcdoc=str(base_html.get_html_string()),
         width="100%",
         height="100%",

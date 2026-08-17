@@ -1176,6 +1176,12 @@ serves, so the bundled `maidr.js` travels inline in the document -- correct
 offline, but roughly 2 MB per chart. The default (`"auto"`) loads from the
 CDN and stays around 30 KB.
 
+A reactive flush replaces the whole output, so a reader who was navigating the
+chart when some input changed would be dropped to the top of the page without
+being told. `@render_maidr` puts focus back on the updated chart when — and
+only when — the chart was what held focus, so a reader who had deliberately
+moved to another control keeps their place.
+
 In Shiny Express there is no separate UI call: the decorated function places
 its own container, and `@output_args()` sizes it, exactly as it does for
 `@render.plot`.
