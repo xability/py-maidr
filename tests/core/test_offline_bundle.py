@@ -922,3 +922,57 @@ def test_math_css_accessors_do_not_warn():
 
         assert maidr.bundled_math_css_path().is_file()
         assert maidr.read_bundled_math_css()
+
+
+def test_inline_bundle_tags_carry_the_bundle_and_the_maths_marker():
+    """The inline path must supply everything a srcdoc document lacks.
+
+    A ``srcdoc`` iframe has no base URL, so ``maidr.js`` cannot fetch
+    ``maidr-math.css`` for itself the way it does on a page loaded over
+    HTTP.  The bare ``<link data-maidr-math>`` is how it is told the rules
+    are already present; without it, it reports them missing even though
+    they are in the document.
+    """
+    from maidr.util.dependencies import inline_bundle_tags
+
+    tags_list = inline_bundle_tags()
+    assert tags_list is not None
+
+    rendered = "".join(str(tag) for tag in tags_list)
+    assert maidr.read_bundled_js()[:200] in rendered
+    assert maidr.read_bundled_math_css()[:200] in rendered
+    assert "data-maidr-math" in rendered
+
+
+def test_inline_bundle_tags_report_an_unreadable_bundle_instead_of_raising(
+    monkeypatch,
+):
+    """A bundle predating 3.75.1 has no maths CSS; that must not raise.
+
+    ``bundled_math_css_path`` raises ``FileNotFoundError`` for it, and
+    ``init_notebook`` already treats that as "warn and use the CDN".  The
+    inline path is reached during a render, where raising would turn a
+    degraded chart into a broken app.
+    """
+    from maidr.util import dependencies
+
+    dependencies._inline_bundle_sources.cache_clear()
+    monkeypatch.setattr(
+        dependencies,
+        "read_bundled_math_css",
+        lambda: (_ for _ in ()).throw(FileNotFoundError("no maths css")),
+    )
+    try:
+        assert dependencies.inline_bundle_tags() is None
+    finally:
+        dependencies._inline_bundle_sources.cache_clear()
+
+
+def test_inline_bundle_sources_are_read_once():
+    """The bundle is ~1.9 MB and a Shiny app renders once per flush."""
+    from maidr.util import dependencies
+
+    dependencies._inline_bundle_sources.cache_clear()
+    dependencies.inline_bundle_tags()
+    dependencies.inline_bundle_tags()
+    assert dependencies._inline_bundle_sources.cache_info().hits >= 1

@@ -30,6 +30,8 @@ from maidr.util.dependencies import (
     maidr_bundled_relative_dir,
     maidr_html_dependency,
     maidr_js_cdn_url,
+    bundled_cdn_url,
+    inline_bundle_tags,
     schema_trace_types,
     warn_if_bundle_cannot_render,
     warn_if_bundle_is_stale,
@@ -808,9 +810,17 @@ class Maidr:
         # ``window.__maidrJsSource`` in the parent document.  This matches
         # the Plotly/Bokeh "library loaded once per notebook" pattern and
         # keeps the .ipynb file small.
-        iframe_in_notebook = use_iframe and (
-            Environment.is_notebook() or Environment.is_shiny()
+        #
+        # That bootstrap only has a source to read in a notebook, because
+        # ``init_notebook()`` returns early everywhere else.  Any other
+        # iframed render -- Shiny, Flask -- therefore needs the bundle
+        # inlined into the ``srcdoc`` itself; see ``iframe_inline_bundle``.
+        in_notebook = Environment.is_notebook()
+        will_iframe = use_iframe and (
+            Environment.is_flask() or in_notebook or Environment.is_shiny()
         )
+        iframe_in_notebook = will_iframe and in_notebook
+        iframe_inline_bundle = will_iframe and not in_notebook
 
         children: list[Any]
         if use_cdn is False:
@@ -880,6 +890,40 @@ class Maidr:
                     children.append(tags.script(maidr, type="text/javascript"))
                 children.append(
                     tags.script(parent_source_script, type="text/javascript")
+                )
+                children.append(tags.div(plot))
+            elif iframe_inline_bundle:
+                # An iframe outside a notebook: the ``HTMLDependency`` below
+                # would be dropped by ``Tag.get_html_string()`` and there is
+                # no ``window.parent.__maidrJsSource`` to fall back to, so
+                # the bundle travels inline.  Without this the plot renders
+                # as a picture with no MAIDR runtime attached to it -- no
+                # sonification, no braille, no keyboard navigation, and no
+                # error to say so.
+                bootstrap_script = """
+                    (function() {
+                        function run() { if (window.main) window.main(); }
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', run);
+                        } else {
+                            run();
+                        }
+                    })();
+                """
+                inline_tags = inline_bundle_tags()
+                if inline_tags is None:
+                    # Bundle unreadable; ``inline_bundle_tags`` has already
+                    # warned.  A CDN tag is the only remaining source, and
+                    # a chart that needs the network beats one that cannot
+                    # be read at all.  Same trade ``init_notebook`` makes.
+                    inline_tags = [
+                        tags.script(src=bundled_cdn_url(MAIDR_JS_FILENAME))
+                    ]
+                children = list(inline_tags)
+                if maidr is not None:
+                    children.append(tags.script(maidr, type="text/javascript"))
+                children.append(
+                    tags.script(bootstrap_script, type="text/javascript")
                 )
                 children.append(tags.div(plot))
             else:
@@ -1035,11 +1079,10 @@ class Maidr:
 
         # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
         # or VSCode notebook. No need for iframe if this is a Quarto document.
-        if use_iframe and (
-            Environment.is_flask()
-            or Environment.is_notebook()
-            or Environment.is_shiny()
-        ):
+        # ``will_iframe`` is the same condition, decided once above so the
+        # branch that picks a source for ``maidr.js`` and the branch that
+        # wraps the result cannot disagree about whether there is an iframe.
+        if will_iframe:
             base_html = wrap_in_iframe_matplotlib(base_html)
 
         return base_html
