@@ -84,7 +84,10 @@ def summaries(fig=None) -> list[list[dict]]:
     """The data of every ``violin_box`` layer, keyed by plain strings."""
     registered = FigureManager.get_maidr(fig if fig is not None else plt.gcf())
     return [
-        [{str(key): value for key, value in sample.items()} for sample in plot.schema["data"]]
+        [
+            {str(key): value for key, value in sample.items()}
+            for sample in plot.schema["data"]
+        ]
         for plot in registered._plots
         if plot.type.value == "violin_box"
     ]
@@ -94,7 +97,10 @@ def selectors(fig=None) -> list[list[dict]]:
     """The selector sets of every ``violin_box`` layer."""
     registered = FigureManager.get_maidr(fig if fig is not None else plt.gcf())
     return [
-        [{str(key): value for key, value in one.items()} for one in plot.schema["selectors"]]
+        [
+            {str(key): value for key, value in one.items()}
+            for one in plot.schema["selectors"]
+        ]
         for plot in registered._plots
         if plot.type.value == "violin_box"
     ]
@@ -164,6 +170,48 @@ class TestEveryPanelIsRead:
                 assert sample["q2"] == pytest.approx(rows["v"].median())
 
         assert first != second
+
+
+    def test_a_panel_splits_by_hue_within_itself(self):
+        # Facets and a hue together, which neither the class above nor
+        # `TestTheNamesGroupsAreGiven` covers on its own. `iter_data` groups
+        # by facet and `_panel_groups` splits by hue inside each panel, so
+        # the two passes have to compose -- and a panel that reused the
+        # figure's whole hue cross would still produce the right layer count.
+        # Built here rather than from `frame()`, whose `g` and a two-level
+        # hue would run in lockstep -- half the cross would simply not exist,
+        # and the test would pass on data that never exercised it.
+        rng = np.random.default_rng(4488)
+        data = pd.DataFrame(
+            {
+                "v": rng.normal(size=60),
+                "g": ["a", "a", "b", "b"] * 15,
+                "shade": ["m", "n"] * 30,
+                "panel": ["x"] * 30 + ["y"] * 30,
+            }
+        )
+        grid = sns.catplot(
+            data, x="g", y="v", hue="shade", col="panel", kind="violin"
+        )
+        first, second = summaries(grid.figure)
+
+        for read in (first, second):
+            assert [sample["z"] for sample in read] == [
+                "a_m",
+                "a_n",
+                "b_m",
+                "b_n",
+            ]
+
+        for panel, read in zip(("x", "y"), (first, second)):
+            for sample in read:
+                category, shade = sample["z"].split("_")
+                rows = data[
+                    (data["panel"] == panel)
+                    & (data["g"] == category)
+                    & (data["shade"] == shade)
+                ]
+                assert sample["q2"] == pytest.approx(rows["v"].median())
 
 
 class TestAHorizontalViolin:
@@ -257,6 +305,27 @@ class TestTheNamesGroupsAreGiven:
         sns.violinplot(data=frame(), x="g", y="v", hue="g", ax=ax)
 
         assert named(ax.get_figure()) == ["a", "b"]
+
+    def test_two_unnamed_variables_are_not_the_same_variable(self):
+        # The other side of that rule, and the case it got wrong. "The hue is
+        # the category" means the same *named* column, and `plotter.variables`
+        # records None for a bare array -- so comparing the two roles directly
+        # made two unnamed variables look like one:
+        #
+        #     groups: ['a', 'a', 'b', 'b']
+        #
+        # Four violins, two pairs sharing a name, with nothing telling them
+        # apart. Which is the defect this whole file is about, one spelling
+        # along: a reading that sounds complete and is not.
+        _, ax = plt.subplots()
+        sns.violinplot(
+            x=["a"] * 12 + ["b"] * 12,
+            y=list(range(1, 25)),
+            hue=(["p"] * 6 + ["q"] * 6) * 2,
+            ax=ax,
+        )
+
+        assert named(ax.get_figure()) == ["a_p", "a_q", "b_p", "b_q"]
 
     def test_a_single_distribution_keeps_its_placeholder_name(self):
         # `sns.violinplot(x=values)` has no categorical variable, and seaborn

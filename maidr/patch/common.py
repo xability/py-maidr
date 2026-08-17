@@ -31,8 +31,12 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
     name : str
         Name of the parameter to read.
     wrapped : Callable
-        The wrapped matplotlib function, used for its parameter order. It is
-        the bound method, so ``self`` is not among its parameters.
+        The wrapped function, used for its parameter order. It is the bound
+        method, so ``self`` is not among its parameters. Matplotlib's, when
+        this was written; ``maidr/patch/violinplot.py`` now reads ``inner``
+        off ``_CategoricalPlotter.plot_violins`` through it as well, which
+        works for the same reason and is worth saying so a reader does not
+        assume matplotlib is the only caller.
     args : tuple
         Positional arguments the caller passed.
     kwargs : dict

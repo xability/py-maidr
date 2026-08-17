@@ -53,7 +53,9 @@ def frame() -> pd.DataFrame:
     rng = np.random.default_rng(20260816)
     return pd.DataFrame(
         {
-            "v": np.concatenate([rng.normal(shift, 1, 30) for shift in (0, 2, 5, 1, 4, 8)]),
+            "v": np.concatenate(
+                [rng.normal(shift, 1, 30) for shift in (0, 2, 5, 1, 4, 8)]
+            ),
             "g": list(np.repeat(list("abc"), 30)) * 2,
             "panel": ["x"] * 90 + ["y"] * 90,
         }

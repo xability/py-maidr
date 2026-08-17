@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import matplotlib.pyplot as plt
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
@@ -122,36 +121,6 @@ def _register_point_layer(ax: Axes, existing: list[Line2D]) -> None:
     FigureManager.create_maidr(
         ax, PlotType.LINE, lines=estimates if paired else drawn
     )
-
-
-def _lines_before(kwargs: dict) -> list[Line2D]:
-    """
-    Return the lines already on the axes seaborn is about to draw on.
-
-    Anything left over from an earlier call is not this point plot's, and
-    sweeping it up would hand the layer another chart's line as an estimate.
-
-    Parameters
-    ----------
-    kwargs : dict
-        Keyword arguments the caller passed.
-
-    Returns
-    -------
-    list of Line2D
-        The lines present beforehand, empty when there is no axes yet.
-    """
-    ax = kwargs.get("ax")
-    if isinstance(ax, Axes):
-        return list(ax.lines)
-
-    # Without `ax`, seaborn draws on the current axes. Asking for it here can
-    # create one, but only in the case where the call itself is about to
-    # create the same one, so nothing exists afterwards that would not have.
-    if plt.get_fignums():
-        return list(plt.gca().lines)
-
-    return []
 
 
 def _split(lines: list[Line2D]) -> tuple[list[Line2D], list[Line2D]]:

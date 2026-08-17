@@ -1,9 +1,11 @@
 """
 Utility classes for handling violin plot data extraction and processing.
 
-This module provides utilities for extracting data from seaborn/matplotlib
-violinplot arguments, computing box plot statistics, and extracting violin
-positions. Registration with MAIDR is handled by the patch layer.
+This module provides utilities for extracting data from ``Axes.violinplot``
+arguments, computing box plot statistics, and extracting violin positions.
+Registration with MAIDR is handled by the patch layer, and the seaborn side
+of it no longer comes through :class:`ViolinDataExtractor` -- see its
+docstring.
 """
 
 from __future__ import annotations
@@ -21,12 +23,26 @@ from maidr.core.enum import MaidrKey
 
 class ViolinDataExtractor:
     """
-    Extract raw data groups and values from seaborn violinplot arguments.
+    Extract raw data groups and values from an ``Axes.violinplot`` call.
+
+    Reached from the **matplotlib** patch alone. The seaborn side used to come
+    through here too and no longer does: it reads ``_CategoricalPlotter``'s
+    own resolved frame instead, because re-deriving the roles and the
+    orientation from the caller's keywords is what turned an inferred-
+    horizontal violin into a ``TypeError`` and silently dropped the box layer
+    when the frame arrived positionally (#449).
+
+    Matplotlib has no plotter to ask -- it is handed its values directly --
+    so the argument shapes below stay. The keyword forms among them are the
+    spellings ``Axes.violinplot`` shares with seaborn's signature, kept
+    because they cost nothing and a caller may still write one.
 
     Examples
     --------
     >>> df = pd.DataFrame({"group": ["A", "A", "B", "B"], "value": [1, 2, 3, 4]})
-    >>> groups, values = ViolinDataExtractor.extract((), {"data": df, "x": "group", "y": "value"})
+    >>> groups, values = ViolinDataExtractor.extract(
+    ...     (), {"data": df, "x": "group", "y": "value"}
+    ... )
     >>> groups
     ['A', 'B']
     """
@@ -36,7 +52,7 @@ class ViolinDataExtractor:
         args: Tuple[Any, ...], kwargs: Dict[str, Any]
     ) -> Tuple[List[str], List[np.ndarray]]:
         """
-        Extract groups and values from seaborn.violinplot arguments.
+        Extract groups and values from a violin plot call's own arguments.
 
         Parameters
         ----------

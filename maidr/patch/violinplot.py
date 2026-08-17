@@ -191,12 +191,27 @@ def _panel_groups(
         pairs: list[tuple[Any, Any]] = [(name, None) for name in categories]
         hue_is_category = False
     else:
-        hue_is_category = variables.get("hue") == variables.get(category_column)
-        pairs = [
-            (name, hue)
-            for name in categories
-            for hue in _levels(levels.get("hue"), panel["hue"])
-        ]
+        # Same *named* column, which is what "the hue is the category" means.
+        # `variables` records the column name that filled each role and is
+        # None for a bare array, so comparing the two directly makes two
+        # unnamed variables look like one:
+        #
+        #     sns.violinplot(x=["a", ...], y=[...], hue=["p", ...])
+        #       groups: ['a', 'a', 'b', 'b']
+        #
+        # Four violins, two pairs sharing a name and nothing telling them
+        # apart -- which is the defect this file is about, reintroduced one
+        # spelling along. An unnamed variable is not the same variable as
+        # another unnamed one, so `None` on either side answers False.
+        hue_variable = variables.get("hue")
+        hue_is_category = (
+            hue_variable is not None
+            and hue_variable == variables.get(category_column)
+        )
+        # Hoisted rather than evaluated inside the comprehension, where it
+        # would be recomputed -- `pd.unique` and all -- once per category.
+        hue_levels = _levels(levels.get("hue"), panel["hue"])
+        pairs = [(name, hue) for name in categories for hue in hue_levels]
 
     groups: list[str] = []
     values: list[np.ndarray] = []

@@ -373,7 +373,9 @@ CATPLOT_KINDS = [
 ]
 
 
-@pytest.mark.parametrize("kind,axes_level", CATPLOT_KINDS, ids=[k for k, _ in CATPLOT_KINDS])
+@pytest.mark.parametrize(
+    "kind,axes_level", CATPLOT_KINDS, ids=[kind for kind, _ in CATPLOT_KINDS]
+)
 def test_a_catplot_kind_reads_the_same_as_its_axes_level_function(
     kind, axes_level
 ) -> None:
