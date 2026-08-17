@@ -1180,6 +1180,65 @@ Check out [a reactive Shiny dashboard example with maidr](https://xabilitylab.sh
 
 ### Streamlit
 
+Streamlit support ships as an optional extra:
+
+```bash
+pip install "maidr[streamlit]"
+```
+
+```python
+import matplotlib.pyplot as plt
+import streamlit as st
+
+from maidr.widget.streamlit import render_maidr
+
+day = st.selectbox("Day", ["Thu", "Fri", "Sat", "Sun"])
+
+fig, ax = plt.subplots()
+ax.bar(["lunch", "dinner"], [12, 30])
+ax.set_title(f"Tips on {day}")
+
+render_maidr(ax)
+```
+
+`render_maidr()` accepts a matplotlib or seaborn artist, a Plotly `Figure`, or
+an Altair chart, plus `height`, `width`, `tab_index`, and `use_cdn`.
+
+The defaults are chosen for accessibility rather than for layout:
+
+- `height="content"` lets Streamlit measure the chart, so maidr's braille and
+  text panels stay visible when they open. A fixed height crops them.
+- `tab_index=0` puts the chart in the page's tab order. The browser default
+  leaves the frame unreachable from the keyboard, which for a library whose
+  entire interface is keyboard-driven means unreachable without a mouse.
+
+::: {.callout-note}
+## Streamlit reruns the whole script on every interaction
+
+Each rerun rebuilds the chart from scratch, so maidr loses its position, any
+open panel, and the audio state. Caching the *HTML* rather than the render
+call is the lever that helps:
+
+```python
+from maidr.widget.streamlit import maidr_html
+
+@st.cache_data
+def chart_html(_fig):          # the underscore skips hashing the figure
+    return maidr_html(_fig)
+
+st.iframe(chart_html(fig), height="content", tab_index=0)
+```
+:::
+
+::: {.callout-note}
+## Air-gapped deployments
+
+`use_cdn=False` embeds the ~1.9 MB `maidr.js` bundle in the page. That is
+required rather than wasteful: the chart is rendered inside an iframe, and an
+iframe built from an HTML string cannot fetch anything the app serves. The
+default loads from the CDN and stays around 15 KB.
+:::
+
 Check out [this Streamlit dashboard](https://0193dbe9-1a63-183e-ba7f-b62075dd1d71.share.connect.posit.cloud/) with maidr, and its source code is available on [GitHub](https://github.com/xability/maidr_streamlit).
 
     * Note: `Streamlit` framework has some "Unlabeled 0 Button" which does not have to do with our maidr package. This issue needs to be addressed by the `Streamlit` team.
