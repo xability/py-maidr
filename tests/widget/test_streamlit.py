@@ -7,6 +7,7 @@ because what they check is which API is called with which arguments.
 
 from __future__ import annotations
 
+import inspect
 import pathlib
 import sys
 import types
@@ -432,3 +433,27 @@ def test_a_real_streamlit_app_embeds_the_chart_as_srcdoc(monkeypatch):
     # The chart and its runtime both have to survive the trip.
     assert "maidr=" in proto.srcdoc
     assert "cdn.jsdelivr" in proto.srcdoc
+
+
+def test_tab_index_support_is_detected_on_the_real_streamlit():
+    """Probe the installed function, not only hand-written stubs.
+
+    Streamlit wraps ``components.v1.html`` in a deprecation decorator. If
+    that wrapper did not carry ``__wrapped__``, ``inspect.signature`` would
+    report the wrapper's own ``(*args, **kwargs)`` and the probe would call
+    a version that supports ``tab_index`` too old for it -- warning falsely
+    and dropping the argument. The stubs cannot catch that; only the real
+    function can.
+    """
+    pytest.importorskip("streamlit")
+    import streamlit.components.v1 as components
+
+    from maidr.widget.streamlit import _accepts_tab_index
+
+    # Whatever the answer, it must be the true one for this install.
+    expected = "tab_index" in inspect.signature(components.html).parameters
+    assert _accepts_tab_index(components.html) is expected
+    assert hasattr(components.html, "__wrapped__"), (
+        "streamlit stopped wrapping components.html; re-check the probe"
+    )
+    assert expected is True, "this streamlit should support tab_index"

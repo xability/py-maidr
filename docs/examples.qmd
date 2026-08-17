@@ -1223,14 +1223,20 @@ open panel, and the audio state. Caching the *HTML* rather than the render
 call is the lever that helps:
 
 ```python
-from maidr.widget.streamlit import maidr_html, render_maidr
+from maidr.widget.streamlit import maidr_html
 
 @st.cache_data
 def chart_html(_fig, key):     # `_fig` is not hashed; `key` is the cache key
     return maidr_html(_fig)
 
-render_maidr(fig)              # or place chart_html(fig, key=day) yourself
+st.iframe(chart_html(fig, key=day), height="content", width="stretch")
 ```
+
+`st.iframe` arrived in Streamlit 1.56. On older versions place the same
+cached string with `st.components.v1.html(chart_html(fig, key=day),
+height=600, scrolling=True)` — it cannot size itself, so give it a height.
+`render_maidr()` handles that difference for you, which is why it is the
+better default when you are not caching.
 
 Both arguments matter. The leading underscore tells Streamlit not to hash the
 figure, which a matplotlib `Figure` does not support -- which leaves `key` as
