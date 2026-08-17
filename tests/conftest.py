@@ -107,6 +107,12 @@ def pytest_addoption(parser):
         default=False,
         help="run the timing benchmarks, which are skipped by default",
     )
+    parser.addoption(
+        "--run-browser",
+        action="store_true",
+        default=False,
+        help="run the browser tests, which are skipped by default",
+    )
 
 
 def pytest_configure(config):
@@ -114,19 +120,33 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "benchmark: a timing measurement, skipped unless asked for"
     )
+    config.addinivalue_line(
+        "markers", "browser: drives a real browser, skipped unless asked for"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
-    """Skip anything marked ``benchmark`` unless ``--run-benchmark`` is given.
+    """Skip the two opt-in groups unless their flag is given.
 
-    Timing is machine- and load-dependent, so gating CI on it would buy
-    flakes rather than information. The measurement still lives in the
+    ``benchmark`` is machine- and load-dependent, so gating CI on it would
+    buy flakes rather than information. The measurement still lives in the
     suite so the numbers quoted in the docs can be re-checked on demand
     rather than re-derived from scratch.
+
+    ``browser`` is opt-in for an unrelated reason -- see below.
     """
-    if config.getoption("--run-benchmark"):
-        return
-    skip = pytest.mark.skip(reason="timing benchmark; pass --run-benchmark")
-    for item in items:
-        if "benchmark" in item.keywords:
-            item.add_marker(skip)
+    if not config.getoption("--run-benchmark"):
+        skip = pytest.mark.skip(reason="timing benchmark; pass --run-benchmark")
+        for item in items:
+            if "benchmark" in item.keywords:
+                item.add_marker(skip)
+
+    # Browser tests are opt-in for a different reason than the benchmarks.
+    # They are not flaky-by-nature; they need a browser binary and a Shiny
+    # server, neither of which every contributor has, and a missing
+    # browser should read as "not run here" rather than as a failure.
+    if not config.getoption("--run-browser"):
+        skip = pytest.mark.skip(reason="browser test; pass --run-browser")
+        for item in items:
+            if "browser" in item.keywords:
+                item.add_marker(skip)

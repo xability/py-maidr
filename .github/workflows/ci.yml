@@ -57,6 +57,40 @@ jobs:
         id: tests
         run: uv run pytest -vvv
 
+  browser:
+    name: Accessibility tests in a browser
+
+    # Guarded like `test`: an internal PR fires both `push` and
+    # `pull_request`, and this job installs a browser.
+    if:
+      github.event_name == 'push' || github.event.pull_request.head.repo.full_name !=
+      github.repository
+
+    runs-on: ubuntu-latest
+
+    # The only tests that check what the library actually promises -- that
+    # a chart can be reached and driven from the keyboard. Everything else
+    # in the suite asserts on emitted markup, which cannot tell a working
+    # chart from a well-formed one.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Install Playwright and its browser
+        run: |
+          uv pip install playwright
+          uv run playwright install --with-deps chromium
+
+      - name: Run the browser tests
+        run: uv run pytest tests/browser -vv --run-browser
+
   bare-install:
     name: Import with no extras
 

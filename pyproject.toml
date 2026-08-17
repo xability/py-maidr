@@ -91,6 +91,12 @@ shiny = [
 streamlit = [
     "streamlit>=1.30",
 ]
+# Drives a real browser for the accessibility tests. Kept out of `test`
+# because it needs a browser binary as well as the wheel, so a plain
+# `uv sync --all-extras` should not imply the browser tests can run.
+browser = [
+    "playwright>=1.40",
+]
 test = [
     "matplotlib>=3.8",
     "seaborn>=0.13",
