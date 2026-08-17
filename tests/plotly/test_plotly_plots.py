@@ -214,9 +214,13 @@ class TestPlotlyHeatmapPlot:
         data = plot._extract_plot_data()
 
         assert MaidrKey.POINTS in data
-        assert data[MaidrKey.POINTS] == [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+        # Turned over: plotly numbers a heatmap's rows from the bottom, so
+        # "r2" is the one drawn at the top and the schema leads with it
+        # (#487). What this case is about is that the fields are extracted
+        # at all; the order is tests/plotly/test_plotly_heatmap_row_order.py.
+        assert data[MaidrKey.POINTS] == [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
         assert data[MaidrKey.X] == ["a", "b", "c"]
-        assert data[MaidrKey.Y] == ["r1", "r2"]
+        assert data[MaidrKey.Y] == ["r2", "r1"]
 
     def test_no_labels(self):
         trace = {"type": "heatmap", "z": [[1, 2], [3, 4]]}
