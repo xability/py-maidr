@@ -60,6 +60,31 @@ _AXES_WIDE_BAR_PLOTS = (BarPlot, GroupedBarPlot)
 #: the layer to keep when one axes holds more than one of the family.
 _SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 
+#: What the browser says when ``use_cdn="auto"`` runs out of sources.
+#:
+#: Both fallbacks can fail to resolve, and both used to do it in silence: the
+#: notebook one only acts ``if (jsSrc)`` and swallows the miss, and the other
+#: never set ``onerror`` at all. What the reader gets either way is a chart
+#: with no MAIDR runtime -- a picture, with nothing saying why (#455).
+#:
+#: Names the setting that works rather than describing the failure, because
+#: the person who hits this is on an air-gapped deployment and the answer
+#: (``use_cdn=False``) is otherwise only discoverable by reading the source.
+#:
+#: A plain string rather than an f-string: it is interpolated *into* f-strings,
+#: so its braces must not be doubled.
+_OFFLINE_FALLBACK_REPORT = """
+                        function reportNoRuntime(why) {
+                            console.error(
+                                '[maidr] The chart loaded but its runtime did not: '
+                                + why + '. The CDN was unreachable and the bundled '
+                                + 'copy could not be resolved from inside this frame. '
+                                + 'Re-render with use_cdn=False to inline the bundle, '
+                                + 'which works without network access.'
+                            );
+                        }
+"""
+
 
 class Maidr:
     """
@@ -129,8 +154,18 @@ class Maidr:
               ``maidr`` package.  Useful for air-gapped environments.
             * ``"auto"`` (default): attempt the CDN first and fall back
               to the bundled copy client-side via a ``<script onerror>``
-              handler.  The bundled files are copied next to the output
-              so the fallback works without network access.
+              handler.
+
+            .. note::
+               The ``"auto"`` fallback resolves **outside** an iframe, and
+               in a notebook. It does not resolve in a Shiny or Flask
+               render, where the chart is served inside a ``srcdoc``
+               iframe: that document has no base URL for the relative
+               ``lib/`` path, and the ``HTMLDependency`` that would have
+               served the file is dropped when the wrapper serialises the
+               tag. On an air-gapped deployment use ``use_cdn=False``,
+               which inlines the bundle. The browser console says so if
+               the fallback is ever reached (#455).
         """
         return self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
 
@@ -977,6 +1012,7 @@ class Maidr:
                                 if (window.main) window.main();
                             }}
                         }}
+{_OFFLINE_FALLBACK_REPORT}
                         function fallbackFromParent() {{
                             try {{
                                 var jsSrc = window.parent && window.parent.__maidrJsSource;
@@ -1000,8 +1036,12 @@ class Maidr:
                                     s.text = jsSrc;
                                     document.head.appendChild(s);
                                     bootstrap();
+                                }} else {{
+                                    reportNoRuntime('the notebook page has no stashed copy');
                                 }}
-                            }} catch (_) {{ /* parent unreachable */ }}
+                            }} catch (_) {{
+                                reportNoRuntime('the parent page is unreachable');
+                            }}
                         }}
                         var s = document.createElement('script');
                         s.src = '{js_cdn_url}';
@@ -1024,7 +1064,7 @@ class Maidr:
                 rel_dir = maidr_bundled_relative_dir()
                 bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
                 fallback_script = f"""
-                    (function() {{
+                    (function() {{{_OFFLINE_FALLBACK_REPORT}
                         function bootstrap() {{
                             if (document.readyState === 'loading') {{
                                 document.addEventListener('DOMContentLoaded', function() {{ if (window.main) window.main(); }});
@@ -1041,6 +1081,9 @@ class Maidr:
                             var fb = document.createElement('script');
                             fb.src = '{bundled_js_rel}';
                             fb.onload = bootstrap;
+                            fb.onerror = function() {{
+                                reportNoRuntime('the bundled copy at {bundled_js_rel} did not load');
+                            }};
                             document.head.appendChild(fb);
                         }};
                         document.head.appendChild(s);
