@@ -23,7 +23,6 @@ from maidr.patch.common import (
 _INTERVAL_MARKER = "None"
 
 
-
 def point(wrapped, instance, args, kwargs) -> Axes:
     """
     Draw ``seaborn.pointplot`` quietly and leave the reading to the plotter.

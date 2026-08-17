@@ -57,6 +57,13 @@ def _is_interval_bar(line: Line2D) -> bool:
     by, so the bars answered to it and so did a line the caller drew
     beforehand (#451).
 
+    The single-x test is the part that depends on `regplot` having no
+    `capsize`, which it does not -- `pointplot` takes one and `regplot`'s
+    signature has no equivalent. A capped bar draws its caps at two further x
+    values, so were one ever added here the width test would fail first and
+    the bar would be described as a curve; the vertex ceiling is only an upper
+    bound and would not be what gave way.
+
     Parameters
     ----------
     line : Line2D
