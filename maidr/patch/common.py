@@ -14,6 +14,20 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 
+#: The most vertices one confidence-interval polyline can have.
+#:
+#: Seaborn draws an interval as a plain two-point segment, and as a capped
+#: form -- lower cap, spine, upper cap, each two vertices with a NaN between
+#: them -- when the caller asks for caps. A polyline longer than this is not
+#: an interval, whatever else it is.
+#:
+#: Shared because it is a fact about seaborn's geometry rather than about
+#: either reader of it: `pointplot.py` splits `sns.pointplot`'s intervals from
+#: its estimates with it, and `regplot.py` splits a binned `regplot`'s from
+#: its fitted curve. Two copies would have to change in lockstep the day that
+#: geometry does.
+MAX_INTERVAL_VERTICES = 8
+
 # Serialises the warning-filter save/restore in `_draw_quietly`; see its
 # docstring for why interleaving those corrupts the global filter list.
 # Reentrant because patches nest: `regplot.patched_plot` wraps `Axes.plot`,

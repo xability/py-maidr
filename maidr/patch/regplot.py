@@ -13,14 +13,12 @@ from maidr.core.enum import PlotType
 from maidr.core.enum.smooth_keywords import SMOOTH_KEYWORDS
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.scatterplot import DRAWN_POINTS
-from maidr.patch.common import _draw_quietly, common, wrap_seaborn
-
-#: The most vertices one interval bar can have. Seaborn draws the bar for a
-#: binned estimate as a plain two-point segment; the allowance leaves room for
-#: a capped form -- lower cap, spine, upper cap, NaN-separated -- which is what
-#: ``maidr/patch/pointplot.py`` already sees from ``sns.pointplot``.
-_MAX_INTERVAL_VERTICES = 8
-
+from maidr.patch.common import (
+    MAX_INTERVAL_VERTICES,
+    _draw_quietly,
+    common,
+    wrap_seaborn,
+)
 
 def _prospective_axes(kwargs: dict) -> Axes | None:
     """
@@ -71,7 +69,7 @@ def _is_interval_bar(line: Line2D) -> bool:
     """
     xs = np.asarray(line.get_xdata(), dtype=float)
     finite = xs[np.isfinite(xs)]
-    if finite.size < 2 or finite.size > _MAX_INTERVAL_VERTICES:
+    if finite.size < 2 or finite.size > MAX_INTERVAL_VERTICES:
         return False
     return bool(np.ptp(finite) == 0)
 
@@ -202,9 +200,15 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
 
+    # Sets, not lists: membership is asked once per artist below, and the
+    # list form is the quadratic scan `lineplot.py` and `boxenplot.py` already
+    # moved off for this reason. The artists themselves rather than their
+    # `id()`s, which keeps every one alive for the comparison -- an id is only
+    # unique while its object is -- and costs nothing, since an Artist hashes
+    # by identity.
     target = _prospective_axes(kwargs)
-    before_lines = list(target.lines) if target is not None else []
-    before_collections = list(target.collections) if target is not None else []
+    before_lines = set(target.lines) if target is not None else set()
+    before_collections = set(target.collections) if target is not None else set()
 
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
@@ -236,13 +240,25 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
         FigureManager.create_maidr(
             axes, PlotType.ERRORBAR, estimate=estimates, intervals=ordered
         )
-    elif points is not None:
-        # The scatter's own collection rather than a sweep of the axes, so a
-        # regplot overlaid on another scatter reads its own points (#426).
-        FigureManager.create_maidr(axes, PlotType.SCATTER, **{DRAWN_POINTS: points})
-        _register_curves(axes, intervals, instance, args, kwargs)
+        described = curves
+    else:
+        if points is not None:
+            # The scatter's own collection rather than a sweep of the axes, so
+            # a regplot overlaid on another scatter reads its own points
+            # (#426).
+            FigureManager.create_maidr(
+                axes, PlotType.SCATTER, **{DRAWN_POINTS: points}
+            )
+        # Whatever could not be paired is still described. Mistyping a bar as
+        # a curve is the reading this change replaces and is bad; dropping it
+        # is worse, because a layer that is not there cannot be navigated to
+        # and nothing says it is missing. Written so no branch can drop one --
+        # the arm that skipped them needed `scatter=False` *and* binning, which
+        # seaborn cannot produce today, and a guard nothing reaches is exactly
+        # the kind that stops holding when an upstream release moves.
+        described = intervals + curves
 
-    _register_curves(axes, curves, instance, args, kwargs)
+    _register_curves(axes, described, instance, args, kwargs)
 
     return drawn
 

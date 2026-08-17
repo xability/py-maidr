@@ -316,3 +316,59 @@ class TestThePairingIsVerifiedRatherThanAssumed:
         assert list(estimates_line.get_xdata()) == [1.0, 2.0]
         assert list(estimates_line.get_ydata()) == [10.0, 20.0]
         assert [line.get_xdata()[0] for line in ordered] == [1.0, 2.0]
+
+
+class TestNoBranchDropsALayer:
+    """Whatever cannot be paired is still described.
+
+    Mistyping an interval bar as a curve is the reading this change replaces,
+    and it is bad. Dropping it is worse: a layer that is not there cannot be
+    navigated to, and nothing says it is missing -- so the chart reads as
+    complete while one of its parts is simply absent.
+
+    The arm that used to skip them needed the pairing to fail *and* the
+    scatter to be absent, which seaborn cannot produce today: the binned
+    estimate and its interval are drawn together, inside the branch gated on
+    `scatter`. That is exactly why it is worth pinning rather than reasoning
+    about -- a guard nothing reaches is one that stops holding quietly when
+    an upstream release moves.
+
+    Driven by making the pairing fail, since seaborn will not.
+    """
+
+    def test_unpairable_intervals_are_still_described(self, monkeypatch):
+        import maidr.patch.regplot as patch
+
+        monkeypatch.setattr(patch, "_paired_estimates", lambda *_: None)
+
+        _, ax = plt.subplots()
+        sns.regplot(data=frame(), x="dose", y="resp", x_estimator=np.mean, ax=ax)
+
+        # Four bars plus the fit, all described, with the estimates as a
+        # scatter -- the reading that was there before this change, which is
+        # incomplete rather than wrong.
+        registered = layers(ax.get_figure())
+        assert registered.count("smooth") == 5
+        assert "point" in registered
+
+    def test_nothing_is_lost_when_the_scatter_is_absent_too(self, monkeypatch):
+        # The unreachable corner itself: no scatter to fall back to, so the
+        # intervals are the only thing left to describe.
+        import maidr.patch.regplot as patch
+
+        monkeypatch.setattr(patch, "_paired_estimates", lambda *_: None)
+        monkeypatch.setattr(
+            patch, "_prospective_axes", lambda kwargs: kwargs.get("ax")
+        )
+
+        _, ax = plt.subplots()
+        sns.regplot(
+            data=frame(), x="dose", y="resp", x_estimator=np.mean,
+            scatter=False, ax=ax,
+        )
+
+        # No estimates were drawn, so no `point` layer -- and every line the
+        # call drew is still a layer rather than nothing.
+        registered = layers(ax.get_figure())
+        assert "point" not in registered
+        assert registered.count("smooth") >= 1
