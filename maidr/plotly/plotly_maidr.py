@@ -1100,7 +1100,7 @@ class PlotlyMaidr:
         # KaTeX travels as a string because ``maidr.js`` resolves
         # ``maidr-math.css`` against the URL it was loaded from, and an
         # inline script inside a srcdoc iframe has no URL to offer it.
-        def parent_source(on_missing: str) -> str:
+        def parent_source(on_missing: str, on_unreachable: str = "") -> str:
             """Return the parent-window loader, reporting failure as told.
 
             The two ``use_cdn`` modes reach this for different reasons and so
@@ -1112,7 +1112,14 @@ class PlotlyMaidr:
             Parameters
             ----------
             on_missing : str
-                JS run when no stashed copy can be reached.
+                JS run when the parent is readable but holds no stash.
+            on_unreachable : str, optional
+                JS run when the parent could not be read at all -- a
+                cross-origin frame, or no parent. Defaults to
+                ``on_missing``, which is right only where the two have the
+                same answer; under ``"auto"`` they do not, and reporting a
+                missing stash for an unreachable parent sends the reader
+                looking in the wrong place.
 
             Returns
             -------
@@ -1142,11 +1149,16 @@ class PlotlyMaidr:
                         document.head.appendChild(s);
                         return true;
                     }
-                } catch (_) { /* cross-origin or missing parent */ }
-                __ON_MISSING__
-                return false;
+                    __ON_MISSING__
+                    return false;
+                } catch (_) {
+                    __ON_UNREACHABLE__
+                    return false;
+                }
             })();
-        """.replace("__ON_MISSING__", on_missing)
+        """.replace("__ON_MISSING__", on_missing).replace(
+                "__ON_UNREACHABLE__", on_unreachable or on_missing
+            )
 
         #: ``use_cdn=False``: the caller asked for the bundle, so the fix is
         #: to stash it, not to change the mode.
@@ -1187,7 +1199,8 @@ class PlotlyMaidr:
                 # ``use_cdn=False`` the same miss means something else
                 # (see ``parent_source``), hence the separate wording.
                 auto_parent_source = parent_source(
-                    "reportNoRuntime('the notebook page has no stashed copy');"
+                    "reportNoRuntime('the notebook page has no stashed copy');",
+                    "reportNoRuntime('the parent page is unreachable');",
                 )
                 loader = f"""
 {OFFLINE_FALLBACK_REPORT}

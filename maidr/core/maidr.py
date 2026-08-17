@@ -61,6 +61,7 @@ _AXES_WIDE_BAR_PLOTS = (BarPlot, GroupedBarPlot)
 #: the layer to keep when one axes holds more than one of the family.
 _SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 
+
 class Maidr:
     """
     A class to handle the rendering and interaction

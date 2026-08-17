@@ -217,3 +217,14 @@ class TestThePlotlyRenderReportsToo:
         # from either file alone.
         assert marker in self._plotly_rendered(monkeypatch, notebook=False)
         assert marker in _rendered(monkeypatch, notebook=False)
+
+    def test_the_two_notebook_failures_are_told_apart(self, monkeypatch) -> None:
+        """An unreachable parent is not a missing stash.
+
+        Both end the same way -- no runtime -- but they send the reader to
+        different places, so reporting one as the other is worse than
+        generic. Matches how the matplotlib path words the same pair.
+        """
+        document = self._plotly_rendered(monkeypatch, notebook=True)
+        assert "the notebook page has no stashed copy" in document
+        assert "the parent page is unreachable" in document
