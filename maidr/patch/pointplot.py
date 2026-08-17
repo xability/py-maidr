@@ -9,6 +9,7 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.patch.common import (
+    MAX_INTERVAL_VERTICES,
     _draw_quietly,
     plotter_axes,
     plotter_panels,
@@ -20,11 +21,6 @@ from maidr.patch.common import (
 # when the caller turns it off, which is why this tests for the literal rather
 # than for falsiness.
 _INTERVAL_MARKER = "None"
-
-# The most vertices one interval can have: lower cap, spine and upper cap, each
-# two vertices, with a NaN between them. A polyline longer than this is not an
-# interval, whatever else it is.
-_MAX_INTERVAL_VERTICES = 8
 
 
 def point(wrapped, instance, args, kwargs) -> Axes:
@@ -224,7 +220,7 @@ def _pairs_up(estimates: list[Line2D], intervals: list[Line2D]) -> bool:
         return False
 
     return all(
-        len(interval.get_xydata()) <= _MAX_INTERVAL_VERTICES
+        len(interval.get_xydata()) <= MAX_INTERVAL_VERTICES
         for interval in intervals
     )
 
