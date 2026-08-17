@@ -45,6 +45,28 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         """Whether this trace's value runs along ``x`` rather than ``y``."""
         return trace.get("orientation") == "h"
 
+    def render(self) -> dict:
+        """Add ``orientation`` to the base schema.
+
+        `_extract_plot_data` already puts a horizontal group's measure in
+        ``x``, which is the arrangement the core wants -- but only once it has
+        been told the layer is horizontal. Without the key it defaults to
+        vertical and reads ``point.y``, which on these layers is the category
+        name: no magnitude to pitch, so every bar was silent, and the
+        announcement gave the measure as the point's identity and the category
+        as its value (#480).
+
+        Taken from the first trace, as the axes and title above are. A group
+        is one chart drawn one way round; plotly draws a group whose members
+        disagree about ``orientation`` as overlapping bars rather than as a
+        group, and that is not a shape this class is reached for.
+        """
+        schema = super().render()
+        schema[MaidrKey.ORIENTATION] = (
+            "horz" if self._horizontal(self._traces[0]) else "vert"
+        )
+        return schema
+
     def _extract_plot_data(self) -> list[list[dict]]:
         """Return grouped bar data as a list-of-lists.
 
