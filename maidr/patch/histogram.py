@@ -15,7 +15,7 @@ import uuid
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly, common, wrap_seaborn
+from maidr.patch.common import _draw_quietly, common, plotter_axes, wrap_seaborn
 
 
 @wrapt.patch_function_wrapper(Axes, "hist")
@@ -194,41 +194,6 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     return ax
 
 
-def _plotter_axes(plotter: Any) -> list[Axes]:
-    """
-    Every axes a ``_DistributionPlotter`` draws on in one call.
-
-    One call covers the whole grid: ``sns.displot(col="g")`` over two groups
-    reaches ``plot_univariate_histogram`` **once** and draws two panels, so a
-    wrapper that registered only ``plotter.ax`` would leave every panel but
-    the first unread.
-
-    ``ax`` is set for a single-axes plot and ``None`` for a faceted one, where
-    the panels hang off the ``FacetGrid`` instead. Both are asked rather than
-    one being derived from the other, because the attribute that is set is the
-    plotter's own record of where it drew.
-
-    Parameters
-    ----------
-    plotter : Any
-        The ``_DistributionPlotter`` instance the wrapped method is bound to.
-
-    Returns
-    -------
-    list of Axes
-        Possibly empty, which makes the caller a no-op rather than a guess.
-    """
-    ax = getattr(plotter, "ax", None)
-    if isinstance(ax, Axes):
-        return [ax]
-
-    facets = getattr(plotter, "facets", None)
-    grid = getattr(facets, "axes", None)
-    if grid is None:
-        return []
-    return [axes for axes in np.asarray(grid).flat if isinstance(axes, Axes)]
-
-
 def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
     """
     Register the panels ``seaborn.displot`` draws, which reach no other patch.
@@ -267,12 +232,12 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
     # Snapshot per axes before the call, so a panel that already held bars --
     # someone else's `barplot` on the same axes -- is not claimed as this
     # histogram's. Empty for a faceted call, whose panels do not exist yet.
-    before = {id(ax): _containers_of(ax) for ax in _plotter_axes(instance)}
+    before = {id(ax): _containers_of(ax) for ax in plotter_axes(instance)}
 
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
 
-    for ax in _plotter_axes(instance):
+    for ax in plotter_axes(instance):
         if _drew_bars(ax, before.get(id(ax), [])):
             FigureManager.create_maidr(ax, PlotType.HIST)
 

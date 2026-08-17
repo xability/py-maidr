@@ -5,6 +5,7 @@ import threading
 import warnings
 from typing import Any, Callable
 
+import numpy as np
 import wrapt
 
 from matplotlib.axes import Axes
@@ -30,8 +31,12 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
     name : str
         Name of the parameter to read.
     wrapped : Callable
-        The wrapped matplotlib function, used for its parameter order. It is
-        the bound method, so ``self`` is not among its parameters.
+        The wrapped function, used for its parameter order. It is the bound
+        method, so ``self`` is not among its parameters. Matplotlib's, when
+        this was written; ``maidr/patch/violinplot.py`` now reads ``inner``
+        off ``_CategoricalPlotter.plot_violins`` through it as well, which
+        works for the same reason and is worth saying so a reader does not
+        assume matplotlib is the only caller.
     args : tuple
         Positional arguments the caller passed.
     kwargs : dict
@@ -373,3 +378,96 @@ def wrap_seaborn(name: str, wrapper: Callable) -> None:
         )
         return
     wrapt.wrap_function_wrapper(module, name, wrapper)
+
+
+def plotter_axes(plotter: Any) -> list[Axes]:
+    """
+    Every axes one call to a seaborn plotter method draws on.
+
+    One call covers the whole grid: ``sns.displot(col="g")`` over two groups
+    reaches ``plot_univariate_histogram`` **once** and draws two panels, and
+    ``sns.catplot(col="g", kind="violin")`` reaches ``plot_violins`` once for
+    the same reason. A wrapper that registered only ``plotter.ax`` would leave
+    every panel but the first unread.
+
+    ``ax`` is set for a single-axes plot and ``None`` for a faceted one, where
+    the panels hang off the ``FacetGrid`` instead -- so on the faceted path
+    reading ``ax`` alone leaves *all* of them unread, not merely the tail.
+    Both are asked rather than one being derived from the other, because the
+    attribute that is set is the plotter's own record of where it drew.
+
+    Written against the attributes rather than a plotter class, because
+    ``_DistributionPlotter`` and ``_CategoricalPlotter`` both carry them --
+    they are ``VectorPlotter`` and ``FacetGrid`` conventions, not per-plot
+    ones.
+
+    Parameters
+    ----------
+    plotter : Any
+        The plotter instance the wrapped method is bound to.
+
+    Returns
+    -------
+    list of Axes
+        Possibly empty, which makes the caller a no-op rather than a guess.
+    """
+    ax = getattr(plotter, "ax", None)
+    if isinstance(ax, Axes):
+        return [ax]
+
+    facets = getattr(plotter, "facets", None)
+    grid = getattr(facets, "axes", None)
+    if grid is None:
+        return []
+    return [axes for axes in np.asarray(grid).flat if isinstance(axes, Axes)]
+
+
+def plotter_panels(plotter: Any) -> list[tuple[Axes, Any]]:
+    """
+    One ``(axes, data)`` pair per panel a seaborn plotter actually drew into.
+
+    Not the same list as :func:`plotter_axes`, and the difference is the whole
+    point: a ``row``/``col`` grid allocates an axes for **every** combination
+    of the two, including the ones the data does not hold. Seaborn draws
+    nothing into those, and registering them promises a layer whose extraction
+    has nothing to read -- which raises, and takes the whole figure's HTML down
+    with it rather than only the empty panel's::
+
+        catplot(kind="bar", col=..., row=...)  with one combination missing
+          ExtractionError: Error extracting data for bar plot type
+
+    Seaborn's own ``iter_data(allow_empty=False)`` is what knows which
+    combinations exist, and ``_get_axes`` maps each to the axes it was drawn
+    on. A single-axes plot skips both: there is one axes and it gets all the
+    data, so the ordinary ``sns.violinplot(ax=ax)`` path does not depend on
+    either of them.
+
+    Parameters
+    ----------
+    plotter : Any
+        The plotter instance the wrapped method is bound to.
+
+    Returns
+    -------
+    list of (Axes, data)
+        Possibly empty, which makes the caller a no-op rather than a guess.
+        The data is the plotter's own frame for that panel; a caller that only
+        needs the axes can ignore it.
+    """
+    axes = plotter_axes(plotter)
+    data = getattr(plotter, "plot_data", None)
+    if data is None or not hasattr(data, "empty") or data.empty:
+        return []
+    if len(axes) <= 1:
+        return [(axes[0], data)] if axes else []
+
+    panels: list[tuple[Axes, Any]] = []
+    seen: set[int] = set()
+    for sub_vars, sub_data in plotter.iter_data(allow_empty=False):
+        panel = plotter._get_axes(sub_vars)
+        # Deduplicated by axes, because a caller that groups by hue as well
+        # would otherwise be handed the same panel once per level.
+        if isinstance(panel, Axes) and id(panel) not in seen:
+            seen.add(id(panel))
+            panels.append((panel, sub_data))
+    return panels

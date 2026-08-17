@@ -19,12 +19,19 @@ The guard is in two halves, because either alone can drift:
   is what catches the floor being lowered back under it.
 
 It covers every private seaborn attribute a patch reaches for at import time,
-not only the one that caused #441. `maidr/patch/histogram.py` and
-`maidr/patch/kdeplot.py` reach `_DistributionPlotter.plot_univariate_histogram`
-and `plot_univariate_density` so that `sns.displot` reads as the distribution
-it draws (#446), and those carry the same risk for the same reason: an
-attribute that moves breaks `import maidr` for **everyone**, not only for
-users of that chart type.
+not only the one that caused #441:
+
+* `histogram.py` and `kdeplot.py` reach
+  `_DistributionPlotter.plot_univariate_histogram` and
+  `plot_univariate_density`, so that `sns.displot` reads as the distribution
+  it draws (#446);
+* `violinplot.py`, `boxenplot.py`, `pointplot.py` and `barplot.py` reach
+  `_CategoricalPlotter.plot_violins`, `plot_boxens`, `plot_points` and
+  `plot_bars`, so that `sns.catplot` reads the chart it drew rather than the
+  scaffolding underneath it (#448, #449).
+
+Every one carries the same risk for the same reason: an attribute that moves
+breaks `import maidr` for **everyone**, not only for users of that chart.
 """
 
 from __future__ import annotations
@@ -59,6 +66,30 @@ PATCHED_INTERNALS = [
         Version("0.13"),
     ),
     (
+        "seaborn.categorical",
+        "_CategoricalPlotter",
+        "plot_violins",
+        Version("0.13"),
+    ),
+    (
+        "seaborn.categorical",
+        "_CategoricalPlotter",
+        "plot_boxens",
+        Version("0.13"),
+    ),
+    (
+        "seaborn.categorical",
+        "_CategoricalPlotter",
+        "plot_points",
+        Version("0.13"),
+    ),
+    (
+        "seaborn.categorical",
+        "_CategoricalPlotter",
+        "plot_bars",
+        Version("0.13"),
+    ),
+    (
         "seaborn.distributions",
         "_DistributionPlotter",
         "plot_univariate_histogram",
@@ -71,6 +102,70 @@ PATCHED_INTERNALS = [
         Version("0.11"),
     ),
 ]
+
+#: Every private seaborn attribute a patch reads at **draw** time, as
+#: ``module``, ``class``, ``attribute``.
+#:
+#: A separate list because it carries a different risk, not a smaller one.
+#: The table above is about `import maidr` raising for every user; a name
+#: from this one going missing breaks nothing at import and nothing on a
+#: plain call -- it surfaces as an `AttributeError` on the first faceted
+#: categorical grid someone draws, which is a narrow enough path that it
+#: could ship. The point of this file is to catch that class of drift before
+#: it does, so the attributes are listed rather than left to a chart nobody
+#: happens to run.
+RUNTIME_INTERNALS = [
+    # `maidr/patch/common.py::plotter_axes` and `plotter_panels`.
+    ("seaborn.categorical", "_CategoricalPlotter", "iter_data"),
+    ("seaborn.categorical", "_CategoricalPlotter", "_get_axes"),
+    ("seaborn.categorical", "_CategoricalPlotter", "plot_data"),
+    # `maidr/patch/violinplot.py::_panel_groups`.
+    ("seaborn.categorical", "_CategoricalPlotter", "orient"),
+    ("seaborn.categorical", "_CategoricalPlotter", "var_levels"),
+    ("seaborn.categorical", "_CategoricalPlotter", "variables"),
+    # `_DistributionPlotter` reaches the same `ax`/`facets` pair through
+    # `plotter_axes`; both are `VectorPlotter`/`FacetGrid` conventions.
+    ("seaborn.distributions", "_DistributionPlotter", "iter_data"),
+]
+
+
+@pytest.mark.parametrize(
+    "module,cls,attribute",
+    RUNTIME_INTERNALS,
+    ids=[f"{cls}.{attribute}" for _, cls, attribute in RUNTIME_INTERNALS],
+)
+def test_the_runtime_attribute_exists_on_the_installed_seaborn(
+    module, cls, attribute
+):
+    # Several of these are set in `__init__` rather than declared --
+    # `plot_data`, `orient` and `variables` among them -- so a class-level
+    # `hasattr` answers False for an attribute that is perfectly fine. The
+    # check falls back to a real plotter for exactly those, which is also the
+    # only way to catch one that stops being set at all.
+    import importlib
+
+    import numpy as np
+    import pandas as pd
+
+    owner = getattr(importlib.import_module(module), cls)
+    if hasattr(owner, attribute):
+        return
+
+    frame = pd.DataFrame({"g": list("ab") * 3, "v": np.arange(6.0)})
+    plotter = owner(
+        data=frame,
+        variables={"x": "g", "y": "v"},
+        order=None,
+        orient=None,
+        color=None,
+        legend="auto",
+    )
+
+    assert hasattr(plotter, attribute), (
+        f"`{cls}.{attribute}` is gone -- a faceted categorical grid will "
+        f"raise AttributeError at draw time, and nothing before it will."
+    )
+
 
 #: The highest of them, which is what the declared floor has to clear.
 REQUIRED_SINCE = max(since for *_, since in PATCHED_INTERNALS)

@@ -407,10 +407,13 @@ class TestSomethingElseDrawnOnTheSameAxes:
     """
 
     @staticmethod
-    def _overlaid(**kwargs):
+    def _overlaid(*, strip_first: bool = False, **kwargs):
         _, ax = plt.subplots()
+        if strip_first:
+            sns.stripplot(frame(), x="g", y="v", ax=ax, color="k")
         sns.boxenplot(frame(), x="g", y="v", ax=ax, **kwargs)
-        sns.stripplot(frame(), x="g", y="v", ax=ax, color="k")
+        if not strip_first:
+            sns.stripplot(frame(), x="g", y="v", ax=ax, color="k")
         return ax
 
     def test_suppressed_fliers_stay_suppressed_under_an_overlay(self):
@@ -434,6 +437,32 @@ class TestSomethingElseDrawnOnTheSameAxes:
         # not lose the ones it did draw.
         drawn = ladders(self._overlaid())
 
+        assert all(
+            point.get("lowerOutliers") or point.get("upperOutliers") for point in drawn
+        )
+
+    def test_an_overlay_drawn_first_is_not_read_either(self):
+        # The order the tests above do not cover, and the only one the
+        # before/after snapshot is for. Drawn *after* the boxen, the strip
+        # plot's clouds are not on the axes yet when the ladders are read, so
+        # every assertion above passes with no snapshot at all. Drawn
+        # **before** it, they are already there -- and with `showfliers=False`
+        # each ladder takes seven of them at each end::
+        #
+        #     strip then boxen   z=a low=7 up=7   z=b low=7 up=7
+        #
+        # Fourteen outliers per category on a chart whose author asked for
+        # none, with the values taken from a different layer.
+        for point in ladders(self._overlaid(strip_first=True, showfliers=False)):
+            assert point.get("lowerOutliers", []) == []
+            assert point.get("upperOutliers", []) == []
+
+    def test_a_ladder_under_an_overlay_drawn_first_is_still_complete(self):
+        # The same guard on that guard: declining someone else's collections
+        # must not decline this call's own.
+        drawn = ladders(self._overlaid(strip_first=True))
+
+        assert len(drawn) == len(GROUPS)
         assert all(
             point.get("lowerOutliers") or point.get("upperOutliers") for point in drawn
         )
