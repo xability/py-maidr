@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import inspect
 import pathlib
+import re
 import sys
 import types
 import warnings
@@ -500,3 +501,40 @@ def test_the_resolved_mode_is_the_one_the_chart_was_built_with(bar_axes, monkeyp
 
     # Never ``None``: that would send ``render`` back to the shared default.
     assert seen == ["auto"]
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (
+            ModuleNotFoundError("No module named 'streamlit'", name="streamlit"),
+            "maidr[streamlit]",
+        ),
+        # Streamlit's import chain reaches pyarrow, tornado, protobuf and
+        # altair; a skew in any of them fails as a missing *name*, and
+        # "install the extra" is the wrong answer for a package already
+        # installed.
+        (
+            ImportError("cannot import name 'Foo' from 'pyarrow'"),
+            "version skew",
+        ),
+    ],
+)
+def test_import_error_advice_matches_the_failure(
+    bar_axes, monkeypatch, error, expected
+):
+    """"Install the extra" is wrong advice for a package already installed."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def failing_import(name, *args, **kwargs):
+        if name.startswith("streamlit"):
+            raise error
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.delitem(sys.modules, "streamlit", raising=False)
+    monkeypatch.setattr(builtins, "__import__", failing_import)
+
+    with pytest.raises(ImportError, match=re.escape(expected)):
+        render_maidr(bar_axes, use_cdn=True)

@@ -286,10 +286,9 @@ def render_maidr(
     try:
         import streamlit as st
     except ImportError as error:
-        raise ImportError(
-            "maidr's Streamlit integration requires the `streamlit` "
-            'package. Install it with: pip install "maidr[streamlit]"'
-        ) from error
+        from maidr.widget._extras import missing_extra_error
+
+        raise missing_extra_error(error, "streamlit", "streamlit") from error
 
     html = maidr_html(plot, use_cdn=use_cdn, _stacklevel=4)
 
