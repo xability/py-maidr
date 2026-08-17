@@ -99,10 +99,44 @@ class PlotlyGroupedHistogramPlot(PlotlyPlot):
         return self._binned == "y"
 
     def render(self) -> dict:
-        """Add ``orientation`` to the base schema."""
+        """Add ``orientation`` to the base schema, and match the layout to it.
+
+        The key was declared here all along; the points never followed it.
+        `_extract_plot_data` builds every point bin-in-``x`` and count-in-``y``
+        -- the vertical arrangement -- whichever way the chart is drawn, so a
+        horizontal layer declared ``"horz"`` over a payload that says the
+        opposite. The core then read ``point.x`` as the magnitude and pitched
+        the *bin's position* instead of its count, which is a number belonging
+        to nothing (#482).
+
+        Swapped here rather than in `_extract_plot_data` because `_normalised`
+        matches bins across series by their centre, and it reads that centre
+        from ``x``. Doing it at the emit boundary keeps every internal step
+        written against the one arrangement and leaves this the only place
+        that knows about the other -- and it takes the swap and the key from
+        one ``self._horizontal`` answer, so the two cannot drift apart again.
+
+        `PlotlyHistogramPlot` does the same for a single histogram; a grouped
+        one emits ``stacked_bar`` / ``dodged_bar``, so it is in the bar family
+        and reads by the same rule.
+        """
         schema = super().render()
         schema[MaidrKey.ORIENTATION] = "horz" if self._horizontal else "vert"
+        if self._horizontal:
+            schema[MaidrKey.DATA] = [
+                [self._swapped(point) for point in series]
+                for series in schema[MaidrKey.DATA]
+            ]
         return schema
+
+    @staticmethod
+    def _swapped(point: dict) -> dict:
+        """One point with its ``x`` and ``y`` exchanged, other fields kept."""
+        return {
+            **point,
+            MaidrKey.X.value: point[MaidrKey.Y.value],
+            MaidrKey.Y.value: point[MaidrKey.X.value],
+        }
 
     def _get_selector(self) -> str:
         return f"{self._subplot_css_prefix()}.trace.bars .point > path"
