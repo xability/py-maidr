@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
@@ -37,7 +38,13 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         """Whether plotly would read a label as a number rather than a name.
 
         Numeric strings count: plotly resolves a linear axis for ``"1"`` just
-        as it does for ``1``.
+        as it does for ``1``, and for ``"1e10"``.
+
+        ``nan`` and ``inf`` do not, in either spelling. Python parses both,
+        where the JavaScript coercion plotly tests with does not -- measured,
+        a heatmap over ``['nan', 'inf', 'zeta']`` gets a *category* axis and
+        honours its ``categoryarray``. Reading them as numbers here would
+        decline a sort plotly applies.
 
         Parameters
         ----------
@@ -47,17 +54,14 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         Returns
         -------
         bool
-            True when the label parses as a number.
+            True when the label parses as a finite number.
         """
         if isinstance(value, bool):
             return False
-        if isinstance(value, (int, float)):
-            return True
         try:
-            float(value)
+            return math.isfinite(float(value))
         except (TypeError, ValueError):
             return False
-        return True
 
     def _axis_runs_backwards(self, axis_name: str) -> bool:
         """Whether plotly draws an axis from its high end to its low one.

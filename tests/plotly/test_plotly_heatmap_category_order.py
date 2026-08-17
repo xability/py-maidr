@@ -273,6 +273,39 @@ class TestNumericLabels:
         assert emitted["x"] == [3.0, 1.0, 2.0]
         assert emitted["points"] == [[6.0, 4.0, 5.0], [3.0, 1.0, 2.0]]
 
+    def test_sorts_labels_named_nan_and_inf(self) -> None:
+        # Python parses both, where the coercion plotly tests with does not.
+        # Measured: ['nan', 'inf', 'zeta'] gets a *category* axis and honours
+        # its array, so reading them as numbers would decline a real sort.
+        fig = go.Figure(go.Heatmap(x=["nan", "inf", "zeta"], y=["r1"], z=[[1, 2, 3]]))
+        trace = fig.to_dict()["data"][0]
+        layout = {
+            "xaxis": {
+                "categoryorder": "array",
+                "categoryarray": ["zeta", "nan", "inf"],
+            }
+        }
+        data = PlotlyHeatmapPlot(trace, layout)._extract_plot_data()
+        emitted = {str(getattr(k, "value", k)): v for k, v in data.items()}
+
+        assert emitted["x"] == ["zeta", "nan", "inf"]
+        assert emitted["points"] == [[3, 1, 2]]
+
+    def test_declines_labels_in_exponent_form(self) -> None:
+        # Measured: these do resolve a linear axis, so they are numbers.
+        fig = go.Figure(go.Heatmap(x=["1e10", "2e10", "3e10"], y=["r1"], z=[[1, 2, 3]]))
+        trace = fig.to_dict()["data"][0]
+        layout = {
+            "xaxis": {
+                "categoryorder": "array",
+                "categoryarray": ["3e10", "1e10", "2e10"],
+            }
+        }
+        data = PlotlyHeatmapPlot(trace, layout)._extract_plot_data()
+        emitted = {str(getattr(k, "value", k)): v for k, v in data.items()}
+
+        assert emitted["x"] == ["1e10", "2e10", "3e10"]
+
     def test_declines_when_only_some_labels_are_numeric(self) -> None:
         # Measured: a mixed set still sends the axis linear.
         fig = go.Figure(go.Heatmap(x=[1, 3, "b"], y=["r1"], z=[[1, 2, 3]]))
