@@ -19,12 +19,8 @@ import threading
 import warnings
 from collections.abc import Iterable
 
-from maidr.util.dependencies import (
-    BUNDLE_WARNING_ENV_VAR,
-    _bundle_warning_enabled,
-    bundled_js_path,
-    maidr_js_version,
-)
+from maidr.util.dependencies import bundled_js_path, maidr_js_version
+from maidr.util.warn import BUNDLE_WARNING_ENV_VAR, bundle_warning_enabled
 
 _logger = logging.getLogger(__name__)
 
@@ -159,7 +155,7 @@ def warn_if_bundle_cannot_render(
     rendered in a loop says it once and a second unsupported type is not
     swallowed by the first.
     """
-    if not _bundle_warning_enabled():
+    if not bundle_warning_enabled():
         return
 
     known = bundle_trace_types()
