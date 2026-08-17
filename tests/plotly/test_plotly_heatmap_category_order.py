@@ -194,6 +194,38 @@ class TestReversedAxis:
         assert _emit(layout)["points"][2] == [11, 13, 12]
 
 
+class TestNumericLabels:
+    """Categories that are numbers rather than names."""
+
+    @staticmethod
+    def _emit_numeric(layout: dict) -> dict:
+        fig = go.Figure(
+            go.Heatmap(x=[1, 2, 3], y=["r1", "r2"], z=[[1, 2, 3], [4, 5, 6]])
+        )
+        trace = fig.to_dict()["data"][0]
+        data = PlotlyHeatmapPlot(trace, layout)._extract_plot_data()
+        return {str(getattr(k, "value", k)): v for k, v in data.items()}
+
+    def test_sorts_them_by_an_array_of_numbers(self) -> None:
+        # ``_to_native`` floats an integer label, so a categoryarray compared
+        # in its raw form never matched and the sort was declined silently.
+        layout = {"xaxis": {"categoryorder": "array", "categoryarray": [3, 1, 2]}}
+        emitted = self._emit_numeric(layout)
+
+        assert emitted["x"] == [3.0, 1.0, 2.0]
+        assert emitted["points"] == [[6.0, 4.0, 5.0], [3.0, 1.0, 2.0]]
+
+    def test_reads_a_numeric_array_with_no_order_declared(self) -> None:
+        emitted = self._emit_numeric({"xaxis": {"categoryarray": [2, 3, 1]}})
+
+        assert emitted["x"] == [2.0, 3.0, 1.0]
+
+    def test_still_declines_a_number_the_trace_does_not_carry(self) -> None:
+        layout = {"xaxis": {"categoryorder": "array", "categoryarray": [3, 1, 9]}}
+
+        assert self._emit_numeric(layout)["x"] == [1.0, 2.0, 3.0]
+
+
 class TestRaggedGrid:
     """A ``z`` whose rows are not all the same length."""
 

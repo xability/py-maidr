@@ -110,18 +110,22 @@ class PlotlyHeatmapPlot(PlotlyPlot):
             return None
 
         order = axis.get("categoryorder")
-        declared = axis.get("categoryarray")
+        declared = as_list(axis.get("categoryarray"))
         # Measured: plotly resolves ``categoryorder`` to ``"array"`` whenever
         # ``categoryarray`` is non-empty and no order was declared, and draws
         # in it -- so a figure that sets only the array is still sorted. An
         # order that *was* declared wins over the array, empty or not.
-        if order is None and isinstance(declared, (list, tuple)) and len(declared) > 0:
+        if order is None and declared:
             order = "array"
 
         if order == "array":
-            if not isinstance(declared, (list, tuple)):
+            if not declared:
                 return None
-            drawn = [str(v) for v in declared]
+            # Through ``_to_native`` because ``labels`` came through it too: it
+            # floats an integer, so a categoryarray of ``3`` compared raw would
+            # never match a label of ``3.0`` and the sort would be declined
+            # without a word. Both sides normalise the same way or neither can.
+            drawn = [str(self._to_native(v)) for v in declared]
         elif order in ("category ascending", "category descending"):
             drawn = sorted(str(v) for v in labels)
             if order == "category descending":
