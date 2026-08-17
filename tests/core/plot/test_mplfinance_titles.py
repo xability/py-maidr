@@ -99,7 +99,10 @@ class TestTheCallersTitleSurvives:
         fig, axlist = mpf.plot(
             _prices(), type="candle", volume=True, returnfig=True
         )
-        # The volume panel is the second axes mplfinance returns.
+        # `axlist` is [price, price twin, volume, volume twin], so the volume
+        # panel is index 2 -- the second *panel*, not the second element.
+        # Measured rather than assumed: the twins carry an empty ylabel and
+        # the panels carry 'Price' and 'Volume'.
         axlist[2].set_title("Traded volume")
 
         assert "Traded volume" in _layer_titles(fig)

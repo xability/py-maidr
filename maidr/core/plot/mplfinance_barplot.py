@@ -35,12 +35,6 @@ class MplfinanceBarPlot(
         # Store datetime converter if available
         self._maidr_datetime_converter = kwargs.get("_maidr_datetime_converter", None)
 
-        # Store custom title
-
-    def set_title(self, title: str) -> None:
-        """Set a custom title for this volume bar plot."""
-        self._title = title
-
     def _extract_plot_data(self) -> list:
         """Extract data from mplfinance volume patches."""
         if self._custom_patches:
