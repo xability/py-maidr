@@ -126,6 +126,12 @@ def offline_app_url():
     yield from _serve("offline_app.py")
 
 
+@pytest.fixture(scope="session")
+def two_charts_app_url():
+    """Two charts, one of which never re-renders, for the isolation test."""
+    yield from _serve("two_charts_app.py")
+
+
 @pytest.fixture
 def page(browser, focus_app_url):
     """A page with the chart loaded and its runtime up."""

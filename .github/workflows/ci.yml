@@ -83,10 +83,10 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
-      - name: Install Playwright and its browser
-        run: |
-          uv pip install playwright
-          uv run playwright install --with-deps chromium
+      # The wheel arrives with `--all-extras` above; only the browser
+      # binary is missing, and it is not a Python package.
+      - name: Install the browser Playwright drives
+        run: uv run playwright install --with-deps chromium
 
       - name: Run the browser tests
         run: uv run pytest tests/browser -vv --run-browser

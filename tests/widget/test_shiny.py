@@ -208,6 +208,24 @@ def test_the_payload_carries_the_focus_restore_script(fake_session):
     assert "__maidrShinyFocusRestore" in html
 
 
+def test_the_container_class_the_focus_script_looks_for_still_exists():
+    """The script finds its container by a Shiny-internal class.
+
+    ``.shiny-html-output`` is an implementation detail of
+    ``ui.output_ui``, not a documented contract. If Shiny renames it, the
+    script finds no containers and the fix goes silently inert -- no
+    exception, no warning, and the only thing that would notice is the
+    browser suite, which is opt-in and so not what a contributor runs.
+
+    This ties the two sides together in the default suite, so a Shiny
+    upgrade that moves the class fails here instead.
+    """
+    from maidr.widget._focus import FOCUS_RESTORE_JS
+
+    assert "shiny-html-output" in FOCUS_RESTORE_JS
+    assert "shiny-html-output" in str(output_maidr("chart"))
+
+
 def test_the_focus_script_only_installs_once_per_page(fake_session):
     """It arrives on every render, so it has to be idempotent.
 
