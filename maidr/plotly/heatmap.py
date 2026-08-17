@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import math
+import re
+from datetime import date
 from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+
+#: A year-first date, leniently spelled. Plotly accepts single digits and
+#: leading whitespace, so the shape is matched loosely here and the parts are
+#: checked separately -- see :meth:`PlotlyHeatmapPlot._looks_like_date`.
+_ISO_DATE = re.compile(r"^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[ T].*)?$")
 
 
 class PlotlyHeatmapPlot(PlotlyPlot):
@@ -62,6 +69,58 @@ class PlotlyHeatmapPlot(PlotlyPlot):
             return math.isfinite(float(value))
         except (TypeError, ValueError):
             return False
+
+    @staticmethod
+    def _looks_like_date(value: Any) -> bool:
+        """Whether plotly would read a label as a date rather than a name.
+
+        A date axis ignores ``categoryorder`` exactly as a linear one does --
+        measured, ISO dates with an array declared came out drawn
+        chronologically and ``_categories`` empty -- so an order applied to
+        one would reorder a chart plotly draws by time.
+
+        Year-first and hyphen-separated is the whole shape, and plotly checks
+        that the parts make a real day rather than that they look like one --
+        so this parses them rather than matching a stricter pattern. Measured::
+
+            2024-03-01           date        2024/03/01     category
+            2024-03              date        03-01-2024     category
+            2024-03-01 12:00     date        Mar 2024       category
+            2024-03-01T12:00:00  date        Q1             category
+            2024-3-1             date        2024-13-45     category
+            ' 2024-03-01'        date        2024-02-30     category
+                                             2024-04-31     category
+
+        The last two columns are why a tighter regex was the wrong tool: it
+        missed single digits and leading whitespace, which plotly accepts --
+        the direction that *applies* an order plotly ignores -- and it let
+        through impossible days, which plotly rejects.
+
+        Parameters
+        ----------
+        value : Any
+            One axis label.
+
+        Returns
+        -------
+        bool
+            True when the label parses as a date.
+        """
+        if not isinstance(value, str):
+            return False
+
+        match = _ISO_DATE.match(value.strip())
+        if match is None:
+            return False
+
+        year, month, day = match.groups()
+        try:
+            # A year and month alone is a date to plotly, so the day defaults
+            # to one that every month has.
+            date(int(year), int(month), int(day) if day else 1)
+        except ValueError:
+            return False
+        return True
 
     def _axis_runs_backwards(self, axis_name: str) -> bool:
         """Whether plotly draws an axis from its high end to its low one.
@@ -140,15 +199,22 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         if not isinstance(axis, dict):
             return None
 
-        # Only a categorical axis has categories to put in an order. Measured:
-        # plotly resolves a *linear* axis as soon as the labels look like
-        # numbers -- all of them, or merely some of them -- and then ignores
-        # ``categoryorder`` and ``categoryarray`` outright, drawing in numeric
-        # order instead. Applying a declared order there would reorder a chart
-        # plotly did not reorder. Declaring ``type: "category"`` is what makes
-        # it categorical again, and then the order is honoured.
+        # Only a categorical axis has categories to put in an order. Plotly
+        # infers the axis *type* first, and both the types it can infer here
+        # ignore ``categoryorder`` and ``categoryarray`` outright: a *linear*
+        # axis from numeric-looking labels, drawn in numeric order, and a
+        # *date* axis from ISO dates, drawn chronologically. Applying a
+        # declared order to either would reorder a chart plotly did not.
+        # Declaring ``type: "category"`` is what makes it categorical again,
+        # and then the order is honoured.
+        #
+        # One such label is enough, rather than all of them: measured, a mixed
+        # set like ``[1, 3, 'b']`` still resolves linear. That is the
+        # conservative reading where plotly's own rule is a proportion, and it
+        # errs toward leaving a sort unapplied rather than inventing one.
         if axis.get("type") != "category" and any(
-            self._looks_numeric(label) for label in labels
+            self._looks_numeric(label) or self._looks_like_date(label)
+            for label in labels
         ):
             return None
 
