@@ -102,7 +102,7 @@ def maidr_html(
     html = str(rendered.get_html_string())
 
     if resolved is False:
-        if _loads_maidr_remotely(html):
+        if _references_maidr_runtime(html):
             # Altair charts are the case: :func:`maidr.render` hands them to
             # the Vega-Lite adapter before ``use_cdn`` is consulted, so the
             # chart already names a remote runtime and inlining the bundle
@@ -130,14 +130,36 @@ def maidr_html(
     return html
 
 
-#: Matches a ``<script src=...>`` naming a maidr runtime -- what the Altair
-#: adapter emits, and what says "this chart already has a source".
-_REMOTE_MAIDR_SCRIPT = re.compile(r"<script[^>]*\bsrc=[\"'][^\"']*maidr[^\"']*", re.I)
+#: Matches a quoted URL naming the ``maidr`` npm package and a ``.js`` file.
+#:
+#: Deliberately matches a *URL* rather than a ``<script src=...>`` tag,
+#: because maidr arrives in two shapes: the Altair adapter emits a literal
+#: tag, while the matplotlib and Plotly paths build the element in
+#: JavaScript (``s.src = '...'``), where no such tag exists in the markup.
+#: Matching the tag alone reports "no runtime" for the two commonest
+#: renderers.
+_MAIDR_RUNTIME_URL = re.compile(r"[\"'][^\"']*maidr@[^\"']*\.js", re.I)
 
 
-def _loads_maidr_remotely(html: str) -> bool:
-    """Report whether the HTML already fetches a maidr runtime over the network."""
-    return bool(_REMOTE_MAIDR_SCRIPT.search(html))
+def _references_maidr_runtime(html: str) -> bool:
+    """Report whether the HTML fetches a maidr runtime over the network.
+
+    Names the ``maidr`` package specifically.  Asking only whether *some*
+    ``<script>`` and *some* ``src=`` appear would be answered "yes" by any
+    Plotly chart, which always carries a ``cdn.plot.ly`` tag of its own --
+    vouching for a maidr runtime on the strength of an unrelated one.
+
+    Parameters
+    ----------
+    html : str
+        The serialised chart.
+
+    Returns
+    -------
+    bool
+        True if a maidr runtime URL appears in the document.
+    """
+    return bool(_MAIDR_RUNTIME_URL.search(html))
 
 
 @lru_cache(maxsize=1)
@@ -181,7 +203,7 @@ def _warn_if_no_runtime(html: str, use_cdn: Any, stacklevel: int = 3) -> None:
         Frames to skip so the warning points at the user's own call rather
         than at a line inside this module.
     """
-    if "<script" in html and ("src=" in html or "cdn.jsdelivr" in html):
+    if _references_maidr_runtime(html):
         return
     marker = _bundle_marker()
     if marker is not None and marker in html:

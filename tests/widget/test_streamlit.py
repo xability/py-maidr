@@ -290,7 +290,6 @@ def test_a_chart_that_only_loads_maidr_remotely_is_not_inlined(
     monkeypatch.setattr(widget.maidr, "render", lambda *a, **k: _Remote())
 
     _stub_streamlit(monkeypatch, with_iframe=True)
-    library = widget.__file__
 
     # Both entry points, because they sit at different call depths and this
     # warning is raised a frame shallower than the no-runtime one.
@@ -364,3 +363,41 @@ def test_the_no_runtime_warning_blames_the_caller_not_the_library(
             f"warning was blamed on the library itself, at line {caught[0].lineno}"
         )
         assert caught[0].filename == __file__
+
+
+def test_an_unrelated_cdn_script_does_not_vouch_for_maidr(bar_axes, monkeypatch):
+    """A Plotly chart always carries ``cdn.plot.ly``; that is not maidr.
+
+    Asking only whether *some* ``<script>`` and *some* ``src=`` appear is
+    answered "yes" by every Plotly chart, so a Plotly render whose bundle
+    could not be read would have had its no-runtime warning suppressed by a
+    script tag belonging to a different library.
+    """
+    import maidr.widget.streamlit as widget
+
+    class _PlotlyOnly:
+        def get_html_string(self):
+            return (
+                '<div><script src="https://cdn.plot.ly/plotly-2.min.js">'
+                "</script><div>chart</div></div>"
+            )
+
+    monkeypatch.setattr(widget, "inline_bundle_tags", lambda: None)
+    monkeypatch.setattr(widget.maidr, "render", lambda *a, **k: _PlotlyOnly())
+
+    with pytest.warns(UserWarning, match="no source for maidr.js"):
+        maidr_html(bar_axes, use_cdn=False)
+
+
+@pytest.mark.parametrize("use_cdn", [True, "auto"])
+def test_a_normal_render_is_recognised_as_having_a_runtime(bar_axes, use_cdn):
+    """The runtime check must not fire on the ordinary path.
+
+    matplotlib and Plotly build the script element in JavaScript, so the
+    markup carries no ``<script src=...>`` tag for maidr at all -- only the
+    URL. A tag-shaped check would call every normal render broken.
+    """
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        maidr_html(bar_axes, use_cdn=use_cdn)
+    assert not [w for w in caught if "no source for maidr.js" in str(w.message)]
