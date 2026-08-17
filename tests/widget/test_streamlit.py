@@ -457,3 +457,46 @@ def test_tab_index_support_is_detected_on_the_real_streamlit():
         "streamlit stopped wrapping components.html; re-check the probe"
     )
     assert expected is True, "this streamlit should support tab_index"
+
+
+@pytest.mark.parametrize(
+    ("url", "is_maidr"),
+    [
+        ("https://cdn.jsdelivr.net/npm/maidr@4.3.0/dist/maidr.js", True),
+        ("https://cdn.jsdelivr.net/npm/maidr@latest/dist/vegalite.js", True),
+        # The near-misses: a package whose name merely ends in "maidr",
+        # and an unrelated library's CDN tag.
+        ("https://cdn.example/notmaidr@1.0.0/dist/notmaidr.js", False),
+        ("https://cdn.plot.ly/plotly-2.min.js", False),
+    ],
+)
+def test_only_a_maidr_package_url_counts_as_a_runtime(url, is_maidr):
+    """The runtime check names the package, not just the letters in it."""
+    from maidr.widget.streamlit import _references_maidr_runtime
+
+    assert _references_maidr_runtime(f'<script src="{url}"></script>') is is_maidr
+
+
+def test_the_resolved_mode_is_the_one_the_chart_was_built_with(bar_axes, monkeypatch):
+    """``use_cdn`` is read once, not once here and again inside ``render``.
+
+    ``set_use_cdn`` writes process-wide state and Streamlit runs sessions on
+    separate threads, so reading it twice leaves a window where the inline
+    decision is made against one answer and the chart built from another.
+    """
+    import maidr.widget.streamlit as widget
+
+    seen = []
+    real_render = widget.maidr.render
+
+    def spy(plot, use_cdn=None):
+        seen.append(use_cdn)
+        return real_render(plot, use_cdn=use_cdn)
+
+    monkeypatch.setattr(widget.maidr, "render", spy)
+    monkeypatch.setattr(widget.maidr, "get_use_cdn", lambda: "auto")
+
+    widget.maidr_html(bar_axes)
+
+    # Never ``None``: that would send ``render`` back to the shared default.
+    assert seen == ["auto"]

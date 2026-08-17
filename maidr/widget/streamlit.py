@@ -97,8 +97,13 @@ def maidr_html(
     reference to the bundle would not survive; the source itself has to.
     """
     stacklevel = _stacklevel
+    # Resolved once and then passed on, rather than read again inside
+    # ``render``.  ``set_use_cdn`` writes process-wide state and Streamlit
+    # runs sessions on separate threads, so reading it twice leaves a window
+    # in which this function decides whether to inline against one answer
+    # while the chart was built from another.
     resolved = maidr.get_use_cdn() if use_cdn is None else use_cdn
-    rendered = maidr.render(plot, use_cdn=use_cdn)
+    rendered = maidr.render(plot, use_cdn=resolved)
     html = str(rendered.get_html_string())
 
     if resolved is False:
@@ -138,7 +143,10 @@ def maidr_html(
 #: JavaScript (``s.src = '...'``), where no such tag exists in the markup.
 #: Matching the tag alone reports "no runtime" for the two commonest
 #: renderers.
-_MAIDR_RUNTIME_URL = re.compile(r"[\"'][^\"']*maidr@[^\"']*\.js", re.I)
+#: The ``/`` is load-bearing: without it, any quoted string merely ending in
+#: ``...maidr@1.js`` would match -- ``notmaidr@1.js`` among them. Every URL
+#: this needs to recognise carries the npm path segment ``/maidr@``.
+_MAIDR_RUNTIME_URL = re.compile(r"[\"'][^\"']*/maidr@[^\"']*\.js", re.I)
 
 
 def _references_maidr_runtime(html: str) -> bool:
@@ -254,7 +262,10 @@ def render_maidr(
         because the chart needs it to be reachable.
     use_cdn : bool, {"auto"}, or None, default None
         Where the chart loads ``maidr.js`` from; see :func:`maidr.render`.
-        Pass ``False`` for an air-gapped deployment.
+        Pass ``False`` for an air-gapped deployment.  Prefer this argument
+        over :func:`maidr.set_use_cdn`: the setter writes process-wide
+        state, and Streamlit runs sessions on separate threads, so one
+        session calling it changes what every other session renders.
 
     Returns
     -------
