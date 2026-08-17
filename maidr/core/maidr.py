@@ -32,6 +32,7 @@ from maidr.util.dependencies import (
     maidr_bundled_relative_dir,
     maidr_html_dependency,
     maidr_js_cdn_url,
+    OFFLINE_FALLBACK_REPORT,
     schema_trace_types,
     warn_if_bundle_cannot_render,
     warn_if_bundle_is_stale,
@@ -67,23 +68,6 @@ _SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 #: never set ``onerror`` at all. What the reader gets either way is a chart
 #: with no MAIDR runtime -- a picture, with nothing saying why (#455).
 #:
-#: Names the setting that works rather than describing the failure, because
-#: the person who hits this is on an air-gapped deployment and the answer
-#: (``use_cdn=False``) is otherwise only discoverable by reading the source.
-#:
-#: A plain string rather than an f-string: it is interpolated *into* f-strings,
-#: so its braces must not be doubled.
-_OFFLINE_FALLBACK_REPORT = """
-                        function reportNoRuntime(why) {
-                            console.error(
-                                '[maidr] The chart loaded but its runtime did not: '
-                                + why + '. The CDN was unreachable and the bundled '
-                                + 'copy could not be resolved from inside this frame. '
-                                + 'Re-render with use_cdn=False to inline the bundle, '
-                                + 'which works without network access.'
-                            );
-                        }
-"""
 
 
 class Maidr:
@@ -1012,7 +996,7 @@ class Maidr:
                                 if (window.main) window.main();
                             }}
                         }}
-{_OFFLINE_FALLBACK_REPORT}
+{OFFLINE_FALLBACK_REPORT}
                         function fallbackFromParent() {{
                             try {{
                                 var jsSrc = window.parent && window.parent.__maidrJsSource;
@@ -1064,7 +1048,7 @@ class Maidr:
                 rel_dir = maidr_bundled_relative_dir()
                 bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
                 fallback_script = f"""
-                    (function() {{{_OFFLINE_FALLBACK_REPORT}
+                    (function() {{{OFFLINE_FALLBACK_REPORT}
                         function bootstrap() {{
                             if (document.readyState === 'loading') {{
                                 document.addEventListener('DOMContentLoaded', function() {{ if (window.main) window.main(); }});

@@ -43,6 +43,7 @@ from maidr.util.dependencies import (
     maidr_bundled_relative_dir,
     maidr_html_dependency,
     maidr_js_cdn_url,
+    OFFLINE_FALLBACK_REPORT,
     schema_trace_types,
     warn_if_bundle_cannot_render,
     warn_if_bundle_is_stale,
@@ -1168,6 +1169,7 @@ class PlotlyMaidr:
                 rel_dir = maidr_bundled_relative_dir()
                 bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
                 loader = f"""
+{OFFLINE_FALLBACK_REPORT}
                     var existing = document.querySelector(
                         'script[src="{js_cdn_url}"]'
                     );
@@ -1177,6 +1179,17 @@ class PlotlyMaidr:
                         s.onerror = function() {{
                             var fb = document.createElement('script');
                             fb.src = '{bundled_js_rel}';
+                            // The relative path resolves wherever the host
+                            // serves the copied bundle -- save_html -- and
+                            // cannot inside a srcdoc iframe nobody serves
+                            // those files for. Without this the chart is an
+                            // image with no runtime and nothing said.
+                            fb.onerror = function() {{
+                                reportNoRuntime(
+                                    'the bundled copy at {bundled_js_rel} '
+                                    + 'did not load'
+                                );
+                            }};
                             document.head.appendChild(fb);
                         }};
                         document.head.appendChild(s);

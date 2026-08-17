@@ -2217,3 +2217,25 @@ def inline_bundle_tags() -> "list | None":
         tags.link(**{"data-maidr-math": ""}),
         tags.script(js_source, type="text/javascript"),
     ]
+
+
+#: Names the setting that works rather than describing the failure, because
+#: the person who hits this is on an air-gapped deployment and the answer
+#: (``use_cdn=False``) is otherwise only discoverable by reading the source.
+#:
+#: A plain string rather than an f-string: it is interpolated *into* f-strings,
+#: so its braces must not be doubled.
+#:
+#: Lives here rather than beside either renderer because both emit the same
+#: failure, and one wording in two files is one wording that can drift.
+OFFLINE_FALLBACK_REPORT = """
+                        function reportNoRuntime(why) {
+                            console.error(
+                                '[maidr] The chart loaded but its runtime did not: '
+                                + why + '. The CDN was unreachable and the bundled '
+                                + 'copy could not be resolved from inside this frame. '
+                                + 'Re-render with use_cdn=False to inline the bundle, '
+                                + 'which works without network access.'
+                            );
+                        }
+"""

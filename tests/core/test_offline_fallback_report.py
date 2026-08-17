@@ -29,7 +29,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 import maidr  # noqa: E402,F401
 from maidr.core.figure_manager import FigureManager  # noqa: E402
-from maidr.core.maidr import _OFFLINE_FALLBACK_REPORT  # noqa: E402
+from maidr.util.dependencies import (  # noqa: E402
+    OFFLINE_FALLBACK_REPORT as _OFFLINE_FALLBACK_REPORT,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -108,3 +110,48 @@ class TestEveryAutoPathCanReport:
 
         assert "fb.onerror" in rendered
         assert "did not load" in rendered
+
+
+class TestThePlotlyRenderReportsToo:
+    """The same failure reaches Plotly charts, and used to pass in silence.
+
+    Plotly's ``use_cdn="auto"`` loader set the fallback's ``src`` and
+    appended it with no ``onerror`` at all, so a Plotly chart in a Shiny or
+    Flask iframe with no network became an image with no runtime and no
+    explanation -- the matplotlib case, on a path the fix for it did not
+    reach.
+    """
+
+    @staticmethod
+    def _plotly_iframe(monkeypatch) -> str:
+        """Render a Plotly chart on the iframe path and return its document."""
+        import html as html_module
+        import re
+
+        px = pytest.importorskip("plotly.express")
+        from maidr.util.environment import Environment
+
+        monkeypatch.setattr(Environment, "is_shiny", staticmethod(lambda: True))
+        tag = maidr.render(px.bar(x=["a", "b"], y=[1, 2]), use_cdn="auto")
+        html = str(tag.get_html_string())
+        match = re.search(r'srcdoc="(.*?)"\s+width', html, re.S)
+        return html_module.unescape(match.group(1)) if match else html
+
+    def test_the_plotly_render_defines_the_reporter(self, monkeypatch) -> None:
+        assert "function reportNoRuntime" in self._plotly_iframe(monkeypatch)
+
+    def test_the_plotly_fallback_script_reports_on_error(self, monkeypatch) -> None:
+        document = self._plotly_iframe(monkeypatch)
+        assert "fb.onerror" in document
+        assert "reportNoRuntime(" in document.replace("function reportNoRuntime(", "")
+
+    def test_both_renderers_say_the_same_thing(self, monkeypatch) -> None:
+        """One failure, one wording -- the point of sharing the constant.
+
+        Two diagnostics for one failure is the drift this consolidation
+        exists to prevent, and it would be invisible from either file alone.
+        """
+        marker = "The chart loaded but its runtime did not"
+        assert marker in _OFFLINE_FALLBACK_REPORT
+        assert marker in self._plotly_iframe(monkeypatch)
+        assert marker in _rendered(monkeypatch, notebook=False)
