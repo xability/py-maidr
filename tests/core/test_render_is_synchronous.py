@@ -1,17 +1,23 @@
 """A benchmark for the claim ``docs/index.qmd`` makes about the event loop.
 
 Skipped by default: it is a timing measurement, so it is too machine- and
-load-dependent to gate CI on. Run it deliberately when the numbers in the
-docs need re-checking::
+load-dependent to gate CI on. Run it deliberately when the number in the
+docs needs re-checking::
 
     uv run pytest tests/core/test_render_is_synchronous.py --run-benchmark
 
-The claim it exists to keep honest is that ``maidr.render()`` blocks the
-event loop -- *starves* it, not freezes it. The distinction matters: the
-issue that reported this originally recorded zero event-loop wakeups
-during rendering, which turned out to be an artefact of measuring across
-the first render, whose one-time costs (imports, font cache, CDN version
-resolution) dwarf the steady state.
+What it measures is the longest the event loop goes without running while
+one chart renders. That is the question a Shiny deployment actually has --
+"how long does everyone else wait" -- and it is measurable, unlike
+counting wakeups over a window, which cannot tell a blocked loop from a
+slow one.
+
+Getting that wrong is the reason this file is careful about it. An earlier
+version started its ticker before the measurement window and counted the
+wakeups from the settling period as though they had happened during
+rendering. It reported a healthy-looking number for a loop that in fact
+never ran once, and would have reported the same number had rendering been
+an outright freeze -- which it is.
 """
 
 from __future__ import annotations
@@ -28,11 +34,17 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 import maidr  # noqa: E402
 
-#: Seconds each measurement window runs for.
-_WINDOW = 0.6
+#: How long the ticker settles before anything is measured.
+_SETTLE = 0.15
 
-#: Wakeups the ticker asks for, per second.
+#: Wakeup interval the ticker asks for. The loop cannot beat this, so it
+#: also sets the resolution of the gaps observed.
 _TICK = 0.001
+
+#: A gap this much larger than the tick interval is the loop being held,
+#: not scheduler jitter. Deliberately loose: the render blocks for tens of
+#: milliseconds, so anything near the tick interval is noise either way.
+_BLOCKED_MS = 10.0
 
 
 def _render_once() -> None:
@@ -45,87 +57,63 @@ def _render_once() -> None:
         plt.close(fig)
 
 
-async def _ticks_while_idle() -> int:
-    """Return the wakeups a ticker gets over an *awaited* window.
+async def _longest_gap_around_one_render() -> tuple[float, float]:
+    """Return the loop's longest idle gap, before and during one render.
 
-    The control has to yield rather than spin: a busy-wait blocks the loop
-    just as rendering does, which would make the two windows agree and the
-    comparison meaningless. That is a mistake this harness made once.
+    Both in seconds. The baseline is what the loop manages with nothing in
+    its way, which is what makes the second number mean anything.
     """
+    gaps: list[float] = []
     stop = asyncio.Event()
-    task = asyncio.create_task(_ticker(stop))
-    await asyncio.sleep(0.1)
-    await asyncio.sleep(_WINDOW)
-    stop.set()
-    return await task
 
+    async def ticker() -> None:
+        last = time.perf_counter()
+        while not stop.is_set():
+            await asyncio.sleep(_TICK)
+            now = time.perf_counter()
+            gaps.append(now - last)
+            last = now
 
-async def _ticker(stop: asyncio.Event) -> int:
-    """Count wakeups until told to stop."""
-    wakeups = 0
-    while not stop.is_set():
-        await asyncio.sleep(_TICK)
-        wakeups += 1
-    return wakeups
+    task = asyncio.create_task(ticker())
+    await asyncio.sleep(_SETTLE)
 
+    baseline = max(gaps)
+    gaps.clear()
 
-async def _ticks_while_rendering() -> tuple[int, float, int]:
-    """Return wakeups, elapsed seconds, and renders completed."""
-    stop = asyncio.Event()
-    task = asyncio.create_task(_ticker(stop))
-    await asyncio.sleep(0.1)
-
-    start = time.perf_counter()
-    renders = 0
-    while time.perf_counter() - start < _WINDOW:
-        _render_once()
-        renders += 1
-    elapsed = time.perf_counter() - start
+    _render_once()
+    await asyncio.sleep(_SETTLE)
 
     stop.set()
-    return await task, elapsed, renders
+    await task
+    return baseline, max(gaps)
 
 
 @pytest.mark.benchmark
-def test_rendering_starves_the_event_loop(monkeypatch) -> None:
-    """Rendering costs the loop most of its wakeups, but not all of them.
+def test_one_render_blocks_the_event_loop() -> None:
+    """A render holds the loop for its whole duration.
 
-    Asserted as a wide band rather than a fixed number: the point is the
-    shape of the result -- much slower, still running -- which is what the
-    documentation says. A tight threshold here would fail on a loaded CI
-    box while telling nobody anything they did not already know.
+    ``maidr.render()`` is synchronous and never awaits, so nothing can
+    preempt it: for as long as it runs, every other session on that worker
+    is stopped. Asserted as "much larger than the baseline" rather than a
+    fixed millisecond count, which would fail on a loaded CI box while
+    telling nobody anything.
     """
-    # Pinned so building a CDN URL resolves no version over the network.
-    # Measuring CPU-bound render work should not depend on reaching
-    # jsDelivr -- and a benchmark that stalls on MAIDR_CDN_TIMEOUT in the
-    # air-gapped setup this same change documents would be a poor joke.
-    monkeypatch.setenv("MAIDR_CDN_VERSION", "latest")
-
     # Warm up: the first render pays for imports, the font cache and the
     # matplotlib backend, and is worth roughly thirty steady-state ones.
     for _ in range(5):
         _render_once()
 
-    idle_ticks = asyncio.run(_ticks_while_idle())
-    busy_ticks, elapsed, renders = asyncio.run(_ticks_while_rendering())
+    baseline, blocked = asyncio.run(_longest_gap_around_one_render())
 
-    assert renders > 0, "no render completed inside the measurement window"
-
-    # Compared as rates, not counts: the rendering window overshoots by up
-    # to one render, since the loop only checks the clock between them.
-    idle_rate = idle_ticks / _WINDOW
-    busy_rate = busy_ticks / elapsed
-    per_render_ms = elapsed / renders * 1000
-
-    assert idle_rate > busy_rate, (
-        f"rendering did not slow the loop at all "
-        f"({busy_rate:.0f}/s vs {idle_rate:.0f}/s)"
+    assert blocked * 1000 > _BLOCKED_MS, (
+        f"one render held the loop for only {blocked * 1000:.1f} ms; if "
+        "rendering has stopped blocking, docs/index.qmd needs updating"
     )
-    assert busy_rate > 0, (
-        "the loop never ran during rendering -- the docs say starved, not "
-        "frozen, so either the docs or this is now wrong"
+    assert blocked > baseline * 5, (
+        f"the render ({blocked * 1000:.1f} ms) is not clearly worse than "
+        f"the loop's own jitter ({baseline * 1000:.1f} ms)"
     )
     print(
-        f"\nidle {idle_rate:.0f} wakeups/s / rendering {busy_rate:.0f}/s "
-        f"({renders} renders, {per_render_ms:.0f} ms each)"
+        f"\nlongest loop gap: {baseline * 1000:.1f} ms idle, "
+        f"{blocked * 1000:.1f} ms around one render"
     )
