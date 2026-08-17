@@ -1171,9 +1171,9 @@ class PlotlyMaidr:
                 on_missing if on_unreachable is None else on_unreachable,
             )
 
-        #: ``use_cdn=False``: the caller asked for the bundle, so the fix is
-        #: to stash it, not to change the mode.
-        _NOTEBOOK_STASH_MISSING = """
+        # ``use_cdn=False``: the caller asked for the bundle, so the fix is
+        # to stash it, not to change the mode.
+        notebook_stash_missing = """
                 if (window.console) {
                     console.warn(
                         'maidr: use_cdn=False requires maidr.init_notebook() ' +
@@ -1183,7 +1183,7 @@ class PlotlyMaidr:
                 }
         """
 
-        parent_source_snippet = parent_source(_NOTEBOOK_STASH_MISSING)
+        parent_source_snippet = parent_source(notebook_stash_missing)
 
         if use_cdn is False:
             if iframe_in_notebook:
