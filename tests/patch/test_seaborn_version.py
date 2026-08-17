@@ -16,6 +16,7 @@ and cannot install an unsupported one to prove it.
 
 from __future__ import annotations
 
+import sys
 import types
 
 import pytest
@@ -58,7 +59,7 @@ class TestTheCheck:
         module = types.ModuleType("seaborn")
         if version is not None:
             module.__version__ = version
-        monkeypatch.setitem(__import__("sys").modules, "seaborn", module)
+        monkeypatch.setitem(sys.modules, "seaborn", module)
 
     def test_a_supported_seaborn_passes(self, monkeypatch):
         self._with_seaborn(monkeypatch, "0.13.2")
