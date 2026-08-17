@@ -37,7 +37,8 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 - **`maidr/core/plot/`** — Factory pattern: `MaidrPlotFactory` dispatches to concrete `MaidrPlot` subclasses (BarPlot, BoxPlot, HeatPlot, etc.) based on `PlotType` enum. Each subclass implements `_extract_plot_data()`
 - **`maidr/patch/`** — One module per plot type (barplot.py, boxplot.py, etc.) plus `highlight.py` (injects maidr attributes into SVG elements) and `clear.py` (cleanup on `plt.clf`/`plt.cla`)
 - **`maidr/util/mixin/`** — Reusable extraction logic: `ContainerExtractorMixin`, `LevelExtractorMixin`, `LineExtractorMixin`, `CollectionExtractorMixin`, `FormatExtractorMixin`
-- **`maidr/widget/shiny.py`** — Shiny framework integration
+- **`maidr/widget/shiny.py`** — Shiny framework integration (`output_maidr`, `@render_maidr`)
+- **`maidr/widget/streamlit.py`** — Streamlit integration (`render_maidr`, `maidr_html`)
 
 ### Supported Plot Types
 
