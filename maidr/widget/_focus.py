@@ -39,10 +39,15 @@ FOCUS_RESTORE_JS = """
   if (window.__maidrShinyFocusRestore) return;
   window.__maidrShinyFocusRestore = true;
 
-  var CHART = 'iframe, [role="img"], [role="application"]';
+  // `[data-maidr-chart]` rather than a bare `iframe`: a host page may put
+  // its own iframe in the same output container, and treating that as the
+  // chart would force focus onto someone else's embed. The roles cover
+  // the non-iframe render, where the runtime owns the element and marks
+  // it itself.
+  var CHART = '[data-maidr-chart], [role="img"], [role="application"]';
   var SAMPLE = 200;
   var held = null;
-  var observed = new WeakSet();
+  var observed = [];
 
   function adrift() {
     var a = document.activeElement;
@@ -52,8 +57,14 @@ FOCUS_RESTORE_JS = """
   function sample() {
     if (adrift()) return;
     var a = document.activeElement;
-    var c = a.closest && a.closest('.shiny-html-output');
-    held = c && c.id && c.querySelector(CHART) ? { id: c.id, el: a } : null;
+    if (!a.closest) { held = null; return; }
+    // The chart itself, not merely something in a container that has one.
+    // A caption or a download link beside the chart is a place a reader
+    // may have gone on purpose, and losing it should not send them to the
+    // chart instead.
+    var chart = a.closest(CHART);
+    var c = a.closest('.shiny-html-output');
+    held = chart && c && c.id ? { id: c.id, el: chart } : null;
   }
 
   function restore(container) {
@@ -67,14 +78,30 @@ FOCUS_RESTORE_JS = """
   }
 
   function watch() {
+    // Drop observers whose container has left the page. `removeUI` and an
+    // unmounting `conditionalPanel` both do that, and without this the
+    // list grows for the life of a session that adds and removes outputs.
+    for (var i = observed.length - 1; i >= 0; i--) {
+      if (!observed[i].container.isConnected) {
+        observed[i].observer.disconnect();
+        observed.splice(i, 1);
+      }
+    }
+
     var containers = document.querySelectorAll('.shiny-html-output');
-    for (var i = 0; i < containers.length; i++) {
-      var c = containers[i];
-      if (observed.has(c) || !c.id) continue;
-      observed.add(c);
-      new MutationObserver(
+    for (var j = 0; j < containers.length; j++) {
+      var c = containers[j];
+      if (!c.id) continue;
+      var seen = false;
+      for (var k = 0; k < observed.length; k++) {
+        if (observed[k].container === c) { seen = true; break; }
+      }
+      if (seen) continue;
+      var obs = new MutationObserver(
         (function (el) { return function () { restore(el); }; })(c)
-      ).observe(c, { childList: true, subtree: true });
+      );
+      obs.observe(c, { childList: true, subtree: true });
+      observed.push({ container: c, observer: obs });
     }
   }
 

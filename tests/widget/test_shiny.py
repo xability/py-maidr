@@ -208,6 +208,25 @@ def test_the_payload_carries_the_focus_restore_script(fake_session):
     assert "__maidrShinyFocusRestore" in html
 
 
+def test_the_rendered_iframe_is_marked_as_maidrs_own(fake_session):
+    """The focus script must be able to tell our frame from anyone else's.
+
+    Keying off a bare ``iframe`` would let the restore force focus onto an
+    unrelated embed an app happened to put in the same output container.
+    The marker is what makes the selector precise, so both sides of it are
+    pinned here.
+    """
+    from maidr.widget._focus import FOCUS_RESTORE_JS
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+    assert "data-maidr-chart" in html
+    assert "data-maidr-chart" in FOCUS_RESTORE_JS
+
+
 def test_the_container_class_the_focus_script_looks_for_still_exists():
     """The script finds its container by a Shiny-internal class.
 
