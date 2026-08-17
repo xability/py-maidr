@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import sys
 import warnings
 from html import unescape
 
@@ -321,3 +322,39 @@ def test_a_figure_built_lazily_and_cached_stays_accessible(fake_session):
         # The static-image fallback carries an ``<img>`` and no schema.
         assert "subplots" in document, f"render {index} lost the MAIDR schema"
         assert "<img" not in document, f"render {index} fell back to an image"
+
+
+# ---------------------------------------------------------------------------
+# Import-time errors
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (ModuleNotFoundError("No module named 'shiny'", name="shiny"), "maidr[shiny]"),
+        # The skew this repository actually hit: shiny installed, but its
+        # import chain reaches an htmltools too old to satisfy it.
+        (
+            ImportError("cannot import name 'TagifiedTag' from 'htmltools'"),
+            "version skew",
+        ),
+    ],
+)
+def test_import_error_advice_matches_the_failure(monkeypatch, error, expected):
+    """"Install the extra" is wrong advice for a package already installed."""
+    import builtins
+    import importlib
+
+    real_import = builtins.__import__
+
+    def failing_import(name, *args, **kwargs):
+        if name.startswith("shiny"):
+            raise error
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", failing_import)
+    monkeypatch.delitem(sys.modules, "maidr.widget.shiny", raising=False)
+
+    with pytest.raises(ImportError, match=re.escape(expected)):
+        importlib.import_module("maidr.widget.shiny")
