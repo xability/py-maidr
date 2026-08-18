@@ -289,6 +289,13 @@ class PointPlot(ErrorBarPlot):
         """
         Whether every drawn group has a name to emit as ``z``.
 
+        Answers True vacuously when there are no groups at all, since
+        ``len([]) == len([])`` and ``all([])`` both hold. No caller reaches
+        it in that state -- ``_extract_axes_data`` returns early on an empty
+        ``_estimates`` and ``_extract_grouped`` runs only when it is
+        non-empty -- so the emptiness check lives in the callers rather than
+        here, and this answers the question it is named for.
+
         Returns
         -------
         bool

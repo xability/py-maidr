@@ -115,6 +115,17 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         Shared rather than restated: ``MultiLinePlot`` and ``PointPlot`` both
         need it and would otherwise drift apart if the convention changed.
 
+        Read **live**, when the schema is built, while the group *names* are
+        captured once as the plotting call is patched. A caller who retitles
+        or relabels the legend in between can therefore make the two
+        disagree -- the points would carry the names the chart was drawn
+        with and the axis would carry the new title. Pre-existing, and
+        sharper for ``PointPlot`` than for ``MultiLinePlot`` because there
+        the divergence reaches per-point ``z`` values rather than one label.
+        Reconciling them means either freezing the title at registration or
+        re-reading the names at render, and both are changes to when a
+        layer decides what it says.
+
         Returns
         -------
         str
