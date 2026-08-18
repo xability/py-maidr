@@ -79,11 +79,29 @@ class _FigureRecords:
 
         ``deepcopy`` and ``pickle`` are the opposite case and are left
         working: both rebuild the record alongside the figure, so the copy's
-        record points at the copy and it is genuinely registered.
+        record points at the copy and it is genuinely registered. Neither
+        goes through :meth:`__setitem__`, though -- they write ``__dict__``
+        directly -- so a legitimately owned record is added to ``_seen``
+        here. Without that a copied figure answered ``in`` but was missing
+        from ``list(figs)``, uncounted by ``len``, and survived ``clear()``.
+
+        The ``AttributeError`` guard covers a record whose ``Maidr`` has been
+        destroyed. ``FigureManager.destroy`` pops the record before calling
+        ``Maidr.destroy()``, which deletes ``_fig`` -- but it pops it off the
+        figure it was given, and a shallow copy taken beforehand still holds
+        the same object. Reading ``record.fig`` there raised out of a
+        membership test, which has to answer a bool.
         """
         record = getattr(fig, self._ATTR, self._MISSING)
-        if record is not self._MISSING and record.fig is not fig:
+        if record is self._MISSING:
             return self._MISSING
+        try:
+            owner = record.fig
+        except AttributeError:
+            return self._MISSING
+        if owner is not fig:
+            return self._MISSING
+        self._seen.add(fig)
         return record
 
     def __contains__(self, fig: Figure) -> bool:
@@ -106,7 +124,19 @@ class _FigureRecords:
         # `pop` refuses -- two spellings of one operation disagreeing.
         if self._record(fig) is self._MISSING:
             raise KeyError(fig)
-        delattr(fig, self._ATTR)
+        self._delete(fig)
+
+    def _delete(self, fig: Figure) -> None:
+        # `delattr` after a `_record` check is a check-then-act, where the
+        # dict operation it replaced was atomic. `FigureManager` holds
+        # `_lock` across both, but `figs` is reachable directly, so a caller
+        # that does not would otherwise get an `AttributeError` out of `pop`
+        # where the class promises a `KeyError` -- or nothing, since the
+        # entry it wanted gone is gone either way.
+        try:
+            delattr(fig, self._ATTR)
+        except AttributeError:
+            pass
         self._seen.discard(fig)
 
     def __len__(self) -> int:
@@ -130,8 +160,7 @@ class _FigureRecords:
             if default is self._MISSING:
                 raise KeyError(fig)
             return default
-        delattr(fig, self._ATTR)
-        self._seen.discard(fig)
+        self._delete(fig)
         return maidr
 
     def clear(self) -> None:

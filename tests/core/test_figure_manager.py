@@ -490,3 +490,65 @@ def test_a_cached_figure_keeps_its_chart_across_renders():
     gc.collect()
     gc.collect()
     assert ref() is None, "the cache let go but the figure was not reclaimed"
+
+
+def test_a_stale_copy_of_a_destroyed_figure_answers_rather_than_raises():
+    """``Maidr.destroy()`` deletes ``_fig``, and a copy can still hold it.
+
+    ``FigureManager.destroy`` pops the record before tearing the ``Maidr``
+    down, which is why a *destroyed* record is unreachable -- from the
+    figure it was popped off. A shallow copy taken beforehand holds the same
+    object, and reading ``record.fig`` on it raised ``AttributeError`` out
+    of a membership test, which has to answer a bool.
+
+    Found in review after I had reasoned the case away as impossible: the
+    pop removes the record from the original, not from a copy that already
+    exists.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    twin = copy.copy(fig)
+    try:
+        maidr.close(ax)  # FigureManager.destroy -> Maidr.destroy
+
+        assert (twin in FigureManager.figs) is False
+        assert FigureManager.figs.get(twin) is None
+        with pytest.raises(KeyError):
+            FigureManager.figs[twin]
+        assert FigureManager.figs.pop(twin, None) is None
+    finally:
+        FigureManager.figs.pop(fig, None)
+        plt.close(fig)
+
+
+@pytest.mark.parametrize(
+    "clone",
+    [
+        pytest.param(copy.deepcopy, id="deepcopy"),
+        pytest.param(lambda fig: pickle.loads(pickle.dumps(fig)), id="pickle"),
+    ],
+)
+def test_a_copied_figure_is_visible_to_enumeration_not_only_to_lookup(clone):
+    """A record that never went through ``__setitem__`` still has to count.
+
+    ``deepcopy`` and ``pickle`` rebuild ``__dict__`` directly, so nothing
+    adds the copy to ``_seen`` -- and ``_seen`` is what backs iteration,
+    ``len`` and ``clear``. The copy therefore answered ``in`` while being
+    absent from ``list(figs)``, uncounted, and immune to ``clear()``: a
+    mapping disagreeing with itself about what it holds.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    twin = clone(fig)
+    try:
+        assert twin in FigureManager.figs
+        assert twin in list(FigureManager.figs)
+
+        before = len(FigureManager.figs)
+        FigureManager.figs.pop(twin)
+        assert twin not in list(FigureManager.figs)
+        assert len(FigureManager.figs) == before - 1
+    finally:
+        FigureManager.figs.pop(fig, None)
+        FigureManager.figs.pop(twin, None)
+        plt.close(fig)
