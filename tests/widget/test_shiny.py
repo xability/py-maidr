@@ -738,8 +738,6 @@ def test_two_different_figures_rendering_at_once_keep_their_selectors():
     Counts selectors rather than comparing whole documents, because ids
     are per-render uuids; the count is what goes missing.
     """
-    import re
-
     from maidr.core.figure_manager import FigureManager
 
     def build():
@@ -814,6 +812,14 @@ def test_concurrent_renders_of_one_figure_agree():
     Asserted as agreement between renders rather than against a fixed size,
     since the wrong-dpi output is internally consistent -- it is only wrong
     relative to what every other render produced.
+
+    The barrier synchronises the *start*, not the duration. On a runner
+    slow or oversubscribed enough that each ``savefig`` finishes before
+    the next thread is scheduled, this would pass with a broken lock --
+    a false negative rather than a flaky failure, so it would show up as
+    quietly reduced coverage rather than as CI noise. Measured 8 of 8
+    detections here with the lock removed; the sibling test above detects
+    overlap regardless of speed and is the one to trust on a bad day.
 
     Scope: **geometry, not data.** ``_VOLATILE_IN_SVG`` strips every
     ``maidr="..."`` attribute, and the one on the root ``<svg>`` carries
