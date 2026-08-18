@@ -854,7 +854,7 @@ def test_concurrent_renders_of_one_figure_agree():
     # worker has been joined. Written down because this file documents its
     # other concurrency decisions.
     outputs: list[str] = []
-    failures: list[BaseException] = []
+    failures: list[Exception] = []
     # One constant for the barrier and the thread count, because they must
     # agree: a barrier expecting more arrivals than there are threads waits
     # forever (#506).
