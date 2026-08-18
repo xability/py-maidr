@@ -7,9 +7,13 @@ inside a session context -- without starting a server.
 from __future__ import annotations
 
 import asyncio
+import gc
 import re
 import sys
+import threading
+import time
 import warnings
+import weakref
 from html import unescape
 
 import matplotlib
@@ -472,3 +476,303 @@ def test_import_error_advice_matches_the_failure(monkeypatch, error, expected):
 
     with pytest.raises(ImportError, match=re.escape(expected)):
         importlib.import_module("maidr.widget.shiny")
+
+
+# ---------------------------------------------------------------------------
+# Not holding the event loop (#454)
+# ---------------------------------------------------------------------------
+
+
+def test_each_figure_gets_its_own_lock_and_keeps_it():
+    """Per figure, not process-wide, and stable across calls.
+
+    A single shared lock would serialise unrelated sessions and give back
+    most of what moving off the loop buys, since ``savefig`` on *distinct*
+    figures is safe in parallel. A lock that differed per call would guard
+    nothing at all.
+    """
+    from maidr.widget.shiny import _figure_lock
+
+    first, _ = plt.subplots()
+    second, _ = plt.subplots()
+    try:
+        assert _figure_lock(first) is _figure_lock(first), "must be stable"
+        assert _figure_lock(first) is not _figure_lock(second), "must be per figure"
+    finally:
+        plt.close(first)
+        plt.close(second)
+
+
+def test_an_unresolvable_figure_gets_a_fresh_lock_rather_than_a_shared_one():
+    """Sharing one lock among things we cannot tell apart invites a deadlock.
+
+    The render is safe on its own -- only the lock's scope is lost -- so the
+    fallback hands back an unshared lock rather than a sentinel-keyed one.
+    """
+    from maidr.widget.shiny import _figure_lock
+
+    assert _figure_lock(None) is not _figure_lock(None)
+
+
+def test_the_lock_does_not_keep_a_closed_figure_alive():
+    """The map is weak-keyed, so it adds no retention of its own (#498).
+
+    Worth pinning because ``FigureManager.figs`` already retains every
+    figure for the life of the process, and a second strong map keyed by
+    figure would be a new instance of a problem that is being worked on
+    rather than added to.
+    """
+    from matplotlib.figure import Figure
+    from maidr.widget.shiny import _figure_lock
+
+    # A bare `Figure`, deliberately not `plt.subplots()`: pyplot registers
+    # with `FigureManager`, which retains every figure for the life of the
+    # process (#456). Through that, this assertion would fail for a reason
+    # that has nothing to do with the lock map -- which is exactly what the
+    # first version of this test did.
+    figure = Figure()
+    _figure_lock(figure)
+    ref = weakref.ref(figure)
+
+    del figure
+    gc.collect()
+
+    assert ref() is None, "the lock map is keeping the figure alive"
+
+
+def test_the_render_runs_off_the_event_loop(fake_session, monkeypatch):
+    """The whole point of #454: ``maidr.render`` must not run on the loop.
+
+    Asserted by identity of the running thread rather than by timing, which
+    would be a flake on a loaded machine. ``asyncio.run`` drives the loop on
+    *this* thread, so the render must land on a different one.
+
+    Driven through ``_render`` rather than as an ``async def`` test: this
+    suite has no ``pytest-asyncio``, and an ``async def`` here is collected,
+    silently **skipped**, and reported as a pass. The first version of this
+    test was exactly that -- it did not fail when the render was put back on
+    the loop, because it never ran.
+    """
+    import maidr.widget.shiny as shiny_module
+
+    loop_thread = threading.get_ident()
+    seen: list[int] = []
+
+    real_render = shiny_module.maidr.render
+
+    def spy(value, **kwargs):
+        seen.append(threading.get_ident())
+        return real_render(value, **kwargs)
+
+    monkeypatch.setattr(shiny_module.maidr, "render", spy)
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    try:
+
+        @render_maidr
+        def chart():
+            return ax
+
+        _render(chart)
+    finally:
+        plt.close(fig)
+
+    assert seen, "the render never ran"
+    assert loop_thread not in seen, (
+        "maidr.render ran on the event loop's thread; every other session "
+        "on that worker is blocked for its full duration"
+    )
+
+
+def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
+    """The scenario this whole change exists to make safe.
+
+    The unit tests above check that ``_figure_lock`` hands back matching
+    objects; none of them shows that two renders actually serialise. That
+    is the one thing a race here would break, so it is worth exercising
+    end to end.
+
+    Detects **overlap** rather than measuring duration, so it cannot flake
+    into a false pass on a loaded machine: if the lock works, the second
+    render cannot enter while the first is inside, at any speed. The sleep
+    only widens the window a broken lock would have to miss.
+
+    Overlapping renders are not a theoretical concern. ``savefig`` writes
+    ``fig.dpi`` for the duration of the write, so the loser of that race
+    emits a valid SVG of the whole chart at the wrong scale -- measured at
+    460.8x345.6 for a 640x480 figure, on 1 of 6 concurrent attempts.
+    """
+    import maidr.widget.shiny as shiny_module
+
+    inside = 0
+    overlapped = False
+    bookkeeping = threading.Lock()
+
+    def slow_render(value, **kwargs):
+        nonlocal inside, overlapped
+        with bookkeeping:
+            inside += 1
+            if inside > 1:
+                overlapped = True
+        time.sleep(0.05)
+        with bookkeeping:
+            inside -= 1
+        return "rendered"
+
+    monkeypatch.setattr(shiny_module.maidr, "render", slow_render)
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    try:
+        renderer = render_maidr(lambda: ax)
+        workers = [
+            threading.Thread(target=renderer._render_off_loop, args=(ax,))
+            for _ in range(4)
+        ]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+    finally:
+        plt.close(fig)
+
+    assert not overlapped, (
+        "two renders of the same figure ran at once; they race on fig.dpi "
+        "and one of them emits the chart at the wrong scale"
+    )
+
+
+def test_a_value_that_resolves_to_no_figure_still_renders(fake_session, monkeypatch):
+    """The fallback branch, driven through the real path rather than alone.
+
+    ``test_an_unresolvable_figure_gets_a_fresh_lock_...`` calls
+    ``_figure_lock(None)`` directly, which shows the helper's behaviour and
+    not that anything reaches it. This goes through ``render()``.
+
+    Both shapes are covered because they are not the same shape, which an
+    earlier comment in ``_render_off_loop`` got wrong: a foreign figure
+    **returns** ``None`` from ``get_axes`` and never raises, while an empty
+    container raises ``StopIteration``. Only the second reaches the
+    ``except``; the first is handled by the ``getattr`` default.
+    """
+    import maidr.widget.shiny as shiny_module
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    monkeypatch.setattr(shiny_module.maidr, "render", lambda value, **kw: "rendered")
+    monkeypatch.setattr(shiny_module, "_check_supported", lambda value, name: None)
+    try:
+        for resolver, label in (
+            (lambda value: None, "returns None, as a foreign figure does"),
+            (lambda value: next(iter([])), "raises, as an empty container does"),
+        ):
+            monkeypatch.setattr(
+                shiny_module.FigureManager, "get_axes", staticmethod(resolver)
+            )
+
+            @render_maidr
+            def chart():
+                return ax
+
+            assert _render(chart) is not None, label
+    finally:
+        plt.close(fig)
+
+
+def test_an_unexpected_resolver_failure_is_logged_not_swallowed(
+    fake_session, monkeypatch, caplog
+):
+    """A bug in ``get_axes`` must not vanish into "lock scope lost".
+
+    The catch sits immediately before an unsynchronised render, so a real
+    failure there is worth a record. It was a bare ``except Exception``
+    with no logging until review of #504.
+    """
+    import logging
+
+    import maidr.widget.shiny as shiny_module
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    monkeypatch.setattr(shiny_module.maidr, "render", lambda value, **kw: "rendered")
+    monkeypatch.setattr(shiny_module, "_check_supported", lambda value, name: None)
+    monkeypatch.setattr(
+        shiny_module.FigureManager,
+        "get_axes",
+        staticmethod(lambda value: (_ for _ in ()).throw(AttributeError("boom"))),
+    )
+    try:
+        with caplog.at_level(logging.DEBUG, logger=shiny_module.__name__):
+
+            @render_maidr
+            def chart():
+                return ax
+
+            _render(chart)
+    finally:
+        plt.close(fig)
+
+    assert any("without a shared lock" in record.message for record in caplog.records)
+
+
+def test_two_different_figures_rendering_at_once_keep_their_selectors():
+    """The per-figure lock does not cover process-global highlight state.
+
+    ``HighlightContextManager`` carries a render's element-to-selector
+    wiring, and the artist ``draw`` methods and ``XMLWriter.start`` are
+    patched *class-wide*, so every render in the process reads it while
+    ``savefig`` walks its figure. A lock keyed by figure deliberately does
+    not serialise **distinct** figures -- that parallelism is the point of
+    rendering off the loop -- so nothing stopped two renders from
+    overwriting each other's wiring.
+
+    Measured with that state as plain class attributes: four concurrent
+    renders of distinct figures went from 61 selectors each to
+    ``[7, 1, 1, 1]``. Valid SVGs, with the interactive layer silently
+    gone -- and only on concurrent traffic, so it would not reproduce from
+    a bug report.
+
+    Counts selectors rather than comparing whole documents, because ids
+    are per-render uuids; the count is what goes missing.
+    """
+    import re
+
+    from maidr.core.figure_manager import FigureManager
+
+    def build():
+        figure, axes = plt.subplots()
+        axes.bar([str(i) for i in range(20)], list(range(1, 21)))
+        return figure
+
+    def selectors(figure):
+        html = FigureManager.get_maidr(figure)._create_html_tag(
+            use_iframe=False, use_cdn=True
+        )
+        return len(re.findall(r'maidr="[^"]+"', str(html)))
+
+    figures = [build() for _ in range(4)]
+    try:
+        alone = [selectors(figure) for figure in figures]
+        assert all(count == alone[0] for count in alone), alone
+
+        together: dict[int, int] = {}
+
+        def render(index, figure):
+            together[index] = selectors(figure)
+
+        workers = [
+            threading.Thread(target=render, args=(index, figure))
+            for index, figure in enumerate(figures)
+        ]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+
+        assert [together[i] for i in range(len(figures))] == alone, (
+            "a concurrent render of another figure stripped this one's "
+            "selectors; the highlight wiring is process-global state"
+        )
+    finally:
+        plt.close("all")
