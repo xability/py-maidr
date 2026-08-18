@@ -74,12 +74,49 @@ class BoxplotContextManager(ContextManager):
 
 
 class HighlightContextManager:
+    """Carries a render's highlight wiring from extraction to the SVG writer.
+
+    Held in :class:`contextvars.ContextVar`\ s rather than as class
+    attributes, matching :class:`ContextManager` above. That is not a style
+    choice: the artist ``draw`` methods and ``XMLWriter.start`` are patched
+    *class-wide*, so every render in the process reads this state while
+    ``savefig`` walks its figure.
+
+    As plain class attributes it was safe only because every render ran
+    serialised on one thread. It stopped being safe when the Shiny renderer
+    began rendering off the event loop (#504): two **different** figures
+    drawing at once would overwrite each other's ``elements_to_highlight``,
+    and artists checked after the overwrite would match nothing, so
+    ``XMLWriter.start`` never injected their ``maidr`` attribute. Measured
+    before the change -- four concurrent renders of distinct figures went
+    from 61 selectors each to ``[7, 1, 1, 1]``. A valid SVG, with the
+    interactive layer silently gone.
+
+    ``contextvars`` is the right tool rather than a wider lock because a
+    render's wiring is genuinely per-render: ``asyncio.to_thread`` runs the
+    call in a *copy* of the context, so each render gets its own view and
+    concurrent renders of distinct figures stay parallel, which is what
+    moving off the loop was for.
+
+    One subtlety worth stating, because it is the way this fix is usually
+    got wrong: ``copy_context()`` copies the variable-to-value mapping, not
+    the values. A single shared ``dict`` left as a default would still be
+    shared through the copy, so :meth:`set_maidr_elements` installs a fresh
+    mapping for each render rather than mutating one in place.
+    """
+
     _instance = None
     _lock = threading.Lock()
 
-    elements = {}
-    elements_to_highlight = []
-    selector_ids = []
+    _elements: contextvars.ContextVar[dict] = contextvars.ContextVar(
+        "maidr_highlight_elements"
+    )
+    _elements_to_highlight: contextvars.ContextVar[list] = contextvars.ContextVar(
+        "maidr_elements_to_highlight"
+    )
+    _selector_ids: contextvars.ContextVar[list] = contextvars.ContextVar(
+        "maidr_selector_ids"
+    )
 
     def __new__(cls):
         if not cls._instance:
@@ -90,33 +127,40 @@ class HighlightContextManager:
 
     @classmethod
     def is_maidr_element(cls, id):
-        return id in cls.elements
+        return id in cls._elements.get({})
 
     @classmethod
     def get_selector_id(cls, id):
-        return cls.elements[id]
+        return cls._elements.get({})[id]
 
     @classmethod
     @contextlib.contextmanager
     def set_maidr_element(cls, element, id):
-        if element not in cls.elements_to_highlight:
+        to_highlight = cls._elements_to_highlight.get([])
+        if element not in to_highlight:
             yield
             return
 
+        elements = cls._elements.get({})
         try:
-            cls.elements[id] = cls.selector_ids[
-                cls.elements_to_highlight.index(element)
-            ]
+            elements[id] = cls._selector_ids.get([])[to_highlight.index(element)]
             yield
         finally:
-            del cls.elements[id]
+            del elements[id]
 
     @classmethod
     @contextlib.contextmanager
     def set_maidr_elements(cls, elements: list, selector_ids: list):
-        cls.elements_to_highlight = elements
-        cls.selector_ids = selector_ids
+        # A fresh mapping per render, not a shared one mutated in place:
+        # `copy_context()` copies the variable-to-value mapping, so a single
+        # dict installed once would still be shared across every concurrent
+        # render. See the class docstring.
+        token_elements = cls._elements.set({})
+        token_to_highlight = cls._elements_to_highlight.set(elements)
+        token_selectors = cls._selector_ids.set(selector_ids)
         try:
             yield
         finally:
-            cls.elements_to_highlight.clear()
+            cls._elements.reset(token_elements)
+            cls._elements_to_highlight.reset(token_to_highlight)
+            cls._selector_ids.reset(token_selectors)

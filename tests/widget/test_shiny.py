@@ -714,3 +714,65 @@ def test_an_unexpected_resolver_failure_is_logged_not_swallowed(
         plt.close(fig)
 
     assert any("without a shared lock" in record.message for record in caplog.records)
+
+
+def test_two_different_figures_rendering_at_once_keep_their_selectors():
+    """The per-figure lock does not cover process-global highlight state.
+
+    ``HighlightContextManager`` carries a render's element-to-selector
+    wiring, and the artist ``draw`` methods and ``XMLWriter.start`` are
+    patched *class-wide*, so every render in the process reads it while
+    ``savefig`` walks its figure. A lock keyed by figure deliberately does
+    not serialise **distinct** figures -- that parallelism is the point of
+    rendering off the loop -- so nothing stopped two renders from
+    overwriting each other's wiring.
+
+    Measured with that state as plain class attributes: four concurrent
+    renders of distinct figures went from 61 selectors each to
+    ``[7, 1, 1, 1]``. Valid SVGs, with the interactive layer silently
+    gone -- and only on concurrent traffic, so it would not reproduce from
+    a bug report.
+
+    Counts selectors rather than comparing whole documents, because ids
+    are per-render uuids; the count is what goes missing.
+    """
+    import re
+
+    from maidr.core.figure_manager import FigureManager
+
+    def build():
+        figure, axes = plt.subplots()
+        axes.bar([str(i) for i in range(20)], list(range(1, 21)))
+        return figure
+
+    def selectors(figure):
+        html = FigureManager.get_maidr(figure)._create_html_tag(
+            use_iframe=False, use_cdn=True
+        )
+        return len(re.findall(r'maidr="[^"]+"', str(html)))
+
+    figures = [build() for _ in range(4)]
+    try:
+        alone = [selectors(figure) for figure in figures]
+        assert all(count == alone[0] for count in alone), alone
+
+        together: dict[int, int] = {}
+
+        def render(index, figure):
+            together[index] = selectors(figure)
+
+        workers = [
+            threading.Thread(target=render, args=(index, figure))
+            for index, figure in enumerate(figures)
+        ]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+
+        assert [together[i] for i in range(len(figures))] == alone, (
+            "a concurrent render of another figure stripped this one's "
+            "selectors; the highlight wiring is process-global state"
+        )
+    finally:
+        plt.close("all")
