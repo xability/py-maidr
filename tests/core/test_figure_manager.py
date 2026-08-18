@@ -139,6 +139,13 @@ def test_one_figure_registered_concurrently_gets_one_maidr():
         plt.close(fig)
 
 
+#: How long thread A parks between its two appends, waiting for B.
+#:
+#: Paid in full on every passing run -- see the test below -- so it is kept
+#: as small as detection allows rather than as large as feels safe.
+_HANDOFF_DEADLINE = 0.3
+
+
 def test_a_layer_keeps_the_selector_id_minted_with_it(monkeypatch):
     """``plots`` and ``selector_ids`` are appended separately but paired.
 
@@ -188,15 +195,20 @@ def test_a_layer_keeps_the_selector_id_minted_with_it(monkeypatch):
         runs through -- a real call site rather than a hook nothing calls.
 
         The wait is a deadline, not a handshake, and both outcomes are
-        meaningful. Unguarded, B is free to complete both of its appends
-        while A is parked here, and A's id then lands behind B's -- the
-        misalignment. Guarded, B cannot enter the critical section at all,
-        so this simply times out and the order is preserved. Either way the
-        test finishes.
+        meaningful. Note it is *always* paid on a passing run: the lock
+        blocks B for A's whole critical section, so A parks here for the
+        full deadline every time. That makes it suite time rather than a
+        worst case, which is why it is 0.3s and not longer -- measured, an
+        unguarded build is still caught 5/5 at 0.15s.
+
+        Unguarded, B is free to complete both of its appends while A is
+        parked here, and A's id then lands behind B's -- the misalignment.
+        Guarded, B cannot enter the critical section at all, so this simply
+        times out and the order is preserved. Either way the test finishes.
         """
         if getattr(who, "tag", None) == "A":
             first_appended.set()
-            second_done.wait(1.5)
+            second_done.wait(_HANDOFF_DEADLINE)
         return f"id-{who.tag}"
 
     monkeypatch.setattr(MaidrClass, "_unique_id", staticmethod(paced_unique_id))
@@ -211,7 +223,10 @@ def test_a_layer_keeps_the_selector_id_minted_with_it(monkeypatch):
         FigureManager.create_maidr(ax, PlotType.BAR)
         second_done.set()
 
-    threads = [threading.Thread(target=register_a), threading.Thread(target=register_b)]
+    threads = [
+        threading.Thread(target=register_a),
+        threading.Thread(target=register_b),
+    ]
     try:
         for thread in threads:
             thread.start()
