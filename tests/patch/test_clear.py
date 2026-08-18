@@ -262,48 +262,107 @@ def test_clear_drops_the_selector_ids_with_the_layers():
     )
 
 
-def test_lineplot_is_still_the_only_module_stashing_state_on_an_axes():
-    """``forget_axes_state`` only knows about the attributes it was told.
+def _maidr_state_stashed_in(source_file):
+    """Every place ``source_file`` puts maidr-owned state on another object.
 
-    Nothing makes a *future* patch module that reaches for
-    ``setattr(ax, ...)`` register its cleanup there, and the failure would
-    be the quiet one this file exists for: the layers are dropped, the new
-    module's latch survives, and the redraw registers nothing.
+    Yields ``(lineno, target, attribute)``. "maidr-owned" means the
+    attribute name starts with ``_maidr`` -- either written literally, or
+    named by a module-level constant holding such a string, which is how
+    ``lineplot`` spells ``DRAWN_SERIES`` and ``PLOT_CREATED``.
 
-    An AST guard rather than a grep, so a call spelled across several lines
-    or with a computed attribute name still counts. It fails on the module
-    that *adds* the state, which is where the fix belongs, rather than
-    later on a chart that stopped being described.
+    Both spellings of the assignment count: ``setattr(target, name, value)``
+    and ``target.attr = value``. An earlier version of this guard looked
+    only for ``setattr`` calls whose target was literally named ``ax`` or
+    ``axes``, which missed direct assignment entirely and missed every
+    module that binds its axes to ``instance`` or to a local of another
+    name. Both idioms are already used elsewhere in ``maidr/patch``.
     """
     import ast
+
+    tree = ast.parse(source_file.read_text())
+
+    # Module-level string constants, so `setattr(ax, DRAWN_SERIES, ...)`
+    # is read as the name it stands for rather than skipped.
+    constants = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant):
+            if isinstance(node.value.value, str):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        constants[target.id] = node.value.value
+
+    def resolve(node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        if isinstance(node, ast.Name):
+            return constants.get(node.id)
+        return None
+
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "setattr"
+            and len(node.args) >= 2
+        ):
+            name = resolve(node.args[1])
+            if name and name.startswith("_maidr"):
+                yield node.lineno, ast.unparse(node.args[0]), name
+
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if not isinstance(target, ast.Attribute):
+                    continue
+                if target.attr.startswith("_maidr"):
+                    yield node.lineno, ast.unparse(target.value), target.attr
+
+
+def test_no_new_module_stashes_maidr_state_on_an_axes():
+    """``forget_axes_state`` only knows about the attributes it was told.
+
+    Nothing makes a *future* patch module that stashes its own state on an
+    axes register the cleanup there, and the failure would be the quiet one
+    this file exists for: the layers are dropped, the new module's latch
+    survives the clear, and the redraw registers nothing at all.
+
+    Keyed on the *attribute* being maidr-owned rather than on the target
+    being named ``ax``, because the target's name is the part that varies
+    -- ``instance`` in a wrapt wrapper, or any local. What does not vary is
+    that maidr's own state is spelled ``_maidr...``.
+
+    State on an **artist** needs no cleanup: ``ax.clear()`` discards the
+    artists, so it goes with them. Only state on the axes survives, which
+    is what makes the target worth recording per entry.
+    """
     import pathlib
 
-    #: Modules known to keep their own state on an axes, and to have
-    #: registered its removal. Adding a name here means adding the cleanup.
-    allowed = {"lineplot.py"}
-
-    axes_like = {"ax", "axes"}
-    offenders: dict[str, list[int]] = {}
+    #: (module, target) -> why it is safe. A new entry is a decision:
+    #: on an axes, it must be removed in `forget_axes_state`; on an
+    #: artist, the clear discards it.
+    allowed = {
+        ("lineplot.py", "ax"): "latch and series; forget_axes_state removes both",
+        ("mplfinance.py", "line"): "on a Line2D; the clear discards the artist",
+    }
 
     patch_dir = pathlib.Path(__file__).resolve().parents[2] / "maidr" / "patch"
+    found = {}
     for source_file in sorted(patch_dir.glob("*.py")):
-        tree = ast.parse(source_file.read_text())
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
-                continue
-            if not (isinstance(node.func, ast.Name) and node.func.id == "setattr"):
-                continue
-            if not node.args:
-                continue
-            target = node.args[0]
-            if isinstance(target, ast.Name) and target.id in axes_like:
-                if source_file.name not in allowed:
-                    offenders.setdefault(source_file.name, []).append(node.lineno)
+        for lineno, target, attribute in _maidr_state_stashed_in(source_file):
+            found.setdefault((source_file.name, target), []).append((lineno, attribute))
 
-    assert not offenders, (
-        f"{offenders} keeps its own state on an Axes. matplotlib does not "
-        "reset attributes it does not own, so clearing the axes leaves it "
-        "behind -- register its removal in "
-        "`maidr.patch.lineplot.forget_axes_state` and add the module to "
-        "`allowed` here. See #499."
+    unexpected = {key: sites for key, sites in found.items() if key not in allowed}
+
+    assert not unexpected, (
+        f"{unexpected} stashes maidr-owned state on another object. If the "
+        "target is an Axes, matplotlib will not reset it -- clearing the "
+        "axes leaves it behind, and the next draw registers nothing. "
+        "Remove it in `maidr.patch.lineplot.forget_axes_state` and add an "
+        "entry to `allowed` here saying so. If the target is an artist, the "
+        "clear discards it; add the entry saying that instead. See #499."
+    )
+
+    # The allowlist must not outlive what it describes: an entry for
+    # something no longer there would quietly widen the guard.
+    assert set(allowed) == set(found), (
+        f"`allowed` lists {set(allowed) - set(found)}, which no longer exists"
     )
