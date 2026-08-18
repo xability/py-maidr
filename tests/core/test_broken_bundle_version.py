@@ -23,6 +23,7 @@ import logging
 import pytest
 
 from maidr.util import dependencies
+from maidr.util import warn as warn_module
 
 
 @pytest.fixture
@@ -31,7 +32,7 @@ def no_pin(monkeypatch):
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
     dependencies.set_cdn_version(None)
     dependencies.reset_cdn_version_cache()
-    dependencies._warned_keys.clear()
+    warn_module._warned_keys.clear()
     yield
     dependencies.set_cdn_version(None)
     dependencies.reset_cdn_version_cache()

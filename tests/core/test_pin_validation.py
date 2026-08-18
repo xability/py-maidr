@@ -22,6 +22,7 @@ import pytest
 
 import maidr
 from maidr.util import dependencies
+from maidr.util import warn as warn_module
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +30,7 @@ def clean():
     """No pin, no cached lookup, and a fresh log-dedup set."""
     dependencies.set_cdn_version(None)
     dependencies.reset_cdn_version_cache()
-    dependencies._warned_keys.clear()
+    warn_module._warned_keys.clear()
     yield
     dependencies.set_cdn_version(None)
     dependencies.reset_cdn_version_cache()

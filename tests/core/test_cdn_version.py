@@ -26,6 +26,7 @@ import pytest
 
 import maidr
 from maidr.util import dependencies
+from maidr.util import warn as warn_module
 
 
 # `maidr_css_cdn_url` is deprecated (#333) and warns on every call. These tests
@@ -382,11 +383,11 @@ def test_warned_keys_stays_bounded(resolvable):
     asserted: the subject here is the *log* dedup set, and every one of
     these several hundred calls raises the same deprecation.
     """
-    for i in range(dependencies._MAX_WARNED_KEYS * 3):
+    for i in range(warn_module._MAX_WARNED_KEYS * 3):
         maidr.set_cdn_version(f"bad-{i}")
         dependencies.maidr_js_cdn_url()
 
-    assert len(dependencies._warned_keys) <= dependencies._MAX_WARNED_KEYS
+    assert len(warn_module._warned_keys) <= warn_module._MAX_WARNED_KEYS
 
 
 @pytest.mark.parametrize(
@@ -794,7 +795,7 @@ def test_concurrent_warn_once_emits_once(monkeypatch):
     this as a free-threading guard and a smoke test, not as evidence that
     the lock is load-bearing today.
     """
-    monkeypatch.setattr(dependencies, "_warned_keys", set())
+    monkeypatch.setattr(warn_module, "_warned_keys", set())
     emitted: list[tuple] = []
     emit_lock = threading.Lock()
 
@@ -802,9 +803,9 @@ def test_concurrent_warn_once_emits_once(monkeypatch):
         with emit_lock:
             emitted.append(args)
 
-    monkeypatch.setattr(dependencies._logger, "warning", record)
+    monkeypatch.setattr(warn_module._logger, "warning", record)
 
-    _run_concurrently(lambda: dependencies._warn_once("same-key", "msg"))
+    _run_concurrently(lambda: warn_module.warn_once("same-key", "msg"))
 
     assert len(emitted) == 1, f"emitted {len(emitted)} times, expected 1"
 

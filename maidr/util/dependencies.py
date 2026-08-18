@@ -60,6 +60,13 @@ from typing import NamedTuple
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from maidr.util.warn import (
+    BUNDLE_WARNING_ENV_VAR,
+    _MAX_WARNED_KEY_LEN,
+    bundle_warning_enabled,
+    warn_once,
+)
+
 
 _logger = logging.getLogger(__name__)
 
@@ -284,32 +291,17 @@ def _is_valid_version(candidate: str) -> bool:
     )
 
 
-# Keys of warnings already logged, so a bad pin is reported once instead
-# of on every URL build.  See :func:`_warn_once`.
-_warned_keys: set[str] = set()
-_warned_keys_lock = threading.Lock()
-
-# Ceilings on the above.  Normal use adds nothing or one entry; these
-# only matter for a process that programmatically cycles through many
-# distinct bad pins.  Both are needed for the bound to be real: capping
-# the entry count alone still lets one arbitrarily long pin become an
-# arbitrarily long key.
-# Note the guarantee this buys is "each distinct value warns, and
-# repeats stay quiet" rather than "exactly once, forever": eviction
-# clears the whole set, so a value that already warned can warn again
-# once 64 other distinct values have cycled through.
-_MAX_WARNED_KEYS = 64
-_MAX_WARNED_KEY_LEN = 200
 
 # Deliberately not guarded by ``_resolution_lock`` below: this is a lone
 # reference assignment, written only by an explicit
 # :func:`set_cdn_version` call.  The lock exists to stop concurrent
 # *lookups*, which are a compound read-modify-write, not to protect this.
 #
-# Unlike the compound update in :func:`_warn_once`, the reasoning here
-# does not depend on the GIL and so survives free-threaded builds (PEP
-# 703): storing a single object reference stays indivisible there, so a
-# reader sees either the old value or the new one, never a torn write.
+# Unlike the compound update in :func:`maidr.util.warn.warn_once`, the
+# reasoning here does not depend on the GIL and so survives free-threaded
+# builds (PEP 703): storing a single object reference stays indivisible
+# there, so a reader sees either the old value or the new one, never a
+# torn write.
 _cdn_version_override: str | None = None
 
 _resolved_cdn_version: str | None = None
@@ -649,7 +641,7 @@ def _offline_version() -> str:
     # Keyed on the unusable value, so a wheel whose VERSION is garbled
     # rather than absent says which -- and a second, differently broken
     # one is still audible.
-    _warn_once(
+    warn_once(
         f"unusable-bundled-version:{bundled}",
         "maidr: the bundled maidr.js version %s, so CDN URLs fall back to "
         "the mutable maidr@%s tag. jsDelivr serves that with a seven-day "
@@ -936,7 +928,7 @@ def _normalise_version_pin(pin: str) -> str | None:
         # lookup would betray that intent for someone who chose it to
         # avoid egress, so degrade to ``@latest`` — still a working URL,
         # still no request.
-        _warn_once(
+        warn_once(
             f"{BUNDLED_TAG}:{bundled}",
             "maidr: a %r CDN version pin was requested but the bundled "
             "VERSION is %r; falling back to the %r dist-tag without "
@@ -954,7 +946,7 @@ def _normalise_version_pin(pin: str) -> str | None:
         return candidate
     # Truncate for display too: the key is capped, but an oversized pin
     # would otherwise land in the log line at full length.
-    _warn_once(
+    warn_once(
         f"pin:{pin}",
         "maidr: ignoring invalid CDN version pin %r; expected a semver "
         "such as '3.74.0', %r, or %r.",
@@ -988,7 +980,7 @@ def _warn_if_pin_predates_stylesheet_split(version: str) -> None:
     split_key = _version_key(_STYLESHEET_SPLIT_VERSION)
     if key is None or split_key is None or key >= split_key:
         return
-    _warn_once(
+    warn_once(
         f"pre-split-pin:{version}",
         "maidr: CDN version pin %r predates maidr %s, where KaTeX moved out "
         "of maidr.css into maidr-math.css. py-maidr links no stylesheet, so "
@@ -1000,46 +992,6 @@ def _warn_if_pin_predates_stylesheet_split(version: str) -> None:
     )
 
 
-def _warn_once(key: str, message: str, *args: object) -> None:
-    """Log a warning the first time it is seen, then stay quiet about it.
-
-    :func:`_normalise_version_pin` runs on every URL build — twice per
-    figure in the CDN modes — so a single typo'd ``MAIDR_CDN_VERSION``
-    would otherwise log two lines per rendered plot for the life of the
-    process.  Deduplicating by ``key`` rather than warning once globally
-    keeps a *second*, differently-broken pin audible.
-
-    Parameters
-    ----------
-    key : str
-        Identity of this warning.  Include the offending value so that
-        changing the value re-warns.  Truncated to
-        :data:`_MAX_WARNED_KEY_LEN`, so two pins identical for that many
-        characters share one warning.
-    message : str
-        ``logging``-style format string.
-    *args : object
-        Arguments interpolated into ``message`` by the logger.
-    """
-    key = key[:_MAX_WARNED_KEY_LEN]
-    if key in _warned_keys:
-        return
-    # Claim the key under the lock.  Individual set operations being
-    # atomic would not be enough: the sequence below is compound, so two
-    # threads could both pass the size check and one's ``clear()`` would
-    # drop the key the other just added.  Leaning on the GIL for that
-    # would also stop holding under free-threaded builds (PEP 703).  The
-    # membership test above keeps the lock off the common path.
-    with _warned_keys_lock:
-        if key in _warned_keys:
-            return
-        if len(_warned_keys) >= _MAX_WARNED_KEYS:
-            # Start over rather than grow without bound.  A process
-            # churning through this many distinct bad pins will see the
-            # occasional repeat, which is a fair trade for fixed memory.
-            _warned_keys.clear()
-        _warned_keys.add(key)
-    _logger.warning(message, *args)
 
 
 def _cdn_timeout() -> float:
@@ -1076,7 +1028,7 @@ def _cdn_timeout() -> float:
     try:
         timeout = float(raw)
     except ValueError:
-        _warn_once(
+        warn_once(
             f"timeout-nan:{raw}",
             "maidr: ignoring non-numeric %s=%r; using the %ss default.",
             CDN_TIMEOUT_ENV_VAR,
@@ -1090,7 +1042,7 @@ def _cdn_timeout() -> float:
         # guard and reach ``urlopen`` — which raises, gets swallowed by
         # the broad handler there, and silently disables resolution with
         # nothing logged.  ``inf`` would hang instead of being clamped.
-        _warn_once(
+        warn_once(
             f"timeout-nonfinite:{raw}",
             "maidr: %s=%s is not a finite number; using the %ss default.",
             CDN_TIMEOUT_ENV_VAR,
@@ -1102,7 +1054,7 @@ def _cdn_timeout() -> float:
         # Say so rather than silently substituting the default: `0` most
         # plausibly means "don't look up", and the user should learn that
         # it doesn't rather than wonder where the wait came from.
-        _warn_once(
+        warn_once(
             f"timeout-nonpositive:{raw}",
             "maidr: %s=%s is not a valid budget, so the %ss default applies. "
             "To skip the lookup entirely, set %s=%s.",
@@ -1114,7 +1066,7 @@ def _cdn_timeout() -> float:
         )
         return _DEFAULT_CDN_TIMEOUT
     if timeout < _MIN_CDN_TIMEOUT:
-        _warn_once(
+        warn_once(
             f"timeout-tiny:{raw}",
             "maidr: %s=%s is below the %ss floor and was clamped. The value "
             "is in seconds; a budget that small times out on every attempt "
@@ -1126,7 +1078,7 @@ def _cdn_timeout() -> float:
         )
         return _MIN_CDN_TIMEOUT
     if timeout > _MAX_CDN_TIMEOUT:
-        _warn_once(
+        warn_once(
             f"timeout:{raw}",
             "maidr: %s=%s exceeds the %ss cap and was clamped. The value is "
             "in seconds; a lookup needing longer would fall back to the "
@@ -1349,9 +1301,6 @@ def _fetch_latest_version(budget: float) -> str | None:
 #: outruns py-maidr's releases.
 STALE_MINOR_GAP = 5
 
-#: Set to ``0`` / ``false`` / ``off`` to silence the staleness warning.
-BUNDLE_WARNING_ENV_VAR = "MAIDR_BUNDLE_STALE_WARNING"
-
 # Same grammar as :data:`_VERSION_RE`, with the parts named so
 # :func:`_version_key` can pull them out.  Kept deliberately in step with
 # it: a looser shape here would mean a version this module refuses to pin
@@ -1522,7 +1471,7 @@ def warn_bundle_unreadable() -> None:
     before it happens; the staleness warning fires from an explicit render
     call, where a filterable warning category is the better fit.
     """
-    _warn_once(
+    warn_once(
         "missing-bundle",
         "maidr: use_cdn=False was requested but the bundled maidr.js/css "
         "could not be read, so the notebook will load them from the CDN. "
@@ -1584,7 +1533,7 @@ def warn_if_bundle_is_stale(*, bundle_is_primary: bool = True) -> None:
     than about how it was called — the message stands alone without a
     call site.
     """
-    if bundle_is_primary in _bundle_warned or not _bundle_warning_enabled():
+    if bundle_is_primary in _bundle_warned or not bundle_warning_enabled():
         return
 
     status = bundle_status(resolve=False)
@@ -1619,12 +1568,6 @@ def warn_if_bundle_is_stale(*, bundle_is_primary: bool = True) -> None:
         _logger.warning("%s", message)
 
 
-def _bundle_warning_enabled() -> bool:
-    """Return whether the staleness warning is enabled (it is by default)."""
-    raw = os.environ.get(BUNDLE_WARNING_ENV_VAR)
-    if raw is None:
-        return True
-    return raw.strip().lower() not in {"0", "false", "no", "off"}
 
 
 def _prerelease_key(prerelease: str) -> tuple[tuple[int, int, str], ...]:
