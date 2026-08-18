@@ -100,10 +100,13 @@ class _FigureRecords:
         self._seen.add(fig)
 
     def __delitem__(self, fig: Figure) -> None:
-        try:
-            delattr(fig, self._ATTR)
-        except AttributeError:
-            raise KeyError(fig) from None
+        # Through `_record` like every other read, so that `del figs[fig]`
+        # and `figs.pop(fig)` agree about what is registered. Deleting
+        # straight off the attribute would succeed for a shallow copy that
+        # `pop` refuses -- two spellings of one operation disagreeing.
+        if self._record(fig) is self._MISSING:
+            raise KeyError(fig)
+        delattr(fig, self._ATTR)
         self._seen.discard(fig)
 
     def __len__(self) -> int:

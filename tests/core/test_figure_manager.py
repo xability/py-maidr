@@ -407,3 +407,30 @@ def test_a_figure_that_is_copied_wholesale_keeps_its_chart(clone):
         FigureManager.figs.pop(fig, None)
         FigureManager.figs.pop(twin, None)
         plt.close(fig)
+
+
+def test_del_and_pop_agree_about_what_is_registered():
+    """Two spellings of one operation must not disagree.
+
+    ``__delitem__`` originally deleted the attribute directly while ``pop``
+    went through the ownership check, so ``del figs[copy]`` succeeded on a
+    shallow copy that ``figs.pop(copy)`` refused. Nothing calls
+    ``__delitem__`` today, which is exactly why it would have gone unnoticed
+    until the first caller.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    twin = copy.copy(fig)
+    try:
+        with pytest.raises(KeyError):
+            FigureManager.figs.pop(twin)
+        with pytest.raises(KeyError):
+            del FigureManager.figs[twin]
+
+        del FigureManager.figs[fig]
+        assert fig not in FigureManager.figs
+        with pytest.raises(KeyError):
+            del FigureManager.figs[fig]
+    finally:
+        FigureManager.figs.pop(fig, None)
+        plt.close(fig)
