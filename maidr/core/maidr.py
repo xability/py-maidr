@@ -41,6 +41,7 @@ from maidr.util.cdn import (
     bundled_cdn_url,
     maidr_js_cdn_url,
 )
+from maidr.util.grid_position import topmost_subplotspec
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_matplotlib
 
@@ -766,8 +767,8 @@ class Maidr:
         spans = [
             ss
             for ss in (
-                *(ax.get_subplotspec() for ax in self._fig.axes),
-                *(plot.ax.get_subplotspec() for plot in self._plots),
+                *(topmost_subplotspec(ax) for ax in self._fig.axes),
+                *(topmost_subplotspec(plot.ax) for plot in self._plots),
             )
             if ss is not None
         ]
