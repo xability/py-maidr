@@ -381,19 +381,37 @@ def test_a_legend_that_does_not_name_every_group_names_none():
             assert point["yMin"] <= point["y"] <= point["yMax"]
 
 
-def test_a_group_whose_every_category_is_a_singleton_keeps_its_siblings():
-    """One group with no drawable interval must not cost the others theirs.
+def test_a_hue_level_with_no_drawable_interval_keeps_its_sibling_bounded():
+    """A whole hue level with nothing to estimate, across every category.
 
-    A hue level holding a single observation everywhere has nothing to
-    estimate an interval from, and seaborn renders that as a polyline whose
-    value coordinates are all NaN. The layer omits that group's bounds and
-    keeps the rest, rather than falling back for the whole chart.
+    Distinct from ``test_a_group_without_an_interval_does_not_cost_the
+    _others_theirs``, which is the ungrouped case: there a single *category*
+    lacks an interval inside one series. Here an entire *series* does, which
+    is the only version that exercises the per-group slicing.
+
+    A hue level holding a single observation in every category has no
+    interval to draw, and seaborn renders that as a polyline whose value
+    coordinates are all NaN. The layer omits that group's bounds and keeps
+    reporting both groups, rather than falling back for the whole chart.
+
+    An earlier version of this test used three *identical* observations,
+    calling it a singleton. Measured, that is not the same case at all --
+    seaborn's bootstrap over a zero-variance cell still produces a drawn
+    interval, so both groups came back bounded and the test passed without
+    ever reaching the branch it named:
+
+        zero-variance: group x ['bound', 'bound']  group y ['bound', 'bound']
+        true n=1:      group x ['bound', 'bound']  group y ['NO-bound', ...]
+
+    The assertions are per group rather than over the flattened schema, for
+    the same reason: an ``any(...)`` across every point is satisfied by the
+    sibling group alone and says nothing about the one under test.
     """
     frame = pd.DataFrame(
         {
-            "g": ["a", "a", "a", "b", "b", "b"] * 2,
-            "half": ["x"] * 6 + ["y"] * 6,
-            "v": [1.0, 2.0, 3.0, 8.0, 9.0, 10.0, 5.0, 5.0, 5.0, 7.0, 7.0, 7.0],
+            "g": ["a", "a", "a", "b", "b", "b", "a", "b"],
+            "half": ["x"] * 6 + ["y", "y"],
+            "v": [1.0, 2.0, 3.0, 8.0, 9.0, 10.0, 5.0, 7.0],
         }
     )
 
@@ -401,15 +419,22 @@ def test_a_group_whose_every_category_is_a_singleton_keeps_its_siblings():
     sns.pointplot(frame, x="g", y="v", hue="half", dodge=True, ax=ax)
 
     schema = _schema(fig)
+    bounded, unbounded = schema["data"]
 
     assert schema["type"] == PlotType.ERRORBAR.value
-    assert len(schema["data"]) == 2
-    # Every point is still reported, with or without a bound.
-    assert all(len(series) == 2 for series in schema["data"])
-    # The group that has intervals keeps them.
-    assert any(
-        "yMin" in point for series in schema["data"] for point in series
-    )
+    assert [series[0]["z"] for series in schema["data"]] == ["x", "y"]
+
+    # The sibling keeps every bound it drew.
+    assert all("yMin" in point for point in bounded)
+    for point in bounded:
+        assert point["yMin"] <= point["y"] <= point["yMax"]
+
+    # The singleton group is still announced -- estimate and category -- and
+    # simply carries no interval, which is the honest reading of a group
+    # that has none.
+    assert all("yMin" not in point for point in unbounded)
+    assert [point["x"] for point in unbounded] == ["a", "b"]
+    assert all(point["y"] is not None for point in unbounded)
 
 
 def test_a_dodged_group_is_still_named_by_its_tick():
