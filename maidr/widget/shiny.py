@@ -258,11 +258,11 @@ def _close_new_figures(before: set) -> None:
     static image: an accessible chart quietly turning into a picture, with
     only a warning on the server to show for it.
 
-    ``FigureManager.figs`` therefore still retains an entry per figure.
-    That is pre-existing behaviour rather than something this introduces,
-    and it cannot be fixed from here: the entry's value is a
-    :class:`~maidr.core.maidr.Maidr` that holds the figure, so even a
-    weakly-keyed map would keep it reachable.
+    ``FigureManager.figs`` therefore still keeps a record per figure --
+    which is correct, and no longer a leak. The record is stored on the
+    figure itself (#456), so it lasts exactly as long as the application's
+    own reference: a cached figure keeps its data across flushes, and a
+    throwaway one is reclaimed with everything maidr extracted from it.
 
     Parameters
     ----------

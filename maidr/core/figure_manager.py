@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import weakref
 from typing import Any
 
 from matplotlib.artist import Artist
@@ -14,6 +15,189 @@ from maidr.core.plot import MaidrPlotFactory
 from maidr.exception.unsupported_plot_error import UnsupportedPlotError
 
 
+class _FigureRecords:
+    """A mapping from ``Figure`` to ``Maidr`` that stores each entry on its key.
+
+    Reads as the plain ``dict`` this replaced -- ``figs[fig]``, ``fig in
+    figs``, ``.get``, ``.pop``, ``.clear``, iteration, ``len`` -- but the
+    value lives in the figure's own ``__dict__`` rather than in a
+    module-level table. A class-level dict kept every registered figure
+    reachable for the life of the process; storing the record on the figure
+    makes the whole graph one isolated cycle once the caller lets go, which
+    the collector reclaims (#456).
+
+    Not a ``WeakKeyDictionary``: every value reaches its own key --
+    ``Maidr._fig``, ``MaidrPlot.ax``, and each subclass's artist handles --
+    so the entry would keep the figure alive and the weak key would never
+    die. #498 records that chain.
+
+    Invariants
+    ----------
+    A record belongs to a figure only if ``record.fig is fig``.
+        Every read goes through :meth:`_record`, which enforces it, and the
+        one write refuses a record that fails it. Without this a
+        ``copy.copy`` of a figure -- which copies ``__dict__`` entries by
+        reference -- would answer as registered and hand back the
+        *original's* chart.
+
+    ``_seen`` holds every figure this mapping can enumerate.
+        It backs iteration, ``len`` and ``clear`` only, weakly, so it
+        retains nothing. :meth:`_record` adds to it, because ``deepcopy``
+        and ``pickle`` install a valid record without going through
+        :meth:`__setitem__`. **A read therefore mutates shared state**,
+        which is why every operation takes ``_guard``.
+
+    Notes
+    -----
+    Reclamation is the cyclic collector's rather than refcounting's, so a
+    host running ``gc.disable()`` gets the growth back between collections.
+    In proportion: a bare matplotlib ``Figure`` is not refcount-reclaimable
+    either, since its artists refer back to it, so turning the collector off
+    leaks figures with or without this package.
+
+    The approach leans on ``Figure`` accepting instance attributes and on
+    ``copy``/``deepcopy``/``pickle`` treating ``__dict__`` as they do today.
+    Neither is a contract matplotlib publishes. If either changes the
+    failure is quiet -- the attribute is simply absent and a figure reads as
+    unregistered -- so ``tests/core/test_figure_manager.py`` pins all three
+    behaviours rather than leaving them to be assumed.
+    """
+
+    #: Attribute the record is stored under on the figure.
+    _ATTR = "_maidr_record"
+
+    #: Distinguishes "no default given" from a default of ``None``.
+    _MISSING = object()
+
+    def __init__(self) -> None:
+        self._seen: weakref.WeakSet = weakref.WeakSet()
+        # Its own lock, not `FigureManager._lock`: `figs` is reachable
+        # directly and a caller cannot be relied on to hold that one.
+        # Reentrant because `clear` walks `__iter__`, which asks
+        # `__contains__`.
+        #
+        # `FigureManager._lock` is still required for what this cannot do --
+        # spanning the check-then-act in `_get_maidr` and the paired append
+        # in `create_maidr`.
+        #
+        # Without this, concurrent add/remove during iteration raises
+        # `RuntimeError: Set changed size during iteration`. Untested here:
+        # provoking it needs sustained contention and detects about half the
+        # time. `test_one_thread_cannot_enter_the_registry_while_another_is_inside`
+        # asserts the exclusion this provides instead, deterministically.
+        self._guard = threading.RLock()
+
+    def _record(self, fig: Figure) -> Any:
+        """This figure's own record, or ``_MISSING``.
+
+        Returns
+        -------
+        Maidr or object
+            The record when ``record.fig is fig``, else the ``_MISSING``
+            sentinel. A missing attribute, a record naming another figure,
+            and a record whose ``Maidr`` has been destroyed (``Maidr.fig``
+            raising after ``Maidr.destroy``) are all "not registered" --
+            the last because a shallow copy can outlive the pop that
+            detached the original, and a membership test must answer a bool
+            rather than raise.
+
+        Also brings ``_seen`` up to date, per the class's second invariant.
+        """
+        record = getattr(fig, self._ATTR, self._MISSING)
+        if record is self._MISSING:
+            return self._MISSING
+        try:
+            owner = record.fig
+        except AttributeError:
+            return self._MISSING
+        if owner is not fig:
+            return self._MISSING
+        with self._guard:
+            self._seen.add(fig)
+        return record
+
+    def __contains__(self, fig: Figure) -> bool:
+        return self._record(fig) is not self._MISSING
+
+    def __getitem__(self, fig: Figure) -> Maidr:
+        record = self._record(fig)
+        if record is self._MISSING:
+            raise KeyError(fig)
+        return record
+
+    def __setitem__(self, fig: Figure, maidr: Maidr) -> None:
+        # Upholds the ownership invariant at the one write, so the mapping
+        # cannot hold a record no read would return. The dict this replaced
+        # would have stored a mismatched record and handed it back.
+        if maidr.fig is not fig:
+            raise ValueError(
+                "a figure's record must be the Maidr for that figure; "
+                f"{maidr!r} names a different one"
+            )
+        with self._guard:
+            setattr(fig, self._ATTR, maidr)
+            self._seen.add(fig)
+
+    def __delitem__(self, fig: Figure) -> None:
+        # Through `_record`, so `del figs[fig]` and `figs.pop(fig)` agree
+        # about what is registered.
+        with self._guard:
+            if self._record(fig) is self._MISSING:
+                raise KeyError(fig)
+            self._delete(fig)
+
+    def _delete(self, fig: Figure) -> None:
+        # Tolerant of a lost race: the entry the caller wanted gone is gone
+        # either way, and raising `AttributeError` where the class promises
+        # `KeyError` would be the wrong answer.
+        with self._guard:
+            try:
+                delattr(fig, self._ATTR)
+            except AttributeError:
+                pass
+            self._seen.discard(fig)
+
+    def __len__(self) -> int:
+        # Without it `if figs:` is always true -- the one way a partial
+        # mapping fails quietly rather than with a `TypeError`.
+        return sum(1 for _ in self)
+
+    def __iter__(self):
+        # Over a snapshot: `_seen` is weak, so iterating it directly can drop
+        # members mid-loop when a figure is collected by another thread.
+        with self._guard:
+            return iter([fig for fig in list(self._seen) if fig in self])
+
+    def get(self, fig: Figure, default: Any = None) -> Any:
+        record = self._record(fig)
+        return default if record is self._MISSING else record
+
+    def pop(self, fig: Figure, default: Any = _MISSING) -> Any:
+        with self._guard:
+            maidr = self._record(fig)
+            if maidr is self._MISSING:
+                if default is self._MISSING:
+                    raise KeyError(fig)
+                return default
+            self._delete(fig)
+            return maidr
+
+    def clear(self) -> None:
+        """Drop every record in ``_seen`` -- which is not quite every record.
+
+        A ``deepcopy``/``pickle`` clone enters ``_seen`` only when its record
+        is first read, so one that has never been looked up survives this.
+        Closing the gap would need a hook on the copy, meaning registry
+        knowledge inside ``Maidr.__deepcopy__``/``__setstate__``; not worth
+        it, since the clone's record is reachable only through the clone, so
+        this is an enumeration gap rather than a leak. ``clear`` exists for
+        test isolation.
+        """
+        with self._guard:
+            for fig in self:
+                self.pop(fig, None)
+
+
 class FigureManager:
     """
     Manages creation and retrieval of Maidr instances associated with figures.
@@ -23,9 +207,11 @@ class FigureManager:
 
     Attributes
     ----------
-    figs : dict
-        A dictionary that maps matplotlib Figure objects to their corresponding
-        Maidr instances.
+    figs : _FigureRecords
+        Maps matplotlib Figure objects to their corresponding Maidr instances.
+        Reads as a dict; each entry is stored on its own figure so that
+        registering a chart no longer keeps it alive for the life of the
+        process (#456). See :class:`_FigureRecords`.
 
         Reads reach worker threads since #504, which renders off the Shiny
         event loop. Both write paths -- :meth:`_get_maidr`'s insert and
@@ -34,6 +220,11 @@ class FigureManager:
         must stay index-aligned. Individual dict and list operations are
         atomic under the GIL; the lock is for the check-then-act and the
         paired write around them.
+
+        Every method above holds ``_lock``, and a direct caller of ``figs``
+        must too -- including for what look like reads. Since #456 a lookup
+        also updates the bookkeeping behind iteration, so ``in`` and
+        ``get`` mutate shared state rather than only observing it.
 
     Methods
     -------
@@ -46,7 +237,7 @@ class FigureManager:
         Recursively extracts Axes objects from the input artist or container.
     """
 
-    figs = {}
+    figs = _FigureRecords()
 
     _instance = None
     _lock = threading.Lock()
@@ -137,9 +328,11 @@ class FigureManager:
         # between them. Two uncontended acquires per registered layer, counting the
         # paired append in `create_maidr`.
         with cls._lock:
-            if fig not in cls.figs:
-                cls.figs[fig] = Maidr(fig, plot_type)
-            return cls.figs[fig]
+            maidr = cls.figs.get(fig)
+            if maidr is None:
+                maidr = Maidr(fig, plot_type)
+                cls.figs[fig] = maidr
+            return maidr
 
     @classmethod
     def get_maidr(cls, fig: Figure) -> Maidr:
@@ -161,9 +354,10 @@ class FigureManager:
         # `UnsupportedPlotError` below into a bare `KeyError` -- losing the
         # message that is the whole point of raising it.
         with cls._lock:
-            if fig not in cls.figs:
+            maidr = cls.figs.get(fig)
+            if maidr is None:
                 raise UnsupportedPlotError(fig)
-            return cls.figs[fig]
+            return maidr
 
     @classmethod
     def destroy(cls, fig: Figure) -> None:
@@ -179,7 +373,9 @@ class FigureManager:
         # not a dict operation. That leaves one gap this does not close: a
         # `create_maidr` that took its reference just before the pop can
         # still append to an object no longer in `figs`. Its layers go
-        # nowhere, which is #456's territory rather than this lock's.
+        # nowhere. Independent of this lock, and unchanged by #456: the
+        # record moving onto the figure changes how long an entry lives,
+        # not who may be holding a reference to it mid-registration.
         maidr.destroy()
         del maidr
 
