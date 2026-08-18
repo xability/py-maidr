@@ -342,6 +342,90 @@ class TestSharedAxisLabels:
         finally:
             plt.close(fig)
 
+    def test_a_caption_is_not_read_as_the_x_label_of_unshared_axes(self):
+        """A bottom caption labels the figure, not anyone's x axis (#514).
+
+        The margin scan exists for a faceted figure that labels the group
+        once. Without a sharing condition it also fired here, and the
+        caption was announced on every data point of both panels as if it
+        were the x axis -- with nothing marking it as a guess.
+        """
+        # Deliberately no sharex/sharey: these two panels share nothing.
+        fig, axs = plt.subplots(1, 2)
+        try:
+            axs[0].bar(["a", "b"], [1, 2])
+            axs[1].bar(["a", "b"], [3, 4])
+            fig.text(0.5, 0.02, "Milliseconds of overhead", ha="center")
+
+            m = FigureManager.get_maidr(fig)
+            for index in (0, 1):
+                schema = _stringify_keys(m._plots[index].schema)
+                assert schema["axes"]["x"]["label"] == "X"
+        finally:
+            plt.close(fig)
+
+    def test_a_margin_text_is_not_read_as_the_y_label_of_unshared_axes(self):
+        """The mirror of the case above, on the left margin."""
+        fig, axs = plt.subplots(1, 2)
+        try:
+            axs[0].bar(["a", "b"], [1, 2])
+            axs[1].bar(["a", "b"], [3, 4])
+            fig.text(0.02, 0.5, "a note in the margin", rotation="vertical")
+
+            m = FigureManager.get_maidr(fig)
+            for index in (0, 1):
+                schema = _stringify_keys(m._plots[index].schema)
+                assert schema["axes"]["y"]["label"] == "Y"
+        finally:
+            plt.close(fig)
+
+    def test_supxlabel_labels_an_axes_that_shares_with_nobody(self):
+        """``supxlabel`` says what it means, so it needs no sharing.
+
+        The distinction the sharing condition draws is between a text whose
+        purpose is declared and one whose purpose is inferred from where it
+        sits -- not between shared and unshared figures.
+        """
+        fig, ax = plt.subplots()
+        try:
+            ax.bar(["a", "b"], [1, 2])
+            fig.supxlabel("Categories")
+            fig.supylabel("Values")
+
+            schema = _first_schema(fig)
+
+            assert schema["axes"]["x"]["label"] == "Categories"
+            assert schema["axes"]["y"]["label"] == "Values"
+        finally:
+            plt.close(fig)
+
+    def test_a_faceted_figure_still_recovers_both_margin_labels(self):
+        """The shape the margin scan was written for keeps working.
+
+        ``example/facet-subplots/matplotlib/example_mpl_facet_bar_plot.py``
+        is exactly this: a shared 2x2 whose axis labels are written once
+        with ``fig.text`` in each margin.
+        """
+        fig, axs = plt.subplots(2, 2, sharex=True, sharey=True)
+        try:
+            for ax in axs.flat:
+                ax.bar(["a", "b"], [1, 2])
+            fig.text(0.5, 0.04, "Categories", ha="center", va="center")
+            fig.text(0.04, 0.5, "Values", va="center", rotation="vertical")
+
+            m = FigureManager.get_maidr(fig)
+            labels = [
+                (
+                    _stringify_keys(plot.schema)["axes"]["x"]["label"],
+                    _stringify_keys(plot.schema)["axes"]["y"]["label"],
+                )
+                for plot in m._plots
+            ]
+
+            assert labels == [("Categories", "Values")] * 4
+        finally:
+            plt.close(fig)
+
     def test_scatterplot_recovers_shared_ylabel(self):
         # Exercise ScatterPlot._extract_axes_data directly.
         from maidr.core.plot.scatterplot import ScatterPlot

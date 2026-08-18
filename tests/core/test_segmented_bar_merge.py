@@ -60,9 +60,9 @@ def _close_figures():
 def _emitted(fig) -> list[list[list[str]]]:
     """The layer types of every subplot cell, as a row-major grid.
 
-    A cell with nothing registered in it is ``{}`` rather than a cell with an
-    empty ``layers``, so the key is read defensively -- an empty panel is one
-    of the states under test here.
+    ``.get`` rather than ``[]`` because an empty panel is one of the states
+    under test, and a missing key would report as this helper's ``KeyError``
+    rather than as the assertion that wanted to see it.
     """
     grid = FigureManager.get_maidr(fig)._flatten_maidr()["subplots"]
     return [
