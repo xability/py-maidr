@@ -353,7 +353,7 @@ def test_invalid_pin_logs_once_not_once_per_render(resolvable, caplog):
     """
     maidr.set_cdn_version("3.74")  # missing patch component
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         for _ in range(5):
             dependencies.maidr_js_cdn_url()
             dependencies.maidr_css_cdn_url()
@@ -366,7 +366,7 @@ def test_invalid_pin_logs_once_not_once_per_render(resolvable, caplog):
 def test_a_second_bad_pin_still_warns(resolvable, caplog):
     """Deduplication is per value, so a new mistake stays audible."""
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         maidr.set_cdn_version("3.74")
         dependencies.maidr_js_cdn_url()
         maidr.set_cdn_version("nonsense")
@@ -643,7 +643,7 @@ def test_oversized_timeout_is_clamped(monkeypatch, caplog):
     """
     monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "3000")
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         assert dependencies._cdn_timeout() == dependencies._MAX_CDN_TIMEOUT
 
     assert any("clamped" in r.message for r in caplog.records), (
@@ -876,7 +876,7 @@ def test_unusable_timeout_is_reported_not_silently_replaced(bad, monkeypatch, ca
     """The clamp warns, so the other rejections should too."""
     monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, bad)
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         assert dependencies._cdn_timeout() == dependencies._DEFAULT_CDN_TIMEOUT
 
     assert caplog.records, f"{bad!r} was replaced with the default in silence"
@@ -928,7 +928,7 @@ def test_ordinary_timeout_passes_through_untouched(value, monkeypatch, caplog):
     """
     monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, value)
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         assert dependencies._cdn_timeout() == float(value)
 
     assert not caplog.records, f"{value!r} should be accepted silently"
@@ -1016,7 +1016,7 @@ def test_tiny_timeout_is_clamped_to_the_floor(raw, monkeypatch, caplog):
     """
     monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, raw)
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         assert dependencies._cdn_timeout() == dependencies._MIN_CDN_TIMEOUT
 
     assert [r for r in caplog.records if "floor" in r.message], (
@@ -1083,7 +1083,7 @@ def test_pin_before_the_stylesheet_split_warns_once(monkeypatch, forbid_network,
     """
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         dependencies.set_cdn_version("3.74.0")
         for _ in range(5):
             dependencies.maidr_js_cdn_url()
@@ -1098,7 +1098,7 @@ def test_pin_at_or_after_the_split_is_silent(pin, monkeypatch, forbid_network, c
     """The warning is about older versions only; newer ones carry the file."""
     monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         dependencies.set_cdn_version(pin)
         dependencies.maidr_js_cdn_url()
 
