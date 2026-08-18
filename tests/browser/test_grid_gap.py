@@ -26,7 +26,14 @@ pytestmark = pytest.mark.browser
 #: count, which moves whenever the UI gains a wrapper.
 _RUNTIME_UI = "#maidr-text-container"
 
-_SETTLE_MS = 12_000
+#: Installed on `window` by the bundle, so it appears once the ~1.5 MB of
+#: inlined JavaScript has parsed. Waited on rather than slept through: the
+#: other browser tests settle on a fixed timeout because they have a server
+#: to outlast as well, and a static file has no such thing to wait for.
+_BUNDLE_READY = "() => window.maidrLive !== undefined"
+
+#: Only how long that parse may take on a slow runner, not a pacing guess.
+_PARSE_TIMEOUT_MS = 30_000
 
 
 def _page_with(browser, path: Path):
@@ -35,7 +42,7 @@ def _page_with(browser, path: Path):
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
     page.goto(path.as_uri(), wait_until="load")
-    page.wait_for_timeout(_SETTLE_MS)
+    page.wait_for_function(_BUNDLE_READY, timeout=_PARSE_TIMEOUT_MS)
     return page, errors
 
 
