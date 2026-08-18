@@ -852,7 +852,10 @@ def test_concurrent_renders_of_one_figure_agree():
             start.wait(timeout=10)
             rendered = str(renderer._render_off_loop(ax))
             outputs.append(_VOLATILE_IN_SVG.sub("", rendered))
-        except BaseException as exc:  # reported below, not swallowed
+        except Exception as exc:  # reported below, not swallowed
+            # Narrow enough to cover everything expected --
+            # `BrokenBarrierError` is a `RuntimeError` -- while leaving
+            # `KeyboardInterrupt` and `SystemExit` free to end the thread.
             failures.append(exc)
 
     workers = [threading.Thread(target=render_once) for _ in range(racers)]
