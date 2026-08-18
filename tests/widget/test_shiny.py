@@ -472,3 +472,117 @@ def test_import_error_advice_matches_the_failure(monkeypatch, error, expected):
 
     with pytest.raises(ImportError, match=re.escape(expected)):
         importlib.import_module("maidr.widget.shiny")
+
+
+# ---------------------------------------------------------------------------
+# Not holding the event loop (#454)
+# ---------------------------------------------------------------------------
+
+
+def test_each_figure_gets_its_own_lock_and_keeps_it():
+    """Per figure, not process-wide, and stable across calls.
+
+    A single shared lock would serialise unrelated sessions and give back
+    most of what moving off the loop buys, since ``savefig`` on *distinct*
+    figures is safe in parallel. A lock that differed per call would guard
+    nothing at all.
+    """
+    from maidr.widget.shiny import _figure_lock
+
+    first, _ = plt.subplots()
+    second, _ = plt.subplots()
+    try:
+        assert _figure_lock(first) is _figure_lock(first), "must be stable"
+        assert _figure_lock(first) is not _figure_lock(second), "must be per figure"
+    finally:
+        plt.close(first)
+        plt.close(second)
+
+
+def test_an_unresolvable_figure_gets_a_fresh_lock_rather_than_a_shared_one():
+    """Sharing one lock among things we cannot tell apart invites a deadlock.
+
+    The render is safe on its own -- only the lock's scope is lost -- so the
+    fallback hands back an unshared lock rather than a sentinel-keyed one.
+    """
+    from maidr.widget.shiny import _figure_lock
+
+    assert _figure_lock(None) is not _figure_lock(None)
+
+
+def test_the_lock_does_not_keep_a_closed_figure_alive():
+    """The map is weak-keyed, so it adds no retention of its own (#498).
+
+    Worth pinning because ``FigureManager.figs`` already retains every
+    figure for the life of the process, and a second strong map keyed by
+    figure would be a new instance of a problem that is being worked on
+    rather than added to.
+    """
+    import gc
+    import weakref
+
+    from matplotlib.figure import Figure
+
+    from maidr.widget.shiny import _figure_lock
+
+    # A bare `Figure`, deliberately not `plt.subplots()`: pyplot registers
+    # with `FigureManager`, which retains every figure for the life of the
+    # process (#456). Through that, this assertion would fail for a reason
+    # that has nothing to do with the lock map -- which is exactly what the
+    # first version of this test did.
+    figure = Figure()
+    _figure_lock(figure)
+    ref = weakref.ref(figure)
+
+    del figure
+    gc.collect()
+
+    assert ref() is None, "the lock map is keeping the figure alive"
+
+
+def test_the_render_runs_off_the_event_loop(fake_session, monkeypatch):
+    """The whole point of #454: ``maidr.render`` must not run on the loop.
+
+    Asserted by identity of the running thread rather than by timing, which
+    would be a flake on a loaded machine. ``asyncio.run`` drives the loop on
+    *this* thread, so the render must land on a different one.
+
+    Driven through ``_render`` rather than as an ``async def`` test: this
+    suite has no ``pytest-asyncio``, and an ``async def`` here is collected,
+    silently **skipped**, and reported as a pass. The first version of this
+    test was exactly that -- it did not fail when the render was put back on
+    the loop, because it never ran.
+    """
+    import threading
+
+    import maidr.widget.shiny as shiny_module
+
+    loop_thread = threading.get_ident()
+    seen: list[int] = []
+
+    real_render = shiny_module.maidr.render
+
+    def spy(value, **kwargs):
+        seen.append(threading.get_ident())
+        return real_render(value, **kwargs)
+
+    monkeypatch.setattr(shiny_module.maidr, "render", spy)
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    try:
+
+        @render_maidr
+        def chart():
+            return ax
+
+        chart._set_output_metadata = lambda **kwargs: None
+        _render(chart)
+    finally:
+        plt.close(fig)
+
+    assert seen, "the render never ran"
+    assert loop_thread not in seen, (
+        "maidr.render ran on the event loop's thread; every other session "
+        "on that worker is blocked for its full duration"
+    )

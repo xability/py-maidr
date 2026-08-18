@@ -11,7 +11,10 @@ Requires the optional ``shiny`` extra::
 
 from __future__ import annotations
 
+import asyncio
+import threading
 import warnings
+import weakref
 from typing import Any, Literal, Optional, Union
 
 try:
@@ -27,6 +30,57 @@ except ImportError as error:
 import maidr
 from maidr.core.figure_manager import FigureManager
 from maidr.widget._focus import FOCUS_RESTORE_JS
+
+#: One lock per ``Figure``, so two renders of the *same* figure cannot run
+#: at once. Not process-wide: ``savefig`` on distinct figures is safe in
+#: parallel, and a single lock would serialise unrelated sessions and throw
+#: away most of what moving off the event loop buys.
+#:
+#: Why a lock is needed at all: ``savefig`` writes ``fig.dpi`` (100 -> 72 ->
+#: 100) for the duration of the write, so two concurrent writes to one
+#: figure race on that one attribute and the loser renders its whole chart
+#: at the other's dpi. Measured -- a 640x480 chart came out 460.8x345.6,
+#: exactly the 100/72 ratio. It produces a valid SVG, raises nothing, and
+#: happened on 1 of 6 concurrent renders, which is the bad kind of bug for
+#: a tool whose highlight overlay is positioned against that geometry.
+#:
+#: A ``WeakKeyDictionary`` so a closed figure's lock goes with it. The lock
+#: does not reference the figure, so this adds no retention (#498).
+_FIGURE_LOCKS: "weakref.WeakKeyDictionary[Any, threading.Lock]" = (
+    weakref.WeakKeyDictionary()
+)
+
+#: Guards creation of the per-figure locks above, which is itself a
+#: check-then-act on a shared mapping.
+_FIGURE_LOCKS_GUARD = threading.Lock()
+
+
+def _figure_lock(figure: Any) -> threading.Lock:
+    """Return the lock for ``figure``, creating it on first use.
+
+    Parameters
+    ----------
+    figure : Any
+        The ``matplotlib`` figure about to be rendered, or ``None`` when it
+        could not be resolved.
+
+    Returns
+    -------
+    threading.Lock
+        A lock unique to that figure. An unresolvable figure gets a fresh
+        lock rather than a shared one -- serialising things we cannot tell
+        apart would be a guess in the direction of a deadlock, and the
+        render is safe on its own.
+    """
+    if figure is None:
+        return threading.Lock()
+    with _FIGURE_LOCKS_GUARD:
+        lock = _FIGURE_LOCKS.get(figure)
+        if lock is None:
+            lock = threading.Lock()
+            _FIGURE_LOCKS[figure] = lock
+        return lock
+
 
 #: Accepted by ``use_cdn`` on :class:`render_maidr`; ``None`` defers to the
 #: process-wide default (:func:`maidr.get_use_cdn`).
@@ -301,6 +355,50 @@ class render_maidr(Renderer[Any]):
         kwargs.setdefault("height", self.height)
         return output_maidr(self.output_id, **kwargs)
 
+    def _render_off_loop(self, value: Any) -> Any:
+        """Render ``value`` on a worker thread, one render per figure at a time.
+
+        ``maidr.render`` never awaits, so on the event loop it holds it for
+        its whole duration -- measured at ~62 ms for a two-bar chart and
+        ~470 ms for 400 bars, against ~1.5 ms of ordinary scheduler jitter.
+        Every other session on that worker waits the whole time, once per
+        reactive flush (#454).
+
+        Moving it to a thread works because the expensive part releases the
+        GIL: ``fig.savefig`` is 87-88% of the render at every chart size,
+        and the longest gap in a 1 ms ticker drops from 602.7 ms to 14.9 ms
+        with the eight renders taking no longer in wall-clock. Had it held
+        the GIL throughout, this would have moved the work without
+        unblocking anything.
+
+        The lock is what makes the move safe rather than merely faster --
+        see :data:`_FIGURE_LOCKS`.
+
+        Parameters
+        ----------
+        value : Any
+            Whatever the decorated function returned.
+
+        Returns
+        -------
+        Any
+            The rendered chart, as :func:`maidr.render` returns it.
+        """
+        figure = None
+        try:
+            axes = FigureManager.get_axes(value)
+            figure = getattr(axes, "figure", None)
+        except Exception:
+            # `_check_supported` already ran and accepted this value, so a
+            # failure here is a shape `get_axes` cannot resolve rather than
+            # one it should reject -- a foreign figure, for instance. The
+            # render is safe either way; only the lock's scope is lost, and
+            # `_figure_lock` handles that by handing back a fresh one.
+            figure = None
+
+        with _figure_lock(figure):
+            return maidr.render(value, use_cdn=self.use_cdn)
+
     async def render(self) -> Optional[Jsonifiable]:
         """
         Run the decorated function and return its chart as Shiny UI.
@@ -328,7 +426,7 @@ class render_maidr(Renderer[Any]):
                 return None
 
             _check_supported(value, self.__name__)
-            rendered = maidr.render(value, use_cdn=self.use_cdn)
+            rendered = await asyncio.to_thread(self._render_off_loop, value)
         finally:
             _close_new_figures(open_before)
 
