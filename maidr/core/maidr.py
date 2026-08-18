@@ -299,9 +299,12 @@ class Maidr:
         same ``(row, col)``, and clearing one of a twinned pair must not
         take the other with it.
 
-        Idempotent: clearing an axes that holds no layers is a no-op, which
-        matters because ``Axes.clear`` and ``Axes.cla`` delegate to each
-        other and both are patched.
+        Idempotent: clearing an axes that holds no layers is a no-op. That
+        is not only about being called twice by a caller -- it is what makes
+        patching both ``Axes.clear`` and ``Axes.cla`` safe. The two delegate
+        to each other, and the inner call resolves to the *patched* method,
+        so a single ``ax.cla()`` fires the hook twice by construction. The
+        second firing has to find nothing left to do.
 
         Parameters
         ----------

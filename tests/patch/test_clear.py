@@ -234,12 +234,20 @@ def test_clear_drops_the_selector_ids_with_the_layers():
     are paired by index, so the next layer registered was tagged with the id
     minted for a layer that no longer existed, and its own id was never used.
 
-    Called directly rather than through ``fig.clear()``, and that distinction
-    is the whole test. Going through the figure now reaches ``clear_axes``
-    first -- ``Figure.clear`` clears its axes, which is patched -- and that
-    drops both lists in step, so the figure route cannot fail even with this
-    line removed. It is a *public method* that can be called on its own, and
-    only calling it on its own pins what it does.
+    Called directly rather than through ``fig.clear()``, because ``clear()``
+    is a *public method* that can be called on its own, and only calling it
+    on its own pins what it does.
+
+    That is the durable reason. There is also a version-dependent one: on
+    the matplotlib this was written against (3.10.9), ``Figure.clear``
+    clears its axes through ``Axes.clear``, which is patched, so the figure
+    route reaches ``clear_axes`` first and drops both lists in step --
+    measured, two axes giving two firings. Whether that holds is not a
+    thing to rely on: some matplotlib versions detach a figure's axes with
+    ``ax.remove()``, which would not route through the patch at all.
+    Correctness does not depend on it either way, since ``Figure.clear``'s
+    own patch calls ``maidr.clear()`` unconditionally -- but the test does,
+    which is why it does not go that way round.
     """
     fig, ax = plt.subplots()
     ax.bar(["a", "b"], [1, 2])
@@ -333,6 +341,15 @@ def test_no_new_module_stashes_maidr_state_on_an_axes():
     State on an **artist** needs no cleanup: ``ax.clear()`` discards the
     artists, so it goes with them. Only state on the axes survives, which
     is what makes the target worth recording per entry.
+
+    **Not a complete guarantee, and should not be leaned on as one.** It
+    sees an attribute stashed under a name it can read statically -- a
+    literal, or a module-level string constant. It does not see a name
+    built at runtime (an f-string, a ``getattr`` result), and it does not
+    see state kept *outside* the object at all, such as a module-level
+    ``WeakKeyDictionary`` keyed by axes. Those would need the same cleanup
+    and would pass here. What this catches is the shape the bug actually
+    took, which is the shape a future module is most likely to repeat.
     """
     import pathlib
 
