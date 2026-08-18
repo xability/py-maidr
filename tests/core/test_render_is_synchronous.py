@@ -90,13 +90,21 @@ async def _longest_gap_around_one_render() -> tuple[float, float]:
 
 @pytest.mark.benchmark
 def test_one_render_blocks_the_event_loop(monkeypatch) -> None:
-    """A render holds the loop for its whole duration.
+    """A render holds the loop of whoever calls it on one.
 
     ``maidr.render()`` is synchronous and never awaits, so nothing can
-    preempt it: for as long as it runs, every other session on that worker
-    is stopped. Asserted as "much larger than the baseline" rather than a
-    fixed millisecond count, which would fail on a loaded CI box while
-    telling nobody anything.
+    preempt it: for as long as it runs, that loop does not run at all.
+    Asserted as "much larger than the baseline" rather than a fixed
+    millisecond count, which would fail on a loaded CI box while telling
+    nobody anything.
+
+    Note what this does **not** say any more. It used to add "every other
+    session on that worker is stopped", which was true when ``render_maidr``
+    called this on the event loop. It no longer does -- the render is handed
+    to a worker thread -- so a Shiny app does not pay this, and measured
+    through the renderer the loop gap is 12.5 ms rather than 609 ms. What is
+    asserted here is the property of ``maidr.render()`` that makes moving it
+    off the loop necessary, not a description of what a Shiny app does.
     """
     # `_render_once` renders with `use_cdn=True`, and building that URL
     # would resolve the published version over the network. Pinning skips
@@ -116,7 +124,8 @@ def test_one_render_blocks_the_event_loop(monkeypatch) -> None:
 
     assert blocked * 1000 > _BLOCKED_MS, (
         f"one render held the loop for only {blocked * 1000:.1f} ms; if "
-        "rendering has stopped blocking, docs/index.qmd needs updating"
+        "`maidr.render` itself has stopped blocking its caller, both this "
+        "file and the async callout in docs/index.qmd need updating"
     )
     assert blocked > baseline * 5, (
         f"the render ({blocked * 1000:.1f} ms) is not clearly worse than "
