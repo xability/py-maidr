@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
+from maidr.util.grid_position import topmost_subplotspec
 from maidr.util.mixin import FormatExtractorMixin
 
 # uuid is used to generate unique identifiers for each plot layer in the MAIDR schema.
@@ -45,7 +46,7 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         self.ax = ax
         self._support_highlighting = True
         self._elements = []
-        ss = self.ax.get_subplotspec()
+        ss = topmost_subplotspec(self.ax)
         # Handle cases where subplotspec is None (dynamically created axes)
         if ss is not None:
             self.row_index = ss.rowspan.start
