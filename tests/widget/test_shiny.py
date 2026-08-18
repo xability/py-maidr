@@ -626,13 +626,20 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
     try:
         renderer = render_maidr(lambda: ax)
         workers = [
-            threading.Thread(target=renderer._render_off_loop, args=(ax,))
+            # Daemon, so that the deadlock this test exists to catch fails
+            # the test rather than wedging the interpreter at shutdown: a
+            # timed-out join leaves the thread alive and still holding the
+            # figure's lock.
+            threading.Thread(target=renderer._render_off_loop, args=(ax,), daemon=True)
             for _ in range(4)
         ]
         for worker in workers:
             worker.start()
         for worker in workers:
-            worker.join()
+            # Bounded: an unbounded join turns a broken lock into a hung
+            # suite rather than a failed test (#506).
+            worker.join(timeout=60)
+            assert not worker.is_alive(), "a render deadlocked on the lock"
     finally:
         plt.close(fig)
 
@@ -735,8 +742,6 @@ def test_two_different_figures_rendering_at_once_keep_their_selectors():
     Counts selectors rather than comparing whole documents, because ids
     are per-render uuids; the count is what goes missing.
     """
-    import re
-
     from maidr.core.figure_manager import FigureManager
 
     def build():
@@ -761,13 +766,14 @@ def test_two_different_figures_rendering_at_once_keep_their_selectors():
             together[index] = selectors(figure)
 
         workers = [
-            threading.Thread(target=render, args=(index, figure))
+            threading.Thread(target=render, args=(index, figure), daemon=True)
             for index, figure in enumerate(figures)
         ]
         for worker in workers:
             worker.start()
         for worker in workers:
-            worker.join()
+            worker.join(timeout=60)
+            assert not worker.is_alive(), "a render deadlocked"
 
         assert [together[i] for i in range(len(figures))] == alone, (
             "a concurrent render of another figure stripped this one's "
@@ -775,3 +781,114 @@ def test_two_different_figures_rendering_at_once_keep_their_selectors():
         )
     finally:
         plt.close("all")
+
+
+#: Attributes that differ between two renders of the same chart by design --
+#: fresh uuids per layer, and the timestamp matplotlib stamps into the SVG.
+_VOLATILE_IN_SVG = re.compile(
+    r'(\bid="[^"]*"|url\(#[^)]*\)|<dc:date>[^<]*</dc:date>'
+    r'|xlink:href="#[^"]*"|maidr="[^"]*")'
+)
+
+
+def test_concurrent_renders_of_one_figure_agree():
+    """Concurrent renders of one figure must produce the same chart.
+
+    Narrower than it first looks, and worth stating plainly:
+    ``test_two_renders_of_one_figure_do_not_overlap`` above already fails
+    without the lock, so this is not filling an unguarded gap. That one
+    monkeypatches ``maidr.render`` to a sleeping stub, so it proves the
+    lock *excludes* but cannot see what the exclusion is protecting. This
+    runs the real render and asserts the consequence.
+
+    ``savefig`` writes ``fig.dpi`` for its duration and restores it
+    afterwards, so two renders of the **same** figure at once race on one
+    mutable attribute and the loser draws the whole chart at the other
+    call's dpi (#454). Distinct figures do not race; that is why the lock
+    is per figure rather than process-wide.
+
+    The failure is the kind this project treats as worst: not garbled
+    markup and not an exception, but a complete, well-formed SVG of the
+    same chart at the wrong size. Geometry is what the highlight overlay
+    and the tactile export are positioned against, so a chart rendered at
+    72% scale is wrong in the modality a sighted reviewer checks least.
+
+    Asserted as agreement between renders rather than against a fixed size,
+    since the wrong-dpi output is internally consistent -- it is only wrong
+    relative to what every other render produced.
+
+    The barrier synchronises the *start*, not the duration. On a runner
+    slow or oversubscribed enough that each ``savefig`` finishes before
+    the next thread is scheduled, this would pass with a broken lock --
+    a false negative rather than a flaky failure, so it would show up as
+    quietly reduced coverage rather than as CI noise. Measured 8 of 8
+    detections here with the lock removed; the sibling test above detects
+    overlap regardless of speed and is the one to trust on a bad day.
+
+    Scope: **geometry, not data.** ``_VOLATILE_IN_SVG`` strips every
+    ``maidr="..."`` attribute, and the one on the root ``<svg>`` carries
+    the whole embedded schema, so a race that scrambled the announced
+    values without moving a coordinate would pass this. The bug it guards
+    is about ``fig.dpi``, which lives entirely in the ``<path d="...">``
+    data the regex leaves alone.
+
+    Measured 10 of 10 runs mismatching with the lock stubbed out and 10 of
+    10 identical with it, so this runs in CI rather than under
+    ``--run-benchmark``.
+
+    The renders start from a barrier rather than from whenever each thread
+    happens to be scheduled. Review raised the right worry -- a quiet or
+    single-core runner could let six staggered renders complete without
+    ever landing inside each other's ``dpi`` window, which would reduce
+    this to a no-op that still passes. Raising the chart size does not
+    address that (detection was 8 of 8 at 30, 100 and 200 bars alike, so
+    the margin was never the variable); starting them together does,
+    because it does not depend on the scheduler being busy.
+    """
+    fig, ax = plt.subplots()
+    ax.bar([str(i) for i in range(30)], list(range(30)))
+    renderer = render_maidr(lambda: ax)
+
+    # Appended from several threads without a lock, which is safe because
+    # `list.append` is atomic under the GIL, and read only after every
+    # worker has been joined. Written down because this file documents its
+    # other concurrency decisions.
+    outputs: list[str] = []
+    failures: list[Exception] = []
+    # One constant for the barrier and the thread count, because they must
+    # agree: a barrier expecting more arrivals than there are threads waits
+    # forever (#506).
+    racers = 6
+    start = threading.Barrier(racers)
+
+    def render_once():
+        try:
+            start.wait(timeout=10)
+            rendered = str(renderer._render_off_loop(ax))
+            outputs.append(_VOLATILE_IN_SVG.sub("", rendered))
+        except Exception as exc:  # reported below, not swallowed
+            # Narrow enough to cover everything expected --
+            # `BrokenBarrierError` is a `RuntimeError` -- while leaving
+            # `KeyboardInterrupt` and `SystemExit` free to end the thread.
+            failures.append(exc)
+
+    workers = [threading.Thread(target=render_once, daemon=True) for _ in range(racers)]
+    try:
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            # Longer than the barrier's own deadline above, so a thread
+            # still legitimately waiting there is not reported as a
+            # deadlocked render. A healthy run of this test is ~1.7s.
+            worker.join(timeout=30)
+            assert not worker.is_alive(), "a render deadlocked on the lock"
+
+        assert not failures, f"a render raised: {failures[:2]}"
+        assert len(outputs) == len(workers)
+        assert len(set(outputs)) == 1, (
+            "concurrent renders of one figure disagreed; one of them drew "
+            "the chart at another render's dpi, which produces a valid SVG "
+            "at the wrong scale rather than an error"
+        )
+    finally:
+        plt.close(fig)
