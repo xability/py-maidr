@@ -579,3 +579,50 @@ def test_a_record_naming_another_figure_is_refused_not_quietly_kept():
         for fig in (a, b):
             FigureManager.figs.pop(fig, None)
             plt.close(fig)
+
+
+def test_clear_drops_every_registered_figure():
+    """``clear`` is the suite's own isolation tool and nothing asserted it.
+
+    Called from ``tests/widget/test_shiny.py``'s fixture and nowhere else,
+    so a ``clear`` that silently dropped nothing would leak one test's
+    figures into the next rather than fail here. It is also the method most
+    exposed to the ``_seen`` bookkeeping, since it iterates and pops in the
+    same pass while ``_record`` is adding to the set it walks.
+
+    Includes a figure whose record arrived by ``deepcopy`` rather than
+    through ``__setitem__``, which was invisible to ``clear`` until
+    ``_record`` started keeping ``_seen`` current -- and, separately, one
+    that is *never looked up*, which ``clear`` still cannot see. That gap
+    is asserted rather than hidden: ``_seen`` learns of a figure only when
+    its record is written or read, and a clone does neither. See
+    ``_FigureRecords.clear`` for why closing it is not worth what it costs.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    other, other_ax = plt.subplots()
+    other_ax.bar(["c"], [3])
+    twin = copy.deepcopy(fig)
+    untouched = copy.deepcopy(fig)
+    try:
+        # Reading `twin` is what puts it within `clear`'s reach; `untouched`
+        # is deliberately not read, so the two differ only in that.
+        for registered in (fig, other, twin):
+            assert registered in FigureManager.figs
+
+        FigureManager.figs.clear()
+
+        for registered in (fig, other, twin):
+            assert registered not in FigureManager.figs
+        assert list(FigureManager.figs) == []
+        assert len(FigureManager.figs) == 0
+
+        assert untouched in FigureManager.figs, (
+            "a clone that was never looked up is expected to survive "
+            "`clear` -- if this now passes, the gap was closed and this "
+            "assertion is the thing to delete"
+        )
+    finally:
+        for f in (fig, other):
+            FigureManager.figs.pop(f, None)
+            plt.close(f)

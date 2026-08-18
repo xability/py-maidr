@@ -175,6 +175,27 @@ class _FigureRecords:
         return maidr
 
     def clear(self) -> None:
+        """Drop every record this mapping knows about.
+
+        "Knows about" is the caveat, and it is not fixable from here.
+        ``_seen`` learns of a figure when its record is written or read, and
+        ``deepcopy``/``pickle`` do neither -- they rebuild ``__dict__``
+        directly. A clone whose record has never been looked up is therefore
+        still registered afterwards:
+
+        ======================================  ==================
+        clone                                   dropped by clear
+        ======================================  ==================
+        read once before the clear              yes
+        never read                              no
+        ======================================  ==================
+
+        Closing it would need a hook on the copy itself, which means putting
+        registry knowledge into ``Maidr.__deepcopy__``/``__setstate__``.
+        Not worth it for what this costs: nothing outlives the clone, since
+        its record is reachable only through it, so this is an enumeration
+        gap rather than a leak. ``clear`` exists for test isolation.
+        """
         for fig in self:
             self.pop(fig, None)
 
@@ -201,6 +222,11 @@ class FigureManager:
         must stay index-aligned. Individual dict and list operations are
         atomic under the GIL; the lock is for the check-then-act and the
         paired write around them.
+
+        Every method above holds ``_lock``, and a direct caller of ``figs``
+        must too -- including for what look like reads. Since #456 a lookup
+        also updates the bookkeeping behind iteration, so ``in`` and
+        ``get`` mutate shared state rather than only observing it.
 
     Methods
     -------
