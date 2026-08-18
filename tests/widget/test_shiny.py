@@ -784,7 +784,7 @@ def test_two_different_figures_rendering_at_once_keep_their_selectors():
 #: Attributes that differ between two renders of the same chart by design --
 #: fresh uuids per layer, and the timestamp matplotlib stamps into the SVG.
 _VOLATILE_IN_SVG = re.compile(
-    r'(id="[^"]*"|url\(#[^)]*\)|<dc:date>[^<]*</dc:date>'
+    r'(\bid="[^"]*"|url\(#[^)]*\)|<dc:date>[^<]*</dc:date>'
     r'|xlink:href="#[^"]*"|maidr="[^"]*")'
 )
 
@@ -815,6 +815,13 @@ def test_concurrent_renders_of_one_figure_agree():
     since the wrong-dpi output is internally consistent -- it is only wrong
     relative to what every other render produced.
 
+    Scope: **geometry, not data.** ``_VOLATILE_IN_SVG`` strips every
+    ``maidr="..."`` attribute, and the one on the root ``<svg>`` carries
+    the whole embedded schema, so a race that scrambled the announced
+    values without moving a coordinate would pass this. The bug it guards
+    is about ``fig.dpi``, which lives entirely in the ``<path d="...">``
+    data the regex leaves alone.
+
     Measured 10 of 10 runs mismatching with the lock stubbed out and 10 of
     10 identical with it, so this runs in CI rather than under
     ``--run-benchmark``.
@@ -842,10 +849,10 @@ def test_concurrent_renders_of_one_figure_agree():
 
     def render_once():
         try:
-            start.wait(timeout=30)
+            start.wait(timeout=10)
             rendered = str(renderer._render_off_loop(ax))
             outputs.append(_VOLATILE_IN_SVG.sub("", rendered))
-        except BaseException as exc:  # noqa: BLE001 - reported, not swallowed
+        except BaseException as exc:  # reported below, not swallowed
             failures.append(exc)
 
     workers = [threading.Thread(target=render_once) for _ in range(racers)]
@@ -853,7 +860,10 @@ def test_concurrent_renders_of_one_figure_agree():
         for worker in workers:
             worker.start()
         for worker in workers:
-            worker.join(timeout=60)
+            # Longer than the barrier's own deadline above, so a thread
+            # still legitimately waiting there is not reported as a
+            # deadlocked render. A healthy run of this test is ~1.7s.
+            worker.join(timeout=30)
             assert not worker.is_alive(), "a render deadlocked on the lock"
 
         assert not failures, f"a render raised: {failures[:2]}"
