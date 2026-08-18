@@ -1,4 +1,6 @@
+import gc
 import threading
+import weakref
 
 import matplotlib.pyplot as plt
 import pytest
@@ -252,5 +254,93 @@ def test_a_layer_keeps_the_selector_id_minted_with_it(monkeypatch):
         )
     finally:
         second_done.set()
+        FigureManager.figs.pop(fig, None)
+        plt.close(fig)
+
+
+def test_a_closed_figure_is_not_kept_alive_by_having_been_registered():
+    """Registering a chart must not outlive the application's own reference.
+
+    Layers are registered when a chart is *plotted*, not when it is
+    rendered, so before #456 every supported figure entered a class-level
+    dict and stayed reachable for the life of the process -- long after the
+    application dropped it and matplotlib closed it. The ``plt.show()`` path
+    escaped it only because the backend calls ``destroy`` explicitly
+    (``maidr/backend.py``); a Shiny or Streamlit render never goes through
+    ``plt.show``, so a long-lived server accumulated one figure per render.
+
+    The record lives on the figure now, which makes the whole graph an
+    isolated cycle once the caller lets go.
+
+    Driven through ``ax.bar`` rather than ``_get_maidr`` directly, so that
+    the reference the extraction itself takes -- ``MaidrPlot.ax``,
+    ``_elements``, and ``BarPlot._own_bars`` -- are all present. Those are
+    what defeated the ``WeakKeyDictionary`` attempt recorded in #498: a
+    value that reaches its own key keeps a weak key alive forever. They are
+    harmless here precisely because they close a cycle rather than a chain.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    assert fig in FigureManager.figs, "the figure was never registered"
+
+    ref = weakref.ref(fig)
+    plt.close(fig)
+    del fig, ax
+    # Two passes: the first may only break the cycle, and matplotlib's
+    # artists refer to each other in both directions throughout.
+    gc.collect()
+    gc.collect()
+
+    assert ref() is None, (
+        "a registered figure survived the application dropping it; the "
+        "registry is holding it for the life of the process"
+    )
+
+
+def test_the_registry_reads_as_the_mapping_it_replaced():
+    """Storage moved onto the figure; the shape callers see did not.
+
+    ``figs`` is read directly across this suite and named in
+    ``FigureManager``'s own docstring, so the operations it supports are
+    part of what the move had to preserve -- including ``pop``'s two
+    signatures, which ``destroy`` and this file's cleanup rely on
+    differently.
+
+    Deliberately **not** a detector for the move itself: a plain dict
+    satisfies every assertion here, which is the whole point of preserving
+    the interface. ``test_a_closed_figure_is_not_kept_alive_by_having_been_registered``
+    is what tells the two apart. This one guards later edits to
+    ``_FigureRecords``.
+
+    Everything is asserted about *this* figure rather than about the
+    registry's total contents. An earlier draft asserted ``len(figs) == 1``,
+    which passed alone and failed in a full run -- other tests leave their
+    figures registered -- and would have passed or failed by collection
+    timing once they stopped doing so.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    try:
+        maidr = FigureManager.figs[fig]
+
+        assert fig in FigureManager.figs
+        assert FigureManager.figs.get(fig) is maidr
+        assert fig in list(FigureManager.figs)
+
+        assert FigureManager.figs.pop(fig) is maidr
+        assert fig not in FigureManager.figs
+        assert fig not in list(FigureManager.figs)
+        assert FigureManager.figs.get(fig) is None
+        assert FigureManager.figs.get(fig, "fallback") == "fallback"
+
+        # Absent: `pop` with no default raises, with one returns it. `destroy`
+        # catches the KeyError to mean "never registered", so a `pop` that
+        # answered `None` there would silently call `destroy` on nothing.
+        assert FigureManager.figs.pop(fig, None) is None
+        with pytest.raises(KeyError):
+            FigureManager.figs.pop(fig)
+        with pytest.raises(KeyError):
+            FigureManager.figs[fig]
+    finally:
         FigureManager.figs.pop(fig, None)
         plt.close(fig)

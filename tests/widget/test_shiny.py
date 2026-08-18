@@ -517,19 +517,18 @@ def test_an_unresolvable_figure_gets_a_fresh_lock_rather_than_a_shared_one():
 def test_the_lock_does_not_keep_a_closed_figure_alive():
     """The map is weak-keyed, so it adds no retention of its own (#498).
 
-    Worth pinning because ``FigureManager.figs`` already retains every
-    figure for the life of the process, and a second strong map keyed by
-    figure would be a new instance of a problem that is being worked on
-    rather than added to.
+    Worth pinning because a strong map keyed by figure is exactly the shape
+    that kept every registered figure alive for the life of the process
+    (#456), and this one is keyed the same way.
     """
     from matplotlib.figure import Figure
     from maidr.widget.shiny import _figure_lock
 
-    # A bare `Figure`, deliberately not `plt.subplots()`: pyplot registers
-    # with `FigureManager`, which retains every figure for the life of the
-    # process (#456). Through that, this assertion would fail for a reason
-    # that has nothing to do with the lock map -- which is exactly what the
-    # first version of this test did.
+    # A bare `Figure`, deliberately not `plt.subplots()`, so that nothing
+    # but the lock map can be the reason this passes or fails. When this was
+    # written `FigureManager` retained every figure and a pyplot figure
+    # failed here for that reason rather than the lock map's; that is fixed
+    # now, and the isolation is still worth keeping.
     figure = Figure()
     _figure_lock(figure)
     ref = weakref.ref(figure)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import weakref
 from typing import Any
 
 from matplotlib.artist import Artist
@@ -14,6 +15,106 @@ from maidr.core.plot import MaidrPlotFactory
 from maidr.exception.unsupported_plot_error import UnsupportedPlotError
 
 
+class _FigureRecords:
+    """A mapping from ``Figure`` to ``Maidr`` that stores each entry on its key.
+
+    Behaves as the plain ``dict`` this replaced -- ``figs[fig]``, ``fig in
+    figs``, ``.get``, ``.pop``, ``.clear`` -- but the value is kept in the
+    figure's own ``__dict__`` rather than in a module-level table.
+
+    That is the whole point. A module-level dict is a strong reference from a
+    class attribute, so a figure stayed reachable for the life of the process
+    even after the application dropped it and matplotlib closed it (#456).
+    Registration happens when a chart is *plotted*, not when it is rendered,
+    so this applied to every supported figure -- and the ``plt.show()`` path
+    only escaped it because the backend calls :meth:`FigureManager.destroy`
+    explicitly. A Shiny or Streamlit render never goes through ``plt.show``.
+
+    Storing the record on the figure makes the whole graph -- figure, its
+    ``Maidr``, its layers, and the artists those layers hold -- one isolated
+    reference cycle once the application lets go, which the cyclic collector
+    reclaims. Measured on a figure built, rendered and closed:
+
+    ======================================  =========
+    registry                                collected
+    ======================================  =========
+    module-level dict                       no
+    record stored on the figure             yes
+    ======================================  =========
+
+    This is deliberately *not* a ``WeakKeyDictionary``, which was tried first
+    and freed nothing: every value reaches its own key -- ``Maidr._fig``,
+    ``MaidrPlot.ax``, and each subclass's own artist handles such as
+    ``BarPlot._own_bars`` -- so the entry keeps the figure alive and the weak
+    key never dies. #498 records that chain. Keeping the value *on* the key
+    sidesteps it entirely: a value that reaches its key is exactly what a
+    cycle is, and cycles are collectable as long as nothing outside points in.
+
+    Membership is by identity either way -- ``Figure`` inherits ``__hash__``
+    and ``__eq__`` from ``object``, so dict lookup was already identity.
+
+    ``_seen`` exists only so the mapping can be enumerated and cleared. It
+    holds weak references and no values, so it retains nothing.
+    """
+
+    #: Attribute the record is stored under on the figure.
+    _ATTR = "_maidr_record"
+
+    #: Distinguishes "no default given" from a default of ``None``.
+    _MISSING = object()
+
+    def __init__(self) -> None:
+        self._seen: weakref.WeakSet = weakref.WeakSet()
+
+    def __contains__(self, fig: Figure) -> bool:
+        return hasattr(fig, self._ATTR)
+
+    def __getitem__(self, fig: Figure) -> Maidr:
+        try:
+            return getattr(fig, self._ATTR)
+        except AttributeError:
+            raise KeyError(fig) from None
+
+    def __setitem__(self, fig: Figure, maidr: Maidr) -> None:
+        setattr(fig, self._ATTR, maidr)
+        self._seen.add(fig)
+
+    def __delitem__(self, fig: Figure) -> None:
+        try:
+            delattr(fig, self._ATTR)
+        except AttributeError:
+            raise KeyError(fig) from None
+        self._seen.discard(fig)
+
+    def __len__(self) -> int:
+        # Not just for completeness: without it `if figs:` is always true,
+        # which is the one way a partial mapping fails *quietly* rather than
+        # with a `TypeError`.
+        return sum(1 for _ in self)
+
+    def __iter__(self):
+        # Over a snapshot: `_seen` is weak, so iterating it directly can drop
+        # members mid-loop when a figure is collected by another thread.
+        return iter([fig for fig in list(self._seen) if fig in self])
+
+    def get(self, fig: Figure, default: Any = None) -> Any:
+        return getattr(fig, self._ATTR, default)
+
+    def pop(self, fig: Figure, default: Any = _MISSING) -> Any:
+        maidr = getattr(fig, self._ATTR, self._MISSING)
+        if maidr is self._MISSING:
+            if default is self._MISSING:
+                raise KeyError(fig)
+            return default
+        delattr(fig, self._ATTR)
+        self._seen.discard(fig)
+        return maidr
+
+    def clear(self) -> None:
+        for fig in self:
+            self.pop(fig, None)
+
+
 class FigureManager:
     """
     Manages creation and retrieval of Maidr instances associated with figures.
@@ -23,9 +124,11 @@ class FigureManager:
 
     Attributes
     ----------
-    figs : dict
-        A dictionary that maps matplotlib Figure objects to their corresponding
-        Maidr instances.
+    figs : _FigureRecords
+        Maps matplotlib Figure objects to their corresponding Maidr instances.
+        Reads as a dict; each entry is stored on its own figure so that
+        registering a chart no longer keeps it alive for the life of the
+        process (#456). See :class:`_FigureRecords`.
 
         Reads reach worker threads since #504, which renders off the Shiny
         event loop. Both write paths -- :meth:`_get_maidr`'s insert and
@@ -46,7 +149,7 @@ class FigureManager:
         Recursively extracts Axes objects from the input artist or container.
     """
 
-    figs = {}
+    figs = _FigureRecords()
 
     _instance = None
     _lock = threading.Lock()
@@ -179,7 +282,9 @@ class FigureManager:
         # not a dict operation. That leaves one gap this does not close: a
         # `create_maidr` that took its reference just before the pop can
         # still append to an object no longer in `figs`. Its layers go
-        # nowhere, which is #456's territory rather than this lock's.
+        # nowhere. Independent of this lock, and unchanged by #456: the
+        # record moving onto the figure changes how long an entry lives,
+        # not who may be holding a reference to it mid-registration.
         maidr.destroy()
         del maidr
 

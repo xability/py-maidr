@@ -87,9 +87,12 @@ def show(*args: Any, **kwargs: Any) -> None:
         else:
             # clear_fig=False because the backend handles figure cleanup.
             maidr_obj.show(clear_fig=False, use_cdn=use_cdn)
-            # Clean up maidr's own tracking to prevent memory leaks.
-            # Without this, FigureManager.figs grows unboundedly because
-            # clear_fig=False skips the plt.close() -> clear.py path.
+            # Drop maidr's record now rather than waiting for the figure to
+            # be collected: `clear_fig=False` skips the `plt.close()` ->
+            # `clear.py` path, and `Gcf.destroy` below is what actually
+            # releases the figure. Since #456 the record no longer outlives
+            # the figure on its own, so this is timeliness rather than the
+            # difference between bounded and unbounded.
             MaidrFigureManager.destroy(fig)
         Gcf.destroy(manager.num)
 
