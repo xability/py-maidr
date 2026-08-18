@@ -114,6 +114,17 @@ class _FigureRecords:
         return record
 
     def __setitem__(self, fig: Figure, maidr: Maidr) -> None:
+        # Refused rather than stored, because every read enforces ownership
+        # and a record naming another figure could not be read back: the
+        # write appeared to succeed, left the attribute set, and `figs[fig]`
+        # then raised `KeyError`. The dict this replaced would have stored
+        # and returned it. Raising puts the error at the mistake instead of
+        # at a lookup somewhere else.
+        if maidr.fig is not fig:
+            raise ValueError(
+                "a figure's record must be the Maidr for that figure; "
+                f"{maidr!r} names a different one"
+            )
         setattr(fig, self._ATTR, maidr)
         self._seen.add(fig)
 

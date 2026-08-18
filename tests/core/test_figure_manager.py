@@ -552,3 +552,30 @@ def test_a_copied_figure_is_visible_to_enumeration_not_only_to_lookup(clone):
         FigureManager.figs.pop(fig, None)
         FigureManager.figs.pop(twin, None)
         plt.close(fig)
+
+
+def test_a_record_naming_another_figure_is_refused_not_quietly_kept():
+    """The one write path has to uphold what every read path enforces.
+
+    Storing a ``Maidr`` that names a different figure used to succeed, set
+    the attribute, and then read back as unregistered -- a write that did
+    not stick, leaving a stray attribute behind. The dict this replaced
+    would have stored and returned it, so this is a behaviour change, and a
+    deliberate one: the alternative is a silent disagreement discovered at
+    some later lookup rather than an error at the mistake.
+    """
+    a, ax_a = plt.subplots()
+    ax_a.bar(["a"], [1])
+    b, ax_b = plt.subplots()
+    ax_b.bar(["b"], [2])
+    try:
+        record_of_b = FigureManager.figs[b]
+        with pytest.raises(ValueError, match="names a different one"):
+            FigureManager.figs[a] = record_of_b
+
+        # And a's own record is untouched by the refusal.
+        assert FigureManager.figs[a].fig is a
+    finally:
+        for fig in (a, b):
+            FigureManager.figs.pop(fig, None)
+            plt.close(fig)
