@@ -437,6 +437,14 @@ def test_a_hue_level_with_no_drawable_interval_keeps_its_sibling_bounded():
     assert [point["x"] for point in unbounded] == ["a", "b"]
     assert all(point["y"] is not None for point in unbounded)
 
+    # The grouped path keeps the ungrouped contract: the consumer resolves
+    # the selector to one element per point and discards the result outright
+    # when the count disagrees, so a layer that cannot supply one for every
+    # point promises none at all rather than a selector that resolves short.
+    plot = _plots(fig)[0]
+    assert plot._support_highlighting is False
+    assert plot.elements == []
+
 
 def test_intervals_that_do_not_divide_among_the_groups_are_refused():
     """The counts are guaranteed by ``_pairs_up``, in another file.
@@ -470,6 +478,51 @@ def test_intervals_that_do_not_divide_among_the_groups_are_refused():
 
     with pytest.raises(ExtractionError):
         plot.render()
+
+
+def test_a_group_name_lands_on_that_group_s_own_values():
+    """The one assumption in the naming that geometry can be made to check.
+
+    Group names come from the legend and are matched to the estimate lines
+    positionally, so the whole thing rests on seaborn listing its legend
+    handles in draw order. Unlike the interval-to-estimate pairing, a name
+    has no geometry to verify it against -- ``_group_labels``'s count check
+    catches a legend of the wrong *size*, not one of the wrong *order*
+    (#502).
+
+    Made checkable by choosing hue levels whose names are recoverable from
+    their values: ``low`` sits near 1 and ``high`` near 100. A swapped
+    naming is then a visible mismatch rather than an invisible one, since
+    every other fixture in this file uses interchangeable levels (``x``/
+    ``y``, ``p``/``q``) where correct and swapped read identically.
+
+    Run with the default order and with ``hue_order`` reversed, because a
+    reversal is the cheapest way seaborn could plausibly diverge, and it is
+    the one a caller can trigger today.
+    """
+    frame = pd.DataFrame(
+        {
+            "g": list("abc") * 8,
+            "level": ["low"] * 12 + ["high"] * 12,
+            "v": [1.0, 2.0, 3.0] * 4 + [100.0, 101.0, 102.0] * 4,
+        }
+    )
+
+    for hue_order in (None, ["high", "low"]):
+        fig, ax = plt.subplots()
+        extra = {"hue_order": hue_order} if hue_order else {}
+        sns.pointplot(frame, x="g", y="v", hue="level", dodge=True, ax=ax, **extra)
+
+        schema = _schema(fig)
+        by_name = {
+            series[0]["z"]: [point["y"] for point in series]
+            for series in schema["data"]
+        }
+
+        assert set(by_name) == {"low", "high"}, hue_order
+        assert max(by_name["low"]) < 50, (hue_order, by_name["low"])
+        assert min(by_name["high"]) > 50, (hue_order, by_name["high"])
+        plt.close(fig)
 
 
 def test_a_dodged_group_is_still_named_by_its_tick():
