@@ -586,3 +586,64 @@ def test_the_render_runs_off_the_event_loop(fake_session, monkeypatch):
         "maidr.render ran on the event loop's thread; every other session "
         "on that worker is blocked for its full duration"
     )
+
+
+def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
+    """The scenario this whole change exists to make safe.
+
+    The unit tests above check that ``_figure_lock`` hands back matching
+    objects; none of them shows that two renders actually serialise. That
+    is the one thing a race here would break, so it is worth exercising
+    end to end.
+
+    Detects **overlap** rather than measuring duration, so it cannot flake
+    into a false pass on a loaded machine: if the lock works, the second
+    render cannot enter while the first is inside, at any speed. The sleep
+    only widens the window a broken lock would have to miss.
+
+    Overlapping renders are not a theoretical concern. ``savefig`` writes
+    ``fig.dpi`` for the duration of the write, so the loser of that race
+    emits a valid SVG of the whole chart at the wrong scale -- measured at
+    460.8x345.6 for a 640x480 figure, on 1 of 6 concurrent attempts.
+    """
+    import threading
+    import time
+
+    import maidr.widget.shiny as shiny_module
+
+    inside = 0
+    overlapped = False
+    bookkeeping = threading.Lock()
+
+    def slow_render(value, **kwargs):
+        nonlocal inside, overlapped
+        with bookkeeping:
+            inside += 1
+            if inside > 1:
+                overlapped = True
+        time.sleep(0.05)
+        with bookkeeping:
+            inside -= 1
+        return "rendered"
+
+    monkeypatch.setattr(shiny_module.maidr, "render", slow_render)
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    try:
+        renderer = render_maidr(lambda: ax)
+        workers = [
+            threading.Thread(target=renderer._render_off_loop, args=(ax,))
+            for _ in range(4)
+        ]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+    finally:
+        plt.close(fig)
+
+    assert not overlapped, (
+        "two renders of the same figure ran at once; they race on fig.dpi "
+        "and one of them emits the chart at the wrong scale"
+    )

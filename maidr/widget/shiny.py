@@ -46,7 +46,7 @@ from maidr.widget._focus import FOCUS_RESTORE_JS
 #:
 #: A ``WeakKeyDictionary`` so a closed figure's lock goes with it. The lock
 #: does not reference the figure, so this adds no retention (#498).
-_FIGURE_LOCKS: "weakref.WeakKeyDictionary[Any, threading.Lock]" = (
+_FIGURE_LOCKS: weakref.WeakKeyDictionary[Any, threading.Lock] = (
     weakref.WeakKeyDictionary()
 )
 
@@ -359,17 +359,33 @@ class render_maidr(Renderer[Any]):
         """Render ``value`` on a worker thread, one render per figure at a time.
 
         ``maidr.render`` never awaits, so on the event loop it holds it for
-        its whole duration -- measured at ~62 ms for a two-bar chart and
-        ~470 ms for 400 bars, against ~1.5 ms of ordinary scheduler jitter.
-        Every other session on that worker waits the whole time, once per
-        reactive flush (#454).
+        its whole duration. Every other session on that worker waits the
+        whole time, once per reactive flush (#454).
 
         Moving it to a thread works because the expensive part releases the
-        GIL: ``fig.savefig`` is 87-88% of the render at every chart size,
-        and the longest gap in a 1 ms ticker drops from 602.7 ms to 14.9 ms
-        with the eight renders taking no longer in wall-clock. Had it held
-        the GIL throughout, this would have moved the work without
-        unblocking anything.
+        GIL: ``fig.savefig`` is 87-88% of the render at every chart size.
+        Had it held the GIL throughout, this would have relocated the work
+        without unblocking anything.
+
+        Measured through this renderer, eight renders of a 50-bar chart,
+        longest gap in a 1 ms ticker::
+
+            idle control              1.3 ms
+            on the loop             484.9 ms     wall 484 ms
+            off the loop             13.4 ms     wall 565 ms
+
+        **It is not free.** The same eight renders take ~17% longer in
+        wall-clock off the loop, because each one pays a thread handoff. A
+        lone user rendering sequentially is slightly slower so that
+        concurrent users stop blocking each other -- which is the trade
+        being made here, and the reason to keep both numbers in view
+        rather than only the one that flatters it.
+
+        A second ceiling worth knowing: ``asyncio.to_thread`` uses the
+        loop's default executor, capped at ``min(32, cpu_count + 4)``
+        threads. Past that many concurrent renders, sessions queue for a
+        thread rather than running in parallel. The loop still stays free,
+        which is what this is for.
 
         The lock is what makes the move safe rather than merely faster --
         see :data:`_FIGURE_LOCKS`.
