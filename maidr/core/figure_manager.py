@@ -55,6 +55,16 @@ class _FigureRecords:
 
     ``_seen`` exists only so the mapping can be enumerated and cleared. It
     holds weak references and no values, so it retains nothing.
+
+    Reclamation is therefore the cyclic collector's, not refcounting's --
+    so a host that runs with ``gc.disable()`` or ``gc.freeze()``, which
+    long-lived servers sometimes do for latency, gets the growth back
+    between explicit collections. Worth knowing, and worth keeping in
+    proportion: a matplotlib ``Figure`` has never been reclaimable by
+    refcount either, since its own artists refer back to it. Measured with
+    the collector off, a bare figure built and closed with no maidr
+    involvement at all is not collected. Turning the collector off leaks
+    figures whether or not this package is installed.
     """
 
     #: Attribute the record is stored under on the figure.

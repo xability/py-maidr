@@ -626,3 +626,82 @@ def test_clear_drops_every_registered_figure():
         for f in (fig, other):
             FigureManager.figs.pop(f, None)
             plt.close(f)
+
+
+def test_one_thread_cannot_enter_the_registry_while_another_is_inside(monkeypatch):
+    """The registry's own lock actually excludes, rather than merely existing.
+
+    ``figs`` is a public class attribute that reads like a dict, so
+    ``if fig in FigureManager.figs`` is the natural line for a future
+    contributor to write outside ``FigureManager``'s lock -- and since the
+    record moved onto the figure, a lookup also updates the bookkeeping
+    behind iteration, so that apparently-read-only line mutates shared
+    state. ``_FigureRecords`` therefore guards itself.
+
+    Asserted as **mutual exclusion**, which is what the lock promises, and
+    with an explicit handoff rather than a crowd. The failure it prevents
+    -- ``RuntimeError: Set changed size during iteration`` -- can only be
+    provoked by sustained contention, and a bounded harness for it detected
+    on roughly half its runs while a larger budget made it *worse*: 5 of 8
+    at 0.75s against 3 of 8 at 1.0s. That is scheduler luck, not a test.
+
+    Parking one thread inside the critical section and asking whether
+    another can get in needs no luck at all.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    try:
+        inside = threading.Event()
+        b_finished = threading.Event()
+        real_add = FigureManager.figs._seen.add
+        who = threading.local()
+
+        def parking_add(item):
+            """Park the holder inside the guard -- and only the holder.
+
+            Tagged per thread because `_seen.add` is on the enterer's path
+            too (`pop` establishes ownership before deleting). A version
+            without the tag parked *both* threads and passed with the guard
+            removed: neither could observe the other, so there was nothing
+            to detect.
+            """
+            if getattr(who, "tag", None) == "holder":
+                inside.set()
+                b_finished.wait(_HANDOFF_DEADLINE)
+            return real_add(item)
+
+        monkeypatch.setattr(FigureManager.figs._seen, "add", parking_add)
+        record = FigureManager.figs[fig]
+
+        def hold():
+            who.tag = "holder"
+            FigureManager.figs[fig] = record
+
+        def enter():
+            who.tag = "enterer"
+            inside.wait(5)
+            FigureManager.figs.pop(fig, None)
+            b_finished.set()
+
+        holder = threading.Thread(target=hold)
+        enterer = threading.Thread(target=enter)
+        holder.start()
+        enterer.start()
+
+        # The holder parks until the deadline because the enterer is blocked
+        # on the guard; unguarded, the enterer completes immediately and the
+        # holder is released early. The gap between those is the assertion.
+        entered_while_held = b_finished.wait(_HANDOFF_DEADLINE / 2)
+
+        for worker in (holder, enterer):
+            worker.join(timeout=10)
+            assert not worker.is_alive(), "the registry deadlocked"
+
+        assert not entered_while_held, (
+            "a second thread entered the registry while another was inside "
+            "its critical section; the guard is not excluding anything"
+        )
+    finally:
+        b_finished.set()
+        FigureManager.figs.pop(fig, None)
+        plt.close(fig)

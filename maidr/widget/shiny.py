@@ -259,7 +259,7 @@ def _close_new_figures(before: set) -> None:
     only a warning on the server to show for it.
 
     ``FigureManager.figs`` therefore still keeps a record per figure --
-    which is correct, and no longer a leak.  The record is stored on the
+    which is correct, and no longer a leak. The record is stored on the
     figure itself (#456), so it lasts exactly as long as the application's
     own reference: a cached figure keeps its data across flushes, and a
     throwaway one is reclaimed with everything maidr extracted from it.
