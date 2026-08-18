@@ -7,9 +7,13 @@ inside a session context -- without starting a server.
 from __future__ import annotations
 
 import asyncio
+import gc
 import re
 import sys
+import threading
+import time
 import warnings
+import weakref
 from html import unescape
 
 import matplotlib
@@ -518,11 +522,7 @@ def test_the_lock_does_not_keep_a_closed_figure_alive():
     figure would be a new instance of a problem that is being worked on
     rather than added to.
     """
-    import gc
-    import weakref
-
     from matplotlib.figure import Figure
-
     from maidr.widget.shiny import _figure_lock
 
     # A bare `Figure`, deliberately not `plt.subplots()`: pyplot registers
@@ -553,8 +553,6 @@ def test_the_render_runs_off_the_event_loop(fake_session, monkeypatch):
     test was exactly that -- it did not fail when the render was put back on
     the loop, because it never ran.
     """
-    import threading
-
     import maidr.widget.shiny as shiny_module
 
     loop_thread = threading.get_ident()
@@ -576,7 +574,6 @@ def test_the_render_runs_off_the_event_loop(fake_session, monkeypatch):
         def chart():
             return ax
 
-        chart._set_output_metadata = lambda **kwargs: None
         _render(chart)
     finally:
         plt.close(fig)
@@ -606,9 +603,6 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
     emits a valid SVG of the whole chart at the wrong scale -- measured at
     460.8x345.6 for a 640x480 figure, on 1 of 6 concurrent attempts.
     """
-    import threading
-    import time
-
     import maidr.widget.shiny as shiny_module
 
     inside = 0
@@ -647,3 +641,76 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
         "two renders of the same figure ran at once; they race on fig.dpi "
         "and one of them emits the chart at the wrong scale"
     )
+
+
+def test_a_value_that_resolves_to_no_figure_still_renders(fake_session, monkeypatch):
+    """The fallback branch, driven through the real path rather than alone.
+
+    ``test_an_unresolvable_figure_gets_a_fresh_lock_...`` calls
+    ``_figure_lock(None)`` directly, which shows the helper's behaviour and
+    not that anything reaches it. This goes through ``render()``.
+
+    Both shapes are covered because they are not the same shape, which an
+    earlier comment in ``_render_off_loop`` got wrong: a foreign figure
+    **returns** ``None`` from ``get_axes`` and never raises, while an empty
+    container raises ``StopIteration``. Only the second reaches the
+    ``except``; the first is handled by the ``getattr`` default.
+    """
+    import maidr.widget.shiny as shiny_module
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    monkeypatch.setattr(shiny_module.maidr, "render", lambda value, **kw: "rendered")
+    monkeypatch.setattr(shiny_module, "_check_supported", lambda value, name: None)
+    try:
+        for resolver, label in (
+            (lambda value: None, "returns None, as a foreign figure does"),
+            (lambda value: next(iter([])), "raises, as an empty container does"),
+        ):
+            monkeypatch.setattr(
+                shiny_module.FigureManager, "get_axes", staticmethod(resolver)
+            )
+
+            @render_maidr
+            def chart():
+                return ax
+
+            assert _render(chart) is not None, label
+    finally:
+        plt.close(fig)
+
+
+def test_an_unexpected_resolver_failure_is_logged_not_swallowed(
+    fake_session, monkeypatch, caplog
+):
+    """A bug in ``get_axes`` must not vanish into "lock scope lost".
+
+    The catch sits immediately before an unsynchronised render, so a real
+    failure there is worth a record. It was a bare ``except Exception``
+    with no logging until review of #504.
+    """
+    import logging
+
+    import maidr.widget.shiny as shiny_module
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    monkeypatch.setattr(shiny_module.maidr, "render", lambda value, **kw: "rendered")
+    monkeypatch.setattr(shiny_module, "_check_supported", lambda value, name: None)
+    monkeypatch.setattr(
+        shiny_module.FigureManager,
+        "get_axes",
+        staticmethod(lambda value: (_ for _ in ()).throw(AttributeError("boom"))),
+    )
+    try:
+        with caplog.at_level(logging.DEBUG, logger=shiny_module.__name__):
+
+            @render_maidr
+            def chart():
+                return ax
+
+            _render(chart)
+    finally:
+        plt.close(fig)
+
+    assert any("without a shared lock" in record.message for record in caplog.records)

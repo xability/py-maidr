@@ -12,6 +12,7 @@ Requires the optional ``shiny`` extra::
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 import warnings
 import weakref
@@ -30,6 +31,8 @@ except ImportError as error:
 import maidr
 from maidr.core.figure_manager import FigureManager
 from maidr.widget._focus import FOCUS_RESTORE_JS
+
+_logger = logging.getLogger(__name__)
 
 #: One lock per ``Figure``, so two renders of the *same* figure cannot run
 #: at once. Not process-wide: ``savefig`` on distinct figures is safe in
@@ -383,9 +386,18 @@ class render_maidr(Renderer[Any]):
 
         A second ceiling worth knowing: ``asyncio.to_thread`` uses the
         loop's default executor, capped at ``min(32, cpu_count + 4)``
-        threads. Past that many concurrent renders, sessions queue for a
-        thread rather than running in parallel. The loop still stays free,
-        which is what this is for.
+        threads and shared with anything else in the process that uses it.
+        Past that many concurrent renders, sessions queue for a thread
+        rather than running in parallel. The loop still stays free, which
+        is what this is for.
+
+        Lock contention eats into that same pool rather than sitting
+        outside it: a render waiting on :func:`_figure_lock` is blocked
+        *inside* its executor thread, still holding the slot. Enough
+        sessions rendering one shared module-level figure could therefore
+        make unrelated figures queue for a thread -- the stall this moves
+        off the loop, reappearing one level down. Typical Shiny usage is a
+        figure per session, where this does not arise.
 
         The lock is what makes the move safe rather than merely faster --
         see :data:`_FIGURE_LOCKS`.
@@ -404,12 +416,25 @@ class render_maidr(Renderer[Any]):
         try:
             axes = FigureManager.get_axes(value)
             figure = getattr(axes, "figure", None)
-        except Exception:
-            # `_check_supported` already ran and accepted this value, so a
-            # failure here is a shape `get_axes` cannot resolve rather than
-            # one it should reject -- a foreign figure, for instance. The
-            # render is safe either way; only the lock's scope is lost, and
-            # `_figure_lock` handles that by handing back a fresh one.
+        except (AttributeError, StopIteration):
+            # Narrow, and not the case an earlier comment here claimed. A
+            # foreign figure -- plotly, altair -- does not raise: `get_axes`
+            # matches no branch and returns `None`, which `getattr` above
+            # turns into `figure = None` without ever reaching here.
+            # Measured: plotly-shaped, `None`, `int` and `str` all return
+            # `None`; only an empty list or dict raises, as `StopIteration`.
+            #
+            # So this catches malformed input that `_check_supported`
+            # should already have rejected. Logged rather than swallowed:
+            # a bare `except Exception` here would quietly downgrade a real
+            # bug in `get_axes` to "lock scope lost", immediately before an
+            # unsynchronised render.
+            _logger.debug(
+                "could not resolve a figure to lock for %r; rendering "
+                "without a shared lock",
+                type(value).__name__,
+                exc_info=True,
+            )
             figure = None
 
         with _figure_lock(figure):
