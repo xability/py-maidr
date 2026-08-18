@@ -39,13 +39,32 @@ _logger = logging.getLogger(__name__)
 #: parallel, and a single lock would serialise unrelated sessions and throw
 #: away most of what moving off the event loop buys.
 #:
-#: Why a lock is needed at all: ``savefig`` writes ``fig.dpi`` (100 -> 72 ->
-#: 100) for the duration of the write, so two concurrent writes to one
-#: figure race on that one attribute and the loser renders its whole chart
-#: at the other's dpi. Measured -- a 640x480 chart came out 460.8x345.6,
-#: exactly the 100/72 ratio. It produces a valid SVG, raises nothing, and
-#: happened on 1 of 6 concurrent renders, which is the bad kind of bug for
-#: a tool whose highlight overlay is positioned against that geometry.
+#: Why a lock is needed at all: ``savefig`` mutates the figure it is
+#: writing, for the duration of the write. Two things, both measured by
+#: watching the attribute from another thread while renders ran:
+#:
+#: * ``fig.dpi`` goes 100 -> 72 -> 100, so two concurrent writes race on
+#:   that one attribute and the loser renders its whole chart at the
+#:   other's dpi. A 640x480 chart came out 460.8x345.6 -- exactly the
+#:   100/72 ratio -- as a valid SVG, raising nothing, on 1 of 6 concurrent
+#:   renders. For a tool whose highlight overlay is positioned against
+#:   that geometry, silently wrong dimensions are the bad kind of wrong.
+#: * ``fig.canvas`` is swapped to a canvas that supports the output format
+#:   and swapped back (``FigureCanvasAgg`` -> ``FigureCanvasSVG`` ->
+#:   ``FigureCanvasAgg``), by
+#:   ``FigureCanvasBase._switch_canvas_and_return_print_method``.
+#:
+#: That second one also answers a question this raises: ``savefig`` now
+#: runs on a worker thread, and GUI backends generally want canvas work on
+#: the main thread. It does not reach the GUI canvas -- the write goes
+#: through the format's own canvas, which for SVG is pure Python and has
+#: no thread affinity. maidr's own backend delegates to ``FigureCanvasAgg``
+#: besides, and is what ``import maidr`` activates.
+#:
+#: ``threading.Lock``, not ``RLock``: nothing re-enters a render of the
+#: same figure on the same thread today, and if something ever does, a
+#: deadlock is a better outcome than two interleaved writes to one figure,
+#: because it is the one that shows up.
 #:
 #: A ``WeakKeyDictionary`` so a closed figure's lock goes with it. The lock
 #: does not reference the figure, so this adds no retention (#498).
@@ -74,6 +93,15 @@ def _figure_lock(figure: Any) -> threading.Lock:
         lock rather than a shared one -- serialising things we cannot tell
         apart would be a guess in the direction of a deadlock, and the
         render is safe on its own.
+
+        Note what that means: an unresolvable value gets **no**
+        synchronisation at all. Correct today because the values that land
+        here -- plotly, altair -- are rendered without touching a
+        ``matplotlib`` figure's ``dpi`` or ``canvas``, so there is no
+        shared state to race on. A future plot type that resolves to
+        ``None`` here *and* mutates shared figure state would be
+        unprotected silently, which is the reason to say so rather than
+        leave it to be inferred.
     """
     if figure is None:
         return threading.Lock()
