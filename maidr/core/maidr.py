@@ -772,11 +772,13 @@ class Maidr:
                 position_groups[pos] = []
             position_groups[pos].append(plot["schema"])
 
+        # One entry per position, because `position_groups` already gathered
+        # every layer that shares one -- a stacked bar, a violin's KDE and box
+        # halves. The branch that used to guard this assignment against an
+        # already-filled cell could not fire for that reason, and would have
+        # nested a list inside `layers` rather than extending it if it had.
         for (row, col), layers in position_groups.items():
-            if subplot_grid[row][col]:
-                subplot_grid[row][col]["layers"].append(layers)
-            else:
-                subplot_grid[row][col] = {"id": Maidr._unique_id(), "layers": layers}
+            subplot_grid[row][col] = {"id": Maidr._unique_id(), "layers": layers}
 
         # Backfill the positions no axes occupies. The grid is sized from the
         # largest row/col any layer reports, so a figure with a gap -- an axes
