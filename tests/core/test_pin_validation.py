@@ -21,19 +21,19 @@ import warnings
 import pytest
 
 import maidr
-from maidr.util import dependencies
+from maidr.util import cdn
 from maidr.util import warn as warn_module
 
 
 @pytest.fixture(autouse=True)
 def clean():
     """No pin, no cached lookup, and a fresh log-dedup set."""
-    dependencies.set_cdn_version(None)
-    dependencies.reset_cdn_version_cache()
+    cdn.set_cdn_version(None)
+    cdn.reset_cdn_version_cache()
     warn_module._warned_keys.clear()
     yield
-    dependencies.set_cdn_version(None)
-    dependencies.reset_cdn_version_cache()
+    cdn.set_cdn_version(None)
+    cdn.reset_cdn_version_cache()
 
 
 #: Values that are neither a semver nor a recognised tag. The last four are
@@ -75,7 +75,7 @@ def test_an_unusable_pin_is_still_ignored_for_now(value) -> None:
     with pytest.warns(FutureWarning, match="will raise ValueError"):
         maidr.set_cdn_version(value)
 
-    assert dependencies._version_pin() is None
+    assert cdn._version_pin() is None
 
 
 @pytest.mark.parametrize("value", USABLE)
@@ -106,14 +106,14 @@ def test_clearing_the_pin_is_silent(value, monkeypatch) -> None:
     correctly falls through to it -- so asserting on the *pin* rather
     than on the override would be measuring the fixture.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
 
     with warnings.catch_warnings(record=True) as records:
         warnings.simplefilter("always")
         maidr.set_cdn_version(value)
 
     assert [r for r in records if issubclass(r.category, FutureWarning)] == []
-    assert dependencies._version_pin() is None
+    assert cdn._version_pin() is None
 
 
 def test_the_environment_variable_stays_lenient(monkeypatch) -> None:
@@ -124,12 +124,12 @@ def test_the_environment_variable_stays_lenient(monkeypatch) -> None:
     cannot act on from inside their own code -- and certainly not, later,
     an exception.
     """
-    dependencies.set_cdn_version(None)
-    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, "3.74")
+    cdn.set_cdn_version(None)
+    monkeypatch.setenv(cdn.CDN_VERSION_ENV_VAR, "3.74")
 
     with warnings.catch_warnings(record=True) as records:
         warnings.simplefilter("always")
-        resolved = dependencies._version_pin()
+        resolved = cdn._version_pin()
 
     assert resolved is None
     assert [r for r in records if issubclass(r.category, FutureWarning)] == []

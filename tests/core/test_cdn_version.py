@@ -26,6 +26,7 @@ import pytest
 
 import maidr
 from maidr.util import bundle_freshness as freshness
+from maidr.util import cdn
 from maidr.util import dependencies
 from maidr.util import warn as warn_module
 
@@ -66,8 +67,8 @@ def resolvable(monkeypatch):
     Returns the list of requested URLs so tests can assert how many
     round trips actually happened.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     calls: list[str] = []
 
@@ -75,9 +76,9 @@ def resolvable(monkeypatch):
         calls.append(request.full_url)
         return _json_response({"version": "9.9.9", "latest": "9.9.9"})
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
     yield calls
-    dependencies.set_cdn_version(None)
+    cdn.set_cdn_version(None)
 
 
 class _FakeResponse(io.BytesIO):
@@ -101,13 +102,13 @@ def _json_response(payload: dict) -> _FakeResponse:
 
 def test_set_cdn_version_pins_concrete_version():
     maidr.set_cdn_version("3.74.0")
-    assert dependencies.get_cdn_version() == "3.74.0"
+    assert cdn.get_cdn_version() == "3.74.0"
     assert (
-        dependencies.maidr_js_cdn_url()
+        cdn.maidr_js_cdn_url()
         == "https://cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr.js"
     )
     assert (
-        dependencies.maidr_css_cdn_url()
+        cdn.maidr_css_cdn_url()
         == "https://cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr.css"
     )
     # No render path emits this one -- maidr.js resolves the maths
@@ -115,33 +116,33 @@ def test_set_cdn_version_pins_concrete_version():
     # has to name it for `window.maidrMathStylesheetUrl`, and it resolves
     # through the same helper as everything else.
     assert (
-        dependencies.cdn_url(dependencies.MAIDR_MATH_CSS_FILENAME)
+        cdn.cdn_url(dependencies.MAIDR_MATH_CSS_FILENAME)
         == "https://cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr-math.css"
     )
 
 
 def test_set_cdn_version_accepts_v_prefix():
     maidr.set_cdn_version("v3.74.0")
-    assert dependencies.get_cdn_version() == "3.74.0"
+    assert cdn.get_cdn_version() == "3.74.0"
 
 
 def test_set_cdn_version_accepts_prerelease():
     maidr.set_cdn_version("3.74.0-beta.1")
-    assert dependencies.get_cdn_version() == "3.74.0-beta.1"
+    assert cdn.get_cdn_version() == "3.74.0-beta.1"
 
 
 def test_latest_tag_opts_out_of_resolution(forbid_network):
     """``latest`` keeps the legacy URL and makes no network request."""
     maidr.set_cdn_version("latest")
 
-    assert dependencies.get_cdn_version() == "latest"
-    assert dependencies.maidr_js_cdn_url() == dependencies.MAIDR_JS_CDN_URL
+    assert cdn.get_cdn_version() == "latest"
+    assert cdn.maidr_js_cdn_url() == cdn.MAIDR_JS_CDN_URL
 
 
 def test_bundled_tag_uses_shipped_version(forbid_network):
     maidr.set_cdn_version("bundled")
 
-    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
+    assert cdn.get_cdn_version() == dependencies.maidr_js_version()
 
 
 def test_bundled_version_file_is_read_once(monkeypatch):
@@ -163,8 +164,8 @@ def test_bundled_version_file_is_read_once(monkeypatch):
     try:
         maidr.set_cdn_version("bundled")
         for _ in range(10):
-            dependencies.maidr_js_cdn_url()
-            dependencies.maidr_css_cdn_url()
+            cdn.maidr_js_cdn_url()
+            cdn.maidr_css_cdn_url()
         assert reads["n"] == 1, f"read VERSION {reads['n']} times, expected 1"
     finally:
         # Drop the value cached through the counting stub.
@@ -182,20 +183,20 @@ def test_bundled_tag_with_broken_version_stays_offline(monkeypatch, forbid_netwo
     )
     maidr.set_cdn_version("bundled")
 
-    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
-    assert dependencies.maidr_js_cdn_url() == dependencies.MAIDR_JS_CDN_URL
+    assert cdn.get_cdn_version() == cdn.LATEST_TAG
+    assert cdn.maidr_js_cdn_url() == cdn.MAIDR_JS_CDN_URL
 
 
 def test_env_var_pins_version(monkeypatch):
-    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, "3.70.1")
-    dependencies.set_cdn_version(None)
-    assert dependencies.get_cdn_version() == "3.70.1"
+    monkeypatch.setenv(cdn.CDN_VERSION_ENV_VAR, "3.70.1")
+    cdn.set_cdn_version(None)
+    assert cdn.get_cdn_version() == "3.70.1"
 
 
 def test_set_cdn_version_overrides_env_var(monkeypatch):
-    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, "3.70.1")
+    monkeypatch.setenv(cdn.CDN_VERSION_ENV_VAR, "3.70.1")
     maidr.set_cdn_version("3.74.0")
-    assert dependencies.get_cdn_version() == "3.74.0"
+    assert cdn.get_cdn_version() == "3.74.0"
 
 
 @pytest.mark.parametrize(
@@ -355,8 +356,8 @@ def test_invalid_pin_logs_once_not_once_per_render(resolvable, caplog):
 
     with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         for _ in range(5):
-            dependencies.maidr_js_cdn_url()
-            dependencies.maidr_css_cdn_url()
+            cdn.maidr_js_cdn_url()
+            cdn.maidr_css_cdn_url()
 
     complaints = [r for r in caplog.records if "invalid CDN version pin" in r.message]
     assert len(complaints) == 1, f"logged {len(complaints)} times, expected 1"
@@ -368,9 +369,9 @@ def test_a_second_bad_pin_still_warns(resolvable, caplog):
 
     with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         maidr.set_cdn_version("3.74")
-        dependencies.maidr_js_cdn_url()
+        cdn.maidr_js_cdn_url()
         maidr.set_cdn_version("nonsense")
-        dependencies.maidr_js_cdn_url()
+        cdn.maidr_js_cdn_url()
 
     complaints = [r for r in caplog.records if "invalid CDN version pin" in r.message]
     assert len(complaints) == 2
@@ -386,7 +387,7 @@ def test_warned_keys_stays_bounded(resolvable):
     """
     for i in range(warn_module._MAX_WARNED_KEYS * 3):
         maidr.set_cdn_version(f"bad-{i}")
-        dependencies.maidr_js_cdn_url()
+        cdn.maidr_js_cdn_url()
 
     assert len(warn_module._warned_keys) <= warn_module._MAX_WARNED_KEYS
 
@@ -411,7 +412,7 @@ def test_invalid_pin_never_reaches_the_url(hostile, resolvable):
     """
     with pytest.warns(FutureWarning, match="set_cdn_version"):
         maidr.set_cdn_version(hostile)
-    url = dependencies.maidr_js_cdn_url()
+    url = cdn.maidr_js_cdn_url()
 
     assert hostile not in url
     # Falls through to normal resolution, which the fixture stubs.
@@ -424,7 +425,12 @@ def test_no_render_path_references_the_unresolved_constants():
     ``MAIDR_JS_CDN_URL`` / ``MAIDR_CSS_CDN_URL`` are kept for backwards
     compatibility and as the lookup's fallback, but a render path that
     reaches for one silently reintroduces the stale-cache bug this module
-    exists to fix. Only ``dependencies.py`` itself may name them.
+    exists to fix. Only ``cdn.py``, which now owns them, and the shim in
+    ``dependencies.py`` that forwards them, may name them.
+
+    #293 recorded this exclusion as the thing that would need updating
+    once a module other than ``dependencies`` owned the constants; the
+    ``cdn.py`` cut is that moment, and this is that update.
 
     This is a text scan, not an import graph, so a mere *mention* — in a
     docstring or a comment — counts as a reference. That is deliberate
@@ -432,11 +438,16 @@ def test_no_render_path_references_the_unresolved_constants():
     means the failure is sometimes about prose rather than about a real
     call, which the message below says out loud.
     """
-    package_root = Path(dependencies.__file__).resolve().parent.parent
+    package_root = Path(cdn.__file__).resolve().parent.parent
+    # Two files may name them: ``cdn.py``, which owns them, and
+    # ``dependencies.py``, whose ``_MOVED_TO_CDN`` set lists them so the
+    # back-compat shim can forward the old import path. A forwarding list
+    # is not a render path, which is what this guard is about.
+    allowed = {Path(cdn.__file__).resolve(), Path(dependencies.__file__).resolve()}
     offenders = [
         path.relative_to(package_root).as_posix()
         for path in package_root.rglob("*.py")
-        if path.resolve() != Path(dependencies.__file__).resolve()
+        if path.resolve() not in allowed
         and re.search(r"MAIDR_(?:JS|CSS)_CDN_URL", path.read_text(encoding="utf-8"))
     ]
     assert not offenders, (
@@ -453,9 +464,9 @@ def test_no_render_path_references_the_unresolved_constants():
 
 
 def test_latest_is_resolved_to_a_concrete_version(resolvable):
-    assert dependencies.get_cdn_version() == "9.9.9"
+    assert cdn.get_cdn_version() == "9.9.9"
     assert (
-        dependencies.maidr_js_cdn_url()
+        cdn.maidr_js_cdn_url()
         == "https://cdn.jsdelivr.net/npm/maidr@9.9.9/dist/maidr.js"
     )
     assert len(resolvable) == 1, "resolution should need a single round trip"
@@ -463,23 +474,23 @@ def test_latest_is_resolved_to_a_concrete_version(resolvable):
 
 def test_resolution_is_cached_for_the_process(resolvable):
     for _ in range(5):
-        dependencies.maidr_js_cdn_url()
-        dependencies.maidr_css_cdn_url()
+        cdn.maidr_js_cdn_url()
+        cdn.maidr_css_cdn_url()
 
     assert len(resolvable) == 1, "version lookup must not repeat per render"
 
 
 def test_reset_cache_forces_a_new_lookup(resolvable):
-    dependencies.get_cdn_version()
-    dependencies.reset_cdn_version_cache()
-    dependencies.get_cdn_version()
+    cdn.get_cdn_version()
+    cdn.reset_cdn_version_cache()
+    cdn.get_cdn_version()
 
     assert len(resolvable) == 2
 
 
 def test_falls_back_to_npm_registry_when_jsdelivr_fails(monkeypatch):
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     calls: list[str] = []
 
     def fake_urlopen(request, timeout=None):
@@ -488,9 +499,9 @@ def test_falls_back_to_npm_registry_when_jsdelivr_fails(monkeypatch):
             raise OSError("jsDelivr unreachable")
         return _json_response({"latest": "4.1.0"})
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
-    assert dependencies.get_cdn_version() == "4.1.0"
+    assert cdn.get_cdn_version() == "4.1.0"
     assert len(calls) == 2
 
 
@@ -504,25 +515,25 @@ def test_offline_falls_back_to_the_bundled_version(monkeypatch):
     build (#295). The bundled version is immutable and is the copy this
     wheel would have served anyway.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     calls: list[str] = []
 
     def fake_urlopen(request, timeout=None):
         calls.append(request.full_url)
         raise OSError("network is unreachable")
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
-    assert dependencies.maidr_js_cdn_url() == (
+    assert cdn.maidr_js_cdn_url() == (
         "https://cdn.jsdelivr.net/npm/maidr@"
         f"{dependencies.maidr_js_version()}/dist/maidr.js"
     )
     # Failure is cached too, so an offline session does not stall on a
     # doomed request for every figure it renders.
-    dependencies.maidr_js_cdn_url()
-    dependencies.maidr_css_cdn_url()
-    assert len(calls) == len(dependencies._RESOLVER_ENDPOINTS)
+    cdn.maidr_js_cdn_url()
+    cdn.maidr_css_cdn_url()
+    assert len(calls) == len(cdn._RESOLVER_ENDPOINTS)
 
 
 def test_non_object_resolver_response_is_unusable(monkeypatch):
@@ -533,54 +544,54 @@ def test_non_object_resolver_response_is_unusable(monkeypatch):
     so the guard that keeps this a "no answer" rather than a traceback is
     worth pinning.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     def fake_urlopen(request, timeout=None):
         return _json_response([{"version": "9.9.9"}])
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
-    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
+    assert cdn.get_cdn_version() == dependencies.maidr_js_version()
 
 
 def test_malformed_resolver_response_falls_back(monkeypatch):
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     def fake_urlopen(request, timeout=None):
         return _FakeResponse(b"<!DOCTYPE html><html>error</html>")
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
-    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
+    assert cdn.get_cdn_version() == dependencies.maidr_js_version()
 
 
 def test_hostile_resolver_version_is_rejected(monkeypatch):
     """A compromised resolver cannot steer the URL at another path."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     def fake_urlopen(request, timeout=None):
         return _json_response({"version": "../../evil", "latest": "../../evil"})
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
-    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
-    assert "evil" not in dependencies.maidr_js_cdn_url()
+    assert cdn.get_cdn_version() == dependencies.maidr_js_version()
+    assert "evil" not in cdn.maidr_js_cdn_url()
 
 
 def test_timeout_env_var_is_honoured(monkeypatch):
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "0.25")
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, "0.25")
+    cdn.set_cdn_version(None)
     seen: list[float | None] = []
 
     def fake_urlopen(request, timeout=None):
         seen.append(timeout)
         return _json_response({"version": "9.9.9"})
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
-    dependencies.get_cdn_version()
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
+    cdn.get_cdn_version()
 
     assert len(seen) == 1
     assert 0 < seen[0] <= 0.25
@@ -588,9 +599,9 @@ def test_timeout_env_var_is_honoured(monkeypatch):
 
 def test_timeout_is_a_total_budget_across_endpoints(monkeypatch):
     """A fallback endpoint must not double how long a first render blocks."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "2.0")
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, "2.0")
+    cdn.set_cdn_version(None)
     seen: list[float] = []
 
     def fake_urlopen(request, timeout=None):
@@ -599,11 +610,11 @@ def test_timeout_is_a_total_budget_across_endpoints(monkeypatch):
         time.sleep(0.2)
         raise OSError("unreachable")
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
-    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
+    assert cdn.get_cdn_version() == dependencies.maidr_js_version()
 
-    assert len(seen) == len(dependencies._RESOLVER_ENDPOINTS)
+    assert len(seen) == len(cdn._RESOLVER_ENDPOINTS)
     # Each attempt gets only what is left of the budget, so the timeouts
     # shrink. This is the deterministic part of the guarantee; a
     # wall-clock assertion would add nothing but CI flakiness, since the
@@ -613,9 +624,9 @@ def test_timeout_is_a_total_budget_across_endpoints(monkeypatch):
 
 
 def test_budget_exhaustion_skips_remaining_endpoints(monkeypatch):
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "0.15")
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, "0.15")
+    cdn.set_cdn_version(None)
     calls: list[str] = []
 
     def fake_urlopen(request, timeout=None):
@@ -623,16 +634,16 @@ def test_budget_exhaustion_skips_remaining_endpoints(monkeypatch):
         time.sleep(0.2)  # spends the whole budget on the first attempt
         raise OSError("unreachable")
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
-    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
+    assert cdn.get_cdn_version() == dependencies.maidr_js_version()
     assert len(calls) == 1, "second endpoint should be skipped once spent"
 
 
 @pytest.mark.parametrize("bad", ["", "abc", "-1", "0", "nan", "inf", "-inf"])
 def test_invalid_timeout_falls_back_to_default(bad, monkeypatch):
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, bad)
-    assert dependencies._cdn_timeout() == dependencies._DEFAULT_CDN_TIMEOUT
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, bad)
+    assert cdn._cdn_timeout() == cdn._DEFAULT_CDN_TIMEOUT
 
 
 def test_oversized_timeout_is_clamped(monkeypatch, caplog):
@@ -641,10 +652,10 @@ def test_oversized_timeout_is_clamped(monkeypatch, caplog):
     ``MAIDR_CDN_TIMEOUT=3000`` read as seconds would block for fifty
     minutes before a plot appeared.
     """
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "3000")
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, "3000")
 
     with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
-        assert dependencies._cdn_timeout() == dependencies._MAX_CDN_TIMEOUT
+        assert cdn._cdn_timeout() == cdn._MAX_CDN_TIMEOUT
 
     assert any("clamped" in r.message for r in caplog.records), (
         "clamping must be visible, not silent"
@@ -652,8 +663,8 @@ def test_oversized_timeout_is_clamped(monkeypatch, caplog):
 
 
 def test_timeout_just_under_the_cap_is_honoured(monkeypatch):
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "29")
-    assert dependencies._cdn_timeout() == 29.0
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, "29")
+    assert cdn._cdn_timeout() == 29.0
 
 
 # ---------------------------------------------------------------------------
@@ -693,8 +704,8 @@ def test_save_html_use_cdn_auto_emits_versioned_url(bar_plot, tmp_path):
 
 def test_render_use_cdn_false_never_resolves(bar_plot, monkeypatch, forbid_network):
     """Offline rendering must not make a version-lookup request."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     maidr.render(bar_plot, use_cdn=False)
 
 
@@ -758,8 +769,8 @@ def test_concurrent_resolution_makes_one_lookup(monkeypatch):
     This one has teeth: with the lock removed, all 32 threads make their
     own request instead of one.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     calls: list[str] = []
     calls_lock = threading.Lock()
 
@@ -773,13 +784,13 @@ def test_concurrent_resolution_makes_one_lookup(monkeypatch):
         time.sleep(0.05)
         return _json_response({"version": "9.9.9", "latest": "9.9.9"})
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
     results: list[str] = []
     results_lock = threading.Lock()
 
     def resolve():
-        value = dependencies.get_cdn_version()
+        value = cdn.get_cdn_version()
         with results_lock:
             results.append(value)
 
@@ -820,8 +831,8 @@ def test_concurrent_staleness_warning_emits_once(monkeypatch):
     """
     monkeypatch.setattr(freshness, "_bundle_warned", set())
     monkeypatch.setattr(dependencies, "maidr_js_version", lambda: "3.66.1")
-    monkeypatch.setattr(dependencies, "_resolved_cdn_version", "3.74.0")
-    monkeypatch.setattr(dependencies, "_resolution_attempted", True)
+    monkeypatch.setattr(cdn, "_resolved_cdn_version", "3.74.0")
+    monkeypatch.setattr(cdn, "_resolution_attempted", True)
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
@@ -837,8 +848,8 @@ def test_blank_pin_clears_rather_than_falling_through(blank, resolvable):
     maidr.set_cdn_version("3.70.1")
     maidr.set_cdn_version(blank)
 
-    assert dependencies._cdn_version_override is None
-    assert dependencies.get_cdn_version() == "9.9.9"
+    assert cdn._cdn_version_override is None
+    assert cdn.get_cdn_version() == "9.9.9"
 
 
 def test_bundle_status_type_is_exported():
@@ -874,10 +885,10 @@ def test_build_metadata_is_ignored_for_precedence():
 @pytest.mark.parametrize("bad", ["abc", "-1", "0", "nan", "inf"])
 def test_unusable_timeout_is_reported_not_silently_replaced(bad, monkeypatch, caplog):
     """The clamp warns, so the other rejections should too."""
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, bad)
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, bad)
 
     with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
-        assert dependencies._cdn_timeout() == dependencies._DEFAULT_CDN_TIMEOUT
+        assert cdn._cdn_timeout() == cdn._DEFAULT_CDN_TIMEOUT
 
     assert caplog.records, f"{bad!r} was replaced with the default in silence"
 
@@ -899,21 +910,21 @@ def test_bundle_status_resolves_even_when_pinned_to_latest(monkeypatch):
     has no answer otherwise. Pin the behaviour so the docs and the code
     cannot drift apart.
     """
-    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, dependencies.LATEST_TAG)
-    dependencies.set_cdn_version(None)
+    monkeypatch.setenv(cdn.CDN_VERSION_ENV_VAR, cdn.LATEST_TAG)
+    cdn.set_cdn_version(None)
     calls: list[str] = []
 
     def fake_urlopen(request, timeout=None):
         calls.append(request.full_url)
         return _json_response({"version": "9.9.9", "latest": "9.9.9"})
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
     assert maidr.bundle_status().published == "9.9.9"
     assert calls, "bundle_status() should resolve despite the pin"
 
     # ...and resolve=False is the way to keep it quiet.
-    dependencies.reset_cdn_version_cache()
+    cdn.reset_cdn_version_cache()
     calls.clear()
     assert maidr.bundle_status(resolve=False).published is None
     assert not calls
@@ -926,10 +937,10 @@ def test_ordinary_timeout_passes_through_untouched(value, monkeypatch, caplog):
     The boundaries are covered elsewhere; this closes the loop by
     asserting the common case is neither clamped nor complained about.
     """
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, value)
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, value)
 
     with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
-        assert dependencies._cdn_timeout() == float(value)
+        assert cdn._cdn_timeout() == float(value)
 
     assert not caplog.records, f"{value!r} should be accepted silently"
 
@@ -957,8 +968,8 @@ def test_version_key_never_raises_on_a_shape_that_slips_through(monkeypatch):
 
 def test_resolver_response_read_is_capped(monkeypatch):
     """An oversized body must be truncated, not slurped whole."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     requested: list[int | None] = []
 
     class _HugeResponse(_FakeResponse):
@@ -968,12 +979,12 @@ def test_resolver_response_read_is_capped(monkeypatch):
 
     payload = b'{"version": "9.9.9", "pad": "' + b"x" * (256 * 1024) + b'"}'
     monkeypatch.setattr(
-        dependencies, "urlopen", lambda request, timeout=None: _HugeResponse(payload)
+        cdn, "urlopen", lambda request, timeout=None: _HugeResponse(payload)
     )
 
-    dependencies.get_cdn_version()
+    cdn.get_cdn_version()
 
-    assert requested and requested[0] == dependencies._MAX_RESOLVER_BYTES, (
+    assert requested and requested[0] == cdn._MAX_RESOLVER_BYTES, (
         f"read the body with size={requested[0]!r}, expected the cap"
     )
 
@@ -989,17 +1000,17 @@ def test_non_oserror_from_urlopen_does_not_escape(bar_plot, monkeypatch):
     class SocketBlockedError(Exception):
         pass
 
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     def blocked(*_args, **_kwargs):
         raise SocketBlockedError("network access blocked in this environment")
 
-    monkeypatch.setattr(dependencies, "urlopen", blocked)
+    monkeypatch.setattr(cdn, "urlopen", blocked)
 
     # Degrades to the bundled version rather than raising, and caches
     # the failure.
-    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
+    assert cdn.get_cdn_version() == dependencies.maidr_js_version()
     maidr.render(bar_plot, use_cdn="auto")
 
 
@@ -1014,10 +1025,10 @@ def test_tiny_timeout_is_clamped_to_the_floor(raw, monkeypatch, caplog):
     mutable dist-tag: the bug this module exists to fix, reached through
     configuration rather than through code.
     """
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, raw)
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, raw)
 
     with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
-        assert dependencies._cdn_timeout() == dependencies._MIN_CDN_TIMEOUT
+        assert cdn._cdn_timeout() == cdn._MIN_CDN_TIMEOUT
 
     assert [r for r in caplog.records if "floor" in r.message], (
         "the clamp must be visible, like the ceiling's"
@@ -1026,17 +1037,17 @@ def test_tiny_timeout_is_clamped_to_the_floor(raw, monkeypatch, caplog):
 
 def test_the_floor_leaves_a_usable_budget_alone(monkeypatch):
     """Only values below the floor are clamped."""
-    monkeypatch.setenv(dependencies.CDN_TIMEOUT_ENV_VAR, "0.5")
-    assert dependencies._cdn_timeout() == 0.5
+    monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, "0.5")
+    assert cdn._cdn_timeout() == 0.5
 
 
 def test_bundled_cdn_url_needs_no_lookup(monkeypatch, forbid_network):
     """``init_notebook`` depends on this being network-free."""
     # The suite pins ``latest`` by default; drop it so the bundled
     # version is what this exercises rather than the pin.
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
 
-    url = dependencies.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME)
+    url = cdn.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME)
 
     assert f"maidr@{dependencies.maidr_js_version()}/" in url
     assert "maidr@latest" not in url
@@ -1052,25 +1063,25 @@ def test_bundled_cdn_url_honours_an_explicit_pin(monkeypatch, forbid_network):
     two different builds of maidr.js in one page, and neither the version
     ``set_cdn_version`` documents.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version("3.74.0")
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version("3.74.0")
 
-    assert dependencies.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME) == (
+    assert cdn.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME) == (
         "https://cdn.jsdelivr.net/npm/maidr@3.74.0/dist/maidr.js"
     )
     # The two tag-emitting paths agree, which is the property that matters.
-    assert dependencies.bundled_cdn_url(
+    assert cdn.bundled_cdn_url(
         dependencies.MAIDR_JS_FILENAME
-    ) == dependencies.maidr_js_cdn_url()
+    ) == cdn.maidr_js_cdn_url()
 
 
 def test_bundled_cdn_url_under_a_latest_pin_emits_latest(monkeypatch, forbid_network):
     """``latest`` is a pin like any other: asked for it, emit it."""
-    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, dependencies.LATEST_TAG)
+    monkeypatch.setenv(cdn.CDN_VERSION_ENV_VAR, cdn.LATEST_TAG)
 
-    assert dependencies.bundled_cdn_url(
+    assert cdn.bundled_cdn_url(
         dependencies.MAIDR_JS_FILENAME
-    ) == dependencies.MAIDR_JS_CDN_URL
+    ) == cdn.MAIDR_JS_CDN_URL
 
 
 def test_pin_before_the_stylesheet_split_warns_once(monkeypatch, forbid_network, caplog):
@@ -1081,39 +1092,39 @@ def test_pin_before_the_stylesheet_split_warns_once(monkeypatch, forbid_network,
     An older version has neither, so LaTeX in AI chat responses renders
     unstyled while everything else looks fine.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
 
     with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
-        dependencies.set_cdn_version("3.74.0")
+        cdn.set_cdn_version("3.74.0")
         for _ in range(5):
-            dependencies.maidr_js_cdn_url()
+            cdn.maidr_js_cdn_url()
 
     complaints = [r for r in caplog.records if "predates maidr" in r.message]
     assert len(complaints) == 1, f"warned {len(complaints)} times, expected 1"
-    assert dependencies._STYLESHEET_SPLIT_VERSION in complaints[0].getMessage()
+    assert cdn._STYLESHEET_SPLIT_VERSION in complaints[0].getMessage()
 
 
 @pytest.mark.parametrize("pin", ["3.75.1", "3.76.0", "4.0.0", "3.75.2-rc.1"])
 def test_pin_at_or_after_the_split_is_silent(pin, monkeypatch, forbid_network, caplog):
     """The warning is about older versions only; newer ones carry the file."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
 
     with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
-        dependencies.set_cdn_version(pin)
-        dependencies.maidr_js_cdn_url()
+        cdn.set_cdn_version(pin)
+        cdn.maidr_js_cdn_url()
 
     assert not [r for r in caplog.records if "predates maidr" in r.message]
 
 
 def test_bundled_cdn_url_degrades_when_version_unknown(monkeypatch, forbid_network):
     """With no usable bundled VERSION there is no better offline answer."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
     monkeypatch.setattr(
         dependencies, "maidr_js_version", lambda: dependencies._UNKNOWN_VERSION
     )
-    assert dependencies.bundled_cdn_url(
+    assert cdn.bundled_cdn_url(
         dependencies.MAIDR_JS_FILENAME
-    ) == dependencies.MAIDR_JS_CDN_URL
+    ) == cdn.MAIDR_JS_CDN_URL
 
 
 def test_keyboard_interrupt_does_not_poison_resolution(monkeypatch):
@@ -1125,8 +1136,8 @@ def test_keyboard_interrupt_does_not_poison_resolution(monkeypatch):
     the process silently emitting ``@latest`` — the exact bug this module
     fixes — with nothing logged.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     calls: list[int] = []
 
@@ -1136,20 +1147,20 @@ def test_keyboard_interrupt_does_not_poison_resolution(monkeypatch):
             raise KeyboardInterrupt("user pressed Ctrl-C mid-lookup")
         return _json_response({"version": "9.9.9", "latest": "9.9.9"})
 
-    monkeypatch.setattr(dependencies, "urlopen", interrupt_then_succeed)
+    monkeypatch.setattr(cdn, "urlopen", interrupt_then_succeed)
 
     with pytest.raises(KeyboardInterrupt):
-        dependencies.get_cdn_version()
+        cdn.get_cdn_version()
 
-    assert dependencies.get_cdn_version() == "9.9.9", (
+    assert cdn.get_cdn_version() == "9.9.9", (
         "resolution stayed poisoned after Ctrl-C"
     )
 
 
 def test_a_real_failure_is_still_cached(monkeypatch):
     """The counterpart: an ordinary exception must not retry per render."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     calls: list[int] = []
 
@@ -1158,13 +1169,13 @@ def test_a_real_failure_is_still_cached(monkeypatch):
         raise RuntimeError("resolver is broken in an unexpected way")
 
     # Raise from the inner helper so the outer handler is what sees it.
-    monkeypatch.setattr(dependencies, "_fetch_latest_version", boom)
+    monkeypatch.setattr(cdn, "_fetch_latest_version", boom)
 
     with pytest.raises(RuntimeError):
-        dependencies.get_cdn_version()
+        cdn.get_cdn_version()
 
-    dependencies.maidr_js_cdn_url()
-    dependencies.maidr_js_cdn_url()
+    cdn.maidr_js_cdn_url()
+    cdn.maidr_js_cdn_url()
 
     assert len(calls) == 1, f"retried the failed lookup {len(calls)} times"
 
@@ -1177,8 +1188,8 @@ def test_reset_during_a_lookup_is_not_overwritten(monkeypatch):
     abandoning — so it bumps a generation counter instead and the fetcher
     declines to publish a result from a superseded generation.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     in_flight = threading.Event()
     may_finish = threading.Event()
@@ -1191,26 +1202,26 @@ def test_reset_during_a_lookup_is_not_overwritten(monkeypatch):
             may_finish.wait(timeout=5)
         return _json_response({"version": version, "latest": version})
 
-    monkeypatch.setattr(dependencies, "urlopen", slow_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", slow_urlopen)
 
     result: list[str] = []
     fetcher = threading.Thread(
-        target=lambda: result.append(dependencies.get_cdn_version())
+        target=lambda: result.append(cdn.get_cdn_version())
     )
     fetcher.start()
 
     assert in_flight.wait(timeout=5), "the lookup never started"
-    dependencies.reset_cdn_version_cache()
+    cdn.reset_cdn_version_cache()
     may_finish.set()
     fetcher.join(timeout=5)
 
     # The in-flight caller still gets its own answer...
     assert result == ["1.1.1"]
     # ...but it must not have been cached over the reset.
-    assert dependencies._cached_resolution() is None, (
+    assert cdn._cached_resolution() is None, (
         "the pre-reset result was published anyway, undoing the reset"
     )
-    assert dependencies.get_cdn_version() == "2.2.2", (
+    assert cdn.get_cdn_version() == "2.2.2", (
         "the reset did not force a re-lookup"
     )
 
@@ -1375,21 +1386,21 @@ def test_a_failed_lookup_never_emits_the_mutable_tag(monkeypatch):
     version is spliced in three places and a fallback that fixed one of
     them would look fixed.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     monkeypatch.setattr(
-        dependencies, "urlopen", lambda *_a, **_k: (_ for _ in ()).throw(OSError())
+        cdn, "urlopen", lambda *_a, **_k: (_ for _ in ()).throw(OSError())
     )
 
     bundled = dependencies.maidr_js_version()
     urls = [
-        dependencies.maidr_js_cdn_url(),
-        dependencies.cdn_url(dependencies.MAIDR_MATH_CSS_FILENAME),
-        dependencies.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME),
+        cdn.maidr_js_cdn_url(),
+        cdn.cdn_url(dependencies.MAIDR_MATH_CSS_FILENAME),
+        cdn.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME),
     ]
 
     for url in urls:
-        assert f"maidr@{dependencies.LATEST_TAG}/" not in url, url
+        assert f"maidr@{cdn.LATEST_TAG}/" not in url, url
         assert f"maidr@{bundled}/" in url, url
 
 
@@ -1401,8 +1412,40 @@ def test_an_explicit_latest_pin_still_gets_the_mutable_tag(monkeypatch):
     and asking for the mutable tag, and #295 must not take that away --
     it is the documented way to keep the CDN without the lookup.
     """
-    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, "latest")
-    dependencies.set_cdn_version(None)
+    monkeypatch.setenv(cdn.CDN_VERSION_ENV_VAR, "latest")
+    cdn.set_cdn_version(None)
 
-    assert dependencies.get_cdn_version() == dependencies.LATEST_TAG
-    assert dependencies.maidr_js_cdn_url() == dependencies.MAIDR_JS_CDN_URL
+    assert cdn.get_cdn_version() == cdn.LATEST_TAG
+    assert cdn.maidr_js_cdn_url() == cdn.MAIDR_JS_CDN_URL
+
+
+def test_the_shim_forwards_reads_but_cannot_forward_a_patch():
+    """The one thing the back-compat shim does not cover, pinned.
+
+    ``dependencies.__getattr__`` resolves the moved names, so an old
+    ``dependencies.get_cdn_version`` still works and is the *same object*.
+    It cannot intercept an assignment: ``setattr`` writes straight to the
+    module dict, so ``monkeypatch.setattr(dependencies, "urlopen", ...)``
+    would set an attribute nothing in ``cdn`` reads -- a patch that
+    silently does nothing rather than one that fails.
+
+    That asymmetry is why the moved *state* is deliberately absent from
+    ``_MOVED_TO_CDN`` and why the suite patches ``cdn`` directly. Asserted
+    rather than described, so a future change that quietly starts
+    forwarding writes has to come and edit this.
+    """
+    assert dependencies.get_cdn_version is cdn.get_cdn_version, "reads forward"
+    assert "LATEST_TAG" in dir(dependencies), "and are advertised"
+
+    sentinel = object()
+    try:
+        dependencies.urlopen = sentinel
+        assert cdn.urlopen is not sentinel, (
+            "writing to `dependencies` reached `cdn`; if the shim has gained "
+            "write-forwarding, the private state can rejoin `_MOVED_TO_CDN` "
+            "and this test should say so instead"
+        )
+    finally:
+        del dependencies.urlopen
+
+    assert "urlopen" not in dependencies._MOVED_TO_CDN

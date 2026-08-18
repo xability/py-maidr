@@ -24,6 +24,7 @@ import maidr
 import maidr.util.environment
 from maidr import api as maidr_api
 from maidr.util import bundle_freshness as freshness
+from maidr.util import cdn
 from maidr.util import dependencies
 from maidr.util import warn as warn_module
 
@@ -86,14 +87,14 @@ def published(monkeypatch):
     """
 
     def _set(version: str) -> None:
-        monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-        dependencies.set_cdn_version(None)
+        monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+        cdn.set_cdn_version(None)
 
         def fake_urlopen(request, timeout=None):
             payload = json.dumps({"version": version, "latest": version})
             return _FakeResponse(payload.encode("utf-8"))
 
-        monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+        monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
     return _set
 
@@ -162,7 +163,7 @@ def test_a_pin_does_not_stand_in_for_the_published_version(bundled, published):
 
     assert status.published == "3.74.0", "published must come from the lookup"
     # The pin still decides what the emitted URL serves.
-    assert "maidr@9.9.9/" in dependencies.maidr_js_cdn_url()
+    assert "maidr@9.9.9/" in cdn.maidr_js_cdn_url()
 
 
 def test_backwards_pin_cannot_conceal_a_stale_bundle(bundled, published):
@@ -187,8 +188,8 @@ def test_bundle_status_missing_bundle_is_not_reported_as_stale(bundled, publishe
 def test_bundle_status_resolve_false_never_hits_the_network(
     monkeypatch, bundled, forbid_network
 ):
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     bundled("3.66.1")
 
     status = maidr.bundle_status(resolve=False)
@@ -256,8 +257,8 @@ def test_env_var_silences_the_warning(disabled, monkeypatch, bundled, published)
 def test_warning_never_resolves_over_the_network(
     monkeypatch, bundled, forbid_network
 ):
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     bundled("3.66.1")
 
     with no_stale_bundle_warning():
@@ -425,8 +426,8 @@ def test_init_notebook_use_cdn_false_never_resolves_when_bundle_missing(
     works; building those URLs must not resolve a version, or an
     explicitly offline session pays for a lookup it opted out of.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     monkeypatch.setattr(
         maidr_api, "_NOTEBOOK_LOADED", False, raising=False
@@ -467,8 +468,8 @@ def test_offline_render_with_unknown_published_version_is_silent(
     bar_plot, monkeypatch, bundled, forbid_network
 ):
     """No network, nothing known: say nothing rather than guess."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     bundled("3.66.1")
 
     with no_stale_bundle_warning():
@@ -481,8 +482,8 @@ def test_init_notebook_makes_no_network_call(monkeypatch, forbid_network):
     Resolving here would put a blocking request inside ``import maidr``,
     before the user can apply any of the documented opt-outs.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     monkeypatch.setattr(maidr_api, "_NOTEBOOK_LOADED", False, raising=False)
     monkeypatch.setattr(
         maidr.util.environment.Environment, "is_notebook", staticmethod(lambda: True)

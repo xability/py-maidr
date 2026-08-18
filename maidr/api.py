@@ -248,6 +248,8 @@ def init_notebook(
         MAIDR_JS_FILENAME,
         read_bundled_js,
         read_bundled_math_css,
+    )
+    from maidr.util.cdn import (
         bundled_cdn_url,
     )
 

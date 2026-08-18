@@ -20,10 +20,11 @@ import warnings
 from typing import NamedTuple
 
 from maidr.util import dependencies as _deps
+from maidr.util import cdn as _cdn
+from maidr.util.cdn import ResolverOutcome
 from maidr.util.dependencies import (
     _UNKNOWN_VERSION,
     _version_key,
-    ResolverOutcome,
 )
 from maidr.util.warn import (
     BUNDLE_WARNING_ENV_VAR,
@@ -138,7 +139,7 @@ def resolver_outcome() -> ResolverOutcome | None:
     >>> resolver_outcome()  # doctest: +SKIP
     ResolverOutcome(resolved='4.2.0', unreachable=(), answered_badly=())
     """
-    return _deps._resolver_outcome
+    return _cdn._resolver_outcome
 
 
 def bundle_status(*, resolve: bool = True) -> BundleStatus:
@@ -184,7 +185,7 @@ def bundle_status(*, resolve: bool = True) -> BundleStatus:
     looked up at call time, so real output tracks whatever is current.
     """
     bundled = _deps.maidr_js_version()
-    published = _deps._published_version(resolve=resolve)
+    published = _cdn._published_version(resolve=resolve)
 
     bundled_key = _version_key(bundled) if bundled != _UNKNOWN_VERSION else None
     published_key = _version_key(published) if published else None

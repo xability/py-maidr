@@ -26,6 +26,7 @@ from urllib.error import HTTPError
 import pytest
 
 from maidr.util import bundle_freshness as freshness
+from maidr.util import cdn
 from maidr.util import dependencies
 
 
@@ -39,23 +40,23 @@ class _FakeResponse(io.BytesIO):
         self.close()
 
 
-ENDPOINT_COUNT = len(dependencies._RESOLVER_ENDPOINTS)
+ENDPOINT_COUNT = len(cdn._RESOLVER_ENDPOINTS)
 
 
 @pytest.fixture
 def clean(monkeypatch):
     """No pin, no cached lookup, no leftover outcome."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
-    dependencies.reset_cdn_version_cache()
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
+    cdn.reset_cdn_version_cache()
     yield
-    dependencies.set_cdn_version(None)
-    dependencies.reset_cdn_version_cache()
+    cdn.set_cdn_version(None)
+    cdn.reset_cdn_version_cache()
 
 
 def answer_with(monkeypatch, responder) -> None:
     """Make every resolver request go through ``responder``."""
-    monkeypatch.setattr(dependencies, "urlopen", responder)
+    monkeypatch.setattr(cdn, "urlopen", responder)
 
 
 def json_body(payload: dict):
@@ -81,7 +82,7 @@ def test_an_outage_is_reported_as_unreachable(monkeypatch, clean) -> None:
         lambda request, timeout=None: (_ for _ in ()).throw(TimeoutError()),
     )
 
-    assert dependencies._fetch_latest_version(3.0) is None
+    assert cdn._fetch_latest_version(3.0) is None
 
     outcome = freshness.resolver_outcome()
     assert len(outcome.unreachable) == ENDPOINT_COUNT
@@ -100,7 +101,7 @@ def test_an_http_error_is_an_answer(monkeypatch, clean) -> None:
 
     answer_with(monkeypatch, not_found)
 
-    assert dependencies._fetch_latest_version(3.0) is None
+    assert cdn._fetch_latest_version(3.0) is None
 
     outcome = freshness.resolver_outcome()
     assert len(outcome.answered_badly) == ENDPOINT_COUNT
@@ -116,7 +117,7 @@ def test_a_payload_without_the_key_is_an_answer(monkeypatch, clean) -> None:
     """
     answer_with(monkeypatch, json_body({"something_else": "4.2.0"}))
 
-    assert dependencies._fetch_latest_version(3.0) is None
+    assert cdn._fetch_latest_version(3.0) is None
     assert len(freshness.resolver_outcome().answered_badly) == ENDPOINT_COUNT
 
 
@@ -129,7 +130,7 @@ def test_a_value_that_is_not_a_version_is_an_answer(monkeypatch, clean) -> None:
         ),
     )
 
-    assert dependencies._fetch_latest_version(3.0) is None
+    assert cdn._fetch_latest_version(3.0) is None
     assert len(freshness.resolver_outcome().answered_badly) == ENDPOINT_COUNT
 
 
@@ -140,7 +141,7 @@ def test_a_body_that_will_not_parse_is_an_answer(monkeypatch, clean) -> None:
         lambda request, timeout=None: _FakeResponse(b"<html>proxy error</html>"),
     )
 
-    assert dependencies._fetch_latest_version(3.0) is None
+    assert cdn._fetch_latest_version(3.0) is None
     assert len(freshness.resolver_outcome().answered_badly) == ENDPOINT_COUNT
 
 
@@ -160,7 +161,7 @@ def test_an_unrecognised_failure_counts_as_unreachable(monkeypatch, clean) -> No
         lambda request, timeout=None: (_ for _ in ()).throw(Blocked()),
     )
 
-    assert dependencies._fetch_latest_version(3.0) is None
+    assert cdn._fetch_latest_version(3.0) is None
 
     outcome = freshness.resolver_outcome()
     assert len(outcome.unreachable) == ENDPOINT_COUNT
@@ -175,10 +176,10 @@ def test_a_success_reports_no_failures(monkeypatch, clean) -> None:
     """
     answer_with(monkeypatch, json_body({"version": "4.2.0"}))
 
-    assert dependencies._fetch_latest_version(3.0) == "4.2.0"
+    assert cdn._fetch_latest_version(3.0) == "4.2.0"
 
     outcome = freshness.resolver_outcome()
-    assert outcome == dependencies.ResolverOutcome("4.2.0", (), ())
+    assert outcome == cdn.ResolverOutcome("4.2.0", (), ())
 
 
 def test_a_fallback_records_the_endpoint_it_fell_back_from(
@@ -200,7 +201,7 @@ def test_a_fallback_records_the_endpoint_it_fell_back_from(
 
     answer_with(monkeypatch, first_down)
 
-    assert dependencies._fetch_latest_version(3.0) == "9.9.9"
+    assert cdn._fetch_latest_version(3.0) == "9.9.9"
 
     outcome = freshness.resolver_outcome()
     assert outcome.resolved == "9.9.9"
@@ -220,10 +221,10 @@ def test_a_reset_discards_the_verdict_with_the_lookup(monkeypatch, clean) -> Non
         raise HTTPError(request.full_url, 404, "Not Found", {}, None)
 
     answer_with(monkeypatch, not_found)
-    dependencies._fetch_latest_version(3.0)
+    cdn._fetch_latest_version(3.0)
     assert freshness.resolver_outcome().answered_badly
 
-    dependencies.reset_cdn_version_cache()
+    cdn.reset_cdn_version_cache()
 
     assert freshness.resolver_outcome() is None
 
@@ -240,5 +241,5 @@ def test_the_render_path_is_unchanged_by_any_of_it(monkeypatch, clean) -> None:
         lambda request, timeout=None: (_ for _ in ()).throw(TimeoutError()),
     )
 
-    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
+    assert cdn.get_cdn_version() == dependencies.maidr_js_version()
     assert freshness.bundle_status(resolve=False).published is None

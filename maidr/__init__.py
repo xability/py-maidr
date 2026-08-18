@@ -218,21 +218,23 @@ from .util.bundle_freshness import (  # noqa: E402
     bundle_status,
     resolver_outcome,
 )
-from .util.dependencies import (  # noqa: E402
+from .util.cdn import (  # noqa: E402
     BUNDLED_TAG,
     CDN_TIMEOUT_ENV_VAR,
     CDN_VERSION_ENV_VAR,
     LATEST_TAG,
     ResolverOutcome,
+    get_cdn_version,
+    reset_cdn_version_cache,
+    set_cdn_version,
+)
+from .util.dependencies import (  # noqa: E402
     bundled_css_path,
     bundled_js_path,
     bundled_math_css_path,
-    read_bundled_math_css,
-    get_cdn_version,
     maidr_js_version,
     read_bundled_js,
-    reset_cdn_version_cache,
-    set_cdn_version,
+    read_bundled_math_css,
 )
 from .util.warn import BUNDLE_WARNING_ENV_VAR  # noqa: E402
 

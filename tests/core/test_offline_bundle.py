@@ -12,6 +12,7 @@ import pytest
 
 import maidr
 from maidr import api as maidr_api
+from maidr.util import cdn
 from maidr.util import dependencies
 
 
@@ -519,12 +520,11 @@ def test_init_notebook_tag_matches_the_pin(mocker, reset_notebook_loaded, monkey
     """
     from unittest.mock import MagicMock
 
-    from maidr.util import dependencies
 
     mocker.patch(
         "maidr.util.environment.Environment.is_notebook", return_value=True
     )
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
     maidr.set_cdn_version("3.74.0")
     maidr_api._NOTEBOOK_LOADED = False
 
@@ -738,7 +738,7 @@ def test_placeholder_css_accessors_warn():
         ),
         (
             maidr_css_cdn_url,
-            "maidr.util.dependencies.maidr_css_cdn_url",
+            "maidr.util.cdn.maidr_css_cdn_url",
             "cdn_url(MAIDR_MATH_CSS_FILENAME)",
         ),
     ):

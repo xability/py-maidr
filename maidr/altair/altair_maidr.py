@@ -44,6 +44,8 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.util.dependencies import (
     MAIDR_VEGALITE_FILENAME,
+)
+from maidr.util.cdn import (
     cdn_url,
 )
 from maidr.util.environment import Environment
