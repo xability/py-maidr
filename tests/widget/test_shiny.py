@@ -632,7 +632,10 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
         for worker in workers:
             worker.start()
         for worker in workers:
-            worker.join()
+            # Bounded: an unbounded join turns a broken lock into a hung
+            # suite rather than a failed test (#506).
+            worker.join(timeout=60)
+            assert not worker.is_alive(), "a render deadlocked on the lock"
     finally:
         plt.close(fig)
 
@@ -767,7 +770,8 @@ def test_two_different_figures_rendering_at_once_keep_their_selectors():
         for worker in workers:
             worker.start()
         for worker in workers:
-            worker.join()
+            worker.join(timeout=60)
+            assert not worker.is_alive(), "a render deadlocked"
 
         assert [together[i] for i in range(len(figures))] == alone, (
             "a concurrent render of another figure stripped this one's "
@@ -775,3 +779,75 @@ def test_two_different_figures_rendering_at_once_keep_their_selectors():
         )
     finally:
         plt.close("all")
+
+
+#: Attributes that differ between two renders of the same chart by design --
+#: fresh uuids per layer, and the timestamp matplotlib stamps into the SVG.
+_VOLATILE_IN_SVG = re.compile(
+    r'(id="[^"]*"|url\(#[^)]*\)|<dc:date>[^<]*</dc:date>'
+    r'|xlink:href="#[^"]*"|maidr="[^"]*")'
+)
+
+
+def test_concurrent_renders_of_one_figure_agree(monkeypatch):
+    """Concurrent renders of one figure must produce the same chart.
+
+    Narrower than it first looks, and worth stating plainly:
+    ``test_two_renders_of_one_figure_do_not_overlap`` above already fails
+    without the lock, so this is not filling an unguarded gap. That one
+    monkeypatches ``maidr.render`` to a sleeping stub, so it proves the
+    lock *excludes* but cannot see what the exclusion is protecting. This
+    runs the real render and asserts the consequence.
+
+    ``savefig`` writes ``fig.dpi`` for its duration and restores it
+    afterwards, so two renders of the **same** figure at once race on one
+    mutable attribute and the loser draws the whole chart at the other
+    call's dpi (#454). Distinct figures do not race; that is why the lock
+    is per figure rather than process-wide.
+
+    The failure is the kind this project treats as worst: not garbled
+    markup and not an exception, but a complete, well-formed SVG of the
+    same chart at the wrong size. Geometry is what the highlight overlay
+    and the tactile export are positioned against, so a chart rendered at
+    72% scale is wrong in the modality a sighted reviewer checks least.
+
+    Asserted as agreement between renders rather than against a fixed size,
+    since the wrong-dpi output is internally consistent -- it is only wrong
+    relative to what every other render produced.
+
+    Measured 10 of 10 runs mismatching with the lock stubbed out and 10 of
+    10 identical with it, so this runs in CI rather than under
+    ``--run-benchmark``.
+    """
+    fig, ax = plt.subplots()
+    ax.bar([str(i) for i in range(30)], list(range(30)))
+    renderer = render_maidr(lambda: ax)
+
+    outputs: list[str] = []
+    failures: list[BaseException] = []
+
+    def render_once():
+        try:
+            rendered = str(renderer._render_off_loop(ax))
+            outputs.append(_VOLATILE_IN_SVG.sub("", rendered))
+        except BaseException as exc:  # noqa: BLE001 - reported, not swallowed
+            failures.append(exc)
+
+    workers = [threading.Thread(target=render_once) for _ in range(6)]
+    try:
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join(timeout=60)
+            assert not worker.is_alive(), "a render deadlocked on the lock"
+
+        assert not failures, f"a render raised: {failures[:2]}"
+        assert len(outputs) == len(workers)
+        assert len(set(outputs)) == 1, (
+            "concurrent renders of one figure disagreed; one of them drew "
+            "the chart at another render's dpi, which produces a valid SVG "
+            "at the wrong scale rather than an error"
+        )
+    finally:
+        FigureManager.figs.pop(fig, None)
+        plt.close(fig)
