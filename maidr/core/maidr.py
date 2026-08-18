@@ -88,6 +88,20 @@ class Maidr:
         Saves the rendered HTML representation to a file.
     show(renderer='auto')
         Displays the rendered HTML content in the specified rendering context.
+
+    Notes
+    -----
+    Since #456 this object is stored on its own figure, so **everything held
+    here and on every :class:`~maidr.core.plot.MaidrPlot` participates in
+    that figure's pickle and deepcopy**. Before, the registry lived off the
+    figure and a figure was picklable regardless of maidr's state.
+
+    So an unpicklable attribute -- a lock, a generator, an open handle, a
+    closure kept on ``self`` rather than used within one call -- would break
+    ``pickle.dumps(fig)`` for a plain-looking figure that merely happens to
+    have been plotted through maidr, somewhere the user has no reason to
+    look. Nothing enforces this; ``tests/core/test_figure_manager.py``
+    round-trips a figure through both, which is what would notice.
     """
 
     def __init__(self, fig: Figure, plot_type: PlotType = PlotType.LINE) -> None:

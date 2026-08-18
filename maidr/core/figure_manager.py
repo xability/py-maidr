@@ -65,6 +65,34 @@ class _FigureRecords:
 
     def __init__(self) -> None:
         self._seen: weakref.WeakSet = weakref.WeakSet()
+        # Reentrant because this class calls itself: `clear` walks `__iter__`,
+        # which asks `__contains__`, and pops as it goes.
+        #
+        # Its own lock rather than `FigureManager._lock`, because a caller
+        # cannot be relied on to hold that one. `figs` is a public class
+        # attribute that reads like a dict, and `if fig in FigureManager.figs`
+        # is the natural thing to write -- but since the record moved onto the
+        # figure a lookup also updates `_seen`, so that apparently-read-only
+        # line races. Making each operation self-contained means the contract
+        # is enforced instead of documented.
+        #
+        # `FigureManager._lock` is still needed and still does something this
+        # cannot: it spans the *compound* operations -- the check-then-act in
+        # `_get_maidr`, and the paired append in `create_maidr` -- which no
+        # per-operation lock can make atomic.
+        #
+        # What goes wrong without this: threads adding and removing entries
+        # while others iterate raise `RuntimeError: Set changed size during
+        # iteration` out of `__iter__`. Reproduced 3 of 3 against a build
+        # with this lock removed, and 0 of 3 with it.
+        #
+        # Deliberately not covered by a test. Detection needs sustained
+        # contention -- a bounded version of that harness detected on only
+        # about half its runs, and raising the budget did not improve it,
+        # so the rate is thread-scheduling luck rather than duration. A
+        # coin-flip guard costing a busy-waiting second per suite run is
+        # worth less than this comment.
+        self._guard = threading.RLock()
 
     def _record(self, fig: Figure) -> Any:
         """This figure's own record, or ``_MISSING``.
@@ -101,7 +129,8 @@ class _FigureRecords:
             return self._MISSING
         if owner is not fig:
             return self._MISSING
-        self._seen.add(fig)
+        with self._guard:
+            self._seen.add(fig)
         return record
 
     def __contains__(self, fig: Figure) -> bool:
@@ -125,17 +154,19 @@ class _FigureRecords:
                 "a figure's record must be the Maidr for that figure; "
                 f"{maidr!r} names a different one"
             )
-        setattr(fig, self._ATTR, maidr)
-        self._seen.add(fig)
+        with self._guard:
+            setattr(fig, self._ATTR, maidr)
+            self._seen.add(fig)
 
     def __delitem__(self, fig: Figure) -> None:
         # Through `_record` like every other read, so that `del figs[fig]`
         # and `figs.pop(fig)` agree about what is registered. Deleting
         # straight off the attribute would succeed for a shallow copy that
         # `pop` refuses -- two spellings of one operation disagreeing.
-        if self._record(fig) is self._MISSING:
-            raise KeyError(fig)
-        self._delete(fig)
+        with self._guard:
+            if self._record(fig) is self._MISSING:
+                raise KeyError(fig)
+            self._delete(fig)
 
     def _delete(self, fig: Figure) -> None:
         # `delattr` after a `_record` check is a check-then-act, where the
@@ -144,11 +175,12 @@ class _FigureRecords:
         # that does not would otherwise get an `AttributeError` out of `pop`
         # where the class promises a `KeyError` -- or nothing, since the
         # entry it wanted gone is gone either way.
-        try:
-            delattr(fig, self._ATTR)
-        except AttributeError:
-            pass
-        self._seen.discard(fig)
+        with self._guard:
+            try:
+                delattr(fig, self._ATTR)
+            except AttributeError:
+                pass
+            self._seen.discard(fig)
 
     def __len__(self) -> int:
         # Not just for completeness: without it `if figs:` is always true,
@@ -159,20 +191,22 @@ class _FigureRecords:
     def __iter__(self):
         # Over a snapshot: `_seen` is weak, so iterating it directly can drop
         # members mid-loop when a figure is collected by another thread.
-        return iter([fig for fig in list(self._seen) if fig in self])
+        with self._guard:
+            return iter([fig for fig in list(self._seen) if fig in self])
 
     def get(self, fig: Figure, default: Any = None) -> Any:
         record = self._record(fig)
         return default if record is self._MISSING else record
 
     def pop(self, fig: Figure, default: Any = _MISSING) -> Any:
-        maidr = self._record(fig)
-        if maidr is self._MISSING:
-            if default is self._MISSING:
-                raise KeyError(fig)
-            return default
-        self._delete(fig)
-        return maidr
+        with self._guard:
+            maidr = self._record(fig)
+            if maidr is self._MISSING:
+                if default is self._MISSING:
+                    raise KeyError(fig)
+                return default
+            self._delete(fig)
+            return maidr
 
     def clear(self) -> None:
         """Drop every record this mapping knows about.
@@ -196,8 +230,9 @@ class _FigureRecords:
         its record is reachable only through it, so this is an enumeration
         gap rather than a leak. ``clear`` exists for test isolation.
         """
-        for fig in self:
-            self.pop(fig, None)
+        with self._guard:
+            for fig in self:
+                self.pop(fig, None)
 
 
 class FigureManager:
@@ -330,9 +365,11 @@ class FigureManager:
         # between them. Two uncontended acquires per registered layer, counting the
         # paired append in `create_maidr`.
         with cls._lock:
-            if fig not in cls.figs:
-                cls.figs[fig] = Maidr(fig, plot_type)
-            return cls.figs[fig]
+            maidr = cls.figs.get(fig)
+            if maidr is None:
+                maidr = Maidr(fig, plot_type)
+                cls.figs[fig] = maidr
+            return maidr
 
     @classmethod
     def get_maidr(cls, fig: Figure) -> Maidr:
@@ -354,9 +391,10 @@ class FigureManager:
         # `UnsupportedPlotError` below into a bare `KeyError` -- losing the
         # message that is the whole point of raising it.
         with cls._lock:
-            if fig not in cls.figs:
+            maidr = cls.figs.get(fig)
+            if maidr is None:
                 raise UnsupportedPlotError(fig)
-            return cls.figs[fig]
+            return maidr
 
     @classmethod
     def destroy(cls, fig: Figure) -> None:
