@@ -778,9 +778,18 @@ class Maidr:
             else:
                 subplot_grid[row][col] = {"id": Maidr._unique_id(), "layers": layers}
 
+        # Backfill the positions no axes occupies. The grid is sized from the
+        # largest row/col any layer reports, so a figure with a gap -- an axes
+        # spanning two columns, a `subplots(1, 3)` whose middle axes is never
+        # drawn on -- leaves holes between the cells that were filled above.
+        #
+        # These must carry an empty `layers` list rather than stay bare: the
+        # JS core's `Subplot` constructor reads `subplot.layers.length`
+        # unguarded, so a cell without the key throws on activation and the
+        # whole figure fails to initialise -- not just the empty position.
         for i in range(len(subplot_grid)):
             subplot_grid[i] = [
-                cell if cell is not None else {"id": Maidr._unique_id(), "layers": []}
+                cell if cell else {"id": Maidr._unique_id(), "layers": []}
                 for cell in subplot_grid[i]
             ]
 
