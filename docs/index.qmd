@@ -362,6 +362,12 @@ It is only raised as a warning when the bundle genuinely runs
 (`use_cdn=False`). Under `use_cdn="auto"` the CDN copy normally loads
 instead, so the drift is reported to the logger rather than as a warning
 that could redden a test suite over code that never executed.
+
+That record comes from `maidr.util.bundle_freshness`, and the separate
+"bundle could not be read" record from `maidr.util.warn`. Both were
+emitted from `maidr.util.dependencies` in earlier releases, so filter on
+`maidr.util` — which has always caught both, and still will if they move
+again — rather than on a leaf module name.
 :::
 
 ::: {.callout-important}

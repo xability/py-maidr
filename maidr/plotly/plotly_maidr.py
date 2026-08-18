@@ -35,18 +35,22 @@ from maidr.plotly.step_shape import (
     is_step_trace,
     renders_through_webgl,
 )
+from maidr.util.bundle_capability import (
+    schema_trace_types,
+    warn_if_bundle_cannot_render,
+)
+from maidr.util.bundle_freshness import warn_if_bundle_is_stale
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
     OFFLINE_FALLBACK_REPORT,
-    bundled_cdn_url,
     inline_bundle_tags,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
     maidr_html_dependency,
+)
+from maidr.util.cdn import (
+    bundled_cdn_url,
     maidr_js_cdn_url,
-    schema_trace_types,
-    warn_if_bundle_cannot_render,
-    warn_if_bundle_is_stale,
 )
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly

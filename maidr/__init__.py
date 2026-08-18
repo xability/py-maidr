@@ -210,29 +210,33 @@ from .patch import (  # noqa: E402, F401
     mplfinance,
     violinplot,
 )
-from .util.dependencies import (  # noqa: E402
-    BUNDLE_WARNING_ENV_VAR,
+from .util.bundle_capability import MaidrBundleTraceWarning  # noqa: E402
+from .util.bundle_freshness import (  # noqa: E402
+    STALE_MINOR_GAP,
+    BundleStatus,
+    MaidrBundleStaleWarning,
+    bundle_status,
+    resolver_outcome,
+)
+from .util.cdn import (  # noqa: E402
     BUNDLED_TAG,
     CDN_TIMEOUT_ENV_VAR,
     CDN_VERSION_ENV_VAR,
     LATEST_TAG,
-    STALE_MINOR_GAP,
-    BundleStatus,
     ResolverOutcome,
-    MaidrBundleStaleWarning,
-    MaidrBundleTraceWarning,
-    bundle_status,
-    resolver_outcome,
-    bundled_css_path,
-    bundled_js_path,
-    bundled_math_css_path,
-    read_bundled_math_css,
     get_cdn_version,
-    maidr_js_version,
-    read_bundled_js,
     reset_cdn_version_cache,
     set_cdn_version,
 )
+from .util.dependencies import (  # noqa: E402
+    bundled_css_path,
+    bundled_js_path,
+    bundled_math_css_path,
+    maidr_js_version,
+    read_bundled_js,
+    read_bundled_math_css,
+)
+from .util.warn import BUNDLE_WARNING_ENV_VAR  # noqa: E402
 
 # Second call: reclaim the backend after maidr's own imports.
 # NOTE: See the "Matplotlib backend activation" block at the top of this

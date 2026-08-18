@@ -23,7 +23,10 @@ import pytest
 import maidr
 import maidr.util.environment
 from maidr import api as maidr_api
+from maidr.util import bundle_freshness as freshness
+from maidr.util import cdn
 from maidr.util import dependencies
+from maidr.util import warn as warn_module
 
 
 @contextlib.contextmanager
@@ -84,14 +87,14 @@ def published(monkeypatch):
     """
 
     def _set(version: str) -> None:
-        monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-        dependencies.set_cdn_version(None)
+        monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+        cdn.set_cdn_version(None)
 
         def fake_urlopen(request, timeout=None):
             payload = json.dumps({"version": version, "latest": version})
             return _FakeResponse(payload.encode("utf-8"))
 
-        monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+        monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
     return _set
 
@@ -160,7 +163,7 @@ def test_a_pin_does_not_stand_in_for_the_published_version(bundled, published):
 
     assert status.published == "3.74.0", "published must come from the lookup"
     # The pin still decides what the emitted URL serves.
-    assert "maidr@9.9.9/" in dependencies.maidr_js_cdn_url()
+    assert "maidr@9.9.9/" in cdn.maidr_js_cdn_url()
 
 
 def test_backwards_pin_cannot_conceal_a_stale_bundle(bundled, published):
@@ -185,8 +188,8 @@ def test_bundle_status_missing_bundle_is_not_reported_as_stale(bundled, publishe
 def test_bundle_status_resolve_false_never_hits_the_network(
     monkeypatch, bundled, forbid_network
 ):
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     bundled("3.66.1")
 
     status = maidr.bundle_status(resolve=False)
@@ -206,7 +209,7 @@ def test_warning_names_both_versions(bundled, published):
     maidr.bundle_status()  # establish the published version by resolving
 
     with pytest.warns(UserWarning) as record:
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
     message = str(record[0].message)
     assert "3.66.1" in message
@@ -223,10 +226,10 @@ def test_warning_is_emitted_once_per_process(bundled, published):
     maidr.bundle_status()  # establish the published version by resolving
 
     with pytest.warns(UserWarning):
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
     with no_stale_bundle_warning():
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
 
 def test_no_warning_for_normal_drift(bundled, published):
@@ -236,7 +239,7 @@ def test_no_warning_for_normal_drift(bundled, published):
     maidr.bundle_status()  # establish the published version
 
     with no_stale_bundle_warning():
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
 
 @pytest.mark.parametrize("disabled", ["0", "false", "off", "no", "FALSE"])
@@ -248,18 +251,18 @@ def test_env_var_silences_the_warning(disabled, monkeypatch, bundled, published)
     maidr.bundle_status()  # establish the published version
 
     with no_stale_bundle_warning():
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
 
 def test_warning_never_resolves_over_the_network(
     monkeypatch, bundled, forbid_network
 ):
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     bundled("3.66.1")
 
     with no_stale_bundle_warning():
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +300,7 @@ def test_use_cdn_auto_render_reports_to_the_logger(
     bundled("3.66.1")
     published("3.74.0")
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
             maidr.render(bar_plot, use_cdn="auto")
 
@@ -322,7 +325,7 @@ def test_auto_render_first_does_not_swallow_a_later_offline_warning(
     bundled("3.66.1")
     published("3.74.0")
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
             maidr.render(bar_plot, use_cdn="auto")
 
@@ -330,7 +333,7 @@ def test_auto_render_first_does_not_swallow_a_later_offline_warning(
         "the auto render must have reported the drift to the logger"
     )
 
-    with pytest.warns(dependencies.MaidrBundleStaleWarning, match="3.66.1"):
+    with pytest.warns(freshness.MaidrBundleStaleWarning, match="3.66.1"):
         maidr.render(bar_plot, use_cdn=False)
 
 
@@ -346,10 +349,10 @@ def test_offline_render_first_does_not_swallow_a_later_auto_report(
     published("3.74.0")
     maidr.bundle_status()  # establish the published version by resolving
 
-    with pytest.warns(dependencies.MaidrBundleStaleWarning, match="3.66.1"):
+    with pytest.warns(freshness.MaidrBundleStaleWarning, match="3.66.1"):
         maidr.render(bar_plot, use_cdn=False)
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
             maidr.render(bar_plot, use_cdn="auto")
 
@@ -379,7 +382,7 @@ def test_plotly_auto_render_reports_to_the_logger(bundled, published, caplog):
     published("3.74.0")
     fig = go.Figure(data=[go.Bar(x=["A", "B"], y=[1, 2])])
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
             maidr.render(fig, use_cdn="auto")
 
@@ -423,8 +426,8 @@ def test_init_notebook_use_cdn_false_never_resolves_when_bundle_missing(
     works; building those URLs must not resolve a version, or an
     explicitly offline session pays for a lookup it opted out of.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
 
     monkeypatch.setattr(
         maidr_api, "_NOTEBOOK_LOADED", False, raising=False
@@ -444,7 +447,7 @@ def test_init_notebook_use_cdn_false_never_resolves_when_bundle_missing(
     fake_ipython.display = lambda html: displayed.setdefault("html", html)
     monkeypatch.setitem(sys.modules, "IPython.display", fake_ipython)
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         maidr.init_notebook(use_cdn=False)
 
     assert any("could not be read" in r.message for r in caplog.records), (
@@ -465,8 +468,8 @@ def test_offline_render_with_unknown_published_version_is_silent(
     bar_plot, monkeypatch, bundled, forbid_network
 ):
     """No network, nothing known: say nothing rather than guess."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     bundled("3.66.1")
 
     with no_stale_bundle_warning():
@@ -479,8 +482,8 @@ def test_init_notebook_makes_no_network_call(monkeypatch, forbid_network):
     Resolving here would put a blocking request inside ``import maidr``,
     before the user can apply any of the documented opt-outs.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
     monkeypatch.setattr(maidr_api, "_NOTEBOOK_LOADED", False, raising=False)
     monkeypatch.setattr(
         maidr.util.environment.Environment, "is_notebook", staticmethod(lambda: True)
@@ -506,11 +509,11 @@ def test_warning_uses_a_filterable_category(bundled, published):
     published("3.74.0")
     maidr.bundle_status()
 
-    with pytest.warns(dependencies.MaidrBundleStaleWarning):
-        dependencies.warn_if_bundle_is_stale(bundle_is_primary=True)
+    with pytest.warns(freshness.MaidrBundleStaleWarning):
+        freshness.warn_if_bundle_is_stale(bundle_is_primary=True)
 
-    assert issubclass(dependencies.MaidrBundleStaleWarning, UserWarning)
-    assert maidr.MaidrBundleStaleWarning is dependencies.MaidrBundleStaleWarning
+    assert issubclass(freshness.MaidrBundleStaleWarning, UserWarning)
+    assert maidr.MaidrBundleStaleWarning is freshness.MaidrBundleStaleWarning
 
 
 def test_auto_path_reports_drift_to_the_logger_not_as_a_warning(
@@ -525,9 +528,9 @@ def test_auto_path_reports_drift_to_the_logger_not_as_a_warning(
     published("3.74.0")
     maidr.bundle_status()
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
-            dependencies.warn_if_bundle_is_stale(bundle_is_primary=False)
+            freshness.warn_if_bundle_is_stale(bundle_is_primary=False)
 
     assert any("bundled copy of maidr.js" in r.message for r in caplog.records), (
         "the drift must still be reported, just not as a warning"

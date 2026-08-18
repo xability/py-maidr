@@ -95,7 +95,7 @@ def _register_point_layer(ax: Axes, existing: list[Line2D]) -> None:
         return
 
     paired = _pairs_up(estimates, intervals)
-    measured = any(_is_drawn(line.get_xydata()) for line in intervals)
+    measured = any(_has_drawn_segment(line.get_xydata()) for line in intervals)
 
     if paired and measured and len(estimates) == 1:
         FigureManager.create_maidr(
@@ -103,13 +103,30 @@ def _register_point_layer(ax: Axes, existing: list[Line2D]) -> None:
         )
         return
 
+    if paired and measured:
+        # A `hue` split the chart into groups. This used to fall through to
+        # `line`, dropping the intervals rather than mis-assigning them,
+        # because the MAIDR error bar layer carried a single flat series with
+        # no field naming the group. maidr 4.4.0 gave it one --
+        # `ErrorBarPoint[][]` with a `z`, xability/maidr#942 -- so the
+        # intervals now have somewhere to go (#462).
+        #
+        # The estimates arrive one per group and the intervals estimate-major,
+        # which `PointPlot` slices; `_pairs_up` has already checked the counts
+        # divide evenly, so the slicing cannot straddle two groups.
+        FigureManager.create_maidr(
+            ax,
+            PlotType.ERRORBAR,
+            estimates=estimates,
+            intervals=intervals,
+            groups=_group_labels(ax, len(estimates)),
+        )
+        return
+
     # Everything else is a line chart. `errorbar=None` draws no intervals to
-    # carry, a chart whose every group holds one observation has none to draw,
-    # and more than one estimate means a `hue` split the chart into groups
-    # while the MAIDR error bar layer carries a single series -- so those
-    # intervals are dropped rather than mis-assigned. All three are still a
-    # repair over describing every drawn line, since the interval polylines no
-    # longer travel as series of their own.
+    # carry, and a chart whose every group holds one observation has none to
+    # draw. Both are still a repair over describing every drawn line, since
+    # the interval polylines no longer travel as series of their own.
     #
     # A chart where only *some* groups have an interval takes the branch above,
     # not this one: the undrawable lines stay in the list to hold their
@@ -117,6 +134,54 @@ def _register_point_layer(ax: Axes, existing: list[Line2D]) -> None:
     FigureManager.create_maidr(
         ax, PlotType.LINE, lines=estimates if paired else drawn
     )
+
+
+def _group_labels(ax: Axes, count: int) -> list[str]:
+    """
+    Name each ``hue`` group from the legend seaborn drew.
+
+    The estimate lines carry `_child`-prefixed labels rather than the group
+    names, so the legend is the only place the names appear. Read in legend
+    order, which is the order the groups were drawn in and so the order the
+    estimates arrive in.
+
+    All the groups are named or none is. A legend that does not carry
+    exactly one entry per drawn group is not one this can read positionally,
+    and naming the groups it does cover would leave the layer declaring an
+    ``axes.z`` while some of its series carried no ``z`` at all -- a shape
+    the consumer has no reading for. Returning nothing instead gives the
+    clean fallback: an unlabelled grouped chart, which is what the old
+    ``line`` fallback produced anyway.
+
+    That count check is also the only guard on the assumption underneath
+    this: that seaborn lists its legend handles in the order it drew the
+    lines. The interval-to-estimate pairing is verified against the drawn
+    geometry (``_pairs_up``, and the bounds bracket their estimate); the
+    name-to-group pairing has no equivalent, because a name has no geometry
+    to check it against. A count mismatch is the one symptom available.
+
+    Parameters
+    ----------
+    ax : Axes
+        The panel the point plot was drawn on.
+    count : int
+        How many groups were drawn.
+
+    Returns
+    -------
+    list of str
+        One name per group in drawing order, or empty when the legend
+        cannot be read as naming exactly those groups.
+    """
+    legend = ax.get_legend()
+    if legend is None:
+        return []
+
+    names = [text.get_text() for text in legend.get_texts()]
+    if len(names) != count:
+        return []
+
+    return names
 
 
 def _split(lines: list[Line2D]) -> tuple[list[Line2D], list[Line2D]]:
@@ -145,14 +210,14 @@ def _split(lines: list[Line2D]) -> tuple[list[Line2D], list[Line2D]]:
             # Kept whether or not it carries a bound. The list is read against
             # the estimates *by position*, so dropping the line a group with a
             # single observation leaves behind would shift every later group's
-            # interval onto the wrong estimate. `_is_drawn` decides what to do
-            # with it; it does not decide whether it is there.
+            # interval onto the wrong estimate. `_has_drawn_segment` decides
+            # what to do with it; it does not decide whether it is there.
             intervals.append(line)
 
     return estimates, intervals
 
 
-def _is_drawn(vertices: np.ndarray) -> bool:
+def _has_drawn_segment(vertices: np.ndarray) -> bool:
     """
     Check that a candidate interval is a shape the chart actually drew.
 

@@ -22,19 +22,21 @@ import logging
 
 import pytest
 
+from maidr.util import cdn
 from maidr.util import dependencies
+from maidr.util import warn as warn_module
 
 
 @pytest.fixture
 def no_pin(monkeypatch):
     """Clear every pin and cached lookup, and re-arm the one-shot warning."""
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
-    dependencies.reset_cdn_version_cache()
-    dependencies._warned_keys.clear()
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
+    cdn.reset_cdn_version_cache()
+    warn_module._warned_keys.clear()
     yield
-    dependencies.set_cdn_version(None)
-    dependencies.reset_cdn_version_cache()
+    cdn.set_cdn_version(None)
+    cdn.reset_cdn_version_cache()
     # `maidr_js_version` is not cleared here. `monkeypatch` tears down after
     # this fixture, so the name still points at `break_bundle`'s stand-in --
     # a plain function, with no `cache_clear` on it. `break_bundle` clears the
@@ -57,11 +59,11 @@ def test_an_unreadable_bundle_version_says_so(monkeypatch, caplog, no_pin) -> No
     break_bundle(monkeypatch)
 
     with caplog.at_level(logging.WARNING):
-        version = dependencies._offline_version()
+        version = cdn._offline_version()
 
-    assert version == dependencies.LATEST_TAG
+    assert version == cdn.LATEST_TAG
     assert "missing or empty" in caplog.text
-    assert dependencies.LATEST_TAG in caplog.text
+    assert cdn.LATEST_TAG in caplog.text
     assert "cache" in caplog.text
 
 
@@ -77,7 +79,7 @@ def test_a_garbled_version_is_named_in_the_warning(
     break_bundle(monkeypatch, "not-a-version")
 
     with caplog.at_level(logging.WARNING):
-        dependencies._offline_version()
+        cdn._offline_version()
 
     assert "not a version" in caplog.text
     assert "not-a-version" in caplog.text
@@ -93,7 +95,7 @@ def test_it_is_said_once_not_once_per_figure(monkeypatch, caplog, no_pin) -> Non
 
     with caplog.at_level(logging.WARNING):
         for _ in range(5):
-            dependencies._offline_version()
+            cdn._offline_version()
 
     assert caplog.text.count("maidr.js version") == 1
 
@@ -111,10 +113,10 @@ def test_a_failed_lookup_stays_quiet(monkeypatch, caplog, no_pin) -> None:
     it. The warning is about the broken install, not about being offline,
     and a healthy bundle is what keeps it quiet here.
     """
-    monkeypatch.setattr(dependencies, "_fetch_latest_version", lambda budget: None)
+    monkeypatch.setattr(cdn, "_fetch_latest_version", lambda budget: None)
 
     with caplog.at_level(logging.WARNING):
-        version = dependencies.get_cdn_version()
+        version = cdn.get_cdn_version()
 
     assert version == dependencies.maidr_js_version()
     assert "maidr.js version" not in caplog.text
@@ -123,7 +125,7 @@ def test_a_failed_lookup_stays_quiet(monkeypatch, caplog, no_pin) -> None:
 def test_a_working_bundle_stays_quiet(caplog, no_pin) -> None:
     """The control: the overwhelmingly common case says nothing."""
     with caplog.at_level(logging.WARNING):
-        version = dependencies._offline_version()
+        version = cdn._offline_version()
 
     assert version == dependencies.maidr_js_version()
     assert "maidr.js version" not in caplog.text
@@ -136,10 +138,10 @@ def test_a_pin_is_answered_before_the_bundle(monkeypatch, caplog, no_pin) -> Non
     install behind an explicit pin is not this warning's business.
     """
     break_bundle(monkeypatch)
-    dependencies.set_cdn_version("3.74.0")
+    cdn.set_cdn_version("3.74.0")
 
     with caplog.at_level(logging.WARNING):
-        version = dependencies._offline_version()
+        version = cdn._offline_version()
 
     assert version == "3.74.0"
     assert "maidr.js version" not in caplog.text

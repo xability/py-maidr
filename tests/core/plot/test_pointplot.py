@@ -33,6 +33,8 @@ import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.pointplot import PointPlot  # noqa: E402
+from maidr.exception import ExtractionError  # noqa: E402
+from maidr.patch.pointplot import _group_labels  # noqa: E402
 
 
 #: Three groups whose observations differ enough per group that the intervals
@@ -270,16 +272,21 @@ def test_a_point_plot_with_no_interval_stays_a_line():
     assert [point["x"] for point in schema["data"][0]] == ["a", "b", "c"]
 
 
-def test_a_hue_reads_as_the_multi_line_chart_it_is():
+def test_a_hue_keeps_its_intervals_as_a_grouped_error_bar():
     """
-    A ``hue`` splits the chart into groups, and the layer carries one series.
+    A ``hue`` splits the chart into groups, and each group keeps its bounds.
 
-    The intervals are dropped rather than mis-assigned -- carrying one group's
-    bounds under another's estimate would be worse than carrying none -- and a
-    follow-up covers giving the layer more than one series. What this pins is
-    that the interval polylines still do not travel as series of their own, and
-    that each remaining series is named after its hue level rather than after
-    whichever line index it happened to land on.
+    This replaces a test that pinned the gap. The layer used to fall back to
+    ``line``, dropping the intervals rather than mis-assigning them, because
+    the error bar layer carried a single flat series with no field naming the
+    group -- so a reader of a grouped point plot was handed the means of a
+    chart drawn to show the uncertainty around them. maidr 4.4.0 gave the
+    grammar a grouped shape (xability/maidr#942) and the fallback went with
+    it (#462).
+
+    What the old test pinned still holds and is still asserted: the interval
+    polylines do not travel as series of their own, and each series is named
+    after its hue level rather than after whichever line index it landed on.
     """
     fig, ax = plt.subplots()
     frame = FRAME.assign(half=["x", "y"] * 9)
@@ -287,9 +294,235 @@ def test_a_hue_reads_as_the_multi_line_chart_it_is():
 
     schema = _schema(fig)
 
-    assert schema["type"] == PlotType.LINE.value
+    assert schema["type"] == PlotType.ERRORBAR.value
     assert len(schema["data"]) == 2
     assert {point["z"] for series in schema["data"] for point in series} == {"x", "y"}
+
+    # The half the fallback used to lose. Every point carries a bound, and
+    # each bound belongs to the estimate it is emitted beside -- checked by
+    # containment rather than by position, since pairing the wrong group's
+    # interval to an estimate is the failure the fallback existed to avoid.
+    for series in schema["data"]:
+        for point in series:
+            assert point["yMin"] <= point["y"] <= point["yMax"]
+
+    # The grouping variable is named, so the reader hears "half" rather than
+    # an unlabelled third axis.
+    assert schema["axes"]["z"]["label"] == "half"
+
+
+def test_three_groups_each_take_their_own_intervals():
+    """Slicing the interval list per group has to generalise past two.
+
+    Seaborn draws the polylines estimate-major -- every category of the
+    first group, then of the second -- so each group takes a contiguous
+    slice. With two groups an off-by-one in that arithmetic still lands
+    inside the list and mis-pairs silently; a third group is what makes a
+    wrong stride reach the wrong bounds visibly.
+
+    Checked by containment rather than by index, because "did this group get
+    its own intervals" is the question, and the estimate falling inside the
+    bounds emitted beside it is what answers it.
+    """
+    frame = FRAME.assign(third=["x", "y", "z"] * 6)
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="group", y="value", hue="third", dodge=True, ax=ax)
+
+    schema = _schema(fig)
+
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert len(schema["data"]) == 3
+    assert [series[0]["z"] for series in schema["data"]] == ["x", "y", "z"]
+    for series in schema["data"]:
+        for point in series:
+            assert point["yMin"] <= point["y"] <= point["yMax"]
+
+
+def test_a_legend_that_does_not_name_every_group_names_none():
+    """Either the whole layer is grouped-and-named or none of it is.
+
+    Naming only the groups the legend covers would leave the layer
+    declaring an ``axes.z`` while some of its series carried no ``z`` --
+    a shape the consumer has no reading for. The clean fallback is an
+    unlabelled grouped chart, which is what the old ``line`` path gave.
+
+    Driven through the guards directly rather than through a contrived
+    seaborn state. A legend short at *registration* time is the case this
+    protects against, and replacing the legend afterwards does not produce
+    it: the names are read while the call is being patched, so a later
+    ``ax.legend(...)`` leaves what was captured alone. Testing the guard is
+    honest; staging a chart seaborn may never draw is not.
+    """
+    frame = FRAME.assign(half=["x", "y"] * 9)
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="group", y="value", hue="half", dodge=True, ax=ax)
+
+    # The reader: one name per drawn group, or nothing.
+    assert _group_labels(ax, 2) == ["x", "y"]
+    assert _group_labels(ax, 3) == []
+    assert _group_labels(ax, 1) == []
+
+    # The emitter, handed a short list: no `z` anywhere rather than on some
+    # series only, and no `axes.z` declaring one that is not there.
+    plot = _plots(fig)[0]
+    plot._groups = ["x"]
+    plot._schema = {}
+
+    schema = plot.render()
+
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert len(schema["data"]) == 2
+    assert "z" not in schema["axes"]
+    assert not any("z" in point for series in schema["data"] for point in series)
+    # The bounds are the point of the layer and survive the naming failure.
+    for series in schema["data"]:
+        for point in series:
+            assert point["yMin"] <= point["y"] <= point["yMax"]
+
+
+def test_a_hue_level_with_no_drawable_interval_keeps_its_sibling_bounded():
+    """A whole hue level with nothing to estimate, across every category.
+
+    Distinct from ``test_a_group_without_an_interval_does_not_cost_the
+    _others_theirs``, which is the ungrouped case: there a single *category*
+    lacks an interval inside one series. Here an entire *series* does, which
+    is the only version that exercises the per-group slicing.
+
+    A hue level holding a single observation in every category has no
+    interval to draw, and seaborn renders that as a polyline whose value
+    coordinates are all NaN. The layer omits that group's bounds and keeps
+    reporting both groups, rather than falling back for the whole chart.
+
+    An earlier version of this test used three *identical* observations,
+    calling it a singleton. Measured, that is not the same case at all --
+    seaborn's bootstrap over a zero-variance cell still produces a drawn
+    interval, so both groups came back bounded and the test passed without
+    ever reaching the branch it named:
+
+        zero-variance: group x ['bound', 'bound']  group y ['bound', 'bound']
+        true n=1:      group x ['bound', 'bound']  group y ['NO-bound', ...]
+
+    The assertions are per group rather than over the flattened schema, for
+    the same reason: an ``any(...)`` across every point is satisfied by the
+    sibling group alone and says nothing about the one under test.
+    """
+    frame = pd.DataFrame(
+        {
+            "g": ["a", "a", "a", "b", "b", "b", "a", "b"],
+            "half": ["x"] * 6 + ["y", "y"],
+            "v": [1.0, 2.0, 3.0, 8.0, 9.0, 10.0, 5.0, 7.0],
+        }
+    )
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="g", y="v", hue="half", dodge=True, ax=ax)
+
+    schema = _schema(fig)
+    bounded, unbounded = schema["data"]
+
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert [series[0]["z"] for series in schema["data"]] == ["x", "y"]
+
+    # The sibling keeps every bound it drew.
+    assert all("yMin" in point for point in bounded)
+    for point in bounded:
+        assert point["yMin"] <= point["y"] <= point["yMax"]
+
+    # The singleton group is still announced -- estimate and category -- and
+    # simply carries no interval, which is the honest reading of a group
+    # that has none.
+    assert all("yMin" not in point for point in unbounded)
+    assert [point["x"] for point in unbounded] == ["a", "b"]
+    assert all(point["y"] is not None for point in unbounded)
+
+    # The grouped path keeps the ungrouped contract: the consumer resolves
+    # the selector to one element per point and discards the result outright
+    # when the count disagrees, so a layer that cannot supply one for every
+    # point promises none at all rather than a selector that resolves short.
+    plot = _plots(fig)[0]
+    assert plot._support_highlighting is False
+    assert plot.elements == []
+
+
+def test_intervals_that_do_not_divide_among_the_groups_are_refused():
+    """The counts are guaranteed by ``_pairs_up``, in another file.
+
+    So the slicing checks them again rather than trusting a contract it
+    cannot see -- a caller constructing ``PointPlot`` directly, or a future
+    change to the patch, would otherwise mis-slice in silence.
+
+    The case is an interval **too many**, not one too few, and that is the
+    whole reason this test exists. A short list is already caught downstream
+    by ``_points_of``, whose ``len(xs) != len(intervals)`` raises when a
+    group's slice does not cover its categories. A long one is not: with 7
+    intervals over 2 estimates of 3 categories, ``per_group`` is 3, both
+    groups slice cleanly, and the extra interval is dropped without a word.
+    Measured both ways --
+
+        5 intervals: raises with or without the guard
+        7 intervals: raises only with it
+
+    -- because the first version of this test used the short list and
+    therefore passed with the guard removed.
+    """
+    frame = FRAME.assign(half=["x", "y"] * 9)
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="group", y="value", hue="half", dodge=True, ax=ax)
+
+    plot = _plots(fig)[0]
+    plot._intervals.append(plot._intervals[0])  # 7 intervals across 2 estimates
+    plot._schema = {}
+
+    with pytest.raises(ExtractionError):
+        plot.render()
+
+
+def test_a_group_name_lands_on_that_group_s_own_values():
+    """The one assumption in the naming that geometry can be made to check.
+
+    Group names come from the legend and are matched to the estimate lines
+    positionally, so the whole thing rests on seaborn listing its legend
+    handles in draw order. Unlike the interval-to-estimate pairing, a name
+    has no geometry to verify it against -- ``_group_labels``'s count check
+    catches a legend of the wrong *size*, not one of the wrong *order*
+    (#502).
+
+    Made checkable by choosing hue levels whose names are recoverable from
+    their values: ``low`` sits near 1 and ``high`` near 100. A swapped
+    naming is then a visible mismatch rather than an invisible one, since
+    every other fixture in this file uses interchangeable levels (``x``/
+    ``y``, ``p``/``q``) where correct and swapped read identically.
+
+    Run with the default order and with ``hue_order`` reversed, because a
+    reversal is the cheapest way seaborn could plausibly diverge, and it is
+    the one a caller can trigger today.
+    """
+    frame = pd.DataFrame(
+        {
+            "g": list("abc") * 8,
+            "level": ["low"] * 12 + ["high"] * 12,
+            "v": [1.0, 2.0, 3.0] * 4 + [100.0, 101.0, 102.0] * 4,
+        }
+    )
+
+    for hue_order in (None, ["high", "low"]):
+        fig, ax = plt.subplots()
+        extra = {"hue_order": hue_order} if hue_order else {}
+        sns.pointplot(frame, x="g", y="v", hue="level", dodge=True, ax=ax, **extra)
+
+        schema = _schema(fig)
+        by_name = {
+            series[0]["z"]: [point["y"] for point in series]
+            for series in schema["data"]
+        }
+
+        assert set(by_name) == {"low", "high"}, hue_order
+        assert max(by_name["low"]) < 50, (hue_order, by_name["low"])
+        assert min(by_name["high"]) > 50, (hue_order, by_name["high"])
+        plt.close(fig)
 
 
 def test_a_dodged_group_is_still_named_by_its_tick():
@@ -455,12 +688,20 @@ def test_nothing_recognisable_still_describes_the_lines():
 
 def test_a_horizontal_dodge_names_its_groups():
     """
-    The categories are on y here, and they are named there (#353).
+    The categories are drawn on y here, and they are named (#353).
 
     This replaces a test that pinned the gap. ``-0.025`` and ``0.975`` are
     where two hue levels were shifted to make room for each other around the
     ticks the chart writes ``a`` and ``b`` on, so a reader was given the
     offsets and no way to reach the names.
+
+    The names moved from ``y`` to ``x`` when this chart stopped falling back
+    to ``line`` (#462), and that is a change of key rather than of behaviour:
+    an error bar layer carries the category as ``x`` in **both** orientations
+    and lets ``orientation`` say which is on screen where -- the convention
+    ``ErrorBarPlot`` documents and the single-series path has always used.
+    ``test_a_horizontal_chart_names_its_groups_without_a_dodge`` draws with
+    ``Axes.plot`` for exactly this reason.
     """
     frame = FRAME.assign(half=["x", "y"] * 9)
 
@@ -469,14 +710,15 @@ def test_a_horizontal_dodge_names_its_groups():
 
     schema = _schema(fig)
 
-    assert schema["type"] == PlotType.LINE.value
-    named = {point["y"] for series in schema["data"] for point in series}
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert schema["orientation"] == "horz"
+    named = {point["x"] for series in schema["data"] for point in series}
     assert named == set(FRAME["group"].unique())
 
     # The value axis is still numeric: only the axis carrying the categories
     # is named, and naming both would have made the measurement a string.
     assert all(
-        isinstance(point["x"], float)
+        isinstance(point["y"], float)
         for series in schema["data"]
         for point in series
     )
@@ -647,7 +889,7 @@ def test_a_hue_level_missing_a_category_does_not_break_the_pairing():
     schema = _schema(fig)
     data = schema["data"]
 
-    assert schema["type"] == PlotType.LINE.value
+    assert schema["type"] == PlotType.ERRORBAR.value
     # Two series, not two series plus six interval polylines.
     assert len(data) == 2
     assert all(len(series) == 3 for series in data)
