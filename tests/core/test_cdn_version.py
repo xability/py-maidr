@@ -489,6 +489,10 @@ def test_reset_cache_forces_a_new_lookup(resolvable):
 
 
 def test_falls_back_to_npm_registry_when_jsdelivr_fails(monkeypatch):
+    # `9.9.9` rather than a plausible-looking version, matching every other
+    # resolver fixture in this file: an answer below the version this wheel
+    # bundles is refused as a downgrade (#297), so a fixture that drifted
+    # under the shipped version would stop exercising this path at all.
     monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
     cdn.set_cdn_version(None)
     calls: list[str] = []
@@ -497,11 +501,11 @@ def test_falls_back_to_npm_registry_when_jsdelivr_fails(monkeypatch):
         calls.append(request.full_url)
         if "jsdelivr" in request.full_url:
             raise OSError("jsDelivr unreachable")
-        return _json_response({"latest": "4.1.0"})
+        return _json_response({"latest": "9.9.9"})
 
     monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
 
-    assert cdn.get_cdn_version() == "4.1.0"
+    assert cdn.get_cdn_version() == "9.9.9"
     assert len(calls) == 2
 
 
@@ -1193,11 +1197,14 @@ def test_reset_during_a_lookup_is_not_overwritten(monkeypatch):
 
     in_flight = threading.Event()
     may_finish = threading.Event()
-    versions = iter(["1.1.1", "2.2.2"])
+    # Both above the bundled version, so neither is refused as a downgrade
+    # (#297) -- what is under test here is the generation counter, not the
+    # guard.
+    versions = iter(["9.9.1", "9.9.2"])
 
     def slow_urlopen(request, timeout=None):
         version = next(versions)
-        if version == "1.1.1":
+        if version == "9.9.1":
             in_flight.set()
             may_finish.wait(timeout=5)
         return _json_response({"version": version, "latest": version})
@@ -1216,14 +1223,133 @@ def test_reset_during_a_lookup_is_not_overwritten(monkeypatch):
     fetcher.join(timeout=5)
 
     # The in-flight caller still gets its own answer...
-    assert result == ["1.1.1"]
+    assert result == ["9.9.1"]
     # ...but it must not have been cached over the reset.
     assert cdn._cached_resolution() is None, (
         "the pre-reset result was published anyway, undoing the reset"
     )
-    assert cdn.get_cdn_version() == "2.2.2", (
+    assert cdn.get_cdn_version() == "9.9.2", (
         "the reset did not force a re-lookup"
     )
+
+
+def test_a_resolver_answer_older_than_the_bundle_is_refused(monkeypatch):
+    """A downgrade answer pins to the bundled version instead (#297).
+
+    The resolver is asked which version is current; nothing about the
+    request obliges the answer to be one. A compromised registry, or a
+    hostile caching proxy, could name an older-but-well-formed version and
+    have it spliced into every CDN URL the page emits.
+
+    Pinning to the bundled version is what makes refusing it a defence:
+    degrading to ``@latest`` would ask the CDN to resolve the version --
+    the same answer from the same place -- so the guard would be a log
+    line rather than a fix.
+    """
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
+    monkeypatch.setattr(cdn._deps, "maidr_js_version", lambda: "4.4.0")
+
+    def older(request, timeout=None):
+        return _json_response({"version": "1.0.0", "latest": "1.0.0"})
+
+    monkeypatch.setattr(cdn, "urlopen", older)
+
+    assert cdn.get_cdn_version() == "4.4.0"
+    assert cdn.LATEST_TAG not in cdn.get_cdn_version()
+
+
+def test_a_resolver_answer_newer_than_the_bundle_is_used(monkeypatch):
+    """The guard must not refuse the case it exists to allow."""
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
+    monkeypatch.setattr(cdn._deps, "maidr_js_version", lambda: "4.4.0")
+    monkeypatch.setattr(
+        cdn,
+        "urlopen",
+        lambda request, timeout=None: _json_response(
+            {"version": "4.5.0", "latest": "4.5.0"}
+        ),
+    )
+
+    assert cdn.get_cdn_version() == "4.5.0"
+
+
+def test_the_same_version_is_not_a_downgrade(monkeypatch):
+    """Equal is the ordinary steady state, not something to refuse."""
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
+    monkeypatch.setattr(cdn._deps, "maidr_js_version", lambda: "4.4.0")
+    monkeypatch.setattr(
+        cdn,
+        "urlopen",
+        lambda request, timeout=None: _json_response(
+            {"version": "4.4.0", "latest": "4.4.0"}
+        ),
+    )
+
+    assert cdn.get_cdn_version() == "4.4.0"
+
+
+def test_an_unreadable_bundled_version_leaves_the_answer_alone(monkeypatch):
+    """A broken install is not evidence about the resolver.
+
+    With nothing to compare against, refusing would turn every answer into
+    a fallback -- and the fallback is the very version that will not read.
+    """
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
+    monkeypatch.setattr(cdn._deps, "maidr_js_version", lambda: cdn._UNKNOWN_VERSION)
+    monkeypatch.setattr(
+        cdn,
+        "urlopen",
+        lambda request, timeout=None: _json_response(
+            {"version": "1.0.0", "latest": "1.0.0"}
+        ),
+    )
+
+    assert cdn.get_cdn_version() == "1.0.0"
+
+
+def test_an_explicit_pin_below_the_bundle_is_honoured(monkeypatch):
+    """A pin is the caller's own decision about their own process.
+
+    `set_cdn_version` and `MAIDR_CDN_VERSION` name a version by hand, so a
+    guard there would refuse a downgrade somebody asked for deliberately --
+    testing an older build against a newer wheel, most obviously. The guard
+    is scoped to the resolver's answer, which nobody asked for by name.
+    """
+    monkeypatch.setattr(cdn._deps, "maidr_js_version", lambda: "4.4.0")
+    maidr.set_cdn_version("1.0.0")
+
+    assert cdn.get_cdn_version() == "1.0.0"
+
+
+def test_a_downgrade_does_not_reach_the_freshness_report(monkeypatch):
+    """`bundle_status()` reports what is published, guard or no guard.
+
+    It exists to say how the bundle compares to what is out there, so
+    filtering the published version through a security check would make
+    the report lie about the one thing it reports. The guard therefore
+    sits on the path that splices a version into a URL, not on the shared
+    fetch both callers use.
+    """
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
+    monkeypatch.setattr(cdn._deps, "maidr_js_version", lambda: "4.4.0")
+    monkeypatch.setattr(
+        cdn,
+        "urlopen",
+        lambda request, timeout=None: _json_response(
+            {"version": "1.0.0", "latest": "1.0.0"}
+        ),
+    )
+
+    status = freshness.bundle_status()
+
+    assert status.published == "1.0.0"
+    assert status.bundled == "4.4.0"
+    assert cdn.get_cdn_version() == "4.4.0"
 
 
 def _shell_guard_path() -> Path:

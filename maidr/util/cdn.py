@@ -410,7 +410,12 @@ def get_cdn_version() -> str:
     # existed and so nobody ends up worse off. Three other paths have
     # since moved to the bundled answer, and being the last one left
     # emitting the mutable tag is not a place worth defending.
-    return _resolve_latest_version() or _offline_version()
+    resolved = _resolve_latest_version()
+    if resolved is None:
+        return _offline_version()
+    if _is_older_than_bundled(resolved):
+        return _bundled_version()
+    return resolved
 
 
 def _version_pin() -> str | None:
@@ -506,6 +511,22 @@ def _offline_version() -> str:
     if resolved is not None and _is_valid_version(resolved):
         return resolved
 
+    return _bundled_version()
+
+
+def _bundled_version() -> str:
+    """Return the version this wheel ships, or ``latest`` if it will not read.
+
+    Split out of :func:`_offline_version` because the downgrade guard in
+    :func:`get_cdn_version` needs *this* answer specifically.  Going through
+    the offline path would hand back the resolver's answer from the cache --
+    the very version being refused.
+
+    Returns
+    -------
+    str
+        The bundled version, or ``latest`` when it is unusable.
+    """
     bundled = _deps.maidr_js_version()
     if _is_valid_version(bundled) and bundled != _UNKNOWN_VERSION:
         return bundled
@@ -537,6 +558,70 @@ def _offline_version() -> str:
         LATEST_TAG,
     )
     return LATEST_TAG
+
+
+def _is_older_than_bundled(resolved: str) -> bool:
+    """Report whether a resolver answer is older than the version we ship.
+
+    The resolver is asked which version is current; nothing about the
+    request obliges the answer to be one.  A compromised registry, a
+    hostile caching proxy, or anything else that can reply could name an
+    older-but-well-formed version and have it spliced into every CDN URL
+    the page emits (#297).
+
+    Refusing it is only a defence if the fallback is not the same party.
+    Degrading to the mutable ``@latest`` tag would ask the CDN to resolve
+    the version instead -- the same answer from the same place -- so the
+    caller pins to :func:`_bundled_version` rather than falling through.
+    That is the one version on this machine known to have shipped with the
+    package.
+
+    **This is not a tamper detector.**  A bundled copy ahead of what is
+    published is a state this package already documents as normal: anyone
+    running from source between releases is in it, and so is anyone whose
+    upstream release was yanked.  The two are indistinguishable from here,
+    which is why the log line is ``debug`` and leads with the ordinary
+    cause.  What the guard buys either way is that the URL names a version
+    this wheel was built against, which is the safe answer in all three.
+
+    Scoped to the resolver's answer.  An explicit pin -- ``set_cdn_version``
+    or ``MAIDR_CDN_VERSION`` -- is the caller's own decision about their own
+    process and is left alone; a guard there would refuse a deliberate
+    downgrade someone asked for by name.
+
+    Parameters
+    ----------
+    resolved : str
+        The version the resolver answered with.
+
+    Returns
+    -------
+    bool
+        True when the answer sorts below the bundled version.  False when
+        either side cannot be compared, which leaves the resolver's answer
+        in place: an unreadable bundled version is a broken install rather
+        than evidence about the resolver.
+    """
+    bundled = _deps.maidr_js_version()
+    if bundled == _UNKNOWN_VERSION:
+        return False
+
+    bundled_key = _version_key(bundled)
+    resolved_key = _version_key(resolved)
+    if bundled_key is None or resolved_key is None:
+        return False
+    if resolved_key >= bundled_key:
+        return False
+
+    _logger.debug(
+        "maidr: the resolver answered maidr@%s, which is older than the %s "
+        "bundled in this install -- normal between releases, or after an "
+        "upstream release is yanked. CDN URLs use the bundled version, "
+        "which is the copy this wheel was built against.",
+        resolved,
+        bundled,
+    )
+    return True
 
 
 def _resolution_would_block() -> bool:
