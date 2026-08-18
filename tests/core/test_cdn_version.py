@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import pytest
 
 import maidr
+from maidr.util import bundle_freshness as freshness
 from maidr.util import dependencies
 from maidr.util import warn as warn_module
 
@@ -817,14 +818,14 @@ def test_concurrent_staleness_warning_emits_once(monkeypatch):
     sequence is too short for CPython to preempt, so this earns its keep
     on free-threaded builds rather than here.
     """
-    monkeypatch.setattr(dependencies, "_bundle_warned", set())
+    monkeypatch.setattr(freshness, "_bundle_warned", set())
     monkeypatch.setattr(dependencies, "maidr_js_version", lambda: "3.66.1")
     monkeypatch.setattr(dependencies, "_resolved_cdn_version", "3.74.0")
     monkeypatch.setattr(dependencies, "_resolution_attempted", True)
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        _run_concurrently(dependencies.warn_if_bundle_is_stale)
+        _run_concurrently(freshness.warn_if_bundle_is_stale)
 
     stale = [w for w in caught if "bundled copy of maidr.js" in str(w.message)]
     assert len(stale) == 1, f"warned {len(stale)} times, expected 1"
@@ -842,7 +843,7 @@ def test_blank_pin_clears_rather_than_falling_through(blank, resolvable):
 
 def test_bundle_status_type_is_exported():
     """The return type must be reachable for type hints and isinstance."""
-    assert maidr.BundleStatus is dependencies.BundleStatus
+    assert maidr.BundleStatus is freshness.BundleStatus
     assert "BundleStatus" in maidr.__all__
 
 

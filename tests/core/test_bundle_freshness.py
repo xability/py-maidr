@@ -23,6 +23,7 @@ import pytest
 import maidr
 import maidr.util.environment
 from maidr import api as maidr_api
+from maidr.util import bundle_freshness as freshness
 from maidr.util import dependencies
 
 
@@ -206,7 +207,7 @@ def test_warning_names_both_versions(bundled, published):
     maidr.bundle_status()  # establish the published version by resolving
 
     with pytest.warns(UserWarning) as record:
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
     message = str(record[0].message)
     assert "3.66.1" in message
@@ -223,10 +224,10 @@ def test_warning_is_emitted_once_per_process(bundled, published):
     maidr.bundle_status()  # establish the published version by resolving
 
     with pytest.warns(UserWarning):
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
     with no_stale_bundle_warning():
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
 
 def test_no_warning_for_normal_drift(bundled, published):
@@ -236,7 +237,7 @@ def test_no_warning_for_normal_drift(bundled, published):
     maidr.bundle_status()  # establish the published version
 
     with no_stale_bundle_warning():
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
 
 @pytest.mark.parametrize("disabled", ["0", "false", "off", "no", "FALSE"])
@@ -248,7 +249,7 @@ def test_env_var_silences_the_warning(disabled, monkeypatch, bundled, published)
     maidr.bundle_status()  # establish the published version
 
     with no_stale_bundle_warning():
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
 
 def test_warning_never_resolves_over_the_network(
@@ -259,7 +260,7 @@ def test_warning_never_resolves_over_the_network(
     bundled("3.66.1")
 
     with no_stale_bundle_warning():
-        dependencies.warn_if_bundle_is_stale()
+        freshness.warn_if_bundle_is_stale()
 
 
 # ---------------------------------------------------------------------------
@@ -330,7 +331,7 @@ def test_auto_render_first_does_not_swallow_a_later_offline_warning(
         "the auto render must have reported the drift to the logger"
     )
 
-    with pytest.warns(dependencies.MaidrBundleStaleWarning, match="3.66.1"):
+    with pytest.warns(freshness.MaidrBundleStaleWarning, match="3.66.1"):
         maidr.render(bar_plot, use_cdn=False)
 
 
@@ -346,7 +347,7 @@ def test_offline_render_first_does_not_swallow_a_later_auto_report(
     published("3.74.0")
     maidr.bundle_status()  # establish the published version by resolving
 
-    with pytest.warns(dependencies.MaidrBundleStaleWarning, match="3.66.1"):
+    with pytest.warns(freshness.MaidrBundleStaleWarning, match="3.66.1"):
         maidr.render(bar_plot, use_cdn=False)
 
     with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
@@ -506,11 +507,11 @@ def test_warning_uses_a_filterable_category(bundled, published):
     published("3.74.0")
     maidr.bundle_status()
 
-    with pytest.warns(dependencies.MaidrBundleStaleWarning):
-        dependencies.warn_if_bundle_is_stale(bundle_is_primary=True)
+    with pytest.warns(freshness.MaidrBundleStaleWarning):
+        freshness.warn_if_bundle_is_stale(bundle_is_primary=True)
 
-    assert issubclass(dependencies.MaidrBundleStaleWarning, UserWarning)
-    assert maidr.MaidrBundleStaleWarning is dependencies.MaidrBundleStaleWarning
+    assert issubclass(freshness.MaidrBundleStaleWarning, UserWarning)
+    assert maidr.MaidrBundleStaleWarning is freshness.MaidrBundleStaleWarning
 
 
 def test_auto_path_reports_drift_to_the_logger_not_as_a_warning(
@@ -527,7 +528,7 @@ def test_auto_path_reports_drift_to_the_logger_not_as_a_warning(
 
     with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
         with no_stale_bundle_warning():
-            dependencies.warn_if_bundle_is_stale(bundle_is_primary=False)
+            freshness.warn_if_bundle_is_stale(bundle_is_primary=False)
 
     assert any("bundled copy of maidr.js" in r.message for r in caplog.records), (
         "the drift must still be reported, just not as a warning"

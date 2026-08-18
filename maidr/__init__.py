@@ -211,18 +211,20 @@ from .patch import (  # noqa: E402, F401
     violinplot,
 )
 from .util.bundle_capability import MaidrBundleTraceWarning  # noqa: E402
+from .util.bundle_freshness import (  # noqa: E402
+    STALE_MINOR_GAP,
+    BundleStatus,
+    MaidrBundleStaleWarning,
+    bundle_status,
+    resolver_outcome,
+)
+from .util.warn import BUNDLE_WARNING_ENV_VAR  # noqa: E402
 from .util.dependencies import (  # noqa: E402
-    BUNDLE_WARNING_ENV_VAR,
     BUNDLED_TAG,
     CDN_TIMEOUT_ENV_VAR,
     CDN_VERSION_ENV_VAR,
     LATEST_TAG,
-    STALE_MINOR_GAP,
-    BundleStatus,
     ResolverOutcome,
-    MaidrBundleStaleWarning,
-    bundle_status,
-    resolver_outcome,
     bundled_css_path,
     bundled_js_path,
     bundled_math_css_path,

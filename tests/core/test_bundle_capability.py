@@ -458,17 +458,21 @@ def test_the_shim_must_stay_lazy():
     source = pathlib.Path(dependencies.__file__).read_text()
     tree = ast.parse(source)
 
+    # Both halves of the split are checked here rather than only the one
+    # this file is named for: they share the shim, and a module-scope
+    # import of either closes the same loop.
     offenders = [
-        node.lineno
+        (node.lineno, ast.unparse(node))
         for node in tree.body  # module scope only; the shim's own import is nested
         if isinstance(node, (ast.Import, ast.ImportFrom))
-        and "bundle_capability" in ast.unparse(node)
+        and ("bundle_capability" in ast.unparse(node)
+             or "bundle_freshness" in ast.unparse(node))
     ]
 
     assert not offenders, (
-        "maidr.util.dependencies imports bundle_capability at module scope "
-        f"(line {offenders}); that makes the import cycle real. The shim has "
-        "to resolve it inside __getattr__ instead."
+        f"maidr.util.dependencies imports a split-out module at module scope "
+        f"({offenders}); that makes the import cycle real. The shim has to "
+        "resolve it inside __getattr__ instead."
     )
 
 
