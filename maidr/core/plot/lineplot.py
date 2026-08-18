@@ -210,13 +210,9 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         """
         axes_data = super()._extract_axes_data()
 
-        legend = self.ax.get_legend()
-        if legend is not None:
-            title = legend.get_title()
-            if title is not None:
-                z_label = title.get_text().strip()
-                if z_label:
-                    axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
+        z_label = self._legend_title()
+        if z_label:
+            axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
 
         return axes_data
 

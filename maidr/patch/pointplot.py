@@ -145,9 +145,20 @@ def _group_labels(ax: Axes, count: int) -> list[str]:
     order, which is the order the groups were drawn in and so the order the
     estimates arrive in.
 
-    Returns fewer names than groups rather than guessing when the legend is
-    absent or short -- ``PointPlot`` omits ``z`` for a group it cannot name,
-    which reads as an unlabelled series rather than as a mislabelled one.
+    All the groups are named or none is. A legend that does not carry
+    exactly one entry per drawn group is not one this can read positionally,
+    and naming the groups it does cover would leave the layer declaring an
+    ``axes.z`` while some of its series carried no ``z`` at all -- a shape
+    the consumer has no reading for. Returning nothing instead gives the
+    clean fallback: an unlabelled grouped chart, which is what the old
+    ``line`` fallback produced anyway.
+
+    That count check is also the only guard on the assumption underneath
+    this: that seaborn lists its legend handles in the order it drew the
+    lines. The interval-to-estimate pairing is verified against the drawn
+    geometry (``_pairs_up``, and the bounds bracket their estimate); the
+    name-to-group pairing has no equivalent, because a name has no geometry
+    to check it against. A count mismatch is the one symptom available.
 
     Parameters
     ----------
@@ -159,12 +170,18 @@ def _group_labels(ax: Axes, count: int) -> list[str]:
     Returns
     -------
     list of str
-        The group names, in drawing order.
+        One name per group in drawing order, or empty when the legend
+        cannot be read as naming exactly those groups.
     """
     legend = ax.get_legend()
     if legend is None:
         return []
-    return [text.get_text() for text in legend.get_texts()][:count]
+
+    names = [text.get_text() for text in legend.get_texts()]
+    if len(names) != count:
+        return []
+
+    return names
 
 
 def _split(lines: list[Line2D]) -> tuple[list[Line2D], list[Line2D]]:

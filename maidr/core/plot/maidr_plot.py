@@ -105,6 +105,30 @@ class MaidrPlot(ABC, FormatExtractorMixin):
 
         return maidr_schema
 
+    def _legend_title(self) -> str:
+        """
+        The grouping variable's name, as the legend titles it.
+
+        A ``hue`` split names its groups in the legend entries and names the
+        *variable* in the legend title, and the title is the only place that
+        name appears -- so this is what an ``axes.z`` label is read from.
+        Shared rather than restated: ``MultiLinePlot`` and ``PointPlot`` both
+        need it and would otherwise drift apart if the convention changed.
+
+        Returns
+        -------
+        str
+            The title, or an empty string when there is no legend or no
+            title on it.
+        """
+        legend = self.ax.get_legend()
+        if legend is None:
+            return ""
+        title = legend.get_title()
+        if title is None:
+            return ""
+        return title.get_text().strip()
+
     @staticmethod
     def _axis_config(
         label: str | None = None,

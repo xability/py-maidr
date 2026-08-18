@@ -102,11 +102,15 @@ class PointPlot(ErrorBarPlot):
         self._elements.clear()
 
         per_group = len(self._intervals) // len(self._estimates)
+        # All the groups are named or none is, so a layer never declares an
+        # `axes.z` that some of its series do not carry. `_extract_axes_data`
+        # reads the same predicate.
+        named = self._named_groups()
         series: list[list[dict]] = []
 
         for index, estimate in enumerate(self._estimates):
             intervals = self._intervals[index * per_group : (index + 1) * per_group]
-            group = self._groups[index] if index < len(self._groups) else ""
+            group = self._groups[index] if named else ""
             points = self._points_of(estimate, intervals, is_vertical, labels, group)
             if not points:
                 raise ExtractionError(self.type, self.ax)
@@ -246,6 +250,12 @@ class PointPlot(ErrorBarPlot):
         treatment says "Treatment" rather than "Group". Omitted for an
         ungrouped chart, which has nothing to name.
 
+        Also omitted when the groups themselves could not be named. The two
+        have to agree: declaring a ``z`` axis while some series carry no
+        ``z`` is a shape the consumer has no reading for, and it is reachable
+        whenever the legend does not list exactly one entry per drawn group.
+        Either the whole layer is grouped-and-named or none of it is.
+
         Returns
         -------
         dict
@@ -253,18 +263,25 @@ class PointPlot(ErrorBarPlot):
         """
         axes_data = super()._extract_axes_data()
 
-        if not self._estimates:
+        if not self._estimates or not self._named_groups():
             return axes_data
 
-        legend = self.ax.get_legend()
-        if legend is not None:
-            title = legend.get_title()
-            if title is not None:
-                z_label = title.get_text().strip()
-                if z_label:
-                    axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
+        z_label = self._legend_title()
+        if z_label:
+            axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
 
         return axes_data
+
+    def _named_groups(self) -> bool:
+        """
+        Whether every drawn group has a name to emit as ``z``.
+
+        Returns
+        -------
+        bool
+            True when the patch supplied one name per estimate.
+        """
+        return len(self._groups) == len(self._estimates) and all(self._groups)
 
     def _is_vertical(self) -> bool:
         """

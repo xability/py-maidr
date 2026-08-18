@@ -33,6 +33,7 @@ import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.pointplot import PointPlot  # noqa: E402
+from maidr.patch.pointplot import _group_labels  # noqa: E402
 
 
 #: Three groups whose observations differ enough per group that the intervals
@@ -335,6 +336,80 @@ def test_three_groups_each_take_their_own_intervals():
     for series in schema["data"]:
         for point in series:
             assert point["yMin"] <= point["y"] <= point["yMax"]
+
+
+def test_a_legend_that_does_not_name_every_group_names_none():
+    """Either the whole layer is grouped-and-named or none of it is.
+
+    Naming only the groups the legend covers would leave the layer
+    declaring an ``axes.z`` while some of its series carried no ``z`` --
+    a shape the consumer has no reading for. The clean fallback is an
+    unlabelled grouped chart, which is what the old ``line`` path gave.
+
+    Driven through the guards directly rather than through a contrived
+    seaborn state. A legend short at *registration* time is the case this
+    protects against, and replacing the legend afterwards does not produce
+    it: the names are read while the call is being patched, so a later
+    ``ax.legend(...)`` leaves what was captured alone. Testing the guard is
+    honest; staging a chart seaborn may never draw is not.
+    """
+    frame = FRAME.assign(half=["x", "y"] * 9)
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="group", y="value", hue="half", dodge=True, ax=ax)
+
+    # The reader: one name per drawn group, or nothing.
+    assert _group_labels(ax, 2) == ["x", "y"]
+    assert _group_labels(ax, 3) == []
+    assert _group_labels(ax, 1) == []
+
+    # The emitter, handed a short list: no `z` anywhere rather than on some
+    # series only, and no `axes.z` declaring one that is not there.
+    plot = _plots(fig)[0]
+    plot._groups = ["x"]
+    plot._schema = {}
+
+    schema = plot.render()
+
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert len(schema["data"]) == 2
+    assert "z" not in schema["axes"]
+    assert not any("z" in point for series in schema["data"] for point in series)
+    # The bounds are the point of the layer and survive the naming failure.
+    for series in schema["data"]:
+        for point in series:
+            assert point["yMin"] <= point["y"] <= point["yMax"]
+
+
+def test_a_group_whose_every_category_is_a_singleton_keeps_its_siblings():
+    """One group with no drawable interval must not cost the others theirs.
+
+    A hue level holding a single observation everywhere has nothing to
+    estimate an interval from, and seaborn renders that as a polyline whose
+    value coordinates are all NaN. The layer omits that group's bounds and
+    keeps the rest, rather than falling back for the whole chart.
+    """
+    frame = pd.DataFrame(
+        {
+            "g": ["a", "a", "a", "b", "b", "b"] * 2,
+            "half": ["x"] * 6 + ["y"] * 6,
+            "v": [1.0, 2.0, 3.0, 8.0, 9.0, 10.0, 5.0, 5.0, 5.0, 7.0, 7.0, 7.0],
+        }
+    )
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="g", y="v", hue="half", dodge=True, ax=ax)
+
+    schema = _schema(fig)
+
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert len(schema["data"]) == 2
+    # Every point is still reported, with or without a bound.
+    assert all(len(series) == 2 for series in schema["data"])
+    # The group that has intervals keeps them.
+    assert any(
+        "yMin" in point for series in schema["data"] for point in series
+    )
 
 
 def test_a_dodged_group_is_still_named_by_its_tick():
