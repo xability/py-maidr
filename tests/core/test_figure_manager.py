@@ -105,18 +105,24 @@ def test_one_figure_registered_concurrently_gets_one_maidr():
     FigureManager.figs.pop(fig, None)
 
     seen = []
-    start = threading.Barrier(8)
+    # One constant for both, because they must agree: a barrier expecting
+    # more arrivals than there are threads waits forever. A stray edit made
+    # them disagree once and the suite hung rather than failed, which is
+    # why the joins below are bounded.
+    racers = 8
+    start = threading.Barrier(racers)
 
     def register():
         start.wait()
         seen.append(FigureManager._get_maidr(fig, PlotType.BAR))
 
-    workers = [threading.Thread(target=register) for _ in range(8)]
+    workers = [threading.Thread(target=register) for _ in range(racers)]
     try:
         for worker in workers:
             worker.start()
         for worker in workers:
-            worker.join()
+            worker.join(timeout=10)
+            assert not worker.is_alive(), "registration deadlocked"
 
         assert len({id(maidr) for maidr in seen}) == 1, (
             "concurrent registration created more than one Maidr for one "
@@ -133,30 +139,25 @@ def test_one_figure_registered_concurrently_gets_one_maidr():
         plt.close(fig)
 
 
-def test_concurrent_registration_keeps_plots_and_selector_ids_aligned(monkeypatch):
-    """The two lists are paired by index and appended to separately.
+def test_a_layer_keeps_the_selector_id_minted_with_it(monkeypatch):
+    """``plots`` and ``selector_ids`` are appended separately but paired.
 
-    ``Maidr._flatten_maidr`` and ``_create_html_tag`` both zip ``plots``
-    with ``selector_ids``, and ``_drop_superseded_layers`` spells out what
-    misalignment costs: every surviving layer wears its neighbour's id, so
-    the highlight lands on the wrong mark with nothing raised.
+    ``Maidr._flatten_maidr`` and ``_create_html_tag`` both zip them, and
+    ``_drop_superseded_layers`` spells out the cost of drift: every
+    surviving layer wears its neighbour's id, so the highlight lands on the
+    wrong mark with nothing raised.
 
-    Each ``append`` is atomic under the GIL; the *pair* is not. Without the
-    lock around both, two registrations on one figure interleave:
+    Each ``append`` is atomic under the GIL; the *pair* is not.
 
-        plots        ['plot-A', 'plot-B']
-        selector_ids ['id-B',   'id-A']
-
-    Detecting that needs the id to be traceable to the layer it was minted
-    for, which a uuid is not. So each thread mints an id naming itself, and
-    the assertion is that every layer sits opposite the id minted in its
-    own call.
-
-    An earlier version asserted equal lengths and unique ids instead. Both
-    hold under a scrambled order -- it passed with the lock removed, which
-    is how it was caught.
+    Driven by two threads with an explicit handoff rather than a crowd
+    racing off a barrier. A crowd is a *probabilistic* detector -- measured
+    against an unguarded build it caught the bug on 3 of 5 runs at eight
+    threads, and raising the count to get 5 of 5 made the suite hang. This
+    version forces the exact interleave, so it detects on every run and
+    finishes in milliseconds.
     """
     from maidr.core.maidr import Maidr as MaidrClass
+    from maidr.core.plot import MaidrPlotFactory
 
     fig, ax = plt.subplots()
     ax.bar(["a", "b"], [1, 2])
@@ -164,31 +165,66 @@ def test_concurrent_registration_keeps_plots_and_selector_ids_aligned(monkeypatc
 
     who = threading.local()
 
-    monkeypatch.setattr(
-        MaidrClass, "_unique_id", staticmethod(lambda: f"id-{who.tag}")
-    )
+    # Tagged as the layer is built, inside the call that mints its id.
+    # Reading `plots[-1]` after `create_maidr` returns would be wrong:
+    # the lock is released before the return, so another thread can append
+    # in between and `plots[-1]` is then somebody else's layer.
+    real_create = MaidrPlotFactory.create
 
-    start = threading.Barrier(8)
+    def tagging_create(*args, **kwargs):
+        plot = real_create(*args, **kwargs)
+        plot._registered_by = who.tag
+        return plot
 
-    def register(tag):
-        who.tag = tag
-        start.wait()
-        maidr_obj = FigureManager.create_maidr(ax, PlotType.BAR)
-        # Tag the layer this call registered, so it can be matched to the
-        # id the same call minted. `plots[-1]` is safe: the append happens
-        # under the same lock as the id's, so nothing lands between them.
-        maidr_obj.plots[-1]._registered_by = tag
+    monkeypatch.setattr(MaidrPlotFactory, "create", staticmethod(tagging_create))
+    first_appended = threading.Event()
+    second_done = threading.Event()
 
-    workers = [threading.Thread(target=register, args=(i,)) for i in range(8)]
+    def paced_unique_id():
+        """Pause thread A between its two appends.
+
+        `create_maidr` evaluates this *after* appending to `plots` and
+        *before* appending to `selector_ids`, so it is the seam the race
+        runs through -- a real call site rather than a hook nothing calls.
+
+        The wait is a deadline, not a handshake, and both outcomes are
+        meaningful. Unguarded, B is free to complete both of its appends
+        while A is parked here, and A's id then lands behind B's -- the
+        misalignment. Guarded, B cannot enter the critical section at all,
+        so this simply times out and the order is preserved. Either way the
+        test finishes.
+        """
+        if getattr(who, "tag", None) == "A":
+            first_appended.set()
+            second_done.wait(1.5)
+        return f"id-{who.tag}"
+
+    monkeypatch.setattr(MaidrClass, "_unique_id", staticmethod(paced_unique_id))
+
+    def register_a():
+        who.tag = "A"
+        FigureManager.create_maidr(ax, PlotType.BAR)
+
+    def register_b():
+        who.tag = "B"
+        first_appended.wait(5)
+        FigureManager.create_maidr(ax, PlotType.BAR)
+        second_done.set()
+
+    threads = [threading.Thread(target=register_a), threading.Thread(target=register_b)]
     try:
-        for worker in workers:
-            worker.start()
-        for worker in workers:
-            worker.join()
+        for thread in threads:
+            thread.start()
+        # B waits on A, and A waits on B; the lock is what makes that
+        # resolve rather than deadlock -- B cannot enter the critical
+        # section until A leaves it, so A never blocks inside it.
+        for thread in threads:
+            thread.join(timeout=10)
+            assert not thread.is_alive(), "registration deadlocked"
 
         maidr_obj = FigureManager.figs[fig]
         pairs = list(zip(maidr_obj.plots, maidr_obj.selector_ids))
-        assert len(pairs) == 8
+        assert len(pairs) == 2
 
         misaligned = [
             (getattr(plot, "_registered_by", None), selector_id)
@@ -200,5 +236,6 @@ def test_concurrent_registration_keeps_plots_and_selector_ids_aligned(monkeypatc
             "selector id; the highlight would land on the wrong mark"
         )
     finally:
+        second_done.set()
         FigureManager.figs.pop(fig, None)
         plt.close(fig)

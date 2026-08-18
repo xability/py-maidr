@@ -134,7 +134,8 @@ class FigureManager:
         # before the render is offloaded -- but that is a property of where
         # callers happen to live, not of this method, and losing it would
         # mint two `Maidr` objects for one figure and split a chart's layers
-        # between them. The lock costs one uncontended acquire per layer.
+        # between them. Two uncontended acquires per registered layer, counting the
+        # paired append in `create_maidr`.
         with cls._lock:
             if fig not in cls.figs:
                 cls.figs[fig] = Maidr(fig, plot_type)
@@ -155,9 +156,14 @@ class FigureManager:
             is the change, since "No MAIDR found for figure" described maidr's
             own bookkeeping rather than anything a user could act on (#443).
         """
-        if fig not in cls.figs.keys():
-            raise UnsupportedPlotError(fig)
-        return cls.figs[fig]
+        # Locked for the same reason the writes are: this is a check-then-act,
+        # and `destroy` popping between the two lines would turn the careful
+        # `UnsupportedPlotError` below into a bare `KeyError` -- losing the
+        # message that is the whole point of raising it.
+        with cls._lock:
+            if fig not in cls.figs:
+                raise UnsupportedPlotError(fig)
+            return cls.figs[fig]
 
     @classmethod
     def destroy(cls, fig: Figure) -> None:
@@ -169,6 +175,11 @@ class FigureManager:
                 maidr = cls.figs.pop(fig)
         except KeyError:
             return
+        # Teardown runs outside the lock, deliberately -- it is real work,
+        # not a dict operation. That leaves one gap this does not close: a
+        # `create_maidr` that took its reference just before the pop can
+        # still append to an object no longer in `figs`. Its layers go
+        # nowhere, which is #456's territory rather than this lock's.
         maidr.destroy()
         del maidr
 
