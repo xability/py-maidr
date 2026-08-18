@@ -54,7 +54,9 @@ def _joint(**kwargs):
     return sns.jointplot(data=df, x="x", y="y", **kwargs).figure
 
 
-@pytest.mark.parametrize("kwargs", [{}, {"marginal_ticks": True}], ids=["plain", "ticks"])
+@pytest.mark.parametrize(
+    "kwargs", [{}, {"marginal_ticks": True}], ids=["plain", "ticks"]
+)
 def test_a_jointplot_is_the_three_panels_it_draws(kwargs) -> None:
     """Not those three plus nine of layout padding."""
     fig = _joint(**kwargs)

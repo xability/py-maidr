@@ -760,9 +760,15 @@ class Maidr:
         rank rather than a row to arrow through. Ranking preserves order, so
         one falling between two panels separates them exactly as before.
         """
+        # Every panel's own spec as well as the figure's axes, so a panel
+        # whose axes has been detached from the figure still gets a rank
+        # rather than falling to the front of the grid.
         spans = [
             ss
-            for ss in (ax.get_subplotspec() for ax in self._fig.axes)
+            for ss in (
+                *(ax.get_subplotspec() for ax in self._fig.axes),
+                *(plot.ax.get_subplotspec() for plot in self._plots),
+            )
             if ss is not None
         ]
         rows = {ss.rowspan.start for ss in spans}
