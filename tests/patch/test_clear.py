@@ -260,3 +260,50 @@ def test_clear_drops_the_selector_ids_with_the_layers():
     assert maidr_obj.selector_ids[0] not in discarded, (
         "the re-plotted layer is wearing the discarded layer's selector id"
     )
+
+
+def test_lineplot_is_still_the_only_module_stashing_state_on_an_axes():
+    """``forget_axes_state`` only knows about the attributes it was told.
+
+    Nothing makes a *future* patch module that reaches for
+    ``setattr(ax, ...)`` register its cleanup there, and the failure would
+    be the quiet one this file exists for: the layers are dropped, the new
+    module's latch survives, and the redraw registers nothing.
+
+    An AST guard rather than a grep, so a call spelled across several lines
+    or with a computed attribute name still counts. It fails on the module
+    that *adds* the state, which is where the fix belongs, rather than
+    later on a chart that stopped being described.
+    """
+    import ast
+    import pathlib
+
+    #: Modules known to keep their own state on an axes, and to have
+    #: registered its removal. Adding a name here means adding the cleanup.
+    allowed = {"lineplot.py"}
+
+    axes_like = {"ax", "axes"}
+    offenders: dict[str, list[int]] = {}
+
+    patch_dir = pathlib.Path(__file__).resolve().parents[2] / "maidr" / "patch"
+    for source_file in sorted(patch_dir.glob("*.py")):
+        tree = ast.parse(source_file.read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if not (isinstance(node.func, ast.Name) and node.func.id == "setattr"):
+                continue
+            if not node.args:
+                continue
+            target = node.args[0]
+            if isinstance(target, ast.Name) and target.id in axes_like:
+                if source_file.name not in allowed:
+                    offenders.setdefault(source_file.name, []).append(node.lineno)
+
+    assert not offenders, (
+        f"{offenders} keeps its own state on an Axes. matplotlib does not "
+        "reset attributes it does not own, so clearing the axes leaves it "
+        "behind -- register its removal in "
+        "`maidr.patch.lineplot.forget_axes_state` and add the module to "
+        "`allowed` here. See #499."
+    )
