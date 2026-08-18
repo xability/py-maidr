@@ -129,4 +129,10 @@ def test_one_figure_registered_concurrently_gets_one_maidr():
         )
         assert seen[0] is FigureManager.figs[fig]
     finally:
+        # `figs` is a plain dict, not weak-keyed, so closing the figure does
+        # not drop the entry -- that is #456. Other tests in this suite leave
+        # theirs behind; this one registered a figure purely to race on it,
+        # so it cleans up rather than adding to the pile it was written
+        # alongside.
+        FigureManager.figs.pop(fig, None)
         plt.close(fig)
