@@ -9,7 +9,7 @@ import uuid
 import webbrowser
 import subprocess
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Callable, Literal, cast
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
@@ -724,6 +724,56 @@ class Maidr:
 
         return metadata
 
+    def _grid_coordinates(self) -> tuple[Callable[[int], int], Callable[[int], int]]:
+        """Return functions mapping a gridspec span start to a grid index.
+
+        A panel is keyed by where its span starts, and the emitted grid is
+        sized from the largest start seen. That reads a gridspec as a grid of
+        positions, which it is only when every axes occupies one cell.
+
+        A library that uses a gridspec for *proportions* breaks the reading.
+        ``seaborn.jointplot`` lays three panels out on a 6x6 grid to get the
+        marginal-to-joint size ratio, and they start at rows 0 and 1 and
+        columns 0 and 5 -- so the largest start forced six columns for two
+        occupied ones, and the reader met nine panels holding nothing on the
+        way between the three real ones (#513).
+
+        Ranking the starts collapses the rows and columns no axes begins in,
+        which are the ones that exist for proportion rather than position.
+
+        Returns
+        -------
+        tuple of callable
+            ``(row_of, col_of)``, each mapping a span start to a grid index.
+
+        Notes
+        -----
+        Ranked over every axes on the figure rather than only the ones
+        carrying a layer, which is what keeps a position the author left
+        empty: the middle panel of a ``subplots(1, 3)`` drawn on twice is an
+        axes with frame and ticks, on the screen, and a reader should meet
+        it. Its own start is what reserves it a column.
+
+        An axes ranked but never occupied costs nothing, because the grid is
+        still sized from the largest rank a *panel* reaches -- so a
+        heatmap's colorbar, which carries a subplotspec of its own, adds a
+        rank rather than a row to arrow through. Ranking preserves order, so
+        one falling between two panels separates them exactly as before.
+        """
+        spans = [
+            ss
+            for ss in (ax.get_subplotspec() for ax in self._fig.axes)
+            if ss is not None
+        ]
+        rows = {ss.rowspan.start for ss in spans}
+        cols = {ss.colspan.start for ss in spans}
+        row_rank = {start: rank for rank, start in enumerate(sorted(rows))}
+        col_rank = {start: rank for rank, start in enumerate(sorted(cols))}
+        return (
+            lambda index: row_rank.get(index, 0),
+            lambda index: col_rank.get(index, 0),
+        )
+
     def _flatten_maidr(self) -> dict:
         """Return the top-level MAIDR schema for this figure."""
         # A layer that already describes what another drew is a duplicate of
@@ -757,6 +807,11 @@ class Maidr:
                     "col": getattr(plot, "col_index", 0),
                 }
             )
+
+        row_of, col_of = self._grid_coordinates()
+        for plot in plot_schemas:
+            plot["row"] = row_of(plot.get("row", 0))
+            plot["col"] = col_of(plot.get("col", 0))
 
         max_row = max([plot.get("row", 0) for plot in plot_schemas], default=0)
         max_col = max([plot.get("col", 0) for plot in plot_schemas], default=0)
