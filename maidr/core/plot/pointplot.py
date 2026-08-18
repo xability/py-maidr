@@ -8,7 +8,7 @@ from matplotlib.axis import Axis
 from matplotlib.lines import Line2D
 
 from maidr.core.enum import MaidrKey
-from maidr.core.plot.errorbar import ErrorBarPlot
+from maidr.core.plot.errorbar import ErrorBarPlot, _is_drawn
 from maidr.exception import ExtractionError
 
 
@@ -54,15 +54,154 @@ class PointPlot(ErrorBarPlot):
     def __init__(self, ax: Axes, **kwargs) -> None:
         self._estimate: Line2D | None = kwargs.pop("estimate", None)
         self._intervals: list[Line2D] = list(kwargs.pop("intervals", []))
+        #: One estimate line per ``hue`` group, in the order seaborn drew
+        #: them. Empty for an ungrouped chart, which keeps ``_estimate``.
+        self._estimates: list[Line2D] = list(kwargs.pop("estimates", []))
+        #: The name of each group, from the legend, parallel to
+        #: ``_estimates``.
+        self._groups: list[str] = list(kwargs.pop("groups", []))
 
         super().__init__(ax, **kwargs)
 
-    def _extract_plot_data(self) -> list[dict]:
-        if self._estimate is None or not self._intervals:
+    def _extract_plot_data(self) -> list[dict] | list[list[dict]]:
+        if self._estimates:
+            return self._extract_grouped()
+        return self._extract_single()
+
+    def _extract_grouped(self) -> list[list[dict]]:
+        """
+        Describe a ``hue``-split chart as one series per group.
+
+        The grouped ``error_bar`` shape -- ``ErrorBarPoint[][]`` with a ``z``
+        on each point -- arrived in maidr 4.4.0 (xability/maidr#942). Before
+        it, the layer carried a single flat series with no field naming the
+        group, so a hued chart's intervals had nowhere to go and were dropped
+        rather than mis-assigned: the reader got the means of a chart drawn to
+        show the uncertainty around them (#462).
+
+        Seaborn draws the interval polylines **estimate-major** -- every
+        category of the first group, then every category of the second --
+        which is the order the consumer wants its rows in, so each group
+        takes a contiguous slice. Verified against the drawn geometry rather
+        than assumed: each estimate's value falls inside the span of the
+        interval its slice pairs it with.
+
+        Returns
+        -------
+        list of list of dict
+            A series per group, each point carrying ``z``.
+        """
+        is_vertical = self._is_vertical()
+        self._orientation = "vert" if is_vertical else "horz"
+        labels = self._category_labels(is_vertical)
+
+        # Cleared for the reason `_extract_single` records, and filled
+        # group-major so each group's rows take that group's slice. Handing
+        # every row the whole list would light a second group's whips while
+        # the cursor was in the first.
+        self._elements.clear()
+
+        per_group = len(self._intervals) // len(self._estimates)
+        series: list[list[dict]] = []
+
+        for index, estimate in enumerate(self._estimates):
+            intervals = self._intervals[index * per_group : (index + 1) * per_group]
+            group = self._groups[index] if index < len(self._groups) else ""
+            points = self._points_of(estimate, intervals, is_vertical, labels, group)
+            if not points:
+                raise ExtractionError(self.type, self.ax)
+            series.append(points)
+
+        if not series:
             raise ExtractionError(self.type, self.ax)
 
-        xs, ys = self._estimate.get_data()
-        if len(xs) != len(self._intervals):
+        if len(self._elements) != sum(len(points) for points in series):
+            # Same contract as the ungrouped path: one element per point or
+            # no selector at all.
+            self._elements.clear()
+            self._support_highlighting = False
+
+        return series
+
+    def _points_of(
+        self,
+        estimate: Line2D,
+        intervals: list[Line2D],
+        is_vertical: bool,
+        labels: dict[float, str],
+        group: str,
+    ) -> list[dict]:
+        """
+        Read one estimate line and the intervals drawn around it.
+
+        Split out of ``_extract_single`` so the grouped path reads each of
+        its series the same way rather than restating the pairing, the
+        category labelling and the dodge-rounding independently.
+
+        Parameters
+        ----------
+        estimate : Line2D
+            The line carrying this group's estimates.
+        intervals : list of Line2D
+            This group's interval polylines, in category order.
+        is_vertical : bool
+            Whether the categories run along x.
+        labels : dict
+            Category coordinate to drawn name.
+        group : str
+            The group's name, emitted as ``z``. Empty for an ungrouped
+            chart, which omits the key entirely.
+
+        Returns
+        -------
+        list of dict
+            One point per category.
+        """
+        xs, ys = estimate.get_data()
+        if len(xs) != len(intervals):
+            raise ExtractionError(self.type, self.ax)
+
+        # The category runs along the axis the intervals do NOT span. The
+        # schema names them `x` and `y` in both orientations and lets
+        # `orientation` say which is on screen where -- see `ErrorBarPlot`,
+        # whose docstring explains why this differs from how a bar travels.
+        categories, values = (xs, ys) if is_vertical else (ys, xs)
+
+        points = []
+        for category, value, interval in zip(categories, values, intervals):
+            coordinate = float(category)
+            bounds = self._interval_bounds(interval, is_vertical)
+            # Rounded as well as exact: a `dodge` shifts a group aside from
+            # the tick that names it, and the group is still that group.
+            label = labels.get(coordinate) or labels.get(float(round(coordinate)))
+            point = {
+                MaidrKey.X: label if label is not None else self._scalar(category),
+                # `None`, not the raw NaN, where seaborn padded a hue level
+                # missing from one category. The padding has a real position
+                # and no measurement, and `null` is how the core has said
+                # that since maidr 4.3.0 -- it sounds as the empty tone and
+                # announces as "missing". A bare NaN stops the chart
+                # initialising at all, since it is not JSON (#429), and a
+                # zero would claim a reading of zero. Same rule
+                # `MultiLinePlot._reading` applies, and this path inherited
+                # the case from it along with the intervals (#462).
+                MaidrKey.Y: self._scalar(value) if _is_drawn(value) else None,
+            }
+            if group:
+                point[MaidrKey.Z] = group
+            if bounds is not None:
+                point[MaidrKey.Y_MIN], point[MaidrKey.Y_MAX] = bounds
+                # Tag for highlighting only the intervals that produced a
+                # bound. One path per sample, in the order the points are
+                # emitted, which is the shape the consumer repeats across its
+                # three sections.
+                self._elements.append(interval)
+            points.append(point)
+
+        return points
+
+    def _extract_single(self) -> list[dict]:
+        if self._estimate is None or not self._intervals:
             raise ExtractionError(self.type, self.ax)
 
         is_vertical = self._is_vertical()
@@ -74,32 +213,10 @@ class PointPlot(ErrorBarPlot):
         # the consumer highlights the wrong group.
         self._elements.clear()
 
-        # The category runs along the axis the intervals do NOT span. The
-        # schema names them `x` and `y` in both orientations and lets
-        # `orientation` say which is on screen where -- see `ErrorBarPlot`,
-        # whose docstring explains why this differs from how a bar travels.
-        categories, values = (xs, ys) if is_vertical else (ys, xs)
         labels = self._category_labels(is_vertical)
-
-        data = []
-        for category, value, interval in zip(categories, values, self._intervals):
-            coordinate = float(category)
-            bounds = self._interval_bounds(interval, is_vertical)
-            # Rounded as well as exact: a `dodge` shifts a group aside from
-            # the tick that names it, and the group is still that group.
-            label = labels.get(coordinate) or labels.get(float(round(coordinate)))
-            point = {
-                MaidrKey.X: label if label is not None else self._scalar(category),
-                MaidrKey.Y: self._scalar(value),
-            }
-            if bounds is not None:
-                point[MaidrKey.Y_MIN], point[MaidrKey.Y_MAX] = bounds
-                # Tag for highlighting only the intervals that produced a
-                # bound. One path per sample, in the order the points are
-                # emitted, which is the shape the consumer repeats across its
-                # three sections.
-                self._elements.append(interval)
-            data.append(point)
+        data = self._points_of(
+            self._estimate, self._intervals, is_vertical, labels, ""
+        )
 
         if not data:
             raise ExtractionError(self.type, self.ax)
@@ -119,6 +236,35 @@ class PointPlot(ErrorBarPlot):
             self._support_highlighting = False
 
         return data
+
+    def _extract_axes_data(self) -> dict:
+        """
+        Add a ``z`` axis naming the grouping variable, when there is one.
+
+        Taken from the legend title, which is the ``hue`` column's name --
+        the same source ``MultiLinePlot`` uses, so a chart grouped by
+        treatment says "Treatment" rather than "Group". Omitted for an
+        ungrouped chart, which has nothing to name.
+
+        Returns
+        -------
+        dict
+            The per-axis ``AxisConfig`` mapping.
+        """
+        axes_data = super()._extract_axes_data()
+
+        if not self._estimates:
+            return axes_data
+
+        legend = self.ax.get_legend()
+        if legend is not None:
+            title = legend.get_title()
+            if title is not None:
+                z_label = title.get_text().strip()
+                if z_label:
+                    axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
+
+        return axes_data
 
     def _is_vertical(self) -> bool:
         """

@@ -270,16 +270,21 @@ def test_a_point_plot_with_no_interval_stays_a_line():
     assert [point["x"] for point in schema["data"][0]] == ["a", "b", "c"]
 
 
-def test_a_hue_reads_as_the_multi_line_chart_it_is():
+def test_a_hue_keeps_its_intervals_as_a_grouped_error_bar():
     """
-    A ``hue`` splits the chart into groups, and the layer carries one series.
+    A ``hue`` splits the chart into groups, and each group keeps its bounds.
 
-    The intervals are dropped rather than mis-assigned -- carrying one group's
-    bounds under another's estimate would be worse than carrying none -- and a
-    follow-up covers giving the layer more than one series. What this pins is
-    that the interval polylines still do not travel as series of their own, and
-    that each remaining series is named after its hue level rather than after
-    whichever line index it happened to land on.
+    This replaces a test that pinned the gap. The layer used to fall back to
+    ``line``, dropping the intervals rather than mis-assigning them, because
+    the error bar layer carried a single flat series with no field naming the
+    group -- so a reader of a grouped point plot was handed the means of a
+    chart drawn to show the uncertainty around them. maidr 4.4.0 gave the
+    grammar a grouped shape (xability/maidr#942) and the fallback went with
+    it (#462).
+
+    What the old test pinned still holds and is still asserted: the interval
+    polylines do not travel as series of their own, and each series is named
+    after its hue level rather than after whichever line index it landed on.
     """
     fig, ax = plt.subplots()
     frame = FRAME.assign(half=["x", "y"] * 9)
@@ -287,9 +292,49 @@ def test_a_hue_reads_as_the_multi_line_chart_it_is():
 
     schema = _schema(fig)
 
-    assert schema["type"] == PlotType.LINE.value
+    assert schema["type"] == PlotType.ERRORBAR.value
     assert len(schema["data"]) == 2
     assert {point["z"] for series in schema["data"] for point in series} == {"x", "y"}
+
+    # The half the fallback used to lose. Every point carries a bound, and
+    # each bound belongs to the estimate it is emitted beside -- checked by
+    # containment rather than by position, since pairing the wrong group's
+    # interval to an estimate is the failure the fallback existed to avoid.
+    for series in schema["data"]:
+        for point in series:
+            assert point["yMin"] <= point["y"] <= point["yMax"]
+
+    # The grouping variable is named, so the reader hears "half" rather than
+    # an unlabelled third axis.
+    assert schema["axes"]["z"]["label"] == "half"
+
+
+def test_three_groups_each_take_their_own_intervals():
+    """Slicing the interval list per group has to generalise past two.
+
+    Seaborn draws the polylines estimate-major -- every category of the
+    first group, then of the second -- so each group takes a contiguous
+    slice. With two groups an off-by-one in that arithmetic still lands
+    inside the list and mis-pairs silently; a third group is what makes a
+    wrong stride reach the wrong bounds visibly.
+
+    Checked by containment rather than by index, because "did this group get
+    its own intervals" is the question, and the estimate falling inside the
+    bounds emitted beside it is what answers it.
+    """
+    frame = FRAME.assign(third=["x", "y", "z"] * 6)
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="group", y="value", hue="third", dodge=True, ax=ax)
+
+    schema = _schema(fig)
+
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert len(schema["data"]) == 3
+    assert [series[0]["z"] for series in schema["data"]] == ["x", "y", "z"]
+    for series in schema["data"]:
+        for point in series:
+            assert point["yMin"] <= point["y"] <= point["yMax"]
 
 
 def test_a_dodged_group_is_still_named_by_its_tick():
@@ -455,12 +500,20 @@ def test_nothing_recognisable_still_describes_the_lines():
 
 def test_a_horizontal_dodge_names_its_groups():
     """
-    The categories are on y here, and they are named there (#353).
+    The categories are drawn on y here, and they are named (#353).
 
     This replaces a test that pinned the gap. ``-0.025`` and ``0.975`` are
     where two hue levels were shifted to make room for each other around the
     ticks the chart writes ``a`` and ``b`` on, so a reader was given the
     offsets and no way to reach the names.
+
+    The names moved from ``y`` to ``x`` when this chart stopped falling back
+    to ``line`` (#462), and that is a change of key rather than of behaviour:
+    an error bar layer carries the category as ``x`` in **both** orientations
+    and lets ``orientation`` say which is on screen where -- the convention
+    ``ErrorBarPlot`` documents and the single-series path has always used.
+    ``test_a_horizontal_chart_names_its_groups_without_a_dodge`` draws with
+    ``Axes.plot`` for exactly this reason.
     """
     frame = FRAME.assign(half=["x", "y"] * 9)
 
@@ -469,14 +522,15 @@ def test_a_horizontal_dodge_names_its_groups():
 
     schema = _schema(fig)
 
-    assert schema["type"] == PlotType.LINE.value
-    named = {point["y"] for series in schema["data"] for point in series}
+    assert schema["type"] == PlotType.ERRORBAR.value
+    assert schema["orientation"] == "horz"
+    named = {point["x"] for series in schema["data"] for point in series}
     assert named == set(FRAME["group"].unique())
 
     # The value axis is still numeric: only the axis carrying the categories
     # is named, and naming both would have made the measurement a string.
     assert all(
-        isinstance(point["x"], float)
+        isinstance(point["y"], float)
         for series in schema["data"]
         for point in series
     )
@@ -647,7 +701,7 @@ def test_a_hue_level_missing_a_category_does_not_break_the_pairing():
     schema = _schema(fig)
     data = schema["data"]
 
-    assert schema["type"] == PlotType.LINE.value
+    assert schema["type"] == PlotType.ERRORBAR.value
     # Two series, not two series plus six interval polylines.
     assert len(data) == 2
     assert all(len(series) == 3 for series in data)

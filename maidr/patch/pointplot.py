@@ -103,13 +103,30 @@ def _register_point_layer(ax: Axes, existing: list[Line2D]) -> None:
         )
         return
 
+    if paired and measured:
+        # A `hue` split the chart into groups. This used to fall through to
+        # `line`, dropping the intervals rather than mis-assigning them,
+        # because the MAIDR error bar layer carried a single flat series with
+        # no field naming the group. maidr 4.4.0 gave it one --
+        # `ErrorBarPoint[][]` with a `z`, xability/maidr#942 -- so the
+        # intervals now have somewhere to go (#462).
+        #
+        # The estimates arrive one per group and the intervals estimate-major,
+        # which `PointPlot` slices; `_pairs_up` has already checked the counts
+        # divide evenly, so the slicing cannot straddle two groups.
+        FigureManager.create_maidr(
+            ax,
+            PlotType.ERRORBAR,
+            estimates=estimates,
+            intervals=intervals,
+            groups=_group_labels(ax, len(estimates)),
+        )
+        return
+
     # Everything else is a line chart. `errorbar=None` draws no intervals to
-    # carry, a chart whose every group holds one observation has none to draw,
-    # and more than one estimate means a `hue` split the chart into groups
-    # while the MAIDR error bar layer carries a single series -- so those
-    # intervals are dropped rather than mis-assigned. All three are still a
-    # repair over describing every drawn line, since the interval polylines no
-    # longer travel as series of their own.
+    # carry, and a chart whose every group holds one observation has none to
+    # draw. Both are still a repair over describing every drawn line, since
+    # the interval polylines no longer travel as series of their own.
     #
     # A chart where only *some* groups have an interval takes the branch above,
     # not this one: the undrawable lines stay in the list to hold their
@@ -117,6 +134,37 @@ def _register_point_layer(ax: Axes, existing: list[Line2D]) -> None:
     FigureManager.create_maidr(
         ax, PlotType.LINE, lines=estimates if paired else drawn
     )
+
+
+def _group_labels(ax: Axes, count: int) -> list[str]:
+    """
+    Name each ``hue`` group from the legend seaborn drew.
+
+    The estimate lines carry `_child`-prefixed labels rather than the group
+    names, so the legend is the only place the names appear. Read in legend
+    order, which is the order the groups were drawn in and so the order the
+    estimates arrive in.
+
+    Returns fewer names than groups rather than guessing when the legend is
+    absent or short -- ``PointPlot`` omits ``z`` for a group it cannot name,
+    which reads as an unlabelled series rather than as a mislabelled one.
+
+    Parameters
+    ----------
+    ax : Axes
+        The panel the point plot was drawn on.
+    count : int
+        How many groups were drawn.
+
+    Returns
+    -------
+    list of str
+        The group names, in drawing order.
+    """
+    legend = ax.get_legend()
+    if legend is None:
+        return []
+    return [text.get_text() for text in legend.get_texts()][:count]
 
 
 def _split(lines: list[Line2D]) -> tuple[list[Line2D], list[Line2D]]:
