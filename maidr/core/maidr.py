@@ -24,11 +24,11 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
-from maidr.util.bundle_freshness import warn_if_bundle_is_stale
 from maidr.util.bundle_capability import (
     schema_trace_types,
     warn_if_bundle_cannot_render,
 )
+from maidr.util.bundle_freshness import warn_if_bundle_is_stale
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
     OFFLINE_FALLBACK_REPORT,

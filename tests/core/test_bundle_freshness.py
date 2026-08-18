@@ -25,6 +25,7 @@ import maidr.util.environment
 from maidr import api as maidr_api
 from maidr.util import bundle_freshness as freshness
 from maidr.util import dependencies
+from maidr.util import warn as warn_module
 
 
 @contextlib.contextmanager
@@ -298,7 +299,7 @@ def test_use_cdn_auto_render_reports_to_the_logger(
     bundled("3.66.1")
     published("3.74.0")
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
             maidr.render(bar_plot, use_cdn="auto")
 
@@ -323,7 +324,7 @@ def test_auto_render_first_does_not_swallow_a_later_offline_warning(
     bundled("3.66.1")
     published("3.74.0")
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
             maidr.render(bar_plot, use_cdn="auto")
 
@@ -350,7 +351,7 @@ def test_offline_render_first_does_not_swallow_a_later_auto_report(
     with pytest.warns(freshness.MaidrBundleStaleWarning, match="3.66.1"):
         maidr.render(bar_plot, use_cdn=False)
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
             maidr.render(bar_plot, use_cdn="auto")
 
@@ -380,7 +381,7 @@ def test_plotly_auto_render_reports_to_the_logger(bundled, published, caplog):
     published("3.74.0")
     fig = go.Figure(data=[go.Bar(x=["A", "B"], y=[1, 2])])
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
             maidr.render(fig, use_cdn="auto")
 
@@ -445,7 +446,7 @@ def test_init_notebook_use_cdn_false_never_resolves_when_bundle_missing(
     fake_ipython.display = lambda html: displayed.setdefault("html", html)
     monkeypatch.setitem(sys.modules, "IPython.display", fake_ipython)
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         maidr.init_notebook(use_cdn=False)
 
     assert any("could not be read" in r.message for r in caplog.records), (
@@ -526,7 +527,7 @@ def test_auto_path_reports_drift_to_the_logger_not_as_a_warning(
     published("3.74.0")
     maidr.bundle_status()
 
-    with caplog.at_level(logging.WARNING, logger=dependencies.__name__):
+    with caplog.at_level(logging.WARNING, logger=freshness.__name__):
         with no_stale_bundle_warning():
             freshness.warn_if_bundle_is_stale(bundle_is_primary=False)
 

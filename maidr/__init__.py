@@ -218,7 +218,6 @@ from .util.bundle_freshness import (  # noqa: E402
     bundle_status,
     resolver_outcome,
 )
-from .util.warn import BUNDLE_WARNING_ENV_VAR  # noqa: E402
 from .util.dependencies import (  # noqa: E402
     BUNDLED_TAG,
     CDN_TIMEOUT_ENV_VAR,
@@ -235,6 +234,7 @@ from .util.dependencies import (  # noqa: E402
     reset_cdn_version_cache,
     set_cdn_version,
 )
+from .util.warn import BUNDLE_WARNING_ENV_VAR  # noqa: E402
 
 # Second call: reclaim the backend after maidr's own imports.
 # NOTE: See the "Matplotlib backend activation" block at the top of this
