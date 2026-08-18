@@ -6,6 +6,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from maidr.core.figure_manager import FigureManager
+from maidr.patch.lineplot import forget_axes_state
 
 
 @wrapt.patch_function_wrapper(Figure, "clear")
@@ -35,11 +36,25 @@ def _clear_axes(wrapped, instance, args, kwargs) -> None:
     Narrower than ``Figure.clear``'s ``maidr.clear()`` on purpose: on a
     figure with several axes, clearing one must leave the others registered.
 
+    Dropping the layers is not enough on its own. ``lineplot`` keeps its
+    own "already registered" latch on the axes, which matplotlib does not
+    reset because it does not own it -- so clearing the layers while
+    leaving the latch set makes the next ``ax.plot()`` register *nothing*,
+    and the chart goes from mis-described to undescribed. See
+    ``forget_axes_state``.
+
     Runs after ``wrapped``, matching the ``Figure.clear`` patch above -- the
     layers are dropped once matplotlib has actually removed the artists, not
     before.
     """
     wrapped(*args, **kwargs)
+
+    # Before the registration lookup, not after: this state lives on the
+    # axes and outlives any maidr entry. A figure closed with `maidr.close()`
+    # and then cleared would otherwise keep the latch set, and nothing drawn
+    # on it afterwards would register.
+    forget_axes_state(instance)
+
     figure = instance.get_figure()
     if figure is None:
         return

@@ -140,13 +140,91 @@ def test_clearing_an_axes_that_holds_no_layers_is_a_no_op():
     assert paired(maidr_obj)
 
 
-def test_clearing_an_unregistered_figure_does_not_raise():
-    """A figure maidr never saw has no entry to drop."""
-    fig, ax = plt.subplots()
-    ax.plot([0, 1], [0, 1])  # patched, but nothing registers a bare line here
+def test_clearing_a_brand_new_axes_does_not_raise():
+    """``Axes.__init__`` calls ``cla()``, so the hook fires before anything exists.
+
+    An earlier version of this test used ``ax.plot()`` and claimed nothing
+    was registered, which is wrong -- ``plot`` registers a LINE layer. The
+    guard being pinned here is the one that keeps every axes construction
+    from raising on a figure that has no maidr entry yet, so the test must
+    not draw anything at all.
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot()  # `cla()` already fired here, unregistered
 
     ax.clear()  # must not raise
     fig.clear()  # the pre-existing guard, kept
+
+
+@pytest.mark.parametrize("draw", ["plot", "step"])
+def test_a_line_layer_is_registered_again_after_its_axes_is_cleared(draw):
+    """The regression this fix could have shipped, and the worse failure.
+
+    ``lineplot`` latches "this axes already has a layer" onto the axes
+    itself. matplotlib does not reset it -- it does not own it -- so
+    dropping the layers while leaving the latch set makes the redraw
+    register nothing, and the chart is **undescribed** rather than
+    mis-described: ``subplots: [[{}]]``.
+
+    Worth both spellings: ``ax.step`` delegates to ``Axes.plot`` and goes
+    through the same latch.
+    """
+    fig, ax = plt.subplots()
+    getattr(ax, draw)([0, 1, 2], [1, 2, 3])
+    maidr_obj = FigureManager.get_maidr(fig)
+    assert len(maidr_obj._plots) == 1
+
+    ax.clear()
+    getattr(ax, draw)([0, 1, 2], [9, 8, 7])
+
+    assert len(maidr_obj._plots) == 1, (
+        "the redrawn line registered no layer; the chart is undescribed"
+    )
+    assert layer_count(maidr_obj) == 1
+    assert paired(maidr_obj)
+
+
+def test_clearing_an_axes_drops_the_accumulated_line_series():
+    """The series list holds ``Line2D`` objects the clear detached.
+
+    Left in place they are both stale and unbounded -- a redraw appends to
+    the same list, so the layer would describe lines that are no longer
+    drawn alongside the ones that are.
+    """
+    from maidr.patch.lineplot import DRAWN_SERIES, PLOT_CREATED
+
+    fig, ax = plt.subplots()
+    ax.plot([0, 1], [1, 2])
+    assert len(getattr(ax, DRAWN_SERIES)) == 1
+    assert hasattr(ax, PLOT_CREATED)
+
+    ax.clear()
+
+    assert not hasattr(ax, DRAWN_SERIES)
+    assert not hasattr(ax, PLOT_CREATED)
+
+    ax.plot([0, 1], [5, 6])
+    assert len(getattr(ax, DRAWN_SERIES)) == 1, (
+        "the redrawn layer is carrying lines from before the clear"
+    )
+
+
+def test_figure_clear_empties_every_axes_on_a_multi_axes_figure():
+    """The cascade: ``Figure.clear`` clears its axes, and those are patched.
+
+    So ``clear_axes`` runs per axes *and* ``clear()`` runs at the figure
+    level. Both lists have to end up empty however the two interleave.
+    """
+    fig, (first, second) = plt.subplots(1, 2)
+    first.bar(["a", "b"], [1, 2])
+    second.bar(["c", "d"], [3, 4])
+    maidr_obj = FigureManager.get_maidr(fig)
+    assert len(maidr_obj._plots) == 2
+
+    fig.clear()
+
+    assert maidr_obj._plots == []
+    assert maidr_obj.selector_ids == []
 
 
 def test_clear_drops_the_selector_ids_with_the_layers():
