@@ -60,7 +60,19 @@ from typing import NamedTuple
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from maidr.util.warn import _MAX_WARNED_KEY_LEN, warn_once
+# ``BUNDLE_WARNING_ENV_VAR`` is not used in this module; it is imported to
+# keep ``maidr.util.dependencies.BUNDLE_WARNING_ENV_VAR`` resolving, which it
+# did before the name moved to ``warn`` in #496.  Straight from the owner
+# rather than through the ``__getattr__`` shim below: the shim would have
+# forwarded it to ``bundle_freshness``, which resolves only because *that*
+# module happens to import it for its own message text -- so a later cleanup
+# there would have broken an unrelated public path.  ``warn`` is a leaf, so
+# importing it eagerly raises none of the cycle questions the shim exists for.
+from maidr.util.warn import (  # noqa: F401
+    _MAX_WARNED_KEY_LEN,
+    BUNDLE_WARNING_ENV_VAR,
+    warn_once,
+)
 
 
 _logger = logging.getLogger(__name__)
@@ -1697,7 +1709,6 @@ _MOVED_TO_BUNDLE_CAPABILITY = frozenset(
 #: Names that now live in :mod:`maidr.util.bundle_freshness` (#293).
 _MOVED_TO_BUNDLE_FRESHNESS = frozenset(
     {
-        "BUNDLE_WARNING_ENV_VAR",
         "BundleStatus",
         "MaidrBundleStaleWarning",
         "STALE_MINOR_GAP",

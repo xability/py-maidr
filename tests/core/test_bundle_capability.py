@@ -461,12 +461,15 @@ def test_the_shim_must_stay_lazy():
     # Both halves of the split are checked here rather than only the one
     # this file is named for: they share the shim, and a module-scope
     # import of either closes the same loop.
-    offenders = [
+    imports = [
         (node.lineno, ast.unparse(node))
         for node in tree.body  # module scope only; the shim's own import is nested
         if isinstance(node, (ast.Import, ast.ImportFrom))
-        and ("bundle_capability" in ast.unparse(node)
-             or "bundle_freshness" in ast.unparse(node))
+    ]
+    offenders = [
+        (lineno, text)
+        for lineno, text in imports
+        if "bundle_capability" in text or "bundle_freshness" in text
     ]
 
     assert not offenders, (
