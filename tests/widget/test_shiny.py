@@ -626,7 +626,11 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
     try:
         renderer = render_maidr(lambda: ax)
         workers = [
-            threading.Thread(target=renderer._render_off_loop, args=(ax,))
+            # Daemon, so that the deadlock this test exists to catch fails
+            # the test rather than wedging the interpreter at shutdown: a
+            # timed-out join leaves the thread alive and still holding the
+            # figure's lock.
+            threading.Thread(target=renderer._render_off_loop, args=(ax,), daemon=True)
             for _ in range(4)
         ]
         for worker in workers:
@@ -762,7 +766,7 @@ def test_two_different_figures_rendering_at_once_keep_their_selectors():
             together[index] = selectors(figure)
 
         workers = [
-            threading.Thread(target=render, args=(index, figure))
+            threading.Thread(target=render, args=(index, figure), daemon=True)
             for index, figure in enumerate(figures)
         ]
         for worker in workers:
@@ -845,6 +849,10 @@ def test_concurrent_renders_of_one_figure_agree():
     ax.bar([str(i) for i in range(30)], list(range(30)))
     renderer = render_maidr(lambda: ax)
 
+    # Appended from several threads without a lock, which is safe because
+    # `list.append` is atomic under the GIL, and read only after every
+    # worker has been joined. Written down because this file documents its
+    # other concurrency decisions.
     outputs: list[str] = []
     failures: list[BaseException] = []
     # One constant for the barrier and the thread count, because they must
@@ -864,7 +872,7 @@ def test_concurrent_renders_of_one_figure_agree():
             # `KeyboardInterrupt` and `SystemExit` free to end the thread.
             failures.append(exc)
 
-    workers = [threading.Thread(target=render_once) for _ in range(racers)]
+    workers = [threading.Thread(target=render_once, daemon=True) for _ in range(racers)]
     try:
         for worker in workers:
             worker.start()
