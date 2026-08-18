@@ -56,7 +56,7 @@ from maidr.util.iframe_utils import wrap_in_iframe_plotly
 # CDN configuration for the Altair adapter. The ``vegalite.js`` adapter
 # tracks the newest published ``maidr`` release, resolved to a concrete
 # version at render time by
-# :func:`maidr.util.dependencies.get_cdn_version` so browsers never replay a
+# :func:`maidr.util.cdn.get_cdn_version` so browsers never replay a
 # stale ``@latest`` response. Pin with ``MAIDR_CDN_VERSION`` when a specific
 # version is needed.
 # ---------------------------------------------------------------------------
