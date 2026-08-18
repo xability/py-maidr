@@ -66,14 +66,34 @@ class _FigureRecords:
     def __init__(self) -> None:
         self._seen: weakref.WeakSet = weakref.WeakSet()
 
+    def _record(self, fig: Figure) -> Any:
+        """This figure's own record, or ``_MISSING``.
+
+        The ownership check is not a formality. ``copy.copy`` on a ``Figure``
+        copies the ``__dict__`` entries themselves, so a shallow copy would
+        inherit the original's record and answer as registered -- handing
+        back a ``Maidr`` bound to a *different* figure, and rendering the
+        original's chart under the copy's name. The module-level dict could
+        not do that, because only the object actually inserted was ever a
+        key.
+
+        ``deepcopy`` and ``pickle`` are the opposite case and are left
+        working: both rebuild the record alongside the figure, so the copy's
+        record points at the copy and it is genuinely registered.
+        """
+        record = getattr(fig, self._ATTR, self._MISSING)
+        if record is not self._MISSING and record.fig is not fig:
+            return self._MISSING
+        return record
+
     def __contains__(self, fig: Figure) -> bool:
-        return hasattr(fig, self._ATTR)
+        return self._record(fig) is not self._MISSING
 
     def __getitem__(self, fig: Figure) -> Maidr:
-        try:
-            return getattr(fig, self._ATTR)
-        except AttributeError:
-            raise KeyError(fig) from None
+        record = self._record(fig)
+        if record is self._MISSING:
+            raise KeyError(fig)
+        return record
 
     def __setitem__(self, fig: Figure, maidr: Maidr) -> None:
         setattr(fig, self._ATTR, maidr)
@@ -98,10 +118,11 @@ class _FigureRecords:
         return iter([fig for fig in list(self._seen) if fig in self])
 
     def get(self, fig: Figure, default: Any = None) -> Any:
-        return getattr(fig, self._ATTR, default)
+        record = self._record(fig)
+        return default if record is self._MISSING else record
 
     def pop(self, fig: Figure, default: Any = _MISSING) -> Any:
-        maidr = getattr(fig, self._ATTR, self._MISSING)
+        maidr = self._record(fig)
         if maidr is self._MISSING:
             if default is self._MISSING:
                 raise KeyError(fig)

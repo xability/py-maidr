@@ -1,4 +1,6 @@
+import copy
 import gc
+import pickle
 import threading
 import weakref
 
@@ -343,4 +345,65 @@ def test_the_registry_reads_as_the_mapping_it_replaced():
             FigureManager.figs[fig]
     finally:
         FigureManager.figs.pop(fig, None)
+        plt.close(fig)
+
+
+def test_a_shallow_copy_of_a_figure_is_not_its_original_s_chart():
+    """Storing the record on the figure means copies inherit the attribute.
+
+    ``copy.copy`` on a ``Figure`` copies the ``__dict__`` entries themselves,
+    so without a check the copy answers as registered and hands back a
+    ``Maidr`` bound to the *original* -- which would render the original's
+    chart, with the original's data, under the copy. The module-level dict
+    could not do that: only the object actually inserted was ever a key.
+
+    So the copy is treated as unregistered, which is what it is. Whoever
+    plots on it registers it.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    twin = copy.copy(fig)
+    try:
+        assert fig in FigureManager.figs
+        assert twin not in FigureManager.figs
+        assert FigureManager.figs.get(twin) is None
+        with pytest.raises(KeyError):
+            FigureManager.figs[twin]
+
+        # And asking about the copy must not take the original's record away.
+        assert FigureManager.figs.pop(twin, None) is None
+        assert fig in FigureManager.figs
+    finally:
+        FigureManager.figs.pop(fig, None)
+        plt.close(fig)
+
+
+@pytest.mark.parametrize(
+    "clone",
+    [
+        pytest.param(copy.deepcopy, id="deepcopy"),
+        pytest.param(lambda fig: pickle.loads(pickle.dumps(fig)), id="pickle"),
+    ],
+)
+def test_a_figure_that_is_copied_wholesale_keeps_its_chart(clone):
+    """Unlike a shallow copy, these rebuild the record alongside the figure.
+
+    Both are new couplings: a figure's pickle now carries the ``Maidr`` and
+    every ``MaidrPlot`` under it, which it did not when the record lived in
+    a module-level dict. Pinned in both directions -- that the round trip
+    still *succeeds*, since anything unpicklable added to those classes
+    would now break pickling a plain figure, and that the copy's record
+    belongs to the copy rather than to the original, which is what
+    distinguishes this from the shallow case above.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    twin = clone(fig)
+    try:
+        assert twin in FigureManager.figs
+        assert FigureManager.figs[twin] is not FigureManager.figs[fig]
+        assert FigureManager.figs[twin].fig is twin
+    finally:
+        FigureManager.figs.pop(fig, None)
+        FigureManager.figs.pop(twin, None)
         plt.close(fig)
