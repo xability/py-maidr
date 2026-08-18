@@ -101,6 +101,17 @@ class PointPlot(ErrorBarPlot):
         # the cursor was in the first.
         self._elements.clear()
 
+        # `_pairs_up` establishes that the intervals divide evenly among the
+        # estimates, and the patch will not construct this type unless it
+        # does. Checked here anyway: the invariant lives in another file, so
+        # a caller constructing `PointPlot` directly -- or a future change to
+        # the patch -- would otherwise mis-slice in silence, handing one
+        # group another's bounds. That is the exact failure the `line`
+        # fallback existed to prevent, and this module raises rather than
+        # guesses everywhere else.
+        if len(self._intervals) % len(self._estimates):
+            raise ExtractionError(self.type, self.ax)
+
         per_group = len(self._intervals) // len(self._estimates)
         # All the groups are named or none is, so a layer never declares an
         # `axes.z` that some of its series do not carry. `_extract_axes_data`

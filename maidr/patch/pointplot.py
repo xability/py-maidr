@@ -95,7 +95,7 @@ def _register_point_layer(ax: Axes, existing: list[Line2D]) -> None:
         return
 
     paired = _pairs_up(estimates, intervals)
-    measured = any(_is_drawn(line.get_xydata()) for line in intervals)
+    measured = any(_has_drawn_segment(line.get_xydata()) for line in intervals)
 
     if paired and measured and len(estimates) == 1:
         FigureManager.create_maidr(
@@ -210,14 +210,14 @@ def _split(lines: list[Line2D]) -> tuple[list[Line2D], list[Line2D]]:
             # Kept whether or not it carries a bound. The list is read against
             # the estimates *by position*, so dropping the line a group with a
             # single observation leaves behind would shift every later group's
-            # interval onto the wrong estimate. `_is_drawn` decides what to do
-            # with it; it does not decide whether it is there.
+            # interval onto the wrong estimate. `_has_drawn_segment` decides
+            # what to do with it; it does not decide whether it is there.
             intervals.append(line)
 
     return estimates, intervals
 
 
-def _is_drawn(vertices: np.ndarray) -> bool:
+def _has_drawn_segment(vertices: np.ndarray) -> bool:
     """
     Check that a candidate interval is a shape the chart actually drew.
 

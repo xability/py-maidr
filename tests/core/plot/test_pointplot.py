@@ -33,6 +33,7 @@ import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.pointplot import PointPlot  # noqa: E402
+from maidr.exception import ExtractionError  # noqa: E402
 from maidr.patch.pointplot import _group_labels  # noqa: E402
 
 
@@ -435,6 +436,40 @@ def test_a_hue_level_with_no_drawable_interval_keeps_its_sibling_bounded():
     assert all("yMin" not in point for point in unbounded)
     assert [point["x"] for point in unbounded] == ["a", "b"]
     assert all(point["y"] is not None for point in unbounded)
+
+
+def test_intervals_that_do_not_divide_among_the_groups_are_refused():
+    """The counts are guaranteed by ``_pairs_up``, in another file.
+
+    So the slicing checks them again rather than trusting a contract it
+    cannot see -- a caller constructing ``PointPlot`` directly, or a future
+    change to the patch, would otherwise mis-slice in silence.
+
+    The case is an interval **too many**, not one too few, and that is the
+    whole reason this test exists. A short list is already caught downstream
+    by ``_points_of``, whose ``len(xs) != len(intervals)`` raises when a
+    group's slice does not cover its categories. A long one is not: with 7
+    intervals over 2 estimates of 3 categories, ``per_group`` is 3, both
+    groups slice cleanly, and the extra interval is dropped without a word.
+    Measured both ways --
+
+        5 intervals: raises with or without the guard
+        7 intervals: raises only with it
+
+    -- because the first version of this test used the short list and
+    therefore passed with the guard removed.
+    """
+    frame = FRAME.assign(half=["x", "y"] * 9)
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="group", y="value", hue="half", dodge=True, ax=ax)
+
+    plot = _plots(fig)[0]
+    plot._intervals.append(plot._intervals[0])  # 7 intervals across 2 estimates
+    plot._schema = {}
+
+    with pytest.raises(ExtractionError):
+        plot.render()
 
 
 def test_a_dodged_group_is_still_named_by_its_tick():
