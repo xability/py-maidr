@@ -195,15 +195,17 @@ class TestWhatMustNotChange:
 
         assert layers(ax.get_figure()) == ["line"]
 
-    def test_a_hue_split_is_still_a_line(self):
-        # More than one estimate means a `hue` split the chart into groups,
-        # and the MAIDR error bar layer carries a single series -- so the
-        # intervals are dropped rather than mis-assigned. Unchanged here, and
-        # pinned so that moving registration does not quietly move it.
+    def test_a_hue_split_keeps_its_intervals(self):
+        # This used to pin the opposite -- `["line"]` -- because the error bar
+        # layer carried a single flat series with no field naming the group,
+        # so a hued chart's intervals were dropped rather than mis-assigned.
+        # maidr 4.4.0 gave the grammar a grouped shape and the fallback went
+        # with it (#462). Pinned here so that the registration `catplot`
+        # shares does not quietly diverge from the axes-level function's.
         _, ax = plt.subplots()
         sns.pointplot(frame(), x="g", y="v", hue="panel", ax=ax)
 
-        assert layers(ax.get_figure()) == ["line"]
+        assert layers(ax.get_figure()) == ["error_bar"]
 
     def test_a_point_plot_does_not_claim_lines_it_did_not_draw(self):
         # The per-panel snapshot. An estimate taken from another chart is

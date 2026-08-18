@@ -72,7 +72,10 @@ class MaidrPlotFactory:
             # the same layer; they differ only in what the library drew.
             # `Axes.errorbar` leaves a container, while seaborn's point plot
             # leaves the lines the patch resolved and hands them over here.
-            if isinstance(kwargs.get("estimate"), Line2D):
+            # `estimates` (plural) is the `hue`-split form, one line per
+            # group; `estimate` is the single-series one. Either says the
+            # lines came from seaborn.
+            if isinstance(kwargs.get("estimate"), Line2D) or kwargs.get("estimates"):
                 return PointPlot(single_ax, **kwargs)
             return ErrorBarPlot(single_ax, **kwargs)
         elif PlotType.HEAT == plot_type:

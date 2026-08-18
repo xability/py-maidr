@@ -105,6 +105,41 @@ class MaidrPlot(ABC, FormatExtractorMixin):
 
         return maidr_schema
 
+    def _legend_title(self) -> str:
+        """
+        The grouping variable's name, as the legend titles it.
+
+        A ``hue`` split names its groups in the legend entries and names the
+        *variable* in the legend title, and the title is the only place that
+        name appears -- so this is what an ``axes.z`` label is read from.
+        Shared rather than restated: ``MultiLinePlot`` and ``PointPlot`` both
+        need it and would otherwise drift apart if the convention changed.
+
+        Read **live**, when the schema is built, while the group *names* are
+        captured once as the plotting call is patched. A caller who retitles
+        or relabels the legend in between can therefore make the two
+        disagree -- the points would carry the names the chart was drawn
+        with and the axis would carry the new title. Pre-existing, and
+        sharper for ``PointPlot`` than for ``MultiLinePlot`` because there
+        the divergence reaches per-point ``z`` values rather than one label.
+        Reconciling them means either freezing the title at registration or
+        re-reading the names at render, and both are changes to when a
+        layer decides what it says.
+
+        Returns
+        -------
+        str
+            The title, or an empty string when there is no legend or no
+            title on it.
+        """
+        legend = self.ax.get_legend()
+        if legend is None:
+            return ""
+        title = legend.get_title()
+        if title is None:
+            return ""
+        return title.get_text().strip()
+
     @staticmethod
     def _axis_config(
         label: str | None = None,
