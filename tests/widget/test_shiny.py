@@ -789,7 +789,7 @@ _VOLATILE_IN_SVG = re.compile(
 )
 
 
-def test_concurrent_renders_of_one_figure_agree(monkeypatch):
+def test_concurrent_renders_of_one_figure_agree():
     """Concurrent renders of one figure must produce the same chart.
 
     Narrower than it first looks, and worth stating plainly:
@@ -818,6 +818,15 @@ def test_concurrent_renders_of_one_figure_agree(monkeypatch):
     Measured 10 of 10 runs mismatching with the lock stubbed out and 10 of
     10 identical with it, so this runs in CI rather than under
     ``--run-benchmark``.
+
+    The renders start from a barrier rather than from whenever each thread
+    happens to be scheduled. Review raised the right worry -- a quiet or
+    single-core runner could let six staggered renders complete without
+    ever landing inside each other's ``dpi`` window, which would reduce
+    this to a no-op that still passes. Raising the chart size does not
+    address that (detection was 8 of 8 at 30, 100 and 200 bars alike, so
+    the margin was never the variable); starting them together does,
+    because it does not depend on the scheduler being busy.
     """
     fig, ax = plt.subplots()
     ax.bar([str(i) for i in range(30)], list(range(30)))
@@ -825,15 +834,21 @@ def test_concurrent_renders_of_one_figure_agree(monkeypatch):
 
     outputs: list[str] = []
     failures: list[BaseException] = []
+    # One constant for the barrier and the thread count, because they must
+    # agree: a barrier expecting more arrivals than there are threads waits
+    # forever (#506).
+    racers = 6
+    start = threading.Barrier(racers)
 
     def render_once():
         try:
+            start.wait(timeout=30)
             rendered = str(renderer._render_off_loop(ax))
             outputs.append(_VOLATILE_IN_SVG.sub("", rendered))
         except BaseException as exc:  # noqa: BLE001 - reported, not swallowed
             failures.append(exc)
 
-    workers = [threading.Thread(target=render_once) for _ in range(6)]
+    workers = [threading.Thread(target=render_once) for _ in range(racers)]
     try:
         for worker in workers:
             worker.start()
@@ -849,5 +864,4 @@ def test_concurrent_renders_of_one_figure_agree(monkeypatch):
             "at the wrong scale rather than an error"
         )
     finally:
-        FigureManager.figs.pop(fig, None)
         plt.close(fig)
