@@ -27,6 +27,12 @@ class FigureManager:
         A dictionary that maps matplotlib Figure objects to their corresponding
         Maidr instances.
 
+        Reads reach worker threads since #504, which renders off the Shiny
+        event loop. Writes go through :meth:`_get_maidr` under ``_lock``, so
+        two concurrent registrations of one figure cannot each create a
+        ``Maidr`` for it. Individual dict operations are atomic under the
+        GIL; the lock is for the check-then-act around them.
+
     Methods
     -------
     create_maidr(ax, plot_type, **kwargs)
@@ -101,9 +107,18 @@ class FigureManager:
         Maidr
             The Maidr instance associated with the figure.
         """
-        if fig not in cls.figs.keys():
-            cls.figs[fig] = Maidr(fig, plot_type)
-        return cls.figs[fig]
+        # Guarded because this is a check-then-act on shared state, and the
+        # thread it runs on stopped being guaranteed when the Shiny renderer
+        # moved off the event loop (#504, #505). Registration still happens
+        # on the loop thread there -- plotting is the user's code, which runs
+        # before the render is offloaded -- but that is a property of where
+        # callers happen to live, not of this method, and losing it would
+        # mint two `Maidr` objects for one figure and split a chart's layers
+        # between them. The lock costs one uncontended acquire per layer.
+        with cls._lock:
+            if fig not in cls.figs:
+                cls.figs[fig] = Maidr(fig, plot_type)
+            return cls.figs[fig]
 
     @classmethod
     def get_maidr(cls, fig: Figure) -> Maidr:

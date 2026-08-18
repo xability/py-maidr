@@ -81,3 +81,52 @@ class TestSeabornFigureManager:
     def test_get_figure_from_countplot_axes(self, axes):
         count_ax = sns.countplot(x=[1, 2, 2, 3, 3, 3])
         assert FigureManager.get_axes(count_ax) == axes
+
+
+def test_one_figure_registered_concurrently_gets_one_maidr():
+    """The check-then-act in ``_get_maidr`` runs under the lock.
+
+    Two threads registering layers on the same figure both find it missing
+    and both create a ``Maidr`` for it, unless the check and the insert are
+    atomic. The loser's object is then dropped from ``figs`` while the
+    layers registered against it are not -- a chart that renders with some
+    of its layers silently missing.
+
+    Not reachable through the Shiny path today, where registration stays on
+    the event loop because plotting is the user's code and runs before the
+    render is offloaded (#505 records that measurement). But that is a
+    property of where callers live, not of this method, and #504 made the
+    surrounding code genuinely multi-threaded for the first time.
+    """
+    import threading
+
+    import matplotlib.pyplot as plt
+
+    from maidr.core.enum import PlotType
+    from maidr.core.figure_manager import FigureManager
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    FigureManager.figs.pop(fig, None)
+
+    seen = []
+    start = threading.Barrier(8)
+
+    def register():
+        start.wait()
+        seen.append(FigureManager._get_maidr(fig, PlotType.BAR))
+
+    workers = [threading.Thread(target=register) for _ in range(8)]
+    try:
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+
+        assert len({id(maidr) for maidr in seen}) == 1, (
+            "concurrent registration created more than one Maidr for one "
+            "figure; layers registered against the loser are lost"
+        )
+        assert seen[0] is FigureManager.figs[fig]
+    finally:
+        plt.close(fig)
