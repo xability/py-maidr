@@ -414,6 +414,33 @@ def test_the_shim_returns_the_object_rather_than_a_copy():
     assert viaShim is bundle_capability.MaidrBundleTraceWarning
 
 
+def test_the_env_var_resolves_to_one_object_from_every_path():
+    """``BUNDLE_WARNING_ENV_VAR`` must not come back through the shim.
+
+    It is public from ``maidr`` and from ``maidr.util.dependencies``, and
+    it is *owned* by ``maidr.util.warn`` (#496). For a while
+    ``dependencies`` resolved it through ``__getattr__`` to
+    ``bundle_freshness``, which had the name only because that module
+    imports it for its own message text -- so dropping what looks there
+    like an unused import would have broken an unrelated public path with
+    an ``AttributeError``.
+
+    Pinned by identity rather than by equality: both would pass on a
+    plain string today, and identity is what says the three names are one
+    constant rather than three that happen to agree.
+    """
+    from maidr.util import bundle_freshness, warn
+
+    assert dependencies.BUNDLE_WARNING_ENV_VAR is warn.BUNDLE_WARNING_ENV_VAR
+    assert maidr.BUNDLE_WARNING_ENV_VAR is warn.BUNDLE_WARNING_ENV_VAR
+
+    # The half that fails if the shim is put back in the path: this must
+    # hold whatever ``bundle_freshness`` does or does not import.
+    assert "BUNDLE_WARNING_ENV_VAR" not in dependencies._MOVED_TO_BUNDLE_FRESHNESS
+    assert "BUNDLE_WARNING_ENV_VAR" not in dependencies._MOVED_TO_BUNDLE_CAPABILITY
+    assert bundle_freshness.BUNDLE_WARNING_ENV_VAR is warn.BUNDLE_WARNING_ENV_VAR
+
+
 def test_an_unknown_attribute_still_raises_attribute_error():
     """The fallback branch has to keep failing.
 
