@@ -1,0 +1,184 @@
+"""Clearing an axes forgets the layers drawn on it, and nothing else.
+
+``Figure.clear`` was patched to drop a figure's registered layers;
+``Axes.clear`` was not. Re-plotting into a cleared axes therefore *appended*
+a layer, and the reader was offered one describing artists no longer drawn --
+announced with confident values, and with a highlight resolving to nothing
+because those artists never reach ``HighlightContextManager``. It accumulated:
+five clear cycles left six layers (#499).
+
+``ax.clear()`` is the ordinary way to redraw into a reused axes, so the two
+spellings of the same intent behaved differently, and the correct one was the
+less common for a single-axes figure.
+
+The tests assert on the emitted layer count rather than on ``_plots``, because
+the layer count is what a reader is offered. They also pin the neighbour cases
+-- a second panel, and a ``twinx`` twin at the same grid cell -- since the fix
+narrows ``clear()`` and the way to get that wrong is to take too much.
+
+``selector_ids`` is checked alongside, because it is paired with ``_plots`` by
+index in both directions and ``clear()`` used to empty only one of them. See
+``Maidr._drop_superseded_layers`` for the invariant.
+"""
+
+from __future__ import annotations
+
+import matplotlib
+
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402
+import pytest  # noqa: E402
+
+import maidr  # noqa: F401,E402  # activates patches
+from maidr.core.figure_manager import FigureManager  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _close_figures():
+    """Close every figure a test opened, so state cannot leak between them."""
+    yield
+    plt.close("all")
+
+
+def layer_count(maidr_obj) -> int:
+    """How many layers the emitted schema offers for the first subplot."""
+    schema = maidr_obj._flatten_maidr()
+    return len(schema["subplots"][0][0]["layers"])
+
+
+def paired(maidr_obj) -> bool:
+    """``_plots`` and ``selector_ids`` still line up by index."""
+    return len(maidr_obj._plots) == len(maidr_obj.selector_ids)
+
+
+@pytest.mark.parametrize("clear_it", [lambda ax: ax.clear(), lambda ax: plt.cla()])
+def test_replotting_a_cleared_axes_replaces_the_layer(clear_it):
+    """Both spellings reach the same ``Axes`` method and both were affected."""
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b", "c"], [1, 2, 3])
+    maidr_obj = FigureManager.get_maidr(fig)
+
+    clear_it(ax)
+    fig.gca().bar(["a", "b", "c"], [9, 9, 9])
+
+    assert layer_count(maidr_obj) == 1, (
+        "the cleared layer is still offered alongside the redrawn one"
+    )
+    layer = maidr_obj._flatten_maidr()["subplots"][0][0]["layers"][0]
+    assert [point["y"] for point in layer["data"]] == [9.0, 9.0, 9.0], (
+        "the surviving layer must be the redrawn one, not the discarded one"
+    )
+
+
+def test_repeated_clear_cycles_do_not_accumulate_layers():
+    """The count is the point: it grew by one per cycle, unbounded."""
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    maidr_obj = FigureManager.get_maidr(fig)
+
+    for i in range(5):
+        ax.clear()
+        ax.bar(["a", "b"], [i, i])
+
+    assert layer_count(maidr_obj) == 1
+    assert paired(maidr_obj)
+
+
+def test_clearing_one_panel_leaves_the_other_registered():
+    """``clear_axes`` is narrower than ``clear`` -- this is why."""
+    fig, (first, second) = plt.subplots(1, 2)
+    first.bar(["a", "b"], [1, 2])
+    second.bar(["c", "d"], [3, 4])
+    maidr_obj = FigureManager.get_maidr(fig)
+    assert len(maidr_obj._plots) == 2
+
+    first.clear()
+
+    assert [plot.ax for plot in maidr_obj._plots] == [second], (
+        "clearing one panel unregistered the other"
+    )
+    assert paired(maidr_obj)
+
+
+def test_clearing_a_twin_leaves_the_axes_it_was_twinned_from():
+    """``twinx`` puts a second axes at the same grid cell.
+
+    Keyed by position rather than by axes, this pair collapses -- the same
+    trap ``_layer_axes_key`` records for the supersede rules.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    twin = ax.twinx()
+    twin.plot([0, 1], [5, 6])
+    maidr_obj = FigureManager.get_maidr(fig)
+    assert len(maidr_obj._plots) == 2
+
+    twin.clear()
+
+    assert [plot.ax for plot in maidr_obj._plots] == [ax], (
+        "clearing the twin took the axes it was twinned from with it"
+    )
+    assert paired(maidr_obj)
+
+
+def test_clearing_an_axes_that_holds_no_layers_is_a_no_op():
+    """``Axes.clear`` and ``Axes.cla`` delegate to each other.
+
+    Both are patched, so a single call can fire the hook twice. The second
+    firing has to find nothing to do rather than disturb what the first left.
+    """
+    fig, (first, second) = plt.subplots(1, 2)
+    first.bar(["a", "b"], [1, 2])
+    maidr_obj = FigureManager.get_maidr(fig)
+    before = list(maidr_obj._plots)
+
+    second.clear()
+    second.clear()
+
+    assert maidr_obj._plots == before
+    assert paired(maidr_obj)
+
+
+def test_clearing_an_unregistered_figure_does_not_raise():
+    """A figure maidr never saw has no entry to drop."""
+    fig, ax = plt.subplots()
+    ax.plot([0, 1], [0, 1])  # patched, but nothing registers a bare line here
+
+    ax.clear()  # must not raise
+    fig.clear()  # the pre-existing guard, kept
+
+
+def test_clear_drops_the_selector_ids_with_the_layers():
+    """The second half of #499, and the one that raised nothing.
+
+    ``clear()`` emptied ``_plots`` and left ``selector_ids`` behind. The two
+    are paired by index, so the next layer registered was tagged with the id
+    minted for a layer that no longer existed, and its own id was never used.
+
+    Called directly rather than through ``fig.clear()``, and that distinction
+    is the whole test. Going through the figure now reaches ``clear_axes``
+    first -- ``Figure.clear`` clears its axes, which is patched -- and that
+    drops both lists in step, so the figure route cannot fail even with this
+    line removed. It is a *public method* that can be called on its own, and
+    only calling it on its own pins what it does.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    maidr_obj = FigureManager.get_maidr(fig)
+    discarded = list(maidr_obj.selector_ids)
+    assert discarded, "the layer should have been registered with an id"
+
+    maidr_obj.clear()
+
+    assert maidr_obj._plots == []
+    assert maidr_obj.selector_ids == [], (
+        "the ids outlived the layers they were minted for"
+    )
+
+    ax.bar(["a", "b"], [9, 9])
+
+    assert paired(maidr_obj)
+    assert maidr_obj.selector_ids[0] not in discarded, (
+        "the re-plotted layer is wearing the discarded layer's selector id"
+    )
