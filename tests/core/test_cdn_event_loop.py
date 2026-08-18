@@ -27,6 +27,7 @@ import json
 
 import pytest
 
+from maidr.util import cdn
 from maidr.util import dependencies
 
 
@@ -47,9 +48,9 @@ def requests(monkeypatch):
     Yields the list of requested URLs, so a test can say "no request was
     made" as a fact about the network rather than about the clock.
     """
-    monkeypatch.delenv(dependencies.CDN_VERSION_ENV_VAR, raising=False)
-    dependencies.set_cdn_version(None)
-    dependencies.reset_cdn_version_cache()
+    monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+    cdn.set_cdn_version(None)
+    cdn.reset_cdn_version_cache()
 
     calls: list[str] = []
 
@@ -57,11 +58,11 @@ def requests(monkeypatch):
         calls.append(request.full_url)
         return _FakeResponse(json.dumps({"version": "9.9.9"}).encode("utf-8"))
 
-    monkeypatch.setattr(dependencies, "urlopen", fake_urlopen)
+    monkeypatch.setattr(cdn, "urlopen", fake_urlopen)
     yield calls
 
-    dependencies.set_cdn_version(None)
-    dependencies.reset_cdn_version_cache()
+    cdn.set_cdn_version(None)
+    cdn.reset_cdn_version_cache()
 
 
 def in_loop(call):
@@ -80,7 +81,7 @@ def test_a_render_on_an_event_loop_makes_no_request(requests) -> None:
     what the user experiences, but the *cause* is the round trip, and that is
     the thing a test can state without measuring a shared CI runner.
     """
-    version = in_loop(dependencies.get_cdn_version)
+    version = in_loop(cdn.get_cdn_version)
 
     assert requests == []
     assert version == dependencies.maidr_js_version()
@@ -88,7 +89,7 @@ def test_a_render_on_an_event_loop_makes_no_request(requests) -> None:
 
 def test_a_synchronous_render_still_resolves(requests) -> None:
     """The control. Nothing outside an event loop changes."""
-    version = dependencies.get_cdn_version()
+    version = cdn.get_cdn_version()
 
     assert len(requests) == 1
     assert version == "9.9.9"
@@ -102,18 +103,18 @@ def test_the_version_emitted_on_a_loop_is_concrete(requests) -> None:
     can replay a week-old bundle. Declining to resolve must not quietly
     reintroduce it.
     """
-    url = in_loop(dependencies.maidr_js_cdn_url)
+    url = in_loop(cdn.maidr_js_cdn_url)
 
     assert requests == []
-    assert f"maidr@{dependencies.LATEST_TAG}/" not in url
+    assert f"maidr@{cdn.LATEST_TAG}/" not in url
     assert f"maidr@{dependencies.maidr_js_version()}/" in url
 
 
 def test_an_explicit_pin_still_wins_on_a_loop(requests) -> None:
     """A pin is the caller's own answer and costs no request either way."""
-    dependencies.set_cdn_version("3.74.0")
+    cdn.set_cdn_version("3.74.0")
 
-    assert in_loop(dependencies.get_cdn_version) == "3.74.0"
+    assert in_loop(cdn.get_cdn_version) == "3.74.0"
     assert requests == []
 
 
@@ -125,9 +126,9 @@ def test_a_completed_lookup_is_used_on_a_loop(requests) -> None:
     main thread agree. It is also the supported way for an async app to
     serve a release newer than its wheel.
     """
-    assert dependencies.get_cdn_version() == "9.9.9"
+    assert cdn.get_cdn_version() == "9.9.9"
 
-    assert in_loop(dependencies.get_cdn_version) == "9.9.9"
+    assert in_loop(cdn.get_cdn_version) == "9.9.9"
     assert len(requests) == 1
 
 
@@ -141,11 +142,11 @@ def test_a_cached_failure_is_not_retried_on_a_loop(monkeypatch, requests) -> Non
     agreeing is the point: after any resolution attempt, context stops
     mattering.
     """
-    monkeypatch.setattr(dependencies, "_fetch_latest_version", lambda budget: None)
+    monkeypatch.setattr(cdn, "_fetch_latest_version", lambda budget: None)
 
-    assert dependencies.get_cdn_version() == dependencies.maidr_js_version()
+    assert cdn.get_cdn_version() == dependencies.maidr_js_version()
 
-    assert in_loop(dependencies.get_cdn_version) == dependencies.maidr_js_version()
+    assert in_loop(cdn.get_cdn_version) == dependencies.maidr_js_version()
     assert requests == []
 
 
@@ -166,7 +167,7 @@ def test_interleaved_renders_on_one_loop_all_return(requests) -> None:
 
     async def one_render():
         await asyncio.sleep(0)
-        return dependencies.get_cdn_version()
+        return cdn.get_cdn_version()
 
     async def main():
         return await asyncio.gather(*[one_render() for _ in range(4)])
@@ -186,18 +187,18 @@ def test_bundled_cdn_url_still_prefers_a_pin_then_a_lookup(requests) -> None:
     iframe emitted the pinned one, and one page loaded two builds of
     ``maidr.js``.
     """
-    dependencies.set_cdn_version("3.74.0")
-    assert "maidr@3.74.0/" in dependencies.bundled_cdn_url(
+    cdn.set_cdn_version("3.74.0")
+    assert "maidr@3.74.0/" in cdn.bundled_cdn_url(
         dependencies.MAIDR_JS_FILENAME
     )
 
-    dependencies.set_cdn_version(None)
-    assert dependencies.get_cdn_version() == "9.9.9"
-    assert "maidr@9.9.9/" in dependencies.bundled_cdn_url(
+    cdn.set_cdn_version(None)
+    assert cdn.get_cdn_version() == "9.9.9"
+    assert "maidr@9.9.9/" in cdn.bundled_cdn_url(
         dependencies.MAIDR_JS_FILENAME
     )
 
-    dependencies.reset_cdn_version_cache()
-    assert f"maidr@{dependencies.maidr_js_version()}/" in dependencies.bundled_cdn_url(
+    cdn.reset_cdn_version_cache()
+    assert f"maidr@{dependencies.maidr_js_version()}/" in cdn.bundled_cdn_url(
         dependencies.MAIDR_JS_FILENAME
     )

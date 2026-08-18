@@ -32,11 +32,13 @@ from maidr.util.bundle_freshness import warn_if_bundle_is_stale
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
     OFFLINE_FALLBACK_REPORT,
-    bundled_cdn_url,
     inline_bundle_tags,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
     maidr_html_dependency,
+)
+from maidr.util.cdn import (
+    bundled_cdn_url,
     maidr_js_cdn_url,
 )
 from maidr.util.environment import Environment

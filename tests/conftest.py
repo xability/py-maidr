@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.enum.library import Library
 from maidr.util import bundle_freshness as freshness
-from maidr.util import dependencies
+from maidr.util import cdn
 from maidr.util import warn as warn_module
 from tests.fixture.matplotlib_factory import MatplotlibFactory
 from tests.fixture.seaborn_factory import SeabornFactory
@@ -25,7 +25,7 @@ def offline_cdn_version(monkeypatch):
     a warning raised by one test cannot suppress the same warning in the
     next.
     """
-    monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, dependencies.LATEST_TAG)
+    monkeypatch.setenv(cdn.CDN_VERSION_ENV_VAR, cdn.LATEST_TAG)
     monkeypatch.setattr(freshness, "_bundle_warned", set())
     monkeypatch.setattr(warn_module, "_warned_keys", set())
 
@@ -36,12 +36,12 @@ def offline_cdn_version(monkeypatch):
     # quietly reach jsDelivr and depend on whatever is published today.
     # Tests that want a resolution replace this with their own stub.
     def _no_network(*_args, **_kwargs):
-        raise OSError("network disabled in tests; stub dependencies.urlopen")
+        raise OSError("network disabled in tests; stub cdn.urlopen")
 
-    monkeypatch.setattr(dependencies, "urlopen", _no_network)
-    dependencies.set_cdn_version(None)
+    monkeypatch.setattr(cdn, "urlopen", _no_network)
+    cdn.set_cdn_version(None)
     yield
-    dependencies.set_cdn_version(None)
+    cdn.set_cdn_version(None)
 
 
 # setup and teardown
@@ -80,17 +80,17 @@ def forbid_network():
     of these probes were silently vacuous for exactly that reason.
     """
     calls: list[str] = []
-    real_urlopen = dependencies.urlopen
+    real_urlopen = cdn.urlopen
 
     def recording(request, timeout=None):
         calls.append(getattr(request, "full_url", str(request)))
         raise OSError("network disabled in tests")
 
-    dependencies.urlopen = recording
+    cdn.urlopen = recording
     try:
         yield calls
     finally:
-        dependencies.urlopen = real_urlopen
+        cdn.urlopen = real_urlopen
     assert not calls, f"expected no network call, got: {calls}"
 
 

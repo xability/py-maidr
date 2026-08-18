@@ -496,7 +496,9 @@ def test_the_shim_must_stay_lazy():
     offenders = [
         (lineno, text)
         for lineno, text in imports
-        if "bundle_capability" in text or "bundle_freshness" in text
+        if "bundle_capability" in text
+        or "bundle_freshness" in text
+        or "cdn" in text
     ]
 
     assert not offenders, (
