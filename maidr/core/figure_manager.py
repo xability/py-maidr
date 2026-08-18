@@ -28,10 +28,12 @@ class FigureManager:
         Maidr instances.
 
         Reads reach worker threads since #504, which renders off the Shiny
-        event loop. Writes go through :meth:`_get_maidr` under ``_lock``, so
-        two concurrent registrations of one figure cannot each create a
-        ``Maidr`` for it. Individual dict operations are atomic under the
-        GIL; the lock is for the check-then-act around them.
+        event loop. Both write paths -- :meth:`_get_maidr`'s insert and
+        :meth:`destroy`'s pop -- take ``_lock``, as does the paired append
+        of ``plots`` and ``selector_ids`` in :meth:`create_maidr`, which
+        must stay index-aligned. Individual dict and list operations are
+        atomic under the GIL; the lock is for the check-then-act and the
+        paired write around them.
 
     Methods
     -------
@@ -75,9 +77,27 @@ class FigureManager:
 
         # Add plot to the Maidr object associated with the plot's figure.
         maidr = cls._get_maidr(ax.get_figure(), plot_type)
+
+        # Extraction stays *outside* the lock: it is the expensive part and
+        # touches only the artists it was handed.
         plot = MaidrPlotFactory.create(axes, plot_type, **kwargs)
-        maidr.plots.append(plot)
-        maidr.selector_ids.append(Maidr._unique_id())
+
+        # The two appends do not. `plots` and `selector_ids` are separate
+        # lists held index-aligned -- `Maidr._flatten_maidr` and
+        # `_create_html_tag` both zip them, and `_drop_superseded_layers`
+        # documents what misalignment costs: every surviving layer wears its
+        # neighbour's id, so the highlight lands on the wrong mark with
+        # nothing raised.
+        #
+        # Each `append` is atomic under the GIL; the *pair* is not. Two
+        # concurrent registrations on one figure can interleave between
+        # them, which reproduces deterministically:
+        #
+        #     plots        ['plot-A', 'plot-B']
+        #     selector_ids ['id-B',   'id-A']
+        with cls._lock:
+            maidr.plots.append(plot)
+            maidr.selector_ids.append(Maidr._unique_id())
         return maidr
 
     @classmethod
@@ -141,8 +161,12 @@ class FigureManager:
 
     @classmethod
     def destroy(cls, fig: Figure) -> None:
+        # Under the same lock as the registering writes: this is the second
+        # write path into `figs`, and a `pop` racing a `_get_maidr` insert
+        # decides which of them wins by timing.
         try:
-            maidr = cls.figs.pop(fig)
+            with cls._lock:
+                maidr = cls.figs.pop(fig)
         except KeyError:
             return
         maidr.destroy()

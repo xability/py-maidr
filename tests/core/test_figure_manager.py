@@ -1,3 +1,5 @@
+import threading
+
 import matplotlib.pyplot as plt
 import pytest
 import seaborn as sns
@@ -98,13 +100,6 @@ def test_one_figure_registered_concurrently_gets_one_maidr():
     property of where callers live, not of this method, and #504 made the
     surrounding code genuinely multi-threaded for the first time.
     """
-    import threading
-
-    import matplotlib.pyplot as plt
-
-    from maidr.core.enum import PlotType
-    from maidr.core.figure_manager import FigureManager
-
     fig, ax = plt.subplots()
     ax.bar(["a", "b"], [1, 2])
     FigureManager.figs.pop(fig, None)
@@ -134,5 +129,76 @@ def test_one_figure_registered_concurrently_gets_one_maidr():
         # theirs behind; this one registered a figure purely to race on it,
         # so it cleans up rather than adding to the pile it was written
         # alongside.
+        FigureManager.figs.pop(fig, None)
+        plt.close(fig)
+
+
+def test_concurrent_registration_keeps_plots_and_selector_ids_aligned(monkeypatch):
+    """The two lists are paired by index and appended to separately.
+
+    ``Maidr._flatten_maidr`` and ``_create_html_tag`` both zip ``plots``
+    with ``selector_ids``, and ``_drop_superseded_layers`` spells out what
+    misalignment costs: every surviving layer wears its neighbour's id, so
+    the highlight lands on the wrong mark with nothing raised.
+
+    Each ``append`` is atomic under the GIL; the *pair* is not. Without the
+    lock around both, two registrations on one figure interleave:
+
+        plots        ['plot-A', 'plot-B']
+        selector_ids ['id-B',   'id-A']
+
+    Detecting that needs the id to be traceable to the layer it was minted
+    for, which a uuid is not. So each thread mints an id naming itself, and
+    the assertion is that every layer sits opposite the id minted in its
+    own call.
+
+    An earlier version asserted equal lengths and unique ids instead. Both
+    hold under a scrambled order -- it passed with the lock removed, which
+    is how it was caught.
+    """
+    from maidr.core.maidr import Maidr as MaidrClass
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    FigureManager.figs.pop(fig, None)
+
+    who = threading.local()
+
+    monkeypatch.setattr(
+        MaidrClass, "_unique_id", staticmethod(lambda: f"id-{who.tag}")
+    )
+
+    start = threading.Barrier(8)
+
+    def register(tag):
+        who.tag = tag
+        start.wait()
+        maidr_obj = FigureManager.create_maidr(ax, PlotType.BAR)
+        # Tag the layer this call registered, so it can be matched to the
+        # id the same call minted. `plots[-1]` is safe: the append happens
+        # under the same lock as the id's, so nothing lands between them.
+        maidr_obj.plots[-1]._registered_by = tag
+
+    workers = [threading.Thread(target=register, args=(i,)) for i in range(8)]
+    try:
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+
+        maidr_obj = FigureManager.figs[fig]
+        pairs = list(zip(maidr_obj.plots, maidr_obj.selector_ids))
+        assert len(pairs) == 8
+
+        misaligned = [
+            (getattr(plot, "_registered_by", None), selector_id)
+            for plot, selector_id in pairs
+            if selector_id != f"id-{getattr(plot, '_registered_by', None)}"
+        ]
+        assert not misaligned, (
+            f"{misaligned} -- a layer is sitting opposite another call's "
+            "selector id; the highlight would land on the wrong mark"
+        )
+    finally:
         FigureManager.figs.pop(fig, None)
         plt.close(fig)
