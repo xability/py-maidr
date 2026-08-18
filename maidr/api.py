@@ -240,13 +240,15 @@ def init_notebook(
         # IPython not importable — nothing to display into.
         return
 
+    from maidr.util.bundle_freshness import (
+        warn_bundle_unreadable,
+        warn_if_bundle_is_stale,
+    )
     from maidr.util.dependencies import (
         MAIDR_JS_FILENAME,
         read_bundled_js,
         read_bundled_math_css,
         bundled_cdn_url,
-        warn_bundle_unreadable,
-        warn_if_bundle_is_stale,
     )
 
     mode = _resolve_use_cdn(use_cdn)

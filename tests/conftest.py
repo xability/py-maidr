@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.enum.library import Library
+from maidr.util import bundle_freshness as freshness
 from maidr.util import dependencies
 from maidr.util import warn as warn_module
 from tests.fixture.matplotlib_factory import MatplotlibFactory
@@ -25,7 +26,7 @@ def offline_cdn_version(monkeypatch):
     next.
     """
     monkeypatch.setenv(dependencies.CDN_VERSION_ENV_VAR, dependencies.LATEST_TAG)
-    monkeypatch.setattr(dependencies, "_bundle_warned", set())
+    monkeypatch.setattr(freshness, "_bundle_warned", set())
     monkeypatch.setattr(warn_module, "_warned_keys", set())
 
     # Default-deny the network rather than relying on the pin above.

@@ -28,6 +28,7 @@ from maidr.util.bundle_capability import (
     schema_trace_types,
     warn_if_bundle_cannot_render,
 )
+from maidr.util.bundle_freshness import warn_if_bundle_is_stale
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
     OFFLINE_FALLBACK_REPORT,
@@ -37,7 +38,6 @@ from maidr.util.dependencies import (
     maidr_bundled_relative_dir,
     maidr_html_dependency,
     maidr_js_cdn_url,
-    warn_if_bundle_is_stale,
 )
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_matplotlib

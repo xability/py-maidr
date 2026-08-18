@@ -414,6 +414,33 @@ def test_the_shim_returns_the_object_rather_than_a_copy():
     assert viaShim is bundle_capability.MaidrBundleTraceWarning
 
 
+def test_the_env_var_resolves_to_one_object_from_every_path():
+    """``BUNDLE_WARNING_ENV_VAR`` must not come back through the shim.
+
+    It is public from ``maidr`` and from ``maidr.util.dependencies``, and
+    it is *owned* by ``maidr.util.warn`` (#496). For a while
+    ``dependencies`` resolved it through ``__getattr__`` to
+    ``bundle_freshness``, which had the name only because that module
+    imports it for its own message text -- so dropping what looks there
+    like an unused import would have broken an unrelated public path with
+    an ``AttributeError``.
+
+    Pinned by identity rather than by equality: both would pass on a
+    plain string today, and identity is what says the three names are one
+    constant rather than three that happen to agree.
+    """
+    from maidr.util import bundle_freshness, warn
+
+    assert dependencies.BUNDLE_WARNING_ENV_VAR is warn.BUNDLE_WARNING_ENV_VAR
+    assert maidr.BUNDLE_WARNING_ENV_VAR is warn.BUNDLE_WARNING_ENV_VAR
+
+    # The half that fails if the shim is put back in the path: this must
+    # hold whatever ``bundle_freshness`` does or does not import.
+    assert "BUNDLE_WARNING_ENV_VAR" not in dependencies._MOVED_TO_BUNDLE_FRESHNESS
+    assert "BUNDLE_WARNING_ENV_VAR" not in dependencies._MOVED_TO_BUNDLE_CAPABILITY
+    assert bundle_freshness.BUNDLE_WARNING_ENV_VAR is warn.BUNDLE_WARNING_ENV_VAR
+
+
 def test_an_unknown_attribute_still_raises_attribute_error():
     """The fallback branch has to keep failing.
 
@@ -458,17 +485,24 @@ def test_the_shim_must_stay_lazy():
     source = pathlib.Path(dependencies.__file__).read_text()
     tree = ast.parse(source)
 
-    offenders = [
-        node.lineno
+    # Both halves of the split are checked here rather than only the one
+    # this file is named for: they share the shim, and a module-scope
+    # import of either closes the same loop.
+    imports = [
+        (node.lineno, ast.unparse(node))
         for node in tree.body  # module scope only; the shim's own import is nested
         if isinstance(node, (ast.Import, ast.ImportFrom))
-        and "bundle_capability" in ast.unparse(node)
+    ]
+    offenders = [
+        (lineno, text)
+        for lineno, text in imports
+        if "bundle_capability" in text or "bundle_freshness" in text
     ]
 
     assert not offenders, (
-        "maidr.util.dependencies imports bundle_capability at module scope "
-        f"(line {offenders}); that makes the import cycle real. The shim has "
-        "to resolve it inside __getattr__ instead."
+        f"maidr.util.dependencies imports a split-out module at module scope "
+        f"({offenders}); that makes the import cycle real. The shim has to "
+        "resolve it inside __getattr__ instead."
     )
 
 
