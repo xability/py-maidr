@@ -221,19 +221,61 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         """Return the CSS selector for highlighting elements."""
         return "g[maidr='true'] > path"
 
-    def extract_shared_xlabel(self, ax, y_threshold=0.2):
+    def extract_shared_xlabel(self, ax: Axes, y_threshold: float = 0.2) -> str:
+        """Recover an x-axis label shared across a ``sharex`` axes group.
+
+        A faceted figure often labels only one member of a shared-x group,
+        or labels the figure rather than any axes. Either way the sibling
+        axes report an empty ``get_xlabel()`` and would announce ``X``.
+
+        Three sources, in order of how plainly they say "this labels your
+        x axis": a sibling's own label, ``Figure.supxlabel``, and finally a
+        figure-level text sitting in the bottom margin.
+
+        Parameters
+        ----------
+        ax : Axes
+            The axes whose shared x-label should be recovered.
+        y_threshold : float, optional
+            Figure-fraction y-position below which a figure text is treated
+            as a bottom-margin (shared) x-label, by default 0.2.
+
+        Returns
+        -------
+        str
+            The recovered label, or ``""`` if none is found.
+
+        Notes
+        -----
+        The margin scan is reached only when this axes really is in a
+        shared-x group -- more than one sibling. Without that condition it
+        fired on figures that share nothing, and read a bottom caption as
+        the x label of every panel, announced on every data point with
+        nothing marking it as a guess and no way to turn it off (#514).
+
+        The condition is the method's own name taken seriously: an axes
+        that shares its x with nobody has no *shared* label to recover, so
+        an unrelated text in the margin is not a candidate for one.
+        ``supxlabel`` needs no such guard, because a figure that calls it
+        has said what the text means.
+        """
         # First, try to get an xlabel from any shared axes.
         siblings = ax.get_shared_x_axes().get_siblings(ax)
         for shared_ax in siblings:
-            xlabel = shared_ax.get_xlabel()
-            if xlabel:  # if non-empty
+            xlabel = shared_ax.get_xlabel().strip()
+            if xlabel:  # if non-blank
                 return xlabel
 
-        for text in ax.figure.texts:
-            if text.get_position()[1] < y_threshold:
-                label = text.get_text().strip()
-                if label:
-                    return label
+        supxlabel = ax.figure.get_supxlabel().strip()
+        if supxlabel:
+            return supxlabel
+
+        if len(siblings) > 1:
+            for text in ax.figure.texts:
+                if text.get_position()[1] < y_threshold:
+                    label = text.get_text().strip()
+                    if label:
+                        return label
 
         return ""
 
@@ -243,8 +285,10 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         When a faceted figure sets the y-label on only one member of a shared
         y-axis group, the sibling axes report an empty ``get_ylabel()``. This
         mirrors :meth:`extract_shared_xlabel`: it first scans shared-y siblings
-        for a non-blank label, then falls back to a figure-level text sitting
-        in the left margin (e.g. ``fig.supylabel``).
+        for a non-blank label, then ``Figure.supylabel``, then a figure-level
+        text sitting in the left margin -- that last only when the axes is
+        genuinely in a shared-y group. See :meth:`extract_shared_xlabel` for
+        why that condition is there.
 
         Parameters
         ----------
@@ -268,13 +312,18 @@ class MaidrPlot(ABC, FormatExtractorMixin):
             if ylabel:  # if non-blank
                 return ylabel
 
-        # Fallback heuristic: assume a figure-level text sitting in the left
-        # margin is a shared y-label (e.g. ``fig.supylabel``/``fig.text``).
-        for text in ax.figure.texts:
-            if text.get_position()[0] < x_threshold:
-                label = text.get_text().strip()
-                if label:
-                    return label
+        supylabel = ax.figure.get_supylabel().strip()
+        if supylabel:
+            return supylabel
+
+        # Only for an axes that really is in a shared-y group -- see
+        # :meth:`extract_shared_xlabel` for what the unguarded scan cost.
+        if len(siblings) > 1:
+            for text in ax.figure.texts:
+                if text.get_position()[0] < x_threshold:
+                    label = text.get_text().strip()
+                    if label:
+                        return label
 
         return ""
 
