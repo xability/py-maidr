@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import pytest
 import seaborn as sns
 
+import maidr
+
 from maidr.core import Maidr
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.figure_manager import FigureManager
@@ -434,3 +436,57 @@ def test_del_and_pop_agree_about_what_is_registered():
     finally:
         FigureManager.figs.pop(fig, None)
         plt.close(fig)
+
+
+def test_a_cached_figure_keeps_its_chart_across_renders():
+    """#452's hazard, against #456's fix.
+
+    A figure built lazily and cached -- ``@reactive.calc``, any memoised
+    helper -- is closed by the render that opened it and is still the live
+    chart. Dropping its record there is what made every later render fall
+    back to a static image: an accessible chart quietly turning into a
+    picture. That is why #456 could not be fixed by dropping on
+    ``close_event``, and why a bounded cache would have carried the same
+    hazard in miniature.
+
+    Storing the record on the figure ties its lifetime to the caller's own
+    reference instead, so the cache holding the figure is exactly what keeps
+    the record. Both halves are asserted -- the record survives repeated
+    render-and-close cycles, *and* letting go really does reclaim it --
+    because a fix that never released anything would pass the first alone.
+
+    **What this does not detect.** It is not a guard against the
+    ``close_event`` design. Tried: dropping the record from a
+    ``close_event`` handler leaves this test passing, because under ``Agg``
+    ``plt.close()`` fires no ``close_event`` at all (measured: 0 callbacks).
+    That is worth knowing for its own sake -- it means that option would
+    also have been inert in a headless server, which is where the leak it
+    was meant to fix actually happens -- but it means the reclaim half is
+    the only part with a falsified detector behind it, against the plain
+    dict this replaced.
+    """
+    cache = {}
+
+    def cached_figure():
+        if "fig" not in cache:
+            fig, ax = plt.subplots()
+            ax.bar(["a", "b", "c"], [1, 2, 3])
+            cache["fig"] = fig
+        return cache["fig"]
+
+    for flush in range(3):
+        fig = cached_figure()
+        maidr.render(fig)
+        plt.close(fig)
+        gc.collect()
+        assert fig in FigureManager.figs, (
+            f"the cached figure lost its record on flush {flush}; every "
+            "later render would fall back to a static image"
+        )
+        assert len(FigureManager.figs[fig].plots) == 1
+
+    ref = weakref.ref(cache.pop("fig"))
+    del fig
+    gc.collect()
+    gc.collect()
+    assert ref() is None, "the cache let go but the figure was not reclaimed"
