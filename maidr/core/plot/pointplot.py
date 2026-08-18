@@ -127,9 +127,11 @@ class PointPlot(ErrorBarPlot):
                 raise ExtractionError(self.type, self.ax)
             series.append(points)
 
-        if not series:
-            raise ExtractionError(self.type, self.ax)
-
+        # No `if not series` guard here, deliberately: `_extract_plot_data`
+        # routes to this method only when `_estimates` is non-empty, and
+        # every iteration either appends or raises -- so an empty `series`
+        # has no way to occur. A check that cannot fire is worse than none;
+        # it sends a reader looking for the case that produces it.
         if len(self._elements) != sum(len(points) for points in series):
             # Same contract as the ungrouped path: one element per point or
             # no selector at all.
