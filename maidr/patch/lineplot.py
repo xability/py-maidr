@@ -15,6 +15,39 @@ from maidr.util.step_utils import is_step_layer
 #: its own calls drew; see `line()` for what sweeping the axes collected.
 DRAWN_SERIES = "_maidr_line_series"
 
+#: The "this axes already has a layer" latch. Kept beside ``DRAWN_SERIES``
+#: because the two are reset together and nothing else may set either.
+PLOT_CREATED = "_maidr_plot_created"
+
+
+def forget_axes_state(ax: Axes) -> None:
+    """Drop the per-axes registration state this module stashes.
+
+    ``line()`` records two things directly on the ``Axes`` object: the
+    accumulated series, and a latch saying a layer already exists. Both are
+    plain instance attributes, so ``ax.clear()`` leaves them untouched --
+    matplotlib resets the state *it* owns, and knows nothing about these.
+
+    That makes them the one thing a clear has to be told about. Without
+    this, clearing an axes and drawing on it again finds the latch still
+    set, registers no layer at all, and leaves the chart **completely
+    undescribed** -- worse than the stale layer that clearing exists to
+    remove. It also leaves the series list holding ``Line2D`` objects that
+    were detached by the clear.
+
+    ``ax.containers``, which ``barplot`` gates on, needs none of this: it
+    belongs to matplotlib, which empties it on clear. This module is the
+    only one that keeps its own state on an axes.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes being cleared.
+    """
+    for attribute in (DRAWN_SERIES, PLOT_CREATED):
+        if hasattr(ax, attribute):
+            delattr(ax, attribute)
+
 
 def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     """
@@ -159,7 +192,7 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     series.extend(item for item in drawn if item not in series)
 
     # Check if a MAIDR plot already exists for this axes
-    if not hasattr(ax, "_maidr_plot_created"):
+    if not hasattr(ax, PLOT_CREATED):
         # Classify from the rendered artists: a layer is a step plot only when
         # every data-bearing line *it owns* is a step line.
         #
@@ -178,7 +211,7 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
             dict(kwargs, lines=series),
         )
         # Mark that a MAIDR plot has been created for this axes
-        setattr(ax, "_maidr_plot_created", True)
+        setattr(ax, PLOT_CREATED, True)
 
     return plot
 

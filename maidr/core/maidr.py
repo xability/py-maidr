@@ -274,7 +274,50 @@ class Maidr:
         return html.show(_renderer)
 
     def clear(self):
+        """Forget every layer on this figure.
+
+        ``selector_ids`` goes with them. It used to be left behind, and the
+        two lists are paired by index -- see ``_drop_superseded_layers`` for
+        the invariant -- so a figure cleared and then re-plotted tagged its
+        new layer's artists with the id minted for a layer that no longer
+        existed, and the new layer's own id was never used. Nothing raised
+        (#499).
+        """
         self._plots = []
+        self.selector_ids = []
+
+    def clear_axes(self, ax: Axes) -> None:
+        """Forget the layers drawn on one axes, keeping the rest.
+
+        ``clear()`` is right for ``Figure.clear``, where every layer is
+        going. It is too broad for ``Axes.clear``: on a figure with more
+        than one axes, clearing one must leave the others registered, or
+        redrawing a single panel silently unregisters its neighbours.
+
+        Keyed by ``_layer_axes_key`` rather than by grid position, for the
+        reason recorded there -- ``ax.twinx()`` puts a second axes at the
+        same ``(row, col)``, and clearing one of a twinned pair must not
+        take the other with it.
+
+        Idempotent: clearing an axes that holds no layers is a no-op. That
+        is not only about being called twice by a caller -- it is what makes
+        patching both ``Axes.clear`` and ``Axes.cla`` safe. The two delegate
+        to each other, and the inner call resolves to the *patched* method,
+        so a single ``ax.cla()`` fires the hook twice by construction. The
+        second firing has to find nothing left to do.
+
+        Parameters
+        ----------
+        ax : Axes
+            The axes whose layers should be forgotten.
+        """
+        kept = [
+            (plot, selector_id)
+            for plot, selector_id in zip(self._plots, self.selector_ids)
+            if self._layer_axes_key(plot) is not ax
+        ]
+        self._plots = [plot for plot, _ in kept]
+        self.selector_ids = [selector_id for _, selector_id in kept]
 
     def destroy(self) -> None:
         del self._plots
