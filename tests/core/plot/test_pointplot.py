@@ -28,6 +28,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
+from matplotlib.lines import Line2D  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
@@ -359,10 +360,15 @@ def test_a_legend_that_does_not_name_every_group_names_none():
     fig, ax = plt.subplots()
     sns.pointplot(frame, x="group", y="value", hue="half", dodge=True, ax=ax)
 
-    # The reader: one name per drawn group, or nothing.
-    assert _group_labels(ax, 2) == ["x", "y"]
-    assert _group_labels(ax, 3) == []
-    assert _group_labels(ax, 1) == []
+    # The reader: one name per drawn group, or nothing. The stand-ins carry
+    # the drawn colours because the naming is settled by colour rather than
+    # by position (#502); the guard under test is the count.
+    handles = ax.get_legend().legend_handles
+    estimates = [Line2D([], [], color=handle.get_color()) for handle in handles]
+
+    assert _group_labels(ax, estimates) == ["x", "y"]
+    assert _group_labels(ax, estimates + estimates[:1]) == []
+    assert _group_labels(ax, estimates[:1]) == []
 
     # The emitter, handed a short list: no `z` anywhere rather than on some
     # series only, and no `axes.z` declaring one that is not there.
@@ -483,12 +489,11 @@ def test_intervals_that_do_not_divide_among_the_groups_are_refused():
 def test_a_group_name_lands_on_that_group_s_own_values():
     """The one assumption in the naming that geometry can be made to check.
 
-    Group names come from the legend and are matched to the estimate lines
-    positionally, so the whole thing rests on seaborn listing its legend
-    handles in draw order. Unlike the interval-to-estimate pairing, a name
-    has no geometry to verify it against -- ``_group_labels``'s count check
-    catches a legend of the wrong *size*, not one of the wrong *order*
-    (#502).
+    Group names come from the legend, and which name goes on which series is
+    settled by colour rather than by position (#502) -- so a legend listed
+    out of draw order names the groups correctly anyway. This is the
+    end-to-end half of that: the names have to come out on the right values
+    through the whole emit path, not just out of ``_group_labels``.
 
     Made checkable by choosing hue levels whose names are recoverable from
     their values: ``low`` sits near 1 and ``high`` near 100. A swapped
@@ -523,6 +528,103 @@ def test_a_group_name_lands_on_that_group_s_own_values():
         assert max(by_name["low"]) < 50, (hue_order, by_name["low"])
         assert min(by_name["high"]) > 50, (hue_order, by_name["high"])
         plt.close(fig)
+
+
+def test_a_reordered_legend_still_names_each_group():
+    """A legend listed out of draw order names the groups correctly anyway.
+
+    Reading the legend positionally assumes seaborn lists its handles in the
+    order it drew the lines. That is true today and is not part of its public
+    API, so a release that kept the count and reordered the legend would put
+    every name on the wrong series -- estimates and bounds all correct, and
+    nothing to indicate the swap (#502).
+
+    The hue mapping that names a group is the same one that colours it, so
+    the pairing is made on colour. This stages the divergence the API does
+    not forbid: the legend is turned round, entries intact, and the answer
+    has to stay with the values.
+    """
+    frame = pd.DataFrame(
+        {
+            "g": list("abc") * 8,
+            "level": ["low"] * 12 + ["high"] * 12,
+            "v": [1.0, 2.0, 3.0] * 4 + [100.0, 101.0, 102.0] * 4,
+        }
+    )
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="g", y="v", hue="level", dodge=True, ax=ax)
+
+    legend = ax.get_legend()
+    texts = legend.get_texts()
+    assert [text.get_text() for text in texts] == ["low", "high"]
+
+    estimates = [
+        Line2D([], [], color=handle.get_color()) for handle in legend.legend_handles
+    ]
+
+    # Turn the legend round: the same two entries, listed the other way.
+    legend.legend_handles.reverse()
+    texts[0].set_text("high")
+    texts[1].set_text("low")
+
+    # Read positionally this would name the first-drawn group "high".
+    assert _group_labels(ax, estimates) == ["low", "high"]
+
+    plt.close(fig)
+
+
+def test_groups_sharing_a_colour_fall_back_to_legend_order():
+    """Colour cannot settle a naming it cannot tell apart.
+
+    A monochrome palette draws every group in one colour, so there is no
+    mapping to derive and legend order is all there is -- which is what this
+    read before, and no worse for the case it cannot improve.
+    """
+    frame = pd.DataFrame(
+        {
+            "g": list("abc") * 8,
+            "level": ["low"] * 12 + ["high"] * 12,
+            "v": [1.0, 2.0, 3.0] * 4 + [100.0, 101.0, 102.0] * 4,
+        }
+    )
+
+    fig, ax = plt.subplots()
+    sns.pointplot(
+        frame, x="g", y="v", hue="level", dodge=True, ax=ax, palette=["k", "k"]
+    )
+
+    legend = ax.get_legend()
+    estimates = [
+        Line2D([], [], color=handle.get_color()) for handle in legend.legend_handles
+    ]
+
+    assert _group_labels(ax, estimates) == ["low", "high"]
+
+    plt.close(fig)
+
+
+def test_an_estimate_matching_no_legend_colour_falls_back_to_order():
+    """A colour the legend does not carry decides nothing.
+
+    Rather than pair the groups it can and guess the rest -- which would put
+    a name on a series from a different reading -- the colour mapping steps
+    aside whole and legend order answers, as it did before.
+    """
+    frame = FRAME.assign(half=["x", "y"] * 9)
+
+    fig, ax = plt.subplots()
+    sns.pointplot(frame, x="group", y="value", hue="half", dodge=True, ax=ax)
+
+    legend = ax.get_legend()
+    estimates = [
+        Line2D([], [], color=legend.legend_handles[0].get_color()),
+        Line2D([], [], color="#123456"),
+    ]
+
+    assert _group_labels(ax, estimates) == ["x", "y"]
+
+    plt.close(fig)
 
 
 def test_a_dodged_group_is_still_named_by_its_tick():
