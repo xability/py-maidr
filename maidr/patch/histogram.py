@@ -7,7 +7,7 @@ import wrapt
 
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.collections import QuadMesh
+from matplotlib.collections import PolyQuadMesh, QuadMesh
 from matplotlib.container import BarContainer
 from matplotlib.patches import Polygon
 from matplotlib.lines import Line2D
@@ -156,7 +156,16 @@ def _drew_bars(plot: Any, before: list) -> bool:
 
 def _meshes_of(ax: Axes | None) -> list:
     """
-    The ``QuadMesh`` artists already on an axes.
+    The mesh artists already on an axes.
+
+    Both mesh classes, not only the one seaborn currently draws through.
+    Measured on seaborn 0.13.2, a bivariate ``histplot`` reaches
+    ``Axes.pcolormesh`` and so produces a ``QuadMesh`` -- but naming only that
+    would tie this to a seaborn internal, and the failure if it ever moved to
+    ``Axes.pcolor`` would be the silent one this whole change exists to
+    remove: the mesh would go unrecognised, the call would decline as before,
+    and the chart would be quiet again. ``PolyQuadMesh`` costs nothing to
+    accept and is a heatmap by the same argument.
 
     Held as a list of the artists themselves rather than of their ids, for the
     reason ``_containers_of`` gives: an id compared after the object it named
@@ -176,7 +185,7 @@ def _meshes_of(ax: Axes | None) -> list:
     return [
         artist
         for artist in (getattr(ax, "collections", ()) or ())
-        if isinstance(artist, QuadMesh)
+        if isinstance(artist, (QuadMesh, PolyQuadMesh))
     ]
 
 

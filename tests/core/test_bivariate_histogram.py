@@ -275,6 +275,28 @@ def test_a_mesh_already_on_the_axes_is_not_claimed_by_a_later_call() -> None:
     assert _layers(fig) == [PlotType.HEAT]
 
 
+def test_a_second_bivariate_histogram_on_the_same_axes_registers_too() -> None:
+    """The mesh analogue of the bar case above: new mesh, new layer.
+
+    Two overlaid joint distributions are two charts, and each call adds its
+    own `QuadMesh`, so the ownership check must let the second through rather
+    than treat the first one's mesh as already accounting for it.
+
+    Only the layer count is asserted. Both layers currently read their values
+    from the *first* mesh, because `HeatPlot` resolves its artist from the
+    axes at extraction time rather than being bound to the one it was
+    registered for -- a separate defect (#527) which reproduces on two plain
+    `ax.pcolormesh` calls and which this change neither causes nor fixes.
+    """
+    frame = _frame()
+    fig, ax = plt.subplots()
+
+    sns.histplot(data=frame, x="v", y="w", ax=ax)
+    sns.histplot(data=frame, x="w", y="v", ax=ax)
+
+    assert _layers(fig) == [PlotType.HEAT, PlotType.HEAT]
+
+
 def test_a_heatmap_is_read_from_the_mesh_and_not_from_a_scatter() -> None:
     """`ScalarMappable` is a wider net than the extractor assumed.
 
