@@ -1,20 +1,27 @@
-"""Every entry point describes the same figure the same way.
+"""A figure's grid survives the iframe a hosted render wraps it in.
 
-`maidr.render`, Shiny's `render_maidr` and Streamlit's `maidr_html` are
-three doors onto one figure, and a reader is not told which one their host
-application used. So a grid that reads correctly through one and not
-another is a defect they cannot diagnose, only experience.
+Under Shiny -- and anywhere else `Environment` reports a live host -- the
+chart is nested inside an iframe's `srcdoc`, which escapes the schema a
+second time on top of the escaping lxml already applied to the `<svg>`.
+That is the form a Shiny or Flask reader actually receives, and until this
+file nothing asserted the grid still reads correctly in it: every existing
+grid test builds the schema through `_flatten_maidr` directly, where no
+wrapping happens.
 
-The doors funnel into `Maidr._flatten_maidr` today, so this holds by
-construction rather than by anyone maintaining it -- which is the reason to
-pin it. #443 is the precedent: `plt.show()` degraded gracefully for an
-unregistered figure while `render`/`show`/`save_html` raised, because the
-graceful path had been wired into one door and not the others. Nothing
-failed until a user went through the wrong one.
+The three entry points are checked together, but not because they branch:
+the wrapping decision is environmental rather than per-door, so
+`maidr.render`, `render_maidr` and `maidr_html` all wrap or all do not.
+Measured -- with a session active the three emit byte-identical markup.
+What holds them together is therefore weaker than "these paths differ" and
+still worth pinning: **no door may grow post-processing of its own.** #443
+is why. `plt.show()` degraded gracefully for an unregistered figure while
+`render`/`show`/`save_html` raised, because a behaviour had been wired into
+one door and not the others, and nothing failed until a user went through
+the wrong one.
 
-The three figures are the shapes whose grid coordinates were recently
-corrected (#512, #517, #519). They are the ones where a divergence would
-be most likely and least visible.
+The figures are the shapes whose grid coordinates #512, #517 and #519
+corrected -- an authored gap, a proportions gridspec, and panels
+re-parented by their colorbars.
 """
 
 from __future__ import annotations
@@ -34,9 +41,14 @@ import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
 
 import maidr  # noqa: E402
+from maidr.util.environment import Environment  # noqa: E402
 from maidr.widget.shiny import render_maidr  # noqa: E402
 from maidr.widget.streamlit import maidr_html  # noqa: E402
 
+#: The chart document a hosted render nests inside an iframe.
+_SRCDOC = re.compile(r'srcdoc="([^"]*)"')
+
+#: The schema as it sits on the ``<svg>`` element of that document.
 _SCHEMA_IN_SVG = re.compile(r'maidr="([^"]*)"')
 
 
@@ -50,13 +62,22 @@ def _grid_of(rendered: object) -> list[list[int]]:
     """The layer count of every cell, read back out of emitted markup.
 
     Read from the markup rather than from the `Maidr` instance on purpose:
-    the instance is what all three doors share, so asking it could not tell
-    them apart.
+    the instance is what every door shares, so asking it would skip the
+    wrapping and escaping this file exists to cover.
     """
-    match = _SCHEMA_IN_SVG.search(str(rendered))
+    markup = str(rendered)
+
+    frame = _SRCDOC.search(markup)
+    if frame is not None:
+        markup = html_module.unescape(frame.group(1))
+
+    match = _SCHEMA_IN_SVG.search(markup)
     assert match, "no MAIDR schema in the emitted markup"
-    schema = json.loads(html_module.unescape(match.group(1)))
-    return [[len(cell.get("layers", [])) for cell in row] for row in schema["subplots"]]
+
+    return [
+        [len(cell.get("layers", [])) for cell in row]
+        for row in json.loads(html_module.unescape(match.group(1)))["subplots"]
+    ]
 
 
 def _gapped():
@@ -81,42 +102,56 @@ def _two_heatmaps():
     return fig
 
 
-@pytest.mark.parametrize(
-    "build", [_gapped, _jointplot, _two_heatmaps], ids=lambda f: f.__name__
-)
-def test_every_door_reports_the_same_grid(build):
-    """Notebook, Shiny and Streamlit agree on the shape of the figure."""
+FIGURES = [
+    (_gapped, [[1, 0, 1]]),
+    (_jointplot, [[1, 0], [1, 1]]),
+    (_two_heatmaps, [[1, 1]]),
+]
+IDS = ["gapped", "jointplot", "two_heatmaps"]
+
+
+@pytest.mark.parametrize("build,expected", FIGURES, ids=IDS)
+def test_the_grid_survives_being_wrapped_in_an_iframe(build, expected, fake_session):
+    """The form a Shiny reader receives, schema escaped twice."""
+    rendered = str(render_maidr(lambda: None)._render_off_loop(build()))
+
+    assert "srcdoc=" in rendered, (
+        "this figure was not wrapped, so the escaping under test never "
+        "happened and the assertion below would pass for the wrong reason"
+    )
+    assert Environment.is_shiny()
+    assert _grid_of(rendered) == expected
+
+
+@pytest.mark.parametrize("build,expected", FIGURES, ids=IDS)
+def test_the_grid_is_the_same_unwrapped(build, expected):
+    """No session, so nothing wraps -- the grid must not depend on that."""
+    rendered = str(render_maidr(lambda: None)._render_off_loop(build()))
+
+    assert "srcdoc=" not in rendered
+    assert _grid_of(rendered) == expected
+
+
+@pytest.mark.parametrize("build,expected", FIGURES, ids=IDS)
+def test_no_door_post_processes_the_schema(build, expected, fake_session):
+    """Every entry point emits the grid it was given, unaltered.
+
+    Weaker than it looks, and deliberately so: these doors do not branch on
+    which one was called, so this cannot catch a divergence that exists
+    today. It catches one being *introduced* -- a door that starts caching,
+    trimming or rebuilding the schema on its way out.
+    """
     figure = build()
 
     doors = {
         "maidr.render": _grid_of(maidr.render(figure)),
-        "shiny.render_maidr": _grid_of(render_maidr(lambda: None)._render_off_loop(figure)),
+        "shiny.render_maidr": _grid_of(
+            render_maidr(lambda: None)._render_off_loop(figure)
+        ),
         "streamlit.maidr_html": _grid_of(maidr_html(figure)),
     }
 
-    distinct = {repr(grid) for grid in doors.values()}
-    assert len(distinct) == 1, (
-        f"the doors disagree about this figure: {doors}. A reader is not told "
-        f"which one their host used, so a grid that is right through one and "
-        f"wrong through another is a defect they cannot diagnose."
+    assert list(doors.values()) == [expected] * 3, (
+        f"a door altered the grid on its way out: {doors}. A reader is not "
+        f"told which entry point their host used."
     )
-
-
-@pytest.mark.parametrize(
-    "build,expected",
-    [
-        (_gapped, [[1, 0, 1]]),
-        (_jointplot, [[1, 0], [1, 1]]),
-        (_two_heatmaps, [[1, 1]]),
-    ],
-    ids=["gapped", "jointplot", "two_heatmaps"],
-)
-def test_the_agreed_grid_is_the_correct_one(build, expected):
-    """Agreement is necessary but not sufficient -- they could agree and be wrong.
-
-    Pinned through Shiny specifically, since that is the door #454 and #452
-    reworked and therefore the one most likely to grow its own path.
-    """
-    rendered = render_maidr(lambda: None)._render_off_loop(build())
-
-    assert _grid_of(rendered) == expected
