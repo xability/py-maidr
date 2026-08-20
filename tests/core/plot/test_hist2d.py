@@ -18,8 +18,10 @@ one place rather than discovered per bug report:
   and ragged, so it is not a heatmap in the shape the mesh path builds -- what
   it emits is pinned in ``tests/core/test_hexbin_lattice.py``. Registration is
   asserted here because this is where a reader comes looking for it.
-- ``sns.kdeplot(x=, y=)`` renders filled or line contours, which need a
-  contour trace to describe levels rather than cells, and does NOT read.
+- ``sns.kdeplot(x=, y=)`` renders contours. The line form reads as a
+  ``contour`` layer -- the level is the navigable object, and seaborn computes
+  it exactly -- while the **filled** form does not, because it draws the bands
+  *between* levels rather than the levels themselves.
 """
 
 from __future__ import annotations
@@ -168,16 +170,34 @@ def test_hexbin_registers_exactly_one_layer():
     assert len(_plots(fig)) == 1
 
 
-@pytest.mark.parametrize("fill", [True, False])
-def test_bivariate_kdeplot_is_not_registered_yet(fill):
+def test_bivariate_kdeplot_is_read_as_a_contour():
     """
-    A 2D KDE draws contours, filled or not, and MAIDR has no contour trace.
+    A 2D KDE draws its joint density as iso-value curves, and reads as one.
 
-    A contour plot is not a heatmap with different colours: the level is the
-    navigable object, not the cell, so describing one as a grid would be a
-    different chart rather than an approximate one.
+    This case was pinned as unreadable while MAIDR had no contour trace, on
+    the reasoning that a contour is not a heatmap with different colours: the
+    *level* is the navigable object, not the cell, so describing one as a grid
+    would be a different chart rather than an approximate one. The trace
+    exists now (xability/maidr#802), so the level has somewhere of its own to
+    go and seaborn computes it exactly.
     """
     fig, ax = plt.subplots()
-    sns.kdeplot(x=X, y=Y, fill=fill, ax=ax)
+    sns.kdeplot(x=X, y=Y, fill=False, ax=ax)
+
+    plots = _plots(fig)
+    assert [plot.type for plot in plots] == [PlotType.CONTOUR]
+
+
+def test_a_filled_bivariate_kdeplot_is_still_declined():
+    """
+    A filled 2D KDE draws the bands *between* levels, which is a different
+    chart.
+
+    Each outline runs along two different level curves stitched together, so
+    announcing one as a level's own curve would be right for half of its
+    points -- the reason `ax.contourf` is declined too.
+    """
+    fig, ax = plt.subplots()
+    sns.kdeplot(x=X, y=Y, fill=True, ax=ax)
 
     assert _plots(fig) == []

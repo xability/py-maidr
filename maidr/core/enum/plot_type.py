@@ -12,6 +12,12 @@ class PlotType(str, Enum):
     #: distinct type because :attr:`BOX` is fixed at one rung, and depth is the
     #: whole point of the chart.
     BOXEN = "boxen"
+    #: A scalar field drawn as curves of constant value. The level is a
+    #: number here rather than a colour -- `QuadContourSet.levels` is the
+    #: data, and `get_paths()` gives one path per level -- which is what
+    #: separates `Axes.contour` from the same chart in a renderer that keeps
+    #: its magnitude only in a fill.
+    CONTOUR = "contour"
     COUNT = "count"
     DODGED = "dodged_bar"
     ERRORBAR = "error_bar"

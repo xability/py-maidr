@@ -13,6 +13,7 @@ from . import (  # noqa: E402, F401
     boxplot,
     clear,
     colorbar,
+    contour,
     errorbar,
     fillbetween,
     gantt,
