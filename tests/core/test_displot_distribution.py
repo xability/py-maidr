@@ -183,15 +183,19 @@ class TestWhatMustNotChange:
 
         assert layers(ax.get_figure()) == ["hist", "smooth"]
 
-    def test_a_bivariate_histogram_still_declines(self):
+    def test_a_bivariate_histogram_still_declines_to_be_a_histogram(self):
         # `sns.histplot(x=..., y=...)` is a 2D histogram drawn as a QuadMesh,
         # not as bars. `hist` promises one bin per bar with a count, which
         # such a layer has neither of, so registering it would promise a
-        # reading nothing can produce (#388).
+        # reading nothing can produce (#388). That decline stands.
+        #
+        # What it no longer costs is the chart: a mesh of joint counts is a
+        # heatmap, and is now read as one rather than being lost with the
+        # `hist` it is not (#522).
         _, ax = plt.subplots()
         sns.histplot(frame(), x="v", y="w", ax=ax)
 
-        assert layers(ax.get_figure()) == []
+        assert layers(ax.get_figure()) == ["heat"]
 
     def test_a_histogram_does_not_claim_someone_elses_bars(self):
         # The per-axes snapshot. An axes that already holds bars must not have
@@ -201,7 +205,9 @@ class TestWhatMustNotChange:
         sns.barplot(frame(), x="g", y="v", ax=ax)
         sns.histplot(frame(), x="v", y="w", ax=ax)
 
-        assert layers(ax.get_figure()) == ["bar"]
+        # No `hist`, which is what this case is about. The `heat` beside it is
+        # the mesh that call drew, asked the same ownership question (#522).
+        assert layers(ax.get_figure()) == ["bar", "heat"]
 
     def test_a_jointplot_is_unchanged(self):
         # It reaches the defining-module binding rather than the plotter

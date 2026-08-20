@@ -43,7 +43,10 @@ from matplotlib.container import BarContainer  # noqa: E402
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
-from maidr.util.mixin import ContainerExtractorMixin  # noqa: E402
+from maidr.util.mixin import (  # noqa: E402
+    ContainerExtractorMixin,
+    ScalarMappableExtractorMixin,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -81,19 +84,29 @@ def test_a_scatter_under_a_2d_histogram_still_renders() -> None:
     sns.scatterplot(data=frame, x="v", y="w", ax=ax)
     sns.histplot(data=frame, x="v", y="w", ax=ax)
 
-    assert _layers(fig) == [PlotType.SCATTER]
+    # The mesh is read as the heatmap it is (#522). It used to be nothing at
+    # all: `hist` was declined, correctly, and the `heat` the inner
+    # `pcolormesh` would have registered had been suppressed by the recursion
+    # guard the decline made pointless.
+    assert _layers(fig) == [PlotType.SCATTER, PlotType.HEAT]
     assert maidr.render(fig) is not None
 
 
 def test_a_jointplot_of_histograms_renders() -> None:
     """A documented `jointplot` kind that produced nothing at all.
 
-    Its central panel is the bivariate histogram; its marginals are ordinary
-    1D ones, and those are what should be announced.
+    Its central panel is the bivariate histogram and its marginals are
+    ordinary 1D ones. All three are announced now: the joint panel as `heat`
+    and the margins as `hist`.
+
+    Before #522 this returned the two margins alone — which is the worse
+    symptom of the two, because nothing raised. A reader was handed a
+    complete-sounding chart with the joint distribution, the thing a joint
+    plot is drawn for, silently missing.
     """
     grid = sns.jointplot(data=_frame(), x="v", y="w", kind="hist")
 
-    assert _layers(grid.figure) == [PlotType.HIST, PlotType.HIST]
+    assert _layers(grid.figure) == [PlotType.HEAT, PlotType.HIST, PlotType.HIST]
     assert maidr.render(grid.figure) is not None
 
 
@@ -180,7 +193,10 @@ def test_bars_already_on_the_axes_do_not_make_it_a_histogram() -> None:
     sns.barplot(data=frame, x="g", y="v", ax=ax)
     sns.histplot(data=frame, x="v", y="w", ax=ax)
 
-    assert _layers(fig) == [PlotType.BAR]
+    # No `hist`, which is the point of this case. The `heat` beside it is the
+    # mesh that call did draw, and is asked the same question about ownership
+    # that the bars are — see the mesh test below (#522).
+    assert _layers(fig) == [PlotType.BAR, PlotType.HEAT]
 
 
 def test_a_second_histogram_on_the_same_axes_still_registers() -> None:
@@ -209,6 +225,132 @@ def test_a_histogram_drawn_without_an_explicit_axes_registers() -> None:
     sns.histplot(data=_frame(), x="v")
 
     assert _layers(plt.gcf()) == [PlotType.HIST]
+
+
+def test_the_two_spellings_of_one_bivariate_histogram_agree() -> None:
+    """The row the fix is for.
+
+    `sns.displot(x=, y=)` read as `heat` and `sns.histplot(x=, y=)` was
+    silent, and the only difference between them was that `histplot` is
+    patched: `common()` sets the internal context so a patched seaborn call
+    does not register twice, the inner `Axes.pcolormesh` therefore declines,
+    and then `_drew_bars` declines as well. `displot` escaped by not being
+    patched at all.
+
+    Asserted as an equality rather than as two literals, because what was
+    wrong was the disagreement (#522).
+    """
+    frame = _frame()
+
+    fig, ax = plt.subplots()
+    sns.histplot(data=frame, x="v", y="w", ax=ax)
+    through_histplot = _layers(fig)
+
+    grid = sns.displot(data=frame, x="v", y="w")
+    through_displot = _layers(grid.figure)
+
+    assert through_histplot == through_displot == [PlotType.HEAT]
+
+
+def test_a_mesh_already_on_the_axes_is_not_claimed_by_a_later_call() -> None:
+    """The ownership question, asked of meshes as it is of bars.
+
+    `_drew_mesh` asks what *this call* added, not what the axes holds. Asked
+    the second way, the `heatmap` drawn first is claimed all over again by the
+    `histplot` beside it, and the reader navigates two identical heatmaps --
+    the double-registration the recursion guard exists to prevent, arriving by
+    another route.
+
+    Drawn with nothing in it, which is what makes the case reachable: a
+    histplot that draws bars registers its `hist` and never reaches the mesh
+    branch, and a bivariate one always adds a mesh of its own, so neither can
+    tell the two readings apart. An empty one takes the decline path and adds
+    nothing, so the only mesh on the axes is somebody else's.
+    """
+    fig, ax = plt.subplots()
+
+    sns.heatmap(np.arange(6).reshape(2, 3), ax=ax)
+    sns.histplot(x=[], ax=ax)
+
+    assert _layers(fig) == [PlotType.HEAT]
+
+
+def test_a_second_bivariate_histogram_on_the_same_axes_registers_too() -> None:
+    """The mesh analogue of the bar case above: new mesh, new layer.
+
+    Two overlaid joint distributions are two charts, and each call adds its
+    own `QuadMesh`, so the ownership check must let the second through rather
+    than treat the first one's mesh as already accounting for it.
+
+    Only the layer count is asserted. Both layers currently read their values
+    from the *first* mesh, because `HeatPlot` resolves its artist from the
+    axes at extraction time rather than being bound to the one it was
+    registered for -- a separate defect (#527) which reproduces on two plain
+    `ax.pcolormesh` calls and which this change neither causes nor fixes.
+    """
+    frame = _frame()
+    fig, ax = plt.subplots()
+
+    sns.histplot(data=frame, x="v", y="w", ax=ax)
+    sns.histplot(data=frame, x="w", y="v", ax=ax)
+
+    assert _layers(fig) == [PlotType.HEAT, PlotType.HEAT]
+
+
+def test_the_joint_panel_says_what_its_cells_hold() -> None:
+    """The `z` label, which `HeatPlot` otherwise defaults to a bare "Z".
+
+    A bivariate histogram's cells hold whatever `stat` asked for, so the label
+    is read from it rather than assumed: the default is a count, and
+    `stat="density"` makes every cell a density. Announced as a "count" a
+    density would be the wrong word for every number in the grid.
+    """
+    frame = _frame()
+
+    fig, ax = plt.subplots()
+    sns.histplot(data=frame, x="v", y="w", ax=ax)
+    counted = FigureManager.get_maidr(fig).plots[0].schema["axes"]["z"]
+
+    other, second = plt.subplots()
+    sns.histplot(data=frame, x="v", y="w", ax=second, stat="density")
+    dense = FigureManager.get_maidr(other).plots[0].schema["axes"]["z"]
+
+    assert counted == {"label": "count"}
+    assert dense == {"label": "density"}
+
+
+def test_a_heatmap_is_read_from_the_mesh_and_not_from_a_scatter() -> None:
+    """`ScalarMappable` is a wider net than the extractor assumed.
+
+    A scatter's `PathCollection` is a `ScalarMappable` -- that is what makes a
+    colour-mapped scatter possible -- so "the first mappable on the axes"
+    picked the scatter and `HeatPlot` was handed an artist with no grid. This
+    fails on `pcolormesh` alone, with nothing from #522 involved, which is why
+    it is asserted on that rather than through `histplot`.
+    """
+    rng = np.random.default_rng(20260820)
+    fig, ax = plt.subplots()
+
+    sns.scatterplot(x=rng.normal(size=30), y=rng.normal(size=30), ax=ax)
+    ax.pcolormesh(np.arange(12).reshape(3, 4))
+
+    assert _layers(fig) == [PlotType.SCATTER, PlotType.HEAT]
+    assert maidr.render(fig) is not None
+
+
+def test_an_axes_with_no_mappable_returns_none_rather_than_raising() -> None:
+    """The contract the annotation always claimed.
+
+    `extract_scalar_mappable` is typed `Optional[ScalarMappable]` and
+    `HeatPlot._extract_plot_data` opens with `if data is None`, but a bare
+    `next()` meant that branch could never run -- an axes holding no mappable
+    raised `StopIteration`, which names nothing and takes the figure with it.
+    The same shape #388 removed from `extract_container`.
+    """
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [3, 2, 1])  # a line is not a ScalarMappable
+
+    assert ScalarMappableExtractorMixin.extract_scalar_mappable(ax) is None
 
 
 def test_seaborn_still_takes_ax_by_keyword() -> None:
