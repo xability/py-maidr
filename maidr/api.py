@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from typing import Any, Literal
 
 from htmltools import Tag
@@ -157,6 +158,54 @@ def _resolve_use_cdn(
     if value is None:
         return get_use_cdn()
     return value
+
+
+#: Named in the warning so a reader can see what would have to travel with
+#: the page, rather than being told only that something will not.
+_ALTAIR_REMOTE_RUNTIME = "vega, vega-lite, vega-embed and maidr's own vegalite.js"
+
+
+def _warn_altair_ignores_use_cdn(
+    use_cdn: bool | Literal["auto"] | None, *, stacklevel: int
+) -> None:
+    """Say that ``use_cdn=False`` cannot be honoured for an Altair chart.
+
+    The Altair path delegates to the upstream Vega-Lite adapter, which is
+    loaded from a CDN and has no bundled counterpart -- so the flag was
+    accepted and discarded, and the reader who most needs to know is the
+    one it fails for: ``use_cdn=False`` means they cannot reach a CDN, and
+    without this they get a chart that never initialises and no reason why
+    (#521).
+
+    Only an explicit ``False`` warns. ``"auto"`` is the CDN with a fallback
+    that this path does not have either, but a reader on ``"auto"`` has not
+    said they are offline, and warning them on every render would be noise
+    on the common case.
+
+    Parameters
+    ----------
+    use_cdn : bool, {"auto"}, or None
+        The caller's value, unresolved. Resolved here rather than by the
+        caller because ``None`` defers to the process default, which may
+        itself be ``False``.
+    stacklevel : int
+        Passed through to :func:`warnings.warn`. Keyword-only because it is
+        a frame count rather than a value about the chart, and the three
+        entry points that pass it sit at the same depth today -- so a
+        positional argument would read as one more thing about `use_cdn`
+        and silently become wrong the moment one of them grew a wrapper.
+    """
+    if _resolve_use_cdn(use_cdn) is not False:
+        return
+
+    warnings.warn(
+        "maidr: use_cdn=False cannot be honoured for an Altair chart. That "
+        "path renders through the upstream Vega-Lite adapter, which is only "
+        f"published on a CDN, so the page still loads {_ALTAIR_REMOTE_RUNTIME} "
+        "remotely and will not initialise without network access. Render the "
+        "same data through matplotlib or seaborn for an offline chart.",
+        stacklevel=stacklevel,
+    )
 
 
 def init_notebook(
@@ -413,6 +462,10 @@ def render(
           :func:`set_use_cdn` or the ``MAIDR_USE_CDN`` env var (both
           default to ``"auto"``).
 
+        Altair charts always use the CDN — this argument is not
+        plumbed through that adapter, so ``False`` warns rather than
+        taking effect (#521).
+
     Returns
     -------
     htmltools.Tag
@@ -420,6 +473,8 @@ def render(
     """
     if _is_altair_chart(plot):
         from maidr.altair import AltairMaidr
+
+        _warn_altair_ignores_use_cdn(use_cdn, stacklevel=3)
 
         return AltairMaidr(plot).render()
 
@@ -479,6 +534,8 @@ def show(
     """
     if _is_altair_chart(plot):
         from maidr.altair import AltairMaidr
+
+        _warn_altair_ignores_use_cdn(use_cdn, stacklevel=3)
 
         return AltairMaidr(plot).show(renderer)
 
@@ -555,6 +612,8 @@ def save_html(
     """
     if _is_altair_chart(plot):
         from maidr.altair import AltairMaidr
+
+        _warn_altair_ignores_use_cdn(use_cdn, stacklevel=3)
 
         return AltairMaidr(plot).save_html(
             file,
