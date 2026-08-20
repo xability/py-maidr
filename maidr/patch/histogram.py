@@ -159,6 +159,30 @@ def _meshes_of(ax: Axes | None) -> list:
     ]
 
 
+#: The exact types a stepped or filled histogram outline arrives as.
+#:
+#: seaborn draws ``element="step"`` and ``element="poly"`` through
+#: ``Axes.fill_between``, and matplotlib 3.10 gave that method a
+#: ``PolyCollection`` subclass of its own. So the same chart is a plain
+#: ``PolyCollection`` on 3.9 and a ``FillBetweenPolyCollection`` on 3.10 and
+#: later -- measured, identically shaped either way: five bins give 25
+#: vertices as a step and 13 as a polygon on both.
+#:
+#: Named as exact types rather than matched with ``isinstance(artist,
+#: PolyCollection)``, because the *other* subclasses are other charts:
+#: ``PolyQuadMesh`` is a heatmap and has its own reading, and ``Quiver`` and
+#: ``Barbs`` are vector fields that a histogram reader would announce as a
+#: distribution over nothing.
+_OUTLINE_TYPES: tuple[type, ...] = (PolyCollection,)
+
+try:  # pragma: no cover - depends on the installed matplotlib
+    from matplotlib.collections import FillBetweenPolyCollection
+
+    _OUTLINE_TYPES += (FillBetweenPolyCollection,)
+except ImportError:
+    pass
+
+
 def _outlines_of(ax: Axes | None) -> list:
     """
     The closed outlines already on an axes.
@@ -184,7 +208,7 @@ def _outlines_of(ax: Axes | None) -> list:
     return [
         artist
         for artist in (getattr(ax, "collections", ()) or ())
-        if type(artist) is PolyCollection
+        if type(artist) in _OUTLINE_TYPES
     ]
 
 

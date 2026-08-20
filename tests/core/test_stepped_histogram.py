@@ -40,6 +40,7 @@ from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.exception import UnsupportedPlotError  # noqa: E402
+from maidr.patch import histogram as patch_histogram  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -94,6 +95,7 @@ def _drawn(sample, element: str, **kwargs):
 
 
 @pytest.mark.parametrize("element", ["step", "poly"])
+
 def test_an_outlined_histogram_is_read_at_all(element: str):
     fig = _drawn(SAMPLE, element, bins=4)
 
@@ -215,3 +217,32 @@ def test_bars_still_read_through_the_container_they_always_did():
 
     assert [layer.type for layer in _layers(fig)] == [PlotType.HIST]
     assert len(_vertical_bins(fig)) == 4
+
+
+def test_the_artist_fill_between_returns_is_one_this_reads():
+    """
+    Whatever ``fill_between`` draws on *this* matplotlib is an outline here.
+
+    This is the guard that was missing, and the one that would have caught
+    #543 before it shipped rather than in CI. seaborn draws
+    ``element="step"`` and ``element="poly"`` through ``Axes.fill_between``,
+    and matplotlib 3.10 gave that method a ``PolyCollection`` subclass of its
+    own -- so the reader's exact-type check saw a plain ``PolyCollection`` on
+    3.9 and nothing at all on 3.10 and later. Every test in this file passed
+    on the development interpreter and eleven of them failed on the other
+    three.
+
+    Asked of the artist matplotlib actually returns rather than of a version
+    number, so it keeps holding when the next release renames the class
+    again. Nothing here goes through seaborn: the point is what the *drawing
+    primitive* returns, and a seaborn-shaped test would fail for a dozen
+    other reasons first.
+    """
+    fig, ax = plt.subplots()
+    band = ax.fill_between([0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0])
+    plt.close(fig)
+
+    assert type(band) in patch_histogram._OUTLINE_TYPES, (
+        f"fill_between returns {type(band).__name__}, which the outline "
+        "reader does not recognise, so a stepped histogram reads as nothing"
+    )
