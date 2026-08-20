@@ -326,7 +326,7 @@ Measured through the renderer on a 50-bar chart, longest gap between successive 
 
 Same throughput either way — the work did not get cheaper, it stopped being in everyone else's way.
 
-Two things this does not do. Renders of the **same figure** are serialised, because `savefig` writes `fig.dpi` for its duration and two concurrent writes leave one chart drawn at the other's scale; distinct figures, which is the usual per-session shape, run in parallel. And the chart still travels over the websocket on every flush — roughly 25 KB, or a couple of megabytes with `use_cdn=False`. That part is still open in [#454](https://github.com/xability/py-maidr/issues/454).
+Two things this does not do. Renders of the **same figure** are serialised, because `savefig` writes `fig.dpi` for its duration and two concurrent writes leave one chart drawn at the other's scale; distinct figures, which is the usual per-session shape, run in parallel. That lock is shared with the Streamlit path rather than private to this one, so a figure reached from both is still rendered one at a time. And the chart still travels over the websocket on every flush — roughly 25 KB, or a couple of megabytes with `use_cdn=False`; that part is tracked in [#534](https://github.com/xability/py-maidr/issues/534).
 
 `uv run pytest tests/core/test_render_is_synchronous.py --run-benchmark` re-measures the underlying `maidr.render()`, which is still synchronous and still blocks its caller — that is what makes moving it off the loop necessary rather than optional.
 :::
