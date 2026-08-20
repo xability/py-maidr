@@ -42,6 +42,13 @@ import seaborn as sns  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.util.environment import Environment  # noqa: E402
+
+# Guarded here as well as in `conftest.py`, matching `test_shiny.py`. The
+# directory-level skip already covers a missing shiny, but only because
+# pytest skips a whole subtree when a `conftest` raises during collection.
+# Relying on that leaves this file uncollectable on its own.
+pytest.importorskip("shiny")
+
 from maidr.widget.shiny import render_maidr  # noqa: E402
 from maidr.widget.streamlit import maidr_html  # noqa: E402
 
