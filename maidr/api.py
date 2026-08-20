@@ -160,9 +160,23 @@ def _resolve_use_cdn(
     return value
 
 
-#: Named in the warning so a reader can see what would have to travel with
-#: the page, rather than being told only that something will not.
-_ALTAIR_REMOTE_RUNTIME = "vega, vega-lite, vega-embed and maidr's own vegalite.js"
+#: What the Altair path fetches remotely, named in the warning so a reader
+#: can see what would have to travel with the page rather than being told
+#: only that something will not.
+#:
+#: A tuple rather than the prose it becomes, so a test can compare it to
+#: what the adapter really requests. As one string it could not be: `vega`
+#: is a substring of both `vega-lite` and `vega-embed`, so a check for it
+#: passes whether or not plain `vega` is still fetched, and a dependency
+#: quietly dropped would go on being named.
+#: `tests/core/test_altair_use_cdn_is_not_silent.py` holds it to the four.
+_ALTAIR_REMOTE_RUNTIME = ("vega", "vega-lite", "vega-embed", "vegalite.js")
+
+
+def _listed() -> str:
+    """Render :data:`_ALTAIR_REMOTE_RUNTIME` as prose for the warning."""
+    *rest, last = _ALTAIR_REMOTE_RUNTIME
+    return f"{', '.join(rest)} and maidr's own {last}"
 
 
 def _warn_altair_ignores_use_cdn(
@@ -201,8 +215,8 @@ def _warn_altair_ignores_use_cdn(
     warnings.warn(
         "maidr: use_cdn=False cannot be honoured for an Altair chart. That "
         "path renders through the upstream Vega-Lite adapter, which is only "
-        f"published on a CDN, so the page still loads {_ALTAIR_REMOTE_RUNTIME} "
-        "remotely and will not initialise without network access. Render the "
+        f"published on a CDN, so the page still loads {_listed()} remotely "
+        "and will not initialise without network access. Render the "
         "same data through matplotlib or seaborn for an offline chart.",
         stacklevel=stacklevel,
     )
