@@ -223,16 +223,25 @@ class TestTheSingleCollectionCasesAreUnchanged:
         assert len(layers) == 1
         assert len(layers[0]) == len(data)
 
-    def test_seaborn_scatterplot_under_hue_stays_one_layer(self):
-        # Asserted rather than assumed: it is the reason the seaborn binding
-        # keeps the sweep. seaborn draws every point as a single collection
-        # here, so the fallback finds exactly the right one -- and if that
-        # ever changes, this fails rather than the reading going quietly
-        # wrong.
+    def test_seaborn_scatterplot_under_hue_is_one_collection_split_by_group(self):
+        # Two halves of one fact, and they pull in opposite directions.
+        #
+        # seaborn draws every point as a *single* collection even under
+        # `hue`, which is why the seaborn binding keeps the sweep: the
+        # fallback finds exactly the right artist. Asserted rather than
+        # assumed, so that if it ever changes this fails rather than the
+        # reading going quietly wrong.
+        #
+        # One collection is not one layer, though. The grouping is the chart
+        # here, and it survives only in the per-point colours and the legend
+        # that names them, so the layer count follows the groups rather than
+        # the artists (#544). Together they still account for every point --
+        # a split that lost one would be worse than no split at all.
         data = frame()
         ax = sns.scatterplot(data=data, x="x", y="y", hue="g")
 
         assert len([c for c in ax.collections if isinstance(c, PathCollection)]) == 1
+
         layers = scatter_layers(ax)
-        assert len(layers) == 1
-        assert len(layers[0]) == len(data)
+        assert len(layers) == data["g"].nunique()
+        assert sum(len(layer) for layer in layers) == len(data)
