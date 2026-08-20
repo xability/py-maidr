@@ -653,3 +653,41 @@ def test_concurrent_renders_of_one_figure_agree():
         "concurrent renders of one figure disagree; they race on fig.dpi "
         "and one of them emits the chart at the wrong scale"
     )
+
+
+def test_the_current_figure_is_resolved_once_and_rendered(monkeypatch):
+    """``maidr_html()`` locks the figure it renders, not whichever is current
+    a moment later.
+
+    ``plt.gcf()`` is process-global. Resolving it separately for the lock
+    and for the render leaves a window in which another thread's
+    ``plt.figure()`` moves the current figure between the two, so the lock
+    guards one figure while the render writes another -- synchronised in
+    appearance only. Raised in review of #531.
+
+    Driven by moving the current figure *between* the two resolutions,
+    which is the interleaving a second thread would produce.
+    """
+    import maidr.widget.streamlit as streamlit_module
+
+    mine, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    locked: list[object] = []
+    real_lock = streamlit_module.figure_lock
+
+    def lock_and_move(figure):
+        locked.append(figure)
+        # What another thread plotting concurrently would do.
+        plt.figure()
+        return real_lock(figure)
+
+    monkeypatch.setattr(streamlit_module, "figure_lock", lock_and_move)
+    try:
+        html = maidr_html(use_cdn=True)
+    finally:
+        plt.close("all")
+
+    assert locked == [mine], "locked a different figure than the current one"
+    # The chart rendered is the one that was locked: two bars, not an empty
+    # figure. `_flatten_maidr` puts the data in the root `maidr` attribute.
+    assert '&quot;y&quot;: 2' in html or '"y": 2' in html, html[:200]

@@ -143,10 +143,11 @@ def resolve_figure(value: Any) -> Any:
         return None
 
     if isinstance(axes, list):
-        # A ``Figure`` resolves to its list of axes, and so does a list of
-        # artists. They share one figure in every ordinary case; where they
-        # do not, ``render`` writes the last one's, so that is the one to
-        # hold.
+        # Only a ``Figure`` lands here: ``get_axes`` returns its ``.axes``
+        # property, while a list of artists takes a different branch and
+        # comes back as a single ``Axes``. A figure's axes all share that
+        # figure, so which one is picked does not matter -- the last,
+        # matching ``render``'s own loop over the list.
         axes = axes[-1] if axes else None
 
     return getattr(axes, "figure", None)

@@ -113,6 +113,18 @@ def maidr_html(
     # in which this function decides whether to inline against one answer
     # while the chart was built from another.
     resolved = maidr.get_use_cdn() if use_cdn is None else use_cdn
+    if plot is None:
+        # ``plt.gcf()`` is process-global, so resolving the current figure
+        # twice -- once to decide which lock to take, once again inside
+        # ``render`` -- leaves a window in which another thread's
+        # ``plt.figure()`` moves it between the two, and the lock ends up
+        # guarding a figure the render never touches. Resolve once and
+        # render *that* figure; ``render`` resolves it to the same one, so
+        # nothing about the output changes. Raised in review of #531.
+        current = resolve_figure(None)
+        if current is not None:
+            plot = current
+
     # One render of a given figure at a time, for the reason in
     # :mod:`maidr.util.figure_lock`.  Streamlit runs every session's script
     # in its own ScriptRunner thread, so two sessions sharing one figure --
