@@ -162,3 +162,96 @@ def test_no_door_post_processes_the_schema(build, expected, fake_session):
         f"a door altered the grid on its way out: {doors}. A reader is not "
         f"told which entry point their host used."
     )
+
+
+def test_the_two_doors_exclude_each_other_on_one_figure():
+    """One lock registry, not one per integration -- asserted, not inferred.
+
+    The Shiny renderer and ``maidr_html`` both take the per-figure lock in
+    ``maidr.util.figure_lock``. That they take the *same* lock follows from
+    both importing one module-level registry, which is a guarantee from
+    Python's import semantics rather than from any test -- so a later
+    change that gave either door a registry of its own would keep every
+    per-door test green while reopening exactly the case the shared
+    registry exists to prevent: a Shiny session and a Streamlit session
+    rendering one shared figure at the same moment, racing on ``fig.dpi``
+    (#454, #531).
+
+    Asserts exclusion rather than output equality: the two doors wrap the
+    chart differently, so their markup is not comparable, and what matters
+    here is that the two renders do not overlap in time.
+
+    ``maidr.render`` is stubbed to a sleeping recorder, so this measures
+    the lock rather than a real render -- the consequence of *not*
+    excluding is covered per door by the two
+    ``test_concurrent_renders_of_one_figure_agree`` tests.
+    """
+    import threading
+    import time
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+
+    in_flight = 0
+    overlapped = False
+    guard = threading.Lock()
+
+    class _Rendered:
+        """The little of a rendered chart that ``maidr_html`` goes on to use."""
+
+        @staticmethod
+        def get_html_string() -> str:
+            return '<script src="https://cdn.jsdelivr.net/npm/maidr@4/dist/maidr.js"></script>'
+
+        def __str__(self) -> str:
+            return self.get_html_string()
+
+    def sleeping_render(plot, **kwargs):
+        nonlocal in_flight, overlapped
+        with guard:
+            in_flight += 1
+            if in_flight > 1:
+                overlapped = True
+        time.sleep(0.2)
+        with guard:
+            in_flight -= 1
+        return _Rendered()
+
+    start = threading.Barrier(2)
+    failures: list[Exception] = []
+
+    def through_shiny():
+        try:
+            start.wait(timeout=30)
+            render_maidr(lambda: ax, use_cdn=True)._render_off_loop(ax)
+        except Exception as error:  # noqa: BLE001 - re-raised after the join
+            failures.append(error)
+
+    def through_streamlit():
+        try:
+            start.wait(timeout=30)
+            maidr_html(ax, use_cdn=True)
+        except Exception as error:  # noqa: BLE001 - re-raised after the join
+            failures.append(error)
+
+    original = maidr.render
+    maidr.render = sleeping_render
+    try:
+        threads = [
+            threading.Thread(target=through_shiny, daemon=True),
+            threading.Thread(target=through_streamlit, daemon=True),
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+            assert not thread.is_alive(), "a render deadlocked on the lock"
+    finally:
+        maidr.render = original
+        plt.close(fig)
+
+    assert not failures, failures
+    assert not overlapped, (
+        "a Shiny render and a Streamlit render of one figure ran at once; "
+        "the two doors are not sharing a lock registry"
+    )
