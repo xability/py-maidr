@@ -429,6 +429,13 @@ def _get_plot_or_current(plot: Any | None) -> Any:
     """
     Get the plot object or current matplotlib figure if plot is None.
 
+    Underscored but not private to this module:
+    :func:`maidr.util.figure_lock.resolve_figure` and
+    :func:`maidr.widget.streamlit.maidr_html` both call it, so that the
+    figure a render *locks* is the figure it goes on to write. A change
+    here that made this answer differently would put those locks on a
+    figure the render never touches -- synchronised in appearance only.
+
     Parameters
     ----------
     plot : Any or None

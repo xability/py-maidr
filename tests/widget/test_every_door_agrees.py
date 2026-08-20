@@ -164,7 +164,7 @@ def test_no_door_post_processes_the_schema(build, expected, fake_session):
     )
 
 
-def test_the_two_doors_exclude_each_other_on_one_figure():
+def test_the_two_doors_exclude_each_other_on_one_figure(monkeypatch):
     """One lock registry, not one per integration -- asserted, not inferred.
 
     The Shiny renderer and ``maidr_html`` both take the per-figure lock in
@@ -234,8 +234,7 @@ def test_the_two_doors_exclude_each_other_on_one_figure():
         except Exception as error:  # noqa: BLE001 - re-raised after the join
             failures.append(error)
 
-    original = maidr.render
-    maidr.render = sleeping_render
+    monkeypatch.setattr(maidr, "render", sleeping_render)
     try:
         threads = [
             threading.Thread(target=through_shiny, daemon=True),
@@ -247,7 +246,6 @@ def test_the_two_doors_exclude_each_other_on_one_figure():
             thread.join(timeout=60)
             assert not thread.is_alive(), "a render deadlocked on the lock"
     finally:
-        maidr.render = original
         plt.close(fig)
 
     assert not failures, failures
