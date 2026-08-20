@@ -82,7 +82,13 @@ def artist_census(figure: Figure) -> tuple[Any, ...]:
     ``collection.set_offsets`` -- moves no count and no label, and passes
     unnoticed. So this is a detector for artists appearing, disappearing,
     or being relabelled, not for the data inside them, and silence from it
-    is not a promise that a figure was still. Catching a data change would
+    is not a promise that a figure was still. Nor is this read itself
+    atomic against the application: it walks ``figure.axes`` while another
+    thread may be part-way through changing it, so the "before" it
+    captures can be a figure mid-mutation rather than a clean one. Both
+    are the same trade -- a detector that locked the application out would
+    be a repair, and repairing this is what the module deliberately does
+    not do. Catching a data change would
     mean hashing the data on every render, which is the cost this is
     shaped to avoid. Both mutations measured on #530 -- a title set and a
     bar added -- are the kind it sees.
@@ -130,7 +136,7 @@ def artist_census(figure: Figure) -> tuple[Any, ...]:
     )
 
 
-def warn_if_figure_changed(before: tuple[Any, ...], figure: Figure) -> bool:
+def warn_if_figure_changed(before: tuple[Any, ...], figure: Figure) -> None:
     """Warn when ``figure`` no longer matches the census taken ``before``.
 
     Parameters
@@ -142,12 +148,13 @@ def warn_if_figure_changed(before: tuple[Any, ...], figure: Figure) -> bool:
 
     Returns
     -------
-    bool
-        Whether a change was found, so a caller can act on it without
-        parsing the warning. Nothing does today.
+    None
+        Nothing: the warning is the whole output. A boolean "did it race"
+        would be an API with no caller, and the one place that asks the
+        question is the one place that raises the warning.
     """
     if artist_census(figure) == before:
-        return False
+        return
 
     # Named rather than described: the default warning rule keys on the
     # message text, so identifying the figure is what stops two different
@@ -197,7 +204,6 @@ def warn_if_figure_changed(before: tuple[Any, ...], figure: Figure) -> bool:
             # message, not the location.
             stacklevel=4,
         )
-    return True
 
 
 __all__ = ["MaidrRenderRaceWarning", "artist_census", "warn_if_figure_changed"]

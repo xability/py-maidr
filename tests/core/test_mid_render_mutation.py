@@ -391,7 +391,7 @@ def test_repeat_collisions_on_one_figure_are_all_reported():
         [sys.executable, "-c", _REPEAT_COLLISIONS],
         capture_output=True,
         text=True,
-        timeout=300,
+        timeout=120,
     )
 
     assert completed.returncode == 0, completed.stderr[-2000:]
@@ -420,6 +420,13 @@ def test_collisions_are_reported_while_another_thread_is_plotting():
     In a subprocess for the same reason as its sibling above: pytest
     rebuilds the filter list between tests, so in-process this would
     measure pytest rather than the lock.
+
+    The plotting thread drives pyplot's global figure registry from a
+    second thread, which pyplot does not document as safe. That is
+    deliberate -- it is what a patched plot call on another thread looks
+    like, which is the situation being tested -- but it is worth knowing
+    if this ever turns flaky rather than failing honestly. A healthy run
+    is ~35s.
     """
     import subprocess
     import sys
@@ -428,7 +435,7 @@ def test_collisions_are_reported_while_another_thread_is_plotting():
         [sys.executable, "-c", _COLLISIONS_UNDER_PLOT_TRAFFIC],
         capture_output=True,
         text=True,
-        timeout=600,
+        timeout=180,
     )
 
     assert completed.returncode == 0, completed.stderr[-2000:]
