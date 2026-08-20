@@ -20,6 +20,11 @@ class MaidrKey(str, Enum):
     # Plot legend keys.
     CAPTION = "caption"
     LABEL = "label"
+    #: What this layer *is*, when a figure holds several of a kind: the hue
+    #: group a split scatter reads, say. Distinct from `TITLE`, which names
+    #: the chart and is carried by every layer of a figure alike
+    #: (xability/maidr#828).
+    NAME = "name"
     SUBTITLE = "subtitle"
     TITLE = "title"
 

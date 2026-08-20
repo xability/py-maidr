@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import math
+import uuid
 
 import numpy as np
 import numpy.ma as ma
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
+from matplotlib.colors import to_rgba
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
@@ -21,6 +23,180 @@ from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
 #: Lives here rather than beside ``common.drawn_as`` because ``maidr.patch``
 #: imports ``maidr.core`` and not the other way about.
 DRAWN_POINTS = "_maidr_points"
+
+#: The keyword the scatter patch hands one hue group to this layer under: a
+#: ``(name, members)`` pair naming the group and listing the collection
+#: offsets that belong to it. Absent for an ungrouped scatter, which is the
+#: chart this layer has always read and still reads unchanged.
+HUE_GROUP = "_maidr_hue_group"
+
+#: How closely two colours must agree to be the same colour. Both sides come
+#: from the same palette object -- the legend handle is built from the swatch
+#: the points were coloured with -- so they agree exactly today; the rounding
+#: is there so a future round trip through a hex string or a float32 buffer
+#: does not silently turn one group into none.
+_COLOUR_TOLERANCE = 6
+
+
+def _rgba(colour) -> tuple[float, ...] | None:
+    """
+    One colour as a rounded RGBA tuple, or ``None`` when it is not one.
+
+    Parameters
+    ----------
+    colour : Any
+        Anything matplotlib accepts as a colour, or anything at all: a
+        legend handle's colour is whatever the artist was given, and for a
+        legend *section header* seaborn gives ``'w'`` on a markerless line.
+
+    Returns
+    -------
+    tuple of float or None
+        The rounded RGBA, or ``None`` when the value names no colour.
+    """
+    try:
+        return tuple(np.round(to_rgba(colour), _COLOUR_TOLERANCE))
+    except (ValueError, TypeError):
+        return None
+
+
+def _handle_colour(handle) -> tuple[float, ...] | None:
+    """
+    The colour a legend handle draws its swatch in.
+
+    ``seaborn`` builds scatter legend handles as ``Line2D`` markers rather
+    than as collections, so the colour is on ``get_color``; the marker face
+    is asked first for the handle types that carry it there instead.
+
+    Parameters
+    ----------
+    handle : matplotlib.artist.Artist
+        One entry from ``legend.legend_handles``.
+
+    Returns
+    -------
+    tuple of float or None
+        The rounded RGBA, or ``None`` when the handle names no single colour.
+    """
+    for getter in ("get_markerfacecolor", "get_facecolor", "get_color"):
+        read = getattr(handle, getter, None)
+        if read is None:
+            continue
+        colour = _rgba(read())
+        if colour is not None:
+            return colour
+    return None
+
+
+def _named_colours(legend, drawn: set[tuple[float, ...]]) -> dict | None:
+    """
+    Map each colour the legend names to the name it gives it.
+
+    Only colours that are *also* on the points count. That one condition does
+    all the discriminating, and it is measured rather than guessed at::
+
+        sns.scatterplot(..., hue='g', style='s')
+
+    gives seven legend entries -- two section headers drawn ``'w'`` with no
+    marker, two hue swatches in the palette colours, and three style markers
+    all drawn in the neutral ``'.2'``. Only the two hue swatches appear among
+    the point colours, so keeping those is exactly the hue split, without this
+    having to know anything about how seaborn lays a legend out.
+
+    Parameters
+    ----------
+    legend : matplotlib.legend.Legend
+        The axes' legend.
+    drawn : set of tuple
+        The distinct colours the points were drawn in.
+
+    Returns
+    -------
+    dict or None
+        Colour to name, in legend order, or ``None`` when two names claim one
+        colour -- a ``style=`` legend does that, and a swatch that means two
+        things cannot name the group a point belongs to.
+    """
+    named: dict[tuple[float, ...], str] = {}
+    for handle, text in zip(legend.legend_handles, legend.get_texts()):
+        colour = _handle_colour(handle)
+        if colour is None or colour not in drawn:
+            continue
+        name = text.get_text()
+        if named.get(colour, name) != name:
+            return None
+        named[colour] = name
+    return named
+
+
+def hue_groups(ax: Axes, collection: PathCollection) -> list[tuple[str, list[int]]] | None:
+    """
+    The hue groups a scatter was drawn with, or ``None`` when it has none.
+
+    ``seaborn`` draws a hue-grouped scatter as **one** ``PathCollection``
+    carrying a colour per point, not one collection per group, so the grouping
+    survives only in those colours and in the legend that names them. Read
+    together they give it back exactly: every point's colour is one of the
+    legend's swatches, and each swatch carries its group's name.
+
+    Everything here is a reason to decline, and each has a chart behind it:
+
+    - **One colour for the whole collection.** ``get_facecolors()`` returns a
+      single row when every point shares a colour, which is what an ungrouped
+      scatter and a ``style=``-only scatter both produce.
+    - **No legend.** ``legend=False`` suppresses it, and a manual
+      ``ax.scatter(c=[...])`` never had one. The colours are still there but
+      nothing names them, and groups called "1" and "2" are not an improvement
+      on one cloud.
+
+      Read at registration, which is to say the instant the drawing call
+      returns. A legend built afterwards -- ``ax.scatter(c=[...])`` followed
+      by ``ax.legend(handles=[...])`` -- does not exist yet and the chart is
+      read as one layer, even though the same axes would split if asked a
+      line later. seaborn builds its legend inside the call, so its charts
+      are unaffected.
+    - **A point no swatch claims.** A *continuous* hue is the case: measured,
+      ``hue='v'`` on a numeric column gives ten distinct colours for ten
+      points against five legend levels sampled at round numbers, so most
+      points match nothing. That is a colour *scale*, not a grouping, and
+      splitting it into one layer per point would be nonsense.
+    - **Fewer than two groups.** Nothing to tell apart.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    collection : PathCollection
+        The points.
+
+    Returns
+    -------
+    list of (str, list of int) or None
+        One entry per group in legend order, naming it and listing the
+        collection offsets that belong to it, or ``None`` for a scatter that
+        is not grouped.
+    """
+    colours = [_rgba(row) for row in collection.get_facecolors()]
+    if len(colours) < 2 or any(colour is None for colour in colours):
+        return None
+
+    legend = ax.get_legend()
+    if legend is None:
+        return None
+
+    named = _named_colours(legend, set(colours))
+    if named is None or len(named) < 2:
+        return None
+
+    members: dict[str, list[int]] = {name: [] for name in named.values()}
+    for index, colour in enumerate(colours):
+        name = named.get(colour)
+        if name is None:
+            return None
+        members[name].append(index)
+
+    groups = [(name, found) for name, found in members.items() if found]
+    return groups if len(groups) > 1 else None
 
 
 class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
@@ -40,8 +216,87 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
             own_points if isinstance(own_points, PathCollection) else None
         )
 
+        # The hue group this layer reads, when the patch found one. `None`
+        # means the layer reads every point the collection holds, which is
+        # what an ungrouped scatter has always done.
+        group = kwargs.get(HUE_GROUP, None)
+        self._group_name = group[0] if group else None
+        self._group_members = set(group[1]) if group else None
+
+        # A grouped layer addresses its points through the collection's id, so
+        # the collection needs one before the SVG is written. Assigned here
+        # rather than relied upon, for the reason `HexbinPlot` and
+        # `contour.tag` give: matplotlib stamps a gid at *draw* time, and the
+        # schema is built first -- so reading it here would find `None` and
+        # the layer would ship with an empty selector list, announcing
+        # correctly and highlighting nothing.
+        #
+        # Every group shares the one collection, so the first layer built
+        # names it and the rest find the name already there.
+        if self._group_members is not None and self._own_points is not None:
+            if self._own_points.get_gid() is None:
+                self._own_points.set_gid(f"maidr-{uuid.uuid4()}")
+
+        # Where each emitted point sits among the drawn ones, filled in by
+        # extraction and read by `_get_selector`. `render()` builds `data`
+        # before `selectors`, so the order is guaranteed rather than lucky --
+        # and a selector list built from a stale one would highlight the
+        # previous group's points, which is the failure nothing announced can
+        # see (xability/maidr#814).
+        self._drawn_positions: list[int] = []
+
+    def render(self) -> dict:
+        """
+        The base schema, plus the name of the group this layer reads.
+
+        ``MaidrLayer.name`` is the field xability/maidr#828 added so that two
+        layers of a kind can be told apart -- which is exactly the position a
+        split scatter puts a reader in. Without it the chart offers three
+        ``point`` layers and no way to know which is which.
+
+        Distinct from ``title``, which every layer of a figure carries and
+        which names the *chart*.
+        """
+        schema = super().render()
+        if self._group_name:
+            schema[MaidrKey.NAME] = self._group_name
+        return schema
+
     def _get_selector(self) -> str | list[str]:
-        return ["g[maidr='true'] > g > use"]
+        """
+        Address this layer's points, whether or not it is one group of several.
+
+        An ungrouped scatter keeps the selector it has always had. matplotlib
+        writes a uniformly styled collection as one ``<g>`` holding every
+        ``<use>``, so one selector matching them all is both correct and in
+        document order.
+
+        A hue-grouped one cannot use it: the collection holds every group's
+        points, so that selector would light up the whole chart for a layer
+        that announces a third of it. Under per-point colours matplotlib
+        writes **one ``<g>`` per point** instead -- measured, six points give
+        six groups of one ``<use>`` each -- so each point has an element of
+        its own to name, and the layer names only its own.
+
+        ``nth-of-type`` rather than ``nth-child``, for the reason
+        :class:`~maidr.core.plot.hexbinplot.HexbinPlot` gives: the shared
+        marker is written into a ``<defs>`` sibling ahead of the point groups,
+        and counting that would shift every point by one.
+        """
+        if self._group_members is None:
+            return ["g[maidr='true'] > g > use"]
+
+        collection = self._own_points
+        if collection is None:
+            collection = self.extract_collection(self.ax, PathCollection)
+        gid = collection.get_gid() if collection is not None else None
+        if gid is None:
+            return []
+
+        return [
+            f"g[id='{gid}'] > g:nth-of-type({position + 1}) > use"
+            for position in self._drawn_positions
+        ]
 
     def _extract_axes_data(self) -> dict:
         """Extract axes data as canonical per-axis ``AxisConfig`` objects.
@@ -78,25 +333,36 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         if not self._is_valid_grid_config(
             x_min, x_max, x_tick_step, y_min, y_max, y_tick_step
         ):
-            return {
+            axes_data = {
                 MaidrKey.X: self._axis_config(label=x_label),
                 MaidrKey.Y: self._axis_config(label=y_label),
             }
+        else:
+            axes_data = {
+                MaidrKey.X: self._axis_config(
+                    label=x_label,
+                    min=float(x_min),
+                    max=float(x_max),
+                    tick_step=float(x_tick_step),
+                ),
+                MaidrKey.Y: self._axis_config(
+                    label=y_label,
+                    min=float(y_min),
+                    max=float(y_max),
+                    tick_step=float(y_tick_step),
+                ),
+            }
 
-        return {
-            MaidrKey.X: self._axis_config(
-                label=x_label,
-                min=float(x_min),
-                max=float(x_max),
-                tick_step=float(x_tick_step),
-            ),
-            MaidrKey.Y: self._axis_config(
-                label=y_label,
-                min=float(y_min),
-                max=float(y_max),
-                tick_step=float(y_tick_step),
-            ),
-        }
+        # A grouped layer names the grouping *variable* on z, the way the line
+        # and point layers do. The group's own name goes on the layer rather
+        # than here: `z` says what the split is by, `name` says which side of
+        # it this layer is.
+        if self._group_members is not None:
+            z_label = self._legend_title()
+            if z_label:
+                axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
+
+        return axes_data
 
     @staticmethod
     def _compute_tick_step(ticks: np.ndarray) -> float | None:
@@ -191,11 +457,37 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         x_ticks = self._category_tick_labels(self.ax, "x")
         y_ticks = self._category_tick_labels(self.ax, "y")
 
-        return [
-            self._sample(float(x), float(y), x_ticks, y_ticks)
-            for x, y in ma.getdata(plot.get_offsets())
-            if math.isfinite(x) and math.isfinite(y)
-        ]
+        # Two indices run here and they are not the same one. `index` is the
+        # offset's place in the collection, which is what a hue group's
+        # membership list is written in; `position` is its place among the
+        # points matplotlib actually *drew*, which is what the SVG is
+        # numbered by. Using either for the other's job puts the highlight on
+        # a neighbour.
+        #
+        # No chart that splits makes them differ today, and that is measured
+        # rather than assumed: only seaborn produces the per-point colours
+        # and the legend a split needs, and seaborn drops non-finite rows
+        # before it draws, so its collection holds no gaps for the two to
+        # diverge over. `test_seaborn_drops_a_non_finite_row_before_drawing`
+        # pins that, and turns red on the release where this arithmetic
+        # starts mattering.
+        members = self._group_members
+        samples: list[dict] = []
+        positions: list[int] = []
+        position = 0
+
+        for index, (x, y) in enumerate(ma.getdata(plot.get_offsets())):
+            if not (math.isfinite(x) and math.isfinite(y)):
+                continue
+            drawn_at = position
+            position += 1
+            if members is not None and index not in members:
+                continue
+            samples.append(self._sample(float(x), float(y), x_ticks, y_ticks))
+            positions.append(drawn_at)
+
+        self._drawn_positions = positions
+        return samples
 
     @classmethod
     def _sample(
