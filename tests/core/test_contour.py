@@ -334,9 +334,15 @@ def test_a_tricontour_curve_runs_where_the_field_reaches_that_value():
 
     The field is a bowl, so the curve at level L is the circle of radius
     sqrt(L) -- checkable in closed form, without trusting the triangulation to
-    have produced anything in particular. The tolerance is the triangulation's
-    own: a contour on a triangular mesh interpolates linearly along each edge,
-    so a curve sits slightly inside a convex level set.
+    have produced anything in particular.
+
+    The tolerance is the triangulation's own: a contour on a triangular mesh
+    interpolates linearly along each edge, so a curve sits slightly inside a
+    convex level set. Measured on this fixture, the worst point of the level
+    at 2.0 is 0.073 inside it, while the neighbouring levels' radii are 0.414
+    and 0.318 away -- so 0.1 is loose enough for the mesh and still four
+    times tighter than the gap it would have to miss to accept the wrong
+    level.
     """
     fig, ax = plt.subplots()
     ax.tricontour(_SCATTER_X, _SCATTER_Y, _SCATTER_Z, levels=[2.0])
@@ -345,7 +351,7 @@ def test_a_tricontour_curve_runs_where_the_field_reaches_that_value():
     radii = [np.hypot(point["x"], point["y"]) for point in curve]
 
     assert radii, "the level was drawn, so it has points"
-    assert np.allclose(radii, np.sqrt(2.0), atol=0.15)
+    assert np.allclose(radii, np.sqrt(2.0), atol=0.1)
 
 
 def test_the_tricontour_selectors_name_elements_that_are_really_there():
