@@ -14,6 +14,7 @@ from . import (  # noqa: E402, F401
     clear,
     colorbar,
     contour,
+    eventplot,
     errorbar,
     fillbetween,
     gantt,
