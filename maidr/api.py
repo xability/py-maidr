@@ -162,9 +162,7 @@ def _resolve_use_cdn(
 
 #: Named in the warning so a reader can see what would have to travel with
 #: the page, rather than being told only that something will not.
-_ALTAIR_REMOTE_RUNTIME = (
-    "vega, vega-lite, vega-embed and maidr's own vegalite.js"
-)
+_ALTAIR_REMOTE_RUNTIME = "vega, vega-lite, vega-embed and maidr's own vegalite.js"
 
 
 def _warn_altair_ignores_use_cdn(
@@ -461,6 +459,10 @@ def render(
         * ``None`` (default): use the process-wide default set via
           :func:`set_use_cdn` or the ``MAIDR_USE_CDN`` env var (both
           default to ``"auto"``).
+
+        Altair charts always use the CDN — this argument is not
+        plumbed through that adapter, so ``False`` warns rather than
+        taking effect (#521).
 
     Returns
     -------

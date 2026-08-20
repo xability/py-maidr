@@ -62,7 +62,9 @@ def test_save_html_says_it_too(tmp_path):
     """The entry point an offline reader is most likely to use."""
     target = tmp_path / "chart.html"
 
-    assert _complaints(lambda: maidr.save_html(_chart(), file=str(target), use_cdn=False))
+    said = _complaints(lambda: maidr.save_html(_chart(), file=str(target), use_cdn=False))
+
+    assert len(said) == 1
 
 
 @pytest.mark.parametrize("mode", [True, "auto", None], ids=["cdn", "auto", "default"])
