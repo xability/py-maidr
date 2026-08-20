@@ -53,6 +53,61 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
 
         return data
 
+    @staticmethod
+    def _bin_point(
+        orientation: str, bin_start: float, bin_size: float, count: float | None
+    ) -> dict:
+        """
+        Build one bin's point, whichever way the histogram was drawn.
+
+        Shared with :class:`~maidr.core.plot.stairs.StairsPlot`, so the two
+        spellings of a histogram -- a row of bars from ``Axes.hist``, a
+        staircase from ``Axes.stairs`` -- emit the same payload for the same
+        chart rather than two that merely resemble one another.
+
+        Parameters
+        ----------
+        orientation : str
+            ``"horz"`` when the bins run up the y axis, ``"vert"`` otherwise.
+        bin_start : float
+            The bin's lower edge, along the axis the bins run on.
+        bin_size : float
+            The width of the bin, on that same axis.
+        count : float or None
+            What the bin holds, or ``None`` when it holds nothing measurable.
+
+        Returns
+        -------
+        dict
+            The point, with the bin edges on the axis the bins run on.
+
+        Notes
+        -----
+        The bounds across the bins -- ``yMin``/``yMax`` on a vertical
+        histogram, ``xMin``/``xMax`` on a horizontal one -- are emitted for
+        the shape's sake and are not read: the core's ``Histogram`` trace
+        takes its bin range from the pair on the *binned* axis and never
+        looks at the other.
+        """
+        if orientation == "horz":
+            return {
+                MaidrKey.X.value: count,
+                MaidrKey.Y.value: bin_start + bin_size / 2,
+                MaidrKey.Y_MIN.value: bin_start,
+                MaidrKey.Y_MAX.value: bin_start + bin_size,
+                MaidrKey.X_MIN.value: 0,
+                MaidrKey.X_MAX.value: count,
+            }
+
+        return {
+            MaidrKey.Y.value: count,
+            MaidrKey.X.value: bin_start + bin_size / 2,
+            MaidrKey.X_MIN.value: bin_start,
+            MaidrKey.X_MAX.value: bin_start + bin_size,
+            MaidrKey.Y_MIN.value: 0,
+            MaidrKey.Y_MAX.value: count,
+        }
+
     def _extract_bar_container_data(
         self, plot: BarContainer | None
     ) -> list[dict] | None:
@@ -66,35 +121,23 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
             # height and the count off its width. The vertical case is the
             # mirror of that.
             if self._orientation == "horz":
-                count = float(patch.get_width())
-                bin_start = float(patch.get_y())
-                bin_size = float(patch.get_height())
-
                 data.append(
-                    {
-                        MaidrKey.X.value: count,
-                        MaidrKey.Y.value: bin_start + bin_size / 2,
-                        MaidrKey.Y_MIN.value: bin_start,
-                        MaidrKey.Y_MAX.value: bin_start + bin_size,
-                        MaidrKey.X_MIN.value: 0,
-                        MaidrKey.X_MAX.value: count,
-                    }
+                    self._bin_point(
+                        "horz",
+                        float(patch.get_y()),
+                        float(patch.get_height()),
+                        float(patch.get_width()),
+                    )
                 )
                 continue
 
-            count = float(patch.get_height())
-            bin_start = float(patch.get_x())
-            bin_size = float(patch.get_width())
-
             data.append(
-                {
-                    MaidrKey.Y.value: count,
-                    MaidrKey.X.value: bin_start + bin_size / 2,
-                    MaidrKey.X_MIN.value: bin_start,
-                    MaidrKey.X_MAX.value: bin_start + bin_size,
-                    MaidrKey.Y_MIN.value: 0,
-                    MaidrKey.Y_MAX.value: count,
-                }
+                self._bin_point(
+                    "vert",
+                    float(patch.get_x()),
+                    float(patch.get_width()),
+                    float(patch.get_height()),
+                )
             )
 
         # Tag the elements for highlighting
