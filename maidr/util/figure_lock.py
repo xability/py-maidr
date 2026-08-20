@@ -145,7 +145,10 @@ def resolve_figure(value: Any) -> Any:
     if isinstance(axes, list):
         # Only a ``Figure`` lands here: ``get_axes`` returns its ``.axes``
         # property, while a list of artists takes a different branch and
-        # comes back as a single ``Axes``. A figure's axes all share that
+        # comes back as a single ``Axes``. That is a coupling to
+        # ``FigureManager.get_axes``'s branch order rather than to
+        # matplotlib -- a ``Figure``-specific branch added ahead of the
+        # ``Artist`` one would change which shape arrives here. A figure's axes all share that
         # figure, so which one is picked does not matter -- the last,
         # matching ``render``'s own loop over the list.
         axes = axes[-1] if axes else None

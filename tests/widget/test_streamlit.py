@@ -691,3 +691,40 @@ def test_the_current_figure_is_resolved_once_and_rendered(monkeypatch):
     # The chart rendered is the one that was locked: two bars, not an empty
     # figure. `_flatten_maidr` puts the data in the root `maidr` attribute.
     assert '&quot;y&quot;: 2' in html or '"y": 2' in html, html[:200]
+
+
+def test_an_axes_less_current_figure_is_still_resolved_only_once(monkeypatch):
+    """The narrow case the resolve-once fix must not leave behind.
+
+    ``resolve_figure(None)`` answers *which figure to lock*, and it is
+    ``None`` both when there is no current figure and when the current
+    figure has no axes yet. Substituting only when it is non-``None``
+    would leave ``render`` calling ``plt.gcf()`` a second time for the
+    axes-less case -- the window narrowed rather than closed. Raised in
+    review of #531.
+
+    Asserted by counting the resolutions rather than by racing them: one
+    ``plt.gcf()`` for the whole call, however few axes the figure has.
+    """
+    import matplotlib.pyplot as pyplot
+
+    import maidr.api as api_module
+
+    plt.figure()  # current, and deliberately empty
+    calls: list[int] = []
+    real_gcf = pyplot.gcf
+
+    def counting_gcf():
+        calls.append(1)
+        return real_gcf()
+
+    monkeypatch.setattr(pyplot, "gcf", counting_gcf)
+    assert api_module._get_plot_or_current is not None
+    try:
+        with pytest.raises(Exception):  # noqa: B017 - what it raises is not the point
+            maidr_html(use_cdn=True)
+    finally:
+        monkeypatch.setattr(pyplot, "gcf", real_gcf)
+        plt.close("all")
+
+    assert calls == [1], f"the current figure was resolved {len(calls)} times"
