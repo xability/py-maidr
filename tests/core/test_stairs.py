@@ -156,6 +156,23 @@ def test_each_call_reads_its_own_staircase():
     ]
 
 
+def test_the_baseline_is_a_drawing_choice_and_not_a_reading():
+    # `baseline` takes None, a scalar or a per-bin array, and `get_data()`
+    # returns `values` unchanged in every case -- it decides where the outline
+    # is closed, not what the bins hold. Encoded here rather than argued,
+    # because a later change could start folding it into the counts and
+    # nothing else would notice.
+    default_figure, default_ax = plt.subplots()
+    default_ax.stairs([1, 3, 2], [0, 1, 2, 3])
+    expected = _data(default_figure)
+
+    for baseline in (None, 2, [0, 1, 0]):
+        fig, ax = plt.subplots()
+        ax.stairs([1, 3, 2], [0, 1, 2, 3], baseline=baseline)
+
+        assert _data(fig) == expected, f"baseline={baseline!r} changed the reading"
+
+
 def test_a_blank_bin_keeps_its_place_and_reports_no_count():
     # `NaN` is how a staircase leaves a bin blank -- matplotlib draws a gap.
     # The bin has a position the reader can still land on, so it is kept and
