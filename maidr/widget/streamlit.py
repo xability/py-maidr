@@ -40,7 +40,9 @@ from typing import Any, Literal, Optional, Union
 from htmltools import tags
 
 import maidr
+from maidr.api import _get_plot_or_current
 from maidr.util.dependencies import inline_bundle_tags, read_bundled_js
+from maidr.util.figure_lock import figure_lock, resolve_figure
 
 #: Accepted by ``use_cdn``; ``None`` defers to :func:`maidr.get_use_cdn`.
 UseCdn = Optional[Union[bool, Literal["auto"]]]
@@ -112,7 +114,32 @@ def maidr_html(
     # in which this function decides whether to inline against one answer
     # while the chart was built from another.
     resolved = maidr.get_use_cdn() if use_cdn is None else use_cdn
-    rendered = maidr.render(plot, use_cdn=resolved)
+    # ``plt.gcf()`` is process-global, so resolving the current figure
+    # twice -- once to decide which lock to take, once again inside
+    # ``render`` -- leaves a window in which another thread's
+    # ``plt.figure()`` moves it between the two, and the lock ends up
+    # guarding a figure the render never touches. Resolve once, here, and
+    # hand ``render`` the figure rather than ``None``: it calls this same
+    # helper, which is the identity for anything that is not ``None``, so
+    # nothing about the output changes. Raised in review of #531.
+    #
+    # Deliberately not ``resolve_figure(None)``, which answers *which
+    # figure to lock* and is ``None`` both for no current figure and for a
+    # current figure with no axes yet. Substituting only when that is
+    # non-``None`` would leave the second ``gcf()`` in place for the
+    # axes-less case -- the window narrowed rather than closed.
+    plot = _get_plot_or_current(plot)
+
+    # One render of a given figure at a time, for the reason in
+    # :mod:`maidr.util.figure_lock`.  Streamlit runs every session's script
+    # in its own ScriptRunner thread, so two sessions sharing one figure --
+    # a module-level one, or anything behind ``@st.cache_resource`` -- can
+    # be inside ``savefig`` together.  Measured on the shipped path: one
+    # render in 30 came back a well-formed SVG of the same chart at the
+    # wrong scale, ``L 640 -134.4`` where every other render had
+    # ``L 460.8 0``.
+    with figure_lock(resolve_figure(plot)):
+        rendered = maidr.render(plot, use_cdn=resolved)
     html = str(rendered.get_html_string())
 
     if resolved is False:

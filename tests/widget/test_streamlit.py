@@ -574,3 +574,157 @@ def test_import_error_advice_matches_the_failure(
 
     with pytest.raises(ImportError, match=re.escape(expected)):
         render_maidr(bar_axes, use_cdn=True)
+
+
+# ---------------------------------------------------------------------------
+# One render of a figure at a time (#454's lock, on this door)
+# ---------------------------------------------------------------------------
+
+#: Attributes that differ between two renders of the same chart by design --
+#: fresh uuids per layer, and the timestamp matplotlib stamps into the SVG.
+_VOLATILE_IN_SVG = re.compile(
+    r'(\bid="[^"]*"|url\(#[^)]*\)|<dc:date>[^<]*</dc:date>'
+    r'|xlink:href="#[^"]*"|maidr="[^"]*")'
+)
+
+
+def test_concurrent_renders_of_one_figure_agree():
+    """Streamlit runs every session in its own thread; this door had no lock.
+
+    ``savefig`` writes ``fig.dpi`` for its duration and restores it
+    afterwards, so two renders of the **same** figure at once race on one
+    mutable attribute and the loser draws the whole chart at the other
+    call's dpi (#454). The Shiny renderer has held a per-figure lock since
+    #504. Nothing held one here, and Streamlit is if anything more exposed:
+    it runs each session's script on its own ScriptRunner thread, and
+    ``@st.cache_resource`` is its documented way to share one object --
+    a figure included -- across them.
+
+    Measured on the shipped path before the fix: 1 of 30 concurrent renders
+    came back as a complete, well-formed SVG of the same chart at the wrong
+    scale, ``L 640 -134.4`` where every other render had ``L 460.8 0``. Not
+    garbled markup and not an exception -- geometry is what the highlight
+    overlay and the tactile export are positioned against, so a chart at
+    72% scale is wrong in the modality a sighted reviewer checks least.
+
+    Asserted as agreement between renders rather than against a fixed size,
+    since the wrong-dpi output is internally consistent: it is only wrong
+    relative to what every other render produced.
+
+    The barrier synchronises the *start*, not the duration, so on a runner
+    slow enough that each render finishes before the next thread is
+    scheduled this passes with a broken lock -- a false negative rather
+    than CI noise. Measured 10 of 10 runs mismatching with the lock
+    removed and 10 of 10 identical with it.
+    """
+    import threading
+
+    fig, ax = plt.subplots()
+    ax.bar([str(i) for i in range(30)], list(range(30)))
+
+    outputs: list[str] = []
+    failures: list[Exception] = []
+    # One constant for the barrier and the thread count, because they must
+    # agree: a barrier expecting more arrivals than there are threads waits
+    # forever (#506).
+    workers = 6
+    start = threading.Barrier(workers)
+
+    def render() -> None:
+        try:
+            start.wait(timeout=30)
+            outputs.append(_VOLATILE_IN_SVG.sub("", maidr_html(ax, use_cdn=True)))
+        except Exception as error:  # noqa: BLE001 - re-raised after the join
+            failures.append(error)
+
+    threads = [threading.Thread(target=render, daemon=True) for _ in range(workers)]
+    try:
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+            assert not thread.is_alive(), "a render deadlocked on the lock"
+    finally:
+        plt.close(fig)
+
+    assert not failures, failures
+    assert len(outputs) == workers
+    assert all(output == outputs[0] for output in outputs), (
+        "concurrent renders of one figure disagree; they race on fig.dpi "
+        "and one of them emits the chart at the wrong scale"
+    )
+
+
+def test_the_current_figure_is_resolved_once_and_rendered(monkeypatch):
+    """``maidr_html()`` locks the figure it renders, not whichever is current
+    a moment later.
+
+    ``plt.gcf()`` is process-global. Resolving it separately for the lock
+    and for the render leaves a window in which another thread's
+    ``plt.figure()`` moves the current figure between the two, so the lock
+    guards one figure while the render writes another -- synchronised in
+    appearance only. Raised in review of #531.
+
+    Driven by moving the current figure *between* the two resolutions,
+    which is the interleaving a second thread would produce.
+    """
+    import maidr.widget.streamlit as streamlit_module
+
+    mine, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    locked: list[object] = []
+    real_lock = streamlit_module.figure_lock
+
+    def lock_and_move(figure):
+        locked.append(figure)
+        # What another thread plotting concurrently would do.
+        plt.figure()
+        return real_lock(figure)
+
+    monkeypatch.setattr(streamlit_module, "figure_lock", lock_and_move)
+    try:
+        html = maidr_html(use_cdn=True)
+    finally:
+        plt.close("all")
+
+    assert locked == [mine], "locked a different figure than the current one"
+    # The chart rendered is the one that was locked: two bars, not an empty
+    # figure. `_flatten_maidr` puts the data in the root `maidr` attribute.
+    assert '&quot;y&quot;: 2' in html or '"y": 2' in html, html[:200]
+
+
+def test_an_axes_less_current_figure_is_still_resolved_only_once(monkeypatch):
+    """The narrow case the resolve-once fix must not leave behind.
+
+    ``resolve_figure(None)`` answers *which figure to lock*, and it is
+    ``None`` both when there is no current figure and when the current
+    figure has no axes yet. Substituting only when it is non-``None``
+    would leave ``render`` calling ``plt.gcf()`` a second time for the
+    axes-less case -- the window narrowed rather than closed. Raised in
+    review of #531.
+
+    Asserted by counting the resolutions rather than by racing them: one
+    ``plt.gcf()`` for the whole call, however few axes the figure has.
+    """
+    import matplotlib.pyplot as pyplot
+
+    import maidr.api as api_module
+
+    plt.figure()  # current, and deliberately empty
+    calls: list[int] = []
+    real_gcf = pyplot.gcf
+
+    def counting_gcf():
+        calls.append(1)
+        return real_gcf()
+
+    monkeypatch.setattr(pyplot, "gcf", counting_gcf)
+    assert api_module._get_plot_or_current is not None
+    try:
+        with pytest.raises(Exception):  # noqa: B017 - what it raises is not the point
+            maidr_html(use_cdn=True)
+    finally:
+        monkeypatch.setattr(pyplot, "gcf", real_gcf)
+        plt.close("all")
+
+    assert calls == [1], f"the current figure was resolved {len(calls)} times"
