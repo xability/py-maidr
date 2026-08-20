@@ -432,6 +432,15 @@ class Maidr:
         six threads on one figure: 1 of 5 trials came back with two
         distinct outputs.
 
+        The lock covers the whole render rather than the ``savefig`` call
+        alone. That is wider than the mutation strictly needs, and
+        deliberate: the schema is extracted from the same artists
+        ``savefig`` is writing, so a narrower lock would let one render's
+        payload be built while another render mutates the figure under it.
+        It is also what the two doors held before this, so nothing about
+        contention changes for them. In a single-threaded script the lock
+        is never contended and costs an uncontended acquire per render.
+
         Locking by ``self._fig`` also removes a resolution step that could
         disagree with the render. The integrations had to work out *which*
         figure a value named before they could lock it, and when that
@@ -459,11 +468,13 @@ class Maidr:
         data_in_svg: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
     ) -> Tag:
-        """Render the chart. Call :meth:`_create_html_tag`, which holds the lock.
+        """Render the chart. Callers want :meth:`_create_html_tag`, which locks.
 
-        Separate only so that the lock wraps the whole of this rather than
+        Split out only so that the lock wraps the whole of this rather than
         this being indented under a ``with``: the body is long, and the
-        rename keeps the two concerns readable apart.
+        split keeps the two concerns readable apart. Nothing but
+        :meth:`_create_html_tag` should call this -- a caller reaching past
+        it renders without the lock.
         """
         # Before the artists are collected, not after: reading `plot.elements`
         # renders the layer, and a superseded `BarPlot` on a stacked axes
