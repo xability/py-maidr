@@ -15,6 +15,7 @@ from . import (  # noqa: E402, F401
     colorbar,
     errorbar,
     fillbetween,
+    gantt,
     heatmap,
     hexbin,
     highlight,
