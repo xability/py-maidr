@@ -12,10 +12,7 @@ Requires the optional ``shiny`` extra::
 from __future__ import annotations
 
 import asyncio
-import logging
-import threading
 import warnings
-import weakref
 from typing import Any, Literal, Optional, Union
 
 try:
@@ -30,87 +27,8 @@ except ImportError as error:
 
 import maidr
 from maidr.core.figure_manager import FigureManager
+from maidr.util.figure_lock import figure_lock, resolve_figure
 from maidr.widget._focus import FOCUS_RESTORE_JS
-
-_logger = logging.getLogger(__name__)
-
-#: One lock per ``Figure``, so two renders of the *same* figure cannot run
-#: at once. Not process-wide: ``savefig`` on distinct figures is safe in
-#: parallel, and a single lock would serialise unrelated sessions and throw
-#: away most of what moving off the event loop buys.
-#:
-#: Why a lock is needed at all: ``savefig`` mutates the figure it is
-#: writing, for the duration of the write. Two things, both measured by
-#: watching the attribute from another thread while renders ran:
-#:
-#: * ``fig.dpi`` goes 100 -> 72 -> 100, so two concurrent writes race on
-#:   that one attribute and the loser renders its whole chart at the
-#:   other's dpi. A 640x480 chart came out 460.8x345.6 -- exactly the
-#:   100/72 ratio -- as a valid SVG, raising nothing, on 1 of 6 concurrent
-#:   renders. For a tool whose highlight overlay is positioned against
-#:   that geometry, silently wrong dimensions are the bad kind of wrong.
-#: * ``fig.canvas`` is swapped to a canvas that supports the output format
-#:   and swapped back (``FigureCanvasAgg`` -> ``FigureCanvasSVG`` ->
-#:   ``FigureCanvasAgg``), by
-#:   ``FigureCanvasBase._switch_canvas_and_return_print_method``.
-#:
-#: That second one also answers a question this raises: ``savefig`` now
-#: runs on a worker thread, and GUI backends generally want canvas work on
-#: the main thread. It does not reach the GUI canvas -- the write goes
-#: through the format's own canvas, which for SVG is pure Python and has
-#: no thread affinity. maidr's own backend delegates to ``FigureCanvasAgg``
-#: besides, and is what ``import maidr`` activates.
-#:
-#: ``threading.Lock``, not ``RLock``: nothing re-enters a render of the
-#: same figure on the same thread today, and if something ever does, a
-#: deadlock is a better outcome than two interleaved writes to one figure,
-#: because it is the one that shows up.
-#:
-#: A ``WeakKeyDictionary`` so a closed figure's lock goes with it. The lock
-#: does not reference the figure, so this adds no retention (#498).
-_FIGURE_LOCKS: weakref.WeakKeyDictionary[Any, threading.Lock] = (
-    weakref.WeakKeyDictionary()
-)
-
-#: Guards creation of the per-figure locks above, which is itself a
-#: check-then-act on a shared mapping.
-_FIGURE_LOCKS_GUARD = threading.Lock()
-
-
-def _figure_lock(figure: Any) -> threading.Lock:
-    """Return the lock for ``figure``, creating it on first use.
-
-    Parameters
-    ----------
-    figure : Any
-        The ``matplotlib`` figure about to be rendered, or ``None`` when it
-        could not be resolved.
-
-    Returns
-    -------
-    threading.Lock
-        A lock unique to that figure. An unresolvable figure gets a fresh
-        lock rather than a shared one -- serialising things we cannot tell
-        apart would be a guess in the direction of a deadlock, and the
-        render is safe on its own.
-
-        Note what that means: an unresolvable value gets **no**
-        synchronisation at all. Correct today because the values that land
-        here -- plotly, altair -- are rendered without touching a
-        ``matplotlib`` figure's ``dpi`` or ``canvas``, so there is no
-        shared state to race on. A future plot type that resolves to
-        ``None`` here *and* mutates shared figure state would be
-        unprotected silently, which is the reason to say so rather than
-        leave it to be inferred.
-    """
-    if figure is None:
-        return threading.Lock()
-    with _FIGURE_LOCKS_GUARD:
-        lock = _FIGURE_LOCKS.get(figure)
-        if lock is None:
-            lock = threading.Lock()
-            _FIGURE_LOCKS[figure] = lock
-        return lock
 
 
 #: Accepted by ``use_cdn`` on :class:`render_maidr`; ``None`` defers to the
@@ -420,7 +338,8 @@ class render_maidr(Renderer[Any]):
         is what this is for.
 
         Lock contention eats into that same pool rather than sitting
-        outside it: a render waiting on :func:`_figure_lock` is blocked
+        outside it: a render waiting on
+        :func:`maidr.util.figure_lock.figure_lock` is blocked
         *inside* its executor thread, still holding the slot. Enough
         sessions rendering one shared module-level figure could therefore
         make unrelated figures queue for a thread -- the stall this moves
@@ -428,7 +347,7 @@ class render_maidr(Renderer[Any]):
         figure per session, where this does not arise.
 
         The lock is what makes the move safe rather than merely faster --
-        see :data:`_FIGURE_LOCKS`.
+        see :mod:`maidr.util.figure_lock`.
 
         Parameters
         ----------
@@ -440,32 +359,7 @@ class render_maidr(Renderer[Any]):
         Any
             The rendered chart, as :func:`maidr.render` returns it.
         """
-        figure = None
-        try:
-            axes = FigureManager.get_axes(value)
-            figure = getattr(axes, "figure", None)
-        except (AttributeError, StopIteration):
-            # Narrow, and not the case an earlier comment here claimed. A
-            # foreign figure -- plotly, altair -- does not raise: `get_axes`
-            # matches no branch and returns `None`, which `getattr` above
-            # turns into `figure = None` without ever reaching here.
-            # Measured: plotly-shaped, `None`, `int` and `str` all return
-            # `None`; only an empty list or dict raises, as `StopIteration`.
-            #
-            # So this catches malformed input that `_check_supported`
-            # should already have rejected. Logged rather than swallowed:
-            # a bare `except Exception` here would quietly downgrade a real
-            # bug in `get_axes` to "lock scope lost", immediately before an
-            # unsynchronised render.
-            _logger.debug(
-                "could not resolve a figure to lock for %r; rendering "
-                "without a shared lock",
-                type(value).__name__,
-                exc_info=True,
-            )
-            figure = None
-
-        with _figure_lock(figure):
+        with figure_lock(resolve_figure(value)):
             return maidr.render(value, use_cdn=self.use_cdn)
 
     async def render(self) -> Optional[Jsonifiable]:

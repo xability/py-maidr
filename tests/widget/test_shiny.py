@@ -7,13 +7,11 @@ inside a session context -- without starting a server.
 from __future__ import annotations
 
 import asyncio
-import gc
 import re
 import sys
 import threading
 import time
 import warnings
-import weakref
 from html import unescape
 
 import matplotlib
@@ -483,62 +481,6 @@ def test_import_error_advice_matches_the_failure(monkeypatch, error, expected):
 # ---------------------------------------------------------------------------
 
 
-def test_each_figure_gets_its_own_lock_and_keeps_it():
-    """Per figure, not process-wide, and stable across calls.
-
-    A single shared lock would serialise unrelated sessions and give back
-    most of what moving off the loop buys, since ``savefig`` on *distinct*
-    figures is safe in parallel. A lock that differed per call would guard
-    nothing at all.
-    """
-    from maidr.widget.shiny import _figure_lock
-
-    first, _ = plt.subplots()
-    second, _ = plt.subplots()
-    try:
-        assert _figure_lock(first) is _figure_lock(first), "must be stable"
-        assert _figure_lock(first) is not _figure_lock(second), "must be per figure"
-    finally:
-        plt.close(first)
-        plt.close(second)
-
-
-def test_an_unresolvable_figure_gets_a_fresh_lock_rather_than_a_shared_one():
-    """Sharing one lock among things we cannot tell apart invites a deadlock.
-
-    The render is safe on its own -- only the lock's scope is lost -- so the
-    fallback hands back an unshared lock rather than a sentinel-keyed one.
-    """
-    from maidr.widget.shiny import _figure_lock
-
-    assert _figure_lock(None) is not _figure_lock(None)
-
-
-def test_the_lock_does_not_keep_a_closed_figure_alive():
-    """The map is weak-keyed, so it adds no retention of its own (#498).
-
-    Worth pinning because a strong map keyed by figure is exactly the shape
-    that kept every registered figure alive for the life of the process
-    (#456), and this one is keyed the same way.
-    """
-    from matplotlib.figure import Figure
-    from maidr.widget.shiny import _figure_lock
-
-    # A bare `Figure`, deliberately not `plt.subplots()`, so that nothing
-    # but the lock map can be the reason this passes or fails. When this was
-    # written `FigureManager` retained every figure and a pyplot figure
-    # failed here for that reason rather than the lock map's; that is fixed
-    # now, and the isolation is still worth keeping.
-    figure = Figure()
-    _figure_lock(figure)
-    ref = weakref.ref(figure)
-
-    del figure
-    gc.collect()
-
-    assert ref() is None, "the lock map is keeping the figure alive"
-
-
 def test_the_render_runs_off_the_event_loop(fake_session, monkeypatch):
     """The whole point of #454: ``maidr.render`` must not run on the loop.
 
@@ -587,7 +529,8 @@ def test_the_render_runs_off_the_event_loop(fake_session, monkeypatch):
 def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
     """The scenario this whole change exists to make safe.
 
-    The unit tests above check that ``_figure_lock`` hands back matching
+    ``tests/util/test_figure_lock.py`` checks that ``figure_lock`` hands
+    back matching
     objects; none of them shows that two renders actually serialise. That
     is the one thing a race here would break, so it is worth exercising
     end to end.
@@ -652,9 +595,9 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
 def test_a_value_that_resolves_to_no_figure_still_renders(fake_session, monkeypatch):
     """The fallback branch, driven through the real path rather than alone.
 
-    ``test_an_unresolvable_figure_gets_a_fresh_lock_...`` calls
-    ``_figure_lock(None)`` directly, which shows the helper's behaviour and
-    not that anything reaches it. This goes through ``render()``.
+    ``tests/util/test_figure_lock.py`` calls ``figure_lock(None)``
+    directly, which shows the helper's behaviour and not that anything
+    reaches it. This goes through ``render()``.
 
     Both shapes are covered because they are not the same shape, which an
     earlier comment in ``_render_off_loop`` got wrong: a foreign figure
@@ -694,6 +637,11 @@ def test_an_unexpected_resolver_failure_is_logged_not_swallowed(
     The catch sits immediately before an unsynchronised render, so a real
     failure there is worth a record. It was a bare ``except Exception``
     with no logging until review of #504.
+
+    ``tests/util/test_figure_lock.py`` makes the same assertion against
+    :func:`resolve_figure` directly. This one is what says the Shiny
+    render path still reaches it -- a renderer that resolved its own
+    figure again would pass that test and fail this one.
     """
     import logging
 
@@ -709,7 +657,8 @@ def test_an_unexpected_resolver_failure_is_logged_not_swallowed(
         staticmethod(lambda value: (_ for _ in ()).throw(AttributeError("boom"))),
     )
     try:
-        with caplog.at_level(logging.DEBUG, logger=shiny_module.__name__):
+        # The resolver, and so the record, now belongs to the shared module.
+        with caplog.at_level(logging.DEBUG, logger="maidr.util.figure_lock"):
 
             @render_maidr
             def chart():
@@ -791,7 +740,8 @@ _VOLATILE_IN_SVG = re.compile(
 )
 
 
-def test_concurrent_renders_of_one_figure_agree():
+@pytest.mark.parametrize("hand_back", ["axes", "figure"])
+def test_concurrent_renders_of_one_figure_agree(hand_back):
     """Concurrent renders of one figure must produce the same chart.
 
     Narrower than it first looks, and worth stating plainly:
@@ -844,10 +794,18 @@ def test_concurrent_renders_of_one_figure_agree():
     address that (detection was 8 of 8 at 30, 100 and 200 bars alike, so
     the margin was never the variable); starting them together does,
     because it does not depend on the scheduler being busy.
+
+    Parametrised over what the render function returns because the two
+    used to be different: a ``Figure`` resolves to a *list* of axes, and
+    the old resolver read ``.figure`` off that list, got ``None``, and
+    took a fresh unshared lock -- so an app whose render function returned
+    ``fig`` rather than ``ax`` raced exactly as if there were no lock. Both
+    now resolve to the same figure, and so to the same lock.
     """
     fig, ax = plt.subplots()
     ax.bar([str(i) for i in range(30)], list(range(30)))
-    renderer = render_maidr(lambda: ax)
+    returned = ax if hand_back == "axes" else fig
+    renderer = render_maidr(lambda: returned)
 
     # Appended from several threads without a lock, which is safe because
     # `list.append` is atomic under the GIL, and read only after every
@@ -864,7 +822,7 @@ def test_concurrent_renders_of_one_figure_agree():
     def render_once():
         try:
             start.wait(timeout=10)
-            rendered = str(renderer._render_off_loop(ax))
+            rendered = str(renderer._render_off_loop(returned))
             outputs.append(_VOLATILE_IN_SVG.sub("", rendered))
         except Exception as exc:  # reported below, not swallowed
             # Narrow enough to cover everything expected --

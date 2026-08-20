@@ -574,3 +574,82 @@ def test_import_error_advice_matches_the_failure(
 
     with pytest.raises(ImportError, match=re.escape(expected)):
         render_maidr(bar_axes, use_cdn=True)
+
+
+# ---------------------------------------------------------------------------
+# One render of a figure at a time (#454's lock, on this door)
+# ---------------------------------------------------------------------------
+
+#: Attributes that differ between two renders of the same chart by design --
+#: fresh uuids per layer, and the timestamp matplotlib stamps into the SVG.
+_VOLATILE_IN_SVG = re.compile(
+    r'(\bid="[^"]*"|url\(#[^)]*\)|<dc:date>[^<]*</dc:date>'
+    r'|xlink:href="#[^"]*"|maidr="[^"]*")'
+)
+
+
+def test_concurrent_renders_of_one_figure_agree():
+    """Streamlit runs every session in its own thread; this door had no lock.
+
+    ``savefig`` writes ``fig.dpi`` for its duration and restores it
+    afterwards, so two renders of the **same** figure at once race on one
+    mutable attribute and the loser draws the whole chart at the other
+    call's dpi (#454). The Shiny renderer has held a per-figure lock since
+    #504. Nothing held one here, and Streamlit is if anything more exposed:
+    it runs each session's script on its own ScriptRunner thread, and
+    ``@st.cache_resource`` is its documented way to share one object --
+    a figure included -- across them.
+
+    Measured on the shipped path before the fix: 1 of 30 concurrent renders
+    came back as a complete, well-formed SVG of the same chart at the wrong
+    scale, ``L 640 -134.4`` where every other render had ``L 460.8 0``. Not
+    garbled markup and not an exception -- geometry is what the highlight
+    overlay and the tactile export are positioned against, so a chart at
+    72% scale is wrong in the modality a sighted reviewer checks least.
+
+    Asserted as agreement between renders rather than against a fixed size,
+    since the wrong-dpi output is internally consistent: it is only wrong
+    relative to what every other render produced.
+
+    The barrier synchronises the *start*, not the duration, so on a runner
+    slow enough that each render finishes before the next thread is
+    scheduled this passes with a broken lock -- a false negative rather
+    than CI noise. Measured 10 of 10 runs mismatching with the lock
+    removed and 10 of 10 identical with it.
+    """
+    import threading
+
+    fig, ax = plt.subplots()
+    ax.bar([str(i) for i in range(30)], list(range(30)))
+
+    outputs: list[str] = []
+    failures: list[Exception] = []
+    # One constant for the barrier and the thread count, because they must
+    # agree: a barrier expecting more arrivals than there are threads waits
+    # forever (#506).
+    workers = 6
+    start = threading.Barrier(workers)
+
+    def render() -> None:
+        try:
+            start.wait(timeout=30)
+            outputs.append(_VOLATILE_IN_SVG.sub("", maidr_html(ax, use_cdn=True)))
+        except Exception as error:  # noqa: BLE001 - re-raised after the join
+            failures.append(error)
+
+    threads = [threading.Thread(target=render, daemon=True) for _ in range(workers)]
+    try:
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+            assert not thread.is_alive(), "a render deadlocked on the lock"
+    finally:
+        plt.close(fig)
+
+    assert not failures, failures
+    assert len(outputs) == workers
+    assert all(output == outputs[0] for output in outputs), (
+        "concurrent renders of one figure disagree; they race on fig.dpi "
+        "and one of them emits the chart at the wrong scale"
+    )

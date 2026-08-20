@@ -41,6 +41,7 @@ from htmltools import tags
 
 import maidr
 from maidr.util.dependencies import inline_bundle_tags, read_bundled_js
+from maidr.util.figure_lock import figure_lock, resolve_figure
 
 #: Accepted by ``use_cdn``; ``None`` defers to :func:`maidr.get_use_cdn`.
 UseCdn = Optional[Union[bool, Literal["auto"]]]
@@ -112,7 +113,16 @@ def maidr_html(
     # in which this function decides whether to inline against one answer
     # while the chart was built from another.
     resolved = maidr.get_use_cdn() if use_cdn is None else use_cdn
-    rendered = maidr.render(plot, use_cdn=resolved)
+    # One render of a given figure at a time, for the reason in
+    # :mod:`maidr.util.figure_lock`.  Streamlit runs every session's script
+    # in its own ScriptRunner thread, so two sessions sharing one figure --
+    # a module-level one, or anything behind ``@st.cache_resource`` -- can
+    # be inside ``savefig`` together.  Measured on the shipped path: one
+    # render in 30 came back a well-formed SVG of the same chart at the
+    # wrong scale, ``L 640 -134.4`` where every other render had
+    # ``L 460.8 0``.
+    with figure_lock(resolve_figure(plot)):
+        rendered = maidr.render(plot, use_cdn=resolved)
     html = str(rendered.get_html_string())
 
     if resolved is False:
