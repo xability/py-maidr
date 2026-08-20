@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 
 import io
 import os
@@ -495,6 +496,7 @@ class Maidr:
                 selector_ids.append(self.selector_ids[i])
 
         # Build schema once so id stays consistent across SVG and global var
+        drawn_before = self._artist_census()
         schema = self._flatten_maidr()
 
         # Ask the bundle whether it can draw what this render is about to
@@ -512,6 +514,26 @@ class Maidr:
 
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
             svg = self._get_svg(embed_data=data_in_svg, schema=schema)
+
+        # The schema was read from the artists; the SVG was written from
+        # them afterwards. Anything that drew into the figure in between
+        # is in one and not the other -- a chart that shows something it
+        # never announces, or announces something it does not show. The
+        # lock stops another *render* from doing that; it cannot stop the
+        # application itself, on a figure it still holds (#530).
+        #
+        # Reported rather than repaired: re-reading the schema would race
+        # the same way, and the caller is the only one who knows whether
+        # the figure was supposed to be still.
+        if self._artist_census() != drawn_before:
+            warnings.warn(
+                "maidr: this figure was drawn into while it was being "
+                "rendered, so the chart's SVG and the data maidr announces "
+                "for it may not match. Finish plotting before rendering, "
+                "or render a figure no other thread is using.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # Generate external payload if data is not embedded in SVG
         maidr = None
@@ -918,6 +940,36 @@ class Maidr:
             **self._figure_metadata(),
             "subplots": subplot_grid,
         }
+
+    def _artist_census(self) -> tuple:
+        """A cheap description of what is currently drawn on the figure.
+
+        Compared either side of a render to notice a figure being drawn
+        into while it is read (#530). Counts and labels rather than the
+        artists themselves: it has to be cheap enough to take twice per
+        render, and it only has to answer "did this change", not what.
+
+        Measured stable across a render for bar, heatmap, hist, line,
+        scatter, boxplot, a mesh with a colorbar -- which re-parents its
+        axes -- and a seaborn countplot, so it does not report the render's
+        own work as interference. Tagging for highlight sets attributes on
+        artists that already exist; nothing here adds one.
+        """
+        return (
+            len(self._fig.axes),
+            tuple(
+                (
+                    len(ax.lines),
+                    len(ax.patches),
+                    len(ax.collections),
+                    len(ax.images),
+                    ax.get_title(),
+                    ax.get_xlabel(),
+                    ax.get_ylabel(),
+                )
+                for ax in self._fig.axes
+            ),
+        )
 
     def _get_svg(self, embed_data: bool = True, schema: dict | None = None) -> HTML:
         """Extract the chart SVG from ``matplotlib.figure.Figure``.
