@@ -1,9 +1,12 @@
-"""The per-figure render lock, and the resolution that decides its scope.
+"""The per-figure render lock.
 
 The lock's behaviour was covered from ``tests/widget/test_shiny.py`` while
-it lived inside the Shiny integration. It now serves every threaded door,
-so the unit tests move here with it; the Shiny-specific ones (that a
-render actually takes it, that two renders do not overlap) stay there.
+it lived inside the Shiny integration, and moved here when it became
+shared (#531). Since #532 the only thing that takes it is
+``Maidr._create_html_tag``, so that it covers every caller rather than the
+two doors this package ships; ``tests/core/test_render_serialises.py``
+covers that, and the per-door concurrency tests still assert the
+consequence through each integration.
 """
 
 from __future__ import annotations
@@ -12,14 +15,13 @@ import gc
 import weakref
 
 import matplotlib
-import pytest
 
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 
-from maidr.util.figure_lock import figure_lock, resolve_figure  # noqa: E402
+from maidr.util.figure_lock import figure_lock  # noqa: E402
 
 
 def test_each_figure_gets_its_own_lock_and_keeps_it():
@@ -67,72 +69,3 @@ def test_the_lock_does_not_keep_a_closed_figure_alive():
     gc.collect()
 
     assert ref() is None, "the lock map is keeping the figure alive"
-
-
-@pytest.mark.parametrize(
-    "shape",
-    ["axes", "figure", "list of artists", "no argument"],
-    ids=["axes", "figure", "list", "current"],
-)
-def test_every_way_of_naming_one_chart_takes_the_same_lock(shape):
-    """The lock is only exclusion if two names for one figure agree on it.
-
-    ``maidr.render`` accepts an ``Axes``, a ``Figure``, a list of artists
-    and ``None`` for the current figure, and renders the same chart from
-    every one of them. Resolution that answered ``None`` for some of those
-    would hand back a *fresh* lock -- so two renders of one figure, named
-    differently, would not exclude each other and would race on
-    ``fig.dpi`` exactly as if there were no lock.
-
-    ``Figure`` and ``None`` are not hypothetical: both resolved to no
-    figure before the resolution moved here, so a Shiny render function
-    returning ``fig`` rather than ``ax`` was unsynchronised.
-    """
-    figure, axes = plt.subplots()
-    axes.bar(["a", "b"], [1, 2])
-    named = {
-        "axes": axes,
-        "figure": figure,
-        "list of artists": [axes],
-        "no argument": None,
-    }[shape]
-    try:
-        assert resolve_figure(named) is figure, "must name the same figure"
-        assert figure_lock(resolve_figure(named)) is figure_lock(figure), (
-            "must take the same lock as the figure itself"
-        )
-    finally:
-        plt.close(figure)
-
-
-def test_a_value_naming_no_figure_resolves_to_none():
-    """The fallback branch, from both directions.
-
-    A value ``get_axes`` does not understand returns ``None``; an empty
-    container makes it raise. Both mean "nothing to lock", and the
-    distinction matters only in that the second reaches the ``except``.
-    """
-    assert resolve_figure("not a plot") is None
-    assert resolve_figure([]) is None
-
-
-def test_an_unexpected_resolver_failure_is_logged_not_swallowed(monkeypatch, caplog):
-    """A bug in ``get_axes`` must not vanish into "lock scope lost".
-
-    The catch sits immediately before an unsynchronised render, so a real
-    failure there is worth a record. It was a bare ``except Exception``
-    with no logging until review of #504.
-    """
-    import logging
-
-    from maidr.core.figure_manager import FigureManager
-
-    monkeypatch.setattr(
-        FigureManager,
-        "get_axes",
-        staticmethod(lambda value: (_ for _ in ()).throw(AttributeError("boom"))),
-    )
-    with caplog.at_level(logging.DEBUG, logger="maidr.util.figure_lock"):
-        assert resolve_figure(object()) is None
-
-    assert any("without a shared lock" in record.message for record in caplog.records)

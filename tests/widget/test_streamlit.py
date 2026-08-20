@@ -655,60 +655,21 @@ def test_concurrent_renders_of_one_figure_agree():
     )
 
 
-def test_the_current_figure_is_resolved_once_and_rendered(monkeypatch):
-    """``maidr_html()`` locks the figure it renders, not whichever is current
-    a moment later.
-
-    ``plt.gcf()`` is process-global. Resolving it separately for the lock
-    and for the render leaves a window in which another thread's
-    ``plt.figure()`` moves the current figure between the two, so the lock
-    guards one figure while the render writes another -- synchronised in
-    appearance only. Raised in review of #531.
-
-    Driven by moving the current figure *between* the two resolutions,
-    which is the interleaving a second thread would produce.
-    """
-    import maidr.widget.streamlit as streamlit_module
-
-    mine, ax = plt.subplots()
-    ax.bar(["a", "b"], [1, 2])
-    locked: list[object] = []
-    real_lock = streamlit_module.figure_lock
-
-    def lock_and_move(figure):
-        locked.append(figure)
-        # What another thread plotting concurrently would do.
-        plt.figure()
-        return real_lock(figure)
-
-    monkeypatch.setattr(streamlit_module, "figure_lock", lock_and_move)
-    try:
-        html = maidr_html(use_cdn=True)
-    finally:
-        plt.close("all")
-
-    assert locked == [mine], "locked a different figure than the current one"
-    # The chart rendered is the one that was locked: two bars, not an empty
-    # figure. `_flatten_maidr` puts the data in the root `maidr` attribute.
-    assert '&quot;y&quot;: 2' in html or '"y": 2' in html, html[:200]
-
-
 def test_an_axes_less_current_figure_is_still_resolved_only_once(monkeypatch):
-    """The narrow case the resolve-once fix must not leave behind.
+    """``maidr_html()`` resolves the current figure once, whatever it holds.
 
-    ``resolve_figure(None)`` answers *which figure to lock*, and it is
-    ``None`` both when there is no current figure and when the current
-    figure has no axes yet. Substituting only when it is non-``None``
-    would leave ``render`` calling ``plt.gcf()`` a second time for the
-    axes-less case -- the window narrowed rather than closed. Raised in
-    review of #531.
+    ``plt.gcf()`` is process-global, so a call that resolved it twice
+    could render a different figure than the one it started with, if
+    another thread's ``plt.figure()`` landed between the two. This door
+    resolved separately for its own lock until #532 and had to be fixed
+    for exactly that; the lock is now taken in the core render path, so
+    ``render`` is the only thing that resolves.
 
-    Asserted by counting the resolutions rather than by racing them: one
-    ``plt.gcf()`` for the whole call, however few axes the figure has.
+    Kept as a counter rather than a race: one ``plt.gcf()`` for the whole
+    call, however few axes the figure has. A door that started resolving
+    on its own account again would show up here.
     """
     import matplotlib.pyplot as pyplot
-
-    import maidr.api as api_module
 
     plt.figure()  # current, and deliberately empty
     calls: list[int] = []
@@ -719,7 +680,6 @@ def test_an_axes_less_current_figure_is_still_resolved_only_once(monkeypatch):
         return real_gcf()
 
     monkeypatch.setattr(pyplot, "gcf", counting_gcf)
-    assert api_module._get_plot_or_current is not None
     try:
         with pytest.raises(Exception):  # noqa: B017 - what it raises is not the point
             maidr_html(use_cdn=True)

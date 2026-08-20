@@ -27,7 +27,6 @@ except ImportError as error:
 
 import maidr
 from maidr.core.figure_manager import FigureManager
-from maidr.util.figure_lock import figure_lock, resolve_figure
 from maidr.widget._focus import FOCUS_RESTORE_JS
 
 
@@ -338,15 +337,17 @@ class render_maidr(Renderer[Any]):
         is what this is for.
 
         Lock contention eats into that same pool rather than sitting
-        outside it: a render waiting on
-        :func:`maidr.util.figure_lock.figure_lock` is blocked
-        *inside* its executor thread, still holding the slot. Enough
-        sessions rendering one shared module-level figure could therefore
-        make unrelated figures queue for a thread -- the stall this moves
-        off the loop, reappearing one level down. Typical Shiny usage is a
-        figure per session, where this does not arise.
+        outside it. This function no longer takes a lock itself -- since
+        #532 it is :meth:`maidr.core.maidr.Maidr._create_html_tag`, one
+        call down through :func:`maidr.render`, that serialises renders of
+        one figure -- but it waits on that lock *inside* its executor
+        thread, still holding the slot. Enough sessions rendering one
+        shared module-level figure could therefore make unrelated figures
+        queue for a thread -- the stall this moves off the loop,
+        reappearing one level down. Typical Shiny usage is a figure per
+        session, where this does not arise.
 
-        The lock is what makes the move safe rather than merely faster --
+        That lock is what makes the move safe rather than merely faster --
         see :mod:`maidr.util.figure_lock`.
 
         Parameters
@@ -359,8 +360,7 @@ class render_maidr(Renderer[Any]):
         Any
             The rendered chart, as :func:`maidr.render` returns it.
         """
-        with figure_lock(resolve_figure(value)):
-            return maidr.render(value, use_cdn=self.use_cdn)
+        return maidr.render(value, use_cdn=self.use_cdn)
 
     async def render(self) -> Optional[Jsonifiable]:
         """
