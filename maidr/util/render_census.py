@@ -10,6 +10,13 @@ it cannot stop the application itself, on a figure it still holds (#530).
 Reported rather than repaired. Re-reading the schema would race the same
 way, and only the caller knows whether the figure was supposed to be
 still -- so the warning names both remedies instead of guessing one.
+
+**Importing this module mutates global interpreter state.** It registers
+an always-filter for its own warning category, permanently, for the life
+of the process -- see the note on that call below for why the alternative
+is worse. Every other filter change in this package is scoped to a
+``catch_warnings`` block; this one cannot be, because it has to be in
+force at a moment none of this code controls.
 """
 
 from __future__ import annotations
@@ -146,24 +153,50 @@ def warn_if_figure_changed(before: tuple[Any, ...], figure: Figure) -> bool:
     # message text, so identifying the figure is what stops two different
     # figures racing in one process from being reported as one. `number`
     # is what a user sees in `plt.figure(3)` and in a traceback; a figure
-    # made without pyplot has none, and its identity is all there is.
+    # made without pyplot has none, and its address is all there is.
+    #
+    # An address can be reused once a figure is collected, so two
+    # unrelated pyplot-less figures could in principle be named the same
+    # across a long process and the second's collision be read as a repeat
+    # of the first's. Left as is: the always-filter below covers the
+    # repeat case, and a counter would name the *report* rather than the
+    # figure, which is not what a reader trying to find the chart needs.
     known_as = getattr(figure, "number", None)
-    named = f"figure {known_as}" if known_as is not None else f"figure at {id(figure):#x}"
-
-    warnings.warn(
-        f"maidr: {named} was drawn into while it was being rendered, so "
-        "the chart's SVG and the data maidr announces for it may not "
-        "match. Finish plotting before rendering, or render a figure no "
-        "other thread is using.",
-        MaidrRenderRaceWarning,
-        # No stacklevel points at the caller here, and it is worth saying
-        # so rather than implying otherwise: the depth from a user's call
-        # varies by entry point -- `render`, `save_html` and `show` reach
-        # this through different numbers of frames. 3 names maidr's own
-        # render machinery, which is at least a frame a reader
-        # recognises. What went wrong is in the message, not the location.
-        stacklevel=3,
+    named = (
+        f"figure {known_as}" if known_as is not None else f"figure at {id(figure):#x}"
     )
+
+    # The same lock `maidr/patch/common.py` takes around its own
+    # `catch_warnings` block. `warnings.filters` is process-global mutable
+    # state, and a patched plot call on another thread saves, replaces and
+    # restores the whole list -- so a warning raised while that is in
+    # flight can be judged against filters that are not this process's,
+    # including the ignore-everything one that call installs. Taking the
+    # same lock is what makes "every collision is reported" true when a
+    # render and a plot call overlap, rather than only when they do not.
+    #
+    # No deadlock against the render lock: a plot call holds this one and
+    # never renders, so it never waits on `figure_lock` while a render
+    # waits on this. Imported here rather than at module scope because
+    # `maidr.patch` imports the renderer.
+    from maidr.patch.common import _FILTER_LOCK
+
+    with _FILTER_LOCK:
+        warnings.warn(
+            f"maidr: {named} was drawn into while it was being rendered, "
+            "so the chart's SVG and the data maidr announces for it may "
+            "not match. Finish plotting before rendering, or render a "
+            "figure no other thread is using.",
+            MaidrRenderRaceWarning,
+            # No stacklevel points at the caller here, and it is worth
+            # saying so rather than implying otherwise: the depth from a
+            # user's call varies by entry point -- `render`, `save_html`
+            # and `show` reach this through different numbers of frames.
+            # 4 names maidr's own render machinery, which is at least a
+            # frame a reader recognises. What went wrong is in the
+            # message, not the location.
+            stacklevel=4,
+        )
     return True
 
 

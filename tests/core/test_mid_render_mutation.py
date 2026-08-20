@@ -245,7 +245,7 @@ def test_a_value_changed_in_place_is_not_detected(monkeypatch):
 
     assert not _render_catching_warnings(ax), (
         "the census now sees in-place data changes; update the limitation "
-        "documented on Maidr._artist_census"
+        "documented on maidr.util.render_census.artist_census"
     )
 
 
@@ -318,6 +318,54 @@ print(len([m for m in shown if "was drawn into while it was being rendered" in m
 """
 
 
+#: The same, with a thread hammering patched plot calls throughout. Each
+#: one enters `catch_warnings()` and installs an ignore-everything filter
+#: for its duration, so a warning raised in that window is judged against
+#: filters that are not this process's.
+_COLLISIONS_UNDER_PLOT_TRAFFIC = """
+import threading
+import warnings
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import maidr
+from maidr.core.maidr import Maidr
+
+shown = []
+original = Maidr._get_svg
+stop = threading.Event()
+
+
+def mutate_then_render(self, *args, **kwargs):
+    self._fig.axes[0].set_title("moved-%d" % len(shown))
+    return original(self, *args, **kwargs)
+
+
+def keep_plotting():
+    while not stop.is_set():
+        other, other_ax = plt.subplots()
+        other_ax.bar(["x"], [1])
+        plt.close(other)
+
+
+Maidr._get_svg = mutate_then_render
+warnings.showwarning = lambda message, *a, **k: shown.append(str(message))
+
+fig, ax = plt.subplots()
+ax.bar(["a", "b"], [1, 2])
+traffic = threading.Thread(target=keep_plotting, daemon=True)
+traffic.start()
+try:
+    for _ in range(8):
+        maidr.render(ax, use_cdn=True)
+finally:
+    stop.set()
+    traffic.join(timeout=30)
+
+print(len([m for m in shown if "was drawn into while it was being rendered" in m]))
+"""
+
+
 def test_repeat_collisions_on_one_figure_are_all_reported():
     """The case the naming cannot cover, measured where it is true.
 
@@ -350,6 +398,43 @@ def test_repeat_collisions_on_one_figure_are_all_reported():
     assert completed.stdout.strip().splitlines()[-1] == "3", (
         "collisions were swallowed by the once-per-location rule: "
         f"{completed.stdout.strip()!r}"
+    )
+
+
+def test_collisions_are_reported_while_another_thread_is_plotting():
+    """The guarantee under the concurrency this whole feature is about.
+
+    ``maidr/patch/common.py`` wraps every patched plot call in
+    ``catch_warnings()`` with an ignore-everything filter, and
+    ``warnings.filters`` is process-global. So a collision reported while
+    another thread is inside that window can be judged against filters
+    that are not this process's, and dropped -- which would make "every
+    collision is reported" true only for renders that happen not to
+    overlap a plot call. That is the scenario this PR exists for, so the
+    claim has to hold there or not be made (review of #541).
+
+    ``warn_if_figure_changed`` therefore takes the same ``_FILTER_LOCK``
+    that module takes. Eight collisions against a thread plotting
+    continuously; falsified by removing the lock, 3 runs of 3.
+
+    In a subprocess for the same reason as its sibling above: pytest
+    rebuilds the filter list between tests, so in-process this would
+    measure pytest rather than the lock.
+    """
+    import subprocess
+    import sys
+
+    completed = subprocess.run(
+        [sys.executable, "-c", _COLLISIONS_UNDER_PLOT_TRAFFIC],
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+
+    assert completed.returncode == 0, completed.stderr[-2000:]
+    assert completed.stdout.strip().splitlines()[-1] == "8", (
+        "collisions were lost while another thread held the warning "
+        f"filters: {completed.stdout.strip()!r}"
     )
 
 
