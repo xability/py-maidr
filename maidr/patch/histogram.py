@@ -244,9 +244,17 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
         # reason than that it is unpatched, so the inner call runs outside the
         # context -- which is what made the same figure readable through one
         # spelling and silent through the other (#522).
-        axes = drawn if isinstance(drawn, Axes) else FigureManager.get_axes(drawn)
+        axes = FigureManager.get_axes(drawn)
         if _drew_mesh(axes, meshes):
-            FigureManager.create_maidr(axes, PlotType.HEAT)
+            # Named from `stat` rather than hardcoded, because it is what the
+            # cells actually hold: the default is a count, but
+            # `stat="density"` or `"probability"` makes them something else,
+            # and a reader hearing "count" for a density has been told the
+            # wrong thing about every cell. `HexbinPlot` labels its own `z`
+            # the same way and for the same reason.
+            FigureManager.create_maidr(
+                axes, PlotType.HEAT, z_label=str(kwargs.get("stat", "count"))
+            )
         return drawn
 
     # Register the histogram as HIST as before

@@ -297,6 +297,28 @@ def test_a_second_bivariate_histogram_on_the_same_axes_registers_too() -> None:
     assert _layers(fig) == [PlotType.HEAT, PlotType.HEAT]
 
 
+def test_the_joint_panel_says_what_its_cells_hold() -> None:
+    """The `z` label, which `HeatPlot` otherwise defaults to a bare "Z".
+
+    A bivariate histogram's cells hold whatever `stat` asked for, so the label
+    is read from it rather than assumed: the default is a count, and
+    `stat="density"` makes every cell a density. Announced as a "count" a
+    density would be the wrong word for every number in the grid.
+    """
+    frame = _frame()
+
+    fig, ax = plt.subplots()
+    sns.histplot(data=frame, x="v", y="w", ax=ax)
+    counted = FigureManager.get_maidr(fig).plots[0].schema["axes"]["z"]
+
+    other, second = plt.subplots()
+    sns.histplot(data=frame, x="v", y="w", ax=second, stat="density")
+    dense = FigureManager.get_maidr(other).plots[0].schema["axes"]["z"]
+
+    assert counted == {"label": "count"}
+    assert dense == {"label": "density"}
+
+
 def test_a_heatmap_is_read_from_the_mesh_and_not_from_a_scatter() -> None:
     """`ScalarMappable` is a wider net than the extractor assumed.
 
