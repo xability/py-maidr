@@ -25,6 +25,7 @@ from maidr.core.plot import MaidrPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.util.figure_lock import figure_lock
+from maidr.util.render_census import artist_census, warn_if_figure_changed
 from maidr.util.bundle_capability import (
     schema_trace_types,
     warn_if_bundle_cannot_render,
@@ -495,6 +496,7 @@ class Maidr:
                 selector_ids.append(self.selector_ids[i])
 
         # Build schema once so id stays consistent across SVG and global var
+        drawn_before = artist_census(self._fig)
         schema = self._flatten_maidr()
 
         # Ask the bundle whether it can draw what this render is about to
@@ -512,6 +514,11 @@ class Maidr:
 
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
             svg = self._get_svg(embed_data=data_in_svg, schema=schema)
+
+        # The schema was read from the artists; the SVG was written from
+        # them afterwards. Anything that drew into the figure in between
+        # is in one and not the other -- see :mod:`maidr.util.render_census`.
+        warn_if_figure_changed(drawn_before, self._fig)
 
         # Generate external payload if data is not embedded in SVG
         maidr = None
