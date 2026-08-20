@@ -189,9 +189,11 @@ def _warn_altair_ignores_use_cdn(
         caller because ``None`` defers to the process default, which may
         itself be ``False``.
     stacklevel : int
-        Passed through to :func:`warnings.warn`. Keyword-only for the same
-        reason :func:`maidr.util.fallback.warn_unsupported` does it: the
-        frame count differs per entry point.
+        Passed through to :func:`warnings.warn`. Keyword-only because it is
+        a frame count rather than a value about the chart, and the three
+        entry points that pass it sit at the same depth today -- so a
+        positional argument would read as one more thing about `use_cdn`
+        and silently become wrong the moment one of them grew a wrapper.
     """
     if _resolve_use_cdn(use_cdn) is not False:
         return

@@ -62,7 +62,25 @@ def test_save_html_says_it_too(tmp_path):
     """The entry point an offline reader is most likely to use."""
     target = tmp_path / "chart.html"
 
-    said = _complaints(lambda: maidr.save_html(_chart(), file=str(target), use_cdn=False))
+    said = _complaints(
+        lambda: maidr.save_html(_chart(), file=str(target), use_cdn=False)
+    )
+
+    assert len(said) == 1
+
+
+def test_show_says_it_too(monkeypatch):
+    """The third entry point, which nothing else here reaches.
+
+    `show` warns before it hands off to a renderer, so the renderer is
+    stubbed rather than exercised -- opening a browser is not what this
+    is about, and letting it try would make the test depend on a display.
+    """
+    monkeypatch.setattr(
+        "maidr.altair.altair_maidr.AltairMaidr.show", lambda self, renderer: None
+    )
+
+    said = _complaints(lambda: maidr.show(_chart(), use_cdn=False))
 
     assert len(said) == 1
 
