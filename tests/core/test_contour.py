@@ -283,3 +283,123 @@ def test_a_field_drawn_before_a_kdeplot_is_not_claimed_twice():
         PlotType.CONTOUR,
     ]
     assert [curve[0]["level"] for curve in _series(fig, 0)] == [0.2, 0.5]
+
+
+#: A field sampled at scattered points rather than on a grid, which is what
+#: `tricontour` is for -- it triangulates them before contouring. Seeded, so
+#: the triangulation and therefore the curves are the same every run.
+_SCATTER_RNG = np.random.default_rng(546)
+_SCATTER_X = _SCATTER_RNG.uniform(-2.0, 2.0, 120)
+_SCATTER_Y = _SCATTER_RNG.uniform(-2.0, 2.0, 120)
+#: A bowl, so every level is a closed ring and the values rise outwards.
+_SCATTER_Z = _SCATTER_X**2 + _SCATTER_Y**2
+
+
+def test_a_tricontour_is_read_as_the_field_it_draws():
+    """
+    The scattered-sample spelling of the same chart reads as the same chart.
+
+    `ax.tricontour` contours values given at arbitrary points by triangulating
+    them first, and hands back a `TriContourSet` -- measured, a `ContourSet`
+    subclass, unfilled, with one path per level. The reader needed no change
+    at all; only the patch did, because `tricontour` is its own method rather
+    than a branch inside `contour` (#546).
+    """
+    fig, ax = plt.subplots()
+
+    ax.tricontour(_SCATTER_X, _SCATTER_Y, _SCATTER_Z, levels=[1.0, 2.0, 3.0])
+
+    assert [layer.type for layer in _layers(fig)] == [PlotType.CONTOUR]
+
+
+def test_every_tricontour_curve_carries_the_level_it_runs_at():
+    """
+    The level is the navigable object here as much as on a grid.
+
+    Asserted against the levels asked for rather than against the count alone,
+    because a reading that emitted three curves in the wrong order, or
+    numbered them 0/1/2, would pass a count.
+    """
+    fig, ax = plt.subplots()
+    ax.tricontour(_SCATTER_X, _SCATTER_Y, _SCATTER_Z, levels=[1.0, 2.0, 3.0])
+
+    curves = _series(fig)
+
+    assert [curve[0]["level"] for curve in curves] == [1.0, 2.0, 3.0]
+
+
+def test_a_tricontour_curve_runs_where_the_field_reaches_that_value():
+    """
+    The announced points are on the level, not merely near it.
+
+    The field is a bowl, so the curve at level L is the circle of radius
+    sqrt(L) -- checkable in closed form, without trusting the triangulation to
+    have produced anything in particular.
+
+    The tolerance is the triangulation's own: a contour on a triangular mesh
+    interpolates linearly along each edge, so a curve sits slightly inside a
+    convex level set. Measured on this fixture, the worst point of the level
+    at 2.0 is 0.073 inside it, while the neighbouring levels' radii are 0.414
+    and 0.318 away -- so 0.1 is loose enough for the mesh and still four
+    times tighter than the gap it would have to miss to accept the wrong
+    level.
+    """
+    fig, ax = plt.subplots()
+    ax.tricontour(_SCATTER_X, _SCATTER_Y, _SCATTER_Z, levels=[2.0])
+
+    curve = _series(fig)[0]
+    radii = [np.hypot(point["x"], point["y"]) for point in curve]
+
+    assert radii, "the level was drawn, so it has points"
+    assert np.allclose(radii, np.sqrt(2.0), atol=0.1)
+
+
+def test_the_tricontour_selectors_name_elements_that_are_really_there():
+    """
+    The highlight follows, checked against the document.
+
+    Same reason `test_the_selectors_name_elements_that_are_really_there` gives:
+    a selector matching nothing reads correctly through every modality and
+    lights nothing up (xability/maidr#814). Asked separately of `tricontour`
+    because it is a different artist writing the group.
+    """
+    fig, ax = plt.subplots()
+    ax.tricontour(_SCATTER_X, _SCATTER_Y, _SCATTER_Z, levels=[1.0, 2.0, 3.0])
+    layer = _layers(fig)[0]
+
+    html = maidr.render(fig).get_html_string()
+
+    gid = layer.schema[MaidrKey.SELECTOR][0].split("'")[1]
+    group = html.split(f'<g id="{gid}">', 1)
+    assert len(group) == 2, "the tricontour group is not in the rendered SVG"
+    assert group[1].split("</g>", 1)[0].count("<path ") == 3
+
+
+def test_a_filled_tricontour_is_declined():
+    """
+    `tricontourf` is the band chart, and is refused like `contourf`.
+
+    Pinned separately rather than left to the `contourf` test, because the two
+    names sit beside each other in the same module and are exactly the pair a
+    later widening would take together by accident.
+    """
+    fig, ax = plt.subplots()
+
+    ax.tricontourf(_SCATTER_X, _SCATTER_Y, _SCATTER_Z, levels=[1.0, 2.0, 3.0])
+
+    assert _layers(fig) == []
+
+
+def test_a_triangulated_field_that_reaches_no_level_registers_nothing():
+    """
+    An empty set is not a layer, on this path either.
+
+    A level outside the data draws nothing, and registering it would leave a
+    layer with no curves for a reader to walk into -- the phantom-layer shape
+    of #421.
+    """
+    fig, ax = plt.subplots()
+
+    ax.tricontour(_SCATTER_X, _SCATTER_Y, _SCATTER_Z, levels=[100.0])
+
+    assert _layers(fig) == []
