@@ -8,6 +8,7 @@ from typing import Any, Callable
 import numpy as np
 import wrapt
 
+import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 from maidr.core.context_manager import ContextManager
@@ -485,3 +486,46 @@ def plotter_panels(plotter: Any) -> list[tuple[Axes, Any]]:
             seen.add(id(panel))
             panels.append((panel, sub_data))
     return panels
+
+
+def prospective_axes(kwargs: dict) -> Axes | None:
+    """
+    The axes a seaborn call is about to draw on, resolved before it draws.
+
+    Several patches take a before-and-after snapshot of an axes to decide
+    whether *this* call drew the thing they read -- the bars in
+    ``maidr/patch/histogram.py``, the fitted curve in ``maidr/patch/regplot.py``,
+    the contour set in ``maidr/patch/kdeplot.py``. All three need the same
+    answer to the same question, and three copies of it is three chances for
+    them to disagree about which axes they are describing.
+
+    An explicit ``ax=`` is the answer when given, and otherwise seaborn takes
+    ``plt.gca()`` -- which is only asked for when a figure already exists, so
+    that a call on a clean slate does not conjure a *figure* early.
+
+    On a figure that exists but holds no axes, ``gca()`` does create one, a
+    beat before seaborn would have. That is deliberate and costs nothing: the
+    ``plt.gca()`` seaborn calls a moment later returns the same axes, so the
+    snapshot is taken on the axes actually drawn on -- and an axes with nothing
+    on it snapshots as empty either way.
+
+    ``ax`` is read from ``kwargs`` alone because seaborn declares it
+    keyword-only: everything after ``data`` in these signatures is, so there is
+    no positional spelling to miss. ``test_seaborn_still_takes_ax_by_keyword``
+    asserts that rather than trusting it, so a signature change fails loudly
+    instead of quietly emptying a snapshot.
+
+    Parameters
+    ----------
+    kwargs : dict
+        Keyword arguments the caller passed.
+
+    Returns
+    -------
+    Axes or None
+        The axes to snapshot, or None when there is nothing drawn yet.
+    """
+    ax = kwargs.get("ax")
+    if isinstance(ax, Axes):
+        return ax
+    return plt.gcf().gca() if plt.get_fignums() else None

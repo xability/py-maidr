@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import matplotlib.pyplot as plt
 import wrapt
 
 import numpy as np
@@ -16,7 +15,7 @@ import uuid
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly, common, plotter_axes, wrap_seaborn
+from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
 
 
 @wrapt.patch_function_wrapper(Axes, "hist")
@@ -45,36 +44,6 @@ def mpl_hist(
 
     # Return to the caller.
     return n, bins, plot
-
-
-def _prospective_axes(kwargs: dict) -> Axes | None:
-    """
-    The axes ``histplot`` is about to draw on, resolved before it draws.
-
-    Named without drawing anything: an explicit ``ax=`` is the answer when
-    given, and otherwise seaborn will take ``plt.gca()``, which is only asked
-    for when a figure already exists so that a call on a clean slate does not
-    conjure one early.
-
-    Parameters
-    ----------
-    kwargs : dict
-        Keyword arguments the caller passed.
-
-    Returns
-    -------
-    Axes or None
-        The axes to snapshot, or None when there is nothing drawn yet.
-    """
-    # `ax` is read from kwargs alone because seaborn declares it keyword-only:
-    # everything after `data` in `histplot`'s signature is, so there is no
-    # positional spelling to miss. `test_seaborn_still_takes_ax_by_keyword`
-    # asserts that rather than trusting it, so a signature change fails loudly
-    # instead of quietly emptying the snapshot below.
-    ax = kwargs.get("ax")
-    if ax is not None:
-        return ax
-    return plt.gcf().gca() if plt.get_fignums() else None
 
 
 def _containers_of(ax: Axes | None) -> list:
@@ -224,7 +193,7 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
 
-    prospective = _prospective_axes(kwargs)
+    prospective = prospective_axes(kwargs)
     before = _containers_of(prospective)
     meshes = _meshes_of(prospective)
 

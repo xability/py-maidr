@@ -8,6 +8,7 @@ from maidr.core.plot.areaplot import AreaPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxenplot import BoxenPlot
 from maidr.core.plot.boxplot import BoxPlot
+from maidr.core.plot.contour import ContourPlot
 from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.gantt import GanttPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
@@ -72,6 +73,8 @@ class MaidrPlotFactory:
             return BoxenPlot(single_ax, **kwargs)
         elif PlotType.GANTT == plot_type:
             return GanttPlot(single_ax, **kwargs)
+        elif PlotType.CONTOUR == plot_type:
+            return ContourPlot(single_ax, **kwargs)
         elif PlotType.ERRORBAR == plot_type:
             # Both read an estimate and the interval around it, and both emit
             # the same layer; they differ only in what the library drew.

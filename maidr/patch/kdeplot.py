@@ -5,12 +5,83 @@ import uuid
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
+from matplotlib.contour import ContourSet
 from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
 from maidr.core.enum import PlotType
-from maidr.patch.common import _draw_quietly, common, plotter_axes, wrap_seaborn
+from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.contour import tag
+from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
 from maidr.core.context_manager import ContextManager
 from maidr.util.svg_utils import unique_lines_by_xy
+
+
+def _contour_sets_of(ax: Axes | None) -> list:
+    """
+    The contour sets already on an axes.
+
+    Held as the artists themselves rather than as their ids, for the reason
+    ``maidr/patch/histogram.py``'s ``_containers_of`` gives: an id compared
+    after the object it named was freed can be matched by an unrelated artist
+    allocated at the same address.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes to look at, or None when it does not exist yet.
+
+    Returns
+    -------
+    list
+        The contour sets on it, in draw order.
+    """
+    return [
+        artist
+        for artist in (getattr(ax, "collections", ()) or ())
+        if isinstance(artist, ContourSet)
+    ]
+
+
+def _register_field(ax: Axes | None, before: list) -> None:
+    """
+    Register a field this call drew as a CONTOUR layer.
+
+    A **bivariate** ``kdeplot`` is not a curve: seaborn draws the joint
+    density as a contour set of iso-value curves, which has no line for
+    ``_register_smooth`` to find. The call therefore declined and the chart
+    went out silent -- the same shape as #522, where the recursion guard
+    suppressed a registration the outer patch then declined. ``Axes.contour``
+    is patched and would have claimed it, but ``kde`` sets the internal
+    context around its own call so that it can make the registration itself.
+
+    Asked of the sets *this call added* rather than of everything on the axes:
+    an ``ax.contour(...)`` drawn beforehand has already registered a layer of
+    its own, and claiming it again would put the same field in the schema
+    twice.
+
+    A **filled** density is declined, for the reason ``maidr/patch/contour.py``
+    gives for ``contourf``: its outlines run along two different level curves
+    stitched together, so announcing one as a level's curve would be right for
+    half of its points.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes the call drew on.
+    before : list
+        The contour sets that were on it beforehand.
+    """
+    if ax is None:
+        return
+
+    seen = {id(drawn) for drawn in before}
+    for drawn in _contour_sets_of(ax):
+        if id(drawn) in seen or drawn.filled:
+            continue
+        if not any(len(path.vertices) for path in drawn.get_paths()):
+            continue
+        tag(drawn)
+        FigureManager.create_maidr(ax, PlotType.CONTOUR, contour_set=drawn)
 
 
 def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
@@ -74,11 +145,18 @@ def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
 
 def kde(wrapped, instance, args, kwargs) -> Axes | Line2D | PolyCollection:
     """
-    Patch for seaborn.kdeplot: register all unique lines and/or filled boundaries as SMOOTH.
+    Patch for seaborn.kdeplot: register the curves, or the field, that it drew.
+
+    A univariate density is one or more curves and registers as ``smooth``. A
+    bivariate one is a scalar field drawn as iso-value curves and registers as
+    ``contour``; see :func:`_register_field` for why that has to happen here.
     """
+    before = _contour_sets_of(prospective_axes(kwargs))
+
     with ContextManager.set_internal_context():
         plot = _draw_quietly(wrapped, args, kwargs)
     ax = plot if isinstance(plot, Axes) else getattr(plot, "axes", None)
+    _register_field(ax, before)
     _register_smooth(ax, instance, args, kwargs)
     return plot
 

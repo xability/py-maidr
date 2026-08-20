@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-import matplotlib.pyplot as plt
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
@@ -17,28 +16,9 @@ from maidr.patch.common import (
     MAX_INTERVAL_VERTICES,
     _draw_quietly,
     common,
+    prospective_axes,
     wrap_seaborn,
 )
-
-def _prospective_axes(kwargs: dict) -> Axes | None:
-    """
-    The axes ``regplot`` is about to draw on, resolved before it draws.
-
-    Named without drawing anything: an explicit ``ax=`` is the answer when
-    given, and otherwise seaborn takes ``plt.gca()``, which is only asked for
-    when a figure already exists so that a call on a clean slate does not
-    conjure one *figure* early.
-
-    On a figure that exists but holds no axes, ``gca()`` does create one, a
-    beat before ``regplot`` would have. That is deliberate and costs nothing:
-    seaborn's own ``plt.gca()`` a moment later returns the same axes, so the
-    snapshot is taken on the axes actually drawn on -- and an axes with
-    nothing on it snapshots as empty either way.
-    """
-    ax = kwargs.get("ax")
-    if isinstance(ax, Axes):
-        return ax
-    return plt.gcf().gca() if plt.get_fignums() else None
 
 
 def _is_interval_bar(line: Line2D) -> bool:
@@ -213,7 +193,7 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
     # `id()`s, which keeps every one alive for the comparison -- an id is only
     # unique while its object is -- and costs nothing, since an Artist hashes
     # by identity.
-    target = _prospective_axes(kwargs)
+    target = prospective_axes(kwargs)
     before_lines = set(target.lines) if target is not None else set()
     before_collections = set(target.collections) if target is not None else set()
 

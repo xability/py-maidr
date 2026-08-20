@@ -358,7 +358,7 @@ class TestNoBranchDropsALayer:
 
         monkeypatch.setattr(patch, "_paired_estimates", lambda *_: None)
         monkeypatch.setattr(
-            patch, "_prospective_axes", lambda kwargs: kwargs.get("ax")
+            patch, "prospective_axes", lambda kwargs: kwargs.get("ax")
         )
 
         _, ax = plt.subplots()
