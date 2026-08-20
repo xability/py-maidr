@@ -318,11 +318,10 @@ print(len([m for m in shown if "was drawn into while it was being rendered" in m
 """
 
 
-#: The same, with a thread hammering patched plot calls throughout. Each
-#: one enters `catch_warnings()` and installs an ignore-everything filter
-#: for its duration, so a warning raised in that window is judged against
-#: filters that are not this process's.
-_COLLISIONS_UNDER_PLOT_TRAFFIC = """
+#: One collision raised while another thread is inside the
+#: ignore-everything window a patched plot call opens -- held open
+#: deliberately rather than raced for.
+_COLLISION_INSIDE_THE_PLOT_WINDOW = """
 import threading
 import warnings
 import matplotlib
@@ -330,22 +329,27 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import maidr
 from maidr.core.maidr import Maidr
+from maidr.patch.common import _FILTER_LOCK
 
 shown = []
 original = Maidr._get_svg
-stop = threading.Event()
+inside = threading.Event()
+
+
+def hold_the_filters_open():
+    # What `_draw_quietly` does for the duration of a patched plot call.
+    with _FILTER_LOCK, warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inside.set()
+        threading.Event().wait(1.0)
 
 
 def mutate_then_render(self, *args, **kwargs):
-    self._fig.axes[0].set_title("moved-%d" % len(shown))
+    self._fig.axes[0].set_title("moved")
+    holder = threading.Thread(target=hold_the_filters_open, daemon=True)
+    holder.start()
+    inside.wait(timeout=30)
     return original(self, *args, **kwargs)
-
-
-def keep_plotting():
-    while not stop.is_set():
-        other, other_ax = plt.subplots()
-        other_ax.bar(["x"], [1])
-        plt.close(other)
 
 
 Maidr._get_svg = mutate_then_render
@@ -353,14 +357,7 @@ warnings.showwarning = lambda message, *a, **k: shown.append(str(message))
 
 fig, ax = plt.subplots()
 ax.bar(["a", "b"], [1, 2])
-traffic = threading.Thread(target=keep_plotting, daemon=True)
-traffic.start()
-try:
-    for _ in range(8):
-        maidr.render(ax, use_cdn=True)
-finally:
-    stop.set()
-    traffic.join(timeout=30)
+maidr.render(ax, use_cdn=True)
 
 print(len([m for m in shown if "was drawn into while it was being rendered" in m]))
 """
@@ -421,26 +418,23 @@ def test_collisions_are_reported_while_another_thread_is_plotting():
     rebuilds the filter list between tests, so in-process this would
     measure pytest rather than the lock.
 
-    The plotting thread drives pyplot's global figure registry from a
-    second thread, which pyplot does not document as safe. That is
-    deliberate -- it is what a patched plot call on another thread looks
-    like, which is the situation being tested -- but it is worth knowing
-    if this ever turns flaky rather than failing honestly. A healthy run
-    is ~35s.
+    A healthy run is ~2s, and it holds the window for one second, so a
+    much longer run means the warn is blocked on the lock rather than
+    passing through it -- which is the behaviour, not a hang.
     """
     import subprocess
     import sys
 
     completed = subprocess.run(
-        [sys.executable, "-c", _COLLISIONS_UNDER_PLOT_TRAFFIC],
+        [sys.executable, "-c", _COLLISION_INSIDE_THE_PLOT_WINDOW],
         capture_output=True,
         text=True,
         timeout=180,
     )
 
     assert completed.returncode == 0, completed.stderr[-2000:]
-    assert completed.stdout.strip().splitlines()[-1] == "8", (
-        "collisions were lost while another thread held the warning "
+    assert completed.stdout.strip().splitlines()[-1] == "1", (
+        "the collision was lost while another thread held the warning "
         f"filters: {completed.stdout.strip()!r}"
     )
 
