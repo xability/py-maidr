@@ -12,6 +12,7 @@ maidr's own ``vegalite.js``. Saying so is not, and is what these pin.
 
 from __future__ import annotations
 
+import re
 import warnings
 
 import matplotlib
@@ -23,6 +24,7 @@ import pandas as pd  # noqa: E402
 import pytest  # noqa: E402
 
 import maidr  # noqa: E402
+from maidr.api import _ALTAIR_REMOTE_RUNTIME  # noqa: E402
 
 alt = pytest.importorskip("altair")
 
@@ -112,3 +114,37 @@ def test_a_matplotlib_chart_is_not_warned_about():
     ax.bar(["p", "q"], [1, 2])
 
     assert not _complaints(lambda: maidr.render(fig, use_cdn=False))
+
+
+def _fetched_remotely(markup: str) -> set[str]:
+    """What the emitted page actually goes to a CDN for.
+
+    A URL names its package before the ``@``, except maidr's own adapter,
+    which is a file inside a versioned package -- so a trailing ``.js``
+    segment is the name there.
+    """
+    names = set()
+    for url in re.findall(r'<script[^>]+src="(https://[^"]+)"', markup):
+        tail = url.rsplit("/", 1)[-1]
+        names.add(tail if tail.endswith(".js") else tail.split("@")[0])
+    return names
+
+
+def test_the_warning_names_exactly_what_is_fetched():
+    """The listed scripts are held to what the adapter really requests.
+
+    Compared as a set rather than by substring, which is why the constant
+    is a tuple: ``vega`` occurs inside both ``vega-lite`` and
+    ``vega-embed``, so a substring check would keep passing if plain
+    ``vega`` were dropped, and the warning would name a script nobody
+    fetches any more.
+    """
+    fetched = _fetched_remotely(str(maidr.render(_chart(), use_cdn=True)))
+
+    assert fetched, "the fixture fetched nothing, so this proves nothing"
+    assert fetched == set(_ALTAIR_REMOTE_RUNTIME), (
+        f"the adapter fetches {sorted(fetched)} but the warning names "
+        f"{sorted(_ALTAIR_REMOTE_RUNTIME)}. Update _ALTAIR_REMOTE_RUNTIME "
+        f"in maidr/api.py so the message keeps naming what a reader would "
+        f"have to carry."
+    )
