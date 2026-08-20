@@ -179,6 +179,43 @@ def test_each_lane_gets_a_selector_of_its_own() -> None:
     assert all("path" in selector for selector in schema["selectors"])
 
 
+def test_the_lane_decision_is_made_under_the_lock(monkeypatch) -> None:
+    """The check-then-act, pinned at the invariant rather than by racing it.
+
+    Deciding whether a lane already exists and then creating one is two steps.
+    Unserialised, two threads drawing onto the same fresh axes can both find
+    none and each call `create_maidr`, and the schedule splits into two
+    one-lane charts -- silently, and only sometimes.
+
+    Racing it does not make a test: eight threads through `broken_barh` pass
+    just as readily without the lock as with it, because the window is a few
+    bytecodes wide and the GIL rarely lands inside it. What can be asserted
+    exactly is the invariant the lock exists for -- that the decision is taken
+    while it is held -- so that is what this checks. Remove the `with` and it
+    records False.
+
+    `FigureManager._lock` cannot be borrowed for this: it is a plain `Lock`,
+    and `create_maidr` takes it, so holding it across the decision would
+    deadlock rather than race.
+    """
+    from maidr.patch import gantt as patch
+
+    held: list[bool] = []
+    original = patch._lane_of
+
+    def spy(ax):
+        held.append(patch._lanes.locked())
+        return original(ax)
+
+    monkeypatch.setattr(patch, "_lane_of", spy)
+
+    _, ax = plt.subplots()
+    ax.broken_barh([(1, 3)], (10, 4))
+    ax.broken_barh([(6, 2)], (20, 4))
+
+    assert held == [True, True]
+
+
 def test_a_gantt_beside_another_chart_leaves_it_alone() -> None:
     """The neighbour test.
 

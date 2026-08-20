@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 import wrapt
 
 from matplotlib.axes import Axes
@@ -9,7 +11,18 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.gantt import GanttPlot
+from maidr.exception import UnsupportedPlotError
 from maidr.patch.common import _draw_quietly
+
+
+#: Held across the whole "is there a lane already, and if not make one"
+#: decision. Without it two threads drawing onto the same fresh axes -- the
+#: off-event-loop render #454 is about -- can both find no lane and each call
+#: `create_maidr`, which is the split-into-two-charts outcome this patch
+#: exists to prevent. `FigureManager._lock` cannot serve: it is a plain
+#: `Lock`, so holding it across `create_maidr` (which takes it again) would
+#: deadlock.
+_lanes = threading.Lock()
 
 
 @wrapt.patch_function_wrapper(Axes, "broken_barh")
@@ -49,11 +62,12 @@ def gantt(wrapped, instance, args, kwargs) -> Collection:
         plot = _draw_quietly(wrapped, args, kwargs)
 
     ax = FigureManager.get_axes(plot)
-    lane = _lane_of(ax)
-    if lane is not None:
-        lane.add_lane(plot)
-    else:
-        FigureManager.create_maidr(ax, PlotType.GANTT, collections=[plot])
+    with _lanes:
+        lane = _lane_of(ax)
+        if lane is not None:
+            lane.add_lane(plot)
+        else:
+            FigureManager.create_maidr(ax, PlotType.GANTT, collections=[plot])
 
     return plot
 
@@ -79,8 +93,17 @@ def _lane_of(ax: Axes) -> GanttPlot | None:
         The layer to extend, or None when this is the chart's first lane.
     """
     figure = ax.get_figure()
-    registered = FigureManager.figs.get(figure) if figure is not None else None
-    if registered is None:
+    if figure is None:
+        return None
+    try:
+        registered = FigureManager.get_maidr(figure)
+    except UnsupportedPlotError:
+        # Nothing registered for this figure yet, which is the ordinary first
+        # call. Reached through `get_maidr` rather than by reading
+        # `FigureManager.figs` directly, because `figs` documents that a
+        # direct caller must hold `_lock` even to read -- since #456 a lookup
+        # updates the bookkeeping behind iteration, so `get` mutates shared
+        # state rather than only observing it.
         return None
     return next(
         (
