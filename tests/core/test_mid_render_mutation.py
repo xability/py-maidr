@@ -18,14 +18,15 @@ import warnings
 
 import matplotlib
 import numpy as np
+import pandas as pd
 import pytest
+import seaborn as sns
 
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 
 import maidr  # noqa: E402
-from maidr.core.figure_manager import FigureManager  # noqa: E402
 
 _MESSAGE = "drawn into while it was being rendered"
 
@@ -68,7 +69,7 @@ def test_a_figure_drawn_into_mid_render_warns(monkeypatch):
     assert _render_catching_warnings(ax), "a mid-render mutation went unreported"
 
 
-def test_the_warning_says_what_to_do_about_it():
+def test_the_warning_says_what_to_do_about_it(monkeypatch):
     """A warning a reader cannot act on is noise.
 
     Pinned because the two remedies are not obvious from the symptom: the
@@ -80,18 +81,14 @@ def test_the_warning_says_what_to_do_about_it():
     ax.bar(["a"], [1])
     original = Maidr._get_svg
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        Maidr._get_svg = lambda self, *a, **k: (  # noqa: E731
-            self._fig.axes[0].set_title("moved"),
-            original(self, *a, **k),
-        )[1]
-        try:
-            maidr.render(ax, use_cdn=True)
-        finally:
-            Maidr._get_svg = original
+    def retitle_then_render(self, *args, **kwargs):
+        self._fig.axes[0].set_title("moved")
+        return original(self, *args, **kwargs)
 
-    message = str(next(w.message for w in caught if _MESSAGE in str(w.message)))
+    monkeypatch.setattr(Maidr, "_get_svg", retitle_then_render)
+    caught = _render_catching_warnings(ax)
+
+    message = str(caught[0].message)
     assert "Finish plotting before rendering" in message
     assert "no other thread is using" in message
 
@@ -106,6 +103,18 @@ def test_the_warning_says_what_to_do_about_it():
         pytest.param(lambda ax: ax.boxplot([[1, 2, 3], [2, 3, 4]]), id="boxplot"),
         pytest.param(
             lambda ax: ax.pcolormesh(np.arange(6).reshape(2, 3)), id="heatmap"
+        ),
+        pytest.param(
+            lambda ax: sns.countplot(pd.DataFrame({"g": list("aabbb")}), x="g", ax=ax),
+            id="seaborn-countplot",
+        ),
+        pytest.param(
+            lambda ax: (ax.plot([1, 2], [2, 1], label="one"), ax.legend()),
+            id="line-with-legend",
+        ),
+        pytest.param(
+            lambda ax: (ax.bar(["a"], [1]), ax.set_title("left", loc="left")),
+            id="left-placed-title",
         ),
     ],
 )
@@ -151,7 +160,75 @@ def test_the_census_is_not_confused_by_a_second_render_of_the_same_figure():
     """
     fig, ax = plt.subplots()
     ax.bar(["a", "b"], [1, 2])
-    FigureManager.get_maidr(fig)
 
     assert not _render_catching_warnings(ax)
     assert not _render_catching_warnings(ax), "the second render warned"
+
+
+@pytest.mark.parametrize(
+    ("mutate", "what"),
+    [
+        pytest.param(lambda ax: ax.bar(["c"], [3]), "an artist added", id="added-bar"),
+        pytest.param(
+            lambda ax: ax.set_title("moved", loc="left"),
+            "a left-placed title",
+            id="left-title",
+        ),
+        pytest.param(
+            lambda ax: ax.text(0, 0, "note"), "an annotation", id="annotation"
+        ),
+        # Just the legend: the labelled line is drawn before the render,
+        # so `len(ax.lines)` does not move and only the legend dimension
+        # can catch this. An earlier version of this case plotted the line
+        # here too, and passed with that dimension deleted.
+        pytest.param(lambda ax: ax.legend(), "a legend", id="legend"),
+    ],
+)
+def test_each_census_dimension_is_load_bearing(monkeypatch, mutate, what):
+    """One case per thing the census looks at, so none of them is decoration.
+
+    A dimension nothing exercises is a dimension that can be dropped in a
+    refactor without a test noticing -- which is how ``get_title()``
+    reading only the centre title stayed invisible until review of #541.
+    """
+    from maidr.core.maidr import Maidr
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2], label="bars")
+    original = Maidr._get_svg
+
+    def mutate_then_render(self, *args, **kwargs):
+        mutate(self._fig.axes[0])
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Maidr, "_get_svg", mutate_then_render)
+
+    assert _render_catching_warnings(ax), f"{what} mid-render went unreported"
+
+
+def test_a_value_changed_in_place_is_not_detected(monkeypatch):
+    """The documented limit, executable rather than only in prose.
+
+    Everything the census reads is O(1) per axes, which is what makes it
+    cheap enough to take twice per render and what stops it seeing a bar
+    whose height changed: no count moves, no label moves. This test exists
+    so that the docstring's admission cannot quietly become false -- if
+    someone strengthens the census, this fails and tells them to update
+    the claim rather than leaving the docs describing an older detector.
+    """
+    from maidr.core.maidr import Maidr
+
+    fig, ax = plt.subplots()
+    bars = ax.bar(["a", "b"], [1, 2])
+    original = Maidr._get_svg
+
+    def restyle_then_render(self, *args, **kwargs):
+        bars.patches[0].set_height(99)
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Maidr, "_get_svg", restyle_then_render)
+
+    assert not _render_catching_warnings(ax), (
+        "the census now sees in-place data changes; update the limitation "
+        "documented on Maidr._artist_census"
+    )

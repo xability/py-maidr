@@ -532,6 +532,13 @@ class Maidr:
                 "for it may not match. Finish plotting before rendering, "
                 "or render a figure no other thread is using.",
                 UserWarning,
+                # No stacklevel points at the caller here, and it is worth
+                # saying so rather than implying otherwise: the depth from
+                # a user's call varies by entry point -- `render`,
+                # `save_html` and `show` reach this through different
+                # numbers of frames. 2 names maidr's own render machinery,
+                # which is at least a frame the reader recognises. What
+                # went wrong is in the message rather than in the location.
                 stacklevel=2,
             )
 
@@ -941,7 +948,7 @@ class Maidr:
             "subplots": subplot_grid,
         }
 
-    def _artist_census(self) -> tuple:
+    def _artist_census(self) -> tuple[int, tuple[tuple[Any, ...], ...]]:
         """A cheap description of what is currently drawn on the figure.
 
         Compared either side of a render to notice a figure being drawn
@@ -949,11 +956,24 @@ class Maidr:
         artists themselves: it has to be cheap enough to take twice per
         render, and it only has to answer "did this change", not what.
 
+        **What it does not see.** Everything here is O(1) per axes, which
+        buys the cheapness and costs the guarantee: a mutation that changes
+        an *existing* artist in place -- ``patch.set_height``,
+        ``line.set_ydata``, ``collection.set_offsets`` -- moves no count
+        and no label, and passes unnoticed. So this is a detector for
+        artists appearing, disappearing, or being relabelled, not for the
+        data inside them, and silence from it is not a promise that a
+        figure was still. Catching a data change would mean hashing the
+        data on every render, which is the cost this is shaped to avoid.
+        Both mutations measured on #530 -- a title set and a bar added --
+        are the kind it sees.
+
         Measured stable across a render for bar, heatmap, hist, line,
         scatter, boxplot, a mesh with a colorbar -- which re-parents its
         axes -- and a seaborn countplot, so it does not report the render's
-        own work as interference. Tagging for highlight sets attributes on
-        artists that already exist; nothing here adds one.
+        own work as interference. ``tests/core/test_mid_render_mutation.py``
+        holds that to those shapes; tagging for highlight sets attributes
+        on artists that already exist, and adds none.
         """
         return (
             len(self._fig.axes),
@@ -963,7 +983,14 @@ class Maidr:
                     len(ax.patches),
                     len(ax.collections),
                     len(ax.images),
-                    ax.get_title(),
+                    len(ax.texts),
+                    ax.get_legend() is not None,
+                    # Three titles, not one: `get_title()` reads the centre
+                    # one only, so a left- or right-placed title moved
+                    # during a render would otherwise be invisible here.
+                    ax.get_title(loc="center"),
+                    ax.get_title(loc="left"),
+                    ax.get_title(loc="right"),
                     ax.get_xlabel(),
                     ax.get_ylabel(),
                 )
