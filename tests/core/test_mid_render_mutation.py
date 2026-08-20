@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 import maidr  # noqa: E402
 
-_MESSAGE = "drawn into while it was being rendered"
+_MESSAGE = "was drawn into while it was being rendered"
 
 
 @pytest.fixture(autouse=True)
@@ -182,6 +182,21 @@ def test_the_census_is_not_confused_by_a_second_render_of_the_same_figure():
         # can catch this. An earlier version of this case plotted the line
         # here too, and passed with that dimension deleted.
         pytest.param(lambda ax: ax.legend(), "a legend", id="legend"),
+        pytest.param(
+            lambda ax: ax.get_figure().suptitle("moved"),
+            "a figure-level suptitle",
+            id="suptitle",
+        ),
+        pytest.param(
+            lambda ax: ax.get_figure().supxlabel("moved"),
+            "a figure-level x label",
+            id="supxlabel",
+        ),
+        pytest.param(
+            lambda ax: ax.get_figure().supylabel("moved"),
+            "a figure-level y label",
+            id="supylabel",
+        ),
     ],
 )
 def test_each_census_dimension_is_load_bearing(monkeypatch, mutate, what):
@@ -232,3 +247,122 @@ def test_a_value_changed_in_place_is_not_detected(monkeypatch):
         "the census now sees in-place data changes; update the limitation "
         "documented on Maidr._artist_census"
     )
+
+
+def test_the_warning_names_the_figure_it_is_about(monkeypatch):
+    """Two figures racing in one process must not read as one report.
+
+    Python's default warning rule keys on the message *text*, among other
+    things, so a message that described the problem without identifying
+    the figure would let the second figure's collision be swallowed as a
+    repeat of the first's. Naming the figure is what keeps them apart --
+    and it is what a reader needs anyway to know which chart to distrust.
+
+    This replaced a test that counted reports across three renders and
+    passed with the naming removed: creating each figure runs maidr's own
+    plot patches, which mutate the warning filters as a side effect and
+    invalidate the once-per-location registry, so the count was measuring
+    that accident rather than this. Asserting on the messages cannot
+    drift that way.
+    """
+    from maidr.core.maidr import Maidr
+
+    original = Maidr._get_svg
+
+    def retitle_then_render(self, *args, **kwargs):
+        self._fig.axes[0].set_title("moved")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Maidr, "_get_svg", retitle_then_render)
+
+    messages = []
+    for _ in range(2):
+        fig, ax = plt.subplots()
+        ax.bar(["a", "b"], [1, 2])
+        messages.append(str(_render_catching_warnings(ax)[0].message))
+
+    assert len(set(messages)) == 2, (
+        "both figures produced the same warning text, so the default "
+        f"once-per-location rule would report only one of them: {messages[0]!r}"
+    )
+
+
+#: Three mid-render collisions on **one** figure, counted in a process
+#: whose warning filters are whatever importing maidr leaves them.
+_REPEAT_COLLISIONS = """
+import warnings
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import maidr
+from maidr.core.maidr import Maidr
+
+shown = []
+original = Maidr._get_svg
+
+
+def mutate_then_render(self, *args, **kwargs):
+    self._fig.axes[0].set_title("moved-%d" % len(shown))
+    return original(self, *args, **kwargs)
+
+
+Maidr._get_svg = mutate_then_render
+warnings.showwarning = lambda message, *a, **k: shown.append(str(message))
+
+fig, ax = plt.subplots()
+ax.bar(["a", "b"], [1, 2])
+for _ in range(3):
+    maidr.render(ax, use_cdn=True)
+
+print(len([m for m in shown if "was drawn into while it was being rendered" in m]))
+"""
+
+
+def test_repeat_collisions_on_one_figure_are_all_reported():
+    """The case the naming cannot cover, measured where it is true.
+
+    One figure racing twice produces the same message text, so the
+    per-figure naming cannot keep those apart -- only the always-filter
+    registered at import can. Python's default rule would report the first
+    collision in a process's lifetime and drop the rest, which in a
+    long-running server means every later session, silently.
+
+    Run in a subprocess because that is the only place the guarantee
+    exists: pytest rebuilds the filter list between tests and drops the
+    registration, so measuring this in-process would measure pytest.
+
+    Falsified by removing the registration: 2 of 3 rather than 3 of 3,
+    three runs of three. (Two rather than one only because maidr's own
+    plot patches mutate filter state as a side effect, which invalidates
+    the registry sometimes -- an accident, not something to rely on.)
+    """
+    import subprocess
+    import sys
+
+    completed = subprocess.run(
+        [sys.executable, "-c", _REPEAT_COLLISIONS],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+
+    assert completed.returncode == 0, completed.stderr[-2000:]
+    assert completed.stdout.strip().splitlines()[-1] == "3", (
+        "collisions were swallowed by the once-per-location rule: "
+        f"{completed.stdout.strip()!r}"
+    )
+
+
+def test_the_warning_has_its_own_category_so_it_can_be_silenced_alone():
+    """A consumer under ``-W error`` must be able to exempt this one.
+
+    The same reason the bundle warnings carry their own categories. Pinned
+    because the category is also what the always-filter is registered
+    against, so replacing it with a bare ``UserWarning`` would quietly
+    take the previous test's guarantee with it.
+    """
+    import maidr as maidr_package
+    from maidr.util.render_census import MaidrRenderRaceWarning
+
+    assert issubclass(MaidrRenderRaceWarning, UserWarning)
+    assert maidr_package.MaidrRenderRaceWarning is MaidrRenderRaceWarning

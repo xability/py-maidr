@@ -211,6 +211,7 @@ from .patch import (  # noqa: E402, F401
     violinplot,
 )
 from .util.bundle_capability import MaidrBundleTraceWarning  # noqa: E402
+from .util.render_census import MaidrRenderRaceWarning  # noqa: E402
 from .util.bundle_freshness import (  # noqa: E402
     STALE_MINOR_GAP,
     BundleStatus,
@@ -267,6 +268,7 @@ __all__ = [
     "LATEST_TAG",
     "MaidrBundleStaleWarning",
     "MaidrBundleTraceWarning",
+    "MaidrRenderRaceWarning",
     "STALE_MINOR_GAP",
     "bundle_status",
     "resolver_outcome",

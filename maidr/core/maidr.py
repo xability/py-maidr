@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 
 import io
 import os
@@ -26,6 +25,7 @@ from maidr.core.plot import MaidrPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.util.figure_lock import figure_lock
+from maidr.util.render_census import artist_census, warn_if_figure_changed
 from maidr.util.bundle_capability import (
     schema_trace_types,
     warn_if_bundle_cannot_render,
@@ -496,7 +496,7 @@ class Maidr:
                 selector_ids.append(self.selector_ids[i])
 
         # Build schema once so id stays consistent across SVG and global var
-        drawn_before = self._artist_census()
+        drawn_before = artist_census(self._fig)
         schema = self._flatten_maidr()
 
         # Ask the bundle whether it can draw what this render is about to
@@ -517,30 +517,8 @@ class Maidr:
 
         # The schema was read from the artists; the SVG was written from
         # them afterwards. Anything that drew into the figure in between
-        # is in one and not the other -- a chart that shows something it
-        # never announces, or announces something it does not show. The
-        # lock stops another *render* from doing that; it cannot stop the
-        # application itself, on a figure it still holds (#530).
-        #
-        # Reported rather than repaired: re-reading the schema would race
-        # the same way, and the caller is the only one who knows whether
-        # the figure was supposed to be still.
-        if self._artist_census() != drawn_before:
-            warnings.warn(
-                "maidr: this figure was drawn into while it was being "
-                "rendered, so the chart's SVG and the data maidr announces "
-                "for it may not match. Finish plotting before rendering, "
-                "or render a figure no other thread is using.",
-                UserWarning,
-                # No stacklevel points at the caller here, and it is worth
-                # saying so rather than implying otherwise: the depth from
-                # a user's call varies by entry point -- `render`,
-                # `save_html` and `show` reach this through different
-                # numbers of frames. 2 names maidr's own render machinery,
-                # which is at least a frame the reader recognises. What
-                # went wrong is in the message rather than in the location.
-                stacklevel=2,
-            )
+        # is in one and not the other -- see :mod:`maidr.util.render_census`.
+        warn_if_figure_changed(drawn_before, self._fig)
 
         # Generate external payload if data is not embedded in SVG
         maidr = None
@@ -947,56 +925,6 @@ class Maidr:
             **self._figure_metadata(),
             "subplots": subplot_grid,
         }
-
-    def _artist_census(self) -> tuple[int, tuple[tuple[Any, ...], ...]]:
-        """A cheap description of what is currently drawn on the figure.
-
-        Compared either side of a render to notice a figure being drawn
-        into while it is read (#530). Counts and labels rather than the
-        artists themselves: it has to be cheap enough to take twice per
-        render, and it only has to answer "did this change", not what.
-
-        **What it does not see.** Everything here is O(1) per axes, which
-        buys the cheapness and costs the guarantee: a mutation that changes
-        an *existing* artist in place -- ``patch.set_height``,
-        ``line.set_ydata``, ``collection.set_offsets`` -- moves no count
-        and no label, and passes unnoticed. So this is a detector for
-        artists appearing, disappearing, or being relabelled, not for the
-        data inside them, and silence from it is not a promise that a
-        figure was still. Catching a data change would mean hashing the
-        data on every render, which is the cost this is shaped to avoid.
-        Both mutations measured on #530 -- a title set and a bar added --
-        are the kind it sees.
-
-        Measured stable across a render for bar, heatmap, hist, line,
-        scatter, boxplot, a mesh with a colorbar -- which re-parents its
-        axes -- and a seaborn countplot, so it does not report the render's
-        own work as interference. ``tests/core/test_mid_render_mutation.py``
-        holds that to those shapes; tagging for highlight sets attributes
-        on artists that already exist, and adds none.
-        """
-        return (
-            len(self._fig.axes),
-            tuple(
-                (
-                    len(ax.lines),
-                    len(ax.patches),
-                    len(ax.collections),
-                    len(ax.images),
-                    len(ax.texts),
-                    ax.get_legend() is not None,
-                    # Three titles, not one: `get_title()` reads the centre
-                    # one only, so a left- or right-placed title moved
-                    # during a render would otherwise be invisible here.
-                    ax.get_title(loc="center"),
-                    ax.get_title(loc="left"),
-                    ax.get_title(loc="right"),
-                    ax.get_xlabel(),
-                    ax.get_ylabel(),
-                )
-                for ax in self._fig.axes
-            ),
-        )
 
     def _get_svg(self, embed_data: bool = True, schema: dict | None = None) -> HTML:
         """Extract the chart SVG from ``matplotlib.figure.Figure``.
