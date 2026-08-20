@@ -100,7 +100,7 @@ def test_concurrent_renders_through_the_api_agree(names):
     )
 
 
-def test_two_figures_still_render_in_parallel():
+def test_two_figures_still_render_in_parallel(monkeypatch):
     """The lock is per figure, so unrelated renders are not serialised.
 
     A process-wide lock would pass the test above and quietly throw away
@@ -113,11 +113,11 @@ def test_two_figures_still_render_in_parallel():
     second, second_ax = plt.subplots()
     second_ax.bar(["b"], [2])
 
-    from maidr.core.figure_manager import FigureManager
+    from maidr.core.maidr import Maidr
 
     inside = threading.Barrier(2)
     overlapped = threading.Event()
-    original = type(FigureManager.get_maidr(first))._build_html_tag
+    original = Maidr._build_html_tag
 
     def reporting_build(self, *args, **kwargs):
         try:
@@ -129,7 +129,7 @@ def test_two_figures_still_render_in_parallel():
             pass
         return original(self, *args, **kwargs)
 
-    type(FigureManager.get_maidr(first))._build_html_tag = reporting_build
+    monkeypatch.setattr(Maidr, "_build_html_tag", reporting_build)
     try:
         threads = [
             threading.Thread(
@@ -143,7 +143,6 @@ def test_two_figures_still_render_in_parallel():
             thread.join(timeout=60)
             assert not thread.is_alive(), "a render deadlocked"
     finally:
-        type(FigureManager.get_maidr(first))._build_html_tag = original
         plt.close(first)
         plt.close(second)
 
