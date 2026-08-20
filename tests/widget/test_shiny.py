@@ -542,10 +542,14 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
     """The scenario this whole change exists to make safe.
 
     ``tests/util/test_figure_lock.py`` checks that ``figure_lock`` hands
-    back matching
-    objects; none of them shows that two renders actually serialise. That
-    is the one thing a race here would break, so it is worth exercising
-    end to end.
+    back matching objects; none of them shows that two renders actually
+    serialise through this door. That is the one thing a race here would
+    break, so it is worth exercising end to end.
+
+    The stub is ``Maidr._build_html_tag`` rather than ``maidr.render``
+    because since #532 the lock is taken in ``_create_html_tag``, one
+    level above the body: stubbing ``render`` would replace the lock
+    along with the work and leave this asserting nothing.
 
     Detects **overlap** rather than measuring duration, so it cannot flake
     into a false pass on a loaded machine: if the lock works, the second
@@ -557,13 +561,13 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
     emits a valid SVG of the whole chart at the wrong scale -- measured at
     460.8x345.6 for a 640x480 figure, on 1 of 6 concurrent attempts.
     """
-    import maidr.widget.shiny as shiny_module
+    from maidr.core.maidr import Maidr
 
     inside = 0
     overlapped = False
     bookkeeping = threading.Lock()
 
-    def slow_render(value, **kwargs):
+    def slow_build(self, *args, **kwargs):
         nonlocal inside, overlapped
         with bookkeeping:
             inside += 1
@@ -574,7 +578,7 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
             inside -= 1
         return "rendered"
 
-    monkeypatch.setattr(shiny_module.maidr, "render", slow_render)
+    monkeypatch.setattr(Maidr, "_build_html_tag", slow_build)
 
     fig, ax = plt.subplots()
     ax.bar(["a", "b"], [1, 2])
@@ -605,17 +609,16 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
 
 
 def test_a_value_that_resolves_to_no_figure_still_renders(fake_session, monkeypatch):
-    """The fallback branch, driven through the real path rather than alone.
+    """A value that names no matplotlib figure still renders.
 
-    ``tests/util/test_figure_lock.py`` calls ``figure_lock(None)``
-    directly, which shows the helper's behaviour and not that anything
-    reaches it. This goes through ``render()``.
-
-    Both shapes are covered because they are not the same shape, which an
-    earlier comment in ``_render_off_loop`` got wrong: a foreign figure
-    **returns** ``None`` from ``get_axes`` and never raises, while an empty
-    container raises ``StopIteration``. Only the second reaches the
-    ``except``; the first is handled by the ``getattr`` default.
+    Both shapes are covered because they are not the same shape: a foreign
+    figure -- plotly, altair -- **returns** ``None`` from ``get_axes`` and
+    never raises, while an empty container raises ``StopIteration``. The
+    Shiny door used to resolve the figure itself, to decide which lock to
+    take, and had to survive both; since #532 the lock is taken in the core
+    render path by the figure it already holds, and neither shape reaches
+    a matplotlib render at all. This pins that they still come back with a
+    chart rather than an exception.
     """
     import maidr.widget.shiny as shiny_module
 
@@ -639,48 +642,6 @@ def test_a_value_that_resolves_to_no_figure_still_renders(fake_session, monkeypa
             assert _render(chart) is not None, label
     finally:
         plt.close(fig)
-
-
-def test_an_unexpected_resolver_failure_is_logged_not_swallowed(
-    fake_session, monkeypatch, caplog
-):
-    """A bug in ``get_axes`` must not vanish into "lock scope lost".
-
-    The catch sits immediately before an unsynchronised render, so a real
-    failure there is worth a record. It was a bare ``except Exception``
-    with no logging until review of #504.
-
-    ``tests/util/test_figure_lock.py`` makes the same assertion against
-    :func:`resolve_figure` directly. This one is what says the Shiny
-    render path still reaches it -- a renderer that resolved its own
-    figure again would pass that test and fail this one.
-    """
-    import logging
-
-    import maidr.widget.shiny as shiny_module
-
-    fig, ax = plt.subplots()
-    ax.bar(["a", "b"], [1, 2])
-    monkeypatch.setattr(shiny_module.maidr, "render", lambda value, **kw: "rendered")
-    monkeypatch.setattr(shiny_module, "_check_supported", lambda value, name: None)
-    monkeypatch.setattr(
-        shiny_module.FigureManager,
-        "get_axes",
-        staticmethod(lambda value: (_ for _ in ()).throw(AttributeError("boom"))),
-    )
-    try:
-        # The resolver, and so the record, now belongs to the shared module.
-        with caplog.at_level(logging.DEBUG, logger="maidr.util.figure_lock"):
-
-            @render_maidr
-            def chart():
-                return ax
-
-            _render(chart)
-    finally:
-        plt.close(fig)
-
-    assert any("without a shared lock" in record.message for record in caplog.records)
 
 
 def test_two_different_figures_rendering_at_once_keep_their_selectors():

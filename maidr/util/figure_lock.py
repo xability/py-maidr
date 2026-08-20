@@ -24,23 +24,25 @@ format's own canvas, which for SVG is pure Python and has no thread
 affinity. maidr's own backend delegates to ``FigureCanvasAgg`` besides,
 and is what ``import maidr`` activates.
 
-The registry lives here rather than in one integration because more than
-one door renders on threads. Shiny renders off the event loop through
-``asyncio.to_thread``; Streamlit runs every session's script in its own
-ScriptRunner thread. Two doors with two registries would let a Shiny
-render and a Streamlit render of the *same* figure overlap, which is the
-case the lock exists to prevent -- so there is one registry, keyed by
-figure, for the process.
+The registry lives here, and :meth:`maidr.core.maidr.Maidr._create_html_tag`
+is the only thing that takes a lock from it. That is deliberate: every
+render of a matplotlib figure funnels through that one method, so a lock
+held there covers every caller -- the Shiny and Streamlit integrations,
+a threaded Flask app, a notebook doing its own threading, anything.
+
+The integrations each held their own lock until #532, which covered the
+two doors this package ships and nothing else. It also meant each door
+had to work out *which* figure a value named before it could lock it, and
+a resolver that disagreed with the renderer locked a figure the render
+never touched (#531). Locking where the figure is already known removes
+that class of bug rather than fixing instances of it.
 """
 
 from __future__ import annotations
 
-import logging
 import threading
 import weakref
 from typing import Any
-
-_logger = logging.getLogger(__name__)
 
 #: The locks themselves, keyed weakly so a closed figure's lock goes with
 #: it. The lock does not reference the figure, so this adds no retention
@@ -95,67 +97,4 @@ def figure_lock(figure: Any) -> threading.Lock:
         return lock
 
 
-def resolve_figure(value: Any) -> Any:
-    """Return the ``matplotlib`` figure ``value`` belongs to, or ``None``.
-
-    Resolves the way :func:`maidr.render` does, deliberately: ``None``
-    means the current figure there, and a value naming several axes is
-    rendered as the last one's figure. A resolver that disagreed with the
-    renderer would take a lock on a figure the render never touches, which
-    looks synchronised and is not.
-
-    Parameters
-    ----------
-    value : Any
-        Whatever the caller is about to render. ``None`` is the current
-        matplotlib figure, as it is for :func:`maidr.render`.
-
-    Returns
-    -------
-    Any
-        The figure to lock, or ``None`` when there is none to lock --
-        which :func:`figure_lock` answers with an unshared lock.
-    """
-    from maidr.api import _get_plot_or_current
-    from maidr.core.figure_manager import FigureManager
-
-    try:
-        axes = FigureManager.get_axes(_get_plot_or_current(value))
-    except (AttributeError, StopIteration):
-        # Narrow, and not the case one might expect. A foreign figure --
-        # plotly, altair -- does not raise: `get_axes` matches no branch
-        # and returns `None`, which the `getattr` below turns into `None`
-        # without ever reaching here. Measured: plotly-shaped, `None`,
-        # `int` and `str` all return `None`; only an empty list or dict
-        # raises, as `StopIteration`.
-        #
-        # So this catches malformed input that the caller's own validation
-        # should already have rejected. Logged rather than swallowed: a
-        # bare `except Exception` here would quietly downgrade a real bug
-        # in `get_axes` to "lock scope lost", immediately before an
-        # unsynchronised render.
-        _logger.debug(
-            "could not resolve a figure to lock for %r; rendering "
-            "without a shared lock",
-            type(value).__name__,
-            exc_info=True,
-        )
-        return None
-
-    if isinstance(axes, list):
-        # Only a ``Figure`` lands here: ``get_axes`` returns its ``.axes``
-        # property, while a list of artists takes a different branch and
-        # comes back as a single ``Axes``. That is a coupling to
-        # ``FigureManager.get_axes``'s branch order rather than to
-        # matplotlib -- a ``Figure``-specific branch added ahead of the
-        # ``Artist`` one would change which shape arrives here. A figure's axes all share that
-        # figure, so which one is picked does not matter -- the last,
-        # matching ``render``'s own loop over the list.
-        axes = axes[-1] if axes else None
-
-    # ``axes`` is an ``Axes`` or ``None`` by here: ``get_axes`` returns one
-    # of those or a list, and the list is unwrapped above.
-    return getattr(axes, "figure", None)
-
-
-__all__ = ["figure_lock", "resolve_figure"]
+__all__ = ["figure_lock"]

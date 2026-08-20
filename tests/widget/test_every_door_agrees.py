@@ -181,10 +181,14 @@ def test_the_two_doors_exclude_each_other_on_one_figure(monkeypatch):
     chart differently, so their markup is not comparable, and what matters
     here is that the two renders do not overlap in time.
 
-    ``maidr.render`` is stubbed to a sleeping recorder, so this measures
-    the lock rather than a real render -- the consequence of *not*
+    ``Maidr._build_html_tag`` is stubbed to a sleeping recorder, so this
+    measures the lock rather than a real render -- the consequence of *not*
     excluding is covered per door by the two
     ``test_concurrent_renders_of_one_figure_agree`` tests.
+
+    Stubbed at the body rather than at ``maidr.render`` because since #532
+    the lock is taken in ``_create_html_tag``, one level above it. A stub
+    at ``render`` would replace the lock along with the work.
     """
     import threading
     import time
@@ -206,7 +210,7 @@ def test_the_two_doors_exclude_each_other_on_one_figure(monkeypatch):
         def __str__(self) -> str:
             return self.get_html_string()
 
-    def sleeping_render(plot, **kwargs):
+    def sleeping_build(self, *args, **kwargs):
         nonlocal in_flight, overlapped
         with guard:
             in_flight += 1
@@ -234,7 +238,9 @@ def test_the_two_doors_exclude_each_other_on_one_figure(monkeypatch):
         except Exception as error:  # noqa: BLE001 - re-raised after the join
             failures.append(error)
 
-    monkeypatch.setattr(maidr, "render", sleeping_render)
+    from maidr.core.maidr import Maidr
+
+    monkeypatch.setattr(Maidr, "_build_html_tag", sleeping_build)
     try:
         threads = [
             threading.Thread(target=through_shiny, daemon=True),

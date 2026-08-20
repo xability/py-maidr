@@ -27,7 +27,6 @@ except ImportError as error:
 
 import maidr
 from maidr.core.figure_manager import FigureManager
-from maidr.util.figure_lock import figure_lock, resolve_figure
 from maidr.widget._focus import FOCUS_RESTORE_JS
 
 
@@ -359,8 +358,7 @@ class render_maidr(Renderer[Any]):
         Any
             The rendered chart, as :func:`maidr.render` returns it.
         """
-        with figure_lock(resolve_figure(value)):
-            return maidr.render(value, use_cdn=self.use_cdn)
+        return maidr.render(value, use_cdn=self.use_cdn)
 
     async def render(self) -> Optional[Jsonifiable]:
         """

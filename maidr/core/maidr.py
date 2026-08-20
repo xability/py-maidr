@@ -24,6 +24,7 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
+from maidr.util.figure_lock import figure_lock
 from maidr.util.bundle_capability import (
     schema_trace_types,
     warn_if_bundle_cannot_render,
@@ -407,7 +408,36 @@ class Maidr:
         data_in_svg: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
     ) -> Tag:
-        """Create the MAIDR HTML using HTML tags.
+        """Create the MAIDR HTML using HTML tags, one render of a figure at a time.
+
+        The lock is here rather than in the integrations because this is
+        where the mutation is: ``savefig`` writes ``self._fig.dpi`` for its
+        duration and restores it, so two renders of one figure at once race
+        on that attribute and the loser draws the whole chart at the other
+        call's dpi -- a complete, well-formed SVG at the wrong scale, with
+        nothing raised (#454).
+
+        Every render of a ``matplotlib`` figure funnels through here:
+        ``render``, ``save_html`` and ``_create_html_doc`` all call it, and
+        none of them re-enters it. Holding it at this one point is what
+        makes a plain ``Lock`` safe -- a second lock at a caller would
+        deadlock against this one rather than nest.
+
+        The Shiny and Streamlit integrations held this lock themselves
+        until #532. That covered the two doors this package ships and
+        nothing else: a Flask app -- Werkzeug serves threaded, and
+        ``Environment.is_flask`` makes it a supported embedding -- or any
+        caller rendering from a thread pool met the same race with no lock
+        at all. Measured through ``maidr.render`` with no widget involved,
+        six threads on one figure: 1 of 5 trials came back with two
+        distinct outputs.
+
+        Locking by ``self._fig`` also removes a resolution step that could
+        disagree with the render. The integrations had to work out *which*
+        figure a value named before they could lock it, and when that
+        answer was wrong -- as it was for a ``Figure``, and for the current
+        figure -- the lock was taken on nothing while the render went ahead
+        (#531).
 
         Parameters
         ----------
@@ -419,6 +449,21 @@ class Maidr:
         use_cdn : bool or {"auto"}, default="auto"
             Controls how ``maidr.js`` is referenced.  See :meth:`render`
             for the three possible modes.
+        """
+        with figure_lock(self._fig):
+            return self._build_html_tag(use_iframe, data_in_svg, use_cdn=use_cdn)
+
+    def _build_html_tag(
+        self,
+        use_iframe: bool = True,
+        data_in_svg: bool = True,
+        use_cdn: bool | Literal["auto"] = "auto",
+    ) -> Tag:
+        """Render the chart. Call :meth:`_create_html_tag`, which holds the lock.
+
+        Separate only so that the lock wraps the whole of this rather than
+        this being indented under a ``with``: the body is long, and the
+        rename keeps the two concerns readable apart.
         """
         # Before the artists are collected, not after: reading `plot.elements`
         # renders the layer, and a superseded `BarPlot` on a stacked axes
