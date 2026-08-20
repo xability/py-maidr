@@ -58,9 +58,15 @@ class ContourPlot(MaidrPlot):
 
     def __init__(self, ax: Axes, contour_set: ContourSet, **kwargs) -> None:
         self._contour_set = contour_set
-        #: The level index behind each emitted series, in emission order. This
-        #: is what keeps the selectors aligned when one level draws several
-        #: islands and so contributes more than one series.
+        #: The level index behind each emitted series, in emission order.
+        #:
+        #: This is what keeps the selectors aligned when one level draws
+        #: several islands and so contributes more than one series. It is the
+        #: index into ``get_paths()`` rather than a count of the series
+        #: emitted, and that is load-bearing: a level nothing reaches emits no
+        #: series but **does** reach the document, as a ``<path>`` with no
+        #: ``d`` attribute, so the elements and the paths stay in step while
+        #: the series do not.
         self._series_levels: list[int] = []
         super().__init__(ax, PlotType.CONTOUR)
 

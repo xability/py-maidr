@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 
-import matplotlib.pyplot as plt
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
@@ -12,7 +11,7 @@ from matplotlib.collections import PolyCollection
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.contour import tag
-from maidr.patch.common import _draw_quietly, common, plotter_axes, wrap_seaborn
+from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
 from maidr.core.context_manager import ContextManager
 from maidr.util.svg_utils import unique_lines_by_xy
 
@@ -152,10 +151,7 @@ def kde(wrapped, instance, args, kwargs) -> Axes | Line2D | PolyCollection:
     bivariate one is a scalar field drawn as iso-value curves and registers as
     ``contour``; see :func:`_register_field` for why that has to happen here.
     """
-    prospective = kwargs.get("ax")
-    if prospective is None and plt.get_fignums():
-        prospective = plt.gcf().gca()
-    before = _contour_sets_of(prospective)
+    before = _contour_sets_of(prospective_axes(kwargs))
 
     with ContextManager.set_internal_context():
         plot = _draw_quietly(wrapped, args, kwargs)

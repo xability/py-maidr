@@ -133,6 +133,35 @@ def test_a_level_nothing_reaches_contributes_no_curve():
     assert [curve[0]["level"] for curve in _series(fig)] == [0.2, 0.5]
 
 
+def test_a_level_nothing_reaches_still_holds_its_place_in_the_document():
+    # The selectors are numbered over `get_paths()`, not over the series
+    # emitted, and this is what makes that right: an unreached level emits no
+    # series but does reach the SVG, as a `<path>` carrying a style and no `d`
+    # attribute at all. Renumbering over the series would name the level below
+    # for every curve after it -- a chart that reads correctly and outlines the
+    # wrong curve.
+    #
+    # Only reachable at the front of the list: levels must increase (matplotlib
+    # raises otherwise) and any level strictly inside the field's range is
+    # crossed somewhere, so an unreached one is always past an end. This
+    # field's maximum is 1.
+    fig, ax = plt.subplots()
+    ax.contour(*_field(), levels=[-1.0, 0.2, 0.5])
+    layer = _layers(fig)[0]
+
+    html = maidr.render(fig).get_html_string()
+
+    selectors = layer.schema[MaidrKey.SELECTOR]
+    assert [curve[0]["level"] for curve in _series(fig)] == [0.2, 0.5]
+    assert [selector[-4:] for selector in selectors] == ["e(2)", "e(3)"]
+
+    gid = selectors[0].split("'")[1]
+    inside = html.split(f'<g id="{gid}">', 1)[1].split("</g>", 1)[0]
+    assert inside.count("<path ") == 3, "the unreached level left no element"
+    # And the one it left is the empty one, at the front.
+    assert 'd="' not in inside.split("<path ", 2)[1].split(">", 1)[0]
+
+
 def test_a_field_that_reaches_no_level_registers_nothing():
     fig, ax = plt.subplots()
 

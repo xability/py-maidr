@@ -356,7 +356,7 @@ def test_an_axes_with_no_mappable_returns_none_rather_than_raising() -> None:
 def test_seaborn_still_takes_ax_by_keyword() -> None:
     """The assumption the pre-draw snapshot rests on.
 
-    `_prospective_axes` reads `ax` from kwargs alone. That is safe only while
+    `prospective_axes` reads `ax` from kwargs alone. That is safe only while
     seaborn declares it keyword-only — a positional spelling would be missed,
     the snapshot would come back empty, and a stale container would once again
     look like this call's own work.
