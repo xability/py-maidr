@@ -185,7 +185,15 @@ def warn_if_figure_changed(before: tuple[Any, ...], figure: Figure) -> None:
     # No deadlock against the render lock: a plot call holds this one and
     # never renders, so it never waits on `figure_lock` while a render
     # waits on this. Imported here rather than at module scope because
-    # `maidr.patch` imports the renderer.
+    # `maidr.patch` imports the renderer -- a module-level import would
+    # reach `patch.common` while it is still executing its own imports,
+    # before `_FILTER_LOCK` is assigned.
+    #
+    # `warnings.warn` calls `showwarning` synchronously, and that can be a
+    # user's hook -- `logging.captureWarnings` installs one. So this holds
+    # the filter lock for however long that hook takes. Accepted: the
+    # alternative is releasing before the warning is delivered, which is
+    # the window this lock exists to close.
     from maidr.patch.common import _FILTER_LOCK
 
     with _FILTER_LOCK:
