@@ -7,6 +7,7 @@ import wrapt
 
 import numpy as np
 from matplotlib.axes import Axes
+from matplotlib.collections import QuadMesh
 from matplotlib.container import BarContainer
 from matplotlib.patches import Polygon
 from matplotlib.lines import Line2D
@@ -153,6 +154,57 @@ def _drew_bars(plot: Any, before: list) -> bool:
     )
 
 
+def _meshes_of(ax: Axes | None) -> list:
+    """
+    The ``QuadMesh`` artists already on an axes.
+
+    Held as a list of the artists themselves rather than of their ids, for the
+    reason ``_containers_of`` gives: an id compared after the object it named
+    was freed can be matched by an unrelated artist allocated at the same
+    address.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes to look at, or None when it does not exist yet.
+
+    Returns
+    -------
+    list
+        The meshes on it, in draw order.
+    """
+    return [
+        artist
+        for artist in (getattr(ax, "collections", ()) or ())
+        if isinstance(artist, QuadMesh)
+    ]
+
+
+def _drew_mesh(ax: Axes | None, before: list) -> bool:
+    """
+    Whether *this call* drew a mesh of joint counts.
+
+    Asked the same way ``_drew_bars`` asks its question, and for the same
+    reason: an axes that already held a heatmap -- ``sns.heatmap(ax=ax)``
+    first, then a bivariate ``histplot(ax=ax)`` -- would otherwise have
+    someone else's mesh claimed as this call's.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes the call drew on.
+    before : list
+        The meshes that were on it beforehand.
+
+    Returns
+    -------
+    bool
+        True when a mesh appeared that was not there before.
+    """
+    seen = {id(mesh) for mesh in before}
+    return any(id(mesh) not in seen for mesh in _meshes_of(ax))
+
+
 def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     """
     Patch seaborn.histplot to register HIST and (if kde=True) SMOOTH layers for MAIDR.
@@ -163,12 +215,29 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
 
-    before = _containers_of(_prospective_axes(kwargs))
+    prospective = _prospective_axes(kwargs)
+    before = _containers_of(prospective)
+    meshes = _meshes_of(prospective)
 
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
 
     if not _drew_bars(drawn, before):
+        # A bivariate histogram, which draws a `QuadMesh` of joint counts.
+        # Declining `hist` for it is right -- see `_drew_bars` -- but declining
+        # it is not the same as leaving the chart silent. Seaborn reaches the
+        # mesh through `Axes.pcolormesh`, which is patched and would register
+        # `heat` on its own; the internal context set above suppressed that
+        # registration so this function could make its own, and then this
+        # function declined. So make the one the chart is owed here.
+        #
+        # `sns.displot(x=..., y=...)` reads as `heat` today for no better
+        # reason than that it is unpatched, so the inner call runs outside the
+        # context -- which is what made the same figure readable through one
+        # spelling and silent through the other (#522).
+        axes = drawn if isinstance(drawn, Axes) else FigureManager.get_axes(drawn)
+        if _drew_mesh(axes, meshes):
+            FigureManager.create_maidr(axes, PlotType.HEAT)
         return drawn
 
     # Register the histogram as HIST as before

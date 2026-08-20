@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
+from matplotlib.collections import PolyQuadMesh, QuadMesh
+from matplotlib.image import AxesImage
 from matplotlib.lines import Line2D
 
 from maidr.core.enum import MaidrKey
@@ -275,10 +277,51 @@ class CollectionExtractorMixin:
 class ScalarMappableExtractorMixin:
     @staticmethod
     def extract_scalar_mappable(ax: Axes) -> Optional[ScalarMappable]:
-        """Retrieve the first collection ScalarMappable from an Axes object."""
+        """
+        Retrieve the artist a heatmap keeps its grid of values in.
+
+        A heatmap's values live in a mesh or an image. Preferring one matters
+        because ``ScalarMappable`` is a much wider net than it looks: a
+        scatter's ``PathCollection`` is one too -- that is how a colour-mapped
+        scatter works -- so "the first ``ScalarMappable`` on the axes" finds
+        the *scatter* whenever one was drawn first, and the heatmap beside it
+        is then read from an artist that has no grid at all::
+
+            sns.scatterplot(...); ax.pcolormesh(...)
+            ExtractionError: ... from <class 'matplotlib.collections.PathCollection'>
+
+        Falls back to the first mappable of any kind, so a mesh subclass this
+        does not name is still found rather than newly refused.
+
+        Returns ``None`` on an axes holding none, which is the ``Optional``
+        this has always been annotated with and what ``HeatPlot`` is written
+        for -- it opens with ``if data is None``. Reaching that answer through
+        a bare ``next()`` raised ``StopIteration`` instead, fatal to the whole
+        figure and naming nothing, which is the shape of failure #388 removed
+        from ``extract_container`` for the same reason.
+
+        Parameters
+        ----------
+        ax : Axes
+            The axes to search.
+
+        Returns
+        -------
+        ScalarMappable or None
+            The mesh or image if there is one, else the first mappable of any
+            kind, else None.
+        """
         if ax is None or ax.get_children() is None:
             return None
 
-        # We assume only one ScalarMappable is present to avoid plot clutter,
-        # even though multiples are technically possible.
-        return next(sm for sm in ax.get_children() if isinstance(sm, ScalarMappable))
+        mappables = [
+            child for child in ax.get_children() if isinstance(child, ScalarMappable)
+        ]
+        grids = [
+            mappable
+            for mappable in mappables
+            if isinstance(mappable, (QuadMesh, PolyQuadMesh, AxesImage))
+        ]
+        if grids:
+            return grids[0]
+        return mappables[0] if mappables else None
