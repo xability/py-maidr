@@ -15,6 +15,11 @@ class PlotType(str, Enum):
     COUNT = "count"
     DODGED = "dodged_bar"
     ERRORBAR = "error_bar"
+    #: A schedule of intervals in lanes. `Axes.broken_barh` is matplotlib's
+    #: gantt chart: one call per lane, drawing that lane's intervals as a
+    #: `PolyCollection`, so the shape the trace wants -- a lane and the two
+    #: ends of each interval in it -- is what the call was given.
+    GANTT = "gantt"
     HEAT = "heat"
     #: A hexagonal bin lattice: the standard answer to an overplotted scatter.
     #: Read as a grid of cells each carrying a count, which is a heatmap --

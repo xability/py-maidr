@@ -58,6 +58,13 @@ class MaidrKey(str, Enum):
     # Step plot keys. The per-point ordinal level name reuses LABEL above.
     STEP_DIRECTION = "stepDirection"
 
+    # Gantt keys. An interval carries the two ends of its span; its lane is
+    # `X`, and the lane names live in `LANES` so that a lane holding nothing
+    # still has somewhere to carry one.
+    START = "start"
+    END = "end"
+    LANES = "lanes"
+
     # Histogram plot keys.
     X_MIN = "xMin"
     X_MAX = "xMax"

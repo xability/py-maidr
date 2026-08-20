@@ -8,6 +8,7 @@ from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxenplot import BoxenPlot
 from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.errorbar import ErrorBarPlot
+from maidr.core.plot.gantt import GanttPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.hexbinplot import HexbinPlot
@@ -67,6 +68,8 @@ class MaidrPlotFactory:
             return BoxPlot(single_ax, **kwargs)
         elif PlotType.BOXEN == plot_type:
             return BoxenPlot(single_ax, **kwargs)
+        elif PlotType.GANTT == plot_type:
+            return GanttPlot(single_ax, **kwargs)
         elif PlotType.ERRORBAR == plot_type:
             # Both read an estimate and the interval around it, and both emit
             # the same layer; they differ only in what the library drew.
