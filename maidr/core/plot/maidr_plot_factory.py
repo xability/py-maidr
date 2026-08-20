@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
+from matplotlib.patches import StepPatch
 from maidr.core.enum import PlotType
 from maidr.core.plot.areaplot import AreaPlot
 from maidr.core.plot.barplot import BarPlot
@@ -19,6 +20,7 @@ from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
+from maidr.core.plot.stairs import StairsPlot
 from maidr.core.plot.stepplot import StepPlot
 from maidr.core.plot.violin_kde_plot import ViolinKdePlot
 from maidr.core.plot.violin_box_plot import ViolinBoxPlot
@@ -86,6 +88,12 @@ class MaidrPlotFactory:
         elif PlotType.HEXBIN == plot_type:
             return HexbinPlot(single_ax, **kwargs)
         elif PlotType.HIST == plot_type:
+            # Two spellings of one chart. `Axes.hist` leaves a `BarContainer`
+            # for `HistPlot` to find; `Axes.stairs` leaves a single
+            # `StepPatch` and hands it over, because there is no container to
+            # find and no per-bin artist to look for.
+            if isinstance(kwargs.get("step_patch"), StepPatch):
+                return StairsPlot(single_ax, **kwargs)
             return HistPlot(single_ax)
         elif PlotType.LINE == plot_type:
             if PlotDetectionUtils.is_mplfinance_line_plot(single_ax, **kwargs):
