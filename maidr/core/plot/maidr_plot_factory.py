@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
+from matplotlib.collections import PolyCollection
 from matplotlib.patches import StepPatch
 from maidr.core.enum import PlotType
 from maidr.core.plot.areaplot import AreaPlot
@@ -22,6 +23,7 @@ from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
 from maidr.core.plot.stairs import StairsPlot
+from maidr.core.plot.stepped_histogram import SteppedHistPlot
 from maidr.core.plot.stepplot import StepPlot
 from maidr.core.plot.violin_kde_plot import ViolinKdePlot
 from maidr.core.plot.violin_box_plot import ViolinBoxPlot
@@ -97,6 +99,11 @@ class MaidrPlotFactory:
             # find and no per-bin artist to look for.
             if isinstance(kwargs.get("step_patch"), StepPatch):
                 return StairsPlot(single_ax, **kwargs)
+            # `sns.histplot(element="step"/"poly")` draws the same
+            # distribution as one closed outline, so there is no container to
+            # find and the call hands its `PolyCollection` over instead.
+            if isinstance(kwargs.get("collection"), PolyCollection):
+                return SteppedHistPlot(single_ax, **kwargs)
             return HistPlot(single_ax)
         elif PlotType.LINE == plot_type:
             if PlotDetectionUtils.is_mplfinance_line_plot(single_ax, **kwargs):

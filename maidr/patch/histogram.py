@@ -6,7 +6,7 @@ import wrapt
 
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.collections import PolyQuadMesh, QuadMesh
+from matplotlib.collections import PolyCollection, PolyQuadMesh, QuadMesh
 from matplotlib.container import BarContainer
 from matplotlib.patches import Polygon
 from matplotlib.lines import Line2D
@@ -15,6 +15,7 @@ import uuid
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.stepped_histogram import reads as _reads_outline
 from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
 
 
@@ -158,6 +159,99 @@ def _meshes_of(ax: Axes | None) -> list:
     ]
 
 
+#: The exact types a stepped or filled histogram outline arrives as.
+#:
+#: seaborn draws ``element="step"`` and ``element="poly"`` through
+#: ``Axes.fill_between``, and matplotlib 3.10 gave that method a
+#: ``PolyCollection`` subclass of its own. So the same chart is a plain
+#: ``PolyCollection`` on 3.9 and a ``FillBetweenPolyCollection`` on 3.10 and
+#: later -- measured, identically shaped either way: five bins give 25
+#: vertices as a step and 13 as a polygon on both.
+#:
+#: Named as exact types rather than matched with ``isinstance(artist,
+#: PolyCollection)``, because the *other* subclasses are other charts:
+#: ``PolyQuadMesh`` is a heatmap and has its own reading, and ``Quiver`` and
+#: ``Barbs`` are vector fields that a histogram reader would announce as a
+#: distribution over nothing.
+_OUTLINE_TYPES: tuple[type, ...] = (PolyCollection,)
+
+try:  # pragma: no cover - depends on the installed matplotlib
+    from matplotlib.collections import FillBetweenPolyCollection
+
+    _OUTLINE_TYPES += (FillBetweenPolyCollection,)
+except ImportError:
+    pass
+
+
+def _outlines_of(ax: Axes | None) -> list:
+    """
+    The closed outlines already on an axes.
+
+    ``PolyCollection`` is what ``element="step"`` and ``element="poly"`` draw
+    a histogram as, and what a violin, a `fill_between` band and a hexbin
+    lattice are drawn as too -- which is exactly why the comparison below is
+    against what *this call* added rather than against everything present.
+
+    Held as the artists themselves rather than as their ids, for the reason
+    ``_containers_of`` gives.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes to look at, or None when it does not exist yet.
+
+    Returns
+    -------
+    list
+        The outlines on it, in draw order.
+    """
+    return [
+        artist
+        for artist in (getattr(ax, "collections", ()) or ())
+        if type(artist) in _OUTLINE_TYPES
+    ]
+
+
+def _drew_outlines(ax: Axes | None, before: list) -> list:
+    """
+    The outlines *this call* added, if any.
+
+    ``sns.histplot(element="step")`` and ``element="poly"`` draw the same
+    distribution ``element="bars"`` does, as one closed outline per series
+    rather than as a row of bars. Neither ``_drew_bars`` nor ``_drew_mesh``
+    sees one, so the call declined and the chart went out silent -- the third
+    branch of the decline #522 fixed for the bivariate mesh, and measured::
+
+        element=bars   containers=[BarContainer]     -> ['hist']
+        element=step   collections=[PolyCollection]  -> nothing
+        element=poly   collections=[PolyCollection]  -> nothing
+
+    One outline per series, so a ``hue`` gives one layer per level: each is an
+    independent histogram over the same bins, which is what `hist` describes.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes the call drew on.
+    before : list
+        The outlines that were on it beforehand.
+
+    Returns
+    -------
+    list
+        The outlines this call added *and* can read, in draw order. An uneven
+        ``poly`` is left out here rather than registered and then refused: a
+        layer whose data comes back empty is a row the core has to navigate
+        into and cannot announce (#421).
+    """
+    seen = {id(outline) for outline in before}
+    return [
+        outline
+        for outline in _outlines_of(ax)
+        if id(outline) not in seen and _reads_outline(outline)
+    ]
+
+
 def _drew_mesh(ax: Axes | None, before: list) -> bool:
     """
     Whether *this call* drew a mesh of joint counts.
@@ -196,6 +290,7 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     prospective = prospective_axes(kwargs)
     before = _containers_of(prospective)
     meshes = _meshes_of(prospective)
+    outlines = _outlines_of(prospective)
 
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
@@ -214,6 +309,13 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
         # context -- which is what made the same figure readable through one
         # spelling and silent through the other (#522).
         axes = FigureManager.get_axes(drawn)
+        drew = _drew_outlines(axes, outlines)
+        if drew:
+            # `element="step"` / `"poly"`: the same distribution drawn as one
+            # closed outline per series instead of a row of bars.
+            for outline in drew:
+                FigureManager.create_maidr(axes, PlotType.HIST, collection=outline)
+            return drawn
         if _drew_mesh(axes, meshes):
             # Named from `stat` rather than hardcoded, because it is what the
             # cells actually hold: the default is a count, but
