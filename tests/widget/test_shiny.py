@@ -307,13 +307,25 @@ def test_each_cdn_mode_ships_the_source_it_promises(
 
 
 def test_none_renders_nothing(fake_session):
-    """Returning ``None`` leaves the output blank, per the Renderer contract."""
+    """Returning ``None`` leaves the output blank, per the Renderer contract.
+
+    Also asserts that nothing is *created* on the way. ``render()`` returns
+    before ``_render_off_loop``, so a ``None`` never reaches the figure
+    resolution -- which since #531 goes through ``_get_plot_or_current``
+    and would answer ``plt.gcf()``, opening a blank figure for an output
+    the app asked to leave empty. That short-circuit is load-bearing for
+    two reasons now, and only one of them was pinned.
+    """
 
     @render_maidr
     def blank():
         return None
 
+    open_before = set(plt.get_fignums())
     assert _render(blank) is None
+    assert set(plt.get_fignums()) == open_before, (
+        "rendering nothing opened a figure"
+    )
 
 
 @pytest.mark.parametrize(

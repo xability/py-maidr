@@ -153,6 +153,8 @@ def resolve_figure(value: Any) -> Any:
         # matching ``render``'s own loop over the list.
         axes = axes[-1] if axes else None
 
+    # ``axes`` is an ``Axes`` or ``None`` by here: ``get_axes`` returns one
+    # of those or a list, and the list is unwrapped above.
     return getattr(axes, "figure", None)
 
 
