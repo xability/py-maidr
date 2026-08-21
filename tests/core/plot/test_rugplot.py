@@ -271,3 +271,16 @@ def test_a_name_can_come_off_an_axis_another_plot_labelled(frame):
     rug = _schemas(fig)[-1]
     assert rug["name"] == "value"
     assert [point["x"] for point in rug["data"]] == [7.0, 8.0]
+
+
+def test_a_rug_with_no_tick_length_is_declined():
+    # Measured: `height=0` gives every segment two identical ends,
+    # `[[1.0, 0.0], [1.0, 0.0]]`, which is constant on both axes and so names
+    # neither. Declined along with the rest, and deliberately -- a rug whose
+    # ticks have no length draws nothing a sighted reader can see either, so
+    # announcing its positions would describe a chart that is not there.
+    fig, ax = plt.subplots()
+    sns.rugplot(x=np.array([1.0, 2.0, 3.0]), height=0, ax=ax)
+
+    assert _layers(fig) == []
+    assert len(maidr.render(fig)._repr_html_()) > 0

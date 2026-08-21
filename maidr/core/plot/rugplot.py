@@ -69,6 +69,17 @@ def read_rug(collection) -> tuple[list, bool] | None:
 
     # Exactly one, not "x first": a tick of zero height is constant on both
     # and marks nothing, and a sloped segment is constant on neither.
+    #
+    # The zero-height case is reachable -- `rugplot(height=0)` gives every
+    # segment two identical ends, measured as `[[1.0, 0.0], [1.0, 0.0]]` --
+    # and is declined along with the rest. A rug whose ticks have no length
+    # draws nothing a sighted reader can see either, so announcing its
+    # positions would describe a chart that is not on the screen.
+    #
+    # Compared exactly rather than within a tolerance because matplotlib
+    # duplicates the one float for the constant coordinate rather than
+    # recomputing it, so the two ends are the same value and not merely a
+    # rounding apart.
     if level_x == level_y:
         return None
 
