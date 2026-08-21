@@ -36,6 +36,7 @@ import pytest
 
 from maidr.core.enum import MaidrKey
 from maidr.core.figure_manager import FigureManager
+from maidr.exception import UnsupportedPlotError
 
 POSITIONS = np.array([1.0, 2.0, 3.0, 4.0])
 MAGNITUDES = np.array([2.0, 4.0, 3.0, 5.0])
@@ -157,9 +158,9 @@ def test_no_orientation_is_claimed():
     fig, ax = _titled_axes()
     ax.fill_betweenx(POSITIONS, MAGNITUDES)
 
-    schema = _schema(fig)
-    assert MaidrKey.ORIENTATION not in schema
-    assert "orientation" not in schema
+    # One assertion, not two: `MaidrKey` subclasses `str`, so the enum member
+    # and the bare spelling are the same key.
+    assert MaidrKey.ORIENTATION not in _schema(fig)
 
 
 @pytest.mark.parametrize("sideways", [False, True])
@@ -173,8 +174,6 @@ def test_a_band_between_two_curves_still_registers_nothing(sideways):
         ax.fill_betweenx(POSITIONS, MAGNITUDES - 1, MAGNITUDES + 1)
     else:
         ax.fill_between(POSITIONS, MAGNITUDES - 1, MAGNITUDES + 1)
-
-    from maidr.exception import UnsupportedPlotError
 
     with pytest.raises(UnsupportedPlotError):
         FigureManager.get_maidr(fig)

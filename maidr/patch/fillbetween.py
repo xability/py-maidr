@@ -243,9 +243,9 @@ def fill_betweenx(wrapped, instance, args, kwargs) -> Collection:
     The same chart with the axes exchanged: the shared axis is ``y`` and the
     magnitude runs along ``x``. Emitted as an area either way, since what a
     band measures does not change with which way it is drawn -- but which
-    axis each number is *read against* does, and saying so is what
-    ``transposed`` carries. Without it the two spellings produced identical
-    payloads for charts that are transposes of each other (#566).
+    axis each number is *read against* does, and ``transposed`` is what says
+    so. See :meth:`maidr.core.plot.areaplot.AreaPlot.render` for what it
+    moves and why that rather than the data (#566).
     """
     return _fill(wrapped, instance, args, kwargs, "y", "x1", "x2", transposed=True)
 
