@@ -42,6 +42,7 @@ import pytest
 
 import maidr
 from maidr.core.figure_manager import FigureManager
+from maidr.exception import UnsupportedPlotError
 
 
 @pytest.fixture(autouse=True)
@@ -59,7 +60,10 @@ def _types(fig) -> list:
     """Every layer's type, or an empty list when the figure registered none."""
     try:
         return [plot.type.value for plot in FigureManager.get_maidr(fig).plots]
-    except Exception:  # noqa: BLE001 - no Maidr at all is the case under test
+    except UnsupportedPlotError:
+        # A figure with nothing registered is the case under test, and this is
+        # the exception the API's own fallback catches -- named rather than
+        # swallowed as "anything", so a *different* failure still fails.
         return []
 
 

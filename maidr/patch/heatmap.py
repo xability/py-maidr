@@ -162,7 +162,9 @@ def heat(wrapped, _, args, kwargs) -> Axes | AxesImage | Collection:
     Axes or AxesImage or Collection
         Whatever the wrapped function returned: an ``Axes`` from seaborn, an
         ``AxesImage`` from ``imshow``, or the mesh the two ``pcolor`` variants
-        render.
+        render. The draw always happens; the return is the same either way.
+        No layer is registered when the artist turns out to hold a colour
+        image rather than a grid of values -- see :func:`_is_colour_image`.
     """
     # `seaborn.heatmap` draws through `Axes.pcolormesh`, and both are patched
     # here. Without this guard the inner call registers a second HEAT layer for
