@@ -5,6 +5,7 @@ from matplotlib.container import BarContainer
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.exception import ExtractionError
 from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
 
@@ -13,12 +14,6 @@ from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
 #: way.
 DRAWN_BARS = "_maidr_bars"
 
-#: Key the patch passes this layer's hue group name under, when the chart has
-#: one. A ``histplot(hue=...)`` draws one container per group and so becomes
-#: one layer per group (#558); without a name the reader is offered several
-#: ``hist`` layers over one axis with nothing to tell them apart, which is the
-#: position xability/maidr#828 added ``MaidrLayer.name`` for.
-GROUP_NAME = "_maidr_group_name"
 
 
 class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
@@ -42,7 +37,8 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         self._own_bars = own_bars if isinstance(own_bars, BarContainer) else None
         # The hue group this layer's container belongs to, when the patch
         # could name it. `None` is the ungrouped case and every chart that
-        # drew no legend.
+        # drew no legend. Opted into here rather than read by `MaidrPlot`;
+        # see `GROUP_NAME` for why that is per class.
         group_name = kwargs.pop(GROUP_NAME, None)
         self._group_name = group_name if isinstance(group_name, str) else None
         super().__init__(ax, PlotType.HIST)
