@@ -239,11 +239,16 @@ def test_two_identical_histograms_are_still_told_apart():
     assert bound[1] is containers[1]
 
 
-def test_a_hue_grouped_histogram_reads_as_it_always_did():
-    # A call that adds several containers at once. `_new_bar_container` takes
-    # the first, which is what `extract_container` -- the fallback -- would
-    # have found, so naming the container changed nothing here. Measured
-    # against unmodified `main`: bins [1.0, 25.5] before and after.
+def test_a_hue_grouped_histogram_gives_each_group_its_own_layer():
+    # This asserted **one** layer when it was written, on the reasoning that a
+    # hue's groups share one binning and so the container the patch picked was
+    # unobservable. The binning is shared -- both rows below still open at
+    # 1.0 and 25.5 -- but the counts are not, and reading one container
+    # announced one distribution while the other stayed drawn and unspoken
+    # (#558).
+    #
+    # What this case is really about is unchanged: a layer reads the container
+    # its own call drew. There are simply two of them.
     frame = pd.DataFrame(
         {"v": [1, 1, 1, 50, 50, 50], "g": ["a", "a", "a", "b", "b", "b"]}
     )
@@ -251,5 +256,17 @@ def test_a_hue_grouped_histogram_reads_as_it_always_did():
     sns.histplot(frame, x="v", hue="g", bins=2, ax=ax)
 
     layers = _hist_points(fig)
-    assert len(layers) == 1
-    assert _bins(layers[0]) == [1.0, 25.5]
+    assert len(layers) == 2
+    assert [_bins(layer) for layer in layers] == [[1.0, 25.5], [1.0, 25.5]]
+
+    # Three observations at 1 in one group and three at 50 in the other, which
+    # is the half the old reading threw away. Group `b` is drawn first here:
+    # seaborn's container order is not its hue order, which is why #558 names
+    # each layer by the colour of the swatch that claims it rather than by
+    # where it sits.
+    assert [[point["y"] for point in layer] for layer in layers] == [
+        [0.0, 3.0],
+        [3.0, 0.0],
+    ]
+    names = [plot.schema.get("name") for plot in FigureManager.get_maidr(fig).plots]
+    assert names == ["b", "a"]

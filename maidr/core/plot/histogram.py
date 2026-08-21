@@ -13,6 +13,13 @@ from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
 #: way.
 DRAWN_BARS = "_maidr_bars"
 
+#: Key the patch passes this layer's hue group name under, when the chart has
+#: one. A ``histplot(hue=...)`` draws one container per group and so becomes
+#: one layer per group (#558); without a name the reader is offered several
+#: ``hist`` layers over one axis with nothing to tell them apart, which is the
+#: position xability/maidr#828 added ``MaidrLayer.name`` for.
+GROUP_NAME = "_maidr_group_name"
+
 
 class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
     def __init__(self, ax: Axes, **kwargs) -> None:
@@ -33,6 +40,11 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         # when that call is made to work.
         own_bars = kwargs.pop(DRAWN_BARS, None)
         self._own_bars = own_bars if isinstance(own_bars, BarContainer) else None
+        # The hue group this layer's container belongs to, when the patch
+        # could name it. `None` is the ungrouped case and every chart that
+        # drew no legend.
+        group_name = kwargs.pop(GROUP_NAME, None)
+        self._group_name = group_name if isinstance(group_name, str) else None
         super().__init__(ax, PlotType.HIST)
         self._orientation = "vert"
 
@@ -58,11 +70,21 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         return "horz" if plot.orientation == "horizontal" else "vert"
 
     def render(self) -> dict:
-        """Add ``orientation`` to the base schema."""
+        """
+        Add ``orientation`` to the base schema, and the group's name when the
+        layer reads one distribution of several.
+
+        ``MaidrLayer.name`` is the field xability/maidr#828 added so two
+        layers of a kind can be told apart, which is exactly where a
+        hue-grouped histogram leaves a reader. Distinct from ``title``, which
+        every layer of a figure carries and which names the *chart*.
+        """
         # Read after the super call, not before: `self._orientation` is
         # populated by `_extract_plot_data`, which that call runs.
         base_schema = super().render()
         hist_orientation = {MaidrKey.ORIENTATION: self._orientation}
+        if self._group_name:
+            hist_orientation[MaidrKey.NAME] = self._group_name
         return DictMergerMixin.merge_dict(base_schema, hist_orientation)
 
     def _extract_plot_data(self) -> list[dict]:

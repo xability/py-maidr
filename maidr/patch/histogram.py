@@ -15,7 +15,8 @@ import uuid
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.core.plot.histogram import DRAWN_BARS
+from maidr.core.plot.histogram import DRAWN_BARS, GROUP_NAME
+from maidr.core.plot.scatterplot import _named_colours, _rgba
 from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, STEP_ORIENTATION
 from maidr.core.plot.stepped_histogram import reads as _reads_outline
 from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
@@ -164,9 +165,9 @@ def _containers_of(ax: Axes | None) -> list:
     return list(getattr(ax, "containers", ()) or ())
 
 
-def _new_bar_container(ax: Axes | None, before: list) -> BarContainer | None:
+def _new_bar_containers(ax: Axes | None, before: list) -> list[BarContainer]:
     """
-    The ``BarContainer`` a call just added to an axes, if it added one.
+    The ``BarContainer``\ s a call just added to an axes, in draw order.
 
     Compared by identity against the snapshot. Not because value comparison
     would be wrong -- measured, two containers over identical data compare
@@ -175,12 +176,14 @@ def _new_bar_container(ax: Axes | None, before: list) -> BarContainer | None:
     object" is the question actually being asked, and it cannot become wrong
     if matplotlib ever gives the container value semantics.
 
-    The **first** new one when a call added several, which is what
-    ``extract_container`` answers and so what the fallback would have found.
-    Agreement is the only reason to prefer it: the choice is unobservable on
-    every input that reaches here, because a call adding several containers is
-    a hue-grouped ``histplot``, whose groups share one binning -- measured,
-    first and last give the same bin edges and the same reading.
+    **All** of them, which is the correction #558 records. A call that adds
+    several is a hue-grouped ``histplot``, and this used to answer with the
+    first on the reasoning that the groups share one binning so the choice was
+    unobservable. The *edges* are shared. The counts are not -- measured, two
+    groups over one binning gave ``[0, 4, 10, 9, 5]`` and ``[1, 11, 8, 8, 4]``
+    -- so answering with one announced one distribution and left the other
+    drawn but unspoken, which is the defect #553 fixed for ``ax.hist([a, b])``
+    and #527 for two ``ax.bar`` calls.
 
     Parameters
     ----------
@@ -191,16 +194,95 @@ def _new_bar_container(ax: Axes | None, before: list) -> BarContainer | None:
 
     Returns
     -------
-    BarContainer or None
-        The container this call added, or ``None`` when it added none.
+    list of BarContainer
+        The containers this call added, possibly none.
     """
-    added = [
+    return [
         container
         for container in (getattr(ax, "containers", ()) or ())
         if isinstance(container, BarContainer)
         and not any(container is seen for seen in before)
     ]
-    return added[0] if added else None
+
+
+def _group_names(ax: Axes | None, containers: list) -> list[str | None]:
+    """
+    Name each container from the legend swatch drawn in its colour.
+
+    A ``histplot(hue=...)`` draws one container per group, every bar of it in
+    that group's colour, and the legend names those colours -- so the same
+    match ``scatterplot.hue_groups`` makes point by point works container by
+    container, one level up. The helpers are imported rather than reimplemented
+    for that reason.
+
+    Not by position. Measured on seaborn 0.13.2, the legend runs the *exact
+    reverse* of the draw order -- ``['y', 'x']`` against containers drawn
+    ``x, y``, and ``['z', 'x', 'y']`` against ``y, x, z`` -- so pairing them
+    off in order gives every layer somebody else's name. Reading the legend
+    backwards would agree on those charts, and is not what this does: the
+    reversal is nothing seaborn documents, and a legend carrying entries that
+    are not group swatches would still have to be declined rather than
+    counted, which is what ``_named_colours`` answers ``None`` for.
+
+    Every reason to decline is a reason to leave the layers unnamed rather
+    than to name them wrongly:
+
+    - **No legend.** ``legend=False`` suppresses it, and a chart with a single
+      distribution never had one. Nothing names the colours.
+    - **A container no swatch claims.** Nothing to call it.
+    - **Two names for one colour.** A swatch that means two things cannot name
+      the group a container belongs to; ``_named_colours`` answers ``None``.
+
+    A single container is left unnamed whatever the legend says: one
+    distribution needs nothing to tell it apart from, and a name there would
+    read as though the chart held more.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes drawn on, for its legend.
+    containers : list
+        The containers this call drew, in draw order.
+
+    Returns
+    -------
+    list of str or None
+        One entry per container, naming it or ``None``.
+    """
+    if ax is None or len(containers) < 2:
+        return [None] * len(containers)
+
+    legend = ax.get_legend()
+    if legend is None:
+        return [None] * len(containers)
+
+    colours = [_container_colour(container) for container in containers]
+    named = _named_colours(legend, {c for c in colours if c is not None})
+    if not named:
+        return [None] * len(containers)
+
+    return [None if colour is None else named.get(colour) for colour in colours]
+
+
+def _container_colour(container) -> tuple[float, ...] | None:
+    """
+    The one colour a container's bars are drawn in, if they share one.
+
+    Parameters
+    ----------
+    container : BarContainer
+        The bars.
+
+    Returns
+    -------
+    tuple of float or None
+        The rounded RGBA every bar shares, or ``None`` when they differ or
+        there are no bars.
+    """
+    colours = {_rgba(patch.get_facecolor()) for patch in container}
+    if len(colours) != 1:
+        return None
+    return colours.pop()
 
 
 def _drew_bars(plot: Any, before: list) -> bool:
@@ -255,7 +337,7 @@ def _drew_bars(plot: Any, before: list) -> bool:
         return False
     if ax is None or not ax.containers:
         return False
-    return _new_bar_container(ax, before) is not None
+    return bool(_new_bar_containers(ax, before))
 
 
 def _meshes_of(ax: Axes | None) -> list:
@@ -473,13 +555,24 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     # every container reads as new, but the answer is still the newest one,
     # which is still this call's.
     drawn_axes = FigureManager.get_axes(drawn)
+    # One layer per container, because a `hue` draws one container per group
+    # and reading a single one announced one distribution while leaving the
+    # rest drawn and unspoken (#558). `common` registers one layer, so the
+    # first group goes through it -- keeping the orientation and axis handling
+    # every histogram has always had -- and the rest are registered beside it.
+    containers = _new_bar_containers(drawn_axes, before)
+    names = _group_names(drawn_axes, containers)
     ax = common(
         PlotType.HIST,
         lambda *a, **k: drawn,
         instance,
         args,
-        dict(kwargs, **{DRAWN_BARS: _new_bar_container(drawn_axes, before)}),
+        dict(kwargs, **{DRAWN_BARS: containers[0], GROUP_NAME: names[0]}),
     )
+    for container, name in zip(containers[1:], names[1:]):
+        FigureManager.create_maidr(
+            drawn_axes, PlotType.HIST, **{DRAWN_BARS: container, GROUP_NAME: name}
+        )
     # Only register KDE overlay as SMOOTH if kde=True was set
     kde_enabled = kwargs.get("kde", False)
     if kde_enabled:
@@ -546,9 +639,16 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
 
     for ax in plotter_axes(instance):
         seen = before.get(id(ax), [])
-        if _drew_bars(ax, seen):
+        if not _drew_bars(ax, seen):
+            continue
+        # One layer per group here too; `displot(hue=...)` reaches only this
+        # site, so leaving it reading the first container would fix the defect
+        # for `histplot` and not for the figure-level spelling of the same
+        # chart -- the asymmetry #522 and #446 were both about.
+        containers = _new_bar_containers(ax, seen)
+        for container, name in zip(containers, _group_names(ax, containers)):
             FigureManager.create_maidr(
-                ax, PlotType.HIST, **{DRAWN_BARS: _new_bar_container(ax, seen)}
+                ax, PlotType.HIST, **{DRAWN_BARS: container, GROUP_NAME: name}
             )
 
     return drawn
