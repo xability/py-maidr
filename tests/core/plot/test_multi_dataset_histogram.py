@@ -24,6 +24,10 @@ assumed:
 - **nothing registered where there is no container.** The step histtypes
   create none, and the layer registered for them raised `ExtractionError` at
   render -- a pre-existing failure, unrelated to the list, filed as #555.
+  That half has since been superseded: #555 gave those two a reading of their
+  own, so they are read rather than skipped. The assertions below were updated
+  in place rather than deleted, because what they are really pinning is that
+  every histtype comes back with **both** distributions.
 """
 
 from __future__ import annotations
@@ -33,7 +37,6 @@ import numpy as np
 import pytest
 
 from maidr.core.figure_manager import FigureManager
-from maidr.exception import UnsupportedPlotError
 
 
 @pytest.fixture(autouse=True)
@@ -72,10 +75,13 @@ def test_a_step_histogram_no_longer_raises_either(histtype):
 
     ax.hist(_two_datasets(), bins=2, histtype=histtype)  # must not raise
 
-    # And nothing is registered, because there is no container to read. The
-    # chart takes the static-image fallback rather than raising at render.
-    with pytest.raises(UnsupportedPlotError):
-        FigureManager.get_maidr(fig)
+    # This asserted that *nothing* was registered when it was written, which
+    # was the honest reading of the interim state: there was no container to
+    # read, so the chart took the static-image fallback rather than raising at
+    # render. #555 gave the step histtypes a reading of their own -- the
+    # counts and edges the call already returned -- so they are now one layer
+    # per dataset like every other histtype. See `test_step_histogram.py`.
+    assert _counts(fig) == [[10.0, 0.0], [4.0, 6.0]]
 
 
 def test_each_dataset_is_announced_as_its_own_layer():
@@ -107,8 +113,8 @@ def test_a_single_dataset_histogram_is_unchanged():
 def test_a_step_histogram_renders_instead_of_dying():
     # The pre-existing half: a step histogram registered a layer that
     # `HistPlot` could not read, and `render` died on the whole figure.
-    # Declining to register is not the same as reading it (#555), but a chart
-    # that falls back to a picture beats one that raises.
+    # It fell back to a picture after this fix and is read outright after
+    # #555; what this pins either way is that it does not raise.
     import maidr
 
     fig, ax = plt.subplots()
