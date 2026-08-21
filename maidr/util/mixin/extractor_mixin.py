@@ -322,16 +322,50 @@ class LineExtractorMixin:
 class CollectionExtractorMixin:
     @staticmethod
     def extract_collection(ax: Axes, collection_type: type) -> Any:
-        """Retrieve the first collection of a specified type from an Axes object."""
+        """
+        Retrieve the first collection of a specified type from an Axes object.
+
+        Returns ``None`` when the axes holds none of that type, which is what
+        its caller is written for: ``ScatterPlot._extract_plot_data`` opens
+        with ``if data is None: raise ExtractionError(...)`` and
+        ``_extract_point_data`` opens with ``if plot is None``. That handling
+        could never run, because the lookup was a bare ``next()`` with no
+        default and raised first. What a reader got instead was a
+        ``StopIteration`` -- fatal to the whole figure, naming neither the
+        plot type nor the artist, and nothing anyone can act on. Measured on
+        matplotlib 3.9.4, an axes holding only a line raised it (#529).
+
+        The third of three. ``extract_container`` was the same shape and
+        gives the fuller reasoning above, including why a bare
+        ``StopIteration`` is never a useful failure; ``extract_scalar_mappable``
+        was the second. All three are in this file, and each was found only
+        when a chart happened to route into it, which is the argument for the
+        last one not waiting for its chart.
+
+        Parameters
+        ----------
+        ax : Axes
+            The axes to read.
+        collection_type : type
+            The collection class wanted.
+
+        Returns
+        -------
+        Any
+            The first collection of that type, or ``None`` when there is none.
+        """
         if ax is None or ax.collections is None:
             return None
 
         # We assume only one collection of each type is present to avoid plot clutter,
         # even though multiples are technically possible.
         return next(
-            collection
-            for collection in ax.collections
-            if isinstance(collection, collection_type)
+            (
+                collection
+                for collection in ax.collections
+                if isinstance(collection, collection_type)
+            ),
+            None,
         )
 
 
