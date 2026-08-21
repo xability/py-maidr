@@ -229,6 +229,15 @@ class HeatPlot(
         else:
             return None
 
+        # One coordinate per cell rather than one per boundary is what
+        # `shading="gouraud"` gives: the values sit *at* the coordinates
+        # instead of filling the quads between them, so each coordinate is
+        # already a cell's position and there is no midpoint to take.
+        # Measured on a 2 x 3:
+        # `pcolormesh(z, shading="gouraud")` returns coordinates of shape
+        # (2, 3, 2) against the flat-shaded (3, 4, 2).
+        if len(edges) == count:
+            return [float(edge) for edge in edges]
         if len(edges) != count + 1:
             return None
         return [float((edges[i] + edges[i + 1]) / 2) for i in range(count)]

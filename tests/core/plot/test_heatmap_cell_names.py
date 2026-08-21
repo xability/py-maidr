@@ -281,3 +281,42 @@ def test_cells_too_close_to_separate_at_six_figures_get_longer_names():
 
     assert len(set(names)) == 3
     assert [float(name) for name in names] == [1e9 + 0.5, 1e9 + 1.5, 1e9 + 2.5]
+
+
+def test_a_pcolor_grid_is_named_like_the_mesh_it_shares_a_contract_with():
+    """
+    ``pcolor``'s `PolyQuadMesh` keeps its coordinates the same way.
+
+    Pinned to values rather than left to the shape check the parametrised
+    test makes: the two classes disagree about how they store their *values*
+    -- one flattens, one does not -- so agreeing about their coordinates is
+    worth asserting rather than assuming.
+    """
+    fig, ax = plt.subplots()
+    ax.pcolor(GRID)
+    layer = _layer(fig)
+
+    assert layer[MaidrKey.DATA][MaidrKey.X] == ["0.5", "1.5", "2.5"]
+    assert layer[MaidrKey.DATA][MaidrKey.Y] == ["0.5", "1.5"]
+
+
+def test_a_gouraud_shaded_mesh_is_named_at_its_coordinates_not_between_them():
+    """
+    ``shading="gouraud"`` puts the values *at* the coordinates.
+
+    So there is one coordinate per cell rather than one per boundary, and
+    each is already the cell's position -- measured as shape ``(2, 3, 2)``
+    against the flat-shaded ``(3, 4, 2)``. Taking midpoints of a list that
+    short would name two cells from three, which is why the count decides
+    which reading applies.
+
+    The names come out as the same indices ``imshow`` and ``sns.heatmap``
+    give the same grid, which is the answer a reader should get however the
+    chart was drawn.
+    """
+    fig, ax = plt.subplots()
+    ax.pcolormesh(GRID, shading="gouraud")
+    layer = _layer(fig)
+
+    assert layer[MaidrKey.DATA][MaidrKey.X] == ["0", "1", "2"]
+    assert layer[MaidrKey.DATA][MaidrKey.Y] == ["0", "1"]

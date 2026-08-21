@@ -61,9 +61,17 @@ class LevelExtractorMixin:
 
         A caller that has its own idea of what the axis positions mean -- a
         heatmap, which knows where its own cells sit -- can only check the
-        ticks against it by knowing where they are. Kept beside
-        ``extract_level`` and filtered by the same rule, so the two answers
-        stay index-aligned however that rule changes (#526).
+        ticks against it by knowing where they are. Filtered
+        through the same code ``extract_level`` filters through --
+        ``_ticks_in_view`` -- so the two answers are index-aligned by
+        construction rather than by both being edited together (#526).
+
+        One divergence is deliberate and is not mirrored here:
+        ``extract_level`` falls back to a *sibling* axes' labels when its own
+        filter comes back empty, and a sibling's positions would be numbers
+        off a different axes to pair against this one's cells. A caller that
+        needs the two to line up therefore checks the lengths, which is what
+        ``HeatPlot._cell_names`` does.
 
         Parameters
         ----------
@@ -80,18 +88,56 @@ class LevelExtractorMixin:
         if ax is None or key not in (MaidrKey.X, MaidrKey.Y):
             return None
 
+        return [
+            float(position) for position, _ in LevelExtractorMixin._ticks_in_view(ax, key)
+        ]
+
+    @staticmethod
+    def _ticks_in_view(ax: Axes, key: MaidrKey) -> List[tuple]:
+        """
+        The ticks of one axis that fall inside the data, with their labels.
+
+        The one place the filter lives, so ``extract_level`` and
+        ``extract_level_positions`` cannot disagree about which ticks they
+        describe. They used to hold a copy each, and the claim that they
+        stay index-aligned "however that rule changes" was true only for as
+        long as both copies were edited together -- a claim about the habits
+        of a future editor rather than about the code.
+
+        Padded view limits are deliberately not used: a tick drawn outside
+        the data is furniture, not a position anything was plotted at.
+
+        Parameters
+        ----------
+        ax : Axes
+            The axes to read.
+        key : MaidrKey
+            Which axis, ``X`` or ``Y``.
+
+        Returns
+        -------
+        list of tuple
+            ``(position, label)`` per kept tick, in axis order.
+        """
         if MaidrKey.X == key:
             ticks = ax.get_xticks()
+            labels = [label.get_text() for label in ax.get_xticklabels()]
             span = ax.dataLim.width if hasattr(ax, "dataLim") else 0
-            low = ax.dataLim.x0 if span else None
+            low = ax.dataLim.x0 if span else 0
         else:
             ticks = ax.get_yticks()
+            labels = [label.get_text() for label in ax.get_yticklabels()]
             span = ax.dataLim.height if hasattr(ax, "dataLim") else 0
-            low = ax.dataLim.y0 if span else None
+            low = ax.dataLim.y0 if span else 0
 
-        if low is None or span == 0:
-            return [float(tick) for tick in ticks]
-        return [float(tick) for tick in ticks if low <= tick <= low + span]
+        kept = [
+            index
+            for index, position in enumerate(ticks)
+            if span == 0 or low <= position <= low + span
+        ]
+        return [
+            (ticks[index], labels[index]) for index in kept if index < len(labels)
+        ]
 
     @staticmethod
     def extract_level(ax: Axes, key: MaidrKey = MaidrKey.X) -> Optional[List[str]]:
@@ -100,37 +146,11 @@ class LevelExtractorMixin:
             return None
 
         level = None
-        if MaidrKey.X == key:
-            ticks = ax.get_xticks()
-            labels = [label.get_text() for label in ax.get_xticklabels()]
-
-            if hasattr(ax, "dataLim") and ax.dataLim.width != 0:
-                # Use the actual data limits rather than padded view limits
-                data_x_min, data_x_max = ax.dataLim.x0, ax.dataLim.x0 + ax.dataLim.width
-                # Filter tick labels to only those within the actual data range
-                valid_indices = [
-                    i for i, pos in enumerate(ticks) if data_x_min <= pos <= data_x_max
-                ]
-                labels = [labels[i] for i in valid_indices if i < len(labels)]
-
-            level = labels
-        elif MaidrKey.Y == key:
-            ticks = ax.get_yticks()
-            labels = [label.get_text() for label in ax.get_yticklabels()]
-
-            if hasattr(ax, "dataLim") and ax.dataLim.height != 0:
-                # Use the actual data limits rather than padded view limits
-                data_y_min, data_y_max = (
-                    ax.dataLim.y0,
-                    ax.dataLim.y0 + ax.dataLim.height,
-                )
-                # Filter tick labels to only those within the actual data range
-                valid_indices = [
-                    i for i, pos in enumerate(ticks) if data_y_min <= pos <= data_y_max
-                ]
-                labels = [labels[i] for i in valid_indices if i < len(labels)]
-
-            level = labels
+        if key in (MaidrKey.X, MaidrKey.Y):
+            # Through the same filter `extract_level_positions` uses, so the
+            # two answers are index-aligned by construction rather than by
+            # both being edited together.
+            level = [label for _, label in LevelExtractorMixin._ticks_in_view(ax, key)]
         elif MaidrKey.Z == key:
             level = [container.get_label() for container in ax.containers]
 
