@@ -16,11 +16,54 @@ DRAWN_SPANS = "_maidr_spans"
 #: Key saying which way the spans run: ``True`` for ``hlines``.
 SPANS_ALONG_X = "_maidr_spans_along_x"
 
-#: How close two coordinates must be to count as the same lane, relative to
-#: the span of the lane axis. Segment ends come back exactly as the caller
-#: gave them -- a `LineCollection` stores them, it does not serialise a path
-#: -- so this exists for a caller who computed a lane rather than typing it.
-_TOLERANCE = 1e-9
+#: How far apart a segment's two lane coordinates may be and still count as
+#: level. Absolute, and deliberately left that way: the scale this wants is
+#: the *magnitude* of the coordinates, where float spacing lives, and the
+#: only scale available here is the spread of the lanes, which is a
+#: different quantity -- three lanes a second apart at epoch scale spread by
+#: 2 while their float spacing is nearer 2e-7. So a relative version built
+#: from what this function knows would not answer the question it looks like
+#: it answers. Unresolved rather than solved; it costs nothing today because
+#: `hlines` and `vlines` give both ends of a segment the *same* float, so
+#: the comparison is exactly zero and any tolerance passes. It would matter
+#: only for a hand-built `LineCollection` at large magnitude.
+_LEVEL_TOLERANCE = 1e-9
+
+#: How close two of a chart's ends must be to count as the same end, as a
+#: fraction of the extent the chart covers along the axis the intervals run
+#: on. Relative because the question is about the chart's own scale, and
+#: because the shared coordinate is often zero, which has no magnitude to be
+#: relative to.
+#:
+#: Exact equality was not enough. `hlines` and `vlines` hand back the
+#: caller's own floats untouched, so a literal baseline is bit-identical
+#: across segments -- but a *computed* one need not be. Measured:
+#: ``tops * 0.1 - tops / 10`` is elementwise zero in arithmetic and
+#: ``[5.55e-17, 0.0, 0.0, 0.0]`` in floats, so four lollipop stems stopped
+#: sharing a baseline and were read as a schedule announcing "0 to 8" for a
+#: chart that means "8".
+_SHARED_END_TOLERANCE = 1e-9
+
+
+def _same_within(values: list, extent: float) -> bool:
+    """
+    Whether every value is the same coordinate, to the chart's own scale.
+
+    Parameters
+    ----------
+    values : list of float
+        The coordinates to compare.
+    extent : float
+        How far the chart reaches on the axis these lie on. Zero collapses
+        the test to exact equality, which is the right answer when there is
+        no scale to be relative to.
+
+    Returns
+    -------
+    bool
+        True when the values differ by no more than the tolerance.
+    """
+    return max(values) - min(values) <= abs(extent) * _SHARED_END_TOLERANCE
 
 
 def read_spans(collection, along_x: bool) -> list | None:
@@ -52,7 +95,7 @@ def read_spans(collection, along_x: bool) -> list | None:
         if ends.shape != (2, 2) or not np.all(np.isfinite(ends)):
             return None
         lane, other = ends[0][lane_axis], ends[1][lane_axis]
-        if abs(lane - other) > _TOLERANCE:
+        if abs(lane - other) > _LEVEL_TOLERANCE:
             # Not level on its lane axis, so it is not an interval in one.
             return None
         spans.append((lane, ends[0][span_axis], ends[1][span_axis]))
@@ -91,9 +134,16 @@ def states_an_interval(spans: list) -> bool:
     looks stricter than it needs to be, and relax it. ``test_spanplot.py``
     pins the declined case for the same reason.
     """
-    starts = {start for _, start, _ in spans}
-    ends = {end for _, _, end in spans}
-    return len(starts) > 1 and len(ends) > 1
+    starts = [start for _, start, _ in spans]
+    ends = [end for _, _, end in spans]
+    # Judged against how far the chart reaches along the axis the intervals
+    # run on. Exact equality would let a baseline the caller *computed* slip
+    # through as "not shared" and turn a lollipop into a schedule; measured
+    # on `vlines(x, tops * 0.1 - tops / 10, tops)`, which is zero in
+    # arithmetic, `[5.55e-17, 0.0, 0.0, 0.0]` in floats, and read as a gantt
+    # announcing "0 to 8" for a chart that means "8".
+    extent = max(max(starts), max(ends)) - min(min(starts), min(ends))
+    return not _same_within(starts, extent) and not _same_within(ends, extent)
 
 
 def draws_a_schedule(collection, along_x: bool) -> bool:

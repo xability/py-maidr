@@ -345,3 +345,72 @@ def test_one_unreadable_segment_declines_the_whole_call():
     assert _layers(fig) == []
     # And the figure still renders, as a picture rather than nothing.
     assert len(maidr.render(fig)._repr_html_()) > 0
+
+
+def test_a_computed_baseline_is_still_a_lollipop():
+    # Review asked whether float noise could dodge the decline, and it could.
+    # `tops * 0.1 - tops / 10` is elementwise zero in arithmetic and
+    # `[5.55e-17, 0.0, 0.0, 0.0]` in floats, so an exact comparison saw four
+    # stems that no longer shared a baseline and read them as a schedule --
+    # announcing "0 to 8" for a chart that means "8". The comparison is now
+    # made against the chart's own extent instead.
+    import numpy as np
+
+    tops = np.array([3.0, 8.0, 5.0, 9.0])
+    baseline = tops * 0.1 - tops / 10.0
+    assert len(set(baseline.tolist())) > 1, "fixture must actually be noisy"
+
+    fig, ax = plt.subplots()
+    ax.vlines([1, 2, 3, 4], baseline, tops)
+
+    assert _layers(fig) == []
+
+
+def test_a_schedule_laid_out_in_epoch_seconds_still_reads():
+    # The shared-end tolerance is a fraction of the chart's extent, so it
+    # had to be checked that scaling it up does not make a real schedule's
+    # differing ends look shared. Here the extent is 700 and the tolerance
+    # 7e-7, while the starts differ by 200.
+    #
+    # Not a test of the levelness tolerance, which stays absolute -- both
+    # ends of an `hlines` segment are the *same* float, so that comparison
+    # is exactly zero at any scale.
+    base = 1_700_000_000.0
+    fig, ax = plt.subplots()
+    ax.hlines(
+        [1, 2, 3],
+        [base, base + 200, base + 400],
+        [base + 500, base + 700, base + 600],
+    )
+
+    schema = _rendered(fig)
+    assert schema["type"] == "gantt"
+    assert _spans(schema) == [
+        [(base, base + 500)],
+        [(base + 200, base + 700)],
+        [(base + 400, base + 600)],
+    ]
+
+
+def test_a_segment_that_is_not_level_is_still_refused():
+    # The tolerance became relative, not absent. A collection whose segment
+    # slopes across lanes is not an interval in one, and the whole layer is
+    # declined rather than the segment flattened onto a lane it never sat in.
+    from matplotlib.collections import LineCollection
+
+    from maidr.core.plot.spanplot import read_spans
+
+    sloped = LineCollection([[[0, 1], [5, 2]], [[2, 3], [7, 3]]])
+    assert read_spans(sloped, along_x=True) is None
+
+
+def test_a_stem_plot_is_unchanged_by_this_reading():
+    # `stem` draws the lollipop shape and reaches `vlines` the same way
+    # `acorr`/`xcorr` do, so review asked where it lands. It registers a
+    # `line` layer off its marker tips, exactly as it did before this
+    # reading existed -- pinned so the span patch cannot start claiming it.
+    fig, ax = plt.subplots()
+    ax.stem([1, 2, 3, 4], [3, 8, 5, 9])
+
+    assert _layers(fig) == ["line"]
+    assert len(maidr.render(fig)._repr_html_()) > 0
