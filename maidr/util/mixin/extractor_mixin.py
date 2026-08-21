@@ -53,6 +53,47 @@ class ContainerExtractorMixin:
 
 class LevelExtractorMixin:
     @staticmethod
+    def extract_level_positions(
+        ax: Axes, key: MaidrKey = MaidrKey.X
+    ) -> Optional[List[float]]:
+        """
+        Where on the axis the labels ``extract_level`` returns are drawn.
+
+        A caller that has its own idea of what the axis positions mean -- a
+        heatmap, which knows where its own cells sit -- can only check the
+        ticks against it by knowing where they are. Kept beside
+        ``extract_level`` and filtered by the same rule, so the two answers
+        stay index-aligned however that rule changes (#526).
+
+        Parameters
+        ----------
+        ax : Axes
+            The axes to read.
+        key : MaidrKey
+            Which axis, ``X`` or ``Y``.
+
+        Returns
+        -------
+        list of float or None
+            One position per label, or ``None`` for a key that has none.
+        """
+        if ax is None or key not in (MaidrKey.X, MaidrKey.Y):
+            return None
+
+        if MaidrKey.X == key:
+            ticks = ax.get_xticks()
+            span = ax.dataLim.width if hasattr(ax, "dataLim") else 0
+            low = ax.dataLim.x0 if span else None
+        else:
+            ticks = ax.get_yticks()
+            span = ax.dataLim.height if hasattr(ax, "dataLim") else 0
+            low = ax.dataLim.y0 if span else None
+
+        if low is None or span == 0:
+            return [float(tick) for tick in ticks]
+        return [float(tick) for tick in ticks if low <= tick <= low + span]
+
+    @staticmethod
     def extract_level(ax: Axes, key: MaidrKey = MaidrKey.X) -> Optional[List[str]]:
         """Retrieve label texts from Axes based on the specified Maidr key."""
         if ax is None:
