@@ -16,6 +16,10 @@ from maidr.util.mixin import (
     ScalarMappableExtractorMixin,
 )
 
+#: Key the patch passes the artist its own call drew under. Named like
+#: ``scatterplot.DRAWN_POINTS`` and read the same way.
+DRAWN_GRID = "_maidr_grid"
+
 
 class HeatPlot(
     MaidrPlot, LevelExtractorMixin, ScalarMappableExtractorMixin, DictMergerMixin
@@ -23,6 +27,22 @@ class HeatPlot(
     def __init__(self, ax: Axes, **kwargs) -> None:
         self._z_label = kwargs.pop("z_label", "Z")
         self._fmt = kwargs.pop("fmt", "")
+        # The grid this layer's own call drew, when the patch could say.
+        # `None` falls back to searching the axes, which resolves *per axes*
+        # and so hands every heatmap on one axes the same artist: two
+        # `ax.pcolormesh()` calls were both announced with the first mesh's
+        # values, the second chart's numbers appearing nowhere and nothing
+        # raising (#527).
+        #
+        # Guarded on the type rather than on presence, the way
+        # `ScatterPlot._own_points` is: `seaborn.heatmap` is patched through
+        # the same wrapper and returns an `Axes`, not the mesh.
+        own_grid = kwargs.pop(DRAWN_GRID, None)
+        self._own_grid = (
+            own_grid
+            if isinstance(own_grid, (QuadMesh, PolyQuadMesh, AxesImage))
+            else None
+        )
         super().__init__(ax, PlotType.HEAT)
 
     def render(self) -> dict:
@@ -47,7 +67,14 @@ class HeatPlot(
         return axes_data
 
     def _extract_plot_data(self) -> dict:
-        plot = self.extract_scalar_mappable(self.ax)
+        # The artist this layer was registered for, not whichever one a search
+        # of the axes turns up first. `extract_scalar_mappable` resolves per
+        # axes and therefore cannot tell two meshes apart -- it is still the
+        # fallback, for a producer that registers a heatmap without saying
+        # which artist drew it.
+        plot = self._own_grid
+        if plot is None:
+            plot = self.extract_scalar_mappable(self.ax)
         data = self._extract_scalar_mappable_data(plot)
 
         if data is None:

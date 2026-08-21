@@ -9,10 +9,56 @@ from matplotlib.axes import Axes
 from matplotlib.collections import Collection
 from matplotlib.image import AxesImage
 
+from matplotlib.collections import PolyQuadMesh, QuadMesh
+
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.heatmap import DRAWN_GRID
 from maidr.patch.common import _draw_quietly, wrap_seaborn
+
+
+def _grid_of(plot, ax: Axes | None):
+    """
+    The mesh or image a call drew, if it can be had.
+
+    Preferring the return value is the whole point: a layer that looks its
+    artist up from the axes later resolves *per axes*, so two heatmaps drawn
+    on one axes both read the first one's values (#527).
+
+    The fallback takes the **last** grid rather than the first, which is where
+    it parts company with ``extract_scalar_mappable``. That helper answers
+    "which artist is this axes' heatmap", and reasonably says the first; this
+    one answers "which artist did the call that is registering right now
+    draw", and matplotlib appends artists in draw order -- measured, a second
+    ``pcolormesh`` on the same axes arrives after the first in
+    ``get_children()``, and ``seaborn.heatmap`` beside an existing mesh leaves
+    its own last, carrying its own values.
+
+    Parameters
+    ----------
+    plot : Any
+        Whatever the patched function returned. ``Axes.imshow`` returns an
+        ``AxesImage``, ``Axes.pcolormesh`` a ``QuadMesh``, ``Axes.pcolor`` a
+        ``PolyQuadMesh``, and ``seaborn.heatmap`` the axes.
+    ax : Axes or None
+        The axes drawn on.
+
+    Returns
+    -------
+    QuadMesh or PolyQuadMesh or AxesImage or None
+        The grid, or ``None`` when neither the return value nor the axes
+        offers one.
+    """
+    grids = (QuadMesh, PolyQuadMesh, AxesImage)
+    if isinstance(plot, grids):
+        return plot
+    drawn = [
+        artist
+        for artist in (getattr(ax, "get_children", list)() or ())
+        if isinstance(artist, grids)
+    ]
+    return drawn[-1] if drawn else None
 
 
 def _declares_fmt(wrapped: Callable) -> bool:
@@ -111,6 +157,7 @@ def heat(wrapped, _, args, kwargs) -> Axes | AxesImage | Collection:
 
     # Extract the heatmap data points for MAIDR from the plots.
     ax = FigureManager.get_axes(plot)
+    optional_params[DRAWN_GRID] = _grid_of(plot, ax)
     FigureManager.create_maidr(ax, PlotType.HEAT, **optional_params)
 
     # Return to the caller.

@@ -15,6 +15,7 @@ import uuid
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.histogram import DRAWN_BARS
 from maidr.core.plot.stepped_histogram import reads as _reads_outline
 from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
 
@@ -41,7 +42,10 @@ def mpl_hist(
 
     # Extract the histogram data points for MAIDR from the plots.
     ax = FigureManager.get_axes(plot)
-    FigureManager.create_maidr(ax, PlotType.HIST)
+    # Hand the layer the container this call drew. Without it the layer looks
+    # one up from the axes, and every histogram on one axes resolves to the
+    # first -- two `ax.hist()` calls both announced the first one's bins.
+    FigureManager.create_maidr(ax, PlotType.HIST, **{DRAWN_BARS: plot})
 
     # Return to the caller.
     return n, bins, plot
@@ -63,6 +67,45 @@ def _containers_of(ax: Axes | None) -> list:
     into one.
     """
     return list(getattr(ax, "containers", ()) or ())
+
+
+def _new_bar_container(ax: Axes | None, before: list) -> BarContainer | None:
+    """
+    The ``BarContainer`` a call just added to an axes, if it added one.
+
+    Compared by identity against the snapshot. Not because value comparison
+    would be wrong -- measured, two containers over identical data compare
+    **unequal**, because ``BarContainer`` extends ``tuple`` over ``Rectangle``
+    artists and those compare by identity -- but because "is this the same
+    object" is the question actually being asked, and it cannot become wrong
+    if matplotlib ever gives the container value semantics.
+
+    The **first** new one when a call added several, which is what
+    ``extract_container`` answers and so what the fallback would have found.
+    Agreement is the only reason to prefer it: the choice is unobservable on
+    every input that reaches here, because a call adding several containers is
+    a hue-grouped ``histplot``, whose groups share one binning -- measured,
+    first and last give the same bin edges and the same reading.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes drawn on.
+    before : list
+        The containers the axes held before the call, by reference.
+
+    Returns
+    -------
+    BarContainer or None
+        The container this call added, or ``None`` when it added none.
+    """
+    added = [
+        container
+        for container in (getattr(ax, "containers", ()) or ())
+        if isinstance(container, BarContainer)
+        and not any(container is seen for seen in before)
+    ]
+    return added[0] if added else None
 
 
 def _drew_bars(plot: Any, before: list) -> bool:
@@ -117,11 +160,7 @@ def _drew_bars(plot: Any, before: list) -> bool:
         return False
     if ax is None or not ax.containers:
         return False
-    return any(
-        isinstance(container, BarContainer)
-        and not any(container is seen for seen in before)
-        for container in ax.containers
-    )
+    return _new_bar_container(ax, before) is not None
 
 
 def _meshes_of(ax: Axes | None) -> list:
@@ -328,8 +367,24 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
             )
         return drawn
 
-    # Register the histogram as HIST as before
-    ax = common(PlotType.HIST, lambda *a, **k: drawn, instance, args, kwargs)
+    # Register the histogram as HIST as before, naming the container this
+    # call drew. Passed through `kwargs` the way the SMOOTH registration below
+    # passes `regression_line`. Without it the layer searches the axes and
+    # every histogram on one axes resolves to the first -- a `histplot` drawn
+    # beside an `ax.hist()` announced the matplotlib call's bins.
+    #
+    # Looked up on the *drawn* axes rather than the prospective one, which is
+    # None whenever the caller did not pass `ax=`. `before` is then empty and
+    # every container reads as new, but the answer is still the newest one,
+    # which is still this call's.
+    drawn_axes = FigureManager.get_axes(drawn)
+    ax = common(
+        PlotType.HIST,
+        lambda *a, **k: drawn,
+        instance,
+        args,
+        dict(kwargs, **{DRAWN_BARS: _new_bar_container(drawn_axes, before)}),
+    )
     # Only register KDE overlay as SMOOTH if kde=True was set
     kde_enabled = kwargs.get("kde", False)
     if kde_enabled:
@@ -395,8 +450,11 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
         drawn = _draw_quietly(wrapped, args, kwargs)
 
     for ax in plotter_axes(instance):
-        if _drew_bars(ax, before.get(id(ax), [])):
-            FigureManager.create_maidr(ax, PlotType.HIST)
+        seen = before.get(id(ax), [])
+        if _drew_bars(ax, seen):
+            FigureManager.create_maidr(
+                ax, PlotType.HIST, **{DRAWN_BARS: _new_bar_container(ax, seen)}
+            )
 
     return drawn
 
