@@ -11,6 +11,7 @@ from maidr.core.plot.boxenplot import BoxenPlot
 from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.contour import ContourPlot
 from maidr.core.plot.errorbar import ErrorBarPlot
+from maidr.core.plot.eventplot import DRAWN_EVENTS, EventPlot
 from maidr.core.plot.gantt import GanttPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
@@ -115,6 +116,12 @@ class MaidrPlotFactory:
         elif PlotType.PIE == plot_type:
             return PiePlot(single_ax, **kwargs)
         elif PlotType.SCATTER == plot_type:
+            # An event plot's row is a scatter of positions, but it arrives as
+            # an `EventCollection` rather than a `PathCollection` and keeps its
+            # values in `get_positions()` rather than in offsets, so it reads
+            # through a class of its own under the same type (#548).
+            if kwargs.get(DRAWN_EVENTS) is not None:
+                return EventPlot(single_ax, **kwargs)
             return ScatterPlot(single_ax, **kwargs)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
             return GroupedBarPlot(single_ax, plot_type, **kwargs)
