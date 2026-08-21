@@ -280,3 +280,118 @@ def test_every_selector_names_an_element_of_its_own_row():
     # Two rows, two groups: a single shared group would mean both layers were
     # addressing the same elements while announcing different events.
     assert len(groups) == 2
+
+
+def test_named_rows_survive_a_non_default_spacing():
+    """
+    A row is looked up by its own offset, not by its place in the list.
+
+    The two are the same only at the default spacing.
+    ``ax.eventplot(rows, lineoffsets=2)`` puts the second row at 2.0 --
+    measured, ``get_lineoffset()`` returns 0 and 2 -- so a lookup by index
+    asks the axis about 1.0, finds nothing, and silently drops a name the
+    caller set explicitly. Every coordinate stays right while the layer goes
+    unnamed, which is the kind of gap no assertion about the data would see.
+    """
+    fig, ax = plt.subplots()
+    ax.set_yticks([0, 2], ["neuron A", "neuron B"])
+    ax.eventplot(ROWS, lineoffsets=2)
+
+    layers = _layers(fig)
+
+    assert [layer.get(MaidrKey.NAME) for layer in layers] == [
+        "neuron A",
+        "neuron B",
+    ]
+    assert _points(layers[1]) == [(2.0, 2.0), (5.0, 2.0)]
+
+
+def test_a_row_holding_a_missing_value_still_reads():
+    """
+    One non-finite value must not take the chart down.
+
+    ``EventCollection.get_positions()`` **raises** on such a row: matplotlib
+    gives a non-finite event a degenerate segment of shape ``(0,)`` and
+    ``get_positions`` indexes it as ``segment[0, pos]``.
+
+        ax.eventplot([[2.0, float("nan"), 5.0]])
+        coll.get_segments()   # [(2, 2), (2, 2), (0,)]
+        coll.get_positions()  # IndexError
+
+    So reading the artist the convenient way would turn a chart that draws
+    today into one that raises inside the caller's own plotting call --
+    which is why the reader works off ``get_segments()`` instead.
+    """
+    fig, ax = plt.subplots()
+    drawn = ax.eventplot([[2.0, float("nan"), 5.0]])
+
+    layers = _layers(fig)
+
+    # The offset is read off the artist rather than written down: matplotlib
+    # places a lone row at 1.0 and a pair at 0.0 and 1.0, and this test is
+    # about the missing value, not about that.
+    offset = float(drawn[0].get_lineoffset())
+
+    assert len(layers) == 1
+    assert _points(layers[0]) == [(2.0, offset), (5.0, offset)]
+
+
+def test_a_missing_value_leaves_an_element_the_reader_is_never_sent_to():
+    """
+    The document holds a mark for the value that was dropped, and no
+    announced event is addressed to it.
+
+    Measured, matplotlib writes one ``<path>`` per *segment* including the
+    degenerate one -- three paths for two drawable events -- and it **sorts**
+    the row, putting the non-finite value last:
+
+        ax.eventplot([[5.0, float("nan"), 2.0]])
+        segments      [(2, 2), (2, 2), (0,)]
+        first coords  2.0, 5.0, None
+
+    So the surplus element is at the end here rather than in the middle, and
+    the two announced events happen to be elements one and two. That is the
+    ordering this asserts, together with the count -- because what must hold
+    is that every selector names the element of the event it announces, and
+    a reading that numbered its own points from one would be right in this
+    layout and wrong the moment matplotlib stopped sorting.
+
+    The announced order is the sorted order, which is also worth knowing: the
+    reader walks the row left to right, not in the order the caller wrote.
+    """
+    fig, ax = plt.subplots()
+    ax.eventplot([[5.0, float("nan"), 2.0]])
+    html = str(maidr.render(fig).get_html_string())
+
+    layer = _layers(fig)[0]
+    selectors = layer[MaidrKey.SELECTOR]
+
+    assert [point[MaidrKey.X] for point in layer[MaidrKey.DATA]] == [2.0, 5.0]
+    assert len(selectors) == 2
+
+    positions = [
+        int(re.search(r"nth-of-type\((\d+)\)", selector).group(1))
+        for selector in selectors
+    ]
+    assert positions == [1, 2]
+
+    # One element more than there are events: the dropped value kept its slot.
+    gid = selectors[0].split("'")[1]
+    assert _paths_in(html, gid) == 3
+
+
+def test_a_row_of_only_missing_values_is_not_a_layer():
+    """
+    Nothing drawable is nothing to announce, however it came to be empty.
+
+    A row given no events and a row whose every event is non-finite differ in
+    the artist -- no segments against degenerate ones -- and neither has
+    anything for a reader to walk into (#421).
+    """
+    fig, ax = plt.subplots()
+    ax.eventplot([[float("nan"), float("nan")], ROWS[0]])
+
+    layers = _layers(fig)
+
+    assert len(layers) == 1
+    assert len(layers[0][MaidrKey.DATA]) == 3

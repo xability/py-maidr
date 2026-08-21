@@ -11,7 +11,9 @@ from maidr.core.plot.eventplot import DRAWN_EVENTS, EVENT_ROW_LABEL, reads
 from maidr.patch.common import _draw_quietly
 
 
-def _row_labels(ax: Axes, horizontal: bool, rows: int) -> list[str | None]:
+def _row_labels(
+    ax: Axes, horizontal: bool, rows: list[EventCollection]
+) -> list[str | None]:
     """
     The name each row has on the axis it is stacked along, where it has one.
 
@@ -21,14 +23,22 @@ def _row_labels(ax: Axes, horizontal: bool, rows: int) -> list[str | None]:
     afterwards gets the numbers; that is the same ordering the legend title
     is read under, and it is pre-existing rather than introduced here.
 
+    Each row is looked up by **its own offset** rather than by its place in
+    the list, because the two are the same only at the default spacing.
+    ``ax.eventplot(rows, lineoffsets=2)`` puts the second row at 2.0, so a
+    lookup by index asks the axis about 1.0, finds nothing, and silently
+    drops a name the caller set explicitly. Asked of the collection rather
+    than recomputed from ``lineoffsets``, which is the artist's own answer
+    and needs no assumption about how a scalar is broadcast.
+
     Parameters
     ----------
     ax : Axes
         The axes drawn on.
     horizontal : bool
         Whether the events run along x, which puts the rows on y.
-    rows : int
-        How many rows the call drew.
+    rows : list of EventCollection
+        The rows the call drew.
 
     Returns
     -------
@@ -41,10 +51,13 @@ def _row_labels(ax: Axes, horizontal: bool, rows: int) -> list[str | None]:
         for position, text in zip(axis.get_ticklocs(), axis.get_ticklabels())
         if text.get_text()
     }
-    return [_a_name(names.get(float(index)), index) for index in range(rows)]
+    return [
+        _a_name(names.get(float(row.get_lineoffset())), row.get_lineoffset())
+        for row in rows
+    ]
 
 
-def _a_name(text: str | None, index: int) -> str | None:
+def _a_name(text: str | None, offset: float) -> str | None:
     """
     The tick's text, unless it is only the row's own number.
 
@@ -62,8 +75,8 @@ def _a_name(text: str | None, index: int) -> str | None:
     ----------
     text : str or None
         Whatever the tick says, or None where there is no tick.
-    index : int
-        The row's offset.
+    offset : float
+        Where the row sits on the axis it is stacked along.
 
     Returns
     -------
@@ -75,7 +88,7 @@ def _a_name(text: str | None, index: int) -> str | None:
     try:
         # `\u2212` is the minus sign matplotlib's default formatter writes,
         # which `float` does not accept.
-        if float(text.replace("\u2212", "-")) == float(index):
+        if float(text.replace("\u2212", "-")) == float(offset):
             return None
     except ValueError:
         return text
@@ -120,7 +133,7 @@ def eventplot(wrapped, instance, args, kwargs) -> list[EventCollection]:
     ax = FigureManager.get_axes(rows[0])
     kwargs.pop("ax", None)
     horizontal = rows[0].get_orientation() == "horizontal"
-    labels = _row_labels(ax, horizontal, len(rows))
+    labels = _row_labels(ax, horizontal, rows)
 
     # A row with no events is skipped rather than registered empty, so the
     # reader is not offered a layer to walk into and find nothing (#421). The

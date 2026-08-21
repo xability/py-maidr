@@ -20,14 +20,77 @@ DRAWN_EVENTS = "_maidr_events"
 EVENT_ROW_LABEL = "_maidr_event_row"
 
 
+def events(collection: EventCollection) -> list[tuple[int, float]]:
+    """
+    The events a row actually drew, each with its place among the row's marks.
+
+    Read from ``get_segments()`` rather than from ``get_positions()``, which
+    **raises** on any row holding a non-finite value. matplotlib gives a
+    non-finite event a degenerate segment of shape ``(0,)`` and
+    ``get_positions`` indexes it as ``segment[0, pos]``:
+
+        ax.eventplot([[2.0, float("nan"), 5.0]])
+        coll.get_segments()   # [(2, 2), (2, 2), (0,)]
+        coll.get_positions()  # IndexError: too many indices for array
+
+    So a single missing value in an otherwise ordinary row is enough, and
+    asking the artist the convenient way would turn a chart that draws today
+    into one that raises.
+
+    Two indices come back because they are not the same one. The float is the
+    event's position; the integer is its place among the row's *segments*,
+    which is what the SVG is numbered by -- measured, matplotlib writes one
+    ``<path>`` per segment including the degenerate ones, so a row with three
+    segments has three elements whether or not all three were drawable.
+
+    They cannot currently disagree, and that is worth stating rather than
+    implying. ``EventCollection.set_positions`` sorts with ``np.sort``, which
+    puts every non-finite value last, so a degenerate segment never precedes
+    a drawable one and numbering the announced points from one would give the
+    same answer. The segment index is kept anyway: it is what the document is
+    actually numbered by, and it is the version that stays right on the day
+    that sort changes. No test separates the two, because no chart can.
+
+    The sort also decides the reading order. A row is announced left to
+    right, not in the order the caller wrote it.
+
+    Parameters
+    ----------
+    collection : EventCollection
+        One row of the chart.
+
+    Returns
+    -------
+    list of (int, float)
+        The segment index and position of every drawable event, in order.
+    """
+    along = 0 if collection.get_orientation() == "horizontal" else 1
+
+    drawn = []
+    for index, segment in enumerate(collection.get_segments()):
+        marks = np.asarray(segment)
+        if marks.ndim != 2 or marks.shape[0] == 0:
+            # A non-finite event. matplotlib drew no line for it, so there is
+            # nothing to announce and nothing a reader could be shown -- and
+            # emitting it would put `NaN` in the payload, which `JSON.parse`
+            # rejects outright and which stops the chart initialising (#427).
+            continue
+        position = float(marks[0, along])
+        if math.isfinite(position):
+            drawn.append((index, position))
+    return drawn
+
+
 def reads(collection: EventCollection) -> bool:
     """
     Whether a row has anything to announce.
 
     An event plot drawn from an empty row -- ``ax.eventplot([[], times])`` --
-    produces a collection with no positions. Registering it would put a layer
-    with no points in the schema for a reader to walk into and find nothing,
-    which is the phantom-layer shape of #421.
+    produces a collection with no segments, and one whose every value is
+    non-finite produces only degenerate ones. Either way there is nothing to
+    announce, and registering it would put a layer with no points in the
+    schema for a reader to walk into and find nothing, which is the
+    phantom-layer shape of #421.
 
     Parameters
     ----------
@@ -39,7 +102,7 @@ def reads(collection: EventCollection) -> bool:
     bool
         True when the row drew at least one event.
     """
-    return len(np.asarray(collection.get_positions())) > 0
+    return len(events(collection)) > 0
 
 
 class EventPlot(MaidrPlot):
@@ -110,27 +173,21 @@ class EventPlot(MaidrPlot):
         if self._collection is None:
             return []
 
-        positions = [
-            float(position)
-            for position in np.asarray(self._collection.get_positions()).ravel()
-        ]
+        drawn = events(self._collection)
         offset = float(self._collection.get_lineoffset())
         horizontal = self._collection.get_orientation() == "horizontal"
 
-        # A non-finite position is not drawn -- there is nowhere to put it --
-        # so emitting one would leave the layer with more entries than the
-        # selector resolves to elements, and every event after it would be
-        # highlighted at its neighbour's tick (#429). It also keeps the
-        # payload loadable: `json.dumps` writes `NaN` as a bare token, which
-        # `JSON.parse` rejects (#427).
-        drawn = [position for position in positions if math.isfinite(position)]
-        self._drawn = len(drawn)
+        # Kept so `_get_selector` can name each announced event's own element
+        # rather than counting from one: a row holding a non-finite value has
+        # more segments than points, and numbering the points would put every
+        # highlight after the gap on its neighbour's tick (#429).
+        self._marks = [index for index, _ in drawn]
 
         if horizontal:
             return [
-                {MaidrKey.X: position, MaidrKey.Y: offset} for position in drawn
+                {MaidrKey.X: position, MaidrKey.Y: offset} for _, position in drawn
             ]
-        return [{MaidrKey.X: offset, MaidrKey.Y: position} for position in drawn]
+        return [{MaidrKey.X: offset, MaidrKey.Y: position} for _, position in drawn]
 
     def _extract_axes_data(self) -> dict:
         """
@@ -177,5 +234,5 @@ class EventPlot(MaidrPlot):
 
         return [
             f"g[id='{gid}'] > path:nth-of-type({index + 1})"
-            for index in range(getattr(self, "_drawn", 0))
+            for index in getattr(self, "_marks", [])
         ]
