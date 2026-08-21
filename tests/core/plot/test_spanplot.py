@@ -191,6 +191,26 @@ def test_a_lane_drawn_twice_in_a_row_keeps_its_highlighting():
     assert len(schema["selectors"]) == 1
 
 
+@pytest.mark.parametrize("draw", ["acorr", "xcorr"])
+def test_a_correlogram_registers_nothing(draw):
+    # These draw through `vlines`, so they inherit whatever their segments
+    # say -- and every one of them runs from the baseline to the
+    # correlation, which is the lollipop shape. Pinned because the reading
+    # reaches them without either function being patched.
+    import numpy as np
+
+    # Long enough for the default `maxlags=10`, and deterministic.
+    first = np.sin(np.arange(40, dtype=float))
+    fig, ax = plt.subplots()
+    if draw == "acorr":
+        ax.acorr(first)
+    else:
+        ax.xcorr(first, first[::-1])
+
+    assert _layers(fig) == []
+    assert len(maidr.render(fig)._repr_html_()) > 0
+
+
 def test_broken_barh_still_reads_as_it_did():
     # The other call that draws this chart, and the one `GanttPlot` is shaped
     # for. Both emit the same layer; only the artist they hand over differs.
