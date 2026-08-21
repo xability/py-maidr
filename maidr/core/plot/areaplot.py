@@ -57,6 +57,61 @@ class AreaPlot(MaidrPlot):
         self._series = list(kwargs.pop("series", []))
         self._labels = list(kwargs.pop("labels", []))
         self._collections = list(kwargs.pop("collections", []))
+        # `fill_betweenx` draws the same band with the axes exchanged: the
+        # positions run down the page and the magnitudes out along x. The
+        # numbers still go into the fields the trace reads them from -- see
+        # `render` for why the titles move instead of the data.
+        self._transposed = bool(kwargs.pop("transposed", False))
+
+    def render(self) -> dict:
+        """
+        Build the layer, exchanging the two axis titles for a sideways band.
+
+        `fill_betweenx(y, x1)` fills between the vertical positions `y` and
+        the horizontal curve `x1`, so its positions belong to the y axis and
+        its magnitudes to the x axis -- the mirror of every other chart this
+        class reads. Emitted unchanged, the two spellings produced byte-
+        identical payloads for charts that are transposes of each other, and
+        every number was announced under the other axis' title (#566).
+
+        The **titles** move rather than the data, which is deliberate twice
+        over:
+
+        - the core sonifies an area trace's `y` and steps along its `x`, so
+          putting the positions in `y` would pitch `[1, 2, 3, 4]` -- a rising
+          ramp on every sideways band ever drawn, whatever the data says;
+        - `orientation` is the field that says a chart is drawn sideways, and
+          `src/util/orientation.ts` marks `AREA` as not oriented on purpose,
+          so emitting one would be a promise the core does not keep.
+
+        The same exchange, for the same reason, is what the core's Vega-Lite
+        adapter does to a horizontal waterfall.
+
+        What it does not fix is navigation: left and right still walk the
+        trace's `x`, which for a sideways band is the vertical axis. That is
+        what `orientation` would carry, and it cannot be said for an area
+        trace today.
+
+        Returns
+        -------
+        dict
+            The layer, with `axes.x` and `axes.y` exchanged when the band was
+            drawn sideways.
+        """
+        maidr_schema = super().render()
+
+        if not self._transposed:
+            return maidr_schema
+
+        # After `super().render()` rather than in `_extract_axes_data`,
+        # because the format config is merged into each `AxisConfig` there: a
+        # currency formatter set on the x axis describes the horizontal
+        # numbers, which are the ones this moves.
+        axes = maidr_schema.get(MaidrKey.AXES)
+        if isinstance(axes, dict) and MaidrKey.X in axes and MaidrKey.Y in axes:
+            axes[MaidrKey.X], axes[MaidrKey.Y] = axes[MaidrKey.Y], axes[MaidrKey.X]
+
+        return maidr_schema
 
     def _extract_plot_data(self) -> list[list[dict]]:
         if self._x is None or not self._series:

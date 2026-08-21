@@ -210,8 +210,17 @@ def test_fill_betweenx_is_the_same_chart_turned_over():
     is the same layer type -- and the arguments have to be read from their
     own parameter names rather than by position, since `x1` sits where `y1`
     does.
+
+    Which axis each number is *read against* does change, and that is the one
+    thing "turned over" costs: the two `AxisConfig` entries are exchanged, so
+    the positions are announced under the y axis' title and the magnitudes
+    under the x axis' (#566). The data stays where the trace sonifies it,
+    which is why the two assertions below are unchanged. See
+    `tests/core/plot/test_sideways_area.py`.
     """
     fig, ax = plt.subplots()
+    ax.set_xlabel("horizontal")
+    ax.set_ylabel("vertical")
     ax.fill_betweenx(X, Y)
 
     assert _layers(fig) == [PlotType.AREA]
@@ -219,6 +228,9 @@ def test_fill_betweenx_is_the_same_chart_turned_over():
     points = _layer(fig)["data"][0]
     assert [point["x"] for point in points] == X.tolist()
     assert [point["y"] for point in points] == Y.tolist()
+
+    axes = _layer(fig)["axes"]
+    assert (axes["x"]["label"], axes["y"]["label"]) == ("vertical", "horizontal")
 
 
 def test_a_stackplot_still_reads_as_a_stack():
