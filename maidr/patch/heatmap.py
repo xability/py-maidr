@@ -61,6 +61,40 @@ def _grid_of(plot, ax: Axes | None):
     return drawn[-1] if drawn else None
 
 
+def _is_colour_image(grid) -> bool:
+    """
+    Whether the artist holds a picture rather than a grid of values.
+
+    ``ax.imshow`` accepts three shapes: an ``(M, N)`` array of scalars, which
+    is a heatmap, and ``(M, N, 3)`` / ``(M, N, 4)`` arrays whose last axis is
+    **colour**. The last two are photographs and rendered images, and there is
+    no number per cell to announce -- no value, and nothing for the colourbar
+    the ``z`` axis describes to mean.
+
+    Registered as a heatmap they did not merely read badly, they killed the
+    figure: ``HeatPlot`` formats each cell with ``float(format(x, fmt))``, and
+    for a row of an RGB image ``x`` is a length-3 array, so ``render`` raised
+    ``ValueError: could not convert string to float: '[0.5 0.5 0.5]'`` and
+    took every other chart on the figure with it (#564).
+
+    Declining leaves the image drawn and unregistered, which is what
+    ``ax.quiver`` and ``ax.streamplot`` already do -- the figure renders, and
+    a bar chart beside the picture keeps working.
+
+    Parameters
+    ----------
+    grid : Any
+        The artist :func:`_grid_of` found, or None.
+
+    Returns
+    -------
+    bool
+        True when the artist's array carries colour rather than values.
+    """
+    array = getattr(grid, "get_array", lambda: None)()
+    return array is not None and getattr(array, "ndim", 0) >= 3
+
+
 def _declares_fmt(wrapped: Callable) -> bool:
     """
     Whether a patched function takes ``fmt`` as a parameter of its own.
@@ -128,7 +162,9 @@ def heat(wrapped, _, args, kwargs) -> Axes | AxesImage | Collection:
     Axes or AxesImage or Collection
         Whatever the wrapped function returned: an ``Axes`` from seaborn, an
         ``AxesImage`` from ``imshow``, or the mesh the two ``pcolor`` variants
-        render.
+        render. The draw always happens; the return is the same either way.
+        No layer is registered when the artist turns out to hold a colour
+        image rather than a grid of values -- see :func:`_is_colour_image`.
     """
     # `seaborn.heatmap` draws through `Axes.pcolormesh`, and both are patched
     # here. Without this guard the inner call registers a second HEAT layer for
@@ -157,7 +193,13 @@ def heat(wrapped, _, args, kwargs) -> Axes | AxesImage | Collection:
 
     # Extract the heatmap data points for MAIDR from the plots.
     ax = FigureManager.get_axes(plot)
-    optional_params[DRAWN_GRID] = _grid_of(plot, ax)
+    grid = _grid_of(plot, ax)
+
+    # An RGB or RGBA image is not a heatmap -- see `_is_colour_image`.
+    if _is_colour_image(grid):
+        return plot
+
+    optional_params[DRAWN_GRID] = grid
     FigureManager.create_maidr(ax, PlotType.HEAT, **optional_params)
 
     # Return to the caller.
