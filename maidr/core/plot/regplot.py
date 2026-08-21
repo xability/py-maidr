@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from matplotlib.axes import Axes
-from matplotlib.collections import PolyCollection
 from maidr.core.plot.maidr_plot import GROUP_NAME, MaidrPlot
 from maidr.exception.extraction_error import ExtractionError
 import numpy as np
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.util.resample_utils import resample_curve
+from maidr.util.confidence_band import band_edges_at
 from maidr.util.regression_line_utils import find_regression_line
 from maidr.util.svg_utils import (
     data_to_svg_coords,
@@ -168,23 +168,8 @@ class SmoothPlot(MaidrPlot):
         line was announced alone, so a reader was told the trend without being
         told how well determined it is.
 
-        Two things this does *not* do, each because measuring showed it wrong:
-
-        The ring is not walked positionally. seaborn shades the band with a
-        ``FillBetweenPolyCollection`` whose vertices run out along one edge and
-        back along the other; measured on a 100-sample fit, that is 203
-        vertices with individual x values appearing 2, 3 or 4 times, so a
-        position in the ring is not a fixed offset from either end. The edges
-        are recovered by taking the lowest and highest vertex at each x, which
-        is exact and needs nothing assumed about orientation.
-
-        And the result is *interpolated* rather than looked up. The curve is
-        thinned before it is emitted, and the thinning resamples to evenly
-        spaced positions rather than selecting a subset -- measured, only the
-        two endpoints of a 30-point output were among the band's own x values.
-        A lookup would therefore have attached bounds to 2 points and left 28
-        silently bare. Interpolating between vertices is also what matplotlib
-        does to draw the band, so it reads the same shape the reader sees.
+        The reading lives in :mod:`maidr.util.confidence_band`, which a plain
+        line now shares (#562); every measurement behind it is recorded there.
 
         Parameters
         ----------
@@ -200,75 +185,5 @@ class SmoothPlot(MaidrPlot):
             Lower and upper bounds at each x, or ``(None, None)`` when the
             chart draws no band (``ci=None``).
         """
-        for collection in self.ax.collections:
-            # Every shaded region is a candidate, and the bracketing test in
-            # `_edges_of` decides. Filtering on `FillBetweenPolyCollection`
-            # first looks tighter and is not portable: matplotlib split that
-            # subclass out of `PolyCollection` in 3.10, so on an older one --
-            # which the Python 3.9 floor still resolves to -- no band exists by
-            # that name and every regression silently lost its interval.
-            if not isinstance(collection, PolyCollection):
-                continue
-            bounds = self._edges_of(collection, x_data, y_data)
-            if bounds is not None:
-                return bounds
-        return None, None
-
-    def _edges_of(self, collection, x_data, y_data):
-        """
-        Read one shaded region's edges, if it is this fit's band.
-
-        A type test cannot identify it, which is why this exists. seaborn
-        draws a **violin body** with ``fill_betweenx``, so a violin is the same
-        class as a band however that class is spelled, and reading its outline
-        would announce a distribution's silhouette as a regression's
-        uncertainty. ``FillBetweenPolyCollection`` does not help either: it is
-        the subclass matplotlib 3.10 split out, absent on the older matplotlib
-        the Python 3.9 floor resolves to.
-
-        So the reading validates itself: a region is this fit's band only if it
-        brackets every fitted sample. That is the property a confidence band
-        has by construction and an unrelated shaded region does not, and it is
-        cheaper and less brittle than trying to match seaborn's artists to each
-        other.
-
-        Parameters
-        ----------
-        collection : matplotlib.collections.PolyCollection
-            A shaded region on these axes.
-        x_data : numpy.ndarray
-            The x positions the curve is emitted at.
-        y_data : numpy.ndarray
-            The fitted values at those positions.
-
-        Returns
-        -------
-        tuple or None
-            Lower and upper bounds at each x, or None when this region is not
-            this fit's band.
-        """
-        by_x: dict[float, tuple[float, float]] = {}
-        for path in collection.get_paths():
-            for x, y in path.vertices:
-                if not (np.isfinite(x) and np.isfinite(y)):
-                    continue
-                key = float(x)
-                low, high = by_x.get(key, (float(y), float(y)))
-                by_x[key] = (min(low, float(y)), max(high, float(y)))
-
-        if len(by_x) < 2:
-            return None
-
-        band_x = np.array(sorted(by_x))
-        lower = np.interp(x_data, band_x, np.array([by_x[x][0] for x in band_x]))
-        upper = np.interp(x_data, band_x, np.array([by_x[x][1] for x in band_x]))
-
-        # `np.interp` clamps outside the region's own x range, so a region that
-        # does not span the fit would still return numbers -- the bracketing
-        # test is what rejects it, not the interpolation.
-        tolerance = 1e-9
-        if not np.all(
-            (lower <= y_data + tolerance) & (y_data - tolerance <= upper)
-        ):
-            return None
+        lower, upper, _ = band_edges_at(self.ax, x_data, y_data)
         return lower, upper
