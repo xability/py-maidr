@@ -16,6 +16,7 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.histogram import DRAWN_BARS
+from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, STEP_ORIENTATION
 from maidr.core.plot.stepped_histogram import reads as _reads_outline
 from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
 
@@ -56,17 +57,65 @@ def mpl_hist(
     # announced are right either way; only the fact that they are stacked is
     # not said, which is the reading `stacked_bar` would add.
     #
-    # Nothing is registered where there is no container to read. That is the
-    # `histtype="step"` and `"stepfilled"` case: both draw a `Polygon` per
-    # dataset and leave `ax.containers` empty, so the layer registered for
-    # them raised `ExtractionError` at render and took the figure with it.
-    # Declining is not the same as reading it -- filed as #555 -- but a chart
-    # that falls back to a picture beats one that dies.
-    for container in _drawn_containers(plot):
-        FigureManager.create_maidr(ax, PlotType.HIST, **{DRAWN_BARS: container})
+    containers = _drawn_containers(plot)
+    if containers:
+        for container in containers:
+            FigureManager.create_maidr(ax, PlotType.HIST, **{DRAWN_BARS: container})
+        return plot
+
+    # No container to read means `histtype="step"` or `"stepfilled"`, which
+    # draw a `Polygon` per dataset. Nothing has to be recovered from the
+    # outline: `n` and `bins` above *are* the counts and the edges, so they
+    # are handed over and `StepHistPlot` reads them (#555).
+    #
+    # One layer per dataset here too, for the same reason the container branch
+    # emits one: a multi-dataset call returns a list of count arrays, and
+    # reading one would announce a single distribution and drop the rest.
+    for counts in _step_counts(n):
+        FigureManager.create_maidr(
+            ax,
+            PlotType.HIST,
+            **{
+                STEP_COUNTS: counts,
+                STEP_EDGES: bins,
+                # Read from the caller's kwargs because the `Polygon` a step
+                # histtype draws records nothing about it, unlike the
+                # `BarContainer` the bar histtypes leave.
+                STEP_ORIENTATION: kwargs.get("orientation"),
+            },
+        )
 
     # Return to the caller.
     return n, bins, plot
+
+
+def _step_counts(n: Any) -> list:
+    """
+    The per-dataset count arrays one ``Axes.hist`` call produced.
+
+    ``n`` is a flat array of counts for a single dataset and a list of them
+    for several, which is the same shape split the third return value has --
+    so the two branches of the patch stay symmetrical rather than one of them
+    quietly reading only the first distribution.
+
+    Told apart by the *elements* rather than by the container's type: both
+    forms are array-like, and both have a length. A first element that is
+    itself a sequence is what says the call was given several datasets.
+
+    Parameters
+    ----------
+    n : Any
+        The first element of what ``Axes.hist`` returned.
+
+    Returns
+    -------
+    list
+        One count array per dataset, possibly empty.
+    """
+    counts = list(n) if n is not None and len(n) else []
+    if counts and hasattr(counts[0], "__len__"):
+        return counts
+    return [counts] if counts else []
 
 
 def _drawn_containers(plot: Any) -> list:

@@ -68,20 +68,48 @@ class StairsPlot(HistPlot):
             "horz" if self._step_patch.orientation == "horizontal" else "vert"
         )
 
-        data = []
-        for index, value in enumerate(values):
-            low = float(edges[index])
-            high = float(edges[index + 1])
-            # A bin with no position is nowhere to navigate to, and a bare
-            # `NaN` or `Infinity` in the payload is not JSON -- `JSON.parse`
-            # rejects the whole schema and the chart never initialises (#427).
-            if not (math.isfinite(low) and math.isfinite(high)):
-                continue
-            data.append(
-                self._bin_point(self._orientation, low, high - low, _reading(value))
-            )
+        return bins_to_points(self._orientation, values, edges)
 
-        return data
+
+def bins_to_points(orientation: str, values: Any, edges: Any) -> list[dict]:
+    """
+    One point per bin, from a pair of counts and edges.
+
+    Shared by every spelling of a pre-binned histogram that hands its numbers
+    over rather than leaving a ``BarContainer`` to find: ``Axes.stairs``, which
+    keeps them on its ``StepPatch``, and ``Axes.hist(histtype="step")``, whose
+    counts and edges are the first two things it returns (#555). Both draw the
+    same chart as one outline, and reading them through one function is what
+    keeps them announcing it identically.
+
+    Parameters
+    ----------
+    orientation : str
+        ``"horz"`` when the bins run up the y axis, ``"vert"`` otherwise.
+    values : Any
+        One count per bin.
+    edges : Any
+        One more edge than there are counts, in bin order.
+
+    Returns
+    -------
+    list of dict
+        One point per bin, in the order the bins were given.
+    """
+    data = []
+    for index, value in enumerate(values):
+        low = float(edges[index])
+        high = float(edges[index + 1])
+        # A bin with no position is nowhere to navigate to, and a bare
+        # `NaN` or `Infinity` in the payload is not JSON -- `JSON.parse`
+        # rejects the whole schema and the chart never initialises (#427).
+        if not (math.isfinite(low) and math.isfinite(high)):
+            continue
+        data.append(
+            HistPlot._bin_point(orientation, low, high - low, _reading(value))
+        )
+
+    return data
 
 
 def _reading(value: Any) -> float | None:

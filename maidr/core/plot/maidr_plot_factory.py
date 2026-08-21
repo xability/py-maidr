@@ -25,6 +25,7 @@ from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
 from maidr.core.plot.stairs import StairsPlot
 from maidr.core.plot.stepped_histogram import SteppedHistPlot
+from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, StepHistPlot
 from maidr.core.plot.stepplot import StepPlot
 from maidr.core.plot.violin_kde_plot import ViolinKdePlot
 from maidr.core.plot.violin_box_plot import ViolinBoxPlot
@@ -105,6 +106,13 @@ class MaidrPlotFactory:
             # find and the call hands its `PolyCollection` over instead.
             if isinstance(kwargs.get("collection"), PolyCollection):
                 return SteppedHistPlot(single_ax, **kwargs)
+            # `ax.hist(histtype="step"/"stepfilled")` draws a `Polygon` per
+            # dataset and leaves no container either, so the call hands over
+            # the counts and edges it already returned (#555).
+            counts = kwargs.get(STEP_COUNTS)
+            edges = kwargs.get(STEP_EDGES)
+            if counts is not None and edges is not None:
+                return StepHistPlot(single_ax, counts, edges, **kwargs)
             return HistPlot(single_ax, **kwargs)
         elif PlotType.LINE == plot_type:
             if PlotDetectionUtils.is_mplfinance_line_plot(single_ax, **kwargs):
