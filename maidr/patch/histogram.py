@@ -42,13 +42,59 @@ def mpl_hist(
 
     # Extract the histogram data points for MAIDR from the plots.
     ax = FigureManager.get_axes(plot)
-    # Hand the layer the container this call drew. Without it the layer looks
-    # one up from the axes, and every histogram on one axes resolves to the
-    # first -- two `ax.hist()` calls both announced the first one's bins.
-    FigureManager.create_maidr(ax, PlotType.HIST, **{DRAWN_BARS: plot})
+    # One layer per dataset, each handed the container it was drawn as.
+    #
+    # `Axes.hist` returns a *list* of containers whenever it was given a list
+    # of datasets, and reading one of them would announce one distribution and
+    # drop the rest -- so a two-dataset call is two layers, which is what
+    # `sns.histplot(hue=...)` gets from the scatter split of #544 and what a
+    # reader moving between them expects.
+    #
+    # A `barstacked` call is read the same way, and measured rather than
+    # assumed: each container's bar *heights* are still its own dataset's
+    # counts, and the stacking lives in the bars' `bottom`. So the counts
+    # announced are right either way; only the fact that they are stacked is
+    # not said, which is the reading `stacked_bar` would add.
+    #
+    # Nothing is registered where there is no container to read. That is the
+    # `histtype="step"` and `"stepfilled"` case: both draw a `Polygon` per
+    # dataset and leave `ax.containers` empty, so the layer registered for
+    # them raised `ExtractionError` at render and took the figure with it.
+    # Declining is not the same as reading it -- filed as #555 -- but a chart
+    # that falls back to a picture beats one that dies.
+    for container in _drawn_containers(plot):
+        FigureManager.create_maidr(ax, PlotType.HIST, **{DRAWN_BARS: container})
 
     # Return to the caller.
     return n, bins, plot
+
+
+def _drawn_containers(plot: Any) -> list:
+    """
+    The bar containers one ``Axes.hist`` call drew, in dataset order.
+
+    ``Axes.hist`` returns its third value in three shapes and the caller's
+    arguments do not say which: a single ``BarContainer`` for one dataset, a
+    list of them for several, and a list of ``Polygon`` lists for the two step
+    histtypes, which create no container at all. Asked of the return value
+    rather than of the axes, so a call registers exactly what it drew and
+    never a neighbour's bars.
+
+    Parameters
+    ----------
+    plot : Any
+        The third element of what ``Axes.hist`` returned.
+
+    Returns
+    -------
+    list
+        Every ``BarContainer`` this call drew, possibly empty.
+    """
+    if isinstance(plot, BarContainer):
+        return [plot]
+    if isinstance(plot, (list, tuple)):
+        return [entry for entry in plot if isinstance(entry, BarContainer)]
+    return []
 
 
 def _containers_of(ax: Axes | None) -> list:

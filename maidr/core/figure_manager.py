@@ -383,7 +383,26 @@ class FigureManager:
     def get_axes(
         artist: Artist | Axes | BarContainer | dict | list | None,
     ) -> Any:
-        """Recursively extract Axes objects from the input artist or container."""
+        """
+        Recursively extract Axes objects from the input artist or container.
+
+        The list branch **recurses** rather than reading ``.axes`` off each
+        element, because a list does not promise to hold artists.
+        ``Axes.hist`` returns one for every multi-dataset call and fills it
+        with whatever the ``histtype`` drew -- a ``BarContainer`` per dataset
+        for ``bar`` and ``barstacked``, a list of ``Polygon``\ s for ``step``
+        and ``stepfilled``. Neither has ``.axes``, so all four raised from the
+        caller's own ``ax.hist(...)`` line, naming matplotlib rather than the
+        accessibility layer that actually failed (#553)::
+
+            ax.hist([a, b], bins=2)
+            AttributeError: 'BarContainer' object has no attribute 'axes'
+
+        Nothing found is ``None`` rather than a bare ``StopIteration``, which
+        is the answer every caller here is written for and the shape of
+        failure #388, #520 and #529 removed from the extractors for the same
+        reason.
+        """
         if artist is None:
             return None
         elif isinstance(artist, Axes):
@@ -391,20 +410,33 @@ class FigureManager:
         elif isinstance(artist, BarContainer):
             # Get axes from the first occurrence of any child artist
             return next(
-                child_artist.axes
-                for child_artist in artist.get_children()
-                if isinstance(child_artist.axes, Axes)
+                (
+                    child_artist.axes
+                    for child_artist in artist.get_children()
+                    if isinstance(child_artist.axes, Axes)
+                ),
+                None,
             )
         elif isinstance(artist, Artist):
             return artist.axes
         elif isinstance(artist, dict):
             return next(
-                _artist.axes
-                for _artists in artist.values()
-                for _artist in _artists
-                if isinstance(_artist.axes, Axes)
+                (
+                    _artist.axes
+                    for _artists in artist.values()
+                    for _artist in _artists
+                    if isinstance(_artist.axes, Axes)
+                ),
+                None,
             )
         elif isinstance(artist, list):
             return next(
-                _artist.axes for _artist in artist if isinstance(_artist.axes, Axes)
+                (
+                    resolved
+                    for resolved in (
+                        FigureManager.get_axes(_artist) for _artist in artist
+                    )
+                    if isinstance(resolved, Axes)
+                ),
+                None,
             )
