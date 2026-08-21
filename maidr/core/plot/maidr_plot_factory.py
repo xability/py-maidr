@@ -105,7 +105,7 @@ class MaidrPlotFactory:
             # find and the call hands its `PolyCollection` over instead.
             if isinstance(kwargs.get("collection"), PolyCollection):
                 return SteppedHistPlot(single_ax, **kwargs)
-            return HistPlot(single_ax)
+            return HistPlot(single_ax, **kwargs)
         elif PlotType.LINE == plot_type:
             if PlotDetectionUtils.is_mplfinance_line_plot(single_ax, **kwargs):
                 return MplfinanceLinePlot(single_ax, **kwargs)

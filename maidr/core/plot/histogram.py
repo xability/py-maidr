@@ -8,9 +8,31 @@ from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
 from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
 
+#: Key the patch passes the container its own call drew under. Named like
+#: ``heatmap.DRAWN_GRID`` and ``scatterplot.DRAWN_POINTS``, and read the same
+#: way.
+DRAWN_BARS = "_maidr_bars"
+
 
 class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
-    def __init__(self, ax: Axes) -> None:
+    def __init__(self, ax: Axes, **kwargs) -> None:
+        # The bars this layer's own call drew, when the patch could say.
+        # `None` falls back to searching the axes, which resolves *per axes*
+        # and so hands every histogram on one axes the same container: two
+        # `ax.hist()` calls were both announced with the first one's bins, the
+        # second distribution appearing nowhere and nothing raising. Found by
+        # the audit #527 asked for, and the same defect it records for
+        # heatmaps.
+        #
+        # Guarded on the type, like `HeatPlot._own_grid` and
+        # `ScatterPlot._own_points`. `ax.hist([a, b])` returns a *list* of
+        # containers rather than one, which this would decline -- though that
+        # case cannot arrive today: the patch resolves its axes from the same
+        # return value and raises on a list before any layer exists (#553).
+        # So the guard is structural rather than a live path, and stays for
+        # when that call is made to work.
+        own_bars = kwargs.pop(DRAWN_BARS, None)
+        self._own_bars = own_bars if isinstance(own_bars, BarContainer) else None
         super().__init__(ax, PlotType.HIST)
         self._orientation = "vert"
 
@@ -44,7 +66,14 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         return DictMergerMixin.merge_dict(base_schema, hist_orientation)
 
     def _extract_plot_data(self) -> list[dict]:
-        plot = self.extract_container(self.ax, BarContainer)
+        # The container this layer was registered for, not whichever one a
+        # search of the axes turns up first. `extract_container` resolves per
+        # axes and cannot tell two histograms apart; it is still the fallback,
+        # for a producer that registers a histogram without saying which
+        # container drew it.
+        plot = self._own_bars
+        if plot is None:
+            plot = self.extract_container(self.ax, BarContainer)
         self._orientation = self._extract_orientation(plot)
         data = self._extract_bar_container_data(plot)
 
