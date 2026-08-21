@@ -23,6 +23,7 @@ from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
+from maidr.core.plot.rugplot import DRAWN_RUG, RugPlot
 from maidr.core.plot.spanplot import DRAWN_SPANS, SpanPlot
 from maidr.core.plot.stairs import StairsPlot
 from maidr.core.plot.stepped_histogram import SteppedHistPlot
@@ -139,6 +140,11 @@ class MaidrPlotFactory:
             # through a class of its own under the same type (#548).
             if kwargs.get(DRAWN_EVENTS) is not None:
                 return EventPlot(single_ax, **kwargs)
+            # A rug's ticks are a scatter of positions for the same reason,
+            # and arrive as a plain `LineCollection` -- not an
+            # `EventCollection`, so `EventPlot` cannot read one (#250).
+            if kwargs.get(DRAWN_RUG) is not None:
+                return RugPlot(single_ax, **kwargs)
             return ScatterPlot(single_ax, **kwargs)
         elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
             return GroupedBarPlot(single_ax, plot_type, **kwargs)

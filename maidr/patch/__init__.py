@@ -29,6 +29,7 @@ from . import (  # noqa: E402, F401
     spanplot,
     stairs,
     regplot,
+    rugplot,
     kdeplot,
     candlestick,
     mplfinance,

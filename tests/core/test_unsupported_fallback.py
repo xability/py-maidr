@@ -66,15 +66,23 @@ def data() -> np.ndarray:
     return np.random.default_rng(0).normal(size=20)
 
 
-def rugplot():
-    """A chart maidr does not patch. `sns.rugplot` draws a LineCollection."""
+def barbs():
+    """A chart maidr does not patch. `ax.barbs` draws a Barbs collection.
+
+    This was seaborn's rug plot until #250 gave a rug a reading of its own,
+    at which point it stopped being an example of anything unsupported. Wind
+    barbs replace it because they have no trace type in the core to be read
+    as -- a barb states a speed *and* a direction at a place, which none of
+    the existing traces carry -- so they are unlikely to acquire one by
+    accident and quietly stop testing the fallback.
+    """
     _, ax = plt.subplots()
-    sns.rugplot(x=data(), ax=ax, height=0.1)
+    ax.barbs([0, 1], [0, 1], [1, 1], [1, 1])
     return ax
 
 
 def quiver():
-    """A second unsupported chart, so nothing keys off rugplot specifically."""
+    """A second unsupported chart, so nothing keys off one of them."""
     _, ax = plt.subplots()
     ax.quiver([0, 1], [0, 1], [1, 1], [1, 1])
     return ax
@@ -91,14 +99,14 @@ def caught(call) -> tuple[object, list[str]]:
 class TestTheApiNoLongerCrashes:
     """The three functions a user is told to call."""
 
-    @pytest.mark.parametrize("chart", [rugplot, quiver])
+    @pytest.mark.parametrize("chart", [barbs, quiver])
     def test_render_returns_something(self, chart):
         chart()
         result, _ = caught(maidr.render)
 
         assert result is not None
 
-    @pytest.mark.parametrize("chart", [rugplot, quiver])
+    @pytest.mark.parametrize("chart", [barbs, quiver])
     def test_render_returns_the_picture(self, chart):
         # The point of falling back rather than raising: the user still sees
         # their plot. A fallback that returned an empty div would pass a
@@ -108,14 +116,14 @@ class TestTheApiNoLongerCrashes:
 
         assert "data:image/png;base64," in str(result)
 
-    @pytest.mark.parametrize("chart", [rugplot, quiver])
+    @pytest.mark.parametrize("chart", [barbs, quiver])
     def test_render_says_why_in_the_page(self, chart):
         chart()
         result, _ = caught(maidr.render)
 
         assert "not yet supported" in str(result)
 
-    @pytest.mark.parametrize("chart", [rugplot, quiver])
+    @pytest.mark.parametrize("chart", [barbs, quiver])
     def test_save_html_writes_a_file(self, chart, tmp_path):
         # Raising here would leave a build step that expected an artefact with
         # nothing on disk and a traceback.
@@ -131,7 +139,7 @@ class TestTheApiNoLongerCrashes:
         monkeypatch.setattr(
             "htmltools._core.Tag.show", lambda self, *a, **k: "shown"
         )
-        rugplot()
+        barbs()
 
         assert caught(maidr.show)[0] == "shown"
 
@@ -157,13 +165,13 @@ class TestTheWarningSaysSomethingUseful:
         }
         for name, call in calls.items():
             plt.close("all")
-            rugplot()
+            barbs()
             _, messages = caught(call)
 
             assert any("not yet supported" in message for message in messages), name
 
     def test_it_names_the_supported_types(self):
-        rugplot()
+        barbs()
         _, messages = caught(maidr.render)
         message = next(m for m in messages if "not yet supported" in m)
 
@@ -207,7 +215,7 @@ class TestAnEmptyFigureIsADifferentProblem:
 
     def test_a_drawn_chart_is_not_empty(self):
         # The guard: the empty test must not swallow the unsupported case.
-        rugplot()
+        barbs()
         _, messages = caught(maidr.render)
 
         assert not any("no plots on it yet" in message for message in messages)
@@ -229,7 +237,7 @@ class TestTheExceptionItself:
 
     def test_the_message_is_not_about_maidrs_bookkeeping(self):
         _, ax = plt.subplots()
-        sns.rugplot(x=data(), ax=ax, height=0.1)
+        ax.barbs([0, 1], [0, 1], [1, 1], [1, 1])
 
         with pytest.raises(UnsupportedPlotError) as raised:
             FigureManager.get_maidr(ax.get_figure())

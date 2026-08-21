@@ -149,11 +149,15 @@ def test_a_renamed_probe_warns(monkeypatch) -> None:
 def test_a_rug_over_a_scatter_renders() -> None:
     """The phantom layer was fatal, not merely noisy.
 
-    ``rugplot`` draws its ticks as a ``LineCollection`` MAIDR does not read,
-    so the only layer it registered was the probe -- and reading that layer's
+    ``rugplot`` drew its ticks as a ``LineCollection`` MAIDR did not read, so
+    the only layer it registered was the probe -- and reading that layer's
     data raised ``ExtractionError``, which takes the whole figure with it
     rather than just its own layer. A scatter that would have read perfectly
     well produced nothing at all.
+
+    Two layers rather than one since #250: the rug now reads as a scatter of
+    the observations it marks. The probe is still what this pins, and the
+    count is what pins it -- a third layer here would be the phantom back.
     """
     frame = _frame()
     fig, ax = plt.subplots()
@@ -161,7 +165,7 @@ def test_a_rug_over_a_scatter_renders() -> None:
     sns.scatterplot(data=frame, x="value", y="value", ax=ax)
     sns.rugplot(data=frame, x="value", ax=ax)
 
-    assert _layers(fig) == [PlotType.SCATTER]
+    assert _layers(fig) == [PlotType.SCATTER, PlotType.SCATTER]
 
     # The render itself, because the layer list alone would not have caught
     # it: extraction is where the old failure happened.
