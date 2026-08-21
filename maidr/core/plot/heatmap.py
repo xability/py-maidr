@@ -292,4 +292,15 @@ class HeatPlot(
         else:
             self._support_highlighting = False
 
+        # A mask is a grid of numbers as much as a grid of counts is, and
+        # `ax.spy()` draws nothing else: its whole purpose is to show where a
+        # matrix is non-zero. It only failed at the default format --
+        # `self._fmt` is `""` unless seaborn's caller set one, and
+        # `format(np.True_, "")` is `"True"`, which `float` refuses. With any
+        # numeric format it already worked: `format(np.True_, ".2f")` is
+        # `"1.00"`. Converting first gives the same 1 and 0 under every
+        # format instead of only some of them (#564).
+        if array.dtype == bool:
+            array = array.astype(float)
+
         return [list(map(lambda x: float(format(x, self._fmt)), row)) for row in array]
