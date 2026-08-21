@@ -114,10 +114,14 @@ class HeatPlot(
             return ticks
 
         at = self.extract_level_positions(self.ax, key)
+        # Both lengths, not just the labels': `zip` stops at the shorter of
+        # its arguments, so a positions list shorter than the cells would
+        # leave the tail of the comparison unmade and pass on a prefix.
         if (
             ticks is not None
             and at is not None
             and len(ticks) == len(centres)
+            and len(at) == len(centres)
             and all(
                 np.isclose(position, centre)
                 for position, centre in zip(at, centres)
@@ -125,12 +129,41 @@ class HeatPlot(
         ):
             return ticks
 
-        # Six significant figures, and deliberately not `self._fmt`: that is
-        # the caller's format for the cell *values* -- what `sns.heatmap`
-        # annotates a cell with -- and a coordinate is not one of those. Six
-        # separates adjacent cells in any grid a reader can navigate and is
-        # short enough to be said on every move.
-        return [f"{centre:.6g}" for centre in centres]
+        return self._as_names(centres)
+
+    @staticmethod
+    def _as_names(centres: list[float]) -> list[str]:
+        """
+        Write the centres out at the shortest precision that keeps them apart.
+
+        Six significant figures to begin with, and deliberately not
+        ``self._fmt``: that is the caller's format for the cell *values* --
+        what ``sns.heatmap`` annotates a cell with -- and a coordinate is not
+        one of those. Six is short enough to be said on every move of the
+        cursor and separates the cells of any ordinary grid.
+
+        Not of every grid, though. Cells a millionth of their own magnitude
+        apart -- centres around 1e9 spaced by 1 -- all round to the same six
+        figures, and two cells with one name are worse than a long one: a
+        reader moving between them is told they have not moved. So the
+        precision is raised until the names differ, rather than assumed to be
+        enough.
+
+        Parameters
+        ----------
+        centres : list of float
+            One centre per cell.
+
+        Returns
+        -------
+        list of str
+            One name per cell, distinct wherever the centres are.
+        """
+        for precision in (6, 12, 17):
+            names = [f"{centre:.{precision}g}" for centre in centres]
+            if len(set(names)) == len(set(centres)):
+                return names
+        return names
 
     @staticmethod
     def _cell_centres(
@@ -166,9 +199,20 @@ class HeatPlot(
             coordinates = np.asarray(ma.getdata(sm.get_coordinates()))
             if coordinates.ndim != 3:
                 return None
-            edges = (
-                coordinates[0, :, 0] if key == MaidrKey.X else coordinates[:, 0, 1]
-            )
+            # Row 0's x and column 0's y stand for the whole grid only when
+            # the mesh is axis-aligned. `pcolormesh(X, Y, Z)` accepts a
+            # curvilinear one, and a sheared 2 x 3 measured as x edges of
+            # [0, 1, 2, 3] on row 0 and [0.3, 1.3, 2.3, 3.3] on row 1 -- a
+            # grid whose columns do not share an x, and so has no one name
+            # per column. Say so by declining rather than by naming every
+            # column after the row that happens to be first.
+            xs, ys = coordinates[:, :, 0], coordinates[:, :, 1]
+            if not (
+                np.allclose(xs, xs[0, :], equal_nan=True)
+                and np.allclose(ys, ys[:, :1], equal_nan=True)
+            ):
+                return None
+            edges = xs[0, :] if key == MaidrKey.X else ys[:, 0]
         elif isinstance(sm, AxesImage):
             left, right, bottom, top = (float(edge) for edge in sm.get_extent())
             if key == MaidrKey.X:

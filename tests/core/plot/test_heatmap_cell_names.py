@@ -222,3 +222,62 @@ def test_ticks_that_merely_count_right_do_not_become_the_names():
     layer = _layer(fig)
 
     assert layer[MaidrKey.DATA][MaidrKey.X] == ["0.5", "1.5", "2.5"]
+
+
+def test_a_mesh_is_named_by_the_centres_between_its_own_coordinates():
+    """
+    ``pcolormesh`` cells sit between the coordinates the mesh carries.
+
+    Pinned exactly rather than only counted, because this is the branch that
+    reads a mesh's own coordinates and the one the axis-alignment assumption
+    below lives in.
+    """
+    fig, ax = plt.subplots()
+    ax.pcolormesh(GRID)
+    layer = _layer(fig)
+
+    assert layer[MaidrKey.DATA][MaidrKey.X] == ["0.5", "1.5", "2.5"]
+    assert layer[MaidrKey.DATA][MaidrKey.Y] == ["0.5", "1.5"]
+
+
+def test_a_mesh_whose_columns_do_not_share_an_x_is_not_given_column_names():
+    """
+    A curvilinear mesh has no one name per column, and is not handed one.
+
+    ``pcolormesh(X, Y, Z)`` accepts a fully two-dimensional ``X``. Sheared,
+    a 2 x 3 has x edges of ``[0, 1, 2, 3]`` on its first row and
+    ``[0.3, 1.3, 2.3, 3.3]`` on its second, so naming every column after the
+    row that happens to come first would give a reader a coordinate that is
+    true of one row of the grid and of no other.
+
+    What it falls back to -- the axis ticks -- is the reading #526 is about,
+    and for this one shape it is unchanged: a grid whose cells cannot be
+    located is left exactly as it was rather than given names invented for
+    it.
+    """
+    columns, rows = np.meshgrid(np.arange(4.0), np.arange(3.0))
+    sheared = columns + 0.3 * rows
+
+    fig, ax = plt.subplots()
+    ax.pcolormesh(sheared, rows, GRID)
+    layer = _layer(fig)
+
+    assert len(layer[MaidrKey.DATA][MaidrKey.X]) != 3
+
+
+def test_cells_too_close_to_separate_at_six_figures_get_longer_names():
+    """
+    Two cells with one name would tell a reader they had not moved.
+
+    Six significant figures is short enough to say on every move and enough
+    for any ordinary grid, but centres around 1e9 spaced by 1 all round to
+    the same six, so the precision is raised until the names differ.
+    """
+    edges = np.array([1e9, 1e9 + 1, 1e9 + 2, 1e9 + 3])
+    fig, ax = plt.subplots()
+    ax.pcolormesh(edges, np.array([0.0, 1.0, 2.0]), GRID)
+
+    names = _layer(fig)[MaidrKey.DATA][MaidrKey.X]
+
+    assert len(set(names)) == 3
+    assert [float(name) for name in names] == [1e9 + 0.5, 1e9 + 1.5, 1e9 + 2.5]
