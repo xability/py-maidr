@@ -43,8 +43,13 @@ class SmoothPlot(MaidrPlot):
         # A `kdeplot(hue=...)` draws one curve per level and both were
         # announced identically before (#558). Opted into here rather than
         # read by `MaidrPlot`; see `GROUP_NAME` for why that is per class.
+        # A string names the group now; a callable names it at render, which
+        # is what a `pairplot` needs -- its legend does not exist until every
+        # panel has been drawn (#561).
         group_name = kwargs.get(GROUP_NAME, None)
-        self._group_name = group_name if isinstance(group_name, str) else None
+        self._group_name = (
+            group_name if isinstance(group_name, str) or callable(group_name) else None
+        )
         super().__init__(ax, PlotType.SMOOTH)
         self._smooth_gid = None
         self._regression_line = kwargs.get("regression_line", None)
@@ -60,8 +65,9 @@ class SmoothPlot(MaidrPlot):
         a reader hearing the identical announcement twice.
         """
         schema = super().render()
-        if self._group_name:
-            schema[MaidrKey.NAME] = self._group_name
+        name = self._group_name() if callable(self._group_name) else self._group_name
+        if name:
+            schema[MaidrKey.NAME] = name
         return schema
 
     def _get_selector(self):

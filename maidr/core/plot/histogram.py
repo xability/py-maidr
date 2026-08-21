@@ -39,8 +39,13 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         # could name it. `None` is the ungrouped case and every chart that
         # drew no legend. Opted into here rather than read by `MaidrPlot`;
         # see `GROUP_NAME` for why that is per class.
+        # A string names the group now; a callable names it at render, which
+        # is what a `pairplot` needs -- its legend does not exist until every
+        # panel has been drawn (#561).
         group_name = kwargs.pop(GROUP_NAME, None)
-        self._group_name = group_name if isinstance(group_name, str) else None
+        self._group_name = (
+            group_name if isinstance(group_name, str) or callable(group_name) else None
+        )
         super().__init__(ax, PlotType.HIST)
         self._orientation = "vert"
 
@@ -79,8 +84,9 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         # populated by `_extract_plot_data`, which that call runs.
         base_schema = super().render()
         hist_orientation = {MaidrKey.ORIENTATION: self._orientation}
-        if self._group_name:
-            hist_orientation[MaidrKey.NAME] = self._group_name
+        name = self._group_name() if callable(self._group_name) else self._group_name
+        if name:
+            hist_orientation[MaidrKey.NAME] = name
         return DictMergerMixin.merge_dict(base_schema, hist_orientation)
 
     def _extract_plot_data(self) -> list[dict]:

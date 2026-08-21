@@ -30,6 +30,14 @@ import uuid
 #: ``ScatterPlot`` and ``EventPlot`` name their layers by other means -- a hue
 #: split and row labels -- and are unaffected, being passed neither this key
 #: nor anything that collides with it.
+#:
+#: The value may be a **string** or a **callable returning one**. A string is
+#: the name the patch already resolved; a callable is resolved at render, for
+#: a chart whose legend does not exist yet when its layers register. A
+#: ``pairplot(hue=...)`` is that chart: ``PairGrid.add_legend()`` runs after
+#: every panel is drawn, so at registration there is no legend anywhere and
+#: every diagonal came out anonymous while the scatters beside it were named
+#: (#561). Each class that honours this key resolves the callable itself.
 GROUP_NAME = "_maidr_group_name"
 
 
