@@ -115,14 +115,17 @@ class RugPlot(MaidrPlot):
         )
         self._label = kwargs.get(RUG_LABEL, None)
 
-        # Which axis the positions lie along, resolved here rather than
-        # during extraction. `MaidrPlot.render()` builds the *axes* payload
-        # before the data, so a value settled in `_extract_plot_data` is
-        # still the default when `_extract_axes_data` reads it -- measured, a
-        # `rugplot(y=...)` then named the y axis "Rug" and left the
-        # observations it carries labelled "X".
+        # Read once, here, rather than again per render. Two reasons, and
+        # the first is correctness: `MaidrPlot.render()` builds the *axes*
+        # payload before the data, so an orientation settled in
+        # `_extract_plot_data` is still the default when
+        # `_extract_axes_data` reads it -- measured, a `rugplot(y=...)` then
+        # named the y axis "Rug" and left the observations it carries
+        # labelled "X". The second is that `render()` can run more than once
+        # for a layer, and the collection cannot change underneath it, so
+        # revalidating every segment each time buys nothing.
         read = read_rug(self._collection)
-        self._along_x = read[1] if read is not None else True
+        self._positions, self._along_x = read if read is not None else ([], True)
 
         # Assigned here rather than relied upon, for the reason `EventPlot`
         # and `HexbinPlot` give: matplotlib stamps a gid at *draw* time and
@@ -153,22 +156,15 @@ class RugPlot(MaidrPlot):
         list of dict
             One point per tick, in the order the collection holds them.
         """
-        if self._collection is None:
-            return []
-
-        read = read_rug(self._collection)
-        if read is None:
-            return []
-
-        positions, along_x = read
-
         # The coordinate across the tick is the strip the rug occupies, not a
         # height the chart measured, so it is emitted as a constant rather
         # than as the tick's own base -- which is a fraction of the axes and
         # would read as data at whatever scale the other axis happens to use.
-        if along_x:
-            return [{MaidrKey.X: position, MaidrKey.Y: 0} for position in positions]
-        return [{MaidrKey.X: 0, MaidrKey.Y: position} for position in positions]
+        if self._along_x:
+            return [
+                {MaidrKey.X: position, MaidrKey.Y: 0} for position in self._positions
+            ]
+        return [{MaidrKey.X: 0, MaidrKey.Y: position} for position in self._positions]
 
     def _extract_axes_data(self) -> dict:
         """
@@ -185,14 +181,19 @@ class RugPlot(MaidrPlot):
         axes_data[across] = self._axis_config(label=RUG_AXIS_LABEL)
         return axes_data
 
-    def _get_selector(self) -> str:
+    def _get_selector(self) -> str | list[str]:
         """
         Address each tick by the element matplotlib drew for it.
 
         One ``<g>`` carrying one ``<path>`` per segment, in draw order, which
         is the order the points were emitted in -- so a tick has an element
         of its own and the two lists line up without numbering either.
+
+        The empty case hands back ``[]`` rather than ``""`` to match
+        :meth:`~maidr.core.plot.eventplot.EventPlot._get_selector`, the
+        sibling this class is shaped after. Not reachable through the patch,
+        which only registers a layer for a collection it has read.
         """
         if self._collection is None or self._collection.get_gid() is None:
-            return ""
+            return []
         return f"g[id='{self._collection.get_gid()}'] > path"

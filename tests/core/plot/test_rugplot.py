@@ -228,3 +228,46 @@ def test_a_second_rug_on_the_same_axes_reads_only_its_own_ticks(frame):
         [1.0, 2.0],
         [8.0, 9.0],
     ]
+
+
+def test_a_hue_split_rug_still_marks_every_observation(frame):
+    # Review asked whether a hue split produces several collections that
+    # could be merged or dropped, given the one-layer-per-collection design.
+    # Measured: seaborn draws one collection either way and only recolours
+    # it, so a hue rug is one layer holding every observation. Pinned rather
+    # than left as an ad-hoc measurement, since the answer is seaborn's to
+    # change.
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="sex", ax=ax)
+
+    (schema,) = _schemas(fig)
+    assert [point["x"] for point in schema["data"]] == [1.0, 2.5, 3.0, 7.25]
+
+
+def test_a_rug_under_a_hue_split_density_reads_beside_it(frame):
+    # The layered case the reading is actually for: the curves are smoothed
+    # and the rug is where the observations fell, so both belong.
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    fig, ax = plt.subplots()
+    sns.kdeplot(frame, x="value", hue="sex", ax=ax)
+    sns.rugplot(frame, x="value", hue="sex", ax=ax)
+
+    schemas = _schemas(fig)
+    assert [schema["type"] for schema in schemas] == ["smooth", "smooth", "point"]
+    assert [point["x"] for point in schemas[-1]["data"]] == [1.0, 2.5, 3.0, 7.25]
+
+
+def test_a_name_can_come_off_an_axis_another_plot_labelled(frame):
+    # The documented limit of `_name_for`. The artist carries no record of
+    # the column it came from, so a rug drawn onto an axis something else
+    # already labelled takes that label. Pinned so the behaviour is known
+    # rather than discovered: the layer's *data* is unaffected, only what it
+    # is announced as.
+    fig, ax = plt.subplots()
+    sns.scatterplot(frame, x="value", y="other", ax=ax)
+    sns.rugplot(x=np.array([7.0, 8.0]), ax=ax)
+
+    rug = _schemas(fig)[-1]
+    assert rug["name"] == "value"
+    assert [point["x"] for point in rug["data"]] == [7.0, 8.0]

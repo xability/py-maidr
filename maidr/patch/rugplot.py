@@ -77,6 +77,16 @@ def _name_for(ax: Axes, along_x: bool) -> str:
     would use for them. Falls back to :data:`RUG_AXIS_LABEL` for a rug drawn
     from bare arrays, where the chart never learned a name.
 
+    That holds when the rug's own call set the label, which is the ordinary
+    case. It does not when something *else* labelled the axis first and the
+    rug marks values of its own: measured, a `scatterplot(x="value")`
+    followed by `rugplot(x=[7.0, 8.0])` names the rug "value", after the
+    column the scatter drew rather than anything the rug marks. Accepted
+    rather than worked around -- the artist carries no record of the column
+    it came from, so the alternative is to name nothing at all, and a name
+    off the shared axis is still the axis these ticks stand on. The layer's
+    *data* is unaffected either way; only what it is announced as.
+
     Parameters
     ----------
     ax : Axes
