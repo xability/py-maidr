@@ -35,7 +35,6 @@ import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
 
-import maidr  # noqa: E402
 from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 
