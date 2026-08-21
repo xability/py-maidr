@@ -59,6 +59,17 @@ def _spans(wrapped, instance, args, kwargs, along_x: bool) -> LineCollection:
     if not draws_a_schedule(drawn, along_x):
         return drawn
 
+    # Registered as its own layer every time, with no equivalent of
+    # `gantt._lane_of`/`add_lane`. Deliberate, and the asymmetry with the
+    # sibling patch follows from the two calls being shaped differently: a
+    # `broken_barh` call draws *one* lane, so lanes have to accumulate across
+    # calls for a schedule to exist at all, whereas one `hlines` call already
+    # draws the whole schedule. Merging a second one in would join two
+    # complete charts into a chart neither call made.
+    #
+    # The two therefore stay separable, which also lets them keep their own
+    # lane axes: nothing stops an `hlines` and a `vlines` sharing an axes, and
+    # they lay their lanes out on opposite axes.
     ax = FigureManager.get_axes(drawn)
     FigureManager.create_maidr(
         ax,

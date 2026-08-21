@@ -221,3 +221,90 @@ def test_broken_barh_still_reads_as_it_did():
     schema = _rendered(fig)
     assert schema["type"] == "gantt"
     assert _spans(schema) == [[(0.0, 3.0), (5.0, 6.0)], [(3.0, 8.0)]]
+
+
+def _all_schemas(fig) -> list:
+    maidr.render(fig)._repr_html_()
+    return [plot.schema for plot in FigureManager.get_maidr(fig).plots]
+
+
+@pytest.mark.parametrize("spans_first", [True, False])
+def test_a_broken_barh_beside_an_hlines_keeps_its_own_lane(spans_first):
+    # `gantt._lane_of` used to match on `isinstance(plot, GanttPlot)`, and
+    # `SpanPlot` subclasses `GanttPlot`. So a `broken_barh` following an
+    # `hlines` on the same axes appended its `PolyCollection` to the span
+    # layer, which reads its lanes from the segments it was handed and never
+    # looks at `_collections`: the lane was drawn, accepted without error,
+    # and announced nowhere. Measured as three lanes read for the four drawn.
+    #
+    # Parametrised over the drawing order because only one of the two was
+    # ever broken -- the reverse order registered two layers all along -- and
+    # a fix that made them agree by breaking the other would pass a
+    # single-order test.
+    fig, ax = plt.subplots()
+    if spans_first:
+        ax.hlines([1, 2, 3], [0, 2, 4], [5, 7, 6])
+        ax.broken_barh([(0, 3)], (10, 9))
+    else:
+        ax.broken_barh([(0, 3)], (10, 9))
+        ax.hlines([1, 2, 3], [0, 2, 4], [5, 7, 6])
+
+    schemas = _all_schemas(fig)
+    assert len(schemas) == 2
+
+    lanes = [schema["data"]["lanes"] for schema in schemas]
+    assert sorted(len(lane) for lane in lanes) == [1, 3]
+    # Every drawn interval is announced by one layer or the other.
+    drawn = sorted(
+        (point["start"], point["end"])
+        for schema in schemas
+        for lane in schema["data"]["points"]
+        for point in lane
+    )
+    assert drawn == [(0.0, 3.0), (0.0, 5.0), (2.0, 7.0), (4.0, 6.0)]
+
+
+def test_two_broken_barh_calls_still_merge_into_one_chart():
+    # The reason `_lane_of` exists, and the behaviour the fix above must not
+    # cost: `broken_barh` draws *one* lane per call, so a two-lane schedule
+    # is two calls that have to become one layer. Asserted beside the mixed
+    # case so narrowing the lookup any further would fail here.
+    fig, ax = plt.subplots()
+    ax.hlines([1, 2, 3], [0, 2, 4], [5, 7, 6])
+    ax.broken_barh([(0, 3)], (10, 9))
+    ax.broken_barh([(2, 4)], (20, 9))
+
+    schemas = _all_schemas(fig)
+    assert len(schemas) == 2
+    assert sorted(len(schema["data"]["lanes"]) for schema in schemas) == [2, 3]
+
+
+def test_two_hlines_calls_stay_two_charts():
+    # The deliberate asymmetry with `broken_barh`, pinned so it reads as a
+    # decision rather than an oversight. One `hlines` call already draws a
+    # whole schedule, so merging a second in would join two complete charts
+    # into one neither call made.
+    fig, ax = plt.subplots()
+    ax.hlines([1, 2], [0, 2], [5, 7])
+    ax.hlines([4, 5], [1, 3], [6, 8])
+
+    schemas = _all_schemas(fig)
+    assert len(schemas) == 2
+    assert [schema["data"]["lanes"] for schema in schemas] == [
+        [1.0, 2.0],
+        [4.0, 5.0],
+    ]
+
+
+def test_a_schedule_whose_tasks_share_a_start_is_declined():
+    # The cost of the shared-end rule, stated rather than left to be found.
+    # These are three real tasks all beginning on day 0, and nothing in the
+    # geometry separates them from a lollipop's stems -- which are also one
+    # shared start and differing ends, and which read as spans would announce
+    # "0 to 8" for a chart that means "8". Declining is the side that never
+    # announces a measurement the chart does not make.
+    fig, ax = plt.subplots()
+    ax.hlines([1, 2, 3], [0, 0, 0], [5, 7, 6])
+
+    assert _layers(fig) == []
+    assert len(maidr.render(fig)._repr_html_()) > 0

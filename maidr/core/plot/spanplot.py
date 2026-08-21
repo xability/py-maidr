@@ -73,6 +73,23 @@ def states_an_interval(spans: list) -> bool:
     -------
     bool
         True when neither end is the same on every segment.
+
+    Notes
+    -----
+    This declines when *either* end is shared, not only when both are, and
+    that costs one real schedule: several tasks that all begin on the same
+    day, ``hlines([1, 2, 3], [0, 0, 0], [5, 7, 6])``, is turned away. The
+    reason is that nothing in the geometry separates it from a lollipop's
+    stems, which are also "one shared start, differing ends" and which read
+    as spans announce "0 to 8" for a chart that means "8". One of the two has
+    to lose, and announcing a measurement the chart does not make is the worse
+    outcome -- so the shared-start schedule falls back to a static image,
+    which is at least a picture.
+
+    Recorded here as well as in :class:`SpanPlot`'s docstring because a reader
+    who arrives at this function alone would otherwise see only a rule that
+    looks stricter than it needs to be, and relax it. ``test_spanplot.py``
+    pins the declined case for the same reason.
     """
     starts = {start for _, start, _ in spans}
     ends = {end for _, _, end in spans}

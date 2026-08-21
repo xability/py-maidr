@@ -13,7 +13,6 @@ from maidr.core.plot.contour import ContourPlot
 from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.eventplot import DRAWN_EVENTS, EventPlot
 from maidr.core.plot.gantt import GanttPlot
-from maidr.core.plot.spanplot import DRAWN_SPANS, SpanPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.hexbinplot import HexbinPlot
@@ -24,6 +23,7 @@ from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
+from maidr.core.plot.spanplot import DRAWN_SPANS, SpanPlot
 from maidr.core.plot.stairs import StairsPlot
 from maidr.core.plot.stepped_histogram import SteppedHistPlot
 from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, StepHistPlot
