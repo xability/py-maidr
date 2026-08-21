@@ -168,6 +168,97 @@ def _collection_colour(collection) -> tuple | None:
     return colours.pop()
 
 
+def legend_of(ax: Axes | None):
+    """
+    The legend that names this axes' groups, wherever it was put.
+
+    ``ax.get_legend()`` is where seaborn leaves one for a single chart, and it
+    is what every caller here read. A ``PairGrid`` moves it: `add_legend()`
+    builds one **figure-level** legend for the whole grid, and the panels then
+    have none of their own.
+
+    Only when the figure carries exactly one. Two figure legends cannot say
+    which of them names this axes' colours, and a wrong name is worse than
+    none -- the rule every decline in this module already follows.
+
+    **The axes' own legend always wins**, and that is the mitigation rather
+    than a preference. One figure legend is read as naming *every* axes, and
+    nothing in the artists can say otherwise: several panels with independent
+    hues draw the same default colour cycle, so a legend built for one of
+    them matches all of them. Measured, two `kdeplot(hue=...)` panels drawn
+    `legend=False` with one `fig.legend()` for the first come out with the
+    first panel's names on both.
+
+    That case needs a figure built by hand with every panel's own legend
+    suppressed, which is not what any seaborn call does on its own -- a
+    panel that keeps its legend is named by it and never consults the
+    figure's. The trade is a wrong name in that shape against no name at all
+    on every `pairplot`, whose whole grid does share one hue mapping. It is
+    written down here rather than left to be discovered, and pinned in
+    `tests/core/plot/test_pairplot_group_names.py`.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes drawn on.
+
+    Returns
+    -------
+    Legend or None
+        The legend to read swatches from, or ``None``.
+    """
+    if ax is None:
+        return None
+    own = ax.get_legend()
+    if own is not None:
+        return own
+    figure = getattr(ax, "figure", None)
+    legends = list(getattr(figure, "legends", ()) or ())
+    return legends[0] if len(legends) == 1 else None
+
+
+def deferred_names(resolve, count: int) -> list:
+    """
+    One lazy name per artist, resolved together the first time any is asked.
+
+    The match itself is unchanged; **when** it runs is the whole point. A
+    ``pairplot(hue=...)`` draws every panel before ``PairGrid.add_legend()``
+    builds the legend, so at registration there is no legend anywhere --
+    measured, neither on the axes nor on the figure -- and every diagonal
+    panel came out anonymous while the scatters beside it were named (#561).
+
+    Resolved once and shared: the layers of one call must agree, and a legend
+    read per layer would be read once per layer for no gain. A caller who
+    relabels the legend between drawing and rendering therefore changes what
+    the chart says, which is the divergence ``MaidrPlot._legend_title``
+    already accepts for ``axes.z``.
+
+    Parameters
+    ----------
+    resolve : callable
+        Returns the whole list of names, in artist order.
+    count : int
+        How many artists there are.
+
+    Returns
+    -------
+    list
+        One zero-argument callable per artist.
+    """
+    resolved: list = []
+
+    def at(index: int):
+        def name():
+            if not resolved:
+                resolved.append(resolve())
+            names = resolved[0]
+            return names[index] if index < len(names) else None
+
+        return name
+
+    return [at(index) for index in range(count)]
+
+
 def _names_for(ax: Axes, colours: list) -> list:
     """
     Match a list of drawn colours against the legend that names them.
@@ -208,7 +299,7 @@ def _names_for(ax: Axes, colours: list) -> list:
     if len(colours) < 2:
         return [None] * len(colours)
 
-    legend = ax.get_legend()
+    legend = legend_of(ax)
     if legend is None:
         return [None] * len(colours)
 
@@ -291,7 +382,9 @@ def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
         # Register all unique Line2D objects
         lines = [line for line in ax.get_lines() if isinstance(line, Line2D)]
         curves = list(unique_lines_by_xy(lines))
-        for kde_line, name in zip(curves, _curve_names(ax, curves)):
+        for kde_line, name in zip(curves, deferred_names(
+            lambda: _curve_names(ax, curves), len(curves)
+        )):
             if kde_line.get_gid() is None:
                 gid = f"maidr-{uuid.uuid4()}"
                 kde_line.set_gid(gid)
@@ -304,7 +397,9 @@ def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
             )
         # Register all PolyCollection boundaries as SMOOTH
         fills = [c for c in ax.collections if isinstance(c, PolyCollection)]
-        for poly, fill_name in zip(fills, _fill_names(ax, fills)):
+        for poly, fill_name in zip(fills, deferred_names(
+            lambda: _fill_names(ax, fills), len(fills)
+        )):
             if poly.get_paths():
                 path = poly.get_paths()[0]
                 boundary = path.vertices

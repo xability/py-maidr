@@ -17,8 +17,8 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.histogram import DRAWN_BARS
 from maidr.core.plot.maidr_plot import GROUP_NAME
-from maidr.patch.kdeplot import _curve_names
-from maidr.core.plot.scatterplot import _named_colours, _rgba
+from maidr.patch.kdeplot import _curve_names, _names_for, deferred_names
+from maidr.core.plot.scatterplot import _rgba
 from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, STEP_ORIENTATION
 from maidr.core.plot.stepped_histogram import reads as _reads_outline
 from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
@@ -224,7 +224,7 @@ def _group_names(ax: Axes | None, containers: list) -> list[str | None]:
     backwards would agree on those charts, and is not what this does: the
     reversal is nothing seaborn documents, and a legend carrying entries that
     are not group swatches would still have to be declined rather than
-    counted, which is what ``_named_colours`` answers ``None`` for.
+    counted.
 
     Every reason to decline is a reason to leave the layers unnamed rather
     than to name them wrongly:
@@ -233,11 +233,20 @@ def _group_names(ax: Axes | None, containers: list) -> list[str | None]:
       distribution never had one. Nothing names the colours.
     - **A container no swatch claims.** Nothing to call it.
     - **Two names for one colour.** A swatch that means two things cannot name
-      the group a container belongs to; ``_named_colours`` answers ``None``.
+      the group a container belongs to.
 
     A single container is left unnamed whatever the legend says: one
     distribution needs nothing to tell it apart from, and a name there would
     read as though the chart held more.
+
+    The match itself is ``kdeplot._names_for``, which is the same one this
+    used to make inline against ``_named_colours`` plus a second pass this
+    lacked. That pass is not a nicety here: a ``pairplot(hue=...)`` draws its
+    bars translucent and builds its figure legend from **opaque** swatches --
+    measured, bars at alpha 0.5 against swatches at 1.0, identical hues -- so
+    an RGBA comparison named nothing and every diagonal panel stayed
+    anonymous (#561). Comparing the three colour channels alone, guarded on
+    the drawn colours already being distinct without their alpha, names them.
 
     Parameters
     ----------
@@ -251,19 +260,10 @@ def _group_names(ax: Axes | None, containers: list) -> list[str | None]:
     list of str or None
         One entry per container, naming it or ``None``.
     """
-    if ax is None or len(containers) < 2:
+    if ax is None:
         return [None] * len(containers)
 
-    legend = ax.get_legend()
-    if legend is None:
-        return [None] * len(containers)
-
-    colours = [_container_colour(container) for container in containers]
-    named = _named_colours(legend, {c for c in colours if c is not None})
-    if not named:
-        return [None] * len(containers)
-
-    return [None if colour is None else named.get(colour) for colour in colours]
+    return _names_for(ax, [_container_colour(c) for c in containers])
 
 
 def _container_colour(container) -> tuple[float, ...] | None:
@@ -563,7 +563,9 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     # first group goes through it -- keeping the orientation and axis handling
     # every histogram has always had -- and the rest are registered beside it.
     containers = _new_bar_containers(drawn_axes, before)
-    names = _group_names(drawn_axes, containers)
+    names = deferred_names(
+        lambda: _group_names(drawn_axes, containers), len(containers)
+    )
     ax = common(
         PlotType.HIST,
         lambda *a, **k: drawn,
@@ -652,7 +654,9 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
         # for `histplot` and not for the figure-level spelling of the same
         # chart -- the asymmetry #522 and #446 were both about.
         containers = _new_bar_containers(ax, seen)
-        for container, name in zip(containers, _group_names(ax, containers)):
+        for container, name in zip(containers, deferred_names(
+            lambda: _group_names(ax, containers), len(containers)
+        )):
             FigureManager.create_maidr(
                 ax, PlotType.HIST, **{DRAWN_BARS: container, GROUP_NAME: name}
             )
