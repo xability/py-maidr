@@ -181,6 +181,22 @@ def legend_of(ax: Axes | None):
     which of them names this axes' colours, and a wrong name is worse than
     none -- the rule every decline in this module already follows.
 
+    **The axes' own legend always wins**, and that is the mitigation rather
+    than a preference. One figure legend is read as naming *every* axes, and
+    nothing in the artists can say otherwise: several panels with independent
+    hues draw the same default colour cycle, so a legend built for one of
+    them matches all of them. Measured, two `kdeplot(hue=...)` panels drawn
+    `legend=False` with one `fig.legend()` for the first come out with the
+    first panel's names on both.
+
+    That case needs a figure built by hand with every panel's own legend
+    suppressed, which is not what any seaborn call does on its own -- a
+    panel that keeps its legend is named by it and never consults the
+    figure's. The trade is a wrong name in that shape against no name at all
+    on every `pairplot`, whose whole grid does share one hue mapping. It is
+    written down here rather than left to be discovered, and pinned in
+    `tests/core/plot/test_pairplot_group_names.py`.
+
     Parameters
     ----------
     ax : Axes or None

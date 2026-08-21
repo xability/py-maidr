@@ -181,6 +181,48 @@ def test_two_figure_legends_name_nothing():
     assert [name for _, name in _named(fig)] == [None, None]
 
 
+def test_an_axes_own_legend_wins_over_the_figures():
+    # The mitigation for the case below: a panel that kept its own legend is
+    # named by it and never consults the figure's. That is the ordinary
+    # seaborn call, so the ambiguity needs a figure built by hand.
+    fig, ax = plt.subplots()
+    sns.kdeplot(data=_frame(), x="a", hue="g", ax=ax)
+    _figure_legend(fig, ax, loc="upper right")
+
+    # The axes legend names them the way it always did, not the figure's
+    # reversed labels.
+    assert [name for _, name in _named(fig)] == ["y", "x"]
+
+
+def test_one_figure_legend_names_every_panel_below_it():
+    # The accepted cost, pinned rather than left to be discovered. One figure
+    # legend is read as naming every axes, and nothing in the artists can say
+    # otherwise: two panels with independent hues draw the same default
+    # colour cycle, so a legend built for the first matches the second too.
+    #
+    # It needs a figure built by hand with both panels' legends suppressed.
+    # The trade is this against no name at all on every `pairplot`.
+    from matplotlib.patches import Patch
+
+    rng = np.random.default_rng(0)
+    left = pd.DataFrame({"v": rng.normal(size=40), "g": ["p"] * 20 + ["q"] * 20})
+    right = pd.DataFrame(
+        {"v": rng.normal(size=40) + 2, "h": ["s"] * 20 + ["t"] * 20}
+    )
+
+    fig, (first, second) = plt.subplots(1, 2)
+    sns.kdeplot(data=left, x="v", hue="g", ax=first, legend=False)
+    sns.kdeplot(data=right, x="v", hue="h", ax=second, legend=False)
+    fig.legend(
+        handles=[Patch(facecolor=c.get_color()) for c in _drawn_curves(first)],
+        labels=["p", "q"],
+    )
+
+    # The second panel's groups are `s` and `t`, and they are announced with
+    # the first panel's names. Both panels drew the same two colours.
+    assert [name for _, name in _named(fig)] == ["p", "q", "p", "q"]
+
+
 def test_the_name_is_resolved_once_and_stays_put():
     # Rendered more than once -- `schema`, `elements` and `set_id` each
     # render when nothing is cached -- and the layers of one call have to
