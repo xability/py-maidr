@@ -11,6 +11,8 @@ from matplotlib.collections import PolyCollection
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.contour import tag
+from maidr.core.plot.maidr_plot import GROUP_NAME
+from maidr.core.plot.scatterplot import _handle_colour, _rgba
 from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
 from maidr.core.context_manager import ContextManager
 from maidr.util.svg_utils import unique_lines_by_xy
@@ -84,6 +86,187 @@ def _register_field(ax: Axes | None, before: list) -> None:
         FigureManager.create_maidr(ax, PlotType.CONTOUR, contour_set=drawn)
 
 
+def _curve_names(ax: Axes, curves: list) -> list:
+    """
+    Name each KDE curve from the legend swatch drawn in its colour.
+
+    A ``kdeplot(hue=...)`` draws one curve per group and both distributions
+    are announced -- but with nothing to tell them apart, so a reader hears
+    the identical announcement twice (#558). The colours are what separate
+    them on screen and the legend is what names those colours, which is the
+    match ``scatterplot.hue_groups`` already makes point by point and
+    ``patch/histogram`` container by container.
+
+    Not by position. Measured on seaborn 0.13.2 the legend runs the reverse of
+    the draw order -- curves drawn orange then blue against entries listed
+    ``['y', 'x']`` -- so pairing them off gives each curve the other group's
+    name.
+
+    Every reason to decline leaves the curves unnamed rather than naming them
+    wrongly: no legend, a curve no swatch claims, or a swatch that names two
+    things. A lone curve is left unnamed whatever the legend says, because a
+    name on the only layer of a chart reads as though there were another to
+    tell it from.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    curves : list
+        The KDE lines, in draw order.
+
+    Returns
+    -------
+    list
+        One entry per curve, naming it or ``None``.
+    """
+    return _names_for(ax, [_rgba(curve.get_color()) for curve in curves])
+
+
+def _fill_names(ax: Axes, fills: list) -> list:
+    """
+    Name each filled KDE band from the legend swatch drawn in its colour.
+
+    ``kdeplot(hue=..., fill=True)`` draws no lines at all -- measured, two
+    groups give two ``PolyCollection`` bands and no ``Line2D`` at all -- so the
+    curve match above never sees them. A band's ``get_facecolor`` carries the
+    same translucent colour its swatch does, which is the whole difference.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    fills : list
+        The bands, in draw order.
+
+    Returns
+    -------
+    list
+        One entry per band, naming it or ``None``.
+    """
+    return _names_for(ax, [_collection_colour(fill) for fill in fills])
+
+
+def _collection_colour(collection) -> tuple | None:
+    """
+    The one colour a collection is filled with, if it has one.
+
+    Parameters
+    ----------
+    collection : PolyCollection
+        The band.
+
+    Returns
+    -------
+    tuple or None
+        The rounded RGBA, or ``None`` when it is filled with several colours
+        or none.
+    """
+    colours = {_rgba(row) for row in collection.get_facecolor()}
+    if len(colours) != 1:
+        return None
+    return colours.pop()
+
+
+def _names_for(ax: Axes, colours: list) -> list:
+    """
+    Match a list of drawn colours against the legend that names them.
+
+    Two passes, and the second is not a convenience. Measured on seaborn
+    0.13.2, ``histplot(kde=True, hue=...)`` draws its overlay curves **opaque**
+    while the legend swatches carry the bars' translucency::
+
+        line   (1.0, 0.498, 0.055, 1.0)
+        swatch (1.0, 0.498, 0.055, 0.5)
+
+    Identical hue, different alpha, so an RGBA comparison names nothing at all
+    -- the chart would announce two named histograms and two anonymous curves
+    over one axis. What identifies a group is the hue, so a second pass
+    compares the three colour channels alone.
+
+    That pass is guarded: it runs only where the drawn colours are already
+    distinct without their alpha. Two artists separated *by* their opacity
+    would otherwise both take whichever name matched, and a confident wrong
+    name is worse than none.
+
+    Every other reason to decline stands: no legend, an artist no swatch
+    claims, a swatch that names two things, and a lone artist -- which needs
+    nothing to be told apart from.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    colours : list
+        One rounded RGBA per artist, or ``None`` where it has no single one.
+
+    Returns
+    -------
+    list
+        One name per entry, or ``None``.
+    """
+    if len(colours) < 2:
+        return [None] * len(colours)
+
+    legend = ax.get_legend()
+    if legend is None:
+        return [None] * len(colours)
+
+    swatches = [
+        (_handle_colour(handle), text.get_text())
+        for handle, text in zip(legend.legend_handles, legend.get_texts())
+    ]
+
+    keys = [lambda colour: colour]
+    hues = [colour[:3] for colour in colours if colour is not None]
+    if len(set(hues)) == len(hues):
+        keys.append(lambda colour: colour[:3])
+
+    for key in keys:
+        named = _match_swatches(colours, swatches, key)
+        if named:
+            return [
+                None if colour is None else named.get(key(colour))
+                for colour in colours
+            ]
+    return [None] * len(colours)
+
+
+def _match_swatches(colours: list, swatches: list, key) -> dict | None:
+    """
+    Map each swatch that a drawn artist shares a colour with to its name.
+
+    Parameters
+    ----------
+    colours : list
+        The drawn colours.
+    swatches : list
+        ``(colour, name)`` per legend entry, colour ``None`` where the handle
+        names no single one.
+    key : callable
+        What counts as "the same colour" for this pass.
+
+    Returns
+    -------
+    dict or None
+        Key to name, or ``None`` when one colour is claimed by two names --
+        a ``style=`` legend does that, and a swatch meaning two things cannot
+        name the group an artist belongs to.
+    """
+    drawn = {key(colour) for colour in colours if colour is not None}
+    named: dict = {}
+    for colour, name in swatches:
+        if colour is None:
+            continue
+        matched = key(colour)
+        if matched not in drawn:
+            continue
+        if named.get(matched, name) != name:
+            return None
+        named[matched] = name
+    return named
+
+
 def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
     """
     Register every KDE curve on one axes as a SMOOTH layer.
@@ -107,7 +290,8 @@ def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
     if ax is not None:
         # Register all unique Line2D objects
         lines = [line for line in ax.get_lines() if isinstance(line, Line2D)]
-        for kde_line in unique_lines_by_xy(lines):
+        curves = list(unique_lines_by_xy(lines))
+        for kde_line, name in zip(curves, _curve_names(ax, curves)):
             if kde_line.get_gid() is None:
                 gid = f"maidr-{uuid.uuid4()}"
                 kde_line.set_gid(gid)
@@ -116,10 +300,11 @@ def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
                 lambda *a, **k: ax,
                 instance,
                 args,
-                dict(kwargs, regression_line=kde_line),
+                dict(kwargs, regression_line=kde_line, **{GROUP_NAME: name}),
             )
         # Register all PolyCollection boundaries as SMOOTH
-        for poly in [c for c in ax.collections if isinstance(c, PolyCollection)]:
+        fills = [c for c in ax.collections if isinstance(c, PolyCollection)]
+        for poly, fill_name in zip(fills, _fill_names(ax, fills)):
             if poly.get_paths():
                 path = poly.get_paths()[0]
                 boundary = path.vertices
@@ -139,6 +324,7 @@ def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
                         regression_line=kde_line,
                         poly_gid=gid,
                         is_polycollection=True,
+                        **{GROUP_NAME: fill_name},
                     ),
                 )
 

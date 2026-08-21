@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from matplotlib.axes import Axes
 from matplotlib.collections import PolyCollection
-from maidr.core.plot.maidr_plot import MaidrPlot
+from maidr.core.plot.maidr_plot import GROUP_NAME, MaidrPlot
 from maidr.exception.extraction_error import ExtractionError
 import numpy as np
 from maidr.core.enum.plot_type import PlotType
@@ -39,11 +39,30 @@ class SmoothPlot(MaidrPlot):
         ax : Axes
             The matplotlib axes object containing the regression line.
         """
+        # The hue group this curve belongs to, when the patch could name it.
+        # A `kdeplot(hue=...)` draws one curve per level and both were
+        # announced identically before (#558). Opted into here rather than
+        # read by `MaidrPlot`; see `GROUP_NAME` for why that is per class.
+        group_name = kwargs.get(GROUP_NAME, None)
+        self._group_name = group_name if isinstance(group_name, str) else None
         super().__init__(ax, PlotType.SMOOTH)
         self._smooth_gid = None
         self._regression_line = kwargs.get("regression_line", None)
         self._poly_gid = kwargs.get("poly_gid", None)
         self._is_polycollection = kwargs.get("is_polycollection", False)
+
+    def render(self) -> dict:
+        """
+        Add the group's name when the curve is one of several.
+
+        The same field, and for the same reason, as ``HistPlot``: several
+        ``smooth`` layers over one axis with nothing to tell them apart leave
+        a reader hearing the identical announcement twice.
+        """
+        schema = super().render()
+        if self._group_name:
+            schema[MaidrKey.NAME] = self._group_name
+        return schema
 
     def _get_selector(self):
         """

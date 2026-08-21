@@ -12,6 +12,27 @@ from maidr.util.mixin import FormatExtractorMixin
 import uuid
 
 
+#: Key a patch passes a layer's group name under.
+#:
+#: A chart that draws one layer per group -- a hue-split histogram, one KDE
+#: curve per level -- leaves a reader several layers of a kind over one axis
+#: with nothing to tell them apart, which is the position
+#: ``MaidrLayer.name`` was added for (xability/maidr#828).
+#:
+#: Defined here because more than one layer type answers to it, and
+#: **honoured per class** rather than read by this base: most subclasses call
+#: ``super().__init__(ax, PlotType.X)`` without forwarding their keyword
+#: arguments, so a key read here would arrive for some layer types and be
+#: swallowed by the rest -- a promise kept by accident of how each
+#: constructor happens to be written. ``HistPlot`` and ``SmoothPlot`` opt in
+#: today, each in one visible line.
+#:
+#: ``ScatterPlot`` and ``EventPlot`` name their layers by other means -- a hue
+#: split and row labels -- and are unaffected, being passed neither this key
+#: nor anything that collides with it.
+GROUP_NAME = "_maidr_group_name"
+
+
 class MaidrPlot(ABC, FormatExtractorMixin):
     """
     Abstract base class for plots managed by the MAIDR system.
@@ -58,6 +79,8 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         # MAIDR data
         self.type = plot_type
         self._schema = {}
+
+
 
     def render(self) -> dict:
         """

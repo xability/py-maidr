@@ -15,7 +15,9 @@ import uuid
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.core.plot.histogram import DRAWN_BARS, GROUP_NAME
+from maidr.core.plot.histogram import DRAWN_BARS
+from maidr.core.plot.maidr_plot import GROUP_NAME
+from maidr.patch.kdeplot import _curve_names
 from maidr.core.plot.scatterplot import _named_colours, _rgba
 from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, STEP_ORIENTATION
 from maidr.core.plot.stepped_histogram import reads as _reads_outline
@@ -167,7 +169,7 @@ def _containers_of(ax: Axes | None) -> list:
 
 def _new_bar_containers(ax: Axes | None, before: list) -> list[BarContainer]:
     """
-    The ``BarContainer``\ s a call just added to an axes, in draw order.
+    The bar containers a call just added to an axes, in draw order.
 
     Compared by identity against the snapshot. Not because value comparison
     would be wrong -- measured, two containers over identical data compare
@@ -579,18 +581,22 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
         # Find the KDE line(s) and register as SMOOTH
         axes = ax if isinstance(ax, Axes) else getattr(ax, "axes", None)
         if axes is not None:
-            for line in axes.get_lines():
-                if isinstance(line, Line2D):
-                    if line.get_gid() is None:
-                        gid = f"maidr-{uuid.uuid4()}"
-                        line.set_gid(gid)
-                    common(
-                        PlotType.SMOOTH,
-                        lambda *a, **k: axes,
-                        instance,
-                        args,
-                        dict(kwargs, regression_line=line),
-                    )
+            # The overlay is drawn one curve per hue group too, so it is named
+            # the same way the bars beneath it are -- otherwise a chart with
+            # both would announce two named histograms and two anonymous
+            # curves over the same axis (#558).
+            curves = [line for line in axes.get_lines() if isinstance(line, Line2D)]
+            for line, name in zip(curves, _curve_names(axes, curves)):
+                if line.get_gid() is None:
+                    gid = f"maidr-{uuid.uuid4()}"
+                    line.set_gid(gid)
+                common(
+                    PlotType.SMOOTH,
+                    lambda *a, **k: axes,
+                    instance,
+                    args,
+                    dict(kwargs, regression_line=line, **{GROUP_NAME: name}),
+                )
     return ax
 
 
