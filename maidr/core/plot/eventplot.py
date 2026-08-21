@@ -134,6 +134,12 @@ class EventPlot(MaidrPlot):
         )
         self._row_label = kwargs.get(EVENT_ROW_LABEL, None)
 
+        # The segment indices `_get_selector` addresses, filled by extraction.
+        # `render()` runs extraction first, so the list is never read empty in
+        # practice; declared here so the invariant is stated rather than
+        # inferred from the call order.
+        self._marks: list[int] = []
+
         # Assigned here rather than relied upon, for the reason `HexbinPlot`
         # and `contour.tag` give: matplotlib stamps a gid at *draw* time and
         # the schema is built first, so reading it later finds `None` and the
@@ -234,5 +240,5 @@ class EventPlot(MaidrPlot):
 
         return [
             f"g[id='{gid}'] > path:nth-of-type({index + 1})"
-            for index in getattr(self, "_marks", [])
+            for index in self._marks
         ]

@@ -20,8 +20,11 @@ def _row_labels(
     An event plot is routinely drawn against named rows -- one per neuron,
     per sensor, per subject -- and the names live on the ticks rather than in
     the collections. Read at registration, so a caller who labels the axis
-    afterwards gets the numbers; that is the same ordering the legend title
-    is read under, and it is pre-existing rather than introduced here.
+    afterwards gets the numbers; that is how a *group name* is read too --
+    ``scatterplot.hue_groups()`` captures one at patch time. The legend
+    *title* is the opposite case and not the precedent here: ``_legend_title``
+    is called from ``_extract_axes_data``, so it is asked live at render and
+    a later retitle does show up.
 
     Each row is looked up by **its own offset** rather than by its place in
     the list, because the two are the same only at the default spacing.

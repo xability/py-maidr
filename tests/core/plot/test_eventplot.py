@@ -395,3 +395,30 @@ def test_a_row_of_only_missing_values_is_not_a_layer():
 
     assert len(layers) == 1
     assert len(layers[0][MaidrKey.DATA]) == 3
+
+
+def test_a_raster_beside_another_chart_stays_in_its_own_panel():
+    """
+    Both rows land in the subplot they were drawn on, and only there.
+
+    A figure of several panels is the ordinary case for a raster -- the spike
+    train above, the stimulus trace below -- and the rows are registered in a
+    loop that names an axes once, outside it. An axes resolved from the
+    figure rather than from the artist would put every row in whichever
+    panel is current, which reads as one panel holding a chart it does not
+    draw and another holding nothing.
+    """
+    fig, (left, right) = plt.subplots(1, 2)
+    left.eventplot(ROWS)
+    right.scatter([1.0, 2.0], [3.0, 4.0])
+
+    grid = FigureManager.get_maidr(fig)._flatten_maidr()["subplots"]
+
+    assert [len(cell["layers"]) for row in grid for cell in row] == [2, 1]
+
+    raster, other = grid[0][0]["layers"], grid[0][1]["layers"][0]
+    assert [_points(layer) for layer in raster] == [
+        [(1.0, 0.0), (4.0, 0.0), (7.0, 0.0)],
+        [(2.0, 1.0), (5.0, 1.0)],
+    ]
+    assert _points(other) == [(1.0, 3.0), (2.0, 4.0)]
