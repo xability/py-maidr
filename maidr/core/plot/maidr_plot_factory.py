@@ -13,6 +13,7 @@ from maidr.core.plot.contour import ContourPlot
 from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.eventplot import DRAWN_EVENTS, EventPlot
 from maidr.core.plot.gantt import GanttPlot
+from maidr.core.plot.spanplot import DRAWN_SPANS, SpanPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.hexbinplot import HexbinPlot
@@ -76,6 +77,14 @@ class MaidrPlotFactory:
         elif PlotType.BOXEN == plot_type:
             return BoxenPlot(single_ax, **kwargs)
         elif PlotType.GANTT == plot_type:
+            # Two calls draw this chart and they are shaped oppositely.
+            # `broken_barh` draws one lane per call and hands back a
+            # `PolyCollection` of corners; `hlines`/`vlines` draw every lane
+            # in one call and hand back a `LineCollection` of segments. The
+            # layer is the same either way, so the type cannot say which, and
+            # the artist the patch passes does (#568).
+            if DRAWN_SPANS in kwargs:
+                return SpanPlot(single_ax, **kwargs)
             return GanttPlot(single_ax, **kwargs)
         elif PlotType.CONTOUR == plot_type:
             return ContourPlot(single_ax, **kwargs)
