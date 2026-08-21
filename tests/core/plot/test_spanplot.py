@@ -308,3 +308,40 @@ def test_a_schedule_whose_tasks_share_a_start_is_declined():
 
     assert _layers(fig) == []
     assert len(maidr.render(fig)._repr_html_()) > 0
+
+
+def test_an_hlines_and_a_vlines_share_an_axes_and_keep_their_own_lane_axis():
+    # `patch/spanplot.py` claims exactly this, and until now nothing checked
+    # it. The substantive half is not that two layers appear -- it is that
+    # each names its lanes off the axis *it* laid them out on, since the two
+    # calls run in opposite directions and `SpanPlot` is told which by
+    # `SPANS_ALONG_X` alone. Given different tick labels on x and y, a layer
+    # reading the wrong axis would come back with the other one's names, or
+    # with bare numbers when the position matched no tick.
+    fig, ax = plt.subplots()
+    ax.set_yticks([1, 2, 3], labels=["alpha", "beta", "gamma"])
+    ax.set_xticks([10, 20], labels=["left", "right"])
+    ax.hlines([1, 2, 3], [0, 2, 4], [5, 7, 6])
+    ax.vlines([10, 20], [0, 1], [4, 9])
+
+    schemas = _all_schemas(fig)
+    assert [schema["data"]["lanes"] for schema in schemas] == [
+        ["alpha", "beta", "gamma"],
+        ["left", "right"],
+    ]
+
+
+def test_one_unreadable_segment_declines_the_whole_call():
+    # The asymmetry with `GanttPlot._corners`, which drops a bad path and
+    # keeps the rest of its lane. `read_spans` returns None for the call
+    # instead, so a chart is never announced as a subset of itself -- a
+    # reader given two of three tasks has no way to know a third existed.
+    # Documented on the class; pinned here so the trade-off enforces itself.
+    import numpy as np
+
+    fig, ax = plt.subplots()
+    ax.hlines([1, 2, 3], [0, 2, np.nan], [5, 7, 6])
+
+    assert _layers(fig) == []
+    # And the figure still renders, as a picture rather than nothing.
+    assert len(maidr.render(fig)._repr_html_()) > 0
