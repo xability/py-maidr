@@ -142,7 +142,16 @@ def _magnitudes(wrapped, args: tuple, kwargs: dict, position: str, value: str):
     return positions, values
 
 
-def _fill(wrapped, instance, args, kwargs, position: str, value: str, other: str):
+def _fill(
+    wrapped,
+    instance,
+    args,
+    kwargs,
+    position: str,
+    value: str,
+    other: str,
+    transposed: bool = False,
+):
     """
     Draw a patched fill call and register the area it produced, when it is one.
 
@@ -168,6 +177,10 @@ def _fill(wrapped, instance, args, kwargs, position: str, value: str, other: str
         The parameter naming the curve.
     other : str
         The parameter naming the second edge.
+    transposed : bool
+        True for ``fill_betweenx``, whose positions run down the page and
+        whose magnitudes run out along x. Passed through to the layer, which
+        exchanges the two axis titles -- see ``AreaPlot.render``.
 
     Returns
     -------
@@ -212,6 +225,7 @@ def _fill(wrapped, instance, args, kwargs, position: str, value: str, other: str
         series=[values],
         labels=[kwargs["label"]] if isinstance(kwargs.get("label"), str) else [],
         collections=[collection],
+        transposed=transposed,
     )
 
     return collection
@@ -228,9 +242,12 @@ def fill_betweenx(wrapped, instance, args, kwargs) -> Collection:
 
     The same chart with the axes exchanged: the shared axis is ``y`` and the
     magnitude runs along ``x``. Emitted as an area either way, since what a
-    band measures does not change with which way it is drawn.
+    band measures does not change with which way it is drawn -- but which
+    axis each number is *read against* does, and saying so is what
+    ``transposed`` carries. Without it the two spellings produced identical
+    payloads for charts that are transposes of each other (#566).
     """
-    return _fill(wrapped, instance, args, kwargs, "y", "x1", "x2")
+    return _fill(wrapped, instance, args, kwargs, "y", "x1", "x2", transposed=True)
 
 
 # Patch matplotlib functions. `AreaPlot` is reached through the factory, so
