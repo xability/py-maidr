@@ -328,6 +328,12 @@ Same throughput either way — the work did not get cheaper, it stopped being in
 
 Two things this does not do. Renders of the **same figure** are serialised, because `savefig` writes `fig.dpi` for its duration and two concurrent writes leave one chart drawn at the other's scale; distinct figures, which is the usual per-session shape, run in parallel. That lock is held by the render path itself rather than by this integration, so a figure is rendered one at a time however it is reached — through Shiny, through Streamlit, or from a thread of your own. And the chart still travels over the websocket on every flush — roughly 25 KB, or a couple of megabytes with `use_cdn=False`; that part is tracked in [#534](https://github.com/xability/py-maidr/issues/534).
 
+**What the lock cannot do is stop your app.** It serialises renders against each other; it does not stop a render function drawing into a figure another session is in the middle of rendering. That produces a chart whose SVG and announced data disagree — visible to a sighted reader, invisible to a screen-reader one — so maidr says so, naming the figure:
+
+> maidr: figure 2 was drawn into while it was being rendered, so the chart's SVG and the data maidr announces for it may not match. Finish plotting before rendering, or render a figure no other thread is using.
+
+It notices artists appearing, disappearing or being relabelled, **not** a value changed in place on an existing artist — so hearing nothing is not a guarantee that a render was clean. Silence a `maidr.MaidrRenderRaceWarning` if you have decided a figure is deliberately shared.
+
 `uv run pytest tests/core/test_render_is_synchronous.py --run-benchmark` re-measures the underlying `maidr.render()`, which is still synchronous and still blocks its caller — that is what makes moving it off the loop necessary rather than optional.
 :::
 
