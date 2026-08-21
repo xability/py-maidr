@@ -105,11 +105,28 @@ def _lane_of(ax: Axes) -> GanttPlot | None:
         # updates the bookkeeping behind iteration, so `get` mutates shared
         # state rather than only observing it.
         return None
+    # `type(... ) is` rather than `isinstance`, because what is being looked
+    # for is not "a gantt-shaped layer" but "a layer `add_lane` can actually
+    # extend" -- and those are no longer the same set. `SpanPlot` subclasses
+    # `GanttPlot` to reuse its schema and its lane naming, but reads its lanes
+    # from the segments the patch handed it, never from `self._collections`.
+    # So an `isinstance` match here let a `broken_barh` call following an
+    # `hlines` on the same axes append its `PolyCollection` to a `SpanPlot`,
+    # where extraction never looks: the lane was drawn, accepted without
+    # error, and appeared in no announcement. Measured on
+    # `hlines(...)` then `broken_barh([(0, 3)], (10, 9))`, which read three
+    # lanes for the four it drew.
+    #
+    # Excluded here rather than refused in `SpanPlot.add_lane`, because a
+    # refusal would have to raise out of the caller's own `ax.broken_barh(...)`
+    # to be heard, and a plotting call that throws is worse than two layers.
+    # Left out of the merge, the `broken_barh` registers its own lane and both
+    # charts read -- which is what the reverse drawing order already did.
     return next(
         (
             plot
             for plot in registered.plots
-            if isinstance(plot, GanttPlot) and plot.ax is ax
+            if type(plot) is GanttPlot and plot.ax is ax
         ),
         None,
     )

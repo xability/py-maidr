@@ -158,29 +158,34 @@ class GanttPlot(MaidrPlot):
             float(finite[:, 1].max()),
         )
 
-    def _lane_name(self, low: float, high: float) -> str | float:
+    def _lane_name(self, low: float, high: float, axis=None) -> str | float:
         """
         What to call the lane a bar spanning ``low`` to ``high`` sits in.
 
         Parameters
         ----------
         low, high : float
-            The bar's y extent.
+            The bar's extent along the lane axis.
+        axis : Axis, optional
+            The axis the lanes are laid out on. The y axis by default, which
+            is where ``broken_barh`` puts them; ``SpanPlot`` passes the x axis
+            for a set of vertical spans, whose lanes run the other way.
 
         Returns
         -------
         str or float
             The tick label naming it, or its centre when no single tick does.
         """
+        axis = self.ax.get_yaxis() if axis is None else axis
         centre = (low + high) / 2
-        if not isinstance(self.ax.get_yaxis().get_major_locator(), FixedLocator):
+        if not isinstance(axis.get_major_locator(), FixedLocator):
             # An axis matplotlib chose the ticks for. Several land inside a
             # bar and none of them is its name.
             return centre
 
         inside = [
             text.get_text()
-            for position, text in zip(self.ax.get_yticks(), self.ax.get_yticklabels())
+            for position, text in zip(axis.get_ticklocs(), axis.get_ticklabels())
             if low <= position <= high and text.get_text()
         ]
         # Exactly one, or the label is a guess between candidates rather than

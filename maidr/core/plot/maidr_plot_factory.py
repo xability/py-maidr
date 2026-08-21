@@ -23,6 +23,7 @@ from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
+from maidr.core.plot.spanplot import DRAWN_SPANS, SpanPlot
 from maidr.core.plot.stairs import StairsPlot
 from maidr.core.plot.stepped_histogram import SteppedHistPlot
 from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, StepHistPlot
@@ -76,6 +77,14 @@ class MaidrPlotFactory:
         elif PlotType.BOXEN == plot_type:
             return BoxenPlot(single_ax, **kwargs)
         elif PlotType.GANTT == plot_type:
+            # Two calls draw this chart and they are shaped oppositely.
+            # `broken_barh` draws one lane per call and hands back a
+            # `PolyCollection` of corners; `hlines`/`vlines` draw every lane
+            # in one call and hand back a `LineCollection` of segments. The
+            # layer is the same either way, so the type cannot say which, and
+            # the artist the patch passes does (#568).
+            if DRAWN_SPANS in kwargs:
+                return SpanPlot(single_ax, **kwargs)
             return GanttPlot(single_ax, **kwargs)
         elif PlotType.CONTOUR == plot_type:
             return ContourPlot(single_ax, **kwargs)
