@@ -4,12 +4,15 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.util.confidence_band import band_edges_at
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.exception.extraction_error import ExtractionError
 from maidr.util.mixin.extractor_mixin import LineExtractorMixin
 import math
 import uuid
+
+import numpy as np
 
 
 def _has_position(x: object) -> bool:
@@ -267,6 +270,8 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             legend_labels = [text.get_text() for text in self.ax.legend_.get_texts()]
 
         all_lines_data = []
+        # Regions handed to an earlier series, so a band answers for one line.
+        claimed: list = []
 
         for i, line in enumerate(all_lines):
             xydata = line.get_xydata()
@@ -306,7 +311,54 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 if _has_position(x)
             ]
 
+            self._attach_band(line_data, claimed)
+
             if line_data:
                 all_lines_data.append(line_data)
 
         return all_lines_data if all_lines_data else None
+
+    def _attach_band(self, line_data: list, claimed: list) -> None:
+        """
+        Give each point the interval the chart shades around it, if there is
+        one.
+
+        ``sns.lineplot`` aggregates repeated x values and draws a 95%%
+        confidence band **by default**, and matplotlib's own documentation
+        writes the same chart as ``plot`` plus ``fill_between``. Either way
+        the line was announced alone, so a reader was told the trend and not
+        how well determined it is -- the gap xability/r-maidr#135 closed for
+        `geom_smooth(se = TRUE)` and #451 for a `regplot` (#562).
+
+        ``SmoothPoint``'s `yMin`/`yMax` is the shape for it, and the region is
+        identified by bracketing rather than by type; see
+        :mod:`maidr.util.confidence_band`.
+
+        Parameters
+        ----------
+        line_data : list
+            One series' points, modified in place.
+        claimed : list
+            Regions already given to an earlier series, appended to here. A
+            chart with several lines has several bands, and a wide one can
+            bracket a neighbour's samples as well as its own.
+        """
+        positions = [point[MaidrKey.X] for point in line_data]
+        values = [point[MaidrKey.Y] for point in line_data]
+        if len(positions) < 2 or not all(
+            isinstance(value, (int, float)) and not isinstance(value, bool)
+            for value in positions + values
+        ):
+            return
+
+        lower, upper, region = band_edges_at(
+            self.ax, np.asarray(positions, dtype=float),
+            np.asarray(values, dtype=float), tuple(claimed),
+        )
+        if region is None:
+            return
+
+        claimed.append(region)
+        for point, low, high in zip(line_data, lower, upper):
+            point[MaidrKey.Y_MIN] = float(low)
+            point[MaidrKey.Y_MAX] = float(high)
