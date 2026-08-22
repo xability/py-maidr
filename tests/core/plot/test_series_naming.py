@@ -86,3 +86,95 @@ def test_series_name_answers_for_a_label_that_is_not_a_string() -> None:
             return 42
 
     assert series_name(Odd()) == ""
+
+
+def test_a_hidden_series_does_not_take_its_neighbours_legend_name() -> None:
+    """matplotlib's legend skips an underscored label, so the legend is
+    shorter than the series list and pairing the two by position handed the
+    hidden line the name of the series after it."""
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [4, 9, 2], label="_nolegend_")
+    ax.plot([1, 2, 3], [1, 2, 3], label="revenue")
+    ax.legend()
+
+    assert _names(ax) == [None, "revenue"]
+
+    plt.close(fig)
+
+
+def test_the_hidden_series_may_come_second_too() -> None:
+    """The other order, because only one direction can be broken."""
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3], label="revenue")
+    ax.plot([1, 2, 3], [4, 9, 2], label="_nolegend_")
+    ax.legend()
+
+    assert _names(ax) == ["revenue", None]
+
+    plt.close(fig)
+
+
+def test_two_hidden_series_around_a_named_one() -> None:
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [4, 9, 2], label="_nolegend_")
+    ax.plot([1, 2, 3], [1, 2, 3], label="revenue")
+    ax.plot([1, 2, 3], [3, 1, 2], label="_child9")
+    ax.legend()
+
+    assert _names(ax) == [None, "revenue", None]
+
+    plt.close(fig)
+
+
+def test_a_legend_that_renames_every_series_still_wins() -> None:
+    """`ax.legend(["A", "B"])` renames positionally and means to; the fix
+    must not take that away."""
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [4, 9, 2], label="p")
+    ax.plot([1, 2, 3], [1, 2, 3], label="q")
+    ax.legend(["A", "B"])
+
+    assert _names(ax) == ["A", "B"]
+
+    plt.close(fig)
+
+
+def test_a_hue_split_is_still_named_from_its_legend() -> None:
+    """seaborn labels its lines with `_child` sentinels and puts the group
+    names in the legend, which is the case #502 settled. It also leaves
+    lines with no data among the real ones, so the pairing has to run over
+    the series that are actually announced."""
+    import pandas as pd
+    import seaborn as sns
+
+    frame = pd.DataFrame(
+        {
+            "x": [1, 2, 3, 1, 2, 3],
+            "y": [1, 2, 3, 3, 2, 1],
+            "g": ["a", "a", "a", "b", "b", "b"],
+        }
+    )
+    fig, ax = plt.subplots()
+    sns.lineplot(frame, x="x", y="y", hue="g", ax=ax)
+
+    assert _names(ax) == ["a", "b"]
+
+    plt.close(fig)
+
+
+def test_a_legend_shorter_than_the_series_still_renames_the_one_it_names() -> None:
+    """The case that makes the shorter-legend pairing load-bearing rather
+    than a longer way of falling back to the line's own label.
+
+    `ax.legend(["Renamed"])` beside a hidden line produces one entry, and it
+    belongs to the visible series -- which must then be announced as
+    "Renamed" and not as its own "revenue".
+    """
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [4, 9, 2], label="_nolegend_")
+    ax.plot([1, 2, 3], [1, 2, 3], label="revenue")
+    ax.legend(["Renamed"])
+
+    assert _names(ax) == [None, "Renamed"]
+
+    plt.close(fig)

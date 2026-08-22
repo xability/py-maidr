@@ -102,6 +102,24 @@ def _reading(y: object) -> object:
         return y
 
 
+
+def _drew_something(line: Line2D) -> bool:
+    """
+    Whether a line has any coordinates at all.
+
+    Parameters
+    ----------
+    line : Line2D
+        One of the axes' lines.
+
+    Returns
+    -------
+    bool
+        True when the line carries at least one point.
+    """
+    xydata = line.get_xydata()
+    return xydata is not None and bool(getattr(xydata, "size", 0))
+
 class MultiLinePlot(MaidrPlot, LineExtractorMixin):
     """
     A class for extracting and processing data from line plots.
@@ -262,6 +280,12 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             and line identifiers for one line, or None if the plot data is invalid.
         """
         all_lines = self._series()
+
+        # Only the lines that drew something take part, in both the pairing
+        # below and the loop. A seaborn `hue` split leaves probe lines with
+        # no data among the real ones, and counting those against the legend
+        # would pair its names with series that are never announced.
+        all_lines = [line for line in all_lines if _drew_something(line)]
         if not all_lines:
             return None
 
@@ -270,15 +294,36 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         if self.ax.legend_ is not None:
             legend_labels = [text.get_text() for text in self.ax.legend_.get_texts()]
 
+        # Which line each legend entry belongs to. A legend is not always as
+        # long as the series list, and pairing the two by position when it is
+        # not hands a line its neighbour's name: matplotlib's own legend
+        # builder skips an artist whose label starts with an underscore, so
+        #
+        #     ax.plot(x, y, label="_nolegend_")
+        #     ax.plot(x, z, label="revenue")
+        #     ax.legend()
+        #
+        # leaves one entry against two lines, and both were announced
+        # "revenue" -- the hidden one taking the name of the series after it.
+        #
+        # Equal lengths keep the positional pairing, which is what the two
+        # cases that rely on it need: `ax.legend(["A", "B"])` renames every
+        # series positionally and means to, and a seaborn `hue` split names
+        # its groups in the legend while the lines themselves carry `_child`
+        # sentinels (#502). Only when the legend is *shorter* is it matched
+        # against the lines matplotlib would have put in it.
+        named = [index for index, line in enumerate(all_lines) if series_name(line)]
+        from_legend: dict = {}
+        if len(legend_labels) == len(all_lines):
+            from_legend = dict(enumerate(legend_labels))
+        elif len(legend_labels) == len(named):
+            from_legend = dict(zip(named, legend_labels))
+
         all_lines_data = []
         # Regions handed to an earlier series, so a band answers for one line.
         claimed: list = []
 
         for i, line in enumerate(all_lines):
-            xydata = line.get_xydata()
-            if xydata is None or not xydata.size:  # type: ignore
-                continue
-
             self._elements.append(line)
 
             # Assign unique GID to each line if not already set
@@ -287,10 +332,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 line.set_gid(unique_gid)
 
             # Try to get the series name from legend labels
-            if legend_labels and i < len(legend_labels):
-                line_type = legend_labels[i]
-            else:
-                line_type = series_name(line)
+            line_type = from_legend.get(i) or series_name(line)
 
             # Use the new method to extract data with categorical labels
             line_coords = LineExtractorMixin.extract_line_data_with_categorical_labels(
