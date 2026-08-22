@@ -7,7 +7,7 @@ from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
-from maidr.core.plot.maidr_plot import GROUP_NAME
+from maidr.core.plot.maidr_plot import group_name_of
 from maidr.core.plot.scatterplot import _rgba
 from maidr.exception import ExtractionError
 from maidr.util.legend_names import names_for
@@ -246,10 +246,7 @@ class BoxPlot(
         # `z` instead. A callable names it at render, which is what a
         # `catplot` needs: its legend is built at the figure after every
         # panel is drawn, so at registration there is none to read (#595).
-        group_name = kwargs.pop(GROUP_NAME, None)
-        self._group_name = (
-            group_name if isinstance(group_name, str) or callable(group_name) else None
-        )
+        self._group_name = group_name_of(kwargs)
         self._bxp_stats = kwargs.pop("bxp_stats", None)
         self._orientation = kwargs.pop("orientation", "vert")
         self._bxp_extractor = BoxPlotExtractor(orientation=self._orientation)

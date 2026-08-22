@@ -261,3 +261,30 @@ class TestTheFigureLevelSpelling:
         assert {str(point["z"]).split(", ")[1] for point in emitted["data"]} == set(
             LEVELS
         )
+
+    def test_a_call_whose_boxes_differ_in_colour_is_not_named(self):
+        """A layer holding two levels is neither of them.
+
+        Nothing measured draws one -- `bxp` colours a call's boxes together,
+        and the two callers that reach `_level_of` each draw one colour per
+        call -- so this is the guard rather than a live path, asserted
+        directly because no chart can assert it.
+        """
+        from matplotlib.patches import PathPatch
+        from matplotlib.path import Path as MplPath
+
+        from maidr.patch.boxplot import _level_of
+
+        figure, ax = plt.subplots()
+        sns.boxplot(frame(), x="cat", y="val", hue="grp", ax=ax)
+        square = MplPath([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])
+        mixed = [
+            PathPatch(square, facecolor="red"),
+            PathPatch(square, facecolor="blue"),
+        ]
+
+        assert _level_of(ax, mixed) is None
+        # And one colour, on the same axes and legend, does resolve -- so the
+        # decline above is the mixture and not the setup.
+        alone = [PathPatch(square, facecolor=mixed[0].get_facecolor())]
+        assert callable(_level_of(ax, alone))

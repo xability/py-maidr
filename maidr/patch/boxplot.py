@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Callable
+
 import wrapt
 from matplotlib.axes import Axes
 
@@ -12,7 +14,7 @@ from maidr.patch.common import _draw_quietly, resolve_orientation, wrap_seaborn
 from maidr.util.legend_names import name_for
 
 
-def _level_of(ax: Axes, boxes: list):
+def _level_of(ax: Axes, boxes: list) -> Callable[[], str | None] | None:
     """
     Name the hue level one ``bxp`` call's boxes belong to, at render.
 
