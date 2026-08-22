@@ -4,7 +4,9 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.core.plot.scatterplot import _rgba
 from maidr.util.artist_label import series_name
+from maidr.util.legend_names import names_for
 from maidr.util.confidence_band import band_edges_at
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
@@ -290,6 +292,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             return None
 
         # Try to get series names from legend
+        ax_legend_source = self.ax
         legend_labels = []
         if self.ax.legend_ is not None:
             legend_labels = [text.get_text() for text in self.ax.legend_.get_texts()]
@@ -337,11 +340,32 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         own = [series_name(line) for line in all_lines]
         from_legend: dict = {}
         if len(legend_labels) == len(all_lines):
-            renaming = set(legend_labels) == set(own)
+            # Before either of those: the *colour* each line was drawn in is
+            # what the legend swatch beside a name actually refers to, and it
+            # survives an order the position does not. seaborn draws an ECDF's
+            # hue levels in the reverse of its legend order, so pairing by
+            # position gave every curve the other group's name (#582) -- the
+            # defect `patch/kdeplot` avoids for a density by this same match,
+            # and `scatterplot.hue_groups` point by point.
+            #
+            # `names_for` declines rather than guesses: no legend, a line no
+            # swatch claims, a swatch naming two lines, or fewer than two
+            # lines to tell apart. Position is the fallback for all of those,
+            # so nothing that was named before stops being named.
+            by_colour = names_for(ax_legend_source, [_rgba(line.get_color()) for line in all_lines])
+            if any(name is not None for name in by_colour):
+                # A line no swatch claimed is recorded as `None` rather than
+                # filtered out, because the lookup below falls through to the
+                # line's own name on a `None` either way. Filtering it was
+                # tried and removed: no test could tell the two apart.
+                from_legend = dict(enumerate(by_colour))
+                renaming = False
+            else:
+                renaming = set(legend_labels) == set(own)
             # Nothing to record when the legend only restates the names the
             # lines already carry: each line then answers for itself below,
             # in its own order, which is the whole point.
-            if not renaming:
+            if not renaming and not from_legend:
                 from_legend = dict(enumerate(legend_labels))
         elif len(legend_labels) == len(named):
             from_legend = dict(zip(named, legend_labels))
