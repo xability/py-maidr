@@ -19,8 +19,8 @@ from maidr.core.plot.hexbinplot import HexbinPlot
 from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.lollipop import LollipopPlot
-from maidr.core.plot.outlined_histogram import OUTLINE_LINE, OutlinedHistPlot
 from maidr.core.plot.maidr_plot import MaidrPlot
+from maidr.core.plot.outlined_histogram import OUTLINE_LINE, OutlinedHistPlot
 from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot

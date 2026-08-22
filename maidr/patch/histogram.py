@@ -20,10 +20,10 @@ from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.core.plot.outlined_histogram import OUTLINE_LINE
 from maidr.core.plot.outlined_histogram import reads as outline_reads
 from maidr.core.plot.scatterplot import _rgba
-from maidr.patch.kdeplot import _curve_names, _names_for, deferred_names
 from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, STEP_ORIENTATION
 from maidr.core.plot.stepped_histogram import reads as _reads_outline
 from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
+from maidr.patch.kdeplot import _curve_names, _names_for, deferred_names
 
 
 @wrapt.patch_function_wrapper(Axes, "hist")

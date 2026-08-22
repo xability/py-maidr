@@ -75,7 +75,14 @@ class OutlinedHistPlot(HistPlot):
 
     def __init__(self, ax: Axes, line: Line2D, **kwargs) -> None:
         self._line = line
-        super().__init__(ax)
+        # Forwarded, not dropped: the patch names each outline from the
+        # legend swatch its colour matches and hands the name over under
+        # `GROUP_NAME`, which `HistPlot.__init__` is the thing that reads.
+        # Calling it with the axes alone computed every name and threw them
+        # away, leaving a `hue=` chart with two "hist" layers and no way to
+        # tell which group either announced -- the same silence this class
+        # exists to end, one level down.
+        super().__init__(ax, **kwargs)
         # One `<path>` for the whole outline, as `SteppedHistPlot` and
         # `Axes.stairs` have: there is no per-bin element for a selector to
         # name, and one naming the line would light the whole distribution up

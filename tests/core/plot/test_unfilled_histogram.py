@@ -80,6 +80,27 @@ def test_a_hue_split_gives_one_layer_per_group(element: str) -> None:
     assert len(FigureManager.get_maidr(fig).plots) == 2
 
 
+@pytest.mark.parametrize("element", ["step", "poly"])
+def test_each_hue_group_carries_the_name_its_colour_is_given(element: str) -> None:
+    """Two layers of a kind need telling apart, which is what #828 added.
+
+    Counting the layers is not enough on its own: the patch matches each
+    outline's colour against the legend swatch that names it, and a layer
+    that computed the name and dropped it on the way to the schema counts
+    the same as one that carries it. Measured on the first draft, which
+    called ``HistPlot.__init__`` with the axes alone: both layers came out
+    ``name=None`` while the patch had a name for each.
+
+    The names come out in seaborn's own draw order, which is the reverse of
+    the legend's for a hue-grouped histogram.
+    """
+    frame = pd.DataFrame({"v": [1, 2, 3, 8, 9, 10], "g": ["a"] * 3 + ["b"] * 3})
+    fig, ax = plt.subplots()
+    sns.histplot(frame, x="v", hue="g", bins=3, element=element, fill=False, ax=ax)
+
+    assert [schema.get(MaidrKey.NAME) for schema in _schemas(fig)] == ["b", "a"]
+
+
 def test_a_stepped_outline_reads_uneven_bins_exactly() -> None:
     """It carries the edges themselves, so nothing has to be reconstructed."""
     fig, ax = plt.subplots()
