@@ -101,6 +101,75 @@ def test_each_hue_group_carries_the_name_its_colour_is_given(element: str) -> No
     assert [schema.get(MaidrKey.NAME) for schema in _schemas(fig)] == ["b", "a"]
 
 
+# Counts 2 and 5 over two bins, and 1/2/3/4 over four: both frames make the
+# *counts* column ascend, and the four-bin one makes it ascend by an even
+# step as well. A `poly` outline repeats no value, so on a `y=` chart both of
+# its columns then read as bins and the drawing cannot say which is which.
+CLIMBING_TWO = [0.1, 0.2, 0.6, 0.7, 0.8, 0.9, 0.95]
+CLIMBING_FOUR = [0.0, 0.3, 0.4, 0.55, 0.6, 0.65, 0.8, 0.85, 0.9, 1.0]
+
+
+@pytest.mark.parametrize("element", ["step", "poly"])
+@pytest.mark.parametrize(
+    ("values", "bins"), [(CLIMBING_TWO, 2), (CLIMBING_FOUR, 4)], ids=["two", "four"]
+)
+def test_a_horizontal_outline_whose_counts_climb_is_not_read_transposed(
+    element: str, values: list, bins: int
+) -> None:
+    """The counts are not the axis, however much they look like one.
+
+    Measured on the first draft, which took whichever column ascended first::
+
+        sns.histplot(df, y="v", bins=2, element="poly", fill=False)
+        orientation 'vert', xMin 0.5, xMax 3.5, y 0.3125
+
+    The bin edges were built out of the counts 2 and 5, and the bin centre
+    0.3125 was announced as the count. Silently transposed, which is the one
+    outcome this reading is meant not to have.
+
+    Pinned against the filled twin, which reads the same chart from a
+    ``PolyCollection`` that carries a baseline and so was never ambiguous.
+    """
+    frame = pd.DataFrame({"v": values})
+
+    def draw(**kwargs):
+        fig, ax = plt.subplots()
+        sns.histplot(frame, y="v", bins=bins, ax=ax, element=element, **kwargs)
+        return fig
+
+    filled = _schemas(draw())
+    unfilled = _schemas(draw(fill=False))
+
+    assert [s.get(MaidrKey.ORIENTATION) for s in unfilled] == ["horz"]
+    assert [s[MaidrKey.DATA] for s in unfilled] == [s[MaidrKey.DATA] for s in filled]
+    # The bins run up y and the counts sit on x, not the other way about.
+    for point in unfilled[0][MaidrKey.DATA]:
+        assert point["yMin"] < point["yMax"]
+        assert point["yMax"] == pytest.approx(max(values), abs=1e-9) or point[
+            "yMax"
+        ] < max(values)
+        assert point["x"] == int(point["x"])
+
+
+def test_an_outline_that_reads_either_way_declines_when_nothing_says_which() -> None:
+    """Both columns are bins, so without the caller there is no answer.
+
+    The tie-break is the orientation the patch hands over; a reader that has
+    none is in the position the first draft was in, and the rule there is the
+    one an uneven ``poly`` already follows -- decline rather than pick.
+    """
+    from matplotlib.lines import Line2D
+
+    from maidr.core.plot.outlined_histogram import _read_line
+
+    # Counts 1..4 against centres 0.125..0.875: both ascend, both evenly.
+    line = Line2D([1.0, 2.0, 3.0, 4.0], [0.125, 0.375, 0.625, 0.875])
+
+    assert _read_line(line, None) is None
+    assert _read_line(line, True)[0] is True
+    assert _read_line(line, False)[0] is False
+
+
 def test_a_stepped_outline_reads_uneven_bins_exactly() -> None:
     """It carries the edges themselves, so nothing has to be reconstructed."""
     fig, ax = plt.subplots()

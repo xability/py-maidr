@@ -17,7 +17,7 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.histogram import DRAWN_BARS
 from maidr.core.plot.maidr_plot import GROUP_NAME
-from maidr.core.plot.outlined_histogram import OUTLINE_LINE
+from maidr.core.plot.outlined_histogram import OUTLINE_HORIZONTAL, OUTLINE_LINE
 from maidr.core.plot.outlined_histogram import reads as outline_reads
 from maidr.core.plot.scatterplot import _rgba
 from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, STEP_ORIENTATION
@@ -492,7 +492,40 @@ def _lines_of(ax: Axes | None) -> list:
     return list(getattr(ax, "lines", ()) or ())
 
 
-def _drew_outline_lines(ax: Axes | None, before: list, kde: bool) -> list:
+def _asked_for_horizontal(kwargs: dict) -> bool:
+    """
+    Whether the caller asked ``histplot`` for a distribution up the y axis.
+
+    ``x`` and ``y`` are keyword-only on ``seaborn.histplot``, so a named axis
+    is here whichever way it was spelled -- ``histplot(df, y="v")`` and
+    ``histplot(y=series)`` alike -- and a call naming neither is the
+    univariate default, which runs along x.
+
+    A ``y`` is therefore the whole question. Naming *both* makes a bivariate
+    histogram, and that never reaches here: measured, it draws no ``Line2D``
+    at all -- one ``QuadMesh``, read as a heatmap -- so there is no outline
+    for an orientation to be wanted for.
+
+    Asked because an outline's drawing cannot always answer it; see
+    :data:`~maidr.core.plot.outlined_histogram.OUTLINE_HORIZONTAL` for the
+    shape that made it necessary.
+
+    Parameters
+    ----------
+    kwargs : dict
+        The keyword arguments the caller passed.
+
+    Returns
+    -------
+    bool
+        True for a horizontal distribution.
+    """
+    return kwargs.get("y") is not None
+
+
+def _drew_outline_lines(
+    ax: Axes | None, before: list, kde: bool, horizontal: bool
+) -> list:
     """
     The unfilled outlines this call added, if it added any it can tell apart.
 
@@ -527,6 +560,9 @@ def _drew_outline_lines(ax: Axes | None, before: list, kde: bool) -> list:
         The lines present beforehand.
     kde : bool
         Whether the caller asked for a density overlay.
+    horizontal : bool
+        Whether the caller asked for a distribution up the y axis, which is
+        what decides an outline whose drawing reads either way.
 
     Returns
     -------
@@ -540,9 +576,10 @@ def _drew_outline_lines(ax: Axes | None, before: list, kde: bool) -> list:
     return [
         line
         for line in added
-        if outline_reads(line)
+        if outline_reads(line, horizontal)
         and (not kde or str(line.get_drawstyle()).startswith("steps"))
     ]
+
 
 def _drew_mesh(ax: Axes | None, before: list) -> bool:
     """
@@ -609,7 +646,10 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
             for outline in drew:
                 FigureManager.create_maidr(axes, PlotType.HIST, collection=outline)
             return drawn
-        outlined = _drew_outline_lines(axes, lines, bool(kwargs.get("kde", False)))
+        horizontal = _asked_for_horizontal(kwargs)
+        outlined = _drew_outline_lines(
+            axes, lines, bool(kwargs.get("kde", False)), horizontal
+        )
         if outlined:
             # The same two elements drawn `fill=False`: seaborn swaps the
             # collection for a bare `Line2D`, so the branch above finds
@@ -623,7 +663,11 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
                 FigureManager.create_maidr(
                     axes,
                     PlotType.HIST,
-                    **{OUTLINE_LINE: line, GROUP_NAME: name},
+                    **{
+                        OUTLINE_LINE: line,
+                        OUTLINE_HORIZONTAL: horizontal,
+                        GROUP_NAME: name,
+                    },
                 )
             return drawn
         if _drew_mesh(axes, meshes):

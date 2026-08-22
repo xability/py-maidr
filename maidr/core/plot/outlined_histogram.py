@@ -14,6 +14,23 @@ from maidr.core.plot.histogram import HistPlot
 #: layer -- the defect #527 fixed for containers.
 OUTLINE_LINE = "_maidr_outline_line"
 
+#: The keyword the histogram patch says which axis the distribution runs
+#: along under, as ``True`` for a ``histplot(y=...)`` and ``False`` for the
+#: ordinary one.
+#:
+#: Handed over because the drawing cannot always answer it and the caller
+#: always can. A stepped outline gives itself away -- its counts column
+#: closes on a repeated value, so it is never strictly ascending -- but a
+#: ``poly`` outline carries one bin centre and one count per vertex with
+#: nothing repeated, and a histogram whose counts happen to climb evenly has
+#: two ascending, evenly spaced columns and no way to tell them apart. Two
+#: bins is the everyday case: a single gap is evenly spaced whatever it
+#: holds, so *every* two-bin poly is ambiguous.
+#:
+#: Read below only to break that tie. Where the drawing answers on its own it
+#: still decides, which keeps a chart readable if this is ever absent.
+OUTLINE_HORIZONTAL = "_maidr_outline_horizontal"
+
 #: How far two bin widths may differ and still count as the same width.
 #: Relative, for the reason :mod:`maidr.core.plot.stepped_histogram` gives:
 #: the widths are data coordinates, and a histogram of nanoseconds and one of
@@ -75,6 +92,10 @@ class OutlinedHistPlot(HistPlot):
 
     def __init__(self, ax: Axes, line: Line2D, **kwargs) -> None:
         self._line = line
+        # Which axis the caller asked the distribution to run along, for the
+        # outlines whose drawing cannot say; see `OUTLINE_HORIZONTAL`.
+        told = kwargs.get(OUTLINE_HORIZONTAL, None)
+        self._told_horizontal = told if isinstance(told, bool) else None
         # Forwarded, not dropped: the patch names each outline from the
         # legend swatch its colour matches and hands the name over under
         # `GROUP_NAME`, which `HistPlot.__init__` is the thing that reads.
@@ -99,7 +120,7 @@ class OutlinedHistPlot(HistPlot):
             One point per bin, in ascending bin order, or empty when the
             outline is not one this can read.
         """
-        read = _read_line(self._line)
+        read = _read_line(self._line, self._told_horizontal)
         if read is None:
             return []
 
@@ -111,7 +132,7 @@ class OutlinedHistPlot(HistPlot):
         ]
 
 
-def reads(line: Line2D) -> bool:
+def reads(line: Line2D, horizontal: bool | None = None) -> bool:
     """
     Whether this outline is one that can be read as a histogram.
 
@@ -123,16 +144,21 @@ def reads(line: Line2D) -> bool:
     ----------
     line : Line2D
         The outline seaborn drew.
+    horizontal : bool, optional
+        Which axis the caller asked the distribution to run along, for the
+        outlines whose drawing cannot say. See :data:`OUTLINE_HORIZONTAL`.
 
     Returns
     -------
     bool
         True when the bins and counts can be recovered.
     """
-    return _read_line(line) is not None
+    return _read_line(line, horizontal) is not None
 
 
-def _read_line(line: Line2D) -> tuple[bool, list[tuple[float, float, float]]] | None:
+def _read_line(
+    line: Line2D, horizontal: bool | None = None
+) -> tuple[bool, list[tuple[float, float, float]]] | None:
     """
     Recover the orientation and ``(low, high, count)`` of every bin.
 
@@ -140,6 +166,10 @@ def _read_line(line: Line2D) -> tuple[bool, list[tuple[float, float, float]]] | 
     ----------
     line : Line2D
         The outline seaborn drew.
+    horizontal : bool, optional
+        Which axis the caller asked the distribution to run along, used only
+        where both columns read as bins. ``None`` declines that case rather
+        than picking one.
 
     Returns
     -------
@@ -153,20 +183,38 @@ def _read_line(line: Line2D) -> tuple[bool, list[tuple[float, float, float]]] | 
 
     stepped = str(line.get_drawstyle()).startswith("steps")
 
-    # Which column the bins run along, read off the drawing rather than the
-    # caller's keywords: `histplot(y=...)`, `histplot(data=df, y="v")` and a
-    # `displot` panel are three spellings of one chart and only the drawing is
-    # the same in all three. The bins are the column that ascends.
-    for horizontal, positions, values in (
-        (False, xydata[:, 0], xydata[:, 1]),
-        (True, xydata[:, 1], xydata[:, 0]),
-    ):
-        if not np.all(np.diff(positions) > 0):
-            continue
-        bins = _bins_from(positions, values, stepped)
-        if bins is not None:
-            return horizontal, bins
+    # Which column the bins run along, read off the drawing where the drawing
+    # can say. The bins ascend, so a column that does not is not them.
+    readings = [
+        (runs_up, bins)
+        for runs_up, positions, values in (
+            (False, xydata[:, 0], xydata[:, 1]),
+            (True, xydata[:, 1], xydata[:, 0]),
+        )
+        if np.all(np.diff(positions) > 0)
+        for bins in [_bins_from(positions, values, stepped)]
+        if bins is not None
+    ]
 
+    if len(readings) == 1:
+        return readings[0]
+    if not readings:
+        return None
+
+    # Both columns read as bins, so the drawing does not distinguish them and
+    # the caller has to. Taking the first was the defect: measured,
+    # `histplot(df, y="v", bins=2, element="poly", fill=False)` over counts 2
+    # and 5 came out `vert` with bin edges 0.5 to 3.5 -- the *counts* read as
+    # the axis -- and the bin centre 0.3125 announced as the count. Silently
+    # transposed, which is worse than the silence this class was written to
+    # end.
+    #
+    # `None` matches neither, so a caller that cannot say declines here. That
+    # is the same rule `_bins_from` follows for an uneven poly: a chart read
+    # wrongly is worse than one not read.
+    for runs_up, bins in readings:
+        if runs_up == horizontal:
+            return runs_up, bins
     return None
 
 
