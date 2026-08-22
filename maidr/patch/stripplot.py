@@ -165,7 +165,8 @@ def _hue_levels(
 
     # The plotter's level order, which is the order seaborn's own legend is
     # written in and the order #502 settled a grouped layer's layers on.
-    order = [str(level) for level in getattr(plotter._hue_map, "levels", None) or []]
+    hue_map = getattr(plotter, "_hue_map", None)
+    order = [str(level) for level in getattr(hue_map, "levels", None) or []]
     return sorted(
         members.items(),
         key=lambda group: order.index(group[0]) if group[0] in order else len(order),
