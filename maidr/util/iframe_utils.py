@@ -23,12 +23,22 @@ _UNTITLED_NAME = "Accessible chart"
 #
 # Both are what let maidr.js reach a refreshable tactile display -- a Dot
 # Pad -- and draw the chart on its pins: ``bluetooth`` for the wireless path,
-# ``serial`` for a cabled one.  Each is policy-gated with a default allowlist
-# of ``self``, so a same-origin frame already has them and this attribute is
-# redundant there; a cross-origin one -- Colab, and any host that serves
-# notebook output from a separate origin -- does not, and without the
-# attribute ``navigator.bluetooth`` and ``navigator.serial`` are simply absent
-# inside the frame.
+# ``serial`` for a cabled one.  Without them ``navigator.bluetooth`` and
+# ``navigator.serial`` are not merely refused inside the frame, they are
+# absent, so maidr cannot tell a policy problem from an unsupported browser.
+#
+# Two default allowlists are in play and they are not the same one.  A feature
+# the container policy does not name falls back to the *feature's* own default,
+# ``self`` for both of these -- which a same-origin frame satisfies, so this
+# attribute changes nothing for one.  A feature named here without an
+# allowlist of its own takes the *attribute's* default, ``'src'``: the origin
+# the frame was loaded from.  Both wrappers use ``srcdoc``, whose document
+# inherits the embedder's origin, so ``'src'`` resolves same-origin and the
+# delegation lands -- which is why ``test_the_frame_still_carries_its_own_document``
+# guards the ``srcdoc`` choice rather than treating it as incidental.  What the
+# attribute actually buys is the cross-origin case -- Colab, and any host that
+# serves notebook output from a separate origin -- where the fallback would
+# otherwise deny both.
 #
 # Both are listed because maidr offers both and they are gated independently:
 # granting only one would leave a reader on a cable unable to connect for a
