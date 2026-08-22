@@ -8,6 +8,7 @@ from matplotlib.collections import Collection
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.patch.common import _argument, _draw_quietly
+from maidr.util.confidence_band import DRAWN_ALONG_Y
 
 
 def _baseline_is_zero(wrapped, args: tuple, kwargs: dict, name: str) -> bool:
@@ -142,6 +143,48 @@ def _magnitudes(wrapped, args: tuple, kwargs: dict, position: str, value: str):
     return positions, values
 
 
+def _tagged(collection, transposed: bool):
+    """
+    Record which way a region was shaded, on the region itself.
+
+    Asked later by :func:`maidr.util.confidence_band.band_edges_at`, which
+    reads the lowest and highest vertex **at each x** and so answers for a
+    vertical interval only. A region shaded the other way about has no such
+    interval to read, and bracketing does not catch it: a horizontal band
+    around a horizontal line surrounds that line vertically too, because it
+    surrounds it. Measured, ``plot(val, pos)`` under
+    ``fill_betweenx(pos, lo, hi)`` came out announcing the polygon's vertical
+    extent as ``yMin``/``yMax`` -- on the axis carrying the *positions*, which
+    the chart states no uncertainty about at all (#601).
+
+    Recorded here rather than worked out there because ``fill_betweenx`` *is*
+    the horizontal spelling: no inference is involved, which is the argument
+    :data:`maidr.core.plot.outlined_histogram.OUTLINE_HORIZONTAL` makes for
+    the same class of question.
+
+    Set on **every** region either spelling draws, including the ones drawn
+    inside another patch and the ones the declines below leave unregistered.
+    A region carries no layer of its own and is still read as some line's
+    band, so the tag has to outlive the decision not to register it. Setting
+    it unconditionally is also what lets its absence mean one thing only:
+    that this patch did not draw the region.
+
+    Parameters
+    ----------
+    collection : matplotlib.collections.Collection
+        The region the wrapped call drew.
+    transposed : bool
+        True for ``fill_betweenx``.
+
+    Returns
+    -------
+    matplotlib.collections.Collection
+        The same object, tagged.
+    """
+    setattr(collection, DRAWN_ALONG_Y, transposed)
+    return collection
+
+
 def _fill(
     wrapped,
     instance,
@@ -197,10 +240,10 @@ def _fill(
     # is a property of matplotlib's `stackplot` rather than a rule about
     # nested draws.
     if ContextManager.is_internal_context():
-        return _draw_quietly(wrapped, args, kwargs)
+        return _tagged(_draw_quietly(wrapped, args, kwargs), transposed)
 
     with ContextManager.set_internal_context():
-        collection = _draw_quietly(wrapped, args, kwargs)
+        collection = _tagged(_draw_quietly(wrapped, args, kwargs), transposed)
 
     if not _baseline_is_zero(wrapped, args, kwargs, other):
         return collection
