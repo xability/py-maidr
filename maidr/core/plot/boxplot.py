@@ -23,9 +23,16 @@ def _box_centre(box, horizontal: bool) -> float | None:
 
     Read off the artist rather than counted, because a hue splits a category's
     slot into one box per level and only the position says which slot a box
-    landed in. Both spellings of a box answer: ``patch_artist=True`` -- which
-    is what seaborn draws -- gives a ``PathPatch``, and the plain
-    ``ax.boxplot`` gives a ``Line2D`` outline.
+    landed in.
+
+    ``get_path`` answers for both spellings of a box, which is why there is no
+    second branch: ``patch_artist=True`` -- what seaborn draws -- gives a
+    ``PathPatch``, and the plain ``ax.boxplot`` gives a ``Line2D``, whose
+    path carries the same data-space vertices its ``get_xdata`` does.
+    Measured on a box at position 5.0, both answer
+    ``[4.925, 5.075, 5.075, 4.925, 4.925]``. Neither is a placeholder unit
+    square: ``Axes.bxp`` builds the outline from explicit vertices because a
+    notched box is not a rectangle.
 
     Parameters
     ----------
@@ -41,16 +48,10 @@ def _box_centre(box, horizontal: bool) -> float | None:
         for an artist neither spelling reads.
     """
     path = getattr(box, "get_path", None)
-    if path is not None:
-        vertices = np.asarray(path().vertices, dtype=float)
-    elif hasattr(box, "get_xdata"):
-        vertices = np.column_stack(
-            [np.asarray(box.get_xdata(), dtype=float),
-             np.asarray(box.get_ydata(), dtype=float)]
-        )
-    else:
+    if path is None:
         return None
 
+    vertices = np.asarray(path().vertices, dtype=float)
     if vertices.ndim != 2 or not len(vertices):
         return None
     along = vertices[:, 1 if horizontal else 0]
@@ -363,7 +364,10 @@ class BoxPlot(
             label = ""
             if ticks and centre is not None:
                 label = min(ticks, key=lambda tick: abs(tick[0] - centre))[1]
-            named.append(f"{label}, {level}" if label and level else label or level or "")
+            if label and level:
+                named.append(f"{label}, {level}")
+            else:
+                named.append(label or level or "")
         return named
 
     def _extract_plot_data(self) -> list:
