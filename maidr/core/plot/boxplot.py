@@ -7,6 +7,7 @@ from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.core.plot.scatterplot import _rgba
 from maidr.exception import ExtractionError
 from maidr.util.legend_names import names_for
@@ -239,6 +240,16 @@ class BoxPlot(
     def __init__(self, ax: Axes, **kwargs) -> None:
         super().__init__(ax, PlotType.BOX)
 
+        # The hue level this layer's boxes belong to, when the patch could
+        # name it. `None` is every chart with no hue and every one whose
+        # boxes reach the layer together -- there the level is on each box's
+        # `z` instead. A callable names it at render, which is what a
+        # `catplot` needs: its legend is built at the figure after every
+        # panel is drawn, so at registration there is none to read (#595).
+        group_name = kwargs.pop(GROUP_NAME, None)
+        self._group_name = (
+            group_name if isinstance(group_name, str) or callable(group_name) else None
+        )
         self._bxp_stats = kwargs.pop("bxp_stats", None)
         self._orientation = kwargs.pop("orientation", "vert")
         self._bxp_extractor = BoxPlotExtractor(orientation=self._orientation)
@@ -309,8 +320,20 @@ class BoxPlot(
         return selector if self._orientation == "vert" else list(reversed(selector))
 
     def render(self) -> dict:
+        """
+        Add ``orientation`` to the base schema, and the layer's group name
+        where one call drew one hue level's boxes.
+
+        ``MaidrLayer.name`` is the field xability/maidr#828 added so two
+        layers of a kind can be told apart, which is exactly where a
+        ``catplot(kind="box", hue=...)`` leaves a reader: every box is
+        announced, across two layers carrying the same three categories.
+        """
         base_schema = super().render()
         box_orientation = {MaidrKey.ORIENTATION: self._orientation}
+        name = self._group_name() if callable(self._group_name) else self._group_name
+        if name:
+            box_orientation[MaidrKey.NAME] = name
         return DictMergerMixin.merge_dict(base_schema, box_orientation)
 
     def _named_boxes(self, boxes: list, labels: list[str], key: MaidrKey) -> list[str]:

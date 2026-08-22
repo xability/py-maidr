@@ -120,6 +120,54 @@ def names_for(ax: Axes, colours: list) -> list:
     return [None] * len(colours)
 
 
+def name_for(ax: Axes, colour) -> str | None:
+    """
+    The legend's name for one drawn colour.
+
+    :func:`names_for` declines a lone artist -- "a lone artist needs nothing
+    to be told apart from" -- which is right where the artists of one layer
+    are named against each other, and wrong where a *layer* is the artist.
+    A ``catplot(kind="box", hue=...)`` panel draws one call per hue level, so
+    a layer holds one colour and that colour is exactly what says which level
+    it is; declining it leaves two layers a reader cannot tell apart (#595).
+
+    Both passes :func:`names_for` makes are made here too, in the same order
+    and for the same reason: the RGBA match first, and the three-channel one
+    after it for an artist drawn at a different opacity from its swatch. The
+    guard that pass needs there -- that the drawn colours are distinct without
+    their alpha -- is unnecessary with one colour, and
+    :func:`_match_swatches` still declines a colour two swatches claim.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    colour : tuple of float or None
+        One rounded RGBA.
+
+    Returns
+    -------
+    str or None
+        The name, or ``None`` when no legend names that colour.
+    """
+    if colour is None:
+        return None
+
+    legend = legend_of(ax)
+    if legend is None:
+        return None
+
+    swatches = [
+        (_handle_colour(handle), text.get_text())
+        for handle, text in zip(legend.legend_handles, legend.get_texts())
+    ]
+    for key in (lambda one: one, lambda one: one[:3]):
+        named = _match_swatches([colour], swatches, key)
+        if named:
+            return named.get(key(colour))
+    return None
+
+
 def _match_swatches(colours: list, swatches: list, key) -> dict | None:
     """
     Map each swatch that a drawn artist shares a colour with to its name.

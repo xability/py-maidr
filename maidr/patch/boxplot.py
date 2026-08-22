@@ -6,7 +6,55 @@ from matplotlib.axes import Axes
 from maidr.core.context_manager import BoxplotContextManager, ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.boxplot import _box_colour
+from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.patch.common import _draw_quietly, resolve_orientation, wrap_seaborn
+from maidr.util.legend_names import name_for
+
+
+def _level_of(ax: Axes, boxes: list):
+    """
+    Name the hue level one ``bxp`` call's boxes belong to, at render.
+
+    A call draws one level's boxes across every category, so they share one
+    colour and that colour is what says which level it is.
+
+    Only this path asks. ``sns.boxplot`` accumulates every call before
+    registering and reaches its layer through ``sns_box``, where the levels
+    belong per box -- on each one's ``z`` -- rather than to the layer; naming
+    the layer there would say the whole of it was one level.
+
+    A call whose boxes do *not* share a colour therefore declines rather than
+    picking one. Nothing measured produces one -- ``bxp`` colours a call's
+    boxes together, and the two callers that reach here are ``ax.boxplot``
+    and ``catplot``, each of which draws one colour per call -- so a mutation
+    naming a mixed call anyway passes the suite. It stays because the answer
+    to "which level is this layer" for a layer holding two of them is
+    "neither", and an arbitrary one of them is worse than none.
+
+    Deferred rather than resolved here, because the chart that needs it has
+    no legend yet: ``sns.catplot`` builds one at the *figure* after every
+    panel is drawn. Read at registration it would find nothing, which is how
+    both layers came out anonymous (#595).
+
+    Parameters
+    ----------
+    ax : Axes
+        The panel drawn on.
+    boxes : list
+        The box artists this call drew.
+
+    Returns
+    -------
+    callable or None
+        A zero-argument callable answering the name, or ``None`` when the
+        call's boxes do not share one colour.
+    """
+    colours = {_box_colour(box) for box in boxes}
+    if len(colours) != 1:
+        return None
+    colour = colours.pop()
+    return lambda: name_for(ax, colour)
 
 
 @wrapt.patch_function_wrapper(Axes, "bxp")
@@ -28,7 +76,11 @@ def mpl_box(wrapped, _, args, kwargs) -> dict:
     # Extract the boxplot data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)
     FigureManager.create_maidr(
-        ax, PlotType.BOX, bxp_stats=plot, orientation=orientation
+        ax,
+        PlotType.BOX,
+        bxp_stats=plot,
+        orientation=orientation,
+        **{GROUP_NAME: _level_of(ax, plot["boxes"])},
     )
 
     # Return to the caller.
