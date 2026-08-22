@@ -29,6 +29,7 @@ import pytest
 import seaborn as sns
 
 from maidr.core.figure_manager import FigureManager
+from maidr.util.confidence_band import DRAWN_ALONG_Y, shaded_along_y
 
 X = np.linspace(0, 10, 20)
 Y = np.sin(X) + 2.0
@@ -188,3 +189,95 @@ def test_one_band_around_two_lines_belongs_to_one_of_them():
     first, second = _series(fig)
     assert _band(first[0]) == (round(Y[0] - 1.0, 3), round(Y[0] + 1.0, 3))
     assert _band(second[0]) is None
+
+
+# --- A band shaded the other way about (#601) ---------------------------------
+#
+# `edges_of` reads the lowest and highest vertex **at each x**, which is a
+# reading of a vertical interval. A `fill_betweenx` band has none to read, and
+# bracketing does not reject it: a horizontal band around a horizontal line
+# surrounds that line vertically too, because it surrounds it.
+#
+# Measured before the fix, on the chart below:
+#
+#     {'x': 1.0, 'y': 0.0, 'yMin': 0.0, 'yMax': 1.5}
+#     {'x': 2.0, 'y': 1.0, 'yMin': 0.5, 'yMax': 3.0}
+#     {'x': 3.0, 'y': 2.0, 'yMin': 1.5, 'yMax': 3.5}
+#     {'x': 2.0, 'y': 3.0, 'yMin': 0.5, 'yMax': 3.0}
+#     {'x': 4.0, 'y': 4.0, 'yMin': 3.0, 'yMax': 4.0}
+#
+# against a true interval, on x, of (0.5,1.5) (1.5,2.5) (2.5,3.5) (1.5,2.5)
+# (3.5,4.5). The polygon's *vertical extent* at each x -- an artefact of the
+# band being sloped -- announced on the axis that carries the positions, which
+# this chart states no uncertainty about at all. The last point's `yMax` is its
+# own `y`.
+
+POS = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+VAL = np.array([1.0, 2.0, 3.0, 2.0, 4.0])
+
+
+def _sideways(ax) -> None:
+    """A horizontal line chart with a horizontal interval around it."""
+    ax.plot(VAL, POS)
+    ax.fill_betweenx(POS, VAL - 0.5, VAL + 0.5, alpha=0.3)
+
+
+def test_a_horizontal_band_is_not_read_as_a_vertical_interval():
+    fig, ax = plt.subplots()
+    _sideways(ax)
+
+    assert [_band(point) for point in _series(fig)[0]] == [None] * len(POS)
+
+
+def test_the_line_itself_is_unaffected():
+    """Declining the band costs the chart nothing else."""
+    fig, ax = plt.subplots()
+    _sideways(ax)
+
+    points = _series(fig)[0]
+    assert [point["x"] for point in points] == list(VAL)
+    assert [point["y"] for point in points] == list(POS)
+
+
+def test_the_patch_records_which_way_every_region_it_draws_was_shaded():
+    """The tag is what decides, so its two values are asserted directly.
+
+    Read rather than inferred, because counting distinct coordinates ties on
+    a small frame -- measured, this very pair of calls gives ``uniqX == uniqY
+    == 5`` for both spellings -- and a tie would have to be declined, which
+    would drop bands that read correctly today.
+    """
+    fig, ax = plt.subplots()
+    upright = ax.fill_between(POS, VAL - 0.5, VAL + 0.5)
+    sideways = ax.fill_betweenx(POS, VAL - 0.5, VAL + 0.5)
+
+    assert getattr(upright, DRAWN_ALONG_Y) is False
+    assert getattr(sideways, DRAWN_ALONG_Y) is True
+    assert shaded_along_y(upright) is False
+    assert shaded_along_y(sideways) is True
+
+
+def test_a_region_this_patch_did_not_draw_reads_as_it_always_did():
+    """An absent tag says only that, and must not mean "horizontal".
+
+    Nothing in the suite draws such a region -- both spellings go through the
+    patch -- so the fallback is asserted directly. Getting it the other way
+    round would silently drop the band from every chart whose region some
+    other library shaded.
+    """
+    from matplotlib.collections import PolyCollection
+
+    assert shaded_along_y(PolyCollection([])) is False
+
+
+def test_a_band_drawn_inside_another_patch_is_tagged_too():
+    """`stackplot` draws its bands through `fill_between` under the internal
+    context, and a region that registers no layer of its own is still read as
+    some line's band later. So the tag cannot be set only on the path that
+    registers one."""
+    fig, ax = plt.subplots()
+    ax.stackplot(POS, VAL, VAL + 1.0)
+
+    drawn = [c for c in ax.collections if hasattr(c, DRAWN_ALONG_Y)]
+    assert len(drawn) == 2
+    assert all(getattr(c, DRAWN_ALONG_Y) is False for c in drawn)

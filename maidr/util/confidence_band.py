@@ -23,6 +23,25 @@ validates itself: a region is a line's band only if it **brackets every one of
 that line's samples**, which is the property a band has by construction and an
 unrelated shaded region does not.
 
+One thing it *does* assume, and has to. Reading the lowest and highest vertex
+**at each x** is a reading of a vertical interval, so a region shaded the other
+way about is not one this can answer for. Bracketing does not catch it: a
+horizontal band around a horizontal line surrounds that line vertically too,
+because it surrounds it. Measured, ``plot(val, pos)`` under
+``fill_betweenx(pos, lo, hi)`` came out carrying the polygon's vertical extent
+as ``yMin``/``yMax`` -- an artefact of the band being sloped, on the axis that
+holds the *positions*, which the chart states no uncertainty about at all
+(#601).
+
+Which way a region was shaded is therefore asked of
+:data:`maidr.patch.fillbetween.DRAWN_ALONG_Y` rather than inferred, for the
+reason :data:`maidr.core.plot.outlined_histogram.OUTLINE_HORIZONTAL` gives:
+the drawing cannot always say and the caller always can. Counting distinct
+coordinates nearly works -- a band has one position per column and two edge
+values, so the value axis generally carries twice the distinct values -- and
+measurably ties on small frames whose values collide, where declining would
+drop bands that read correctly today.
+
 Lifted out of ``SmoothPlot``, which read a ``regplot``'s band this way (#451),
 so a plain line can carry one too (#562).
 
@@ -41,6 +60,46 @@ from matplotlib.collections import PolyCollection
 #: so a genuine band brackets its line to within rounding; anything looser
 #: would start accepting regions that merely overlap.
 _TOLERANCE = 1e-9
+
+#: Attribute :mod:`maidr.patch.fillbetween` sets on a region it drew, saying
+#: which way the fill runs: ``True`` for ``fill_betweenx``, ``False`` for
+#: ``fill_between``.
+#:
+#: Named here rather than in the patch because both sides have to agree on it
+#: and only one of them can be imported from the other -- the patch imports
+#: this module's reader, not the reverse.
+DRAWN_ALONG_Y = "_maidr_fill_along_y"
+
+
+def shaded_along_y(collection) -> bool:
+    """
+    Whether this region's interval runs across the page rather than up it.
+
+    Answered from the tag :mod:`maidr.patch.fillbetween` leaves on every
+    region it draws, rather than from the vertices. ``fill_betweenx`` *is*
+    the horizontal spelling, so the patch knows outright what the geometry
+    can only be argued about -- and the arguments lose, as this module's
+    docstring records.
+
+    An untagged region is treated as vertical, which is what every region was
+    treated as before the tag existed. That keeps a shaded region some other
+    library drew reading exactly as it did, and confines this to the call it
+    can answer for.
+
+    Parameters
+    ----------
+    collection : matplotlib.collections.PolyCollection
+        A shaded region on the axes.
+
+    Returns
+    -------
+    bool
+        True only for a region drawn by ``fill_betweenx``.
+    """
+    # `bool` rather than `is True`: the patch is the only writer and it writes
+    # a bool, so the two agree on every value that can reach here, and the
+    # stricter spelling would be a distinction no test could tell apart.
+    return bool(getattr(collection, DRAWN_ALONG_Y, False))
 
 
 def band_edges_at(
@@ -81,6 +140,10 @@ def band_edges_at(
         # resolves to -- no band exists by that name and every chart silently
         # lost its interval.
         if not isinstance(collection, PolyCollection):
+            continue
+        # Shaded along the other axis, so its interval is not one `edges_of`
+        # reads. See this module's docstring and #601.
+        if shaded_along_y(collection):
             continue
         if any(collection is claimed for claimed in taken):
             continue
