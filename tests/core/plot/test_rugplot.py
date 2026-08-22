@@ -512,3 +512,23 @@ def test_a_split_named_by_a_figure_legend_still_says_what_it_split_by():
         {"label": "g"},
         {"label": "g"},
     ]
+
+
+def test_a_hue_on_one_level_is_read_as_one_ungrouped_layer():
+    """One group is not a grouping.
+
+    Reachable here and not from the scatter split, which declines a one-level
+    hue earlier on its own legend count. So this is where
+    `grouped_by_name`'s fewer-than-two rule is exercised through a chart --
+    measured, removing it leaves the scatter's own file green and only this
+    one red (#599).
+    """
+    frame = pd.DataFrame({"value": [0.1, 0.2, 0.3, 0.4], "grp": ["p"] * 4})
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="grp", ax=ax)
+
+    schemas = _schemas(fig)
+    assert len(schemas) == 1
+    # The variable's own name, which is what an ungrouped rug announces.
+    assert schemas[0].get("name") == "value"
+    assert len(schemas[0]["data"]) == 4

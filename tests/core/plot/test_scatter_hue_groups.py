@@ -460,3 +460,42 @@ def test_seaborn_drops_a_non_finite_row_before_drawing():
     offsets = _collection(ax).get_offsets()
     assert len(offsets) == len(frame) - 1
     assert np.isfinite(np.asarray(offsets)).all()
+
+
+def test_the_layers_come_out_in_the_legend_s_order_not_the_drawing_s():
+    """#502's convention, asserted on a chart where the two disagree.
+
+    The frame's first two rows are level "b" and `hue_order` puts "a" first,
+    so the legend reads ``a, b`` while the first point drawn belongs to "b".
+    A reading that grouped by first appearance would come out ``b, a``.
+
+    Pinned here as well as on the rug split, because the ordering now lives in
+    `grouped_by_name` and a shared rule that only one of its callers exercises
+    is a rule the other has stopped testing. Measured: dropping the sort from
+    the helper leaves this file green without it (#599).
+    """
+    frame = pd.DataFrame(
+        {"x": [1.0, 2.0, 3.0, 4.0], "y": [1.0, 2.0, 3.0, 4.0], "g": list("bbaa")}
+    )
+    ax = sns.scatterplot(data=frame, x="x", y="y", hue="g", hue_order=["a", "b"])
+
+    assert [text.get_text() for text in ax.get_legend().get_texts()] == ["a", "b"]
+    assert [layer.get("name") for layer in _points(ax.figure)] == ["a", "b"]
+
+
+def test_a_hue_on_one_level_is_read_as_one_layer():
+    """One group is not a grouping, and the scatter declines it before the
+    shared helper is reached.
+
+    Its own ``len(named) < 2`` catches it: measured, a one-level ``hue=``
+    gives two face-colour rows in one colour and one legend swatch. So
+    `grouped_by_name`'s own fewer-than-two decline is **not** reachable from
+    this caller, and no test here can exercise it -- which is why the rug
+    split, where it is reachable, carries that half.
+    """
+    frame = pd.DataFrame({"x": [1.0, 2.0], "y": [1.0, 2.0], "g": ["a", "a"]})
+    ax = sns.scatterplot(data=frame, x="x", y="y", hue="g")
+
+    layers = _points(ax.figure)
+    assert len(layers) == 1
+    assert layers[0].get("name") is None
