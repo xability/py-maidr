@@ -19,6 +19,23 @@ from htmltools import Tag, tags
 # What the frame is called when the chart it holds has no title of its own.
 _UNTITLED_NAME = "Accessible chart"
 
+# Permissions-Policy features the chart frame is allowed to use.
+#
+# ``bluetooth`` is what lets maidr.js reach a refreshable tactile display --
+# a Dot Pad -- over Web Bluetooth and draw the chart on its pins.  The feature
+# is policy-gated with a default allowlist of ``self``, so a same-origin frame
+# already has it and this attribute is redundant there; a cross-origin one --
+# Colab, and any host that serves notebook output from a separate origin --
+# does not, and without the attribute ``navigator.bluetooth`` is simply absent
+# inside the frame.
+#
+# This delegates a capability, it does not create one: a frame can never
+# receive a feature the embedding page itself lacks, and the browser still
+# requires a user gesture and shows its own device picker before anything is
+# paired.  Readers with no tactile display are unaffected -- maidr never
+# touches the API unless they ask it to in Settings.
+_ALLOWED_FEATURES = "bluetooth"
+
 
 def _generate_unique_id() -> str:
     """Generate a unique iframe ID."""
@@ -252,6 +269,7 @@ def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) ->
         # iframe is the chart" -- the Shiny focus restore does -- would
         # otherwise act on one of those. See `maidr/widget/_focus.py`.
         **{"data-maidr-chart": ""},
+        allow=_ALLOWED_FEATURES,
         srcdoc=str(base_html.get_html_string()),
         width="100%",
         height="100%",
@@ -393,6 +411,7 @@ def wrap_in_iframe_plotly(base_html: Tag, chart_title: str | None = None) -> Tag
         # iframe is the chart" -- the Shiny focus restore does -- would
         # otherwise act on one of those. See `maidr/widget/_focus.py`.
         **{"data-maidr-chart": ""},
+        allow=_ALLOWED_FEATURES,
         srcdoc=str(base_html.get_html_string()),
         width="100%",
         height="100%",
