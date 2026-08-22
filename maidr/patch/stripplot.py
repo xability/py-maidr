@@ -113,7 +113,9 @@ def _hue_colours(plotter: Any) -> dict | None:
     return named if len(named) == len(lookup) else None
 
 
-def _hue_levels(plotter: Any, drawn: list) -> list | None:
+def _hue_levels(
+    plotter: Any, drawn: list
+) -> list[tuple[str, list[list[int]]]] | None:
     """
     One ``(name, members)`` group per hue level present among these points.
 
@@ -262,13 +264,16 @@ def sns_categorical_points(
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
 
+    # Asked once. The panels a plotter draws into are fixed before it draws
+    # -- `plotter.ax` for one axes, the grid's for a faceted call -- so the
+    # snapshot and the reading below are of the same list.
     panels = plotter_axes(instance)
     before = {id(artist) for ax in panels for artist in ax.collections}
 
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
 
-    for ax in plotter_axes(instance):
+    for ax in panels:
         added = _added(ax, before)
         if not added:
             continue
