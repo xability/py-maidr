@@ -11,7 +11,8 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.enum.smooth_keywords import SMOOTH_KEYWORDS
 from maidr.core.figure_manager import FigureManager
-from maidr.core.plot.scatterplot import DRAWN_POINTS
+from maidr.core.plot.maidr_plot import GROUP_NAME
+from maidr.core.plot.scatterplot import DRAWN_POINTS, _rgba
 from maidr.patch.common import (
     MAX_INTERVAL_VERTICES,
     _draw_quietly,
@@ -19,6 +20,7 @@ from maidr.patch.common import (
     prospective_axes,
     wrap_seaborn,
 )
+from maidr.util.legend_names import name_for
 
 
 def _is_interval_bar(line: Line2D) -> bool:
@@ -115,7 +117,73 @@ def _paired_estimates(
     return estimates, ordered_intervals
 
 
-def _register_curves(axes: Axes, curves: list[Line2D], instance, args, kwargs) -> None:
+def _group_colour(points: PathCollection | None, curves: list[Line2D]):
+    """
+    The one colour this call drew in, when it has one.
+
+    A ``regplot`` draws one group, so its colour is what says which level of
+    a ``hue=`` it belongs to -- the shape #595 named, where a *layer* is the
+    artist rather than one of several on it.
+
+    The fitted curve is asked first. It is a ``Line2D``, which carries exactly
+    one colour, so there is nothing to resolve; the scatter's collection can
+    hold a row per point and needs checking. The scatter answers for
+    ``fit_reg=False``, which draws points and no curve at all.
+
+    Parameters
+    ----------
+    points : PathCollection, optional
+        The scatter this call drew, when it drew one.
+    curves : list of Line2D
+        The fitted curves this call drew.
+
+    Returns
+    -------
+    tuple of float or None
+        The rounded RGBA, or ``None`` when nothing here has a single colour.
+    """
+    for line in curves:
+        return _rgba(line.get_color())
+    if points is None:
+        return None
+    colours = {_rgba(row) for row in np.asarray(points.get_facecolor())}
+    return colours.pop() if len(colours) == 1 else None
+
+
+def _group_named(axes: Axes, colour) -> dict:
+    """
+    The ``GROUP_NAME`` keyword for a call drawn in one colour, if any.
+
+    **Deferred**, not resolved here. ``lmplot(hue=...)`` is one ``regplot``
+    call per level and builds its single figure legend through
+    ``FacetGrid.add_legend()`` *after* every panel is drawn -- so at
+    registration there is no legend anywhere, which is the timing #561 hit
+    with ``pairplot`` and the reason :data:`GROUP_NAME` accepts a callable.
+
+    Returns an empty mapping rather than ``{GROUP_NAME: None}`` so a chart
+    with nothing to name hands over nothing, and the two registrations below
+    read the same either way.
+
+    Parameters
+    ----------
+    axes : Axes
+        The axes drawn on, for the legend it will have by render.
+    colour : tuple of float or None
+        What :func:`_group_colour` found.
+
+    Returns
+    -------
+    dict
+        ``{GROUP_NAME: callable}``, or empty.
+    """
+    if colour is None:
+        return {}
+    return {GROUP_NAME: lambda: name_for(axes, colour)}
+
+
+def _register_curves(
+    axes: Axes, curves: list[Line2D], instance, args, kwargs, named: dict
+) -> None:
     """Register each fitted curve this call drew as a SMOOTH layer."""
     for line in curves:
         if line.get_gid() is None:
@@ -125,7 +193,7 @@ def _register_curves(axes: Axes, curves: list[Line2D], instance, args, kwargs) -
             lambda *a, **k: axes,
             instance,
             args,
-            dict(kwargs, regression_line=line),
+            dict(kwargs, regression_line=line, **named),
         )
 
 
@@ -217,6 +285,12 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
         None,
     )
 
+    # Which hue level this call is, when the chart has one. `lmplot(hue=...)`
+    # calls `regplot` once per level and both of the layers below came out
+    # anonymous, so a reader was handed point, curve, point, curve with
+    # nothing saying which pair was which (#612).
+    named = _group_named(axes, _group_colour(points, curves))
+
     paired = (
         _paired_estimates(points, intervals)
         if points is not None and intervals
@@ -234,7 +308,7 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
             # a regplot overlaid on another scatter reads its own points
             # (#426).
             FigureManager.create_maidr(
-                axes, PlotType.SCATTER, **{DRAWN_POINTS: points}
+                axes, PlotType.SCATTER, **dict({DRAWN_POINTS: points}, **named)
             )
         # Whatever could not be paired is still described. Mistyping a bar as
         # a curve is the reading this change replaces and is bad; dropping it
@@ -245,7 +319,7 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
         # the kind that stops holding when an upstream release moves.
         described = intervals + curves
 
-    _register_curves(axes, described, instance, args, kwargs)
+    _register_curves(axes, described, instance, args, kwargs, named)
 
     return drawn
 
