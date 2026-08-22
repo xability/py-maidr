@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import contextvars
+
+import numpy as np
+import wrapt
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
 
@@ -9,10 +13,133 @@ from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.rugplot import (
     DRAWN_RUG,
     RUG_AXIS_LABEL,
+    RUG_GROUP,
     RUG_LABEL,
     read_rug,
 )
+from maidr.core.plot.scatterplot import _rgba
 from maidr.patch.common import _draw_quietly, prospective_axes, wrap_seaborn
+from maidr.util.legend_names import legend_of, names_for
+
+
+#: What kind of hue mapping the rug being drawn was given, recorded by
+#: :func:`_note_hue_map` while seaborn draws and read once the draw is done.
+#:
+#: A ``ContextVar`` rather than a module attribute, matching
+#: ``ContextManager``: the patched method is class-wide, so every draw in the
+#: process writes here, and ``asyncio.to_thread`` runs a render in a copy of
+#: the context so concurrent draws keep their own view.
+_HUE_MAP_TYPE: contextvars.ContextVar = contextvars.ContextVar(
+    "maidr_rug_hue_map_type", default=None
+)
+
+
+def _note_hue_map(wrapped, instance, args, kwargs):
+    """
+    Record what kind of hue the rug about to be drawn was given.
+
+    ``seaborn.rugplot`` does not pass its hue mapping to anything the
+    function-level patch can see, and the drawn colours cannot answer on
+    their own: a **numeric** hue is a colour *scale*, and on a small frame
+    seaborn's legend samples every value, so every tick matches a swatch and
+    the rug would split into one layer per observation -- which is not a
+    reading of a scale. Measured on four observations with ``hue=`` a numeric
+    column: four legend entries, four groups of one.
+
+    The plotter knows outright. Wrapped only to record it; the drawing is
+    left alone, and the registration is still made by :func:`rug` after the
+    call returns.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        ``_DistributionPlotter.plot_rug``.
+    instance : Any
+        The plotter, for its hue mapping.
+    args : tuple
+        Positional arguments seaborn passed.
+    kwargs : dict
+        Keyword arguments seaborn passed.
+
+    Returns
+    -------
+    Any
+        Whatever the wrapped method returned.
+    """
+    hue_map = getattr(instance, "_hue_map", None)
+    _HUE_MAP_TYPE.set(getattr(hue_map, "map_type", None))
+    return wrapped(*args, **kwargs)
+
+
+def _hue_groups(ax: Axes, collection: LineCollection, ticks: int) -> list | None:
+    """
+    The hue groups a rug was drawn with, or ``None`` when it has none.
+
+    ``seaborn`` draws a hue-grouped rug as **one** ``LineCollection`` carrying
+    a colour per tick, not one collection per group, so the grouping survives
+    only in those colours and in the legend that names them -- the shape
+    ``scatterplot.hue_groups`` reads point by point, one artist type over.
+    Measured on twelve observations over two levels::
+
+        rugplot(x="v")            colour rows=1,  unique=1, legend None
+        rugplot(x="v", hue="g")   colour rows=12, unique=2, legend ['p', 'q']
+
+    Every reason to decline has a chart behind it:
+
+    - **One colour for the whole rug.** ``get_colors()`` returns a single row
+      when every tick shares a colour, which is what an ungrouped rug gives.
+      A count that does not match the ticks is the same answer: nothing here
+      can say which tick wore which colour.
+    - **A tick no swatch names.** ``legend=False`` suppresses the legend, and
+      the colours alone name nothing -- groups called "1" and "2" are not an
+      improvement on one strip.
+    - **Fewer than two groups.** Nothing to tell apart.
+    - **A hue that is not a grouping.** A numeric ``hue=`` is a colour
+      *scale*; see :func:`_note_hue_map` for why the colours cannot say so
+      themselves and the plotter is asked instead.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    collection : LineCollection
+        The ticks.
+    ticks : int
+        How many ticks ``read_rug`` found, so the colours can be checked
+        against them rather than assumed to correspond.
+
+    Returns
+    -------
+    list of (str, list of int) or None
+        One entry per group in legend order, naming it and listing the
+        segments that belong to it, or ``None`` for a rug that is not
+        grouped.
+    """
+    if _HUE_MAP_TYPE.get() != "categorical":
+        return None
+
+    colours = [_rgba(row) for row in np.asarray(collection.get_colors())]
+    if len(colours) != ticks or ticks < 2:
+        return None
+
+    names = names_for(ax, colours)
+    if any(name is None for name in names):
+        return None
+
+    members: dict = {}
+    for index, name in enumerate(names):
+        members.setdefault(name, []).append(index)
+    if len(members) < 2:
+        return None
+
+    # Legend order, which is the order #502 settled a grouped layer's layers
+    # on -- seaborn's draw order is not it.
+    legend = legend_of(ax)
+    order = [text.get_text() for text in legend.get_texts()] if legend else []
+    return sorted(
+        members.items(),
+        key=lambda group: order.index(group[0]) if group[0] in order else len(order),
+    )
 
 
 def _collections_of(ax: Axes | None) -> list:
@@ -56,11 +183,7 @@ def _drawn_by_this_call(ax: Axes | None, before: list) -> list:
     if ax is None:
         return []
     seen = [id(collection) for collection in before]
-    return [
-        collection
-        for collection in ax.collections
-        if id(collection) not in seen
-    ]
+    return [collection for collection in ax.collections if id(collection) not in seen]
 
 
 def _name_for(ax: Axes, along_x: bool) -> str:
@@ -143,8 +266,38 @@ def rug(wrapped, instance, args, kwargs) -> Axes:
     ax = prospective_axes(kwargs)
     before = _collections_of(ax)
 
-    with ContextManager.set_internal_context():
-        drawn = _draw_quietly(wrapped, args, kwargs)
+    # Cleared before the draw and restored after it, so a rug drawn without a
+    # hue is never read against the mapping of one drawn earlier.
+    token = _HUE_MAP_TYPE.set(None)
+    try:
+        with ContextManager.set_internal_context():
+            drawn = _draw_quietly(wrapped, args, kwargs)
+        return _register(ax, drawn, before)
+    finally:
+        _HUE_MAP_TYPE.reset(token)
+
+
+def _register(ax: Axes | None, drawn, before: list):
+    """
+    Register a layer for each rug the call drew, split by hue where it has one.
+
+    Split out of :func:`rug` so the hue mapping it reads is reset on every
+    path out, including the early returns below.
+
+    Parameters
+    ----------
+    ax : Axes, optional
+        The axes resolved before the draw, when there was one.
+    drawn : Any
+        Whatever ``seaborn.rugplot`` returned.
+    before : list
+        The collections the axes held beforehand.
+
+    Returns
+    -------
+    Any
+        ``drawn``, unchanged.
+    """
 
     if ax is None:
         ax = drawn if isinstance(drawn, Axes) else None
@@ -162,16 +315,32 @@ def rug(wrapped, instance, args, kwargs) -> Axes:
             # refuses while the schema is built takes the whole figure with
             # it, which is the defect #564 was about.
             continue
-        FigureManager.create_maidr(
-            ax,
-            PlotType.SCATTER,
-            **{
-                DRAWN_RUG: collection,
-                RUG_LABEL: _name_for(ax, read[1]),
-            },
-        )
+        shared = {DRAWN_RUG: collection, RUG_LABEL: _name_for(ax, read[1])}
+        groups = _hue_groups(ax, collection, len(read[0]))
+        if groups is None:
+            FigureManager.create_maidr(ax, PlotType.SCATTER, **shared)
+            continue
+
+        # One layer per level, each reading its own ticks. Split here rather
+        # than in the layer because a layer *is* one entry in the schema, and
+        # this is one artist -- the same reason `scatterplot.scatter` splits
+        # a hue-grouped scatter in its patch (#544, #597).
+        for group in groups:
+            FigureManager.create_maidr(
+                ax, PlotType.SCATTER, **dict(shared, **{RUG_GROUP: group})
+            )
 
     return drawn
 
 
 wrap_seaborn("rugplot", rug)
+
+# And the plotter method beneath it, read for the one thing the drawn
+# colours cannot say; see `_note_hue_map`. Wrapped by module path rather than
+# by importing the private class, matching how `maidr/patch/boxplot.py`
+# reaches `_CategoricalPlotter`.
+wrapt.wrap_function_wrapper(
+    "seaborn.distributions",
+    "_DistributionPlotter.plot_rug",
+    _note_hue_map,
+)

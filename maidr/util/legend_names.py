@@ -201,3 +201,52 @@ def _match_swatches(colours: list, swatches: list, key) -> dict | None:
             return None
         named[matched] = name
     return named
+
+
+def title_of(ax: Axes) -> str:
+    """
+    The grouping variable's name, off the legend that named the groups.
+
+    :meth:`maidr.core.plot.maidr_plot.MaidrPlot._legend_title` answers the
+    same question from ``ax.get_legend()`` alone. That is the legend a
+    single chart carries, and for the layers that predate :func:`legend_of`
+    the two are the same object.
+
+    They come apart wherever a group was named through the figure-level
+    fallback: the panel has no legend of its own, so ``_legend_title``
+    returns ``""`` and the ``z`` label is dropped, while the *names* were
+    read off the figure's legend and are on the layers. Measured -- a rug
+    drawn ``legend=False`` beside one ``fig.legend(title="g")`` naming the
+    same palette split into ``a`` and ``b`` with no ``z`` at all, so the
+    chart said which side of a grouping each layer was without ever saying
+    what the grouping was.
+
+    Reading the title off whichever legend :func:`legend_of` chose keeps the
+    two halves of one decision on one source.
+
+    Read **live**, at render, while a layer's group *names* are captured once
+    as the plotting call is patched -- the same split
+    :meth:`~maidr.core.plot.maidr_plot.MaidrPlot._legend_title` documents,
+    kept deliberately rather than inherited. A caller who retitles the legend
+    between two renders makes the two disagree, and the alternative is worse:
+    freezing the title at registration would have a layer announce a title
+    the figure no longer carries, which cannot be corrected by redrawing.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on.
+
+    Returns
+    -------
+    str
+        The title, or an empty string when there is no legend to read or no
+        title on it.
+    """
+    legend = legend_of(ax)
+    if legend is None:
+        return ""
+    title = legend.get_title()
+    if title is None:
+        return ""
+    return title.get_text().strip()

@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
+from matplotlib.collections import LineCollection
 
 import maidr
 from maidr.core.figure_manager import FigureManager
@@ -191,8 +192,6 @@ def test_a_collection_that_is_not_a_set_of_ticks_is_declined():
     # A segment sloping across both axes is held constant on neither, so it
     # marks no position. The whole layer is declined rather than part of it
     # read, so a chart is never announced as a subset of itself.
-    from matplotlib.collections import LineCollection
-
     sloped = LineCollection([[[0.0, 1.0], [5.0, 2.0]]])
     assert read_rug(sloped) is None
 
@@ -231,18 +230,17 @@ def test_a_second_rug_on_the_same_axes_reads_only_its_own_ticks(frame):
 
 
 def test_a_hue_split_rug_still_marks_every_observation(frame):
-    # Review asked whether a hue split produces several collections that
-    # could be merged or dropped, given the one-layer-per-collection design.
-    # Measured: seaborn draws one collection either way and only recolours
-    # it, so a hue rug is one layer holding every observation. Pinned rather
-    # than left as an ad-hoc measurement, since the answer is seaborn's to
-    # change.
+    # The question this has always answered -- does a hue split lose ticks --
+    # asked of the reading it has now. Seaborn draws one collection either
+    # way and only recolours it, so the split is made in the patch (#597);
+    # what must not change is that every observation is still marked, exactly
+    # once, across whatever layers it takes.
     frame = frame.assign(sex=["F", "F", "M", "M"])
     fig, ax = plt.subplots()
     sns.rugplot(frame, x="value", hue="sex", ax=ax)
 
-    (schema,) = _schemas(fig)
-    assert [point["x"] for point in schema["data"]] == [1.0, 2.5, 3.0, 7.25]
+    marked = [point["x"] for schema in _schemas(fig) for point in schema["data"]]
+    assert sorted(marked) == [1.0, 2.5, 3.0, 7.25]
 
 
 def test_a_rug_under_a_hue_split_density_reads_beside_it(frame):
@@ -254,8 +252,19 @@ def test_a_rug_under_a_hue_split_density_reads_beside_it(frame):
     sns.rugplot(frame, x="value", hue="sex", ax=ax)
 
     schemas = _schemas(fig)
-    assert [schema["type"] for schema in schemas] == ["smooth", "smooth", "point"]
-    assert [point["x"] for point in schemas[-1]["data"]] == [1.0, 2.5, 3.0, 7.25]
+    assert [schema["type"] for schema in schemas] == [
+        "smooth",
+        "smooth",
+        "point",
+        "point",
+    ]
+    marked = [
+        point["x"]
+        for schema in schemas
+        if schema["type"] == "point"
+        for point in schema["data"]
+    ]
+    assert sorted(marked) == [1.0, 2.5, 3.0, 7.25]
 
 
 def test_a_name_can_come_off_an_axis_another_plot_labelled(frame):
@@ -284,3 +293,222 @@ def test_a_rug_with_no_tick_length_is_declined():
 
     assert _layers(fig) == []
     assert len(maidr.render(fig)._repr_html_()) > 0
+
+
+def _named(fig) -> list:
+    return [
+        (schema.get("name"), [point["x"] for point in schema["data"]])
+        for schema in _schemas(fig)
+    ]
+
+
+def test_a_hue_split_rug_reads_one_layer_per_level(frame):
+    """The groups are drawn and were folded together (#597).
+
+    `rugplot(hue=...)` emitted exactly the schema of the same call without
+    one: a single layer holding every tick, named after the *variable* rather
+    than a level, with no `z`. The grouping was not merely unnamed -- it was
+    absent, on a chart drawn to compare two distributions' raw observations.
+
+    Seaborn leaves it readable: one `LineCollection` with a colour per tick,
+    and the legend that names those colours built inside the call. Measured
+    on twelve observations over two levels, `colour rows=12, unique=2` and
+    `names_for` names every one of them.
+    """
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="sex", ax=ax)
+
+    # Each layer holds its own level's observations, checked by value rather
+    # than by count -- a split that got the membership backwards would have
+    # the right two layers of two.
+    assert _named(fig) == [("F", [1.0, 2.5]), ("M", [3.0, 7.25])]
+
+
+def test_each_layer_names_the_variable_it_is_split_by(frame):
+    # `z` says what the split is by and `name` says which side of it this
+    # layer is, the division `ScatterPlot` documents.
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="sex", ax=ax)
+
+    labels = [schema["axes"]["z"]["label"] for schema in _schemas(fig)]
+    assert labels == ["sex", "sex"]
+
+
+def test_a_rug_on_y_splits_the_same_way(frame):
+    # The observations move to the other axis and the grouping does not move
+    # at all; reading the colours off the wrong thing would show here.
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, y="value", hue="sex", ax=ax)
+
+    assert [
+        (schema.get("name"), [point["y"] for point in schema["data"]])
+        for schema in _schemas(fig)
+    ] == [("F", [1.0, 2.5]), ("M", [3.0, 7.25])]
+
+
+def test_each_group_addresses_only_its_own_ticks(frame):
+    """A group's selectors must not light the whole rug up.
+
+    One collection holds every level's ticks, so the whole-collection
+    selector the ungrouped layer uses would highlight all four for a layer
+    announcing two. Numbered by segment instead, which is the order the
+    `<path>` children are written in.
+    """
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="sex", ax=ax)
+
+    selectors = [schema["selectors"] for schema in _schemas(fig)]
+    assert [len(group) for group in selectors] == [2, 2]
+    # Four distinct ticks addressed, none of them twice.
+    assert len({selector for group in selectors for selector in group}) == 4
+
+
+def test_a_split_drawn_without_a_legend_is_declined(frame):
+    # The colours are still there and nothing names them. Groups called "1"
+    # and "2" are not an improvement on one strip, so the chart keeps the
+    # reading it had.
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="sex", legend=False, ax=ax)
+
+    (schema,) = _schemas(fig)
+    assert schema.get("name") == "value"
+    assert [point["x"] for point in schema["data"]] == [1.0, 2.5, 3.0, 7.25]
+
+
+def test_an_ungrouped_rug_keeps_its_whole_collection_selector(frame):
+    # Nothing to split, so nothing changes: one layer, one selector matching
+    # every tick, named after the variable it marks.
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", ax=ax)
+
+    (schema,) = _schemas(fig)
+    assert schema.get("name") == "value"
+    assert isinstance(schema["selectors"], str)
+    assert len(schema["data"]) == 4
+
+
+def test_the_layers_follow_the_legend_order_not_the_drawing_order(frame):
+    # #502 settled that a grouped layer's layers come out in the order the
+    # chart names its levels. This frame draws F first, so a split that kept
+    # the drawing order would put F first under either `hue_order`.
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="sex", hue_order=["M", "F"], ax=ax)
+
+    assert _named(fig) == [("M", [3.0, 7.25]), ("F", [1.0, 2.5])]
+
+
+def test_a_continuous_hue_is_a_scale_and_is_not_split(frame):
+    """One layer per observation is not a reading of a colour scale.
+
+    The colours cannot say so themselves, and on a small frame they look
+    exactly like a grouping: seaborn's legend samples every value, so all
+    four ticks match a swatch and `names_for` names all four. Measured, the
+    first draft split this into four layers of one tick each.
+
+    So the plotter is asked instead -- it reports `map_type='numeric'` --
+    which is the same discriminator `patch/stripplot` uses and the same
+    decline `scatterplot.hue_groups` makes one artist type over.
+    """
+    frame = frame.assign(level=[0.0, 0.33, 0.66, 1.0])
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="level", ax=ax)
+
+    (schema,) = _schemas(fig)
+    assert [point["x"] for point in schema["data"]] == [1.0, 2.5, 3.0, 7.25]
+
+
+def _grouped_axes(frame):
+    """An axes carrying a real hue-split rug, for its legend and colours."""
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    _, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="sex", ax=ax)
+    return ax, list(np.asarray(ax.collections[0].get_colors()))
+
+
+def test_a_colour_list_that_does_not_correspond_to_the_ticks_is_declined(frame):
+    """Fewer colours than ticks cannot say which tick wore which.
+
+    Splitting on them would hand the first ticks to groups and drop the
+    rest, which is silent data loss. Nothing measured draws such a
+    collection -- seaborn gives one colour per tick under a hue, and one for
+    the whole rug without -- so it is asserted directly.
+
+    Built on an axes whose legend *does* name these colours, so the decline
+    is the count and not the naming: given four of them the same call
+    splits.
+    """
+    from maidr.patch.rugplot import _HUE_MAP_TYPE, _hue_groups
+
+    ax, colours = _grouped_axes(frame)
+    segments = [[(0.0, 0.0), (0.0, 1.0)] for _ in range(4)]
+    short = LineCollection(segments, colors=[colours[0], colours[-1]])
+    full = LineCollection(segments, colors=colours)
+
+    token = _HUE_MAP_TYPE.set("categorical")
+    try:
+        assert _hue_groups(ax, short, 4) is None
+        assert _hue_groups(ax, full, 4) is not None
+    finally:
+        _HUE_MAP_TYPE.reset(token)
+
+
+def test_a_tick_no_swatch_names_declines_the_whole_split(frame):
+    """A partly named rug is worse than an unnamed one.
+
+    Splitting on the named ticks alone would announce a group called "None"
+    holding the rest -- maidr's own word for "unmatched" read aloud as a
+    level. The whole split is declined instead, which is the rule
+    `scatterplot.hue_groups` follows for a point no swatch claims.
+    """
+    from maidr.patch.rugplot import _HUE_MAP_TYPE, _hue_groups
+
+    ax, colours = _grouped_axes(frame)
+    segments = [[(0.0, 0.0), (0.0, 1.0)] for _ in range(4)]
+    # Two ticks in a colour the legend names, two in one it does not.
+    partly = LineCollection(
+        segments, colors=[colours[0], colours[0], "magenta", "magenta"]
+    )
+
+    token = _HUE_MAP_TYPE.set("categorical")
+    try:
+        assert _hue_groups(ax, partly, 4) is None
+    finally:
+        _HUE_MAP_TYPE.reset(token)
+
+
+def test_a_split_named_by_a_figure_legend_still_says_what_it_split_by():
+    """The `z` label has to come off the legend that named the groups.
+
+    `legend_of` falls back to a lone figure-level legend for a panel with
+    none of its own -- that is how a `PairGrid`'s panels are named -- and
+    the layers then carry the levels it named them with. Reading the title
+    off `ax.get_legend()` alone leaves that chart saying which side of a
+    grouping each layer is on without ever saying what the grouping is.
+
+    Measured before the fix: two layers, `name='a'` and `name='b'`, and no
+    `z` at all.
+    """
+    frame = pd.DataFrame({"v": [1.0, 2.0, 3.0, 7.0, 8.0, 9.0], "g": list("aaabbb")})
+    fig, ax = plt.subplots()
+    palette = sns.color_palette(n_colors=2)
+    handles = [
+        plt.Line2D([], [], color=colour, label=name)
+        for name, colour in zip(["a", "b"], palette)
+    ]
+    fig.legend(handles=handles, title="g")
+
+    sns.rugplot(frame, x="v", hue="g", ax=ax, legend=False)
+
+    assert ax.get_legend() is None
+    schemas = _schemas(fig)
+    assert [schema.get("name") for schema in schemas] == ["a", "b"]
+    assert [schema["axes"].get("z") for schema in schemas] == [
+        {"label": "g"},
+        {"label": "g"},
+    ]
