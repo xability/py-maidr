@@ -18,6 +18,7 @@ from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.hexbinplot import HexbinPlot
 from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
+from maidr.core.plot.lollipop import LollipopPlot
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.pointplot import PointPlot
@@ -129,6 +130,8 @@ class MaidrPlotFactory:
                 return MplfinanceLinePlot(single_ax, **kwargs)
             else:
                 return MultiLinePlot(single_ax, **kwargs)
+        elif PlotType.LOLLIPOP == plot_type:
+            return LollipopPlot(single_ax, **kwargs)
         elif PlotType.STEP == plot_type:
             return StepPlot(single_ax, **kwargs)
         elif PlotType.PIE == plot_type:

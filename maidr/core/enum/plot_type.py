@@ -34,6 +34,13 @@ class PlotType(str, Enum):
     HEXBIN = "hexbin"
     HIST = "hist"
     LINE = "line"
+    #: One value per position, each marked and joined to a baseline.
+    #: `Axes.stem` is matplotlib's spelling. A distinct type from `BAR`
+    #: only in what is drawn at the position -- the core builds both on
+    #: `BarTrace` -- and a distinct type from `LINE` in a way that matters:
+    #: the marks are not joined to each other, and the baseline is a frame
+    #: rather than a series (#574).
+    LOLLIPOP = "lollipop"
     #: A filled band between a series and a baseline. Emitted for a single
     #: `stackplot` band, which has nothing stacked on it.
     AREA = "area"

@@ -42,7 +42,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 ### Supported Plot Types
 
-Defined in `maidr/core/enum/plot_type.py`: BAR, BOX, BOXEN, COUNT, DODGED, ERRORBAR, HEAT, HEXBIN, HIST, LINE, AREA, STACKED_AREA, NORMALIZED_AREA, PIE, SCATTER, STACKED, NORMALIZED, STEP, SMOOTH, CANDLESTICK, VIOLIN_KDE, VIOLIN_BOX.
+Defined in `maidr/core/enum/plot_type.py`: BAR, BOX, BOXEN, CONTOUR, COUNT, DODGED, ERRORBAR, GANTT, HEAT, HEXBIN, HIST, LINE, LOLLIPOP, AREA, STACKED_AREA, NORMALIZED_AREA, PIE, SCATTER, STACKED, NORMALIZED, STEP, SMOOTH, CANDLESTICK, VIOLIN_KDE, VIOLIN_BOX.
 
 Note that `maidr/plotly/` builds its MAIDR schema in Python and therefore needs its own
 handling per plot type, whereas `maidr/altair/` delegates entirely to the upstream
