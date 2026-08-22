@@ -12,6 +12,7 @@ from matplotlib.colors import to_rgba
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
+from maidr.util.hue_groups import grouped_by_name
 from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
 
 
@@ -203,12 +204,11 @@ def hue_groups(ax: Axes, collection: PathCollection) -> list[tuple[str, list[int
       read as one layer, even though the same axes would split if asked a
       line later. seaborn builds its legend inside the call, so its charts
       are unaffected.
-    - **A point no swatch claims.** A *continuous* hue is the case: measured,
-      ``hue='v'`` on a numeric column gives ten distinct colours for ten
-      points against five legend levels sampled at round numbers, so most
-      points match nothing. That is a colour *scale*, not a grouping, and
-      splitting it into one layer per point would be nonsense.
-    - **Fewer than two groups.** Nothing to tell apart.
+    Two more declines are :func:`~maidr.util.hue_groups.grouped_by_name`'s
+    rather than this function's, and its docstring carries the charts behind
+    them: a point no swatch claims, and fewer than two groups. They live
+    there because the rug split reaches the same two from a different artist,
+    and three implementations of one rule had begun to drift (#599).
 
     Parameters
     ----------
@@ -236,15 +236,13 @@ def hue_groups(ax: Axes, collection: PathCollection) -> list[tuple[str, list[int
     if named is None or len(named) < 2:
         return None
 
-    members: dict[str, list[int]] = {name: [] for name in named.values()}
-    for index, colour in enumerate(colours):
-        name = named.get(colour)
-        if name is None:
-            return None
-        members[name].append(index)
-
-    groups = [(name, found) for name, found in members.items() if found]
-    return groups if len(groups) > 1 else None
+    # `named` was built in legend order, so its values are the order #502
+    # settled a grouped layer's layers on. The grouping itself, and the two
+    # declines that go with it, are `grouped_by_name`'s -- shared with the rug
+    # split, which reaches the same three decisions from a different artist.
+    return grouped_by_name(
+        [named.get(colour) for colour in colours], list(named.values())
+    )
 
 
 class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):

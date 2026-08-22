@@ -19,6 +19,7 @@ from maidr.core.plot.rugplot import (
 )
 from maidr.core.plot.scatterplot import _rgba
 from maidr.patch.common import _draw_quietly, prospective_axes, wrap_seaborn
+from maidr.util.hue_groups import grouped_by_name
 from maidr.util.legend_names import legend_of, names_for
 
 
@@ -122,24 +123,12 @@ def _hue_groups(ax: Axes, collection: LineCollection, ticks: int) -> list | None
     if len(colours) != ticks or ticks < 2:
         return None
 
-    names = names_for(ax, colours)
-    if any(name is None for name in names):
-        return None
-
-    members: dict = {}
-    for index, name in enumerate(names):
-        members.setdefault(name, []).append(index)
-    if len(members) < 2:
-        return None
-
     # Legend order, which is the order #502 settled a grouped layer's layers
-    # on -- seaborn's draw order is not it.
+    # on -- seaborn's draw order is not it. The grouping and the two declines
+    # that go with it are `grouped_by_name`'s, shared with the scatter split.
     legend = legend_of(ax)
     order = [text.get_text() for text in legend.get_texts()] if legend else []
-    return sorted(
-        members.items(),
-        key=lambda group: order.index(group[0]) if group[0] in order else len(order),
-    )
+    return grouped_by_name(names_for(ax, colours), order)
 
 
 def _collections_of(ax: Axes | None) -> list:
