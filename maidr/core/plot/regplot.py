@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from matplotlib.axes import Axes
-from maidr.core.plot.maidr_plot import GROUP_NAME, MaidrPlot
+from maidr.core.plot.maidr_plot import MaidrPlot, group_name_of
 from maidr.exception.extraction_error import ExtractionError
 import numpy as np
 from maidr.core.enum.plot_type import PlotType
@@ -46,10 +46,10 @@ class SmoothPlot(MaidrPlot):
         # A string names the group now; a callable names it at render, which
         # is what a `pairplot` needs -- its legend does not exist until every
         # panel has been drawn (#561).
-        group_name = kwargs.get(GROUP_NAME, None)
-        self._group_name = (
-            group_name if isinstance(group_name, str) or callable(group_name) else None
-        )
+        # `pop` here where this read `get` before, which changes nothing:
+        # nothing reads the key again, and `super().__init__` is called
+        # without the keyword arguments.
+        self._group_name = group_name_of(kwargs)
         super().__init__(ax, PlotType.SMOOTH)
         self._smooth_gid = None
         self._regression_line = kwargs.get("regression_line", None)

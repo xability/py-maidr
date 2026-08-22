@@ -24,8 +24,9 @@ import uuid
 #: ``super().__init__(ax, PlotType.X)`` without forwarding their keyword
 #: arguments, so a key read here would arrive for some layer types and be
 #: swallowed by the rest -- a promise kept by accident of how each
-#: constructor happens to be written. ``HistPlot`` and ``SmoothPlot`` opt in
-#: today, each in one visible line.
+#: constructor happens to be written. ``HistPlot``, ``SmoothPlot`` and
+#: ``BoxPlot`` opt in today, each in one visible line --
+#: :func:`group_name_of`.
 #:
 #: ``ScatterPlot`` and ``EventPlot`` name their layers by other means -- a hue
 #: split and row labels -- and are unaffected, being passed neither this key
@@ -39,6 +40,34 @@ import uuid
 #: every diagonal came out anonymous while the scatters beside it were named
 #: (#561). Each class that honours this key resolves the callable itself.
 GROUP_NAME = "_maidr_group_name"
+
+
+def group_name_of(kwargs: dict):
+    """
+    Read :data:`GROUP_NAME` out of a layer's keyword arguments.
+
+    One line in each opting-in constructor, and the same line. Three copies
+    of it drifted apart is a layer honouring the key in a way the others do
+    not, which is the failure this whole mechanism exists to prevent -- and
+    they had already begun to: ``SmoothPlot`` read the key with ``get`` where
+    the others used ``pop``. Harmless there, since nothing reads it again and
+    the base constructor is called without the keyword arguments, but it is
+    the shape divergence takes.
+
+    Parameters
+    ----------
+    kwargs : dict
+        The layer's keyword arguments. The key is **popped**, so it does not
+        travel on to a base class that would not know it.
+
+    Returns
+    -------
+    str or callable or None
+        What the patch handed over, or ``None`` when it handed over nothing
+        this can use.
+    """
+    name = kwargs.pop(GROUP_NAME, None)
+    return name if isinstance(name, str) or callable(name) else None
 
 
 class MaidrPlot(ABC, FormatExtractorMixin):

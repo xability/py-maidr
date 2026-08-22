@@ -5,7 +5,7 @@ from matplotlib.container import BarContainer
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
-from maidr.core.plot.maidr_plot import GROUP_NAME
+from maidr.core.plot.maidr_plot import group_name_of
 from maidr.exception import ExtractionError
 from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
 
@@ -42,10 +42,7 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         # A string names the group now; a callable names it at render, which
         # is what a `pairplot` needs -- its legend does not exist until every
         # panel has been drawn (#561).
-        group_name = kwargs.pop(GROUP_NAME, None)
-        self._group_name = (
-            group_name if isinstance(group_name, str) or callable(group_name) else None
-        )
+        self._group_name = group_name_of(kwargs)
         super().__init__(ax, PlotType.HIST)
         self._orientation = "vert"
 
