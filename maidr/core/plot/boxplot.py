@@ -2,16 +2,90 @@ from __future__ import annotations
 
 import uuid
 
+import numpy as np
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.scatterplot import _rgba
 from maidr.exception import ExtractionError
+from maidr.util.legend_names import names_for
 from maidr.util.mixin import (
     ContainerExtractorMixin,
     DictMergerMixin,
     LevelExtractorMixin,
 )
+
+
+def _box_centre(box, horizontal: bool) -> float | None:
+    """
+    Where on the category axis a box sits.
+
+    Read off the artist rather than counted, because a hue splits a category's
+    slot into one box per level and only the position says which slot a box
+    landed in. Both spellings of a box answer: ``patch_artist=True`` -- which
+    is what seaborn draws -- gives a ``PathPatch``, and the plain
+    ``ax.boxplot`` gives a ``Line2D`` outline.
+
+    Parameters
+    ----------
+    box : Any
+        One box artist.
+    horizontal : bool
+        Whether the categories run up the y axis.
+
+    Returns
+    -------
+    float or None
+        The midpoint of the box's extent along the category axis, or ``None``
+        for an artist neither spelling reads.
+    """
+    path = getattr(box, "get_path", None)
+    if path is not None:
+        vertices = np.asarray(path().vertices, dtype=float)
+    elif hasattr(box, "get_xdata"):
+        vertices = np.column_stack(
+            [np.asarray(box.get_xdata(), dtype=float),
+             np.asarray(box.get_ydata(), dtype=float)]
+        )
+    else:
+        return None
+
+    if vertices.ndim != 2 or not len(vertices):
+        return None
+    along = vertices[:, 1 if horizontal else 0]
+    if not np.all(np.isfinite(along)):
+        return None
+    return float((along.min() + along.max()) / 2)
+
+
+def _box_colour(box):
+    """
+    The one colour a box was drawn in, if it has one.
+
+    Its face where it is filled and its edge otherwise, which is the same
+    order :func:`maidr.core.plot.scatterplot._handle_colour` asks a legend
+    handle in -- a filled box carries the hue on its face, and an unfilled
+    one has only its outline to carry it.
+
+    Parameters
+    ----------
+    box : Any
+        One box artist.
+
+    Returns
+    -------
+    tuple of float or None
+        The rounded RGBA, or ``None`` when the artist names no single colour.
+    """
+    for getter in ("get_facecolor", "get_edgecolor", "get_color"):
+        read = getattr(box, getter, None)
+        if read is None:
+            continue
+        colour = _rgba(read())
+        if colour is not None:
+            return colour
+    return None
 
 
 class BoxPlotContainer(DictMergerMixin):
@@ -238,6 +312,60 @@ class BoxPlot(
         box_orientation = {MaidrKey.ORIENTATION: self._orientation}
         return DictMergerMixin.merge_dict(base_schema, box_orientation)
 
+    def _named_boxes(self, boxes: list, labels: list[str], key: MaidrKey) -> list[str]:
+        """
+        One name per box, for a chart that drew more than one per category.
+
+        Two questions per box, each answered by the drawing:
+
+        - **Which category.** The tick its slot belongs to, by position. Safe
+          by construction rather than by luck: seaborn dodges a category's
+          levels inside a slot narrower than the unit its ticks are spaced by,
+          so a box never lands nearer another category's tick. Measured on
+          three categories and two levels, against a half-spacing of 0.5, the
+          outermost box sits 0.267 from its own tick.
+        - **Which level.** The colour it was drawn in, matched against the
+          legend swatch that names it -- the same match the histogram and the
+          strip plot make, and the reason it is not the dodge lattice
+          :meth:`BoxenPlot._category_of` reads: a box carries its level on its
+          face, and a ladder of boxen boxes does not.
+
+        Answering only the first is still an improvement on answering neither:
+        a chart drawn ``legend=False``, or one whose hue repeats the category
+        variable, gets its boxes back with the category alone rather than
+        losing half of them.
+
+        Parameters
+        ----------
+        boxes : list
+            The box artists, in drawing order.
+        labels : list of str
+            The category tick labels.
+        key : MaidrKey
+            Which axis the categories run along.
+
+        Returns
+        -------
+        list of str
+            Exactly ``len(boxes)`` names, so the caller's ``zip`` cannot
+            truncate. ``"category, level"`` where both are known, the category
+            alone where the level is not, and ``""`` for a box that has
+            neither.
+        """
+        positions = self.extract_level_positions(self.ax, key) or []
+        ticks = list(zip(positions, labels)) if len(positions) == len(labels) else []
+        levels = names_for(self.ax, [_box_colour(box) for box in boxes])
+        horizontal = self._orientation != "vert"
+
+        named = []
+        for box, level in zip(boxes, levels):
+            centre = _box_centre(box, horizontal)
+            label = ""
+            if ticks and centre is not None:
+                label = min(ticks, key=lambda tick: abs(tick[0] - centre))[1]
+            named.append(f"{label}, {level}" if label and level else label or level or "")
+        return named
+
     def _extract_plot_data(self) -> list:
         data = self._extract_bxp_maidr(self._bxp_stats)
 
@@ -272,13 +400,19 @@ class BoxPlot(
         caps_elements = self._bxp_elements_extractor.extract_caps(bxp_stats["caps"])
         bxp_maidr = []
 
-        levels = (
-            self.extract_level(self.ax, MaidrKey.X)
-            if self._orientation == "vert"
-            else self.extract_level(self.ax, MaidrKey.Y)
-        )
-        if levels is None:
-            levels = []
+        key = MaidrKey.X if self._orientation == "vert" else MaidrKey.Y
+        levels = self.extract_level(self.ax, key) or []
+
+        # A `hue` draws one box per category *per level*, and the axis still
+        # carries one tick per category -- so the `zip` below, which ends at
+        # the shortest of what it is given, stopped at the ticks and dropped
+        # every box past them. Measured on three categories and two levels:
+        # six boxes drawn, three announced, and the three that survived were
+        # the first level's paired with the tick labels in order (#593). The
+        # selector list is built from the artists rather than from this, so
+        # the same chart also emitted six selectors against three rows.
+        if len(medians) > len(levels):
+            levels = self._named_boxes(bxp_stats["boxes"], levels, key)
 
         _pairs = [(e["min"], e["max"]) for e in caps_elements if e]
 
