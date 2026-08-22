@@ -62,7 +62,11 @@ class SteppedHistPlot(HistPlot):
 
     def __init__(self, ax: Axes, collection: PolyCollection, **kwargs) -> None:
         self._collection = collection
-        super().__init__(ax)
+        # Forwarded, not dropped. `HistPlot.__init__` is what reads
+        # `GROUP_NAME`, so calling it with the axes alone leaves a `hue=`
+        # chart with a layer per group and no name on any of them -- the
+        # defect #585 fixed on the unfilled twin of this class, and #587 here.
+        super().__init__(ax, **kwargs)
         # One `<path>` for the whole outline, as `Axes.stairs` has: there is no
         # per-bin element for a selector to name, and one naming the outline
         # would light the whole distribution up at every bin.

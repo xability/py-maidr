@@ -432,6 +432,44 @@ def _outlines_of(ax: Axes | None) -> list:
     ]
 
 
+def _face_colour(outline: PolyCollection):
+    """
+    The one colour a filled outline was drawn in, if it has one.
+
+    Its **face**, which is what carries the hue. By default the edge carries
+    it too -- measured, the two agree but for the translucency the face and
+    the legend swatch share -- so either would name the groups, the edge
+    through `_names_for`'s alpha-insensitive pass. `edgecolor=` is what
+    separates them: it is the caller's to set, and setting it once colours
+    *every* group's edge alike::
+
+        histplot(hue="g", element="step")                    edges (1.0, .50, .05) / (.12, .47, .71)
+        histplot(hue="g", element="step", edgecolor="black") edges (0, 0, 0) / (0, 0, 0)
+
+    Two groups drawn one colour name nothing, and a chart outlined in black
+    is an ordinary chart rather than a strange one. The face is untouched by
+    it, so it is what this reads.
+
+    Parameters
+    ----------
+    outline : PolyCollection
+        The outline seaborn drew.
+
+    Returns
+    -------
+    tuple of float or None
+        The rounded RGBA of the collection's first row, or ``None`` when it
+        holds no rows or that row names no colour.
+
+        The first row *is* the colour here rather than a sample of several:
+        seaborn draws one outline per series and colours it in one call, so
+        the collection carries a single face. Said rather than checked, since
+        a uniformity test over one row could not fail.
+    """
+    rows = np.asarray(outline.get_facecolor())
+    return _rgba(rows[0]) if len(rows) else None
+
+
 def _drew_outlines(ax: Axes | None, before: list) -> list:
     """
     The outlines *this call* added, if any.
@@ -643,8 +681,19 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
         if drew:
             # `element="step"` / `"poly"`: the same distribution drawn as one
             # closed outline per series instead of a row of bars.
-            for outline in drew:
-                FigureManager.create_maidr(axes, PlotType.HIST, collection=outline)
+            #
+            # Named from the legend by colour, the way the bars and the
+            # unfilled outlines are. Deferred for the reason `_curve_names`
+            # gives: a `pairplot`'s legend does not exist until every panel
+            # has been drawn (#561).
+            names = deferred_names(
+                lambda: _names_for(axes, [_face_colour(one) for one in drew]),
+                len(drew),
+            )
+            for outline, name in zip(drew, names):
+                FigureManager.create_maidr(
+                    axes, PlotType.HIST, collection=outline, **{GROUP_NAME: name}
+                )
             return drawn
         horizontal = _asked_for_horizontal(kwargs)
         outlined = _drew_outline_lines(
