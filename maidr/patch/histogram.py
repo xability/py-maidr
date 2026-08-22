@@ -458,8 +458,13 @@ def _face_colour(outline: PolyCollection):
     Returns
     -------
     tuple of float or None
-        The rounded RGBA, or ``None`` when the collection names no single
-        colour.
+        The rounded RGBA of the collection's first row, or ``None`` when it
+        holds no rows or that row names no colour.
+
+        The first row *is* the colour here rather than a sample of several:
+        seaborn draws one outline per series and colours it in one call, so
+        the collection carries a single face. Said rather than checked, since
+        a uniformity test over one row could not fail.
     """
     rows = np.asarray(outline.get_facecolor())
     return _rgba(rows[0]) if len(rows) else None
