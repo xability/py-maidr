@@ -18,6 +18,17 @@ DRAWN_RUG = "_maidr_rug"
 #: Key carrying the name to announce the layer under, when there is one.
 RUG_LABEL = "_maidr_rug_label"
 
+#: Key the patch hands one hue group over under: a ``(name, members)`` pair
+#: naming the group and listing the segments of :data:`DRAWN_RUG` that belong
+#: to it. Absent for an ungrouped rug, which is the chart this layer has
+#: always read and still reads unchanged.
+#:
+#: The split is made in the patch rather than here for the reason
+#: :func:`maidr.patch.scatterplot.scatter` gives: a layer *is* one entry in
+#: the schema, and seaborn draws a hue-grouped rug as one ``LineCollection``
+#: carrying a colour per tick, so one artist has to become several layers.
+RUG_GROUP = "_maidr_rug_group"
+
 #: What the layer's constant axis is called when the chart does not say.
 #: A rug's ticks sit in a strip against the frame rather than at a measured
 #: height, so the coordinate across the tick names the strip, not a value.
@@ -126,6 +137,13 @@ class RugPlot(MaidrPlot):
         )
         self._label = kwargs.get(RUG_LABEL, None)
 
+        # The hue group this layer reads, when the patch found one. `None`
+        # means the layer reads every tick the collection holds, which is
+        # what an ungrouped rug has always done.
+        group = kwargs.get(RUG_GROUP, None)
+        self._group_name = group[0] if group else None
+        self._group_members = list(group[1]) if group else None
+
         # Read once, here, rather than again per render. Two reasons, and
         # the first is correctness: `MaidrPlot.render()` builds the *axes*
         # payload before the data, so an orientation settled in
@@ -137,6 +155,18 @@ class RugPlot(MaidrPlot):
         # revalidating every segment each time buys nothing.
         read = read_rug(self._collection)
         self._positions, self._along_x = read if read is not None else ([], True)
+
+        # Kept to the group's own ticks, and their places among the drawn
+        # ones kept with them: the selector numbers by segment, so a layer
+        # that filtered its positions without remembering where they came
+        # from would highlight the first N ticks of the rug rather than its
+        # own -- the failure nothing announced can see (xability/maidr#814).
+        self._drawn = list(range(len(self._positions)))
+        if self._group_members is not None:
+            members = set(self._group_members)
+            kept = [index for index in self._drawn if index in members]
+            self._positions = [self._positions[index] for index in kept]
+            self._drawn = kept
 
         # Assigned here rather than relied upon, for the reason `EventPlot`
         # and `HexbinPlot` give: matplotlib stamps a gid at *draw* time and
@@ -154,8 +184,9 @@ class RugPlot(MaidrPlot):
         a rug drawn beside a scatter of the same variable.
         """
         schema = super().render()
-        if self._label:
-            schema[MaidrKey.NAME] = self._label
+        name = self._group_name or self._label
+        if name:
+            schema[MaidrKey.NAME] = name
         return schema
 
     def _extract_plot_data(self) -> list[dict]:
@@ -190,6 +221,15 @@ class RugPlot(MaidrPlot):
         axes_data = super()._extract_axes_data()
         across = MaidrKey.Y if self._along_x else MaidrKey.X
         axes_data[across] = self._axis_config(label=RUG_AXIS_LABEL)
+
+        # A grouped layer names the grouping *variable* on z, the way the
+        # scatter and line layers do: `z` says what the split is by, `name`
+        # says which side of it this layer is.
+        if self._group_members is not None:
+            z_label = self._legend_title()
+            if z_label:
+                axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
+
         return axes_data
 
     def _get_selector(self) -> str | list[str]:
@@ -207,4 +247,15 @@ class RugPlot(MaidrPlot):
         """
         if self._collection is None or self._collection.get_gid() is None:
             return []
-        return f"g[id='{self._collection.get_gid()}'] > path"
+
+        gid = self._collection.get_gid()
+        if self._group_members is None:
+            return f"g[id='{gid}'] > path"
+
+        # A grouped layer cannot use the whole-collection selector: the
+        # collection holds every group's ticks, so it would light the whole
+        # rug up for a layer announcing half of it. Numbered by segment,
+        # which is what the `<path>` children are written in.
+        return [
+            f"g[id='{gid}'] > path:nth-of-type({index + 1})" for index in self._drawn
+        ]
