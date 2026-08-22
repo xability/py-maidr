@@ -26,6 +26,7 @@ from . import (  # noqa: E402, F401
     pieplot,
     pointplot,
     scatterplot,
+    triplot,
     spanplot,
     stairs,
     regplot,
