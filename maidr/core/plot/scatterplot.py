@@ -15,8 +15,9 @@ from maidr.exception import ExtractionError
 from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
 
 
-#: The keyword ``Axes.scatter`` hands its own ``PathCollection`` to this layer
-#: under. Named once and imported at both ends rather than spelled twice:
+#: The keyword a patch hands this layer the collections its own call drew
+#: under -- one ``PathCollection``, or a list of them where a layer spans
+#: several. Named once and imported at both ends rather than spelled twice:
 #: ``kwargs.get`` falls back to sweeping the axes on a mismatch, so a typo
 #: would not raise -- it would quietly restore the behaviour #426 removed.
 #:
@@ -24,11 +25,26 @@ from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
 #: imports ``maidr.core`` and not the other way about.
 DRAWN_POINTS = "_maidr_points"
 
-#: The keyword the scatter patch hands one hue group to this layer under: a
-#: ``(name, members)`` pair naming the group and listing the collection
-#: offsets that belong to it. Absent for an ungrouped scatter, which is the
-#: chart this layer has always read and still reads unchanged.
+#: The keyword a patch hands one hue group to this layer under: a
+#: ``(name, members)`` pair naming the group and listing, **per collection of**
+#: ``DRAWN_POINTS`` **and in the same order**, the offsets that belong to it.
+#: One collection is one entry; the list is not flattened, because an offset
+#: means nothing without the collection it indexes. Absent for an ungrouped
+#: scatter, which is the chart this layer has always read and still reads
+#: unchanged.
 HUE_GROUP = "_maidr_hue_group"
+
+#: The keyword a patch hands the grouping *variable's* name under, for the
+#: charts whose legend cannot be asked for it. Only ever a fallback: the
+#: legend's title is read first and wins, because it is what the chart shows.
+#:
+#: Three charts need it, and all three are ones the legend cannot answer for.
+#: ``sns.catplot`` builds its legend at the *figure* after the panels are
+#: drawn; ``legend=False`` suppresses it outright; and a ``hue=`` that repeats
+#: the ``x`` variable makes seaborn draw one with no title at all. Each still
+#: has a grouping, and a group named "x" with nothing saying what "x" is a
+#: kind of is half a reading.
+GROUP_LABEL = "_maidr_group_label"
 
 #: How closely two colours must agree to be the same colour. Both sides come
 #: from the same palette object -- the legend handle is built from the swatch
@@ -129,6 +145,38 @@ def _named_colours(legend, drawn: set[tuple[float, ...]]) -> dict | None:
     return named
 
 
+def _collections(given) -> list[PathCollection]:
+    """
+    The collections a patch handed this layer, in the order it drew them.
+
+    Either spelling is read: ``Axes.scatter`` has one collection to give and
+    gives it, while a patch whose layer spans several -- a hue group over
+    ``seaborn``'s one-collection-per-category strip plot (#586) -- gives the
+    list. Everything below works in the list, so a single collection becomes
+    a list of one here rather than a second path through the layer.
+
+    Filtered by type rather than trusted, for the reason the one-collection
+    form was: ``seaborn.scatterplot`` is patched through the same wrapper and
+    returns an ``Axes``, not a collection. An empty answer falls back to
+    sweeping the axes, which is right for that call and for that call alone.
+
+    Parameters
+    ----------
+    given : Any
+        Whatever arrived under :data:`DRAWN_POINTS`.
+
+    Returns
+    -------
+    list of PathCollection
+        Possibly empty, which is the caller's signal to sweep instead.
+    """
+    if isinstance(given, PathCollection):
+        return [given]
+    if isinstance(given, (list, tuple)):
+        return [part for part in given if isinstance(part, PathCollection)]
+    return []
+
+
 def hue_groups(ax: Axes, collection: PathCollection) -> list[tuple[str, list[int]]] | None:
     """
     The hue groups a scatter was drawn with, or ``None`` when it has none.
@@ -202,48 +250,52 @@ def hue_groups(ax: Axes, collection: PathCollection) -> list[tuple[str, list[int
 class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
     def __init__(self, ax: Axes, **kwargs) -> None:
         super().__init__(ax, PlotType.SCATTER)
-        # The collection this layer's own call drew, when the patch could say.
-        # `None` falls back to the first collection on the axes, which is the
-        # right answer only while a layer *is* one collection.
+        # The collections this layer's own call drew, when the patch could
+        # say. Empty falls back to the first collection on the axes, which is
+        # the right answer only while a layer *is* one collection.
         #
-        # Guarded on the type rather than on presence: `seaborn.scatterplot`
-        # is patched through the same wrapper and returns an `Axes`, not the
-        # collection. Falling back is correct there -- measured, it draws a
-        # single `PathCollection` of every point even under `hue`, so the
-        # sweep finds exactly the right one.
-        own_points = kwargs.get(DRAWN_POINTS, None)
-        self._own_points = (
-            own_points if isinstance(own_points, PathCollection) else None
-        )
+        # A list rather than one, because a hue group is not always confined
+        # to a single collection: seaborn draws a categorical scatter as one
+        # collection per *category*, so a group that spans the categories --
+        # which is what a hue level is -- spans the collections with them
+        # (#586). `Axes.scatter` hands over the one collection it drew and
+        # takes the one-entry path through everything below.
+        self._own_points = _collections(kwargs.get(DRAWN_POINTS, None))
 
-        # The hue group this layer reads, when the patch found one. `None`
-        # means the layer reads every point the collection holds, which is
-        # what an ungrouped scatter has always done.
+        # The hue group this layer reads, when the patch found one: one set of
+        # offsets per collection, positionally paired with `_own_points`.
+        # `None` means the layer reads every point there is, which is what an
+        # ungrouped scatter has always done.
         group = kwargs.get(HUE_GROUP, None)
         self._group_name = group[0] if group else None
-        self._group_members = set(group[1]) if group else None
+        self._group_label = str(kwargs.get(GROUP_LABEL, "") or "")
+        self._group_members = (
+            [set(members) for members in group[1]] if group else None
+        )
 
-        # A grouped layer addresses its points through the collection's id, so
-        # the collection needs one before the SVG is written. Assigned here
-        # rather than relied upon, for the reason `HexbinPlot` and
-        # `contour.tag` give: matplotlib stamps a gid at *draw* time, and the
-        # schema is built first -- so reading it here would find `None` and
-        # the layer would ship with an empty selector list, announcing
-        # correctly and highlighting nothing.
+        # A grouped layer addresses its points through each collection's id,
+        # so they need one before the SVG is written. Assigned here rather
+        # than relied upon, for the reason `HexbinPlot` and `contour.tag`
+        # give: matplotlib stamps a gid at *draw* time, and the schema is
+        # built first -- so reading it here would find `None` and the layer
+        # would ship with an empty selector list, announcing correctly and
+        # highlighting nothing.
         #
-        # Every group shares the one collection, so the first layer built
-        # names it and the rest find the name already there.
-        if self._group_members is not None and self._own_points is not None:
-            if self._own_points.get_gid() is None:
-                self._own_points.set_gid(f"maidr-{uuid.uuid4()}")
+        # Every group shares the same collections, so the first layer built
+        # names them and the rest find the names already there.
+        if self._group_members is not None:
+            for collection in self._own_points:
+                if collection.get_gid() is None:
+                    collection.set_gid(f"maidr-{uuid.uuid4()}")
 
-        # Where each emitted point sits among the drawn ones, filled in by
-        # extraction and read by `_get_selector`. `render()` builds `data`
-        # before `selectors`, so the order is guaranteed rather than lucky --
-        # and a selector list built from a stale one would highlight the
-        # previous group's points, which is the failure nothing announced can
-        # see (xability/maidr#814).
-        self._drawn_positions: list[int] = []
+        # Where each emitted point sits among the drawn ones -- which
+        # collection, and which position within it -- filled in by extraction
+        # and read by `_get_selector`. `render()` builds `data` before
+        # `selectors`, so the order is guaranteed rather than lucky -- and a
+        # selector list built from a stale one would highlight the previous
+        # group's points, which is the failure nothing announced can see
+        # (xability/maidr#814).
+        self._drawn_positions: list[tuple[int, int]] = []
 
     def render(self) -> dict:
         """
@@ -271,12 +323,17 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         ``<use>``, so one selector matching them all is both correct and in
         document order.
 
-        A hue-grouped one cannot use it: the collection holds every group's
+        A hue-grouped one cannot use it: the collections hold every group's
         points, so that selector would light up the whole chart for a layer
         that announces a third of it. Under per-point colours matplotlib
         writes **one ``<g>`` per point** instead -- measured, six points give
-        six groups of one ``<use>`` each -- so each point has an element of
-        its own to name, and the layer names only its own.
+        six groups of one ``<use>`` each, and a strip plot's uniformly
+        coloured dodged collection writes them too, because seaborn colours
+        it point by point either way -- so each point has an element of its
+        own to name, and the layer names only its own.
+
+        Each position carries the collection it belongs to, so a group that
+        spans several addresses each through that collection's own id.
 
         ``nth-of-type`` rather than ``nth-child``, for the reason
         :class:`~maidr.core.plot.hexbinplot.HexbinPlot` gives: the shared
@@ -286,17 +343,14 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         if self._group_members is None:
             return ["g[maidr='true'] > g > use"]
 
-        collection = self._own_points
-        if collection is None:
-            collection = self.extract_collection(self.ax, PathCollection)
-        gid = collection.get_gid() if collection is not None else None
-        if gid is None:
-            return []
-
-        return [
-            f"g[id='{gid}'] > g:nth-of-type({position + 1}) > use"
-            for position in self._drawn_positions
-        ]
+        parts = self._own_points or self._swept()
+        selectors: list[str] = []
+        for part, position in self._drawn_positions:
+            gid = parts[part].get_gid() if part < len(parts) else None
+            if gid is None:
+                return []
+            selectors.append(f"g[id='{gid}'] > g:nth-of-type({position + 1}) > use")
+        return selectors
 
     def _extract_axes_data(self) -> dict:
         """Extract axes data as canonical per-axis ``AxisConfig`` objects.
@@ -357,8 +411,12 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # and point layers do. The group's own name goes on the layer rather
         # than here: `z` says what the split is by, `name` says which side of
         # it this layer is.
+        #
+        # The legend's title first, then whatever the patch could name the
+        # variable from -- see `GROUP_LABEL` for the three charts that have a
+        # grouping and no legend title to read it off.
         if self._group_members is not None:
-            z_label = self._legend_title()
+            z_label = self._legend_title() or self._group_label
             if z_label:
                 axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
 
@@ -418,18 +476,46 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
 
         return True
 
+    def _swept(self) -> list[PathCollection]:
+        """
+        The axes' first collection, for a layer whose patch named none.
+
+        A list of one, or an empty list where the axes holds no collection at
+        all -- so the callers below read it exactly as they read the ones the
+        patch did name.
+        """
+        found = self.extract_collection(self.ax, PathCollection)
+        return [found] if found is not None else []
+
     def _extract_plot_data(self) -> list[dict]:
-        plot = self._own_points
-        if plot is None:
-            plot = self.extract_collection(self.ax, PathCollection)
-        data = self._extract_point_data(plot)
+        # One pass per collection, in the order the patch drew them, so a
+        # group that spans several reads as one series in drawing order. A
+        # layer the patch named one collection for -- every scatter before
+        # #586 -- makes a single pass and comes out unchanged.
+        parts = self._own_points or self._swept()
+        if not parts:
+            raise ExtractionError(self.type, None)
 
-        if data is None:
-            raise ExtractionError(self.type, plot)
+        members = self._group_members
+        if members is None:
+            members = [None] * len(parts)
 
-        return data
+        samples: list[dict] = []
+        positions: list[tuple[int, int]] = []
+        for part, (plot, mine) in enumerate(zip(parts, members)):
+            read = self._extract_point_data(plot, mine)
+            if read is None:
+                raise ExtractionError(self.type, plot)
+            found, drawn = read
+            samples.extend(found)
+            positions.extend((part, at) for at in drawn)
 
-    def _extract_point_data(self, plot: PathCollection | None) -> list[dict] | None:
+        self._drawn_positions = positions
+        return samples
+
+    def _extract_point_data(
+        self, plot: PathCollection | None, members: set[int] | None
+    ) -> tuple[list[dict], list[int]] | None:
         if plot is None or plot.get_offsets() is None:
             return None
 
@@ -471,7 +557,6 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # diverge over. `test_seaborn_drops_a_non_finite_row_before_drawing`
         # pins that, and turns red on the release where this arithmetic
         # starts mattering.
-        members = self._group_members
         samples: list[dict] = []
         positions: list[int] = []
         position = 0
@@ -486,8 +571,7 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
             samples.append(self._sample(float(x), float(y), x_ticks, y_ticks))
             positions.append(drawn_at)
 
-        self._drawn_positions = positions
-        return samples
+        return samples, positions
 
     @classmethod
     def _sample(
