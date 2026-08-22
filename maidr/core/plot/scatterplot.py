@@ -12,6 +12,7 @@ from matplotlib.colors import to_rgba
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
+from maidr.util.grid_axes import tick_step
 from maidr.util.hue_groups import grouped_by_name
 from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
 
@@ -424,15 +425,13 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
     def _compute_tick_step(ticks: np.ndarray) -> float | None:
         """Compute tick step from an array of tick positions.
 
-        Returns the tick interval if ticks are uniformly spaced,
-        otherwise returns ``None``.
+        Delegates to :func:`maidr.util.grid_axes.tick_step`, which is where
+        the reading now lives: ``RugPlot`` needs the same answer for the axis
+        its ticks stand on, and borrowing this private static across classes
+        would couple the two on something that is not a contract. Kept as a
+        method so this class's own callers are unchanged.
         """
-        if ticks is None or len(ticks) < 2:
-            return None
-        diffs = np.diff(ticks)
-        if np.allclose(diffs, diffs[0]):
-            return float(diffs[0])
-        return None
+        return tick_step(ticks)
 
     def _is_valid_grid_config(
         self,
