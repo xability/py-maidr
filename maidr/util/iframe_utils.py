@@ -21,36 +21,28 @@ _UNTITLED_NAME = "Accessible chart"
 
 # Permissions-Policy features the chart frame is allowed to use.
 #
-# Both are what let maidr.js reach a refreshable tactile display -- a Dot
-# Pad -- and draw the chart on its pins: ``bluetooth`` for the wireless path,
-# ``serial`` for a cabled one.  Without them ``navigator.bluetooth`` and
-# ``navigator.serial`` are not merely refused inside the frame, they are
-# absent, so maidr cannot tell a policy problem from an unsupported browser.
+# These let maidr.js reach a refreshable tactile display -- a Dot Pad -- and
+# draw the chart on its pins, over Bluetooth or over USB.  Both are listed
+# because maidr offers both and they are gated independently; granting one
+# would leave the other path dead with nothing on the page to explain it.
 #
-# Two default allowlists are in play and they are not the same one.  A feature
-# the container policy does not name falls back to the *feature's* own default,
-# ``self`` for both of these -- which a same-origin frame satisfies, so this
-# attribute changes nothing for one.  A feature named here without an
-# allowlist of its own takes the *attribute's* default, ``'src'``: the origin
-# the frame was loaded from.  Both wrappers use ``srcdoc``, whose document
-# inherits the embedder's origin, so ``'src'`` resolves same-origin and the
-# delegation lands -- which is why ``test_the_frame_still_carries_its_own_document``
-# guards the ``srcdoc`` choice rather than treating it as incidental.  What the
-# attribute actually buys is the cross-origin case -- Colab, and any host that
-# serves notebook output from a separate origin -- where the fallback would
-# otherwise deny both.
+# Two different default allowlists meet here.  A feature the container policy
+# does not name falls back to the *feature's* default, ``self`` -- which a
+# same-origin frame satisfies, so this attribute changes nothing for one.  A
+# feature named here without its own allowlist takes the *attribute's*
+# default, ``'src'``: the origin the frame was loaded from.  They coincide
+# only because these wrappers use ``srcdoc``, whose document inherits the
+# embedder's origin, which is why ``test_the_frame_still_carries_its_own_document``
+# guards that choice.  What the attribute buys is the cross-origin case, where
+# the fallback would deny both.
 #
-# Both are listed because maidr offers both and they are gated independently:
-# granting only one would leave a reader on a cable unable to connect for a
-# reason nothing on the page explains.  USB is the faster of the two by a wide
-# margin -- a full frame over Bluetooth costs a second or more against a reader
-# pressing arrow keys several times a second -- so it is not the marginal case.
-#
-# This delegates capabilities, it does not create them: a frame can never
-# receive a feature the embedding page itself lacks, and the browser still
-# requires a user gesture and shows its own device picker before anything is
-# paired.  Readers with no tactile display are unaffected -- maidr never
-# touches either API unless they ask it to in Settings.
+# This delegates capabilities, it does not create them: a frame cannot receive
+# a feature the embedding page lacks, and the browser still requires a user
+# gesture and its own device picker.  It does widen what an injection into the
+# framed document would reach, so it leans on an assumption worth stating: the
+# chart content placed in ``srcdoc`` stays non-executable.  ``htmltools``
+# escapes it today -- a title of ``</iframe><script>`` arrives as text -- and
+# that has to keep being true.
 _ALLOWED_FEATURES = "bluetooth; serial"
 
 

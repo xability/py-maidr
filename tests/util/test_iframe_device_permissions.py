@@ -129,7 +129,9 @@ class TestTheFrameMayReachATactileDisplay:
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
     def test_neither_transport_is_granted_without_the_other(self, wrap) -> None:
-        features = _allowed_features(_html(wrap(tags.div("chart"), "Body mass by species")))
+        rendered = _html(wrap(tags.div("chart"), "Body mass by species"))
+
+        features = _allowed_features(rendered)
 
         # Independently gated, so dropping one leaves that path dead for a
         # reason nothing on the page explains. Asserted per feature rather
@@ -173,7 +175,9 @@ class TestNothingElseIsDelegated:
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
     def test_no_other_feature_is_granted(self, wrap) -> None:
-        features = _allowed_features(_html(wrap(tags.div("chart"), "Body mass by species")))
+        rendered = _html(wrap(tags.div("chart"), "Body mass by species"))
+
+        features = _allowed_features(rendered)
 
         # Delegating a feature cannot exceed what the embedding page already
         # holds, but it should still be the shortest list that works. maidr
