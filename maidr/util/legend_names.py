@@ -54,7 +54,10 @@ def legend_of(ax: Axes | None):
     which is a figure whose panels were declared to be on one scale.
 
     Exactly one sharer, for the reason the figure fallback gives: two of them
-    cannot say which names this axes' colours.
+    cannot say which names this axes' colours. And **only** where the figure
+    carries none: two figure legends are ambiguous already, and a neighbour
+    having one of its own does not resolve them -- it would name the axes off
+    a third legend while two candidates for it stood unexamined.
 
     Parameters
     ----------
@@ -73,12 +76,15 @@ def legend_of(ax: Axes | None):
         return own
     figure = getattr(ax, "figure", None)
     legends = list(getattr(figure, "legends", ()) or ())
-    if len(legends) == 1:
-        return legends[0]
+    if legends:
+        # Two of them decline here rather than falling through to a sharer:
+        # a figure legend this axes could not be matched to does not stop
+        # being ambiguous because a neighbour has one of its own.
+        return legends[0] if len(legends) == 1 else None
     shared = [
-        sibling.get_legend()
+        legend
         for sibling in _sharing_an_axis_with(ax)
-        if sibling.get_legend() is not None
+        if (legend := sibling.get_legend()) is not None
     ]
     return shared[0] if len(shared) == 1 else None
 

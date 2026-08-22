@@ -200,6 +200,37 @@ def test_two_sharers_with_legends_name_nothing():
     assert [name for _, name in _named(fig)][-2:] == [None, None]
 
 
+def test_two_figure_legends_still_decline_even_with_a_sharer():
+    """Ambiguity is not resolved by a third legend.
+
+    Two figure legends are the case `test_two_figure_legends_name_nothing`
+    pins as irreducibly ambiguous. Adding a legend-bearing sharer does not
+    make them less so -- naming the axes off the neighbour would answer a
+    question while two candidates for it stood unexamined -- so the sharer
+    fallback is reached only where the figure carries **no** legend.
+
+    Caught in review on #611: the first spelling fell through to the sharer
+    whenever the figure did not carry exactly one, which quietly included
+    two.
+    """
+    from matplotlib.patches import Patch
+
+    frame = _frame()
+
+    fig, (first, second) = plt.subplots(1, 2, sharex=True)
+    sns.kdeplot(data=frame, x="a", hue="g", ax=first, legend=False)
+    sns.kdeplot(data=frame, x="a", hue="g", ax=second, legend=False)
+    _axes_legend(first, first, ["p", "q"])
+
+    swatches = [Patch(facecolor=c.get_color()) for c in _drawn_curves(first)]
+    fig.legend(handles=swatches, labels=["p", "q"], loc="upper left")
+    fig.legend(handles=swatches, labels=["p", "q"], loc="upper right")
+
+    # The second panel has no legend of its own, two ambiguous figure
+    # legends, and one legend-bearing sharer. It declines.
+    assert [name for _, name in _named(fig)][-2:] == [None, None]
+
+
 def test_a_panels_own_legend_wins_over_a_sharers():
     """The mitigation, unchanged in shape from the figure fallback: a panel
     that kept its own legend is named by it and never consults a sibling's.
