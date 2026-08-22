@@ -143,7 +143,7 @@ def _magnitudes(wrapped, args: tuple, kwargs: dict, position: str, value: str):
     return positions, values
 
 
-def _tagged(collection, transposed: bool):
+def _tagged(collection: Collection, transposed: bool) -> Collection:
     """
     Record which way a region was shaded, on the region itself.
 

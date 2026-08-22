@@ -29,6 +29,7 @@ import pytest
 import seaborn as sns
 
 from maidr.core.figure_manager import FigureManager
+from maidr.util.confidence_band import DRAWN_ALONG_Y, shaded_along_y
 
 X = np.linspace(0, 10, 20)
 Y = np.sin(X) + 2.0
@@ -246,8 +247,6 @@ def test_the_patch_records_which_way_every_region_it_draws_was_shaded():
     == 5`` for both spellings -- and a tie would have to be declined, which
     would drop bands that read correctly today.
     """
-    from maidr.util.confidence_band import DRAWN_ALONG_Y, shaded_along_y
-
     fig, ax = plt.subplots()
     upright = ax.fill_between(POS, VAL - 0.5, VAL + 0.5)
     sideways = ax.fill_betweenx(POS, VAL - 0.5, VAL + 0.5)
@@ -268,8 +267,6 @@ def test_a_region_this_patch_did_not_draw_reads_as_it_always_did():
     """
     from matplotlib.collections import PolyCollection
 
-    from maidr.util.confidence_band import shaded_along_y
-
     assert shaded_along_y(PolyCollection([])) is False
 
 
@@ -278,8 +275,6 @@ def test_a_band_drawn_inside_another_patch_is_tagged_too():
     context, and a region that registers no layer of its own is still read as
     some line's band later. So the tag cannot be set only on the path that
     registers one."""
-    from maidr.util.confidence_band import DRAWN_ALONG_Y
-
     fig, ax = plt.subplots()
     ax.stackplot(POS, VAL, VAL + 1.0)
 
