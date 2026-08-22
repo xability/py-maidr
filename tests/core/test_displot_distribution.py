@@ -215,3 +215,183 @@ class TestWhatMustNotChange:
         grid = sns.jointplot(data=frame(), x="v", y="w")
 
         assert layers(grid.figure) == ["point", "hist", "hist"]
+
+
+class TestEveryElementDisplotDraws:
+    """`element=` is a visual choice, and `displot` read only one of them.
+
+    ``element="step"`` and ``"poly"`` draw a ``PolyCollection`` when filled
+    and a bare ``Line2D`` when not, so a panel with either holds no
+    ``BarContainer`` and the bar registrar passed over it. Both readings
+    already existed for ``histplot`` (#583, #587); what was missing was the
+    branch that reaches them from the plotter, and the figure came out with
+    no HTML at all rather than with a wrong announcement (#590)::
+
+        histplot(x="v", element="step")               hist
+        displot(x="v", element="step")                nothing
+        displot(x="v", element="step", fill=False)    nothing
+        displot(x="v", element="poly", fill=False)    nothing
+    """
+
+    @pytest.mark.parametrize("element", ["bars", "step", "poly"])
+    @pytest.mark.parametrize("fill", [True, False])
+    @pytest.mark.parametrize("axis", ["x", "y"])
+    def test_displot_says_what_histplot_says(self, element, fill, axis):
+        # The whole assertion in one: the two interfaces draw the same chart
+        # from the same data, so they have to describe it identically --
+        # orientation, bin bounds and counts alike. It cannot be satisfied by
+        # inventing numbers, because `histplot`'s reading is pinned already.
+        data = frame()
+        _, ax = plt.subplots()
+        sns.histplot(data, bins=4, ax=ax, element=element, fill=fill, **{axis: "v"})
+        axes_level = [
+            (plot.schema.get("orientation"), plot.schema["data"])
+            for plot in FigureManager.get_maidr(ax.get_figure())._plots
+        ]
+
+        plt.close("all")
+        grid = sns.displot(data, bins=4, element=element, fill=fill, **{axis: "v"})
+        figure_level = [
+            (plot.schema.get("orientation"), plot.schema["data"])
+            for plot in FigureManager.get_maidr(grid.figure)._plots
+        ]
+
+        assert figure_level == axes_level
+
+    @pytest.mark.parametrize("element", ["step", "poly"])
+    def test_a_hue_grouped_outline_names_its_groups(self, element):
+        # The names come from the legend by colour, as the bars' do.
+        grid = sns.displot(
+            frame(), x="v", hue="g", bins=3, element=element, fill=False
+        )
+        names = [
+            plot.schema.get("name")
+            for plot in FigureManager.get_maidr(grid.figure)._plots
+        ]
+
+        assert sorted(name for name in names if name) == ["a", "b"]
+
+    def test_an_outline_panel_does_not_claim_a_neighbour_s_outline(self):
+        # The per-axes snapshot, asked of collections and lines the way it is
+        # already asked of containers.
+        _, ax = plt.subplots()
+        sns.histplot(frame(), x="v", bins=3, element="step", ax=ax)
+        sns.histplot(frame(), x="w", bins=3, element="step", ax=ax)
+
+        assert layers(ax.get_figure()) == ["hist", "hist"]
+
+
+class TestAFacetedHistogramNamesEachPanelFromItself:
+    """Every panel's names used to resolve from the last panel's (#591).
+
+    ``deferred_names`` stores its resolver and runs it at *render*, which is
+    what makes a ``pairplot``'s legend readable (#561). Built inside the
+    per-panel loop it closed over the loop variables, so by the time it ran
+    they held the final panel's axes and containers and every panel was named
+    from that one.
+
+    Measured on a grid whose panels hold different groups: three layers, all
+    ``None``, because the last panel held a single container and a lone
+    artist is exactly what ``names_for`` declines. Asked panel by panel the
+    same figure gives ``['b', 'a']`` and ``[None]``.
+    """
+
+    @staticmethod
+    def _split_frame() -> pd.DataFrame:
+        # Panel "p" holds groups a and b; panel "q" holds only c. The panels
+        # must differ in *shape*, or the last one's answer happens to fit.
+        return pd.DataFrame(
+            {
+                "v": list(np.linspace(0, 1, 30)),
+                "g": ["a"] * 10 + ["b"] * 10 + ["c"] * 10,
+                "c": ["p"] * 20 + ["q"] * 10,
+            }
+        )
+
+    def test_each_panel_is_named_from_its_own_groups(self):
+        grid = sns.displot(self._split_frame(), x="v", hue="g", col="c", bins=3)
+        named = [
+            (plot.schema.get("name"), [point["y"] for point in plot.schema["data"]])
+            for plot in FigureManager.get_maidr(grid.figure)._plots
+        ]
+
+        # The counts say which group each layer holds, so the names can be
+        # checked against them rather than against registration order.
+        assert named == [
+            ("b", [0.0, 10.0, 0.0]),
+            ("a", [10.0, 0.0, 0.0]),
+            (None, [0.0, 0.0, 10.0]),
+        ]
+
+
+class TestTheShapesOnlyDisplotCanReach:
+    def test_a_horizontal_poly_outline_is_not_read_transposed(self):
+        """The tie-break #585 added, reached through the plotter this time.
+
+        A ``poly`` outline repeats no value, so on a ``y=`` chart whose counts
+        climb, both of its columns ascend and both read as bins. The
+        orientation settles it, and through ``displot`` it cannot come from a
+        ``y=`` keyword -- ``displot`` forwards neither ``x`` nor ``y`` to the
+        plotter method. It comes from ``data_variable`` instead.
+
+        Two bins is the everyday case: a single gap is evenly spaced whatever
+        it holds.
+        """
+        counts = pd.DataFrame({"v": [0.1, 0.2, 0.6, 0.7, 0.8, 0.9, 0.95]})
+        grid = sns.displot(counts, y="v", bins=2, element="poly", fill=False)
+        schema = FigureManager.get_maidr(grid.figure)._plots[0].schema
+
+        assert schema.get("orientation") == "horz"
+        # The bins run up y and the counts sit on x, not the other way about.
+        for point in schema["data"]:
+            assert point["yMin"] < point["yMax"]
+            assert point["x"] == int(point["x"])
+
+    @pytest.mark.parametrize("element", ["step", "poly"])
+    def test_a_hue_grouped_filled_outline_names_its_groups(self, element):
+        # The filled branch, which the unfilled test above does not reach:
+        # `fill=True` draws a `PolyCollection` per group and the name comes
+        # off its face colour (#587).
+        grid = sns.displot(frame(), x="v", hue="g", bins=3, element=element)
+        names = [
+            plot.schema.get("name")
+            for plot in FigureManager.get_maidr(grid.figure)._plots
+        ]
+
+        assert sorted(name for name in names if name) == ["a", "b"]
+
+    @pytest.mark.parametrize(
+        ("element", "reads"), [("step", True), ("poly", False)]
+    )
+    def test_a_density_overlay_decides_which_outline_is_readable(
+        self, element, reads
+    ):
+        """`kde=` has to be observed here, and it is not a `displot` keyword.
+
+        The plotter method takes it under its own name, so this reads the
+        *inner* call's kwargs -- measured, ``kde=True`` arrives there as a
+        keyword for every spelling. Worth pinning rather than assuming, since
+        the neighbouring `x`/`y` arguments are **not** forwarded that way and
+        the orientation had to come off the plotter instead.
+
+        What it decides: an unfilled ``poly`` outline and a density curve are
+        both ``drawstyle="default"`` and differ only in vertex count, which
+        both ``gridsize=`` and the bin count move -- so a ``poly`` drawn
+        beside a density is declined rather than guessed at (#583). A
+        ``step`` outline is unambiguous by drawstyle and is read. A `kde` that
+        arrived silently `False` would announce that density as a
+        distribution.
+        """
+        grid = sns.displot(
+            frame(), x="v", bins=4, element=element, fill=False, kde=True
+        )
+
+        assert layers(grid.figure) == (["hist"] if reads else [])
+
+    def test_the_same_pair_reads_the_same_way_through_histplot(self):
+        # The asymmetry this whole class is about, asserted in the one place
+        # the two interfaces are meant to agree on a *decline*.
+        _, ax = plt.subplots()
+        sns.histplot(frame(), x="v", bins=4, element="poly", fill=False, kde=True, ax=ax)
+
+        assert layers(ax.get_figure()) == []
