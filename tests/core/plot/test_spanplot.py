@@ -404,13 +404,14 @@ def test_a_segment_that_is_not_level_is_still_refused():
     assert read_spans(sloped, along_x=True) is None
 
 
-def test_a_stem_plot_is_unchanged_by_this_reading():
+def test_a_stem_plot_is_not_claimed_by_the_span_reading():
     # `stem` draws the lollipop shape and reaches `vlines` the same way
-    # `acorr`/`xcorr` do, so review asked where it lands. It registers a
-    # `line` layer off its marker tips, exactly as it did before this
-    # reading existed -- pinned so the span patch cannot start claiming it.
+    # `acorr`/`xcorr` do, so review asked where it lands. It is read by its
+    # own patch, as the `lollipop` its marks make (#574) -- pinned here so
+    # the span patch cannot start claiming it and announcing the stems as a
+    # schedule of intervals.
     fig, ax = plt.subplots()
     ax.stem([1, 2, 3, 4], [3, 8, 5, 9])
 
-    assert _layers(fig) == ["line"]
+    assert _layers(fig) == ["lollipop"]
     assert len(maidr.render(fig)._repr_html_()) > 0
