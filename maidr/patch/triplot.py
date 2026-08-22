@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import wrapt
 from matplotlib.axes import Axes
+from matplotlib.lines import Line2D
 
 from maidr.core.context_manager import ContextManager
 from maidr.patch.common import _draw_quietly
 
 
 @wrapt.patch_function_wrapper(Axes, "triplot")
-def triplot(wrapped, instance, args, kwargs):
+def triplot(wrapped, instance, args, kwargs) -> list[Line2D]:
     """
     Draw a patched ``Axes.triplot`` and register nothing for it.
 
@@ -52,8 +53,8 @@ def triplot(wrapped, instance, args, kwargs):
 
     Returns
     -------
-    list
-        Whatever ``triplot`` returned.
+    list of Line2D
+        Whatever ``triplot`` returned -- the mesh's lines and its markers.
     """
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
