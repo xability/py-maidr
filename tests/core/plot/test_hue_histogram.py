@@ -101,6 +101,75 @@ def test_each_layer_is_named_from_the_legend():
     assert _names(fig) == ["x", "y"]
 
 
+@pytest.mark.parametrize("element", ["bars", "step", "poly"])
+def test_a_filled_outline_is_named_the_way_the_bars_are(element: str):
+    """`element=` is a visual choice, so it cannot cost the groups their names.
+
+    ``element="step"`` and ``"poly"`` draw one ``PolyCollection`` per group
+    instead of a row of bars, and that branch registered the collection and
+    nothing else -- measured, `[None, None]` against `["b", "a"]` for the
+    same frame drawn as bars (#587). Not wrong, but two `hist` layers over
+    one axis with no way to tell them apart, which is the position
+    ``MaidrLayer.name`` exists to fix.
+
+    Named from the outline's *face* colour: seaborn draws face and edge in
+    the same hue and the legend swatch carries the face's translucency, so
+    the face matches a swatch outright.
+    """
+    frame = _frame(["x", "y"])
+    fig, ax = plt.subplots()
+    sns.histplot(data=frame, x="a", hue="g", bins=5, element=element, ax=ax)
+
+    assert _names(fig) == ["x", "y"]
+    assert _counts(fig) == [
+        [float(count) for count in _true_counts(frame, "x", 5)],
+        [float(count) for count in _true_counts(frame, "y", 5)],
+    ]
+
+
+def test_an_outline_drawn_with_one_edge_colour_is_still_named():
+    """`edgecolor=` colours every group's edge alike; the face is untouched.
+
+    The reason the name comes off the face. By default the edge carries the
+    hue as well and either would do, so nothing in the ordinary chart
+    distinguishes the two choices -- measured::
+
+        element="step"                     edges (1.0, .50, .05) / (.12, .47, .71)
+        element="step", edgecolor="black"  edges (0, 0, 0) / (0, 0, 0)
+
+    An edge-based match names the second chart `[None, None]`, because two
+    groups drawn one colour cannot be told apart by it.
+    """
+    frame = _frame(["x", "y"])
+    fig, ax = plt.subplots()
+    sns.histplot(
+        data=frame, x="a", hue="g", bins=5, element="step", edgecolor="black", ax=ax
+    )
+
+    assert _names(fig) == ["x", "y"]
+
+
+@pytest.mark.parametrize("element", ["step", "poly"])
+def test_a_filled_outline_with_no_hue_stays_unnamed(element: str):
+    # Nothing to tell apart, and the naming must not invent one.
+    frame = _frame(["x"])
+    fig, ax = plt.subplots()
+    sns.histplot(data=frame, x="a", bins=5, element=element, ax=ax)
+
+    assert _names(fig) == [None]
+
+
+def test_a_filled_outline_reads_the_same_on_its_side():
+    # The name comes from the colour and the orientation from the geometry,
+    # so turning the chart moves one and not the other.
+    frame = _frame(["x", "y"])
+    fig, ax = plt.subplots()
+    sns.histplot(data=frame, y="a", hue="g", bins=5, element="step", ax=ax)
+
+    assert _names(fig) == ["x", "y"]
+    assert {layer.get("orientation") for layer in _layers(fig)} == {"horz"}
+
+
 def test_a_third_group_is_read_and_named_too():
     # Not a restatement of the pair: the old reading dropped *every* group
     # after the first, so the loss grew with the chart.
