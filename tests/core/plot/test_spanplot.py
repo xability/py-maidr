@@ -192,11 +192,13 @@ def test_a_lane_drawn_twice_in_a_row_keeps_its_highlighting():
 
 
 @pytest.mark.parametrize("draw", ["acorr", "xcorr"])
-def test_a_correlogram_registers_nothing(draw):
-    # These draw through `vlines`, so they inherit whatever their segments
-    # say -- and every one of them runs from the baseline to the
-    # correlation, which is the lollipop shape. Pinned because the reading
-    # reaches them without either function being patched.
+def test_a_correlogram_is_not_claimed_by_the_span_reading(draw):
+    # These draw through `vlines`, so without a patch of their own they
+    # inherit whatever their segments say -- and every one of them runs from
+    # the baseline to the correlation, which is the lollipop shape rather
+    # than a schedule of intervals. They are read as `lollipop` by their own
+    # patch now (#577); pinned here so the span patch cannot start claiming
+    # them and announcing "0 to 0.6" where the chart means "0.6".
     import numpy as np
 
     # Long enough for the default `maxlags=10`, and deterministic.
@@ -207,7 +209,7 @@ def test_a_correlogram_registers_nothing(draw):
     else:
         ax.xcorr(first, first[::-1])
 
-    assert _layers(fig) == []
+    assert _layers(fig) == ["lollipop"]
     assert len(maidr.render(fig)._repr_html_()) > 0
 
 

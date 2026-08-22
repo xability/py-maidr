@@ -4,6 +4,8 @@ import math
 import uuid
 
 from matplotlib.axes import Axes
+from matplotlib.artist import Artist
+from matplotlib.collections import LineCollection
 from matplotlib.container import StemContainer
 
 from maidr.core.enum import MaidrKey, PlotType
@@ -13,6 +15,17 @@ from maidr.core.plot import MaidrPlot
 #: Handed over rather than swept for, because the chart leaves two `Line2D`
 #: artists on the axes and only the container says which is which (#527).
 DRAWN_STEM = "_maidr_stem"
+
+#: The keyword a correlogram hands its `(positions, values)` under. `acorr`
+#: and `xcorr` return the numbers they plotted, so the layer is given those
+#: rather than made to recover them from the artists -- the shape `ax.stairs`
+#: (#536) and `ax.hist(histtype="step")` (#556) already use, and the only
+#: way to read the `usevlines=True` spelling, whose stems say the value in
+#: their *length* rather than in a coordinate a mark sits at.
+DRAWN_MARKS = "_maidr_marks"
+
+#: The artist carrying one element per mark, for highlighting.
+MARK_ARTIST = "_maidr_mark_artist"
 
 
 def marks(container: StemContainer) -> list[tuple[int, float, float]]:
@@ -65,6 +78,33 @@ def marks(container: StemContainer) -> list[tuple[int, float, float]]:
 
     return drawn
 
+
+
+def finite(given: tuple) -> list[tuple[int, float, float]]:
+    """
+    The drawable pairs of a chart that handed over its numbers directly.
+
+    Parameters
+    ----------
+    given : tuple
+        The ``(positions, values)`` the call returned.
+
+    Returns
+    -------
+    list of (int, float, float)
+        For every drawable mark: its index among the drawn elements, and its
+        two coordinates.
+    """
+    positions, values = given
+
+    drawn = []
+    for position, value in zip(positions, values):
+        x, y = float(position), float(value)
+        if not math.isfinite(x) or not math.isfinite(y):
+            continue
+        drawn.append((len(drawn), x, y))
+
+    return drawn
 
 def is_horizontal(container: StemContainer) -> bool:
     """
@@ -121,22 +161,33 @@ class LollipopPlot(MaidrPlot):
         container = kwargs.get(DRAWN_STEM, None)
         self._container = container if isinstance(container, StemContainer) else None
 
-        # Resolved here rather than at extraction because `render()` builds
-        # the axes payload *before* the data payload, so `_extract_axes_data`
-        # would otherwise be asked which way the chart runs before anything
-        # had looked -- the defect #571's rug plot shipped with.
-        self._horizontal = (
-            is_horizontal(self._container) if self._container is not None else False
-        )
+        if self._container is not None:
+            self._points = marks(self._container)
+            self._artist: Artist | None = self._container.markerline
+            # Resolved here rather than at extraction because `render()`
+            # builds the axes payload *before* the data payload, so
+            # `_extract_axes_data` would otherwise be asked which way the
+            # chart runs before anything had looked -- the defect #571's rug
+            # plot shipped with.
+            self._horizontal = is_horizontal(self._container)
+        else:
+            given = kwargs.get(DRAWN_MARKS, None)
+            self._points = finite(given) if given is not None else []
+            self._artist = kwargs.get(MARK_ARTIST, None)
+            # A correlogram stands its lags along x and its correlations up
+            # from zero, which is the default orientation. There is no
+            # spelling of `acorr` that turns it, so this is not read back off
+            # anything -- it is what the call can only have drawn.
+            self._horizontal = False
 
-        # The element indices `_get_selector` addresses, filled by extraction.
-        self._drawn: list[int] = []
+        # The element indices `_get_selector` addresses.
+        self._drawn = [index for index, _, _ in self._points]
 
         # Stamped here rather than read later: matplotlib assigns a gid at
         # *draw* time and the schema is built first, so a layer that waited
         # would announce correctly and highlight nothing.
-        if self._container is not None and self._container.markerline.get_gid() is None:
-            self._container.markerline.set_gid(f"maidr-{uuid.uuid4()}")
+        if self._artist is not None and self._artist.get_gid() is None:
+            self._artist.set_gid(f"maidr-{uuid.uuid4()}")
 
     def _extract_plot_data(self) -> list[dict]:
         """
@@ -151,13 +202,7 @@ class LollipopPlot(MaidrPlot):
         list of dict
             The marks, in the order the chart holds them.
         """
-        if self._container is None:
-            return []
-
-        drawn = marks(self._container)
-        self._drawn = [index for index, _, _ in drawn]
-
-        return [{MaidrKey.X: x, MaidrKey.Y: y} for _, x, y in drawn]
+        return [{MaidrKey.X: x, MaidrKey.Y: y} for _, x, y in self._points]
 
     def render(self) -> dict:
         """
@@ -186,11 +231,21 @@ class LollipopPlot(MaidrPlot):
         :class:`~maidr.core.plot.hexbinplot.HexbinPlot` gives: the ``<defs>``
         ahead of the marks would shift every count by one.
         """
-        gid = (
-            self._container.markerline.get_gid() if self._container is not None else None
-        )
+        gid = self._artist.get_gid() if self._artist is not None else None
         if gid is None:
             return []
+
+        # A `LineCollection` -- the stems a correlogram draws -- is written as
+        # one `<g>` of bare `<path>` children, one per segment, measured by
+        # parsing the SVG rather than by matching on it: 21 segments give 21
+        # direct `<path>` children and nothing else. A marker-only `Line2D`
+        # nests its marks inside a clip-path `<g>` and shares one shape from
+        # a `<defs>`, so it needs the descendant form and a `<use>`.
+        if isinstance(self._artist, LineCollection):
+            return [
+                f"g[id='{gid}'] > path:nth-of-type({index + 1})"
+                for index in self._drawn
+            ]
 
         return [
             f"g[id='{gid}'] use:nth-of-type({index + 1})" for index in self._drawn
