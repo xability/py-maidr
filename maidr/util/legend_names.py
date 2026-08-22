@@ -36,6 +36,29 @@ def legend_of(ax: Axes | None):
     written down here rather than left to be discovered, and pinned in
     `tests/core/plot/test_pairplot_group_names.py`.
 
+    A ``JointGrid`` puts the same one legend somewhere neither of those finds
+    it: on ``ax_joint``, an *axes* legend, leaving the two marginals with none
+    of their own and the figure with none either. Measured on a
+    ``jointplot(hue=...)``, the joint panel's two point layers are named and
+    each marginal's two density curves are not -- two identical
+    announcements, which is the defect #558 named (#610).
+
+    So a third place is read, and it is **narrower** than the figure fallback
+    rather than wider: an axes an axis is *shared* with. A ``JointGrid``
+    builds its marginals sharing one with the joint axes, because that is how
+    a marginal lines up with the scatter beside it, and matplotlib records
+    it. Two panels of a hand-built figure do not share by default, so the
+    hazard measured above -- ``plt.subplots(1, 2)`` with one ``fig.legend()``
+    -- is untouched and still answers ``None``. What is newly in scope is
+    ``plt.subplots(1, 2, sharex=True)`` with a legend on one panel only,
+    which is a figure whose panels were declared to be on one scale.
+
+    Exactly one sharer, for the reason the figure fallback gives: two of them
+    cannot say which names this axes' colours. And **only** where the figure
+    carries none: two figure legends are ambiguous already, and a neighbour
+    having one of its own does not resolve them -- it would name the axes off
+    a third legend while two candidates for it stood unexamined.
+
     Parameters
     ----------
     ax : Axes or None
@@ -53,7 +76,44 @@ def legend_of(ax: Axes | None):
         return own
     figure = getattr(ax, "figure", None)
     legends = list(getattr(figure, "legends", ()) or ())
-    return legends[0] if len(legends) == 1 else None
+    if legends:
+        # Two of them decline here rather than falling through to a sharer:
+        # a figure legend this axes could not be matched to does not stop
+        # being ambiguous because a neighbour has one of its own.
+        return legends[0] if len(legends) == 1 else None
+    shared = [
+        legend
+        for sibling in _sharing_an_axis_with(ax)
+        if (legend := sibling.get_legend()) is not None
+    ]
+    return shared[0] if len(shared) == 1 else None
+
+
+def _sharing_an_axis_with(ax: Axes) -> list:
+    """
+    Every other axes this one shares an x or a y axis with.
+
+    Asked of matplotlib's own groupers rather than inferred from position or
+    from the figure's axes list, because sharing is the thing being tested and
+    it is a fact the axes carries.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on.
+
+    Returns
+    -------
+    list
+        The sharers, ``ax`` itself excluded. Empty when it shares nothing --
+        which is the default for a figure built with ``plt.subplots``.
+    """
+    sharers: list = []
+    for grouper in (ax.get_shared_x_axes(), ax.get_shared_y_axes()):
+        for sibling in grouper.get_siblings(ax):
+            if sibling is not ax and not any(one is sibling for one in sharers):
+                sharers.append(sibling)
+    return sharers
 
 
 def names_for(ax: Axes, colours: list) -> list:
