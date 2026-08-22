@@ -226,6 +226,26 @@ class TestWhatIsDeclined:
         assert [len(layer["data"]) for layer in layers(figure)] == [6, 6, 6]
 
 
+    @pytest.mark.parametrize(
+        "palette",
+        [
+            pytest.param({"x": (0.0, 0.0, 1.0, 0.3), "y": (0.0, 0.0, 1.0, 0.9)},
+                         id="same-hue-different-opacity"),
+            pytest.param({"x": "blue", "y": "blue"}, id="the-same-colour-twice"),
+        ],
+    )
+    def test_two_levels_drawn_the_same_colour_are_not_told_apart(self, palette):
+        # The levels are matched on their three colour channels, so opacity
+        # alone does not separate them -- and a palette that draws two levels
+        # the same colour does not separate them at all. Measured: both come
+        # out as the ungrouped reading, three unnamed layers, rather than
+        # every point of both levels handed to whichever name matched first.
+        figure, ax = plt.subplots()
+        sns.stripplot(data=frame(), x="cat", y="val", hue="hue", palette=palette, ax=ax)
+
+        assert names(figure) == [None, None, None]
+        assert len(set(announced(figure))) == 18
+
     def test_a_hue_with_one_level_is_not_a_grouping(self):
         # Nothing to tell apart. A layer named "only" over every point says
         # no more than the unnamed one it would replace.
