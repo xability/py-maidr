@@ -8,7 +8,7 @@ from matplotlib.collections import LineCollection
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
-from maidr.core.plot.scatterplot import ScatterPlot
+from maidr.util.grid_axes import tick_step
 from maidr.util.legend_names import title_of
 
 #: Key the patch hands this layer the ``LineCollection`` its own call drew
@@ -218,9 +218,9 @@ class RugPlot(MaidrPlot):
         frontend builds is of the *chart*, and a reader feeling it is feeling
         the plotting area they would see. Taken from the same three places
         :meth:`~maidr.core.plot.scatterplot.ScatterPlot._extract_axes_data`
-        takes them, and declined on the same grounds -- a log scale, ticks
-        that are not evenly spaced, or bounds that do not enclose at least one
-        cell. A grid built on any of those would be a surface whose cells do
+        takes them -- the step through the helper both share -- and declined
+        on the same grounds: a log scale, ticks that are not evenly spaced, or
+        bounds that do not enclose at least one cell. A grid built on any of those would be a surface whose cells do
         not correspond to the axis a reader is told about.
 
         Only this axis is asked. The one across the ticks is supplied whole by
@@ -249,7 +249,7 @@ class RugPlot(MaidrPlot):
 
         low, high = self.ax.get_xlim() if self._along_x else self.ax.get_ylim()
         ticks = self.ax.get_xticks() if self._along_x else self.ax.get_yticks()
-        step = ScatterPlot._compute_tick_step(ticks)
+        step = tick_step(ticks)
 
         if step is None or low >= high or step <= 0 or step > (high - low):
             return None
@@ -268,8 +268,6 @@ class RugPlot(MaidrPlot):
         axes_data = super()._extract_axes_data()
         along = MaidrKey.X if self._along_x else MaidrKey.Y
         across = MaidrKey.Y if self._along_x else MaidrKey.X
-        axes_data[across] = self._axis_config(label=RUG_AXIS_LABEL)
-
         # Bounds on both axes, which is what makes the layer reachable in
         # grid mode -- and grid mode is the only mode where a point layer
         # renders braille at all. Measured against maidr's `ScatterTrace`:
@@ -301,6 +299,8 @@ class RugPlot(MaidrPlot):
             axes_data[across] = self._axis_config(
                 label=RUG_AXIS_LABEL, min=0, max=1, tick_step=1
             )
+        else:
+            axes_data[across] = self._axis_config(label=RUG_AXIS_LABEL)
 
         # A grouped layer names the grouping *variable* on z, the way the
         # scatter and line layers do: `z` says what the split is by, `name`

@@ -673,3 +673,7 @@ def test_each_hue_group_gets_the_bounds_too(frame):
     for schema in schemas:
         assert _axis(schema, "x")["tickStep"] > 0
         assert _axis(schema, "y") == {"label": "Rug", "min": 0, "max": 1, "tickStep": 1}
+        # And the grouping variable is still named. The bounds are added
+        # beside `z` rather than in place of it, and nothing else in the
+        # schema moves.
+        assert _axis(schema, "z") == {"label": "sex"}
