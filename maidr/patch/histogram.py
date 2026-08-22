@@ -17,11 +17,13 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.histogram import DRAWN_BARS
 from maidr.core.plot.maidr_plot import GROUP_NAME
-from maidr.patch.kdeplot import _curve_names, _names_for, deferred_names
+from maidr.core.plot.outlined_histogram import OUTLINE_HORIZONTAL, OUTLINE_LINE
+from maidr.core.plot.outlined_histogram import reads as outline_reads
 from maidr.core.plot.scatterplot import _rgba
 from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, STEP_ORIENTATION
 from maidr.core.plot.stepped_histogram import reads as _reads_outline
 from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
+from maidr.patch.kdeplot import _curve_names, _names_for, deferred_names
 
 
 @wrapt.patch_function_wrapper(Axes, "hist")
@@ -470,6 +472,115 @@ def _drew_outlines(ax: Axes | None, before: list) -> list:
     ]
 
 
+
+def _lines_of(ax: Axes | None) -> list:
+    """
+    The lines already on an axes, for a before-and-after comparison.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes about to be drawn on, where the caller named one.
+
+    Returns
+    -------
+    list
+        The `Line2D` artists present, or empty.
+    """
+    if ax is None:
+        return []
+    return list(getattr(ax, "lines", ()) or ())
+
+
+def _asked_for_horizontal(kwargs: dict) -> bool:
+    """
+    Whether the caller asked ``histplot`` for a distribution up the y axis.
+
+    ``x`` and ``y`` are keyword-only on ``seaborn.histplot``, so a named axis
+    is here whichever way it was spelled -- ``histplot(df, y="v")`` and
+    ``histplot(y=series)`` alike -- and a call naming neither is the
+    univariate default, which runs along x.
+
+    A ``y`` is therefore the whole question. Naming *both* makes a bivariate
+    histogram, and that never reaches here: measured, it draws no ``Line2D``
+    at all -- one ``QuadMesh``, read as a heatmap -- so there is no outline
+    for an orientation to be wanted for.
+
+    Asked because an outline's drawing cannot always answer it; see
+    :data:`~maidr.core.plot.outlined_histogram.OUTLINE_HORIZONTAL` for the
+    shape that made it necessary.
+
+    Parameters
+    ----------
+    kwargs : dict
+        The keyword arguments the caller passed.
+
+    Returns
+    -------
+    bool
+        True for a horizontal distribution.
+    """
+    return kwargs.get("y") is not None
+
+
+def _drew_outline_lines(
+    ax: Axes | None, before: list, kde: bool, horizontal: bool
+) -> list:
+    """
+    The unfilled outlines this call added, if it added any it can tell apart.
+
+    ``fill=False`` makes ``element="step"`` and ``element="poly"`` draw a
+    ``Line2D`` where the filled spelling draws a ``PolyCollection``, and a
+    ``hue`` draws one per group. Compared against a snapshot rather than swept
+    for, so a line already on the axes is not claimed.
+
+    The care here is telling an outline from a ``kde=True`` overlay, which is
+    also a ``Line2D`` this call added. Measured on seaborn 0.13.2, the two
+    interleave -- ``[outline, kde, outline, kde]`` for two groups -- so
+    neither "the first half" nor "the last one" separates them.
+
+    What does separate them is the drawstyle, for one of the two elements. A
+    stepped outline is ``steps-post`` (or ``steps-pre`` drawn sideways) and a
+    density is never stepped, so ``element="step"`` is decided outright. A
+    ``poly`` outline and a density are both ``"default"`` and differ only in
+    how many vertices they happen to have -- 4 against 200 here, but
+    ``gridsize=`` moves the second and the bin count moves the first, so a
+    threshold between them would be a guess.
+
+    So a ``poly`` outline is read only when the call asked for no density.
+    That leaves ``element="poly", fill=False, kde=True`` unread, which is
+    narrower than the silence it replaces and is a decline rather than a
+    density announced as a distribution.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        The axes drawn on.
+    before : list
+        The lines present beforehand.
+    kde : bool
+        Whether the caller asked for a density overlay.
+    horizontal : bool
+        Whether the caller asked for a distribution up the y axis, which is
+        what decides an outline whose drawing reads either way.
+
+    Returns
+    -------
+    list
+        The outlines this call drew, in draw order.
+    """
+    if ax is None:
+        return []
+    seen = {id(line) for line in before}
+    added = [line for line in (getattr(ax, "lines", ()) or ()) if id(line) not in seen]
+    return [
+        line
+        for line in added
+        if outline_reads(line, horizontal)
+        and (not kde or str(line.get_drawstyle()).startswith("steps"))
+    ]
+
+
 def _drew_mesh(ax: Axes | None, before: list) -> bool:
     """
     Whether *this call* drew a mesh of joint counts.
@@ -509,6 +620,7 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
     before = _containers_of(prospective)
     meshes = _meshes_of(prospective)
     outlines = _outlines_of(prospective)
+    lines = _lines_of(prospective)
 
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
@@ -533,6 +645,30 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
             # closed outline per series instead of a row of bars.
             for outline in drew:
                 FigureManager.create_maidr(axes, PlotType.HIST, collection=outline)
+            return drawn
+        horizontal = _asked_for_horizontal(kwargs)
+        outlined = _drew_outline_lines(
+            axes, lines, bool(kwargs.get("kde", False)), horizontal
+        )
+        if outlined:
+            # The same two elements drawn `fill=False`: seaborn swaps the
+            # collection for a bare `Line2D`, so the branch above finds
+            # nothing and the chart was silent (#583). Named from the legend
+            # by colour, as the filled spelling and the density already are.
+            names = deferred_names(
+                lambda: _names_for(axes, [_rgba(line.get_color()) for line in outlined]),
+                len(outlined),
+            )
+            for line, name in zip(outlined, names):
+                FigureManager.create_maidr(
+                    axes,
+                    PlotType.HIST,
+                    **{
+                        OUTLINE_LINE: line,
+                        OUTLINE_HORIZONTAL: horizontal,
+                        GROUP_NAME: name,
+                    },
+                )
             return drawn
         if _drew_mesh(axes, meshes):
             # Named from `stat` rather than hardcoded, because it is what the

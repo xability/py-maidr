@@ -20,6 +20,7 @@ from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
 from maidr.core.plot.lollipop import LollipopPlot
 from maidr.core.plot.maidr_plot import MaidrPlot
+from maidr.core.plot.outlined_histogram import OUTLINE_LINE, OutlinedHistPlot
 from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
@@ -117,6 +118,11 @@ class MaidrPlotFactory:
             # find and the call hands its `PolyCollection` over instead.
             if isinstance(kwargs.get("collection"), PolyCollection):
                 return SteppedHistPlot(single_ax, **kwargs)
+            # The same two elements drawn `fill=False`, which swaps the
+            # collection for a bare `Line2D` and left the chart silent (#583).
+            outline = kwargs.get(OUTLINE_LINE)
+            if outline is not None:
+                return OutlinedHistPlot(single_ax, outline, **kwargs)
             # `ax.hist(histtype="step"/"stepfilled")` draws a `Polygon` per
             # dataset and leaves no container either, so the call hands over
             # the counts and edges it already returned (#555).
