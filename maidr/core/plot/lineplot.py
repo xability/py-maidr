@@ -306,16 +306,43 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         # leaves one entry against two lines, and both were announced
         # "revenue" -- the hidden one taking the name of the series after it.
         #
-        # Equal lengths keep the positional pairing, which is what the two
-        # cases that rely on it need: `ax.legend(["A", "B"])` renames every
-        # series positionally and means to, and a seaborn `hue` split names
-        # its groups in the legend while the lines themselves carry `_child`
-        # sentinels (#502). Only when the legend is *shorter* is it matched
-        # against the lines matplotlib would have put in it.
+        # Equal lengths do not settle it either, because the legend may be in
+        # a different order from the axes: `ax.legend(handles=[q, p])` is how
+        # a caller reorders one without redrawing, and pairing by position
+        # then announced each series under the other's name (#578). The
+        # handles cannot be used to recover the pairing -- measured, they are
+        # proxy artists and `handle is line` is False for every drawn line --
+        # but the *text* still identifies the series, so a legend that is a
+        # permutation of the lines' own names is matched by name.
+        #
+        # The test is only that the two sets agree, which is narrower than it
+        # looks and was arrived at by deleting the parts that turned out not
+        # to be. Requiring every line to be *named* adds nothing: an unnamed
+        # line contributes "" to the set, and matplotlib renders no legend
+        # entry for one, so the sets cannot agree anyway. Requiring the names
+        # to be *unique* adds nothing either: two lines called the same thing
+        # are announced by that name whichever of them an entry is paired
+        # with. Both guards survived every mutation, so neither is here.
+        #
+        # Anything short of agreement falls back to position, which is what
+        # the two cases that rely on it need: `ax.legend(["A", "B"])` renames
+        # every series positionally and means to -- its texts are *not* the
+        # lines' names, which is exactly what tells the two apart -- and a
+        # seaborn `hue` split names its groups in the legend while the lines
+        # themselves carry `_child` sentinels (#502).
+        #
+        # Only when the legend is *shorter* is it matched against the lines
+        # matplotlib would have put in it.
         named = [index for index, line in enumerate(all_lines) if series_name(line)]
+        own = [series_name(line) for line in all_lines]
         from_legend: dict = {}
         if len(legend_labels) == len(all_lines):
-            from_legend = dict(enumerate(legend_labels))
+            renaming = set(legend_labels) == set(own)
+            # Nothing to record when the legend only restates the names the
+            # lines already carry: each line then answers for itself below,
+            # in its own order, which is the whole point.
+            if not renaming:
+                from_legend = dict(enumerate(legend_labels))
         elif len(legend_labels) == len(named):
             from_legend = dict(zip(named, legend_labels))
 

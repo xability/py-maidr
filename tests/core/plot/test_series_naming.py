@@ -178,3 +178,43 @@ def test_a_legend_shorter_than_the_series_still_renames_the_one_it_names() -> No
     assert _names(ax) == [None, "Renamed"]
 
     plt.close(fig)
+
+
+def test_a_legend_given_an_explicit_order_still_names_each_line_itself() -> None:
+    """`ax.legend(handles=[...])` reorders a legend without redrawing, and
+    pairing by position then announced each series under the other's name
+    (#578). The legend's handles are proxy artists, so the pairing is
+    recovered from the text instead."""
+    fig, ax = plt.subplots()
+    (first,) = ax.plot([1, 2, 3], [1, 2, 3], label="p")
+    (second,) = ax.plot([1, 2, 3], [3, 2, 1], label="q")
+    ax.legend(handles=[second, first])
+
+    assert [text.get_text() for text in ax.legend_.get_texts()] == ["q", "p"]
+    assert _names(ax) == ["p", "q"]
+
+    plt.close(fig)
+
+
+def test_an_ordinary_legend_is_unaffected_by_that() -> None:
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3], label="p")
+    ax.plot([1, 2, 3], [3, 2, 1], label="q")
+    ax.legend()
+
+    assert _names(ax) == ["p", "q"]
+
+    plt.close(fig)
+
+
+def test_two_series_sharing_a_name_keep_the_positional_pairing() -> None:
+    """Matching by name needs the names to identify a line; two lines called
+    the same thing cannot be told apart that way, so position stands."""
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3], label="same")
+    ax.plot([1, 2, 3], [3, 2, 1], label="same")
+    ax.legend()
+
+    assert _names(ax) == ["same", "same"]
+
+    plt.close(fig)
