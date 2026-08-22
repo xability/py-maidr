@@ -567,15 +567,23 @@ def test_the_observation_axis_carries_the_chart_s_own_bounds(frame):
 def test_the_strip_is_one_row_deep(frame):
     """Which is what a rug is: every entry sits at the same place across the
     ticks. A finer step buys a second row of zeroes -- measured against
-    `ScatterTrace`, `tickStep` 0.5 gives `[[2, 1, 0, 1], [0, 0, 0, 0]]`."""
+    `ScatterTrace`, `tickStep` 0.5 gives `[[2, 1, 0, 1], [0, 0, 0, 0]]`.
+
+    Centred on the entries rather than starting at them. `0` to `1` was the
+    first spelling and reads identically -- measured against `ScatterTrace`,
+    both give `values [[2, 1, 0, 1]]` -- but it puts the entries on a cell
+    *edge*, and which side of an edge a value falls on is the frontend's
+    tie-break rather than something this states. `one_row_around` centres
+    them, which also generalises to a layer whose row is not zero.
+    """
     fig, ax = plt.subplots()
     sns.rugplot(frame, x="value", ax=ax)
 
     assert _axis(_schemas(fig)[0], "y") == {
         "label": "Rug",
-        "min": 0,
-        "max": 1,
-        "tickStep": 1,
+        "min": -0.5,
+        "max": 0.5,
+        "tickStep": 1.0,
     }
 
 
@@ -584,7 +592,12 @@ def test_a_rug_up_the_y_axis_puts_the_bounds_on_y(frame):
     sns.rugplot(frame, y="value", ax=ax)
 
     schema = _schemas(fig)[0]
-    assert _axis(schema, "x") == {"label": "Rug", "min": 0, "max": 1, "tickStep": 1}
+    assert _axis(schema, "x") == {
+        "label": "Rug",
+        "min": -0.5,
+        "max": 0.5,
+        "tickStep": 1.0,
+    }
     assert _axis(schema, "y")["min"] == pytest.approx(ax.get_ylim()[0])
 
 
@@ -672,7 +685,12 @@ def test_each_hue_group_gets_the_bounds_too(frame):
     assert len(schemas) == 2
     for schema in schemas:
         assert _axis(schema, "x")["tickStep"] > 0
-        assert _axis(schema, "y") == {"label": "Rug", "min": 0, "max": 1, "tickStep": 1}
+        assert _axis(schema, "y") == {
+            "label": "Rug",
+            "min": -0.5,
+            "max": 0.5,
+            "tickStep": 1.0,
+        }
         # And the grouping variable is still named. The bounds are added
         # beside `z` rather than in place of it, and nothing else in the
         # schema moves.

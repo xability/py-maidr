@@ -422,3 +422,207 @@ def test_a_raster_beside_another_chart_stays_in_its_own_panel():
         [(2.0, 1.0), (5.0, 1.0)],
     ]
     assert _points(other) == [(1.0, 3.0), (2.0, 4.0)]
+
+
+# --- The bounds that make the layer reachable in grid mode (#606) ------------
+#
+# A point layer renders braille only in grid mode, and grid mode is built from
+# `axes.{x,y}.{min,max,tickStep}`. With the labels alone, maidr's `ScatterTrace`
+# returns `{empty: true}`, so a raster was the second chart -- after a rug,
+# fixed in #605 -- with no braille surface reachable by any keystroke.
+# Measured there, the first row of `ROWS` over a 0.7-7.3 axis now gives
+# `values [[1, 0, 0, 1, 0, 0, 1]]`: the events at 1, 4 and 7, spaced as the
+# axis spaces them, which is the pattern a raster is drawn to show and the one
+# thing its audio cannot carry -- every event in a row is the same pitch.
+#
+# One grid per row, not one for the chart. `ScatterTrace` holds `gridCells` as
+# instance state and builds them from its own layer's points, so it never sees
+# a sibling row's events: a whole-chart surface, one row felt against another,
+# is not something a producer can ask for. That settles the question #606 left
+# open by architecture rather than by preference.
+
+
+def _axis(layer, key) -> dict:
+    """
+    One axis' config, as plain data.
+
+    ``MaidrKey`` is a str enum, so the emitted keys compare equal to their
+    plain-string spellings -- but the dict itself is keyed by the enum members,
+    and ``dict()`` is what lets it be compared against a literal.
+
+    Parameters
+    ----------
+    layer : dict
+        The emitted layer.
+    key : str
+        Which axis.
+
+    Returns
+    -------
+    dict
+        The axis config.
+    """
+    return dict(layer[MaidrKey.AXES][key])
+
+
+def test_the_event_axis_carries_the_chart_s_own_bounds():
+    """The plotting area, not the spread of one row's events.
+
+    A reader feeling the grid is feeling the axis they would see, and the two
+    rows here hold different events -- so bounds taken from the data would put
+    each row on a surface of its own width and make the same cell mean two
+    different spans.
+    """
+    fig, ax = plt.subplots()
+    ax.eventplot(ROWS)
+
+    low, high = ax.get_xlim()
+    for layer in _layers(fig):
+        x = _axis(layer, MaidrKey.X)
+        assert x[MaidrKey.MIN] == pytest.approx(low)
+        assert x[MaidrKey.MAX] == pytest.approx(high)
+        assert x[MaidrKey.TICK_STEP] > 0
+
+
+def test_each_row_is_one_cell_deep_at_the_offset_it_was_drawn_at():
+    """
+    Across the rows, the grid is exactly the one cell this layer occupies.
+
+    Its *own* cell, which is the whole difference between a raster and a rug:
+    a rug always sits at zero, while ``eventplot`` stacks its rows at 0, 1,
+    2 ... and each layer holds exactly one of them.
+
+    Measured against maidr's `ScatterTrace`, the two readings are the
+    difference between a surface and a blank one. With its own cell the
+    second row gives `values [[0, 1, 0, 0, 1, 0, 0]]` -- its two events,
+    where they fall. Handed the zero-centred cell instead, every one of its
+    points is outside the surface and it gives `[[0, 0, 0, 0, 0, 0, 0]]`: a
+    grid that renders, reports nothing wrong, and says the row is empty.
+
+    One cell deep rather than finer: there is nothing to resolve across a row
+    whose entries all sit at the same offset, and a smaller step buys rows of
+    zeroes.
+    """
+    fig, ax = plt.subplots()
+    ax.eventplot(ROWS)
+
+    first, second = _layers(fig)
+
+    assert _axis(first, MaidrKey.Y) == {
+        MaidrKey.LABEL: "Row",
+        MaidrKey.MIN: -0.5,
+        MaidrKey.MAX: 0.5,
+        MaidrKey.TICK_STEP: 1.0,
+    }
+    assert _axis(second, MaidrKey.Y) == {
+        MaidrKey.LABEL: "Row",
+        MaidrKey.MIN: 0.5,
+        MaidrKey.MAX: 1.5,
+        MaidrKey.TICK_STEP: 1.0,
+    }
+
+
+def test_a_row_at_a_non_default_offset_gets_the_cell_it_was_drawn_in():
+    """
+    The offset is read off the artist, not counted from the layer's place.
+
+    The two agree only at the default spacing.
+    ``ax.eventplot(rows, lineoffsets=2)`` draws the second row at 2.0, so a
+    cell numbered from the layer index would hand it -0.5 to 0.5 and 0.5 to
+    1.5 -- a surface its events sit outside of, while every coordinate in the
+    payload stays right. Same trap the row *names* fell into before
+    ``test_named_rows_survive_a_non_default_spacing``.
+    """
+    fig, ax = plt.subplots()
+    ax.eventplot(ROWS, lineoffsets=2)
+
+    first, second = _layers(fig)
+
+    assert (_axis(first, MaidrKey.Y)[MaidrKey.MIN], _points(first)[0][1]) == (-0.5, 0.0)
+    assert (_axis(second, MaidrKey.Y)[MaidrKey.MIN], _points(second)[0][1]) == (
+        1.5,
+        2.0,
+    )
+
+
+def test_a_vertical_raster_bounds_the_axis_its_events_run_along():
+    """The bounds follow the orientation, as the coordinates already do.
+
+    Reading the wrong axis would be silent: both are numeric and both have
+    ticks, so a grid built across the rows and one cell wide along the events
+    is a surface that resolves nothing and reports no error.
+    """
+    fig, ax = plt.subplots()
+    ax.eventplot(ROWS, orientation="vertical")
+
+    first, second = _layers(fig)
+
+    assert _axis(first, MaidrKey.Y)[MaidrKey.MIN] == pytest.approx(ax.get_ylim()[0])
+    assert _axis(first, MaidrKey.X) == {
+        MaidrKey.LABEL: "Row",
+        MaidrKey.MIN: -0.5,
+        MaidrKey.MAX: 0.5,
+        MaidrKey.TICK_STEP: 1.0,
+    }
+    assert _axis(second, MaidrKey.X)[MaidrKey.MIN] == 0.5
+
+
+def test_a_caller_s_own_name_for_the_rows_survives_the_bounds():
+    """A grid says where the cells are, never what the axis is called."""
+    fig, ax = plt.subplots()
+    ax.set_ylabel("neuron")
+    ax.eventplot(ROWS)
+
+    y = _axis(_layers(fig)[0], MaidrKey.Y)
+    assert y[MaidrKey.LABEL] == "neuron"
+    assert y[MaidrKey.MAX] == 0.5
+
+
+def test_unevenly_spaced_ticks_take_the_row_cells_with_them():
+    """
+    Half a grid is not a grid, so the decline has to reach both axes.
+
+    An axis whose ticks are not evenly spaced names no step, and a surface
+    built on an invented one has cells that do not correspond to the axis the
+    reader is told about. Emitting the row cell anyway would leave bounds on
+    one axis alone -- which builds nothing, and reads as a chart that meant to
+    offer a grid.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xticks([0.0, 1.0, 5.0, 10.0])
+    ax.eventplot(ROWS)
+
+    layer = _layers(fig)[0]
+    assert _axis(layer, MaidrKey.X) == {MaidrKey.LABEL: "X"}
+    assert _axis(layer, MaidrKey.Y) == {MaidrKey.LABEL: "Row"}
+
+
+def test_a_log_event_axis_is_declined():
+    """Spikes on a log time axis are an ordinary chart, and the cells a linear
+    grid describes are not the cells that axis draws."""
+    fig, ax = plt.subplots()
+    ax.set_xscale("log")
+    ax.eventplot(ROWS)
+
+    layer = _layers(fig)[0]
+    assert _axis(layer, MaidrKey.X) == {MaidrKey.LABEL: "X"}
+    assert _axis(layer, MaidrKey.Y) == {MaidrKey.LABEL: "Row"}
+
+
+def test_the_bounds_change_nothing_the_layer_already_said():
+    """Additive only: grid mode is entered deliberately, so the reading a
+    reader gets without asking for it has to be untouched. Pinned against what
+    the layer emitted before the bounds existed."""
+    fig, ax = plt.subplots()
+    ax.set_yticks([0, 1], ["neuron A", "neuron B"])
+    ax.eventplot(ROWS)
+
+    first, second = _layers(fig)
+
+    assert [layer.get(MaidrKey.NAME) for layer in (first, second)] == [
+        "neuron A",
+        "neuron B",
+    ]
+    assert _points(first) == [(1.0, 0.0), (4.0, 0.0), (7.0, 0.0)]
+    assert _points(second) == [(2.0, 1.0), (5.0, 1.0)]
+    assert len(first[MaidrKey.SELECTOR]) == 3
