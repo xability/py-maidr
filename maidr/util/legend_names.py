@@ -272,6 +272,21 @@ def names_for_panel(ax: Axes, colours: list, faceted: bool) -> list:
     asymmetry #522, #446 and #590 were each about. Both emit ``None`` today
     and both keep doing so.
 
+    The panel count is a **proxy** for "the figure holds more than this
+    panel does", and the two can come apart: a `col=` grid whose `hue=`
+    happens to have a single level across the whole frame draws one artist
+    per panel, all of them the same group, and every one is now named.
+    Measured, `displot(x=, hue=, col=)` with one hue level gives
+    `['only', 'only']` where it gave `[None, None]`.
+
+    Kept rather than guarded against, because the name is **true**: the
+    legend says which group these are, a sighted reader sees it, and the
+    panels are told apart by their `col` level rather than by hue, so
+    nothing is lost to the redundancy. The case the floor is right about is
+    the other one -- a single-panel chart, where a name implies a companion
+    layer that does not exist. Pinned in
+    `tests/core/test_displot_distribution.py`.
+
     Only the floor moves. Every other decline is :func:`name_for`'s and
     unchanged: no legend, a colour no swatch claims, a colour two swatches
     claim.

@@ -460,7 +460,7 @@ def _face_colour(outline: PolyCollection):
     Its **face**, which is what carries the hue. By default the edge carries
     it too -- measured, the two agree but for the translucency the face and
     the legend swatch share -- so either would name the groups, the edge
-    through `names_for`'s alpha-insensitive pass. `edgecolor=` is what
+    through `_names_for`'s alpha-insensitive pass. `edgecolor=` is what
     separates them: it is the caller's to set, and setting it once colours
     *every* group's edge alike::
 

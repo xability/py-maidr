@@ -504,3 +504,36 @@ class TestAPanelHoldingOneGroupIsStillNamed:
         _, ax = plt.subplots()
         sns.histplot(self._one_level(), x="v", hue="g", bins=3, ax=ax)
         assert self._names(ax.get_figure()) == [None]
+
+    @staticmethod
+    def _one_level_faceted() -> pd.DataFrame:
+        # `g` has one level across the whole frame; `c` facets it into two
+        # panels. So every panel holds one artist, and all of them are the
+        # same group.
+        return pd.DataFrame(
+            {
+                "v": list(np.linspace(0, 1, 20)),
+                "g": ["only"] * 20,
+                "c": ["p"] * 10 + ["q"] * 10,
+            }
+        )
+
+    def test_a_grid_whose_hue_has_one_level_names_every_panel_alike(self):
+        """The panel count is a proxy for "the figure holds more than this
+        panel does", and this is where the two come apart.
+
+        Measured, `['only', 'only']` where it gave `[None, None]`. Kept
+        rather than guarded against, because the name is **true**: the legend
+        says which group these are, a sighted reader sees it, and the panels
+        are told apart by their `col` level rather than by hue -- so the
+        redundancy costs nothing. The case the floor is right about is the
+        other one, pinned above: a single-panel chart, where a name implies a
+        companion layer that does not exist.
+
+        Pinned so the approximation is visible rather than inferred, and so
+        that a later decision to decline it is a deliberate change to a test
+        rather than a silent one.
+        """
+        grid = sns.displot(self._one_level_faceted(), x="v", hue="g", col="c", bins=3)
+
+        assert self._names(grid.figure) == ["only", "only"]

@@ -25,6 +25,12 @@ from maidr.patch.common import (
     wrap_seaborn,
 )
 from maidr.core.context_manager import ContextManager
+
+# `legend_of` and `_names_for` are re-exported rather than used here:
+# `tests/core/plot/test_hue_kde_naming.py` and
+# `tests/core/plot/test_pairplot_group_names.py` reach the colour match
+# through this module, which is where it lived before it moved to
+# `maidr/util/legend_names.py`. The blanket noqa is what lets them.
 from maidr.util.legend_names import (  # noqa: F401
     legend_of,
     names_for as _names_for,
