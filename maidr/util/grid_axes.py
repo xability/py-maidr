@@ -121,6 +121,13 @@ def one_row_around(position: float) -> tuple[float, float, float]:
     ``[[2, 1, 0, 1], [0, 0, 0, 0]]``, a row of the surface spent saying
     nothing.
 
+    A unit cell whatever the rows are spaced at, and deliberately so: each
+    layer gets a grid of its **own** -- ``ScatterTrace`` builds ``gridCells``
+    from the points of the layer it holds and never sees a sibling's -- so
+    there is no neighbour for the width to be measured against.
+    ``eventplot(rows, lineoffsets=2)`` moves which cell a row sits in, not
+    how wide it is.
+
     Parameters
     ----------
     position : float

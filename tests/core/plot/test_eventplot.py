@@ -273,9 +273,9 @@ def test_every_selector_names_an_element_of_its_own_row():
             groups.add(gid)
             wanted = int(re.search(r"nth-of-type\((\d+)\)", selector).group(1))
             available = _paths_in(html, gid)
-            assert (
-                available >= wanted
-            ), f"selector asks for path {wanted} of a group holding {available}"
+            assert available >= wanted, (
+                f"selector asks for path {wanted} of a group holding {available}"
+            )
 
     # Two rows, two groups: a single shared group would mean both layers were
     # addressing the same elements while announcing different events.

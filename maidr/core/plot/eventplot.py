@@ -191,7 +191,9 @@ class EventPlot(MaidrPlot):
         self._marks = [index for index, _ in drawn]
 
         if horizontal:
-            return [{MaidrKey.X: position, MaidrKey.Y: offset} for _, position in drawn]
+            return [
+                {MaidrKey.X: position, MaidrKey.Y: offset} for _, position in drawn
+            ]
         return [{MaidrKey.X: offset, MaidrKey.Y: position} for _, position in drawn]
 
     def _extract_axes_data(self) -> dict:
@@ -277,5 +279,6 @@ class EventPlot(MaidrPlot):
             return []
 
         return [
-            f"g[id='{gid}'] > path:nth-of-type({index + 1})" for index in self._marks
+            f"g[id='{gid}'] > path:nth-of-type({index + 1})"
+            for index in self._marks
         ]
