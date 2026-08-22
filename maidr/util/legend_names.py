@@ -224,6 +224,14 @@ def title_of(ax: Axes) -> str:
     Reading the title off whichever legend :func:`legend_of` chose keeps the
     two halves of one decision on one source.
 
+    Read **live**, at render, while a layer's group *names* are captured once
+    as the plotting call is patched -- the same split
+    :meth:`~maidr.core.plot.maidr_plot.MaidrPlot._legend_title` documents,
+    kept deliberately rather than inherited. A caller who retitles the legend
+    between two renders makes the two disagree, and the alternative is worse:
+    freezing the title at registration would have a layer announce a title
+    the figure no longer carries, which cannot be corrected by redrawing.
+
     Parameters
     ----------
     ax : Axes
