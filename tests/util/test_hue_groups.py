@@ -85,3 +85,16 @@ def test_two_unmentioned_names_keep_their_order_among_themselves():
     groups = grouped_by_name(["b", "a", "known"], ["known"])
 
     assert [name for name, _ in groups] == ["known", "b", "a"]
+
+
+def test_a_repeated_name_in_the_order_places_its_group_by_the_first():
+    """The order is looked up rather than scanned twice, and a lookup built
+    the obvious way would take the *last* place a repeated name holds.
+
+    Not reachable from either caller -- a legend does not list one name
+    twice -- but the two spellings differ only here, so it is the one case
+    that says the lookup replaced `list.index` rather than merely resembling
+    it."""
+    groups = grouped_by_name(["b", "a"], ["a", "b", "a"])
+
+    assert [name for name, _ in groups] == ["a", "b"]

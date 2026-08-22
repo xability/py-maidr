@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 def grouped_by_name(
-    names: list, order: list | None = None
+    names: list[str | None], order: list[str] | None = None
 ) -> list[tuple[str, list[int]]] | None:
     """
     Turn one name per drawn thing into one group per distinct name.
@@ -38,10 +38,10 @@ def grouped_by_name(
 
     Parameters
     ----------
-    names : list
+    names : list of (str or None)
         One name per drawn thing, in drawing order. ``None`` anywhere
         declines.
-    order : list, optional
+    order : list of str, optional
         The names in the order the groups should come out in. Omitted, the
         groups keep the order their names first appear in.
 
@@ -72,7 +72,11 @@ def grouped_by_name(
     if not order:
         return list(members.items())
 
-    return sorted(
-        members.items(),
-        key=lambda group: order.index(group[0]) if group[0] in order else len(order),
-    )
+    # First occurrence wins, matching what `list.index` answered before this
+    # was a lookup -- a repeated name in the order would otherwise move its
+    # group to the later position.
+    places: dict[str, int] = {}
+    for place, name in enumerate(order):
+        places.setdefault(name, place)
+
+    return sorted(members.items(), key=lambda group: places.get(group[0], len(order)))
