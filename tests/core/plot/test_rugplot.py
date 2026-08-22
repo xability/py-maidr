@@ -532,3 +532,144 @@ def test_a_hue_on_one_level_is_read_as_one_ungrouped_layer():
     # The variable's own name, which is what an ungrouped rug announces.
     assert schemas[0].get("name") == "value"
     assert len(schemas[0]["data"]) == 4
+
+
+# --- The bounds that make the layer reachable in grid mode (maidr#1132) ------
+#
+# A point layer renders braille only in grid mode, and grid mode is built from
+# `axes.{x,y}.{min,max,tickStep}`. With the labels alone, maidr's `ScatterTrace`
+# returns an empty braille state, and a rug is then the one chart with no
+# braille surface reachable by any keystroke. Measured there, four observations
+# at 1, 2, 3 and 9 over a 0-10 axis give `values [[2, 1, 0, 1]]` -- the count
+# per cell, which is the clustering a rug is drawn to show and the one thing
+# its audio cannot carry, every tick sitting at the same place on the axis
+# pitch is mapped from.
+
+
+def _axis(schema, key) -> dict:
+    """One axis' config. `MaidrKey` is a str enum, so the emitted keys compare
+    equal to their plain-string spellings and need no conversion -- calling
+    `str()` on them gives `'MaidrKey.LABEL'` and breaks the comparison."""
+    return dict(schema["axes"][key])
+
+
+def test_the_observation_axis_carries_the_chart_s_own_bounds(frame):
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", ax=ax)
+
+    low, high = ax.get_xlim()
+    x = _axis(_schemas(fig)[0], "x")
+    assert x["min"] == pytest.approx(low)
+    assert x["max"] == pytest.approx(high)
+    assert x["tickStep"] > 0
+
+
+def test_the_strip_is_one_row_deep(frame):
+    """Which is what a rug is: every entry sits at the same place across the
+    ticks. A finer step buys a second row of zeroes -- measured against
+    `ScatterTrace`, `tickStep` 0.5 gives `[[2, 1, 0, 1], [0, 0, 0, 0]]`."""
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", ax=ax)
+
+    assert _axis(_schemas(fig)[0], "y") == {
+        "label": "Rug",
+        "min": 0,
+        "max": 1,
+        "tickStep": 1,
+    }
+
+
+def test_a_rug_up_the_y_axis_puts_the_bounds_on_y(frame):
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, y="value", ax=ax)
+
+    schema = _schemas(fig)[0]
+    assert _axis(schema, "x") == {"label": "Rug", "min": 0, "max": 1, "tickStep": 1}
+    assert _axis(schema, "y")["min"] == pytest.approx(ax.get_ylim()[0])
+
+
+def test_an_axis_whose_ticks_are_not_evenly_spaced_is_declined(frame):
+    """A grid built on uneven ticks is a surface whose cells do not
+    correspond to the axis the reader is told about, which is worse than no
+    surface.
+
+    The scale here is linear, so this is the chart that isolates the tick
+    check: measured, `set_xticks([0, 1, 5, 10])` gives `step=None` while the
+    log-scale guard passes it straight through.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xticks([0.0, 1.0, 5.0, 10.0])
+    sns.rugplot(frame, x="value", ax=ax)
+
+    schema = _schemas(fig)[0]
+    assert _axis(schema, "x") == {"label": "value"}
+    assert _axis(schema, "y") == {"label": "Rug"}
+
+
+def test_a_log_axis_is_declined(frame):
+    fig, ax = plt.subplots()
+    ax.set_xscale("log")
+    sns.rugplot(frame, x="value", ax=ax)
+
+    schema = _schemas(fig)[0]
+    assert _axis(schema, "x") == {"label": "value"}
+    assert _axis(schema, "y") == {"label": "Rug"}
+
+
+def test_a_log_axis_answers_its_limits_and_its_ticks_in_different_spaces(frame):
+    """What makes the scale check a guard rather than a live branch.
+
+    Dropping it leaves the whole suite green, and the reason is worth
+    recording rather than rediscovering: matplotlib answers `get_xlim` in
+    **log space** and `get_xticks` in **data space**, so a log chart's tick
+    step is measured against a span it does not belong to and the
+    `step > (high - low)` clause declines it anyway.
+
+    Pinned here because it is a fact about matplotlib, not about this layer.
+    If a release ever makes the two agree, this goes red and the scale check
+    stops being redundant -- which is the moment it starts earning its keep.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xscale("log")
+    ax.set_xticks([1.0, 2.0, 3.0])
+    sns.rugplot(frame, x="value", ax=ax)
+
+    low, high = ax.get_xlim()
+    ticks = list(ax.get_xticks())
+
+    # The ticks are the data-space values that were asked for.
+    assert ticks == [1.0, 2.0, 3.0]
+    # The limits are not: they are the logs of the data-space bounds, and the
+    # whole span is narrower than one tick step.
+    assert high - low < 1.0
+    assert high < min(ticks)
+
+
+def test_the_bounds_change_nothing_the_layer_already_said(frame):
+    """Additive only: grid mode is entered deliberately, so the ordinary
+    reading has to be untouched. Pinned against the values the layer emitted
+    before the bounds existed."""
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", ax=ax)
+
+    schema = _schemas(fig)[0]
+    assert schema.get("name") == "value"
+    assert [point["x"] for point in schema["data"]] == list(frame["value"])
+    assert all(point["y"] == 0 for point in schema["data"])
+    # One selector for the whole collection, as an ungrouped rug has always
+    # had -- a string rather than the per-segment list a grouped one gets.
+    assert isinstance(schema["selectors"], str)
+
+
+def test_each_hue_group_gets_the_bounds_too(frame):
+    """A grouped rug is several layers over one axis, and a reader feeling any
+    of them is feeling the same plotting area."""
+    frame = frame.assign(sex=["F", "F", "M", "M"])
+    fig, ax = plt.subplots()
+    sns.rugplot(frame, x="value", hue="sex", ax=ax)
+
+    schemas = _schemas(fig)
+    assert len(schemas) == 2
+    for schema in schemas:
+        assert _axis(schema, "x")["tickStep"] > 0
+        assert _axis(schema, "y") == {"label": "Rug", "min": 0, "max": 1, "tickStep": 1}
