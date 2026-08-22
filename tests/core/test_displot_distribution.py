@@ -215,3 +215,47 @@ class TestWhatMustNotChange:
         grid = sns.jointplot(data=frame(), x="v", y="w")
 
         assert layers(grid.figure) == ["point", "hist", "hist"]
+
+
+class TestAFacetedHistogramNamesEachPanelFromItself:
+    """Every panel's names used to resolve from the last panel's (#591).
+
+    ``deferred_names`` stores its resolver and runs it at *render*, which is
+    what makes a ``pairplot``'s legend readable (#561). Built inside the
+    per-panel loop it closed over the loop variables, so by the time it ran
+    they held the final panel's axes and containers and every panel was named
+    from that one.
+
+    Measured on a grid whose panels hold different groups: three layers, all
+    ``None``, because the last panel held a single container and a lone
+    artist is exactly what ``names_for`` declines. Asked panel by panel the
+    same figure gives ``['b', 'a']`` and ``[None]``.
+    """
+
+    @staticmethod
+    def _split_frame() -> pd.DataFrame:
+        # Panel "p" holds groups a and b; panel "q" holds only c. The panels
+        # must differ in *shape*, or the last one's answer happens to fit.
+        return pd.DataFrame(
+            {
+                "v": list(np.linspace(0, 1, 30)),
+                "g": ["a"] * 10 + ["b"] * 10 + ["c"] * 10,
+                "c": ["p"] * 20 + ["q"] * 10,
+            }
+        )
+
+    def test_each_panel_is_named_from_its_own_groups(self):
+        grid = sns.displot(self._split_frame(), x="v", hue="g", col="c", bins=3)
+        named = [
+            (plot.schema.get("name"), [point["y"] for point in plot.schema["data"]])
+            for plot in FigureManager.get_maidr(grid.figure)._plots
+        ]
+
+        # The counts say which group each layer holds, so the names can be
+        # checked against them rather than against registration order.
+        assert named == [
+            ("b", [0.0, 10.0, 0.0]),
+            ("a", [10.0, 0.0, 0.0]),
+            (None, [0.0, 0.0, 10.0]),
+        ]
+

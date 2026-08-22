@@ -839,8 +839,18 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
         # for `histplot` and not for the figure-level spelling of the same
         # chart -- the asymmetry #522 and #446 were both about.
         containers = _new_bar_containers(ax, seen)
+        # `ax` and `containers` bound here rather than closed over. The
+        # resolver runs at *render* -- that is what `deferred_names` is for --
+        # by which time this loop has finished and both names hold the last
+        # panel's values, so every panel resolved against that one panel.
+        # Measured on `displot(hue=..., col=...)` over a grid whose panels
+        # hold different groups: three layers, all `None`, because the last
+        # panel held a single container and a lone artist is exactly what
+        # `names_for` declines. Asked panel by panel the same figure gives
+        # `['b', 'a']` and `[None]` (#591).
         for container, name in zip(containers, deferred_names(
-            lambda: _group_names(ax, containers), len(containers)
+            lambda ax=ax, containers=containers: _group_names(ax, containers),
+            len(containers),
         )):
             FigureManager.create_maidr(
                 ax, PlotType.HIST, **{DRAWN_BARS: container, GROUP_NAME: name}
