@@ -9,6 +9,7 @@ from matplotlib.collections import EventCollection
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.util.grid_axes import bounds_along, one_row_around
 
 #: The keyword the event patch hands one row's collection to this layer under.
 #: A chart is one collection per row and one layer per collection, so the
@@ -190,9 +191,7 @@ class EventPlot(MaidrPlot):
         self._marks = [index for index, _ in drawn]
 
         if horizontal:
-            return [
-                {MaidrKey.X: position, MaidrKey.Y: offset} for _, position in drawn
-            ]
+            return [{MaidrKey.X: position, MaidrKey.Y: offset} for _, position in drawn]
         return [{MaidrKey.X: offset, MaidrKey.Y: position} for _, position in drawn]
 
     def _extract_axes_data(self) -> dict:
@@ -219,6 +218,45 @@ class EventPlot(MaidrPlot):
         if not named:
             axes_data[stacked] = self._axis_config(label="Row")
 
+        # Bounds on both axes, which is what makes the layer reachable in
+        # grid mode -- the only mode where a point layer renders braille at
+        # all. Measured against maidr's `ScatterTrace`, an event plot came
+        # back with an empty braille state, the same gap a rug had before
+        # #605 (#606).
+        #
+        # The grid a trace builds is of its **own** layer: `ScatterTrace`
+        # holds `gridCells` as instance state and never sees a sibling's
+        # points. So a whole-chart surface, one row against another, is not
+        # something a producer can ask for -- each row gets its own, and that
+        # settles the question #606 left open rather than choosing between
+        # the two.
+        along = MaidrKey.X if horizontal else MaidrKey.Y
+        bounds = bounds_along(self.ax, horizontal)
+        if bounds is not None:
+            low, high, step = bounds
+            axes_data[along] = self._axis_config(
+                label=axes_data[along].get(MaidrKey.LABEL),
+                min=low,
+                max=high,
+                tick_step=step,
+            )
+            # This row's own line offset, not zero: an event plot stacks its
+            # rows at 0, 1, 2 ... and each layer holds exactly one of them,
+            # so the cell has to be the one its events actually sit in. A rug
+            # is the same shape with the offset always zero.
+            row_low, row_high, row_step = one_row_around(
+                float(self._collection.get_lineoffset())
+            )
+            # Read back rather than recomputed, so the caller's label and the
+            # "Row" fallback above are the one answer to what this axis is
+            # called and a grid never renames it.
+            axes_data[stacked] = self._axis_config(
+                label=axes_data[stacked].get(MaidrKey.LABEL),
+                min=row_low,
+                max=row_high,
+                tick_step=row_step,
+            )
+
         return axes_data
 
     def _get_selector(self) -> str | list[str]:
@@ -239,6 +277,5 @@ class EventPlot(MaidrPlot):
             return []
 
         return [
-            f"g[id='{gid}'] > path:nth-of-type({index + 1})"
-            for index in self._marks
+            f"g[id='{gid}'] > path:nth-of-type({index + 1})" for index in self._marks
         ]
