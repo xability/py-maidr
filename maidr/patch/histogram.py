@@ -677,47 +677,13 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
         # context -- which is what made the same figure readable through one
         # spelling and silent through the other (#522).
         axes = FigureManager.get_axes(drawn)
-        drew = _drew_outlines(axes, outlines)
-        if drew:
-            # `element="step"` / `"poly"`: the same distribution drawn as one
-            # closed outline per series instead of a row of bars.
-            #
-            # Named from the legend by colour, the way the bars and the
-            # unfilled outlines are. Deferred for the reason `_curve_names`
-            # gives: a `pairplot`'s legend does not exist until every panel
-            # has been drawn (#561).
-            names = deferred_names(
-                lambda: _names_for(axes, [_face_colour(one) for one in drew]),
-                len(drew),
-            )
-            for outline, name in zip(drew, names):
-                FigureManager.create_maidr(
-                    axes, PlotType.HIST, collection=outline, **{GROUP_NAME: name}
-                )
-            return drawn
-        horizontal = _asked_for_horizontal(kwargs)
-        outlined = _drew_outline_lines(
-            axes, lines, bool(kwargs.get("kde", False)), horizontal
-        )
-        if outlined:
-            # The same two elements drawn `fill=False`: seaborn swaps the
-            # collection for a bare `Line2D`, so the branch above finds
-            # nothing and the chart was silent (#583). Named from the legend
-            # by colour, as the filled spelling and the density already are.
-            names = deferred_names(
-                lambda: _names_for(axes, [_rgba(line.get_color()) for line in outlined]),
-                len(outlined),
-            )
-            for line, name in zip(outlined, names):
-                FigureManager.create_maidr(
-                    axes,
-                    PlotType.HIST,
-                    **{
-                        OUTLINE_LINE: line,
-                        OUTLINE_HORIZONTAL: horizontal,
-                        GROUP_NAME: name,
-                    },
-                )
+        if _register_outlines(
+            axes,
+            outlines,
+            lines,
+            bool(kwargs.get("kde", False)),
+            _asked_for_horizontal(kwargs),
+        ):
             return drawn
         if _drew_mesh(axes, meshes):
             # Named from `stat` rather than hardcoded, because it is what the
@@ -788,8 +754,8 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
 
 
 def _register_outlines(
-    ax: Axes, outlines: list, lines: list, kde: bool, horizontal: bool
-) -> None:
+    ax: Axes | None, outlines: list, lines: list, kde: bool, horizontal: bool
+) -> bool:
     """
     Register the panel's distribution when it was drawn as an outline.
 
@@ -824,27 +790,40 @@ def _register_outlines(
         ``poly`` outline unreadable -- see :func:`_drew_outline_lines`.
     horizontal : bool
         Whether the distribution runs up the y axis.
+
+    Returns
+    -------
+    bool
+        Whether it registered anything, which is the caller's signal to stop
+        looking for another shape on this panel.
     """
+    # `element="step"` / `"poly"`: the same distribution drawn as one closed
+    # outline per series instead of a row of bars. Named from the legend by
+    # colour, the way the bars are, and deferred for the reason
+    # `_curve_names` gives: a `pairplot`'s legend does not exist until every
+    # panel has been drawn (#561).
     drew = _drew_outlines(ax, outlines)
     if drew:
-        for outline, name in zip(drew, deferred_names(
-            lambda ax=ax, drew=drew: _names_for(
-                ax, [_face_colour(one) for one in drew]
-            ),
-            len(drew),
-        )):
+        names = deferred_names(
+            lambda: _names_for(ax, [_face_colour(one) for one in drew]), len(drew)
+        )
+        for outline, name in zip(drew, names):
             FigureManager.create_maidr(
                 ax, PlotType.HIST, collection=outline, **{GROUP_NAME: name}
             )
-        return
+        return True
 
+    # The same two elements drawn `fill=False`: seaborn swaps the collection
+    # for a bare `Line2D`, so the branch above finds nothing (#583).
     outlined = _drew_outline_lines(ax, lines, kde, horizontal)
-    for line, name in zip(outlined, deferred_names(
-        lambda ax=ax, outlined=outlined: _names_for(
-            ax, [_rgba(one.get_color()) for one in outlined]
-        ),
+    if not outlined:
+        return False
+
+    names = deferred_names(
+        lambda: _names_for(ax, [_rgba(one.get_color()) for one in outlined]),
         len(outlined),
-    )):
+    )
+    for line, name in zip(outlined, names):
         FigureManager.create_maidr(
             ax,
             PlotType.HIST,
@@ -854,6 +833,7 @@ def _register_outlines(
                 GROUP_NAME: name,
             },
         )
+    return True
 
 
 def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
@@ -898,7 +878,10 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
     # since `displot` builds its own grid. Kept anyway, and mirrored below for
     # the other two shapes: one ownership rule for every artist a panel can
     # arrive with beats three, and the day a plotter is handed a used axes it
-    # is the only thing standing between declining and lying.
+    # is the only thing standing between declining and lying. No test covers
+    # it and none can while that holds -- a mutation emptying the snapshot
+    # passes the suite, which is recorded here rather than left to be
+    # rediscovered.
     panels = plotter_axes(instance)
     before = {id(ax): _containers_of(ax) for ax in panels}
     # The other two shapes a panel can arrive in. Snapshotted the same way and
@@ -920,8 +903,13 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
     for ax in plotter_axes(instance):
         seen = before.get(id(ax), [])
         if not _drew_bars(ax, seen):
-            _register_outlines(ax, outlines.get(id(ax), []), lines.get(id(ax), []),
-                               kde, horizontal)
+            _register_outlines(
+                ax,
+                outlines.get(id(ax), []),
+                lines.get(id(ax), []),
+                kde,
+                horizontal,
+            )
             continue
         # One layer per group here too; `displot(hue=...)` reaches only this
         # site, so leaving it reading the first container would fix the defect
