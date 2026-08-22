@@ -19,6 +19,32 @@ from htmltools import Tag, tags
 # What the frame is called when the chart it holds has no title of its own.
 _UNTITLED_NAME = "Accessible chart"
 
+# Permissions-Policy features the chart frame is allowed to use.
+#
+# These let maidr.js reach a refreshable tactile display -- a Dot Pad -- and
+# draw the chart on its pins, over Bluetooth or over USB.  Both are listed
+# because maidr offers both and they are gated independently; granting one
+# would leave the other path dead with nothing on the page to explain it.
+#
+# Two different default allowlists meet here.  A feature the container policy
+# does not name falls back to the *feature's* default, ``self`` -- which a
+# same-origin frame satisfies, so this attribute changes nothing for one.  A
+# feature named here without its own allowlist takes the *attribute's*
+# default, ``'src'``: the origin the frame was loaded from.  They coincide
+# only because these wrappers use ``srcdoc``, whose document inherits the
+# embedder's origin, which is why ``test_the_frame_still_carries_its_own_document``
+# guards that choice.  What the attribute buys is the cross-origin case, where
+# the fallback would deny both.
+#
+# This delegates capabilities, it does not create them: a frame cannot receive
+# a feature the embedding page lacks, and the browser still requires a user
+# gesture and its own device picker.  It does widen what an injection into the
+# framed document would reach, so it leans on an assumption worth stating: the
+# chart content placed in ``srcdoc`` stays non-executable.  ``htmltools``
+# escapes it today -- a title of ``</iframe><script>`` arrives as text -- and
+# that has to keep being true.
+_ALLOWED_FEATURES = "bluetooth; serial"
+
 
 def _generate_unique_id() -> str:
     """Generate a unique iframe ID."""
@@ -252,6 +278,7 @@ def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) ->
         # iframe is the chart" -- the Shiny focus restore does -- would
         # otherwise act on one of those. See `maidr/widget/_focus.py`.
         **{"data-maidr-chart": ""},
+        allow=_ALLOWED_FEATURES,
         srcdoc=str(base_html.get_html_string()),
         width="100%",
         height="100%",
@@ -393,6 +420,7 @@ def wrap_in_iframe_plotly(base_html: Tag, chart_title: str | None = None) -> Tag
         # iframe is the chart" -- the Shiny focus restore does -- would
         # otherwise act on one of those. See `maidr/widget/_focus.py`.
         **{"data-maidr-chart": ""},
+        allow=_ALLOWED_FEATURES,
         srcdoc=str(base_html.get_html_string()),
         width="100%",
         height="100%",
