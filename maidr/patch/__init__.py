@@ -25,6 +25,7 @@ from . import (  # noqa: E402, F401
     histogram,
     lineplot,
     stem,
+    stripplot,
     pieplot,
     pointplot,
     scatterplot,

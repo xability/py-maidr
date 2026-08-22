@@ -91,7 +91,11 @@ def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
         FigureManager.create_maidr(
             ax,
             PlotType.SCATTER,
-            **dict(kwargs, **{DRAWN_POINTS: points, HUE_GROUP: group}),
+            # One membership list, for the one collection this call drew.
+            # `hue_groups` answers in the offsets of the collection it was
+            # asked about; the layer takes a list of those, one per
+            # collection, because a strip plot's groups span several (#586).
+            **dict(kwargs, **{DRAWN_POINTS: points, HUE_GROUP: (group[0], [group[1]])}),
         )
 
     return plot
