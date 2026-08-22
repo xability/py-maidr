@@ -8,6 +8,7 @@ from matplotlib.collections import LineCollection
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.util.grid_axes import tick_step
 from maidr.util.legend_names import title_of
 
 #: Key the patch hands this layer the ``LineCollection`` its own call drew
@@ -209,6 +210,51 @@ class RugPlot(MaidrPlot):
             ]
         return [{MaidrKey.X: 0, MaidrKey.Y: position} for position in self._positions]
 
+    def _observation_bounds(self) -> tuple[float, float, float] | None:
+        """
+        The axis the ticks stand on, as ``(min, max, tickStep)``.
+
+        Read off the axes rather than off the observations: the grid the
+        frontend builds is of the *chart*, and a reader feeling it is feeling
+        the plotting area they would see. Taken from the same three places
+        :meth:`~maidr.core.plot.scatterplot.ScatterPlot._extract_axes_data`
+        takes them -- the step through the helper both share -- and declined
+        on the same grounds: a log scale, ticks that are not evenly spaced, or
+        bounds that do not enclose at least one cell. A grid built on any of those would be a surface whose cells do
+        not correspond to the axis a reader is told about.
+
+        Only this axis is asked. The one across the ticks is supplied whole by
+        the caller, since a rug is one row deep by construction and no reading
+        of the panel could say so.
+
+        Returns
+        -------
+        tuple or None
+            ``(min, max, tickStep)``, or ``None`` when the axis cannot carry
+            a grid -- which leaves the layer exactly as it read before, minus
+            the braille it could not reach either way.
+        """
+        # A guard rather than a live branch, and kept as one deliberately. On a
+        # log axis the other check below already declines every chart measured,
+        # by an accident of units: `get_xlim` answers in **log space** while
+        # `get_xticks` answers in **data space**, so a log chart whose ticks sit
+        # at 1, 2 and 3 gives `step 1.0` against a span of 0.75 and fails the
+        # `step > (high - low)` clause. This is the check that states the
+        # intent -- the cells a non-linear axis draws are not the cells evenly
+        # spaced bounds describe -- and it holds if that accident ever stops.
+        # `test_rugplot.py` pins the two spaces, so the matplotlib release that
+        # ends it turns a test red rather than leaving this silently dead.
+        if self.ax.get_xscale() != "linear" or self.ax.get_yscale() != "linear":
+            return None
+
+        low, high = self.ax.get_xlim() if self._along_x else self.ax.get_ylim()
+        ticks = self.ax.get_xticks() if self._along_x else self.ax.get_yticks()
+        step = tick_step(ticks)
+
+        if step is None or low >= high or step <= 0 or step > (high - low):
+            return None
+        return float(low), float(high), float(step)
+
     def _extract_axes_data(self) -> dict:
         """
         Name the axes, calling the strip the ticks sit in what it is.
@@ -220,8 +266,41 @@ class RugPlot(MaidrPlot):
         this layer emits sits at 0 rather than at any density.
         """
         axes_data = super()._extract_axes_data()
+        along = MaidrKey.X if self._along_x else MaidrKey.Y
         across = MaidrKey.Y if self._along_x else MaidrKey.X
-        axes_data[across] = self._axis_config(label=RUG_AXIS_LABEL)
+        # Bounds on both axes, which is what makes the layer reachable in
+        # grid mode -- and grid mode is the only mode where a point layer
+        # renders braille at all. Measured against maidr's `ScatterTrace`:
+        # with the labels alone the braille state comes back `empty`, and a
+        # rug is then the one chart with no braille surface available by any
+        # keystroke. With them, four observations at 1, 2, 3 and 9 over a 0-10
+        # axis give `values [[2, 1, 0, 1]]` -- the observation count per cell,
+        # which is the clustering a rug is drawn to show and the one thing its
+        # audio cannot carry, since every tick sits at the same place on the
+        # axis pitch is mapped from (xability/maidr#1132).
+        #
+        # Additive only: grid mode is entered deliberately, and walking the
+        # ticks with and without these gives byte-identical audio, panning and
+        # text at every step.
+        bounds = self._observation_bounds()
+        if bounds is not None:
+            low, high, step = bounds
+            axes_data[along] = self._axis_config(
+                label=axes_data[along].get(MaidrKey.LABEL),
+                min=low,
+                max=high,
+                tick_step=step,
+            )
+            # One row deep, because that is what a rug is: every entry sits at
+            # the same place across the ticks. A finer step buys a second row
+            # of zeroes -- measured, `tickStep` 0.5 gives
+            # `[[2, 1, 0, 1], [0, 0, 0, 0]]` -- which is a row of the surface
+            # spent saying nothing.
+            axes_data[across] = self._axis_config(
+                label=RUG_AXIS_LABEL, min=0, max=1, tick_step=1
+            )
+        else:
+            axes_data[across] = self._axis_config(label=RUG_AXIS_LABEL)
 
         # A grouped layer names the grouping *variable* on z, the way the
         # scatter and line layers do: `z` says what the split is by, `name`
