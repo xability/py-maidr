@@ -359,3 +359,39 @@ class TestTheShapesOnlyDisplotCanReach:
         ]
 
         assert sorted(name for name in names if name) == ["a", "b"]
+
+    @pytest.mark.parametrize(
+        ("element", "reads"), [("step", True), ("poly", False)]
+    )
+    def test_a_density_overlay_decides_which_outline_is_readable(
+        self, element, reads
+    ):
+        """`kde=` has to be observed here, and it is not a `displot` keyword.
+
+        The plotter method takes it under its own name, so this reads the
+        *inner* call's kwargs -- measured, ``kde=True`` arrives there as a
+        keyword for every spelling. Worth pinning rather than assuming, since
+        the neighbouring `x`/`y` arguments are **not** forwarded that way and
+        the orientation had to come off the plotter instead.
+
+        What it decides: an unfilled ``poly`` outline and a density curve are
+        both ``drawstyle="default"`` and differ only in vertex count, which
+        both ``gridsize=`` and the bin count move -- so a ``poly`` drawn
+        beside a density is declined rather than guessed at (#583). A
+        ``step`` outline is unambiguous by drawstyle and is read. A `kde` that
+        arrived silently `False` would announce that density as a
+        distribution.
+        """
+        grid = sns.displot(
+            frame(), x="v", bins=4, element=element, fill=False, kde=True
+        )
+
+        assert layers(grid.figure) == (["hist"] if reads else [])
+
+    def test_the_same_pair_reads_the_same_way_through_histplot(self):
+        # The asymmetry this whole class is about, asserted in the one place
+        # the two interfaces are meant to agree on a *decline*.
+        _, ax = plt.subplots()
+        sns.histplot(frame(), x="v", bins=4, element="poly", fill=False, kde=True, ax=ax)
+
+        assert layers(ax.get_figure()) == []
