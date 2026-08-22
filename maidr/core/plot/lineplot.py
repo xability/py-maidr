@@ -4,6 +4,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.util.artist_label import series_name
 from maidr.util.confidence_band import band_edges_at
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
@@ -285,14 +286,11 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
                 unique_gid = f"maidr-{uuid.uuid4()}"
                 line.set_gid(unique_gid)
 
-            label: str = line.get_label()  # type: ignore
-
             # Try to get the series name from legend labels
-            line_type = ""
             if legend_labels and i < len(legend_labels):
                 line_type = legend_labels[i]
-            elif not label.startswith("_child"):
-                line_type = label
+            else:
+                line_type = series_name(line)
 
             # Use the new method to extract data with categorical labels
             line_coords = LineExtractorMixin.extract_line_data_with_categorical_labels(

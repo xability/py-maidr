@@ -3,6 +3,7 @@ from typing import List, Union
 from matplotlib.axes import Axes
 import numpy as np
 
+from maidr.util.artist_label import series_name
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
@@ -92,7 +93,7 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
                 unique_gid = f"maidr-{uuid.uuid4()}"
                 line.set_gid(unique_gid)
 
-            label: str = line.get_label()  # type: ignore
+            line_type = series_name(line)
             line_data = []
 
             # Check if this line has date numbers from mplfinance
@@ -127,7 +128,7 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
                 point_data = {
                     MaidrKey.X: x_value,
                     MaidrKey.Y: float(y),
-                    MaidrKey.Z: (label if not label.startswith("_child") else ""),
+                    MaidrKey.Z: line_type,
                 }
                 line_data.append(point_data)
 
