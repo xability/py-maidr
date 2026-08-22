@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
+from matplotlib.collections import LineCollection
 
 import maidr
 from maidr.core.figure_manager import FigureManager
@@ -191,8 +192,6 @@ def test_a_collection_that_is_not_a_set_of_ticks_is_declined():
     # A segment sloping across both axes is held constant on neither, so it
     # marks no position. The whole layer is declined rather than part of it
     # read, so a chart is never announced as a subset of itself.
-    from matplotlib.collections import LineCollection
-
     sloped = LineCollection([[[0.0, 1.0], [5.0, 2.0]]])
     assert read_rug(sloped) is None
 
@@ -297,8 +296,10 @@ def test_a_rug_with_no_tick_length_is_declined():
 
 
 def _named(fig) -> list:
-    return [(schema.get("name"), [point["x"] for point in schema["data"]])
-            for schema in _schemas(fig)]
+    return [
+        (schema.get("name"), [point["x"] for point in schema["data"]])
+        for schema in _schemas(fig)
+    ]
 
 
 def test_a_hue_split_rug_reads_one_layer_per_level(frame):
@@ -442,8 +443,6 @@ def test_a_colour_list_that_does_not_correspond_to_the_ticks_is_declined(frame):
     is the count and not the naming: given four of them the same call
     splits.
     """
-    from matplotlib.collections import LineCollection
-
     from maidr.patch.rugplot import _HUE_MAP_TYPE, _hue_groups
 
     ax, colours = _grouped_axes(frame)
@@ -467,8 +466,6 @@ def test_a_tick_no_swatch_names_declines_the_whole_split(frame):
     level. The whole split is declined instead, which is the rule
     `scatterplot.hue_groups` follows for a point no swatch claims.
     """
-    from matplotlib.collections import LineCollection
-
     from maidr.patch.rugplot import _HUE_MAP_TYPE, _hue_groups
 
     ax, colours = _grouped_axes(frame)
@@ -483,3 +480,35 @@ def test_a_tick_no_swatch_names_declines_the_whole_split(frame):
         assert _hue_groups(ax, partly, 4) is None
     finally:
         _HUE_MAP_TYPE.reset(token)
+
+
+def test_a_split_named_by_a_figure_legend_still_says_what_it_split_by():
+    """The `z` label has to come off the legend that named the groups.
+
+    `legend_of` falls back to a lone figure-level legend for a panel with
+    none of its own -- that is how a `PairGrid`'s panels are named -- and
+    the layers then carry the levels it named them with. Reading the title
+    off `ax.get_legend()` alone leaves that chart saying which side of a
+    grouping each layer is on without ever saying what the grouping is.
+
+    Measured before the fix: two layers, `name='a'` and `name='b'`, and no
+    `z` at all.
+    """
+    frame = pd.DataFrame({"v": [1.0, 2.0, 3.0, 7.0, 8.0, 9.0], "g": list("aaabbb")})
+    fig, ax = plt.subplots()
+    palette = sns.color_palette(n_colors=2)
+    handles = [
+        plt.Line2D([], [], color=colour, label=name)
+        for name, colour in zip(["a", "b"], palette)
+    ]
+    fig.legend(handles=handles, title="g")
+
+    sns.rugplot(frame, x="v", hue="g", ax=ax, legend=False)
+
+    assert ax.get_legend() is None
+    schemas = _schemas(fig)
+    assert [schema.get("name") for schema in schemas] == ["a", "b"]
+    assert [schema["axes"].get("z") for schema in schemas] == [
+        {"label": "g"},
+        {"label": "g"},
+    ]

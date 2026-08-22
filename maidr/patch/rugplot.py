@@ -183,11 +183,7 @@ def _drawn_by_this_call(ax: Axes | None, before: list) -> list:
     if ax is None:
         return []
     seen = [id(collection) for collection in before]
-    return [
-        collection
-        for collection in ax.collections
-        if id(collection) not in seen
-    ]
+    return [collection for collection in ax.collections if id(collection) not in seen]
 
 
 def _name_for(ax: Axes, along_x: bool) -> str:
@@ -307,7 +303,6 @@ def _register(ax: Axes | None, drawn, before: list):
         ax = drawn if isinstance(drawn, Axes) else None
     if ax is None:
         return drawn
-
 
     for collection in _drawn_by_this_call(ax, before):
         if not isinstance(collection, LineCollection):

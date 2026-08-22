@@ -8,6 +8,7 @@ from matplotlib.collections import LineCollection
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.util.legend_names import title_of
 
 #: Key the patch hands this layer the ``LineCollection`` its own call drew
 #: under. Named like ``eventplot.DRAWN_EVENTS`` and read the same way: the
@@ -225,8 +226,16 @@ class RugPlot(MaidrPlot):
         # A grouped layer names the grouping *variable* on z, the way the
         # scatter and line layers do: `z` says what the split is by, `name`
         # says which side of it this layer is.
+        #
+        # Read off whichever legend named the groups, which is not always
+        # this axes' own: the patch names them through `legend_of`, and that
+        # falls back to a lone figure-level legend for a panel carrying
+        # none. `_legend_title` asks `ax.get_legend()` only, so on that path
+        # the layers came out named `a` and `b` with no `z` -- each saying
+        # which side of a grouping it was without the chart ever saying what
+        # the grouping was.
         if self._group_members is not None:
-            z_label = self._legend_title()
+            z_label = title_of(self.ax)
             if z_label:
                 axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
 
