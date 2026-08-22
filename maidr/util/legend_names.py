@@ -114,8 +114,7 @@ def names_for(ax: Axes, colours: list) -> list:
         named = _match_swatches(colours, swatches, key)
         if named:
             return [
-                None if colour is None else named.get(key(colour))
-                for colour in colours
+                None if colour is None else named.get(key(colour)) for colour in colours
             ]
     return [None] * len(colours)
 
@@ -250,3 +249,63 @@ def title_of(ax: Axes) -> str:
     if title is None:
         return ""
     return title.get_text().strip()
+
+
+def names_for_panel(ax: Axes, colours: list, faceted: bool) -> list:
+    """
+    :func:`names_for`, plus the lone artist a faceted grid can still name.
+
+    The single-artist floor asks whether an artist is alone **on its axes**:
+    "a lone artist needs nothing to be told apart from". That is right about
+    one chart and wrong about one panel of a grid, because the two questions
+    come apart there -- the figure holds several distributions and the panel
+    holds one of them. A reader walking the layers of
+    ``displot(hue=..., col=...)`` heard two named ones and then one that would
+    not say which group it was, on a chart whose legend names it plainly
+    (#608).
+
+    So the panel count decides it, not where the legend was hung. A figure
+    legend is not the signal: seaborn's ``FacetGrid`` builds one for a single
+    panel too, and reading that as licence to name would leave
+    ``displot(one_level, hue=...)`` named and ``histplot(one_level, hue=...)``
+    unnamed -- the same chart, two spellings, two answers, which is the
+    asymmetry #522, #446 and #590 were each about. Both emit ``None`` today
+    and both keep doing so.
+
+    The panel count is a **proxy** for "the figure holds more than this
+    panel does", and the two can come apart: a `col=` grid whose `hue=`
+    happens to have a single level across the whole frame draws one artist
+    per panel, all of them the same group, and every one is now named.
+    Measured, `displot(x=, hue=, col=)` with one hue level gives
+    `['only', 'only']` where it gave `[None, None]`.
+
+    Kept rather than guarded against, because the name is **true**: the
+    legend says which group these are, a sighted reader sees it, and the
+    panels are told apart by their `col` level rather than by hue, so
+    nothing is lost to the redundancy. The case the floor is right about is
+    the other one -- a single-panel chart, where a name implies a companion
+    layer that does not exist. Pinned in
+    `tests/core/test_displot_distribution.py`.
+
+    Only the floor moves. Every other decline is :func:`name_for`'s and
+    unchanged: no legend, a colour no swatch claims, a colour two swatches
+    claim.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    colours : list
+        One rounded RGBA per artist, or ``None`` where it has no single one.
+    faceted : bool
+        Whether this panel is one of several. False leaves
+        :func:`names_for` answering exactly as it did.
+
+    Returns
+    -------
+    list
+        One name per entry, or ``None``.
+    """
+    if faceted and len(colours) == 1:
+        return [name_for(ax, colours[0])]
+    return names_for(ax, colours)

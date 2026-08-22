@@ -12,13 +12,30 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.contour import tag
 from maidr.core.plot.maidr_plot import GROUP_NAME
+
 # `_handle_colour` and `legend_of` are re-exported rather than used here:
 # both moved out when the colour matching became shared, and both are
 # imported from this module by name elsewhere.
 from maidr.core.plot.scatterplot import _handle_colour, _rgba  # noqa: F401
-from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
+from maidr.patch.common import (
+    _draw_quietly,
+    common,
+    plotter_axes,
+    prospective_axes,
+    wrap_seaborn,
+)
 from maidr.core.context_manager import ContextManager
-from maidr.util.legend_names import legend_of, names_for as _names_for  # noqa: F401
+
+# `legend_of` and `_names_for` are re-exported rather than used here:
+# `tests/core/plot/test_hue_kde_naming.py` and
+# `tests/core/plot/test_pairplot_group_names.py` reach the colour match
+# through this module, which is where it lived before it moved to
+# `maidr/util/legend_names.py`. The blanket noqa is what lets them.
+from maidr.util.legend_names import (  # noqa: F401
+    legend_of,
+    names_for as _names_for,
+    names_for_panel as _names_for_panel,
+)
 from maidr.util.svg_utils import unique_lines_by_xy
 
 
@@ -90,7 +107,7 @@ def _register_field(ax: Axes | None, before: list) -> None:
         FigureManager.create_maidr(ax, PlotType.CONTOUR, contour_set=drawn)
 
 
-def _curve_names(ax: Axes, curves: list) -> list:
+def _curve_names(ax: Axes, curves: list, faceted: bool = False) -> list:
     """
     Name each KDE curve from the legend swatch drawn in its colour.
 
@@ -110,7 +127,8 @@ def _curve_names(ax: Axes, curves: list) -> list:
     wrongly: no legend, a curve no swatch claims, or a swatch that names two
     things. A lone curve is left unnamed whatever the legend says, because a
     name on the only layer of a chart reads as though there were another to
-    tell it from.
+    tell it from -- unless the chart is a grid and this is one panel of it,
+    where the other layers exist and are drawn next door (#608).
 
     Parameters
     ----------
@@ -118,16 +136,18 @@ def _curve_names(ax: Axes, curves: list) -> list:
         The axes drawn on, for its legend.
     curves : list
         The KDE lines, in draw order.
+    faceted : bool
+        Whether this panel is one of several.
 
     Returns
     -------
     list
         One entry per curve, naming it or ``None``.
     """
-    return _names_for(ax, [_rgba(curve.get_color()) for curve in curves])
+    return _names_for_panel(ax, [_rgba(curve.get_color()) for curve in curves], faceted)
 
 
-def _fill_names(ax: Axes, fills: list) -> list:
+def _fill_names(ax: Axes, fills: list, faceted: bool = False) -> list:
     """
     Name each filled KDE band from the legend swatch drawn in its colour.
 
@@ -142,13 +162,15 @@ def _fill_names(ax: Axes, fills: list) -> list:
         The axes drawn on, for its legend.
     fills : list
         The bands, in draw order.
+    faceted : bool
+        Whether this panel is one of several.
 
     Returns
     -------
     list
         One entry per band, naming it or ``None``.
     """
-    return _names_for(ax, [_collection_colour(fill) for fill in fills])
+    return _names_for_panel(ax, [_collection_colour(fill) for fill in fills], faceted)
 
 
 def _collection_colour(collection) -> tuple | None:
@@ -214,7 +236,9 @@ def deferred_names(resolve, count: int) -> list:
     return [at(index) for index in range(count)]
 
 
-def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
+def _register_smooth(
+    ax: Axes | None, instance, args, kwargs, faceted: bool = False
+) -> None:
     """
     Register every KDE curve on one axes as a SMOOTH layer.
 
@@ -233,14 +257,18 @@ def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
         resolve one does nothing rather than guessing.
     instance, args, kwargs
         Forwarded to :func:`maidr.patch.common.common` unchanged.
+    faceted : bool
+        Whether this panel is one of several, which is what lets a panel
+        holding a single curve still be named (#608).
     """
     if ax is not None:
         # Register all unique Line2D objects
         lines = [line for line in ax.get_lines() if isinstance(line, Line2D)]
         curves = list(unique_lines_by_xy(lines))
-        for kde_line, name in zip(curves, deferred_names(
-            lambda: _curve_names(ax, curves), len(curves)
-        )):
+        for kde_line, name in zip(
+            curves,
+            deferred_names(lambda: _curve_names(ax, curves, faceted), len(curves)),
+        ):
             if kde_line.get_gid() is None:
                 gid = f"maidr-{uuid.uuid4()}"
                 kde_line.set_gid(gid)
@@ -253,9 +281,9 @@ def _register_smooth(ax: Axes | None, instance, args, kwargs) -> None:
             )
         # Register all PolyCollection boundaries as SMOOTH
         fills = [c for c in ax.collections if isinstance(c, PolyCollection)]
-        for poly, fill_name in zip(fills, deferred_names(
-            lambda: _fill_names(ax, fills), len(fills)
-        )):
+        for poly, fill_name in zip(
+            fills, deferred_names(lambda: _fill_names(ax, fills, faceted), len(fills))
+        ):
             if poly.get_paths():
                 path = poly.get_paths()[0]
                 boundary = path.vertices
@@ -323,8 +351,12 @@ def sns_distribution_density(wrapped, instance, args, kwargs):
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
 
-    for ax in plotter_axes(instance):
-        _register_smooth(ax, instance, args, kwargs)
+    # One legend for the whole grid, so a panel holding one curve holds one
+    # of several and the name that says which is worth having (#608).
+    panels = plotter_axes(instance)
+    faceted = len(panels) > 1
+    for ax in panels:
+        _register_smooth(ax, instance, args, kwargs, faceted)
 
     return drawn
 

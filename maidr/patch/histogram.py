@@ -22,8 +22,18 @@ from maidr.core.plot.outlined_histogram import reads as outline_reads
 from maidr.core.plot.scatterplot import _rgba
 from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, STEP_ORIENTATION
 from maidr.core.plot.stepped_histogram import reads as _reads_outline
-from maidr.patch.common import _draw_quietly, common, plotter_axes, prospective_axes, wrap_seaborn
-from maidr.patch.kdeplot import _curve_names, _names_for, deferred_names
+from maidr.patch.common import (
+    _draw_quietly,
+    common,
+    plotter_axes,
+    prospective_axes,
+    wrap_seaborn,
+)
+from maidr.patch.kdeplot import (
+    _curve_names,
+    _names_for_panel,
+    deferred_names,
+)
 
 
 @wrapt.patch_function_wrapper(Axes, "hist")
@@ -209,7 +219,9 @@ def _new_bar_containers(ax: Axes | None, before: list) -> list[BarContainer]:
     ]
 
 
-def _group_names(ax: Axes | None, containers: list) -> list[str | None]:
+def _group_names(
+    ax: Axes | None, containers: list, faceted: bool = False
+) -> list[str | None]:
     """
     Name each container from the legend swatch drawn in its colour.
 
@@ -241,7 +253,14 @@ def _group_names(ax: Axes | None, containers: list) -> list[str | None]:
     distribution needs nothing to tell it apart from, and a name there would
     read as though the chart held more.
 
-    The match itself is ``kdeplot._names_for``, which is the same one this
+    Unless it is one panel of a grid, where those two stop being the same
+    thing -- the figure holds several distributions and this panel holds one
+    of them, so the name is worth having and the legend has it. `faceted`
+    says which case this is; see :func:`~maidr.util.legend_names.names_for_panel`
+    for why the panel count decides it rather than where the legend was hung
+    (#608).
+
+    The match itself is ``kdeplot._names_for_panel``, which is the same one this
     used to make inline against ``_named_colours`` plus a second pass this
     lacked. That pass is not a nicety here: a ``pairplot(hue=...)`` draws its
     bars translucent and builds its figure legend from **opaque** swatches --
@@ -256,6 +275,8 @@ def _group_names(ax: Axes | None, containers: list) -> list[str | None]:
         The axes drawn on, for its legend.
     containers : list
         The containers this call drew, in draw order.
+    faceted : bool
+        Whether this panel is one of several.
 
     Returns
     -------
@@ -265,7 +286,7 @@ def _group_names(ax: Axes | None, containers: list) -> list[str | None]:
     if ax is None:
         return [None] * len(containers)
 
-    return _names_for(ax, [_container_colour(c) for c in containers])
+    return _names_for_panel(ax, [_container_colour(c) for c in containers], faceted)
 
 
 def _container_colour(container) -> tuple[float, ...] | None:
@@ -508,7 +529,6 @@ def _drew_outlines(ax: Axes | None, before: list) -> list:
         for outline in _outlines_of(ax)
         if id(outline) not in seen and _reads_outline(outline)
     ]
-
 
 
 def _lines_of(ax: Axes | None) -> list:
@@ -754,7 +774,12 @@ def sns_hist(wrapped, instance, args, kwargs) -> Axes:
 
 
 def _register_outlines(
-    ax: Axes | None, outlines: list, lines: list, kde: bool, horizontal: bool
+    ax: Axes | None,
+    outlines: list,
+    lines: list,
+    kde: bool,
+    horizontal: bool,
+    faceted: bool = False,
 ) -> bool:
     """
     Register the panel's distribution when it was drawn as an outline.
@@ -805,7 +830,8 @@ def _register_outlines(
     drew = _drew_outlines(ax, outlines)
     if drew:
         names = deferred_names(
-            lambda: _names_for(ax, [_face_colour(one) for one in drew]), len(drew)
+            lambda: _names_for_panel(ax, [_face_colour(one) for one in drew], faceted),
+            len(drew),
         )
         for outline, name in zip(drew, names):
             FigureManager.create_maidr(
@@ -820,7 +846,9 @@ def _register_outlines(
         return False
 
     names = deferred_names(
-        lambda: _names_for(ax, [_rgba(one.get_color()) for one in outlined]),
+        lambda: _names_for_panel(
+            ax, [_rgba(one.get_color()) for one in outlined], faceted
+        ),
         len(outlined),
     )
     for line, name in zip(outlined, names):
@@ -883,6 +911,12 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
     # passes the suite, which is recorded here rather than left to be
     # rediscovered.
     panels = plotter_axes(instance)
+    # Whether a lone artist on a panel is a lone artist in the *chart*. A
+    # `col=`/`row=` grid draws several panels and one legend for all of them,
+    # so a panel holding one group holds one of several -- and the name that
+    # says which is worth having (#608). Read once, before the draw, because
+    # it is a property of the grid rather than of what any panel drew.
+    faceted = len(panels) > 1
     before = {id(ax): _containers_of(ax) for ax in panels}
     # The other two shapes a panel can arrive in. Snapshotted the same way and
     # for the same reason: an axes that already held an outline is not this
@@ -909,6 +943,7 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
                 lines.get(id(ax), []),
                 kde,
                 horizontal,
+                faceted,
             )
             continue
         # One layer per group here too; `displot(hue=...)` reaches only this
@@ -923,12 +958,18 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
         # Measured on `displot(hue=..., col=...)` over a grid whose panels
         # hold different groups: three layers, all `None`, because the last
         # panel held a single container and a lone artist is exactly what
-        # `names_for` declines. Asked panel by panel the same figure gives
-        # `['b', 'a']` and `[None]` (#591).
-        for container, name in zip(containers, deferred_names(
-            lambda ax=ax, containers=containers: _group_names(ax, containers),
-            len(containers),
-        )):
+        # `names_for` declined. Asked panel by panel the same figure gave
+        # `['b', 'a']` and `[None]` (#591) -- the `[None]` since lifted by
+        # #608, which is what `faceted` carries.
+        for container, name in zip(
+            containers,
+            deferred_names(
+                lambda ax=ax, containers=containers: _group_names(
+                    ax, containers, faceted
+                ),
+                len(containers),
+            ),
+        ):
             FigureManager.create_maidr(
                 ax, PlotType.HIST, **{DRAWN_BARS: container, GROUP_NAME: name}
             )

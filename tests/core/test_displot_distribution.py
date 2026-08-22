@@ -107,8 +107,7 @@ class TestADistributionReadsAsOne:
         # legible: nothing about `displot`'s reading looked wrong on its own.
         sns.displot(frame(), x="v", bins=3)
         figure_level = [
-            {str(key): value for key, value in sample.items()}
-            for sample in samples()
+            {str(key): value for key, value in sample.items()} for sample in samples()
         ]
 
         plt.close("all")
@@ -261,9 +260,7 @@ class TestEveryElementDisplotDraws:
     @pytest.mark.parametrize("element", ["step", "poly"])
     def test_a_hue_grouped_outline_names_its_groups(self, element):
         # The names come from the legend by colour, as the bars' do.
-        grid = sns.displot(
-            frame(), x="v", hue="g", bins=3, element=element, fill=False
-        )
+        grid = sns.displot(frame(), x="v", hue="g", bins=3, element=element, fill=False)
         names = [
             plot.schema.get("name")
             for plot in FigureManager.get_maidr(grid.figure)._plots
@@ -293,7 +290,15 @@ class TestAFacetedHistogramNamesEachPanelFromItself:
     Measured on a grid whose panels hold different groups: three layers, all
     ``None``, because the last panel held a single container and a lone
     artist is exactly what ``names_for`` declines. Asked panel by panel the
-    same figure gives ``['b', 'a']`` and ``[None]``.
+    same figure gave ``['b', 'a']`` and ``[None]``.
+
+    That last ``[None]`` is no longer what the panel answers -- #608 lifted
+    the lone-artist floor for a panel of a grid, so the third layer is now
+    named ``'c'``. This class still pins the binding: a resolver closing over
+    the loop variables would name **every** layer from the last panel, and
+    the last panel holds `c` alone, so the failure it guards against is now
+    three layers reading ``'c'``, ``'c'``, ``'c'`` rather than three
+    ``None``s. Either way the names would not be each panel's own.
     """
 
     @staticmethod
@@ -320,7 +325,7 @@ class TestAFacetedHistogramNamesEachPanelFromItself:
         assert named == [
             ("b", [0.0, 10.0, 0.0]),
             ("a", [10.0, 0.0, 0.0]),
-            (None, [0.0, 0.0, 10.0]),
+            ("c", [0.0, 0.0, 10.0]),
         ]
 
 
@@ -360,12 +365,8 @@ class TestTheShapesOnlyDisplotCanReach:
 
         assert sorted(name for name in names if name) == ["a", "b"]
 
-    @pytest.mark.parametrize(
-        ("element", "reads"), [("step", True), ("poly", False)]
-    )
-    def test_a_density_overlay_decides_which_outline_is_readable(
-        self, element, reads
-    ):
+    @pytest.mark.parametrize(("element", "reads"), [("step", True), ("poly", False)])
+    def test_a_density_overlay_decides_which_outline_is_readable(self, element, reads):
         """`kde=` has to be observed here, and it is not a `displot` keyword.
 
         The plotter method takes it under its own name, so this reads the
@@ -392,6 +393,147 @@ class TestTheShapesOnlyDisplotCanReach:
         # The asymmetry this whole class is about, asserted in the one place
         # the two interfaces are meant to agree on a *decline*.
         _, ax = plt.subplots()
-        sns.histplot(frame(), x="v", bins=4, element="poly", fill=False, kde=True, ax=ax)
+        sns.histplot(
+            frame(), x="v", bins=4, element="poly", fill=False, kde=True, ax=ax
+        )
 
         assert layers(ax.get_figure()) == []
+
+
+class TestAPanelHoldingOneGroupIsStillNamed:
+    """`names_for` declines a lone artist, and a facet panel is not one (#608).
+
+    The floor asks whether an artist is alone **on its axes**: "a lone
+    container needs nothing to tell it apart from". That is right about one
+    chart and wrong about one panel of a grid, where the two questions come
+    apart -- the figure holds several distributions and the panel holds one
+    of them.
+
+    Measured before the fix, on a grid whose panels hold different numbers of
+    groups, all three shapes a `displot` panel can arrive in:
+
+        displot(hue=, col=, bins=3)                  ['b', 'a', None]
+        displot(hue=, col=, bins=3, element="step")  ['b', 'a', None]
+        displot(hue=, col=, kind="kde")              ['b', 'a', None]
+        displot(hue=, bins=3)   # unfaceted control  ['c', 'b', 'a']
+
+    A reader walking the layers heard two named distributions and then one
+    that would not say which group it was, on a chart whose legend names it
+    plainly -- and the same data drawn unfaceted named all three.
+    """
+
+    @staticmethod
+    def _split_frame() -> pd.DataFrame:
+        # Panel "p" holds groups a and b; panel "q" holds only c. The panels
+        # must differ in *shape* or the lone-container case never arises.
+        return pd.DataFrame(
+            {
+                "v": list(np.linspace(0, 1, 30)),
+                "g": ["a"] * 10 + ["b"] * 10 + ["c"] * 10,
+                "c": ["p"] * 20 + ["q"] * 10,
+            }
+        )
+
+    @staticmethod
+    def _names(fig) -> list:
+        return [plot.schema.get("name") for plot in FigureManager.get_maidr(fig)._plots]
+
+    def test_a_lone_container_in_a_panel_is_named(self):
+        """Bars, the default `element`."""
+        grid = sns.displot(self._split_frame(), x="v", hue="g", col="c", bins=3)
+
+        assert sorted(self._names(grid.figure)) == ["a", "b", "c"]
+
+    def test_a_lone_outline_in_a_panel_is_named(self):
+        """`element="step"` draws a `PolyCollection`, not a `BarContainer`, so
+        it reaches the floor through `_register_outlines` rather than through
+        `_group_names`. Same rule, a different resolver -- and a fix applied
+        to one and not the other would leave a reader's experience depending
+        on which `element=` the author picked."""
+        grid = sns.displot(
+            self._split_frame(), x="v", hue="g", col="c", bins=3, element="step"
+        )
+
+        assert sorted(self._names(grid.figure)) == ["a", "b", "c"]
+
+    def test_a_lone_kde_curve_in_a_panel_is_named(self):
+        """`kind="kde"` reaches it through `_curve_names`, one module over."""
+        grid = sns.displot(self._split_frame(), x="v", hue="g", col="c", kind="kde")
+
+        assert sorted(self._names(grid.figure)) == ["a", "b", "c"]
+
+    def test_the_panels_holding_two_groups_are_unchanged(self):
+        """Additive: the fix moves the floor for a lone artist and nothing
+        else. Asserted in order here rather than sorted, because what must
+        hold is that each name is still on the layer whose counts it belongs
+        to -- the thing #591 was about."""
+        grid = sns.displot(self._split_frame(), x="v", hue="g", col="c", bins=3)
+        named = [
+            (plot.schema.get("name"), [point["y"] for point in plot.schema["data"]])
+            for plot in FigureManager.get_maidr(grid.figure)._plots
+        ]
+
+        assert named == [
+            ("b", [0.0, 10.0, 0.0]),
+            ("a", [10.0, 0.0, 0.0]),
+            ("c", [0.0, 0.0, 10.0]),
+        ]
+
+    @staticmethod
+    def _one_level() -> pd.DataFrame:
+        return pd.DataFrame({"v": list(np.linspace(0, 1, 10)), "g": ["a"] * 10})
+
+    def test_a_single_panel_holding_one_group_is_still_unnamed(self):
+        """The floor is right about one chart and has to stay right there.
+
+        A chart drawing one distribution has nothing to tell it apart from,
+        and a name would read as though it held more. Both spellings emit
+        `None` today and both must keep doing so -- naming only the `displot`
+        one would put the axes-level and figure-level spellings of one chart
+        out of step, which is the asymmetry #522, #446 and #590 were each
+        about.
+
+        This is also why the predicate is the panel count and not where the
+        legend was hung: seaborn's `FacetGrid` builds a *figure* legend for a
+        single panel too, so "the legend is figure-level" would name this one.
+        """
+        grid = sns.displot(self._one_level(), x="v", hue="g", bins=3)
+        assert self._names(grid.figure) == [None]
+
+        plt.close("all")
+        _, ax = plt.subplots()
+        sns.histplot(self._one_level(), x="v", hue="g", bins=3, ax=ax)
+        assert self._names(ax.get_figure()) == [None]
+
+    @staticmethod
+    def _one_level_faceted() -> pd.DataFrame:
+        # `g` has one level across the whole frame; `c` facets it into two
+        # panels. So every panel holds one artist, and all of them are the
+        # same group.
+        return pd.DataFrame(
+            {
+                "v": list(np.linspace(0, 1, 20)),
+                "g": ["only"] * 20,
+                "c": ["p"] * 10 + ["q"] * 10,
+            }
+        )
+
+    def test_a_grid_whose_hue_has_one_level_names_every_panel_alike(self):
+        """The panel count is a proxy for "the figure holds more than this
+        panel does", and this is where the two come apart.
+
+        Measured, `['only', 'only']` where it gave `[None, None]`. Kept
+        rather than guarded against, because the name is **true**: the legend
+        says which group these are, a sighted reader sees it, and the panels
+        are told apart by their `col` level rather than by hue -- so the
+        redundancy costs nothing. The case the floor is right about is the
+        other one, pinned above: a single-panel chart, where a name implies a
+        companion layer that does not exist.
+
+        Pinned so the approximation is visible rather than inferred, and so
+        that a later decision to decline it is a deliberate change to a test
+        rather than a silent one.
+        """
+        grid = sns.displot(self._one_level_faceted(), x="v", hue="g", col="c", bins=3)
+
+        assert self._names(grid.figure) == ["only", "only"]
