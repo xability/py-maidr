@@ -304,12 +304,12 @@ def render_maidr(
     # Streamlit builds this frame itself, so maidr cannot put an ``allow``
     # attribute on it the way it does for notebook renders (see
     # ``_ALLOWED_FEATURES`` in ``maidr/util/iframe_utils.py``).  Web Bluetooth
-    # is therefore unreachable here, and a Dot Pad or other tactile graphics
-    # display cannot be driven from a Streamlit app until Streamlit exposes
-    # the frame's permissions policy.  Everything else -- sonification, text,
-    # braille through the screen reader -- is unaffected, and maidr detects
-    # the missing capability and says so rather than offering a control that
-    # cannot work.
+    # and Web Serial are therefore both unreachable here, and a Dot Pad or
+    # other tactile graphics display cannot be driven from a Streamlit app
+    # until Streamlit exposes the frame's permissions policy.  Everything
+    # else -- sonification, text, braille through the screen reader -- is
+    # unaffected, and maidr detects the missing capability and says so rather
+    # than offering a control that cannot work.
     if hasattr(st, "iframe"):
         st.iframe(html, width=width, height=height, tab_index=tab_index)
         return

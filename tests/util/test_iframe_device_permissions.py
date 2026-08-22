@@ -1,18 +1,23 @@
 """
-Every iframed render delegates Web Bluetooth to the chart frame.
+Every iframed render delegates Web Bluetooth and Web Serial to the chart frame.
 
 maidr.js can draw a chart onto a refreshable tactile display -- a Dot Pad --
-over Web Bluetooth, so a blind reader feels the plot rather than only hearing
-it. ``navigator.bluetooth`` is Permissions-Policy gated, and a frame that is
-not granted the feature does not merely fail the call: the API is absent
-entirely, so maidr reports "this browser cannot reach a DotPad" and the reader
-has no way to tell a policy problem from an unsupported browser.
+so a blind reader feels the plot rather than only hearing it. It reaches the
+device over Bluetooth or over USB, and both APIs are Permissions-Policy gated.
+A frame that is not granted a feature does not merely fail the call: the API is
+absent entirely, so maidr reports "this browser cannot reach a DotPad" and the
+reader has no way to tell a policy problem from an unsupported browser.
 
-The default allowlist is ``self``, so a same-origin frame already has it and
+The default allowlist is ``self``, so a same-origin frame already has them and
 the attribute changes nothing there. It is the cross-origin embeddings that
 need it -- Colab, and any host serving notebook output from a separate origin.
 Since both wrappers produce frames that end up in both kinds of page, both
 carry the attribute.
+
+Both features are asserted, not just one. They are gated independently, so
+granting only Bluetooth would leave a reader on a cable unable to connect for
+a reason nothing on the page explains -- and USB is the faster path by a wide
+margin, so it is not the marginal case.
 
 Asserted on the rendered HTML rather than on a constant, because the constant
 holding the right string is not the claim -- the claim is that the attribute
@@ -48,18 +53,28 @@ class TestTheFrameMayReachATactileDisplay:
     """The attribute reaches the tag, by both wrappers."""
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
-    def test_the_chart_frame_is_allowed_bluetooth(self, wrap) -> None:
+    def test_the_chart_frame_is_allowed_bluetooth_and_serial(self, wrap) -> None:
         rendered = _html(wrap(tags.div("chart"), "Body mass by species"))
 
-        assert 'allow="bluetooth"' in rendered
+        assert 'allow="bluetooth; serial"' in rendered
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
-    def test_an_untitled_chart_is_allowed_it_too(self, wrap) -> None:
+    def test_neither_transport_is_granted_without_the_other(self, wrap) -> None:
+        rendered = _html(wrap(tags.div("chart"), "Body mass by species"))
+
+        # Independently gated, so dropping one leaves that path dead for a
+        # reason nothing on the page explains. Named separately from the exact
+        # string above so a reformatting of the list cannot quietly lose one.
+        assert "bluetooth" in rendered
+        assert "serial" in rendered
+
+    @pytest.mark.parametrize("wrap", WRAPPERS)
+    def test_an_untitled_chart_is_allowed_them_too(self, wrap) -> None:
         # The delegation has nothing to do with the chart's title, and a
         # reader with a tactile display should not lose it for want of one.
         rendered = _html(wrap(tags.div("chart")))
 
-        assert 'allow="bluetooth"' in rendered
+        assert 'allow="bluetooth; serial"' in rendered
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
     def test_the_frame_is_not_sandboxed_into_an_opaque_origin(self, wrap) -> None:
@@ -91,7 +106,7 @@ class TestNothingElseIsDelegated:
 
         # Delegating a feature cannot exceed what the embedding page already
         # holds, but it should still be the shortest list that works. maidr
-        # only ever scans for a device over BLE, so `serial`, `usb`, `camera`
-        # and the rest have no business here.
-        for feature in ("serial", "usb", "camera", "microphone", "geolocation"):
+        # scans for a display over Bluetooth and over serial and nothing else,
+        # so `usb`, `hid`, `camera` and the rest have no business here.
+        for feature in ("usb", "hid", "camera", "microphone", "geolocation"):
             assert feature not in rendered

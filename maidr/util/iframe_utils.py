@@ -21,20 +21,27 @@ _UNTITLED_NAME = "Accessible chart"
 
 # Permissions-Policy features the chart frame is allowed to use.
 #
-# ``bluetooth`` is what lets maidr.js reach a refreshable tactile display --
-# a Dot Pad -- over Web Bluetooth and draw the chart on its pins.  The feature
-# is policy-gated with a default allowlist of ``self``, so a same-origin frame
-# already has it and this attribute is redundant there; a cross-origin one --
-# Colab, and any host that serves notebook output from a separate origin --
-# does not, and without the attribute ``navigator.bluetooth`` is simply absent
+# Both are what let maidr.js reach a refreshable tactile display -- a Dot
+# Pad -- and draw the chart on its pins: ``bluetooth`` for the wireless path,
+# ``serial`` for a cabled one.  Each is policy-gated with a default allowlist
+# of ``self``, so a same-origin frame already has them and this attribute is
+# redundant there; a cross-origin one -- Colab, and any host that serves
+# notebook output from a separate origin -- does not, and without the
+# attribute ``navigator.bluetooth`` and ``navigator.serial`` are simply absent
 # inside the frame.
 #
-# This delegates a capability, it does not create one: a frame can never
+# Both are listed because maidr offers both and they are gated independently:
+# granting only one would leave a reader on a cable unable to connect for a
+# reason nothing on the page explains.  USB is the faster of the two by a wide
+# margin -- a full frame over Bluetooth costs a second or more against a reader
+# pressing arrow keys several times a second -- so it is not the marginal case.
+#
+# This delegates capabilities, it does not create them: a frame can never
 # receive a feature the embedding page itself lacks, and the browser still
 # requires a user gesture and shows its own device picker before anything is
 # paired.  Readers with no tactile display are unaffected -- maidr never
-# touches the API unless they ask it to in Settings.
-_ALLOWED_FEATURES = "bluetooth"
+# touches either API unless they ask it to in Settings.
+_ALLOWED_FEATURES = "bluetooth; serial"
 
 
 def _generate_unique_id() -> str:
