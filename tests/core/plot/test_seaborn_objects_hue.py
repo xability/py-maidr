@@ -664,6 +664,84 @@ def test_a_stack_normalised_afterwards_is_claimed_only_when_it_landed():
     assert [plot.schema["type"].value for plot in plots] == ["bar"]
 
 
+def test_a_callable_sum_is_read_like_the_named_one():
+    """`so.Norm` takes either a numpy method's *name* or a callable, and
+    `Norm(func=numpy.sum)` draws exactly what `Norm(func="sum")` does -- so a
+    reader should not be told a different thing about it.
+
+    A lambda still declines. What this reads is the layer's stated intent,
+    and a lambda states none; declining keeps the chart reading as the stack
+    it is rather than claiming a whole on a guess.
+    """
+    import numpy as np
+
+    for func in ("sum", np.sum, sum):
+        figure = plt.figure()
+        (
+            so.Plot(_bars(), x="cat", y="val", color="g")
+            .add(so.Bar(), so.Norm(func=func, by=["x"]), so.Stack())
+            .on(figure)
+            .plot()
+        )
+        maidr.render(figure)._repr_html_()
+        assert [
+            plot.schema["type"].value for plot in FigureManager.get_maidr(figure).plots
+        ] == ["stacked_normalized_bar"], func
+        plt.close("all")
+
+    figure = plt.figure()
+    (
+        so.Plot(_bars(), x="cat", y="val", color="g")
+        .add(so.Bar(), so.Norm(func=lambda a, **kw: a.sum(**kw), by=["x"]), so.Stack())
+        .on(figure)
+        .plot()
+    )
+    maidr.render(figure)._repr_html_()
+    assert [
+        plot.schema["type"].value for plot in FigureManager.get_maidr(figure).plots
+    ] == ["stacked_bar"]
+
+
+def test_a_dodge_beside_the_stack_is_not_a_whole():
+    """Where the boundary of `_normalises_to_a_whole` sits, stated rather
+    than left implicit.
+
+    Totals are keyed on the drawn position, and a `Dodge()` moves the
+    segments apart, so the keys split with them. That is the answer rather
+    than a hole in it: each drawn column is one dodge slot's share of its
+    category, not the category's, so none of them is a whole. Measured, four
+    levels dodged and stacked under `Norm(func="sum", by=["x"])`: eight
+    columns topping out between 0.1 and 0.4.
+    """
+    frame = pd.DataFrame(
+        {
+            "cat": ["a"] * 4 + ["b"] * 4,
+            "val": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+            "g": list("pqrs") * 2,
+        }
+    )
+    figure = _drawn(
+        lambda fig: (
+            so.Plot(frame, x="cat", y="val", color="g")
+            .add(so.Bar(), so.Norm(func="sum", by=["x"]), so.Dodge(), so.Stack())
+            .on(fig)
+            .plot()
+        )
+    )
+    maidr.render(figure)._repr_html_()
+
+    tops = {}
+    for patch in figure.axes[0].containers[0]:
+        key = round(float(patch.get_x()), 3)
+        tops[key] = max(tops.get(key, 0.0), patch.get_y() + patch.get_height())
+    assert len(tops) == 8
+    assert not any(abs(top - 1.0) < 1e-6 for top in tops.values())
+
+    assert [
+        plot.schema["type"].value for plot in FigureManager.get_maidr(figure).plots
+    ] == ["stacked_bar"]
+
+
 def test_only_a_sum_normalisation_counts_as_asking_for_a_whole():
     """The intent half of `_normalises_to_a_whole`, asked of the function
     directly because no `so.Bar` reaches it.

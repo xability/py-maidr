@@ -195,6 +195,36 @@ _WHOLES = (1.0, 100.0)
 _WHOLE_TOLERANCE = 1e-6
 
 
+def _sums(func: Any) -> bool:
+    """
+    Whether a ``Norm``'s ``func`` adds its group up.
+
+    ``so.Norm`` takes either the *name* of a numpy method -- the documented
+    spelling, and ``"max"`` by default -- or a callable. Both are read,
+    because ``Norm(func=numpy.sum)`` draws exactly what ``Norm(func="sum")``
+    does and a reader should not be told a different thing about it.
+
+    A callable is matched on ``__name__``, which is ``"sum"`` for both
+    ``numpy.sum`` and the builtin. Anything else declines, a lambda included:
+    it is the layer's *stated* intent this reads, and a lambda states none.
+    That direction is the safe one -- the chart keeps reading as the stack it
+    is, rather than being claimed as a whole on a guess.
+
+    Parameters
+    ----------
+    func : Any
+        ``Norm.func``: a string, or a callable.
+
+    Returns
+    -------
+    bool
+        ``True`` for ``"sum"`` and for a callable named ``sum``.
+    """
+    if isinstance(func, str):
+        return func == "sum"
+    return getattr(func, "__name__", None) == "sum"
+
+
 def _normalises_to_a_whole(move: list[Any] | None, container: BarContainer) -> bool:
     """
     Whether a stacked layer's segments are *shares of a whole*.
@@ -219,8 +249,8 @@ def _normalises_to_a_whole(move: list[Any] | None, container: BarContainer) -> b
     it and announce shares that sum to twice the whole.
 
     So this asks the two questions separately. **Did the author ask for a
-    sum-normalisation**, which no plain ``Stack()`` does, and **did the bars
-    land on a whole**, which is what the type claims. Requiring both leaves
+    sum-normalisation** (:func:`_sums`), which no plain ``Stack()`` does, and
+    **did the bars land on a whole**, which is what the type claims. Requiring both leaves
     an ordinary stack reading as ``stacked_bar`` even when its categories
     happen to total alike, and refuses a normalisation that did not land.
 
@@ -255,7 +285,7 @@ def _normalises_to_a_whole(move: list[Any] | None, container: BarContainer) -> b
     if "Stack" not in names:
         return False
     if not any(
-        name == "Norm" and getattr(one, "func", None) == "sum"
+        name == "Norm" and _sums(getattr(one, "func", None))
         for name, one in zip(names, move or ())
     ):
         return False
@@ -272,6 +302,14 @@ def _normalises_to_a_whole(move: list[Any] | None, container: BarContainer) -> b
         # bar. Keyed on the drawn position, which every segment of one
         # category shares -- `Stack()` moves them along the magnitude axis
         # only.
+        #
+        # A `Dodge()` alongside the stack does move them apart, and the keys
+        # then split with them, which is the answer rather than a hole in it:
+        # each drawn column is one dodge slot's share of its category, not
+        # the category, so none of them is a whole and the layer stays a
+        # `stacked_bar`. Measured, four levels dodged and stacked under
+        # `Norm(func="sum", by=["x"])`: eight columns topping out between
+        # 0.1 and 0.4, no whole among them.
         key = float(position)
         totals[key] = max(totals.get(key, float("-inf")), float(top))
 
