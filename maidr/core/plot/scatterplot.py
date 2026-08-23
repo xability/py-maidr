@@ -11,6 +11,7 @@ from matplotlib.colors import to_rgba
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.maidr_plot import group_name_of
 from maidr.exception import ExtractionError
 from maidr.util.grid_axes import tick_step
 from maidr.util.hue_groups import grouped_by_name
@@ -179,7 +180,9 @@ def _collections(given) -> list[PathCollection]:
     return []
 
 
-def hue_groups(ax: Axes, collection: PathCollection) -> list[tuple[str, list[int]]] | None:
+def hue_groups(
+    ax: Axes, collection: PathCollection
+) -> list[tuple[str, list[int]]] | None:
     """
     The hue groups a scatter was drawn with, or ``None`` when it has none.
 
@@ -266,11 +269,17 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # `None` means the layer reads every point there is, which is what an
         # ungrouped scatter has always done.
         group = kwargs.get(HUE_GROUP, None)
-        self._group_name = group[0] if group else None
+        # `HUE_GROUP` where the patch split one collection between levels and
+        # so had to say *which points*; `GROUP_NAME` where the whole layer is
+        # one group and only the name is in question. A `regplot` is the
+        # second: `lmplot(hue=...)` calls it once per level, so its scatter is
+        # that level entire and there is nothing to filter (#612). Opted into
+        # here rather than read by `MaidrPlot`; see `GROUP_NAME` for why that
+        # is per class, and `render` for the callable form a `FacetGrid`
+        # needs.
+        self._group_name = group[0] if group else group_name_of(kwargs)
         self._group_label = str(kwargs.get(GROUP_LABEL, "") or "")
-        self._group_members = (
-            [set(members) for members in group[1]] if group else None
-        )
+        self._group_members = [set(members) for members in group[1]] if group else None
 
         # A grouped layer addresses its points through each collection's id,
         # so they need one before the SVG is written. Assigned here rather
@@ -307,10 +316,16 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
 
         Distinct from ``title``, which every layer of a figure carries and
         which names the *chart*.
+
+        A callable is resolved here rather than at registration, which is what
+        an ``lmplot`` needs: ``FacetGrid.add_legend()`` runs after every panel
+        is drawn, so the legend that names the colours does not exist when the
+        layer registers (#561, #612).
         """
         schema = super().render()
-        if self._group_name:
-            schema[MaidrKey.NAME] = self._group_name
+        name = self._group_name() if callable(self._group_name) else self._group_name
+        if name:
+            schema[MaidrKey.NAME] = name
         return schema
 
     def _get_selector(self) -> str | list[str]:
