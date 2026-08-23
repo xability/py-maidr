@@ -126,6 +126,15 @@ class PlotlyPlotFactory:
 
             return PlotlyHistogramPlot(trace, layout, **axis_kwargs)
 
+        if trace_type == "funnel":
+            from maidr.plotly.funnel import PlotlyFunnelPlot
+
+            # ``layer_position`` is left at its default for the reason the
+            # waterfall branch below leaves its own: this factory sees one
+            # trace with no idea what else draws into the subplot's
+            # ``funnellayer``.
+            return PlotlyFunnelPlot(trace, layout, **axis_kwargs)
+
         if trace_type == "waterfall":
             from maidr.plotly.waterfall import PlotlyWaterfallPlot
 

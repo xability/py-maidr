@@ -64,6 +64,12 @@ class PlotType(str, Enum):
     CANDLESTICK = "candlestick"
     VIOLIN_KDE = "violin_kde"
     VIOLIN_BOX = "violin_box"
+    #: A population shrinking across ordered stages. Read as a bar layer is,
+    #: with the one difference that decides whether the chart is legible: the
+    #: number a reader wants is the *retention* between adjacent stages
+    #: rather than the count, so that is what the core pitches. The counts
+    #: are announced alongside it.
+    FUNNEL = "funnel"
     #: A starting value carried to an ending value through a sequence of
     #: signed contributions, each bar floating between the running total
     #: before it and the running total after it. A distinct type from `BAR`
