@@ -540,3 +540,61 @@ def test_a_colour_split_bar_draws_one_container_and_reads_as_one_layer(spelling,
 
     assert len(figure.axes[0].containers) == 1
     assert _kinds(figure) == ["bar"]
+
+
+@pytest.mark.parametrize(
+    "mark, expected",
+    [
+        pytest.param(so.Dot(), "point", id="Dot"),
+        pytest.param(so.Line(), "line", id="Line"),
+        pytest.param(so.Bar(), "bar", id="Bar"),
+    ],
+)
+def test_every_mark_reads_one_layer_per_panel_when_faceted(mark, expected):
+    """The panel diff is shared, but what each mark draws into it is not.
+
+    `Line` draws one `Line2D` per group and `Bar` one container per panel, so
+    a facet case for each is not a repeat of the `Dot` one: it is the only
+    place the three handovers meet the per-panel branch.
+    """
+    frame = _frame()
+    figure = _drawn(
+        lambda fig: so.Plot(frame, x="t", y="m").facet(col="g").add(mark).on(fig).plot()
+    )
+
+    assert _kinds(figure) == [expected, expected]
+
+
+def test_a_layer_that_drew_several_containers_becomes_several_bar_layers():
+    """The ``singular=True`` branch, which no ``so.Bar`` spelling reaches.
+
+    `DRAWN_BARS` names one container, so a layer that drew several has to
+    become several layers rather than one truncated to the first — which is
+    also how a hue-grouped bar is read elsewhere (#593, #595), one layer per
+    group. Every `so.Bar` measured draws exactly one container, so the branch
+    is forward-looking: it would be exercised for the first time, silently,
+    by a seaborn release that changed that.
+
+    Driven through `_layer` itself rather than through a chart, because a
+    chart cannot reach it today. The draw runs inside the internal context
+    `_layer` sets, so the two `Axes.bar` calls register nothing of their own
+    and what comes back is this layer's reading alone.
+    """
+    from maidr.patch.seaborn_objects import _layer
+
+    figure = plt.figure()
+    axes = figure.subplots()
+
+    class _Plotter:
+        """Only the attribute the panel lookup reads."""
+
+        _figure = figure
+
+    def draw(*args, **kwargs):
+        axes.bar(["a"], [4.0])
+        axes.bar(["b"], [9.0])
+
+    _layer(draw, _Plotter(), (None, {"mark": so.Bar()}), {})
+
+    assert len(axes.containers) == 2
+    assert _kinds(figure) == ["bar", "bar"]
