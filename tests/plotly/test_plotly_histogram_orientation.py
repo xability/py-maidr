@@ -231,16 +231,27 @@ class TestCategoricalHorizontal:
 
 
 class TestEmptyTrace:
-    """An orientation with nothing on it still declines rather than guessing."""
+    """An orientation with nothing on it still declines rather than guessing.
 
-    def test_a_trace_with_neither_array_yields_no_data(self):
-        assert only_layer(go.Figure([go.Histogram()]))["data"] == []
+    Both of these asserted `only_layer(fig)["data"] == []` until #636 -- an
+    empty payload on a layer that still shipped. The decision they are about
+    is unchanged: the extractor declines rather than announcing a
+    distribution the chart does not show. What changed is that a layer with
+    nothing in it no longer reaches the schema at all.
+    """
 
-    def test_an_explicit_orientation_pointing_at_an_absent_axis_yields_no_data(
+    @staticmethod
+    def _layers(fig) -> list[dict]:
+        return PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]
+
+    def test_a_trace_with_neither_array_forms_no_layer(self):
+        assert self._layers(go.Figure([go.Histogram()])) == []
+
+    def test_an_explicit_orientation_pointing_at_an_absent_axis_forms_no_layer(
         self,
     ):
         # Plotly draws essentially nothing for this figure -- one empty entry
         # in calcdata -- so announcing the `x` sample instead would describe a
         # distribution the chart does not show.
         fig = go.Figure([go.Histogram(x=SAMPLE, orientation="h")])
-        assert only_layer(fig)["data"] == []
+        assert self._layers(fig) == []

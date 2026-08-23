@@ -137,6 +137,67 @@ _DOMAIN_TRACE_TYPES = frozenset(
 )
 
 
+def _carries_data(plot: Any) -> bool:
+    """Report whether a built plot has anything for a reader to navigate.
+
+    A trace that draws nothing forms no layer. #421 established that for the
+    line and area families, by excluding an undrawn trace from their groupings
+    with ``draws_marks()`` -- which does more than this, because it also keeps
+    the *positions* of the surviving series contiguous, something a later
+    filter cannot recover. Every other family appended unconditionally, so an
+    empty pie, sankey, hierarchy, polar or parcoords became a layer with an
+    empty payload (#636).
+
+    That is not a harmless no-op. It is a cell the reader can tab into and
+    find nothing in, and for the line-family types it is worse: `LineTrace`
+    dereferences an undefined point on an empty series and throws, which
+    propagates out of `Figure` and takes the whole render down
+    (xability/maidr#905). `ParallelTrace` and `RadarTrace` are both built on
+    it.
+
+    Asked of the *rendered* payload rather than of the trace, so one question
+    covers all three shapes maidr emits: a list of points, a list of series,
+    and a mapping. `plot.schema` is memoised, so this costs no extra work.
+
+    A mapping needs the extra step, because two of them look alike at the top
+    level and mean opposite things. A gauge's is
+    ``{"value": 0, "min": -1, "max": 1}`` -- a full reading whose first field
+    happens to be falsy -- and an empty heatmap's is ``{"points": []}``, a
+    field with nothing in it. So a mapping carries data when any of its values
+    is a scalar or a non-empty collection.
+
+    One level, deliberately. ``{"points": [[]]}`` -- a heatmap of one empty
+    row -- is kept, because recursing to decide that a nested structure is
+    "really" empty is guessing at a shape rather than reading it, and dropping
+    a layer that should have shipped is the more damaging of the two mistakes.
+
+    Parameters
+    ----------
+    plot : PlotlyPlot
+        A built plot.
+
+    Returns
+    -------
+    bool
+        True when the payload holds something for a reader to navigate. A
+        payload that is neither a list nor a mapping is kept, for the same
+        reason: an unfamiliar shape is not evidence of emptiness.
+    """
+    data = plot.schema.get(MaidrKey.DATA)
+    if isinstance(data, (list, tuple)):
+        return bool(data)
+    if isinstance(data, dict):
+        return any(_holds_something(value) for value in data.values())
+    return data is not None
+
+
+def _holds_something(value: Any) -> bool:
+    """Report whether one field of a mapping payload has anything in it."""
+    if isinstance(value, (list, tuple, dict)):
+        return bool(value)
+    return value is not None
+
+
 def _is_domain_trace(trace: dict) -> bool:
     """Report whether plotly places this trace by a domain rather than an axis.
 
@@ -1162,6 +1223,8 @@ class PlotlyMaidr:
                     plot.row_index = row
                     plot.col_index = col
                     self._plots.append(plot)
+
+        self._plots = [plot for plot in self._plots if _carries_data(plot)]
 
     def render(self, use_cdn: bool | Literal["auto"] = "auto") -> Tag:
         """Return the maidr plot inside an iframe.

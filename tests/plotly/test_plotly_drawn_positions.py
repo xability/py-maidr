@@ -272,10 +272,17 @@ class TestATraceThatDrawsNothingFormsNoLayer:
         assert len(layers) == 1
         assert len(layers[0]["data"]) == 2
 
-    def test_a_bar_with_no_data_is_left_to_its_own_path(self):
-        # Bars are not scatter-family, so this exclusion does not reach them.
-        # Pinned so a later widening of the predicate is a deliberate choice
-        # rather than a side effect.
+    def test_a_bar_with_no_data_forms_no_layer_either(self):
+        # This exclusion is scatter-family only, so it never reached bars --
+        # and the assertion here used to be `len(layers) == 1`, pinned so that
+        # a later widening would be a deliberate choice rather than a side
+        # effect. #636 is that choice: an empty bar layer is the same ghost
+        # #421 named, and it is now dropped by payload rather than by family.
+        #
+        # The two answers are not interchangeable. `draws_marks()` still runs
+        # here, because it does something a later filter cannot: it keeps the
+        # *positions* of the surviving series contiguous. This only removes
+        # the layer that would otherwise ship empty.
         fig = go.Figure([go.Bar(x=[], y=[], name="a")])
         layers = PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]
-        assert len(layers) == 1
+        assert layers == []
