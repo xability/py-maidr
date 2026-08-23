@@ -359,3 +359,50 @@ def test_every_bin_is_half_open_including_the_last(x: list, expected: list) -> N
     (layer,) = _layers(_histogram2d(x=x, y=[1, 1], **BINS))
 
     assert layer["data"]["points"] == expected
+
+
+def test_a_z_shorter_than_the_samples_shortens_the_pairing() -> None:
+    """A sample is an x, a y **and** a z when a `histfunc` reduces them.
+
+    Measured: with `histfunc="avg"` and a `z` two long against four x and y,
+    plotly uses two samples and leaves the rest of the grid unpainted. Before
+    the pairing folded `z` in, this raised `ValueError: operands could not be
+    broadcast together with shapes (4,) (2,)` out of the extraction and took
+    the **whole figure** with it -- the failure `paired_arrays` documents for
+    the 1-D path, arrived at again.
+    """
+    (layer,) = _layers(
+        _histogram2d(
+            x=[1, 1, 1, 3], y=[1, 1, 3, 1], z=[10, 30], histfunc="avg", **BINS
+        )
+    )
+
+    assert layer["data"]["points"] == [[None, None], [20.0, None]]
+
+
+def test_a_short_z_leaves_a_counting_trace_alone() -> None:
+    """It shortens the pairing only where it is read.
+
+    Measured: the same two-long `z` under the default `count` changes nothing
+    and all four samples are counted, exactly as if no `z` were there. Folding
+    it into the pairing unconditionally would drop two samples the chart draws.
+    """
+    (layer,) = _layers(_histogram2d(x=[1, 1, 1, 3], y=[1, 1, 3, 1], z=[10, 30], **BINS))
+
+    assert layer["data"]["points"] == [[1.0, 0.0], [2.0, 1.0]]
+
+
+def test_a_grid_of_one_cell_is_still_a_grid() -> None:
+    """The smallest chart there is, and the one an off-by-one shows up in."""
+    (layer,) = _layers(
+        _histogram2d(
+            x=[1.0, 1.5],
+            y=[1.0, 1.5],
+            xbins={"start": 0, "end": 2, "size": 2},
+            ybins={"start": 0, "end": 2, "size": 2},
+        )
+    )
+
+    assert layer["data"]["points"] == [[2.0]]
+    assert layer["data"]["x"] == ["0 – 2"]
+    assert layer["data"]["y"] == ["0 – 2"]

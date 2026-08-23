@@ -133,9 +133,8 @@ class PlotlyHistogram2dPlot(PlotlyHeatmapPlot):
         histnorm = self._trace.get("histnorm")
         if histnorm in _HISTNORM_NAMES:
             return _HISTNORM_NAMES[histnorm]
-        histfunc = self._trace.get("histfunc")
-        if histfunc in _HISTFUNC_NAMES and _values(self._trace) is not None:
-            return _HISTFUNC_NAMES[histfunc]
+        if _reduces_values(self._trace):
+            return _HISTFUNC_NAMES[str(self._trace.get("histfunc"))]
         return "Count"
 
 
@@ -157,7 +156,26 @@ def _binned_grid(trace: dict) -> tuple[list[list], list[str], list[str]] | None:
     """
     x = as_numeric(as_list(trace.get("x")))
     y = as_numeric(as_list(trace.get("y")))
+
+    # A sample is an x, a y, and -- when a `histfunc` reduces them -- a z, so
+    # the shortest of those decides how many samples there are. Measured both
+    # ways: with `histfunc="avg"` and a `z` two long against four x and y,
+    # plotly uses **two** samples and leaves the rest of the grid unpainted;
+    # with the default `count`, the same short `z` changes nothing and all
+    # four are counted. So `z` shortens the pairing only when it is read.
+    #
+    # Truncating here rather than at the point of use, which is the mistake
+    # `paired_arrays` in `histogram.py` documents for the 1-D path: a late
+    # truncation raised out of a rendering path for a figure plotly draws
+    # without complaint. Here it was a `ValueError` from numpy broadcasting
+    # a mask of four against an array of two, which took the whole figure.
+    values = _values(trace)
+    aggregating = _reduces_values(trace)
+
     paired = min(x.size, y.size)
+    if aggregating and values is not None:
+        paired = min(paired, values.size)
+        values = values[:paired]
     x, y = x[:paired], y[:paired]
     # A sample missing either coordinate is not on the chart. Measured: one
     # `None` among three x values drops that pair rather than placing it
@@ -188,9 +206,10 @@ def _binned_grid(trace: dict) -> tuple[list[list], list[str], list[str]] | None:
     placed = inside & (column_of >= 0) & (row_of >= 0)
 
     histfunc = trace.get("histfunc")
-    values = _values(trace)
-    if histfunc in _AGGREGATING and values is not None:
-        cells = _aggregate(row_of, column_of, placed, values[:paired], rows, columns, histfunc)
+    if aggregating and values is not None:
+        cells = _aggregate(
+            row_of, column_of, placed, values, rows, columns, str(histfunc)
+        )
     else:
         # Plotly falls back to counting when an aggregating `histfunc` has no
         # `z` to reduce -- measured, `histfunc="sum"` without one draws the
@@ -212,6 +231,16 @@ def _values(trace: dict) -> np.ndarray | None:
     """The ``z`` array an aggregating ``histfunc`` reduces, or None."""
     declared = as_list(trace.get("z"))
     return as_numeric(declared) if declared else None
+
+
+def _reduces_values(trace: dict) -> bool:
+    """Whether this trace's ``histfunc`` has a ``z`` to reduce.
+
+    Asked in two places -- to decide what a cell measures and to decide
+    whether ``z`` shortens the sample pairing -- so it is one rule rather
+    than two that could drift apart.
+    """
+    return trace.get("histfunc") in _AGGREGATING and bool(as_list(trace.get("z")))
 
 
 def _bin_of(values: np.ndarray, edges: np.ndarray) -> np.ndarray:
@@ -260,7 +289,8 @@ def _aggregate(
     turns it into and what is dropped here -- the same reading the
     one-dimensional path settled (#405).
     """
-    usable = placed & np.isfinite(values[: placed.size])
+    # `values` arrives the same length as `placed`, paired down by the caller.
+    usable = placed & np.isfinite(values)
     gathered: dict[tuple[int, int], list[float]] = {}
     for row, column, value in zip(row_of[usable], column_of[usable], values[usable]):
         gathered.setdefault((int(row), int(column)), []).append(float(value))
