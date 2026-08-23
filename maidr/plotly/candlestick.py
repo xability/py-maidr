@@ -20,7 +20,25 @@ _MARK_OF = {"candlestick": "path.box", "ohlc": "> path"}
 #: Trace types that share ``g.boxlayer`` and so count towards a candlestick's
 #: position within it. A ``go.Violin`` draws into ``g.violinlayer`` and a
 #: scatter into ``g.scatterlayer``, so neither shifts the count.
-_BOXLAYER_TRACE_TYPES = frozenset({"box", "candlestick"})
+#: Groups of trace types that plotly draws into a *single* DOM layer, so each
+#: member shifts the others' group index there.
+#:
+#: ``box``/``candlestick`` share ``g.boxlayer``. Counting only same-typed
+#: traces was symmetric-looking and wrong in one direction: a candlestick
+#: counted the boxes beside it, while a box ignored the candlestick and
+#: claimed the group the candlestick had already taken (#395).
+#:
+#: ``contour``/``histogram2dcontour`` share ``g.contourlayer`` -- measured in
+#: Chromium on a figure holding one of each plus a heatmap: the contour layer
+#: held two ``g.contour`` groups in declaration order, while the heatmap sat
+#: elsewhere in a ``heatmaplayer`` of its own.
+#:
+#: A type absent from every group is numbered among its own kind, which is
+#: what a layer with one occupant needs.
+_SHARED_LAYERS = (
+    frozenset({"box", "candlestick"}),
+    frozenset({"contour", "histogram2dcontour"}),
+)
 
 
 def is_ohlc_trace(trace: dict) -> bool:
@@ -65,16 +83,11 @@ def layer_position(traces: list[dict], trace: dict) -> int:
         The zero-based position among traces drawing into the same layer.
     """
     kind = trace.get("type")
-    if kind in _BOXLAYER_TRACE_TYPES:
-        # Both directions, not just the candlestick's. `go.Box` and
-        # `go.Candlestick` draw into the same `g.boxlayer`, so each shifts
-        # the other's group index. Counting only same-typed traces was
-        # symmetric-looking and wrong in one direction: a candlestick
-        # counted the boxes beside it, while a box ignored the candlestick
-        # and claimed the group the candlestick had already taken (#395).
-        mates = _BOXLAYER_TRACE_TYPES
-    else:
-        mates = frozenset({kind}) if kind else frozenset()
+    mates = frozenset({kind}) if kind else frozenset()
+    for shared in _SHARED_LAYERS:
+        if kind in shared:
+            mates = shared
+            break
 
     position = 0
     for candidate in traces:

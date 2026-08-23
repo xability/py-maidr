@@ -79,6 +79,17 @@ jupyter = [
 ]
 plotly = [
     "plotly>=5.0",
+    # Traces the curves a `go.Contour` only declares -- plotly ships a grid
+    # and a level spacing and computes them in the browser, so reading that
+    # chart means running the same marching squares here. Imported lazily by
+    # `maidr/plotly/contour.py` and by nothing else, so it belongs beside
+    # `plotly` rather than in the base list, which is what `import maidr`
+    # itself needs.
+    #
+    # Listed rather than relied upon: it already arrives with matplotlib, and
+    # arriving with something is what the matplotlib entry in the base list
+    # exists to stop treating as a promise.
+    "contourpy>=1.0.1",
 ]
 shiny = [
     "shiny>=1.0",
