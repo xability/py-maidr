@@ -569,32 +569,23 @@ def test_a_layer_that_drew_several_containers_becomes_several_bar_layers():
     """The ``singular=True`` branch, which no ``so.Bar`` spelling reaches.
 
     `DRAWN_BARS` names one container, so a layer that drew several has to
-    become several layers rather than one truncated to the first — which is
+    become several layers rather than one truncated to the first -- which is
     also how a hue-grouped bar is read elsewhere (#593, #595), one layer per
     group. Every `so.Bar` measured draws exactly one container, so the branch
     is forward-looking: it would be exercised for the first time, silently,
     by a seaborn release that changed that.
 
-    Driven through `_layer` itself rather than through a chart, because a
-    chart cannot reach it today. The draw runs inside the internal context
-    `_layer` sets, so the two `Axes.bar` calls register nothing of their own
-    and what comes back is this layer's reading alone.
+    Asked of `_handovers` directly, because that is the function deciding it
+    and no chart can put two containers in front of it today.
     """
-    from maidr.patch.seaborn_objects import _layer
+    from maidr.core.plot.barplot import DRAWN_BARS
+    from maidr.patch.seaborn_objects import _READINGS, _handovers
 
-    figure = plt.figure()
-    axes = figure.subplots()
+    _, axes = plt.subplots()
+    first = axes.bar(["a"], [4.0])
+    second = axes.bar(["b"], [9.0])
 
-    class _Plotter:
-        """Only the attribute the panel lookup reads."""
-
-        _figure = figure
-
-    def draw(*args, **kwargs):
-        axes.bar(["a"], [4.0])
-        axes.bar(["b"], [9.0])
-
-    _layer(draw, _Plotter(), (None, {"mark": so.Bar()}), {})
-
-    assert len(axes.containers) == 2
-    assert _kinds(figure) == ["bar", "bar"]
+    assert _handovers(_READINGS["Bar"], axes, [first, second]) == [
+        {DRAWN_BARS: first},
+        {DRAWN_BARS: second},
+    ]

@@ -15,7 +15,7 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS
-from maidr.core.plot.scatterplot import DRAWN_POINTS
+from maidr.core.plot.scatterplot import DRAWN_POINTS, HUE_GROUP, hue_groups
 from maidr.patch.common import _draw_quietly
 
 
@@ -78,6 +78,12 @@ class _Reading(NamedTuple):
 #: A caller's own ``Mark`` subclass is declined for the same reason: it is not
 #: in this table, and what it draws is not knowable from the class it came
 #: from.
+#: Where a plotter keeps the layers it has drawn but not yet registered.
+#:
+#: On the ``Plotter`` instance, which is built fresh by every ``Plot.plot()``
+#: call, so two plots in flight cannot see each other's.
+_PENDING = "_maidr_pending"
+
 _READINGS: dict[str, _Reading] = {
     "Dot": _Reading(PlotType.SCATTER, "collections", PathCollection, DRAWN_POINTS),
     "Dots": _Reading(PlotType.SCATTER, "collections", PathCollection, DRAWN_POINTS),
@@ -154,6 +160,60 @@ def _panels(plotter: Any) -> list[Axes]:
     return [ax for ax in getattr(figure, "axes", [])]
 
 
+def _handovers(reading: _Reading, ax: Axes, own: list) -> list[dict]:
+    """
+    What to register for one layer's artists: one entry per layer to make.
+
+    Three shapes, and each is a fact about the plot class being handed to.
+
+    A **colour-split scatter** becomes one layer per group. `so.Dot(color=)`
+    draws a *single* ``PathCollection`` carrying a colour per point -- the
+    same shape ``seaborn.scatterplot(hue=)`` produces -- so the grouping
+    survives only in those colours and in the legend naming them, which is
+    exactly what ``hue_groups`` inverts. Without it a reader is handed one
+    layer of every point where the classic spelling of the same chart gives
+    one per level, named (#617).
+
+    A **singular binding** becomes one layer per artist; see
+    :class:`_Reading`.
+
+    Everything else is one layer holding every artist it drew, which is what
+    a multi-series line is: `so.Line(color=)` draws one ``Line2D`` per level
+    and reads as one layer of several series -- measured, exactly what
+    ``seaborn.lineplot(hue=)`` already does, so there is nothing to bring
+    into line there.
+
+    Parameters
+    ----------
+    reading : _Reading
+        How this mark is read.
+    ax : Axes
+        The panel drawn on, asked for the legend that names the colours.
+    own : list
+        The artists this layer drew on that panel, in draw order.
+
+    Returns
+    -------
+    list of dict
+        One keyword mapping per layer to register.
+    """
+    if reading.plot_type is PlotType.SCATTER and len(own) == 1:
+        groups = hue_groups(ax, own[0])
+        if groups:
+            # `hue_groups` answers in the offsets of the collection it was
+            # asked about, and the layer takes a list of those -- one per
+            # collection -- because a classic strip plot's groups span
+            # several (#586). A mark draws one, so it is a list of one.
+            return [
+                {reading.binding: own, HUE_GROUP: (name, [members])}
+                for name, members in groups
+            ]
+
+    if reading.singular:
+        return [{reading.binding: one} for one in own]
+    return [{reading.binding: own}]
+
+
 def _layer(wrapped, instance, args, kwargs) -> Any:
     """
     Draw one ``seaborn.objects`` layer and register what it drew.
@@ -193,6 +253,7 @@ def _layer(wrapped, instance, args, kwargs) -> Any:
         return _draw_quietly(wrapped, args, kwargs)
 
     panels = _panels(instance)
+    pending = instance.__dict__.setdefault(_PENDING, [])
     before = {id(ax): {id(artist) for artist in _held(ax, reading)} for ax in panels}
 
     with ContextManager.set_internal_context():
@@ -209,15 +270,59 @@ def _layer(wrapped, instance, args, kwargs) -> Any:
         # edge of it.
         if not own:
             continue
-        handovers = (
-            [{reading.binding: one} for one in own]
-            if reading.singular
-            else [{reading.binding: own}]
-        )
-        for handover in handovers:
-            FigureManager.create_maidr(ax, reading.plot_type, **handover)
+        # Recorded rather than registered, because the legend that names a
+        # colour split does not exist yet: `Plotter._make_legend` runs after
+        # every layer has been drawn. That is the timing #612 met with
+        # `FacetGrid.add_legend()`, and a name can be deferred to render as a
+        # callable -- but a *split* cannot, because it decides how many
+        # layers there are. So the reading waits for `_register`.
+        pending.append((ax, reading, own))
 
     return drawn
+
+
+def _register(wrapped, instance, args, kwargs) -> Any:
+    """
+    Draw a whole ``so.Plot`` and register the layers it recorded.
+
+    The second half of a hook deliberately split in two. ``_plot_layer`` is
+    the only place that can say which artists a layer drew, and it runs too
+    early to say what *names* them: ``Plotter._make_legend`` builds the one
+    legend a ``so.Plot`` has after every layer is on the page, so a colour
+    split asked about there finds nothing and every chart reads as one
+    unnamed layer of every point.
+
+    Deferring the whole registration rather than only the name, because the
+    split decides how many layers there are -- and unlike a name, that cannot
+    be resolved at render from a callable.
+
+    ``Plot.plot`` is where every route ends up: ``show()``, ``save()`` and
+    ``_repr_png_()`` all call it, so wrapping it once covers them.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        ``Plot.plot``.
+    instance : Any
+        The plot it was called on.
+    args, kwargs : Any
+        As passed by the caller.
+
+    Returns
+    -------
+    Plotter
+        Whatever ``plot`` returned, unchanged.
+    """
+    if ContextManager.is_internal_context():
+        return wrapped(*args, **kwargs)
+
+    plotter = wrapped(*args, **kwargs)
+
+    for ax, reading, own in getattr(plotter, _PENDING, ()):
+        for handover in _handovers(reading, ax, own):
+            FigureManager.create_maidr(ax, reading.plot_type, **handover)
+
+    return plotter
 
 
 def _wrap() -> None:
@@ -241,11 +346,11 @@ def _wrap() -> None:
         consequence.
     """
     try:
-        from seaborn._core.plot import Plotter
+        from seaborn._core.plot import Plot, Plotter
     except ImportError:  # pragma: no cover - seaborn without the objects API
-        Plotter = None  # type: ignore[assignment]
+        Plot = Plotter = None  # type: ignore[assignment]
 
-    if Plotter is None or not hasattr(Plotter, "_plot_layer"):
+    if Plotter is None or not hasattr(Plotter, "_plot_layer") or Plot is None:
         warnings.warn(
             "maidr: seaborn._core.plot.Plotter._plot_layer is not there to "
             "wrap, so seaborn.objects charts are not read. Every mark -- "
@@ -258,6 +363,7 @@ def _wrap() -> None:
         return
 
     wrapt.wrap_function_wrapper(Plotter, "_plot_layer", _layer)
+    wrapt.wrap_function_wrapper(Plot, "plot", _register)
 
 
 _wrap()
