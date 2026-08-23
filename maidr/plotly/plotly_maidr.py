@@ -69,7 +69,16 @@ from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly
 #:
 #: Add a type here when maidr learns to render it, not before.
 _PLACED_BY_DOMAIN = frozenset(
-    {"pie", "funnelarea", "indicator", "treemap", "sunburst", "icicle", "sankey"}
+    {
+        "pie",
+        "funnelarea",
+        "indicator",
+        "treemap",
+        "sunburst",
+        "icicle",
+        "sankey",
+        "parcoords",
+    }
 )
 
 
@@ -945,6 +954,29 @@ class PlotlyMaidr:
                     plot.col_index = polar_col
                     self._plots.append(plot)
                 merged.update(id(t) for t in polar_traces)
+
+            # Parallel coordinates, one layer each. Placed by its own
+            # `domain` rectangle like a pie, because a `parcoords` names no
+            # axis pair either.
+            parcoords_traces = [
+                t for t in group_traces if t.get("type") == "parcoords"
+            ]
+            if parcoords_traces:
+                from maidr.plotly.parcoords import PlotlyParcoordsPlot
+
+                for parcoords_trace in parcoords_traces:
+                    plot = PlotlyParcoordsPlot(
+                        parcoords_trace,
+                        layout,
+                        **axis_kwargs,
+                    )
+                    plot.row_index, plot.col_index = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._trace_domain_start(parcoords_trace),
+                    )
+                    self._plots.append(plot)
+                merged.update(id(t) for t in parcoords_traces)
 
             # Sankeys, one layer each. Only this loop knows whether the
             # figure holds a second one, which is what decides whether
