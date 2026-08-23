@@ -70,6 +70,15 @@ class MaidrKey(str, Enum):
     END = "end"
     LANES = "lanes"
 
+    # Waterfall keys. A step carries the two running totals it sits between
+    # -- reusing `START` and `END` above, which mean the same two things a
+    # gantt interval's ends do -- plus its own signed contribution and which
+    # way it moved. `DELTA` is carried rather than derived because a producer
+    # may round the two totals for display, and a delta recomputed from
+    # rounded ends is not the number the chart's own label shows.
+    DELTA = "delta"
+    KIND = "kind"
+
     # Histogram plot keys.
     X_MIN = "xMin"
     X_MAX = "xMax"
