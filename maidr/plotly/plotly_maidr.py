@@ -69,7 +69,7 @@ from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly
 #:
 #: Add a type here when maidr learns to render it, not before.
 _PLACED_BY_DOMAIN = frozenset(
-    {"pie", "funnelarea", "indicator", "treemap", "sunburst", "icicle"}
+    {"pie", "funnelarea", "indicator", "treemap", "sunburst", "icicle", "sankey"}
 )
 
 
@@ -857,6 +857,28 @@ class PlotlyMaidr:
                     )
                     self._plots.append(plot)
                 merged.update(id(t) for t in funnelarea_traces)
+
+            # Sankeys, one layer each. Only this loop knows whether the
+            # figure holds a second one, which is what decides whether
+            # either can be addressed -- see `PlotlySankeyPlot._get_selector`.
+            sankey_traces = [t for t in group_traces if t.get("type") == "sankey"]
+            if sankey_traces:
+                from maidr.plotly.sankey import PlotlySankeyPlot
+
+                for sankey_trace in sankey_traces:
+                    plot = PlotlySankeyPlot(
+                        sankey_trace,
+                        layout,
+                        addressable=len(sankey_traces) == 1,
+                        **axis_kwargs,
+                    )
+                    plot.row_index, plot.col_index = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._trace_domain_start(sankey_trace),
+                    )
+                    self._plots.append(plot)
+                merged.update(id(t) for t in sankey_traces)
 
             # Hierarchies, one layer each. Each painting has its own
             # figure-level layer, so a trace is numbered among its own kind
