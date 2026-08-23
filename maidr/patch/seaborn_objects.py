@@ -172,18 +172,113 @@ def _panels(plotter: Any) -> list[Axes]:
 #: and then stacks within each dodged slot, so the segments a reader steps
 #: through are the stack's.
 #:
-#: ``Norm`` is deliberately absent. It looks like the 100% stack's transform
-#: and is not one: `so.Norm()` divides by a *per-group* maximum, so measured
-#: on two categories over two levels, `Norm()` after `Stack()` draws negative
-#: heights and `Norm()` before it leaves the categories summing to 0.833 and
-#: 2.0 rather than to 1. The spelling that is a 100% stack is
-#: `so.Norm(func="sum", by=["x"])` before `so.Stack()`, and reading it needs
-#: a `stacked_normalized_bar` emitter this side does not have -- `NORMALIZED`
-#: is plotly-only in this package. Reported separately (#617).
+#: ``Norm`` is not here, because whether it makes a 100% stack cannot be
+#: answered from its class name. See :func:`_normalises_to_a_whole`.
 _MOVES: tuple[tuple[str, PlotType], ...] = (
     ("Stack", PlotType.STACKED),
     ("Dodge", PlotType.DODGED),
 )
+
+
+#: What a 100% stack's segments sum to, per category. ``so.Norm`` writes
+#: shares as fractions by default and as percentages under ``percent=True``,
+#: and the schema carries whichever the chart drew -- the plotly side does
+#: the same, through ``barnorm_scale`` (#338).
+_WHOLES = (1.0, 100.0)
+
+#: How far a stack's total may sit from a whole and still be one. Segments
+#: come off the drawn rectangles, so they carry the rounding of every share
+#: seaborn computed; measured on the spellings below, the worst total was
+#: within 1e-9 of its whole, so this is loose by a wide margin and still far
+#: tighter than any total that is not a whole (the nearest measured miss is
+#: 2.0).
+_WHOLE_TOLERANCE = 1e-6
+
+
+def _normalises_to_a_whole(move: list[Any] | None, container: BarContainer) -> bool:
+    """
+    Whether a stacked layer's segments are *shares of a whole*.
+
+    Asked of the drawn bars rather than of the spelling, because the spelling
+    cannot answer it. ``so.Norm`` takes a ``func`` and a ``by``, and only some
+    combinations normalise within the category. Measured, two categories over
+    two levels, totalling each category's stack:
+
+    ======================================  =======
+    ``Norm(...)`` before ``Stack()``        total
+    ======================================  =======
+    ``func="sum", by=["x"]``                1.0
+    ``func="sum", by=["x", "color"]``       2.0
+    ``func="sum"`` (no ``by``)              0.583 / 1.417
+    ``func="max"`` (the default)            0.833 / 2.0
+    ======================================  =======
+
+    Only the first is a 100% stack. The second is the trap: it names the
+    category axis, looks right, and normalises *each level* to 1 so the
+    stacks reach 2. A rule reading ``by`` for the category axis would claim
+    it and announce shares that sum to twice the whole.
+
+    So this asks the two questions separately. **Did the author ask for a
+    sum-normalisation**, which no plain ``Stack()`` does, and **did the bars
+    land on a whole**, which is what the type claims. Requiring both leaves
+    an ordinary stack reading as ``stacked_bar`` even when its categories
+    happen to total alike, and refuses a normalisation that did not land.
+
+    Where the moves sit *relative to each other* is deliberately not asked,
+    though it plainly matters to what gets drawn -- ``Stack()`` then
+    ``Norm()`` normalises the already-stacked tops and can draw segments of
+    negative height. The totals turn every such chart away on their own.
+    After that order the drawn tops are each category's ``t_i / sum(t_i)``
+    over the *cumulative* tops, so they are all wholes only when one top
+    carries the whole sum, which needs every level but the last at zero --
+    and seaborn draws no rectangle for a zero, so those levels leave no
+    colour, the split finds one group and no grouped layer is made at all.
+    Measured: three levels with one at zero totals 0.8 and 0.667, turned
+    away on the totals; two levels with one at zero draws **two** patches of
+    one colour and reads as a plain ``bar``. An order check would refuse
+    charts that never reach here.
+
+    Parameters
+    ----------
+    move : list of Move, optional
+        ``layer["move"]``, in the order the moves were written.
+    container : BarContainer
+        Every bar the layer drew, which is where the totals come from.
+
+    Returns
+    -------
+    bool
+        ``True`` when the layer asked to be normalised by sum and its
+        categories each total a whole.
+    """
+    names = [type(one).__name__ for one in move or ()]
+    if "Stack" not in names:
+        return False
+    if not any(
+        name == "Norm" and getattr(one, "func", None) == "sum"
+        for name, one in zip(names, move or ())
+    ):
+        return False
+
+    horizontal = container.orientation == "horizontal"
+    totals: dict[float, float] = {}
+    for patch in container:
+        if horizontal:
+            position, top = patch.get_y(), patch.get_x() + patch.get_width()
+        else:
+            position, top = patch.get_x(), patch.get_y() + patch.get_height()
+        # The top of the tallest segment *is* the stack's total, which saves
+        # summing the sizes and matches what a reader sees at the top of the
+        # bar. Keyed on the drawn position, which every segment of one
+        # category shares -- `Stack()` moves them along the magnitude axis
+        # only.
+        key = float(position)
+        totals[key] = max(totals.get(key, float("-inf")), float(top))
+
+    return bool(totals) and all(
+        any(abs(total - whole) <= _WHOLE_TOLERANCE for whole in _WHOLES)
+        for total in totals.values()
+    )
 
 
 def _grouped_type(move: list[Any] | None) -> PlotType | None:
@@ -303,6 +398,8 @@ def _handovers(
                 for _, members in groups
             ]
             grouped = _grouped_type(move)
+            if grouped is PlotType.STACKED and _normalises_to_a_whole(move, own[0]):
+                grouped = PlotType.NORMALIZED
             if grouped is not None:
                 # One layer of every group, which is what `GroupedBarPlot`
                 # takes -- the same list-of-containers a classic

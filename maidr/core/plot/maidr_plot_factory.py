@@ -155,7 +155,14 @@ class MaidrPlotFactory:
             if kwargs.get(DRAWN_RUG) is not None:
                 return RugPlot(single_ax, **kwargs)
             return ScatterPlot(single_ax, **kwargs)
-        elif PlotType.DODGED == plot_type or PlotType.STACKED == plot_type:
+        elif plot_type in (PlotType.DODGED, PlotType.STACKED, PlotType.NORMALIZED):
+            # One class, three types. They differ in how the groups relate --
+            # side by side, piled up, piled up to a whole -- not in where the
+            # numbers come from, which is one magnitude per bar either way.
+            # A `NORMALIZED` layer's bars are already shares, because the
+            # library drew them that way; the plotly path computes its own
+            # (`maidr/plotly/barnorm.py`) only because plotly draws the raw
+            # values and normalises them in the view (#338, #620).
             return GroupedBarPlot(single_ax, plot_type, **kwargs)
         elif PlotType.SMOOTH == plot_type:
             return SmoothPlot(single_ax, **kwargs)
