@@ -8,6 +8,7 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.scatterplot import DRAWN_POINTS, HUE_GROUP, hue_groups
+from maidr.patch.common import drew_nothing
 from maidr.patch.common import _draw_quietly, wrap_seaborn
 
 
@@ -75,6 +76,13 @@ def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
     # single collection even under `hue`.
     with ContextManager.set_internal_context():
         plot = _draw_quietly(wrapped, args, kwargs)
+
+    # A call that drew no points registers nothing. `seaborn.scatterplot`
+    # returns the axes rather than its collection, so this reads only the
+    # `ax.scatter` spelling -- the seaborn half of #623 needs a before-and-
+    # after diff of the axes, which is a different change.
+    if drew_nothing(plot):
+        return plot
 
     ax = FigureManager.get_axes(plot)
     kwargs.pop("ax", None)

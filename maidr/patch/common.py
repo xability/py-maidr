@@ -11,9 +11,68 @@ import wrapt
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
+from matplotlib.collections import Collection
+from matplotlib.container import Container
+from matplotlib.lines import Line2D
+
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+
+
+def drew_nothing(plot: Any) -> bool:
+    """
+    Whether a drawing call put nothing on the page.
+
+    A call can be perfectly well formed and still draw no artist --
+    ``ax.bar([], [])``, ``ax.scatter([], [])``, a dataframe filtered to
+    nothing, a groupby that produced no rows, a loop over categories where
+    one is absent. Registering a layer for it hands a reader something to
+    walk into with nothing in it, and for a bar it does worse: an empty
+    ``BarContainer`` has no children, so ``FigureManager.get_axes()`` finds
+    no axes on it and ``create_maidr`` raises ``ValueError("No plot found.")``
+    **out of the caller's own** ``ax.bar()`` **line** (#623).
+
+    A decline is a reading decision; an exception is a broken call. That is
+    the argument xability/r-maidr#230 settled on the R side, and it is
+    sharper here, because this one fires while the user is drawing rather
+    than while they are saving.
+
+    Only the artists whose emptiness is unambiguous are read. Everything else
+    -- an ``Axes``, a ``dict``, anything unrecognised -- answers ``False`` and
+    registers as before, so this is additive by construction. That is also why
+    it does not close the seaborn half of #623: ``seaborn.scatterplot``
+    returns the *axes*, so what it drew cannot be read off its return value at
+    all, and the empty call goes on to sweep the axes and find an earlier
+    call's collection.
+
+    Parameters
+    ----------
+    plot : Any
+        Whatever the patched drawing function returned.
+
+    Returns
+    -------
+    bool
+        ``True`` only when the return value is an artist that is certainly
+        empty, or a non-empty list of such artists.
+    """
+    if isinstance(plot, Container):
+        # `BarContainer` and friends are sized, and a bar drawn from no data
+        # is a container of no patches.
+        return len(plot) == 0
+    if isinstance(plot, Collection):
+        # `PathCollection` from `ax.scatter`, and every other collection: the
+        # offsets are the points, so no offsets is no marks.
+        return len(plot.get_offsets()) == 0
+    if isinstance(plot, Line2D):
+        return len(plot.get_xdata()) == 0
+    if isinstance(plot, list):
+        # `ax.plot` returns a list of lines, `ax.hist` a list per dataset.
+        # An empty list drew nothing; a list drew nothing when every artist
+        # in it did.
+        return all(drew_nothing(one) for one in plot)
+    return False
 
 #: The most vertices one confidence-interval polyline can have.
 #:
@@ -236,6 +295,11 @@ def common(
     with ContextManager.set_internal_context():
         # Patch the plotting function.
         plot = _draw_quietly(wrapped, args, kwargs)
+
+    # A call that drew nothing registers nothing, rather than an empty layer
+    # -- or, for a bar, an exception out of the caller's own line (#623).
+    if drew_nothing(plot):
+        return plot
 
     # Extract the data points for MAIDR from the plot.
     ax = FigureManager.get_axes(plot)
