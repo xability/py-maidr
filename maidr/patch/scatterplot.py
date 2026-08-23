@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import matplotlib.pyplot as plt
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
@@ -62,6 +63,21 @@ def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
 
+    # How many collections the target axes held before the call, so a call
+    # that adds none can be told from one that adds a collection of no
+    # points. `seaborn.scatterplot` returns the *axes*, so its return value
+    # says nothing about what it drew, and an empty call went on to sweep the
+    # axes and find an earlier call's points -- announcing the same points
+    # twice, under two layers, with nothing to say they were the same (#623).
+    #
+    # Guessed axes are not trusted: the count is used only when the axes
+    # counted is the one the call came back with, which is exact. Anything
+    # else declines to decide and registers as before.
+    counted = kwargs.get("ax")
+    if counted is None and plt.get_fignums():
+        counted = plt.gca()
+    before = len(counted.collections) if isinstance(counted, Axes) else None
+
     # Hand the layer the collection this call drew. `ScatterPlot` otherwise
     # takes the *first* `PathCollection` on the axes, which is right only
     # while a layer is one collection -- and seaborn's categorical scatters
@@ -77,11 +93,16 @@ def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
     with ContextManager.set_internal_context():
         plot = _draw_quietly(wrapped, args, kwargs)
 
-    # A call that drew no points registers nothing. `seaborn.scatterplot`
-    # returns the axes rather than its collection, so this reads only the
-    # `ax.scatter` spelling -- the seaborn half of #623 needs a before-and-
-    # after diff of the axes, which is a different change.
+    # A call that drew no points registers nothing -- as an empty artist for
+    # the `ax.scatter` spelling, and as an unchanged collection count for the
+    # seaborn one (#623).
     if drew_nothing(plot):
+        return plot
+    if (
+        before is not None
+        and counted is plot
+        and len(plot.collections) == before
+    ):
         return plot
 
     ax = FigureManager.get_axes(plot)

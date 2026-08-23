@@ -16,6 +16,7 @@ maidr`` decided whether an existing script's plotting call returned at all.
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
+import pandas as pd
 import pytest
 
 import maidr
@@ -75,6 +76,55 @@ def test_an_empty_bar_does_not_raise_out_of_the_caller_s_own_call():
 
     maidr.render(figure)._repr_html_()
     assert _layers(figure) == ["bar(2)"]
+
+
+def test_an_empty_seaborn_scatter_does_not_announce_the_previous_call_s_points():
+    """The seaborn half of #623, and the worst of the three.
+
+    `seaborn.scatterplot` returns the *axes* rather than its collection, so
+    `drew_nothing` cannot read it and the empty call went on to sweep the
+    axes for a `PathCollection` -- finding the *first* call's. Measured
+    before::
+
+        layer 0: point [{x:1,y:2}, {x:2,y:4}, {x:3,y:6}, {x:4,y:8}]
+        layer 1: point [{x:1,y:2}, {x:2,y:4}, {x:3,y:6}, {x:4,y:8}]
+        collections on axes: 1
+
+    Not an empty layer -- a *wrong* one. A reader was offered the same four
+    points twice, under two layers, with nothing to say they were the same.
+
+    Told apart by the collection count, since a call that drew points adds
+    one and a call that drew none adds none.
+    """
+    import seaborn as sns
+
+    frame = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [2.0, 4.0, 6.0, 8.0]})
+    figure, axes = plt.subplots()
+    sns.scatterplot(data=frame, x="x", y="y", ax=axes)
+    sns.scatterplot(data=frame.iloc[0:0], x="x", y="y", ax=axes)
+    maidr.render(figure)._repr_html_()
+
+    assert len(axes.collections) == 1
+    assert _layers(figure) == ["point(4)"]
+
+
+def test_two_real_seaborn_scatters_still_register_two_layers():
+    """The guard rail on the count. Two calls that each drew points must
+    still give two layers -- a rule keyed on "the axes already has a
+    collection" rather than on the count changing would have folded them
+    together, which is a worse failure than the one being fixed.
+    """
+    import seaborn as sns
+
+    first = pd.DataFrame({"x": [1.0, 2.0], "y": [1.0, 2.0]})
+    second = pd.DataFrame({"x": [3.0, 4.0], "y": [9.0, 16.0]})
+    figure, axes = plt.subplots()
+    sns.scatterplot(data=first, x="x", y="y", ax=axes)
+    sns.scatterplot(data=second, x="x", y="y", ax=axes)
+    maidr.render(figure)._repr_html_()
+
+    assert len(axes.collections) == 2
+    assert _layers(figure) == ["point(2)", "point(2)"]
 
 
 def test_a_chart_that_is_only_an_empty_call_falls_back_to_an_image():
