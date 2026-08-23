@@ -70,6 +70,11 @@ class PlotType(str, Enum):
     #: both on one trace.
     RADAR = "radar"
     POLAR_AREA = "polar_area"
+    #: Categorical dimensions side by side, with a ribbon between adjacent
+    #: ones for every combination that occurs -- a parallel sets diagram.
+    #: The same weighted flow :attr:`SANKEY` carries, drawn without a
+    #: left-to-right budget, which is why the core builds both on one trace.
+    ALLUVIAL = "alluvial"
     #: Weighted flow between nodes, drawn as ribbons whose width is the
     #: magnitude. Stated as one point per link -- the two nodes it joins and
     #: how much moves -- rather than as a series, because the chart is a

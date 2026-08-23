@@ -78,6 +78,7 @@ _PLACED_BY_DOMAIN = frozenset(
         "icicle",
         "sankey",
         "parcoords",
+        "parcats",
     }
 )
 
@@ -1038,6 +1039,24 @@ class PlotlyMaidr:
                     )
                     self._plots.append(plot)
                 merged.update(id(t) for t in parcoords_traces)
+
+            # Parallel sets, one layer each. Placed by its own `domain`
+            # rectangle like a pie, because a `parcats` names no axis pair.
+            from maidr.plotly.parcats import is_parcats_trace
+
+            parcats_traces = [t for t in group_traces if is_parcats_trace(t)]
+            if parcats_traces:
+                from maidr.plotly.parcats import PlotlyParcatsPlot
+
+                for parcats_trace in parcats_traces:
+                    plot = PlotlyParcatsPlot(parcats_trace, layout, **axis_kwargs)
+                    plot.row_index, plot.col_index = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._trace_domain_start(parcats_trace),
+                    )
+                    self._plots.append(plot)
+                merged.update(id(t) for t in parcats_traces)
 
             # Sankeys, one layer each. Only this loop knows whether the
             # figure holds a second one, which is what decides whether
