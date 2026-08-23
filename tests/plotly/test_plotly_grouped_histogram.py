@@ -156,6 +156,64 @@ class TestJointBinning:
         assert layer["data"][1] == []
 
 
+class TestTheGroupCountsTheWayASingleTraceDoes:
+    """Both counting paths in this file read the bins the same way.
+
+    A grouped layer counts with `bincount` over the shared assignment rather
+    than with `np.histogram`, which closes its final bin. The two disagreed
+    about a value sitting exactly on a shared window's `end`: `np.histogram`
+    folded it into the last bin and the assignment dropped it, and which one
+    applied was decided by the `histfunc` -- the default `count` took one path
+    and an `avg` the other, in the same layer.
+    """
+
+    WINDOW = dict(start=0, end=6, size=2)
+
+    def test_a_value_on_the_shared_end_is_dropped(self):
+        """Measured: plotly draws the top bin holding two, not three.
+
+        The six samples run 1 .. 6 and the window closes at 6, so the sample
+        *at* 6 is outside every bin plotly made -- the same reading a single
+        trace has had since #650.
+        """
+        figure = go.Figure(
+            [
+                go.Histogram(x=[1, 2, 3, 4, 5, 6], xbins=self.WINDOW),
+                go.Histogram(x=[1, 2]),
+            ]
+        )
+
+        first, second = only_layer(figure)["data"]
+
+        assert [point["y"] for point in first] == [1, 2, 2]
+        assert [point["y"] for point in second] == [1, 1]
+
+    def test_an_aggregating_histfunc_agrees_with_the_count(self):
+        """The path that was already right, asserted beside the one that was not.
+
+        `avg` has always gone through the shared assignment, so it dropped the
+        boundary sample while the count folded it in. Both drop it now, and
+        this says so rather than leaving the pairing to be re-derived.
+        """
+        figure = go.Figure(
+            [
+                go.Histogram(
+                    x=[1, 2, 3, 4, 5, 6],
+                    y=[1, 1, 1, 1, 1, 99],
+                    histfunc="avg",
+                    xbins=self.WINDOW,
+                ),
+                go.Histogram(x=[1, 2], y=[1, 1], histfunc="avg"),
+            ]
+        )
+
+        first, _ = only_layer(figure)["data"]
+
+        # The 99 rides on the sample at 6, so an average that folded it in
+        # would be 50 rather than 1.
+        assert [point["y"] for point in first] == [1, 1, 1]
+
+
 class TestGroupBinSpec:
     def test_a_spec_on_any_trace_governs_the_group(self):
         # Not "the first trace's spec". Plotly resolves a `size` given on the
