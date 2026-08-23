@@ -4,7 +4,7 @@ import math
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list, subplot_block
 
 
 class PlotlyPolarPlot(PlotlyPlot):
@@ -146,7 +146,7 @@ def subplot_name(trace: dict) -> str:
     str
         The subplot name, defaulting to ``"polar"``.
     """
-    return str(trace.get("subplot") or "polar")
+    return subplot_block(trace, "subplot", "polar")
 
 
 def _is_a_radius(value: object) -> bool:

@@ -1124,3 +1124,34 @@ def draws_marks(trace: dict) -> bool:
     """
     xs, ys = paired_axes(trace)
     return bool(xs) and bool(ys)
+
+
+def subplot_block(trace: dict, key: str, default: str | None = None) -> str:
+    """Return the layout key naming this trace's subplot *block*.
+
+    Some traces are placed by neither an axis pair nor a ``domain`` of their
+    own, but by a rectangle plotly writes under a named block --
+    ``layout.polar``, ``layout.polar2``, ``layout.geo`` -- which the trace
+    addresses by name. That name is what tells two of them in one grid apart,
+    and for a polar trace it is also the class plotly gives its ``<g>``.
+
+    The field and the default are separate because they do not always agree:
+    a polar trace names its block under ``subplot`` and defaults to
+    ``"polar"``, while a choropleth names its under ``geo`` and defaults to
+    the same word.
+
+    Parameters
+    ----------
+    trace : dict
+        One trace of the figure.
+    key : str
+        The trace field naming its block.
+    default : str, optional
+        The block a trace naming none belongs to. Defaults to ``key``.
+
+    Returns
+    -------
+    str
+        The block name.
+    """
+    return str(trace.get(key) or default or key)
