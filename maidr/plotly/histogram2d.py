@@ -132,17 +132,23 @@ class PlotlyHistogram2dPlot(PlotlyHeatmapPlot):
         The author's colour bar title still wins where there is one.
         """
         axes = super()._extract_axes_data()
-        axes.setdefault(MaidrKey.Z, self._axis_config(label=self._cell_name()))
+        axes.setdefault(MaidrKey.Z, self._axis_config(label=cell_name(self._trace)))
         return axes
 
-    def _cell_name(self) -> str:
-        """What one cell measures: the normalisation, the aggregate, or a count."""
-        histnorm = self._trace.get("histnorm")
-        if histnorm in _HISTNORM_NAMES:
-            return _HISTNORM_NAMES[histnorm]
-        if _reduces_values(self._trace):
-            return _HISTFUNC_NAMES[str(self._trace.get("histfunc"))]
-        return "Count"
+
+def cell_name(trace: dict) -> str:
+    """What one cell measures: the normalisation, the aggregate, or a count.
+
+    Shared with the contour reading of the same binning, whose *levels* are
+    the same numbers -- see
+    :class:`~maidr.plotly.histogram2dcontour.PlotlyHistogram2dContourPlot`.
+    """
+    histnorm = trace.get("histnorm")
+    if histnorm in _HISTNORM_NAMES:
+        return _HISTNORM_NAMES[histnorm]
+    if _reduces_values(trace):
+        return _HISTFUNC_NAMES[str(trace.get("histfunc"))]
+    return "Count"
 
 
 def is_histogram2d_trace(trace: dict) -> bool:
@@ -151,12 +157,45 @@ def is_histogram2d_trace(trace: dict) -> bool:
 
 
 def _binned_grid(trace: dict) -> tuple[list[list], list[str], list[str]] | None:
-    """Bin a trace's samples into the grid plotly draws.
+    """Bin a trace's samples and name each bin by the range it covers.
 
     Returns
     -------
     tuple or None
         ``(counts, x_labels, y_labels)`` with ``counts`` **bottom-first**,
+        matching plotly's own ``calcdata``. None when there is nothing to
+        bin -- see :func:`binned_cells`.
+    """
+    binned = binned_cells(trace)
+    if binned is None:
+        return None
+
+    counts, x_edges, y_edges = binned
+    return (
+        counts,
+        [_bin_label(x_edges, index) for index in range(len(x_edges) - 1)],
+        [_bin_label(y_edges, index) for index in range(len(y_edges) - 1)],
+    )
+
+
+def binned_cells(
+    trace: dict, *, extended: bool = False
+) -> tuple[list[list], np.ndarray, np.ndarray] | None:
+    """Bin a trace's samples into the grid plotly draws.
+
+    Parameters
+    ----------
+    trace : dict
+        One ``histogram2d`` or ``histogram2dcontour`` trace.
+    extended : bool, optional
+        Whether to add the empty bin plotly puts outside each *automatic*
+        edge of a ``histogram2dcontour``, so its curves have somewhere to
+        close. See :func:`extended_edges`.
+
+    Returns
+    -------
+    tuple or None
+        ``(cells, x_edges, y_edges)`` with ``cells`` **bottom-first**,
         matching plotly's own ``calcdata``. None when there is nothing to
         bin: a trace with no samples draws no grid at all -- measured, its
         ``calcdata`` entry carries no ``z`` -- so there is nothing to read.
@@ -202,6 +241,9 @@ def _binned_grid(trace: dict) -> tuple[list[list], list[str], list[str]] | None:
     y_edges = compute_bin_edges(
         y[inside], trace.get("ybins"), trace.get("nbinsy"), is_2d=True
     )
+    if extended:
+        x_edges = extended_edges(x_edges, trace.get("xbins"))
+        y_edges = extended_edges(y_edges, trace.get("ybins"))
     if len(x_edges) < 2 or len(y_edges) < 2:
         return None
 
@@ -226,13 +268,58 @@ def _binned_grid(trace: dict) -> tuple[list[list], list[str], list[str]] | None:
 
     histnorm = trace.get("histnorm")
     cells = _normalised(cells, histnorm, x_edges, y_edges)
-    counts = _as_payload(cells, histfunc, histnorm)
 
-    return (
-        counts,
-        [_bin_label(x_edges, index) for index in range(columns)],
-        [_bin_label(y_edges, index) for index in range(rows)],
-    )
+    return _as_payload(cells, histfunc, histnorm), x_edges, y_edges
+
+
+def extended_edges(edges: np.ndarray, bins: Any) -> np.ndarray:
+    """Add the empty bin plotly puts outside each automatic edge.
+
+    A ``histogram2dcontour`` bins its samples like a ``histogram2d`` and then
+    widens the grid, so the curves at the outermost level have somewhere to
+    close instead of running off the edge. Which edges move is not "the
+    automatic ones", though it reads that way at first -- plotly.js decides
+    it per side, and this is the line, from the bundle this wheel ships::
+
+        S && (
+          l.size || (P.start = tickIncrement(P.start, P.size, true)),
+          l.end === void 0 && (P.end = tickIncrement(P.end, P.size, false))
+        )
+
+    where ``S`` is "this group holds a ``histogram2dcontour``", ``l`` is what
+    the author wrote and ``P`` the automatic spec. So:
+
+    - the **low** edge moves down one bin unless the author gave a ``size``
+      -- not unless they gave a ``start``;
+    - the **high** edge moves up one bin unless the author gave an ``end``.
+
+    An author's own ``start`` still stands, because it overwrites ``P.start``
+    afterwards either way. Measured across nine spellings of ``xbins`` and
+    five datasets, all agreeing with those three sentences: with only a
+    ``size`` named, the low edge stays and the high edge moves; with only an
+    ``end``, the reverse.
+
+    Parameters
+    ----------
+    edges : numpy.ndarray
+        The bin edges as a ``histogram2d`` would draw them.
+    bins : Any
+        The trace's ``xbins``/``ybins``, or None when it named none.
+
+    Returns
+    -------
+    numpy.ndarray
+        The edges, with a bin added at each side that moves.
+    """
+    if len(edges) < 2:
+        return edges
+
+    named = bins if isinstance(bins, dict) else {}
+    size = float(edges[1] - edges[0])
+    moves_low = not named.get("size") and named.get("start") is None
+    low = [edges[0] - size] if moves_low else []
+    high = [edges[-1] + size] if named.get("end") is None else []
+    return np.array([*low, *edges, *high], dtype=float)
 
 
 def _values(trace: dict) -> np.ndarray | None:

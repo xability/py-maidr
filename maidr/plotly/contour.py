@@ -44,6 +44,13 @@ _DEFAULT_LEVEL_COUNT = 15
 #: the difference decides a whole level (see :func:`automatic_levels`).
 _MULTIPLE_TOLERANCE = 1e-9
 
+#: What fraction of the narrowest grid cell a traced curve must span to be a
+#: curve rather than the point where the field grazes a level. Far above the
+#: last bits that separate five copies of one vertex (1.6e-15 on a grid of 5s,
+#: measured) and far below any crossing, which is interpolated along a cell
+#: edge and so spans a real part of one.
+_POINT_FRACTION = 1e-9
+
 #: How far past ``end`` plotly's level loop still steps, as a fraction of
 #: ``size``. Measured rather than assumed, across seven specs: a run at
 #: ``start=0.2, end=0.8, size=0.05`` draws a level at ``0.8000000000000002``
@@ -124,14 +131,16 @@ class PlotlyContourPlot(PlotlyPlot):
         """
         self._series_levels = []
 
-        grid = _grid(self._trace)
+        grid = self._field()
         if grid is None:
             return []
 
         x, y, z = grid
         # The field, not just the trace: an automatic contour chooses its
-        # levels from the range of what it draws.
-        levels = levels_of(self._trace, z)
+        # levels from the range of what it draws. Asked for separately from
+        # the grid because the two are not always the same array -- see
+        # `_level_field`.
+        levels = levels_of(self._trace, self._level_field(z))
         if not levels:
             return []
 
@@ -170,9 +179,14 @@ class PlotlyContourPlot(PlotlyPlot):
         # way through leaves no half-filled `_series_levels` behind: the two
         # are read together and a mismatch would put every later series on
         # the wrong level's group.
+        # A curve counts as one when it goes somewhere, measured against the
+        # grid it was traced through -- see `_has_extent`.
+        cell = _smallest_step(x, y)
         data: list[list[dict]] = []
         for index, curves in enumerate(traced):
             for curve in curves:
+                if not _has_extent(curve, cell):
+                    continue
                 data.append(
                     [
                         {
@@ -186,6 +200,27 @@ class PlotlyContourPlot(PlotlyPlot):
                 self._series_levels.append(index)
 
         return data
+
+    def _level_field(self, z: Any) -> Any:
+        """The values an automatic level list takes its range from.
+
+        The grid itself, for a ``contour``: the numbers it draws are the
+        numbers it was given. A ``histogram2dcontour`` hands the tracer a
+        grid with zeros where a cell has no answer, and those zeros are not
+        values the chart measured -- see
+        :meth:`~maidr.plotly.histogram2dcontour.PlotlyHistogram2dContourPlot._level_field`.
+        """
+        return z
+
+    def _field(self) -> tuple[list[float], list[float], Any] | None:
+        """The grid the curves are traced through, or None when there is none.
+
+        A ``contour`` carries its field, so this is where the trace's own
+        ``z`` is read. A ``histogram2dcontour`` carries samples instead and
+        bins them into one -- which is the *only* difference between the two
+        readings, and why it overrides this and nothing else.
+        """
+        return _grid(self._trace)
 
     def _get_selector(self) -> list[str]:
         """Return one selector per emitted series, or none for the whole layer.
@@ -520,6 +555,53 @@ def _grid(trace: dict) -> tuple[list[float], list[float], Any] | None:
         return None
 
     return x, y, np.ma.masked_invalid(z)
+
+
+def _has_extent(curve: Any, cell: float) -> bool:
+    """Whether a traced curve goes anywhere, rather than touching a point.
+
+    Where the field grazes a level at exactly one grid point -- a lone cell
+    holding the level's own value -- ``contourpy`` returns a closed curve
+    whose every vertex is that point: five copies of it, spanning nothing.
+    Plotly draws no path there, measured on a ``min`` aggregate whose lowest
+    interior cell is exactly a level. Dropping it is not only agreement with
+    plotly, though: a series of one point repeated is not a curve for anyone
+    to read along, and it would take a ``g.contourlevel`` index with it that
+    a real curve in the same level needs.
+
+    "Spanning nothing" has to be measured rather than tested for zero. The
+    level that grazes a cell is rarely the cell's value written out -- an
+    automatic 0.4 arrives as ``0.39999999999999997`` -- and the five vertices
+    then differ in the last bits, 1.6e-15 apart on a grid whose cells are 5
+    wide. So the span is compared against the grid, at a fraction no curve
+    tracing a real crossing comes near: the vertices are interpolated along
+    the cell edges, so a curve that crosses at all crosses a measurable part
+    of one.
+    """
+    vertices = np.asarray(curve, dtype=float)
+    if vertices.size == 0:
+        return False
+    span = max(float(np.ptp(vertices[:, 0])), float(np.ptp(vertices[:, 1])))
+    return span > cell * _POINT_FRACTION
+
+
+def _smallest_step(x: list[float], y: list[float]) -> float:
+    """The narrowest cell in the grid, as the scale a curve is measured on.
+
+    The narrowest rather than the widest or the average, and deliberately so
+    even though no measured grid tells them apart: the fraction below is
+    small enough that any of the three separates float noise from a crossing.
+    The narrowest gives the *lowest* floor, so it is the one choice that
+    cannot drop a real curve on the fine part of an unevenly spaced grid --
+    which is the failure that would be silent.
+    """
+    steps = [
+        abs(b - a)
+        for axis in (x, y)
+        for a, b in zip(axis, axis[1:])
+        if abs(b - a) > 0
+    ]
+    return min(steps) if steps else 1.0
 
 
 def _coordinates(trace: dict, key: str, count: int) -> list[float] | None:

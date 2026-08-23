@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list, colorbar_title
 
 #: What the two halves of a region's reading are, when the author named
 #: neither. A choropleth has no cartesian axes to read titles off, and these
@@ -68,7 +68,7 @@ class PlotlyChoroplethPlot(PlotlyPlot):
         region, value = _AXIS_FALLBACKS
         return {
             MaidrKey.X: self._axis_config(label=region),
-            MaidrKey.Y: self._axis_config(label=self._colorbar_title() or value),
+            MaidrKey.Y: self._axis_config(label=colorbar_title(self._trace) or value),
         }
 
     def _extract_plot_data(self) -> list[dict]:
@@ -90,16 +90,6 @@ class PlotlyChoroplethPlot(PlotlyPlot):
             for location, value in zip(locations, values)
             if value is not None
         ]
-
-    def _colorbar_title(self) -> str:
-        """The title the author gave the colour bar, or an empty string."""
-        colorbar = self._trace.get("colorbar")
-        if not isinstance(colorbar, dict):
-            return ""
-        title = colorbar.get("title", "")
-        if isinstance(title, dict):
-            title = title.get("text", "")
-        return str(title) if title else ""
 
 
 def is_choropleth_trace(trace: dict) -> bool:

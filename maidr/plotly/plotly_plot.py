@@ -916,6 +916,24 @@ def subplot_css_prefix(xaxis_name: str, yaxis_name: str) -> str:
     return f".subplot.{x_ref}{y_ref} "
 
 
+def colorbar_title(trace: dict) -> str:
+    """The title the author gave the colour bar, or an empty string.
+
+    Plotly accepts the title either as a string or as a ``{"text": ...}``
+    block, and the trace may carry no ``colorbar`` at all. Read in one place
+    because three layers name their third axis from it -- a heatmap, a
+    choropleth and a two-dimensional histogram contour -- and a fourth
+    spelling of the same three cases is how they drift apart.
+    """
+    colorbar = trace.get("colorbar")
+    if not isinstance(colorbar, dict):
+        return ""
+    title = colorbar.get("title", "")
+    if isinstance(title, dict):
+        title = title.get("text", "")
+    return str(title) if title else ""
+
+
 def as_list(value: Any) -> list:
     """
     Return a plotly data array as a plain list.

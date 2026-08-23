@@ -205,6 +205,40 @@ def test_a_layer_whose_levels_each_draw_one_curve_is_addressable() -> None:
     ]
 
 
+#: A dimple: one interior cell sits on its own, everything around it above.
+#: At level 2 the field touches that one point and goes nowhere.
+DIMPLE = [
+    [4.0, 4.0, 4.0, 4.0, 4.0],
+    [4.0, 3.0, 3.0, 3.0, 4.0],
+    [4.0, 3.0, 2.0, 3.0, 4.0],
+    [4.0, 3.0, 3.0, 3.0, 4.0],
+    [4.0, 4.0, 4.0, 4.0, 4.0],
+]
+
+
+def test_a_level_the_field_only_touches_draws_no_curve() -> None:
+    """`contourpy` returns one there, and it is five copies of one point.
+
+    Measured on this field: plotly gives level 2 a ``g.contourlevel`` and
+    **no path in it**, and draws the ring at level 3. A series of one point
+    repeated is not a curve for anyone to read along, so it is not emitted --
+    and the group it would have taken an index from is still counted, which
+    is why the one curve here points at the second group rather than the
+    first.
+
+    The span is compared against the grid rather than tested for zero,
+    because the level that grazes a cell is rarely the cell's value written
+    out: an automatic 0.4 arrives as ``0.39999999999999997``, and the five
+    vertices then differ in their last bits rather than being identical.
+    """
+    figure = go.Figure(_contour(DIMPLE, start=2, end=3, size=1))
+
+    (layer,) = _layers(figure)
+
+    assert _levels(layer) == [3]
+    assert "g.contourlevel:nth-of-type(2)" in layer["selectors"][0]
+
+
 def test_a_layer_with_an_island_ships_without_a_highlight() -> None:
     """Plotly's order for a level's curves is its own, and not derivable.
 
@@ -574,10 +608,11 @@ def test_two_contours_on_one_subplot_address_their_own_groups() -> None:
 def test_a_histogram2dcontour_shifts_the_group_index() -> None:
     """It draws into the same `contourlayer` -- measured.
 
-    Counting only the contour traces would hand this one group 1, which is the
-    histogram's, and the highlight would land on a chart the reader is not
-    reading. maidr renders no layer for the histogram itself, so it is only
-    ever counted, never emitted.
+    Counting only the ``contour`` traces would hand the second one group 1,
+    which is the histogram's, and the highlight would land on a chart the
+    reader is not reading. The two are numbered together because plotly
+    appends both to the same layer, which is what
+    :func:`~maidr.plotly.candlestick.layer_position` is told.
     """
     figure = go.Figure(
         [
@@ -586,10 +621,10 @@ def test_a_histogram2dcontour_shifts_the_group_index() -> None:
         ]
     )
 
-    contours = [layer for layer in _layers(figure) if layer["type"] is PlotType.CONTOUR]
+    binned, declared = _layers(figure)
 
-    assert len(contours) == 1
-    assert "g.contour:nth-of-type(2)" in contours[0]["selectors"][0]
+    assert "g.contour:nth-of-type(1)" in binned["selectors"][0]
+    assert "g.contour:nth-of-type(2)" in declared["selectors"][0]
 
 
 def test_a_contour_on_a_second_subplot_is_scoped_to_it() -> None:
