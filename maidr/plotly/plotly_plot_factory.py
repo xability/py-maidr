@@ -126,6 +126,15 @@ class PlotlyPlotFactory:
 
             return PlotlyHistogramPlot(trace, layout, **axis_kwargs)
 
+        if trace_type == "funnelarea":
+            from maidr.plotly.funnelarea import PlotlyFunnelareaPlot
+
+            # ``pie_position`` is left at its default for the reason the pie
+            # branch below leaves its own: plotly draws every funnelarea into
+            # one figure-level ``funnelarealayer``, and this factory sees one
+            # trace with no idea what else the figure holds.
+            return PlotlyFunnelareaPlot(trace, layout, **axis_kwargs)
+
         if trace_type == "funnel":
             from maidr.plotly.funnel import PlotlyFunnelPlot
 
