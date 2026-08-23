@@ -435,6 +435,27 @@ class TestABinSpecWithoutASize:
 
         assert [count for _, _, count in drawn] == [3, 2]
 
+    def test_a_value_that_is_not_a_number_is_in_no_bin(self):
+        """It is not an observation rather than an observation of zero (#405).
+
+        Said where the bins are assigned rather than left to the comparisons
+        there: NaN answers False to both of them, while ``searchsorted`` sorts
+        it past the last edge -- so it came back as a bin one past the end,
+        and the counts were then one longer than the grid they belong to.
+        """
+        from maidr.plotly.histogram import PlotlyHistogramPlot
+
+        edges = np.array([0.0, 2.0, 4.0, 6.0])
+        with_a_gap = np.array([1.0, np.nan, 3.0, 5.0])
+
+        assert list(PlotlyHistogramPlot._bin_assignment(with_a_gap, edges)) == [
+            0,
+            -1,
+            1,
+            2,
+        ]
+        assert list(PlotlyHistogramPlot._bin_counts(with_a_gap, edges)) == [1, 1, 1]
+
     def test_a_negative_width_forms_no_layer(self):
         """Not a width, and not a chart this can read.
 

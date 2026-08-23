@@ -608,7 +608,15 @@ class PlotlyHistogramPlot(PlotlyPlot):
         than clipping them into an edge bin, both sides.
         """
         assignment = np.searchsorted(bin_edges, arr, side="right") - 1
-        outside = (arr < bin_edges[0]) | (arr >= bin_edges[-1])
+        # A value that is not a number is not an observation rather than an
+        # observation of zero (#405), and it has to be said here rather than
+        # left to the comparisons below: NaN answers False to both of them,
+        # while `searchsorted` sorts it past the last edge -- so it would
+        # come back as a bin one past the end, and the counts below would
+        # then be one longer than the grid they belong to.
+        outside = (
+            ~np.isfinite(arr) | (arr < bin_edges[0]) | (arr >= bin_edges[-1])
+        )
         assignment[outside] = -1
         return assignment
 
@@ -925,6 +933,10 @@ def _bin_size(
         return float(named["size"])
     if data_range == 0:
         return 1.0
+    # `not in` rather than falsy: a `size` of 0 is a width plotly cannot use
+    # *and* an `nbins` it will not fall back to. The two questions have
+    # different answers for the same key, which is why they are asked
+    # differently.
     if nbins is not None and "size" not in named:
         return _plotly_dtick(data_range / max(1, nbins))
     return _plotly_dtick(_plotly_default_size0(arr, is_2d=is_2d))

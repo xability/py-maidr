@@ -185,7 +185,7 @@ class PlotlyGroupedHistogramPlot(PlotlyPlot):
 
         data: list[list[dict]] = []
         for trace, sample, other in zip(self._traces, samples, values):
-            counts, _ = np.histogram(sample, bins=edges)
+            counts = _bin_counts(sample, edges)
             first, last = _occupied_span(counts)
             if first is None:
                 # A trace with nothing in the grid still holds a place in the
@@ -262,3 +262,19 @@ def _bin_assignment(arr: np.ndarray, edges: np.ndarray) -> np.ndarray:
     from maidr.plotly.histogram import PlotlyHistogramPlot
 
     return PlotlyHistogramPlot._bin_assignment(arr, edges)
+
+
+def _bin_counts(arr: np.ndarray, edges: np.ndarray) -> np.ndarray:
+    """How many observations landed in each bin.
+
+    Counted off the assignment above rather than ``np.histogram``, for the
+    reason that function exists: ``np.histogram`` closes its final bin and the
+    assignment does not, so a value sitting exactly on a shared window's
+    ``end`` was dropped by one path and folded into the last bin by the other
+    -- in the same layer, with which one applied decided by the ``histfunc``.
+    Measured on two traces sharing ``xbins=dict(start=0, end=6, size=2)``:
+    plotly draws the top bin holding two and the count path announced three.
+    """
+    from maidr.plotly.histogram import PlotlyHistogramPlot
+
+    return PlotlyHistogramPlot._bin_counts(arr, edges)
