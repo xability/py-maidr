@@ -35,6 +35,7 @@ import pytest
 plotly = pytest.importorskip("plotly")
 
 import plotly.graph_objects as go  # noqa: E402
+from plotly.subplots import make_subplots  # noqa: E402
 
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
@@ -109,6 +110,34 @@ def test_a_spoke_with_no_radius_is_dropped() -> None:
     assert _spokes(layer) == [("N", 3), ("S", 5)]
 
 
+def test_a_gap_written_as_nan_is_dropped_too() -> None:
+    """The same chart, held differently, must read the same way.
+
+    A gap reaches the extractor in two spellings and the difference is not
+    the author's: a plain list keeps its `None`, while the same list as a
+    numpy array is exported base64-encoded and comes back through `as_list`
+    as `nan`. Measured on `go.Scatter(y=np.array([4, np.nan, 6]))`, whose
+    `to_dict()` is `{"dtype": "f8", "bdata": ...}`.
+
+    Dropping only `None` left this chart with a spoke `RadarTrace` would
+    count, rotating every later spoke -- the very thing the test above
+    exists to prevent.
+    """
+    numpy = pytest.importorskip("numpy")
+
+    (layer,) = _layers(
+        go.Figure(
+            [
+                go.Scatterpolar(
+                    r=numpy.array([3.0, numpy.nan, 5.0]), theta=["N", "E", "S"]
+                )
+            ]
+        )
+    )
+
+    assert _spokes(layer) == [("N", 3.0), ("S", 5.0)]
+
+
 def test_a_radar_addresses_its_outline() -> None:
     """One selector for one series, which is what the contract wants.
 
@@ -117,7 +146,7 @@ def test_a_radar_addresses_its_outline() -> None:
     (layer,) = _layers(go.Figure([go.Scatterpolar(r=RADII, theta=SPOKES)]))
 
     assert layer["selectors"] == [
-        ".polarlayer .scatterlayer .trace:nth-child(1) path.js-line"
+        ".polarlayer > g.polar .scatterlayer .trace:nth-child(1) path.js-line"
     ]
 
 
@@ -203,3 +232,114 @@ def test_unnamed_polar_axes_fall_back_to_the_generic_pair() -> None:
 
     assert layer["axes"]["x"]["label"] == "Angle"
     assert layer["axes"]["y"]["label"] == "Radius"
+
+
+def test_two_polar_subplots_are_two_cells() -> None:
+    """A polar subplot's rectangle has to join the figure's grid.
+
+    A polar trace names no axis pair, so `_extract_plots` groups every one
+    of them under the cartesian defaults however many subplots they are
+    spread over, and the grid is built from `layout.xaxis`/`yaxis` domains
+    and from domain *traces* -- neither of which a polar subplot is. Its
+    rectangle lives under `layout.polar`/`layout.polar2`, so before this a
+    1x2 polar grid collected no starts at all and both charts landed in one
+    cell.
+    """
+    figure = make_subplots(rows=1, cols=2, specs=[[{"type": "polar"}] * 2])
+    figure.add_trace(go.Scatterpolar(r=[3, 9, 5], theta=SPOKES[:3]), row=1, col=1)
+    figure.add_trace(go.Scatterpolar(r=[2, 6, 4], theta=SPOKES[:3]), row=1, col=2)
+
+    grid = PlotlyMaidr(figure)._flatten_maidr()["subplots"]
+
+    assert [len(row) for row in grid] == [2]
+    assert [layer["type"] for layer in grid[0][0]["layers"]] == [PlotType.RADAR]
+    assert [layer["type"] for layer in grid[0][1]["layers"]] == [PlotType.RADAR]
+
+
+def test_a_polar_beside_a_cartesian_subplot_keeps_its_own_column() -> None:
+    """The common mixed grid, and the same omission.
+
+    `make_subplots(1, 2, [xy, polar])` writes the bar's rectangle into
+    `layout.xaxis.domain` and the radar's into `layout.polar.domain`. Only
+    the first was collected, so the figure had one column and both layers
+    were read as one chart.
+    """
+    figure = make_subplots(
+        rows=1, cols=2, specs=[[{"type": "xy"}, {"type": "polar"}]]
+    )
+    figure.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=1)
+    figure.add_trace(go.Scatterpolar(r=[3, 9, 5], theta=SPOKES[:3]), row=1, col=2)
+
+    grid = PlotlyMaidr(figure)._flatten_maidr()["subplots"]
+
+    assert [len(row) for row in grid] == [2]
+    assert [layer["type"] for layer in grid[0][0]["layers"]] == [PlotType.BAR]
+    assert [layer["type"] for layer in grid[0][1]["layers"]] == [PlotType.RADAR]
+
+
+def test_each_polar_subplot_addresses_its_own_outline() -> None:
+    """One `.polarlayer` holds every polar subplot, so the scope matters.
+
+    Measured in Chromium on a 1x2 polar grid: plotly draws
+    `<g class="polar">` and `<g class="polar2">` under one `.polarlayer`,
+    each with its own `.scatterlayer` numbered from one. The unscoped
+    selector therefore matched *both* first traces -- one keypress outlining
+    two charts -- while `nth-child(2)` matched nothing, because no subplot
+    held a second. Scoped, each of these resolved to exactly one element,
+    and the two to different ones.
+    """
+    figure = make_subplots(rows=1, cols=2, specs=[[{"type": "polar"}] * 2])
+    figure.add_trace(go.Scatterpolar(r=[3, 9, 5], theta=SPOKES[:3]), row=1, col=1)
+    figure.add_trace(go.Scatterpolar(r=[2, 6, 4], theta=SPOKES[:3]), row=1, col=2)
+
+    first, second = _layers(figure)
+
+    assert first["selectors"] == [
+        ".polarlayer > g.polar .scatterlayer .trace:nth-child(1) path.js-line"
+    ]
+    assert second["selectors"] == [
+        ".polarlayer > g.polar2 .scatterlayer .trace:nth-child(1) path.js-line"
+    ]
+
+
+def test_a_second_subplot_numbers_its_traces_from_one() -> None:
+    """The position is a place in one `.scatterlayer`, not in the figure.
+
+    A running counter across every polar trace gave the second subplot's
+    only radar `nth-child(2)`, which resolves to nothing inside its own
+    group. Measured on this figure: `g.polar2 ... nth-child(1)` and
+    `nth-child(2)` are the two radars of that subplot, and the barpolar
+    between them shifts neither -- it draws into `g.polar2`'s `.barlayer`.
+    """
+    figure = make_subplots(rows=1, cols=2, specs=[[{"type": "polar"}] * 2])
+    figure.add_trace(go.Scatterpolar(r=[3, 9, 5], theta=SPOKES[:3]), row=1, col=1)
+    figure.add_trace(go.Scatterpolar(r=[2, 6, 4], theta=SPOKES[:3]), row=1, col=2)
+    figure.add_trace(go.Barpolar(r=[1, 4, 8], theta=SPOKES[:3]), row=1, col=2)
+    figure.add_trace(go.Scatterpolar(r=[7, 8, 9], theta=SPOKES[:3]), row=1, col=2)
+
+    left, right_first, _bars, right_second = _layers(figure)
+
+    assert "g.polar .scatterlayer .trace:nth-child(1)" in left["selectors"][0]
+    assert "g.polar2 .scatterlayer .trace:nth-child(1)" in right_first["selectors"][0]
+    assert "g.polar2 .scatterlayer .trace:nth-child(2)" in right_second["selectors"][0]
+
+
+def test_each_polar_subplot_is_named_from_its_own_layout_block() -> None:
+    """`layout.polar2` is the second chart's, and only its own.
+
+    The titles were read from `layout.polar` for every polar trace, so the
+    second subplot announced the first one's radial name -- a wrong word
+    rather than a missing one, which a reader has no way to catch.
+    """
+    figure = make_subplots(rows=1, cols=2, specs=[[{"type": "polar"}] * 2])
+    figure.add_trace(go.Scatterpolar(r=[3, 9, 5], theta=SPOKES[:3]), row=1, col=1)
+    figure.add_trace(go.Scatterpolar(r=[2, 6, 4], theta=SPOKES[:3]), row=1, col=2)
+    figure.update_layout(
+        polar={"radialaxis": {"title": "Left R"}},
+        polar2={"radialaxis": {"title": "Right R"}},
+    )
+
+    first, second = _layers(figure)
+
+    assert first["axes"]["y"]["label"] == "Left R"
+    assert second["axes"]["y"]["label"] == "Right R"

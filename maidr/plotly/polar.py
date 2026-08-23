@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
@@ -25,11 +27,12 @@ class PlotlyPolarPlot(PlotlyPlot):
         layout: dict,
         plot_type: PlotType,
         *,
-        trace_position: int = 0,
+        trace_position: int,
         **kwargs: str,
     ) -> None:
         super().__init__(trace, layout, plot_type, **kwargs)
         self._trace_position = trace_position
+        self._subplot = subplot_name(trace)
 
     def _get_selector(self) -> list[str]:
         """Address this trace's drawn outline, when it draws one.
@@ -40,7 +43,18 @@ class PlotlyPolarPlot(PlotlyPlot):
         draws exactly one ``path.js-line`` per trace, which is that element.
 
         Measured in Chromium: one scatterpolar gives one ``js-line``, two
-        give two, each inside its own ``.polarlayer .scatterlayer .trace``.
+        give two, each inside its own ``.scatterlayer .trace``.
+
+        The selector is scoped to **this trace's own polar subplot**, and
+        the position counted among that subplot's scatterpolar traces only.
+        A figure may hold several: plotly draws each as its own
+        ``<g class="polar">`` / ``<g class="polar2">`` under one shared
+        ``.polarlayer``, each with its own ``.scatterlayer`` numbered from
+        one. Unscoped, ``.trace:nth-child(1)`` matched the first trace of
+        *every* polar subplot -- one keypress outlining two charts -- and
+        ``nth-child(2)`` matched nothing at all, because no subplot held a
+        second. Measured on a 1x2 polar grid before this: 2 elements and 0.
+        Scoped, every (subplot, position) pair resolves to exactly one.
 
         A ``barpolar`` gets none, and that is a limit worth stating. It
         draws no per-series path at all -- only one bar per spoke, four of
@@ -55,7 +69,7 @@ class PlotlyPolarPlot(PlotlyPlot):
         if self.type is not PlotType.RADAR:
             return []
         return [
-            f".polarlayer .scatterlayer "
+            f".polarlayer > g.{self._subplot} .scatterlayer "
             f".trace:nth-child({self._trace_position + 1}) path.js-line"
         ]
 
@@ -65,7 +79,10 @@ class PlotlyPolarPlot(PlotlyPlot):
         A polar chart draws no cartesian axes, so ``layout.xaxis`` is not
         where its names live -- borrowing from there would take another
         trace's titles or the generic fallback where the author had in fact
-        named these.
+        named these. The titles are read from *this* trace's own polar
+        block: a figure's second polar subplot is ``layout.polar2``, and
+        reading ``layout.polar`` for it would hand a reader the first
+        chart's radial title.
 
         Only the radius can be named. ``layout.polar.radialaxis`` takes a
         ``title``; ``angularaxis`` does not have the property at all --
@@ -74,7 +91,7 @@ class PlotlyPolarPlot(PlotlyPlot):
         the angle always takes the generic word, and reading a title off it
         would be reading a key plotly never writes.
         """
-        polar = self._layout.get("polar") or {}
+        polar = self._layout.get(self._subplot) or {}
         return {
             MaidrKey.X: self._axis_config(label="Angle"),
             MaidrKey.Y: self._axis_config(
@@ -90,6 +107,14 @@ class PlotlyPolarPlot(PlotlyPlot):
         at all. A spoke with no radius is dropped: plotly draws nothing for
         it, and `RadarTrace` places its spokes at an equal share of the
         circle by *count*, so keeping a gap would rotate every later spoke.
+
+        "No radius" is ``None`` or a non-finite number, because a gap
+        reaches this in either spelling and the difference is not the
+        author's. A list written with ``None`` arrives as ``None``; the
+        same list as a numpy array arrives base64-encoded and comes back
+        through `as_list` as ``nan``. Dropping only ``None`` would have made
+        the same chart read correctly or rotate depending on how its author
+        happened to hold the data.
         """
         angles = as_list(self._trace.get("theta"))
         radii = as_list(self._trace.get("r"))
@@ -97,9 +122,42 @@ class PlotlyPolarPlot(PlotlyPlot):
         spokes = [
             {MaidrKey.X: self._to_native(angle), MaidrKey.Y: self._to_native(radius)}
             for angle, radius in zip(angles, radii)
-            if radius is not None
+            if _is_a_radius(radius)
         ]
         return [spokes] if spokes else []
+
+
+def subplot_name(trace: dict) -> str:
+    """Return the ``layout`` key naming this polar trace's own subplot.
+
+    A polar trace is addressed by ``subplot`` -- ``"polar"``, ``"polar2"``,
+    ... -- rather than by an axis pair, and the same string is both the
+    ``layout`` key holding that subplot's axes and domain and the class
+    plotly gives its ``<g>`` under ``.polarlayer``. A trace that names none
+    belongs to the first.
+
+    Parameters
+    ----------
+    trace : dict
+        One ``scatterpolar`` or ``barpolar`` trace.
+
+    Returns
+    -------
+    str
+        The subplot name, defaulting to ``"polar"``.
+    """
+    return str(trace.get("subplot") or "polar")
+
+
+def _is_a_radius(value: object) -> bool:
+    """Report whether a ``r`` entry is a radius rather than a gap."""
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return True
+    if isinstance(value, (int, float)):
+        return math.isfinite(value)
+    return True
 
 
 def _axis_title(axis: object, default: str) -> str:
