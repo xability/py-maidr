@@ -858,6 +858,39 @@ class PlotlyMaidr:
                     self._plots.append(plot)
                 merged.update(id(t) for t in funnelarea_traces)
 
+            # Polar traces, one layer each. A `scatterpolar` is numbered
+            # among the polar *scatter* traces, because that is what the
+            # `.polarlayer .scatterlayer` groups hold -- a `barpolar` draws
+            # into `.polarlayer .barlayer` and shifts nothing there.
+            polar_traces = [
+                t for t in group_traces if t.get("type") in ("scatterpolar", "barpolar")
+            ]
+            if polar_traces:
+                # `PlotType` is imported here rather than at module level
+                # because `_extract_plots` already imports it locally
+                # further down, which makes the name local to the whole
+                # function -- a module-level reference above that point is
+                # an unbound local, not the module's.
+                from maidr.core.enum.plot_type import PlotType
+                from maidr.plotly.polar import PlotlyPolarPlot
+
+                scatter_position = 0
+                for polar_trace in polar_traces:
+                    is_scatter = polar_trace.get("type") == "scatterpolar"
+                    plot = PlotlyPolarPlot(
+                        polar_trace,
+                        layout,
+                        PlotType.RADAR if is_scatter else PlotType.POLAR_AREA,
+                        trace_position=scatter_position,
+                        **axis_kwargs,
+                    )
+                    if is_scatter:
+                        scatter_position += 1
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in polar_traces)
+
             # Sankeys, one layer each. Only this loop knows whether the
             # figure holds a second one, which is what decides whether
             # either can be addressed -- see `PlotlySankeyPlot._get_selector`.

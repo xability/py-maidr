@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
 from maidr.plotly.step_shape import is_connected_line_trace, is_step_trace
 
@@ -125,6 +126,16 @@ class PlotlyPlotFactory:
             from maidr.plotly.histogram import PlotlyHistogramPlot
 
             return PlotlyHistogramPlot(trace, layout, **axis_kwargs)
+
+        if trace_type in ("scatterpolar", "barpolar"):
+            from maidr.plotly.polar import PlotlyPolarPlot
+
+            polar_type = (
+                PlotType.RADAR if trace_type == "scatterpolar" else PlotType.POLAR_AREA
+            )
+            # ``trace_position`` is left at its default: this factory sees
+            # one trace with no idea what else shares the polar subplot.
+            return PlotlyPolarPlot(trace, layout, polar_type, **axis_kwargs)
 
         if trace_type == "sankey":
             from maidr.plotly.sankey import PlotlySankeyPlot
