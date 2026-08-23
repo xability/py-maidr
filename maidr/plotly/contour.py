@@ -275,6 +275,14 @@ def draws_its_lines(trace: dict) -> bool:
 def levels_of(trace: dict, z: Any = None) -> list[float] | None:
     """Return the levels plotly draws: the author's, or the ones it picks.
 
+    Which route applies is asked first, rather than read off a None coming
+    back from the first one. :func:`declared_levels` answers None for two
+    unrelated reasons -- the author did not name their own levels, and the
+    author named a *billion* of them -- and only the first is a reason to
+    pick levels instead. Falling through on both would read a runaway spec at
+    nine levels of someone else's choosing, which is a chart the author did
+    not write and plotly does not draw.
+
     Parameters
     ----------
     trace : dict
@@ -286,9 +294,31 @@ def levels_of(trace: dict, z: Any = None) -> list[float] | None:
     Returns
     -------
     list of float or None
-        The levels, or None when the trace is not a set of levels at all.
+        The levels, or None when there are none to read.
     """
-    return declared_levels(trace) or automatic_levels(trace, z)
+    if declares_levels(trace):
+        return declared_levels(trace)
+    return automatic_levels(trace, z)
+
+
+def declares_levels(trace: dict) -> bool:
+    """Whether the levels are the author's rather than plotly's to pick.
+
+    **Both ends** is what makes them the author's. Plotly coerces
+    ``autocontour`` to true when either ``start`` or ``end`` is missing, so a
+    trace naming one of them, or only a ``size``, has its levels picked for
+    it -- measured, all three draw the same nine levels as a trace naming
+    nothing at all. An explicit ``autocontour: True`` overrides even a
+    complete spec, and a ``constraint`` contour is not a set of levels at
+    all (see :func:`_levels_spec`).
+    """
+    contours = _levels_spec(trace)
+    if contours is None or trace.get("autocontour") is True:
+        return False
+    return (
+        _a_number(contours.get("start")) is not None
+        and _a_number(contours.get("end")) is not None
+    )
 
 
 def declared_levels(trace: dict) -> list[float] | None:
@@ -301,12 +331,10 @@ def declared_levels(trace: dict) -> list[float] | None:
     ``start=0.2, size=0.2`` both routes agree on 0.4 and disagree on the
     third level, and the level is also what is handed to the curve tracer.
 
-    **Both ends** is what makes a spec the author's. Plotly coerces
-    ``autocontour`` to true when either ``start`` or ``end`` is missing, so a
-    trace naming one of them, or only a ``size``, has its levels picked for it
-    -- measured, all three draw the same nine levels as a trace naming nothing
-    at all. :func:`automatic_levels` takes those, and takes an explicit
-    ``autocontour: True``, which overrides a complete spec.
+    What makes a spec the author's is :func:`declares_levels`; None here
+    means either that it is not theirs or that theirs runs away (see
+    :func:`_stepped`), which is why :func:`levels_of` asks which case it is
+    before reading this.
 
     With both ends named, a missing or zero ``size`` is **not** a decline:
     plotly keeps the ends and derives a width for them, through the same
@@ -314,13 +342,13 @@ def declared_levels(trace: dict) -> list[float] | None:
     no size and a zero size both draw a width of 0.05, which is
     ``(0.8 - 0.2) / 15`` rounded up, and ``ncontours=4`` draws 0.2.
     """
-    contours = _levels_spec(trace)
-    if contours is None or trace.get("autocontour") is True:
+    if not declares_levels(trace):
         return None
 
+    contours = _levels_spec(trace) or {}
     start = _a_number(contours.get("start"))
     end = _a_number(contours.get("end"))
-    if start is None or end is None:
+    if start is None or end is None:  # pragma: no cover - `declares_levels`
         return None
 
     low, high = (start, end) if start <= end else (end, start)
@@ -341,7 +369,10 @@ def automatic_levels(trace: dict, z: Any) -> list[float] | None:
     1. A rough step of ``(zmax - zmin) / (ncontours or 15)``, rounded up to a
        1/2/5x10ⁿ value by the same ``roundUp`` a histogram's bin width goes
        through -- **strictly** greater, which is the whole of what made a
-       field spanning ``0 .. 3`` look unreproducible (#646).
+       field spanning ``0 .. 3`` look unreproducible (#646). The ``or`` reads
+       a zero ``ncontours`` as none given, which no measured figure can
+       reach: plotly's own validator rejects anything below 1, so a trace
+       built through `graph_objects` never carries one.
     2. ``start``: the first multiple of the step at or above ``zmin``, moved
        up one when it lands *on* it, so no level sits at the floor of the
        field.
@@ -375,7 +406,13 @@ def automatic_levels(trace: dict, z: Any) -> list[float] | None:
     if _levels_spec(trace) is None or z is None:
         return None
 
-    finite = np.asarray(z)[np.isfinite(np.asarray(z, dtype=float))]
+    # Through the mask rather than around it. `_grid` hands over a masked
+    # array, and reading `np.asarray` off one gives the buffer *under* the
+    # mask -- which happens to hold the NaN that caused the masking today,
+    # so the filter below would keep working by luck if a masked value were
+    # ever a finite one.
+    values = np.ma.filled(np.ma.asarray(z, dtype=float), np.nan)
+    finite = values[np.isfinite(values)]
     if finite.size == 0:
         return None
     low, high = float(np.min(finite)), float(np.max(finite))

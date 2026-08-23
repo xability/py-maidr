@@ -40,6 +40,7 @@ landing on a binary tie. All 49 agree, level for level.
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 # `plotly` is an optional extra; guard it the way the rest of this directory
@@ -646,6 +647,43 @@ def test_a_spacing_that_asks_for_a_billion_levels_is_declined() -> None:
 
     assert declared_levels(runaway) is None
     assert declared_levels(ordinary) == [0, 0.5, 1.0]
+
+
+def test_a_runaway_spec_declines_rather_than_falling_back_to_automatic() -> None:
+    """The decline has to reach the layer, not just the level list.
+
+    Reading the levels is now two routes rather than one, and the author's
+    route answers None for two unrelated reasons: they did not name their own
+    levels, and they named a billion of them. Treating both as "then pick
+    some" would read the chart above at nine levels of maidr's choosing --
+    every one of them a level plotly does not draw here, on a chart whose
+    author was explicit about which levels they wanted.
+
+    Reached through the whole layer rather than the level list, because the
+    level list is where the two reasons already look alike.
+    """
+    figure = go.Figure(_contour(ONE_PEAK, start=0, end=1, size=1e-9))
+
+    assert _layers(figure) == []
+
+
+def test_a_masked_field_picks_its_levels_from_what_is_left() -> None:
+    """The range behind automatic levels reads through the mask.
+
+    A hole is masked *and* NaN today, so filtering on `isfinite` and
+    filtering on the mask cannot be told apart -- until a masked value is a
+    finite one, which is what this arranges by masking the peak of an
+    otherwise ordinary field by hand. Reading around the mask would put the
+    range at 0 .. 1 and the levels at every tenth; reading through it puts
+    the range at 0 .. 0.5, where plotly's rule gives multiples of 0.05.
+    """
+    from maidr.plotly.contour import automatic_levels
+
+    field = np.ma.masked_values([[0.0, 0.5, 0.0], [0.5, 1.0, 0.5], [0.0, 0.5, 0.0]], 1.0)
+
+    assert automatic_levels({}, field) == pytest.approx(
+        [0.05 * step for step in range(1, 10)]
+    )
 
 
 def test_a_tracer_that_raises_costs_one_layer_and_not_the_figure(
