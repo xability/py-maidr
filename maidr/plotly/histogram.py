@@ -137,6 +137,14 @@ def _plotly_dtick(size0: float) -> float:
     return base * _plotly_round_up(size0 / base, [2, 5, 10])
 
 
+#: How far a bin count may overshoot a whole number and still be read as one.
+#: ``(end - start) / size`` decides how many bins a spec asks for, and the
+#: division rarely comes out even in binary -- ``(8 - 0) / 2`` is exact but a
+#: hair over on other spellings, and rounding that up would add a bin the
+#: chart does not draw.
+_BIN_COUNT_TOLERANCE = 1e-9
+
+
 def _auto_shift_bins(
     bin_start: float,
     data: np.ndarray,
@@ -585,21 +593,38 @@ class PlotlyHistogramPlot(PlotlyPlot):
     def _bin_assignment(arr: np.ndarray, bin_edges: np.ndarray) -> np.ndarray:
         """Which bin each observation falls in, or ``-1`` for none.
 
-        Matches how ``np.histogram`` fills the same edges, so the assignment
-        and the counts cannot disagree about which bin an observation is in:
-        half-open ``[low, high)`` throughout except the last bin, which is
-        closed so the maximum has somewhere to go.
+        Every bin is half-open, ``[low, high)``, **including the last**. That
+        is measured rather than obliging: with a window running to 6, plotly
+        drops the samples sitting exactly on it rather than folding them into
+        the bin below, and the two-dimensional reading of the same binning
+        settled it the same way (#645).
 
-        Values outside every bin get ``-1``. Plotly discards those rather than
-        clipping them into an edge bin -- an explicit window narrower than the
-        data drops what falls beyond it, both sides -- and ``np.histogram``
-        already does the same for the counts.
+        It costs nothing where the window is plotly's own, since a derived end
+        is a whole bin past the last value and no sample can sit on it. It
+        matters where the window is the author's, which is where a closed
+        final bin announced ``[4, 6)`` holding seven of a chart's five.
+
+        Values outside every bin get ``-1``: plotly discards those rather
+        than clipping them into an edge bin, both sides.
         """
         assignment = np.searchsorted(bin_edges, arr, side="right") - 1
-        assignment[arr == bin_edges[-1]] = len(bin_edges) - 2
-        outside = (arr < bin_edges[0]) | (arr > bin_edges[-1])
+        outside = (arr < bin_edges[0]) | (arr >= bin_edges[-1])
         assignment[outside] = -1
         return assignment
+
+    @staticmethod
+    def _bin_counts(arr: np.ndarray, bin_edges: np.ndarray) -> np.ndarray:
+        """How many observations landed in each bin.
+
+        Counted off :meth:`_bin_assignment` rather than ``np.histogram``, so
+        the counts and the assignment cannot disagree about which bin an
+        observation is in -- ``np.histogram`` closes its final bin and this
+        does not.
+        """
+        assignment = PlotlyHistogramPlot._bin_assignment(arr, bin_edges)
+        return np.bincount(
+            assignment[assignment >= 0], minlength=len(bin_edges) - 1
+        )
 
     def _extract_plot_data(self) -> list[dict]:
         values, _ = paired_arrays(self._trace, self._binned)
@@ -615,7 +640,9 @@ class PlotlyHistogramPlot(PlotlyPlot):
             return self._extract_categorical_data(values)
 
         bin_edges = self._compute_bin_edges(arr)
-        counts, bin_edges = np.histogram(arr, bins=bin_edges)
+        if len(bin_edges) < 2:
+            return []
+        counts = self._bin_counts(arr, bin_edges)
 
         # Trimmed on the raw counts rather than the rescaled values, because
         # that is what "a bin nothing landed in" means. Every rescaling below
@@ -803,64 +830,102 @@ def compute_bin_edges(
     np.ndarray
         Bin edges matching what Plotly renders.
     """
-    # Explicit bin size — the width is used as given, without the 'nice'
-    # rounding an `nbins` hint goes through.
-    if bins is not None and "size" in bins:
-        size = float(bins["size"])
-        data_min, data_max = float(arr.min()), float(arr.max())
-
-        # An explicit `start` is honoured verbatim. Without one, plotly
-        # still runs the same anti-clustering shift it applies when
-        # autobinning, which the round multiple of `size` alone does not
-        # reproduce: `go.Histogram(x=[0, 1, 2, 3, 4], xbins=dict(size=2))`
-        # is drawn from -0.5, not 0, because every value is an integer and
-        # they would otherwise sit on the bin edges.
-        if "start" in bins:
-            start = float(bins["start"])
-        else:
-            start = _auto_shift_bins(
-                math.floor(data_min / size) * size,
-                arr,
-                size,
-                data_min,
-                data_max,
-            )
-
-        # One bin past the last value, so a value sitting exactly on a
-        # grid multiple gets the bin starting there rather than being
-        # folded into the one below by numpy's closed final interval.
-        # Any bin this reaches past the data is empty, and `_occupied_span`
-        # trims it back off.
-        end = (
-            float(bins["end"])
-            if "end" in bins
-            else math.floor((data_max - start) / size) * size + start + size
-        )
-        return np.arange(start, end + size / 2, size)
-
+    named = bins if isinstance(bins, dict) else {}
     data_min, data_max = float(arr.min()), float(arr.max())
     data_range = data_max - data_min
-    if data_range == 0:
+    # A sample with no spread and nothing said about it: one bin around the
+    # single value, which is what plotly draws (measured -- a run of 3s is
+    # binned from 2.5 to 3.5). With something said about it there is a spec
+    # to honour, and the width below answers 1 for a zero range anyway.
+    if data_range == 0 and not named:
         return np.array([data_min - 0.5, data_max + 0.5])
 
-    # 1. Compute nice bin size (mirrors axes.autoTicks + roundDTick)
-    if nbins is not None:
-        size0 = data_range / max(1, nbins)
+    # 1. The width: the author's, the one an `nbins` hint rounds up to, or
+    #    the automatic one -- see :func:`_bin_size`.
+    size = _bin_size(arr, named, nbins, data_range, is_2d=is_2d)
+    if size <= 0:
+        # Only a *negative* explicit width reaches here -- a zero one is read
+        # as an absence above. Plotly draws something for it rather than
+        # nothing (measured: a width of -2 over twenty integers draws ten
+        # bars, one per distinct value), by a route worth neither guessing at
+        # nor reproducing for a spec that cannot be meant. Declining costs the
+        # layer; announcing one bin holding everything would misreport a chart
+        # drawing ten, which is the outcome #636 settled against.
+        return np.array([])
+
+    # 2. The start. An explicit one is honoured verbatim -- and honoured
+    #    *whether or not* a size came with it, which is what #650 was about:
+    #    reading it only alongside a size left `xbins={"start": 0.5}` binned
+    #    from the automatic -0.5, five bars announced as six and not one of
+    #    the numbers a number on the chart.
+    #
+    #    Without one, plotly runs an anti-clustering shift, which the round
+    #    multiple alone does not reproduce: `go.Histogram(x=[0, 1, 2, 3, 4],
+    #    xbins=dict(size=2))` is drawn from -0.5, not 0, because every value
+    #    is an integer and they would otherwise sit on the bin edges.
+    if "start" in named:
+        start = float(named["start"])
     else:
-        size0 = _plotly_default_size0(arr, is_2d=is_2d)
-    dtick = _plotly_dtick(size0)
+        start = _auto_shift_bins(
+            math.ceil(data_min / size) * size - size, arr, size, data_min, data_max
+        )
 
-    # 2. Initial bin start: one tick below the first tick >= data_min
-    #    (mirrors axes.tickFirst → axes.tickIncrement(reverse))
-    first_tick = math.ceil(data_min / dtick) * dtick
-    bin_start = first_tick - dtick
+    # 3. How many bins. Plotly steps from `start` while the *bin's own*
+    #    start is below `end`, so a range that is not a whole number of bins
+    #    still gets the part-bin at the top: measured on `start=0.5, end=9,
+    #    size=2`, which draws five bars and not the four that rounding the
+    #    span down gives.
+    #
+    #    Without an `end`, one bin past the last value, so a value sitting
+    #    exactly on a grid multiple has a bin of its own to land in rather
+    #    than falling outside every bin -- see
+    #    :meth:`PlotlyHistogramPlot._bin_assignment`, where the last bin is
+    #    half-open like the rest. Any bin that reaches past the data is
+    #    empty, and `_occupied_span` trims it back off.
+    if "end" in named:
+        span = (float(named["end"]) - start) / size
+        count = math.ceil(span - _BIN_COUNT_TOLERANCE)
+    else:
+        count = 1 + math.floor((data_max - start) / size)
+    # A spec that leaves no bin at all -- a `start` past the last value, or
+    # an `end` at or below it -- comes out as a count of zero or less, and
+    # `np.arange` answers that with an empty array on its own. Plotly draws
+    # nothing for such a spec (measured), and every caller reads fewer than
+    # two edges as nothing to bin, so no guard of its own is needed here.
+    return start + size * np.arange(count + 1)
 
-    # 3. Shift to avoid data clustering at bin edges
-    bin_start = _auto_shift_bins(bin_start, arr, dtick, data_min, data_max)
 
-    # 4. Compute bin count and end
-    bin_count = 1 + math.floor((data_max - bin_start) / dtick)
-    bin_end = bin_start + bin_count * dtick
+def _bin_size(
+    arr: np.ndarray,
+    named: dict,
+    nbins: int | None,
+    data_range: float,
+    *,
+    is_2d: bool,
+) -> float:
+    """The bin width plotly settles on, before any start or end is applied.
 
-    return np.arange(bin_start, bin_end + dtick / 2, dtick)
+    An explicit ``size`` is used as given, without the 'nice' rounding an
+    ``nbins`` hint goes through. A zero one is not a width but an absence:
+    measured, ``xbins=dict(size=0)`` draws the automatic bins, and plotly's
+    own test for it is falsiness.
+
+    Writing ``size`` at all -- even as that zero -- also **discards an
+    ``nbins`` hint**, which is the one place the two interact. Measured:
+    ``xbins=dict(size=0)`` with ``nbinsx`` of 4 and of 12 both draw the same
+    fully automatic bins, while ``xbins=dict(start=0)`` with ``nbinsx=4``
+    draws the width the hint asks for. So the hint is read when ``size`` is
+    absent rather than when it is unusable.
+
+    A sample with no spread gets a width of **1**, not the 2 that rounding
+    one up would give: measured, a run of 3s is binned from 2.5 to 3.5 with
+    ``size`` reported as 1, whether or not the author named a start.
+    """
+    if named.get("size"):
+        return float(named["size"])
+    if data_range == 0:
+        return 1.0
+    if nbins is not None and "size" not in named:
+        return _plotly_dtick(data_range / max(1, nbins))
+    return _plotly_dtick(_plotly_default_size0(arr, is_2d=is_2d))
 

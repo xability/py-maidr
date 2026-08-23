@@ -190,16 +190,17 @@ class TestBinStartShift:
 
 
 class TestBothCallersSeedTheShiftEquivalently:
-    """``_auto_shift_bins`` has two callers that seed it differently.
+    """``_auto_shift_bins`` can be seeded two ways, and they agree.
 
-    The autobin path passes ``ceil(data_min / dtick) * dtick - dtick``; the
-    explicit-size path passes ``floor(data_min / size) * size``. Those agree
-    except when ``data_min`` is itself a multiple of the width, where they
-    differ by exactly one bin — and the branches inside then correct both to
-    the same start.
+    The seed can be written ``ceil(data_min / width) * width - width`` or
+    ``floor(data_min / width) * width``. Those differ by exactly one bin when
+    ``data_min`` is itself a multiple of the width — and the branches inside
+    then correct both to the same start.
 
-    That is a property of those branches, not of the seed arithmetic, so a
-    refactor of the shift could break the coupling with nothing failing. This
+    That agreement is what let #650 fold the explicit-size and automatic
+    paths into one, which had been the two callers seeding it differently.
+    It is a property of those branches rather than of the seed arithmetic, so
+    a refactor of the shift could break it with nothing else failing; this
     pins it instead of leaving it to be re-derived by hand.
     """
 
@@ -306,3 +307,153 @@ class TestTheRoundUpIsStrict:
             "22.5 – 27.5",
             "27.5 – 32.5",
         ]
+
+
+class TestABinSpecWithoutASize:
+    """#650: a ``start`` or an ``end`` was read only alongside a ``size``.
+
+    Every one of these was measured against plotly 6.7.0 in Chromium, on the
+    sample below -- twenty integers from 1 to 10, whose automatic bins run
+    from -0.5 in steps of 2.
+    """
+
+    SAMPLE = [1, 1, 2, 2, 2, 3, 3, 4, 5, 5, 5, 5, 6, 6, 7, 8, 8, 9, 9, 10]
+
+    def test_a_start_alone_moves_every_bin(self):
+        """The case that shows what it cost: five bars announced as six.
+
+        With the start discarded, this was binned from the automatic -0.5 and
+        announced as six bins of ``[2, 5, 5, 3, 4, 1]`` -- for a chart drawing
+        five bars of ``[5, 3, 6, 3, 3]``. Not one of the six numbers is a
+        number on the chart, and not one of the six labels names a bar.
+        """
+        drawn = bins(go.Figure(go.Histogram(x=self.SAMPLE, xbins=dict(start=0.5))))
+
+        assert [count for _, _, count in drawn] == [5, 3, 6, 3, 3]
+        assert [low for low, _, _ in drawn] == [0.5, 2.5, 4.5, 6.5, 8.5]
+
+    def test_an_end_alone_stops_the_bins_short(self):
+        """And drops the samples past it, which is what plotly draws.
+
+        Measured: three bars, holding twelve of the twenty samples. The eight
+        at 6 and above are outside every bin and are not counted anywhere --
+        the same reading an explicit window already had (#402).
+        """
+        drawn = bins(go.Figure(go.Histogram(x=self.SAMPLE, xbins=dict(end=5))))
+
+        assert drawn == [(-0.5, 1.5, 2), (1.5, 3.5, 5), (3.5, 5.5, 5)]
+
+    def test_both_ends_without_a_width_get_one_derived_for_them(self):
+        """The width is still the automatic one; only the window is theirs."""
+        drawn = bins(
+            go.Figure(go.Histogram(x=self.SAMPLE, xbins=dict(start=2, end=6)))
+        )
+
+        assert drawn == [(2.0, 4.0, 5), (4.0, 6.0, 5)]
+
+    @pytest.mark.parametrize(
+        "size",
+        [pytest.param(None, id="width-derived"), pytest.param(2, id="width-named")],
+    )
+    def test_a_window_that_is_not_whole_bins_keeps_its_part_bin(self, size):
+        """Plotly steps while the *bin's own* start is below ``end``.
+
+        ``start=0.5, end=9`` is four and a quarter bins of 2. Measured: five
+        bars, the last of them ``[8.5, 10.5)`` -- reaching past the ``end``
+        that admitted it. Rounding the span to whole bins gives four and
+        loses the three samples at 9, 9 and 10.
+
+        Written both ways round because the old code had two paths here and
+        only one of them was ever reached with a derived width.
+        """
+        spec = dict(start=0.5, end=9)
+        if size is not None:
+            spec["size"] = size
+
+        drawn = bins(go.Figure(go.Histogram(x=self.SAMPLE, xbins=spec)))
+
+        assert len(drawn) == 5
+        assert drawn[-1] == (8.5, 10.5, 3)
+
+    def test_a_width_of_zero_is_an_absence_and_takes_nbins_with_it(self):
+        """Measured, and the second half is the surprising half.
+
+        ``size=0`` is not a width plotly can use, so it bins automatically --
+        and writing ``size`` at all, even as that zero, discards an ``nbins``
+        hint too. Measured: ``nbinsx`` of 4 and of 12 both draw the same six
+        automatic bars. Reading the hint anyway would announce twelve.
+
+        This also used to be a crash rather than a reading: a zero width
+        reached a division by it.
+        """
+        for hint in (None, 4, 12):
+            extra = {} if hint is None else {"nbinsx": hint}
+            drawn = bins(
+                go.Figure(go.Histogram(x=self.SAMPLE, xbins=dict(size=0), **extra))
+            )
+
+            assert [count for _, _, count in drawn] == [2, 5, 5, 3, 4, 1]
+
+    def test_a_sample_with_no_spread_is_one_wide_wherever_it_starts(self):
+        """A width of 1, not the 2 that rounding one up gives.
+
+        Measured: a run of 3s is binned from 2.5 to 3.5, and with
+        ``start=0`` from 3 to 4 -- one wide either way. The automatic width
+        for a sample with no spread falls back to 1 *before* the round-up
+        rather than through it.
+        """
+        flat = [3, 3, 3, 3, 3]
+
+        assert bins(go.Figure(go.Histogram(x=flat))) == [(2.5, 3.5, 5)]
+        assert bins(
+            go.Figure(go.Histogram(x=flat, xbins=dict(start=0)))
+        ) == [(3.0, 4.0, 5)]
+
+    def test_a_window_a_hair_over_whole_bins_is_still_whole_bins(self):
+        """``(-2.8 - -3.0) / 0.1`` is 2.0000000000000018 in binary.
+
+        Two bins, and the arithmetic says a shade more than two -- so a
+        ceiling taken at face value adds a third, ``[-2.8, -2.7)``, and puts
+        the two samples past the author's window into it. Measured: plotly
+        draws two bars and drops those samples, which are outside every bin
+        it made.
+
+        Reached with data past the ``end`` on purpose. An empty extra bin
+        would be trimmed back off before anyone heard it, so only a bin with
+        something in it shows the difference.
+        """
+        inside_and_beyond = [-2.99, -2.95, -2.92, -2.85, -2.83, -2.75, -2.74]
+
+        drawn = bins(
+            go.Figure(
+                go.Histogram(
+                    x=inside_and_beyond,
+                    xbins=dict(start=-3.0, end=-2.8, size=0.1),
+                )
+            )
+        )
+
+        assert [count for _, _, count in drawn] == [3, 2]
+
+    def test_a_negative_width_forms_no_layer(self):
+        """Not a width, and not a chart this can read.
+
+        Plotly draws *something* for it -- measured, a width of -2 over these
+        twenty integers draws ten bars, one per distinct value -- by a route
+        worth neither guessing at nor reproducing. Declining costs the layer;
+        the one bin holding everything that the arithmetic would otherwise
+        produce would misreport a chart drawing ten (#636).
+        """
+        figure = go.Figure(go.Histogram(x=self.SAMPLE, xbins=dict(size=-2)))
+
+        assert layers(figure) == []
+
+    def test_a_start_past_the_last_value_forms_no_layer(self):
+        """There is no bin at all, which is what plotly draws: nothing.
+
+        A layer of no bins would announce a distribution the chart does not
+        draw, which is what #636 settled for every other empty reading.
+        """
+        figure = go.Figure(go.Histogram(x=self.SAMPLE, xbins=dict(start=20)))
+
+        assert layers(figure) == []
