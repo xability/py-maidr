@@ -18,6 +18,7 @@ from maidr.plotly.hierarchy import has_one_root, is_hierarchy_trace
 from maidr.plotly.area import is_area_trace
 from maidr.plotly.contour import is_contour_trace
 from maidr.plotly.histogram2d import is_histogram2d_trace
+from maidr.plotly.histogram2dcontour import is_histogram2dcontour_trace
 from maidr.plotly.grouped_histogram import is_histogram_trace
 from maidr.plotly.trendline import is_trendline_trace
 from maidr.plotly.plotly_plot import (
@@ -1297,12 +1298,27 @@ class PlotlyMaidr:
             # -- so a contour's selector is scoped by its position among
             # *those* traces, which the factory, seeing one trace at a time,
             # cannot know. `layer_position` knows which types share a layer.
-            contour_traces = [t for t in group_traces if is_contour_trace(t)]
+            contour_traces = [
+                t
+                for t in group_traces
+                if is_contour_trace(t) or is_histogram2dcontour_trace(t)
+            ]
             if contour_traces:
                 from maidr.plotly.contour import PlotlyContourPlot
+                from maidr.plotly.histogram2dcontour import (
+                    PlotlyHistogram2dContourPlot,
+                )
 
                 for contour_trace in contour_traces:
-                    plot = PlotlyContourPlot(
+                    # The two read alike from the grid onwards -- see
+                    # `PlotlyHistogram2dContourPlot` -- and draw into the same
+                    # `contourlayer`, so they are numbered together.
+                    build = (
+                        PlotlyHistogram2dContourPlot
+                        if is_histogram2dcontour_trace(contour_trace)
+                        else PlotlyContourPlot
+                    )
+                    plot = build(
                         contour_trace,
                         layout,
                         layer_position=layer_position(group_traces, contour_trace),

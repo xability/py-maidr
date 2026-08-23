@@ -4,7 +4,7 @@ from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list, colorbar_title
 
 class PlotlyHeatmapPlot(PlotlyPlot):
     """Extract data from a Plotly heatmap trace."""
@@ -120,15 +120,7 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         ``AxisConfig`` dict ``{"label": ...}``.
         """
         base = super()._extract_axes_data()
-        # Add z label from colorbar title if available
-        colorbar = self._trace.get("colorbar", {})
-        z_label = ""
-        if isinstance(colorbar, dict):
-            title = colorbar.get("title", "")
-            if isinstance(title, dict):
-                z_label = title.get("text", "")
-            elif title:
-                z_label = str(title)
+        z_label = colorbar_title(self._trace)
         if z_label:
             base[MaidrKey.Z] = self._axis_config(label=z_label)
         return base

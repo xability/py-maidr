@@ -574,10 +574,11 @@ def test_two_contours_on_one_subplot_address_their_own_groups() -> None:
 def test_a_histogram2dcontour_shifts_the_group_index() -> None:
     """It draws into the same `contourlayer` -- measured.
 
-    Counting only the contour traces would hand this one group 1, which is the
-    histogram's, and the highlight would land on a chart the reader is not
-    reading. maidr renders no layer for the histogram itself, so it is only
-    ever counted, never emitted.
+    Counting only the ``contour`` traces would hand the second one group 1,
+    which is the histogram's, and the highlight would land on a chart the
+    reader is not reading. The two are numbered together because plotly
+    appends both to the same layer, which is what
+    :func:`~maidr.plotly.candlestick.layer_position` is told.
     """
     figure = go.Figure(
         [
@@ -586,10 +587,10 @@ def test_a_histogram2dcontour_shifts_the_group_index() -> None:
         ]
     )
 
-    contours = [layer for layer in _layers(figure) if layer["type"] is PlotType.CONTOUR]
+    binned, declared = _layers(figure)
 
-    assert len(contours) == 1
-    assert "g.contour:nth-of-type(2)" in contours[0]["selectors"][0]
+    assert "g.contour:nth-of-type(1)" in binned["selectors"][0]
+    assert "g.contour:nth-of-type(2)" in declared["selectors"][0]
 
 
 def test_a_contour_on_a_second_subplot_is_scoped_to_it() -> None:
