@@ -530,6 +530,297 @@ def test_a_faceted_grouped_bar_reads_one_layer_per_panel():
     ]
 
 
+@pytest.mark.parametrize(
+    "build, expected",
+    [
+        pytest.param(
+            lambda plot: plot.add(so.Bar(), so.Norm(func="sum", by=["x"]), so.Stack()),
+            "stacked_normalized_bar",
+            id="shares",
+        ),
+        pytest.param(
+            lambda plot: plot.add(
+                so.Bar(),
+                so.Norm(func="sum", by=["x"], percent=True),
+                so.Stack(),
+            ),
+            "stacked_normalized_bar",
+            id="percent",
+        ),
+        pytest.param(
+            lambda plot: plot.add(
+                so.Bar(), so.Norm(func="sum", by=["x", "color"]), so.Stack()
+            ),
+            "stacked_bar",
+            id="normed-per-level",
+        ),
+        pytest.param(
+            lambda plot: plot.add(so.Bar(), so.Norm(), so.Stack()),
+            "stacked_bar",
+            id="normed-by-max",
+        ),
+        pytest.param(
+            lambda plot: plot.add(so.Bar(), so.Norm(func="sum"), so.Stack()),
+            "stacked_bar",
+            id="normed-without-by",
+        ),
+        pytest.param(
+            lambda plot: plot.add(so.Bar(), so.Stack(), so.Norm(func="sum", by=["x"])),
+            "stacked_bar",
+            id="normed-after-stacking",
+        ),
+        pytest.param(
+            lambda plot: plot.add(so.Bar(), so.Stack()),
+            "stacked_bar",
+            id="not-normed",
+        ),
+        pytest.param(
+            lambda plot: plot.add(so.Bar(), so.Norm(func="sum", by=["x"]), so.Dodge()),
+            "dodged_bar",
+            id="normed-but-not-stacked",
+        ),
+    ],
+)
+def test_only_a_stack_that_reaches_a_whole_is_a_hundred_percent_bar(build, expected):
+    """#620. `so.Norm` looks like the 100% stack's transform and is not one
+    on its own -- which combination of `func` and `by` was written decides,
+    and so does whether it ran before the stack. Measured, each category's
+    stack total::
+
+        Norm(func="sum", by=["x"])              1.0     <- a whole
+        Norm(func="sum", by=["x", "color"])     2.0     <- every level to 1
+        Norm(func="sum")                        0.583 / 1.417
+        Norm()                                  0.833 / 2.0
+        Stack() then Norm(...)                  0.429 / 1.0
+
+    `by=["x", "color"]` is the trap: it names the category axis, so a rule
+    reading `by` would claim it, and it announces shares summing to twice
+    the whole.
+
+    So the drawn bars are asked instead, and a plain `Stack()` is left alone
+    even when its categories happen to total alike -- the author has to have
+    asked for a sum-normalisation *and* the bars have to have landed on it.
+
+    `Stack()` before `Norm(...)` is turned away by the totals rather than by
+    a rule about the order; `test_a_stack_normalised_afterwards_is_claimed_
+    only_when_it_landed` covers where that lands and why the order is not
+    asked about separately.
+    """
+    figure = plt.figure()
+    build(so.Plot(_bars(), x="cat", y="val", color="g")).on(figure).plot()
+    maidr.render(figure)._repr_html_()
+
+    assert [
+        plot.schema["type"].value for plot in FigureManager.get_maidr(figure).plots
+    ] == [expected]
+
+
+def test_a_stack_normalised_afterwards_is_claimed_only_when_it_landed():
+    """Why `_normalises_to_a_whole` does not check where `Norm` sits relative
+    to `Stack`, even though the order plainly changes the drawing.
+
+    After `Stack()` then `Norm(func="sum")` the drawn tops are each
+    category's `t_i / sum(t_i)` over the *cumulative* tops, so they are all
+    wholes only when one top carries the whole sum -- every level but the
+    last at zero -- and the shares announced then (0, 1) are the true ones.
+
+    Three levels with one at zero: tops 0.8 and 0.667, turned away.
+    Two levels with one at zero: tops 1.0, claimed, and correctly.
+    """
+    three = pd.DataFrame(
+        {
+            "cat": ["a"] * 3 + ["b"] * 3,
+            "val": [0.0, 1.0, 3.0, 0.0, 2.0, 2.0],
+            "g": list("pqr") * 2,
+        }
+    )
+    figure = _drawn(
+        lambda fig: (
+            so.Plot(three, x="cat", y="val", color="g")
+            .add(so.Bar(), so.Stack(), so.Norm(func="sum", by=["x"]))
+            .on(fig)
+            .plot()
+        )
+    )
+    maidr.render(figure)._repr_html_()
+    assert [
+        plot.schema["type"].value for plot in FigureManager.get_maidr(figure).plots
+    ] == ["stacked_bar"]
+
+    two = pd.DataFrame(
+        {"cat": ["a", "a", "b", "b"], "val": [0.0, 2.0, 0.0, 4.0], "g": list("pqpq")}
+    )
+    figure = _drawn(
+        lambda fig: (
+            so.Plot(two, x="cat", y="val", color="g")
+            .add(so.Bar(), so.Stack(), so.Norm(func="sum", by=["x"]))
+            .on(fig)
+            .plot()
+        )
+    )
+    maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
+    assert len(figure.axes[0].containers[0]) == 2
+    assert [plot.schema["type"].value for plot in plots] == ["bar"]
+
+
+def test_a_callable_sum_is_read_like_the_named_one():
+    """`so.Norm` takes either a numpy method's *name* or a callable, and
+    `Norm(func=numpy.sum)` draws exactly what `Norm(func="sum")` does -- so a
+    reader should not be told a different thing about it.
+
+    A lambda still declines. What this reads is the layer's stated intent,
+    and a lambda states none; declining keeps the chart reading as the stack
+    it is rather than claiming a whole on a guess.
+    """
+    import numpy as np
+
+    for func in ("sum", np.sum, sum):
+        figure = plt.figure()
+        (
+            so.Plot(_bars(), x="cat", y="val", color="g")
+            .add(so.Bar(), so.Norm(func=func, by=["x"]), so.Stack())
+            .on(figure)
+            .plot()
+        )
+        maidr.render(figure)._repr_html_()
+        assert [
+            plot.schema["type"].value for plot in FigureManager.get_maidr(figure).plots
+        ] == ["stacked_normalized_bar"], func
+        plt.close("all")
+
+    figure = plt.figure()
+    (
+        so.Plot(_bars(), x="cat", y="val", color="g")
+        .add(so.Bar(), so.Norm(func=lambda a, **kw: a.sum(**kw), by=["x"]), so.Stack())
+        .on(figure)
+        .plot()
+    )
+    maidr.render(figure)._repr_html_()
+    assert [
+        plot.schema["type"].value for plot in FigureManager.get_maidr(figure).plots
+    ] == ["stacked_bar"]
+
+
+def test_a_dodge_beside_the_stack_is_not_a_whole():
+    """Where the boundary of `_normalises_to_a_whole` sits, stated rather
+    than left implicit.
+
+    Totals are keyed on the drawn position, and a `Dodge()` moves the
+    segments apart, so the keys split with them. That is the answer rather
+    than a hole in it: each drawn column is one dodge slot's share of its
+    category, not the category's, so none of them is a whole. Measured, four
+    levels dodged and stacked under `Norm(func="sum", by=["x"])`: eight
+    columns topping out between 0.1 and 0.4.
+    """
+    frame = pd.DataFrame(
+        {
+            "cat": ["a"] * 4 + ["b"] * 4,
+            "val": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+            "g": list("pqrs") * 2,
+        }
+    )
+    figure = _drawn(
+        lambda fig: (
+            so.Plot(frame, x="cat", y="val", color="g")
+            .add(so.Bar(), so.Norm(func="sum", by=["x"]), so.Dodge(), so.Stack())
+            .on(fig)
+            .plot()
+        )
+    )
+    maidr.render(figure)._repr_html_()
+
+    tops = {}
+    for patch in figure.axes[0].containers[0]:
+        key = round(float(patch.get_x()), 3)
+        tops[key] = max(tops.get(key, 0.0), patch.get_y() + patch.get_height())
+    assert len(tops) == 8
+    assert not any(abs(top - 1.0) < 1e-6 for top in tops.values())
+
+    assert [
+        plot.schema["type"].value for plot in FigureManager.get_maidr(figure).plots
+    ] == ["stacked_bar"]
+
+
+def test_only_a_sum_normalisation_counts_as_asking_for_a_whole():
+    """The intent half of `_normalises_to_a_whole`, asked of the function
+    directly because no `so.Bar` reaches it.
+
+    `Norm(func="max", by=["x"])` divides each category by its own maximum,
+    so a stack of it totals `sum / max`. With two drawn levels that is
+    always more than 1 and less than 100, and a level at zero draws nothing
+    at all -- so no chart of a plausible size lands it on a whole. A hundred
+    equal levels would, at exactly 100.0, and would then announce each
+    segment as 1 *percent* when it is the whole of its level.
+
+    Stubbing the moves and the bars says that in three lines instead of a
+    hundred-level chart, and it is the only thing keeping `func == "sum"`
+    from being decoration.
+    """
+    from types import SimpleNamespace
+
+    from maidr.patch.seaborn_objects import _normalises_to_a_whole
+
+    _, axes = plt.subplots()
+    # Two categories, each a stack reaching exactly 1.0 -- what a sum
+    # normalisation draws, and what a max normalisation would draw if a
+    # chart could get there.
+    container = axes.bar([0, 1, 0, 1], [0.25, 0.5, 0.75, 0.5], bottom=[0, 0, 0.25, 0.5])
+
+    # `Stack` and `Norm` are matched by class name, so the stubs are named.
+    class Norm(SimpleNamespace):
+        pass
+
+    class Stack(SimpleNamespace):
+        pass
+
+    assert _normalises_to_a_whole([Norm(func="sum"), Stack()], container) is True
+    assert _normalises_to_a_whole([Norm(func="max"), Stack()], container) is False
+    # No stack at all is not a whole either, however the bars happen to land.
+    assert _normalises_to_a_whole([Norm(func="sum")], container) is False
+    assert _normalises_to_a_whole(None, container) is False
+
+
+def test_a_hundred_percent_bar_announces_the_shares_it_drew():
+    """The payload is the drawn heights, because seaborn has already turned
+    the numbers into shares -- unlike the plotly path, where `layout.barnorm`
+    leaves the raw values in the trace and `maidr/plotly/barnorm.py` has to
+    compute them (#338).
+
+    Horizontal too, where the shares run along x and the categories sit on y.
+    """
+    figure = _drawn(
+        lambda fig: (
+            so.Plot(_bars(), y="cat", x="val", color="g")
+            .add(so.Bar(), so.Norm(func="sum", by=["y"]), so.Stack())
+            .on(fig)
+            .plot()
+        )
+    )
+    maidr.render(figure)._repr_html_()
+    (plot,) = FigureManager.get_maidr(figure).plots
+
+    assert plot.schema["type"].value == "stacked_normalized_bar"
+    assert plot.schema["orientation"] == "horz"
+    shares = [
+        [(bar["z"], bar["y"], round(bar["x"], 3)) for bar in group]
+        for group in plot.schema["data"]
+    ]
+    assert shares == [
+        [("p", "a", 0.333), ("p", "b", 0.429)],
+        [("q", "a", 0.667), ("q", "b", 0.571)],
+    ]
+    # Each category's segments are a whole, which is the claim the type makes.
+    for category in ("a", "b"):
+        total = sum(
+            bar["x"]
+            for group in plot.schema["data"]
+            for bar in group
+            if bar["y"] == category
+        )
+        assert total == pytest.approx(1.0)
+
+
 def test_the_grouped_reading_names_its_z_axis_from_the_figure_legend():
     """`GroupedBarPlot` read both its `z` label and its group names from
     `ax.get_legend()`, which is right for `seaborn.barplot(hue=)` and `None`
