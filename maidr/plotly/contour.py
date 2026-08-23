@@ -9,6 +9,7 @@ import numpy as np
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.histogram import _plotly_dtick
+from maidr.plotly.holes import filled
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
 _logger = logging.getLogger(__name__)
@@ -516,16 +517,15 @@ def _stepped(start: float, end: float, size: float) -> list[float] | None:
 def _grid(trace: dict) -> tuple[list[float], list[float], Any] | None:
     """Return the field as ``(x, y, z)``, or None when it cannot be traced.
 
-    ``z`` comes back masked where it is missing, which is what makes the
-    curves stop at a hole the way plotly's do -- measured on a field with the
-    peak punched out: both dropped the level the hole ate and agreed on the
-    rest.
+    ``z`` comes back with its **holes filled**, because plotly fills them
+    before tracing: a missing point in a contour's grid is averaged out of
+    its neighbours and the curves run through it. See
+    :func:`~maidr.plotly.holes.filled`, which reproduces that pass, and #651,
+    which is where reading a hole *as* a hole was measured costing up to
+    0.91 data units of curve on a grid whose cells are 0.5 across.
 
-    The mask is what ``contourpy`` documents for missing points. Passing the
-    NaN array straight through gives the same curves today -- measured, and it
-    is why removing the mask breaks no test -- but that is ``mpl2014``
-    treating NaN as missing rather than anything promised, so the documented
-    route is the one taken.
+    A field of nothing but holes has nothing to fill from and declines, which
+    is what plotly's own pass does with it (it raises rather than answers).
     """
     rows = [as_list(row) for row in as_list(trace.get("z"))]
     if not rows:
@@ -554,7 +554,11 @@ def _grid(trace: dict) -> tuple[list[float], list[float], Any] | None:
     if x is None or y is None:
         return None
 
-    return x, y, np.ma.masked_invalid(z)
+    whole = filled(z)
+    if whole is None:
+        return None
+
+    return x, y, whole
 
 
 def _has_extent(curve: Any, cell: float) -> bool:
