@@ -12,6 +12,7 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.candlestick import is_ohlc_trace, layer_position
+from maidr.plotly.plotly_plot import subplot_block
 from maidr.plotly.gauge import draws_a_dial
 from maidr.plotly.hierarchy import has_one_root, is_hierarchy_trace
 from maidr.plotly.area import is_area_trace
@@ -58,6 +59,14 @@ from maidr.util.environment import Environment
 from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly
 
 
+#: The layout keys that hold a subplot *block* -- a rectangle plotly writes
+#: for a subplot that has no cartesian axis pair, and that a trace addresses
+#: by name. ``polar``/``polar2`` for the two polar traces, ``geo``/``geo2``
+#: for a choropleth. Collected into the figure's row and column universe
+#: exactly as ``xaxis``/``yaxis`` domains are.
+_SUBPLOT_BLOCK_PREFIXES = ("polar", "geo")
+
+
 #: Trace types placed by their own ``domain`` rectangle that maidr renders as
 #: a layer. Plotly has other domain traces -- ``table``, ``sunburst``,
 #: ``treemap``, ``indicator`` -- and maidr draws no layer for any of them, so
@@ -79,6 +88,7 @@ _PLACED_BY_DOMAIN = frozenset(
         "sankey",
         "parcoords",
         "parcats",
+        "choropleth",
     }
 )
 
@@ -310,13 +320,15 @@ class PlotlyMaidr:
             if key.startswith("yaxis") and isinstance(val, dict):
                 y_starts.add(_domain_start(val, "domain"))
 
-            # A polar subplot is placed like a cartesian one -- by a
+            # A polar or geo subplot is placed like a cartesian one -- by a
             # rectangle `make_subplots` wrote into the layout -- but under
             # its own key rather than an axis pair, so it needs its own
             # branch. Without it a `[bar, polar]` grid collected one x start
             # and collapsed to a single cell holding both layers, and two
-            # polar subplots side by side collected none at all.
-            if key.startswith("polar") and isinstance(val, dict):
+            # polar subplots side by side collected none at all. A geo
+            # subplot is the same shape: `layout.geo.domain`, named by the
+            # trace's `geo` rather than by an axis pair.
+            if key.startswith(_SUBPLOT_BLOCK_PREFIXES) and isinstance(val, dict):
                 domain = val.get("domain")
                 if isinstance(domain, dict):
                     x_starts.add(_domain_start(domain, "x"))
@@ -384,31 +396,29 @@ class PlotlyMaidr:
         return _domain_start(domain, "x"), _domain_start(domain, "y")
 
     @staticmethod
-    def _polar_domain_start(layout: dict, trace: dict) -> tuple[float, float]:
-        """Return where a polar trace's own subplot starts in the figure.
+    def _block_domain_start(layout: dict, name: str) -> tuple[float, float]:
+        """Return where a named subplot *block* starts in the figure.
 
-        A polar trace carries neither an axis pair nor a ``domain`` of its
-        own, so neither of the two helpers above can place it. Its rectangle
-        is written into the layout under the subplot it names --
-        ``layout.polar``, ``layout.polar2``, ... -- which is what tells two
-        polar charts of a grid apart.
+        A polar or geo trace carries neither an axis pair nor a ``domain`` of
+        its own, so neither of the two helpers above can place it. Its
+        rectangle is written into the layout under the subplot it names --
+        ``layout.polar``, ``layout.polar2``, ``layout.geo``, ... -- which is
+        what tells two of them in one grid apart.
 
         Parameters
         ----------
         layout : dict
             The Plotly figure layout.
-        trace : dict
-            One ``scatterpolar`` or ``barpolar`` trace.
+        name : str
+            The layout key naming the subplot, as the trace spells it.
 
         Returns
         -------
         tuple of (float, float)
-            The x and y start of the trace's polar subplot. A subplot plotly
-            never placed covers the whole figure, which is the first cell.
+            The x and y start of that subplot. One plotly never placed covers
+            the whole figure, which is the first cell.
         """
-        from maidr.plotly.polar import subplot_name
-
-        block = layout.get(subplot_name(trace))
+        block = layout.get(name)
         domain = block.get("domain") if isinstance(block, dict) else None
         return _domain_start(domain, "x"), _domain_start(domain, "y")
 
@@ -1010,7 +1020,7 @@ class PlotlyMaidr:
                     polar_row, polar_col = self._grid_position(
                         x_starts,
                         y_starts,
-                        self._polar_domain_start(layout, polar_trace),
+                        self._block_domain_start(layout, name),
                     )
                     plot.row_index = polar_row
                     plot.col_index = polar_col
@@ -1039,6 +1049,31 @@ class PlotlyMaidr:
                     )
                     self._plots.append(plot)
                 merged.update(id(t) for t in parcoords_traces)
+
+            # Choropleth maps, one layer each. Placed by its own `domain`
+            # rectangle -- a `geo` subplot's, which plotly writes onto the
+            # trace like a pie's.
+            from maidr.plotly.choropleth import is_choropleth_trace
+
+            choropleth_traces = [
+                t for t in group_traces if is_choropleth_trace(t)
+            ]
+            if choropleth_traces:
+                from maidr.plotly.choropleth import PlotlyChoroplethPlot
+
+                for choropleth_trace in choropleth_traces:
+                    plot = PlotlyChoroplethPlot(
+                        choropleth_trace, layout, **axis_kwargs
+                    )
+                    plot.row_index, plot.col_index = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._block_domain_start(
+                            layout, subplot_block(choropleth_trace, "geo")
+                        ),
+                    )
+                    self._plots.append(plot)
+                merged.update(id(t) for t in choropleth_traces)
 
             # Parallel sets, one layer each. Placed by its own `domain`
             # rectangle like a pie, because a `parcats` names no axis pair.

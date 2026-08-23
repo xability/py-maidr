@@ -70,6 +70,11 @@ class PlotType(str, Enum):
     #: both on one trace.
     RADAR = "radar"
     POLAR_AREA = "polar_area"
+    #: Regions of a map shaded by a value. Stated as a region and its number
+    #: rather than as a grid, because a map has no rows and columns -- and
+    #: without centroids, which a plotly trace does not carry, it is read as
+    #: a list of regions in the order they were declared.
+    CHOROPLETH = "choropleth"
     #: Categorical dimensions side by side, with a ribbon between adjacent
     #: ones for every combination that occurs -- a parallel sets diagram.
     #: The same weighted flow :attr:`SANKEY` carries, drawn without a
