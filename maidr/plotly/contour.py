@@ -116,12 +116,19 @@ class PlotlyContourPlot(PlotlyPlot):
             return []
 
         x, y, z = grid
+        # The whole of the tracing, not only the generator's construction.
+        # `.lines()` is where the work happens, so it is where an unforeseen
+        # grid or a stricter future contourpy would raise -- and an exception
+        # escaping here leaves `render()` and takes the entire figure's
+        # schema with it, which is the one outcome every guard in this module
+        # exists to avoid (#421, #636). Costing one layer is the point.
         try:
             from contourpy import contour_generator
 
             generator = contour_generator(
                 x=x, y=y, z=z, name=_CURVE_ALGORITHM, line_type="SeparateCode"
             )
+            traced = [generator.lines(level)[0] for level in levels]
         except Exception:
             # `mpl2014` is the one algorithm whose curve order was measured
             # against plotly's, so a contourpy that no longer offers it
@@ -140,16 +147,19 @@ class PlotlyContourPlot(PlotlyPlot):
             )
             return []
 
+        # Built after the tracing rather than during it, so a failure part
+        # way through leaves no half-filled `_series_levels` behind: the two
+        # are read together and a mismatch would put every later series on
+        # the wrong level's group.
         data: list[list[dict]] = []
-        for index, level in enumerate(levels):
-            curves, _ = generator.lines(level)
+        for index, curves in enumerate(traced):
             for curve in curves:
                 data.append(
                     [
                         {
                             MaidrKey.X: float(vertex[0]),
                             MaidrKey.Y: float(vertex[1]),
-                            MaidrKey.LEVEL: level,
+                            MaidrKey.LEVEL: levels[index],
                         }
                         for vertex in curve
                     ]
@@ -166,6 +176,15 @@ class PlotlyContourPlot(PlotlyPlot):
         and one ``<path>`` per disjoint curve inside it. The **level** is
         therefore addressable: the groups run in the declared order, measured
         on every figure below.
+
+        ``:nth-of-type`` counts by *tag* among all siblings rather than among
+        the ones matching the class beside it, so it is exact only where the
+        siblings are homogeneous. Measured across seven configurations --
+        every ``coloring`` mode, ``showlabels``, a ``histogram2dcontour``
+        sibling, and two contours on one subplot -- they are: a
+        ``.contourlayer`` holds nothing but ``g.contour``, a ``g.contourlines``
+        nothing but ``g.contourlevel``, and a ``g.contourlevel`` nothing but
+        ``path``.
 
         A **curve within a level** is not. Plotly and ``contourpy`` order the
         islands of one level differently, and not only on contrived fields: a

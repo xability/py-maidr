@@ -491,3 +491,33 @@ def test_a_spacing_that_asks_for_a_billion_levels_is_declined() -> None:
 
     assert declared_levels(runaway) is None
     assert declared_levels(ordinary) == [0, 0.5, 1.0]
+
+
+def test_a_tracer_that_raises_costs_one_layer_and_not_the_figure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Building a schema must never take the render down (#421, #636).
+
+    Every reason a *chart* declines is decided before contourpy is asked
+    anything, so this stands in for the one case left: an environment that is
+    not what it was measured to be. The **tracing** is where the work happens,
+    so the tracing -- not only the generator's construction -- is what has to
+    be guarded, or the exception escapes `render()` and the whole figure's
+    schema goes with it. The bar beside it is the witness: it still arrives.
+    """
+    import contourpy
+
+    class _Broken:
+        def lines(self, level: float) -> tuple:
+            raise RuntimeError("no marching squares here")
+
+    monkeypatch.setattr(contourpy, "contour_generator", lambda **_: _Broken())
+
+    figure = go.Figure(
+        [
+            go.Bar(x=["a"], y=[1]),
+            _contour(ONE_PEAK, start=0.5, end=0.5, size=0.5),
+        ]
+    )
+
+    assert [layer["type"] for layer in _layers(figure)] == [PlotType.BAR]
