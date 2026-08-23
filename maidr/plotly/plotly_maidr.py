@@ -958,9 +958,9 @@ class PlotlyMaidr:
             # Parallel coordinates, one layer each. Placed by its own
             # `domain` rectangle like a pie, because a `parcoords` names no
             # axis pair either.
-            parcoords_traces = [
-                t for t in group_traces if t.get("type") == "parcoords"
-            ]
+            from maidr.plotly.parcoords import is_parcoords_trace
+
+            parcoords_traces = [t for t in group_traces if is_parcoords_trace(t)]
             if parcoords_traces:
                 from maidr.plotly.parcoords import PlotlyParcoordsPlot
 
