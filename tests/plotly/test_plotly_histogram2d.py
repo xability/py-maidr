@@ -406,3 +406,56 @@ def test_a_grid_of_one_cell_is_still_a_grid() -> None:
     assert layer["data"]["points"] == [[2.0]]
     assert layer["data"]["x"] == ["0 – 2"]
     assert layer["data"]["y"] == ["0 – 2"]
+
+
+@pytest.mark.parametrize("histfunc", ["avg", "min", "max"])
+@pytest.mark.parametrize(
+    "histnorm", ["percent", "probability", "density", "probability density"]
+)
+def test_a_histnorm_brings_an_empty_cell_back_as_a_zero(
+    histfunc: str, histnorm: str
+) -> None:
+    """Which is not the composition of the two rules, and is what plotly does.
+
+    An `avg` of nothing has no answer, so plotly leaves that cell `NaN` --
+    until any `histnorm` is set, and then it is a **0**. Measured across all
+    three of these functions and all four norms. Rescaling evidently runs over
+    the whole grid without carrying the "no answer" marker through.
+
+    The one-dimensional path found exactly this and says so; deciding from
+    `histfunc` alone would announce "no value" on a cell the chart paints.
+    """
+    (layer,) = _layers(
+        _histogram2d(
+            x=[1, 1, 1, 3],
+            y=[1, 1, 3, 1],
+            z=[10, 30, 20, 40],
+            histfunc=histfunc,
+            histnorm=histnorm,
+            **BINS,
+        )
+    )
+
+    assert layer["data"]["points"][0][1] == 0.0
+
+
+def test_an_aggregate_without_a_histnorm_still_leaves_the_cell_unpainted() -> None:
+    """The control for the pair above: the norm is what changes it."""
+    (layer,) = _layers(
+        _histogram2d(
+            x=[1, 1, 1, 3], y=[1, 1, 3, 1], z=[10, 30, 20, 40], histfunc="avg", **BINS
+        )
+    )
+
+    assert layer["data"]["points"][0][1] is None
+
+
+def test_mismatched_x_and_y_pair_down_to_the_shorter() -> None:
+    """A sample needs both coordinates, `histfunc` or no `histfunc`.
+
+    The `z` tests above cover the aggregating path; this is the same question
+    on the counting one, where `z` is not read at all.
+    """
+    (layer,) = _layers(_histogram2d(x=[1, 1], y=[1, 3, 1, 3], **BINS))
+
+    assert layer["data"]["points"] == [[1.0, 0.0], [1.0, 0.0]]

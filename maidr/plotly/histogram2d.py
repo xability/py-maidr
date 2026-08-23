@@ -75,6 +75,13 @@ class PlotlyHistogram2dPlot(PlotlyHeatmapPlot):
     ``n**0.25`` rather than ``n**0.4``. Measured against the browser on eight
     axes across four figures, ``0.4`` matched none and ``0.25`` matched all
     eight.
+
+    Sharing the selector shares its one limit: `.heatmaplayer image` names the
+    first image on the subplot rather than this trace's, so a subplot holding
+    two of them -- a `go.Heatmap` beside a `histogram2d`, or two of either --
+    has both layers pointing at the first. That predates this class and
+    applies to two heatmaps today; reading a second trace type into the same
+    layer is what makes it reachable a second way. See #647.
     """
 
     def _extract_plot_data(self) -> dict:
@@ -217,8 +224,9 @@ def _binned_grid(trace: dict) -> tuple[list[list], list[str], list[str]] | None:
         cells = _count(row_of, column_of, placed, rows, columns)
         histfunc = "count"
 
-    cells = _normalised(cells, trace.get("histnorm"), x_edges, y_edges)
-    counts = _as_payload(cells, histfunc)
+    histnorm = trace.get("histnorm")
+    cells = _normalised(cells, histnorm, x_edges, y_edges)
+    counts = _as_payload(cells, histfunc, histnorm)
 
     return (
         counts,
@@ -266,11 +274,20 @@ def _count(
     rows: int,
     columns: int,
 ) -> list[list[float | None]]:
-    """How many samples landed in each cell, bottom row first."""
-    cells: list[list[float | None]] = [[0.0] * columns for _ in range(rows)]
-    for row, column in zip(row_of[placed], column_of[placed]):
-        cells[int(row)][int(column)] += 1.0
-    return cells
+    """How many samples landed in each cell, bottom row first.
+
+    Counted with ``bincount`` over the flattened cell index rather than a
+    Python loop over the samples, so the work scales with the *grid* rather
+    than with the sample count -- which is the shape the one-dimensional
+    `aggregate_bins` already has, and the one that matters on a scatter of a
+    hundred thousand points.
+    """
+    flat = row_of[placed] * columns + column_of[placed]
+    tally = np.bincount(flat.astype(int), minlength=rows * columns)
+    return [
+        [float(tally[row * columns + column]) for column in range(columns)]
+        for row in range(rows)
+    ]
 
 
 def _aggregate(
@@ -352,14 +369,24 @@ def _normalised(
 
 
 def _as_payload(
-    cells: list[list[float | None]], histfunc: str
+    cells: list[list[float | None]], histfunc: str, histnorm: str | None
 ) -> list[list[float | None]]:
     """Turn a cell nothing landed in into what plotly shows there.
 
     ``count`` and ``sum`` paint a zero; ``avg``, ``min`` and ``max`` leave the
     cell unpainted, and there is no number to announce for it.
+
+    **Unless a ``histnorm`` is set, which brings the empty cells back as
+    zeros.** Measured across all three of those functions and all four norms:
+    ``avg`` alone leaves the cell ``NaN``, and ``avg`` with any ``histnorm``
+    puts a **0** there. Rescaling evidently runs over the whole grid and does
+    not carry the "no answer" marker through, so the composition is not simply
+    one step after the other. The one-dimensional path found exactly this and
+    says so in `PlotlyHistogramPlot._extract_plot_data`; the same rule, on a
+    grid.
     """
-    empty: float | None = None if histfunc in _UNDEFINED_WHEN_EMPTY else 0.0
+    undefined = histfunc in _UNDEFINED_WHEN_EMPTY and not histnorm
+    empty: float | None = None if undefined else 0.0
     return [[empty if value is None else value for value in row] for row in cells]
 
 
