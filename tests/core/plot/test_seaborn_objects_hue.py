@@ -336,3 +336,117 @@ def test_a_plotter_with_nowhere_to_record_declines_rather_than_raising():
 
     assert drawn == [True]
     assert not hasattr(figure, "_maidr_pending")
+
+
+def _bars(frame: pd.DataFrame) -> pd.DataFrame:
+    """Two categories over two levels, every magnitude distinct."""
+    return pd.DataFrame(
+        {"cat": ["a", "a", "b", "b"], "val": [1.0, 2.0, 3.0, 4.0], "g": list("pqpq")}
+    )
+
+
+def test_a_colour_split_bar_announces_its_categories_not_its_coordinates():
+    """The half of #617 that fixes a *wrong* reading rather than a missing one.
+
+    `BarPlot._labels_for` announces bar positions whenever the tick labels do
+    not number the bars -- right where #382 put it, since a numeric axis picks
+    its own breaks -- and a colour split walks straight into it: every level's
+    bars land on one axes against one tick per category. Measured before, two
+    categories and two levels::
+
+                            bars   ticks        announced x
+        color= (no move)      4    ['a','b']    ['0', '0', '1', '1']
+        color= + Dodge()      4    ['a','b']    ['-0.2', '0.2', '0.8', '1.2']
+
+    Those are the dodge offsets, announced as the categories. Splitting the
+    layer per level puts one bar against one tick again.
+    """
+    figure = _drawn(
+        lambda fig: so.Plot(_bars(None), x="cat", y="val", color="g")
+        .add(so.Bar(), so.Dodge())
+        .on(fig)
+        .plot()
+    )
+    maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
+
+    assert [
+        (plot.schema.get("name"), [(bar["x"], bar["y"]) for bar in plot.schema["data"]])
+        for plot in plots
+    ] == [
+        ("p", [("a", 1.0), ("b", 3.0)]),
+        ("q", [("a", 2.0), ("b", 4.0)]),
+    ]
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        pytest.param(lambda plot: plot.add(so.Bar()), id="plain"),
+        pytest.param(lambda plot: plot.add(so.Bar(), so.Dodge()), id="dodged"),
+        pytest.param(lambda plot: plot.add(so.Bar(), so.Stack()), id="stacked"),
+    ],
+)
+def test_every_position_transform_splits_the_same_way(build):
+    """`Dodge()` and `Stack()` move the bars; neither changes which level a
+    bar belongs to, so all three spellings split alike."""
+    figure = plt.figure()
+    build(so.Plot(_bars(None), x="cat", y="val", color="g")).on(figure).plot()
+    maidr.render(figure)._repr_html_()
+
+    assert [
+        plot.schema.get("name") for plot in FigureManager.get_maidr(figure).plots
+    ] == ["p", "q"]
+
+
+def test_a_bar_with_no_colour_is_untouched():
+    """Additive. One group against no legend reads exactly as it did."""
+    frame = _bars(None).groupby("cat", as_index=False).sum(numeric_only=True)
+    figure = _drawn(
+        lambda fig: so.Plot(frame, x="cat", y="val").add(so.Bar()).on(fig).plot()
+    )
+    maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
+
+    assert len(plots) == 1
+    assert plots[0].schema.get("name") is None
+    assert [(bar["x"], bar["y"]) for bar in plots[0].schema["data"]] == [
+        ("a", 3.0),
+        ("b", 7.0),
+    ]
+
+
+def test_each_split_bar_layer_addresses_its_own_bars():
+    """Two layers built from one container must not share a selector -- the
+    shape review caught on xability/r-maidr#226, where two layers of a kind
+    resolved to the same element and the second highlighted the first's."""
+    figure = _drawn(
+        lambda fig: so.Plot(_bars(None), x="cat", y="val", color="g")
+        .add(so.Bar(), so.Dodge())
+        .on(fig)
+        .plot()
+    )
+    html = maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
+
+    selectors = []
+    for plot in plots:
+        found = plot.schema.get("selectors") or plot.schema.get("selector")
+        flat = found if isinstance(found, list) else [found]
+        for selector in flat:
+            for identifier in re.findall(r"'([^']+)'", str(selector)):
+                assert identifier in html
+        selectors.append(tuple(flat))
+
+    assert len(set(selectors)) == len(selectors)
+
+
+def test_an_ungrouped_container_names_no_groups():
+    """`bar_groups` declines exactly where `hue_groups` does, because both
+    end in the same shared tail."""
+    from maidr.core.plot.barplot import bar_groups
+
+    _, axes = plt.subplots()
+    one_colour = axes.bar(["a", "b"], [1.0, 2.0])
+
+    assert bar_groups(axes, one_colour) is None

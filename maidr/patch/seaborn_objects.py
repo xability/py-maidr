@@ -14,7 +14,8 @@ from matplotlib.lines import Line2D
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.core.plot.barplot import DRAWN_BARS
+from maidr.core.plot.barplot import DRAWN_BARS, bar_groups
+from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.core.plot.scatterplot import DRAWN_POINTS, HUE_GROUP, hue_groups
 from maidr.patch.common import _draw_quietly
 
@@ -206,6 +207,24 @@ def _handovers(reading: _Reading, ax: Axes, own: list) -> list[dict]:
             # several (#586). A mark draws one, so it is a list of one.
             return [
                 {reading.binding: own, HUE_GROUP: (name, [members])}
+                for name, members in groups
+            ]
+
+    if reading.plot_type is PlotType.BAR and len(own) == 1:
+        groups = bar_groups(ax, own[0])
+        if groups:
+            # A synthetic container per group rather than a filter inside
+            # `BarPlot`: the patches are the ones on the axes, so the
+            # selectors resolve unchanged, and every layer then holds one bar
+            # per tick -- which is what brings the category names back.
+            return [
+                {
+                    reading.binding: BarContainer(
+                        tuple(own[0][index] for index in members),
+                        orientation=own[0].orientation,
+                    ),
+                    GROUP_NAME: name,
+                }
                 for name, members in groups
             ]
 

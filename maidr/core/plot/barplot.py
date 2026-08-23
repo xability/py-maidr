@@ -8,6 +8,7 @@ from matplotlib.patches import Rectangle
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.maidr_plot import group_name_of
 from maidr.exception import ExtractionError
 from maidr.util.mixin import (
     BarPositionMixin,
@@ -69,6 +70,52 @@ def _magnitude(raw: float) -> float | None:
     return float(raw) if math.isfinite(raw) else None
 
 
+def bar_groups(ax: Axes, container: BarContainer) -> list[tuple[str, list[int]]] | None:
+    """
+    The groups a colour-split bar layer was drawn with, or ``None``.
+
+    The ``BarContainer`` counterpart of
+    :func:`maidr.core.plot.scatterplot.hue_groups`, and the same question:
+    one artist carries every level, so the grouping survives only in the
+    bars' colours and in the legend that names them.
+
+    ``seaborn.objects`` needs it where ``seaborn.barplot(hue=...)`` does not.
+    The classic function draws one container **per level**, so each layer
+    already holds one bar per category; ``so.Bar()`` draws every level into
+    one container, and what that costs is not only the group names. Measured
+    on two categories and two levels::
+
+        so.Plot(frame, x=, y=, color="g").add(so.Bar(), so.Dodge())
+          bars 4, ticks ['a', 'b'] -> announced x ['-0.2', '0.2', '0.8', '1.2']
+
+    Those are the dodge offsets. ``BarPlot._labels_for`` announces bar
+    *positions* whenever the tick labels do not number the bars, which is
+    right where #382 put it -- a numeric axis picks its own breaks -- and
+    which a colour split walks straight into. Splitting the layer per level
+    puts one bar against one tick again, so the category names come back
+    with the group names (xability/py-maidr#617).
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    container : BarContainer
+        The bars.
+
+    Returns
+    -------
+    list of (str, list of int) or None
+        One entry per group in legend order, naming it and listing the
+        container positions that belong to it, or ``None`` when the layer is
+        not grouped.
+    """
+    from maidr.core.plot.scatterplot import _rgba, groups_from_colours
+
+    return groups_from_colours(
+        ax, [_rgba(patch.get_facecolor()) for patch in container]
+    )
+
+
 class BarPlot(
     MaidrPlot,
     BarPositionMixin,
@@ -83,6 +130,10 @@ class BarPlot(
         # `None` falls back to sweeping the axes, which is what seaborn needs:
         # it draws one layer as several containers, one per hue group.
         self._own_bars = kwargs.get(DRAWN_BARS, None)
+        # The group this layer reads, when the patch found one. Opted into
+        # here rather than read by `MaidrPlot`; see `GROUP_NAME` for why that
+        # is per class, and `render` for the callable form.
+        self._group_name = group_name_of(kwargs)
 
     @property
     def _is_horizontal(self) -> bool:
@@ -121,12 +172,21 @@ class BarPlot(
         return "horz" if plot[0].orientation == "horizontal" else "vert"
 
     def render(self) -> dict:
-        """Add ``orientation`` to the base schema."""
+        """Add ``orientation``, and the name of the group this layer reads."""
         # Read after the super call, not before: `self._orientation` is
         # populated by `_extract_plot_data`, which that call runs.
         base_schema = super().render()
         bar_orientation = {MaidrKey.ORIENTATION: self._orientation}
-        return DictMergerMixin.merge_dict(base_schema, bar_orientation)
+        schema = DictMergerMixin.merge_dict(base_schema, bar_orientation)
+
+        # `MaidrLayer.name` is what xability/maidr#828 added so that two
+        # layers of a kind can be told apart, which is exactly the position a
+        # colour-split bar puts a reader in. A callable is resolved here
+        # rather than at registration, for the timing #612 describes.
+        name = self._group_name() if callable(self._group_name) else self._group_name
+        if name:
+            schema[MaidrKey.NAME] = name
+        return schema
 
     def _extract_plot_data(self) -> list:
         plot = self._own_containers()

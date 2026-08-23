@@ -228,7 +228,35 @@ def hue_groups(
         collection offsets that belong to it, or ``None`` for a scatter that
         is not grouped.
     """
-    colours = [_rgba(row) for row in collection.get_facecolors()]
+    return groups_from_colours(ax, [_rgba(row) for row in collection.get_facecolors()])
+
+
+def groups_from_colours(ax: Axes, colours: list) -> list[tuple[str, list[int]]] | None:
+    """
+    The groups a legend names among one layer's drawn colours.
+
+    Everything :func:`hue_groups` does after reading a collection's face
+    colours, which is everything that is not about the artist. A bar layer
+    asks the same question of a ``BarContainer``'s patches
+    (:func:`maidr.core.plot.barplot.bar_groups`) and must get the same answer,
+    including the declines -- three implementations of one rule had begun to
+    drift once already (#599), and this is where the second caller arrived.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    colours : list
+        One rounded RGBA per drawn thing, in draw order, as :func:`_rgba`
+        gives them. A ``None`` among them declines the split.
+
+    Returns
+    -------
+    list of (str, list of int) or None
+        One entry per group in legend order, naming it and listing the
+        positions that belong to it, or ``None`` when the layer is not
+        grouped.
+    """
     if len(colours) < 2 or any(colour is None for colour in colours):
         return None
 

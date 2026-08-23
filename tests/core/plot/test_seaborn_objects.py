@@ -521,25 +521,27 @@ def test_a_seaborn_that_moved_the_hook_warns_rather_than_failing_the_import(
         ),
     ],
 )
-def test_a_colour_split_bar_draws_one_container_and_reads_as_one_layer(spelling, build):
-    """`DRAWN_BARS` names a single container, so a reading that found several
-    would become several layers.
+def test_a_colour_split_bar_draws_one_container_and_splits_into_its_groups(
+    spelling, build
+):
+    """Every `so.Bar` spelling draws exactly **one** `BarContainer` holding
+    every bar -- `color=`, `Dodge()` and `Stack()` alike -- unlike the classic
+    `seaborn.barplot`, which draws one per hue level.
 
-    Measured rather than claimed: every `so.Bar` spelling draws exactly one
-    `BarContainer` holding every bar, `color=` and `Dodge()` and `Stack()`
-    included -- unlike the classic `seaborn.barplot`, which draws one
-    container per hue level. So the branch is real but unreached, and this
-    says which of the two is true today.
+    That is why `DRAWN_BARS`' singular branch is real but unreached, and why
+    the split has to come from the bars' colours rather than from the
+    containers: `bar_groups` does for a container what `hue_groups` does for
+    a collection (#617).
 
-    What a stacked bar should be *read* as is a separate question and not
-    settled here: it reads as a plain `bar` of every segment, which is the
-    same shape #615 lists as follow-up work.
+    What a colour-split bar should be *typed* as is still open -- all three
+    read as `bar` here, where the classic path answers `dodged_bar` -- and is
+    the remaining item on #617.
     """
     figure = plt.figure()
     build(so.Plot(_frame(), x="cat", y="val", color="g")).on(figure).plot()
 
     assert len(figure.axes[0].containers) == 1
-    assert _kinds(figure) == ["bar"]
+    assert _kinds(figure) == ["bar", "bar"]
 
 
 @pytest.mark.parametrize(
