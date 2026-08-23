@@ -93,6 +93,12 @@ class PlotType(str, Enum):
     #: rather than the count, so that is what the core pitches. The counts
     #: are announced alongside it.
     FUNNEL = "funnel"
+    #: One polyline per observation crossing a row of vertical axes, each a
+    #: different variable. Structurally a multi-line layer, which is what the
+    #: core builds it on -- and a distinct type for the one thing that makes
+    #: the chart legible: the columns are not one scale, so a value is
+    #: pitched against *its own* axis rather than against the layer.
+    PARALLEL = "parallel_coordinates"
     #: A starting value carried to an ending value through a sequence of
     #: signed contributions, each bar floating between the running total
     #: before it and the running total after it. A distinct type from `BAR`
@@ -134,6 +140,7 @@ _DISPLAY_NAMES = {
     PlotType.STACKED: "stacked bar",
     PlotType.STACKED_AREA: "stacked area",
     PlotType.NORMALIZED_AREA: "100% stacked area",
+    PlotType.PARALLEL: "parallel coordinates",
     PlotType.POLAR_AREA: "polar area",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",

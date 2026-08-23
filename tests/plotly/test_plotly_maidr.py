@@ -435,9 +435,15 @@ class TestPlotlyUnrenderedDomainTraces:
             pytest.param(
                 go.Treemap(labels=["a", "b"], parents=["", ""]), id="treemap"
             ),
+            # A categorical parallel-sets diagram. `go.Parcoords` sat here
+            # until #627's parallel tranche made it render; `go.Parcats` is
+            # the same kind of trace and is still unread, so it keeps the
+            # row honest.
             pytest.param(
-                go.Parcoords(dimensions=[{"label": "A", "values": [1, 2]}]),
-                id="parcoords",
+                go.Parcats(
+                    dimensions=[{"label": "A", "values": ["x", "y"]}],
+                ),
+                id="parcats",
             ),
             # A `mode="number"` indicator only. One that draws a dial *is*
             # rendered as of #627's gauge tranche, so it takes a cell like
@@ -470,6 +476,25 @@ class TestPlotlyUnrenderedDomainTraces:
         )
         fig.add_trace(
             go.Treemap(labels=["r", "a"], parents=["", "r"], values=[3, 1]),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=2)
+
+        assert self._cells(fig) == [(0, 0), (0, 1)]
+
+    def test_a_parallel_coordinates_plot_does_take_a_cell(self):
+        # The counterpart to the `parcats` row above, and the reason that row
+        # had to change: a `go.Parcoords` is a domain trace maidr *does* draw
+        # a layer for as of #627's parallel tranche, so its rectangle joins
+        # the column universe and the bar beside it keeps column 1.
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1, cols=2, specs=[[{"type": "domain"}, {"type": "xy"}]]
+        )
+        fig.add_trace(
+            go.Parcoords(dimensions=[{"label": "A", "values": [1, 2]}]),
             row=1,
             col=1,
         )
