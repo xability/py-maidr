@@ -185,3 +185,122 @@ def test_an_array_naming_a_category_the_trace_lacks_is_declined():
     fig = _bar("array", categoryarray=["alpha", "bravo", "charlie", "delta"])
 
     assert _pairs(fig) == [("charlie", 3), ("alpha", 1), ("bravo", 2)]
+
+
+# --- The grouped, stacked and normalized paths -------------------------------
+#
+# They walk the same arrays and had the same gap. What differs is the shape a
+# sorted layer's selectors need: a segmented layer addresses its cells by row
+# and column, `selectors[group][category]`, which is the shape `data` already
+# has.
+#
+# Measured in Chromium, two traces over three categories, in both barmodes:
+#
+#     grouped   traceGroups 2   perGroup [[767, 37, 402], [913, 183, 548]]
+#     stacked   traceGroups 2   perGroup [[767, 37, 402], [767, 37, 402]]
+#
+# Two sibling `.trace.bars` groups under `g.barlayer.mlayer`, one per trace and
+# in the traces' own order, each holding its categories in that trace's order.
+# `.trace.bars:nth-of-type(t) .point:nth-of-type(c)` matched exactly one
+# element for all six pairs, and the coordinates say which: dodged puts the two
+# traces side by side at one category, stacked puts them one above the other.
+
+SECOND = [1, 4, 2]
+
+
+def _group(barmode: str, order: str | None = None, **layout) -> go.Figure:
+    fig = go.Figure(
+        data=[
+            go.Bar(name="A", x=CATEGORIES, y=VALUES),
+            go.Bar(name="B", x=CATEGORIES, y=SECOND),
+        ]
+    )
+    if order is not None:
+        layout["xaxis"] = {"categoryorder": order}
+    fig.update_layout(barmode=barmode, **layout)
+    return fig
+
+
+def _groups(fig) -> list[list[tuple]]:
+    """Each group's points as ``(x, y)``, in the order they are emitted."""
+    return [
+        [(point.get("x"), point.get("y")) for point in group]
+        for group in _layer(fig)["data"]
+    ]
+
+
+@pytest.mark.parametrize("barmode", ["group", "stack"])
+def test_an_unsorted_group_is_untouched(barmode):
+    fig = _group(barmode)
+
+    assert _groups(fig) == [
+        [("charlie", 3), ("alpha", 1), ("bravo", 2)],
+        [("charlie", 1), ("alpha", 4), ("bravo", 2)],
+    ]
+    assert _layer(fig)["selectors"] == ".subplot.xy .trace.bars .point > path"
+
+
+@pytest.mark.parametrize("barmode", ["group", "stack"])
+def test_every_group_is_emitted_in_the_drawn_order(barmode):
+    """One order for all of them: the traces of a group share the category
+    axis by construction, which is what makes them one chart."""
+    assert _groups(_group(barmode, "category ascending")) == [
+        [("alpha", 1), ("bravo", 2), ("charlie", 3)],
+        [("alpha", 4), ("bravo", 2), ("charlie", 1)],
+    ]
+
+
+def test_a_sorted_group_addresses_each_cell_by_trace_and_category():
+    """A grid rather than a flat list, keyed the way `data` is.
+
+    Row 1 is trace A and row 2 trace B; within a row the categories are in
+    the drawn order, pointing at the position each holds in *that trace's*
+    own arrays.
+    """
+    prefix = ".subplot.xy .trace.bars"
+    expected = [
+        [
+            f"{prefix}:nth-of-type({group}) .point:nth-of-type({index}) > path"
+            for index in (2, 3, 1)
+        ]
+        for group in (1, 2)
+    ]
+
+    assert _layer(_group("group", "category ascending"))["selectors"] == expected
+
+
+def test_a_normalized_stack_keeps_each_share_with_its_own_category():
+    """The shares are computed per category and must travel with it.
+
+    `stack_shares` matches by category rather than by index, so the two
+    changes are independent -- but a reordering applied to one and not the
+    other would put `alpha`'s share on `charlie` while both looked
+    plausible. The raw values are 1 and 4 at alpha, so its shares are 0.2 and
+    0.8, and no other category shares that pair.
+    """
+    fig = _group("stack", "category ascending", barnorm="fraction")
+
+    assert _groups(fig) == [
+        [("alpha", 0.2), ("bravo", 0.5), ("charlie", 0.75)],
+        [("alpha", 0.8), ("bravo", 0.5), ("charlie", 0.25)],
+    ]
+
+
+def test_a_group_whose_traces_disagree_about_length_is_declined():
+    """Reordering some groups and not others is worse than reordering none,
+    and indexing a shorter trace by the first's positions would raise. A
+    trace that carries fewer categories is a legitimate chart -- plotly draws
+    it with a gap -- so this declines rather than fails."""
+    fig = go.Figure(
+        data=[
+            go.Bar(name="A", x=CATEGORIES, y=VALUES),
+            go.Bar(name="B", x=CATEGORIES[:2], y=SECOND[:2]),
+        ]
+    )
+    fig.update_layout(barmode="group", xaxis={"categoryorder": "category ascending"})
+
+    assert _groups(fig) == [
+        [("charlie", 3), ("alpha", 1), ("bravo", 2)],
+        [("charlie", 1), ("alpha", 4)],
+    ]
+    assert isinstance(_layer(fig)["selectors"], str)

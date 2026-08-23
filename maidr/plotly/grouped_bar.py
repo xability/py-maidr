@@ -38,8 +38,55 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         super().__init__(traces[0], layout, plot_type, **kwargs)
         self._traces = traces
 
-    def _get_selector(self) -> str:
-        return f"{self._subplot_css_prefix()}.trace.bars .point > path"
+        # Where each drawn category sits in the traces' own arrays, when
+        # ``categoryorder`` puts the two in different orders. Filled by
+        # ``_extract_plot_data``, which ``render()`` runs before
+        # ``_get_selector`` -- so the two cannot disagree about the order
+        # (#495).
+        self._drawn: list[int] | None = None
+
+    def _get_selector(self) -> str | list[list[str]]:
+        """Address the bars, per trace and per drawn category when sorted.
+
+        One string is what an unsorted group has always had, and it stays
+        that.
+
+        A sorted one cannot use it, for the reason
+        :meth:`~maidr.plotly.bar.PlotlyBarPlot._get_selector` gives: plotly
+        writes each trace's bars in the trace's own order, so a single
+        selector resolves in the order the points *used* to be emitted in.
+
+        A grid rather than a flat list, because a segmented layer's cells are
+        addressed by row and column -- ``selectors[group][category]``, the
+        shape ``data`` already has. Measured in Chromium on two traces over
+        three categories, in both ``barmode``\ s::
+
+            grouped   traceGroups 2   perGroup [[767, 37, 402], [913, 183, 548]]
+            stacked   traceGroups 2   perGroup [[767, 37, 402], [767, 37, 402]]
+
+        Two sibling ``.trace.bars`` groups under ``g.barlayer.mlayer``, one
+        per trace and in the traces' own order, each holding its categories in
+        that trace's order. ``.trace.bars:nth-of-type(t) .point:nth-of-type(c)``
+        matched exactly one element for all six pairs, and the coordinates
+        confirm which: dodged puts the two traces side by side at one
+        category, stacked puts them one above the other.
+
+        A grid reaches a segmented layer's highlight as of
+        xability/maidr#992. An older bundle answers ``[]`` rather than the
+        wrong element, so the highlight is lost while the announced order
+        stays corrected.
+        """
+        prefix = f"{self._subplot_css_prefix()}.trace.bars"
+        if self._drawn is None:
+            return f"{prefix} .point > path"
+        return [
+            [
+                f"{prefix}:nth-of-type({group + 1}) "
+                f".point:nth-of-type({index + 1}) > path"
+                for index in self._drawn
+            ]
+            for group in range(len(self._traces))
+        ]
 
     def _horizontal(self, trace: dict) -> bool:
         """Whether this trace's value runs along ``x`` rather than ``y``."""
@@ -76,6 +123,12 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         A ``stacked_normalized_bar`` layer carries *shares* rather than the
         traces' own numbers, because that is what plotly draws and what the
         type claims. See :mod:`maidr.plotly.barnorm`.
+
+        Each group is emitted in the order plotly *draws* the categories in,
+        which ``categoryorder`` can make different from the order the traces
+        carry them in (#495). Resolved once, from the first trace's category
+        axis: the traces of a group share that axis by construction, which is
+        what makes them one chart rather than several.
         """
         # Resolved before the loop so the ordinary, un-normalised layer does
         # not build the `(position, value)` tuples only to discard them.
@@ -114,8 +167,14 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
             data.append(group)
             pairs.append(group_pairs)
 
+        # Resolved after the loop and applied to every group alike. Applying
+        # it before the normalising pass below would be the same answer --
+        # `stack_shares` matches by category rather than by index -- but
+        # reordering once, at the end, keeps the two changes independent.
+        drawn = self._category_order()
+
         if not normalising:
-            return data
+            return self._in_drawn_order(data, drawn)
 
         shares = stack_shares(pairs, self._layout.get("barmode"), scale)
         for group, group_shares, trace in zip(data, shares, self._traces):
@@ -123,4 +182,59 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
             for point, share in zip(group, group_shares):
                 point[key] = share
 
-        return data
+        return self._in_drawn_order(data, drawn)
+
+    def _category_order(self) -> list[int] | None:
+        """Where each drawn category sits in the traces' own arrays.
+
+        Asked of the first trace's category axis -- ``y`` for a horizontal
+        group. The traces of a group share that axis by construction, which
+        is what makes them one chart rather than several, so one answer
+        applies to all of them.
+
+        Returns
+        -------
+        list of int or None
+            Indices into each group's points, in drawn order, or ``None``
+            when the sort cannot be resolved or is the order already held.
+        """
+        first = self._traces[0]
+        x_vals, y_vals = paired_axes(first)
+        horizontal = self._horizontal(first)
+        axis_name = self._yaxis_name if horizontal else self._xaxis_name
+        labels = [self._to_native(v) for v in (y_vals if horizontal else x_vals)]
+
+        drawn = self._drawn_category_order(axis_name, labels)
+        if drawn is None or drawn == list(range(len(labels))):
+            return None
+        return drawn
+
+    def _in_drawn_order(
+        self, data: list[list[dict]], drawn: list[int] | None
+    ) -> list[list[dict]]:
+        """Put every group's points in the order plotly draws them.
+
+        Records the permutation for :meth:`_get_selector`, so the data and
+        the highlight cannot disagree about it. Declines a group whose length
+        does not match -- a trace that carries fewer categories than the
+        first would otherwise be indexed out of range, and reordering some
+        groups and not others is worse than reordering none.
+
+        Parameters
+        ----------
+        data : list of list of dict
+            One list of points per trace, each in that trace's own order.
+        drawn : list of int or None
+            What :meth:`_category_order` resolved.
+
+        Returns
+        -------
+        list of list of dict
+            The same groups, reordered or untouched.
+        """
+        if drawn is None or any(len(group) != len(drawn) for group in data):
+            self._drawn = None
+            return data
+
+        self._drawn = drawn
+        return [[group[index] for index in drawn] for group in data]
