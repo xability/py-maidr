@@ -539,13 +539,32 @@ def test_transpose_turns_the_grid_over_and_leaves_the_coordinates() -> None:
     ]
 
 
-def test_a_hole_in_the_grid_stops_the_curves_the_way_plotly_does() -> None:
-    """A missing z is a hole in the field, not a reason to decline the trace.
+def test_a_hole_in_the_grid_is_filled_before_the_curves_are_traced() -> None:
+    """Plotly fills it, so the curves run through it rather than round it.
 
-    Measured on a field with its peak punched out: plotly and the tracer both
-    dropped the level the hole ate and agreed on the rest.
+    A field of zeros with its middle punched out has that middle averaged
+    back to zero -- measured, its `calcdata` comes back with the hole filled
+    -- and there is then nothing at 0.5 to draw. So this still forms no
+    layer, but for the reason plotly has rather than the one the mask had.
+
+    The reason matters where the neighbours disagree, which is what #651 was
+    filed for and what :func:`~maidr.plotly.holes.filled` reproduces. This is
+    the shape of the old reading's test kept for the boundary it still marks:
+    a missing z is not a reason to decline the trace.
     """
     z = [[0, 0, 0], [0, None, 0], [0, 0, 0]]
+
+    assert _layers(go.Figure(_contour(z, start=0.5, end=0.5, size=0.5))) == []
+
+
+def test_a_field_of_nothing_but_holes_forms_no_layer() -> None:
+    """There is nothing to fill it from, and plotly's own pass raises on it.
+
+    Declining is the answer #636 settled for every other unreadable grid: a
+    layer of curves through a field that has no values would be a chart the
+    reader is not looking at.
+    """
+    z = [[None, None, None], [None, None, None], [None, None, None]]
 
     assert _layers(go.Figure(_contour(z, start=0.5, end=0.5, size=0.5))) == []
 
