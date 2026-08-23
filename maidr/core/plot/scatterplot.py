@@ -192,27 +192,10 @@ def hue_groups(
     together they give it back exactly: every point's colour is one of the
     legend's swatches, and each swatch carries its group's name.
 
-    Everything here is a reason to decline, and each has a chart behind it:
-
-    - **One colour for the whole collection.** ``get_facecolors()`` returns a
-      single row when every point shares a colour, which is what an ungrouped
-      scatter and a ``style=``-only scatter both produce.
-    - **No legend.** ``legend=False`` suppresses it, and a manual
-      ``ax.scatter(c=[...])`` never had one. The colours are still there but
-      nothing names them, and groups called "1" and "2" are not an improvement
-      on one cloud.
-
-      Read at registration, which is to say the instant the drawing call
-      returns. A legend built afterwards -- ``ax.scatter(c=[...])`` followed
-      by ``ax.legend(handles=[...])`` -- does not exist yet and the chart is
-      read as one layer, even though the same axes would split if asked a
-      line later. seaborn builds its legend inside the call, so its charts
-      are unaffected.
-    Two more declines are :func:`~maidr.util.hue_groups.grouped_by_name`'s
-    rather than this function's, and its docstring carries the charts behind
-    them: a point no swatch claims, and fewer than two groups. They live
-    there because the rug split reaches the same two from a different artist,
-    and three implementations of one rule had begun to drift (#599).
+    Reading those colours off the collection is the whole of what is specific
+    to the artist. Every reason to decline is
+    :func:`groups_from_colours`', which a bar layer reaches from a
+    ``BarContainer`` and must be told the same (#599, #617).
 
     Parameters
     ----------
@@ -228,7 +211,58 @@ def hue_groups(
         collection offsets that belong to it, or ``None`` for a scatter that
         is not grouped.
     """
-    colours = [_rgba(row) for row in collection.get_facecolors()]
+    return groups_from_colours(ax, [_rgba(row) for row in collection.get_facecolors()])
+
+
+def groups_from_colours(ax: Axes, colours: list) -> list[tuple[str, list[int]]] | None:
+    """
+    The groups a legend names among one layer's drawn colours.
+
+    Everything :func:`hue_groups` does after reading a collection's face
+    colours, which is everything that is not about the artist. A bar layer
+    asks the same question of a ``BarContainer``'s patches
+    (:func:`maidr.core.plot.barplot.bar_groups`) and must get the same answer,
+    including the declines -- three implementations of one rule had begun to
+    drift once already (#599), and this is where the second caller arrived.
+
+    Everything here is a reason to decline, and each has a chart behind it:
+
+    - **One colour for the whole layer.** ``get_facecolors()`` returns a
+      single row when every point shares a colour, which is what an ungrouped
+      scatter and a ``style=``-only scatter both produce; a bar drawn without
+      ``color=`` arrives one-long the same way.
+    - **No legend.** ``legend=False`` suppresses it, and a manual
+      ``ax.scatter(c=[...])`` never had one. The colours are still there but
+      nothing names them, and groups called "1" and "2" are not an improvement
+      on one cloud.
+
+      Read at registration, which is to say the instant the drawing call
+      returns. A legend built afterwards -- ``ax.scatter(c=[...])`` followed
+      by ``ax.legend(handles=[...])`` -- does not exist yet and the chart is
+      read as one layer, even though the same axes would split if asked a
+      line later. seaborn builds its legend inside the call, so its charts
+      are unaffected.
+
+    Two more declines are :func:`~maidr.util.hue_groups.grouped_by_name`'s
+    rather than this function's, and its docstring carries the charts behind
+    them: a point no swatch claims, and fewer than two groups. They live
+    there because the rug split reaches the same two from a different artist.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    colours : list
+        One rounded RGBA per drawn thing, in draw order, as :func:`_rgba`
+        gives them. A ``None`` among them declines the split.
+
+    Returns
+    -------
+    list of (str, list of int) or None
+        One entry per group in legend order, naming it and listing the
+        positions that belong to it, or ``None`` when the layer is not
+        grouped.
+    """
     if len(colours) < 2 or any(colour is None for colour in colours):
         return None
 
