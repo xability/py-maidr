@@ -338,7 +338,7 @@ def test_a_plotter_with_nowhere_to_record_declines_rather_than_raising():
     assert not hasattr(figure, "_maidr_pending")
 
 
-def _bars(frame: pd.DataFrame) -> pd.DataFrame:
+def _bars() -> pd.DataFrame:
     """Two categories over two levels, every magnitude distinct."""
     return pd.DataFrame(
         {"cat": ["a", "a", "b", "b"], "val": [1.0, 2.0, 3.0, 4.0], "g": list("pqpq")}
@@ -362,7 +362,7 @@ def test_a_colour_split_bar_announces_its_categories_not_its_coordinates():
     layer per level puts one bar against one tick again.
     """
     figure = _drawn(
-        lambda fig: so.Plot(_bars(None), x="cat", y="val", color="g")
+        lambda fig: so.Plot(_bars(), x="cat", y="val", color="g")
         .add(so.Bar(), so.Dodge())
         .on(fig)
         .plot()
@@ -391,7 +391,7 @@ def test_every_position_transform_splits_the_same_way(build):
     """`Dodge()` and `Stack()` move the bars; neither changes which level a
     bar belongs to, so all three spellings split alike."""
     figure = plt.figure()
-    build(so.Plot(_bars(None), x="cat", y="val", color="g")).on(figure).plot()
+    build(so.Plot(_bars(), x="cat", y="val", color="g")).on(figure).plot()
     maidr.render(figure)._repr_html_()
 
     assert [
@@ -399,9 +399,65 @@ def test_every_position_transform_splits_the_same_way(build):
     ] == ["p", "q"]
 
 
+def test_three_groups_split_three_ways_in_legend_order():
+    """Two levels is the smallest split there is, so it cannot tell a rule
+    that holds from one that happens to pair up. Three does: `grouped_by_name`
+    builds each group's index list by ascending draw order, and the bars
+    interleave (`p q r p q r`), so a level's bars are non-contiguous."""
+    frame = pd.DataFrame(
+        {
+            "cat": ["a"] * 3 + ["b"] * 3,
+            "val": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            "g": list("pqr") * 2,
+        }
+    )
+    figure = _drawn(
+        lambda fig: so.Plot(frame, x="cat", y="val", color="g")
+        .add(so.Bar(), so.Dodge())
+        .on(fig)
+        .plot()
+    )
+    maidr.render(figure)._repr_html_()
+
+    assert [
+        (plot.schema.get("name"), [(bar["x"], bar["y"]) for bar in plot.schema["data"]])
+        for plot in FigureManager.get_maidr(figure).plots
+    ] == [
+        ("p", [("a", 1.0), ("b", 4.0)]),
+        ("q", [("a", 2.0), ("b", 5.0)]),
+        ("r", [("a", 3.0), ("b", 6.0)]),
+    ]
+
+
+def test_a_horizontal_colour_split_bar_keeps_its_orientation():
+    """The synthetic container carries the original's `orientation`, which is
+    what `_extract_orientation` reads. Drop it and every split bar would
+    default to vertical, putting the category in the magnitude field --
+    exactly the reading #950 warns about."""
+    figure = _drawn(
+        lambda fig: so.Plot(_bars(), y="cat", x="val", color="g")
+        .add(so.Bar(), so.Dodge())
+        .on(fig)
+        .plot()
+    )
+    maidr.render(figure)._repr_html_()
+
+    assert [
+        (
+            plot.schema.get("name"),
+            plot.schema.get("orientation"),
+            [(bar["x"], bar["y"]) for bar in plot.schema["data"]],
+        )
+        for plot in FigureManager.get_maidr(figure).plots
+    ] == [
+        ("p", "horz", [(1.0, "a"), (3.0, "b")]),
+        ("q", "horz", [(2.0, "a"), (4.0, "b")]),
+    ]
+
+
 def test_a_bar_with_no_colour_is_untouched():
     """Additive. One group against no legend reads exactly as it did."""
-    frame = _bars(None).groupby("cat", as_index=False).sum(numeric_only=True)
+    frame = _bars().groupby("cat", as_index=False).sum(numeric_only=True)
     figure = _drawn(
         lambda fig: so.Plot(frame, x="cat", y="val").add(so.Bar()).on(fig).plot()
     )
@@ -421,7 +477,7 @@ def test_each_split_bar_layer_addresses_its_own_bars():
     shape review caught on xability/r-maidr#226, where two layers of a kind
     resolved to the same element and the second highlighted the first's."""
     figure = _drawn(
-        lambda fig: so.Plot(_bars(None), x="cat", y="val", color="g")
+        lambda fig: so.Plot(_bars(), x="cat", y="val", color="g")
         .add(so.Bar(), so.Dodge())
         .on(fig)
         .plot()
