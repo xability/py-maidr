@@ -64,6 +64,14 @@ class PlotType(str, Enum):
     CANDLESTICK = "candlestick"
     VIOLIN_KDE = "violin_kde"
     VIOLIN_BOX = "violin_box"
+    #: A hierarchy drawn as nested rectangles, and the two paintings of the
+    #: same tree that differ from it only in shape: concentric rings for a
+    #: sunburst, stacked bands for an icicle. Kept apart because the chart
+    #: type is announced, and a reader told "treemap" about a sunburst has
+    #: been told something false about the picture beside them.
+    TREEMAP = "treemap"
+    SUNBURST = "sunburst"
+    ICICLE = "icicle"
     #: One measure against a dial, with the range it sits in and -- when the
     #: chart draws one -- the target it is measured against. The one type
     #: here whose payload is a single point rather than a list of them.

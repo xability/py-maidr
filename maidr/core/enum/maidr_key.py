@@ -70,6 +70,11 @@ class MaidrKey(str, Enum):
     END = "end"
     LANES = "lanes"
 
+    # Hierarchy keys. A node carries its name in `X`, its declared value in
+    # `Y` and the chain of ancestors above it here -- root first, and never
+    # including the node itself.
+    PATH = "path"
+
     # Gauge keys. One measure, the two ends of the dial it sits on -- which
     # reuse `MIN` and `MAX` above -- and the target a bullet chart marks.
     # The measure's own name reuses `LABEL`.

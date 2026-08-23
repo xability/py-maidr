@@ -424,8 +424,21 @@ class TestPlotlyUnrenderedDomainTraces:
                 go.Table(header={"values": ["a"]}, cells={"values": [[1, 2]]}),
                 id="table",
             ),
-            pytest.param(go.Sunburst(labels=["a"], parents=[""]), id="sunburst"),
-            pytest.param(go.Treemap(labels=["a"], parents=[""]), id="treemap"),
+            # A hierarchy plotly invents a root for. A single-rooted one
+            # *is* rendered as of #627's hierarchy tranche, so it takes a
+            # cell like a pie -- asserted by the test below rather than
+            # here. This pair keeps the row's original subject: a domain
+            # trace maidr draws no layer for.
+            pytest.param(
+                go.Sunburst(labels=["a", "b"], parents=["", ""]), id="sunburst"
+            ),
+            pytest.param(
+                go.Treemap(labels=["a", "b"], parents=["", ""]), id="treemap"
+            ),
+            pytest.param(
+                go.Parcoords(dimensions=[{"label": "A", "values": [1, 2]}]),
+                id="parcoords",
+            ),
             # A `mode="number"` indicator only. One that draws a dial *is*
             # rendered as of #627's gauge tranche, so it takes a cell like
             # a pie -- asserted by the test below rather than here.
@@ -444,6 +457,25 @@ class TestPlotlyUnrenderedDomainTraces:
         fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=2)
 
         assert self._cells(fig) == [(0, 0)]
+
+    def test_a_single_rooted_hierarchy_does_take_a_cell(self):
+        # The control for the `treemap` and `sunburst` rows above: the
+        # scoping is about what maidr *renders*, not about the trace type.
+        # A hierarchy with one root is a domain trace maidr does draw a
+        # layer for, so its rectangle joins the column universe.
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1, cols=2, specs=[[{"type": "domain"}, {"type": "xy"}]]
+        )
+        fig.add_trace(
+            go.Treemap(labels=["r", "a"], parents=["", "r"], values=[3, 1]),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=2)
+
+        assert self._cells(fig) == [(0, 0), (0, 1)]
 
     def test_an_indicator_that_draws_a_dial_does_take_a_cell(self):
         # The control for the `indicator` row above: the scoping is about

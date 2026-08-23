@@ -126,6 +126,16 @@ class PlotlyPlotFactory:
 
             return PlotlyHistogramPlot(trace, layout, **axis_kwargs)
 
+        if trace_type in ("treemap", "sunburst", "icicle"):
+            from maidr.plotly.hierarchy import PlotlyHierarchyPlot, has_one_root
+
+            # A many-rooted hierarchy is one plotly invents a parent for;
+            # see `has_one_root`.
+            if not has_one_root(trace):
+                return None
+
+            return PlotlyHierarchyPlot(trace, layout, **axis_kwargs)
+
         if trace_type == "indicator":
             from maidr.plotly.gauge import PlotlyGaugePlot, draws_a_dial
 
