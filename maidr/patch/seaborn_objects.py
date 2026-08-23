@@ -15,6 +15,7 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS, bar_groups
+from maidr.core.plot.grouped_barplot import DRAWN_GROUPS
 from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.core.plot.scatterplot import DRAWN_POINTS, HUE_GROUP, hue_groups
 from maidr.patch.common import _draw_quietly
@@ -161,11 +162,65 @@ def _panels(plotter: Any) -> list[Axes]:
     return [ax for ax in getattr(figure, "axes", [])]
 
 
-def _handovers(reading: _Reading, ax: Axes, own: list) -> list[dict]:
+#: What a position transform makes a colour-split bar chart. Keyed on the
+#: ``Move``'s class name for the reason the mark table is: ancestry does not
+#: track what a move *does*, and matching the name states exactly what was
+#: asked for.
+#:
+#: ``Stack`` before ``Dodge`` because a layer may carry both, and stacking is
+#: the one a reader meets -- `so.Dodge(), so.Stack()` dodges the levels apart
+#: and then stacks within each dodged slot, so the segments a reader steps
+#: through are the stack's.
+#:
+#: ``Norm`` is deliberately absent. It looks like the 100% stack's transform
+#: and is not one: `so.Norm()` divides by a *per-group* maximum, so measured
+#: on two categories over two levels, `Norm()` after `Stack()` draws negative
+#: heights and `Norm()` before it leaves the categories summing to 0.833 and
+#: 2.0 rather than to 1. The spelling that is a 100% stack is
+#: `so.Norm(func="sum", by=["x"])` before `so.Stack()`, and reading it needs
+#: a `stacked_normalized_bar` emitter this side does not have -- `NORMALIZED`
+#: is plotly-only in this package. Reported separately (#617).
+_MOVES: tuple[tuple[str, PlotType], ...] = (
+    ("Stack", PlotType.STACKED),
+    ("Dodge", PlotType.DODGED),
+)
+
+
+def _grouped_type(move: Any) -> PlotType | None:
+    """
+    What a layer's position transform makes it, or ``None`` for no transform.
+
+    ``layer["move"]`` is ``None`` or a *list* of ``Move`` objects, applied in
+    the order written. It states the transform outright, which is more than
+    the classic path gets -- `seaborn.barplot(hue=)` is read as dodged by
+    counting containers, and a stacked bar has to be declared through
+    `maidr.stacked()`.
+
+    Parameters
+    ----------
+    move : Any
+        ``layer["move"]``: ``None``, or a list of ``Move`` instances.
+
+    Returns
+    -------
+    PlotType or None
+        ``STACKED`` or ``DODGED`` when the layer carries that transform,
+        ``None`` when it carries neither.
+    """
+    names = {type(one).__name__ for one in move or ()}
+    for name, plot_type in _MOVES:
+        if name in names:
+            return plot_type
+    return None
+
+
+def _handovers(
+    reading: _Reading, ax: Axes, own: list, move: Any = None
+) -> list[tuple[PlotType, dict]]:
     """
     What to register for one layer's artists: one entry per layer to make.
 
-    Three shapes, and each is a fact about the plot class being handed to.
+    Four shapes, and each is a fact about the plot class being handed to.
 
     A **colour-split scatter** becomes one layer per group. `so.Dot(color=)`
     draws a *single* ``PathCollection`` carrying a colour per point -- the
@@ -174,6 +229,19 @@ def _handovers(reading: _Reading, ax: Axes, own: list) -> list[dict]:
     exactly what ``hue_groups`` inverts. Without it a reader is handed one
     layer of every point where the classic spelling of the same chart gives
     one per level, named (#617).
+
+    A **colour-split bar carrying a position transform** becomes one
+    ``dodged_bar`` or ``stacked_bar`` layer holding every group, which is the
+    shape ``seaborn.barplot(hue=)`` already reads as: `data` a list per group,
+    each point carrying its group in `z`, and cross-group navigation between
+    levels at one category. That is strictly more than the split gives, and
+    it is available here because `so` states the transform outright.
+
+    A **colour-split bar with no transform** falls back to one layer per
+    group. `so.Bar(color=)` alone overplots the levels at the same position
+    -- measured, four bars at two x values -- which is neither a dodge nor a
+    stack, so a grouped reading would claim a structure the chart does not
+    have. Named layers are the honest reading of overplotted bars.
 
     A **singular binding** becomes one layer per artist; see
     :class:`_Reading`.
@@ -192,11 +260,15 @@ def _handovers(reading: _Reading, ax: Axes, own: list) -> list[dict]:
         The panel drawn on, asked for the legend that names the colours.
     own : list
         The artists this layer drew on that panel, in draw order.
+    move : Any, optional
+        ``layer["move"]``: the position transforms the layer was written
+        with, which is what types a colour-split bar.
 
     Returns
     -------
-    list of dict
-        One keyword mapping per layer to register.
+    list of (PlotType, dict)
+        One (type, keyword mapping) pair per layer to register. The type is
+        the mark's own except where a position transform names a richer one.
     """
     if reading.plot_type is PlotType.SCATTER and len(own) == 1:
         groups = hue_groups(ax, own[0])
@@ -206,31 +278,42 @@ def _handovers(reading: _Reading, ax: Axes, own: list) -> list[dict]:
             # collection -- because a classic strip plot's groups span
             # several (#586). A mark draws one, so it is a list of one.
             return [
-                {reading.binding: own, HUE_GROUP: (name, [members])}
+                (
+                    reading.plot_type,
+                    {reading.binding: own, HUE_GROUP: (name, [members])},
+                )
                 for name, members in groups
             ]
 
     if reading.plot_type is PlotType.BAR and len(own) == 1:
         groups = bar_groups(ax, own[0])
         if groups:
-            # A synthetic container per group rather than a filter inside
-            # `BarPlot`: the patches are the ones on the axes, so the
+            # A synthetic container per group rather than a filter inside the
+            # plot class: the patches are the ones on the axes, so the
             # selectors resolve unchanged, and every layer then holds one bar
             # per tick -- which is what brings the category names back.
+            containers = [
+                BarContainer(
+                    tuple(own[0][index] for index in members),
+                    orientation=own[0].orientation,
+                )
+                for _, members in groups
+            ]
+            grouped = _grouped_type(move)
+            if grouped is not None:
+                # One layer of every group, which is what `GroupedBarPlot`
+                # takes -- the same list-of-containers a classic
+                # `seaborn.barplot(hue=)` leaves on the axes. It names the
+                # groups from the legend itself, so no `GROUP_NAME` here.
+                return [(grouped, {DRAWN_GROUPS: containers})]
             return [
-                {
-                    reading.binding: BarContainer(
-                        tuple(own[0][index] for index in members),
-                        orientation=own[0].orientation,
-                    ),
-                    GROUP_NAME: name,
-                }
-                for name, members in groups
+                (reading.plot_type, {reading.binding: container, GROUP_NAME: name})
+                for container, (name, _) in zip(containers, groups)
             ]
 
     if reading.singular:
-        return [{reading.binding: one} for one in own]
-    return [{reading.binding: own}]
+        return [(reading.plot_type, {reading.binding: one}) for one in own]
+    return [(reading.plot_type, {reading.binding: own})]
 
 
 def _layer(wrapped, instance, args, kwargs) -> Any:
@@ -302,7 +385,7 @@ def _layer(wrapped, instance, args, kwargs) -> Any:
         # `FacetGrid.add_legend()`, and a name can be deferred to render as a
         # callable -- but a *split* cannot, because it decides how many
         # layers there are. So the reading waits for `_register`.
-        pending.append((ax, reading, own))
+        pending.append((ax, reading, own, layer.get("move")))
 
     return drawn
 
@@ -344,9 +427,9 @@ def _register(wrapped, instance, args, kwargs) -> Any:
 
     plotter = wrapped(*args, **kwargs)
 
-    for ax, reading, own in getattr(plotter, _PENDING, ()):
-        for handover in _handovers(reading, ax, own):
-            FigureManager.create_maidr(ax, reading.plot_type, **handover)
+    for ax, reading, own, move in getattr(plotter, _PENDING, ()):
+        for plot_type, handover in _handovers(reading, ax, own, move):
+            FigureManager.create_maidr(ax, plot_type, **handover)
 
     return plotter
 

@@ -533,15 +533,15 @@ def test_a_colour_split_bar_draws_one_container_and_splits_into_its_groups(
     containers: `bar_groups` does for a container what `hue_groups` does for
     a collection (#617).
 
-    What a colour-split bar should be *typed* as is still open -- all three
-    read as `bar` here, where the classic path answers `dodged_bar` -- and is
-    the remaining item on #617.
+    The container count is what this asserts, and it holds for every
+    spelling. What the layers are *typed* as does not -- a position transform
+    names a richer type -- and that belongs to `test_seaborn_objects_hue.py`,
+    which reads the transform.
     """
     figure = plt.figure()
     build(so.Plot(_frame(), x="cat", y="val", color="g")).on(figure).plot()
 
     assert len(figure.axes[0].containers) == 1
-    assert _kinds(figure) == ["bar", "bar"]
 
 
 @pytest.mark.parametrize(
@@ -580,6 +580,7 @@ def test_a_layer_that_drew_several_containers_becomes_several_bar_layers():
     Asked of `_handovers` directly, because that is the function deciding it
     and no chart can put two containers in front of it today.
     """
+    from maidr.core.enum import PlotType
     from maidr.core.plot.barplot import DRAWN_BARS
     from maidr.patch.seaborn_objects import _READINGS, _handovers
 
@@ -588,6 +589,6 @@ def test_a_layer_that_drew_several_containers_becomes_several_bar_layers():
     second = axes.bar(["b"], [9.0])
 
     assert _handovers(_READINGS["Bar"], axes, [first, second]) == [
-        {DRAWN_BARS: first},
-        {DRAWN_BARS: second},
+        (PlotType.BAR, {DRAWN_BARS: first}),
+        (PlotType.BAR, {DRAWN_BARS: second}),
     ]

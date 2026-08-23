@@ -6,12 +6,20 @@ from matplotlib.container import BarContainer
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
+from maidr.util.legend_names import legend_of
 from maidr.util.mixin import (
     BarPositionMixin,
     ContainerExtractorMixin,
     DictMergerMixin,
     LevelExtractorMixin,
 )
+
+#: Key a patch uses to hand this layer the containers it drew, one per group,
+#: instead of letting it sweep the axes. A `seaborn.objects` bar needs it for
+#: a reason the classic path never has: `so.Bar(color=)` draws every level
+#: into *one* container, so the groups are synthesised from the bars' colours
+#: and are not on the axes to be found (#617).
+DRAWN_GROUPS = "_maidr_bar_groups"
 
 
 class GroupedBarPlot(
@@ -24,6 +32,7 @@ class GroupedBarPlot(
     def __init__(self, ax: Axes, plot_type: PlotType, **kwargs) -> None:
         super().__init__(ax, plot_type)
         self._orientation = "vert"
+        self._own_groups = kwargs.get(DRAWN_GROUPS, None)
 
     @property
     def _is_horizontal(self) -> bool:
@@ -85,8 +94,16 @@ class GroupedBarPlot(
         return axes_data
 
     def _extract_z_label_from_legend(self) -> str:
-        """Return the legend title text (trimmed) or an empty string."""
-        legend = self.ax.get_legend()
+        """
+        Return the legend title text (trimmed) or an empty string.
+
+        Through :func:`~maidr.util.legend_names.legend_of` rather than
+        ``ax.get_legend()``, which is what this read before. The two answer
+        the same question -- which legend names this axes' groups -- and the
+        wider answer also reads a lone *figure* legend, which is where
+        ``so.Plot`` puts the only legend a colour-split bar has (#617).
+        """
+        legend = legend_of(self.ax)
         if legend is None:
             return ""
         title = legend.get_title()
@@ -94,8 +111,33 @@ class GroupedBarPlot(
             return ""
         return title.get_text().strip()
 
+    def _own_containers(self) -> list[BarContainer] | None:
+        """
+        The containers this layer holds: the ones handed to it, or the axes'.
+
+        Sweeping the axes is what every grouped bar read before, and it is
+        right for the classic spelling -- ``seaborn.barplot(hue=)`` draws one
+        container per level and nothing else onto that axes. It cannot serve
+        a ``seaborn.objects`` bar, whose levels arrive in a single container
+        and are split by colour after the fact (#617): the sweep would find
+        the one undivided container and read every level as one group.
+
+        The same shape :meth:`maidr.core.plot.barplot.BarPlot._own_containers`
+        already has, for the reason #527 gave it -- a layer reads the artists
+        its own call drew.
+
+        Returns
+        -------
+        list of BarContainer, optional
+            The handed-over containers when there are any, otherwise every
+            container on the axes.
+        """
+        if self._own_groups is not None:
+            return self._own_groups
+        return self.extract_container(self.ax, BarContainer, include_all=True)
+
     def _extract_plot_data(self) -> list[list[dict]]:
-        plot = self.extract_container(self.ax, BarContainer, include_all=True)
+        plot = self._own_containers()
         data = self._extract_grouped_bar_data(plot)
 
         if data is None:
@@ -230,8 +272,14 @@ class GroupedBarPlot(
         >>> categories = plot._extract_hue_categories_from_legend()
         >>> print(categories)
         []
+
+        Notes
+        -----
+        Read through :func:`~maidr.util.legend_names.legend_of`, so a lone
+        figure legend counts -- ``so.Plot`` puts the only legend a
+        colour-split bar has there, and ``ax.get_legend()`` is ``None`` (#617).
         """
-        legend = self.ax.get_legend()
+        legend = legend_of(self.ax)
         if legend is None:
             return []
 
