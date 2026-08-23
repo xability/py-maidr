@@ -126,6 +126,15 @@ class PlotlyPlotFactory:
 
             return PlotlyHistogramPlot(trace, layout, **axis_kwargs)
 
+        if trace_type == "sankey":
+            from maidr.plotly.sankey import PlotlySankeyPlot
+
+            # ``addressable`` is left at its default: this factory sees one
+            # trace with no idea whether the figure holds a second sankey,
+            # and "assume it is the only one" is the only assumption
+            # available -- the same one the pie branch makes about position.
+            return PlotlySankeyPlot(trace, layout, **axis_kwargs)
+
         if trace_type in ("treemap", "sunburst", "icicle"):
             from maidr.plotly.hierarchy import PlotlyHierarchyPlot, has_one_root
 

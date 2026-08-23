@@ -70,6 +70,14 @@ class MaidrKey(str, Enum):
     END = "end"
     LANES = "lanes"
 
+    # Flow keys. One link states the two nodes it joins and how much moves.
+    # Only the source needs a key of its own: the amount reuses `VALUE` and
+    # the far node reuses `TARGET`, both below. `TARGET` carrying two
+    # meanings is the wire format's doing rather than ours -- a gauge's is
+    # the value a bullet chart marks, a link's is the node it arrives at --
+    # and they never appear in one payload, because a layer is one type.
+    SOURCE = "source"
+
     # Hierarchy keys. A node carries its name in `X`, its declared value in
     # `Y` and the chain of ancestors above it here -- root first, and never
     # including the node itself.

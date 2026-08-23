@@ -64,6 +64,11 @@ class PlotType(str, Enum):
     CANDLESTICK = "candlestick"
     VIOLIN_KDE = "violin_kde"
     VIOLIN_BOX = "violin_box"
+    #: Weighted flow between nodes, drawn as ribbons whose width is the
+    #: magnitude. Stated as one point per link -- the two nodes it joins and
+    #: how much moves -- rather than as a series, because the chart is a
+    #: graph and there is no grid reading of it.
+    SANKEY = "sankey"
     #: A hierarchy drawn as nested rectangles, and the two paintings of the
     #: same tree that differ from it only in shape: concentric rings for a
     #: sunburst, stacked bands for an icicle. Kept apart because the chart
