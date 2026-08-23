@@ -218,5 +218,23 @@ wrapt.wrap_function_wrapper(Axes, "imshow", heat)
 wrapt.wrap_function_wrapper(Axes, "pcolormesh", heat)
 wrapt.wrap_function_wrapper(Axes, "pcolor", heat)
 
+# The fourth spelling of the same grid. `pcolorfast` is matplotlib's optimised
+# path for the charts the three above draw, and it hands back one of the very
+# artists they do -- measured on matplotlib 3.10, all three of its input forms:
+#
+#     pcolorfast(Z)                    AxesImage    the artist `imshow` returns
+#     pcolorfast(x, y, Z)              AxesImage        "
+#     pcolorfast(X, Y, Z)  (2D X/Y)    QuadMesh     the artist `pcolormesh` returns
+#
+# So the extraction was already proven for every shape it can produce, and the
+# only thing keeping such a figure silent was that nothing dispatched the call
+# (xability/py-maidr#626).
+#
+# `tripcolor` is deliberately *not* here, though it colours cells too. It
+# colours the triangles of a triangulation, and a heatmap is addressed by row
+# and column -- a mesh has neither, so the grid a reader would be handed would
+# be one this call never drew. Declined for the reason `triplot` is (#572).
+wrapt.wrap_function_wrapper(Axes, "pcolorfast", heat)
+
 # Patch seaborn function.
 wrap_seaborn("heatmap", heat)
