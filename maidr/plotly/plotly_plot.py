@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import base64
 import logging
+import math
 import re
 import uuid
 from abc import ABC, abstractmethod
+from datetime import date
 from typing import Any
 
 import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
+
 # This is the import that makes the cycle: `step_shape` reads its trace arrays
 # through `as_list`, defined below, and so imports this module back. It does so
 # inside the function rather than here. Moving either import to the other's
@@ -18,6 +21,11 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.step_shape import renders_through_webgl
 
 _logger = logging.getLogger(__name__)
+
+#: A year-first date, leniently spelled. Plotly accepts single digits and
+#: leading whitespace, so the shape is matched loosely here and the parts are
+#: checked separately -- see :meth:`PlotlyPlot._looks_like_date`.
+_ISO_DATE = re.compile(r"^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[ T].*)?$")
 
 
 class PlotlyPlot(ABC):
@@ -335,14 +343,259 @@ class PlotlyPlot(ABC):
                 f"{trace_count} trace{plural}, got {len(positions)}: {positions}"
             )
         if any(not isinstance(position, int) for position in positions):
-            raise TypeError(
-                f"scatter positions must all be int, got {positions!r}"
-            )
+            raise TypeError(f"scatter positions must all be int, got {positions!r}")
 
         if any(position < 0 for position in positions):
             raise ValueError(f"scatter positions must be >= 0, got {positions}")
         if len(set(positions)) != len(positions):
             raise ValueError(f"scatter positions must be unique, got {positions}")
+
+    # --- Which order plotly draws a categorical axis in ------------------
+    #
+    # Lifted here from `PlotlyHeatmapPlot`, unchanged, because every one of
+    # these is about an *axis* rather than about a heatmap -- and the bar
+    # family needs the same answers (#495). `_to_native` is reached through
+    # `self`, so the heatmap's own override still applies to a heatmap and
+    # the base's to everything else.
+
+    @staticmethod
+    def _looks_numeric(value: Any) -> bool:
+        """Whether plotly would read a label as a number rather than a name.
+
+        Numeric strings count: plotly resolves a linear axis for ``"1"`` just
+        as it does for ``1``, and for ``"1e10"``.
+
+        ``nan`` and ``inf`` do not, in either spelling. Python parses both,
+        where the JavaScript coercion plotly tests with does not -- measured,
+        a heatmap over ``['nan', 'inf', 'zeta']`` gets a *category* axis and
+        honours its ``categoryarray``. Reading them as numbers here would
+        decline a sort plotly applies.
+
+        Parameters
+        ----------
+        value : Any
+            One axis label.
+
+        Returns
+        -------
+        bool
+            True when the label parses as a finite number.
+        """
+        if isinstance(value, bool):
+            return False
+        try:
+            return math.isfinite(float(value))
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _looks_like_date(value: Any) -> bool:
+        """Whether plotly would read a label as a date rather than a name.
+
+        A date axis ignores ``categoryorder`` exactly as a linear one does --
+        measured, ISO dates with an array declared came out drawn
+        chronologically and ``_categories`` empty -- so an order applied to
+        one would reorder a chart plotly draws by time.
+
+        Year-first and hyphen-separated is the whole shape, and plotly checks
+        that the parts make a real day rather than that they look like one --
+        so this parses them rather than matching a stricter pattern. Measured::
+
+            2024-03-01           date        2024/03/01     category
+            2024-03              date        03-01-2024     category
+            2024-03-01 12:00     date        Mar 2024       category
+            2024-03-01T12:00:00  date        Q1             category
+            2024-3-1             date        2024-13-45     category
+            ' 2024-03-01'        date        2024-02-30     category
+                                             2024-04-31     category
+
+        The last two columns are why a tighter regex was the wrong tool: it
+        missed single digits and leading whitespace, which plotly accepts --
+        the direction that *applies* an order plotly ignores -- and it let
+        through impossible days, which plotly rejects.
+
+        Parameters
+        ----------
+        value : Any
+            One axis label.
+
+        Returns
+        -------
+        bool
+            True when the label parses as a date.
+        """
+        if not isinstance(value, str):
+            return False
+
+        match = _ISO_DATE.match(value.strip())
+        if match is None:
+            return False
+
+        year, month, day = match.groups()
+        try:
+            # A year and month alone is a date to plotly, so the day defaults
+            # to one that every month has.
+            date(int(year), int(month), int(day) if day else 1)
+        except ValueError:
+            return False
+        return True
+
+    def _axis_runs_backwards(self, axis_name: str) -> bool:
+        """Whether plotly draws an axis from its high end to its low one.
+
+        True only when the author asked for a reversed axis. On y that means
+        the first category is drawn at the top -- the idiom for showing a
+        matrix in reading order -- where plotly ordinarily numbers a heatmap's
+        rows from the bottom. On x it means the columns run right to left.
+
+        Read from the declared layout rather than a resolved one, because
+        there is no browser here to resolve it. That is why ``autorange`` is
+        usable: it still carries the author's ``"reversed"`` verbatim, where
+        the rendered figure would report a plain ``True`` for both the
+        default and the reversed case.
+
+        Parameters
+        ----------
+        axis_name : str
+            The layout key for the axis, e.g. ``"yaxis"`` or ``"xaxis2"``.
+
+        Returns
+        -------
+        bool
+            True when the axis runs backwards.
+        """
+        axis = self._layout.get(axis_name, {})
+        if not isinstance(axis, dict):
+            return False
+
+        if axis.get("autorange") == "reversed":
+            return True
+
+        axis_range = axis.get("range")
+        if isinstance(axis_range, (list, tuple)) and len(axis_range) >= 2:
+            try:
+                return float(axis_range[0]) > float(axis_range[1])
+            except (TypeError, ValueError):
+                return False
+
+        return False
+
+    def _drawn_category_order(self, axis_name: str, labels: list) -> list[int] | None:
+        """Where each of an axis's drawn categories sits in the trace's labels.
+
+        ``categoryorder`` sorts a categorical axis and leaves the trace's own
+        ``x``, ``y`` and ``z`` exactly as the author wrote them, so the labels
+        alone do not say what the chart shows. This resolves the sort from the
+        declared layout, in the order plotly lays the categories out from the
+        axis origin -- left for x, bottom for y. It says nothing about a
+        reversed axis, which flips the drawn direction without touching the
+        order; :meth:`_axis_runs_backwards` answers that.
+
+        Only the forms a declared spec can answer exactly are resolved:
+        ``"array"`` with a ``categoryarray`` (which is what plotly express's
+        ``category_orders`` compiles to) and the two ``"category"`` sorts. The
+        aggregate orders -- ``total``, ``sum``, ``mean``, ``min``, ``max``,
+        ``median`` -- are declined. They do apply to a heatmap, measured, but
+        resolving them means reimplementing plotly's own aggregation and
+        tie-breaking offline, and a sort that is subtly not plotly's would
+        leave the chart confidently wrong in the same way reading the trace's
+        order does. Leaving the sort unapplied is the smaller error.
+
+        Parameters
+        ----------
+        axis_name : str
+            The layout key for the axis, e.g. ``"xaxis"``.
+        labels : list
+            The labels the trace carries, in its own order.
+
+        Returns
+        -------
+        list[int] | None
+            Indices into ``labels`` in drawn order, or None to decline.
+        """
+        axis = self._layout.get(axis_name, {})
+        if not isinstance(axis, dict):
+            return None
+
+        # Only a categorical axis has categories to put in an order. Plotly
+        # infers the axis *type* first, and both the types it can infer here
+        # ignore ``categoryorder`` and ``categoryarray`` outright: a *linear*
+        # axis from numeric-looking labels, drawn in numeric order, and a
+        # *date* axis from ISO dates, drawn chronologically. Applying a
+        # declared order to either would reorder a chart plotly did not.
+        # Declaring ``type: "category"`` is what makes it categorical again,
+        # and then the order is honoured.
+        #
+        # One such label is enough, rather than all of them: measured, a mixed
+        # set like ``[1, 3, 'b']`` still resolves linear. That is the
+        # conservative reading where plotly's own rule is a proportion, and it
+        # errs toward leaving a sort unapplied rather than inventing one.
+        #
+        # What "from the axis origin" means on y is measured rather than
+        # assumed by analogy with the heatmap. An **unsorted** horizontal bar
+        # written ['charlie', 'alpha', 'bravo'] draws its tick labels top to
+        # bottom as `bravo, alpha, charlie` -- so the trace's own order, which
+        # py-maidr has always emitted for such a chart, is bottom-to-top on
+        # screen. Bottom-up is the order already shipping, and a sorted chart
+        # matches it rather than flipping.
+        if axis.get("type") != "category" and any(
+            self._looks_numeric(label) or self._looks_like_date(label)
+            for label in labels
+        ):
+            return None
+
+        order = axis.get("categoryorder")
+        declared = as_list(axis.get("categoryarray"))
+        # Measured: plotly resolves ``categoryorder`` to ``"array"`` whenever
+        # ``categoryarray`` is non-empty and no order was declared, and draws
+        # in it -- so a figure that sets only the array is still sorted. An
+        # order that *was* declared wins over the array, empty or not.
+        if order is None and declared:
+            order = "array"
+
+        if order == "array":
+            if not declared:
+                return None
+            # Through ``_to_native`` because ``labels`` came through it too: it
+            # floats an integer, so a categoryarray of ``3`` compared raw would
+            # never match a label of ``3.0`` and the sort would be declined
+            # without a word. Both sides normalise the same way or neither can.
+            drawn = [str(self._to_native(v)) for v in declared]
+        elif order in ("category ascending", "category descending"):
+            drawn = sorted(str(v) for v in labels)
+            if order == "category descending":
+                drawn.reverse()
+        else:
+            return None
+
+        if len(drawn) != len(labels):
+            # A ``categoryarray`` naming categories the trace does not carry
+            # makes plotly draw empty columns, which ``points`` has no way to
+            # say. Inventing or dropping one would be worse than leaving the
+            # sort unapplied.
+            return None
+
+        position: dict[str, int] = {}
+        for index, label in enumerate(labels):
+            position.setdefault(str(label), index)
+        # A repeated label leaves no unambiguous cell to send a category to.
+        if len(position) != len(labels):
+            return None
+
+        resolved = []
+        for name in drawn:
+            index = position.get(name)
+            if index is None:
+                return None
+            resolved.append(index)
+
+        # A ``categoryarray`` that repeats an entry can name every label the
+        # right number of times without being a permutation of them, which
+        # would emit one column's values twice and lose another's.
+        if len(set(resolved)) != len(labels):
+            return None
+
+        return resolved
 
     def _get_selector(self) -> str:
         """Return a CSS selector for Plotly SVG elements."""
@@ -469,9 +722,7 @@ class PlotlyPlot(ABC):
         }
 
     @staticmethod
-    def _extract_format(
-        xaxis: dict, yaxis: dict
-    ) -> dict[str, dict[str, Any]] | None:
+    def _extract_format(xaxis: dict, yaxis: dict) -> dict[str, dict[str, Any]] | None:
         """Extract format configuration from Plotly axis settings.
 
         Parses ``tickformat``, ``tickprefix``, and ``ticksuffix`` from
