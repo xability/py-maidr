@@ -239,6 +239,18 @@ class PlotlyMaidr:
             if key.startswith("yaxis") and isinstance(val, dict):
                 y_starts.add(_domain_start(val, "domain"))
 
+            # A polar subplot is placed like a cartesian one -- by a
+            # rectangle `make_subplots` wrote into the layout -- but under
+            # its own key rather than an axis pair, so it needs its own
+            # branch. Without it a `[bar, polar]` grid collected one x start
+            # and collapsed to a single cell holding both layers, and two
+            # polar subplots side by side collected none at all.
+            if key.startswith("polar") and isinstance(val, dict):
+                domain = val.get("domain")
+                if isinstance(domain, dict):
+                    x_starts.add(_domain_start(domain, "x"))
+                    y_starts.add(_domain_start(domain, "y"))
+
         for trace in traces:
             if not _occupies_a_cell(trace):
                 continue
@@ -298,6 +310,35 @@ class PlotlyMaidr:
         placed covers the whole figure, which is the first cell.
         """
         domain = trace.get("domain")
+        return _domain_start(domain, "x"), _domain_start(domain, "y")
+
+    @staticmethod
+    def _polar_domain_start(layout: dict, trace: dict) -> tuple[float, float]:
+        """Return where a polar trace's own subplot starts in the figure.
+
+        A polar trace carries neither an axis pair nor a ``domain`` of its
+        own, so neither of the two helpers above can place it. Its rectangle
+        is written into the layout under the subplot it names --
+        ``layout.polar``, ``layout.polar2``, ... -- which is what tells two
+        polar charts of a grid apart.
+
+        Parameters
+        ----------
+        layout : dict
+            The Plotly figure layout.
+        trace : dict
+            One ``scatterpolar`` or ``barpolar`` trace.
+
+        Returns
+        -------
+        tuple of (float, float)
+            The x and y start of the trace's polar subplot. A subplot plotly
+            never placed covers the whole figure, which is the first cell.
+        """
+        from maidr.plotly.polar import subplot_name
+
+        block = layout.get(subplot_name(trace))
+        domain = block.get("domain") if isinstance(block, dict) else None
         return _domain_start(domain, "x"), _domain_start(domain, "y")
 
     def _extract_plots(self) -> None:
@@ -857,6 +898,53 @@ class PlotlyMaidr:
                     )
                     self._plots.append(plot)
                 merged.update(id(t) for t in funnelarea_traces)
+
+            # Polar traces, one layer each, and every question about one is
+            # asked of its own polar subplot rather than of the trace group.
+            # A polar trace names no axis pair, so `group_traces` is keyed by
+            # the cartesian defaults and holds *every* polar trace of the
+            # figure however many subplots they are spread over -- which is
+            # the same trap `_trace_domain_start` exists for on the pie side.
+            #
+            # A `scatterpolar` is numbered among the scatter traces of its
+            # own subplot, because that is what one `.scatterlayer` holds --
+            # a `barpolar` draws into that subplot's `.barlayer` and shifts
+            # nothing there, and a trace in the *next* subplot is numbered
+            # from one again.
+            polar_traces = [
+                t for t in group_traces if t.get("type") in ("scatterpolar", "barpolar")
+            ]
+            if polar_traces:
+                # `PlotType` is imported here rather than at module level
+                # because `_extract_plots` already imports it locally
+                # further down, which makes the name local to the whole
+                # function -- a module-level reference above that point is
+                # an unbound local, not the module's.
+                from maidr.core.enum.plot_type import PlotType
+                from maidr.plotly.polar import PlotlyPolarPlot, subplot_name
+
+                scatter_positions: dict[str, int] = {}
+                for polar_trace in polar_traces:
+                    name = subplot_name(polar_trace)
+                    is_scatter = polar_trace.get("type") == "scatterpolar"
+                    plot = PlotlyPolarPlot(
+                        polar_trace,
+                        layout,
+                        PlotType.RADAR if is_scatter else PlotType.POLAR_AREA,
+                        trace_position=scatter_positions.get(name, 0),
+                        **axis_kwargs,
+                    )
+                    if is_scatter:
+                        scatter_positions[name] = scatter_positions.get(name, 0) + 1
+                    polar_row, polar_col = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._polar_domain_start(layout, polar_trace),
+                    )
+                    plot.row_index = polar_row
+                    plot.col_index = polar_col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in polar_traces)
 
             # Sankeys, one layer each. Only this loop knows whether the
             # figure holds a second one, which is what decides whether

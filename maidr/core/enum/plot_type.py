@@ -64,6 +64,12 @@ class PlotType(str, Enum):
     CANDLESTICK = "candlestick"
     VIOLIN_KDE = "violin_kde"
     VIOLIN_BOX = "violin_box"
+    #: Spokes around a circle, one radius per angle. `RADAR` joins them into
+    #: an outline and `POLAR_AREA` fills the wedge between them; a reader
+    #: navigates the same spokes either way, which is why the core builds
+    #: both on one trace.
+    RADAR = "radar"
+    POLAR_AREA = "polar_area"
     #: Weighted flow between nodes, drawn as ribbons whose width is the
     #: magnitude. Stated as one point per link -- the two nodes it joins and
     #: how much moves -- rather than as a series, because the chart is a
@@ -128,6 +134,7 @@ _DISPLAY_NAMES = {
     PlotType.STACKED: "stacked bar",
     PlotType.STACKED_AREA: "stacked area",
     PlotType.NORMALIZED_AREA: "100% stacked area",
+    PlotType.POLAR_AREA: "polar area",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",
 }
