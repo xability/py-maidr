@@ -195,20 +195,18 @@ def test_a_parcoords_is_read_but_not_addressed() -> None:
     assert "selectors" not in layer
 
 
-def test_a_parcoords_with_no_columns_carries_no_observations() -> None:
+def test_a_parcoords_with_no_columns_forms_no_layer() -> None:
     """Nothing is drawn, so there is nothing to read.
 
-    The layer itself still reaches the schema with an empty payload, which is
-    the #421 ghost -- and *not* something this trace type introduced: an
-    empty `go.Pie`, `go.Sankey` and `go.Scatterpolar` each emit one too,
-    because the `draws_marks()` guard that filters an empty scatter only
-    covers the line and area families. Filed separately rather than patched
-    here, so the four are fixed in one place; this pins what the payload is
-    meanwhile.
+    This pinned the ghost payload when the parallel tranche landed -- the
+    layer still shipped with `data: []`, which #421 named as a cell the
+    reader can tab into and find nothing in. #636 drops it, and for this
+    trace it is not only untidy: `ParallelTrace` extends `LineTrace`, whose
+    `text` dereferences an undefined point on an empty series and throws,
+    taking the whole render down (xability/maidr#905).
     """
     for empty in (
         go.Parcoords(dimensions=[]),
         go.Parcoords(dimensions=[{"label": "A"}]),
     ):
-        (layer,) = _layers(go.Figure([empty]))
-        assert layer["data"] == []
+        assert _layers(go.Figure([empty])) == []

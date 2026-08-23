@@ -66,6 +66,11 @@ def bins(fig) -> list[tuple[float, float, int]]:
     return [(d[low], d[high], d[count]) for d in layer["data"]]
 
 
+def layers(fig) -> list[dict]:
+    """Every layer of a single-subplot figure, which may now be none."""
+    return PlotlyMaidr(fig)._flatten_maidr()["subplots"][0][0]["layers"]
+
+
 class TestOccupiedSpan:
     """The helper, in isolation."""
 
@@ -228,8 +233,13 @@ class TestBothCallersSeedTheShiftEquivalently:
 
 
 class TestNothingToAnnounce:
-    def test_a_window_holding_no_data_yields_no_bins(self):
+    def test_a_window_holding_no_data_forms_no_layer(self):
         # Every bin empty. Emitting them would announce a distribution made
         # entirely of gaps, none of which the chart draws an element for.
+        #
+        # This asserted `bins(fig) == []` until #636 -- an empty payload on a
+        # layer that still shipped. The layer is now dropped outright, which
+        # is the same judgement one step further: a cell holding no bins is a
+        # cell the reader can tab into and find nothing in.
         fig = go.Figure([go.Histogram(x=NARROW, xbins=dict(start=20, end=24, size=1))])
-        assert bins(fig) == []
+        assert layers(fig) == []
