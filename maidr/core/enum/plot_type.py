@@ -64,6 +64,10 @@ class PlotType(str, Enum):
     CANDLESTICK = "candlestick"
     VIOLIN_KDE = "violin_kde"
     VIOLIN_BOX = "violin_box"
+    #: One measure against a dial, with the range it sits in and -- when the
+    #: chart draws one -- the target it is measured against. The one type
+    #: here whose payload is a single point rather than a list of them.
+    GAUGE = "gauge"
     #: A population shrinking across ordered stages. Read as a bar layer is,
     #: with the one difference that decides whether the chart is legible: the
     #: number a reader wants is the *retention* between adjacent stages

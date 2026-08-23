@@ -12,6 +12,7 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.candlestick import is_ohlc_trace, layer_position
+from maidr.plotly.gauge import draws_a_dial
 from maidr.plotly.area import is_area_trace
 from maidr.plotly.grouped_histogram import is_histogram_trace
 from maidr.plotly.trendline import is_trendline_trace
@@ -66,7 +67,40 @@ from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly
 #: maidr has anything to put in, to column 1 behind an empty cell.
 #:
 #: Add a type here when maidr learns to render it, not before.
-_PLACED_BY_DOMAIN = frozenset({"pie", "funnelarea"})
+_PLACED_BY_DOMAIN = frozenset({"pie", "funnelarea", "indicator"})
+
+
+def _occupies_a_cell(trace: dict) -> bool:
+    """Report whether this trace's ``domain`` rectangle belongs in the grid.
+
+    Membership in :data:`_PLACED_BY_DOMAIN` is the type-level half of the
+    question. The other half is whether maidr renders the trace at all: the
+    grid describes what maidr can describe, so a trace it draws no layer for
+    occupies no cell -- reserving one would both add an empty cell to tab
+    through and shift every renderable subplot beside it into a different
+    column.
+
+    Only ``indicator`` splits on that. A pie and a funnelarea are always
+    read; an indicator is read only when it draws a dial, so a
+    ``mode="number"`` one is a domain trace that renders nothing, exactly
+    like a ``go.Table``.
+
+    Parameters
+    ----------
+    trace : dict
+        One trace of the figure.
+
+    Returns
+    -------
+    bool
+        True when the trace's rectangle should join the column universe.
+    """
+    kind = trace.get("type")
+    if kind not in _PLACED_BY_DOMAIN:
+        return False
+    if kind == "indicator":
+        return draws_a_dial(trace)
+    return True
 
 #: Every trace type plotly places by a ``domain`` rectangle rather than by a
 #: cartesian axis pair. These share the default ``("x", "y")`` trace group with
@@ -201,7 +235,7 @@ class PlotlyMaidr:
                 y_starts.add(_domain_start(val, "domain"))
 
         for trace in traces:
-            if trace.get("type") not in _PLACED_BY_DOMAIN:
+            if not _occupies_a_cell(trace):
                 continue
             domain = trace.get("domain")
             if isinstance(domain, dict):
@@ -387,6 +421,18 @@ class PlotlyMaidr:
             ]
             funnelarea_traces = [
                 t for t in group_traces if t.get("type") == "funnelarea"
+            ]
+            # Only the indicators that draw a dial. One that draws none is
+            # not a chart to navigate, and letting it take a position here
+            # would push its dial-drawing neighbours onto trace groups that
+            # do not exist -- the same reason `is_drawn` filters hidden
+            # traces at the source.
+            # Every indicator, because every one of them takes a `.trace`
+            # group in the layer -- see `PlotlyGaugePlot._get_selector`. The
+            # ones that draw no dial are skipped when the layers are built,
+            # not when the positions are counted.
+            indicator_traces = [
+                t for t in group_traces if t.get("type") == "indicator"
             ]
 
             # `nth-child` counts within the subplot's SVG `scatterlayer`, so a
@@ -806,6 +852,30 @@ class PlotlyMaidr:
                     )
                     self._plots.append(plot)
                 merged.update(id(t) for t in funnelarea_traces)
+
+            # Gauges, one layer each, for the reasons the pies are: their
+            # own figure-level layer, their own ``domain`` rectangle for the
+            # grid cell, and a position among that layer's trace groups.
+            if indicator_traces:
+                from maidr.plotly.gauge import PlotlyGaugePlot
+
+                for position, indicator_trace in enumerate(indicator_traces):
+                    if not draws_a_dial(indicator_trace):
+                        # No dial to read, but its group still counts above.
+                        continue
+                    plot = PlotlyGaugePlot(
+                        indicator_trace,
+                        layout,
+                        gauge_position=position,
+                        **axis_kwargs,
+                    )
+                    plot.row_index, plot.col_index = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._trace_domain_start(indicator_trace),
+                    )
+                    self._plots.append(plot)
+                merged.update(id(t) for t in indicator_traces)
 
             # OHLC series, one layer each. Built here rather than left to
             # `PlotlyPlotFactory` for the same reason a lone line is: the

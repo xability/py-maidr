@@ -426,6 +426,9 @@ class TestPlotlyUnrenderedDomainTraces:
             ),
             pytest.param(go.Sunburst(labels=["a"], parents=[""]), id="sunburst"),
             pytest.param(go.Treemap(labels=["a"], parents=[""]), id="treemap"),
+            # A `mode="number"` indicator only. One that draws a dial *is*
+            # rendered as of #627's gauge tranche, so it takes a cell like
+            # a pie -- asserted by the test below rather than here.
             pytest.param(go.Indicator(value=42, mode="number"), id="indicator"),
         ],
     )
@@ -441,6 +444,27 @@ class TestPlotlyUnrenderedDomainTraces:
         fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=2)
 
         assert self._cells(fig) == [(0, 0)]
+
+    def test_an_indicator_that_draws_a_dial_does_take_a_cell(self):
+        # The control for the `indicator` row above: the scoping is about
+        # what maidr *renders*, not about the trace type. A gauge is a
+        # domain trace maidr does draw a layer for, so its rectangle joins
+        # the column universe and the bar beside it lands in column 1.
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(
+            rows=1, cols=2, specs=[[{"type": "domain"}, {"type": "xy"}]]
+        )
+        fig.add_trace(
+            go.Indicator(
+                value=42, mode="gauge+number", gauge={"axis": {"range": [0, 100]}}
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=2)
+
+        assert self._cells(fig) == [(0, 0), (0, 1)]
 
     def test_a_pie_beside_it_is_still_placed_by_its_own_domain(self):
         # The scoping is by trace type, not by "ignore trace domains": a pie

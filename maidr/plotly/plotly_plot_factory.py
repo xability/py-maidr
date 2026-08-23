@@ -126,6 +126,21 @@ class PlotlyPlotFactory:
 
             return PlotlyHistogramPlot(trace, layout, **axis_kwargs)
 
+        if trace_type == "indicator":
+            from maidr.plotly.gauge import PlotlyGaugePlot, draws_a_dial
+
+            # An indicator that draws no dial -- `mode="number"` -- or one
+            # whose computed range runs backwards is not a chart this can
+            # state; see `draws_a_dial`. Declined here rather than emitted
+            # with a range invented for it.
+            if not draws_a_dial(trace):
+                return None
+
+            # ``gauge_position`` is left at its default for the reason the
+            # pie branch leaves its own: plotly draws every indicator into
+            # one figure-level ``indicatorlayer``.
+            return PlotlyGaugePlot(trace, layout, **axis_kwargs)
+
         if trace_type == "funnelarea":
             from maidr.plotly.funnelarea import PlotlyFunnelareaPlot
 
