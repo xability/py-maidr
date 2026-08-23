@@ -17,6 +17,7 @@ from maidr.plotly.gauge import draws_a_dial
 from maidr.plotly.hierarchy import has_one_root, is_hierarchy_trace
 from maidr.plotly.area import is_area_trace
 from maidr.plotly.contour import is_contour_trace
+from maidr.plotly.histogram2d import is_histogram2d_trace
 from maidr.plotly.grouped_histogram import is_histogram_trace
 from maidr.plotly.trendline import is_trendline_trace
 from maidr.plotly.plotly_plot import (
@@ -1266,6 +1267,28 @@ class PlotlyMaidr:
                     plot.col_index = col
                     self._plots.append(plot)
                 merged.update(id(t) for t in waterfall_traces)
+
+            # Two-dimensional histograms, one layer each. A `histogram2d`
+            # draws a single `<image>` into the subplot's `heatmaplayer`
+            # exactly as a `go.Heatmap` does -- measured -- so it needs no
+            # position of its own and could have been left to the factory.
+            # It is built here so it sits beside the contour it shares an
+            # issue with, and so the two 2-D binning readings are found
+            # together.
+            histogram2d_traces = [
+                t for t in group_traces if is_histogram2d_trace(t)
+            ]
+            if histogram2d_traces:
+                from maidr.plotly.histogram2d import PlotlyHistogram2dPlot
+
+                for histogram2d_trace in histogram2d_traces:
+                    plot = PlotlyHistogram2dPlot(
+                        histogram2d_trace, layout, **axis_kwargs
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in histogram2d_traces)
 
             # Contours, one layer each. Built here rather than left to
             # the factory for the reason the waterfalls above are: plotly
