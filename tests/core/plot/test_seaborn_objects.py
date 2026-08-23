@@ -458,3 +458,85 @@ def test_a_reading_takes_only_its_own_artist_class_from_a_holder():
 
     assert _held(axes, _READINGS["Dot"]) == [points]
     assert _held(axes, _READINGS["Bar"]) == [bars]
+
+
+def test_the_hook_still_takes_the_layer_as_its_second_argument():
+    """`_plot_layer(p, layer)` is a private method of a private module.
+
+    Nothing else in this file would notice a seaborn release that reordered
+    those two: the layer would read as `None`, `_reading_for` would decline
+    it, and every chart would go back to registering nothing -- silently,
+    because that is also what a mark outside the table does. Pinned so the
+    failure is one loud test rather than a whole interface quietly going dark
+    again.
+    """
+    import inspect
+
+    from seaborn._core.plot import Plotter
+
+    assert list(inspect.signature(Plotter._plot_layer).parameters) == [
+        "self",
+        "p",
+        "layer",
+    ]
+
+
+def test_a_seaborn_that_moved_the_hook_warns_rather_than_failing_the_import(
+    monkeypatch,
+):
+    """The branch the "guarded, unlike the other seaborn patches" argument
+    rests on, verified rather than reasoned about.
+
+    `maidr/patch/_seaborn_version.py` turns a missing
+    `_CategoricalPlotter.plot_bars` into a readable `ImportError`, because
+    there is a version floor to state. There is none to state for a
+    private-of-private method, so this path must leave `import maidr`
+    working -- a rename here would otherwise break every *classic* seaborn
+    chart over a mark nobody in that process drew.
+    """
+    import seaborn._core.plot as plot_module
+
+    from maidr.patch import seaborn_objects
+
+    class Moved:
+        """A Plotter that no longer has the method."""
+
+    monkeypatch.setattr(plot_module, "Plotter", Moved)
+
+    with pytest.warns(UserWarning, match=r"_plot_layer"):
+        seaborn_objects._wrap()
+
+    assert not hasattr(Moved, "_plot_layer")
+
+
+@pytest.mark.parametrize(
+    "spelling, build",
+    [
+        pytest.param("plain", lambda plot: plot.add(so.Bar()), id="plain"),
+        pytest.param(
+            "dodged", lambda plot: plot.add(so.Bar(), so.Dodge()), id="dodged"
+        ),
+        pytest.param(
+            "stacked", lambda plot: plot.add(so.Bar(), so.Stack()), id="stacked"
+        ),
+    ],
+)
+def test_a_colour_split_bar_draws_one_container_and_reads_as_one_layer(spelling, build):
+    """`DRAWN_BARS` names a single container, so a reading that found several
+    would become several layers.
+
+    Measured rather than claimed: every `so.Bar` spelling draws exactly one
+    `BarContainer` holding every bar, `color=` and `Dodge()` and `Stack()`
+    included -- unlike the classic `seaborn.barplot`, which draws one
+    container per hue level. So the branch is real but unreached, and this
+    says which of the two is true today.
+
+    What a stacked bar should be *read* as is a separate question and not
+    settled here: it reads as a plain `bar` of every segment, which is the
+    same shape #615 lists as follow-up work.
+    """
+    figure = plt.figure()
+    build(so.Plot(_frame(), x="cat", y="val", color="g")).on(figure).plot()
+
+    assert len(figure.axes[0].containers) == 1
+    assert _kinds(figure) == ["bar"]

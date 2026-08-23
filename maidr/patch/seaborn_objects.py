@@ -245,7 +245,7 @@ def _wrap() -> None:
     except ImportError:  # pragma: no cover - seaborn without the objects API
         Plotter = None  # type: ignore[assignment]
 
-    if Plotter is None or not hasattr(Plotter, "_plot_layer"):  # pragma: no cover
+    if Plotter is None or not hasattr(Plotter, "_plot_layer"):
         warnings.warn(
             "maidr: seaborn._core.plot.Plotter._plot_layer is not there to "
             "wrap, so seaborn.objects charts are not read. Every mark -- "
