@@ -143,6 +143,50 @@ def test_a_horizontal_bar_is_sorted_along_the_axis_it_is_named_on():
     assert _pairs(fig) == [(1, "alpha"), (2, "bravo"), (3, "charlie")]
 
 
+def test_a_horizontal_bar_is_announced_from_the_bottom_lane_up():
+    """Which end of a vertical axis the announcement starts from, pinned by
+    a sort that is not its own reverse.
+
+    An alphabetical sort cannot catch an inverted mapping -- ascending looks
+    the same read from either end -- so this declares `bravo, charlie, alpha`,
+    which is neither sorted nor reversed.
+
+    Bottom-up rather than top-down, and measured rather than assumed by
+    analogy with the heatmap (which does flip, via `_axis_runs_backwards`,
+    so that row 0 is visually up). The *unsorted* horizontal chart already
+    ships bottom-up: written `['charlie', 'alpha', 'bravo']` it draws its
+    tick labels top to bottom as `bravo, alpha, charlie`, so the trace order
+    py-maidr has always emitted for it runs from the bottom lane. A sorted
+    chart matching that is consistent; flipping it would put two spellings of
+    one chart in opposite orders.
+    """
+    fig = go.Figure(data=[go.Bar(y=CATEGORIES, x=VALUES, orientation="h")])
+    fig.update_layout(
+        yaxis={"categoryorder": "array", "categoryarray": ["bravo", "charlie", "alpha"]}
+    )
+
+    # `categoryarray` runs from the axis origin, which on y is the bottom.
+    assert _pairs(fig) == [(2, "bravo"), (3, "charlie"), (1, "alpha")]
+
+
+@pytest.mark.parametrize(
+    ("order", "axis", "positions"),
+    [
+        ("category descending", {}, (1, 3, 2)),
+        ("array", {"categoryarray": ["bravo", "charlie", "alpha"]}, (3, 1, 2)),
+    ],
+)
+def test_every_resolved_sort_permutes_the_selectors_too(order, axis, positions):
+    """Not only the ascending one. Each sort is its own permutation, and a
+    path that reordered the data while leaving the selectors alone would read
+    correctly and outline the wrong bar."""
+    prefix = ".subplot.xy .trace.bars"
+
+    assert _layer(_bar(order, **axis))["selectors"] == [
+        f"{prefix} .point:nth-of-type({index}) > path" for index in positions
+    ]
+
+
 @pytest.mark.parametrize(
     "order",
     ["total ascending", "total descending", "sum ascending", "mean descending"],
@@ -284,6 +328,69 @@ def test_a_normalized_stack_keeps_each_share_with_its_own_category():
         [("alpha", 0.2), ("bravo", 0.5), ("charlie", 0.75)],
         [("alpha", 0.8), ("bravo", 0.5), ("charlie", 0.25)],
     ]
+
+
+def test_traces_written_in_different_orders_each_get_their_own_permutation():
+    """The correctness of resolving per trace rather than once for the group.
+
+    The traces share the axis -- which is what makes them one chart -- so
+    they share the drawn sequence of category *names*. They do not share the
+    positions those names sit at: `px.bar(df, x=..., color=...)` builds one
+    trace per colour from a filtered slice, and unless the frame is sorted
+    the same way in every slice their arrays disagree.
+
+    Here A is written `charlie, alpha, bravo` and B `alpha, bravo, charlie`.
+    Resolving from A alone gives `[1, 2, 0]`; applying that to B pulls
+    `bravo(20), charlie(30), alpha(10)` -- every point still carrying its own
+    label while the *column* it lands in belongs to another category, which
+    is this issue's own defect one level up.
+    """
+    fig = go.Figure(
+        data=[
+            go.Bar(name="A", x=["charlie", "alpha", "bravo"], y=[3, 1, 2]),
+            go.Bar(name="B", x=["alpha", "bravo", "charlie"], y=[10, 20, 30]),
+        ]
+    )
+    fig.update_layout(barmode="group", xaxis={"categoryorder": "category ascending"})
+
+    # Column j is the same category in both groups.
+    assert _groups(fig) == [
+        [("alpha", 1), ("bravo", 2), ("charlie", 3)],
+        [("alpha", 10), ("bravo", 20), ("charlie", 30)],
+    ]
+
+    # And each group's selectors point into its own arrays: A is written out
+    # of order and permutes, B is already sorted and does not.
+    prefix = ".subplot.xy .trace.bars"
+    assert _layer(fig)["selectors"] == [
+        [
+            f"{prefix}:nth-of-type(1) .point:nth-of-type({index}) > path"
+            for index in (2, 3, 1)
+        ],
+        [
+            f"{prefix}:nth-of-type(2) .point:nth-of-type({index}) > path"
+            for index in (1, 2, 3)
+        ],
+    ]
+
+
+def test_traces_carrying_different_categories_are_declined():
+    """A grid's column has to mean one category in every group, and traces
+    that carry different category *sets* -- rather than the same set
+    differently ordered -- cannot give it one."""
+    fig = go.Figure(
+        data=[
+            go.Bar(name="A", x=["charlie", "alpha", "bravo"], y=[3, 1, 2]),
+            go.Bar(name="B", x=["alpha", "bravo", "delta"], y=[10, 20, 30]),
+        ]
+    )
+    fig.update_layout(barmode="group", xaxis={"categoryorder": "category ascending"})
+
+    assert _groups(fig) == [
+        [("charlie", 3), ("alpha", 1), ("bravo", 2)],
+        [("alpha", 10), ("bravo", 20), ("delta", 30)],
+    ]
+    assert isinstance(_layer(fig)["selectors"], str)
 
 
 def test_a_group_whose_traces_disagree_about_length_is_declined():

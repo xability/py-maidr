@@ -13,6 +13,7 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
+
 # This is the import that makes the cycle: `step_shape` reads its trace arrays
 # through `as_list`, defined below, and so imports this module back. It does so
 # inside the function rather than here. Moving either import to the other's
@@ -342,9 +343,7 @@ class PlotlyPlot(ABC):
                 f"{trace_count} trace{plural}, got {len(positions)}: {positions}"
             )
         if any(not isinstance(position, int) for position in positions):
-            raise TypeError(
-                f"scatter positions must all be int, got {positions!r}"
-            )
+            raise TypeError(f"scatter positions must all be int, got {positions!r}")
 
         if any(position < 0 for position in positions):
             raise ValueError(f"scatter positions must be >= 0, got {positions}")
@@ -531,6 +530,14 @@ class PlotlyPlot(ABC):
         # set like ``[1, 3, 'b']`` still resolves linear. That is the
         # conservative reading where plotly's own rule is a proportion, and it
         # errs toward leaving a sort unapplied rather than inventing one.
+        #
+        # What "from the axis origin" means on y is measured rather than
+        # assumed by analogy with the heatmap. An **unsorted** horizontal bar
+        # written ['charlie', 'alpha', 'bravo'] draws its tick labels top to
+        # bottom as `bravo, alpha, charlie` -- so the trace's own order, which
+        # py-maidr has always emitted for such a chart, is bottom-to-top on
+        # screen. Bottom-up is the order already shipping, and a sorted chart
+        # matches it rather than flipping.
         if axis.get("type") != "category" and any(
             self._looks_numeric(label) or self._looks_like_date(label)
             for label in labels
@@ -715,9 +722,7 @@ class PlotlyPlot(ABC):
         }
 
     @staticmethod
-    def _extract_format(
-        xaxis: dict, yaxis: dict
-    ) -> dict[str, dict[str, Any]] | None:
+    def _extract_format(xaxis: dict, yaxis: dict) -> dict[str, dict[str, Any]] | None:
         """Extract format configuration from Plotly axis settings.
 
         Parses ``tickformat``, ``tickprefix``, and ``ticksuffix`` from
