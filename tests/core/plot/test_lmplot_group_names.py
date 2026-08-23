@@ -143,6 +143,43 @@ def test_a_hue_split_lmplot_drawn_without_its_fit_is_still_named():
     assert sorted(named) == [("point", "p"), ("point", "q")]
 
 
+def test_a_binned_lmplot_names_its_estimates_and_its_fit_alike():
+    """`x_estimator=` collapses each x to an estimate and draws an interval
+    around it, which takes the `ERRORBAR` branch instead of the scatter one.
+
+    Both layers of a group are named or neither is. Measured before
+    `ErrorBarPlot` opted into `GROUP_NAME`, the curve was named and the band
+    beside it was not:
+
+        error_bar None (4)   smooth 'p'
+        error_bar None (4)   smooth 'q'
+
+    which announced a group and its own uncertainty as unrelated layers --
+    the same reading #451 was about from the other side, where the intervals
+    were their own fitted curves.
+    """
+    frame = _frame().assign(dose=lambda f: np.round(f["x"]))
+    named = _layers(
+        sns.lmplot(data=frame, x="dose", y="y", hue="g", x_estimator=np.mean).figure
+    )
+
+    assert sorted(named) == [
+        ("error_bar", "p"),
+        ("error_bar", "q"),
+        ("smooth", "p"),
+        ("smooth", "q"),
+    ]
+
+
+def test_a_binned_regplot_without_a_hue_is_unnamed():
+    """The same additive guarantee on the interval branch."""
+    _, ax = plt.subplots()
+    frame = _frame().assign(dose=lambda f: np.round(f["x"]))
+    sns.regplot(data=frame, x="dose", y="y", x_estimator=np.mean, ax=ax)
+
+    assert _layers(ax.get_figure()) == [("error_bar", None), ("smooth", None)]
+
+
 def test_a_faceted_lmplot_names_each_panels_own_groups():
     """A panel holding one level is named too.
 

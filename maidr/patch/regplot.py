@@ -299,7 +299,11 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
     if paired is not None:
         estimates, ordered = paired
         FigureManager.create_maidr(
-            axes, PlotType.ERRORBAR, estimate=estimates, intervals=ordered
+            axes,
+            PlotType.ERRORBAR,
+            estimate=estimates,
+            intervals=ordered,
+            **named,
         )
         described = curves
     else:

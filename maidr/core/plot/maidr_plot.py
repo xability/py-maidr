@@ -24,13 +24,19 @@ import uuid
 #: ``super().__init__(ax, PlotType.X)`` without forwarding their keyword
 #: arguments, so a key read here would arrive for some layer types and be
 #: swallowed by the rest -- a promise kept by accident of how each
-#: constructor happens to be written. ``HistPlot``, ``SmoothPlot`` and
-#: ``BoxPlot`` opt in today, each in one visible line --
-#: :func:`group_name_of`.
+#: constructor happens to be written. ``HistPlot``, ``SmoothPlot``,
+#: ``BoxPlot``, ``ScatterPlot`` and ``ErrorBarPlot`` opt in today, each in one
+#: visible line -- :func:`group_name_of`.
 #:
-#: ``ScatterPlot`` and ``EventPlot`` name their layers by other means -- a hue
-#: split and row labels -- and are unaffected, being passed neither this key
-#: nor anything that collides with it.
+#: ``ScatterPlot`` reads it **second**, after its own ``HUE_GROUP``: that key
+#: carries which *points* belong to the group, because the scatter patch
+#: splits one collection between levels, while this one carries only the name
+#: -- which is all a layer that is a whole group needs, and what a `regplot`
+#: hands over (#612).
+#:
+#: ``EventPlot`` names its layers by other means -- row labels -- and is
+#: unaffected, being passed neither this key nor anything that collides
+#: with it.
 #:
 #: The value may be a **string** or a **callable returning one**. A string is
 #: the name the patch already resolved; a callable is resolved at render, for
@@ -116,8 +122,6 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         # MAIDR data
         self.type = plot_type
         self._schema = {}
-
-
 
     def render(self) -> dict:
         """

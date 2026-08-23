@@ -11,9 +11,9 @@ from matplotlib.container import ErrorbarContainer
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.maidr_plot import group_name_of
 from maidr.exception import ExtractionError
 from maidr.util.mixin import DictMergerMixin
-
 
 
 def _is_drawn(value: object) -> bool:
@@ -83,6 +83,14 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
     """
 
     def __init__(self, ax: Axes, **kwargs) -> None:
+        # The hue group these estimates belong to, when the patch could name
+        # it. `lmplot(x_estimator=..., hue=...)` draws one estimate-and-band
+        # per level and the curve beside it is already named, so leaving this
+        # unnamed announced a group and its own uncertainty as unrelated
+        # layers (#612). Opted into here rather than read by `MaidrPlot`; see
+        # `GROUP_NAME` for why that is per class.
+        self._group_name = group_name_of(kwargs)
+
         super().__init__(ax, PlotType.ERRORBAR)
 
         # The patch hands over the exact container its call produced. Looking
@@ -101,6 +109,12 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
         """
         Build the layer schema, adding the orientation the bars were drawn in.
 
+        Adds the group's name too, when the chart has one -- the same field,
+        and for the same reason, as ``SmoothPlot``: a hue-split ``lmplot``
+        draws one band per level, and two of them over one axes with nothing
+        to tell them apart leave a reader hearing the identical announcement
+        twice.
+
         Returns
         -------
         dict
@@ -110,9 +124,17 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
         # `self._orientation` -- so the read below has to come after it, not
         # alongside it.
         base_schema = super().render()
-        return self.merge_dict(
-            base_schema, {MaidrKey.ORIENTATION: self._orientation}
-        )
+        added: dict = {MaidrKey.ORIENTATION: self._orientation}
+
+        # A callable is resolved here rather than at registration, which is
+        # what an `lmplot` needs: `FacetGrid.add_legend()` runs after every
+        # panel is drawn, so the legend that names the colours does not exist
+        # when the layer registers (#561, #612).
+        name = self._group_name() if callable(self._group_name) else self._group_name
+        if name:
+            added[MaidrKey.NAME] = name
+
+        return self.merge_dict(base_schema, added)
 
     def _extract_plot_data(self) -> list[dict]:
         container = self._resolve_container()
