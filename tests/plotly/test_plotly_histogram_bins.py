@@ -243,3 +243,66 @@ class TestNothingToAnnounce:
         # cell the reader can tab into and find nothing in.
         fig = go.Figure([go.Histogram(x=NARROW, xbins=dict(start=20, end=24, size=1))])
         assert layers(fig) == []
+
+
+class TestTheRoundUpIsStrict:
+    """A rough width landing exactly on a nice number takes the next one up.
+
+    `Lib.roundUp` binary-searches with ``arrayIn[mid] <= val``, so it returns
+    the first element **strictly greater** than the value. py-maidr read it as
+    "greater than or equal", which agrees everywhere except on the boundary --
+    and there it picked the width *below* the one plotly draws: twice as many
+    bins, half as wide, every count wrong to match (#646).
+
+    ``nbins`` is what makes the ratio exact on demand, since the rough width
+    is then ``range / nbins`` rather than something derived from the spread.
+
+    The same comparison decides a contour's automatic levels, which run
+    through the same ``autoTicks`` -- a field spanning 0 .. 3 gives a rough
+    step of exactly 0.2 and plotly draws 0.5 (#642).
+    """
+
+    @pytest.mark.parametrize(
+        ("high", "points", "width"),
+        [
+            # 30 / 15 = 2 exactly. The loose reading gives 2; plotly gives 5.
+            pytest.param(30, 61, 5, id="exactly-two"),
+            # 75 / 15 = 5 exactly.
+            pytest.param(75, 76, 10, id="exactly-five"),
+            # Controls a hair either side, where the two readings agree.
+            pytest.param(28.5, 58, 2, id="just-below-two"),
+            pytest.param(31.5, 64, 5, id="just-above-two"),
+        ],
+    )
+    def test_the_width_is_the_one_plotly_draws(self, high, points, width):
+        values = list(np.linspace(0, high, points))
+
+        drawn = bins(go.Figure(go.Histogram(x=values, nbinsx=15)))
+
+        assert {round(hi - lo, 9) for lo, hi, _ in drawn} == {width}
+
+    def test_a_two_dimensional_histogram_rounds_the_same_way(self):
+        """It shares `_plotly_dtick`, so the boundary reaches it too.
+
+        Its automatic width divides by a different power of the sample count,
+        but the round-up afterwards is the same one -- so an `nbins` hint that
+        lands on the boundary lands there for both. Measured: plotly resolves
+        this figure to ``xbins`` of ``size 5, start -2.5, end 32.5``, where
+        the loose reading would have given a width of 2.
+        """
+        values = list(np.linspace(0, 30, 61))
+        figure = go.Figure(
+            go.Histogram2d(x=values, y=values, nbinsx=15, nbinsy=15)
+        )
+
+        layer = PlotlyMaidr(figure)._flatten_maidr()["subplots"][0][0]["layers"][0]
+
+        assert layer["data"]["x"] == [
+            "-2.5 – 2.5",
+            "2.5 – 7.5",
+            "7.5 – 12.5",
+            "12.5 – 17.5",
+            "17.5 – 22.5",
+            "22.5 – 27.5",
+            "27.5 – 32.5",
+        ]
