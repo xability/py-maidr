@@ -486,6 +486,50 @@ def test_three_groups_reach_the_grouped_reading_in_legend_order():
     ]
 
 
+def test_a_faceted_grouped_bar_reads_one_layer_per_panel():
+    """The per-panel loop and the grouped handover meet here. Faceting is
+    exercised for the scatter split elsewhere; a bar carrying a transform
+    reaches the same loop by a different branch, and the one legend `so.Plot`
+    builds has to name the groups on *every* panel -- `legend_of` reads a
+    lone figure legend as doing exactly that (#561).
+    """
+    frame = pd.DataFrame(
+        {
+            "cat": ["a", "a", "b", "b"] * 2,
+            "val": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+            "g": list("pqpq") * 2,
+            "panel": ["L"] * 4 + ["R"] * 4,
+        }
+    )
+    figure = _drawn(
+        lambda fig: (
+            so.Plot(frame, x="cat", y="val", color="g")
+            .facet(col="panel")
+            .add(so.Bar(), so.Dodge())
+            .on(fig)
+            .plot()
+        )
+    )
+    maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
+
+    assert [plot.schema["type"].value for plot in plots] == [
+        "dodged_bar",
+        "dodged_bar",
+    ]
+    assert [plot.schema["axes"]["z"] for plot in plots] == [{"label": "g"}] * 2
+    assert [
+        [
+            [(bar["z"], bar["x"], bar["y"]) for bar in group]
+            for group in plot.schema["data"]
+        ]
+        for plot in plots
+    ] == [
+        [[("p", "a", 1.0), ("p", "b", 3.0)], [("q", "a", 2.0), ("q", "b", 4.0)]],
+        [[("p", "a", 5.0), ("p", "b", 7.0)], [("q", "a", 6.0), ("q", "b", 8.0)]],
+    ]
+
+
 def test_the_grouped_reading_names_its_z_axis_from_the_figure_legend():
     """`GroupedBarPlot` read both its `z` label and its group names from
     `ax.get_legend()`, which is right for `seaborn.barplot(hue=)` and `None`
@@ -497,10 +541,12 @@ def test_the_grouped_reading_names_its_z_axis_from_the_figure_legend():
     nothing they can name.
     """
     figure = _drawn(
-        lambda fig: so.Plot(_bars(), x="cat", y="val", color="g")
-        .add(so.Bar(), so.Dodge())
-        .on(fig)
-        .plot()
+        lambda fig: (
+            so.Plot(_bars(), x="cat", y="val", color="g")
+            .add(so.Bar(), so.Dodge())
+            .on(fig)
+            .plot()
+        )
     )
     maidr.render(figure)._repr_html_()
     (plot,) = FigureManager.get_maidr(figure).plots

@@ -186,7 +186,7 @@ _MOVES: tuple[tuple[str, PlotType], ...] = (
 )
 
 
-def _grouped_type(move: Any) -> PlotType | None:
+def _grouped_type(move: list[Any] | None) -> PlotType | None:
     """
     What a layer's position transform makes it, or ``None`` for no transform.
 
@@ -198,8 +198,11 @@ def _grouped_type(move: Any) -> PlotType | None:
 
     Parameters
     ----------
-    move : Any
-        ``layer["move"]``: ``None``, or a list of ``Move`` instances.
+    move : list of Move, optional
+        ``layer["move"]``: ``None``, or a list of ``Move`` instances. Typed
+        loosely because naming ``seaborn._core.moves.Move`` would import a
+        private class this module deliberately does not depend on -- it
+        matches on the class *name* for exactly that reason.
 
     Returns
     -------
@@ -215,7 +218,7 @@ def _grouped_type(move: Any) -> PlotType | None:
 
 
 def _handovers(
-    reading: _Reading, ax: Axes, own: list, move: Any = None
+    reading: _Reading, ax: Axes, own: list, move: list[Any] | None = None
 ) -> list[tuple[PlotType, dict]]:
     """
     What to register for one layer's artists: one entry per layer to make.
@@ -260,7 +263,7 @@ def _handovers(
         The panel drawn on, asked for the legend that names the colours.
     own : list
         The artists this layer drew on that panel, in draw order.
-    move : Any, optional
+    move : list of Move, optional
         ``layer["move"]``: the position transforms the layer was written
         with, which is what types a colour-split bar.
 
