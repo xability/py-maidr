@@ -70,6 +70,12 @@ class MaidrKey(str, Enum):
     END = "end"
     LANES = "lanes"
 
+    # Gauge keys. One measure, the two ends of the dial it sits on -- which
+    # reuse `MIN` and `MAX` above -- and the target a bullet chart marks.
+    # The measure's own name reuses `LABEL`.
+    VALUE = "value"
+    TARGET = "target"
+
     # Waterfall keys. A step carries the two running totals it sits between
     # -- reusing `START` and `END` above, which mean the same two things a
     # gantt interval's ends do -- plus its own signed contribution and which
