@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 from typing import Any
 
@@ -9,13 +10,7 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
-#: The trace types that draw into a subplot's ``contourlayer``. Both take a
-#: ``g.contour`` group there, so a contour's position among *these* is what
-#: scopes its selector -- measured in Chromium on a figure holding a
-#: ``histogram2dcontour``, a ``contour`` and a ``heatmap``: the contour layer
-#: held two groups, in declaration order, and the heatmap was elsewhere in a
-#: ``heatmaplayer`` of its own.
-_CONTOUR_LAYER_TYPES = ("contour", "histogram2dcontour")
+_logger = logging.getLogger(__name__)
 
 #: Which marching-squares implementation to trace the curves with.
 #:
@@ -77,9 +72,10 @@ class PlotlyContourPlot(PlotlyPlot):
         The Plotly figure layout.
     layer_position : int
         The trace's zero-based position among the subplot's traces that draw
-        into the ``contourlayer`` -- see :data:`_CONTOUR_LAYER_TYPES`. Only
-        the figure-wide pass knows it, which is why this layer is built there
-        rather than by :class:`~maidr.plotly.plotly_plot_factory.PlotlyPlotFactory`.
+        into the ``contourlayer``, from
+        :func:`~maidr.plotly.candlestick.layer_position`. Only the figure-wide
+        pass knows it, which is why this layer is built there rather than by
+        :class:`~maidr.plotly.plotly_plot_factory.PlotlyPlotFactory`.
     **kwargs : str
         Axis names forwarded to the parent class.
     """
@@ -132,6 +128,16 @@ class PlotlyContourPlot(PlotlyPlot):
             # leaves nothing to emit in the order the selectors assume.
             # Declining costs one layer; guessing would put every highlight
             # on the wrong curve.
+            #
+            # Logged rather than swallowed outright, because everything a
+            # *chart* can decline for is guarded above: reaching here means
+            # the environment is not what it was measured to be, and a layer
+            # that vanishes with nothing said is hard to tell from one that
+            # was never there.
+            _logger.debug(
+                "maidr: could not trace a plotly contour with contourpy",
+                exc_info=True,
+            )
             return []
 
         data: list[list[dict]] = []
@@ -209,11 +215,6 @@ class PlotlyContourPlot(PlotlyPlot):
 def is_contour_trace(trace: dict) -> bool:
     """Report whether a trace is a contour plot."""
     return trace.get("type") == "contour"
-
-
-def draws_into_the_contour_layer(trace: dict) -> bool:
-    """Report whether a trace takes a ``g.contour`` group on its subplot."""
-    return trace.get("type") in _CONTOUR_LAYER_TYPES
 
 
 def draws_its_lines(trace: dict) -> bool:
