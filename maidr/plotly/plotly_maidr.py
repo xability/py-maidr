@@ -66,7 +66,7 @@ from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly
 #: maidr has anything to put in, to column 1 behind an empty cell.
 #:
 #: Add a type here when maidr learns to render it, not before.
-_PLACED_BY_DOMAIN = frozenset({"pie"})
+_PLACED_BY_DOMAIN = frozenset({"pie", "funnelarea"})
 
 #: Every trace type plotly places by a ``domain`` rectangle rather than by a
 #: cartesian axis pair. These share the default ``("x", "y")`` trace group with
@@ -384,6 +384,9 @@ class PlotlyMaidr:
             ]
             pie_traces = [
                 t for t in group_traces if t.get("type") == "pie"
+            ]
+            funnelarea_traces = [
+                t for t in group_traces if t.get("type") == "funnelarea"
             ]
 
             # `nth-child` counts within the subplot's SVG `scatterlayer`, so a
@@ -766,6 +769,43 @@ class PlotlyMaidr:
                     )
                     self._plots.append(plot)
                 merged.update(id(t) for t in pie_traces)
+
+            # Funnelareas, one layer each, for every reason the pies above
+            # are: their own figure-level layer, their own ``domain``
+            # rectangle for the grid cell, and a position among that layer's
+            # trace groups that only this loop knows.
+            #
+            # Numbered among the *funnelarea* traces rather than alongside the
+            # pies: the two layers are siblings under ``main-svg``, so a pie
+            # does not shift a funnelarea's group index. Measured in Chromium
+            # on a figure holding one of each -- each layer held exactly its
+            # own trace at ``nth-child(1)``.
+            if funnelarea_traces:
+                from maidr.plotly.funnelarea import PlotlyFunnelareaPlot
+
+                # Same question the pies answer, and the same answer: a
+                # funnelarea draws no axes, so it may name its dimensions from
+                # ``layout.xaxis``/``yaxis`` only when no cartesian trace has
+                # claimed them.
+                funnelarea_owns_axes = all(
+                    _is_domain_trace(trace) for trace in group_traces
+                )
+
+                for position, funnelarea_trace in enumerate(funnelarea_traces):
+                    plot = PlotlyFunnelareaPlot(
+                        funnelarea_trace,
+                        layout,
+                        pie_position=position,
+                        borrows_axis_titles=funnelarea_owns_axes,
+                        **axis_kwargs,
+                    )
+                    plot.row_index, plot.col_index = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._trace_domain_start(funnelarea_trace),
+                    )
+                    self._plots.append(plot)
+                merged.update(id(t) for t in funnelarea_traces)
 
             # OHLC series, one layer each. Built here rather than left to
             # `PlotlyPlotFactory` for the same reason a lone line is: the

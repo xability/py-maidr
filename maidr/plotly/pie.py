@@ -202,7 +202,7 @@ class PlotlyPiePlot(PlotlyPlot):
                 wedges[position][1] += value
 
         wedges = [wedge for wedge in wedges if wedge[1] >= 0]
-        if self._trace.get("sort", True):
+        if self._sorts_wedges():
             wedges.sort(key=lambda wedge: wedge[1], reverse=True)
 
         # Plotly matches `hiddenlabels` with `indexOf` against the *stringified*
@@ -218,6 +218,29 @@ class PlotlyPiePlot(PlotlyPlot):
             if isinstance(label, str)
         }
         return [(label, value) for label, value in wedges if label not in hidden]
+
+    def _sorts_wedges(self) -> bool:
+        """Report whether plotly orders this trace's wedges by value.
+
+        A hook rather than a `self._trace.get("sort", True)` in place,
+        because :class:`~maidr.plotly.funnelarea.PlotlyFunnelareaPlot` shares
+        every other rule in :meth:`_slices` and breaks this one: plotly gives
+        a funnelarea no ``sort`` attribute at all, and measured against
+        ``gd.calcdata``, ``values=[40, 100, 60]`` stayed in that order rather
+        than being reordered largest-first.
+
+        Returns
+        -------
+        bool
+            True when the wedges are drawn largest-first, which is plotly's
+            default for a pie.
+        """
+        return bool(self._trace.get("sort", True))
+
+    #: What this trace's two dimensions are called when the layout names
+    #: neither. A pie's slices are categories carrying values; a subclass
+    #: whose slices mean something else says so by overriding this.
+    _AXIS_FALLBACKS = ("Category", "Value")
 
     def _extract_axes_data(self) -> dict:
         """Extract the two axis labels a pie carries.
@@ -243,9 +266,10 @@ class PlotlyPiePlot(PlotlyPlot):
         else:
             x_axis, y_axis = {}, {}
 
+        x_default, y_default = self._AXIS_FALLBACKS
         return {
-            MaidrKey.X: self._axis_config(label=_axis_title(x_axis, "Category")),
-            MaidrKey.Y: self._axis_config(label=_axis_title(y_axis, "Value")),
+            MaidrKey.X: self._axis_config(label=_axis_title(x_axis, x_default)),
+            MaidrKey.Y: self._axis_config(label=_axis_title(y_axis, y_default)),
         }
 
 
