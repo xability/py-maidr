@@ -38,5 +38,6 @@ from . import (  # noqa: E402, F401
     candlestick,
     mplfinance,
     violinplot,
+    seaborn_objects,
     seaborn_probe,
 )
