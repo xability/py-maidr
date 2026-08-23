@@ -13,6 +13,7 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.candlestick import is_ohlc_trace, layer_position
 from maidr.plotly.gauge import draws_a_dial
+from maidr.plotly.hierarchy import has_one_root, is_hierarchy_trace
 from maidr.plotly.area import is_area_trace
 from maidr.plotly.grouped_histogram import is_histogram_trace
 from maidr.plotly.trendline import is_trendline_trace
@@ -67,7 +68,9 @@ from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly
 #: maidr has anything to put in, to column 1 behind an empty cell.
 #:
 #: Add a type here when maidr learns to render it, not before.
-_PLACED_BY_DOMAIN = frozenset({"pie", "funnelarea", "indicator"})
+_PLACED_BY_DOMAIN = frozenset(
+    {"pie", "funnelarea", "indicator", "treemap", "sunburst", "icicle"}
+)
 
 
 def _occupies_a_cell(trace: dict) -> bool:
@@ -100,6 +103,8 @@ def _occupies_a_cell(trace: dict) -> bool:
         return False
     if kind == "indicator":
         return draws_a_dial(trace)
+    if is_hierarchy_trace(trace):
+        return has_one_root(trace)
     return True
 
 #: Every trace type plotly places by a ``domain`` rectangle rather than by a
@@ -852,6 +857,32 @@ class PlotlyMaidr:
                     )
                     self._plots.append(plot)
                 merged.update(id(t) for t in funnelarea_traces)
+
+            # Hierarchies, one layer each. Each painting has its own
+            # figure-level layer, so a trace is numbered among its own kind
+            # -- a treemap does not shift a sunburst's group index.
+            for kind in ("treemap", "sunburst", "icicle"):
+                same_kind = [t for t in group_traces if t.get("type") == kind]
+                if not same_kind:
+                    continue
+
+                from maidr.plotly.hierarchy import PlotlyHierarchyPlot
+
+                for position, hierarchy_trace in enumerate(same_kind):
+                    if has_one_root(hierarchy_trace):
+                        plot = PlotlyHierarchyPlot(
+                            hierarchy_trace,
+                            layout,
+                            hierarchy_position=position,
+                            **axis_kwargs,
+                        )
+                        plot.row_index, plot.col_index = self._grid_position(
+                            x_starts,
+                            y_starts,
+                            self._trace_domain_start(hierarchy_trace),
+                        )
+                        self._plots.append(plot)
+                merged.update(id(t) for t in same_kind)
 
             # Gauges, one layer each, for the reasons the pies are: their
             # own figure-level layer, their own ``domain`` rectangle for the
