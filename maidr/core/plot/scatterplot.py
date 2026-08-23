@@ -232,7 +232,19 @@ def hue_groups(
     if len(colours) < 2 or any(colour is None for colour in colours):
         return None
 
-    legend = ax.get_legend()
+    # `legend_of` rather than `ax.get_legend()`, which is what this asked
+    # before. The two answer the same question -- which legend names this
+    # axes' colours -- and answering it twice, differently, in one module is
+    # the drift #599 extracted `legend_names` to end. The wider answer also
+    # reads a lone *figure* legend (#561) and a lone shared-axis sibling's
+    # (#610), which is where `seaborn.objects` puts the only legend a
+    # `so.Plot(color=...)` has.
+    #
+    # Imported here rather than at module scope because `legend_names` reads
+    # `_handle_colour` from this module, so the two would import each other.
+    from maidr.util.legend_names import legend_of
+
+    legend = legend_of(ax)
     if legend is None:
         return None
 
