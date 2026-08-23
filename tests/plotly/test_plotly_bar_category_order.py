@@ -85,7 +85,7 @@ def test_an_unsorted_bar_chart_is_untouched():
     fig = _bar()
 
     assert _pairs(fig) == [("charlie", 3), ("alpha", 1), ("bravo", 2)]
-    assert _layer(fig)["selectors"] == ".subplot.xy .trace.bars .point > path"
+    assert _layer(fig)["selectors"] == ".subplot.xy .barlayer .trace.bars .point > path"
 
 
 def test_an_ascending_sort_is_emitted_in_the_drawn_order():
@@ -124,7 +124,7 @@ def test_each_selector_names_the_bar_whose_point_it_carries():
     positions measured in Chromium -- `alpha` is the trace's second entry, so
     it is `nth-of-type(2)`.
     """
-    prefix = ".subplot.xy .trace.bars"
+    prefix = ".subplot.xy .barlayer .trace.bars"
 
     assert _layer(_bar("category ascending"))["selectors"] == [
         f"{prefix} .point:nth-of-type(2) > path",
@@ -180,7 +180,7 @@ def test_every_resolved_sort_permutes_the_selectors_too(order, axis, positions):
     """Not only the ascending one. Each sort is its own permutation, and a
     path that reordered the data while leaving the selectors alone would read
     correctly and outline the wrong bar."""
-    prefix = ".subplot.xy .trace.bars"
+    prefix = ".subplot.xy .barlayer .trace.bars"
 
     assert _layer(_bar(order, **axis))["selectors"] == [
         f"{prefix} .point:nth-of-type({index}) > path" for index in positions
@@ -281,7 +281,7 @@ def test_an_unsorted_group_is_untouched(barmode):
         [("charlie", 3), ("alpha", 1), ("bravo", 2)],
         [("charlie", 1), ("alpha", 4), ("bravo", 2)],
     ]
-    assert _layer(fig)["selectors"] == ".subplot.xy .trace.bars .point > path"
+    assert _layer(fig)["selectors"] == ".subplot.xy .barlayer .trace.bars .point > path"
 
 
 @pytest.mark.parametrize("barmode", ["group", "stack"])
@@ -301,7 +301,7 @@ def test_a_sorted_group_addresses_each_cell_by_trace_and_category():
     the drawn order, pointing at the position each holds in *that trace's*
     own arrays.
     """
-    prefix = ".subplot.xy .trace.bars"
+    prefix = ".subplot.xy .barlayer .trace.bars"
     expected = [
         [
             f"{prefix}:nth-of-type({group}) .point:nth-of-type({index}) > path"
@@ -361,7 +361,7 @@ def test_traces_written_in_different_orders_each_get_their_own_permutation():
 
     # And each group's selectors point into its own arrays: A is written out
     # of order and permutes, B is already sorted and does not.
-    prefix = ".subplot.xy .trace.bars"
+    prefix = ".subplot.xy .barlayer .trace.bars"
     assert _layer(fig)["selectors"] == [
         [
             f"{prefix}:nth-of-type(1) .point:nth-of-type({index}) > path"

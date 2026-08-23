@@ -139,7 +139,7 @@ class PlotlyGroupedHistogramPlot(PlotlyPlot):
         }
 
     def _get_selector(self) -> str:
-        return f"{self._subplot_css_prefix()}.trace.bars .point > path"
+        return f"{self._subplot_css_prefix()}.barlayer .trace.bars .point > path"
 
     def _shared_edges(self, samples: list[np.ndarray]) -> np.ndarray | None:
         """One grid, from every trace's values together.

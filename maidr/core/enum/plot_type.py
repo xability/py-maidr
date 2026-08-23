@@ -64,6 +64,13 @@ class PlotType(str, Enum):
     CANDLESTICK = "candlestick"
     VIOLIN_KDE = "violin_kde"
     VIOLIN_BOX = "violin_box"
+    #: A starting value carried to an ending value through a sequence of
+    #: signed contributions, each bar floating between the running total
+    #: before it and the running total after it. A distinct type from `BAR`
+    #: because a step carries two numbers a bar conflates -- the contribution
+    #: it made and the total it produced -- and announcing either alone
+    #: answers half the question the chart is drawn for.
+    WATERFALL = "waterfall"
 
     @property
     def display_name(self) -> str:

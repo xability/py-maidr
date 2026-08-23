@@ -297,6 +297,8 @@ class PlotlyMaidr:
         * Pie traces stay one layer each, but are built here rather than by
           the factory so every pie carries its position among the figure's
           pie traces — the only thing its selector can be scoped by.
+        * Waterfall traces stay one layer each for the same reason, scoped by
+          their position among the subplot's waterfall traces.
 
         Every scatter-family trace is assigned a selector index from its
         position within the subplot, not within the layer it lands in — see
@@ -821,6 +823,30 @@ class PlotlyMaidr:
                         layer.col_index = col
                         self._plots.append(layer)
                 merged.update(id(t) for t in violin_traces)
+
+            # Waterfalls, one layer each, built here rather than left to
+            # the factory for the reason the candlesticks above are: plotly
+            # appends one `.trace.bars` group per waterfall trace to the
+            # subplot's `waterfalllayer`, so a trace's selector is scoped by
+            # its position among *those* traces -- which the factory, seeing
+            # one trace at a time, cannot know.
+            waterfall_traces = [
+                t for t in group_traces if t.get("type") == "waterfall"
+            ]
+            if waterfall_traces:
+                from maidr.plotly.waterfall import PlotlyWaterfallPlot
+
+                for waterfall_trace in waterfall_traces:
+                    plot = PlotlyWaterfallPlot(
+                        waterfall_trace,
+                        layout,
+                        layer_position=layer_position(group_traces, waterfall_trace),
+                        **axis_kwargs,
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in waterfall_traces)
 
             # Remaining traces
             for trace in group_traces:

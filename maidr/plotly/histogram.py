@@ -538,7 +538,7 @@ class PlotlyHistogramPlot(PlotlyPlot):
         return schema
 
     def _get_selector(self) -> str:
-        return f"{self._subplot_css_prefix()}.trace.bars .point > path"
+        return f"{self._subplot_css_prefix()}.barlayer .trace.bars .point > path"
 
     @staticmethod
     def _bin_assignment(arr: np.ndarray, bin_edges: np.ndarray) -> np.ndarray:

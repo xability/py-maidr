@@ -43,7 +43,7 @@ class PlotlyBarPlot(PlotlyPlot):
         better of the two failures, and it only arises on a chart that
         declares an order.
         """
-        prefix = f"{self._subplot_css_prefix()}.trace.bars"
+        prefix = f"{self._subplot_css_prefix()}.barlayer .trace.bars"
         if self._drawn is None:
             return f"{prefix} .point > path"
         return [

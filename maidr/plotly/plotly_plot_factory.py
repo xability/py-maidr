@@ -126,6 +126,17 @@ class PlotlyPlotFactory:
 
             return PlotlyHistogramPlot(trace, layout, **axis_kwargs)
 
+        if trace_type == "waterfall":
+            from maidr.plotly.waterfall import PlotlyWaterfallPlot
+
+            # ``layer_position`` is left at its default for the same reason
+            # the candlestick branch leaves its own: this factory sees one
+            # trace with no idea what else draws into the subplot's
+            # ``waterfalllayer``, and "assume it is the only one" is the only
+            # assumption available. ``PlotlyMaidr`` never reaches here
+            # precisely because it does know, and passes real positions.
+            return PlotlyWaterfallPlot(trace, layout, **axis_kwargs)
+
         if trace_type == "pie":
             from maidr.plotly.pie import PlotlyPiePlot
 
