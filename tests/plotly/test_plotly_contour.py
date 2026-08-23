@@ -5,10 +5,10 @@
 `PlotlyPlotFactory`, which returned `None` (#627). The core has had
 `TraceType.CONTOUR` for this shape since the matplotlib side was read (#539).
 
-**The curves are not in the trace.** Plotly ships a grid and a level spacing
-and traces the curves in the browser, so reading this chart means running the
-same marching squares here -- `contourpy`, which is what matplotlib traces its
-own contours with.
+**Neither the curves nor, usually, the levels are in the trace.** Plotly ships
+a grid, works out where to cut it, and traces the curves in the browser. So
+reading this chart means doing both here: the levels by the rule below, the
+curves with `contourpy` -- what matplotlib traces its own contours with.
 
 Two independent implementations agreeing is not a contract, so what they agree
 about was measured. Across 33 fields and 207 levels -- random sums of
@@ -24,10 +24,23 @@ Plotly's level list was pinned the same way: it steps `start`, `start + size`,
 ... while the level is below `end + size / 10`. Neither `<= end` (which drops
 a level plotly draws at `start=0.2, end=0.8, size=0.05`) nor `end + size / 2`
 (which adds one plotly does not draw at `start=0, end=0.9, size=0.5`) fits.
+
+**Where `start` and `end` come from** was #642's open problem, and it turned
+out to be one comparison rather than a missing formula. Plotly divides the
+field's range by `ncontours` (15 by default) and rounds that up to a 1/2/5x10ⁿ
+step -- *strictly*, which is why a field spanning `0 .. 3` looked
+unreproducible: its rough step is exactly 0.2 and plotly draws 0.5 (#646).
+`start` and `end` are then the first and last multiples strictly inside the
+range, and if those cross -- an `ncontours` too small to fit one -- plotly puts
+a single level at their midpoint. Measured against the drawn levels on **49
+figures**: 26 z ranges from `0 .. 0.07` to `0 .. 1000`, positive, negative and
+straddling, 8 explicit `ncontours` from 1 to 30, and 15 ranges picked for
+landing on a binary tie. All 49 agree, level for level.
 """
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 # `plotly` is an optional extra; guard it the way the rest of this directory
@@ -219,7 +232,9 @@ def test_a_filled_contour_with_its_lines_off_has_nothing_to_point_at() -> None:
     outline is missing.
     """
     figure = go.Figure(
-        go.Contour(z=ONE_PEAK, contours=dict(start=0.5, end=0.5, size=0.5, showlines=False))
+        go.Contour(
+            z=ONE_PEAK, contours=dict(start=0.5, end=0.5, size=0.5, showlines=False)
+        )
     )
 
     (layer,) = _layers(figure)
@@ -248,31 +263,170 @@ def test_showlines_off_under_another_coloring_still_draws_the_curves() -> None:
     assert len(layer["selectors"]) == 1
 
 
-def test_auto_levels_are_declined() -> None:
-    """Plotly's rule for picking them lives in plotly.js and was not derivable.
-
-    Measured across nine z ranges, eight fit "round ``(max - min) / 15`` up to
-    a 1/2/5x10ⁿ step" and a field spanning 0 .. 3 does not. Reading the chart
-    at levels it does not draw would announce curves that are not there, so
-    the trace is left unread until the rule is settled (#642).
-    """
-    assert _layers(go.Figure(go.Contour(z=ONE_PEAK))) == []
+#: What plotly picks for `ONE_PEAK`, whose field runs 0 .. 1: a rough step of
+#: ``1 / 15`` rounded up to 0.1, then the multiples of it strictly inside the
+#: range. Measured -- and the same nine whichever way the author fails to name
+#: both ends.
+AUTOMATIC = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
 
 @pytest.mark.parametrize(
     ("contours", "extra"),
     [
-        pytest.param({"start": 0.5}, {}, id="start-without-end-or-size"),
-        pytest.param({"size": 0.5}, {}, id="size-alone"),
-        pytest.param({"start": 0.5, "end": 1.5}, {}, id="no-size"),
-        pytest.param({"start": 0.5, "end": 1.5, "size": 0}, {}, id="zero-size"),
+        pytest.param({}, {}, id="nothing-named-at-all"),
+        pytest.param({"start": 0.5}, {}, id="a-start-without-an-end"),
+        pytest.param({"end": 0.5}, {}, id="an-end-without-a-start"),
+        pytest.param({"size": 0.25}, {}, id="a-size-alone"),
         pytest.param(
-            {"start": 0.5, "end": 1.5, "size": 0.5},
+            {"start": 0.2, "end": 0.8, "size": 0.2},
             {"autocontour": True},
-            id="autocontour-overrides-the-spec",
+            id="autocontour-overrides-a-complete-spec",
         ),
-        pytest.param(
-            {
+    ],
+)
+def test_the_levels_plotly_picks_are_the_ones_read(
+    contours: dict, extra: dict
+) -> None:
+    """#642's open problem, and it was one comparison rather than a formula.
+
+    Plotly coerces `autocontour` to true whenever `start` or `end` is missing,
+    so each of these has its levels picked for it -- measured, all five draw
+    the same nine. The rule is a rough step of ``(zmax - zmin) / ncontours``
+    rounded up to a 1/2/5x10ⁿ value, then the multiples of it strictly inside
+    the range.
+
+    What made it look unreproducible was the round-up: a field spanning
+    ``0 .. 3`` gives a rough step of exactly ``0.2``, and plotly draws ``0.5``
+    because its `roundUp` is strictly greater (#646). With that read
+    correctly, 34 figures agree level for level.
+    """
+    figure = go.Figure(go.Contour(z=ONE_PEAK, contours=contours, **extra))
+
+    assert _levels(_layers(figure)[0]) == pytest.approx(AUTOMATIC)
+
+
+def test_two_named_ends_with_no_width_get_one_derived_for_them() -> None:
+    """Not a decline: plotly keeps the ends and rounds a width up for them.
+
+    Measured on ``start=0.2, end=0.8``: both a missing ``size`` and a zero one
+    draw a width of 0.05, which is ``(0.8 - 0.2) / 15`` rounded up by the same
+    rule an automatic contour uses.
+    """
+    figure = go.Figure(go.Contour(z=ONE_PEAK, contours={"start": 0.2, "end": 0.8}))
+    zeroed = go.Figure(
+        go.Contour(z=ONE_PEAK, contours={"start": 0.2, "end": 0.8, "size": 0})
+    )
+
+    expected = [0.2 + 0.05 * step for step in range(13)]
+    assert _levels(_layers(figure)[0]) == pytest.approx(expected)
+    assert _levels(_layers(zeroed)[0]) == pytest.approx(expected)
+
+
+def test_ncontours_is_how_many_levels_are_aimed_for() -> None:
+    """It divides the range before the round-up, rather than being obeyed.
+
+    Measured on ``start=0.2, end=0.8`` with ``ncontours=4``: a width of 0.2,
+    which is ``0.6 / 4`` rounded up, and four levels rather than the thirteen
+    the default fifteen gives.
+    """
+    figure = go.Figure(
+        go.Contour(z=ONE_PEAK, contours={"start": 0.2, "end": 0.8}, ncontours=4)
+    )
+
+    assert _levels(_layers(figure)[0]) == pytest.approx([0.2, 0.4, 0.6, 0.8])
+
+
+@pytest.mark.parametrize(
+    ("ncontours", "expected"),
+    [
+        pytest.param(2, [0.5], id="two"),
+        pytest.param(3, [0.5], id="three"),
+    ],
+)
+def test_a_step_too_wide_for_the_range_leaves_one_level_at_its_middle(
+    ncontours: int, expected: list
+) -> None:
+    """Plotly's own fallback for an `ncontours` that fits nothing inside.
+
+    With a step at least as wide as the field, the first multiple above the
+    floor is already past the last one below the ceiling -- the two cross, and
+    plotly puts a single level at their midpoint. Measured: over a field
+    running 0 .. 1, both of these draw one level at 0.5, and over ``0 .. 100``
+    an ``ncontours`` of 2 draws one at 50.
+    """
+    figure = go.Figure(go.Contour(z=ONE_PEAK, ncontours=ncontours))
+
+    assert _levels(_layers(figure)[0]) == pytest.approx(expected)
+
+
+#: Two fields whose range does not divide by its own step evenly in binary,
+#: one landing at each end of the level list. Both ramp left to right, so
+#: every level inside them draws exactly one line and the layer is
+#: addressable.
+RAMP_TO_ZERO = [[-0.3, -0.15, 0.0], [-0.3, -0.15, 0.0], [-0.3, -0.15, 0.0]]
+NARROW_RAMP = [
+    [0.008, 0.0085, 0.009],
+    [0.008, 0.0085, 0.009],
+    [0.008, 0.0085, 0.009],
+]
+
+
+def test_a_group_below_the_field_is_still_one_the_selectors_count() -> None:
+    """``-0.3 / 0.05`` is -5.999999999999999, and plotly rounds it up to -6.
+
+    So plotly's first level is ``-0.30000000000000004`` -- a hair *below* the
+    floor of the field, and holding no curve because of it -- and it still
+    gets a ``g.contourlevel`` of its own. Measured: six groups, the first with
+    no path in it, the five curves in the ones after. Which is why the
+    selectors here start at the second group rather than the first.
+
+    A ceiling taken at face value answers -5 instead, starting the list at
+    -0.25. That loses no curve, so nothing in the data would look wrong -- but
+    every group index shifts by one, and each highlight lands on the level
+    below the one being read. The test that keeps a level off the floor has to
+    be exact for the same reason: ``start`` is ``-0.30000000000000004`` and
+    the floor is -0.3, near enough that a tolerant comparison would call them
+    equal and step past the group plotly drew.
+    """
+    (layer,) = _layers(go.Figure(_contour(RAMP_TO_ZERO)))
+
+    assert _levels(layer) == pytest.approx([-0.25, -0.2, -0.15, -0.1, -0.05])
+    assert [selector.split("contourlevel:")[1] for selector in layer["selectors"]] == [
+        f"nth-of-type({group}) path:nth-of-type(1)" for group in range(2, 7)
+    ]
+
+
+def test_a_ceiling_only_exact_arithmetic_reaches_keeps_its_level() -> None:
+    """``0.009 / 0.0001`` is 89.99999999999999, and plotly rounds it down to 90.
+
+    So the top level is ``0.009000000000000001``, which sits 1.7e-18 from the
+    field's ceiling: near enough that a tolerant comparison would call it a
+    level *on* the ceiling and drop it, far enough that plotly's own exact
+    test keeps it. Measured: ten groups, each holding a curve, the last at
+    0.009.
+
+    A floor taken at face value loses that same level from the other side --
+    it answers 89, and the field ends at 0.0089 with nine levels.
+    """
+    (layer,) = _layers(go.Figure(_contour(NARROW_RAMP)))
+
+    expected = [0.008 + 0.0001 * step for step in range(1, 11)]
+    assert _levels(layer) == pytest.approx(expected)
+
+
+def test_a_constraint_is_still_a_region_rather_than_a_set_of_levels() -> None:
+    """The one spec that declines, and it declines for what it *is*.
+
+    A ``constraint`` contour draws one curve at ``value`` and means "the
+    region beyond it". It is written here *with* a full ``start``/``end``/
+    ``size`` on purpose, because plotly ignores them -- measured, one group at
+    0.5 -- while anything reading them would announce five levels the chart
+    does not draw.
+    """
+    figure = go.Figure(
+        go.Contour(
+            z=ONE_PEAK,
+            contours={
                 "type": "constraint",
                 "operation": ">",
                 "value": 0.5,
@@ -280,23 +434,21 @@ def test_auto_levels_are_declined() -> None:
                 "end": 0.9,
                 "size": 0.2,
             },
-            {},
-            id="a-constraint-is-a-region-not-a-set-of-levels",
-        ),
-    ],
-)
-def test_a_half_written_spec_is_declined(contours: dict, extra: dict) -> None:
-    """Each of these leaves plotly picking the levels, or picking a chart.
+        )
+    )
 
-    ``size: 0`` is replaced by plotly with a computed spacing, and
-    ``autocontour: True`` overrides an otherwise complete spec -- both
-    measured. A ``constraint`` contour draws one curve at ``value`` and means
-    "the region beyond it", which is a different chart from a set of levels --
-    and it is written here *with* a full ``start``/``end``/``size`` on purpose,
-    because plotly ignores them (measured: one group, at 0.5) while anything
-    reading them would announce five levels the chart does not draw.
+    assert _layers(figure) == []
+
+
+def test_a_field_with_no_range_forms_no_layer() -> None:
+    """A constant field has no step to divide out of it.
+
+    Plotly does draw one group, at the constant value itself -- measured, a
+    grid of 3s gets a single level at 3 -- but that level *is* the whole
+    field, so it holds no curve and the group carries no path. The layer comes
+    out empty either way, and #636's guard drops it.
     """
-    assert _layers(go.Figure(go.Contour(z=ONE_PEAK, contours=contours, **extra))) == []
+    assert _layers(go.Figure(go.Contour(z=[[3, 3, 3], [3, 3, 3], [3, 3, 3]]))) == []
 
 
 def test_a_grid_with_no_coordinates_is_read_at_its_indices() -> None:
@@ -340,13 +492,17 @@ def test_transpose_turns_the_grid_over_and_leaves_the_coordinates() -> None:
 
     plain = _layers(go.Figure(_contour(z, start=0.5, end=0.5, size=0.5)))
     turned = _layers(
-        go.Figure(go.Contour(z=z, transpose=True, contours=dict(start=0.5, end=0.5, size=0.5)))
+        go.Figure(
+            go.Contour(z=z, transpose=True, contours=dict(start=0.5, end=0.5, size=0.5))
+        )
     )
 
     assert plain != []
     # Transposed the grid is 3x2 with the peak on its edge, so the level
     # crosses it differently -- the point is that the two readings differ.
-    assert [_curve(s) for s in plain[0]["data"]] != [_curve(s) for s in turned[0]["data"]]
+    assert [_curve(s) for s in plain[0]["data"]] != [
+        _curve(s) for s in turned[0]["data"]
+    ]
 
 
 def test_a_hole_in_the_grid_stops_the_curves_the_way_plotly_does() -> None:
@@ -491,6 +647,43 @@ def test_a_spacing_that_asks_for_a_billion_levels_is_declined() -> None:
 
     assert declared_levels(runaway) is None
     assert declared_levels(ordinary) == [0, 0.5, 1.0]
+
+
+def test_a_runaway_spec_declines_rather_than_falling_back_to_automatic() -> None:
+    """The decline has to reach the layer, not just the level list.
+
+    Reading the levels is now two routes rather than one, and the author's
+    route answers None for two unrelated reasons: they did not name their own
+    levels, and they named a billion of them. Treating both as "then pick
+    some" would read the chart above at nine levels of maidr's choosing --
+    every one of them a level plotly does not draw here, on a chart whose
+    author was explicit about which levels they wanted.
+
+    Reached through the whole layer rather than the level list, because the
+    level list is where the two reasons already look alike.
+    """
+    figure = go.Figure(_contour(ONE_PEAK, start=0, end=1, size=1e-9))
+
+    assert _layers(figure) == []
+
+
+def test_a_masked_field_picks_its_levels_from_what_is_left() -> None:
+    """The range behind automatic levels reads through the mask.
+
+    A hole is masked *and* NaN today, so filtering on `isfinite` and
+    filtering on the mask cannot be told apart -- until a masked value is a
+    finite one, which is what this arranges by masking the peak of an
+    otherwise ordinary field by hand. Reading around the mask would put the
+    range at 0 .. 1 and the levels at every tenth; reading through it puts
+    the range at 0 .. 0.5, where plotly's rule gives multiples of 0.05.
+    """
+    from maidr.plotly.contour import automatic_levels
+
+    field = np.ma.masked_values([[0.0, 0.5, 0.0], [0.5, 1.0, 0.5], [0.0, 0.5, 0.0]], 1.0)
+
+    assert automatic_levels({}, field) == pytest.approx(
+        [0.05 * step for step in range(1, 10)]
+    )
 
 
 def test_a_tracer_that_raises_costs_one_layer_and_not_the_figure(
