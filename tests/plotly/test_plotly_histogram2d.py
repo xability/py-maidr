@@ -459,3 +459,35 @@ def test_mismatched_x_and_y_pair_down_to_the_shorter() -> None:
     (layer,) = _layers(_histogram2d(x=[1, 1], y=[1, 3, 1, 3], **BINS))
 
     assert layer["data"]["points"] == [[1.0, 0.0], [1.0, 0.0]]
+
+
+@pytest.mark.parametrize(
+    ("histnorm", "expected"),
+    [
+        pytest.param("percent", [[25.0, 0.0], [25.0, 50.0]], id="percent"),
+        pytest.param("density", [[5.0, 0.0], [5.0, 10.0]], id="per-unit-of-area"),
+    ],
+)
+def test_a_normalised_aggregate_scales_its_populated_cells_too(
+    histnorm: str, expected: list
+) -> None:
+    """The empty cell is not the only thing the pair of rules decides.
+
+    The averages are 20, 20 and 40, so a percent is of their **own** total of
+    80 rather than of the sample count -- the distinction `apply_histnorm`
+    documents -- and a density is per unit of the 2 x 2 cell. Both measured
+    against the browser; this pins the populated cells the empty-cell tests
+    above leave open.
+    """
+    (layer,) = _layers(
+        _histogram2d(
+            x=[1, 1, 1, 3],
+            y=[1, 1, 3, 1],
+            z=[10, 30, 20, 40],
+            histfunc="avg",
+            histnorm=histnorm,
+            **BINS,
+        )
+    )
+
+    assert layer["data"]["points"] == expected

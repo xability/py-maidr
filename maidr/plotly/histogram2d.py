@@ -333,6 +333,12 @@ def _normalised(
 ) -> list[list[float | None]]:
     """Rescale the cells the way ``histnorm`` does.
 
+    Only the numbers. A cell holding ``None`` is one nothing landed in, and
+    what plotly shows *there* depends on the ``histnorm`` as well as the
+    ``histfunc`` -- so it is left as it is and :func:`_as_payload`, which
+    knows both, decides. Splitting it that way keeps the two questions apart:
+    what a cell's number becomes, and what a cell with no number becomes.
+
     The one-dimensional rule with the bin's **area** where it uses the bin's
     width -- measured against the browser for all four forms on a grid of
     unequal x and y widths: ``percent`` and ``probability`` divide by the
