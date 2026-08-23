@@ -824,6 +824,26 @@ class PlotlyMaidr:
                         self._plots.append(layer)
                 merged.update(id(t) for t in violin_traces)
 
+            # Funnels, one layer each, for the reason the waterfalls below
+            # are: plotly appends one `.trace.bars` group per funnel trace to
+            # the subplot's `funnellayer`, so a trace's selector is scoped by
+            # its position among those.
+            funnel_traces = [t for t in group_traces if t.get("type") == "funnel"]
+            if funnel_traces:
+                from maidr.plotly.funnel import PlotlyFunnelPlot
+
+                for funnel_trace in funnel_traces:
+                    plot = PlotlyFunnelPlot(
+                        funnel_trace,
+                        layout,
+                        layer_position=layer_position(group_traces, funnel_trace),
+                        **axis_kwargs,
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in funnel_traces)
+
             # Waterfalls, one layer each, built here rather than left to
             # the factory for the reason the candlesticks above are: plotly
             # appends one `.trace.bars` group per waterfall trace to the
