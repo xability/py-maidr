@@ -12,9 +12,15 @@ from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 def _plotly_round_up(val: float, array: list[float], reverse: bool = False) -> float:
     """Binary search matching Plotly.js ``Lib.roundUp``.
 
-    With *reverse* False (default) returns the smallest element in *array*
-    that is >= *val*.  With *reverse* True returns the largest element <=
-    *val*.
+    With *reverse* False (default) returns the first element of *array*
+    **strictly greater** than *val*, clamped to the last element when there
+    is none. With *reverse* True it returns the largest element <= *val*.
+
+    Strictly, not "greater than or equal" -- the search advances on
+    ``array[mid] <= val``, which steps past an exact match, and that is what
+    plotly does. The distinction only shows on the boundary, and there it
+    decides a whole bin grid: see :func:`_plotly_dtick` for what an exact 2
+    costs (#646).
     """
     lo, hi = 0, len(array) - 1
     while lo < hi:
@@ -91,8 +97,30 @@ def _plotly_dtick(size0: float) -> float:
         base = 10 ** floor(log10(size0))
         dtick = base * roundUp(size0 / base, [2, 5, 10])
 
-    where ``roundUp(v, seq)`` returns the first element in *seq* that
-    is >= *v*.
+    where ``roundUp(v, seq)`` returns the first element of *seq* **strictly
+    greater** than *v*. Strictly, not "greater than or equal": ``Lib.roundUp``
+    binary-searches with ``arrayIn[mid] <= val``, which steps past an exact
+    match.
+
+    That is the whole of the difference and it is not a rounding detail. The
+    two readings agree everywhere except where ``size0 / base`` lands exactly
+    on 2, 5 or 10, and there the loose one picks the width *below* the one
+    plotly draws -- twice as many bins, half as wide, every count wrong to
+    match. Measured in Chromium, with ``nbins`` used to make the ratio exact
+    on demand:
+
+    ==========================================  =====  ==========  =========
+    trace                                       ratio  plotly      loose
+    ==========================================  =====  ==========  =========
+    ``x=linspace(0, 30, 61), nbinsx=15``        2.0    **5**       2
+    ``x=linspace(0, 75, 76), nbinsx=15``        5.0    **10**      5
+    ``x=linspace(0, 28.5, 58), nbinsx=15``      1.9    2           2
+    ``x=linspace(0, 31.5, 64), nbinsx=15``      2.1    5           5
+    ==========================================  =====  ==========  =========
+
+    The same comparison decides a contour's automatic levels, which run
+    through the same ``autoTicks``: a field spanning ``0 .. 3`` gives a rough
+    step of exactly ``0.2``, and plotly draws ``0.5`` (#642, #646).
 
     Parameters
     ----------
@@ -102,11 +130,11 @@ def _plotly_dtick(size0: float) -> float:
     if size0 <= 0:
         return 1.0
     base = 10 ** math.floor(math.log10(size0))
-    ratio = size0 / base
-    for nice in (2, 5, 10):
-        if nice >= ratio * (1 - 1e-9):  # small tolerance for FP
-            return base * nice
-    return base * 10  # fallback
+    # The same `Lib.roundUp` the bin-width floor above already goes through,
+    # rather than a second hand-rolled copy of it. The copy is where the
+    # strictness was lost: this call site read the sequence with `>=` while
+    # the helper next to it had the search right all along.
+    return base * _plotly_round_up(size0 / base, [2, 5, 10])
 
 
 def _auto_shift_bins(
