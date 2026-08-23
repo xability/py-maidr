@@ -253,7 +253,14 @@ def _layer(wrapped, instance, args, kwargs) -> Any:
         return _draw_quietly(wrapped, args, kwargs)
 
     panels = _panels(instance)
-    pending = instance.__dict__.setdefault(_PENDING, [])
+    try:
+        pending = instance.__dict__.setdefault(_PENDING, [])
+    except AttributeError:
+        # A plotter that grew `__slots__` has nowhere to keep this. Declining
+        # leaves the chart reading as it did before #615 -- as nothing --
+        # which is this module's posture for a mark it cannot read, and far
+        # better than an `AttributeError` raised out of the user's draw.
+        return _draw_quietly(wrapped, args, kwargs)
     before = {id(ax): {id(artist) for artist in _held(ax, reading)} for ax in panels}
 
     with ContextManager.set_internal_context():
@@ -350,14 +357,24 @@ def _wrap() -> None:
     except ImportError:  # pragma: no cover - seaborn without the objects API
         Plot = Plotter = None  # type: ignore[assignment]
 
-    if Plotter is None or not hasattr(Plotter, "_plot_layer") or Plot is None:
+    # Both hooks are asked for, because the reading needs both: one says
+    # which artists a layer drew and the other says when the legend naming
+    # them exists. `Plot is None` is not tested separately -- the import
+    # above binds the two together, and `hasattr(None, "plot")` is False, so
+    # the short circuit already covers it.
+    if (
+        Plotter is None
+        or not hasattr(Plotter, "_plot_layer")
+        or not hasattr(Plot, "plot")
+    ):
         warnings.warn(
-            "maidr: seaborn._core.plot.Plotter._plot_layer is not there to "
-            "wrap, so seaborn.objects charts are not read. Every mark -- "
-            "so.Dot, so.Line, so.Bar -- draws through the artist API rather "
-            "than through Axes.scatter/plot/bar, so nothing else picks them "
-            "up and the chart registers no layers at all. Charts written "
-            "with the classic seaborn functions are unaffected.",
+            "maidr: seaborn._core.plot.Plotter._plot_layer or Plot.plot is "
+            "not there to wrap, so seaborn.objects charts are not read. "
+            "Every mark -- so.Dot, so.Line, so.Bar -- draws through the "
+            "artist API rather than through Axes.scatter/plot/bar, so "
+            "nothing else picks them up and the chart registers no layers "
+            "at all. Charts written with the classic seaborn functions are "
+            "unaffected.",
             stacklevel=2,
         )
         return

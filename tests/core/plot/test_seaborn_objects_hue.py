@@ -281,3 +281,58 @@ def test_the_groups_are_read_off_the_legend_wherever_it_was_put():
     )
 
     assert hue_groups(axes, points) == [("p", [0, 1]), ("q", [2, 3])]
+
+
+def test_a_plot_that_was_given_no_figure_registers_too():
+    """`Plot.plot()` is wrapped because every route reaches it.
+
+    Every other test here hands the figure in with `.on(fig)`. This one does
+    not, so the layers are registered on a figure seaborn made -- which is
+    what `show()`, `save()` and `_repr_png_()` all do, and what makes
+    wrapping one method enough.
+    """
+    plotter = so.Plot(_frame(), x="x", y="y", color="g").add(so.Dot()).plot()
+
+    assert _named(plotter._figure) == [
+        ("point", "p", [1.0, 2.0, 3.0]),
+        ("point", "q", [11.0, 12.0, 13.0]),
+    ]
+
+
+def test_the_notebook_repr_route_reads_the_same_chart():
+    """`_repr_png_()` calls `plot()` for its own figure, so it must not
+    raise and must leave a chart behind."""
+    plot = so.Plot(_frame(), x="x", y="y", color="g").add(so.Dot())
+
+    assert plot._repr_png_() is not None
+    assert [name for _, name, _ in _named(plot.plot()._figure)] == ["p", "q"]
+
+
+def test_a_plotter_with_nowhere_to_record_declines_rather_than_raising():
+    """The layer's reading is kept on the plotter until the legend exists.
+
+    A seaborn release that gave `Plotter` `__slots__` would leave nowhere to
+    keep it, and raising there would come out of the user's *draw* -- so the
+    chart would stop rendering rather than stop being read. Declining puts it
+    back where #615 found it, which is what an unread mark already does.
+    """
+    from maidr.patch.seaborn_objects import _layer
+
+    figure = plt.figure()
+    figure.subplots()
+
+    class _Slotted:
+        __slots__ = ("_figure",)
+
+        def __init__(self, fig):
+            self._figure = fig
+
+    drawn = []
+
+    def draw(*args, **kwargs):
+        drawn.append(True)
+
+    _layer(draw, _Slotted(figure), (None, {"mark": so.Dot()}), {})
+
+    assert drawn == [True]
+    assert not hasattr(figure, "_maidr_pending")
