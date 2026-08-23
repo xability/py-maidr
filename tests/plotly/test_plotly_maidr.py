@@ -435,16 +435,11 @@ class TestPlotlyUnrenderedDomainTraces:
             pytest.param(
                 go.Treemap(labels=["a", "b"], parents=["", ""]), id="treemap"
             ),
-            # A categorical parallel-sets diagram. `go.Parcoords` sat here
-            # until #627's parallel tranche made it render; `go.Parcats` is
-            # the same kind of trace and is still unread, so it keeps the
-            # row honest.
-            pytest.param(
-                go.Parcats(
-                    dimensions=[{"label": "A", "values": ["x", "y"]}],
-                ),
-                id="parcats",
-            ),
+            # `go.Parcoords` sat here until #627's parallel tranche made it
+            # render, then `go.Parcats` until the alluvial one did. `go.Table`
+            # above is the durable subject -- maidr has no layer for a table
+            # and is not going to grow one -- so the row no longer needs a
+            # stand-in that keeps graduating out of it.
             # A `mode="number"` indicator only. One that draws a dial *is*
             # rendered as of #627's gauge tranche, so it takes a cell like
             # a pie -- asserted by the test below rather than here.
