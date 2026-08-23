@@ -77,7 +77,7 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         wrong element, so the highlight is lost while the announced order
         stays corrected.
         """
-        prefix = f"{self._subplot_css_prefix()}.trace.bars"
+        prefix = f"{self._subplot_css_prefix()}.barlayer .trace.bars"
         if self._drawn is None:
             return f"{prefix} .point > path"
         return [

@@ -317,3 +317,45 @@ def test_two_waterfalls_on_one_subplot_address_their_own_steps() -> None:
 
     assert "nth-of-type(1)" in first["selectors"]
     assert "nth-of-type(2)" in second["selectors"]
+
+
+def test_a_bar_beside_a_waterfall_still_addresses_its_own_bars() -> None:
+    """The other half of the same over-match (#628).
+
+    The bar layer's selector was `.trace.bars` with no layer to scope it, so
+    it matched the waterfall's steps too. `BarTrace.mapToSvgElements` needs
+    the resolved count to equal the point count, so 7 against 4 dropped the
+    highlight for the whole bar layer.
+
+    The layer is found by type rather than by position: `_extract_plots`
+    emits its merge blocks before the traces that fall through to the
+    factory, so a waterfall precedes a bar declared ahead of it -- exactly
+    as a box or a candlestick already does. That ordering is older than this
+    change and is not what this test is about.
+    """
+    layers = _layers(
+        go.Figure(
+            [
+                go.Bar(x=["a", "b", "c", "d"], y=[1, 2, 3, 4]),
+                go.Waterfall(x=["a", "b", "c"], y=[10, -4, 7]),
+            ]
+        )
+    )
+    (bar,) = [layer for layer in layers if layer["type"] == PlotType.BAR]
+
+    assert ".barlayer" in bar["selectors"]
+    assert sorted(layer["type"] for layer in layers) == [
+        PlotType.BAR,
+        PlotType.WATERFALL,
+    ]
+
+
+def test_a_lone_bar_chart_is_unchanged_apart_from_the_scope() -> None:
+    """The control: scoping must not disturb what the selector resolved to.
+
+    `.barlayer` is the group plotly already put the bars in, so the added
+    step narrows the match without moving it.
+    """
+    (layer,) = _layers(go.Figure([go.Bar(x=["a", "b"], y=[1, 2])]))
+
+    assert layer["selectors"] == ".subplot.xy .barlayer .trace.bars .point > path"
