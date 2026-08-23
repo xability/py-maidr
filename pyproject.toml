@@ -56,6 +56,12 @@ dependencies = [
     # an accident rather than a promise.
     "matplotlib>=3.8",
     "seaborn>=0.13",
+    # Traces the curves a `go.Contour` only declares -- plotly ships a grid
+    # and a level spacing and computes the curves in the browser, so reading
+    # that chart means running the same marching squares here. Listed rather
+    # than relied upon: it already arrives with matplotlib, which is exactly
+    # the accident the matplotlib entry above exists to stop repeating.
+    "contourpy>=1.0.1",
     # 1.11 is the first scipy installable on every interpreter
     # `requires-python` promises: 1.10 caps itself at `<3.12`. The API used
     # (`interpolate.interp1d`) is far older than either, so the floor is

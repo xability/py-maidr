@@ -16,6 +16,7 @@ from maidr.plotly.plotly_plot import subplot_block
 from maidr.plotly.gauge import draws_a_dial
 from maidr.plotly.hierarchy import has_one_root, is_hierarchy_trace
 from maidr.plotly.area import is_area_trace
+from maidr.plotly.contour import draws_into_the_contour_layer, is_contour_trace
 from maidr.plotly.grouped_histogram import is_histogram_trace
 from maidr.plotly.trendline import is_trendline_trace
 from maidr.plotly.plotly_plot import (
@@ -1265,6 +1266,40 @@ class PlotlyMaidr:
                     plot.col_index = col
                     self._plots.append(plot)
                 merged.update(id(t) for t in waterfall_traces)
+
+            # Contours, one layer each. Built here rather than left to
+            # the factory for the reason the waterfalls above are: plotly
+            # appends one `g.contour` group per trace to the subplot's
+            # `contourlayer`, and a `histogram2dcontour` takes one there too
+            # -- measured -- so a contour's selector is scoped by its
+            # position among *those* traces, which the factory, seeing one
+            # trace at a time, cannot know.
+            contour_layer_traces = [
+                t for t in group_traces if draws_into_the_contour_layer(t)
+            ]
+            contour_traces = [t for t in contour_layer_traces if is_contour_trace(t)]
+            if contour_traces:
+                from maidr.plotly.contour import PlotlyContourPlot
+
+                # Keyed by identity rather than found with `.index`, which
+                # compares by value: two traces drawing the same field are
+                # equal dicts, so both would be handed position 0 and the
+                # second layer would highlight the first one's curves.
+                contour_layer_position = {
+                    id(t): position
+                    for position, t in enumerate(contour_layer_traces)
+                }
+                for contour_trace in contour_traces:
+                    plot = PlotlyContourPlot(
+                        contour_trace,
+                        layout,
+                        layer_position=contour_layer_position[id(contour_trace)],
+                        **axis_kwargs,
+                    )
+                    plot.row_index = row
+                    plot.col_index = col
+                    self._plots.append(plot)
+                merged.update(id(t) for t in contour_traces)
 
             # Remaining traces
             for trace in group_traces:
