@@ -12,7 +12,7 @@ Measured on plotly.js 3.7.0 rendered in Chromium, for
 ``c2p(2) = 53.33``, and a smaller pixel is higher on screen, so 'first' is the
 bottom row.
 
-The selector is ``.heatmaplayer image``, because plotly rasterises the grid, so
+The selector names one ``<image>``, because plotly rasterises the grid, so
 the core synthesises its own overlay rects. That code used to place its row 0
 on the top band -- an error that cancelled this one, leaving the highlight
 accidentally right while navigation ran inverted. maidr#972 corrected it, so

@@ -76,12 +76,12 @@ class PlotlyHistogram2dPlot(PlotlyHeatmapPlot):
     axes across four figures, ``0.4`` matched none and ``0.25`` matched all
     eight.
 
-    Sharing the selector shares its one limit: `.heatmaplayer image` names the
-    first image on the subplot rather than this trace's, so a subplot holding
-    two of them -- a `go.Heatmap` beside a `histogram2d`, or two of either --
-    has both layers pointing at the first. That predates this class and
-    applies to two heatmaps today; reading a second trace type into the same
-    layer is what makes it reachable a second way. See #647.
+    Sharing the selector shares its numbering: plotly appends one
+    ``<g class="hm">`` per image-drawing trace to the subplot's
+    ``heatmaplayer`` in declaration order, counting heatmaps and 2-D
+    histograms together, so both kinds take their position from
+    :func:`~maidr.plotly.candlestick.layer_position` over the same group
+    (#647).
     """
 
     def _extract_plot_data(self) -> dict:
