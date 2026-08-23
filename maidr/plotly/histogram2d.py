@@ -190,8 +190,7 @@ def binned_cells(
     extended : bool, optional
         Whether to add the empty bin plotly puts outside each *automatic*
         edge of a ``histogram2dcontour``, so its curves have somewhere to
-        close. See
-        :func:`~maidr.plotly.histogram2dcontour.extended_edges`.
+        close. See :func:`extended_edges`.
 
     Returns
     -------
@@ -243,8 +242,6 @@ def binned_cells(
         y[inside], trace.get("ybins"), trace.get("nbinsy"), is_2d=True
     )
     if extended:
-        from maidr.plotly.histogram2dcontour import extended_edges
-
         x_edges = extended_edges(x_edges, trace.get("xbins"))
         y_edges = extended_edges(y_edges, trace.get("ybins"))
     if len(x_edges) < 2 or len(y_edges) < 2:
@@ -273,6 +270,56 @@ def binned_cells(
     cells = _normalised(cells, histnorm, x_edges, y_edges)
 
     return _as_payload(cells, histfunc, histnorm), x_edges, y_edges
+
+
+def extended_edges(edges: np.ndarray, bins: Any) -> np.ndarray:
+    """Add the empty bin plotly puts outside each automatic edge.
+
+    A ``histogram2dcontour`` bins its samples like a ``histogram2d`` and then
+    widens the grid, so the curves at the outermost level have somewhere to
+    close instead of running off the edge. Which edges move is not "the
+    automatic ones", though it reads that way at first -- plotly.js decides
+    it per side, and this is the line, from the bundle this wheel ships::
+
+        S && (
+          l.size || (P.start = tickIncrement(P.start, P.size, true)),
+          l.end === void 0 && (P.end = tickIncrement(P.end, P.size, false))
+        )
+
+    where ``S`` is "this group holds a ``histogram2dcontour``", ``l`` is what
+    the author wrote and ``P`` the automatic spec. So:
+
+    - the **low** edge moves down one bin unless the author gave a ``size``
+      -- not unless they gave a ``start``;
+    - the **high** edge moves up one bin unless the author gave an ``end``.
+
+    An author's own ``start`` still stands, because it overwrites ``P.start``
+    afterwards either way. Measured across nine spellings of ``xbins`` and
+    five datasets, all agreeing with those three sentences: with only a
+    ``size`` named, the low edge stays and the high edge moves; with only an
+    ``end``, the reverse.
+
+    Parameters
+    ----------
+    edges : numpy.ndarray
+        The bin edges as a ``histogram2d`` would draw them.
+    bins : Any
+        The trace's ``xbins``/``ybins``, or None when it named none.
+
+    Returns
+    -------
+    numpy.ndarray
+        The edges, with a bin added at each side that moves.
+    """
+    if len(edges) < 2:
+        return edges
+
+    named = bins if isinstance(bins, dict) else {}
+    size = float(edges[1] - edges[0])
+    moves_low = not named.get("size") and named.get("start") is None
+    low = [edges[0] - size] if moves_low else []
+    high = [edges[-1] + size] if named.get("end") is None else []
+    return np.array([*low, *edges, *high], dtype=float)
 
 
 def _values(trace: dict) -> np.ndarray | None:

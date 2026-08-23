@@ -26,7 +26,8 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
 
     - **The grid is one bin wider at each automatic edge.** A contour needs
       somewhere for its curves to close, so plotly puts an empty bin outside
-      the range it binned into. See :func:`extended_edges`.
+      the range it binned into. See
+      :func:`~maidr.plotly.histogram2d.extended_edges`.
     - **The curves run through the bin centres**, not the edges. Plotly's own
       ``calcdata`` for this trace carries centres where a ``histogram2d``
       carries edges -- 5 coordinates for 5 bins rather than 4 edges for 3.
@@ -36,6 +37,18 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
     draws levels 1 .. 9, which is the automatic rule applied to that range
     (measured, and the same nine plotly draws).
     """
+
+    def _binned(self) -> tuple[list[list], Any, Any] | None:
+        """The binning, worked out once.
+
+        Both halves of the reading want it -- the curves want it with its
+        gaps at zero and the levels want it with its gaps left out -- and
+        the aggregating `histfunc`s reduce their cells in Python, so binning
+        a large sample twice is real work for no answer that differs.
+        """
+        if getattr(self, "_binned_grid", None) is None:
+            self._binned_grid = (binned_cells(self._trace, extended=True),)
+        return self._binned_grid[0]
 
     def _field(self) -> tuple[list[float], list[float], Any] | None:
         """Bin the samples, and hand the counts over as the field.
@@ -49,7 +62,7 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
             when what was binned is too small to trace: marching squares
             needs a cell, which needs two rows and two columns.
         """
-        binned = binned_cells(self._trace, extended=True)
+        binned = self._binned()
         if binned is None:
             return None
 
@@ -73,7 +86,7 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
         and draws 2 .. 16 -- eight levels, none of which is a level on the
         chart, on a reading whose curves would then be right.
         """
-        binned = binned_cells(self._trace, extended=True)
+        binned = self._binned()
         if binned is None:
             return z
 
@@ -106,56 +119,6 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
 def is_histogram2dcontour_trace(trace: dict) -> bool:
     """Report whether a trace is a two-dimensional histogram's contour."""
     return trace.get("type") == "histogram2dcontour"
-
-
-def extended_edges(edges: np.ndarray, bins: Any) -> np.ndarray:
-    """Add the empty bin plotly puts outside each automatic edge.
-
-    A ``histogram2dcontour`` bins its samples like a ``histogram2d`` and then
-    widens the grid, so the curves at the outermost level have somewhere to
-    close instead of running off the edge. Which edges move is not "the
-    automatic ones", though it reads that way at first -- plotly.js decides
-    it per side, and this is the line, from the bundle this wheel ships::
-
-        S && (
-          l.size || (P.start = tickIncrement(P.start, P.size, true)),
-          l.end === void 0 && (P.end = tickIncrement(P.end, P.size, false))
-        )
-
-    where ``S`` is "this group holds a ``histogram2dcontour``", ``l`` is what
-    the author wrote and ``P`` the automatic spec. So:
-
-    - the **low** edge moves down one bin unless the author gave a ``size``
-      -- not unless they gave a ``start``;
-    - the **high** edge moves up one bin unless the author gave an ``end``.
-
-    An author's own ``start`` still stands, because it overwrites ``P.start``
-    afterwards either way. Measured across nine spellings of ``xbins`` and
-    five datasets, all agreeing with those three sentences: with only a
-    ``size`` named, the low edge stays and the high edge moves; with only an
-    ``end``, the reverse.
-
-    Parameters
-    ----------
-    edges : numpy.ndarray
-        The bin edges as a ``histogram2d`` would draw them.
-    bins : Any
-        The trace's ``xbins``/``ybins``, or None when it named none.
-
-    Returns
-    -------
-    numpy.ndarray
-        The edges, with a bin added at each side that moves.
-    """
-    if len(edges) < 2:
-        return edges
-
-    named = bins if isinstance(bins, dict) else {}
-    size = float(edges[1] - edges[0])
-    moves_low = not named.get("size") and named.get("start") is None
-    low = [edges[0] - size] if moves_low else []
-    high = [edges[-1] + size] if named.get("end") is None else []
-    return np.array([*low, *edges, *high], dtype=float)
 
 
 def _traced(value: Any) -> float:

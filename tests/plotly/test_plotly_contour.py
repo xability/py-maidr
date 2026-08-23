@@ -205,6 +205,40 @@ def test_a_layer_whose_levels_each_draw_one_curve_is_addressable() -> None:
     ]
 
 
+#: A dimple: one interior cell sits on its own, everything around it above.
+#: At level 2 the field touches that one point and goes nowhere.
+DIMPLE = [
+    [4.0, 4.0, 4.0, 4.0, 4.0],
+    [4.0, 3.0, 3.0, 3.0, 4.0],
+    [4.0, 3.0, 2.0, 3.0, 4.0],
+    [4.0, 3.0, 3.0, 3.0, 4.0],
+    [4.0, 4.0, 4.0, 4.0, 4.0],
+]
+
+
+def test_a_level_the_field_only_touches_draws_no_curve() -> None:
+    """`contourpy` returns one there, and it is five copies of one point.
+
+    Measured on this field: plotly gives level 2 a ``g.contourlevel`` and
+    **no path in it**, and draws the ring at level 3. A series of one point
+    repeated is not a curve for anyone to read along, so it is not emitted --
+    and the group it would have taken an index from is still counted, which
+    is why the one curve here points at the second group rather than the
+    first.
+
+    The span is compared against the grid rather than tested for zero,
+    because the level that grazes a cell is rarely the cell's value written
+    out: an automatic 0.4 arrives as ``0.39999999999999997``, and the five
+    vertices then differ in their last bits rather than being identical.
+    """
+    figure = go.Figure(_contour(DIMPLE, start=2, end=3, size=1))
+
+    (layer,) = _layers(figure)
+
+    assert _levels(layer) == [3]
+    assert "g.contourlevel:nth-of-type(2)" in layer["selectors"][0]
+
+
 def test_a_layer_with_an_island_ships_without_a_highlight() -> None:
     """Plotly's order for a level's curves is its own, and not derivable.
 

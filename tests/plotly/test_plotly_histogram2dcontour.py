@@ -10,7 +10,7 @@ in Chromium:
 
 - **The grid is one bin wider at each automatic edge**, so the curves have
   somewhere to close. Which edges move is per-side and not simply "the
-  automatic ones" -- see `extended_edges`.
+  automatic ones" -- see `histogram2d.extended_edges`.
 - **The curves run through the bin centres**, not the edges. Plotly's own
   `calcdata` for this trace carries five coordinates for five bins where a
   `histogram2d` carries four edges for three bins.
@@ -45,7 +45,7 @@ import plotly.graph_objects as go  # noqa: E402
 
 from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
-from maidr.plotly.histogram2dcontour import extended_edges  # noqa: E402
+from maidr.plotly.histogram2d import extended_edges  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
 #: Twenty samples along a diagonal band. Plotly bins them into a 5x5 grid of
@@ -189,13 +189,22 @@ def test_a_normalisation_reaches_the_levels() -> None:
     """The cells are normalised before the levels are picked, as plotly does.
 
     Twenty samples under ``probability`` put the fullest cell at 0.5, and the
-    levels follow at every twentieth -- measured, nine of them.
+    levels follow at every twentieth -- measured, nine of them and twelve
+    curves.
+
+    The twelve is the sharper half. One cell here holds exactly 0.4, and the
+    level that grazes it arrives as ``0.39999999999999997`` -- so the curve
+    `contourpy` returns there is five copies of one point that differ in
+    their last bits, spanning 1.6e-15 on a grid whose cells are 5 wide.
+    Testing that span for zero rather than against the grid keeps it, and
+    announces a thirteenth curve the chart does not draw.
     """
     (layer,) = _layers(
         go.Figure(go.Histogram2dContour(x=X, y=Y, histnorm="probability"))
     )
 
     assert _levels(layer) == pytest.approx([0.05 * step for step in range(1, 10)])
+    assert len(layer["data"]) == 12
 
 
 def test_an_explicit_level_spec_is_the_author_s() -> None:

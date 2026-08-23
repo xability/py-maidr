@@ -588,8 +588,12 @@ def _has_extent(curve: Any, cell: float) -> bool:
 def _smallest_step(x: list[float], y: list[float]) -> float:
     """The narrowest cell in the grid, as the scale a curve is measured on.
 
-    The narrowest rather than the average, so an unevenly spaced grid is
-    judged by its own finest detail rather than by a figure no cell has.
+    The narrowest rather than the widest or the average, and deliberately so
+    even though no measured grid tells them apart: the fraction below is
+    small enough that any of the three separates float noise from a crossing.
+    The narrowest gives the *lowest* floor, so it is the one choice that
+    cannot drop a real curve on the fine part of an unevenly spaced grid --
+    which is the failure that would be silent.
     """
     steps = [
         abs(b - a)
