@@ -89,10 +89,9 @@ def _drawn(build) -> plt.Figure:
 def test_a_colour_split_dot_reads_one_named_layer_per_group():
     """Two layers, named, each holding its own half."""
     figure = _drawn(
-        lambda fig: so.Plot(_frame(), x="x", y="y", color="g")
-        .add(so.Dot())
-        .on(fig)
-        .plot()
+        lambda fig: (
+            so.Plot(_frame(), x="x", y="y", color="g").add(so.Dot()).on(fig).plot()
+        )
     )
 
     assert _named(figure) == [
@@ -108,10 +107,9 @@ def test_it_reads_exactly_as_the_classic_spelling_of_the_same_chart():
     frame = _frame()
     objects = _named(
         _drawn(
-            lambda fig: so.Plot(frame, x="x", y="y", color="g")
-            .add(so.Dot())
-            .on(fig)
-            .plot()
+            lambda fig: (
+                so.Plot(frame, x="x", y="y", color="g").add(so.Dot()).on(fig).plot()
+            )
         )
     )
     classic = _named(
@@ -128,10 +126,9 @@ def test_it_reads_exactly_as_the_classic_spelling_of_the_same_chart():
 def test_a_colour_split_dots_mark_splits_too():
     """`so.Dots` is the many-points spelling and draws the same artist."""
     figure = _drawn(
-        lambda fig: so.Plot(_frame(), x="x", y="y", color="g")
-        .add(so.Dots())
-        .on(fig)
-        .plot()
+        lambda fig: (
+            so.Plot(_frame(), x="x", y="y", color="g").add(so.Dots()).on(fig).plot()
+        )
     )
 
     assert [name for _, name, _ in _named(figure)] == ["p", "q"]
@@ -157,10 +154,9 @@ def test_a_colour_split_line_is_still_one_layer_of_several_series():
     frame = _frame()
     objects = _named(
         _drawn(
-            lambda fig: so.Plot(frame, x="x", y="y", color="g")
-            .add(so.Line())
-            .on(fig)
-            .plot()
+            lambda fig: (
+                so.Plot(frame, x="x", y="y", color="g").add(so.Line()).on(fig).plot()
+            )
         )
     )
     classic = _named(
@@ -178,11 +174,13 @@ def test_each_facet_panel_splits_its_own_groups():
     """The split is per panel, and the legend naming it is the figure's."""
     frame = _frame().assign(panel=["one", "one", "two", "one", "one", "two"])
     figure = _drawn(
-        lambda fig: so.Plot(frame, x="x", y="y", color="g")
-        .facet(col="panel")
-        .add(so.Dot())
-        .on(fig)
-        .plot()
+        lambda fig: (
+            so.Plot(frame, x="x", y="y", color="g")
+            .facet(col="panel")
+            .add(so.Dot())
+            .on(fig)
+            .plot()
+        )
     )
 
     assert [(name, held) for _, name, held in _named(figure)] == [
@@ -198,10 +196,9 @@ def test_every_split_layer_can_be_highlighted():
     spot xability/maidr#814 names, and a split layer addresses its points
     through the collection it shares with its sibling."""
     figure = _drawn(
-        lambda fig: so.Plot(_frame(), x="x", y="y", color="g")
-        .add(so.Dot())
-        .on(fig)
-        .plot()
+        lambda fig: (
+            so.Plot(_frame(), x="x", y="y", color="g").add(so.Dot()).on(fig).plot()
+        )
     )
     html = maidr.render(figure)._repr_html_()
     plots = FigureManager.get_maidr(figure).plots
@@ -360,12 +357,15 @@ def test_a_colour_split_bar_announces_its_categories_not_its_coordinates():
 
     Those are the dodge offsets, announced as the categories. Splitting the
     layer per level puts one bar against one tick again.
+
+    Asked here of the plain `color=` spelling, which stays split: a bar
+    carrying `Dodge()` or `Stack()` is read as one grouped layer instead, and
+    the same claim about its categories is made below against that shape.
     """
     figure = _drawn(
-        lambda fig: so.Plot(_bars(), x="cat", y="val", color="g")
-        .add(so.Bar(), so.Dodge())
-        .on(fig)
-        .plot()
+        lambda fig: (
+            so.Plot(_bars(), x="cat", y="val", color="g").add(so.Bar()).on(fig).plot()
+        )
     )
     maidr.render(figure)._repr_html_()
     plots = FigureManager.get_maidr(figure).plots
@@ -380,23 +380,46 @@ def test_a_colour_split_bar_announces_its_categories_not_its_coordinates():
 
 
 @pytest.mark.parametrize(
-    "build",
+    "build, expected",
     [
-        pytest.param(lambda plot: plot.add(so.Bar()), id="plain"),
-        pytest.param(lambda plot: plot.add(so.Bar(), so.Dodge()), id="dodged"),
-        pytest.param(lambda plot: plot.add(so.Bar(), so.Stack()), id="stacked"),
+        pytest.param(lambda plot: plot.add(so.Bar()), "bar", id="plain"),
+        pytest.param(
+            lambda plot: plot.add(so.Bar(), so.Dodge()), "dodged_bar", id="dodged"
+        ),
+        pytest.param(
+            lambda plot: plot.add(so.Bar(), so.Stack()), "stacked_bar", id="stacked"
+        ),
+        pytest.param(
+            lambda plot: plot.add(so.Bar(), so.Dodge(), so.Stack()),
+            "stacked_bar",
+            id="dodged-then-stacked",
+        ),
     ],
 )
-def test_every_position_transform_splits_the_same_way(build):
-    """`Dodge()` and `Stack()` move the bars; neither changes which level a
-    bar belongs to, so all three spellings split alike."""
+def test_a_position_transform_types_the_layer(build, expected):
+    """The third item on #617. `so` states the transform as an explicit
+    `Move` on the layer, which is a cleaner signal than anything the classic
+    path gets -- `seaborn.barplot(hue=)` is read as dodged by *counting
+    containers*, and a stacked bar has to be declared through
+    `maidr.stacked()`.
+
+    A transform makes the chart a grouped bar chart of that kind, so it reads
+    as one layer of every group rather than a layer per group. Plain `color=`
+    has no transform and overplots the levels at the same position, which is
+    neither, so it keeps the split.
+
+    `Dodge()` *and* `Stack()` together resolves to the stack: seaborn dodges
+    the levels apart and then stacks within each dodged slot, so the segments
+    a reader steps through are the stack's.
+    """
     figure = plt.figure()
     build(so.Plot(_bars(), x="cat", y="val", color="g")).on(figure).plot()
     maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
 
-    assert [
-        plot.schema.get("name") for plot in FigureManager.get_maidr(figure).plots
-    ] == ["p", "q"]
+    assert [str(plot.schema["type"].value) for plot in plots] == (
+        [expected] if expected != "bar" else ["bar", "bar"]
+    )
 
 
 def test_three_groups_split_three_ways_in_legend_order():
@@ -412,10 +435,9 @@ def test_three_groups_split_three_ways_in_legend_order():
         }
     )
     figure = _drawn(
-        lambda fig: so.Plot(frame, x="cat", y="val", color="g")
-        .add(so.Bar(), so.Dodge())
-        .on(fig)
-        .plot()
+        lambda fig: (
+            so.Plot(frame, x="cat", y="val", color="g").add(so.Bar()).on(fig).plot()
+        )
     )
     maidr.render(figure)._repr_html_()
 
@@ -429,29 +451,149 @@ def test_three_groups_split_three_ways_in_legend_order():
     ]
 
 
-def test_a_horizontal_colour_split_bar_keeps_its_orientation():
-    """The synthetic container carries the original's `orientation`, which is
-    what `_extract_orientation` reads. Drop it and every split bar would
-    default to vertical, putting the category in the magnitude field --
-    exactly the reading #950 warns about."""
+def test_three_groups_reach_the_grouped_reading_in_legend_order():
+    """The same three levels through the transform branch, where they become
+    one layer of three groups rather than three layers. The interleaving is
+    what makes it worth asking twice: `grouped_by_name` returns each level's
+    indices in ascending draw order, and with `p q r p q r` no level's bars
+    are contiguous, so a container assembled from the wrong slice shows up.
+    """
+    frame = pd.DataFrame(
+        {
+            "cat": ["a"] * 3 + ["b"] * 3,
+            "val": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            "g": list("pqr") * 2,
+        }
+    )
     figure = _drawn(
-        lambda fig: so.Plot(_bars(), y="cat", x="val", color="g")
-        .add(so.Bar(), so.Dodge())
-        .on(fig)
-        .plot()
+        lambda fig: (
+            so.Plot(frame, x="cat", y="val", color="g")
+            .add(so.Bar(), so.Dodge())
+            .on(fig)
+            .plot()
+        )
     )
     maidr.render(figure)._repr_html_()
+    (plot,) = FigureManager.get_maidr(figure).plots
 
     assert [
-        (
-            plot.schema.get("name"),
-            plot.schema.get("orientation"),
-            [(bar["x"], bar["y"]) for bar in plot.schema["data"]],
-        )
-        for plot in FigureManager.get_maidr(figure).plots
+        [(bar["z"], bar["x"], bar["y"]) for bar in group]
+        for group in plot.schema["data"]
     ] == [
-        ("p", "horz", [(1.0, "a"), (3.0, "b")]),
-        ("q", "horz", [(2.0, "a"), (4.0, "b")]),
+        [("p", "a", 1.0), ("p", "b", 4.0)],
+        [("q", "a", 2.0), ("q", "b", 5.0)],
+        [("r", "a", 3.0), ("r", "b", 6.0)],
+    ]
+
+
+def test_a_faceted_grouped_bar_reads_one_layer_per_panel():
+    """The per-panel loop and the grouped handover meet here. Faceting is
+    exercised for the scatter split elsewhere; a bar carrying a transform
+    reaches the same loop by a different branch, and the one legend `so.Plot`
+    builds has to name the groups on *every* panel -- `legend_of` reads a
+    lone figure legend as doing exactly that (#561).
+    """
+    frame = pd.DataFrame(
+        {
+            "cat": ["a", "a", "b", "b"] * 2,
+            "val": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+            "g": list("pqpq") * 2,
+            "panel": ["L"] * 4 + ["R"] * 4,
+        }
+    )
+    figure = _drawn(
+        lambda fig: (
+            so.Plot(frame, x="cat", y="val", color="g")
+            .facet(col="panel")
+            .add(so.Bar(), so.Dodge())
+            .on(fig)
+            .plot()
+        )
+    )
+    maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
+
+    assert [plot.schema["type"].value for plot in plots] == [
+        "dodged_bar",
+        "dodged_bar",
+    ]
+    assert [plot.schema["axes"]["z"] for plot in plots] == [{"label": "g"}] * 2
+    assert [
+        [
+            [(bar["z"], bar["x"], bar["y"]) for bar in group]
+            for group in plot.schema["data"]
+        ]
+        for plot in plots
+    ] == [
+        [[("p", "a", 1.0), ("p", "b", 3.0)], [("q", "a", 2.0), ("q", "b", 4.0)]],
+        [[("p", "a", 5.0), ("p", "b", 7.0)], [("q", "a", 6.0), ("q", "b", 8.0)]],
+    ]
+
+
+def test_the_grouped_reading_names_its_z_axis_from_the_figure_legend():
+    """`GroupedBarPlot` read both its `z` label and its group names from
+    `ax.get_legend()`, which is right for `seaborn.barplot(hue=)` and `None`
+    for an `so.Plot` -- seaborn hangs that legend on the **figure**. Reading
+    through `legend_of` finds it, the same tier #561 added for `PairGrid`.
+
+    Without it the `z` axis has no label and the groups fall back to the
+    containers' matplotlib labels, so a reader is told the levels apart by
+    nothing they can name.
+    """
+    figure = _drawn(
+        lambda fig: (
+            so.Plot(_bars(), x="cat", y="val", color="g")
+            .add(so.Bar(), so.Dodge())
+            .on(fig)
+            .plot()
+        )
+    )
+    maidr.render(figure)._repr_html_()
+    (plot,) = FigureManager.get_maidr(figure).plots
+
+    assert figure.axes[0].get_legend() is None
+    assert plot.schema["axes"]["z"] == {"label": "g"}
+    assert [group[0]["z"] for group in plot.schema["data"]] == ["p", "q"]
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        pytest.param(lambda plot: plot.add(so.Bar()), id="split"),
+        pytest.param(lambda plot: plot.add(so.Bar(), so.Dodge()), id="grouped"),
+    ],
+)
+def test_a_horizontal_colour_split_bar_keeps_its_orientation(build):
+    """The synthetic container carries the original's `orientation`, and both
+    readings depend on it -- `BarPlot._extract_orientation` on the split path,
+    `GroupedBarPlot._extract_orientation` on the grouped one. Drop it and a
+    horizontal colour-split bar defaults to vertical, putting the category in
+    the magnitude field: exactly the reading #950 warns about.
+    """
+    figure = _drawn(
+        lambda fig: build(so.Plot(_bars(), y="cat", x="val", color="g")).on(fig).plot()
+    )
+    maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
+
+    assert {plot.schema["orientation"] for plot in plots} == {"horz"}
+    # The magnitude runs along x and the category sits on y, whichever
+    # reading was taken -- the layers just group the same points differently.
+    points = [
+        bar
+        for plot in plots
+        for group in (
+            plot.schema["data"]
+            if isinstance(plot.schema["data"][0], list)
+            else [plot.schema["data"]]
+        )
+        for bar in group
+    ]
+    assert sorted((bar["x"], bar["y"]) for bar in points) == [
+        (1.0, "a"),
+        (2.0, "a"),
+        (3.0, "b"),
+        (4.0, "b"),
     ]
 
 
@@ -477,10 +619,12 @@ def test_each_split_bar_layer_addresses_its_own_bars():
     shape review caught on xability/r-maidr#226, where two layers of a kind
     resolved to the same element and the second highlighted the first's."""
     figure = _drawn(
-        lambda fig: so.Plot(_bars(), x="cat", y="val", color="g")
-        .add(so.Bar(), so.Dodge())
-        .on(fig)
-        .plot()
+        lambda fig: (
+            so.Plot(_bars(), x="cat", y="val", color="g")
+            .add(so.Bar(), so.Dodge())
+            .on(fig)
+            .plot()
+        )
     )
     html = maidr.render(figure)._repr_html_()
     plots = FigureManager.get_maidr(figure).plots
