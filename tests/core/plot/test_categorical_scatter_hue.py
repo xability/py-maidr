@@ -154,7 +154,11 @@ class TestAHueGroupedCategoricalScatter:
         figure, ax = plt.subplots()
         getattr(sns, plot)(data=frame(), x="cat", y="val", ax=ax)
 
-        assert names(figure) == [None, None, None]
+        # The layers now carry the category each holds (#662). That is not a
+        # hue grouping and does not pretend to be one: no `z` axis, which is
+        # what a hue-read layer declares and what the declines below assert.
+        assert names(figure) == CATEGORIES
+        assert [z_label(layer) for layer in layers(figure)] == [None, None, None]
         assert [len(layer["data"]) for layer in layers(figure)] == [6, 6, 6]
         assert len(set(announced(figure))) == 18
 
@@ -208,6 +212,109 @@ class TestTheShapesTheGroupingSurvives:
         assert [z_label(layer) for layer in layers(figure)] == ["cat"] * 3
 
 
+class TestTheCategoryEachLayerHolds:
+    """
+    A layer names the category it is (#662).
+
+    The split into one layer per category is #426's, unchanged. What was
+    missing is the name on each: a reader arrowing between layers heard
+    "point plot" three times, on a chart whose layers *are* the categories --
+    while the same call with a ``hue=`` that changes nothing about the split
+    named all three. The name is read off the layer's own points, against the
+    same tick lookup ``ScatterPlot`` uses for a point's ``xLabel``, so it is
+    the word the chart prints under the strip.
+    """
+
+    @pytest.mark.parametrize("plot", ["stripplot", "swarmplot"])
+    def test_a_strip_names_the_category_it_draws(self, plot):
+        figure, ax = plt.subplots()
+        getattr(sns, plot)(data=frame(), x="cat", y="val", ax=ax)
+
+        assert names(figure) == CATEGORIES
+
+    def test_a_horizontal_strip_is_named_too(self):
+        # The names are on y here, and asking about x alone was itself the
+        # #353 defect -- so both axes are asked.
+        figure, ax = plt.subplots()
+        sns.stripplot(data=frame(), y="cat", x="val", ax=ax)
+
+        assert names(figure) == CATEGORIES
+
+    def test_a_numerically_grouped_strip_is_named_as_the_chart_labels_it(self):
+        # Written the other way round first, expecting no names at all, and
+        # the measurement said otherwise. `stripplot` categorises its
+        # grouping axis whatever the column's dtype -- `plotter.var_types`
+        # reports `'categorical'` for a float column exactly as for a string
+        # one -- so seaborn draws one strip per distinct value and labels
+        # each tick with the value.
+        #
+        # The name is that tick, float artefacts and all, because every
+        # *point* of these layers already carries the same string on its
+        # `xLabel` and the axis already prints it. Declining at the layer
+        # while announcing at the point would be an inconsistency, not a
+        # safeguard. It is an unlovely chart, and it is unlovely on the page
+        # too: the ticks read "0.0", "0.2", "0.6000000000000001".
+        figure, ax = plt.subplots()
+        sns.stripplot(data=frame().assign(num=[0.0, 0.5, 1.0] * 6), x="num", y="val",
+                      ax=ax)
+
+        drawn_ticks = [tick.get_text() for tick in ax.get_xticklabels()]
+        assert names(figure) == drawn_ticks
+        assert [point["xLabel"] for layer in layers(figure)
+                for point in layer["data"][:1]] == drawn_ticks
+
+    def test_a_faceted_panel_names_what_it_holds(self):
+        # A `catplot` panel gets its layers the same way, and the panels here
+        # hold different categories: "p" has every "a" row and the "b" rows
+        # that are level x, "q" has the rest.
+        #
+        # seaborn gives every panel a collection for every category, so a
+        # panel holding none of one gets an empty collection -- which is
+        # registered, and which this deliberately does not name. There is no
+        # category in it to name it after, and a name read off the axis
+        # rather than off the points would announce a strip that was not
+        # drawn.
+        grid = sns.catplot(data=frame(), x="cat", y="val", col="col", kind="strip")
+
+        emitted = names(grid.figure)
+        assert [name for name in emitted if name is not None] == ["a", "b", "b", "c"]
+        assert emitted.count(None) == 2
+        assert [len(layer["data"]) for layer in layers(grid.figure)
+                if layer.get("name") is None] == [0, 0]
+
+    def test_a_collection_spanning_categories_is_not_named_after_one(self):
+        # Asked of the reader directly, because no chart reaching this branch
+        # produces such a collection: seaborn draws a strip per category
+        # whether the hue was read, declined or absent, so every collection
+        # the ungrouped path sees holds exactly one. The guard is what keeps
+        # that a fact about seaborn rather than an assumption -- a producer
+        # that ever handed over a mixed collection would be named after
+        # whichever category it drew first.
+        from maidr.patch.stripplot import _collection_category
+
+        figure, ax = plt.subplots()
+        sns.stripplot(data=frame(), x="cat", y="val", ax=ax)
+        # One y, deliberately. x names two categories and is declined for
+        # that; y then names exactly one thing -- the number 1.0 -- and is
+        # declined because a coordinate is not a name. Two points at
+        # different heights would fall out on the count alone and never
+        # reach the second refusal.
+        spanning = ax.scatter([0.0, 1.0], [1.0, 1.0])
+
+        assert _collection_category(ax, spanning) is None
+        assert _collection_category(ax, ax.collections[0]) == "a"
+
+    def test_a_dodged_chart_is_still_named_by_its_levels(self):
+        # A hue that reads takes the other branch, and there the name is the
+        # level -- the category travels on each point's `xLabel` instead.
+        # Two namings, and only one of them can be the layer's.
+        figure, ax = plt.subplots()
+        sns.stripplot(data=frame(), x="cat", y="val", hue="hue", dodge=True, ax=ax)
+
+        assert names(figure) == LEVELS
+        assert [z_label(layer) for layer in layers(figure)] == ["hue", "hue"]
+
+
 class TestWhatIsDeclined:
     def test_a_continuous_hue_is_not_a_grouping(self):
         # seaborn gives a numeric `hue=` one "level" per distinct value --
@@ -222,7 +329,12 @@ class TestWhatIsDeclined:
             ax=ax,
         )
 
-        assert names(figure) == [None, None, None]
+        # Asserted on the `z` axis rather than on the names, because the
+        # names are the *categories* now (#662) and always were the reading
+        # this chart keeps. A hue that was read declares the variable it
+        # grouped by; a hue that was declined declares nothing.
+        assert [z_label(layer) for layer in layers(figure)] == [None, None, None]
+        assert names(figure) == CATEGORIES
         assert [len(layer["data"]) for layer in layers(figure)] == [6, 6, 6]
 
 
@@ -238,23 +350,27 @@ class TestWhatIsDeclined:
         # The levels are matched on their three colour channels, so opacity
         # alone does not separate them -- and a palette that draws two levels
         # the same colour does not separate them at all. Measured: both come
-        # out as the ungrouped reading, three unnamed layers, rather than
-        # every point of both levels handed to whichever name matched first.
+        # out as the ungrouped reading -- three layers, one per category and
+        # named for it -- rather than every point of both levels handed to
+        # whichever name matched first.
         figure, ax = plt.subplots()
         sns.stripplot(data=frame(), x="cat", y="val", hue="hue", palette=palette, ax=ax)
 
-        assert names(figure) == [None, None, None]
+        assert [z_label(layer) for layer in layers(figure)] == [None, None, None]
+        assert names(figure) == CATEGORIES
         assert len(set(announced(figure))) == 18
 
     def test_a_hue_with_one_level_is_not_a_grouping(self):
         # Nothing to tell apart. A layer named "only" over every point says
-        # no more than the unnamed one it would replace.
+        # no more than the category name it would replace -- and the category
+        # is the thing these three layers actually differ by (#662).
         figure, ax = plt.subplots()
         sns.stripplot(
             data=frame().assign(one=["only"] * 18), x="cat", y="val", hue="one", ax=ax
         )
 
-        assert names(figure) == [None, None, None]
+        assert [z_label(layer) for layer in layers(figure)] == [None, None, None]
+        assert names(figure) == CATEGORIES
 
 
 class TestTheOrderAndTheNeighbours:

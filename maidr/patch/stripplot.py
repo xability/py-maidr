@@ -12,6 +12,7 @@ from matplotlib.collections import PathCollection
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.core.plot.scatterplot import (
     DRAWN_POINTS,
     GROUP_LABEL,
@@ -19,6 +20,7 @@ from maidr.core.plot.scatterplot import (
     _rgba,
 )
 from maidr.patch.common import _draw_quietly, plotter_axes
+from maidr.util.mixin import LineExtractorMixin
 
 
 def _point_colours(collection: PathCollection) -> list:
@@ -173,6 +175,64 @@ def _hue_levels(
     )
 
 
+def _collection_category(ax: Axes, collection: PathCollection) -> str | None:
+    """
+    The one category a collection's points all sit in, where there is one.
+
+    A strip or swarm drawn without a hue gets a collection per category, and
+    every point in it belongs to that category -- so the name is read off the
+    points rather than matched by colour, which is what makes this different
+    from the hue path above. Both axes are asked, because ``x='g', y='v'``
+    puts the names on x and ``y='g', x='v'`` puts them on y, and asking about
+    one alone was itself the #353 defect.
+
+    The tick lookup is the same pair ``ScatterPlot`` uses for a point's own
+    ``xLabel`` -- `_category_tick_labels` is empty on a numeric axis, which is
+    what stops a measurement being renamed after whichever tick it fell
+    nearest, and `_named_coordinate` rounds, which recovers the name of a
+    group a ``dodge`` shifted aside.
+
+    More than one name means the collection is not one category's -- a hue
+    level spanning them all -- and it is left unnamed rather than named after
+    whichever it drew first.
+
+    Parameters
+    ----------
+    ax : Axes
+        The panel drawn on.
+    collection : PathCollection
+        The points.
+
+    Returns
+    -------
+    str or None
+        The category, or ``None`` when the collection spans several or the
+        axes name none.
+    """
+    # An empty collection -- the one a faceted panel gets for a category it
+    # holds none of -- comes back shaped (0, 2), measured, so the column
+    # below is an empty array rather than an index error, and the set it
+    # builds is empty. It falls out at the count check with the rest.
+    offsets = np.asarray(collection.get_offsets())
+
+    for axis, column in (("x", 0), ("y", 1)):
+        ticks = LineExtractorMixin._category_tick_labels(ax, axis)
+        names = {
+            LineExtractorMixin._named_coordinate(float(value), ticks)
+            for value in offsets[:, column]
+        }
+        if len(names) != 1:
+            continue
+        name = names.pop()
+        # A numeric axis answers with the coordinate rather than a name --
+        # `_named_coordinate` guarantees it, so that a measurement cannot be
+        # renamed after whichever tick it fell nearest -- and this is where
+        # that answer is declined.
+        if isinstance(name, str):
+            return name
+    return None
+
+
 def _added(ax: Axes, before: set) -> list:
     """
     The collections this call put on one panel, in drawing order.
@@ -282,8 +342,15 @@ def sns_categorical_points(
         levels = _hue_levels(instance, added)
         if levels is None:
             for collection in added:
+                # Named by the category it holds, which is on its own points.
+                # Without it a reader switching layers heard "point plot"
+                # three times, on a chart whose layers are the categories --
+                # while the same call with a `hue=` that changes nothing
+                # about the split named all three (#662).
+                category = _collection_category(ax, collection)
+                extra = {GROUP_NAME: category} if category else {}
                 FigureManager.create_maidr(
-                    ax, PlotType.SCATTER, **{DRAWN_POINTS: collection}
+                    ax, PlotType.SCATTER, **{DRAWN_POINTS: collection, **extra}
                 )
             continue
 
