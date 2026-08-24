@@ -1269,28 +1269,6 @@ class PlotlyMaidr:
                     self._plots.append(plot)
                 merged.update(id(t) for t in waterfall_traces)
 
-            # Two-dimensional histograms, one layer each. A `histogram2d`
-            # draws a single `<image>` into the subplot's `heatmaplayer`
-            # exactly as a `go.Heatmap` does -- measured -- so it needs no
-            # position of its own and could have been left to the factory.
-            # It is built here so it sits beside the contour it shares an
-            # issue with, and so the two 2-D binning readings are found
-            # together.
-            histogram2d_traces = [
-                t for t in group_traces if is_histogram2d_trace(t)
-            ]
-            if histogram2d_traces:
-                from maidr.plotly.histogram2d import PlotlyHistogram2dPlot
-
-                for histogram2d_trace in histogram2d_traces:
-                    plot = PlotlyHistogram2dPlot(
-                        histogram2d_trace, layout, **axis_kwargs
-                    )
-                    plot.row_index = row
-                    plot.col_index = col
-                    self._plots.append(plot)
-                merged.update(id(t) for t in histogram2d_traces)
-
             # Contours, one layer each. Built here rather than left to
             # the factory for the reason the waterfalls above are: plotly
             # appends one `g.contour` group per trace to the subplot's
@@ -1333,9 +1311,46 @@ class PlotlyMaidr:
             for trace in group_traces:
                 if id(trace) in merged:
                     continue
-                plot = PlotlyPlotFactory.create(
-                    trace, layout, **axis_kwargs
-                )
+                if trace.get("type") == "heatmap" or is_histogram2d_trace(
+                    trace
+                ):
+                    # The image-drawing traces. Plotly appends one
+                    # `<g class="hm">` per trace to the subplot's
+                    # `heatmaplayer`, in declaration order, counting a
+                    # `go.Heatmap` and a `histogram2d` together -- so a
+                    # selector naming an image is scoped by its trace's
+                    # position among *both* kinds (#647). The factory sees
+                    # one trace at a time and cannot know that; only this
+                    # figure-wide pass does.
+                    #
+                    # Built inside this loop rather than hoisted above it,
+                    # unlike the contours, so that neither kind's layer
+                    # moves ahead of whatever was declared before it. That
+                    # is what the hoist cost while the `histogram2d` block
+                    # lived up there: a scatter declared first was announced
+                    # second.
+                    #
+                    # A 2-D histogram is a heatmap whose grid it has to bin
+                    # for itself; from the grid onwards the two read alike,
+                    # which is why one extends the other.
+                    from maidr.plotly.heatmap import PlotlyHeatmapPlot
+                    from maidr.plotly.histogram2d import PlotlyHistogram2dPlot
+
+                    build = (
+                        PlotlyHistogram2dPlot
+                        if is_histogram2d_trace(trace)
+                        else PlotlyHeatmapPlot
+                    )
+                    plot = build(
+                        trace,
+                        layout,
+                        layer_position=layer_position(group_traces, trace),
+                        **axis_kwargs,
+                    )
+                else:
+                    plot = PlotlyPlotFactory.create(
+                        trace, layout, **axis_kwargs
+                    )
                 if plot is not None:
                     plot.row_index = row
                     plot.col_index = col

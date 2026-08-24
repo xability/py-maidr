@@ -72,7 +72,9 @@ def test_a_histogram2d_is_read_as_a_heatmap_layer() -> None:
     (layer,) = _layers(_histogram2d(**CORNER, **BINS))
 
     assert layer["type"] is PlotType.HEAT
-    assert layer["selectors"] == ".subplot.xy .heatmaplayer image"
+    assert layer["selectors"] == (
+        ".subplot.xy .heatmaplayer > g.hm:nth-of-type(1) image"
+    )
 
 
 def test_the_grid_is_the_counts_the_samples_make() -> None:
@@ -323,7 +325,9 @@ def test_a_histogram2d_on_a_second_subplot_is_scoped_to_it() -> None:
 
     assert [len(row) for row in grid] == [2]
     (heat,) = grid[0][1]["layers"]
-    assert heat["selectors"] == ".subplot.x2y2 .heatmaplayer image"
+    assert heat["selectors"] == (
+        ".subplot.x2y2 .heatmaplayer > g.hm:nth-of-type(1) image"
+    )
 
 
 def test_a_histogram2d_with_no_samples_forms_no_layer() -> None:

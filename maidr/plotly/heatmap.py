@@ -9,11 +9,62 @@ from maidr.plotly.plotly_plot import PlotlyPlot, as_list, colorbar_title
 class PlotlyHeatmapPlot(PlotlyPlot):
     """Extract data from a Plotly heatmap trace."""
 
-    def __init__(self, trace: dict, layout: dict, **kwargs: str) -> None:
+    def __init__(
+        self,
+        trace: dict,
+        layout: dict,
+        *,
+        layer_position: int = 0,
+        **kwargs: str,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        trace : dict
+            A plotly ``heatmap`` (or ``histogram2d``) trace dictionary.
+        layout : dict
+            The figure's layout dictionary.
+        layer_position : int, optional
+            This trace's zero-based position among the traces sharing the
+            subplot's ``heatmaplayer``, from
+            :func:`~maidr.plotly.candlestick.layer_position`. Defaults to the
+            first, which is what a subplot with one image has.
+        **kwargs : str
+            Axis names and other options passed to :class:`PlotlyPlot`.
+        """
+        self._layer_position = layer_position
         super().__init__(trace, layout, PlotType.HEAT, **kwargs)
 
     def _get_selector(self) -> str:
-        return f"{self._subplot_css_prefix()}.heatmaplayer image"
+        """Return the selector for this trace's own image.
+
+        Plotly appends one ``<g class="hm">`` per image-drawing trace to the
+        subplot's ``heatmaplayer``, in declaration order, and each holds
+        exactly one ``<image>``. Until #647 this named
+        ``.heatmaplayer image`` -- the first image on the subplot rather than
+        this trace's -- so a subplot holding two of them had both layers
+        outlining the first: a highlight that resolves to a real element and
+        the wrong one.
+
+        The group is what carries the position, not the image.
+        ``image:nth-of-type(N)`` counts among an element's *siblings*, and
+        each image is the only one inside its own ``g.hm``, so measured in
+        Chromium on a subplot with two:
+        ``image:nth-of-type(1)`` matched **both** and ``:nth-of-type(2)``
+        matched none. ``g.hm:nth-of-type(N) image`` matched exactly one each.
+
+        ``:nth-of-type`` counts by tag among all siblings rather than among
+        the ones matching the class beside it, so it is exact only where the
+        siblings are homogeneous -- the caution :meth:`contour's selector
+        <maidr.plotly.contour.PlotlyContourPlot._get_selector>` spells out.
+        Measured across five configurations (two heatmaps, either order of a
+        heatmap and a ``histogram2d``, two ``histogram2d``, and a heatmap
+        beside a contour), a ``heatmaplayer`` held nothing but ``g.hm``.
+        """
+        return (
+            f"{self._subplot_css_prefix()}.heatmaplayer > "
+            f"g.hm:nth-of-type({self._layer_position + 1}) image"
+        )
 
     @staticmethod
     def _to_native(val: Any) -> Any:

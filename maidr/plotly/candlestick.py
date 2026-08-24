@@ -33,11 +33,28 @@ _MARK_OF = {"candlestick": "path.box", "ohlc": "> path"}
 #: held two ``g.contour`` groups in declaration order, while the heatmap sat
 #: elsewhere in a ``heatmaplayer`` of its own.
 #:
+#: ``heatmap``/``histogram2d`` share ``g.heatmaplayer`` -- measured on four
+#: figures, each ``g.hm`` read back through its own ``__data__`` so the
+#: pairing is plotly's rather than inferred from where the image landed:
+#:
+#: .. code-block:: text
+#:
+#:     Heatmap, Histogram2d           hm[0] heatmap      hm[1] histogram2d
+#:     Histogram2d, Heatmap           hm[0] histogram2d  hm[1] heatmap
+#:     Heatmap, Histogram2d, Heatmap  hm[0..2] in declaration order
+#:     Histogram2d, Histogram2d       hm[0..1] in declaration order
+#:
+#: A ``contour`` under ``coloring: "heatmap"`` looks like it should join them
+#: and does not: measured, it paints inside its own ``contourlayer`` and adds
+#: no ``g.hm``. Nor does a ``go.Image``, which has an ``imagelayer`` of its
+#: own (#647).
+#:
 #: A type absent from every group is numbered among its own kind, which is
 #: what a layer with one occupant needs.
 _SHARED_LAYERS = (
     frozenset({"box", "candlestick"}),
     frozenset({"contour", "histogram2dcontour"}),
+    frozenset({"heatmap", "histogram2d"}),
 )
 
 
