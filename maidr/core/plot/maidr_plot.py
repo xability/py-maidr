@@ -6,6 +6,7 @@ from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.util.grid_position import topmost_subplotspec
+from maidr.util.panel_title import panel_title
 from maidr.util.mixin import FormatExtractorMixin
 
 # uuid is used to generate unique identifiers for each plot layer in the MAIDR schema.
@@ -159,7 +160,9 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         maidr_schema = {
             MaidrKey.ID: str(uuid.uuid4()),
             MaidrKey.TYPE: self.type,
-            MaidrKey.TITLE: self.ax.get_title(),
+            # The caller's own title wins; the generated one names a panel
+            # of a seaborn grid, which seaborn leaves untitled (#660).
+            MaidrKey.TITLE: self.ax.get_title() or panel_title(self.ax),
             MaidrKey.AXES: axes_data,
             MaidrKey.DATA: self._extract_plot_data(),
         }

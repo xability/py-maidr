@@ -19,6 +19,7 @@ from . import (  # noqa: E402, F401
     eventplot,
     fillbetween,
     gantt,
+    grid_panel,
     heatmap,
     hexbin,
     highlight,
