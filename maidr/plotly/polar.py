@@ -65,13 +65,62 @@ class PlotlyPolarPlot(PlotlyPlot):
         Neither says what a reader means by "where am I", so the layer ships
         without a highlight and keeps its audio, braille and text -- the
         outcome #145 established for a layer with nothing to point at.
+
+        ## When there is no outline
+
+        "Exactly one ``path.js-line`` per trace" holds for every mode that
+        draws a line and for none that does not, which is a distinction the
+        original measurement did not have to make. Measured again in
+        Chromium on ``r=[1, 2, 3]``, counting inside the trace's own ``<g>``:
+
+        .. code-block:: text
+
+            mode                 path.js-line   g.points path.point
+            unset (default)            1               3
+            "lines"                    1               3
+            "lines+markers"            1               3
+            "markers"                  0               3
+            "text"                     0               0
+
+        So a markers-only radar named an element plotly never drew and the
+        layer lost its highlight entirely (#656). Its markers are named
+        instead: one ``path.point`` per sample, which is the shape
+        `LineTrace.mapViaDomElements` already takes -- a selector whose match
+        count equals the series' point count is used element for element,
+        with no path to parse.
+
+        A ``mode="text"`` trace draws neither, and keeps no selector for the
+        reason ``barpolar`` has none.
         """
         if self.type is not PlotType.RADAR:
             return []
+        drawn = self._drawn_mark()
+        if drawn is None:
+            return []
         return [
             f".polarlayer > g.{self._subplot} .scatterlayer "
-            f".trace:nth-child({self._trace_position + 1}) path.js-line"
+            f".trace:nth-child({self._trace_position + 1}) {drawn}"
         ]
+
+    def _drawn_mark(self) -> str | None:
+        """The element this trace draws for a reader to be pointed at.
+
+        Read from ``mode`` rather than from the drawing, which is not
+        available here. An absent ``mode`` is plotly's default and always
+        includes lines -- ``"lines+markers"`` up to twenty points and
+        ``"lines"`` beyond -- so it takes the outline.
+
+        Returns
+        -------
+        str or None
+            The element to name, or None when the trace draws no mark.
+        """
+        mode = self._trace.get("mode")
+        if mode is None or "lines" in str(mode):
+            return "path.js-line"
+        if "markers" in str(mode):
+            return "g.points path.point"
+        return None
 
     def _extract_axes_data(self) -> dict:
         """Name the angle and the radius.
