@@ -150,6 +150,75 @@ def test_a_radar_addresses_its_outline() -> None:
     ]
 
 
+def test_a_markers_only_radar_addresses_its_markers() -> None:
+    """"One `path.js-line` per trace" holds only where a line is drawn.
+
+    A markers-only `scatterpolar` draws none, so the selector resolved to
+    nothing at all and the layer lost its highlight while its reading, its
+    sonification and its braille stayed correct (#656). Measured in
+    Chromium on three spokes, counting inside the trace's own `<g>`:
+
+    ```
+    mode                 path.js-line   g.points path.point
+    unset (default)            1               3
+    "lines"                    1               3
+    "lines+markers"            1               3
+    "markers"                  0               3
+    "text"                     0               0
+    ```
+
+    One `path.point` per sample is the shape `LineTrace.mapViaDomElements`
+    already takes: a selector whose match count equals the series' point
+    count is used element for element, with no path to parse.
+    """
+    (layer,) = _layers(
+        go.Figure([go.Scatterpolar(r=RADII, theta=SPOKES, mode="markers")])
+    )
+
+    assert layer["selectors"] == [
+        ".polarlayer > g.polar .scatterlayer .trace:nth-child(1) "
+        "g.points path.point"
+    ]
+
+
+@pytest.mark.parametrize("mode", ["lines", "lines+markers", "markers+lines"])
+def test_a_radar_that_draws_a_line_still_addresses_it(mode: str) -> None:
+    """The outline is preferred wherever there is one.
+
+    It is one element for the whole series, which is what the multi-series
+    contract wants; the markers are the fallback rather than the reading.
+    """
+    (layer,) = _layers(
+        go.Figure([go.Scatterpolar(r=RADII, theta=SPOKES, mode=mode)])
+    )
+
+    assert layer["selectors"] == [
+        ".polarlayer > g.polar .scatterlayer .trace:nth-child(1) path.js-line"
+    ]
+
+
+def test_a_text_only_radar_is_read_but_not_addressed() -> None:
+    """Nothing is drawn to point at, so nothing is named.
+
+    The outcome #145 established and `barpolar` already has: the layer
+    keeps its audio, braille and text and ships without a highlight, rather
+    than naming an element the chart does not draw.
+    """
+    (layer,) = _layers(
+        go.Figure(
+            [
+                go.Scatterpolar(
+                    r=RADII, theta=SPOKES, mode="text", text=list("abcd")
+                )
+            ]
+        )
+    )
+
+    assert layer["type"] == PlotType.RADAR
+    assert "selectors" not in layer
+    assert _spokes(layer) == list(zip(SPOKES, RADII))
+
+
 def test_a_polar_area_is_read_but_not_addressed() -> None:
     """A stated limit, not an oversight.
 
