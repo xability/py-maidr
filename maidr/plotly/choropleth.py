@@ -92,6 +92,16 @@ class PlotlyChoroplethPlot(PlotlyPlot):
         ]
 
 
+#: The three names plotly gives one chart. ``choropleth`` shades regions on a
+#: geographic projection; ``choroplethmap`` and its deprecated
+#: ``choroplethmapbox`` spelling shade the same regions over a tiled base map.
+#: They carry the same ``locations`` and ``z`` and are read identically -- the
+#: base map is drawing, not data (#683).
+_CHOROPLETH_TYPES = frozenset(
+    {"choropleth", "choroplethmap", "choroplethmapbox"}
+)
+
+
 def is_choropleth_trace(trace: dict) -> bool:
     """Report whether a trace is a choropleth map."""
-    return trace.get("type") == "choropleth"
+    return trace.get("type") in _CHOROPLETH_TYPES

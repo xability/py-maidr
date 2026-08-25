@@ -12,7 +12,7 @@ from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.candlestick import is_ohlc_trace, layer_position
-from maidr.plotly.plotly_plot import subplot_block
+from maidr.plotly.geo import geo_block
 from maidr.plotly.gauge import draws_a_dial
 from maidr.plotly.hierarchy import has_one_root, is_hierarchy_trace
 from maidr.plotly.area import is_area_trace
@@ -66,9 +66,11 @@ from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly
 #: The layout keys that hold a subplot *block* -- a rectangle plotly writes
 #: for a subplot that has no cartesian axis pair, and that a trace addresses
 #: by name. ``polar``/``polar2`` for the two polar traces, ``geo``/``geo2``
-#: for a choropleth. Collected into the figure's row and column universe
-#: exactly as ``xaxis``/``yaxis`` domains are.
-_SUBPLOT_BLOCK_PREFIXES = ("polar", "geo")
+#: for a choropleth, and ``map``/``mapbox`` for the tiled-base-map family
+#: -- one prefix covers both spellings, since ``mapbox`` starts with
+#: ``map``. Collected into the figure's row and column universe exactly as
+#: ``xaxis``/``yaxis`` domains are.
+_SUBPLOT_BLOCK_PREFIXES = ("polar", "geo", "map")
 
 
 #: Trace types placed by their own ``domain`` rectangle that maidr renders as
@@ -93,6 +95,8 @@ _PLACED_BY_DOMAIN = frozenset(
         "parcoords",
         "parcats",
         "choropleth",
+        "choroplethmap",
+        "choroplethmapbox",
     }
 )
 
@@ -1107,11 +1111,38 @@ class PlotlyMaidr:
                         x_starts,
                         y_starts,
                         self._block_domain_start(
-                            layout, subplot_block(choropleth_trace, "geo")
+                            layout, geo_block(choropleth_trace)
                         ),
                     )
                     self._plots.append(plot)
                 merged.update(id(t) for t in choropleth_traces)
+
+            # Map markers, one layer each. Placed by the same named block a
+            # choropleth is -- `geo` for a geographic projection, `map` or
+            # `mapbox` for a tiled one -- so a marker layer and a region
+            # layer drawn on the same map land in the same grid cell (#683).
+            from maidr.plotly.geo import is_geo_scatter_trace
+
+            geo_scatter_traces = [
+                t for t in group_traces if is_geo_scatter_trace(t)
+            ]
+            if geo_scatter_traces:
+                from maidr.plotly.geo import PlotlyGeoScatterPlot
+
+                for geo_trace in geo_scatter_traces:
+                    # A trace that placed no marker by `lat`/`lon` states
+                    # nothing this can announce, and the empty layer it would
+                    # form is dropped by the figure-wide `_carries_data` pass
+                    # at the end of this method -- the phantom row #421
+                    # describes, already answered once for every layer type.
+                    plot = PlotlyGeoScatterPlot(geo_trace, layout, **axis_kwargs)
+                    plot.row_index, plot.col_index = self._grid_position(
+                        x_starts,
+                        y_starts,
+                        self._block_domain_start(layout, geo_block(geo_trace)),
+                    )
+                    self._plots.append(plot)
+                merged.update(id(t) for t in geo_scatter_traces)
 
             # Parallel sets, one layer each. Placed by its own `domain`
             # rectangle like a pie, because a `parcats` names no axis pair.
