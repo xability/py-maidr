@@ -285,10 +285,10 @@ def test_a_mark_this_does_not_read_still_registers_nothing(mark):
     mark whose artists no existing plot class can read is left alone, not
     guessed at. `Dash` matters most -- see the test below.
 
-    `Lines` and `Paths` left this list when they gained a reading (#670).
-    They came off deliberately: this list is the reminder that a decline was
-    a decision, so a mark added to `_READINGS` has to be taken out of it by
-    hand rather than quietly passing both ways.
+    `Lines`, `Paths`, `Area`, `Band` and `Range` each left this list when they
+    gained a reading (#670). They came off deliberately: this list is the
+    reminder that a decline was a decision, so a mark added to `_READINGS`
+    has to be taken out of it by hand rather than quietly passing both ways.
     """
     figure = _drawn(
         lambda fig: so.Plot(_frame(), x="t", y="m").add(mark).on(fig).plot()
@@ -304,11 +304,18 @@ def test_the_marks_are_matched_by_name_and_not_by_ancestry():
         Dash  < Paths < Mark      LineCollection
         Range < Paths < Mark      LineCollection
 
-    So dispatching on ancestry would claim `Dash` and `Range` as `Paths`,
-    which now *is* read -- and read them as line series, which neither
-    draws: a `Dash` is a tick per position and a `Range` is an interval.
+    So dispatching on ancestry would claim `Dash` as a `Paths`, which *is*
+    read -- and read it as line series, which it does not draw: a `Dash` is a
+    tick per position with no length that means anything on the value axis.
     Since #670 that is a live hazard rather than a hypothetical one, because
-    the ancestor a wrong dispatch would land on has a reading to hand them.
+    the ancestor a wrong dispatch would land on has a reading to hand it.
+
+    `Range` is the other half of the same trap and shows why ancestry would
+    still be wrong even where it happens to claim something readable: it is
+    read too, but as an **interval**, which is nothing like what `Paths`
+    gives. Getting there by name is what makes the two readings different;
+    getting there by ancestry would make them the same and wrong.
+
     This pins the hierarchy itself, so the seaborn release that changes it
     fails here rather than silently widening what gets claimed.
     """
@@ -317,10 +324,7 @@ def test_the_marks_are_matched_by_name_and_not_by_ancestry():
     assert issubclass(so.Range, so.Paths)
 
     figure = _drawn(
-        lambda fig: so.Plot(_frame(), x="t", ymin="val", ymax="m")
-        .add(so.Range())
-        .on(fig)
-        .plot()
+        lambda fig: so.Plot(_frame(), x="t", y="m").add(so.Dash()).on(fig).plot()
     )
 
     assert _registers_nothing(figure)
@@ -430,7 +434,6 @@ def test_every_selector_resolves_in_the_page_it_was_built_from(mark, x, y):
     [
         pytest.param(so.Bars(), id="Bars"),
         pytest.param(so.Dash(), id="Dash"),
-        pytest.param(so.Range(), id="Range"),
         pytest.param(so.Text(), id="Text"),
     ],
 )

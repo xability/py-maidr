@@ -11,6 +11,7 @@ from maidr.core.plot.boxenplot import BoxenPlot
 from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.contour import ContourPlot
 from maidr.core.plot.errorbar import ErrorBarPlot
+from maidr.core.plot.intervalplot import DRAWN_INTERVALS, IntervalPlot
 from maidr.core.plot.eventplot import DRAWN_EVENTS, EventPlot
 from maidr.core.plot.gantt import GanttPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
@@ -102,6 +103,11 @@ class MaidrPlotFactory:
             # lines came from seaborn.
             if isinstance(kwargs.get("estimate"), Line2D) or kwargs.get("estimates"):
                 return PointPlot(single_ax, **kwargs)
+            # `so.Band` and `so.Range` draw the interval and no estimate at
+            # all, so there is no container and no estimate line to resolve --
+            # only the band or the bars themselves, which is what this names.
+            if DRAWN_INTERVALS in kwargs:
+                return IntervalPlot(single_ax, **kwargs)
             return ErrorBarPlot(single_ax, **kwargs)
         elif PlotType.HEAT == plot_type:
             return HeatPlot(single_ax, **kwargs)

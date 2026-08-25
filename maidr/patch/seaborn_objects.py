@@ -18,6 +18,7 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS, bar_groups
 from maidr.core.plot.grouped_barplot import DRAWN_GROUPS
+from maidr.core.plot.intervalplot import DRAWN_INTERVALS
 from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.core.plot.scatterplot import DRAWN_POINTS, HUE_GROUP, hue_groups
 from maidr.core.plot.segment_lineplot import DRAWN_SEGMENTS
@@ -110,6 +111,18 @@ _READINGS: dict[str, _Reading] = {
     # and two would be two charts (#670).
     "Lines": _Reading(PlotType.LINE, "collections", LineCollection, DRAWN_SEGMENTS, True),
     "Paths": _Reading(PlotType.LINE, "collections", LineCollection, DRAWN_SEGMENTS, True),
+    # One interval per position, drawn two ways. Measured, `so.Band()` leaves
+    # a `Polygon` folded lower-forward-then-upper-backward and `so.Range()`
+    # leaves a `LineCollection` of one segment per position -- the same
+    # reading from two drawings, which is why one class takes both and the
+    # artists are handed over as the list the layer drew (#670).
+    #
+    # A `Band` is in `patches` beside `Area`, and the two are told apart by
+    # the mark's name rather than by the artist: both are `Polygon`, and only
+    # the name says whether the fold is a series against a baseline or a pair
+    # of bounds.
+    "Band": _Reading(PlotType.ERRORBAR, "patches", Polygon, DRAWN_INTERVALS),
+    "Range": _Reading(PlotType.ERRORBAR, "collections", LineCollection, DRAWN_INTERVALS),
 }
 
 
