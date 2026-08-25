@@ -48,7 +48,13 @@ _CONNECTED_TRACE_TYPES = ("scatter", "scattergl")
 #:
 #: These have no per-trace DOM element, so no CSS selector can address their
 #: geometry — see :func:`renders_through_webgl` for what follows from that.
-_WEBGL_TRACE_TYPES = ("scattergl",)
+#:
+#: ``scatterpolargl`` is the polar member and behaves the same way. Measured
+#: in Chromium on ``r=[1, 2, 3]``, counting inside the polar subplot: a
+#: ``scatterpolar`` puts one ``.trace`` in the ``.scatterlayer`` and no
+#: canvas, while a ``scatterpolargl`` puts **none** there and three canvases
+#: on the page (#668).
+_WEBGL_TRACE_TYPES = ("scattergl", "scatterpolargl")
 
 
 #: Point count at which plotly's default ``mode`` drops its markers.

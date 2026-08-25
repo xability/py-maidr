@@ -5,10 +5,12 @@ import math
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list, subplot_block
+from maidr.plotly.step_shape import renders_through_webgl
 
 
 class PlotlyPolarPlot(PlotlyPlot):
-    """Extract data from a Plotly ``scatterpolar`` or ``barpolar`` trace.
+    """Extract data from a Plotly ``scatterpolar``, ``scatterpolargl`` or
+    ``barpolar`` trace.
 
     Both draw spokes around a circle -- one radius per angle -- and the core
     builds both on `RadarTrace`: a radar joins the spokes into an outline and
@@ -91,8 +93,20 @@ class PlotlyPolarPlot(PlotlyPlot):
 
         A ``mode="text"`` trace draws neither, and keeps no selector for the
         reason ``barpolar`` has none.
+
+        ## When there is no element at all
+
+        A ``scatterpolargl`` draws the same spokes through regl, onto a
+        ``<canvas>``, and so puts nothing in the ``.scatterlayer`` for any
+        mode. Measured in Chromium on ``r=[1, 2, 3]``: a ``scatterpolar``
+        gives one ``.trace`` there and no canvas, a ``scatterpolargl`` gives
+        no ``.trace`` and three canvases (#668). It keeps its audio, braille
+        and text and names nothing, which is what its cartesian twin already
+        does.
         """
         if self.type is not PlotType.RADAR:
+            return []
+        if renders_through_webgl(self._trace):
             return []
         drawn = self._drawn_mark()
         if drawn is None:

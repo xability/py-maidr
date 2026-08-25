@@ -44,9 +44,9 @@ which is what catches a selector that has stopped matching.
 
 Several layers deliberately emit **no** selectors, each for a measured
 reason: `barpolar` (#635), `parcoords` (#637), `parcats` (#639), `choropleth`
-(#640), `scattergl` (painted to canvas), and a contour whose level holds
-islands (#643). Those are listed rather than skipped, so that a layer which
-starts declining silently fails here.
+(#640), `scattergl` and `scatterpolargl` (painted to canvas, #668), and a
+contour whose level holds islands (#643). Those are listed rather than
+skipped, so that a layer which starts declining silently fails here.
 """
 
 from __future__ import annotations
@@ -157,6 +157,9 @@ def _figure(name: str) -> go.Figure:
         "scattergl": lambda: go.Figure(
             go.Scattergl(x=[1, 2, 3], y=[2, 1, 3], mode="markers")
         ),
+        "scatterpolargl": lambda: go.Figure(
+            go.Scatterpolargl(r=[1, 2, 3], theta=[0, 120, 240])
+        ),
         "histogram2dcontour": lambda: go.Figure(
             go.Histogram2dContour(**_SAMPLES)
         ),
@@ -208,6 +211,9 @@ SHAPES: dict[str, tuple[str, ...]] = {
     "parcats": ("none",),
     # `scattergl` paints its markers to a canvas, so there is no element.
     "scattergl": ("none",),
+    # And `scatterpolargl` paints its spokes to one, so neither the outline
+    # an SVG radar names nor its markers exist (#668).
+    "scatterpolargl": ("none",),
     # Every level of this field draws a single curve, so each is addressed;
     # a level with islands declines instead, which #643 measured and
     # xability/maidr#1142 is what would let it be outlined whole.
