@@ -183,6 +183,16 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         Shared rather than restated: ``MultiLinePlot`` and ``PointPlot`` both
         need it and would otherwise drift apart if the convention changed.
 
+        Delegates to :func:`maidr.util.legend_names.title_of`, which answers
+        the same question and is what ``RugPlot`` already calls. The two used
+        to differ, and that difference *was* #672: this asked
+        ``ax.get_legend()`` while the names were read through
+        :func:`~maidr.util.legend_names.legend_of`, so a chart whose legend
+        sits on the figure -- every ``seaborn.objects`` chart, and a
+        ``PairGrid`` -- had its groups named and the variable they split by
+        dropped. Now that both go through the same lookup, keeping two copies
+        of it would only invite them apart again.
+
         Read **live**, when the schema is built, while the group *names* are
         captured once as the plotting call is patched. A caller who retitles
         or relabels the legend in between can therefore make the two
@@ -203,22 +213,9 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         # Imported here rather than at module scope: `legend_names` reaches
         # `scatterplot`, which reaches this module, so a top-level import
         # would close the cycle.
-        from maidr.util.legend_names import legend_of
+        from maidr.util.legend_names import title_of
 
-        # `legend_of` rather than `self.ax.get_legend()`, which is what this
-        # read before -- the same move the scatter and bar paths made in
-        # #617. A `seaborn.objects` chart puts its one legend on the
-        # **figure** and leaves every panel's own at `None`, so a
-        # colour-split `so.Line` or `so.Dot` emitted no `axes.z` at all and
-        # the variable the chart is split by went unnamed, where the classic
-        # spelling of the same chart names it (#672).
-        legend = legend_of(self.ax)
-        if legend is None:
-            return ""
-        title = legend.get_title()
-        if title is None:
-            return ""
-        return title.get_text().strip()
+        return title_of(self.ax)
 
     @staticmethod
     def _axis_config(

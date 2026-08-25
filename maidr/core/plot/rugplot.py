@@ -268,10 +268,12 @@ class RugPlot(MaidrPlot):
         # Read off whichever legend named the groups, which is not always
         # this axes' own: the patch names them through `legend_of`, and that
         # falls back to a lone figure-level legend for a panel carrying
-        # none. `_legend_title` asks `ax.get_legend()` only, so on that path
-        # the layers came out named `a` and `b` with no `z` -- each saying
-        # which side of a grouping it was without the chart ever saying what
-        # the grouping was.
+        # none. Asking `ax.get_legend()` alone left the layers named `a` and
+        # `b` with no `z` on that path -- each saying which side of a
+        # grouping it was without the chart ever saying what the grouping
+        # was. `MaidrPlot._legend_title` had that defect too and now
+        # delegates here (#672), so the two agree; this stays the direct
+        # call because it is the one that states which lookup is meant.
         if self._group_members is not None:
             z_label = title_of(self.ax)
             if z_label:
