@@ -27,6 +27,12 @@ DRAWN_MARKS = "_maidr_marks"
 #: The artist carrying one element per mark, for highlighting.
 MARK_ARTIST = "_maidr_mark_artist"
 
+#: Whether the handed-over marks lie along x, so the chart is horizontal.
+#: Only the `DRAWN_MARKS` path reads it; a stem plot's container is measured
+#: instead. Defaults to vertical, which is what a correlogram can only have
+#: drawn and what `Axes.vlines` draws.
+MARKS_HORIZONTAL = "_maidr_marks_horizontal"
+
 
 def marks(container: StemContainer) -> list[tuple[int, float, float]]:
     """
@@ -174,11 +180,12 @@ class LollipopPlot(MaidrPlot):
             given = kwargs.get(DRAWN_MARKS, None)
             self._points = finite(given) if given is not None else []
             self._artist = kwargs.get(MARK_ARTIST, None)
-            # A correlogram stands its lags along x and its correlations up
-            # from zero, which is the default orientation. There is no
-            # spelling of `acorr` that turns it, so this is not read back off
-            # anything -- it is what the call can only have drawn.
-            self._horizontal = False
+            # Told rather than measured. A correlogram stands its lags along
+            # x and its correlations up from zero, and there is no spelling
+            # of `acorr` that turns it, so it says nothing and takes the
+            # default. `Axes.hlines` draws the same chart turned, and the
+            # only thing that knows which call was made is the patch (#664).
+            self._horizontal = bool(kwargs.get(MARKS_HORIZONTAL, False))
 
         # The element indices `_get_selector` addresses.
         self._drawn = [index for index, _, _ in self._points]

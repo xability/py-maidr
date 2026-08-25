@@ -125,9 +125,15 @@ def states_an_interval(spans: list) -> bool:
     reason is that nothing in the geometry separates it from a lollipop's
     stems, which are also "one shared start, differing ends" and which read
     as spans announce "0 to 8" for a chart that means "8". One of the two has
-    to lose, and announcing a measurement the chart does not make is the worse
-    outcome -- so the shared-start schedule falls back to a static image,
-    which is at least a picture.
+    to lose, and announcing a measurement the chart does not make is the
+    worse outcome.
+
+    What the loser falls back to has since improved. It used to be a static
+    image, "which is at least a picture"; :func:`reads_as_stems` now claims
+    the shape instead and it is read as the lollipop it is drawn as, whose
+    marks are the ends and whose shared start is the baseline (#664). The
+    rule here is unchanged -- it is still the schedule reading that is
+    declined -- but the cost of declining it is no longer the whole chart.
 
     Recorded here as well as in :class:`SpanPlot`'s docstring because a reader
     who arrives at this function alone would otherwise see only a rule that
@@ -144,6 +150,64 @@ def states_an_interval(spans: list) -> bool:
     # announcing "0 to 8" for a chart that means "8".
     extent = max(max(starts), max(ends)) - min(min(starts), min(ends))
     return not _same_within(starts, extent) and not _same_within(ends, extent)
+
+
+def reads_as_stems(collection, along_x: bool) -> list | None:
+    """
+    The marks a call drew, when it drew stems anchored at a baseline.
+
+    Asked only after :func:`draws_a_schedule` has said no, and for the same
+    reason it is asked in the patch rather than in the layer: a layer that
+    refuses at extraction takes the whole figure with it (#564).
+
+    A stem's value is its *free* end. Which end that is has to be read off
+    the drawing rather than assumed, because a baseline is not always zero
+    and not always the lower end -- ``vlines(x, [-3, -5], 0)`` draws stems
+    hanging from zero, whose values are the ``ymin`` argument (#664).
+
+    Parameters
+    ----------
+    collection : LineCollection or None
+        The artist the call drew.
+    along_x : bool
+        True when the intervals run along x, as ``hlines`` draws them.
+
+    Returns
+    -------
+    list of tuple or None
+        One ``(lane, tip)`` per segment in draw order, or None when the call
+        did not draw stems.
+
+    Notes
+    -----
+    Exactly one end shared is the whole of the test, and each of the other
+    three answers is somebody else's:
+
+    - **neither** shared is a schedule, which :func:`draws_a_schedule` has
+      already taken.
+    - **both** shared means every segment is the same interval, which no row
+      of the data states -- reference lines drawn across the frame, declined
+      for the reason #176 gives.
+    - a call holding **one** segment lands in the both-shared case, since a
+      single end trivially agrees with itself. That is the cost the same rule
+      pays in :class:`SpanPlot`, in xability/maidr#1100 and in #1122, and it
+      is paid here for the same reason.
+    """
+    spans = read_spans(collection, along_x)
+    if spans is None:
+        return None
+
+    starts = [start for _, start, _ in spans]
+    ends = [end for _, _, end in spans]
+    extent = max(max(starts), max(ends)) - min(min(starts), min(ends))
+
+    shared_start = _same_within(starts, extent)
+    shared_end = _same_within(ends, extent)
+    if shared_start == shared_end:
+        return None
+
+    tips = ends if shared_start else starts
+    return [(lane, tip) for (lane, _, _), tip in zip(spans, tips)]
 
 
 def draws_a_schedule(collection, along_x: bool) -> bool:
@@ -200,9 +264,12 @@ class SpanPlot(GanttPlot):
 
     - ``vlines(x, 0, y)`` is a lollipop's stems: every segment starts at the
       baseline, and read as spans they announce "0 to 8" where the chart
-      means "8" -- which the markers drawn at their tips already say.
+      means "8" -- which the markers drawn at their tips already say. Where
+      the caller drew no markers there is nothing saying it, so the patch
+      asks :func:`reads_as_stems` next and registers a ``lollipop`` (#664).
     - ``hlines(y, 0, 5)`` is a set of reference lines drawn across the frame:
       every segment is the same interval, which no row of the data states.
+      Both of its ends are shared, so the stem reading declines it too.
     - A call holding one segment cannot be told from either, since a single
       end trivially agrees with itself. That is the cost the same rule pays
       on the other two adapters, and it is paid here for the same reason.
