@@ -200,7 +200,19 @@ class MaidrPlot(ABC, FormatExtractorMixin):
             The title, or an empty string when there is no legend or no
             title on it.
         """
-        legend = self.ax.get_legend()
+        # Imported here rather than at module scope: `legend_names` reaches
+        # `scatterplot`, which reaches this module, so a top-level import
+        # would close the cycle.
+        from maidr.util.legend_names import legend_of
+
+        # `legend_of` rather than `self.ax.get_legend()`, which is what this
+        # read before -- the same move the scatter and bar paths made in
+        # #617. A `seaborn.objects` chart puts its one legend on the
+        # **figure** and leaves every panel's own at `None`, so a
+        # colour-split `so.Line` or `so.Dot` emitted no `axes.z` at all and
+        # the variable the chart is split by went unnamed, where the classic
+        # spelling of the same chart names it (#672).
+        legend = legend_of(self.ax)
         if legend is None:
             return ""
         title = legend.get_title()
