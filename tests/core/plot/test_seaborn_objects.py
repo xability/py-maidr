@@ -273,7 +273,6 @@ def test_a_panel_the_layer_never_drew_on_registers_nothing():
 @pytest.mark.parametrize(
     "mark",
     [
-        pytest.param(so.Bars(), id="Bars"),
         pytest.param(so.Dash(), id="Dash"),
         pytest.param(so.Text(), id="Text"),
     ],
@@ -285,10 +284,12 @@ def test_a_mark_this_does_not_read_still_registers_nothing(mark):
     mark whose artists no existing plot class can read is left alone, not
     guessed at. `Dash` matters most -- see the test below.
 
-    `Lines`, `Paths`, `Area`, `Band` and `Range` each left this list when they
-    gained a reading (#670). They came off deliberately: this list is the
-    reminder that a decline was a decision, so a mark added to `_READINGS`
-    has to be taken out of it by hand rather than quietly passing both ways.
+    `Lines`, `Paths`, `Area`, `Band`, `Range` and `Bars` each left this list
+    when they gained a reading (#670), leaving `Dash` and `Text` -- the two
+    that want a judgement rather than a measurement. They came off
+    deliberately: this list is the reminder that a decline was a decision, so
+    a mark added to `_READINGS` has to be taken out of it by hand rather than
+    quietly passing both ways.
     """
     figure = _drawn(
         lambda fig: so.Plot(_frame(), x="t", y="m").add(mark).on(fig).plot()
@@ -432,7 +433,6 @@ def test_every_selector_resolves_in_the_page_it_was_built_from(mark, x, y):
 @pytest.mark.parametrize(
     "mark",
     [
-        pytest.param(so.Bars(), id="Bars"),
         pytest.param(so.Dash(), id="Dash"),
         pytest.param(so.Text(), id="Text"),
     ],

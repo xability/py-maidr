@@ -8,7 +8,7 @@ from typing import Any, NamedTuple
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
-from matplotlib.collections import LineCollection, PathCollection
+from matplotlib.collections import LineCollection, PatchCollection, PathCollection
 from matplotlib.container import BarContainer
 from matplotlib.lines import Line2D
 from matplotlib.patches import Polygon
@@ -17,6 +17,7 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS, bar_groups
+from maidr.core.plot.bars_histogram import BIN_MEMBERS, DRAWN_BINS, hist_groups
 from maidr.core.plot.grouped_barplot import DRAWN_GROUPS
 from maidr.core.plot.intervalplot import DRAWN_INTERVALS
 from maidr.core.plot.maidr_plot import GROUP_NAME
@@ -123,6 +124,12 @@ _READINGS: dict[str, _Reading] = {
     # of bounds.
     "Band": _Reading(PlotType.ERRORBAR, "patches", Polygon, DRAWN_INTERVALS),
     "Range": _Reading(PlotType.ERRORBAR, "collections", LineCollection, DRAWN_INTERVALS),
+    # The continuous-x bar, which is the one seaborn draws for a histogram.
+    # `Bar` is the categorical one and leaves a `BarContainer`; measured,
+    # `Bars` leaves one `PatchCollection` of rectangles instead, which is
+    # neither a container nor the outline `element="step"` gives -- so all
+    # three of `HistPlot`'s existing ways in miss it (#670).
+    "Bars": _Reading(PlotType.HIST, "collections", PatchCollection, DRAWN_BINS, True),
 }
 
 
@@ -564,6 +571,25 @@ def _handovers(
                 (
                     reading.plot_type,
                     {reading.binding: own, HUE_GROUP: (name, [members])},
+                )
+                for name, members in groups
+            ]
+
+    if reading.plot_type is PlotType.HIST and len(own) == 1:
+        groups = hist_groups(ax, own[0])
+        if groups:
+            # One layer per level, which is what a classic
+            # `seaborn.histplot(hue=)` already gives -- it draws a container
+            # per level, and this mark overlays every level's bars in one
+            # collection instead. The members go with the name because a
+            # layer's bins are a slice of that collection rather than the
+            # whole of it, and its selectors have to number against the
+            # collection so the second level's point at the second level's
+            # paths.
+            return [
+                (
+                    reading.plot_type,
+                    {reading.binding: own[0], BIN_MEMBERS: members, GROUP_NAME: name},
                 )
                 for name, members in groups
             ]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
-from matplotlib.collections import LineCollection, PolyCollection
+from matplotlib.collections import LineCollection, PatchCollection, PolyCollection
 from matplotlib.patches import StepPatch
 from maidr.core.enum import PlotType
 from maidr.core.plot.areaplot import AreaPlot
@@ -10,6 +10,7 @@ from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxenplot import BoxenPlot
 from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.contour import ContourPlot
+from maidr.core.plot.bars_histogram import BarsHistPlot, DRAWN_BINS
 from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.intervalplot import DRAWN_INTERVALS, IntervalPlot
 from maidr.core.plot.eventplot import DRAWN_EVENTS, EventPlot
@@ -120,6 +121,11 @@ class MaidrPlotFactory:
             # find and no per-bin artist to look for.
             if isinstance(kwargs.get("step_patch"), StepPatch):
                 return StairsPlot(single_ax, **kwargs)
+            # `so.Bars()` draws the same distribution as one `PatchCollection`
+            # of rectangles -- neither a container nor an outline, so neither
+            # of the two below can read it.
+            if isinstance(kwargs.get(DRAWN_BINS), PatchCollection):
+                return BarsHistPlot(single_ax, **kwargs)
             # `sns.histplot(element="step"/"poly")` draws the same
             # distribution as one closed outline, so there is no container to
             # find and the call hands its `PolyCollection` over instead.
