@@ -200,6 +200,26 @@ class PlotlyPlotFactory:
             # precisely because it does know, and passes real positions.
             return PlotlyWaterfallPlot(trace, layout, **axis_kwargs)
 
+        if trace_type in (
+            "choropleth",
+            "choroplethmap",
+            "choroplethmapbox",
+        ):
+            from maidr.plotly.choropleth import PlotlyChoroplethPlot
+
+            return PlotlyChoroplethPlot(trace, layout, **axis_kwargs)
+
+        if trace_type in (
+            "scattergeo",
+            "scattermap",
+            "scattermapbox",
+            "densitymap",
+            "densitymapbox",
+        ):
+            from maidr.plotly.geo import PlotlyGeoScatterPlot
+
+            return PlotlyGeoScatterPlot(trace, layout, **axis_kwargs)
+
         if trace_type == "pie":
             from maidr.plotly.pie import PlotlyPiePlot
 
