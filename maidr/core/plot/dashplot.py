@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import uuid
-from typing import List
+from typing import List, Sequence
 
 import numpy as np
 from matplotlib.axes import Axes
@@ -15,6 +15,10 @@ from maidr.exception import ExtractionError
 
 #: The keyword the drawn collection is handed over under.
 DRAWN_DASHES = "dashes"
+
+#: Which of the collection's segments one layer announces, when a colour
+#: split made the layer a slice of it rather than the whole.
+DASH_MEMBERS = "dash_members"
 
 
 class DashPlot(ScatterPlot):
@@ -66,6 +70,10 @@ class DashPlot(ScatterPlot):
 
     def __init__(self, ax: Axes, **kwargs) -> None:
         self._collection: LineCollection = kwargs.pop(DRAWN_DASHES)
+        # Which of the collection's segments are this layer's. A colour split
+        # draws every level into one collection, so a layer is a slice of it
+        # rather than the whole; absent means all of them.
+        self._members: Sequence[int] | None = kwargs.pop(DASH_MEMBERS, None)
         # Which of the collection's segments the payload announces, in payload
         # order. Filled by `_extract_plot_data` and read by `_get_selector`;
         # empty here so a layer asked for its selectors before its data
@@ -104,6 +112,8 @@ class DashPlot(ScatterPlot):
         samples: list[dict] = []
         self._drawn = []
         for position, segment in enumerate(segments):
+            if self._members is not None and position not in self._members:
+                continue
             middle = _middle(segment)
             if middle is None:
                 continue

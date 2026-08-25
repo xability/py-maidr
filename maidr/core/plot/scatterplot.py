@@ -6,7 +6,7 @@ import uuid
 import numpy as np
 import numpy.ma as ma
 from matplotlib.axes import Axes
-from matplotlib.collections import PathCollection
+from matplotlib.collections import Collection, PathCollection
 from matplotlib.colors import to_rgba
 
 from maidr.core.enum import MaidrKey, PlotType
@@ -181,7 +181,7 @@ def _collections(given) -> list[PathCollection]:
 
 
 def hue_groups(
-    ax: Axes, collection: PathCollection
+    ax: Axes, collection: Collection
 ) -> list[tuple[str, list[int]]] | None:
     """
     The hue groups a scatter was drawn with, or ``None`` when it has none.
@@ -193,7 +193,9 @@ def hue_groups(
     legend's swatches, and each swatch carries its group's name.
 
     Reading those colours off the collection is the whole of what is specific
-    to the artist. Every reason to decline is
+    to the artist, and :func:`drawn_colours` is the whole of that -- a
+    ``so.Dash()`` draws the same grouping as an unfilled ``LineCollection``
+    and is read here too (#680). Every reason to decline is
     :func:`groups_from_colours`', which a bar layer reaches from a
     ``BarContainer`` and must be told the same (#599, #617).
 
@@ -201,8 +203,9 @@ def hue_groups(
     ----------
     ax : Axes
         The axes drawn on, for its legend.
-    collection : PathCollection
-        The points.
+    collection : Collection
+        The marks. A ``PathCollection`` of points, or the
+        ``LineCollection`` of ticks a dash mark draws.
 
     Returns
     -------
@@ -211,14 +214,49 @@ def hue_groups(
         collection offsets that belong to it, or ``None`` for a scatter that
         is not grouped.
     """
-    return groups_from_colours(ax, [_rgba(row) for row in collection.get_facecolors()])
+    return groups_from_colours(ax, [_rgba(row) for row in drawn_colours(collection)])
+
+
+def drawn_colours(collection: Collection) -> np.ndarray:
+    """
+    The colours a collection drew its marks in.
+
+    Face colours where the artist has them and edge colours otherwise, which
+    is a fact about the artist rather than about the chart -- and so belongs
+    beside :func:`hue_groups`, whose whole job is the part that is specific
+    to the artist.
+
+    A ``PathCollection``'s markers are filled; a ``LineCollection``'s ticks
+    are not. Measured on a colour-split ``so.Dash()`` over two levels::
+
+        get_facecolors()   (0, 4)     <- empty
+        get_edgecolors()   (40, 4)
+
+    So asking for faces alone read nothing off a chart whose colours were all
+    there, one attribute over: the split was declined and the reader was
+    handed one anonymous layer of forty ticks (#680).
+
+    Parameters
+    ----------
+    collection : Collection
+        The artist to read.
+
+    Returns
+    -------
+    ndarray
+        One RGBA row per mark, or however many the artist was given.
+    """
+    faces = np.asarray(collection.get_facecolors())
+    if len(faces):
+        return faces
+    return np.asarray(collection.get_edgecolors())
 
 
 def groups_from_colours(ax: Axes, colours: list) -> list[tuple[str, list[int]]] | None:
     """
     The groups a legend names among one layer's drawn colours.
 
-    Everything :func:`hue_groups` does after reading a collection's face
+    Everything :func:`hue_groups` does after reading a collection's drawn
     colours, which is everything that is not about the artist. A bar layer
     asks the same question of a ``BarContainer``'s patches
     (:func:`maidr.core.plot.barplot.bar_groups`) and must get the same answer,
@@ -227,8 +265,8 @@ def groups_from_colours(ax: Axes, colours: list) -> list[tuple[str, list[int]]] 
 
     Everything here is a reason to decline, and each has a chart behind it:
 
-    - **One colour for the whole layer.** ``get_facecolors()`` returns a
-      single row when every point shares a colour, which is what an ungrouped
+    - **One colour for the whole layer.** A collection reports a single
+      colour row when every mark shares one, which is what an ungrouped
       scatter and a ``style=``-only scatter both produce; a bar drawn without
       ``color=`` arrives one-long the same way.
     - **No legend.** ``legend=False`` suppresses it, and a manual

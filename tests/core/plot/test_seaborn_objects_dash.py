@@ -108,14 +108,20 @@ def test_a_dodged_tick_announces_its_category_and_not_the_offset():
     Measured, a dodged first segment runs `[-0.4, y]` to `[0.0, y]`, so its
     midpoint is `-0.2` -- the offset, which is what #617 found `so.Bar`
     announcing where the axis says `a`.
+
+    A dodge needs something to dodge by, so this chart is also colour-split
+    and reads as one layer per level (#680). The snapping is per tick, so it
+    is asserted of every layer rather than of the one this used to be.
     """
-    schema = _only(
+    schemas = _layers(
         so.Plot(_frame(), x="x", y="v", color="g").add(so.Dash(), so.Dodge())
     )
-    points = schema[MaidrKey.DATA]
 
-    assert {point[MaidrKey.X] for point in points} == {0.0, 1.0, 2.0, 3.0, 4.0}
-    assert {point[MaidrKey.X_LABEL] for point in points} == set("abcde")
+    assert len(schemas) == 2
+    for schema in schemas:
+        points = schema[MaidrKey.DATA]
+        assert {point[MaidrKey.X] for point in points} == {0.0, 1.0, 2.0, 3.0, 4.0}
+        assert {point[MaidrKey.X_LABEL] for point in points} == set("abcde")
 
 
 def test_an_aggregated_dash_reads_one_tick_per_category():
@@ -293,3 +299,70 @@ def test_the_nth_selector_addresses_the_nth_tick():
     assert re.search(r"nth-of-type\((\d+)\)", selectors[0]).group(1) == "1"
     assert re.search(r"nth-of-type\((\d+)\)", selectors[2]).group(1) == "3"
     assert len(paths) == len(selectors)
+
+
+def test_a_colour_split_becomes_one_layer_per_level():
+    """A two-level chart offered one anonymous cloud of forty ticks (#680).
+
+    `hue_groups` inverts a collection's colours against the legend that names
+    them, and it read *face* colours — which a line collection has none of.
+    Measured on this chart, 0 face colours against 40 edge colours: the
+    grouping was all there, one attribute over.
+    """
+    schemas = _layers(
+        so.Plot(_frame(), x="x", y="v", color="g").add(so.Dash(), so.Dodge())
+    )
+
+    assert [schema.get(MaidrKey.NAME) for schema in schemas] == ["p", "q"]
+    assert [len(schema[MaidrKey.DATA]) for schema in schemas] == [20, 20]
+
+
+def test_each_level_keeps_its_categories_and_its_own_values():
+    frame = _frame()
+    schemas = _layers(
+        so.Plot(frame, x="x", y="v", color="g").add(so.Dash(), so.Dodge())
+    )
+
+    for schema, level in zip(schemas, ["p", "q"]):
+        points = schema[MaidrKey.DATA]
+        # Still snapped to the ticks rather than announced at the dodge
+        # offset, and still named after them.
+        assert {point[MaidrKey.X_LABEL] for point in points} == set("abcde")
+        assert {round(point[MaidrKey.Y], 6) for point in points} == {
+            round(float(v), 6) for v in frame.loc[frame["g"] == level, "v"]
+        }
+
+
+def test_each_level_outlines_its_own_ticks_and_not_its_neighbours():
+    """Numbered against the collection, not against the layer.
+
+    Every level's ticks live in one collection, so a layer that numbered its
+    selectors from one would point the second level's announcements at the
+    first level's paths.
+    """
+    schemas = _layers(
+        so.Plot(_frame(), x="x", y="v", color="g").add(so.Dash(), so.Dodge())
+    )
+    numbers = [
+        [
+            int(re.search(r"nth-of-type\((\d+)\)", selector).group(1))
+            for selector in schema[MaidrKey.SELECTOR]
+        ]
+        for schema in schemas
+    ]
+
+    assert numbers[0] == list(range(1, 21))
+    assert numbers[1] == list(range(21, 41))
+    # And one gid between them, because it is one collection.
+    assert len({
+        re.search(r"id='([^']+)'", schema[MaidrKey.SELECTOR][0]).group(1)
+        for schema in schemas
+    }) == 1
+
+
+def test_an_ungrouped_dash_is_still_one_unnamed_layer():
+    """The split is a grouping, not a default: one colour is one layer."""
+    schema = _only(so.Plot(_frame(), x="x", y="v").add(so.Dash()))
+
+    assert MaidrKey.NAME not in schema
+    assert len(schema[MaidrKey.DATA]) == 40

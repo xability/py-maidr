@@ -19,7 +19,7 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS, bar_groups
 from maidr.core.plot.bars_histogram import BIN_MEMBERS, DRAWN_BINS, hist_groups
-from maidr.core.plot.dashplot import DRAWN_DASHES
+from maidr.core.plot.dashplot import DASH_MEMBERS, DRAWN_DASHES
 from maidr.core.plot.textplot import DRAWN_LABELS
 from maidr.core.plot.textplot import reads as reads_labels
 from maidr.core.plot.grouped_barplot import DRAWN_GROUPS
@@ -568,6 +568,21 @@ def _handovers(
 
     if reading.plot_type is PlotType.SCATTER and len(own) == 1:
         groups = hue_groups(ax, own[0])
+        # A `so.Dash()` takes the shape `so.Bars` does rather than the one
+        # `so.Dot` does: its class is handed **one** collection and reads a
+        # slice of it, where a scatter layer is handed the list and filters
+        # by offset. So the members go with the name, and the selectors keep
+        # numbering against the collection -- the second level's ticks point
+        # at the second level's paths (#680).
+        if groups and reading.binding == DRAWN_DASHES:
+            return [
+                (
+                    reading.plot_type,
+                    {reading.binding: own[0], DASH_MEMBERS: members,
+                     GROUP_NAME: name},
+                )
+                for name, members in groups
+            ]
         if groups:
             # `hue_groups` answers in the offsets of the collection it was
             # asked about, and the layer takes a list of those -- one per
