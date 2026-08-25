@@ -6,7 +6,7 @@ from matplotlib.lines import Line2D
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot.scatterplot import _rgba
 from maidr.util.artist_label import series_name
-from maidr.util.legend_names import names_for
+from maidr.util.legend_names import legend_of, names_for
 from maidr.util.confidence_band import band_edges_at
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
@@ -294,8 +294,21 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         # Try to get series names from legend
         ax_legend_source = self.ax
         legend_labels = []
-        if self.ax.legend_ is not None:
-            legend_labels = [text.get_text() for text in self.ax.legend_.get_texts()]
+        # `legend_of` rather than `self.ax.legend_`, which is what this read
+        # before. The two answer differently wherever the legend was not put
+        # on the axes, and a `seaborn.objects` chart is *always* that case:
+        # measured, `Plotter._make_legend` builds one **figure** legend and
+        # leaves every panel's own at `None`, so a colour-split `so.Line`
+        # found no labels, fell back to each line's own -- seaborn's
+        # `_child0` sentinel -- and announced two series a reader could not
+        # tell apart, where `sns.lineplot(hue=)` names both (#672).
+        #
+        # The same move the scatter and bar paths already made (#617), and
+        # `names_for` below has been going through it all along, which is why
+        # only this read was left behind.
+        legend = legend_of(self.ax)
+        if legend is not None:
+            legend_labels = [text.get_text() for text in legend.get_texts()]
 
         # Which line each legend entry belongs to. A legend is not always as
         # long as the series list, and pairing the two by position when it is
