@@ -12,6 +12,7 @@ from matplotlib.collections import LineCollection, PatchCollection, PathCollecti
 from matplotlib.container import BarContainer
 from matplotlib.lines import Line2D
 from matplotlib.patches import Polygon
+from matplotlib.text import Text
 
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
@@ -19,6 +20,8 @@ from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS, bar_groups
 from maidr.core.plot.bars_histogram import BIN_MEMBERS, DRAWN_BINS, hist_groups
 from maidr.core.plot.dashplot import DRAWN_DASHES
+from maidr.core.plot.textplot import DRAWN_LABELS
+from maidr.core.plot.textplot import reads as reads_labels
 from maidr.core.plot.grouped_barplot import DRAWN_GROUPS
 from maidr.core.plot.intervalplot import DRAWN_INTERVALS
 from maidr.core.plot.maidr_plot import GROUP_NAME
@@ -132,6 +135,7 @@ _READINGS: dict[str, _Reading] = {
     # three of `HistPlot`'s existing ways in miss it (#670).
     "Bars": _Reading(PlotType.HIST, "collections", PatchCollection, DRAWN_BINS, True),
     "Dash": _Reading(PlotType.SCATTER, "collections", LineCollection, DRAWN_DASHES, True),
+    "Text": _Reading(PlotType.SCATTER, "texts", Text, DRAWN_LABELS),
 }
 
 
@@ -623,6 +627,15 @@ def _handovers(
                 (reading.plot_type, {reading.binding: container, GROUP_NAME: name})
                 for container, (name, _) in zip(containers, groups)
             ]
+
+    # A `so.Text()` written with no `text=` variable draws one artist per
+    # observation and puts an empty string in every one. Registered, the
+    # layer raises when it cannot find a label to announce, and an
+    # `ExtractionError` takes the whole figure to a static image -- the
+    # phantom-layer shape of #421 with a fatal ending. Declined here, the
+    # rest of the chart is unaffected.
+    if reading.binding == DRAWN_LABELS and not reads_labels(own):
+        return []
 
     if reading.singular:
         return [(reading.plot_type, {reading.binding: one}) for one in own]

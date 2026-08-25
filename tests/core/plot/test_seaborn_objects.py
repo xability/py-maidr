@@ -270,31 +270,30 @@ def test_a_panel_the_layer_never_drew_on_registers_nothing():
     assert len(_layers(figure)) == 2
 
 
-@pytest.mark.parametrize(
-    "mark",
-    [
-        pytest.param(so.Text(), id="Text"),
-    ],
-)
-def test_a_mark_this_does_not_read_still_registers_nothing(mark):
-    """The additive guarantee, asserted rather than assumed.
+def test_every_mark_seaborn_defines_is_read():
+    """The list of declines is empty, and this is what keeps it honest.
 
-    Each of these registered nothing before and must register nothing now: a
-    mark whose artists no existing plot class can read is left alone, not
-    guessed at. `Dash` matters most -- see the test below.
+    This test began as a list of marks that registered nothing, asserting
+    that each still did -- the reminder that a decline was a decision rather
+    than an oversight. `Lines`, `Paths`, `Area`, `Band`, `Range`, `Bars`,
+    `Dash` and finally `Text` each came off it as they gained readings
+    (#670), and with the last one gone the list has no subject left.
 
-    `Lines`, `Paths`, `Area`, `Band`, `Range`, `Bars` and now `Dash` each
-    left this list when they gained a reading (#670), leaving `Text` alone --
-    the one mark that draws no artist any holder in `_READINGS` names. They
-    came off deliberately: this list is the reminder that a decline was a
-    decision, so a mark added to `_READINGS` has to be taken out of it by
-    hand rather than quietly passing both ways.
+    So it inverts. Every mark `seaborn.objects` defines is in `_READINGS`,
+    and a seaborn release that adds one fails here rather than shipping a
+    mark that silently draws nothing a reader can reach.
     """
-    figure = _drawn(
-        lambda fig: so.Plot(_frame(), x="t", y="m").add(mark).on(fig).plot()
-    )
+    from maidr.patch.seaborn_objects import _READINGS
 
-    assert _registers_nothing(figure)
+    defined = {
+        name
+        for name in dir(so)
+        if isinstance(getattr(so, name), type)
+        and issubclass(getattr(so, name), so.Mark)
+        and name != "Mark"
+    }
+
+    assert defined == set(_READINGS)
 
 
 def test_the_marks_are_matched_by_name_and_not_by_ancestry():
@@ -335,10 +334,13 @@ def test_a_mark_that_is_read_still_reads_beside_one_that_is_not():
     """An unclaimed layer must not take the chart down with it.
 
     That is the whole-chart-to-a-picture failure of xability/r-maidr#225,
-    from the side where declining is the right answer: the `Text` is not
-    read, and the `Dot` beside it is unaffected. It was a `Dash` here until
-    #670 gave that one a reading, which is the churn this list exists to
-    make visible.
+    from the side where declining is the right answer.
+
+    Every mark is read now, so the unreadable companion is a mark drawn with
+    nothing to read: a `so.Text()` written with no `text=` variable draws one
+    artist per observation and puts an empty string in every one. Nothing is
+    on the page, the layer is declined before it registers, and the `Dot`
+    beside it is unaffected.
     """
     figure = _drawn(
         lambda fig: so.Plot(_frame(), x="t", y="m")
@@ -433,17 +435,20 @@ def test_every_selector_resolves_in_the_page_it_was_built_from(mark, x, y):
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "mark",
-    [
-        pytest.param(so.Text(), id="Text"),
-    ],
-)
-def test_a_mark_outside_the_table_is_declined_rather_than_defaulted(mark):
-    """The lookup returns nothing for a mark it does not name."""
+def test_a_mark_outside_the_table_is_declined_rather_than_defaulted():
+    """The lookup returns nothing for a mark it does not name.
+
+    Asked with a stand-in rather than with a real mark, because there is no
+    longer an unread one to ask with -- and that is the point: the guard has
+    to keep working for the mark a future seaborn adds, which is exactly the
+    thing that does not exist yet.
+    """
     from maidr.patch.seaborn_objects import _reading_for
 
-    assert _reading_for({"mark": mark}) is None
+    class Sparkline(so.Mark):
+        """A mark seaborn does not define and this does not read."""
+
+    assert _reading_for({"mark": Sparkline()}) is None
 
 
 def test_a_reading_takes_only_its_own_artist_class_from_a_holder():

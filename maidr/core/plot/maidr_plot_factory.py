@@ -11,6 +11,7 @@ from maidr.core.plot.boxenplot import BoxenPlot
 from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.contour import ContourPlot
 from maidr.core.plot.dashplot import DRAWN_DASHES, DashPlot
+from maidr.core.plot.textplot import DRAWN_LABELS, TextPlot
 from maidr.core.plot.bars_histogram import BarsHistPlot, DRAWN_BINS
 from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.intervalplot import DRAWN_INTERVALS, IntervalPlot
@@ -179,6 +180,12 @@ class MaidrPlotFactory:
             # its values in the segments rather than in offsets (#670).
             if kwargs.get(DRAWN_DASHES) is not None:
                 return DashPlot(single_ax, **kwargs)
+            # `so.Text()` writes a string at each observation instead of
+            # drawing a marker, so it leaves `Text` artists and nothing in
+            # `collections` at all -- the only mark #670 read that draws into
+            # a holder no other reading names.
+            if kwargs.get(DRAWN_LABELS) is not None:
+                return TextPlot(single_ax, **kwargs)
             return ScatterPlot(single_ax, **kwargs)
         elif plot_type in (PlotType.DODGED, PlotType.STACKED, PlotType.NORMALIZED):
             # One class, three types. They differ in how the groups relate --
