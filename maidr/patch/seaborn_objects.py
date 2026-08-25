@@ -18,6 +18,7 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS, bar_groups
 from maidr.core.plot.bars_histogram import BIN_MEMBERS, DRAWN_BINS, hist_groups
+from maidr.core.plot.dashplot import DRAWN_DASHES
 from maidr.core.plot.grouped_barplot import DRAWN_GROUPS
 from maidr.core.plot.intervalplot import DRAWN_INTERVALS
 from maidr.core.plot.maidr_plot import GROUP_NAME
@@ -130,6 +131,7 @@ _READINGS: dict[str, _Reading] = {
     # neither a container nor the outline `element="step"` gives -- so all
     # three of `HistPlot`'s existing ways in miss it (#670).
     "Bars": _Reading(PlotType.HIST, "collections", PatchCollection, DRAWN_BINS, True),
+    "Dash": _Reading(PlotType.SCATTER, "collections", LineCollection, DRAWN_DASHES, True),
 }
 
 
