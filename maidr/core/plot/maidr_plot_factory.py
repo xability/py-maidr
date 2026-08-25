@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
-from matplotlib.collections import PolyCollection
+from matplotlib.collections import LineCollection, PolyCollection
 from matplotlib.patches import StepPatch
 from maidr.core.enum import PlotType
 from maidr.core.plot.areaplot import AreaPlot
@@ -18,6 +18,7 @@ from maidr.core.plot.heatmap import HeatPlot
 from maidr.core.plot.hexbinplot import HexbinPlot
 from maidr.core.plot.histogram import HistPlot
 from maidr.core.plot.lineplot import MultiLinePlot
+from maidr.core.plot.segment_lineplot import DRAWN_SEGMENTS, SegmentLinePlot
 from maidr.core.plot.lollipop import LollipopPlot
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.core.plot.outlined_histogram import OUTLINE_LINE, OutlinedHistPlot
@@ -132,6 +133,12 @@ class MaidrPlotFactory:
                 return StepHistPlot(single_ax, counts, edges, **kwargs)
             return HistPlot(single_ax, **kwargs)
         elif PlotType.LINE == plot_type:
+            # `so.Lines` and `so.Paths` draw every series into one
+            # `LineCollection` rather than a `Line2D` each, so the layer is
+            # handed the collection and reads its segments (#670). The same
+            # shape `SteppedHistPlot` is selected by above.
+            if isinstance(kwargs.get(DRAWN_SEGMENTS), LineCollection):
+                return SegmentLinePlot(single_ax, **kwargs)
             if PlotDetectionUtils.is_mplfinance_line_plot(single_ax, **kwargs):
                 return MplfinanceLinePlot(single_ax, **kwargs)
             else:
