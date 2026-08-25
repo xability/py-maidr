@@ -129,6 +129,66 @@ def test_a_colour_split_so_dot_names_the_variable_too():
     ]
 
 
+def _moved_to_the_figure(draw) -> plt.Figure:
+    """One chart whose legend was moved off the panel and onto the figure.
+
+    The swatches are the *drawn* ones, which is what makes this the real
+    case rather than a stand-in: a grid's ``add_legend()`` gathers the
+    panels' own handles, so the colour match that names the groups still
+    holds and only the legend's owner has changed.
+    """
+    figure, ax = plt.subplots()
+    draw(ax)
+    own = ax.get_legend()
+    handles = own.legend_handles
+    labels = [text.get_text() for text in own.get_texts()]
+    own.remove()
+    figure.legend(handles, labels, title="g")
+    return figure
+
+
+def test_a_scatter_names_its_variable_from_a_legend_moved_to_the_figure():
+    # `_legend_title` is shared, and `ScatterPlot` is one of the three other
+    # classes that read through it. Its groups were already named -- the
+    # split goes through `legend_of` -- so before this fix the chart said
+    # which side of a grouping each layer was on and never said what the
+    # grouping was.
+    figure = _moved_to_the_figure(
+        lambda ax: sns.scatterplot(data=_frame(), x="x", y="y", hue="g", ax=ax)
+    )
+    maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
+
+    assert [plot.schema["name"] for plot in plots] == ["p", "q"]
+    assert [plot.schema["axes"]["z"] for plot in plots] == [
+        {"label": "g"},
+        {"label": "g"},
+    ]
+
+
+def test_an_estimate_plot_names_its_variable_from_that_legend_too():
+    # `PointPlot`, the third caller. An interval chart is where a grouping
+    # matters most -- whether two groups' intervals overlap is the question
+    # the chart is drawn to answer -- so an unnamed one is the worst place
+    # for this to be missing.
+    # Replicated, because an estimate plot draws an interval only where
+    # there is a spread to draw one from: with one observation per cell
+    # `PointPlot` never appears and the chart is a plain line.
+    replicated = pd.concat([_frame()] * 3, ignore_index=True)
+    replicated["y"] += [0.0, 0.5, -0.5] * (len(replicated) // 3)
+    figure = _moved_to_the_figure(
+        lambda ax: sns.pointplot(data=replicated, x="x", y="y", hue="g", ax=ax)
+    )
+    maidr.render(figure)._repr_html_()
+    plots = FigureManager.get_maidr(figure).plots
+
+    # A point plot draws its estimates and their intervals as separate
+    # layers, and both are read; the grouping names the chart rather than
+    # either layer, so it belongs on every one of them.
+    assert "error_bar" in [plot.type.value for plot in plots]
+    assert [plot.schema["axes"]["z"] for plot in plots] == [{"label": "g"}] * len(plots)
+
+
 def test_a_line_chart_with_no_legend_is_named_nothing_rather_than_something():
     # The direction that matters if this were ever loosened: a chart nobody
     # split announces no groups, rather than a name invented for it.

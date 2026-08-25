@@ -9,7 +9,6 @@ from matplotlib.collections import LineCollection
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.util.grid_axes import bounds_along, one_row_around
-from maidr.util.legend_names import title_of
 
 #: Key the patch hands this layer the ``LineCollection`` its own call drew
 #: under. Named like ``eventplot.DRAWN_EVENTS`` and read the same way: the
@@ -271,11 +270,14 @@ class RugPlot(MaidrPlot):
         # none. Asking `ax.get_legend()` alone left the layers named `a` and
         # `b` with no `z` on that path -- each saying which side of a
         # grouping it was without the chart ever saying what the grouping
-        # was. `MaidrPlot._legend_title` had that defect too and now
-        # delegates here (#672), so the two agree; this stays the direct
-        # call because it is the one that states which lookup is meant.
+        # was.
+        #
+        # This called `title_of` directly because `_legend_title` used to
+        # ask the axes alone and would have reintroduced exactly that. It no
+        # longer does (#672), so the inherited method is the one to use and
+        # there is no second call site to keep in step.
         if self._group_members is not None:
-            z_label = title_of(self.ax)
+            z_label = self._legend_title()
             if z_label:
                 axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
 
