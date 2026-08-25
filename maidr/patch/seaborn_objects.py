@@ -8,7 +8,7 @@ from typing import Any, NamedTuple
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
-from matplotlib.collections import PathCollection
+from matplotlib.collections import LineCollection, PathCollection
 from matplotlib.container import BarContainer
 from matplotlib.lines import Line2D
 from matplotlib.patches import Polygon
@@ -20,6 +20,7 @@ from maidr.core.plot.barplot import DRAWN_BARS, bar_groups
 from maidr.core.plot.grouped_barplot import DRAWN_GROUPS
 from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.core.plot.scatterplot import DRAWN_POINTS, HUE_GROUP, hue_groups
+from maidr.core.plot.segment_lineplot import DRAWN_SEGMENTS
 from maidr.patch.common import _draw_quietly
 
 
@@ -102,6 +103,13 @@ _READINGS: dict[str, _Reading] = {
     # only where the artist itself goes and `_area_handover` supplies the
     # rest.
     "Area": _Reading(PlotType.AREA, "patches", Polygon, "collections"),
+    # The many-series spelling of `Line` and `Path`: measured, a colour split
+    # leaves **one** `LineCollection` carrying a segment per group, where the
+    # singular marks leave a `Line2D` each. `SegmentLinePlot` reads those
+    # segments, so the collection is handed over singular -- a layer draws one,
+    # and two would be two charts (#670).
+    "Lines": _Reading(PlotType.LINE, "collections", LineCollection, DRAWN_SEGMENTS, True),
+    "Paths": _Reading(PlotType.LINE, "collections", LineCollection, DRAWN_SEGMENTS, True),
 }
 
 

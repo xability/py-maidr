@@ -274,8 +274,6 @@ def test_a_panel_the_layer_never_drew_on_registers_nothing():
     "mark",
     [
         pytest.param(so.Bars(), id="Bars"),
-        pytest.param(so.Lines(), id="Lines"),
-        pytest.param(so.Paths(), id="Paths"),
         pytest.param(so.Dash(), id="Dash"),
         pytest.param(so.Text(), id="Text"),
     ],
@@ -285,7 +283,12 @@ def test_a_mark_this_does_not_read_still_registers_nothing(mark):
 
     Each of these registered nothing before and must register nothing now: a
     mark whose artists no existing plot class can read is left alone, not
-    guessed at. `Dash` and `Paths` matter most -- see the test below.
+    guessed at. `Dash` matters most -- see the test below.
+
+    `Lines` and `Paths` left this list when they gained a reading (#670).
+    They came off deliberately: this list is the reminder that a decline was
+    a decision, so a mark added to `_READINGS` has to be taken out of it by
+    hand rather than quietly passing both ways.
     """
     figure = _drawn(
         lambda fig: so.Plot(_frame(), x="t", y="m").add(mark).on(fig).plot()
@@ -301,10 +304,13 @@ def test_the_marks_are_matched_by_name_and_not_by_ancestry():
         Dash  < Paths < Mark      LineCollection
         Range < Paths < Mark      LineCollection
 
-    So dispatching on ancestry would claim `Dash` and `Range` as lines and
-    read a `LineCollection` through `LinePlot`, which cannot see it. This
-    pins the hierarchy itself, so the seaborn release that changes it fails
-    here rather than silently widening what gets claimed.
+    So dispatching on ancestry would claim `Dash` and `Range` as `Paths`,
+    which now *is* read -- and read them as line series, which neither
+    draws: a `Dash` is a tick per position and a `Range` is an interval.
+    Since #670 that is a live hazard rather than a hypothetical one, because
+    the ancestor a wrong dispatch would land on has a reading to hand them.
+    This pins the hierarchy itself, so the seaborn release that changes it
+    fails here rather than silently widening what gets claimed.
     """
     assert issubclass(so.Line, so.Path)
     assert issubclass(so.Dash, so.Paths)
