@@ -5,11 +5,13 @@ from __future__ import annotations
 import warnings
 from typing import Any, NamedTuple
 
+import numpy as np
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
 from matplotlib.container import BarContainer
 from matplotlib.lines import Line2D
+from matplotlib.patches import Polygon
 
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
@@ -92,6 +94,14 @@ _READINGS: dict[str, _Reading] = {
     "Line": _Reading(PlotType.LINE, "lines", Line2D, "lines"),
     "Path": _Reading(PlotType.LINE, "lines", Line2D, "lines"),
     "Bar": _Reading(PlotType.BAR, "containers", BarContainer, DRAWN_BARS, True),
+    # An area's artists arrive in `patches` rather than in `collections`,
+    # which is the one thing separating it from `ax.fill_between`'s band
+    # (#339, #670): a `Polygon` patch instead of a `PolyCollection`, holding
+    # the same fold of baseline-then-values-reversed. `AreaPlot` takes the
+    # positions and the series rather than the artist, so `binding` names
+    # only where the artist itself goes and `_area_handover` supplies the
+    # rest.
+    "Area": _Reading(PlotType.AREA, "patches", Polygon, "collections"),
 }
 
 
@@ -350,8 +360,121 @@ def _grouped_type(move: list[Any] | None) -> PlotType | None:
     return None
 
 
+
+def _unfolded(polygon: Polygon) -> list[tuple[float, float]] | None:
+    """
+    The positions and magnitudes one area polygon was folded from.
+
+    ``so.Area`` closes its band by running the **baseline** forward and then
+    the **values** backward, so the second half of the vertex list is the
+    drawn series in reverse. Measured on ``x = 0, 1, 2`` against
+    ``y = 1, 3, 2``::
+
+        [[0,0], [1,0], [2,0], [2,2], [1,3], [0,1], [0,0]]
+         └──── baseline ────┘  └──── values, reversed ────┘
+
+    The closing repeat is not always there, and which spelling drops it is
+    narrower than it looks. Measured on the same three points: ``baseline=0``
+    and ``baseline=5`` both give **seven** vertices, while ``baseline=10`` --
+    the first drawn value -- gives **six**, because the last drawn vertex
+    already coincides with the first baseline one and matplotlib does not
+    repeat it. So the split is ``len // 2`` rather than ``(len - 1) // 2``,
+    which is 3 for both forms where the latter is 3 and 2.
+
+    Parameters
+    ----------
+    polygon : Polygon
+        The patch the mark drew.
+
+    Returns
+    -------
+    list of (float, float), or None
+        The drawn vertices, in the order the positions run; ``None`` when
+        there are too few to be a fold, which declines rather than guessing
+        at a shape.
+    """
+    vertices = np.asarray(polygon.get_xy(), dtype=float)
+    if vertices.ndim != 2 or vertices.shape[0] < 4:
+        return None
+    half = vertices.shape[0] // 2
+    values = vertices[half : half * 2][::-1]
+    if values.shape[0] != half:
+        return None
+    return [(float(point[0]), float(point[1])) for point in values]
+
+
+def _area_handover(own: list, orient: str | None) -> list[tuple[PlotType, dict]]:
+    """
+    What to register for an ``so.Area`` layer, or nothing.
+
+    **One polygon, or nothing.** A layer that drew several is a colour split,
+    and a colour split declines for a reason about names rather than numbers:
+    measured, each level's polygon spans every position, so they would fold
+    into one layer of several series -- arriving without the names that tell
+    them apart. The legend holding those is the figure's, built after every
+    layer is drawn, and `AreaPlot` takes its labels at construction. Two
+    unnamed series is the shape xability/maidr#828 exists to prevent, so this
+    waits for the naming rather than shipping without it (#670).
+
+    That one rule also covers a **position transform**, which is why there is
+    no separate guard for one. `so.Stack()` matters only where there is a
+    second band to stack on: measured on a single group, `so.Area()`,
+    `so.Area(), so.Stack()` and `so.Area(), so.Dodge()` draw byte-identical
+    polygons, and reading that polygon is right in all three. Given two
+    levels the stack draws two polygons, the second running from the first's
+    top -- so its second half is the *cumulative* top rather than that
+    group's own values -- and the count declines it before that matters.
+
+    A sideways area is read, and is the one case that moves anything: with
+    ``orient="y"`` the positions run down the page and the magnitudes out
+    along x, which is `AreaPlot`'s ``transposed`` -- the same exchange
+    ``fill_betweenx`` already gets (#566).
+
+    Parameters
+    ----------
+    own : list
+        The polygons this layer drew on one panel.
+    orient : str, optional
+        ``layer["orient"]``: ``"y"`` for a sideways band.
+
+    Returns
+    -------
+    list of (PlotType, dict)
+        One entry, or an empty list which registers nothing.
+    """
+    if len(own) != 1:
+        return []
+    drawn = _unfolded(own[0])
+    if drawn is None:
+        return []
+    # A sideways band's positions run down the page and its magnitudes out
+    # along x, so which vertex coordinate is which turns round with `orient`
+    # -- measured on `orient="y"`, the baseline runs down x = 0 and the
+    # values sit at (1, 0), (3, 1), (2, 2), which is magnitude 1, 3, 2 at
+    # positions 0, 1, 2.
+    sideways = orient == "y"
+    positions = [point[1] if sideways else point[0] for point in drawn]
+    magnitudes = [point[0] if sideways else point[1] for point in drawn]
+    return [
+        (
+            PlotType.AREA,
+            {
+                "x": positions,
+                "series": [magnitudes],
+                "labels": [],
+                "collections": own,
+                "transposed": sideways,
+            },
+        )
+    ]
+
+
 def _handovers(
-    reading: _Reading, ax: Axes, own: list, move: list[Any] | None = None
+    reading: _Reading,
+    ax: Axes,
+    own: list,
+    move: list[Any] | None = None,
+    orient: str | None = None,
 ) -> list[tuple[PlotType, dict]]:
     """
     What to register for one layer's artists: one entry per layer to make.
@@ -406,6 +529,9 @@ def _handovers(
         One (type, keyword mapping) pair per layer to register. The type is
         the mark's own except where a position transform names a richer one.
     """
+    if reading.plot_type is PlotType.AREA:
+        return _area_handover(own, orient)
+
     if reading.plot_type is PlotType.SCATTER and len(own) == 1:
         groups = hue_groups(ax, own[0])
         if groups:
@@ -523,7 +649,7 @@ def _layer(wrapped, instance, args, kwargs) -> Any:
         # `FacetGrid.add_legend()`, and a name can be deferred to render as a
         # callable -- but a *split* cannot, because it decides how many
         # layers there are. So the reading waits for `_register`.
-        pending.append((ax, reading, own, layer.get("move")))
+        pending.append((ax, reading, own, layer.get("move"), layer.get("orient")))
 
     return drawn
 
@@ -565,8 +691,8 @@ def _register(wrapped, instance, args, kwargs) -> Any:
 
     plotter = wrapped(*args, **kwargs)
 
-    for ax, reading, own, move in getattr(plotter, _PENDING, ()):
-        for plot_type, handover in _handovers(reading, ax, own, move):
+    for ax, reading, own, move, orient in getattr(plotter, _PENDING, ()):
+        for plot_type, handover in _handovers(reading, ax, own, move, orient):
             FigureManager.create_maidr(ax, plot_type, **handover)
 
     return plotter

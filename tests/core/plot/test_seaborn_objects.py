@@ -273,7 +273,6 @@ def test_a_panel_the_layer_never_drew_on_registers_nothing():
 @pytest.mark.parametrize(
     "mark",
     [
-        pytest.param(so.Area(), id="Area"),
         pytest.param(so.Bars(), id="Bars"),
         pytest.param(so.Lines(), id="Lines"),
         pytest.param(so.Paths(), id="Paths"),
@@ -325,13 +324,13 @@ def test_a_mark_that_is_read_still_reads_beside_one_that_is_not():
     """An unclaimed layer must not take the chart down with it.
 
     That is the whole-chart-to-a-picture failure of xability/r-maidr#225,
-    from the side where declining is the right answer: the `Area` is not
+    from the side where declining is the right answer: the `Dash` is not
     read, and the `Dot` beside it is unaffected.
     """
     figure = _drawn(
         lambda fig: so.Plot(_frame(), x="t", y="m")
         .add(so.Dot())
-        .add(so.Area())
+        .add(so.Dash())
         .on(fig)
         .plot()
     )
@@ -423,7 +422,6 @@ def test_every_selector_resolves_in_the_page_it_was_built_from(mark, x, y):
 @pytest.mark.parametrize(
     "mark",
     [
-        pytest.param(so.Area(), id="Area"),
         pytest.param(so.Bars(), id="Bars"),
         pytest.param(so.Dash(), id="Dash"),
         pytest.param(so.Range(), id="Range"),
@@ -592,3 +590,189 @@ def test_a_layer_that_drew_several_containers_becomes_several_bar_layers():
         (PlotType.BAR, {DRAWN_BARS: first}),
         (PlotType.BAR, {DRAWN_BARS: second}),
     ]
+
+
+# --------------------------------------------------------------------------
+# `so.Area` (#670)
+#
+# The one mark whose artist arrives in `patches` rather than in `collections`
+# or `lines`, and the one that needs something extracted rather than handed
+# straight to a plot class: `AreaPlot` takes the positions and the series,
+# and the polygon carries them folded.
+#
+# Measured on `t = 1, 2, 3` against `m = 10, 30, 20`, `Polygon.get_xy()`:
+#
+#     [[1,0], [2,0], [3,0], [3,20], [2,30], [1,10], [1,0]]
+#      └──── baseline ────┘  └──── values, reversed ────┘
+#
+# and with `baseline=` set to something other than zero the closing repeat is
+# gone -- six vertices rather than seven, both folding at `len // 2`.
+# --------------------------------------------------------------------------
+
+
+def test_an_area_mark_reads_as_the_band_it_draws():
+    """The reproduction, and the values recovered from the fold."""
+    figure = _drawn(
+        lambda fig: so.Plot(_frame(), x="t", y="m").add(so.Area()).on(fig).plot()
+    )
+    kinds = _kinds(figure)
+    (_, schema) = _layers(figure)[0]
+
+    assert kinds == ["area"]
+    assert schema["data"] == [
+        [{"x": 1.0, "y": 10.0}, {"x": 2.0, "y": 30.0}, {"x": 3.0, "y": 20.0}]
+    ]
+
+
+@pytest.mark.parametrize("baseline", [5.0, 10.0])
+def test_a_band_drawn_from_a_baseline_of_its_own_reads_the_same_values(baseline):
+    """`baseline=` moves the fold's other half, not the drawn series.
+
+    `10.0` is the case that pins where the fold splits, and which spelling
+    reaches it is narrower than "a baseline was given". Measured on these
+    three points, `baseline=0` and `baseline=5` both leave **seven**
+    vertices, while `baseline=10` -- the first drawn value -- leaves
+    **six**: the last drawn vertex already coincides with the first baseline
+    one, so matplotlib does not repeat it. `len // 2` is 3 for both;
+    `(len - 1) // 2` is 3 and 2, and reads the six-vertex band as two points
+    of somebody else's numbers.
+    """
+    figure = _drawn(
+        lambda fig: so.Plot(_frame(), x="t", y="m")
+        .add(so.Area(baseline=baseline))
+        .on(fig)
+        .plot()
+    )
+    (_, schema) = _layers(figure)[0]
+
+    assert schema["data"] == [
+        [{"x": 1.0, "y": 10.0}, {"x": 2.0, "y": 30.0}, {"x": 3.0, "y": 20.0}]
+    ]
+
+
+def test_a_sideways_band_keeps_its_positions_on_the_position_axis():
+    """`orient="y"` fills between vertical positions and a horizontal curve.
+
+    Measured, the baseline then runs *down* x = 0 and the values sit at
+    `(10, 1), (30, 2), (20, 3)` -- so which vertex coordinate is the position
+    turns round with the orientation. The numbers go into the fields the
+    trace reads them from and the axis titles move instead, which is what
+    `AreaPlot.transposed` does for `fill_betweenx` (#566).
+    """
+    figure = _drawn(
+        lambda fig: so.Plot(_frame(), x="m", y="t")
+        .add(so.Area(), orient="y")
+        .on(fig)
+        .plot()
+    )
+    (_, schema) = _layers(figure)[0]
+
+    assert schema["data"] == [
+        [{"x": 1.0, "y": 10.0}, {"x": 2.0, "y": 30.0}, {"x": 3.0, "y": 20.0}]
+    ]
+    assert schema["axes"]["x"]["label"] == "t"
+    assert schema["axes"]["y"]["label"] == "m"
+
+
+def test_an_area_addresses_the_band_it_drew():
+    """A layer that announces correctly and outlines nothing is the blind
+    spot xability/maidr#814 names.
+
+    Resolved in Chromium against a rendering of this chart: the one selector
+    matched exactly one element.
+    """
+    figure = _drawn(
+        lambda fig: so.Plot(_frame(), x="t", y="m").add(so.Area()).on(fig).plot()
+    )
+    html = maidr.render(figure)._repr_html_()
+    (_, schema) = _layers(figure)[0]
+
+    selectors = schema.get("selectors")
+    assert isinstance(selectors, list) and len(selectors) == 1
+    identifiers = re.findall(r"'([^']+)'", selectors[0])
+    assert identifiers
+    for identifier in identifiers:
+        assert identifier in html
+
+
+def test_a_stacked_area_registers_nothing_rather_than_the_cumulative_top():
+    """A stack of two levels is declined, and the reason is the polygon.
+
+    Measured on `so.Area(), so.Stack()`, the second group's polygon runs from
+    the first group's top rather than from the baseline, so its second half
+    is the *cumulative* top and not that group's own values. Announcing those
+    as the group's magnitudes would describe a chart nobody drew.
+    """
+    frame = pd.DataFrame(
+        {"t": [1.0, 2.0, 1.0, 2.0], "m": [1.0, 3.0, 2.0, 4.0], "g": list("aabb")}
+    )
+    figure = _drawn(
+        lambda fig: so.Plot(frame, x="t", y="m", color="g")
+        .add(so.Area(), so.Stack())
+        .on(fig)
+        .plot()
+    )
+
+    assert _registers_nothing(figure)
+
+
+@pytest.mark.parametrize(
+    "move",
+    [pytest.param(so.Stack(), id="Stack"), pytest.param(so.Dodge(), id="Dodge")],
+)
+def test_a_position_transform_with_nothing_to_move_against_still_reads(move):
+    """The declining rule is the polygon count, not the presence of a move.
+
+    A transform matters only where there is a second band to move against.
+    Measured on a single group, `so.Area()`, `so.Area(), so.Stack()` and
+    `so.Area(), so.Dodge()` draw byte-identical polygons -- so refusing on
+    the move alone would decline three charts that are the same chart, and
+    two of them read correctly.
+    """
+    figure = _drawn(
+        lambda fig: so.Plot(_frame(), x="t", y="m").add(so.Area(), move).on(fig).plot()
+    )
+    (_, schema) = _layers(figure)[0]
+
+    assert schema["data"] == [
+        [{"x": 1.0, "y": 10.0}, {"x": 2.0, "y": 30.0}, {"x": 3.0, "y": 20.0}]
+    ]
+
+
+def test_a_colour_split_area_registers_nothing_until_its_groups_are_named():
+    """Two unnamed series is the shape xability/maidr#828 exists to prevent.
+
+    A colour split draws one polygon per level -- measured, each spanning
+    every position, so they would fold into one layer of several series. What
+    they would arrive without is their names: the legend holding them is the
+    figure's, built after every layer is drawn, and `AreaPlot` takes its
+    labels at construction. This waits for the naming rather than shipping
+    without it.
+    """
+    frame = pd.DataFrame(
+        {"t": [1.0, 2.0, 1.0, 2.0], "m": [1.0, 3.0, 2.0, 4.0], "g": list("aabb")}
+    )
+    figure = _drawn(
+        lambda fig: so.Plot(frame, x="t", y="m", color="g")
+        .add(so.Area())
+        .on(fig)
+        .plot()
+    )
+
+    assert _registers_nothing(figure)
+
+
+def test_an_area_reads_beside_a_mark_of_another_kind():
+    """The layers stay in the order they were added, and neither eats the
+    other's artists: an `Area` leaves a patch and a `Line` leaves a `Line2D`,
+    and each reading filters its holder by its own class.
+    """
+    figure = _drawn(
+        lambda fig: so.Plot(_frame(), x="t", y="m")
+        .add(so.Area())
+        .add(so.Line())
+        .on(fig)
+        .plot()
+    )
+
+    assert _kinds(figure) == ["area", "line"]
