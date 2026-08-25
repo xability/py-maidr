@@ -17,6 +17,7 @@ from maidr.plotly.gauge import draws_a_dial
 from maidr.plotly.hierarchy import has_one_root, is_hierarchy_trace
 from maidr.plotly.area import is_area_trace
 from maidr.plotly.contour import is_contour_trace
+from maidr.plotly.splom import is_splom_trace, splom_panels
 from maidr.plotly.histogram2d import is_histogram2d_trace
 from maidr.plotly.histogram2dcontour import is_histogram2dcontour_trace
 from maidr.plotly.grouped_histogram import is_histogram_trace
@@ -896,6 +897,21 @@ class PlotlyMaidr:
                 plot.col_index = col
                 self._plots.append(plot)
                 merged.update(id(t) for t in box_traces)
+
+            # A scatterplot matrix. One trace, `n` dimensions, and an
+            # `n` by `n` grid of scatters -- which is what MAIDR's subplot
+            # grid is, so each panel becomes an ordinary scatter layer at
+            # its own position. Built here rather than in the factory
+            # because the factory returns one plot per trace and this one
+            # expands into many, each needing a grid position the factory
+            # cannot know (#666).
+            splom_traces = [t for t in group_traces if is_splom_trace(t)]
+            for splom in splom_traces:
+                for panel_row, panel_col, plot in splom_panels(splom):
+                    plot.row_index = row + panel_row
+                    plot.col_index = col + panel_col
+                    self._plots.append(plot)
+            merged.update(id(t) for t in splom_traces)
 
             # Pies, one layer each. Plotly draws them into a figure-level
             # ``pielayer`` instead of a subplot group, so a pie's selector is
