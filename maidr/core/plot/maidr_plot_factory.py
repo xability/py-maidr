@@ -10,6 +10,7 @@ from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.boxenplot import BoxenPlot
 from maidr.core.plot.boxplot import BoxPlot
 from maidr.core.plot.contour import ContourPlot
+from maidr.core.plot.dashplot import DRAWN_DASHES, DashPlot
 from maidr.core.plot.bars_histogram import BarsHistPlot, DRAWN_BINS
 from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.intervalplot import DRAWN_INTERVALS, IntervalPlot
@@ -173,6 +174,11 @@ class MaidrPlotFactory:
             # `EventCollection`, so `EventPlot` cannot read one (#250).
             if kwargs.get(DRAWN_RUG) is not None:
                 return RugPlot(single_ax, **kwargs)
+            # `so.Dash()` draws a horizontal tick per observation instead of a
+            # marker, so it too arrives as a plain `LineCollection` and keeps
+            # its values in the segments rather than in offsets (#670).
+            if kwargs.get(DRAWN_DASHES) is not None:
+                return DashPlot(single_ax, **kwargs)
             return ScatterPlot(single_ax, **kwargs)
         elif plot_type in (PlotType.DODGED, PlotType.STACKED, PlotType.NORMALIZED):
             # One class, three types. They differ in how the groups relate --

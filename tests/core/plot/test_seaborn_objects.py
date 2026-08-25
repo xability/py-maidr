@@ -273,7 +273,6 @@ def test_a_panel_the_layer_never_drew_on_registers_nothing():
 @pytest.mark.parametrize(
     "mark",
     [
-        pytest.param(so.Dash(), id="Dash"),
         pytest.param(so.Text(), id="Text"),
     ],
 )
@@ -284,12 +283,12 @@ def test_a_mark_this_does_not_read_still_registers_nothing(mark):
     mark whose artists no existing plot class can read is left alone, not
     guessed at. `Dash` matters most -- see the test below.
 
-    `Lines`, `Paths`, `Area`, `Band`, `Range` and `Bars` each left this list
-    when they gained a reading (#670), leaving `Dash` and `Text` -- the two
-    that want a judgement rather than a measurement. They came off
-    deliberately: this list is the reminder that a decline was a decision, so
-    a mark added to `_READINGS` has to be taken out of it by hand rather than
-    quietly passing both ways.
+    `Lines`, `Paths`, `Area`, `Band`, `Range`, `Bars` and now `Dash` each
+    left this list when they gained a reading (#670), leaving `Text` alone --
+    the one mark that draws no artist any holder in `_READINGS` names. They
+    came off deliberately: this list is the reminder that a decline was a
+    decision, so a mark added to `_READINGS` has to be taken out of it by
+    hand rather than quietly passing both ways.
     """
     figure = _drawn(
         lambda fig: so.Plot(_frame(), x="t", y="m").add(mark).on(fig).plot()
@@ -305,11 +304,11 @@ def test_the_marks_are_matched_by_name_and_not_by_ancestry():
         Dash  < Paths < Mark      LineCollection
         Range < Paths < Mark      LineCollection
 
-    So dispatching on ancestry would claim `Dash` as a `Paths`, which *is*
-    read -- and read it as line series, which it does not draw: a `Dash` is a
-    tick per position with no length that means anything on the value axis.
-    Since #670 that is a live hazard rather than a hypothetical one, because
-    the ancestor a wrong dispatch would land on has a reading to hand it.
+    So dispatching on ancestry would claim `Dash` as a `Paths` and read it as
+    **line series**, joining the ticks into curves the chart never drew. It is
+    read -- as a `point`, one observation per tick -- and that is the whole
+    of the difference: getting there by name gives it its own reading, while
+    getting there by ancestry would hand it its parent's.
 
     `Range` is the other half of the same trap and shows why ancestry would
     still be wrong even where it happens to claim something readable: it is
@@ -328,20 +327,23 @@ def test_the_marks_are_matched_by_name_and_not_by_ancestry():
         lambda fig: so.Plot(_frame(), x="t", y="m").add(so.Dash()).on(fig).plot()
     )
 
-    assert _registers_nothing(figure)
+    # A point, which is what it draws -- not the `line` its ancestor reads as.
+    assert _kinds(figure) == ["point"]
 
 
 def test_a_mark_that_is_read_still_reads_beside_one_that_is_not():
     """An unclaimed layer must not take the chart down with it.
 
     That is the whole-chart-to-a-picture failure of xability/r-maidr#225,
-    from the side where declining is the right answer: the `Dash` is not
-    read, and the `Dot` beside it is unaffected.
+    from the side where declining is the right answer: the `Text` is not
+    read, and the `Dot` beside it is unaffected. It was a `Dash` here until
+    #670 gave that one a reading, which is the churn this list exists to
+    make visible.
     """
     figure = _drawn(
         lambda fig: so.Plot(_frame(), x="t", y="m")
         .add(so.Dot())
-        .add(so.Dash())
+        .add(so.Text())
         .on(fig)
         .plot()
     )
@@ -418,10 +420,11 @@ def test_every_selector_resolves_in_the_page_it_was_built_from(mark, x, y):
 # `_reading_for` declines a mark that is not in the table; `_held` keeps only
 # the artist class that reading reads. Every unread mark measured draws into a
 # holder no reading reads, or draws a class the filter removes -- so dropping
-# either one alone changes nothing any chart can show. Dropping *both* reads a
-# `so.Dash`'s `LineCollection` through `ScatterPlot`, which cannot see it,
-# silently falls back to sweeping the whole axes, and announces a neighbouring
-# layer's points as this one's.
+# either one alone changes nothing any chart can show. Dropping *both* reads
+# an unclaimed mark's artists through whichever plot class the fallback lands
+# on -- for a `LineCollection` that is `ScatterPlot`, which cannot see one,
+# so it silently sweeps the whole axes and announces a neighbouring layer's
+# points as this one's.
 #
 # Measured, mutating the live code one change at a time against the tests
 # above: claiming every mark, and removing the class filter, each left all 24
@@ -433,7 +436,6 @@ def test_every_selector_resolves_in_the_page_it_was_built_from(mark, x, y):
 @pytest.mark.parametrize(
     "mark",
     [
-        pytest.param(so.Dash(), id="Dash"),
         pytest.param(so.Text(), id="Text"),
     ],
 )
