@@ -268,16 +268,21 @@ class BoxPlot(
         Extend the base per-axis ``AxisConfig`` mapping with a ``z`` axis whose
         label is sourced from the legend title when a hue dimension is
         present. Omitted otherwise (per-box ``z`` values remain in data).
+
+        Read through :meth:`~maidr.core.plot.maidr_plot.MaidrPlot._legend_title`
+        rather than off ``ax.get_legend()``, so it is the legend
+        :func:`~maidr.util.legend_names.legend_of` chose -- the same one
+        :meth:`_named_boxes` matched the swatches against. Asking a different
+        question of a different legend is what #674 was: a chart whose legend
+        sits on the figure had every box named ``"a, p"`` and no ``z`` at all,
+        so a reader was told which side of a grouping each box was on and
+        never told what the grouping was.
         """
         axes_data = super()._extract_axes_data()
 
-        legend = self.ax.get_legend()
-        if legend is not None:
-            title = legend.get_title()
-            if title is not None:
-                z_label = title.get_text().strip()
-                if z_label:
-                    axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
+        z_label = self._legend_title()
+        if z_label:
+            axes_data[MaidrKey.Z] = self._axis_config(label=z_label)
 
         return axes_data
 
