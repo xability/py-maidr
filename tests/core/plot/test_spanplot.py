@@ -20,6 +20,12 @@ measured. A lollipop's stems all start at zero; reference lines all span the
 same interval; and a single segment cannot be told from either, since one
 end trivially agrees with itself.
 
+Not a schedule is not the same as not a chart. Where **exactly one** end is
+shared the call drew stems from a baseline, which is a magnitude per
+position -- the `lollipop` `ax.stem` emits -- and it is registered as that
+(#664). Where **both** are shared, or there is only one segment, nothing is
+registered at all, and those cases are pinned below unchanged.
+
 The decision is made in the **patch**, before anything registers. A layer
 that refuses at extraction takes the whole figure with it, which is the
 defect #564 was about -- so a declined call registers nothing at all and the
@@ -27,6 +33,8 @@ rest of the figure reads as it always did.
 """
 
 from __future__ import annotations
+
+import re
 
 import matplotlib.pyplot as plt
 import pytest
@@ -113,15 +121,68 @@ def test_an_unlabelled_lane_keeps_its_position():
     assert _rendered(fig)["data"]["lanes"] == [1.0, 2.0, 3.0]
 
 
-def test_a_lollipops_stems_register_nothing():
+def test_a_lollipops_stems_are_not_read_as_spans():
     # Every segment starts at the baseline. Read as spans they announce
-    # "0 to 8" where the chart means "8", and the markers at their tips
-    # already carry that.
+    # "0 to 8" where the chart means "8", so the *schedule* reading is
+    # declined -- which is what this has always pinned.
     fig, ax = plt.subplots()
     ax.vlines([1, 2, 3], 0, [5, 7, 6])
 
-    assert _layers(fig) == []
+    assert _layers(fig) == ["lollipop"]
     assert len(maidr.render(fig)._repr_html_()) > 0
+
+
+def test_a_lollipops_stems_read_as_the_magnitudes_they_draw():
+    # What they are read as instead (#664). The decline above was written on
+    # the grounds that "the markers at their tips already carry that", and
+    # here the caller drew no markers, so nothing else in the figure does.
+    fig, ax = plt.subplots()
+    ax.vlines([1, 2, 3], 0, [5, 7, 6])
+
+    schema = _schema(fig)
+    assert schema["type"].value == "lollipop"
+    assert schema["orientation"] == "vert"
+    assert [(point["x"], point["y"]) for point in schema["data"]] == [
+        (1.0, 5.0),
+        (2.0, 7.0),
+        (3.0, 6.0),
+    ]
+
+
+def test_the_value_is_the_free_end_rather_than_the_length():
+    # A baseline is not always zero. The mark sits where the chart drew it,
+    # which is the same contract `marks()` reads a stem plot's markers under
+    # -- not the distance from the baseline, which is a different number.
+    fig, ax = plt.subplots()
+    ax.vlines([1, 2, 3], 2, [5, 7, 6])
+
+    assert [point["y"] for point in _schema(fig)["data"]] == [5.0, 7.0, 6.0]
+
+
+def test_stems_hanging_from_a_baseline_are_read_from_their_free_end():
+    # Nor is the baseline always the *lower* end. Here the shared end is the
+    # top, so the values are the `ymin` argument -- which is why the shared
+    # end is found rather than assumed.
+    fig, ax = plt.subplots()
+    ax.vlines([1, 2], [-3, -5], 0)
+
+    assert [point["y"] for point in _schema(fig)["data"]] == [-3.0, -5.0]
+
+
+def test_horizontal_stems_put_their_magnitude_in_x():
+    # `hlines` draws the same chart turned: lanes down y, magnitudes along
+    # x. Declaring the orientation without swapping the payload is the
+    # defect #480 had, so both are checked together.
+    fig, ax = plt.subplots()
+    ax.hlines([1, 2, 3], 0, [5, 3, 7])
+
+    schema = _schema(fig)
+    assert schema["orientation"] == "horz"
+    assert [(point["x"], point["y"]) for point in schema["data"]] == [
+        (5.0, 1.0),
+        (3.0, 2.0),
+        (7.0, 3.0),
+    ]
 
 
 def test_reference_lines_register_nothing():
@@ -142,14 +203,25 @@ def test_a_single_span_registers_nothing():
     assert _layers(fig) == []
 
 
-def test_a_chart_beside_a_lollipop_is_untouched():
+def test_a_chart_beside_a_declined_call_is_untouched():
     # What deciding in the patch buys: a declined call registers nothing, so
-    # it cannot refuse at extraction and take the figure with it.
+    # it cannot refuse at extraction and take the figure with it. Reference
+    # lines rather than stems, since stems are now read (#664) -- the
+    # property being pinned is what a *decline* costs the rest of the figure.
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    ax.hlines([1, 2, 3], 0, 5)
+
+    assert _layers(fig) == ["bar"]
+    assert len(maidr.render(fig)._repr_html_()) > 0
+
+
+def test_a_chart_beside_a_spike_chart_keeps_both():
     fig, ax = plt.subplots()
     ax.bar(["a", "b"], [1, 2])
     ax.vlines([0, 1], 0, [1, 2])
 
-    assert _layers(fig) == ["bar"]
+    assert _layers(fig) == ["bar", "lollipop"]
     assert len(maidr.render(fig)._repr_html_()) > 0
 
 
@@ -298,17 +370,20 @@ def test_two_hlines_calls_stay_two_charts():
     ]
 
 
-def test_a_schedule_whose_tasks_share_a_start_is_declined():
+def test_a_schedule_whose_tasks_share_a_start_is_read_as_a_spike_chart():
     # The cost of the shared-end rule, stated rather than left to be found.
     # These are three real tasks all beginning on day 0, and nothing in the
     # geometry separates them from a lollipop's stems -- which are also one
     # shared start and differing ends, and which read as spans would announce
-    # "0 to 8" for a chart that means "8". Declining is the side that never
-    # announces a measurement the chart does not make.
+    # "0 to 8" for a chart that means "8". The schedule reading is still the
+    # one declined; what the loser falls back to is no longer a picture, so
+    # the ends are announced and the start every row shares is the baseline.
     fig, ax = plt.subplots()
     ax.hlines([1, 2, 3], [0, 0, 0], [5, 7, 6])
 
-    assert _layers(fig) == []
+    schema = _schema(fig)
+    assert schema["type"].value == "lollipop"
+    assert [point["x"] for point in schema["data"]] == [5.0, 7.0, 6.0]
     assert len(maidr.render(fig)._repr_html_()) > 0
 
 
@@ -365,7 +440,8 @@ def test_a_computed_baseline_is_still_a_lollipop():
     fig, ax = plt.subplots()
     ax.vlines([1, 2, 3, 4], baseline, tops)
 
-    assert _layers(fig) == []
+    assert _layers(fig) == ["lollipop"]
+    assert [point["y"] for point in _schema(fig)["data"]] == list(tops)
 
 
 def test_a_schedule_laid_out_in_epoch_seconds_still_reads():
@@ -417,3 +493,57 @@ def test_a_stem_plot_is_not_claimed_by_the_span_reading():
 
     assert _layers(fig) == ["lollipop"]
     assert len(maidr.render(fig)._repr_html_()) > 0
+
+
+def test_every_stem_is_addressed_by_the_path_it_is_drawn_as():
+    """Measured by parsing the SVG: one bare `<path>` child per segment."""
+    import io
+    from xml.etree import ElementTree
+
+    svg_ns = "{http://www.w3.org/2000/svg}"
+
+    fig, ax = plt.subplots()
+    ax.vlines([1, 2, 3, 4], 0, [5, 3, 7, 2])
+
+    schema = _schema(fig)
+    selectors = schema["selectors"]
+    assert len(selectors) == len(schema["data"])
+    assert len(set(selectors)) == len(selectors)
+    assert "> path:nth-of-type(1)" in selectors[0]
+
+    gid = re.search(r"g\[id='([^']+)'\]", selectors[0]).group(1)
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="svg")
+    buffer.seek(0)
+    root = ElementTree.fromstring(buffer.read())
+
+    group = next(g for g in root.iter(f"{svg_ns}g") if g.get("id") == gid)
+    assert {child.tag for child in group} == {f"{svg_ns}path"}
+    assert len(list(group)) == 4
+
+
+def test_reference_lines_are_still_declined_by_the_stem_reading():
+    # Both ends shared. Every segment is the same interval, which no row of
+    # the data states, so there is no free end to be a magnitude.
+    fig, ax = plt.subplots()
+    ax.vlines([1, 2, 3], 0, 5)
+
+    assert _layers(fig) == []
+
+
+def test_a_single_stem_is_still_declined():
+    # One segment lands in the both-shared case, since a single end
+    # trivially agrees with itself.
+    fig, ax = plt.subplots()
+    ax.vlines([1], 0, [5])
+
+    assert _layers(fig) == []
+
+
+def test_a_real_schedule_is_still_a_schedule():
+    # The stem reading is only reached once `draws_a_schedule` has said no,
+    # so a call with neither end shared cannot be diverted into it.
+    fig, ax = plt.subplots()
+    ax.hlines([1, 2, 3], [0, 2, 4], [5, 7, 6])
+
+    assert _layers(fig) == ["gantt"]

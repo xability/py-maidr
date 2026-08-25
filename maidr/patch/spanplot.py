@@ -7,12 +7,55 @@ from matplotlib.collections import LineCollection
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.lollipop import DRAWN_MARKS, MARK_ARTIST, MARKS_HORIZONTAL
 from maidr.core.plot.spanplot import (
     DRAWN_SPANS,
     SPANS_ALONG_X,
     draws_a_schedule,
+    reads_as_stems,
 )
 from maidr.patch.common import _draw_quietly
+
+
+def _register_stems(drawn: LineCollection, stems: list, along_x: bool) -> None:
+    """
+    Register a baseline-anchored call as the spike chart it draws.
+
+    The same layer ``Axes.stem`` emits, reached through the machinery
+    ``Axes.acorr`` already uses: the numbers are handed over rather than
+    recovered from the artists, because in this spelling the value lives in
+    a segment's *length* and nothing sits at it for a reader to find.
+
+    Parameters
+    ----------
+    drawn : LineCollection
+        The collection the call drew, one segment per mark.
+    stems : list of tuple
+        One ``(lane, tip)`` per segment, from
+        :func:`~maidr.core.plot.spanplot.reads_as_stems`.
+    along_x : bool
+        True for ``hlines``, whose marks lie along x.
+    """
+    # As drawn, not as measured: `marks()` reads a stem plot's markers off
+    # the artist in matplotlib's own coordinates, and `finite()` maps the
+    # pair it is handed straight onto x and y. `hlines` stands its lanes
+    # down y and its magnitudes along x, so the pair goes the other way
+    # round -- which is the bar family's contract, and declaring the
+    # orientation without swapping the payload is the defect #480 had.
+    lanes = [lane for lane, _ in stems]
+    tips = [tip for _, tip in stems]
+    marks = (tips, lanes) if along_x else (lanes, tips)
+
+    ax = FigureManager.get_axes(drawn)
+    FigureManager.create_maidr(
+        ax,
+        PlotType.LOLLIPOP,
+        **{
+            DRAWN_MARKS: marks,
+            MARK_ARTIST: drawn,
+            MARKS_HORIZONTAL: along_x,
+        },
+    )
 
 
 def _spans(wrapped, instance, args, kwargs, along_x: bool) -> LineCollection:
@@ -57,6 +100,13 @@ def _spans(wrapped, instance, args, kwargs, along_x: bool) -> LineCollection:
         return drawn
 
     if not draws_a_schedule(drawn, along_x):
+        # Not a schedule is not the same as not a chart. Every segment
+        # sharing one end is a lollipop's stems, and with no markers drawn
+        # at their tips nothing else in the figure says what they measure --
+        # which is the whole of #664, and the same gap `Axes.acorr` had.
+        stems = reads_as_stems(drawn, along_x)
+        if stems is not None:
+            _register_stems(drawn, stems, along_x)
         return drawn
 
     # Registered as its own layer every time, with no equivalent of
