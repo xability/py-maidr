@@ -11,6 +11,7 @@ from matplotlib.lines import Line2D
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.exception import ExtractionError
+from maidr.util.legend_names import legend_of
 
 #: Tail probability of the widest rung, which every letter-value ladder starts
 #: from: the box spanning the middle half of the data. Successive rungs halve
@@ -173,16 +174,17 @@ class BoxenPlot(MaidrPlot):
         A hue split names each ladder by the level it belongs to, so the
         dimension itself needs a name for those levels to be announced against.
         Omitted when there is no legend.
+
+        Through :meth:`~maidr.core.plot.maidr_plot.MaidrPlot._legend_title`,
+        which reads whichever legend :func:`~maidr.util.legend_names.legend_of`
+        chose -- the same one :meth:`_hue_levels` names the ladders from, so
+        the label and the levels cannot come from two different legends.
         """
         axes_data = super()._extract_axes_data()
 
-        legend = self.ax.get_legend()
-        if legend is not None:
-            title = legend.get_title()
-            if title is not None:
-                label = title.get_text().strip()
-                if label:
-                    axes_data[MaidrKey.Z] = self._axis_config(label=label)
+        label = self._legend_title()
+        if label:
+            axes_data[MaidrKey.Z] = self._axis_config(label=label)
 
         return axes_data
 
@@ -395,7 +397,7 @@ class BoxenPlot(MaidrPlot):
         which is why ``test_a_reordered_hue_keeps_each_ladder_with_its_level``
         exists rather than the assumption being left implicit.
         """
-        legend = self.ax.get_legend()
+        legend = legend_of(self.ax)
         return [text.get_text() for text in legend.get_texts()] if legend else []
 
     def _tick_labels(self, vertical: bool) -> list[tuple[float, str]]:
