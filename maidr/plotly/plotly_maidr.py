@@ -1011,8 +1011,16 @@ class PlotlyMaidr:
             # a `barpolar` draws into that subplot's `.barlayer` and shifts
             # nothing there, and a trace in the *next* subplot is numbered
             # from one again.
+            #
+            # `scatterpolargl` is a `scatterpolar` in every respect that
+            # matters here -- same `r`, same `theta`, same reading -- and
+            # differs only in being painted to a canvas, which costs it its
+            # selector and its place in the numbering below (#668).
             polar_traces = [
-                t for t in group_traces if t.get("type") in ("scatterpolar", "barpolar")
+                t
+                for t in group_traces
+                if t.get("type")
+                in ("scatterpolar", "scatterpolargl", "barpolar")
             ]
             if polar_traces:
                 # `PlotType` is imported here rather than at module level
@@ -1026,7 +1034,10 @@ class PlotlyMaidr:
                 scatter_positions: dict[str, int] = {}
                 for polar_trace in polar_traces:
                     name = subplot_name(polar_trace)
-                    is_scatter = polar_trace.get("type") == "scatterpolar"
+                    is_scatter = polar_trace.get("type") in (
+                        "scatterpolar",
+                        "scatterpolargl",
+                    )
                     plot = PlotlyPolarPlot(
                         polar_trace,
                         layout,
@@ -1034,7 +1045,15 @@ class PlotlyMaidr:
                         trace_position=scatter_positions.get(name, 0),
                         **axis_kwargs,
                     )
-                    if is_scatter:
+                    # A canvas trace never enters the subplot's
+                    # `.scatterlayer`, so counting it would push every SVG
+                    # sibling one `nth-child` along onto an element plotly
+                    # never drew -- the trap the cartesian numbering above
+                    # documents. Measured in Chromium on one polar subplot
+                    # holding one gl trace and one SVG trace: declared either
+                    # way round, the `.scatterlayer` holds exactly one child
+                    # and it is the SVG trace, at `nth-child(1)`.
+                    if is_scatter and not renders_through_webgl(polar_trace):
                         scatter_positions[name] = scatter_positions.get(name, 0) + 1
                     polar_row, polar_col = self._grid_position(
                         x_starts,

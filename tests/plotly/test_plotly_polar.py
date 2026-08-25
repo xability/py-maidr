@@ -412,3 +412,80 @@ def test_each_polar_subplot_is_named_from_its_own_layout_block() -> None:
 
     assert first["axes"]["y"]["label"] == "Left R"
     assert second["axes"]["y"]["label"] == "Right R"
+
+
+def test_a_scatterpolargl_is_read_as_a_radar() -> None:
+    """The WebGL twin draws the same spokes and was read as nothing (#668).
+
+    `go.Scatterpolargl` carries the same `r` and `theta` as
+    `go.Scatterpolar` and differs only in being painted by regl. The polar
+    branch of `_extract_plots` listed two trace types by name and this was
+    not one of them, so the figure produced no layers at all and took the
+    static-image path.
+    """
+    (layer,) = _layers(go.Figure([go.Scatterpolargl(r=RADII, theta=SPOKES)]))
+
+    assert layer["type"] == PlotType.RADAR
+    assert _spokes(layer) == list(zip(SPOKES, RADII))
+
+
+@pytest.mark.parametrize("mode", [None, "lines", "markers", "lines+markers"])
+def test_a_scatterpolargl_is_read_but_not_addressed(mode) -> None:
+    """It is painted to a canvas, so there is no element in any mode.
+
+    Measured in Chromium on `r=[1, 2, 3]`, counting inside the polar
+    subplot: a `scatterpolar` puts one `.trace` in the `.scatterlayer` and
+    no canvas on the page, while a `scatterpolargl` puts none there and
+    three canvases -- for `mode="lines"` and `mode="markers"` alike. So
+    neither the outline nor the markers `PlotlyPolarPlot` names for an SVG
+    radar exists here, and the layer ships without a highlight, keeping its
+    audio, braille and text.
+    """
+    trace = go.Scatterpolargl(r=RADII, theta=SPOKES, mode=mode)
+    (layer,) = _layers(go.Figure([trace]))
+
+    assert layer["type"] == PlotType.RADAR
+    assert "selectors" not in layer
+    assert _spokes(layer) == list(zip(SPOKES, RADII))
+
+
+@pytest.mark.parametrize("gl_first", [True, False])
+def test_a_scatterpolargl_does_not_shift_a_radar_position(gl_first: bool) -> None:
+    """It never enters the `.scatterlayer` the `nth-child` counts over.
+
+    The trap the cartesian numbering already documents, in the polar
+    subplot: counting a canvas trace would push its SVG sibling one place
+    along, onto a selector matching nothing.
+
+    Measured in Chromium on one polar subplot holding one of each --
+    declared either way round, the `.scatterlayer` holds exactly one child
+    and it is the SVG trace, at `nth-child(1)`.
+    """
+    gl = go.Scatterpolargl(r=[3, 9, 5], theta=["N", "E", "S"], name="gl")
+    svg = go.Scatterpolar(r=[2, 6, 4], theta=["N", "E", "S"], name="svg")
+    layers = _layers(go.Figure([gl, svg] if gl_first else [svg, gl]))
+
+    named = [layer for layer in layers if "selectors" in layer]
+    assert len(layers) == 2
+    assert len(named) == 1
+    assert "nth-child(1)" in named[0]["selectors"][0]
+
+
+def test_a_scatterpolargl_still_reads_its_own_spokes_beside_an_svg_one() -> None:
+    """Losing the highlight costs it nothing else.
+
+    Both layers are emitted, in the order plotly declared them, and each
+    announces the radii it was given -- which is the whole point of reading
+    a canvas trace rather than declining it.
+    """
+    first, second = _layers(
+        go.Figure(
+            [
+                go.Scatterpolargl(r=[3, 9, 5], theta=["N", "E", "S"], name="gl"),
+                go.Scatterpolar(r=[2, 6, 4], theta=["N", "E", "S"], name="svg"),
+            ]
+        )
+    )
+
+    assert _spokes(first) == [("N", 3), ("E", 9), ("S", 5)]
+    assert _spokes(second) == [("N", 2), ("E", 6), ("S", 4)]
