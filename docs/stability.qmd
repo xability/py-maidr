@@ -1,0 +1,117 @@
+---
+title: "Plot Type Stability"
+description: "Which py-maidr plot types are settled and which are experimental prototypes that may change without a deprecation period."
+html-table-processing: none
+---
+
+## Two sets, two different promises
+
+`PlotType` in `maidr/core/enum/plot_type.py` names **37** plot types. They do
+not all carry the same promise, and nothing in the enum says so — which is what
+this page is for.
+
+Fifteen of them predate the plot coverage roadmap
+([#345](https://github.com/xability/py-maidr/issues/345)). The other twenty-two
+were added by it, most inside about two weeks, and **none of the twenty-two has
+been through a user study**.
+
+## Stable
+
+| `PlotType` | emitted as | drawn by |
+|---|---|---|
+| `BAR` | `bar` | `ax.bar`, `sns.barplot` |
+| `BOX` | `box` | `ax.boxplot`, `sns.boxplot` |
+| `CANDLESTICK` | `candlestick` | `mplfinance` |
+| `COUNT` | `count` | `sns.countplot` |
+| `DODGED` | `dodged_bar` | grouped bars |
+| `HEAT` | `heat` | `ax.imshow`, `sns.heatmap` |
+| `HIST` | `hist` | `ax.hist`, `sns.histplot` |
+| `LINE` | `line` | `ax.plot`, `sns.lineplot` |
+| `PIE` | `pie` | `ax.pie` |
+| `SCATTER` | `point` | `ax.scatter`, `sns.scatterplot` |
+| `SMOOTH` | `smooth` | `sns.regplot`, `sns.lmplot` |
+| `STACKED` | `stacked_bar` | stacked bars |
+| `STEP` | `step` | `ax.step` |
+| `VIOLIN_BOX` | `violin_box` | `sns.violinplot` |
+| `VIOLIN_KDE` | `violin_kde` | `sns.violinplot` |
+
+These are what py-maidr was built around. Their extraction, their announcements
+and their keyboard model have been exercised by real users over real charts, and
+changing any of them changes behaviour people already depend on.
+
+## Experimental
+
+::: {.callout-warning title="Prototypes"}
+**These are prototypes. Treat them as prototypes.** They are under active
+development, they are unstable, and they have not been validated with the
+readers they are for.
+:::
+
+| `PlotType` | emitted as |
+|---|---|
+| `ALLUVIAL` | `alluvial` |
+| `AREA` | `area` |
+| `BOXEN` | `boxen` |
+| `CHOROPLETH` | `choropleth` |
+| `CONTOUR` | `contour` |
+| `ERRORBAR` | `error_bar` |
+| `FUNNEL` | `funnel` |
+| `GANTT` | `gantt` |
+| `GAUGE` | `gauge` |
+| `HEXBIN` | `hexbin` |
+| `ICICLE` | `icicle` |
+| `LOLLIPOP` | `lollipop` |
+| `NORMALIZED` | `stacked_normalized_bar` |
+| `NORMALIZED_AREA` | `stacked_normalized_area` |
+| `PARALLEL` | `parallel_coordinates` |
+| `POLAR_AREA` | `polar_area` |
+| `RADAR` | `radar` |
+| `SANKEY` | `sankey` |
+| `STACKED_AREA` | `stacked_area` |
+| `SUNBURST` | `sunburst` |
+| `TREEMAP` | `treemap` |
+| `WATERFALL` | `waterfall` |
+
+What that means, concretely:
+
+- **Under active development.** These are being changed as they are used, not
+  maintained against a settled specification.
+- **Unstable.** Field names, announcement wording and navigation semantics may
+  change without a deprecation period, including in a patch release. Code that
+  depends on the exact shape one of these emits is pinned to the py-maidr
+  version it was written against.
+- **Not validated.** Each was measured against the chart it reads — that is what
+  the issues and the tests record. But measuring that a reading is *faithful to
+  the drawing* is a different claim from establishing that it is *useful to a
+  reader*. Nobody has asked a blind or low-vision reader whether navigating a
+  sunburst by depth, or hearing each parallel-coordinates axis on its own scale,
+  is the right way to read one. Until that happens these are proposals about how
+  a chart could be read — implemented, and measured against the drawing — rather
+  than answers.
+- **Not a support commitment.** A bug in one of these is worth reporting, and
+  reporting it is not a promise that the current behaviour will be kept.
+
+If you are building something that has to keep working, build it on the stable
+set. If you are exploring what a chart could sound like, the experimental set is
+exactly what it is for — and feedback on it is the thing that would move a type
+out of this list.
+
+## How the split is derived
+
+It is the diff of `PlotType` against `d9f7aee`, the last commit on `main` before
+[#345](https://github.com/xability/py-maidr/issues/345) was filed:
+
+```bash
+git show d9f7aee:maidr/core/enum/plot_type.py | grep -oE '^\s+[A-Z_0-9]+ = "[a-z_0-9]+"'
+```
+
+`tests/core/test_plot_type_stability.py` fails if a member of `PlotType` appears
+in neither table or in both, so a new plot type has to be placed deliberately
+rather than inherit either promise by being forgotten.
+
+## The same split upstream
+
+The JavaScript core makes the same distinction over its own `TraceType`, with
+the same boundary and for the same reason. See
+[Trace type stability](https://maidr.ai/SCHEMA.html#trace-type-stability) in the
+core schema documentation.
