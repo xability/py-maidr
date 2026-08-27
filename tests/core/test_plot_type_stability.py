@@ -19,7 +19,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
 
 from maidr.core.enum.plot_type import PlotType
 
@@ -71,19 +70,50 @@ def test_no_plot_type_is_in_both_sets() -> None:
     assert _members("Stable") & _members("Experimental") == set()
 
 
-@pytest.mark.parametrize(
-    ("heading", "member"),
-    [
-        # `VIOLIN_KDE` is the last type added before the roadmap and `AREA` the
-        # first added after, so this pair is where an off-by-one in the
-        # boundary would show.
-        ("Stable", "VIOLIN_KDE"),
-        ("Experimental", "AREA"),
-    ],
-)
-def test_the_boundary_is_where_the_page_says_it_is(heading: str, member: str) -> None:
-    """Spot-check the split against ``d9f7aee``, the commit the page names."""
-    assert member in _members(heading)
+#: The stable set as it stood at ``d9f7aee``, the last commit before #345.
+#:
+#: Written out rather than spot-checked, so the whole classification is what
+#: the suite verifies. A contributor can otherwise misfile a type into the
+#: wrong table and still leave both tables internally consistent -- the
+#: partition check above would pass, and only this would notice.
+#:
+#: Re-derive with::
+#:
+#:     git show d9f7aee:maidr/core/enum/plot_type.py \
+#:       | grep -oE '^\s+[A-Z_0-9]+ = "[a-z_0-9]+"'
+STABLE_AT_D9F7AEE = {
+    "BAR",
+    "BOX",
+    "CANDLESTICK",
+    "COUNT",
+    "DODGED",
+    "HEAT",
+    "HIST",
+    "LINE",
+    "PIE",
+    "SCATTER",
+    "SMOOTH",
+    "STACKED",
+    "STEP",
+    "VIOLIN_BOX",
+    "VIOLIN_KDE",
+}
+
+
+def test_the_stable_set_is_exactly_the_one_that_predates_the_roadmap() -> None:
+    """The whole set, not a sample.
+
+    The partition check is satisfied by any split that covers the enum,
+    including a wrong one, so the boundary needs its own assertion.
+    """
+    assert _members("Stable") == STABLE_AT_D9F7AEE
+
+
+def test_everything_else_is_experimental() -> None:
+    """The complement, so a misfiled member fails from both directions."""
+    expected = {member.name for member in PlotType} - STABLE_AT_D9F7AEE
+
+    assert _members("Experimental") == expected
 
 
 def test_the_page_says_what_experimental_does_not_promise() -> None:
