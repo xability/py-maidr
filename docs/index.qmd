@@ -470,7 +470,7 @@ A chart on a `revealjs` slide is keyboard reachable on its own: **Tab** moves
 into it, the arrow keys explore it, and **Shift+Tab** hands focus back to the
 slide, so **Space** advances the deck again. None of that needs configuring.
 
-What does need attention is a reveal.js behaviour that has nothing to do with
+What does need attention is a reveal.js behavior that has nothing to do with
 MAIDR. reveal.js keeps the slides on either side of the current one rendered so
 that transitions stay smooth, and marking them `hidden` does not take them out
 of the tab order — reveal's own inline style overrides the attribute. On a
@@ -493,13 +493,13 @@ Until then,
 [quarto-revealjs-a11y](https://github.com/mcanouil/quarto-revealjs-a11y) does
 the same thing for a Quarto deck. Add it once per project:
 
-``` bash
+```{.bash}
 quarto add mcanouil/quarto-revealjs-a11y
 ```
 
 and enable it in the deck's front matter:
 
-``` yaml
+```{.yaml}
 format:
   revealjs:
     revealjs-plugins:
