@@ -4,8 +4,11 @@ Requires the optional extra: `pip install maidr[wordcloud]`.
 
 A word cloud draws each term's weight as glyph size and writes it down
 nowhere, so the reading is a term and its number. `WordCloud` normalises
-every frequency by the largest one and keeps only the ratio, which is why
-the weight axis is named "Share of mentions" rather than a count.
+every frequency by the largest one and keeps only the ratio, so the weight
+is a share rather than a count -- maidr's default axis name is "Relative
+frequency" for that reason. This script names the axes itself, since an
+authored label always wins and "Share of mentions" says the same thing in
+the language of this data.
 """
 
 import matplotlib.pyplot as plt

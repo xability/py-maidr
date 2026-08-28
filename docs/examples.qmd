@@ -299,11 +299,6 @@ cloud = WordCloud(
 ).generate_from_frequencies(mentions)
 
 fig, ax = plt.subplots(figsize=(8, 4))
-# A cloud has no x or y scale -- the glyph positions are packing, not data --
-# so the axis labels name what a point *holds* rather than where it sits.
-# Without them a term reads as "X: braille", which says nothing.
-ax.set_xlabel("Topic")
-ax.set_ylabel("Share of mentions")
 ax.set_title("What the accessibility reports talk about")
 ax.imshow(cloud) #<<
 ax.set_axis_off()
@@ -311,12 +306,18 @@ ax.set_axis_off()
 plt.show() #<<
 ```
 
-**The weights are relative, and the default axis label says so.** `WordCloud`
+A cloud has no x or y scale — the glyph positions are packing, not data —
+so maidr names the two axes after what a point *holds* rather than where it
+sits. No labels were set above, so the defaults fire and a term reads as
+"Term: braille, Relative frequency: 0.607". The generic "X"/"Y" the base
+class would otherwise give says nothing about a word.
+
+**The weights are relative, and that y axis name says so.** `WordCloud`
 divides every frequency by the largest one in `generate_from_frequencies` and
 keeps only the ratio — the raw counts are on no attribute of the object. So the
-counts above are announced as `1.0`, `0.728`, `0.607`, and the default y axis
-name is "Relative frequency" rather than "Occurrences". Naming it after counts
-would hand a reader "accessibility, 1.0" for a term that occurred 412 times.
+counts above are announced as `1.0`, `0.728`, `0.607`, and the axis is called
+"Relative frequency" rather than "Occurrences". Naming it after counts would
+hand a reader "accessibility, 1.0" for a term that occurred 412 times.
 
 That is also what the chart draws: glyph size is proportional to the ratio, so a
 reader hearing 1.0 and 0.728 hears what a sighted reader sees. (The R binding
@@ -327,6 +328,18 @@ two different honest readings.)
 `imshow` a plain RGB array, and the terms are not in it. A cloud displayed that
 way stays a picture and is not read — which is the honest answer, since the data
 never reached maidr.
+
+**Name the axes yourself if the defaults are too generic.** An authored label
+always wins, so a cloud over survey topics can say so:
+
+```python
+ax.set_xlabel("Topic")
+ax.set_ylabel("Share of mentions")
+```
+
+which reads as "Topic: braille, Share of mentions: 0.607". Keep the y name
+honest about being a ratio — "Occurrences" would be wrong for the same reason
+the default avoids it.
 
 **No highlighting.** `imshow` rasterises the whole cloud into a single image
 element, so there is no per-term element to outline. The reading ships without a
