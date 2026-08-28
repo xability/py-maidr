@@ -929,6 +929,9 @@ ax.legend(loc="upper left")
 plt.show() #<<
 ```
 
+Pass `labels=` and each band is announced by name. Without it the bands are
+still read, but they can only be told apart by their order in the stack.
+
 `ax.fill_between()` reads as an area too, when it draws one: `fill_between(x,
 y)` fills from zero up to a curve, which is the same chart a single
 `stackplot` band draws. `ax.fill_betweenx()` is the same picture turned over
@@ -960,56 +963,6 @@ does not read it as an area. Its content is the gap between the edges rather
 than the height of either, so announcing it as an area would report the upper
 edge as a magnitude and drop the lower one. Those charts render as a static
 image for now; see [issue #339](https://github.com/xability/py-maidr/issues/339).
-
-### Stacked Area Plot
-
-::: {.callout-warning title="Prototype"}
-This is one of the experimental plot types. It has not been through a user
-study, and it may change without a deprecation period. See
-[Plot type stability](stability.qmd).
-:::
-
-`ax.stackplot()` stacks several series so the top edge is their total and each
-band's *thickness* is that series' contribution. maidr reads one series per
-band within a single layer, so navigation walks one band at a time and up/down
-moves between them.
-
-A stack draws **two** numbers at every point, and both are read: the band's
-own value, which is its thickness, and the running total its top edge sits at.
-That is exactly why a stacked area is its own layer type rather than a line —
-a line announces one number per point with nothing to say which of the two it
-is, so the area trace announces the value and reports the total beside it.
-
-A single band is a plain `area` instead, since nothing is stacked on it and a
-running total equal to its own value at every point would just be noise.
-
-```{python}
-#| fig-alt: Stacked area chart of three revenue channels across eight quarters
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-import maidr #<<
-
-quarters = np.arange(1, 9)
-direct = [12, 14, 15, 19, 22, 24, 27, 31]
-partner = [8, 9, 11, 11, 13, 16, 17, 18]
-online = [3, 5, 8, 12, 17, 21, 26, 33]
-
-fig, ax = plt.subplots(figsize=(8, 5))
-ax.stackplot( #<<
-    quarters, direct, partner, online, labels=["Direct", "Partner", "Online"]
-)
-ax.set_xlabel("Quarter")
-ax.set_ylabel("Revenue (millions)")
-ax.set_title("Revenue by channel")
-ax.legend(loc="upper left")
-
-plt.show() #<<
-```
-
-Pass `labels=` and each band is announced by name. Without it the bands are
-still read, but they can only be told apart by their order in the stack.
 
 ### Point Plot
 
