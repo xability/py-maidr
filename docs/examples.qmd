@@ -262,6 +262,88 @@ wedges around
 alone, so the data stays index-aligned with what is on screen.
 :::
 
+### Word Cloud
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
+A word cloud is the extreme case of a chart that carries real data while being
+readable only by eye: each term's weight is drawn as **glyph size** and written
+down nowhere on the page. Structurally it is a categorical label and a
+magnitude, so maidr reads it as a term and its number.
+
+`wordcloud` is an optional dependency — `pip install maidr[wordcloud]`.
+```{python}
+#| warning: false
+#| fig-alt: Word cloud of eight accessibility topics, sized by how often each was mentioned
+
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+
+import maidr #<<
+
+mentions = {
+    "accessibility": 412, "sonification": 300, "braille": 250,
+    "screenreader": 190, "keyboard": 155, "contrast": 120,
+    "captions": 95, "semantics": 70,
+}
+
+# Pass the `WordCloud` object itself -- see the note below on `to_array()`.
+cloud = WordCloud(
+    width=800, height=400, background_color="white",
+    max_words=8, random_state=42,
+).generate_from_frequencies(mentions)
+
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.set_title("What the accessibility reports talk about")
+ax.imshow(cloud) #<<
+ax.set_axis_off()
+
+plt.show() #<<
+```
+
+A cloud has no x or y scale — the glyph positions are packing, not data —
+so maidr names the two axes after what a point *holds* rather than where it
+sits. No labels were set above, so the defaults fire and a term reads as
+"Term: braille, Relative frequency: 0.607". The generic "X"/"Y" the base
+class would otherwise give says nothing about a word.
+
+**The weights are relative, and that y axis name says so.** `WordCloud`
+divides every frequency by the largest one in `generate_from_frequencies` and
+keeps only the ratio — the raw counts are on no attribute of the object. So the
+counts above are announced as `1.0`, `0.728`, `0.607`, and the axis is called
+"Relative frequency" rather than "Occurrences". Naming it after counts would
+hand a reader "accessibility, 1.0" for a term that occurred 412 times.
+
+That is also what the chart draws: glyph size is proportional to the ratio, so a
+reader hearing 1.0 and 0.728 hears what a sighted reader sees. (The R binding
+*is* handed the raw counts, so it can honestly say "Occurrences" — same chart,
+two different honest readings.)
+
+**Show the object, not the picture.** `wc.to_array()` and `wc.to_image()` hand
+`imshow` a plain RGB array, and the terms are not in it. A cloud displayed that
+way stays a picture and is not read — which is the honest answer, since the data
+never reached maidr.
+
+**Name the axes yourself if the defaults are too generic.** An authored label
+always wins, so a cloud over survey topics can say so:
+
+```python
+ax.set_xlabel("Topic")
+ax.set_ylabel("Share of mentions")
+```
+
+which reads as "Topic: braille, Share of mentions: 0.607". Keep the y name
+honest about being a ratio — "Occurrences" would be wrong for the same reason
+the default avoids it.
+
+**No highlighting.** `imshow` rasterises the whole cloud into a single image
+element, so there is no per-term element to outline. The reading ships without a
+visual highlight rather than pairing the terms with some other layer's marks.
+
 ### Histogram
 
 ```{python}
@@ -507,6 +589,12 @@ plt.show() #<<
 
 ### Hexbin Plot
 
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
 A hexbin is the usual answer to a scatter plot with too many points to read:
 the points are binned into hexagons and the count is shown as fill. maidr reads
 it as a lattice of counted cells, one row at a time.
@@ -577,6 +665,12 @@ plt.show() #<<
 ```
 
 ### Boxen Plot (Letter-Value Plot)
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
 
 ```{python}
 #| fig-alt: Boxen plot of diamond price by cut quality, showing the letter-value ladder
@@ -691,6 +785,12 @@ plt.show() #<<
 
 ### Error Bar Plot
 
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
 Uncertainty is usually the finding, not the decoration: whether two group means
 differ is answered by whether their intervals overlap. `ax.errorbar()` draws
 that, and maidr reads the estimate **and** its interval, so the comparison the
@@ -730,6 +830,12 @@ plt.show() #<<
 ```
 
 ### Area Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
 
 `ax.stackplot()` reads as an area chart rather than a line one, and the
 distinction matters: a stacked area draws **two** numbers at each point that a
