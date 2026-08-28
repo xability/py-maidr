@@ -42,7 +42,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 ### Supported Plot Types
 
-Defined in `maidr/core/enum/plot_type.py`, which has **37** members. They do
+Defined in `maidr/core/enum/plot_type.py`, which has **38** members. They do
 not all carry the same promise -- see `docs/stability.qmd`, and keep that page
 in step when adding one (`tests/core/test_plot_type_stability.py` enforces it).
 
@@ -52,12 +52,12 @@ exercised by real readers:
 BAR, BOX, CANDLESTICK, COUNT, DODGED, HEAT, HIST, LINE, PIE, SCATTER,
 SMOOTH, STACKED, STEP, VIOLIN_BOX, VIOLIN_KDE
 
-**Experimental** (22) -- added by that roadmap, none validated with a reader,
+**Experimental** (23) -- added by that roadmap, none validated with a reader,
 and subject to change without a deprecation period:
 
 ALLUVIAL, AREA, BOXEN, CHOROPLETH, CONTOUR, ERRORBAR, FUNNEL, GANTT, GAUGE,
 HEXBIN, ICICLE, LOLLIPOP, NORMALIZED, NORMALIZED_AREA, PARALLEL, POLAR_AREA,
-RADAR, SANKEY, STACKED_AREA, SUNBURST, TREEMAP, WATERFALL
+RADAR, SANKEY, STACKED_AREA, SUNBURST, TREEMAP, WATERFALL, WORD_CLOUD
 
 Note that `maidr/plotly/` builds its MAIDR schema in Python and therefore needs its own
 handling per plot type, whereas `maidr/altair/` delegates entirely to the upstream

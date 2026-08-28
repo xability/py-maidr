@@ -116,6 +116,11 @@ class PlotType(str, Enum):
     #: it made and the total it produced -- and announcing either alone
     #: answers half the question the chart is drawn for.
     WATERFALL = "waterfall"
+    #: A cloud of terms whose glyph size is the weight. The chart that carries
+    #: real data while being readable only by eye: the weight is drawn as size
+    #: and written down nowhere, so a term and its number is the whole of what
+    #: it encodes. See `docs/stability.qmd` -- experimental.
+    WORD_CLOUD = "word_cloud"
 
     @property
     def display_name(self) -> str:
@@ -154,4 +159,5 @@ _DISPLAY_NAMES = {
     PlotType.POLAR_AREA: "polar area",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",
+    PlotType.WORD_CLOUD: "word cloud",
 }
