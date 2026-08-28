@@ -117,13 +117,27 @@ class WordCloudPlot(MaidrPlot):
         author who labelled the axes has already named them; otherwise the
         base class's generic "X"/"Y" would be read out against every term.
 
+        The shared-label fallback is the rest of that pattern: one cloud per
+        group on a facet grid carries its label on the shared outer axes
+        rather than on its own, so asking only ``self.ax`` would fall through
+        to the generic name for a figure that was labelled.
+
         Returns
         -------
         dict
             ``{"x": {"label": ...}, "y": {"label": ...}}``.
         """
-        x_label = self.ax.get_xlabel() or TERM_LABEL
-        y_label = self.ax.get_ylabel() or WEIGHT_LABEL
+        x_label = self.ax.get_xlabel()
+        if not x_label:
+            x_label = self.extract_shared_xlabel(self.ax)
+        if not x_label:
+            x_label = TERM_LABEL
+
+        y_label = self.ax.get_ylabel()
+        if not y_label:
+            y_label = self.extract_shared_ylabel(self.ax)
+        if not y_label:
+            y_label = WEIGHT_LABEL
 
         return {
             MaidrKey.X: self._axis_config(label=x_label),

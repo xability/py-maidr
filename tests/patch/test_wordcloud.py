@@ -25,16 +25,23 @@ from maidr.core.plot.wordcloudplot import TERM_LABEL, WEIGHT_LABEL
 wordcloud = pytest.importorskip("wordcloud")
 
 #: Counts whose ratios are distinctive enough to recognise after normalising.
-COUNTS = {"machine": 412, "learning": 300, "data": 250, "model": 120}
+#:
+#: Deliberately **not** written heaviest-first. ``words_`` re-sorts by weight,
+#: and a fixture that arrived already sorted could not tell that apart from a
+#: dict that merely kept the insertion order it was handed -- measured, this
+#: order goes in and :data:`BY_WEIGHT` comes out.
+COUNTS = {"data": 250, "machine": 412, "model": 120, "learning": 300}
+
+#: The same four terms in the order ``words_`` yields them: heaviest first.
+BY_WEIGHT = ["machine", "learning", "data", "model"]
 
 
 def cloud(**kwargs):
     """A small deterministic cloud over :data:`COUNTS`."""
+    frequencies = kwargs.pop("frequencies", COUNTS)
     settings = {"width": 300, "height": 150, "max_words": 4, "random_state": 1}
     settings.update(kwargs)
-    return wordcloud.WordCloud(**settings).generate_from_frequencies(
-        kwargs.pop("frequencies", COUNTS)
-    )
+    return wordcloud.WordCloud(**settings).generate_from_frequencies(frequencies)
 
 
 def layers(fig):
@@ -65,7 +72,10 @@ def test_each_term_is_paired_with_its_weight():
 
     data = layers(fig)[0][MaidrKey.DATA]
 
-    assert [point[MaidrKey.X] for point in data] == list(COUNTS)
+    assert [point[MaidrKey.X] for point in data] == BY_WEIGHT
+    # And the fixture is not already in that order, so the assertion above is
+    # about `words_` re-sorting rather than about a dict keeping its keys.
+    assert list(COUNTS) != BY_WEIGHT
     # Normalised by the largest count, so the heaviest term is exactly 1.0.
     assert data[0][MaidrKey.Y] == pytest.approx(1.0)
     assert data[1][MaidrKey.Y] == pytest.approx(300 / 412)
@@ -170,3 +180,32 @@ def test_an_array_from_the_cloud_is_not_recognised():
 
     with pytest.raises(UnsupportedPlotError):
         FigureManager.get_maidr(fig)
+
+
+def test_a_layer_built_without_a_cloud_raises_rather_than_emits():
+    # Defensive: the patch never builds one this way, since it only registers
+    # after `cloud_shown` has handed it an object. Pinned because the
+    # alternative to raising is emitting an empty layer, and a word cloud
+    # announcing no terms is indistinguishable from one whose terms were read.
+    from maidr.core.plot.wordcloudplot import WordCloudPlot
+    from maidr.exception import ExtractionError
+
+    _, ax = plt.subplots()
+
+    with pytest.raises(ExtractionError):
+        WordCloudPlot(ax).schema
+
+
+def test_a_facet_grid_label_names_the_terms():
+    # One cloud per group carries its label on the shared outer axes rather
+    # than on its own, so asking only `self.ax` would fall through to the
+    # generic name for a figure that was labelled -- the same fallback
+    # `PiePlot` uses.
+    fig, axs = plt.subplots(2, 1, sharex=True)
+    for ax in axs:
+        ax.imshow(cloud())
+    axs[-1].set_xlabel("Keyword")
+
+    labelled = layers(fig)[0][MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL]
+
+    assert labelled == "Keyword"

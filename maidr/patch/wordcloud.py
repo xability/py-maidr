@@ -33,6 +33,21 @@ def wordcloud(wrapped, instance, args, kwargs):
     heatmap wrapper declines a colour image whether or not it is a cloud, so
     the pair cannot both register a layer for one call.
 
+    **This one has to be the outer of the two, and the import order in
+    ``maidr.patch`` is what makes it so** -- ``wrapt`` puts the wrapper
+    applied last on the outside, and ``heatmap`` is imported before
+    ``wordcloud``. Reversed, nothing registers at all: ``heat`` would run
+    first, set the internal context for its own draw, and the call would
+    reach this wrapper with ``is_internal_context()`` already true, so the
+    cloud goes unrecorded -- and then ``heat`` declines it as a colour image
+    too. Measured on the reversed stack, a figure holding only a cloud raises
+    ``UnsupportedPlotError`` again, exactly as it did before this patch
+    existed.
+
+    Nothing in the tuple's shape enforces the order, but the tests do:
+    ``test_a_cloud_is_read_rather_than_refused`` fails outright under the
+    reversed stack, because there is no layer to read.
+
     ``wc.to_array()`` and ``wc.to_image()`` are not recognised, and cannot
     be: both hand ``imshow`` a plain array, and the terms are not in it. A
     cloud displayed that way stays a picture, which is the honest answer.
