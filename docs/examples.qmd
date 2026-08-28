@@ -264,19 +264,18 @@ alone, so the data stays index-aligned with what is on screen.
 
 ### Word Cloud
 
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
 A word cloud is the extreme case of a chart that carries real data while being
 readable only by eye: each term's weight is drawn as **glyph size** and written
 down nowhere on the page. Structurally it is a categorical label and a
 magnitude, so maidr reads it as a term and its number.
 
 `wordcloud` is an optional dependency — `pip install maidr[wordcloud]`.
-
-::: {.callout-warning title="Prototype"}
-`word_cloud` is one of the experimental plot types. It has not been through a
-user study, and it may change without a deprecation period. See
-[Plot type stability](stability.qmd).
-:::
-
 ```{python}
 #| warning: false
 #| fig-alt: Word cloud of eight accessibility topics, sized by how often each was mentioned
@@ -590,6 +589,12 @@ plt.show() #<<
 
 ### Hexbin Plot
 
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
 A hexbin is the usual answer to a scatter plot with too many points to read:
 the points are binned into hexagons and the count is shown as fill. maidr reads
 it as a lattice of counted cells, one row at a time.
@@ -660,6 +665,12 @@ plt.show() #<<
 ```
 
 ### Boxen Plot (Letter-Value Plot)
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
 
 ```{python}
 #| fig-alt: Boxen plot of diamond price by cut quality, showing the letter-value ladder
@@ -774,6 +785,12 @@ plt.show() #<<
 
 ### Error Bar Plot
 
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
 Uncertainty is usually the finding, not the decoration: whether two group means
 differ is answered by whether their intervals overlap. `ax.errorbar()` draws
 that, and maidr reads the estimate **and** its interval, so the comparison the
@@ -813,6 +830,12 @@ plt.show() #<<
 ```
 
 ### Area Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
 
 `ax.stackplot()` reads as an area chart rather than a line one, and the
 distinction matters: a stacked area draws **two** numbers at each point that a
