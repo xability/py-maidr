@@ -676,9 +676,18 @@ ax.set_title("A Gaussian surface, six levels")
 plt.show() #<<
 ```
 
-`levels=` decides how many curves are drawn, and the reading follows it
-exactly — ask for six and you navigate six, because maidr reads the curves
-matplotlib actually produced rather than re-deriving its own.
+`levels=` asks for a number of heights, not a number of curves, and the
+reading follows the curves matplotlib actually drew rather than re-deriving
+its own. On a single-peaked surface like this one the two coincide — six
+levels, six curves. On a surface where one height is crossed in more than one
+place they do not, because each closed island is its own curve to walk:
+
+| surface | `levels=` | curves read |
+|---|---|---|
+| one peak | 6 | 6 |
+| two peaks | 6 | 12 |
+
+A level that nothing on the surface reaches contributes no curve at all.
 
 A bivariate `sns.kdeplot(x=..., y=...)` draws its density the same way and
 gets the same reading.
@@ -965,9 +974,14 @@ band's *thickness* is that series' contribution. maidr reads one series per
 band within a single layer, so navigation walks one band at a time and up/down
 moves between them.
 
-The thickness is the point. A stacked area is read as the value each series
-contributes, not as the cumulative height its top edge sits at — the latter is
-a drawing artefact of what happens to be stacked underneath it.
+A stack draws **two** numbers at every point, and both are read: the band's
+own value, which is its thickness, and the running total its top edge sits at.
+That is exactly why a stacked area is its own layer type rather than a line —
+a line announces one number per point with nothing to say which of the two it
+is, so the area trace announces the value and reports the total beside it.
+
+A single band is a plain `area` instead, since nothing is stacked on it and a
+running total equal to its own value at every point would just be noise.
 
 ```{python}
 #| fig-alt: Stacked area chart of three revenue channels across eight quarters
