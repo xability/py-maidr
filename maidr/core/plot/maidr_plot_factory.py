@@ -38,6 +38,7 @@ from maidr.core.plot.step_histogram import STEP_COUNTS, STEP_EDGES, StepHistPlot
 from maidr.core.plot.stepplot import StepPlot
 from maidr.core.plot.violin_kde_plot import ViolinKdePlot
 from maidr.core.plot.violin_box_plot import ViolinBoxPlot
+from maidr.core.plot.wordcloudplot import WordCloudPlot
 from maidr.core.plot.mplfinance_barplot import MplfinanceBarPlot
 from maidr.core.plot.mplfinance_lineplot import MplfinanceLinePlot
 from maidr.core.plot.candlestick import CandlestickPlot
@@ -202,5 +203,7 @@ class MaidrPlotFactory:
             return ViolinKdePlot(single_ax, **kwargs)
         elif PlotType.VIOLIN_BOX == plot_type:
             return ViolinBoxPlot(single_ax, **kwargs)
+        elif PlotType.WORD_CLOUD == plot_type:
+            return WordCloudPlot(single_ax, **kwargs)
         else:
             raise TypeError(f"Unsupported plot type: {plot_type}.")

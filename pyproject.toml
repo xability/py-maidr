@@ -73,6 +73,14 @@ visualization = [
 altair = [
     "altair>=5.0",
 ]
+wordcloud = [
+    # Optional, and read through duck typing rather than an import: the patch
+    # on `Axes.imshow` recognises a cloud by its `words_` mapping, so nothing
+    # in maidr imports this and a user without it is unaffected. Listed so
+    # `pip install maidr[wordcloud]` gets a working pair, and so CI installs
+    # the package the word cloud tests need in order not to skip.
+    "wordcloud>=1.9",
+]
 jupyter = [
     "jupyter>=1.0.0,<2",
     "ipykernel>=6.0.0",
@@ -146,6 +154,7 @@ dev = [
     "quartodoc>=0.8.0,<0.9",
     "griffe>=0.48,<1.0",
     "plotly>=6.5.2",
+    "wordcloud>=1.9",
 ]
 
 [tool.hatch.build.targets.wheel]
