@@ -635,6 +635,54 @@ count with a reduction of the values you supply, and a numeric `bins=`
 discretises the counts so the colour shows *which interval* a bin landed in.
 Pass `z_label=` to name it yourself.
 
+### Contour Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
+A contour plot draws a surface as a set of level curves, each joining the
+points where the surface has one particular height. maidr reads the **levels
+themselves**: navigation walks one curve at a time, and every point on a
+curve carries the level it belongs to, so the height is never something you
+have to infer from position.
+
+That is the difference between a contour and a heatmap of the same surface.
+A heatmap gives you one number per cell on a fixed grid; a contour gives you
+the shape of a chosen height, which is what the chart was drawn to show.
+
+```{python}
+#| fig-alt: Contour plot of a two-dimensional Gaussian surface
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+x = np.linspace(-3, 3, 80)
+y = np.linspace(-3, 3, 80)
+grid_x, grid_y = np.meshgrid(x, y)
+height = np.exp(-(grid_x**2 + grid_y**2) / 2)
+
+fig, ax = plt.subplots(figsize=(7, 6))
+contours = ax.contour(grid_x, grid_y, height, levels=6) #<<
+ax.clabel(contours, inline=True, fontsize=8)
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.set_title("A Gaussian surface, six levels")
+
+plt.show() #<<
+```
+
+`levels=` decides how many curves are drawn, and the reading follows it
+exactly — ask for six and you navigate six, because maidr reads the curves
+matplotlib actually produced rather than re-deriving its own.
+
+A bivariate `sns.kdeplot(x=..., y=...)` draws its density the same way and
+gets the same reading.
+
 ### Box Plot
 
 ```{python}
@@ -904,6 +952,51 @@ than the height of either, so announcing it as an area would report the upper
 edge as a magnitude and drop the lower one. Those charts render as a static
 image for now; see [issue #339](https://github.com/xability/py-maidr/issues/339).
 
+### Stacked Area Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
+`ax.stackplot()` stacks several series so the top edge is their total and each
+band's *thickness* is that series' contribution. maidr reads one layer per
+band, so navigation walks a single series at a time and up/down moves between
+them.
+
+The thickness is the point. A stacked area is read as the value each series
+contributes, not as the cumulative height its top edge sits at — the latter is
+a drawing artefact of what happens to be stacked underneath it.
+
+```{python}
+#| fig-alt: Stacked area chart of three revenue channels across eight quarters
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+quarters = np.arange(1, 9)
+direct = [12, 14, 15, 19, 22, 24, 27, 31]
+partner = [8, 9, 11, 11, 13, 16, 17, 18]
+online = [3, 5, 8, 12, 17, 21, 26, 33]
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.stackplot( #<<
+    quarters, direct, partner, online, labels=["Direct", "Partner", "Online"]
+)
+ax.set_xlabel("Quarter")
+ax.set_ylabel("Revenue (millions)")
+ax.set_title("Revenue by channel")
+ax.legend(loc="upper left")
+
+plt.show() #<<
+```
+
+Pass `labels=` and each band is announced by name. Without it the bands are
+still read, but they can only be told apart by their order in the stack.
+
 ### Point Plot
 
 `sns.pointplot()` is the same reading from the other direction: it estimates a
@@ -934,6 +1027,39 @@ sns.pointplot( #<<
 ax.set_title("Mean Body Mass by Species, with 95% Confidence Intervals")
 ax.set_xlabel("Species")
 ax.set_ylabel("Body Mass (g)")
+
+plt.show() #<<
+```
+
+### Lollipop Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
+`ax.stem()` draws a stem down to each value with a marker at the top — a bar
+chart with the bars thinned to lines, which is the usual answer when there are
+too many categories for bars to stay readable. maidr reads it as a lollipop:
+one term per stem, carrying its value.
+
+```{python}
+#| fig-alt: Lollipop chart of eight measurements
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+positions = np.arange(1, 9)
+values = [2.1, 5.4, 3.3, 9.2, 4.0, 7.1, 6.4, 8.3]
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.stem(positions, values) #<<
+ax.set_xlabel("Sample")
+ax.set_ylabel("Concentration (mg/L)")
+ax.set_title("Concentration by sample")
 
 plt.show() #<<
 ```
@@ -1228,6 +1354,62 @@ plt.show() #<<
 ```
 
 ## Reactive Dashboard
+
+### Gantt Chart
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](stability.qmd).
+:::
+
+`ax.broken_barh()` draws horizontal bars that start and stop along an axis,
+which is what a schedule looks like. maidr reads it as a gantt: every bar is a
+**span**, carrying both its start and its end rather than a single position,
+so a reader hears when a task begins, when it finishes, and therefore how long
+it runs.
+
+The whole chart is one layer, organised into **lanes**. Each `broken_barh()`
+call contributes one lane, and the spans passed in that call are the spans of
+that lane — so a phase that stops and restarts is two spans on one lane, not
+two separate rows.
+
+```{python}
+#| fig-alt: Gantt chart of three project phases across a thirteen-week schedule
+
+import matplotlib.pyplot as plt
+
+import maidr #<<
+
+fig, ax = plt.subplots(figsize=(8, 4))
+
+# One call is one lane. A lane can hold several spans: "Build" runs for four
+# weeks, pauses for one, then resumes for three.
+ax.broken_barh([(0, 3)], (10, 6)) #<<
+ax.broken_barh([(3, 4), (8, 3)], (20, 6)) #<<
+ax.broken_barh([(11, 2)], (30, 6)) #<<
+
+ax.set_xlabel("Week")
+ax.set_ylabel("Phase")
+ax.set_yticks([13, 23, 33])
+ax.set_yticklabels(["Design", "Build", "Launch"])
+ax.set_title("Project schedule")
+
+plt.show() #<<
+```
+
+Set the y tick labels and the lanes are announced by name. Without them a lane
+falls back to the centre of the row it was drawn on — the `(10, 6)` above puts
+one at 13 — which is a position rather than a name. Measured on the three lanes
+above:
+
+| y ticks | lanes announced as |
+|---|---|
+| `set_yticklabels(["Design", "Build", "Launch"])` | `Design`, `Build`, `Launch` |
+| not set | `13.0`, `23.0`, `33.0` |
+
+`label=` is the argument that looks like it should do this, and it does not —
+it adds a legend entry and leaves the lane unnamed.
 
 ### Shiny
 
