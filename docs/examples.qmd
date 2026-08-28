@@ -961,9 +961,9 @@ study, and it may change without a deprecation period. See
 :::
 
 `ax.stackplot()` stacks several series so the top edge is their total and each
-band's *thickness* is that series' contribution. maidr reads one layer per
-band, so navigation walks a single series at a time and up/down moves between
-them.
+band's *thickness* is that series' contribution. maidr reads one series per
+band within a single layer, so navigation walks one band at a time and up/down
+moves between them.
 
 The thickness is the point. A stacked area is read as the value each series
 contributes, not as the cumulative height its top edge sits at — the latter is
@@ -1396,15 +1396,18 @@ ax.set_title("Project schedule")
 plt.show() #<<
 ```
 
-Set the y tick labels and the lanes are announced by name. Without them a lane
+Naming the lanes takes **both** `set_yticks()` and `set_yticklabels()`, as the
+example does. Labels alone are ignored, because a lane name is only trusted
+when the axis carries fixed tick positions to attach it to; otherwise a lane
 falls back to the centre of the row it was drawn on — the `(10, 6)` above puts
-one at 13 — which is a position rather than a name. Measured on the three lanes
-above:
+one at 13. Measured on the three lanes above:
 
-| y ticks | lanes announced as |
+| what the axis sets | lanes announced as |
 |---|---|
-| `set_yticklabels(["Design", "Build", "Launch"])` | `Design`, `Build`, `Launch` |
-| not set | `13.0`, `23.0`, `33.0` |
+| `set_yticks()` and `set_yticklabels()` | `Design`, `Build`, `Launch` |
+| `set_yticklabels()` alone | `13.0`, `23.0`, `33.0` |
+| `set_yticks()` alone | `13`, `23`, `33` |
+| neither | `13.0`, `23.0`, `33.0` |
 
 `label=` is the argument that looks like it should do this, and it does not —
 it adds a legend entry and leaves the lane unnamed.
