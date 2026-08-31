@@ -1,6 +1,292 @@
 # CHANGELOG
 
 
+## v1.23.0 (2026-08-31)
+
+### Bug Fixes
+
+- **seaborn**: Read a box or boxen chart's grouping from the legend that names it
+  ([#676](https://github.com/xability/py-maidr/pull/676),
+  [`50b2197`](https://github.com/xability/py-maidr/commit/50b2197539de5c8bc14443e4246fa855cc1cf953))
+
+Three readers still asked `ax.get_legend()` directly after #672 and #617 moved everything else onto
+  `legend_of`. Measured, a box chart whose legend sits on the figure lost its `z` label, and a boxen
+  chart lost every ladder's level as well — two ladders in one category announced identically, the
+  shape xability/maidr#828 exists to prevent.
+
+`BoxPlot` names each box by colour through `names_for`, which already read the chosen legend, so
+  only the variable's name was dropped. `BoxenPlot` reads its levels from the legend's own list of
+  names, which was empty with no axes legend.
+
+The label and the levels now come from the same legend.
+
+Closes #674.
+
+- **seaborn-objects**: Name a colour split from the legend wherever it was put
+  ([#673](https://github.com/xability/py-maidr/pull/673),
+  [`c5c76f5`](https://github.com/xability/py-maidr/commit/c5c76f50ca3d27bd6953b1d24ca90828f1ce26f7))
+
+A colour-split `so.Line` drew two lines and read as two series carrying no names at all -- no
+  per-point `z`, and no `axes.z` naming the variable they were split by, where the classic
+  `sns.lineplot(hue=)` named both.
+
+A `so.Plot`'s legend is the figure's, never the axes'. `legend_of` has known that since #617 and the
+  scatter and bar paths moved onto it then; `MultiLinePlot`'s `legend_labels` and
+  `MaidrPlot._legend_title` never did. Both now go through it, and every rule about which legend
+  answers stays `legend_of`'s.
+
+`_legend_title` had become identical to `legend_names.title_of` and now delegates to it, so the
+  settled version has one copy. Coverage added for `ScatterPlot` and `PointPlot`, the other two
+  callers that reach the same method.
+
+Closes #672.
+
+- **seaborn-objects**: Split a colour-split Dash into one layer per level
+  ([#682](https://github.com/xability/py-maidr/pull/682),
+  [`0481e71`](https://github.com/xability/py-maidr/commit/0481e7119d01c1772c5750ed65c85b0cb2a9529c))
+
+A `so.Dash()` given `color=` was read as one anonymous cloud of forty ticks (#680). `hue_groups`
+  inverts a collection's colours against the legend that names them and asked for face colours,
+  which a `LineCollection` has none of — measured, 0 face colours against 40 edge colours.
+
+`drawn_colours` reads faces where the artist has them and edges otherwise. The split takes
+  `so.Bars`' shape rather than `so.Dot`'s: the layer is handed one collection and reads a slice of
+  it, so the members travel with the name as `DASH_MEMBERS` and the selectors keep numbering against
+  the collection.
+
+Closes #680.
+
+### Documentation
+
+- Add a word cloud example to the gallery ([#689](https://github.com/xability/py-maidr/pull/689),
+  [`686a7ef`](https://github.com/xability/py-maidr/commit/686a7efa2aeda4df8952f8a183ba715c658c385c))
+
+`word_cloud` merged with only a row in `docs/stability.qmd` naming it, so a reader could learn the
+  type exists but not how to produce one -- an inconsistency, since four other experimental types
+  already carried example sections in the same file.
+
+The section sits after Pie Chart, the other chart here with no positional scale, and covers what is
+  not obvious from the API:
+
+* The weights are relative. `generate_from_frequencies` divides by the largest frequency and keeps
+  only the ratio, so 412 is announced as 1.0 and the axis is named "Relative frequency". Naming it
+  after counts would hand a reader "accessibility, 1.0" for a term that occurred 412 times. The R
+  binding is handed the raw counts and can honestly say "Occurrences" -- same chart, two honest
+  readings. * Show the object, not the picture: `to_array()` / `to_image()` hand `imshow` a plain
+  RGB array with the terms nowhere in it. * No highlighting, because `imshow` rasterises the cloud
+  into one element and there is no per-term element to outline.
+
+Review caught the example overriding the very default the prose described, so a reader would never
+  have seen it; the labels were dropped and the defaults now fire in the shown output.
+
+The prototype callout is applied to all five experimental sections rather than this one alone, so
+  Hexbin, Boxen, Error Bar and Area no longer imply a stability they do not have.
+
+Also adds the standalone sample under `example/wordcloud/matplotlib/`. The example was run before
+  being written down.
+
+- Add gallery examples for three experimental matplotlib plot types
+  ([#690](https://github.com/xability/py-maidr/pull/690),
+  [`6a9d780`](https://github.com/xability/py-maidr/commit/6a9d78089928e5c96dd98e02fab14a9f3fd4836b))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- Mark the roadmap's new plot types as experimental
+  ([#687](https://github.com/xability/py-maidr/pull/687),
+  [`110c135`](https://github.com/xability/py-maidr/commit/110c135eda776f12362f28d400bf82a9b60edfb7))
+
+`PlotType` defined 15 members when the plot coverage roadmap (#345) was filed and defines 37 now.
+  The 22 that arrived with it are not on the same footing as the 15 that predate it -- most landed
+  inside about two weeks, and none has been through a user study -- but nothing in the enum or the
+  docs said so.
+
+Adds `docs/stability.qmd`, in the navbar, splitting the enum and stating what the experimental half
+  does not promise: no deprecation period, no support commitment, and measured against the chart
+  rather than validated with a reader. Measuring that a reading is faithful to the drawing is a
+  different claim from establishing that it is useful, and only the first has been done.
+
+The boundary is the diff of `PlotType` against `d9f7aee`, the last commit before #345 was filed, and
+  the page carries the command to re-derive it.
+
+`tests/core/test_plot_type_stability.py` fails if a member lands in neither table or in both, checks
+  each row's emitted string against the enum since that is what reaches the schema, and pins the
+  whole stable set rather than a sample -- the partition check alone is satisfied by any split that
+  covers the enum, including a wrong one.
+
+Review also caught CLAUDE.md still naming the pre-roadmap 25, which is the same drift in the file an
+  agent reads first; it now names all 37, split the same way and pointing at the page.
+
+- Tell deck authors how to keep off-slide charts out of the tab order
+  ([#686](https://github.com/xability/py-maidr/pull/686),
+  [`99913b7`](https://github.com/xability/py-maidr/commit/99913b77fb5d3e4873286524cebab13092c1c395))
+
+A chart already hands focus back to its slide, but reveal.js keeps the slides on either side of the
+  current one rendered and marking them `hidden` does not take them out of the tab order, so one Tab
+  lands on an off-screen slide's chart. reveal.js `master` now marks every slide but the current one
+  `inert`, and until that reaches a Quarto release the quarto-revealjs-a11y extension does the same
+  for a deck.
+
+### Features
+
+- Read a word cloud as its terms and their weights
+  ([#688](https://github.com/xability/py-maidr/pull/688),
+  [`451cf8a`](https://github.com/xability/py-maidr/commit/451cf8a925a979cf8f354c2a82477b7e38104e9d))
+
+A `wordcloud.WordCloud` shown with `ax.imshow` registered no layer at all, so a figure holding only
+  a cloud raised UnsupportedPlotError: the cloud rasterises to an (M, N, 3) colour array, and the
+  heatmap patch declines exactly that shape (#564). It was unread rather than misread, so the
+  reading is additive.
+
+The layer reads `words_`, not `layout_` -- `layout_` lists a term once per placement under
+  `repeat=True`, which would announce one term twice at two different weights for a repetition that
+  is the packer rather than the data.
+
+The weights are relative and the axis label says so. `WordCloud` divides every frequency by the
+  largest and keeps only the ratio, and the raw counts are on no attribute of the object. That is
+  also what the chart draws, so "Relative frequency" is the honest name; the R binding is handed the
+  counts directly and can say "Occurrences" instead.
+
+No selectors: `imshow` rasterises the whole cloud into one element, so there is no per-term element
+  to point at. The core supports a layer without them.
+
+Marked experimental in docs/stability.qmd alongside the rest of the plot coverage roadmap.
+
+- **core**: Read a baseline-anchored vlines as the spike chart it draws
+  ([#665](https://github.com/xability/py-maidr/pull/665),
+  [`6e7900d`](https://github.com/xability/py-maidr/commit/6e7900d583bbb0901631bb8de91942e73c3eb0f7))
+
+A bare `ax.vlines([1, 2, 3], 0, [5, 3, 7])` registered no layer at all, so the figure fell back to a
+  static picture and the three measurements were announced nowhere. The same values drawn any other
+  way read fine: `ax.stem` and `ax.acorr` emit a lollipop, and a `vlines` whose ends both vary emits
+  a gantt.
+
+The span reading declines when either end is shared, on the grounds that "the markers drawn at their
+  tips already say it" -- and with a bare `vlines` there are no markers, which is the gap
+  `patch/correlogram.py` already records for `acorr`.
+
+Not a schedule is not the same as not a chart. Where exactly one end is shared the call drew stems
+  from a baseline, and it is now registered as the `lollipop` `ax.stem` emits, through the machinery
+  `acorr` already uses. The value is the free end, found rather than assumed. Where both ends are
+  shared -- reference lines across the frame -- and where there is only one segment, nothing is
+  registered, unchanged.
+
+Closes #664
+
+- **plotly**: Read a scatterpolargl as the radar it draws
+  ([#669](https://github.com/xability/py-maidr/pull/669),
+  [`18d9a56`](https://github.com/xability/py-maidr/commit/18d9a56f9485aa5d5b850b1360a77c3bbe4d4cda))
+
+`go.Scatterpolargl` carries the same `r` and `theta` as `go.Scatterpolar` and differs only in being
+  painted by regl, but the polar branch listed two trace types by name and read it as nothing. It
+  now reads as a radar, declines its selector as the canvas trace it is, and is left out of the
+  subplot's scatter numbering.
+
+Closes #668
+
+- **plotly**: Read a splom as the grid of scatters it draws
+  ([#667](https://github.com/xability/py-maidr/pull/667),
+  [`b1a6eeb`](https://github.com/xability/py-maidr/commit/b1a6eebef4bfe4866c2baea3b387103b219cedcd))
+
+A `splom` produced a one-by-one grid whose only cell held no layers at all, and `render()` succeeded
+  on it -- so a reader was handed a chart that announced itself as navigable and contained nothing.
+  `px.scatter_matrix` produces the same trace type, so the commonest spelling was affected too.
+
+A splom is one trace carrying `n` dimensions and drawing an `n` by `n` grid of scatters, which is
+  what MAIDR's subplot grid is, and the plotly path already builds real grids. Panel `(i, j)` is
+  dimension `j` on x against dimension `i` on y, and becomes an ordinary scatter layer at its own
+  position.
+
+`diagonal.visible`, `showupperhalf` and `showlowerhalf` are each read rather than assumed: a blanked
+  panel is left out entirely, so the grid keeps its shape and the blanks are holes in it. A
+  dimension the chart hides, or one carrying no values, is not a row or a column at all.
+
+No panel claims a selector -- a splom's per-panel DOM has not been measured, and a selector that
+  resolves to nothing is a highlight that silently never appears.
+
+Closes #666
+
+- **plotly**: Read the seven map traces that registered nothing
+  ([#684](https://github.com/xability/py-maidr/pull/684),
+  [`62a6b03`](https://github.com/xability/py-maidr/commit/62a6b0353c25ae45a3c453ac554256f3eb244b9b))
+
+`go.Choropleth` was read; every other trace plotly draws on a map registered no layer at all, so the
+  whole figure fell back to a picture. Measured on plotly 6.7.0: Scattergeo, Scattermap,
+  Scattermapbox, Densitymap, Densitymapbox, Choroplethmap and Choroplethmapbox all produced n=0.
+
+The two tiled choropleths read through the class that already existed — same `locations`, same `z`,
+  a different base map painted underneath. The five scatter-shaped traces get a class of their own:
+  a placed marker has a position and a name and no magnitude, so it is a scatter of degrees with the
+  place name on `ScatterPoint.label`, and a density trace's `z` travels on `ScatterPoint.z`. Which
+  layout block a map names is measured per family rather than assumed to be `geo`.
+
+Closes #683.
+
+- **seaborn-objects**: Read a Band or a Range as the interval it draws
+  ([#677](https://github.com/xability/py-maidr/pull/677),
+  [`a592ca4`](https://github.com/xability/py-maidr/commit/a592ca4dbba56ef4963008015972eeac4bc5ccf2))
+
+`so.Band` and `so.Range` registered nothing, so a chart of estimates and their uncertainty fell back
+  to a static image. They are the same reading from two drawings — a `Polygon` folded
+  lower-forward-then-upper-backward, and a `LineCollection` of one segment per position — so one
+  class takes both.
+
+Neither draws a centre, and `ErrorBarPoint.y` is optional for exactly that. Orientation comes from
+  the geometry: the two bounds at one position share the coordinate that position sits on, and a
+  degenerate interval shares both so the first with a spread decides. A colour split is named
+  through the legend and becomes the grouped `ErrorBarPoint[][]` shape.
+
+Highlighting is offered only where there is an element per interval: a range's own paths, addressed
+  by position in its group. A band has one path over every position, and a split range's paths run
+  in drawing order while its payload is grouped by level, so both decline rather than outline the
+  wrong thing.
+
+Part of #670.
+
+- **seaborn-objects**: Read a Bars mark as the histogram it draws
+  ([#678](https://github.com/xability/py-maidr/pull/678),
+  [`a701761`](https://github.com/xability/py-maidr/commit/a7017618c05ecbd168f6e32ee6b26bfa658c8728))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **seaborn-objects**: Read a Dash mark as the scatter of ticks it draws
+  ([#679](https://github.com/xability/py-maidr/pull/679),
+  [`6d06e30`](https://github.com/xability/py-maidr/commit/6d06e30cc7eed71a1018a37cb8da024515bd5b87))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **seaborn-objects**: Read a Lines or Paths mark as the line it draws
+  ([#675](https://github.com/xability/py-maidr/pull/675),
+  [`8a44ebf`](https://github.com/xability/py-maidr/commit/8a44ebf2d08863d80648c8b78638d97be76e00ed))
+
+`so.Lines` and `so.Paths` registered nothing, so a plot built from them was silent. They leave a
+  single `LineCollection` holding one segment per group where `so.Line` leaves a `Line2D` each, so
+  `MultiLinePlot`'s walk of `ax.lines` found nothing.
+
+`SegmentLinePlot` reads the collection: a `Line2D` stand-in per segment so the multi-line walk is
+  reused unchanged, then the tagged element swapped back to the collection itself. A series is
+  addressed by `nth-of-type` within the collection's group, and the drawn colours are cycled rather
+  than indexed because `get_colors()` returns one colour for every segment by default.
+
+Part of #670.
+
+- **seaborn-objects**: Read a Text mark as the labelled scatter it draws
+  ([#681](https://github.com/xability/py-maidr/pull/681),
+  [`2105f9e`](https://github.com/xability/py-maidr/commit/2105f9ee8fed780349f3d64d39cc0f2f3b350385))
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+- **seaborn-objects**: Read an Area mark as the band it draws
+  ([#671](https://github.com/xability/py-maidr/pull/671),
+  [`fec7c1e`](https://github.com/xability/py-maidr/commit/fec7c1e2cba7e629e4f768939bf7689cd0073f8b))
+
+`so.Area` is the first `seaborn.objects` mark to need something extracted rather than handed
+  straight to a plot class: its polygon folds the baseline forward and the values backward, and
+  `AreaPlot` takes the positions and the series. Both orientations read; a colour split declines
+  until its groups can be named, and that same polygon count covers a position transform.
+
+Part of #670
+
+
 ## v1.22.0 (2026-08-24)
 
 ### Bug Fixes
