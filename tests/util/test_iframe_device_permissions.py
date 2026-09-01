@@ -38,7 +38,6 @@ from __future__ import annotations
 import re
 from html.parser import HTMLParser
 
-import matplotlib.pyplot as plt
 import pytest
 from htmltools import tags
 
@@ -48,12 +47,6 @@ from maidr.util.iframe_utils import (
 )
 
 WRAPPERS = (wrap_in_iframe_matplotlib, wrap_in_iframe_plotly)
-
-
-@pytest.fixture(autouse=True)
-def _close_figures():
-    yield
-    plt.close("all")
 
 
 def _html(tag) -> str:
@@ -112,9 +105,7 @@ def _allowed_features(rendered: str) -> set[str]:
     """
     allow = _iframe_attrs(rendered).get("allow", "")
     return {
-        re.split(r"\s+", item.strip())[0]
-        for item in allow.split(";")
-        if item.strip()
+        re.split(r"\s+", item.strip())[0] for item in allow.split(";") if item.strip()
     }
 
 
@@ -125,28 +116,25 @@ class TestTheFrameMayReachATactileDisplay:
     def test_the_chart_frame_is_allowed_bluetooth_and_serial(self, wrap) -> None:
         rendered = _html(wrap(tags.div("chart"), "Body mass by species"))
 
-        assert 'allow="bluetooth; serial"' in rendered
-
-    @pytest.mark.parametrize("wrap", WRAPPERS)
-    def test_neither_transport_is_granted_without_the_other(self, wrap) -> None:
-        rendered = _html(wrap(tags.div("chart"), "Body mass by species"))
-
         features = _allowed_features(rendered)
 
-        # Independently gated, so dropping one leaves that path dead for a
-        # reason nothing on the page explains. Asserted per feature rather
-        # than against the exact string above, so a reformatting of the list
-        # cannot quietly lose one.
-        assert "bluetooth" in features
-        assert "serial" in features
+        # Both, and nothing else. They are independently gated, so dropping
+        # one leaves that path dead for a reason nothing on the page
+        # explains; and delegating a feature cannot exceed what the embedding
+        # page holds, but the list should still be the shortest that works --
+        # maidr scans for a display over Bluetooth and over serial only, so
+        # `usb`, `hid`, `camera` and the rest have no business here. Compared
+        # as parsed features rather than as the exact string, so reformatting
+        # the list cannot quietly lose one.
+        assert features == {"bluetooth", "serial"}
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
     def test_an_untitled_chart_is_allowed_them_too(self, wrap) -> None:
         # The delegation has nothing to do with the chart's title, and a
         # reader with a tactile display should not lose it for want of one.
-        rendered = _html(wrap(tags.div("chart")))
+        features = _allowed_features(_html(wrap(tags.div("chart"))))
 
-        assert 'allow="bluetooth; serial"' in rendered
+        assert features == {"bluetooth", "serial"}
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
     def test_the_frame_is_not_sandboxed_into_an_opaque_origin(self, wrap) -> None:
@@ -171,19 +159,7 @@ class TestTheFrameMayReachATactileDisplay:
 
 
 class TestNothingElseIsDelegated:
-    """The frame gets what the tactile display needs, and no more."""
-
-    @pytest.mark.parametrize("wrap", WRAPPERS)
-    def test_no_other_feature_is_granted(self, wrap) -> None:
-        rendered = _html(wrap(tags.div("chart"), "Body mass by species"))
-
-        features = _allowed_features(rendered)
-
-        # Delegating a feature cannot exceed what the embedding page already
-        # holds, but it should still be the shortest list that works. maidr
-        # scans for a display over Bluetooth and over serial and nothing else,
-        # so `usb`, `hid`, `camera` and the rest have no business here.
-        assert features == {"bluetooth", "serial"}
+    """What the chart says cannot pass for what the frame was granted."""
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
     def test_chart_content_cannot_look_like_a_granted_feature(self, wrap) -> None:
