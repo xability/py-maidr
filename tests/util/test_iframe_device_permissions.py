@@ -4,9 +4,12 @@ Every iframed render delegates Web Bluetooth and Web Serial to the chart frame.
 maidr.js can draw a chart onto a refreshable tactile display -- a Dot Pad --
 so a blind reader feels the plot rather than only hearing it. It reaches the
 device over Bluetooth or over USB, and both APIs are Permissions-Policy gated.
-A frame that is not granted a feature does not merely fail the call: the API is
-absent entirely, so maidr reports "this browser cannot reach a DotPad" and the
-reader has no way to tell a policy problem from an unsupported browser.
+A frame denied a feature is not told so at the call: the browser may keep the
+API object and refuse every request, or drop the object altogether -- Chromium
+does one to ``navigator.serial`` and the other to ``navigator.bluetooth`` --
+which is why maidr asks Permissions Policy rather than testing for the object.
+Either way the reader is told "this browser cannot reach a DotPad", with no way
+to tell a policy problem from an unsupported browser.
 
 The default allowlist is ``self``, so a same-origin frame already has them and
 the attribute changes nothing there. It is the cross-origin embeddings that
@@ -42,6 +45,7 @@ import pytest
 from htmltools import tags
 
 from maidr.util.iframe_utils import (
+    iframe_title,
     wrap_in_iframe_matplotlib,
     wrap_in_iframe_plotly,
 )
@@ -178,3 +182,25 @@ class TestNothingElseIsDelegated:
         features = _allowed_features(_html(wrap(loaded, "Body mass by species")))
 
         assert features == {"bluetooth", "serial"}
+
+
+class TestWhatTheGrantCannotBeTurnedAgainst:
+    """The strings a caller supplies land in the frame as text, not markup."""
+
+    @pytest.mark.parametrize("wrap", WRAPPERS)
+    def test_a_hostile_title_arrives_as_text(self, wrap) -> None:
+        # Delegating a device to the frame raises what an injection into it
+        # could reach, from the frame's own document to a paired display. The
+        # other assumptions the delegation rests on are pinned above; this is
+        # the one that turns a markup escape into a device escape. The title
+        # is the caller's string that reaches the tag, so it is the one tried.
+        hostile = "</iframe><script>alert(1)</script>"
+
+        rendered = _html(wrap(tags.div("chart"), hostile))
+
+        # Never as markup: the closing tag and the script must not surface in
+        # the rendered document as themselves, anywhere in it.
+        assert "</iframe><script>" not in rendered
+        # And as text, whole, where it was meant to go: read back through the
+        # parser, the frame's accessible name is the string the caller gave.
+        assert _iframe_attrs(rendered)["title"] == iframe_title(hostile)

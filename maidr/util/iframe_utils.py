@@ -39,10 +39,12 @@ _UNTITLED_NAME = "Accessible chart"
 # This delegates capabilities, it does not create them: a frame cannot receive
 # a feature the embedding page lacks, and the browser still requires a user
 # gesture and its own device picker.  It does widen what an injection into the
-# framed document would reach, so it leans on an assumption worth stating: the
-# chart content placed in ``srcdoc`` stays non-executable.  ``htmltools``
-# escapes it today -- a title of ``</iframe><script>`` arrives as text -- and
-# that has to keep being true.
+# framed document would reach, so it leans on an assumption worth stating.  The
+# document is executable by design -- it carries the chart's own scripts -- so
+# what has to hold is that the strings a caller supplies, the title above all,
+# land in it as text and never as markup.  ``htmltools`` escapes them today --
+# a title of ``</iframe><script>`` stays inside its attribute -- and
+# ``test_a_hostile_title_arrives_as_text`` fails if that stops being true.
 _ALLOWED_FEATURES = "bluetooth; serial"
 
 
