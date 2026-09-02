@@ -310,6 +310,17 @@ def render_maidr(
     # Web Serial both -- falls back to the feature's own default, ``self``,
     # which a same-origin frame satisfies.  A tactile display is reachable
     # from a Streamlit app wherever the app document itself may reach one.
+    #
+    # Measured on Streamlit 1.61.1, not inferred: ``st.iframe`` and the
+    # ``components.v1.html`` fallback below both enqueue the same ``IFrame``
+    # element, and its frontend's sandbox list carries ``allow-same-origin``
+    # while its feature list names neither ``bluetooth`` nor ``serial``.
+    # Nothing in this repository's tests pins that -- it lives in
+    # Streamlit's frontend bundle, which only a browser can exercise -- and
+    # no older Streamlit has been measured, so on a release where the
+    # fallback is what runs this is a reasoned expectation rather than a
+    # checked one.  If a Streamlit release tightens that sandbox, tactile
+    # displays stop working under it with nothing here to say so.
     if hasattr(st, "iframe"):
         st.iframe(html, width=width, height=height, tab_index=tab_index)
         return
