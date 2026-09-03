@@ -98,7 +98,12 @@ def _has_precomputed_stats(trace: dict) -> bool:
     the three is read as a raw sample. Both extractors branch on it in more
     than one place, so it is spelled once.
     """
-    return all(bool(trace.get(key)) for key in ("q1", "median", "q3"))
+    for key in ("q1", "median", "q3"):
+        value = trace.get(key)
+        # Sized rather than truthy: a numpy array raises on ``bool()``.
+        if value is None or not hasattr(value, "__len__") or len(value) == 0:
+            return False
+    return True
 
 
 def _is_finite_number(value: Any) -> bool:

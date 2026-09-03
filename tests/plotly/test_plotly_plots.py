@@ -359,6 +359,19 @@ class TestPlotlyBoxPlot:
         assert len(data) == 1
         assert data[0]["q2"] == 3.0
 
+    def test_numpy_quartile_arrays_are_read_as_precomputed(self):
+        # ``bool(np.ndarray)`` raises; the predicate has to size, not test.
+        trace = {
+            "type": "box",
+            "q1": np.array([1.0, 2.0]),
+            "median": np.array([2.0, 3.0]),
+            "q3": np.array([3.0, 4.0]),
+        }
+
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert [box["q2"] for box in data] == [2.0, 3.0]
+
     def test_unordered_precomputed_quartiles_are_dropped(self):
         # Plotly's calc requires q1 <= median <= q3 before it draws anything.
         trace = {"type": "box", "q1": [3], "median": [2], "q3": [4]}
