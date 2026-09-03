@@ -123,6 +123,81 @@ def test_an_area_from_an_explicit_zero_floor_is_not_one_either():
     assert _band(_series(fig)[0][0]) is None
 
 
+def test_an_area_under_a_series_that_changes_sign_is_not_one_either():
+    # The case a whole-series test misses (#714). An area under a signed
+    # series switches edges where it crosses the baseline: the line sits on
+    # the region's *upper* edge where y > 0 and on its *lower* edge where
+    # y < 0, so it is on neither edge throughout and was read as a band --
+    # "0.05, between 0 and 0.05" at every point. The test is per position: an
+    # area is on one edge or the other everywhere, a band is off both.
+    signed = np.sin(X)
+    fig, ax = plt.subplots()
+    ax.plot(X, signed)
+    ax.fill_between(X, 0, signed)
+
+    assert [_band(point) for point in _series(fig)[0]] == [None] * X.size
+
+
+def test_a_band_that_touches_its_line_at_one_endpoint_is_still_attached():
+    # The other side of the per-position rule. A real band can meet its line
+    # at an endpoint -- a regression's does, where the fit is pinned -- and
+    # isolated contact must not read as an area.
+    lower, upper = Y - 0.3, Y + 0.3
+    lower[0] = upper[0] = Y[0]
+    fig, ax = plt.subplots()
+    ax.plot(X, Y)
+    ax.fill_between(X, lower, upper)
+
+    points = _series(fig)[0]
+    assert _band(points[0]) == (round(Y[0], 3), round(Y[0], 3))
+    assert _band(points[1]) == (round(Y[1] - 0.3, 3), round(Y[1] + 0.3, 3))
+
+
+def test_the_edges_are_the_lowest_and_highest_vertex_at_each_x():
+    # Read straight off a ring that repeats x values -- as matplotlib's do,
+    # running out along one edge and back along the other -- with a
+    # non-finite vertex that has to be left out rather than poison the
+    # column it sits in.
+    from matplotlib.collections import PolyCollection
+
+    from maidr.util.confidence_band import edges_of
+
+    ring = [
+        (0.0, 1.0),
+        (1.0, 2.0),
+        (2.0, 1.0),
+        (2.0, 3.0),
+        (1.0, 4.0),
+        (0.0, 3.0),
+        (1.0, np.nan),
+        (0.0, 1.0),
+    ]
+    region = PolyCollection([ring])
+
+    lower, upper = edges_of(
+        region, np.array([0.0, 1.0, 2.0]), np.array([2.0, 3.0, 2.0])
+    )
+    assert lower.tolist() == [1.0, 2.0, 1.0]
+    assert upper.tolist() == [3.0, 4.0, 3.0]
+
+
+def test_a_where_region_with_several_paths_is_read_across_all_of_them():
+    # `fill_between(..., where=...)` draws one polygon per run, so the band
+    # is several paths and every one of them has to be read.
+    from maidr.util.confidence_band import edges_of
+
+    line = X.copy()
+    shown = (X < 4) | (X > 6)
+    fig, ax = plt.subplots()
+    ax.plot(X, line)
+    region = ax.fill_between(X, line - 0.3, line + 0.3, where=shown)
+    assert len(region.get_paths()) == 2
+
+    lower, upper = edges_of(region, X[shown], line[shown])
+    assert np.allclose(lower, line[shown] - 0.3)
+    assert np.allclose(upper, line[shown] + 0.3)
+
+
 def test_each_line_gets_its_own_band():
     # Two lines and two bands. The lower band is wide enough to bracket only
     # its own line, but a region is claimed by one series either way -- so

@@ -165,6 +165,12 @@ def edges_of(collection, x_data: np.ndarray, y_data: np.ndarray) -> tuple | None
     between vertices is also what matplotlib does to draw the band, so it
     reads the same shape the reader sees.
 
+    Read in numpy rather than vertex by vertex. The ring is sorted by (x, y),
+    so each column's lowest vertex is where its run starts and its highest is
+    the run's maximum -- the same lowest-and-highest-at-each-x the module
+    docstring describes, without a Python loop over what is, for a long line,
+    a couple of hundred thousand vertices (#714).
+
     Parameters
     ----------
     collection : matplotlib.collections.PolyCollection
@@ -180,21 +186,26 @@ def edges_of(collection, x_data: np.ndarray, y_data: np.ndarray) -> tuple | None
         Lower and upper bounds at each x, or ``None`` when this region is not
         this series' band.
     """
-    by_x: dict = {}
-    for path in collection.get_paths():
-        for x, y in path.vertices:
-            if not (np.isfinite(x) and np.isfinite(y)):
-                continue
-            key = float(x)
-            low, high = by_x.get(key, (float(y), float(y)))
-            by_x[key] = (min(low, float(y)), max(high, float(y)))
-
-    if len(by_x) < 2:
+    paths = collection.get_paths()
+    if not paths:
+        return None
+    # Every path, not only the first: `fill_between(..., where=...)` draws one
+    # polygon per run, and the band is all of them.
+    vertices = np.concatenate(
+        [np.asarray(path.vertices, dtype=float) for path in paths]
+    )
+    vertices = vertices[np.isfinite(vertices).all(axis=1)]
+    if len(vertices) == 0:
         return None
 
-    band_x = np.array(sorted(by_x))
-    lower = np.interp(x_data, band_x, np.array([by_x[x][0] for x in band_x]))
-    upper = np.interp(x_data, band_x, np.array([by_x[x][1] for x in band_x]))
+    order = np.lexsort((vertices[:, 1], vertices[:, 0]))
+    xs, ys = vertices[order, 0], vertices[order, 1]
+    band_x, start = np.unique(xs, return_index=True)
+    if len(band_x) < 2:
+        return None
+
+    lower = np.interp(x_data, band_x, ys[start])
+    upper = np.interp(x_data, band_x, np.maximum.reduceat(ys, start))
 
     # `np.interp` clamps outside the region's own x range, so a region that
     # does not span the series would still return numbers -- the bracketing
@@ -215,8 +226,16 @@ def edges_of(collection, x_data: np.ndarray, y_data: np.ndarray) -> tuple | None
     # whose edge coincides with the series throughout is not this series'
     # interval. Isolated contact is fine, and has to be: a real band can meet
     # its line at an endpoint.
-    on_upper = np.all(np.abs(upper - y_data) <= _TOLERANCE)
-    on_lower = np.all(np.abs(lower - y_data) <= _TOLERANCE)
-    if on_upper or on_lower:
+    #
+    # Per position, not per edge. An area under a series that changes sign
+    # switches edges where it crosses the baseline -- the line is on the upper
+    # edge where y > 0 and on the lower where y < 0 -- so it is on neither
+    # edge *throughout* and a whole-series test let it through as a band
+    # (#714). An area is on one edge or the other everywhere; a band is off
+    # both almost everywhere.
+    on_edge = (np.abs(upper - y_data) <= _TOLERANCE) | (
+        np.abs(lower - y_data) <= _TOLERANCE
+    )
+    if np.all(on_edge):
         return None
     return lower, upper
