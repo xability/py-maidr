@@ -89,6 +89,16 @@ def _build_box_selector(
     }
 
 
+def _has_precomputed_stats(trace: dict) -> bool:
+    """Return whether *trace* carries its quartiles rather than its samples.
+
+    Plotly's own signature for the form (``_hasPreCompStats``): ``q1``,
+    ``median`` and ``q3`` all present. Both extractors branch on it in more
+    than one place, so it is spelled once.
+    """
+    return "q1" in trace and "median" in trace
+
+
 def _compute_stats(
     arr: np.ndarray,
     label: str = "",
@@ -243,7 +253,7 @@ class PlotlyBoxPlot(PlotlyPlot):
         # With both a 1-D `x` and `y` (plotly's case "11") the trace sets no
         # orientation at all: plotly hides it and draws nothing, so the
         # fall-through `vert` below is a default, not a match.
-        if self._has_precomputed_stats():
+        if _has_precomputed_stats(self._trace):
             return self._trace.get("y") is not None and self._trace.get("x") is None
         # Plotly uses x for horizontal when y is absent
         return self._trace.get("x") is not None and self._trace.get("y") is None
@@ -257,7 +267,7 @@ class PlotlyBoxPlot(PlotlyPlot):
 
     def _extract_plot_data(self) -> list[dict]:
         # Plotly box traces can have pre-computed stats or raw data
-        if self._has_precomputed_stats():
+        if _has_precomputed_stats(self._trace):
             data = self._extract_precomputed()
         else:
             data = self._extract_from_raw_data()
@@ -270,10 +280,6 @@ class PlotlyBoxPlot(PlotlyPlot):
             for d in data
         ]
         return data
-
-    def _has_precomputed_stats(self) -> bool:
-        """Check if the trace has pre-computed quartile values."""
-        return "q1" in self._trace and "median" in self._trace
 
     def _extract_precomputed(self) -> list[dict]:
         """

@@ -7,7 +7,11 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.box import _build_box_selector, _compute_stats
+from maidr.plotly.box import (
+    _build_box_selector,
+    _compute_stats,
+    _has_precomputed_stats,
+)
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
 _logger = logging.getLogger(__name__)
@@ -99,7 +103,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             # With both a 1-D `x` and `y` (plotly's case "11") the trace sets no
             # orientation at all: plotly hides it and draws nothing, so the
             # fall-through `vert` below is a default, not a match.
-            if "q1" in trace and "median" in trace:
+            if _has_precomputed_stats(trace):
                 if trace.get("y") is not None and trace.get("x") is None:
                     return True
                 continue
@@ -134,7 +138,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             before = len(all_boxes)
 
             # Pre-computed stats
-            if "q1" in trace and "median" in trace:
+            if _has_precomputed_stats(trace):
                 all_boxes.extend(self._extract_precomputed(trace))
                 self._boxes_per_trace.append(len(all_boxes) - before)
                 continue
@@ -231,9 +235,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         results = []
         for cat in categories:
             arr = np.array(groups[cat], dtype=float)
-            stats = _compute_stats(
-                arr, label=str(cat), quartilemethod=quartilemethod
-            )
+            stats = _compute_stats(arr, label=str(cat), quartilemethod=quartilemethod)
             if stats is not None:
                 results.append(stats)
         return results
