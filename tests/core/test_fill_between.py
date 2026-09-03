@@ -30,6 +30,7 @@ import json
 
 import matplotlib
 import numpy as np
+import pandas as pd
 import pytest
 
 matplotlib.use("Agg")
@@ -298,3 +299,62 @@ def test_a_label_is_carried_onto_the_points():
     ax.fill_between(X, Y, label="rainfall")
 
     assert all(point["z"] == "rainfall" for point in _layer(fig)["data"][0])
+
+
+@pytest.mark.parametrize("method", ["fill_between", "fill_betweenx"])
+def test_a_column_name_is_read_as_its_column(method):
+    """``fill_between("x", "y", data=df)`` is the array spelling, by name.
+
+    The call sits behind matplotlib's `_preprocess_data`, which looks each
+    string up in ``data`` before drawing. The patch reads the arguments from
+    outside that decorator, so it saw the names and emitted them as values: a
+    one-point chart whose x was the string ``"x"`` and whose y was the string
+    ``"y"``, reported without error over a chart that drew five numeric
+    points (#712). Both spellings draw the same picture and have to read the
+    same.
+    """
+    frame = pd.DataFrame({"x": X, "y": Y})
+
+    fig_named, named = plt.subplots()
+    getattr(named, method)("x", "y", data=frame)
+
+    fig_arrays, arrays = plt.subplots()
+    getattr(arrays, method)(frame["x"], frame["y"])
+
+    assert _layers(fig_named) == [PlotType.AREA]
+    assert _layer(fig_named)["data"] == _layer(fig_arrays)["data"]
+    assert [point["y"] for point in _layer(fig_named)["data"][0]] == Y.tolist()
+
+
+def test_a_named_second_edge_and_mask_are_read_by_name_too():
+    """The declines resolve their arguments as well, and still decide.
+
+    ``y2="zeros"`` names a column of zeros, which is the default baseline
+    spelled out, and ``where="everywhere"`` names a mask that holds at every
+    position, which is no mask: both are the chart the bare call draws and
+    read as one. Left as names, each was an unreadable string and the chart
+    was declined outright. A column that *is* a mask still declines, so
+    resolving the name changes what is read and not whether the rule applies.
+    """
+    frame = pd.DataFrame(
+        {
+            "x": X,
+            "y": Y,
+            "zeros": np.zeros_like(Y),
+            "everywhere": np.ones_like(Y, dtype=bool),
+            "gap": Y > 2,
+        }
+    )
+
+    fig_zero, zero = plt.subplots()
+    zero.fill_between("x", "y", "zeros", data=frame)
+
+    fig_everywhere, everywhere = plt.subplots()
+    everywhere.fill_between("x", "y", where="everywhere", data=frame)
+
+    fig_gap, gap = plt.subplots()
+    gap.fill_between("x", "y", where="gap", data=frame)
+
+    assert _layers(fig_zero) == [PlotType.AREA]
+    assert _layers(fig_everywhere) == [PlotType.AREA]
+    assert _layers(fig_gap) == []

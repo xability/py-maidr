@@ -74,6 +74,7 @@ def drew_nothing(plot: Any) -> bool:
         return all(drew_nothing(one) for one in plot)
     return False
 
+
 #: The most vertices one confidence-interval polyline can have.
 #:
 #: Seaborn draws an interval as a plain two-point segment, and as a capped
@@ -150,6 +151,46 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
 
     index = positional.index(name)
     return args[index] if index < len(args) else None
+
+
+def _resolve(value: Any, data: Any) -> Any:
+    """
+    Resolve an argument that names a column of the call's ``data``.
+
+    ``Axes.pie``, ``fill_between``, ``stackplot`` and ``errorbar`` all sit
+    behind matplotlib's `_preprocess_data`, so ``ax.pie("sales", data=df)``
+    and ``ax.fill_between("x", "y1", data=df)`` are valid calls in which the
+    data-bearing arguments are column names. A patch wraps the outside of
+    that decorator and therefore sees the names, not the columns; this looks
+    them up the way matplotlib does, so a patch that reads its values off the
+    call rather than off the drawn artist describes the columns and not their
+    labels (#712).
+
+    Parameters
+    ----------
+    value : Any
+        The argument as the caller passed it.
+    data : Any
+        The call's ``data`` argument, or None when it had none.
+
+    Returns
+    -------
+    Any
+        The indexed value, or the argument unchanged when it does not name
+        anything in ``data``.
+    """
+    if data is None or not isinstance(value, str):
+        return value
+
+    try:
+        return data[value]
+    except (KeyError, IndexError, TypeError):
+        # Matplotlib treats an unresolvable name as a plain value too, and a
+        # chart that renders must not fail to be described. Only the three
+        # ways an indexable object says "not this key" are caught -- a wider
+        # net would swallow a genuinely broken ``data`` and leave nothing to
+        # debug from.
+        return value
 
 
 def resolve_orientation(wrapped: Callable, args: tuple, kwargs: dict) -> str:

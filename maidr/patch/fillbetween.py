@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
@@ -7,11 +9,11 @@ from matplotlib.collections import Collection
 
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
-from maidr.patch.common import _argument, _draw_quietly
+from maidr.patch.common import _argument, _draw_quietly, _resolve
 from maidr.util.confidence_band import DRAWN_ALONG_Y
 
 
-def _baseline_is_zero(wrapped, args: tuple, kwargs: dict, name: str) -> bool:
+def _baseline_is_zero(wrapped, args: tuple, kwargs: dict, name: str, data: Any) -> bool:
     """
     Whether the band runs from the value axis' zero to a single curve.
 
@@ -38,13 +40,15 @@ def _baseline_is_zero(wrapped, args: tuple, kwargs: dict, name: str) -> bool:
         Keyword arguments the caller passed.
     name : str
         ``"y2"`` for ``fill_between``, ``"x2"`` for ``fill_betweenx``.
+    data : Any
+        The call's ``data`` argument, against which a column name is resolved.
 
     Returns
     -------
     bool
         True when the second edge is absent or an explicit zero.
     """
-    other = _argument(name, wrapped, args, kwargs)
+    other = _resolve(_argument(name, wrapped, args, kwargs), data)
     if other is None:
         return True
     try:
@@ -56,7 +60,7 @@ def _baseline_is_zero(wrapped, args: tuple, kwargs: dict, name: str) -> bool:
     return bool(values.size > 0 and np.all(values == 0))
 
 
-def _fills_the_whole_range(wrapped, args: tuple, kwargs: dict) -> bool:
+def _fills_the_whole_range(wrapped, args: tuple, kwargs: dict, data: Any) -> bool:
     """
     Whether the fill covers every position, rather than a masked subset.
 
@@ -82,13 +86,15 @@ def _fills_the_whole_range(wrapped, args: tuple, kwargs: dict) -> bool:
         Positional arguments the caller passed.
     kwargs : dict
         Keyword arguments the caller passed.
+    data : Any
+        The call's ``data`` argument, against which a column name is resolved.
 
     Returns
     -------
     bool
         True when no mask was given, or the mask holds at every position.
     """
-    where = _argument("where", wrapped, args, kwargs)
+    where = _resolve(_argument("where", wrapped, args, kwargs), data)
     if where is None:
         return True
     try:
@@ -98,7 +104,9 @@ def _fills_the_whole_range(wrapped, args: tuple, kwargs: dict) -> bool:
     return bool(mask.size > 0 and np.all(mask))
 
 
-def _magnitudes(wrapped, args: tuple, kwargs: dict, position: str, value: str):
+def _magnitudes(
+    wrapped, args: tuple, kwargs: dict, position: str, value: str, data: Any
+):
     """
     Read the positions and the one curve a filled area is drawn from.
 
@@ -120,6 +128,8 @@ def _magnitudes(wrapped, args: tuple, kwargs: dict, position: str, value: str):
         The parameter naming the shared axis: ``"x"`` or ``"y"``.
     value : str
         The parameter naming the curve: ``"y1"`` or ``"x1"``.
+    data : Any
+        The call's ``data`` argument, against which a column name is resolved.
 
     Returns
     -------
@@ -127,8 +137,8 @@ def _magnitudes(wrapped, args: tuple, kwargs: dict, position: str, value: str):
         The positions and the values, or ``(None, None)`` when either is
         missing or they do not line up.
     """
-    positions = _argument(position, wrapped, args, kwargs)
-    values = _argument(value, wrapped, args, kwargs)
+    positions = _resolve(_argument(position, wrapped, args, kwargs), data)
+    values = _resolve(_argument(value, wrapped, args, kwargs), data)
     if positions is None or values is None:
         return None, None
 
@@ -245,13 +255,18 @@ def _fill(
     with ContextManager.set_internal_context():
         collection = _tagged(_draw_quietly(wrapped, args, kwargs), transposed)
 
-    if not _baseline_is_zero(wrapped, args, kwargs, other):
+    # Every argument below is read off the call rather than off the polygon,
+    # and `fill_between("x", "y1", data=df)` passes them as column names. Read
+    # `data` once here so each reader resolves against the same frame.
+    data = _argument("data", wrapped, args, kwargs)
+
+    if not _baseline_is_zero(wrapped, args, kwargs, other, data):
         return collection
 
-    if not _fills_the_whole_range(wrapped, args, kwargs):
+    if not _fills_the_whole_range(wrapped, args, kwargs, data):
         return collection
 
-    positions, values = _magnitudes(wrapped, args, kwargs, position, value)
+    positions, values = _magnitudes(wrapped, args, kwargs, position, value, data)
     if positions is None:
         return collection
 

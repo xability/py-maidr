@@ -206,6 +206,29 @@ def test_a_data_frame_of_series_is_read_by_row_like_matplotlib_reads_it(columns)
     assert _schema(fig_frame)["data"] == _schema(fig_args)["data"]
 
 
+def test_column_names_are_read_as_their_columns():
+    """
+    ``stackplot("x", "a", "b", data=df)`` is the positional spelling, by name.
+
+    The call sits behind matplotlib's `_preprocess_data`, which looks each
+    string up in ``data`` before drawing. The patch reads the arguments from
+    outside that decorator, so it saw the names and emitted them as values: a
+    stack of one-point series whose x was the string ``"x"`` and whose
+    magnitudes were the strings ``"a"`` and ``"b"``, over a chart that drew
+    two four-point bands (#712).
+    """
+    frame = pd.DataFrame({"x": X, "a": SUBS, "b": SERVICES})
+
+    fig_named, named = plt.subplots()
+    named.stackplot("x", "a", "b", data=frame, labels=["a", "b"])
+
+    fig_args, separate = plt.subplots()
+    separate.stackplot(X, SUBS, SERVICES, labels=["a", "b"])
+
+    assert _plots(fig_named)[0].type == PlotType.STACKED_AREA
+    assert _schema(fig_named)["data"] == _schema(fig_args)["data"]
+
+
 def test_each_band_is_named_after_its_label():
     """
     Without the name a reader hears two sets of numbers with nothing to say

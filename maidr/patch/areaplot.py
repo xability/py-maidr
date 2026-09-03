@@ -7,7 +7,7 @@ from matplotlib.axes import Axes
 from maidr.core.context_manager import ContextManager
 from maidr.core.plot.areaplot import AreaPlot
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly
+from maidr.patch.common import _draw_quietly, _resolve
 
 
 def stackplot(wrapped, instance, args, kwargs):
@@ -81,12 +81,17 @@ def _positions_and_series(args: tuple, kwargs: dict):
     ``fill_between``, and a call with no positional series is rejected by
     matplotlib before it reaches here.
 
+    A third spelling names columns: ``stackplot("x", "a", "b", data=df)``
+    reaches matplotlib's `_preprocess_data` with strings where the arrays go,
+    and the patch sits outside that decorator, so it sees the names. They are
+    resolved against ``data`` here the way matplotlib resolves them.
+
     Parameters
     ----------
     args : tuple
         Positional arguments the caller passed.
     kwargs : dict
-        Keyword arguments the caller passed.
+        Keyword arguments the caller passed. Only ``data`` is read.
 
     Returns
     -------
@@ -97,8 +102,9 @@ def _positions_and_series(args: tuple, kwargs: dict):
     if not args:
         return None, []
 
-    x = args[0]
-    rest = list(args[1:])
+    data = kwargs.get("data")
+    x = _resolve(args[0], data)
+    rest = [_resolve(argument, data) for argument in args[1:]]
 
     if not rest:
         # `stackplot(x)` alone. Matplotlib rejects it before this is reached
