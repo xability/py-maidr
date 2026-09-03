@@ -193,14 +193,14 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
                 # Store the period directly on the line for easy access
                 setattr(line, "_maidr_ma_period", estimated_period)
 
-                # Create a better label for the line
+                # Name an unlabelled moving average after its period. A line
+                # the caller labelled (an addplot) keeps that label: it is the
+                # series name the schema announces and the legend entry, and
+                # the period is already on `_maidr_ma_period` for the line
+                # plot to read.
                 label = str(line.get_label())
                 if label.startswith("_child"):
                     new_label = f"Moving Average {estimated_period} days"
-                    line.set_label(new_label)
-                else:
-                    # If it's not a _child label, still add the period info
-                    new_label = f"{label}_MA{estimated_period}"
                     line.set_label(new_label)
 
             # Create a unique identifier for this line based on its data

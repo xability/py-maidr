@@ -23,6 +23,8 @@ show calls, returned ``None`` and left the figure open; the unpatched
 
 from __future__ import annotations
 
+import json
+
 import matplotlib
 import pytest
 
@@ -167,3 +169,51 @@ class TestCloseFigIsHonoured:
         )
 
         assert len(_open_figures()) == 1
+
+
+def _price_line_labels(axlist) -> list[str]:
+    return [str(line.get_label()) for line in axlist[0].get_lines()]
+
+
+def _schema_text(fig) -> str:
+    return json.dumps(FigureManager.figs[fig]._flatten_maidr())
+
+
+class TestACallersLineLabelIsKept:
+    """
+    An addplot line named by the caller keeps that name (#717).
+
+    Every ``Line2D`` on the price axes went through the moving-average
+    relabelling, so ``label='Upper band'`` came out as ``'Upper band_MA1'``:
+    that was the series name in the schema and the entry in any later
+    ``ax.legend()``, while mplfinance's own legend still read ``'Upper
+    band'``. The period was already stored on the line for
+    ``MplfinanceLinePlot`` to read, so the suffix carried nothing.
+    """
+
+    def _plot(self):
+        prices = _prices()
+        band = mpf.make_addplot(prices["Close"] * 1.01, label="Upper band")
+        return mpf.plot(prices, type="candle", mav=2, addplot=band, returnfig=True)
+
+    def test_the_label_on_the_line_is_unchanged(self) -> None:
+        _, axlist = self._plot()
+
+        labels = _price_line_labels(axlist)
+        assert "Upper band" in labels
+        assert not any("_MA" in label for label in labels)
+
+    def test_the_schema_names_the_series_after_it(self) -> None:
+        fig, _ = self._plot()
+
+        text = _schema_text(fig)
+        assert "Upper band" in text
+        assert "Upper band_MA" not in text
+
+    def test_an_unlabelled_moving_average_is_still_named(self) -> None:
+        # The other half of the relabelling is what the schema already calls
+        # these series, and stays.
+        fig, axlist = self._plot()
+
+        assert "Moving Average 2 days" in _price_line_labels(axlist)
+        assert "Moving Average 2 days" in _schema_text(fig)
