@@ -8,6 +8,7 @@ from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.lineplot import _has_position, _reading
 from maidr.exception import ExtractionError
 
 
@@ -132,10 +133,19 @@ class AreaPlot(MaidrPlot):
             label = self._labels[index] if index < len(self._labels) else None
             points = []
             for position, magnitude in zip(positions, magnitudes):
-                point = {
-                    MaidrKey.X: self._scalar(position),
-                    MaidrKey.Y: self._scalar(magnitude),
-                }
+                # The line layer's two rules, for the reason it gives: a
+                # sample with no *position* is nowhere a reader could be
+                # sent and is dropped -- from every series, since the
+                # positions are shared, so the columns the consumer sums
+                # stay aligned -- while one with a position and no *value*
+                # is kept and emitted as `null`, which the core's area trace
+                # reads as a gap that stays out of the running total. Either
+                # written out as a bare `NaN` stops the chart initialising
+                # (#427).
+                x = self._scalar(position)
+                if not _has_position(x):
+                    continue
+                point = {MaidrKey.X: x, MaidrKey.Y: _reading(self._scalar(magnitude))}
                 if label:
                     point[MaidrKey.Z] = str(label)
                 points.append(point)

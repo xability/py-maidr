@@ -5,6 +5,7 @@ from matplotlib.container import BarContainer
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.barplot import _magnitude
 from maidr.exception import ExtractionError
 from maidr.util.legend_names import legend_of
 from maidr.util.mixin import (
@@ -176,15 +177,23 @@ class GroupedBarPlot(
             container_data = []
 
             # Use hue category if available, otherwise fall back to container label
-            fill_value = hue_categories[i] if i < len(hue_categories) else container.get_label()
+            fill_value = (
+                hue_categories[i] if i < len(hue_categories) else container.get_label()
+            )
 
             for label, patch in zip(level, container.patches):
                 # A horizontal bar's magnitude runs along x and its label sits
                 # on y, which is the layout the renderer reads for a
                 # horizontal layer. The vertical layer is the mirror of that.
+                #
+                # Through `_magnitude` for the reason `BarPlot` reads its bars
+                # that way: matplotlib draws a rectangle for a NaN height, and
+                # `ax.bar(..., bottom=a)` over data with a gap emitted it as a
+                # bare `NaN` token that `JSON.parse` refuses, so the whole
+                # figure stopped initialising (#427, #696).
                 if self._is_horizontal:
                     point = {
-                        MaidrKey.X.value: float(patch.get_width()),
+                        MaidrKey.X.value: _magnitude(patch.get_width()),
                         MaidrKey.Z.value: fill_value,
                         MaidrKey.Y.value: label,
                     }
@@ -192,7 +201,7 @@ class GroupedBarPlot(
                     point = {
                         MaidrKey.X.value: label,
                         MaidrKey.Z.value: fill_value,
-                        MaidrKey.Y.value: float(patch.get_height()),
+                        MaidrKey.Y.value: _magnitude(patch.get_height()),
                     }
                 container_data.append(point)
             data.append(container_data)

@@ -15,6 +15,8 @@ accumulating.
 
 from __future__ import annotations
 
+import json
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -389,3 +391,72 @@ def test_a_ragged_call_is_refused_rather_than_described():
         ax.stackplot(X, [1, 2])
 
     assert not _plots(fig)
+
+
+def _reject_constant(token: str):
+    raise ValueError(token)
+
+
+def _parses_as_strict_json(schema: dict) -> None:
+    """
+    Assert the layer survives what the core actually runs on it.
+
+    ``json.loads`` accepts the bare ``NaN`` token by default, exactly as
+    ``json.dumps`` emits it, so a plain round trip passes while the browser
+    fails. ``parse_constant`` is what lets this fail.
+
+    Parameters
+    ----------
+    schema : dict
+        The layer schema.
+    """
+    json.loads(json.dumps(schema), parse_constant=_reject_constant)
+
+
+@pytest.mark.parametrize(
+    "draw",
+    [
+        lambda ax, y: ax.stackplot(X, y, [v + 1 for v in y]),
+        lambda ax, y: ax.fill_between(X, y),
+        lambda ax, y: ax.stackplot(X, np.ma.masked_invalid(y)),
+    ],
+    ids=["stackplot", "fill_between", "masked"],
+)
+def test_a_missing_value_is_a_gap_rather_than_a_nan_token(draw):
+    """
+    A NaN in a series is a gap, not a reading -- and not a parse error.
+
+    matplotlib draws a hole in the band, and ``json.dumps`` wrote the value
+    as a bare ``NaN`` token that ``JSON.parse`` refuses, so the chart never
+    initialised (#427). ``null`` is what the core's area trace reads as a
+    gap that stays out of the running total.
+    """
+    fig, ax = plt.subplots()
+    draw(ax, [10.0, np.nan, 25.0, 30.0])
+
+    schema = _schema(fig)
+
+    _parses_as_strict_json(schema)
+    for series in schema["data"]:
+        assert len(series) == 4
+    assert _values(schema, 0) == [10.0, None, 25.0, 30.0]
+
+
+def test_a_point_with_no_position_is_dropped_from_every_series():
+    """
+    A sample with a NaN position is nowhere a reader could be sent.
+
+    The positions are shared across the series, so every series loses the
+    same column and the bands stay the same length -- the consumer sums them
+    column by column for the running total.
+    """
+    fig, ax = plt.subplots()
+    ax.stackplot([2019, np.nan, 2021, 2022], SUBS, SERVICES)
+
+    schema = _schema(fig)
+
+    _parses_as_strict_json(schema)
+    assert [point["x"] for point in schema["data"][0]] == [2019.0, 2021.0, 2022.0]
+    assert _values(schema, 0) == [10, 25, 30]
+    assert _values(schema, 1) == [5, 12, 14]
+    assert len(schema["data"][0]) == len(schema["data"][1])

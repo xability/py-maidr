@@ -31,6 +31,8 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 
+import maidr  # noqa: E402
+from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 
 
@@ -45,8 +47,16 @@ def _reject_constant(token: str):
 
 
 def bar_points(ax) -> list[dict]:
-    maidr = FigureManager.get_maidr(ax.get_figure())
-    return maidr._plots[0].schema["data"]
+    record = FigureManager.get_maidr(ax.get_figure())
+    return record._plots[0].schema["data"]
+
+
+def stacked_points(ax) -> list[list[dict]]:
+    # The layer `maidr.stacked(ax)` registered, which is the last one: the
+    # second `ax.bar(bottom=)` already auto-typed a STACKED layer beside the
+    # first call's BAR one, and the explicit call adds its own after both.
+    record = FigureManager.get_maidr(ax.get_figure())
+    return record._plots[-1].schema["data"]
 
 
 def parses_as_strict_json(ax) -> None:
@@ -130,3 +140,118 @@ class TestWhatMustNotChange:
         ax = plt.bar(["a", "b", "c"], [1.0, 2.0, 3.0])[0].axes
 
         assert [point["y"] for point in bar_points(ax)] == [1.0, 2.0, 3.0]
+
+
+class TestAStackedBarWithNoHeight:
+    # `BarPlot` routed its bars through `_magnitude` for #429, and the
+    # segmented layer read the same rectangles through a bare `float()`. Its
+    # reach is matplotlib's own stacking idiom -- `ax.bar(..., bottom=a)`
+    # over data with a gap -- which types the layer STACKED and then emitted
+    # a bare `NaN` token for the whole figure (#696).
+
+    @staticmethod
+    def _stacked():
+        fig, ax = plt.subplots()
+        first = [1.0, np.nan, 3.0]
+        ax.bar(["x", "y", "z"], first, label="first")
+        ax.bar(["x", "y", "z"], [4.0, 5.0, 6.0], bottom=first, label="second")
+        maidr.stacked(ax)
+        return ax
+
+    def test_it_is_emitted_as_null_rather_than_nan(self):
+        ax = self._stacked()
+
+        assert stacked_points(ax)[0][1]["y"] is None
+
+    def test_the_payload_is_loadable(self):
+        ax = self._stacked()
+
+        parses_as_strict_json(ax)
+
+    def test_the_measured_bars_are_untouched(self):
+        ax = self._stacked()
+        points = stacked_points(ax)
+
+        assert [point["y"] for point in points[0]] == [1.0, None, 3.0]
+        assert [point["y"] for point in points[1]] == [4.0, 5.0, 6.0]
+        assert [point["x"] for point in points[0]] == ["x", "y", "z"]
+
+    def test_a_horizontal_bar_is_covered_too(self):
+        # The gap lands on **x** for a horizontal layer, as it does for the
+        # plain bar above: the magnitude is the width, read on the other
+        # branch of the same method.
+        fig, ax = plt.subplots()
+        first = [1.0, np.nan, 3.0]
+        ax.barh(["x", "y", "z"], first, label="first")
+        ax.barh(["x", "y", "z"], [4.0, 5.0, 6.0], left=first, label="second")
+        maidr.stacked(ax)
+        points = stacked_points(ax)
+
+        assert points[0][1]["x"] is None
+        assert points[0][1]["y"] == "y"
+        assert [point["x"] for point in points[1]] == [4.0, 5.0, 6.0]
+        parses_as_strict_json(ax)
+
+
+class TestADodgedBarWithNoHeight:
+    # The other layer `GroupedBarPlot` reads. A dodged chart shares the
+    # stacked one's extractor and so its gap, and is reached by matplotlib's
+    # own grouping idiom: numeric positions offset by a fraction, with a
+    # narrow width. Seaborn's `hue=` cannot put a NaN bar here -- it drops
+    # the row before drawing -- so the chart is drawn by hand.
+
+    @staticmethod
+    def _dodged():
+        fig, ax = plt.subplots()
+        x = np.arange(3)
+        ax.bar(x - 0.2, [1.0, np.nan, 3.0], width=0.4, label="p")
+        ax.bar(x + 0.2, [4.0, 5.0, 6.0], width=0.4, label="q")
+        ax.set_xticks(x, ["a", "b", "c"])
+        ax.legend()
+        return ax
+
+    def test_it_is_a_dodged_layer(self):
+        # Pinned so the case cannot quietly become a plain bar chart and
+        # pass on the other extractor.
+        ax = self._dodged()
+        record = FigureManager.get_maidr(ax.get_figure())
+
+        assert record._plots[-1].type is PlotType.DODGED
+
+    def test_it_is_emitted_as_null_rather_than_nan(self):
+        ax = self._dodged()
+
+        assert stacked_points(ax)[0][1]["y"] is None
+
+    def test_the_payload_is_loadable(self):
+        ax = self._dodged()
+
+        parses_as_strict_json(ax)
+
+    def test_the_measured_bars_are_untouched(self):
+        ax = self._dodged()
+        points = stacked_points(ax)
+
+        assert [point["y"] for point in points[0]] == [1.0, None, 3.0]
+        assert [point["y"] for point in points[1]] == [4.0, 5.0, 6.0]
+        assert [point["x"] for point in points[0]] == ["a", "b", "c"]
+
+    def test_a_horizontal_bar_is_covered_too(self):
+        # `barh` says its bar thickness with `height`, which the grouping
+        # test does not read, so the sideways chart is drawn edge-aligned
+        # instead -- the other idiom that test recognises. The gap lands on
+        # x, as it does for every horizontal layer.
+        fig, ax = plt.subplots()
+        y = np.arange(3)
+        ax.barh(y - 0.4, [1.0, np.nan, 3.0], height=0.4, align="edge", label="p")
+        ax.barh(y, [4.0, 5.0, 6.0], height=0.4, align="edge", label="q")
+        ax.set_yticks(y, ["a", "b", "c"])
+        ax.legend()
+        record = FigureManager.get_maidr(fig)
+        points = stacked_points(ax)
+
+        assert record._plots[-1].type is PlotType.DODGED
+        assert points[0][1]["x"] is None
+        assert points[0][1]["y"] == "b"
+        assert [point["x"] for point in points[1]] == [4.0, 5.0, 6.0]
+        parses_as_strict_json(ax)
