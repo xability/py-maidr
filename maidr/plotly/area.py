@@ -9,6 +9,9 @@ draws this chart rather than a multi-line one (#392).
 
 from __future__ import annotations
 
+import math
+from typing import Any, Hashable
+
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot
@@ -20,8 +23,12 @@ from maidr.plotly.step_shape import (
 
 #: The values ``groupnorm`` takes when plotly rescales a stack to a common
 #: total -- its own switch for a 100% stacked area, and the counterpart of
-#: ``barnorm`` on the bar path.
-_NORMALISING_GROUPNORMS = frozenset({"percent", "fraction"})
+#: ``barnorm`` on the bar path -- and the total each scales a position to.
+#: One table rather than a set beside a dict, so the type a stack is given
+#: and the scale its values are rescaled by cannot disagree (#409's lesson
+#: on the bar path).
+_GROUPNORM_SCALES: dict[str, float] = {"percent": 100.0, "fraction": 1.0}
+_NORMALISING_GROUPNORMS = frozenset(_GROUPNORM_SCALES)
 
 
 def is_area_trace(trace: dict) -> bool:
@@ -100,6 +107,105 @@ def area_plot_type(traces: list[dict]) -> PlotType:
     if len(traces) > 1:
         return PlotType.STACKED_AREA
     return PlotType.AREA
+
+
+def groupnorm_scale(traces: list[dict]) -> float | None:
+    """The total a stack's ``groupnorm`` scales each position to.
+
+    Read from the first trace in the stack that sets it, not the first trace.
+    plotly's ``stack_defaults`` reads ``groupnorm`` off the group's first
+    trace or, failing that, the first later trace that sets it -- it flags
+    ``groupnormFound`` and ignores the setting on every trace after -- so a
+    ``groupnorm`` on the second trace alone still governs the whole stack.
+    :func:`area_plot_type` already types the stack by that rule; the scale
+    has to be read by the same one or the type and the values part company.
+
+    Parameters
+    ----------
+    traces : list[dict]
+        The stack's traces, in declaration order.
+
+    Returns
+    -------
+    float or None
+        ``100.0`` for ``percent``, ``1.0`` for ``fraction``, and ``None``
+        when plotly normalises nothing -- ``None``, ``""`` and anything
+        unrecognised alike -- so the caller emits the values untouched.
+    """
+    for trace in traces:
+        groupnorm = trace.get("groupnorm")
+        if isinstance(groupnorm, str) and groupnorm in _GROUPNORM_SCALES:
+            return _GROUPNORM_SCALES[groupnorm]
+    return None
+
+
+def _finite(value: Any) -> bool:
+    """Whether a value takes part in a column total.
+
+    ``None`` and a non-finite number are gaps: plotly leaves them out of the
+    sum, and they come back as they went in rather than as a share.
+    """
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    return math.isfinite(value)
+
+
+def normalised_bands(bands: list[list[dict]], scale: float) -> list[list[dict]]:
+    """Rescale every band's value to its share of its column, as plotly does.
+
+    The rule is plotly.js's scatter cross-trace calc, not the bar one. For a
+    stack group it sums every band's own value at each position and then
+    divides each by ``(groupnorm === "fraction" ? m : m / 100) || 1``. Two
+    consequences that :func:`maidr.plotly.barnorm.stack_shares` does not
+    share, which is why that helper is not reused here:
+
+    * A position whose total is zero divides by **1**, so its values come
+      back unchanged -- zeros stay zeros -- where ``barnorm`` leaves such a
+      position undefined.
+    * There is no per-sign split and no ``barmode``: one signed total serves
+      every band at the position.
+
+    Positions are keyed by the emitted ``x`` and matched by value, not by
+    index, so a band that skips an x contributes nothing to that column and
+    the rest are not shifted -- plotly's default ``stackgaps`` of
+    ``"infer zero"``. A ``None`` or non-finite value is left out of the
+    total and left as it is.
+
+    Parameters
+    ----------
+    bands : list of list of dict
+        One list of ``{x, y[, z]}`` points per drawn band, as
+        ``_line_series_with_positions`` builds them.
+    scale : float
+        ``100.0`` or ``1.0``, from :func:`groupnorm_scale`.
+
+    Returns
+    -------
+    list of list of dict
+        New points, aligned elementwise with *bands*, with every finite ``y``
+        replaced by its share. The input is not touched, so a layer rendered
+        twice does not rescale an already rescaled stack.
+    """
+    totals: dict[Hashable, float] = {}
+    for band in bands:
+        for point in band:
+            value = point[MaidrKey.Y]
+            if _finite(value):
+                totals[point[MaidrKey.X]] = totals.get(point[MaidrKey.X], 0.0) + value
+
+    shares: list[list[dict]] = []
+    for band in bands:
+        row: list[dict] = []
+        for point in band:
+            value = point[MaidrKey.Y]
+            if _finite(value):
+                total = totals[point[MaidrKey.X]]
+                # plotly's `|| 1`: a zero total divides by one, not by zero.
+                divisor = (total if scale == 1.0 else total / scale) or 1.0
+                point = {**point, MaidrKey.Y: value / divisor}
+            row.append(point)
+        shares.append(row)
+    return shares
 
 
 class PlotlyAreaPlot(PlotlyPlot):
@@ -222,6 +328,22 @@ class PlotlyAreaPlot(PlotlyPlot):
         Shares the single pass with :meth:`_get_selector` rather than walking
         the traces again -- see ``_drawn_line_series`` for why the pass cannot
         simply be repeated.
+
+        A ``groupnorm`` stack is rescaled to the shares plotly draws. The
+        layer is typed ``stacked_normalized_area`` for it, and the values
+        underneath were the untouched inputs -- a reader heard ``30`` on a
+        chart whose axis runs 0..1 and whose band top sits at ``0.75`` (#691),
+        the area half of what #409 was for ``barnorm``. The core normalises
+        nothing: ``AreaTrace`` sums whatever values it is given, so a
+        normalised layer has to arrive already carrying shares. Gated on the
+        type rather than on the setting alone so a plain or stacked area is
+        emitted exactly as before.
         """
         bands, _ = self._drawn_line_series(self._traces, self._scatter_positions)
-        return bands
+        if self.type != PlotType.NORMALIZED_AREA:
+            return bands
+
+        scale = groupnorm_scale(self._traces)
+        if scale is None:
+            return bands
+        return normalised_bands(bands, scale)
