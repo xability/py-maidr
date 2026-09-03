@@ -89,6 +89,105 @@ def _build_box_selector(
     }
 
 
+def _compute_stats(
+    arr: np.ndarray,
+    label: str = "",
+    quartilemethod: str | None = None,
+) -> dict | None:
+    """
+    Compute box plot statistics for a numeric array.
+
+    The statistics are the ones plotly draws, not a textbook's: non-finite
+    samples are skipped, and the quartiles follow the trace's
+    ``quartilemethod`` the way plotly's box calc reads it. Shared by
+    ``PlotlyBoxPlot`` and ``PlotlyMultiBoxPlot``, which describe the same
+    boxes and must not describe them two different ways.
+
+    Answers None for an array with no finite samples. Every quartile of a
+    box with no samples is undefined -- `np.percentile` raises rather than
+    inventing one -- and an array arrives empty when the samples behind it
+    could not be read, a corrupt typed-array spec being the way that
+    happens. The caller drops the box; letting the raise through would take
+    the whole figure with it, including the layers that read perfectly
+    well. The precomputed path bounds its loop for the same reason.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        The box's samples, as floats.
+    label : str
+        The box's name, for the warning when it is dropped.
+    quartilemethod : str or None
+        The trace's ``quartilemethod``; ``None`` or ``"linear"`` is plotly's
+        default.
+    """
+    # Plotly's box calc skips every sample that is not a number (its
+    # `isNumeric` guard), so a `None` gap in the sample leaves the box it
+    # draws untouched. Left in, the NaN it became would poison every
+    # statistic and land as a bare `NaN` token in the schema. A box with
+    # nothing finite in it is the same "no samples" case as an empty one.
+    arr = arr[np.isfinite(arr)]
+    if arr.size == 0:
+        _logger.warning(
+            "maidr: box %r has no samples to summarise; dropping it.",
+            label or "<unnamed>",
+        )
+        return None
+
+    # Hazen quartiles, the rule plotly's `Lib.interp` applies -- the same
+    # constant the violin uses, measured there against plotly's calcdata.
+    # numpy's default `linear` disagrees in the third significant figure,
+    # and the fences and outliers all follow from q1/q3.
+    q2 = float(np.percentile(arr, 50, method=QUANTILE_METHOD))
+    # `quartilemethod="exclusive"`/`"inclusive"` only change plotly's
+    # answer for an odd sample size: the median is left out of, or shared
+    # by, the two halves whose medians become q1 and q3. An even sample
+    # is Hazen whatever the method says. So is a single sample under
+    # `exclusive`: its halves are empty, and plotly's `Lib.interp` on an
+    # empty array answers `undefined` -- there is no drawn quartile to
+    # match, and a NaN in the schema is worse than the value itself.
+    halves = None
+    if arr.size % 2 and quartilemethod in ("exclusive", "inclusive"):
+        middle = arr.size // 2
+        ordered = np.sort(arr)
+        if quartilemethod == "exclusive":
+            halves = ordered[:middle], ordered[middle + 1 :]
+        else:
+            halves = ordered[: middle + 1], ordered[middle:]
+    if halves is not None and all(half.size for half in halves):
+        q1, q3 = (float(np.median(half)) for half in halves)
+    else:
+        q1, q3 = (
+            float(q) for q in np.percentile(arr, [25, 75], method=QUANTILE_METHOD)
+        )
+    iqr = q3 - q1
+    lower_fence = q1 - 1.5 * iqr
+    upper_fence = q3 + 1.5 * iqr
+
+    min_val = (
+        float(np.min(arr[arr >= lower_fence])) if np.any(arr >= lower_fence) else q1
+    )
+    max_val = (
+        float(np.max(arr[arr <= upper_fence])) if np.any(arr <= upper_fence) else q3
+    )
+
+    lower_outliers = sorted(float(v) for v in arr[arr < lower_fence])
+    upper_outliers = sorted(float(v) for v in arr[arr > upper_fence])
+
+    result = {
+        MaidrKey.LOWER_OUTLIER.value: lower_outliers,
+        MaidrKey.MIN.value: min_val,
+        MaidrKey.Q1.value: q1,
+        MaidrKey.Q2.value: q2,
+        MaidrKey.Q3.value: q3,
+        MaidrKey.MAX.value: max_val,
+        MaidrKey.UPPER_OUTLIER.value: upper_outliers,
+    }
+    if label:
+        result[MaidrKey.Z.value] = label
+    return result
+
+
 class PlotlyBoxPlot(PlotlyPlot):
     """Extract data from a Plotly box trace."""
 
@@ -240,7 +339,7 @@ class PlotlyBoxPlot(PlotlyPlot):
         data = y if y is not None else x
         if data is not None:
             arr = np.array(as_list(data), dtype=float)
-            stats = self._compute_stats(
+            stats = _compute_stats(
                 arr,
                 label=self._trace.get("name", ""),
                 quartilemethod=self._trace.get("quartilemethod"),
@@ -262,7 +361,7 @@ class PlotlyBoxPlot(PlotlyPlot):
         results = []
         for cat in categories:
             arr = np.array(groups[cat], dtype=float)
-            stats = self._compute_stats(
+            stats = _compute_stats(
                 arr,
                 label=str(cat),
                 quartilemethod=self._trace.get("quartilemethod"),
@@ -270,88 +369,3 @@ class PlotlyBoxPlot(PlotlyPlot):
             if stats is not None:
                 results.append(stats)
         return results
-
-    def _compute_stats(
-        self,
-        arr: np.ndarray,
-        label: str = "",
-        quartilemethod: str | None = None,
-    ) -> dict | None:
-        """
-        Compute box plot statistics for a numeric array.
-
-        The statistics are the ones plotly draws, not a textbook's: non-finite
-        samples are skipped, and the quartiles follow the trace's
-        ``quartilemethod`` the way plotly's box calc reads it.
-
-        Answers None for an array with no finite samples. Every quartile of a
-        box with no samples is undefined -- `np.percentile` raises rather than
-        inventing one -- and an array arrives empty when the samples behind it
-        could not be read, a corrupt typed-array spec being the way that
-        happens. The caller drops the box; letting the raise through would take
-        the whole figure with it, including the layers that read perfectly
-        well. The precomputed path bounds its loop for the same reason.
-        """
-        # Plotly's box calc skips every sample that is not a number (its
-        # `isNumeric` guard), so a `None` gap in the sample leaves the box it
-        # draws untouched. Left in, the NaN it became would poison every
-        # statistic and land as a bare `NaN` token in the schema. A box with
-        # nothing finite in it is the same "no samples" case as an empty one.
-        arr = arr[np.isfinite(arr)]
-        if arr.size == 0:
-            _logger.warning(
-                "maidr: box %r has no samples to summarise; dropping it.",
-                label or "<unnamed>",
-            )
-            return None
-
-        # Hazen quartiles, the rule plotly's `Lib.interp` applies -- the same
-        # constant the violin uses, measured there against plotly's calcdata.
-        # numpy's default `linear` disagrees in the third significant figure,
-        # and the fences and outliers all follow from q1/q3.
-        q1, q2, q3 = (
-            float(q) for q in np.percentile(arr, [25, 50, 75], method=QUANTILE_METHOD)
-        )
-        # `quartilemethod="exclusive"`/`"inclusive"` only change plotly's
-        # answer for an odd sample size: the median is left out of, or shared
-        # by, the two halves whose medians become q1 and q3. An even sample
-        # is Hazen whatever the method says. So is a single sample under
-        # `exclusive`: its halves are empty, and plotly's `Lib.interp` on an
-        # empty array answers `undefined` -- there is no drawn quartile to
-        # match, and a NaN in the schema is worse than the value itself.
-        if arr.size % 2 and quartilemethod in ("exclusive", "inclusive"):
-            middle = arr.size // 2
-            ordered = np.sort(arr)
-            if quartilemethod == "exclusive":
-                lower_half, upper_half = ordered[:middle], ordered[middle + 1 :]
-            else:
-                lower_half, upper_half = ordered[: middle + 1], ordered[middle:]
-            if lower_half.size and upper_half.size:
-                q1 = float(np.median(lower_half))
-                q3 = float(np.median(upper_half))
-        iqr = q3 - q1
-        lower_fence = q1 - 1.5 * iqr
-        upper_fence = q3 + 1.5 * iqr
-
-        min_val = (
-            float(np.min(arr[arr >= lower_fence])) if np.any(arr >= lower_fence) else q1
-        )
-        max_val = (
-            float(np.max(arr[arr <= upper_fence])) if np.any(arr <= upper_fence) else q3
-        )
-
-        lower_outliers = sorted(float(v) for v in arr[arr < lower_fence])
-        upper_outliers = sorted(float(v) for v in arr[arr > upper_fence])
-
-        result = {
-            MaidrKey.LOWER_OUTLIER.value: lower_outliers,
-            MaidrKey.MIN.value: min_val,
-            MaidrKey.Q1.value: q1,
-            MaidrKey.Q2.value: q2,
-            MaidrKey.Q3.value: q3,
-            MaidrKey.MAX.value: max_val,
-            MaidrKey.UPPER_OUTLIER.value: upper_outliers,
-        }
-        if label:
-            result[MaidrKey.Z.value] = label
-        return result
