@@ -161,7 +161,8 @@ def _should_classify_as_dodged(
     ax : Any
         The axes instance where the plot is being created.
     width : Any
-        The width parameter for the bar plot.
+        The thickness across the bar: ``width`` on ``bar``, ``height`` on
+        ``barh``, whichever the caller passed.
     align : str
         The alignment parameter for the bar plot.
     args : tuple
