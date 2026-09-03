@@ -286,13 +286,17 @@ def _finish_as_mplfinance_would(fig, savefig, block, closefig) -> None:
     closefig : bool | str
         The caller's ``closefig`` argument, or ``'auto'``.
     """
+    # mplfinance's validator admits only True and False, so the only other
+    # value is its untouched default 'auto'; name both rather than rely on
+    # truthiness, which would also close on an unexpected string.
+    close_is_set = closefig is True or closefig == "auto"
     if savefig is not None:
-        if closefig:
+        if close_is_set:
             plt.close(fig)
         return
 
     plt.show(block=block)
-    if closefig is True or (block and closefig):
+    if closefig is True or (block and close_is_set):
         plt.close(fig)
 
 
