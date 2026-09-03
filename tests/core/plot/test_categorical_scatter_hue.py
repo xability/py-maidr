@@ -483,6 +483,78 @@ class TestTheAssumptionTheGroupingRestsOn:
                 assert rows == len(np.asarray(collection.get_offsets()))
 
 
+class TestHowThePointColoursAreRead:
+    """
+    One conversion per distinct colour, one answer per point (#718).
+
+    ``_point_colours`` used to run ``to_rgba`` on every row, and a collection
+    of 50,000 points coloured by a two-level hue is 50,000 calls that return
+    two values between them: measured, over a second on top of a 370 ms draw.
+    Converting each distinct row once and fanning the result back out is the
+    same list, point for point.
+    """
+
+    def test_every_point_is_named_as_if_converted_on_its_own(self):
+        # Equality against the per-row spelling, on a translucent chart so
+        # the rows carry an alpha `to_rgba` has to keep, and on every one of
+        # the collections rather than a chosen one.
+        from maidr.core.plot.scatterplot import _rgba
+        from maidr.patch.stripplot import _point_colours
+
+        _, ax = plt.subplots()
+        sns.stripplot(data=frame(), x="cat", y="val", hue="hue", alpha=0.4, ax=ax)
+
+        for collection in ax.collections:
+            expected = [_rgba(row) for row in collection.get_facecolor()]
+            assert _point_colours(collection) == expected
+            assert len(expected) == len(collection.get_offsets())
+            # Two levels drawn, so two colours -- the reason the per-distinct
+            # conversion is worth having at all.
+            assert len(set(expected)) == 2
+
+    def test_a_row_count_that_does_not_match_the_points_still_declines(self):
+        # The guard the docstring describes: rows that do not correspond to
+        # the points answer `None` per point rather than a colour each,
+        # before any conversion happens. Monkeypatched, because seaborn never
+        # produces the mismatch (the test above pins that).
+        from maidr.patch.stripplot import _point_colours
+
+        _, ax = plt.subplots()
+        sns.stripplot(data=frame(), x="cat", y="val", hue="hue", ax=ax)
+        collection = ax.collections[0]
+        count = len(collection.get_offsets())
+        assert count > 1
+
+        # Read once, then patched in: matplotlib's `get_facecolors` alias
+        # dispatches back to the instance's `get_facecolor`, so a lambda that
+        # called either would be calling itself.
+        one_row = collection.get_facecolor()[:1]
+        collection.get_facecolor = lambda: one_row
+
+        assert _point_colours(collection) == [None] * count
+
+    def test_each_distinct_colour_is_converted_once(self, monkeypatch):
+        # The change itself, pinned by count rather than by clock: a
+        # collection of six points in two colours is two conversions, not
+        # six. A conversion per point would pass every equality test above
+        # and cost the second #718 measured back.
+        import maidr.patch.stripplot as stripplot
+
+        _, ax = plt.subplots()
+        sns.stripplot(data=frame(), x="cat", y="val", hue="hue", ax=ax)
+        collection = ax.collections[0]
+        rows = np.asarray(collection.get_facecolor())
+        assert len(rows) == 6
+
+        converted = []
+        monkeypatch.setattr(
+            stripplot, "_rgba", lambda row: converted.append(row) or tuple(row)
+        )
+        stripplot._point_colours(collection)
+
+        assert len(converted) == len(np.unique(rows, axis=0)) == 2
+
+
 class TestHighlighting:
     def test_each_point_is_addressed_by_an_element_of_its_own(self):
         # A group spans several collections, so its selectors have to name
