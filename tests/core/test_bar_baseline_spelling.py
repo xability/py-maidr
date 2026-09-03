@@ -222,6 +222,23 @@ def test_barh_height_keyword_reads_dodged_like_the_positional_spelling() -> None
     assert [kind for kind, _ in _emitted(horizontal)] == ["dodged_bar"]
 
 
+def test_a_single_bar_with_a_baseline_is_a_plain_bar() -> None:
+    """One bar is the degenerate case: a length-one baseline cannot vary.
+
+    It reads as an offset, the way a scalar does, unless a bar container
+    already stands on the axes.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a"], [10.0], bottom=[5.0])
+
+    stacked, stacked_ax = plt.subplots()
+    stacked_ax.bar(["a"], [5.0], label="s0")
+    stacked_ax.bar(["a"], [10.0], bottom=[5.0], label="s1")
+
+    assert _registered(fig) == ["bar"]
+    assert _registered(stacked) == ["bar", "stacked_bar"]
+
+
 def test_a_baseline_with_a_gap_is_read_from_its_measured_values() -> None:
     """NaN is not equal to itself, which must not make a baseline vary.
 
