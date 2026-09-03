@@ -341,10 +341,15 @@ def _looks_smooth(label: str) -> bool:
     with it: ``ax.plot(label="Profit"); ax.plot(label="Revenue")`` emitted
     one smooth layer and no Revenue at all (#710).
 
-    A multi-word keyword such as ``linear fit`` is still matched as a
-    phrase, since its words are the boundary; a single-word one has to be
-    a word of the label on its own. Tokens are runs of letters, so
-    ``Group 1 KDE`` and ``kde_1`` both still read as a fit.
+    A multi-word keyword such as ``linear fit`` is matched as a phrase that
+    starts on a word boundary. Its words are not a boundary on their own:
+    read as a plain substring, ``linear fit`` was found inside ``Nonlinear
+    fitness``, spanning the tail of one word and the head of the next, and
+    that label took its siblings with it exactly as Profit had. The phrase's
+    last word may still run on, so ``Linear fitting`` keeps reading as a
+    fit; a single-word keyword has to be a word of the label on its own.
+    Tokens are runs of letters, so ``Group 1 KDE`` and ``kde_1`` both still
+    read as a fit.
 
     Parameters
     ----------
@@ -359,7 +364,10 @@ def _looks_smooth(label: str) -> bool:
     text = label.lower()
     tokens = set(re.findall(r"[a-z]+", text))
     return any(
-        (key in text) if " " in key else (key in tokens) for key in SMOOTH_KEYWORDS
+        re.search(rf"\b{re.escape(key)}", text) is not None
+        if " " in key
+        else key in tokens
+        for key in SMOOTH_KEYWORDS
     )
 
 
