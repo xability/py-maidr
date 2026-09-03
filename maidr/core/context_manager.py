@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
-import threading
 
 import wrapt
 
@@ -10,17 +9,7 @@ from maidr.core.plot.boxplot import BoxPlotContainer
 
 
 class ContextManager:
-    _instance = None
-    _lock = threading.Lock()
-
     _internal_context = contextvars.ContextVar("internal_context", default=False)
-
-    def __new__(cls):
-        if not cls._instance:
-            with cls._lock:
-                if not cls._instance:
-                    cls._instance = super(ContextManager, cls).__new__()
-        return cls._instance
 
     @classmethod
     def is_internal_context(cls):
@@ -85,8 +74,8 @@ class HighlightContextManager:
     As plain class attributes it was safe only because every render ran
     serialised on one thread. It stopped being safe when the Shiny renderer
     began rendering off the event loop (#504): two **different** figures
-    drawing at once would overwrite each other's ``elements_to_highlight``,
-    and artists checked after the overwrite would match nothing, so
+    drawing at once would overwrite each other's tagged artists, and
+    artists checked after the overwrite would match nothing, so
     ``XMLWriter.start`` never injected their ``maidr`` attribute. Measured
     before the change -- four concurrent renders of distinct figures went
     from 61 selectors each to ``[7, 1, 1, 1]``. A valid SVG, with the
@@ -105,48 +94,43 @@ class HighlightContextManager:
     mapping for each render rather than mutating one in place.
     """
 
-    _instance = None
-    _lock = threading.Lock()
-
     _elements: contextvars.ContextVar[dict] = contextvars.ContextVar(
         "maidr_highlight_elements"
     )
-    _elements_to_highlight: contextvars.ContextVar[list] = contextvars.ContextVar(
-        "maidr_elements_to_highlight"
+    # Keyed by `id(artist)`, not the artist: `Artist` does not define
+    # `__eq__`, so the list `in`/`index` this replaced were identity tests
+    # already, and a dict makes each draw a lookup instead of a scan of the
+    # whole tagged list -- which made a render quadratic in its artists,
+    # 2 s of a 5 s render at 5000 bars (#695). An id cannot be reused
+    # mid-render: the figure being drawn owns every artist in the mapping.
+    _selector_by_element: contextvars.ContextVar[dict] = contextvars.ContextVar(
+        "maidr_selector_by_element"
     )
-    _selector_ids: contextvars.ContextVar[list] = contextvars.ContextVar(
-        "maidr_selector_ids"
-    )
-
-    def __new__(cls):
-        if not cls._instance:
-            with cls._lock:
-                if not cls._instance:
-                    cls._instance = super(HighlightContextManager, cls).__new__()
-        return cls._instance
 
     @classmethod
-    def is_maidr_element(cls, id):
-        return id in cls._elements.get({})
+    def is_maidr_element(cls, gid):
+        return gid in cls._elements.get({})
 
     @classmethod
-    def get_selector_id(cls, id):
-        return cls._elements.get({})[id]
+    def get_selector_id(cls, gid):
+        return cls._elements.get({})[gid]
 
     @classmethod
     @contextlib.contextmanager
-    def set_maidr_element(cls, element, id):
-        to_highlight = cls._elements_to_highlight.get([])
-        if element not in to_highlight:
+    def set_maidr_element(cls, element, gid):
+        # `gid`, not `id` as the neighbours have it: this one needs the
+        # builtin to key the lookup.
+        selector_id = cls._selector_by_element.get({}).get(id(element))
+        if selector_id is None:
             yield
             return
 
         elements = cls._elements.get({})
         try:
-            elements[id] = cls._selector_ids.get([])[to_highlight.index(element)]
+            elements[gid] = selector_id
             yield
         finally:
-            del elements[id]
+            del elements[gid]
 
     @classmethod
     @contextlib.contextmanager
@@ -155,12 +139,25 @@ class HighlightContextManager:
         # `copy_context()` copies the variable-to-value mapping, so a single
         # dict installed once would still be shared across every concurrent
         # render. See the class docstring.
+        #
+        # `zip` would silently drop the tail of a mismatched pair, where the
+        # old `selector_ids[index]` raised; keep the failure loud.
+        if len(elements) != len(selector_ids):
+            raise ValueError(
+                f"{len(elements)} elements to highlight but "
+                f"{len(selector_ids)} selector ids; they must pair one to one"
+            )
+
+        # `setdefault` keeps the first selector for an artist listed twice,
+        # which is what `list.index` gave and what #376 relies on.
+        selector_by_element: dict = {}
+        for element, selector_id in zip(elements, selector_ids):
+            selector_by_element.setdefault(id(element), selector_id)
+
         token_elements = cls._elements.set({})
-        token_to_highlight = cls._elements_to_highlight.set(elements)
-        token_selectors = cls._selector_ids.set(selector_ids)
+        token_selectors = cls._selector_by_element.set(selector_by_element)
         try:
             yield
         finally:
             cls._elements.reset(token_elements)
-            cls._elements_to_highlight.reset(token_to_highlight)
-            cls._selector_ids.reset(token_selectors)
+            cls._selector_by_element.reset(token_selectors)
