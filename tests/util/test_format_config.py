@@ -54,7 +54,11 @@ def _run_js(body: str, value: object) -> str:
         f"process.stdout.write(String(f({json.dumps(value)})))"
     )
     return subprocess.run(
-        [NODE, "-e", script], check=True, capture_output=True, text=True
+        [NODE, "-e", script],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
     ).stdout
 
 
