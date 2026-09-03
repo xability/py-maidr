@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import uuid
+from typing import Any
+
 import wrapt
 import matplotlib.pyplot as plt
 import mplfinance as mpf
 import numpy as np
 from matplotlib.collections import LineCollection, PolyCollection
+from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
@@ -44,7 +49,10 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
     with ContextManager.set_internal_context():
         result = _draw_quietly(wrapped, args, kwargs)
 
-    # Validate that we received the expected figure and axes tuple
+    # Validate that we received the expected figure and axes tuple. Nothing
+    # drawable came back (mplfinance returns None when drawing onto external
+    # axes), so there is nothing to register and nothing to show: the replay
+    # below is deliberately bypassed.
     if not (isinstance(result, tuple) and len(result) >= 2):
         return result if original_returnfig else None
 
@@ -264,7 +272,9 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
     return None
 
 
-def _finish_as_mplfinance_would(fig, savefig, block, closefig) -> None:
+def _finish_as_mplfinance_would(
+    fig: Figure, savefig: Any, block: bool | None, closefig: bool | str
+) -> None:
     """
     Replay what `mplfinance.plot` does after drawing when `returnfig` is false.
 
