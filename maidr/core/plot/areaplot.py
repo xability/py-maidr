@@ -12,6 +12,57 @@ from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
 
 
+def _has_position(x: Any) -> bool:
+    """
+    Whether a sample sits anywhere a reader could be sent.
+
+    The rule ``lineplot._has_position`` applies, for the reason it gives: a
+    sample whose ``x`` is not finite has no place on the axis, and emitted as
+    it stands it is a bare ``NaN`` token that ``JSON.parse`` refuses, so one
+    stopped the chart initialising at all (#427). Such a sample is dropped
+    -- from **every** series, since the positions are shared, which is what
+    keeps the columns the consumer sums for the running total aligned.
+
+    Parameters
+    ----------
+    x : Any
+        A sample's position as :meth:`AreaPlot._scalar` returned it.
+
+    Returns
+    -------
+    bool
+        False only for a number that is NaN or infinite. A categorical
+        position arrives as a string, which is both placed and never a JSON
+        hazard, so it is kept.
+    """
+    return not (isinstance(x, float) and not math.isfinite(x))
+
+
+def _reading(y: Any) -> Any:
+    """
+    A sample's value, or ``None`` where it was positioned but never measured.
+
+    The counterpart of :func:`_has_position`, following
+    ``lineplot._reading``: a sample with a position and no value is kept,
+    since there is somewhere to send a reader, and its value emitted as
+    ``null``, which the core's area trace reads as a gap that stays out of
+    the running total. A bare ``NaN`` would stop the chart initialising
+    (#427) and a zero would claim a reading of zero.
+
+    Parameters
+    ----------
+    y : Any
+        A sample's magnitude as :meth:`AreaPlot._scalar` returned it.
+
+    Returns
+    -------
+    Any
+        The value unchanged, or ``None`` for a number that is NaN or
+        infinite.
+    """
+    return None if isinstance(y, float) and not math.isfinite(y) else y
+
+
 class AreaPlot(MaidrPlot):
     """
     A chart drawing one or more filled bands against a baseline.
@@ -133,23 +184,10 @@ class AreaPlot(MaidrPlot):
             label = self._labels[index] if index < len(self._labels) else None
             points = []
             for position, magnitude in zip(positions, magnitudes):
-                # The two rules `lineplot` applies, for the reason it gives:
-                # `json.dumps` writes a non-finite number as a bare token that
-                # `JSON.parse` refuses, so one NaN stopped the chart
-                # initialising at all (#427). A sample with no *position* is
-                # nowhere a reader could be sent and is dropped -- from every
-                # series, since the positions are shared, so the columns
-                # stay aligned. One with a position and no *value* is kept
-                # and its value emitted as `null`, which the core's area
-                # trace has read as a gap that stays out of the running
-                # total.
                 x = self._scalar(position)
-                if isinstance(x, float) and not math.isfinite(x):
+                if not _has_position(x):
                     continue
-                y = self._scalar(magnitude)
-                if isinstance(y, float) and not math.isfinite(y):
-                    y = None
-                point = {MaidrKey.X: x, MaidrKey.Y: y}
+                point = {MaidrKey.X: x, MaidrKey.Y: _reading(self._scalar(magnitude))}
                 if label:
                     point[MaidrKey.Z] = str(label)
                 points.append(point)

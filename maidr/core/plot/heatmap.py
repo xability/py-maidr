@@ -326,14 +326,26 @@ class HeatPlot(
 
         # `format(x, "")` is `repr` for a float64 or an integer, and `float`
         # of that round-trips exactly, so at the default format the per-cell
-        # loop is an identity costing a Python call per cell -- 3.5 s against
-        # 0.12 s on a 1000 x 1000 `imshow`, and about 40% of the whole
-        # render. The gate is on the dtype rather than on the format alone
+        # loop is an identity costing a Python call per cell. Measured on
+        # this method for a 1000 x 1000 float64 `imshow`, min of 3 on a
+        # shared box under load: 2.0 s for the loop against 0.09 s for the
+        # path below. The gate is on the dtype rather than on the format alone
         # because numpy 1.x, which the 3.9 floor still installs, formats a
         # float32 at its *own* shortest repr, so only float64 and the integer
         # kinds are known to round-trip.
         if self._fmt == "" and (array.dtype.kind in "iu" or array.dtype == np.float64):
-            rows = array.astype(float).tolist()
+            # An integer grid is still widened, so its cells come out as the
+            # `1.0` the format loop wrote rather than as `1`; a float64 one
+            # is already what `tolist` needs.
+            if array.dtype != np.float64:
+                array = array.astype(float)
+            # A grid with nothing missing -- the common one -- is handed over
+            # as `tolist` made it, without a second pass in Python to look
+            # for gaps that a vectorised check has already said are not
+            # there.
+            if np.isfinite(array).all():
+                return array.tolist()
+            rows = array.tolist()
         else:
             rows = [[float(format(x, self._fmt)) for x in row] for row in array]
 

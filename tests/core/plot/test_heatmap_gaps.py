@@ -23,7 +23,8 @@ carry and the core reads as a gap, the way it already does for a bar
 (``barplot._magnitude``) and a hexbin (``hexbinplot._count``).
 
 The same method's per-cell loop is also the dominant Python-side cost of a
-large render -- 3.5 s against 0.12 s on a 1000 x 1000 ``imshow`` -- so a
+large render -- extracting a 1000 x 1000 float64 ``imshow`` took 2.0 s
+against 0.09 s vectorised, min of 3 on a shared box under load -- so a
 float64 or integer grid at the default format takes a vectorised path. That
 path has to produce the values the loop did, cell for cell.
 """
