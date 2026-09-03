@@ -75,7 +75,9 @@ def _rendered_layers(fig) -> list:
 
 def _gid_of(layer: dict) -> str:
     (selector,) = layer["selectors"]
-    return re.search(r"id='([^']+)'", selector).group(1)
+    match = re.search(r"id='([^']+)'", selector)
+    assert match is not None, f"selector carries no gid: {selector!r}"
+    return match.group(1)
 
 
 class TestTwoFilledKdeplots:
