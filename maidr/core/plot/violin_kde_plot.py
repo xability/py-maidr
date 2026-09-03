@@ -258,11 +258,19 @@ class ViolinKdePlot(MaidrPlot):
             np.array([p[1] for p in right]),
         )
 
-        li = np.argsort(left_y)
-        ri = np.argsort(right_y)
+        # One knot per y, sorted. The polygon repeats its start vertex as its
+        # closing vertex and its turn-around at the top, at identical x, so a
+        # side holds 103 knots for 100 distinct y. Built on those, interp1d
+        # asked for exactly y_min divided by the zero gap between the two
+        # bottom knots: scipy warned on the user's console on every render,
+        # the level came back NaN, and the guard below dropped it, so the
+        # emitted range began one level above the drawn one (#705).
+        # `np.unique` sorts, which is what `assume_sorted` relies on.
+        left_y, li = np.unique(left_y, return_index=True)
+        right_y, ri = np.unique(right_y, return_index=True)
 
         f_left = interpolate.interp1d(
-            left_y[li],
+            left_y,
             left_x[li],
             kind="linear",
             bounds_error=False,
@@ -270,7 +278,7 @@ class ViolinKdePlot(MaidrPlot):
             assume_sorted=True,
         )
         f_right = interpolate.interp1d(
-            right_y[ri],
+            right_y,
             right_x[ri],
             kind="linear",
             bounds_error=False,
