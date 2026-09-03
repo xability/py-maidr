@@ -41,7 +41,7 @@ def _bar():
 
 
 def test_show_closes_the_figure_it_showed_and_not_the_current_one():
-    older, older_ax = _bar()
+    older, _ = _bar()
     newer, _ = _bar()
     assert plt.gcf() is newer
 

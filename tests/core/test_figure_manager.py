@@ -122,7 +122,9 @@ class TestSeabornFigureManager:
 
 
 def _frame():
-    return pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0, 5.0], "y": [2.0, 4.0, 5.0, 4.0, 6.0]})
+    return pd.DataFrame(
+        {"x": [1.0, 2.0, 3.0, 4.0, 5.0], "y": [2.0, 4.0, 5.0, 4.0, 6.0]}
+    )
 
 
 def _layer_types(rendered) -> list[str]:
@@ -204,6 +206,17 @@ class TestCloseResolvesTheFigureItIsHanded:
         maidr.close(self.ax)
 
         assert self.fig not in FigureManager.figs
+
+    def test_a_list_of_axes_resolves_to_their_figure(self):
+        # A raw list is resolved to its first entry; both axes here belong to
+        # the one figure, so that is the figure rendered.
+        other = self.fig.add_subplot(2, 1, 2)
+        other.bar(["c", "d"], [3, 4])
+
+        tag = maidr.render([self.ax, other], use_cdn=False)
+
+        assert isinstance(tag, Tag)
+        assert _layer_types(tag) == ["bar", "bar"]
 
     def test_close_on_something_that_is_not_a_plot_does_not_raise(self):
         # Closing is the one call that should not complain about what it was

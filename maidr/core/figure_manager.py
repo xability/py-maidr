@@ -450,10 +450,11 @@ class FigureManager:
         elif isinstance(getattr(artist, "figure", None), Figure):
             # seaborn's figure-level functions -- lmplot, catplot, displot,
             # jointplot, pairplot -- return a FacetGrid, JointGrid or
-            # PairGrid. None is an Artist, so the branches above fell through
-            # to None and every entry point raised on the value the user was
-            # handed, even though each layer was registered on the grid's
-            # figure and its axes carry them (#694). Duck-typed on `.figure`
+            # PairGrid. A Grid is not an Artist, so the branches above fell
+            # through and this returned None, and every entry point raised on
+            # the value the user was handed -- even though each layer was
+            # registered on the grid's figure and its axes carry them
+            # (#694). Duck-typed on `.figure`
             # so this module does not import seaborn; on the >=0.13 floor
             # every Grid exposes it (`.fig` is the deprecated spelling).
             return artist.figure.axes

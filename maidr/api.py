@@ -499,6 +499,8 @@ def _resolve_figure(plot: Any) -> Figure | None:
     """
     if isinstance(plot, Figure):
         return plot
+    # A raw list of artists resolves to its first entry's figure: every
+    # documented input maps to one figure, so first and last agree.
     ax = FigureManager.get_axes(plot)
     if isinstance(ax, list):
         # A seaborn Grid resolves to every axes of its figure; any one of
