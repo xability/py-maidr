@@ -38,10 +38,12 @@ from __future__ import annotations
 
 import warnings
 
-import plotly.graph_objects as go
 import pytest
 
-from maidr.plotly.heatmap import PlotlyHeatmapPlot
+plotly = pytest.importorskip("plotly")
+import plotly.graph_objects as go  # noqa: E402
+
+from maidr.plotly.heatmap import PlotlyHeatmapPlot  # noqa: E402
 
 warnings.filterwarnings("ignore")
 

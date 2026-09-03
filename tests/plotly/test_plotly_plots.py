@@ -15,6 +15,8 @@ from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
 from maidr.plotly.multiline import PlotlyMultiLinePlot
 from maidr.plotly.pie import PlotlyPiePlot
 
+plotly = pytest.importorskip("plotly")
+
 
 class TestPlotlyBarPlot:
     def test_extract_data(self):

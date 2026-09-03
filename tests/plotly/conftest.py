@@ -3,13 +3,21 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-plotly = pytest.importorskip("plotly")
-import plotly.graph_objects as go  # noqa: E402
+# Not ``pytest.importorskip`` at module scope: the ``Skipped`` it raises
+# escapes a conftest, and on pytest 7 that skips the *session* being
+# collected -- zero tests, exit 5 -- rather than this directory.  Each
+# fixture skips instead, which pytest scopes to the test asking for it;
+# the modules in this directory guard their own ``plotly`` imports.
+try:
+    import plotly.graph_objects as go
+except ImportError:  # pragma: no cover - only without the plotly extra
+    go = None
 
 
 @pytest.fixture
 def plotly_bar_fig():
     """Create a simple Plotly bar chart."""
+    pytest.importorskip("plotly")
     fig = go.Figure(
         data=[go.Bar(x=["A", "B", "C"], y=[10, 20, 30])],
         layout=go.Layout(
@@ -24,6 +32,7 @@ def plotly_bar_fig():
 @pytest.fixture
 def plotly_scatter_fig():
     """Create a simple Plotly scatter plot."""
+    pytest.importorskip("plotly")
     fig = go.Figure(
         data=[go.Scatter(x=[1, 2, 3], y=[4, 5, 6], mode="markers")],
         layout=go.Layout(
@@ -38,6 +47,7 @@ def plotly_scatter_fig():
 @pytest.fixture
 def plotly_line_fig():
     """Create a simple Plotly line chart."""
+    pytest.importorskip("plotly")
     fig = go.Figure(
         data=[go.Scatter(x=[1, 2, 3], y=[10, 20, 15], mode="lines", name="Series A")],
         layout=go.Layout(
@@ -52,6 +62,7 @@ def plotly_line_fig():
 @pytest.fixture
 def plotly_box_fig():
     """Create a simple Plotly box plot from raw data."""
+    pytest.importorskip("plotly")
     np.random.seed(42)
     fig = go.Figure(
         data=[go.Box(y=np.random.randn(50).tolist(), name="Group A")],
@@ -66,6 +77,7 @@ def plotly_box_fig():
 @pytest.fixture
 def plotly_heatmap_fig():
     """Create a simple Plotly heatmap."""
+    pytest.importorskip("plotly")
     fig = go.Figure(
         data=[
             go.Heatmap(
@@ -86,6 +98,7 @@ def plotly_heatmap_fig():
 @pytest.fixture
 def plotly_histogram_fig():
     """Create a simple Plotly histogram."""
+    pytest.importorskip("plotly")
     np.random.seed(42)
     fig = go.Figure(
         data=[go.Histogram(x=np.random.randn(100).tolist())],
@@ -101,6 +114,7 @@ def plotly_histogram_fig():
 @pytest.fixture
 def plotly_pie_fig():
     """Create a simple Plotly pie chart."""
+    pytest.importorskip("plotly")
     fig = go.Figure(
         data=[go.Pie(labels=["Apples", "Bananas", "Cherries"], values=[30, 50, 20])],
         layout=go.Layout(
@@ -115,6 +129,7 @@ def plotly_pie_fig():
 @pytest.fixture
 def plotly_dodged_fig():
     """Create a grouped (dodged) bar chart."""
+    pytest.importorskip("plotly")
     fig = go.Figure(
         data=[
             go.Bar(name="Male", x=["A", "B"], y=[10, 20]),
@@ -133,6 +148,7 @@ def plotly_dodged_fig():
 @pytest.fixture
 def plotly_stacked_fig():
     """Create a stacked bar chart."""
+    pytest.importorskip("plotly")
     fig = go.Figure(
         data=[
             go.Bar(name="Q1", x=["A", "B"], y=[10, 20]),
@@ -151,6 +167,7 @@ def plotly_stacked_fig():
 @pytest.fixture
 def plotly_multiline_fig():
     """Create a multi-line chart."""
+    pytest.importorskip("plotly")
     fig = go.Figure(
         data=[
             go.Scatter(x=[1, 2, 3], y=[10, 20, 15], mode="lines", name="A"),

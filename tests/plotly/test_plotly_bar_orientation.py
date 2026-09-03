@@ -24,11 +24,13 @@ from __future__ import annotations
 
 import warnings
 
-import plotly.graph_objects as go
 import pytest
 
-from maidr.core.enum.maidr_key import MaidrKey
-from maidr.plotly.plotly_maidr import PlotlyMaidr
+plotly = pytest.importorskip("plotly")
+import plotly.graph_objects as go  # noqa: E402
+
+from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
+from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
 warnings.filterwarnings("ignore")
 
