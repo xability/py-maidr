@@ -7,6 +7,9 @@ SMOOTH_KEYWORDS = [
     "linear regression",
     "linear fit",
     "fit",
+    # Matched as whole words (see `maidr.patch.regplot._looks_smooth`), so
+    # "Fitted values" needs its own entry rather than riding on "fit".
+    "fitted",
     "kde",
     "density",
     "gaussian",
