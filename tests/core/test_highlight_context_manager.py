@@ -13,10 +13,14 @@ artist never tagged is left alone, and a rendered chart carries exactly one
 ``maidr`` attribute per bar, with the layer's selector on each. One test
 pins the change itself: resolving an artist no longer compares it against
 the others, which is the scan that made a render quadratic.
+
+Two more pin #753: outside a render the class-wide ``draw`` patch touches no
+gid at all, and inside one a gid the user set is kept and keys its selector.
 """
 
 from __future__ import annotations
 
+import io
 import re
 
 import matplotlib
@@ -25,6 +29,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 import pytest  # noqa: E402
+from matplotlib.figure import Figure  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
@@ -128,3 +133,48 @@ def test_a_rendered_bar_chart_carries_one_selector_per_bar():
         bar.get_gid() for bar in bars
     ], "every bar, in draw order, and nothing else"
     assert {selector for _, selector in tagged} == {selector_id}
+
+
+def test_a_plain_draw_mints_no_gid():
+    """Outside a render the class-wide ``draw`` patch leaves gids alone.
+
+    A plain ``savefig`` used to hand every Patch and Line2D in the process a
+    fresh ``maidr-<uuid>`` gid -- on a bare :class:`~matplotlib.figure.Figure`
+    that ``FigureManager`` never saw, and on a registered figure the user
+    only wanted a PNG of. Nothing reads a gid minted outside a render
+    (#753).
+    """
+    fig = Figure()
+    span = fig.add_subplot().axhspan(0, 1)
+    fig.savefig(io.BytesIO(), format="png")
+    assert span.get_gid() is None
+
+    fig, ax = plt.subplots()
+    bars = ax.bar(["a", "b"], [1, 2])
+    FigureManager.get_maidr(fig)  # registered, but never rendered
+    fig.savefig(io.BytesIO(), format="png")
+    assert [bar.get_gid() for bar in bars] == [None, None]
+
+
+def test_a_user_gid_survives_a_draw_and_keys_its_selector():
+    """A gid the user set is kept, and the render addresses the bar by it.
+
+    Matplotlib writes ``get_gid()`` as the ``<g id>`` that ``XMLWriter.start``
+    receives, so an existing gid resolves to its selector just as a minted
+    one does; only an artist with no gid gets a ``maidr-`` one (#753).
+    """
+    fig, ax = plt.subplots()
+    bars = ax.bar(["a", "b"], [1, 2])
+    bars[0].set_gid("my-first-bar")
+
+    fig.savefig(io.BytesIO(), format="png")
+    assert bars[0].get_gid() == "my-first-bar"
+
+    chart = FigureManager.get_maidr(fig)
+    html = str(chart._create_html_tag(use_iframe=False, use_cdn=True))
+
+    (selector_id,) = chart.selector_ids
+    assert bars[0].get_gid() == "my-first-bar"
+    assert f'<g id="my-first-bar" maidr="{selector_id}"' in html
+    assert bars[1].get_gid().startswith("maidr-")
+    assert f'<g id="{bars[1].get_gid()}" maidr="{selector_id}"' in html
