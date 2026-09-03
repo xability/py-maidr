@@ -23,7 +23,7 @@ from maidr.plotly.multiline import PlotlyMultiLinePlot
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.plotly.step import PlotlyStepPlot
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 
 
 def _line(name: str = "") -> dict:

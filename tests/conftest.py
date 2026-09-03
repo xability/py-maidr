@@ -44,6 +44,21 @@ def offline_cdn_version(monkeypatch):
     cdn.set_cdn_version(None)
 
 
+@pytest.fixture(autouse=True)
+def _close_figures():
+    """Close every pyplot figure a test leaves open.
+
+    Most tests build figures with ``plt.subplots()`` and never close them,
+    so isolation used to rest on whichever later test happened to call
+    ``plt.close("all")``, and a test that reads ``plt.gcf()``/``plt.gca()``
+    before drawing inherited the previous test's figure.  Closing here
+    makes each test start from an empty ``Gcf``; it is a no-op when
+    nothing is open.
+    """
+    yield
+    plt.close("all")
+
+
 # setup and teardown
 @pytest.fixture
 def plot_fixture():

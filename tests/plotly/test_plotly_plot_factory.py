@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
@@ -11,6 +12,8 @@ from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
 from maidr.plotly.pie import PlotlyPiePlot
 from maidr.plotly.candlestick import PlotlyCandlestickPlot
+
+pytest.importorskip("plotly")
 
 
 class TestPlotlyPlotFactory:

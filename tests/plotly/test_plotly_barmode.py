@@ -39,7 +39,7 @@ import pytest
 # `plotly` is an optional extra, so guard the import the way every other file
 # in this directory does -- without it, a minimal install fails at *collection*
 # rather than skipping.
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 pd = pytest.importorskip("pandas")
 
 import plotly.express as px  # noqa: E402

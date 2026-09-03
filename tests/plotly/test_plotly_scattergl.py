@@ -22,7 +22,7 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_maidr import PlotlyMaidr
 from maidr.plotly.step_shape import renders_through_webgl
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 import plotly.graph_objects as go  # noqa: E402
 
 
