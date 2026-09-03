@@ -315,7 +315,10 @@ class PlotlyBoxPlot(PlotlyPlot):
         # `quartilemethod="exclusive"`/`"inclusive"` only change plotly's
         # answer for an odd sample size: the median is left out of, or shared
         # by, the two halves whose medians become q1 and q3. An even sample
-        # is Hazen whatever the method says.
+        # is Hazen whatever the method says. So is a single sample under
+        # `exclusive`: its halves are empty, and plotly's `Lib.interp` on an
+        # empty array answers `undefined` -- there is no drawn quartile to
+        # match, and a NaN in the schema is worse than the value itself.
         if arr.size % 2 and quartilemethod in ("exclusive", "inclusive"):
             middle = arr.size // 2
             ordered = np.sort(arr)
@@ -323,8 +326,9 @@ class PlotlyBoxPlot(PlotlyPlot):
                 lower_half, upper_half = ordered[:middle], ordered[middle + 1 :]
             else:
                 lower_half, upper_half = ordered[: middle + 1], ordered[middle:]
-            q1 = float(np.median(lower_half))
-            q3 = float(np.median(upper_half))
+            if lower_half.size and upper_half.size:
+                q1 = float(np.median(lower_half))
+                q3 = float(np.median(upper_half))
         iqr = q3 - q1
         lower_fence = q1 - 1.5 * iqr
         upper_fence = q3 + 1.5 * iqr

@@ -251,6 +251,23 @@ class TestPlotlyBoxPlot:
 
         assert (box["q1"], box["q3"]) == (1.5, 3.5)
 
+    @pytest.mark.parametrize("method", ["exclusive", "inclusive"])
+    def test_a_single_sample_box_keeps_finite_quartiles(self, method):
+        # One sample is odd, so the method branch runs -- and under
+        # `exclusive` both halves are empty. Plotly's `Lib.interp` on an
+        # empty array answers `undefined`, so there is nothing drawn to
+        # match; the Hazen rule gives the only value there is.
+        trace = {"type": "box", "y": [7.0], "quartilemethod": method}
+        box = PlotlyBoxPlot(trace, {})._extract_plot_data()[0]
+
+        assert (box["min"], box["q1"], box["q2"], box["q3"], box["max"]) == (
+            7.0,
+            7.0,
+            7.0,
+            7.0,
+            7.0,
+        )
+
     def test_a_gap_in_the_sample_is_skipped(self):
         """Plotly's box calc skips a non-numeric sample; so does this.
 
@@ -347,6 +364,19 @@ class TestPlotlyMultiBoxPlot:
 
         assert (boxes[0]["q1"], boxes[0]["q3"]) == expected
         assert (boxes[1]["q1"], boxes[1]["q3"]) == (2.75, 7.25)
+
+    @pytest.mark.parametrize("method", ["exclusive", "inclusive"])
+    def test_a_single_sample_box_keeps_finite_quartiles(self, method):
+        trace = {"type": "box", "y": [7.0], "quartilemethod": method}
+        box = PlotlyMultiBoxPlot([trace], {})._extract_plot_data()[0]
+
+        assert (box["min"], box["q1"], box["q2"], box["q3"], box["max"]) == (
+            7.0,
+            7.0,
+            7.0,
+            7.0,
+            7.0,
+        )
 
     def test_quartilemethod_reaches_a_grouped_trace(self):
         trace = {
