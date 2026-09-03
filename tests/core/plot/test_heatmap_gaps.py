@@ -39,6 +39,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.cm import ScalarMappable  # noqa: E402
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
@@ -232,6 +233,26 @@ class TestAnArrayThatDoesNotFitItsGrid:
                 plot.render()
 
         assert "holds 3 values for a 2 x 2 grid" in caplog.text
+
+    def test_a_pcolor_mesh_is_guarded_on_the_path_that_reads_it(
+        self, mocker, caplog
+    ):
+        # `_array_of` reads a `PolyQuadMesh` through `ScalarMappable.get_array`
+        # -- the base class, around the compression 3.8 and 3.9 apply -- so
+        # the mock goes on that method. One on the instance's `get_array`
+        # would be bypassed, and the guard never reached.
+        fig, ax = plt.subplots()
+        ax.pcolor(HOLED)
+        mocker.patch.object(
+            ScalarMappable, "get_array", return_value=np.array([1.0, 3.0, 4.0])
+        )
+        plot = FigureManager.get_maidr(fig)._plots[0]
+
+        with caplog.at_level(logging.DEBUG, logger="maidr.core.plot.heatmap"):
+            with pytest.raises(ExtractionError):
+                plot.render()
+
+        assert "PolyQuadMesh holds 3 values for a 2 x 2 grid" in caplog.text
 
 
 class TestWhatMustNotChange:
