@@ -27,6 +27,11 @@ _logger = logging.getLogger(__name__)
 #: checked separately -- see :meth:`PlotlyPlot._looks_like_date`.
 _ISO_DATE = re.compile(r"^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[ T].*)?$")
 
+#: Date units coarsest first, the order :func:`_iso_dates` tries them in.
+#: No hour on its own: ``2024-01-01T12`` is ISO 8601 but reads as nothing to
+#: a listener, where ``2024-01-01T12:00`` is a time.
+_DATE_UNITS = ("D", "m", "s", "ms", "us", "ns")
+
 
 class PlotlyPlot(ABC):
     """
@@ -68,6 +73,15 @@ class PlotlyPlot(ABC):
     def _to_native(val: Any) -> Any:
         """Convert numpy scalars to native Python types.
 
+        A date is spelled as the ISO string plotly's own ``to_json`` writes
+        for it, rather than unwrapped: ``.item()`` on a ``datetime64`` gives a
+        ``datetime`` at microsecond resolution and an epoch *integer* at
+        nanosecond, and neither is what the schema wants -- the first cannot
+        be serialised at all and the second announces a date as
+        ``1704067200000000000`` (#699). The ``datetime64`` check comes before
+        ``.item()`` for that reason, and ``date`` covers ``datetime`` and
+        ``pandas.Timestamp`` with it.
+
         Parameters
         ----------
         val : Any
@@ -76,9 +90,13 @@ class PlotlyPlot(ABC):
         Returns
         -------
         Any
-            A native Python type if the input was a numpy scalar,
-            otherwise the original value.
+            A native Python type if the input was a numpy scalar, an ISO
+            string if it was a date, otherwise the original value.
         """
+        if isinstance(val, np.datetime64):
+            return str(np.datetime_as_string(val, unit="auto"))
+        if isinstance(val, date):
+            return val.isoformat()
         if hasattr(val, "item"):
             return val.item()
         return val
@@ -949,6 +967,11 @@ def as_list(value: Any) -> list:
     A multi-dimensional array carries its extents alongside the buffer and is
     restored to nested lists, so a heatmap's ``z`` still arrives as rows.
 
+    A date column is one of the arrays that stays numpy, and it is spelled
+    here as the ISO strings plotly's own ``to_json`` writes, since the
+    ``datetime64`` scalars it would otherwise decompose into serialise as
+    nothing the schema can hold -- see :meth:`PlotlyPlot._to_native` (#699).
+
     A plain list or tuple is handed back as a list, so a hand-built
     ``go.Bar(y=[1, 2, 3])`` travels this path unchanged. An absent array
     becomes an empty list rather than staying ``None``: every caller reads a
@@ -976,10 +999,44 @@ def as_list(value: Any) -> list:
     if isinstance(value, str):
         return []
 
+    if isinstance(value, np.ndarray) and value.dtype.kind == "M":
+        return _iso_dates(value)
+
     try:
         return list(value)
     except TypeError:
         return []
+
+
+def _iso_dates(values: np.ndarray) -> list[str]:
+    """
+    Spell a ``datetime64`` array as ISO strings.
+
+    One unit for the whole array, the coarsest that loses nothing of any
+    entry: a daily series reads ``2024-01-01`` rather than the
+    ``2024-01-01T00:00:00.000000`` plotly's verbatim rule writes, and an
+    hourly one ``2024-01-01T12:00`` throughout. Numpy's ``unit="auto"``
+    chooses per entry, which would spell the midnight and the noon of one
+    series differently.
+
+    Parameters
+    ----------
+    values : np.ndarray
+        An array of ``datetime64`` values, at any resolution.
+
+    Returns
+    -------
+    list[str]
+        One ISO string per entry; ``NaT`` stays ``"NaT"``.
+    """
+    # NaT is unequal to everything including itself, so it is excused from
+    # the comparison rather than forcing the finest unit on every real entry.
+    real = ~np.isnat(values)
+    for unit in _DATE_UNITS:
+        coarse = values.astype(f"datetime64[{unit}]")
+        if np.array_equal(coarse[real], values[real]):
+            return np.datetime_as_string(coarse).tolist()
+    return np.datetime_as_string(values).tolist()
 
 
 def _decode_typed_array(spec: dict) -> list:
