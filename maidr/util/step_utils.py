@@ -171,7 +171,8 @@ def resolve_step_direction(lines: Iterable[Line2D]) -> Optional[str]:
         return None
 
     directions = {
-        STEP_DRAWSTYLE_TO_DIRECTION.get(str(line.get_drawstyle())) for line in lines
+        STEP_DRAWSTYLE_TO_DIRECTION.get(str(line.get_drawstyle()))
+        for line in data_lines
     }
     if len(directions) != 1:
         return None
