@@ -504,6 +504,41 @@ class TestPlotlyMultiBoxPlot:
 
         assert plot.render()["orientation"] == "horz"
 
+    @pytest.mark.parametrize(
+        "precomputed_axis, raw_axis, expected",
+        [
+            # A lone x positions a precomputed trace's boxes: vertical, like
+            # a raw trace whose samples are in y.
+            ("x", "y", "vert"),
+            # A lone y positions them horizontally, and one horizontal trace
+            # makes the layer horizontal -- even beside a raw y-sample trace,
+            # which read alone would say vertical.
+            ("y", "y", "horz"),
+            # The raw rule is the reverse: samples in x alone are horizontal,
+            # and that outvotes the precomputed x-positioned trace.
+            ("x", "x", "horz"),
+        ],
+    )
+    def test_orientation_is_judged_per_trace_across_mixed_forms(
+        self, precomputed_axis, raw_axis, expected
+    ):
+        traces = [
+            {
+                "type": "box",
+                "q1": [4],
+                "median": [5],
+                "q3": [6],
+                precomputed_axis: [0],
+            },
+            {"type": "box", raw_axis: [1, 2, 3, 4, 5]},
+        ]
+        plot = PlotlyMultiBoxPlot(traces, {})
+        schema = plot.render()
+
+        assert schema["orientation"] == expected
+        assert [box["q2"] for box in schema["data"]] == [5, 3.0]
+        assert plot._boxes_per_trace == [1, 1]
+
     def test_a_precomputed_trace_with_both_arrays_falls_through_to_vertical(self):
         # Plotly's case "11": the trace is hidden and draws nothing, so this
         # pins the extractor's default rather than a plotly rule.
