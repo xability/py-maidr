@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import uuid
 from typing import Any, Sequence
 
@@ -132,10 +133,23 @@ class AreaPlot(MaidrPlot):
             label = self._labels[index] if index < len(self._labels) else None
             points = []
             for position, magnitude in zip(positions, magnitudes):
-                point = {
-                    MaidrKey.X: self._scalar(position),
-                    MaidrKey.Y: self._scalar(magnitude),
-                }
+                # The two rules `lineplot` applies, for the reason it gives:
+                # `json.dumps` writes a non-finite number as a bare token that
+                # `JSON.parse` refuses, so one NaN stopped the chart
+                # initialising at all (#427). A sample with no *position* is
+                # nowhere a reader could be sent and is dropped -- from every
+                # series, since the positions are shared, so the columns
+                # stay aligned. One with a position and no *value* is kept
+                # and its value emitted as `null`, which the core's area
+                # trace has read as a gap that stays out of the running
+                # total.
+                x = self._scalar(position)
+                if isinstance(x, float) and not math.isfinite(x):
+                    continue
+                y = self._scalar(magnitude)
+                if isinstance(y, float) and not math.isfinite(y):
+                    y = None
+                point = {MaidrKey.X: x, MaidrKey.Y: y}
                 if label:
                     point[MaidrKey.Z] = str(label)
                 points.append(point)

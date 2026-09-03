@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import numpy.ma as ma
 from matplotlib.axes import Axes
@@ -150,8 +152,7 @@ class HeatPlot(
             and len(ticks) == len(centres)
             and len(at) == len(centres)
             and all(
-                np.isclose(position, centre)
-                for position, centre in zip(at, centres)
+                np.isclose(position, centre) for position, centre in zip(at, centres)
             )
         ):
             return ticks
@@ -275,7 +276,13 @@ class HeatPlot(
         if sm is None or sm.get_array() is None:
             return None
 
-        array = sm.get_array().data
+        # The masked array, not the buffer beneath it. `.data` is what is
+        # left when the mask is stripped, and for a cell the caller hid --
+        # `sns.heatmap(corr, mask=np.triu(...))`, `imshow` of a
+        # `np.ma.masked_where` -- that is a number nobody drew: the mask
+        # blanks six cells of a 3 x 3 correlation and the full symmetric
+        # matrix was announced (#696).
+        array = ma.asarray(sm.get_array())
         if isinstance(sm, (QuadMesh, PolyQuadMesh)):
             # The two mesh classes disagree about the shape they keep their
             # values in: `pcolormesh`'s QuadMesh flattens them, while
@@ -303,4 +310,59 @@ class HeatPlot(
         if array.dtype == bool:
             array = array.astype(float)
 
-        return [list(map(lambda x: float(format(x, self._fmt)), row)) for row in array]
+        # A masked cell becomes a NaN here, so from this point the two ways a
+        # cell can have no value -- a NaN in the input and a mask over it --
+        # are one case, and `_cell` turns both into a gap. Only a float can
+        # hold the NaN, and `ma.filled` refuses to write one into an integer
+        # grid even where nothing is masked, so the cast is made for the
+        # grids that need it and the others keep their dtype -- which the
+        # fast path below and the format step both read.
+        if ma.is_masked(array):
+            if array.dtype.kind != "f":
+                array = array.astype(float)
+            array = ma.filled(array, np.nan)
+        else:
+            array = ma.getdata(array)
+
+        # `format(x, "")` is `repr` for a float64 or an integer, and `float`
+        # of that round-trips exactly, so at the default format the per-cell
+        # loop is an identity costing a Python call per cell -- 3.5 s against
+        # 0.12 s on a 1000 x 1000 `imshow`, and about 40% of the whole
+        # render. The gate is on the dtype rather than on the format alone
+        # because numpy 1.x, which the 3.9 floor still installs, formats a
+        # float32 at its *own* shortest repr, so only float64 and the integer
+        # kinds are known to round-trip.
+        if self._fmt == "" and (array.dtype.kind in "iu" or array.dtype == np.float64):
+            rows = array.astype(float).tolist()
+        else:
+            rows = [[float(format(x, self._fmt)) for x in row] for row in array]
+
+        return [[self._cell(value) for value in row] for row in rows]
+
+    @staticmethod
+    def _cell(value: float) -> float | None:
+        """
+        One cell's value, or ``None`` where it has none.
+
+        A NaN in the input and a masked cell both arrive here as NaN, and
+        neither is a reading. Emitted as it stands, ``json.dumps`` writes it
+        as a bare ``NaN`` token -- legal JavaScript, invalid JSON -- and the
+        core parses the SVG's ``maidr`` attribute with ``JSON.parse``, so one
+        such cell stops the chart initialising at all (#427, #696).
+
+        ``None`` serialises to ``null``, which ``HeatmapData.points`` is typed
+        to carry and the core's ``toBarValue`` reads as a gap: it stays out of
+        the range, sounds as the empty tone and announces as "missing". The
+        same rule ``barplot._magnitude`` and ``hexbinplot._count`` apply.
+
+        Parameters
+        ----------
+        value : float
+            The cell's value after formatting.
+
+        Returns
+        -------
+        float or None
+            The value, or ``None`` for a cell without one.
+        """
+        return value if math.isfinite(value) else None

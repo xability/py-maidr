@@ -31,6 +31,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 
+import maidr  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 
 
@@ -47,6 +48,14 @@ def _reject_constant(token: str):
 def bar_points(ax) -> list[dict]:
     maidr = FigureManager.get_maidr(ax.get_figure())
     return maidr._plots[0].schema["data"]
+
+
+def stacked_points(ax) -> list[list[dict]]:
+    # The layer `maidr.stacked(ax)` registered, which is the last one: the
+    # second `ax.bar(bottom=)` already auto-typed a STACKED layer beside the
+    # first call's BAR one, and the explicit call adds its own after both.
+    maidr = FigureManager.get_maidr(ax.get_figure())
+    return maidr._plots[-1].schema["data"]
 
 
 def parses_as_strict_json(ax) -> None:
@@ -130,3 +139,54 @@ class TestWhatMustNotChange:
         ax = plt.bar(["a", "b", "c"], [1.0, 2.0, 3.0])[0].axes
 
         assert [point["y"] for point in bar_points(ax)] == [1.0, 2.0, 3.0]
+
+
+class TestAStackedBarWithNoHeight:
+    # `BarPlot` routed its bars through `_magnitude` for #429, and the
+    # segmented layer read the same rectangles through a bare `float()`. Its
+    # reach is matplotlib's own stacking idiom -- `ax.bar(..., bottom=a)`
+    # over data with a gap -- which types the layer STACKED and then emitted
+    # a bare `NaN` token for the whole figure (#696).
+
+    @staticmethod
+    def _stacked():
+        fig, ax = plt.subplots()
+        first = [1.0, np.nan, 3.0]
+        ax.bar(["x", "y", "z"], first, label="first")
+        ax.bar(["x", "y", "z"], [4.0, 5.0, 6.0], bottom=first, label="second")
+        maidr.stacked(ax)
+        return ax
+
+    def test_it_is_emitted_as_null_rather_than_nan(self):
+        ax = self._stacked()
+
+        assert stacked_points(ax)[0][1]["y"] is None
+
+    def test_the_payload_is_loadable(self):
+        ax = self._stacked()
+
+        parses_as_strict_json(ax)
+
+    def test_the_measured_bars_are_untouched(self):
+        ax = self._stacked()
+        points = stacked_points(ax)
+
+        assert [point["y"] for point in points[0]] == [1.0, None, 3.0]
+        assert [point["y"] for point in points[1]] == [4.0, 5.0, 6.0]
+        assert [point["x"] for point in points[0]] == ["x", "y", "z"]
+
+    def test_a_horizontal_bar_is_covered_too(self):
+        # The gap lands on **x** for a horizontal layer, as it does for the
+        # plain bar above: the magnitude is the width, read on the other
+        # branch of the same method.
+        fig, ax = plt.subplots()
+        first = [1.0, np.nan, 3.0]
+        ax.barh(["x", "y", "z"], first, label="first")
+        ax.barh(["x", "y", "z"], [4.0, 5.0, 6.0], left=first, label="second")
+        maidr.stacked(ax)
+        points = stacked_points(ax)
+
+        assert points[0][1]["x"] is None
+        assert points[0][1]["y"] == "y"
+        assert [point["x"] for point in points[1]] == [4.0, 5.0, 6.0]
+        parses_as_strict_json(ax)
