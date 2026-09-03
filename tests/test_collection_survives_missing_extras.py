@@ -43,7 +43,10 @@ def _collect_with_shadowed(package: str, tmp_path: pathlib.Path) -> str:
         f'raise ImportError("{package} is shadowed for this test")\n'
     )
 
-    env = dict(os.environ)
+    # Start from the caller's environment minus anything that steers pytest
+    # itself (``PYTEST_ADDOPTS``, ``PYTEST_PLUGINS``, ...): the run has to
+    # reflect the repository's own defaults, not a developer's or a CI job's.
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PYTEST_")}
     env["PYTHONPATH"] = os.pathsep.join(
         p for p in (str(shadow.parent), env.get("PYTHONPATH", "")) if p
     )
