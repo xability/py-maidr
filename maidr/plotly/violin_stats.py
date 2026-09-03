@@ -177,9 +177,16 @@ def violin_stats(values: np.ndarray) -> ViolinStats | None:
     step = width / intervals
     positions = low + np.arange(intervals + 1) * step
 
-    # The Gaussian kernel, summed over the sample at every position.
-    scaled = (positions[:, None] - values[None, :]) / bandwidth
-    density = np.exp(-0.5 * scaled**2).sum(axis=1)
+    # The Gaussian kernel, summed over the sample at every position -- one
+    # position at a time rather than as an (intervals x n) outer product.
+    # The outer product is O(intervals * n) memory, and intervals grows with
+    # n: measured, 1.5 GB of peak memory for a 200k-sample violin, for every
+    # violin on the subplot. A row at a time is O(n). The result is
+    # bit-identical, because reducing one contiguous row of the matrix is the
+    # same pairwise summation numpy applies to a one-dimensional array.
+    density = np.empty(len(positions))
+    for i, position in enumerate(positions):
+        density[i] = np.exp(-0.5 * ((position - values) / bandwidth) ** 2).sum()
     density *= _INV_SQRT_2PI / (len(values) * bandwidth)
 
     return ViolinStats(

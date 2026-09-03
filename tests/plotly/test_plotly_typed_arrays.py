@@ -183,6 +183,26 @@ def test_a_numpy_backed_trace_is_counted_by_its_points_not_its_spec_keys():
     assert default_mode(numpy_trace) == default_mode(list_trace) == "lines"
 
 
+def test_numpy_tickvals_keep_the_grid():
+    # A numpy `tickvals` is exported as a typed-array spec like any other
+    # numeric array. Read raw, the spec's two keys passed the `>= 2` length
+    # test and then failed `float`, which the extractor swallowed -- and one
+    # missing tick step silently drops `min`/`max`/`tickStep` from *both*
+    # axes, taking grid navigation with it.
+    fig = go.Figure(go.Scatter(x=list(range(11)), y=list(range(11)), mode="markers"))
+    fig.update_xaxes(tickvals=np.arange(0, 11, 2))
+    fig.update_yaxes(tickvals=[0, 2, 4, 6, 8, 10])
+
+    assert isinstance(fig.to_dict()["layout"]["xaxis"]["tickvals"], dict)
+
+    axes = PlotlyMaidr(fig)._plots[0].schema["axes"]
+    x_axis = {str(getattr(k, "value", k)): v for k, v in axes["x"].items()}
+
+    assert x_axis["tickStep"] == 2.0
+    assert x_axis["min"] == 0.0
+    assert x_axis["max"] == 10.0
+
+
 class TestAsList:
     """The decoder leaves everything that already worked alone."""
 

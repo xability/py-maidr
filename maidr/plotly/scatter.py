@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, paired_axes
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list, paired_axes
 from maidr.plotly.step_shape import renders_through_webgl
 
 
@@ -160,9 +160,12 @@ class PlotlyScatterPlot(PlotlyPlot):
             except (TypeError, ValueError):
                 pass
 
-        # Method 2: Compute from tickvals (if tickmode is 'array')
-        tickvals = axis.get("tickvals")
-        if tickvals and len(tickvals) >= 2:
+        # Method 2: Compute from tickvals (if tickmode is 'array'). Through
+        # `as_list`, because a numpy `tickvals` is exported as a typed-array
+        # spec whose two keys pass the length test and then fail `float`,
+        # which silently dropped the grid from both axes.
+        tickvals = as_list(axis.get("tickvals"))
+        if len(tickvals) >= 2:
             try:
                 vals = [float(v) for v in tickvals]
                 diffs = [vals[i + 1] - vals[i] for i in range(len(vals) - 1)]

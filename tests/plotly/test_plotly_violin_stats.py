@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import math
 import pathlib
+import tracemalloc
 
 import numpy as np
 import pytest
@@ -200,6 +201,29 @@ def test_the_density_is_a_density(size: str) -> None:
 
     area = float(np.trapezoid(stats.density, stats.positions))
     assert 0.9 < area <= 1.0, area
+
+
+def test_the_kernel_is_evaluated_in_linear_memory() -> None:
+    """One row of the kernel at a time, never the whole (points x n) matrix.
+
+    The outer product costs `intervals * n` doubles three times over, and
+    `intervals` grows with `n`: measured, 260 MB at n=50,000 and 1.5 GB at
+    n=200,000 -- for every violin on the subplot. Evaluating position by
+    position is O(n) and, because each row of that matrix is reduced by the
+    same pairwise summation as a one-dimensional array, bit-identical; the
+    reference tests above are what guard the values.
+    """
+    sample = np.random.default_rng(0).normal(size=50_000)
+
+    tracemalloc.start()
+    try:
+        stats = violin_stats(sample)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert stats is not None
+    assert peak < 16 * 1024 * 1024, f"peak {peak / 1e6:.0f} MB"
 
 
 def test_a_shifted_sample_shifts_its_curve() -> None:
