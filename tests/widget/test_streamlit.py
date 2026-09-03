@@ -707,6 +707,8 @@ def test_no_plot_warns_and_blames_the_caller(bar_axes, monkeypatch):
     from either.
     """
     st, _v1 = _stub_streamlit(monkeypatch, with_iframe=True)
+    # ``bar_axes`` is what makes there be a current figure to fall back to.
+    assert plt.gcf() is bar_axes.figure
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
