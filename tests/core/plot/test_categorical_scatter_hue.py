@@ -501,7 +501,7 @@ class TestHowThePointColoursAreRead:
         from maidr.core.plot.scatterplot import _rgba
         from maidr.patch.stripplot import _point_colours
 
-        figure, ax = plt.subplots()
+        _, ax = plt.subplots()
         sns.stripplot(data=frame(), x="cat", y="val", hue="hue", alpha=0.4, ax=ax)
 
         for collection in ax.collections:
@@ -519,7 +519,7 @@ class TestHowThePointColoursAreRead:
         # produces the mismatch (the test above pins that).
         from maidr.patch.stripplot import _point_colours
 
-        figure, ax = plt.subplots()
+        _, ax = plt.subplots()
         sns.stripplot(data=frame(), x="cat", y="val", hue="hue", ax=ax)
         collection = ax.collections[0]
         count = len(collection.get_offsets())
@@ -540,7 +540,7 @@ class TestHowThePointColoursAreRead:
         # and cost the second #718 measured back.
         import maidr.patch.stripplot as stripplot
 
-        figure, ax = plt.subplots()
+        _, ax = plt.subplots()
         sns.stripplot(data=frame(), x="cat", y="val", hue="hue", ax=ax)
         collection = ax.collections[0]
         rows = np.asarray(collection.get_facecolor())
