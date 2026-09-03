@@ -75,6 +75,12 @@ def _percent_body_in_python(body: str, value: float) -> str:
     return f"{value * scale:.{match.group('decimals')}f}{match.group('symbol')[1:-1]}"
 
 
+def _drawn(formatter, value):
+    """The tick text, with the Unicode minus ``fix_minus`` draws written as
+    the hyphen-minus a JS body produces; a reader speaks both as "minus"."""
+    return formatter(value).replace("\u2212", "-")
+
+
 def _formatter_with_axis(formatter, ylim=(0, 100)):
     """``PercentFormatter.__call__`` reads its axis to pick the decimals."""
     fig, ax = plt.subplots()
@@ -92,6 +98,8 @@ def _formatter_with_axis(formatter, ylim=(0, 100)):
         (PercentFormatter(xmax=100, decimals=0, symbol=" %"), "45 %"),
         (PercentFormatter(xmax=200, decimals=1), "22.5%"),
         (PercentFormatter(decimals=0, symbol=None), "45"),
+        # A negative xmax flips the sign; the range-derived decimals are 0.
+        (PercentFormatter(xmax=-100), "-45%"),
         (StrMethodFormatter("{x:.0f}%"), "45%"),
     ],
 )
@@ -102,7 +110,7 @@ def test_a_percent_axis_is_announced_at_matplotlibs_scale(formatter, expected):
     assert set(config) == {"function"}
     assert _percent_body_in_python(config["function"], 45) == expected
     # The very text matplotlib draws on the tick, decimals included.
-    assert formatter(45) == expected
+    assert _drawn(formatter, 45) == expected
 
 
 @pytest.mark.parametrize(
@@ -144,9 +152,9 @@ def test_an_unattached_percent_formatter_keeps_the_presets_one_decimal():
     }
 
 
-def test_a_percent_formatter_with_a_non_positive_xmax_keeps_the_preset():
+def test_a_percent_formatter_with_a_zero_xmax_keeps_the_preset():
     """matplotlib divides by xmax at draw time; extraction must not raise."""
-    for formatter in (PercentFormatter(xmax=0), PercentFormatter(xmax=-1, decimals=2)):
+    for formatter in (PercentFormatter(xmax=0), PercentFormatter(xmax=0, decimals=2)):
         formatter = _formatter_with_axis(formatter)
         config = FormatConfigBuilder.from_formatter(formatter).to_dict()
         assert config["type"] == "percent"
@@ -177,6 +185,7 @@ def test_a_non_default_percent_axis_is_announced_as_its_tick_is_drawn():
     [
         (PercentFormatter(), 45),
         (PercentFormatter(xmax=100, decimals=0, symbol=" %"), 45),
+        (PercentFormatter(xmax=-100), 45),
         (StrMethodFormatter("{x:.0f}%"), 45),
     ],
 )
@@ -209,18 +218,20 @@ def test_a_category_name_on_a_percent_axis_is_announced_as_itself(formatter):
     assert _run_js(body, "Cherries") == "Cherries"
 
 
-# 0.25 sits exactly on a rounding tie: Python's ``.1f`` rounds it half-even
-# to 0.2, JavaScript's ``toFixed`` half-up to 0.3. Every ``toFixed`` body,
-# upstream's ``fixed`` preset included, differs from Python there; it is not
-# what the literal suffix changes, so it is recorded rather than papered over.
-TOFIXED_TIE = pytest.mark.xfail(
-    strict=True, reason="toFixed rounds a half up where Python rounds it even"
+# 0.25 at one decimal and 1234.5 at none sit exactly on a rounding tie:
+# Python rounds half-even, to 0.2 and 1,234; JavaScript's ``toFixed`` and
+# ``Intl.NumberFormat`` round half up, to 0.3 and 1,235. Every such body,
+# upstream's ``fixed`` and ``number`` presets included, differs from Python
+# there; it is not what the literal suffix changes, so it is recorded rather
+# than papered over.
+HALF_UP_TIE = pytest.mark.xfail(
+    strict=True, reason="JavaScript rounds a half up where Python rounds it even"
 )
+TIES = {("{x:.1f} %", 0.25), ("{x:,.0f}%", 1234.5)}
 
 
 def _suffix_case(fmt, value):
-    marks = [TOFIXED_TIE] if (fmt, value) == ("{x:.1f} %", 0.25) else []
-    return pytest.param(fmt, value, marks=marks)
+    return pytest.param(fmt, value, marks=[HALF_UP_TIE] if (fmt, value) in TIES else [])
 
 
 @pytest.mark.parametrize(
@@ -239,6 +250,30 @@ def test_a_literal_percent_suffix_is_announced_as_python_formats_it(fmt, value):
     body = FormatConfigBuilder.from_formatter(formatter).function
     assert body.endswith("+" + json.dumps(fmt[fmt.index("}") + 1 :]))
     assert _run_js(body, float(value)) == formatter(float(value))
+
+
+@pytest.mark.parametrize(
+    ("fmt", "value"),
+    [
+        _suffix_case(fmt, value)
+        for fmt, values in (
+            ("{x:,.0f}%", (1234.5, 1234.56, 45)),
+            ("{x:,.2f}%", (1234.5, 45)),
+            ("{x:,}%", (1234.5, 45)),
+            ("{x:.2e}%", (1234.5, 0.25)),
+        )
+        for value in values
+    ],
+)
+def test_a_grouped_or_scientific_field_keeps_its_literal_suffix(fmt, value):
+    """These specs fell through to the number and scientific presets, which
+    know nothing of the suffix (#703). The exponent keeps Python's two
+    digits, ``e+03``, and the grouped form its ``.0`` on an integral value."""
+    formatter = StrMethodFormatter(fmt)
+    body = FormatConfigBuilder.from_formatter(formatter).function
+    assert body.endswith("+" + json.dumps("%"))
+    assert ("toExponential" if "e}" in fmt else "toLocaleString") in body
+    assert _run_js(body, float(value)) == _drawn(formatter, float(value))
 
 
 def test_a_percent_sign_that_is_not_a_suffix_is_read_as_the_field_says():

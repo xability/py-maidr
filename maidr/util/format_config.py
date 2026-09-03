@@ -328,7 +328,12 @@ class JSBodyConverter:
         return guard + f"return n.toFixed({decimals})+'%'"
 
     @staticmethod
-    def literal_percent_format_to_js(decimals: Optional[int], suffix: str) -> str:
+    def literal_percent_format_to_js(
+        decimals: Optional[int],
+        suffix: str,
+        grouping: bool = False,
+        exponent: bool = False,
+    ) -> str:
         """
         Convert a format string ending in a literal percent sign, like
         ``{x:.1f} %``, to a JavaScript function body.
@@ -336,13 +341,21 @@ class JSBodyConverter:
         Parameters
         ----------
         decimals : int, optional
-            Fixed-point precision of the field. None is a field with no
-            format spec, ``{x}``, which Python renders with the float's
+            Precision of the field. None is a field with no precision,
+            ``{x}`` or ``{x:,}``, which Python renders with the float's
             default form -- ``45.0``, ``45.5`` -- so the body keeps the
             ``.0`` on an integral value where ``String(n)`` would drop it.
         suffix : str
             The literal text after the field, emitted verbatim -- ``%``,
             or `` %`` with the space the format string carries.
+        grouping : bool
+            Whether the spec asks for thousands separators, ``{x:,.0f}``.
+            Written the way the comma preset's body is, through
+            ``toLocaleString('en-US')``.
+        exponent : bool
+            Whether the spec is scientific, ``{x:.2e}``. Python pads the
+            exponent to two digits, ``1.23e+03``, where ``toExponential``
+            gives ``1.23e+3``; the body pads it back.
 
         Returns
         -------
@@ -351,8 +364,26 @@ class JSBodyConverter:
             A value that is not a finite number is announced as itself, as
             upstream's ``asFiniteNumber`` does for the percent preset.
         """
-        if decimals is None:
+        if exponent:
+            number = (
+                f"n.toExponential({decimals})"
+                ".replace(/e([+-])(\\d)$/,function(s,a,b){return 'e'+a+'0'+b})"
+            )
+        elif decimals is None and grouping:
+            number = (
+                "(Number.isInteger(n)?n.toLocaleString('en-US')+'.0'"
+                ":n.toLocaleString('en-US',{maximumFractionDigits:20}))"
+            )
+        elif decimals is None:
+            # Python's default float str, for the magnitudes a tick takes;
+            # an extreme Python writes in exponent form, 1e-05 or 1e+16,
+            # String(n) spells out.
             number = "(Number.isInteger(n)?n.toFixed(1):String(n))"
+        elif grouping:
+            number = (
+                "n.toLocaleString('en-US',{minimumFractionDigits:"
+                f"{decimals},maximumFractionDigits:{decimals}}})"
+            )
         else:
             number = f"n.toFixed({decimals})"
         return (
@@ -525,9 +556,10 @@ class FormatConfigBuilder:
             explicit = int(formatter.decimals)
         xmax = float(getattr(formatter, "xmax", 100.0))
 
-        # matplotlib divides by xmax at draw time and raises there; a schema
+        # matplotlib divides by xmax at draw time and raises on zero; a schema
         # extraction has nothing sensible to scale by, so it keeps the preset.
-        if xmax <= 0:
+        # A negative xmax draws a sign-flipped percentage and scales as usual.
+        if xmax == 0:
             return FormatConfig(type=FormatType.PERCENT, decimals=explicit)
 
         decimals = FormatConfigBuilder._percent_decimals(formatter, xmax, explicit)
@@ -692,15 +724,20 @@ class FormatConfigBuilder:
         # percentage the data already hold: keep the suffix as written,
         # without the preset's multiply-by-100. A % followed by more text is
         # not a suffix and is read as whatever the field itself says; so is
-        # a field whose spec is neither empty nor fixed-point.
+        # a field whose spec is not one of empty, grouping, fixed-point or
+        # scientific -- the presets below would drop the suffix (#703).
         suffix_match = re.search(r"\{[^}:]*(?::([^}]*))?\}(\s*%\s*)$", fmt)
         if suffix_match:
             spec, suffix = suffix_match.group(1) or "", suffix_match.group(2)
-            precision = re.fullmatch(r"\.(\d+)f", spec)
-            if not spec or precision:
+            parsed = re.fullmatch(r"(,)?(?:\.(\d+)([fe]))?", spec)
+            if parsed:
+                grouping, precision, kind = parsed.groups()
                 return FormatConfig(
                     function=JSBodyConverter.literal_percent_format_to_js(
-                        int(precision.group(1)) if precision else None, suffix
+                        int(precision) if precision else None,
+                        suffix,
+                        grouping=bool(grouping),
+                        exponent=kind == "e",
                     )
                 )
 
