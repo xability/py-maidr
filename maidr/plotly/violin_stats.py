@@ -56,7 +56,7 @@ _MIN_BANDWIDTH_FRACTION = 100
 #: The quantile rule plotly uses. Not numpy's default (`linear`), and not
 #: plotly's own documented `quartilemethod` values either -- measured against
 #: plotly's `calcdata` across eight sample sizes, this is the one that agrees.
-_QUANTILE_METHOD = "hazen"
+QUANTILE_METHOD = "hazen"
 
 _INV_SQRT_2PI = 1.0 / math.sqrt(2.0 * math.pi)
 
@@ -156,7 +156,7 @@ def violin_stats(values: np.ndarray) -> ViolinStats | None:
         )
 
     q1, median, q3 = (
-        float(q) for q in np.percentile(values, [25, 50, 75], method=_QUANTILE_METHOD)
+        float(q) for q in np.percentile(values, [25, 50, 75], method=QUANTILE_METHOD)
     )
     bandwidth = _bandwidth(values, q1, q3)
 
