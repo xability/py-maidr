@@ -99,11 +99,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.12"
-
+      # No ``setup-uv`` here: unlike ``ci.yml``'s lint job this one runs no
+      # ``uv lock --check``, and ``ruff-action`` brings its own pinned ruff.
       - name: Check format with ruff
         uses: astral-sh/ruff-action@v3
         with:
