@@ -35,6 +35,12 @@ from maidr.util.format_config import (  # noqa: E402
 
 NODE = shutil.which("node")
 
+
+def percent(x, pos=None):
+    """A FuncFormatter whose name is what the heuristic keys on."""
+    return f"{x * 100:.1f}%"
+
+
 # A JS getter that is not the UTC one: ``getMonth`` but not ``getUTCMonth``.
 LOCAL_GETTER = re.compile(r"\.get(?!UTC)[A-Z]\w*\(")
 
@@ -56,7 +62,7 @@ def _percent_body_in_python(body: str, value: float) -> str:
     """Apply the arithmetic of a percent body -- ``(n*scale).toFixed(d)+symbol``
     -- without a JS engine, so the scale is checked even where node is absent."""
     match = re.search(
-        r"(?:\(n\*(?P<scale>[^)]+)\)|parseFloat\(value\))"
+        r"(?:\(n\*(?P<scale>[^)]+)\)|\bn)"
         r"\.toFixed\((?P<decimals>\d+)\)\+(?P<symbol>\"[^\"]*\"|'[^']*')$",
         body,
     )
@@ -65,10 +71,10 @@ def _percent_body_in_python(body: str, value: float) -> str:
     return f"{value * scale:.{match.group('decimals')}f}{match.group('symbol')[1:-1]}"
 
 
-def _formatter_with_axis(formatter):
+def _formatter_with_axis(formatter, ylim=(0, 100)):
     """``PercentFormatter.__call__`` reads its axis to pick the decimals."""
     fig, ax = plt.subplots()
-    ax.plot([0, 100], [0, 100])
+    ax.set_ylim(*ylim)
     ax.yaxis.set_major_formatter(formatter)
     plt.close(fig)
     return formatter
@@ -77,9 +83,8 @@ def _formatter_with_axis(formatter):
 @pytest.mark.parametrize(
     ("formatter", "expected"),
     [
-        # matplotlib picks the decimals from the axis range when none are
-        # given ("45%" here); the body keeps the preset's one decimal.
-        (PercentFormatter(), "45.0%"),
+        # No decimals given: matplotlib derives them from the 0-100 range.
+        (PercentFormatter(), "45%"),
         (PercentFormatter(xmax=100, decimals=0, symbol=" %"), "45 %"),
         (PercentFormatter(xmax=200, decimals=1), "22.5%"),
         (PercentFormatter(decimals=0, symbol=None), "45"),
@@ -92,12 +97,75 @@ def test_a_percent_axis_is_announced_at_matplotlibs_scale(formatter, expected):
 
     assert set(config) == {"function"}
     assert _percent_body_in_python(config["function"], 45) == expected
-    # Same number matplotlib draws, whatever decimals it settled on.
-    drawn = formatter(45)
-    assert float(re.match(r"-?[\d.]+", expected).group()) == float(
-        re.match(r"-?[\d.]+", drawn).group()
-    )
-    assert expected.lstrip("0123456789.") == drawn.lstrip("0123456789.")
+    # The very text matplotlib draws on the tick, decimals included.
+    assert formatter(45) == expected
+
+
+@pytest.mark.parametrize(
+    ("formatter", "ylim", "value"),
+    [
+        # format_pct's table: >50 -> 0 decimals, >5 -> 1, >0.5 -> 2, ...
+        (PercentFormatter(), (0, 100), 45.678),
+        (PercentFormatter(), (0, 10), 4.5678),
+        (PercentFormatter(), (0, 1), 0.45678),
+        (PercentFormatter(), (0, 0.1), 0.045678),
+        # ... clamped to 5 for a tiny range, and the scale is xmax's.
+        (PercentFormatter(), (0, 1e-9), 4.5678e-10),
+        (PercentFormatter(xmax=200, symbol=" pct"), (0, 50), 22.839),
+        (PercentFormatter(xmax=1.0), (0, 1), 0.45678),
+        (PercentFormatter(xmax=1.0), (0, 0.05), 0.045678),
+    ],
+)
+def test_the_decimals_follow_the_axis_range_as_matplotlib_picks_them(
+    formatter, ylim, value
+):
+    formatter = _formatter_with_axis(formatter, ylim)
+    config = FormatConfigBuilder.from_formatter(formatter).to_dict()
+
+    if "function" in config:
+        announced = _percent_body_in_python(config["function"], value)
+    else:
+        # The fraction preset: the bundle does (n*100).toFixed(decimals)+'%'.
+        assert config["type"] == "percent"
+        announced = f"{value * 100:.{config['decimals']}f}%"
+    assert announced == formatter(value)
+
+
+def test_an_unattached_percent_formatter_keeps_the_presets_one_decimal():
+    """Nothing to derive the decimals from until there is an axis range."""
+    body = FormatConfigBuilder.from_formatter(PercentFormatter()).function
+    assert _percent_body_in_python(body, 45) == "45.0%"
+    assert FormatConfigBuilder.from_formatter(PercentFormatter(xmax=1.0)).to_dict() == {
+        "type": "percent"
+    }
+
+
+def test_a_percent_formatter_with_a_non_positive_xmax_keeps_the_preset():
+    """matplotlib divides by xmax at draw time; extraction must not raise."""
+    for formatter in (PercentFormatter(xmax=0), PercentFormatter(xmax=-1, decimals=2)):
+        formatter = _formatter_with_axis(formatter)
+        config = FormatConfigBuilder.from_formatter(formatter).to_dict()
+        assert config["type"] == "percent"
+        assert config.get("decimals") == formatter.decimals
+
+
+def test_a_non_default_percent_axis_is_announced_as_its_tick_is_drawn():
+    """End to end: the axis, its formatter, and the body the bundle runs."""
+    formatter = PercentFormatter(xmax=200, symbol=" pct")
+    fig, ax = plt.subplots()
+    ax.set_ylim(0, 50)
+    ax.yaxis.set_major_formatter(formatter)
+    try:
+        formats = extract_axis_format(ax)
+        drawn = formatter(45)
+    finally:
+        plt.close(fig)
+
+    assert set(formats) == {"y"}
+    body = formats["y"]["function"]
+    assert drawn == "22.5 pct"
+    assert _percent_body_in_python(body, 45) == drawn
+    assert _run_js(body, 45) == drawn
 
 
 @pytest.mark.parametrize(
@@ -127,9 +195,20 @@ def test_a_fraction_axis_keeps_the_percent_preset(formatter, expected):
     assert FormatConfigBuilder.from_formatter(formatter).to_dict() == expected
 
 
-def test_a_category_name_on_a_percent_axis_is_announced_as_itself():
-    body = FormatConfigBuilder.from_formatter(PercentFormatter()).function
+@pytest.mark.parametrize(
+    "formatter",
+    [PercentFormatter(), StrMethodFormatter("{x:.0f}%"), FuncFormatter(percent)],
+    ids=["PercentFormatter", "literal-suffix", "FuncFormatter-percent"],
+)
+def test_a_category_name_on_a_percent_axis_is_announced_as_itself(formatter):
+    body = FormatConfigBuilder.from_formatter(formatter).function
     assert _run_js(body, "Cherries") == "Cherries"
+
+
+def test_a_percent_sign_that_is_not_a_suffix_is_read_as_the_field_says():
+    """``{x:.0f}% of total`` is a fixed-point field with some text after it."""
+    config = FormatConfigBuilder.from_formatter(StrMethodFormatter("{x:.0f}% of total"))
+    assert config.to_dict() == {"type": "fixed", "decimals": 0}
 
 
 @pytest.mark.parametrize(

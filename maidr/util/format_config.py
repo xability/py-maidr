@@ -8,6 +8,7 @@ and converting them to MAIDR-compatible format configurations.
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -317,11 +318,14 @@ class JSBodyConverter:
         Returns
         -------
         str
-            JavaScript function body for percent formatting.
+            JavaScript function body for percent formatting. A value that is
+            not a finite number is announced as itself, as upstream's
+            ``asFiniteNumber`` does for the percent preset.
         """
+        guard = "var n=parseFloat(value);if(!isFinite(n))return String(value);"
         if multiply:
-            return f"return (parseFloat(value)*100).toFixed({decimals})+'%'"
-        return f"return parseFloat(value).toFixed({decimals})+'%'"
+            return guard + f"return (n*100).toFixed({decimals})+'%'"
+        return guard + f"return n.toFixed({decimals})+'%'"
 
     @staticmethod
     def scaled_percent_format_to_js(scale: float, decimals: int, symbol: str) -> str:
@@ -479,23 +483,59 @@ class FormatConfigBuilder:
         The ``percent`` preset in MAIDR JS multiplies by 100, which is only what
         matplotlib does for ``xmax=1.0``. Its default is ``xmax=100`` -- the data
         are already percentages -- so that and every other ``xmax`` get a
-        function body scaled by ``100 / xmax``, as ``format_pct`` is.
+        function body scaled by ``100 / xmax``, as ``format_pct`` is. The
+        decimals are the ones matplotlib draws: its own when it was given
+        them, otherwise the count ``format_pct`` derives from the axis range.
         """
-        decimals = None
+        explicit = None
         if hasattr(formatter, "decimals") and formatter.decimals is not None:
-            decimals = int(formatter.decimals)
+            explicit = int(formatter.decimals)
         xmax = float(getattr(formatter, "xmax", 100.0))
+
+        # matplotlib divides by xmax at draw time and raises there; a schema
+        # extraction has nothing sensible to scale by, so it keeps the preset.
+        if xmax <= 0:
+            return FormatConfig(type=FormatType.PERCENT, decimals=explicit)
+
+        decimals = FormatConfigBuilder._percent_decimals(formatter, xmax, explicit)
         symbol = getattr(formatter, "symbol", "%") or ""
 
         if xmax == 1.0 and symbol == "%":
             return FormatConfig(type=FormatType.PERCENT, decimals=decimals)
 
-        # matplotlib picks the decimals from the axis range when none are
-        # given; one is what the preset defaults to and reads the same way.
+        # Unattached, the formatter has no range to derive decimals from; one
+        # is what the preset defaults to and reads the same way.
         js_body = JSBodyConverter.scaled_percent_format_to_js(
             100.0 / xmax, decimals if decimals is not None else 1, symbol
         )
         return FormatConfig(function=js_body)
+
+    @staticmethod
+    def _percent_decimals(
+        formatter: PercentFormatter, xmax: float, explicit: Optional[int]
+    ) -> Optional[int]:
+        """The decimals matplotlib's ``format_pct`` draws for this formatter.
+
+        With none given, matplotlib derives them at draw time from the axis
+        view interval: ``ceil(2 - log10(2 * range))`` with the range scaled
+        to percent, clamped to 0..5 and 0 for an empty range. The same rule
+        is applied here so the announced text carries the digits the tick
+        label shows -- "45%" on a 0-100 axis, not "45.0%". Returns None when
+        the formatter is not attached to an axis yet, or the range is not a
+        finite number, because there is nothing to derive from.
+        """
+        if explicit is not None:
+            return explicit
+        axis = getattr(formatter, "axis", None)
+        if axis is None:
+            return None
+        vmin, vmax = axis.get_view_interval()
+        scaled_range = 100.0 * (abs(float(vmax) - float(vmin)) / xmax)
+        if not math.isfinite(scaled_range):
+            return None
+        if scaled_range <= 0:
+            return 0
+        return min(5, max(0, math.ceil(2.0 - math.log10(2.0 * scaled_range))))
 
     @staticmethod
     def _parse_str_method_formatter(
@@ -615,9 +655,11 @@ class FormatConfigBuilder:
             if re.search(r"\{[^}]*%\}", fmt):
                 return FormatConfig(type=FormatType.PERCENT, decimals=decimals)
 
-        # A literal % after the field, like {x:.0f}%, is a percentage the data
-        # already hold: keep the symbol without the preset's multiply-by-100.
-        if re.search(r"\}\s*%", fmt):
+        # A literal % closing the string, like {x:.0f}%, is a percentage the
+        # data already hold: keep the symbol without the preset's
+        # multiply-by-100. A % followed by more text is not a suffix and is
+        # read as whatever the field itself says.
+        if re.search(r"\}\s*%\s*$", fmt):
             return FormatConfig(
                 function=JSBodyConverter.percent_format_to_js(
                     decimals if decimals is not None else 0, multiply=False
