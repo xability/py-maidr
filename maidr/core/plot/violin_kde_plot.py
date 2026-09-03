@@ -13,7 +13,7 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
 from maidr.util.rdp_utils import simplify_curve
-from maidr.util.svg_utils import data_to_svg_coords
+from maidr.util.svg_utils import data_to_svg_coords, settle_layout
 
 #: Default maximum number of output points per violin KDE curve.
 _DEFAULT_MAX_KDE_POINTS = 30
@@ -105,6 +105,12 @@ class ViolinKdePlot(MaidrPlot):
             self._elements.append(poly)
 
         is_horz = self._orientation == "horz"
+
+        # The SVG coordinates read the axes position, which is only final once
+        # the layout has been settled. Once for the whole layer, not once per
+        # point: a layout pass measures every artist on the figure, and this
+        # layer used to pay for one twice per retained level (#704).
+        settle_layout(self.ax.figure)
 
         for idx, kde_line in enumerate(self._kde_lines):
             self._elements.append(kde_line)
@@ -310,30 +316,28 @@ class ViolinKdePlot(MaidrPlot):
         else:
             indices = np.arange(len(y_arr))
 
+        # --- Convert the retained Y-levels to SVG coordinates ------------
+        # One call per side rather than one per level: the transform is
+        # affine and applied row by row, so the batch gives the same floats
+        # the per-level calls did, without a transform per point (#704).
+        sel_y = y_arr[indices]
+        sel_l = np.array(xl_vals)[indices]
+        sel_r = np.array(xr_vals)[indices]
+        if is_horz:
+            # Horizontal: xl/xr are density-axis (y in mpl), y_val is
+            # value-axis (x in mpl).
+            sx_l, sy_l = data_to_svg_coords(self.ax, sel_y, sel_l)
+            sx_r, sy_r = data_to_svg_coords(self.ax, sel_y, sel_r)
+        else:
+            sx_l, sy_l = data_to_svg_coords(self.ax, sel_l, sel_y)
+            sx_r, sy_r = data_to_svg_coords(self.ax, sel_r, sel_y)
+
         # --- Build output points for retained Y-levels -------------------
         points: list[dict] = []
-        for i in indices:
+        for k, i in enumerate(indices):
             y_val = y_vals[i]
             xl = xl_vals[i]
-            xr = xr_vals[i]
             width = widths[i]
-
-            if is_horz:
-                # Horizontal: xl/xr are density-axis (y in mpl), y_val is
-                # value-axis (x in mpl).
-                sx_l, sy_l = data_to_svg_coords(
-                    self.ax, np.array([y_val]), np.array([xl])
-                )
-                sx_r, sy_r = data_to_svg_coords(
-                    self.ax, np.array([y_val]), np.array([xr])
-                )
-            else:
-                sx_l, sy_l = data_to_svg_coords(
-                    self.ax, np.array([xl]), np.array([y_val])
-                )
-                sx_r, sy_r = data_to_svg_coords(
-                    self.ax, np.array([xr]), np.array([y_val])
-                )
 
             base: dict = {
                 MaidrKey.X: x_label if x_label else xl,
@@ -343,16 +347,16 @@ class ViolinKdePlot(MaidrPlot):
                 {
                     **base,
                     "width": float(width),
-                    "svg_x": float(sx_l[0]),
-                    "svg_y": float(sy_l[0]),
+                    "svg_x": float(sx_l[k]),
+                    "svg_y": float(sy_l[k]),
                 }
             )
             points.append(
                 {
                     **base,
                     "width": float(width),
-                    "svg_x": float(sx_r[0]),
-                    "svg_y": float(sy_r[0]),
+                    "svg_x": float(sx_r[k]),
+                    "svg_y": float(sy_r[k]),
                 }
             )
 

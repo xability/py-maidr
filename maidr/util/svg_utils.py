@@ -1,8 +1,38 @@
 import numpy as np
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from matplotlib.transforms import Transform
 from matplotlib.lines import Line2D
 from typing import List, Optional, Tuple
+
+
+def settle_layout(fig: Figure) -> None:
+    """
+    Run the figure's tight layout so the axes sit where the SVG will draw them.
+
+    :func:`data_to_svg_coords` reads the axes position, and that position is
+    only final once the layout has been settled -- which is why the transform
+    used to do this itself, on every call.  A layout pass measures the text
+    extent of every artist on the figure, so an extraction converting its
+    points one at a time paid for the whole figure once per point: 124 passes
+    for four seaborn violins, nearly all of the render time (#704).  Settle
+    once per extraction, before the first conversion, and let the conversions
+    be pure.
+
+    The SVG is written after extraction, from whatever layout the figure is
+    then in, so one pass here leaves the coordinates and the drawing agreeing
+    just as the repeated passes did.  Failures are swallowed as before: a
+    figure whose layout cannot be tightened is still worth reading.
+
+    Parameters
+    ----------
+    fig : Figure
+        The figure whose layout to settle.
+    """
+    try:
+        fig.tight_layout()
+    except Exception:
+        pass
 
 
 def data_to_svg_coords(
@@ -11,16 +41,16 @@ def data_to_svg_coords(
     """
     Convert data coordinates to SVG coordinates using matplotlib transforms.
     Returns x_svg, y_svg arrays in SVG points.
+
+    A pure transform: it reads the axes position as it stands, so call
+    :func:`settle_layout` on the figure once before the first conversion of
+    an extraction.
     """
     fig = getattr(ax, "figure", None)
     if fig is None:
         import matplotlib.pyplot as plt
 
         fig = plt.gcf()
-    try:
-        fig.tight_layout()
-    except Exception:
-        pass
     xy_disp = ax.transData.transform(np.column_stack([x_data, y_data]))
     xy_figpix = fig.transFigure.inverted().transform(xy_disp)
     fig_width_pts = fig.get_size_inches()[0] * 72

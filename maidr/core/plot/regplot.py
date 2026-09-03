@@ -12,6 +12,7 @@ from maidr.util.regression_line_utils import find_regression_line
 from maidr.util.svg_utils import (
     data_to_svg_coords,
     from_scaled_coords,
+    settle_layout,
     to_scaled_coords,
 )
 
@@ -148,6 +149,7 @@ class SmoothPlot(MaidrPlot):
 
         x_data, y_data = self._thin_to_even_steps(x_data, y_data)
 
+        settle_layout(self.ax.figure)
         x_svg, y_svg = data_to_svg_coords(self.ax, x_data, y_data)
         lower, upper = self._confidence_band_at(x_data, y_data)
         points = []
