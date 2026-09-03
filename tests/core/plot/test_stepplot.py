@@ -422,6 +422,40 @@ class TestStepUtils:
         finally:
             plt.close(fig)
 
+    def test_a_companion_line_emptied_after_plotting_keeps_the_direction(self):
+        """
+        ``resolve_step_direction`` reads the same lines ``is_step_layer`` does.
+
+        Both helpers filter to data-bearing lines, and the docstrings promise
+        they make the same decision at registration and at render. A companion
+        line drained with ``set_data([], [])`` after plotting is the ordinary
+        way the two used to disagree: the layer stayed ``step`` while the
+        empty line's default drawstyle voted against the step line's, and the
+        direction silently went missing.
+        """
+        fig, ax = plt.subplots()
+        try:
+            ax.plot([0, 1, 2], [1, 2, 3], drawstyle="steps-post")
+            (companion,) = ax.plot([1, 2], [1, 2])
+            companion.set_data([], [])
+            layer = _only_layer(fig)
+
+            assert layer["type"] == PlotType.STEP
+            assert layer["stepDirection"] == "hv"
+        finally:
+            plt.close(fig)
+
+    def test_resolve_step_direction_accepts_a_one_shot_iterable(self):
+        """The parameter is typed ``Iterable``; an iterator must not be read twice."""
+        from maidr.util.step_utils import resolve_step_direction
+
+        fig, ax = plt.subplots()
+        try:
+            (step_line,) = ax.plot([0, 1, 2], [1, 2, 3], drawstyle="steps-post")
+            assert resolve_step_direction(iter([step_line])) == "hv"
+        finally:
+            plt.close(fig)
+
     def test_display_names_read_the_way_a_user_named_the_plot(self):
         """
         The fallback warning names plot types for users, not for the schema.
