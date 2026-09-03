@@ -66,7 +66,9 @@ def maidr_html(
     plot : Any, optional
         The plot to render -- a matplotlib or seaborn artist, a Plotly
         ``Figure``, or an Altair chart.  ``None`` uses the current
-        matplotlib figure.
+        matplotlib figure, and warns: that figure is process-global, and
+        Streamlit runs sessions on separate threads, so by the time it is
+        rendered it may be another session's.  Pass the plot explicitly.
     use_cdn : bool, {"auto"}, or None, default None
         Where the chart loads ``maidr.js`` from; see :func:`maidr.render`.
         ``None`` defers to the process-wide default.
@@ -106,6 +108,28 @@ def maidr_html(
     reference to the bundle would not survive; the source itself has to.
     """
     stacklevel = _stacklevel
+    if plot is None:
+        # ``maidr.render(None)`` falls back to ``plt.gcf()``, which is the
+        # right default for a script or a notebook and is why it is kept
+        # rather than refused.  It is the wrong one here: pyplot's figure
+        # registry is process-global and Streamlit runs each session on its
+        # own thread, so between one session's ``plt.subplots()`` and its
+        # render call another session's figure can become current -- and
+        # the render then succeeds, handing a blind reader the wrong chart
+        # with nothing to say so.  Streamlit's own ``st.pyplot()`` has
+        # warned about the same default since 0.67; this does the same
+        # rather than removing a documented default without notice.
+        warnings.warn(
+            "maidr: maidr_html()/render_maidr() called without a plot uses "
+            "matplotlib's current figure, which is process-global; Streamlit "
+            "runs sessions on separate threads, so another session's figure "
+            "can be rendered in its place. Pass the figure or axes explicitly.",
+            UserWarning,
+            # Same arithmetic as the ``use_cdn=False`` warning below: raised
+            # from inside this function, so one less than
+            # ``_warn_if_no_runtime`` gets.
+            stacklevel=stacklevel - 1,
+        )
     # Resolved once and then passed on, rather than read again inside
     # ``render``.  ``set_use_cdn`` writes process-wide state and Streamlit
     # runs sessions on separate threads, so reading it twice leaves a window
@@ -251,7 +275,9 @@ def render_maidr(
     plot : Any, optional
         The plot to render -- a matplotlib or seaborn artist, a Plotly
         ``Figure``, or an Altair chart.  ``None`` uses the current
-        matplotlib figure.
+        matplotlib figure, and warns: that figure is process-global, and
+        Streamlit runs sessions on separate threads, so by the time it is
+        rendered it may be another session's.  Pass the plot explicitly.
     height : int, {"content", "stretch"}, default "content"
         Height of the embed.  ``"content"`` lets Streamlit measure the
         chart, which is what keeps maidr's braille and text panels visible

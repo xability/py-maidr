@@ -688,3 +688,54 @@ def test_an_axes_less_current_figure_is_still_resolved_only_once(monkeypatch):
         plt.close("all")
 
     assert calls == [1], f"the current figure was resolved {len(calls)} times"
+
+
+# ---------------------------------------------------------------------------
+# The current-figure default (#713)
+# ---------------------------------------------------------------------------
+
+
+def test_no_plot_warns_and_blames_the_caller(bar_axes, monkeypatch):
+    """Rendering with no plot still works, and says what it fell back on.
+
+    ``plt.gcf()`` is process-global and Streamlit runs each session on its
+    own thread, so a render that resolves it can serve one session another
+    session's chart -- silently, since the render succeeds.  The default
+    is kept, because it is ``maidr.render``'s and scripts rely on it, but
+    it is not kept quiet.  Both entry points, because they sit at
+    different call depths and the warning has to land on the user's line
+    from either.
+    """
+    st, _v1 = _stub_streamlit(monkeypatch, with_iframe=True)
+    # ``bar_axes`` is what makes there be a current figure to fall back to.
+    assert plt.gcf() is bar_axes.figure
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        html = maidr_html(use_cdn=True)
+    fallbacks = [w for w in caught if "current figure" in str(w.message)]
+    assert len(fallbacks) == 1, [str(w.message) for w in caught]
+    assert issubclass(fallbacks[0].category, UserWarning)
+    assert fallbacks[0].filename == __file__, (
+        f"warning was blamed on {fallbacks[0].filename}, not the caller"
+    )
+    # The default still renders the current figure; the warning is not a refusal.
+    assert "maidr=" in html
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        render_maidr(use_cdn=True)
+    fallbacks = [w for w in caught if "current figure" in str(w.message)]
+    assert len(fallbacks) == 1, [str(w.message) for w in caught]
+    assert fallbacks[0].filename == __file__, (
+        f"warning was blamed on {fallbacks[0].filename}, not the caller"
+    )
+    assert "maidr=" in st.iframe.calls[0][0][0]
+
+
+def test_an_explicit_plot_does_not_warn(bar_axes):
+    """The warning is about the fallback, not about rendering."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        maidr_html(bar_axes, use_cdn=True)
+    assert not [w for w in caught if "current figure" in str(w.message)]
