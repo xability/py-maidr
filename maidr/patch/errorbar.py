@@ -7,7 +7,7 @@ from matplotlib.container import ErrorbarContainer
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _argument, _draw_quietly
+from maidr.patch.common import _argument, _draw_quietly, _resolve
 
 
 def errorbar(wrapped, instance, args, kwargs) -> ErrorbarContainer:
@@ -43,9 +43,12 @@ def errorbar(wrapped, instance, args, kwargs) -> ErrorbarContainer:
     # Read the centres before drawing. `fmt="none"` renders the intervals
     # without the estimate markers, leaving the container with no data line,
     # and an asymmetric bar is not centred on its own midpoint -- so for that
-    # case the arguments are the only place the estimate still exists.
-    x = _argument("x", wrapped, args, kwargs)
-    y = _argument("y", wrapped, args, kwargs)
+    # case the arguments are the only place the estimate still exists. They
+    # may be column names of `data=`, which matplotlib resolves inside the
+    # call this wraps, so they are resolved the same way here.
+    data = _argument("data", wrapped, args, kwargs)
+    x = _resolve(_argument("x", wrapped, args, kwargs), data)
+    y = _resolve(_argument("y", wrapped, args, kwargs), data)
 
     # Set the internal context to avoid cyclic processing.
     with ContextManager.set_internal_context():
@@ -63,9 +66,7 @@ def errorbar(wrapped, instance, args, kwargs) -> ErrorbarContainer:
     # other holder of the method degrades instead of raising here.
     ax = instance if isinstance(instance, Axes) else getattr(instance, "axes", None)
 
-    FigureManager.create_maidr(
-        ax, PlotType.ERRORBAR, container=container, x=x, y=y
-    )
+    FigureManager.create_maidr(ax, PlotType.ERRORBAR, container=container, x=x, y=y)
 
     return container
 

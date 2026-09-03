@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Callable
 
 import wrapt
 from matplotlib.axes import Axes
@@ -8,7 +8,7 @@ from matplotlib.axes import Axes
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _argument, _draw_quietly
+from maidr.patch.common import _argument, _draw_quietly, _resolve
 
 
 def pie(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> tuple:
@@ -70,43 +70,6 @@ def pie(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> tuple:
     )
 
     return plot
-
-
-def _resolve(value: Any, data: Any) -> Any:
-    """
-    Resolve an argument that names a column of the call's ``data``.
-
-    `Axes.pie` sits behind matplotlib's `_preprocess_data`, so
-    ``ax.pie("sales", labels="fruit", data=df)`` is a valid call in which both
-    arguments are column names. The patch wraps the outside of that decorator
-    and therefore sees the names, not the columns; this looks them up the way
-    matplotlib does.
-
-    Parameters
-    ----------
-    value : Any
-        The argument as the caller passed it.
-    data : Any
-        The call's ``data`` argument, or None when it had none.
-
-    Returns
-    -------
-    Any
-        The indexed value, or the argument unchanged when it does not name
-        anything in ``data``.
-    """
-    if data is None or not isinstance(value, str):
-        return value
-
-    try:
-        return data[value]
-    except (KeyError, IndexError, TypeError):
-        # Matplotlib treats an unresolvable name as a plain value too, and a
-        # pie that renders must not fail to be described. Only the three ways
-        # an indexable object says "not this key" are caught -- a wider net
-        # would swallow a genuinely broken ``data`` and leave nothing to
-        # debug from.
-        return value
 
 
 # Patch matplotlib function.

@@ -313,6 +313,51 @@ def test_fmt_none_still_reports_the_estimates():
     assert points[1] == {"x": 1.0, "y": 5.1, "yMin": 4.0, "yMax": 6.6}
 
 
+def test_fmt_none_reads_column_names_as_their_columns():
+    """
+    ``errorbar("x", "y", yerr="err", fmt="none", data=df)`` reads the columns.
+
+    ``fmt="none"`` is the one mode that takes the centres from the call's
+    arguments rather than from the data line, and the call sits behind
+    matplotlib's `_preprocess_data`, which resolves each string against
+    ``data`` before drawing. The patch reads from outside that decorator, so
+    it saw the names: one point whose x was the string ``"x"`` and whose y was
+    the string ``"y"``, carrying the first sample's bounds, for a chart that
+    drew three (#712). The marker spelling was already right, since it reads
+    the drawn line, and the two have to agree.
+    """
+    frame = pd.DataFrame({"x": X, "y": Y, "err": [0.4, 1.1, 0.2]})
+
+    fig_named, named = plt.subplots()
+    named.errorbar("x", "y", yerr="err", fmt="none", data=frame)
+
+    fig_arrays, arrays = plt.subplots()
+    arrays.errorbar(frame["x"], frame["y"], yerr=frame["err"], fmt="none")
+
+    assert _schema(fig_named)["data"] == _schema(fig_arrays)["data"]
+    assert [point["y"] for point in _schema(fig_named)["data"]] == Y
+
+
+def test_a_string_that_names_no_column_is_still_a_value():
+    """
+    A string ``data`` does not hold is the value itself, as in matplotlib.
+
+    `_preprocess_data` falls back to the argument when the lookup fails, so
+    ``errorbar("control", 4.2, ..., data=df)`` draws one categorical sample
+    labelled "control" when no such column exists. Resolving the name has to
+    stop where matplotlib stops, or the reading and the drawing would part
+    ways on a call that raised nothing.
+    """
+    frame = pd.DataFrame({"x": X, "y": Y})
+
+    fig, ax = plt.subplots()
+    ax.errorbar("control", 4.2, yerr=0.5, fmt="none", data=frame)
+
+    assert _schema(fig)["data"] == [
+        {"x": "control", "y": 4.2, "yMin": 3.7, "yMax": 4.7}
+    ]
+
+
 def test_a_nan_error_drops_only_that_sample_s_bounds():
     """
     One unmeasured sample leaves its neighbours intact.
