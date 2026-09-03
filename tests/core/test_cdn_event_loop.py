@@ -17,6 +17,12 @@ They also pin the two things that keep the answer from being merely
 context-dependent: an explicit pin still wins, and a lookup that has already
 completed anywhere in the process is used, so an app that resolves once from
 synchronous code at start-up serves the resolved version from then on.
+
+The rule is about the loop, not about Shiny, and every Jupyter/IPython kernel
+runs its cells on one. So a notebook on the default setting is covered too --
+it serves the bundled version for the life of the kernel -- and, having no
+synchronous start-up code, needs ``maidr.bundle_status()`` to be the way off
+it. The last two tests pin both halves of that.
 """
 
 from __future__ import annotations
@@ -25,8 +31,11 @@ import asyncio
 import io
 import json
 
+import matplotlib.pyplot as plt
 import pytest
 
+import maidr
+from maidr.util import bundle_freshness as freshness
 from maidr.util import cdn
 from maidr.util import dependencies
 
@@ -142,7 +151,9 @@ def test_a_cached_failure_is_not_retried_on_a_loop(monkeypatch, requests) -> Non
     agreeing is the point: after any resolution attempt, context stops
     mattering.
     """
-    monkeypatch.setattr(cdn, "_fetch_latest_version", lambda budget: None)
+    monkeypatch.setattr(
+        cdn, "_fetch_latest_version", lambda budget, generation=None: None
+    )
 
     assert cdn.get_cdn_version() == dependencies.maidr_js_version()
 
@@ -202,3 +213,50 @@ def test_bundled_cdn_url_still_prefers_a_pin_then_a_lookup(requests) -> None:
     assert f"maidr@{dependencies.maidr_js_version()}/" in cdn.bundled_cdn_url(
         dependencies.MAIDR_JS_FILENAME
     )
+
+
+@pytest.fixture
+def bar_plot():
+    fig, ax = plt.subplots()
+    ax.bar(["A", "B", "C"], [1, 2, 3])
+    yield fig
+    plt.close(fig)
+
+
+def test_a_notebook_render_makes_no_request(requests, mocker, bar_plot) -> None:
+    """A cell runs on the kernel's event loop, so the rule covers it.
+
+    Every explanation of the rule used to name Shiny, but ``ipykernel``
+    executes each cell on the loop too, and the notebook render path under
+    ``use_cdn="auto"`` reaches ``get_cdn_version()`` through
+    ``maidr_js_cdn_url()``. What the reader gets is the bundled version --
+    concrete and immutable, never ``@latest`` -- and no request.
+    """
+    mocker.patch(
+        "maidr.util.environment.Environment.is_notebook", return_value=True
+    )
+
+    html = in_loop(
+        lambda: str(maidr.render(bar_plot, use_cdn="auto").get_html_string())
+    )
+
+    assert requests == []
+    assert cdn.bundled_cdn_url(dependencies.MAIDR_JS_FILENAME) in html
+    assert f"maidr@{cdn.LATEST_TAG}/" not in html
+
+
+def test_bundle_status_resolves_from_a_running_loop(requests) -> None:
+    """The way off the bundled version when there is no start-up code.
+
+    A notebook cannot call ``get_cdn_version()`` from synchronous code,
+    because every cell is on the loop and it declines there. ``bundle_status``
+    resolves regardless -- it is an explicit request for the published
+    version, so the caller has chosen to wait -- and the answer is cached,
+    so every later render on the loop uses it.
+    """
+    status = in_loop(freshness.bundle_status)
+
+    assert len(requests) == 1
+    assert status.published == "9.9.9"
+    assert in_loop(cdn.get_cdn_version) == "9.9.9"
+    assert len(requests) == 1

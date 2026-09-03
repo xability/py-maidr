@@ -303,7 +303,7 @@ In sandboxed or egress-blocked environments (CI, air-gapped machines), `MAIDR_CD
 One exception is worth knowing about: **Altair** charts always load `maidr.js` from the CDN. That adapter has no bundled/offline path — `use_cdn` and `MAIDR_USE_CDN` are not plumbed through it — so `MAIDR_USE_CDN=false` will not make an Altair chart self-contained. `MAIDR_CDN_VERSION=bundled` does still remove the version lookup for Altair, which is why it is the better setting when any part of your work is air-gapped.
 
 ::: {.callout-note}
-## Shiny and other async servers
+## Shiny, notebooks and other async servers
 
 **No lookup happens on an event loop.** `render_maidr` calls into the synchronous render path, so the one-time lookup used to land on the loop and block it — every concurrent session queued behind one slow request. py-maidr now answers from the bundled version instead whenever a lookup would have to be made from a thread running a loop, which needs no request and is still an immutable URL.
 
@@ -311,6 +311,11 @@ You give up picking up a release newer than your wheel, automatically, in an asy
 
 - `maidr.set_cdn_version("3.74.0")` at startup, if you know which version you want.
 - Call `maidr.get_cdn_version()` once from synchronous code at startup. That resolves and caches, and every async render then uses the resolved version — the request is paid for once, by your startup, not by a render.
+
+**The same applies to every Jupyter/IPython kernel**, where each cell executes on the kernel's event loop: a notebook on the default setting serves the bundled version for the life of the kernel and never arms the staleness warning. A notebook has no synchronous start-up code, so the way off the bundled version there is:
+
+- `MAIDR_CDN_VERSION` in the kernel's environment, or `maidr.set_cdn_version("3.74.0")` in a cell, if you know which version you want.
+- One explicit `maidr.bundle_status()` call in a cell. It resolves regardless of the loop and caches the answer, so every later render in that kernel uses the resolved version.
 
 The same caching means this is not "async gets a different answer forever": after any resolution anywhere in the process, the loop and the main thread agree. It also means `warn_if_bundle_is_stale()` stays quiet in an app that never resolves, since it reads only an already-completed lookup.
 

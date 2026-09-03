@@ -1168,7 +1168,7 @@ def test_a_real_failure_is_still_cached(monkeypatch):
 
     calls: list[int] = []
 
-    def boom(request, timeout=None):
+    def boom(budget, generation=None):
         calls.append(1)
         raise RuntimeError("resolver is broken in an unexpected way")
 
