@@ -60,7 +60,7 @@ def show(*args: Any, **kwargs: Any) -> None:
         other kwargs are accepted (per the backend protocol) and
         silently ignored.
     """
-    from maidr.api import get_use_cdn
+    from maidr.api import _resolve_use_cdn
     from maidr.core.figure_manager import FigureManager as MaidrFigureManager
 
     managers = Gcf.get_all_fig_managers()
@@ -70,10 +70,12 @@ def show(*args: Any, **kwargs: Any) -> None:
     # Prefer an explicit ``plt.show(use_cdn=...)`` over the module-level
     # default; fall back to ``maidr.api.get_use_cdn()`` otherwise.  This
     # lets users opt in via any of: per-call kwarg, ``maidr.set_use_cdn``,
-    # or the ``MAIDR_USE_CDN`` environment variable.
-    use_cdn = kwargs.pop("use_cdn", None)
-    if use_cdn is None:
-        use_cdn = get_use_cdn()
+    # or the ``MAIDR_USE_CDN`` environment variable.  Routed through the
+    # same resolver as ``maidr.render`` so that a value it would reject
+    # (``"false"``, ``0``) is rejected here too, rather than reaching
+    # ``Maidr.show`` and rendering CDN-only for someone who asked for
+    # offline.
+    use_cdn = _resolve_use_cdn(kwargs.pop("use_cdn", None))
 
     for manager in list(managers):
         fig = manager.canvas.figure

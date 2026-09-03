@@ -47,6 +47,7 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+from htmltools import Tag  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
@@ -219,6 +220,43 @@ class TestAnEmptyFigureIsADifferentProblem:
         _, messages = caught(maidr.render)
 
         assert not any("no plots on it yet" in message for message in messages)
+
+    # A figure with no axes at all is emptier still, and used to be the #443
+    # asymmetry in a new guise: `get_axes` answered it with an empty list, the
+    # loop over that list never bound a `Maidr`, and `render` and `show`
+    # raised `UnboundLocalError` while `save_html` raised `IndexError` --
+    # where a figure with an empty *axes* warned and drew the picture (#694).
+    def test_a_figure_with_no_axes_renders_the_fallback(self):
+        fig = plt.figure()
+        tag, messages = caught(lambda: maidr.render(fig))
+
+        assert isinstance(tag, Tag)
+        assert any("no plots on it yet" in message for message in messages)
+
+    def test_the_current_figure_with_no_axes_renders_the_fallback(self):
+        plt.figure()
+        tag, messages = caught(maidr.render)
+
+        assert isinstance(tag, Tag)
+        assert any("no plots on it yet" in message for message in messages)
+
+    def test_a_figure_with_no_axes_still_saves_a_file(self, tmp_path):
+        fig = plt.figure()
+        target = tmp_path / "out.html"
+        _, messages = caught(lambda: maidr.save_html(fig, file=str(target)))
+
+        assert target.exists()
+        assert any("no plots on it yet" in message for message in messages)
+
+    def test_a_figure_with_no_axes_can_be_shown(self, monkeypatch):
+        monkeypatch.setattr(
+            "htmltools._core.Tag.show", lambda self, *a, **k: "shown"
+        )
+        fig = plt.figure()
+        shown, messages = caught(lambda: maidr.show(fig, renderer="ipython"))
+
+        assert shown == "shown"
+        assert any("no plots on it yet" in message for message in messages)
 
 
 class TestTheExceptionItself:

@@ -8,6 +8,7 @@ from typing import Any, Literal
 from htmltools import Tag
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
+from matplotlib.figure import Figure
 
 from maidr.core import Maidr
 from maidr.core.enum import PlotType
@@ -148,16 +149,33 @@ def _resolve_use_cdn(
 
     When ``value`` is ``None`` the process-wide default (from
     :func:`get_use_cdn` / :data:`MAIDR_USE_CDN`) is consulted.
-    Explicit values (``True``, ``False``, or ``"auto"``) are honoured
-    verbatim.  Resolving the mode itself makes no network request:
-    offline *detection* is performed in the browser via a
-    ``<script onerror>`` fallback, not by probing from Python.  (The
+    Explicit values are validated: only ``True``, ``False`` and ``"auto"``
+    are accepted.  Anything else used to pass through untouched, and the
+    consumers branch ``is False`` / ``== "auto"`` / else-CDN, so a slip
+    like ``use_cdn="false"`` or ``use_cdn=0`` -- the string and integer
+    forms :func:`set_use_cdn` and ``MAIDR_USE_CDN`` do accept -- rendered
+    a CDN-only page with no offline fallback for the one reader who had
+    asked for offline, and said nothing.  Resolving the mode itself makes
+    no network request: offline *detection* is performed in the browser
+    via a ``<script onerror>`` fallback, not by probing from Python.  (The
     CDN modes do resolve the published version over the network when
     they build a URL — see :func:`get_use_cdn`.)
+
+    Raises
+    ------
+    TypeError
+        If ``value`` is not ``None``, ``True``, ``False`` or ``"auto"``.
+        Identity checks, so ``0`` and ``1`` are rejected rather than
+        passing as equal to ``False`` and ``True``.
     """
     if value is None:
         return get_use_cdn()
-    return value
+    if value is True or value is False or value == "auto":
+        return value
+    raise TypeError(
+        f"use_cdn must be True, False or 'auto', got {value!r}; "
+        "set_use_cdn() and MAIDR_USE_CDN accept the string forms"
+    )
 
 
 #: What the Altair path fetches remotely, named in the warning so a reader
@@ -447,6 +465,65 @@ def _get_plot_or_current(plot: Any | None) -> Any:
     return plot
 
 
+def _resolve_figure(plot: Any) -> Figure | None:
+    """
+    The figure ``plot`` lives on, resolved once for every entry point.
+
+    ``render``, ``show``, ``save_html`` and ``close`` all need the same
+    thing -- the ``Figure`` whose ``Maidr`` holds the registered layers --
+    and each used to work it out from :meth:`FigureManager.get_axes` on
+    its own. A ``Figure`` is an ``Artist``, so ``get_axes`` answers it
+    with ``fig.axes``, a list; three of the four grew a branch that walked
+    that list, one ``get_maidr`` lookup per axes, and the fourth did not
+    and raised. Walking it also meant the ``plot=None`` and ``plot=fig``
+    forms went through a different branch from ``plot=ax``, which is how
+    ``clear_fig`` came to be forwarded on one path and not the other, and
+    how a figure with no axes at all -- an empty list -- never bound the
+    ``Maidr`` and raised ``UnboundLocalError`` where a figure with an
+    empty *axes* reached the #443 fallback.
+
+    Parameters
+    ----------
+    plot : Any
+        A matplotlib ``Figure``, ``Axes``, artist or container, or a
+        seaborn ``FacetGrid``/``JointGrid``/``PairGrid`` -- anything
+        :meth:`FigureManager.get_axes` resolves.
+
+    Returns
+    -------
+    Figure or None
+        The figure, or ``None`` when nothing resolves. A ``Figure`` is
+        returned as it is, whether or not it has axes yet, so that
+        :meth:`FigureManager.get_maidr` can raise the empty-figure
+        ``UnsupportedPlotError`` for it rather than this function guessing.
+    """
+    if isinstance(plot, Figure):
+        return plot
+    ax = FigureManager.get_axes(plot)
+    if isinstance(ax, list):
+        # A seaborn Grid resolves to every axes of its figure; any one of
+        # them names the figure, and the list branch picks the first.
+        ax = FigureManager.get_axes(ax)
+    return None if ax is None else ax.get_figure()
+
+
+def _figure_or_raise(plot: Any) -> Figure:
+    """The figure for ``plot``, or a ``TypeError`` that names what was passed.
+
+    The failure used to be ``AttributeError: 'NoneType' object has no
+    attribute 'get_figure'``, which names maidr's bookkeeping rather than
+    the caller's mistake.
+    """
+    fig = _resolve_figure(plot)
+    if fig is None:
+        raise TypeError(
+            f"maidr cannot find a figure for {plot!r}; pass a matplotlib "
+            "Figure, Axes or artist, or a seaborn FacetGrid, JointGrid or "
+            "PairGrid"
+        )
+    return fig
+
+
 def render(
     plot: Any | None = None,
     use_cdn: bool | Literal["auto"] | None = None,
@@ -496,17 +573,10 @@ def render(
     if plot is not None and _is_plotly_figure(plot):
         return _get_plotly_maidr(plot).render(use_cdn=use_cdn)
 
-    plot = _get_plot_or_current(plot)
-
-    ax = FigureManager.get_axes(plot)
+    fig = _figure_or_raise(_get_plot_or_current(plot))
     try:
-        if isinstance(ax, list):
-            for axes in ax:
-                maidr = FigureManager.get_maidr(axes.get_figure())
-            return maidr.render(use_cdn=use_cdn)
-        else:
-            maidr = FigureManager.get_maidr(ax.get_figure())
-            return maidr.render(use_cdn=use_cdn)
+        maidr = FigureManager.get_maidr(fig)
+        return maidr.render(use_cdn=use_cdn)
     except UnsupportedPlotError as error:
         warn_unsupported(error, stacklevel=3)
         return fallback_tag(error.fig, error.message)
@@ -557,17 +627,10 @@ def show(
     if plot is not None and _is_plotly_figure(plot):
         return _get_plotly_maidr(plot).show(renderer, use_cdn=use_cdn)
 
-    plot = _get_plot_or_current(plot)
-
-    ax = FigureManager.get_axes(plot)
+    fig = _figure_or_raise(_get_plot_or_current(plot))
     try:
-        if isinstance(ax, list):
-            for axes in ax:
-                maidr = FigureManager.get_maidr(axes.get_figure())
-            return maidr.show(renderer, use_cdn=use_cdn)
-        else:
-            maidr = FigureManager.get_maidr(ax.get_figure())
-            return maidr.show(renderer, clear_fig=clear_fig, use_cdn=use_cdn)
+        maidr = FigureManager.get_maidr(fig)
+        return maidr.show(renderer, clear_fig=clear_fig, use_cdn=use_cdn)
     except UnsupportedPlotError as error:
         warn_unsupported(error, stacklevel=3)
         return fallback_tag(error.fig, error.message).show()
@@ -575,8 +638,8 @@ def show(
 
 def save_html(
     plot: Any | None = None,
+    file: str | None = None,
     *,
-    file: str,
     lib_dir: str | None = "lib",
     include_version: bool = True,
     data_in_svg: bool = True,
@@ -592,7 +655,11 @@ def save_html(
         Plotly figures, and Altair chart objects. If None, uses the
         current matplotlib figure.
     file : str
-        The file path where to save the HTML.
+        The file path where to save the HTML. Required; may be passed
+        positionally, as in ``maidr.save_html(plot, "output.html")``, the
+        form the getting-started tutorial uses and the form
+        :meth:`Maidr.save_html` and its Plotly and Altair counterparts
+        take.
     lib_dir : str or None, default "lib"
         Directory name for libraries.
     include_version : bool, default True
@@ -623,7 +690,19 @@ def save_html(
     -------
     str
         The path to the saved HTML file.
+
+    Raises
+    ------
+    TypeError
+        If ``file`` is not given.
     """
+    # `file` has a default only so that it can follow the optional `plot`
+    # positionally; it is no less required than it was as a keyword-only
+    # argument, and saying so here reads better than the AttributeError a
+    # `None` path would raise from inside htmltools.
+    if file is None:
+        raise TypeError("save_html() missing required argument: 'file'")
+
     if _is_altair_chart(plot):
         from maidr.altair import AltairMaidr
 
@@ -645,33 +724,20 @@ def save_html(
             use_cdn=use_cdn,
         )
 
-    plot = _get_plot_or_current(plot)
-
-    ax = FigureManager.get_axes(plot)
-    htmls = []
+    # Resolved to the figure once. The Figure form -- which includes the
+    # default, `plt.gcf()` -- used to walk `fig.axes` and build a whole
+    # HTML document per axes, keeping only the last: a `subplots(3, 3)`
+    # rendered nine times for one file (#694).
+    fig = _figure_or_raise(_get_plot_or_current(plot))
     try:
-        if isinstance(ax, list):
-            for axes in ax:
-                maidr = FigureManager.get_maidr(axes.get_figure())
-                htmls.append(
-                    maidr._create_html_doc(
-                        use_iframe=False,
-                        data_in_svg=data_in_svg,
-                        use_cdn=use_cdn,
-                    )
-                )
-            return htmls[-1].save_html(
-                file, libdir=lib_dir, include_version=include_version
-            )
-        else:
-            maidr = FigureManager.get_maidr(ax.get_figure())
-            return maidr.save_html(
-                file,
-                lib_dir=lib_dir,
-                include_version=include_version,
-                data_in_svg=data_in_svg,
-                use_cdn=use_cdn,
-            )
+        maidr = FigureManager.get_maidr(fig)
+        return maidr.save_html(
+            file,
+            lib_dir=lib_dir,
+            include_version=include_version,
+            data_in_svg=data_in_svg,
+            use_cdn=use_cdn,
+        )
     except UnsupportedPlotError as error:
         # A file still gets written, holding the image and the reason. Raising
         # instead would leave a build step that expected an artefact with
@@ -693,13 +759,17 @@ def close(plot: Any | None = None) -> None:
     Parameters
     ----------
     plot : Any or None, optional
-        The plot object to close. If None, uses the current matplotlib figure.
+        The plot object to close: a matplotlib ``Figure``, ``Axes`` or
+        artist, or a seaborn Grid. If None, uses the current matplotlib
+        figure.
     """
     if plot is not None and _is_plotly_figure(plot):
         # For Plotly figures, no FigureManager cleanup needed
         return
 
-    plot = _get_plot_or_current(plot)
-
-    ax = FigureManager.get_axes(plot)
-    FigureManager.destroy(ax.get_figure())
+    # Nothing resolved is nothing to close: `destroy` already treats an
+    # unregistered figure as done, and closing is the one call that should
+    # not raise about what it was handed.
+    fig = _resolve_figure(_get_plot_or_current(plot))
+    if fig is not None:
+        FigureManager.destroy(fig)

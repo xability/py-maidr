@@ -402,6 +402,13 @@ class FigureManager:
         is the answer every caller here is written for and the shape of
         failure #388, #520 and #529 removed from the extractors for the same
         reason.
+
+        Accepted inputs, and what each resolves to: an ``Axes`` (itself); a
+        ``BarContainer`` (the axes of its first child); any other ``Artist``
+        (its ``.axes`` -- for a ``Figure`` that is the list of its axes); a
+        dict of artist lists and a list (the first ``Axes`` found); and a
+        seaborn ``FacetGrid``, ``JointGrid`` or ``PairGrid`` (every axes of
+        its figure, as a list). ``None`` resolves to ``None``.
         """
         if artist is None:
             return None
@@ -440,3 +447,13 @@ class FigureManager:
                 ),
                 None,
             )
+        elif isinstance(getattr(artist, "figure", None), Figure):
+            # seaborn's figure-level functions -- lmplot, catplot, displot,
+            # jointplot, pairplot -- return a FacetGrid, JointGrid or
+            # PairGrid. None is an Artist, so the branches above fell through
+            # to None and every entry point raised on the value the user was
+            # handed, even though each layer was registered on the grid's
+            # figure and its axes carry them (#694). Duck-typed on `.figure`
+            # so this module does not import seaborn; on the >=0.13 floor
+            # every Grid exposes it (`.fig` is the deprecated spelling).
+            return artist.figure.axes
