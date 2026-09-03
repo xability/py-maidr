@@ -176,15 +176,19 @@ def _is_constant_baseline(baseline: Any) -> bool:
     Returns
     -------
     bool
-        True for a scalar or a sequence whose elements are all equal. An
-        empty sequence is constant too, vacuously. Anything that cannot be
-        read as numbers -- a name that resolved to nothing, in particular --
-        is False, so it keeps reading as the stack it names.
+        True for a scalar or a sequence whose finite elements are all equal.
+        An empty sequence is constant too, vacuously, and so is one with no
+        finite element: a NaN baseline draws no bar, so it says nothing about
+        stacking either. Anything that cannot be read as numbers -- a name
+        that resolved to nothing, in particular -- is False, so it keeps
+        reading as the stack it names.
     """
     try:
         values = np.asarray(baseline, dtype=float).ravel()
     except (TypeError, ValueError):
         return False
+    # NaN is not equal to itself, so compare only what was measured.
+    values = values[np.isfinite(values)]
     return values.size == 0 or bool(np.all(values == values[0]))
 
 

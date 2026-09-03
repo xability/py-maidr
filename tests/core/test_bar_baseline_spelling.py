@@ -39,6 +39,7 @@ from matplotlib.axes import Axes  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.patch.barplot import _is_constant_baseline  # noqa: E402
 
 CATEGORIES = ["a", "b", "c"]
 SERIES_0 = np.array([10.0, 20.0, 30.0])
@@ -230,6 +231,18 @@ def test_barh_height_keyword_reads_dodged_like_the_positional_spelling() -> None
         pytest.param(np.full(len(CATEGORIES), 5.0), id="array"),
     ],
 )
+def test_a_baseline_with_a_gap_is_read_from_its_measured_values() -> None:
+    """NaN is not equal to itself, which must not make a baseline vary.
+
+    A baseline of one value with a gap in it is still an offset, and one
+    that is NaN throughout draws no bar at all, so neither says anything
+    about stacking.
+    """
+    assert _is_constant_baseline([5.0, np.nan, 5.0])
+    assert _is_constant_baseline([np.nan, np.nan])
+    assert not _is_constant_baseline([5.0, np.nan, 6.0])
+
+
 def test_a_constant_baseline_on_bare_axes_is_a_plain_bar(baseline) -> None:
     """The reproduction of #760: ``bottom=5`` with nothing beneath it.
 
