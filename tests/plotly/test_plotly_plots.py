@@ -343,6 +343,22 @@ class TestPlotlyBoxPlot:
         assert [box["q1"] for box in data] == [1]
         assert len(plot._get_selector()) == 1
 
+    @pytest.mark.parametrize("absent", ["q1", "median", "q3"])
+    def test_a_trace_missing_one_quartile_array_is_read_as_a_sample(self, absent):
+        """Plotly's ``_hasPreCompStats`` needs ``q1``, ``median`` and ``q3``.
+
+        With one of them absent the trace is a raw box, so its ``y`` is the
+        sample and the two quartile arrays it does carry are ignored.
+        """
+        trace = {"type": "box", "y": [1, 2, 3, 4, 5], "q1": [0], "median": [0]}
+        trace["q3"] = [0]
+        del trace[absent]
+
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert len(data) == 1
+        assert data[0]["q2"] == 3.0
+
     def test_unordered_precomputed_quartiles_are_dropped(self):
         # Plotly's calc requires q1 <= median <= q3 before it draws anything.
         trace = {"type": "box", "q1": [3], "median": [2], "q3": [4]}

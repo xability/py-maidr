@@ -94,10 +94,11 @@ def _has_precomputed_stats(trace: dict) -> bool:
     """Return whether *trace* carries its quartiles rather than its samples.
 
     Plotly's own signature for the form (``_hasPreCompStats``): ``q1``,
-    ``median`` and ``q3`` all present. Both extractors branch on it in more
+    ``median`` and ``q3`` all present and non-empty; a trace missing any of
+    the three is read as a raw sample. Both extractors branch on it in more
     than one place, so it is spelled once.
     """
-    return "q1" in trace and "median" in trace
+    return all(bool(trace.get(key)) for key in ("q1", "median", "q3"))
 
 
 def _is_finite_number(value: Any) -> bool:
