@@ -209,9 +209,9 @@ def test_the_kernel_is_evaluated_in_linear_memory() -> None:
     The outer product costs `intervals * n` doubles three times over, and
     `intervals` grows with `n`: measured, 260 MB at n=50,000 and 1.5 GB at
     n=200,000 -- for every violin on the subplot. Evaluating position by
-    position is O(n) and, because each row of that matrix is reduced by the
-    same pairwise summation as a one-dimensional array, bit-identical; the
-    reference tests above are what guard the values.
+    position is O(n) memory and, because each row of that matrix is reduced
+    by the same pairwise summation as a one-dimensional array, bit-identical;
+    the reference tests above are what guard the values.
     """
     sample = np.random.default_rng(0).normal(size=50_000)
 

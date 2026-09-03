@@ -8,6 +8,7 @@ import numpy as np
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.violin_stats import _QUANTILE_METHOD
 
 _logger = logging.getLogger(__name__)
 
@@ -140,6 +141,9 @@ class PlotlyBoxPlot(PlotlyPlot):
         """
         if self._trace.get("orientation") == "h":
             return True
+        # With both a 1-D `x` and `y` (plotly's case "11") the trace sets no
+        # orientation at all: plotly hides it and draws nothing, so the
+        # fall-through `vert` below is a default, not a match.
         if self._has_precomputed_stats():
             return self._trace.get("y") is not None and self._trace.get("x") is None
         # Plotly uses x for horizontal when y is absent
@@ -301,12 +305,12 @@ class PlotlyBoxPlot(PlotlyPlot):
             )
             return None
 
-        # Hazen quartiles, the rule plotly's `Lib.interp` applies -- see
-        # `violin_stats._QUANTILE_METHOD`, measured against plotly's calcdata.
+        # Hazen quartiles, the rule plotly's `Lib.interp` applies -- the same
+        # constant the violin uses, measured there against plotly's calcdata.
         # numpy's default `linear` disagrees in the third significant figure,
         # and the fences and outliers all follow from q1/q3.
         q1, q2, q3 = (
-            float(q) for q in np.percentile(arr, [25, 50, 75], method="hazen")
+            float(q) for q in np.percentile(arr, [25, 50, 75], method=_QUANTILE_METHOD)
         )
         # `quartilemethod="exclusive"`/`"inclusive"` only change plotly's
         # answer for an odd sample size: the median is left out of, or shared

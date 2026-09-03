@@ -181,7 +181,7 @@ def violin_stats(values: np.ndarray) -> ViolinStats | None:
     # position at a time rather than as an (intervals x n) outer product.
     # The outer product is O(intervals * n) memory, and intervals grows with
     # n: measured, 1.5 GB of peak memory for a 200k-sample violin, for every
-    # violin on the subplot. A row at a time is O(n). The result is
+    # violin on the subplot. A row at a time is O(n) memory. The result is
     # bit-identical, because reducing one contiguous row of the matrix is the
     # same pairwise summation numpy applies to a one-dimensional array.
     density = np.empty(len(positions))

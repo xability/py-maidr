@@ -299,6 +299,21 @@ class TestPlotlyBoxPlot:
 
         assert plot.render()["orientation"] == "horz"
 
+    def test_a_precomputed_box_with_both_arrays_falls_through_to_vertical(self):
+        # Plotly's case "11": no orientation is chosen and the trace is hidden
+        # (`visible = false`), so nothing is drawn to match. This pins the
+        # default the extractor answers with rather than a plotly rule.
+        trace = {
+            "type": "box",
+            "q1": [1, 2, 3],
+            "median": [4, 5, 6],
+            "q3": [7, 8, 9],
+            "x": [0, 1, 2],
+            "y": [0, 1, 2],
+        }
+
+        assert PlotlyBoxPlot(trace, {}).render()["orientation"] == "vert"
+
 
 class TestPlotlyMultiBoxPlot:
     """The multi-trace extractor keeps its own copy of the box rules."""
@@ -392,6 +407,20 @@ class TestPlotlyMultiBoxPlot:
         plot = PlotlyMultiBoxPlot([{"type": "box", "x": [1, 2, 3, 4]}], {})
 
         assert plot.render()["orientation"] == "horz"
+
+    def test_a_precomputed_trace_with_both_arrays_falls_through_to_vertical(self):
+        # Plotly's case "11": the trace is hidden and draws nothing, so this
+        # pins the extractor's default rather than a plotly rule.
+        trace = {
+            "type": "box",
+            "q1": [1, 2, 3],
+            "median": [4, 5, 6],
+            "q3": [7, 8, 9],
+            "x": [0, 1, 2],
+            "y": [0, 1, 2],
+        }
+
+        assert PlotlyMultiBoxPlot([trace], {}).render()["orientation"] == "vert"
 
 
 class TestPlotlyHeatmapPlot:
