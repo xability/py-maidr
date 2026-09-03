@@ -129,6 +129,28 @@ def test_a_frame_without_volume_gives_nothing():
     assert create_datetime_converter(frame).extract_volume_data(None) == []
 
 
+def _with_a_nat(index: pd.DatetimeIndex, at: int) -> pd.DatetimeIndex:
+    values = index.tz_localize(None).to_numpy().copy()
+    values[at] = np.datetime64("NaT")
+    return pd.DatetimeIndex(values).tz_localize(index.tz)
+
+
+@pytest.mark.parametrize("name", ["daily", "tz-aware hourly"])
+def test_a_nat_in_the_index_is_left_out_of_date_nums(name):
+    # ``date2num`` maps a NaT to NaN on a naive index and raises on a tz-aware
+    # one; either way the number list must not carry it. A NaN would reach
+    # ``_convert_date_num_to_string``, whose fallback is ``int(date_num)``.
+    index = _with_a_nat(INDEXES[name], at=50)
+    converter = create_datetime_converter(_frame(index))
+
+    date_nums = converter.date_nums
+    assert len(date_nums) == ROWS - 1
+    assert all(math.isfinite(num) for num in date_nums)
+    assert date_nums == [
+        float(mdates.date2num(stamp)) for stamp in index if stamp is not pd.NaT
+    ]
+
+
 def test_date_nums_match_a_call_per_element(frame):
     converter = create_datetime_converter(frame)
 

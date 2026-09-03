@@ -220,7 +220,7 @@ class DatetimeConverter:
         -------
         List[float]
             List of matplotlib date numbers converted from the DatetimeIndex.
-            Empty list if conversion fails.
+            A NaT in the index is left out. Empty list if conversion fails.
 
         Notes
         -----
@@ -230,7 +230,12 @@ class DatetimeConverter:
         try:
             import matplotlib.dates as mdates
 
-            return [float(num) for num in mdates.date2num(self.data.index)]
+            # ``date2num`` maps a NaT to NaN on a naive index and raises on a
+            # tz-aware one, so the NaT goes first. The ``isfinite`` check is
+            # the promise itself: a NaN here would reach the ``int(date_num)``
+            # fallback in ``mplfinance_utils`` and raise there, uncaught.
+            index = self.data.index[self.data.index.notna()]
+            return [float(num) for num in mdates.date2num(index) if np.isfinite(num)]
         except Exception:
             return []
 
