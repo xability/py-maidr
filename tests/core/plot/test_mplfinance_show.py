@@ -36,6 +36,7 @@ from matplotlib._pylab_helpers import Gcf  # noqa: E402
 
 import maidr  # noqa: E402,F401
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.core.maidr import Maidr  # noqa: E402
 
 mpf = pytest.importorskip("mplfinance")
 
@@ -169,6 +170,52 @@ class TestCloseFigIsHonoured:
         )
 
         assert len(_open_figures()) == 1
+
+
+class TestThroughTheRealBackend:
+    """
+    The plain call reaches the maidr renderer with ``plt.show`` left alone.
+
+    The stubbed tests above pin the calls; this one runs the real backend,
+    whose ``show`` renders every open figure and then destroys it, so a
+    ``closefig`` close that follows must cope with a figure already gone.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _maidr_backend(self):
+        previous = matplotlib.get_backend()
+        plt.switch_backend("module://maidr.backend")
+        yield
+        plt.switch_backend(previous)
+
+    @pytest.fixture
+    def rendered(self, monkeypatch) -> list[Maidr]:
+        """Stub the renderer itself, one level below ``plt.show``."""
+        rendered: list[Maidr] = []
+
+        def record(maidr_obj: Maidr, *args, **kwargs) -> None:
+            rendered.append(maidr_obj)
+
+        monkeypatch.setattr(Maidr, "show", record)
+        return rendered
+
+    def test_the_plain_call_renders_once(self, rendered) -> None:
+        result = mpf.plot(_prices(), type="candle", volume=True, mav=2)
+
+        assert result is None
+        assert len(rendered) == 1
+        # The backend destroys what it rendered; nothing is left to show twice.
+        assert _open_figures() == []
+
+    def test_closefig_after_the_backend_has_destroyed_the_figure(
+        self, rendered
+    ) -> None:
+        # ``plt.close`` on a figure ``Gcf.destroy`` already dropped is a no-op
+        # in matplotlib, so the replayed close raises nothing here.
+        mpf.plot(_prices(), type="candle", closefig=True)
+
+        assert len(rendered) == 1
+        assert _open_figures() == []
 
 
 def _price_line_labels(axlist) -> list[str]:
