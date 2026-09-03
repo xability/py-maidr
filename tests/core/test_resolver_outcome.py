@@ -251,13 +251,18 @@ def test_a_reset_during_a_lookup_discards_its_verdict(monkeypatch, clean) -> Non
 
     answer_with(monkeypatch, slow_responder)
 
-    fetcher = threading.Thread(target=cdn.get_cdn_version)
+    fetcher = threading.Thread(target=cdn.get_cdn_version, daemon=True)
     fetcher.start()
 
-    assert in_flight.wait(timeout=5), "the lookup never started"
-    cdn.reset_cdn_version_cache()
-    may_finish.set()
-    fetcher.join(timeout=5)
+    try:
+        assert in_flight.wait(timeout=5), "the lookup never started"
+        cdn.reset_cdn_version_cache()
+    finally:
+        # Release the responder whatever happened above, so a failed
+        # assertion does not leave the thread blocked for later tests.
+        may_finish.set()
+        fetcher.join(timeout=5)
+    assert not fetcher.is_alive(), "the lookup never finished"
 
     assert cdn._cached_resolution() is None, (
         "the pre-reset result was published anyway, undoing the reset"
