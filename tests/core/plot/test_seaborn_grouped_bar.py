@@ -168,15 +168,18 @@ def test_a_hue_that_repeats_the_category_stays_a_plain_bar_layer() -> None:
     ]
 
 
-def test_hue_groups_that_do_not_cover_every_category_stay_a_plain_bar_layer() -> None:
-    """The length check, reached with two containers rather than one.
+def test_hue_groups_that_do_not_cover_every_category_are_still_grouped() -> None:
+    """Ragged containers are a grouped layer with a gap, not a plain one.
 
     Seaborn draws no bar at all for a category and hue level that never
     occur together, so the containers come out ragged. `GroupedBarPlot`
-    cannot read those — it pairs bars with labels by position — so the
-    classification refuses to call them grouped. The layer does not render
-    either way; what is pinned here is that the guard is what turns it back,
-    not the container count.
+    used to pair bars with labels by position alone and could not read
+    those, so the classification turned the layer back to a plain bar --
+    whose labels were then the bars' fractional positions, "-0.2" for "a",
+    in place of the category and hue names a reader hears on the chart
+    (#752). The bars that were drawn still sit against their category's
+    tick, so the layer is placed against the ticks instead and the missing
+    bar is the same `null` gap a `NaN` height emits.
     """
     ragged = DATA[~((DATA["cat"] == "b") & (DATA["grp"] == "y"))]
     fig, ax = plt.subplots()
@@ -184,7 +187,17 @@ def test_hue_groups_that_do_not_cover_every_category_stay_a_plain_bar_layer() ->
         sns.barplot(data=ragged, x="cat", y="val", hue="grp", ax=ax)
         # The premise: seaborn dropped the bar rather than drawing a gap.
         assert [len(c.patches) for c in ax.containers] == [3, 2]
-        assert _layer_type(fig) is PlotType.BAR
+        schema = _schema(fig)
+
+        assert _layer_type(fig) is PlotType.DODGED
+        assert schema["data"] == [
+            GROUPED[0],
+            [
+                {"x": "a", "z": "y", "y": 2.0},
+                {"x": "b", "z": "y", "y": None},
+                {"x": "c", "z": "y", "y": 6.0},
+            ],
+        ]
     finally:
         plt.close(fig)
 

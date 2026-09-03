@@ -30,6 +30,8 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+import pandas as pd  # noqa: E402
+import seaborn as sns  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
@@ -198,7 +200,8 @@ class TestADodgedBarWithNoHeight:
     # stacked one's extractor and so its gap, and is reached by matplotlib's
     # own grouping idiom: numeric positions offset by a fraction, with a
     # narrow width. Seaborn's `hue=` cannot put a NaN bar here -- it drops
-    # the row before drawing -- so the chart is drawn by hand.
+    # the row before drawing, which is the next class's subject -- so the
+    # chart is drawn by hand.
 
     @staticmethod
     def _dodged():
@@ -254,4 +257,99 @@ class TestADodgedBarWithNoHeight:
         assert points[0][1]["x"] is None
         assert points[0][1]["y"] == "b"
         assert [point["x"] for point in points[1]] == [4.0, 5.0, 6.0]
+        parses_as_strict_json(ax)
+
+
+class TestASeabornHueMissingACategory:
+    # `sns.barplot(hue=)` cannot draw a NaN bar: it drops the row before
+    # drawing, so the hue level that lacks one category comes out a bar
+    # short and the containers are ragged. The grouped extractor paired bars
+    # with labels by position alone and gave that layer up, and the patch
+    # fell back to a plain bar layer whose labels were the bars' fractional
+    # positions -- "-0.2", "0.8" -- so a reader heard numbers where the
+    # chart shows groups (#752). The bar seaborn never drew is the same gap
+    # the hand-drawn chart above emits for a NaN height.
+
+    @staticmethod
+    def _frame(missing: str = "b") -> pd.DataFrame:
+        frame = pd.DataFrame(
+            {
+                "cat": ["a", "b", "c"] * 2,
+                "grp": ["g1"] * 3 + ["g2"] * 3,
+                "val": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            }
+        )
+        frame.loc[(frame["cat"] == missing) & (frame["grp"] == "g2"), "val"] = np.nan
+        return frame
+
+    @classmethod
+    def _hued(cls, missing: str = "b"):
+        fig, ax = plt.subplots()
+        sns.barplot(data=cls._frame(missing), x="cat", y="val", hue="grp", ax=ax)
+        # The premise: seaborn dropped the bar rather than drawing a gap.
+        assert [len(c.patches) for c in ax.containers] == [3, 2]
+        return ax
+
+    def test_it_is_a_dodged_layer(self):
+        ax = self._hued()
+        record = FigureManager.get_maidr(ax.get_figure())
+
+        assert record._plots[-1].type is PlotType.DODGED
+
+    def test_it_names_the_categories_and_the_groups(self):
+        # The whole of the complaint: "a", "b", "c" and "g1", "g2", which
+        # are what the chart shows, and not "-0.2", which is where the
+        # first bar happened to be drawn.
+        ax = self._hued()
+        points = stacked_points(ax)
+
+        assert [[point["x"] for point in series] for series in points] == [
+            ["a", "b", "c"],
+            ["a", "b", "c"],
+        ]
+        assert [[point["z"] for point in series] for series in points] == [
+            ["g1"] * 3,
+            ["g2"] * 3,
+        ]
+
+    def test_the_missing_bar_is_emitted_as_null(self):
+        ax = self._hued()
+
+        assert stacked_points(ax)[1][1]["y"] is None
+
+    def test_the_payload_is_loadable(self):
+        ax = self._hued()
+
+        parses_as_strict_json(ax)
+
+    def test_the_measured_bars_are_untouched(self):
+        ax = self._hued()
+        points = stacked_points(ax)
+
+        assert [point["y"] for point in points[0]] == [1.0, 2.0, 3.0]
+        assert [point["y"] for point in points[1]] == [4.0, None, 6.0]
+
+    @pytest.mark.parametrize("missing", ["a", "c"])
+    def test_a_gap_at_either_end_lands_on_its_own_category(self, missing: str):
+        # The bars are placed by the tick nearest each one rather than
+        # counted from the start, so a gap at the first or last category
+        # does not shift every bar after it by one.
+        ax = self._hued(missing)
+        points = stacked_points(ax)
+
+        assert [point["x"] for point in points[1]] == ["a", "b", "c"]
+        assert points[1][["a", "b", "c"].index(missing)]["y"] is None
+        assert sum(point["y"] is None for point in points[1]) == 1
+
+    def test_a_horizontal_layer_is_covered_too(self):
+        # The gap lands on x for a horizontal layer, as it does for every
+        # other one, and the bars are placed by their y centres.
+        fig, ax = plt.subplots()
+        sns.barplot(data=self._frame(), y="cat", x="val", hue="grp", ax=ax)
+        record = FigureManager.get_maidr(fig)
+        points = stacked_points(ax)
+
+        assert record._plots[-1].type is PlotType.DODGED
+        assert [point["y"] for point in points[1]] == ["a", "b", "c"]
+        assert [point["x"] for point in points[1]] == [4.0, None, 6.0]
         parses_as_strict_json(ax)
