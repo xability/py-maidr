@@ -7,11 +7,15 @@ and converting them to MAIDR-compatible format configurations.
 
 from __future__ import annotations
 
+import json
+import math
 import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, Optional
 
+import matplotlib.dates as mdates
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.dates import DateFormatter
 from matplotlib.ticker import (
@@ -126,76 +130,104 @@ class JSBodyConverter:
     new Function('value', functionBody)
     """
 
-    # Mapping of Python strftime codes to JavaScript date formatting
-    # Common patterns with optimized JS bodies
+    # Mapping of Python strftime codes to JavaScript date formatting.
+    # Each body continues the prologue from ``_date_prologue`` -- ``d`` is
+    # already the ``Date`` -- and reads it through the UTC getters, because a
+    # matplotlib date axis is UTC unless the user asked for a timezone: the
+    # local getters read a UTC-midnight date as the previous evening anywhere
+    # west of UTC.
     STRFTIME_PATTERNS: Dict[str, str] = {
         "%b %d": (
             "var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];"
-            "var d=new Date(value);return m[d.getMonth()]+' '+d.getDate()"
+            "return m[d.getUTCMonth()]+' '+d.getUTCDate()"
         ),
         "%b %d, %Y": (
             "var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];"
-            "var d=new Date(value);return m[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()"
+            "return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()"
         ),
         "%Y-%m-%d": (
-            "var d=new Date(value);"
-            "return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'"
-            "+String(d.getDate()).padStart(2,'0')"
+            "return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'"
+            "+String(d.getUTCDate()).padStart(2,'0')"
         ),
         "%m/%d/%Y": (
-            "var d=new Date(value);"
-            "return String(d.getMonth()+1).padStart(2,'0')+'/'"
-            "+String(d.getDate()).padStart(2,'0')+'/'+d.getFullYear()"
+            "return String(d.getUTCMonth()+1).padStart(2,'0')+'/'"
+            "+String(d.getUTCDate()).padStart(2,'0')+'/'+d.getUTCFullYear()"
         ),
         "%d/%m/%Y": (
-            "var d=new Date(value);"
-            "return String(d.getDate()).padStart(2,'0')+'/'"
-            "+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()"
+            "return String(d.getUTCDate()).padStart(2,'0')+'/'"
+            "+String(d.getUTCMonth()+1).padStart(2,'0')+'/'+d.getUTCFullYear()"
         ),
-        "%Y": "return new Date(value).getFullYear().toString()",
+        "%Y": "return d.getUTCFullYear().toString()",
         "%B %Y": (
             "var m=['January','February','March','April','May','June',"
             "'July','August','September','October','November','December'];"
-            "var d=new Date(value);return m[d.getMonth()]+' '+d.getFullYear()"
+            "return m[d.getUTCMonth()]+' '+d.getUTCFullYear()"
         ),
         "%H:%M": (
-            "var d=new Date(value);"
-            "return String(d.getHours()).padStart(2,'0')+':'"
-            "+String(d.getMinutes()).padStart(2,'0')"
+            "return String(d.getUTCHours()).padStart(2,'0')+':'"
+            "+String(d.getUTCMinutes()).padStart(2,'0')"
         ),
         "%H:%M:%S": (
-            "var d=new Date(value);"
-            "return String(d.getHours()).padStart(2,'0')+':'"
-            "+String(d.getMinutes()).padStart(2,'0')+':'"
-            "+String(d.getSeconds()).padStart(2,'0')"
+            "return String(d.getUTCHours()).padStart(2,'0')+':'"
+            "+String(d.getUTCMinutes()).padStart(2,'0')+':'"
+            "+String(d.getUTCSeconds()).padStart(2,'0')"
         ),
         "%I:%M %p": (
-            "var d=new Date(value);"
-            "var h=d.getHours();var ampm=h>=12?'PM':'AM';h=h%12;h=h?h:12;"
-            "return String(h).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+' '+ampm"
+            "var h=d.getUTCHours();var ampm=h>=12?'PM':'AM';h=h%12;h=h?h:12;"
+            "return String(h).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0')+' '+ampm"
         ),
     }
 
+    # Fallback for a strftime pattern the table does not know; the UTC zone
+    # keeps it on the same calendar day as the getters above.
+    DATE_FALLBACK: str = "return d.toLocaleDateString(undefined,{timeZone:'UTC'})"
+
     @staticmethod
-    def date_format_to_js(fmt: str) -> str:
+    def _date_prologue() -> str:
+        """
+        JavaScript that turns the announced value into a ``Date`` named ``d``.
+
+        py-maidr emits a date axis's values as matplotlib date numbers -- days
+        since ``matplotlib.dates.get_epoch()`` -- as floats, or as strings on a
+        bar axis; ``new Date(value)`` would read either as milliseconds and
+        announce every one of them as 1970. The epoch is read here rather than
+        at import so a user's ``rcParams['date.epoch']`` is honoured, and the
+        product is rounded to the millisecond so a day number carrying a
+        time of day does not land a fraction of a millisecond before it.
+
+        A value that is not a number -- a category name on an axis that also
+        carries a date format -- is announced as itself, as upstream's
+        ``asFiniteNumber`` does for its own formatters.
+        """
+        epoch = np.datetime64(mdates.get_epoch()) - np.datetime64("1970-01-01T00:00:00")
+        offset_ms = int(epoch / np.timedelta64(1, "ms"))
+        return (
+            "var n=Number(value);if(!isFinite(n))return String(value);"
+            f"var d=new Date(Math.round({offset_ms}+n*86400000));"
+        )
+
+    @staticmethod
+    def date_format_to_js(fmt: Optional[str] = None) -> str:
         """
         Convert Python strftime format to JavaScript function body.
 
         Parameters
         ----------
-        fmt : str
-            Python strftime format string (e.g., '%b %d', '%Y-%m-%d')
+        fmt : str, optional
+            Python strftime format string (e.g., '%b %d', '%Y-%m-%d'). None,
+            or a pattern the converter does not know, falls back to the
+            locale's date rendering.
 
         Returns
         -------
         str
-            JavaScript function body that formats dates similarly.
+            JavaScript function body that formats matplotlib date numbers
+            similarly.
         """
-        if fmt in JSBodyConverter.STRFTIME_PATTERNS:
-            return JSBodyConverter.STRFTIME_PATTERNS[fmt]
-
-        # Fallback: use toLocaleString for unrecognized formats
-        return "return new Date(value).toLocaleDateString()"
+        body = JSBodyConverter.STRFTIME_PATTERNS.get(
+            fmt or "", JSBodyConverter.DATE_FALLBACK
+        )
+        return JSBodyConverter._date_prologue() + body
 
     @staticmethod
     def currency_format_to_js(symbol: str, decimals: int = 2) -> str:
@@ -286,11 +318,106 @@ class JSBodyConverter:
         Returns
         -------
         str
-            JavaScript function body for percent formatting.
+            JavaScript function body for percent formatting. A value that is
+            not a finite number is announced as itself, as upstream's
+            ``asFiniteNumber`` does for the percent preset.
         """
+        guard = "var n=parseFloat(value);if(!isFinite(n))return String(value);"
         if multiply:
-            return f"return (parseFloat(value)*100).toFixed({decimals})+'%'"
-        return f"return parseFloat(value).toFixed({decimals})+'%'"
+            return guard + f"return (n*100).toFixed({decimals})+'%'"
+        return guard + f"return n.toFixed({decimals})+'%'"
+
+    @staticmethod
+    def literal_percent_format_to_js(
+        decimals: Optional[int],
+        suffix: str,
+        grouping: bool = False,
+        exponent: bool = False,
+    ) -> str:
+        """
+        Convert a format string ending in a literal percent sign, like
+        ``{x:.1f} %``, to a JavaScript function body.
+
+        Parameters
+        ----------
+        decimals : int, optional
+            Precision of the field. None is a field with no precision,
+            ``{x}`` or ``{x:,}``, which Python renders with the float's
+            default form -- ``45.0``, ``45.5`` -- so the body keeps the
+            ``.0`` on an integral value where ``String(n)`` would drop it.
+        suffix : str
+            The literal text after the field, emitted verbatim -- ``%``,
+            or `` %`` with the space the format string carries.
+        grouping : bool
+            Whether the spec asks for thousands separators, ``{x:,.0f}``.
+            Written the way the comma preset's body is, through
+            ``toLocaleString('en-US')``.
+        exponent : bool
+            Whether the spec is scientific, ``{x:.2e}``. Python pads the
+            exponent to two digits, ``1.23e+03``, where ``toExponential``
+            gives ``1.23e+3``; the body pads it back.
+
+        Returns
+        -------
+        str
+            JavaScript function body for a literal-suffix percent format.
+            A value that is not a finite number is announced as itself, as
+            upstream's ``asFiniteNumber`` does for the percent preset.
+        """
+        if exponent:
+            number = (
+                f"n.toExponential({decimals})"
+                ".replace(/e([+-])(\\d)$/,function(s,a,b){return 'e'+a+'0'+b})"
+            )
+        elif decimals is None and grouping:
+            number = (
+                "(Number.isInteger(n)?n.toLocaleString('en-US')+'.0'"
+                ":n.toLocaleString('en-US',{maximumFractionDigits:20}))"
+            )
+        elif decimals is None:
+            # Python's default float str, for the magnitudes a tick takes;
+            # an extreme Python writes in exponent form, 1e-05 or 1e+16,
+            # String(n) spells out.
+            number = "(Number.isInteger(n)?n.toFixed(1):String(n))"
+        elif grouping:
+            number = (
+                "n.toLocaleString('en-US',{minimumFractionDigits:"
+                f"{decimals},maximumFractionDigits:{decimals}}})"
+            )
+        else:
+            number = f"n.toFixed({decimals})"
+        return (
+            "var n=parseFloat(value);if(!isFinite(n))return String(value);"
+            f"return {number}+{json.dumps(suffix)}"
+        )
+
+    @staticmethod
+    def scaled_percent_format_to_js(scale: float, decimals: int, symbol: str) -> str:
+        """
+        Convert a ``PercentFormatter`` that is not the fraction preset to a
+        JavaScript function body.
+
+        Parameters
+        ----------
+        scale : float
+            Factor the data value is multiplied by before the symbol is
+            appended -- matplotlib's ``100 / xmax``.
+        decimals : int
+            Number of decimal places
+        symbol : str
+            Text appended to the number; ``''`` for a bare number.
+
+        Returns
+        -------
+        str
+            JavaScript function body for percent formatting at that scale.
+            A value that is not a finite number is announced as itself, as
+            upstream's ``asFiniteNumber`` does for the percent preset.
+        """
+        return (
+            "var n=parseFloat(value);if(!isFinite(n))return String(value);"
+            f"return (n*{scale!r}).toFixed({decimals})+{json.dumps(symbol)}"
+        )
 
     @staticmethod
     def scientific_format_to_js(decimals: int = 2) -> str:
@@ -415,13 +542,65 @@ class FormatConfigBuilder:
 
     @staticmethod
     def _parse_percent_formatter(formatter: PercentFormatter) -> FormatConfig:
-        """Parse a PercentFormatter to FormatConfig using type-based preset."""
-        decimals = None
-        if hasattr(formatter, "decimals") and formatter.decimals is not None:
-            decimals = int(formatter.decimals)
+        """Parse a PercentFormatter to FormatConfig at the scale matplotlib draws it.
 
-        # Use type-based preset for percent
-        return FormatConfig(type=FormatType.PERCENT, decimals=decimals)
+        The ``percent`` preset in MAIDR JS multiplies by 100, which is only what
+        matplotlib does for ``xmax=1.0``. Its default is ``xmax=100`` -- the data
+        are already percentages -- so that and every other ``xmax`` get a
+        function body scaled by ``100 / xmax``, as ``format_pct`` is. The
+        decimals are the ones matplotlib draws: its own when it was given
+        them, otherwise the count ``format_pct`` derives from the axis range.
+        """
+        explicit = None
+        if hasattr(formatter, "decimals") and formatter.decimals is not None:
+            explicit = int(formatter.decimals)
+        xmax = float(getattr(formatter, "xmax", 100.0))
+
+        # matplotlib divides by xmax at draw time and raises on zero; a schema
+        # extraction has nothing sensible to scale by, so it keeps the preset.
+        # A negative xmax draws a sign-flipped percentage and scales as usual.
+        if xmax == 0:
+            return FormatConfig(type=FormatType.PERCENT, decimals=explicit)
+
+        decimals = FormatConfigBuilder._percent_decimals(formatter, xmax, explicit)
+        symbol = getattr(formatter, "symbol", "%") or ""
+
+        if xmax == 1.0 and symbol == "%":
+            return FormatConfig(type=FormatType.PERCENT, decimals=decimals)
+
+        # Unattached, the formatter has no range to derive decimals from; one
+        # is what the preset defaults to and reads the same way.
+        js_body = JSBodyConverter.scaled_percent_format_to_js(
+            100.0 / xmax, decimals if decimals is not None else 1, symbol
+        )
+        return FormatConfig(function=js_body)
+
+    @staticmethod
+    def _percent_decimals(
+        formatter: PercentFormatter, xmax: float, explicit: Optional[int]
+    ) -> Optional[int]:
+        """The decimals matplotlib's ``format_pct`` draws for this formatter.
+
+        With none given, matplotlib derives them at draw time from the axis
+        view interval: ``ceil(2 - log10(2 * range))`` with the range scaled
+        to percent, clamped to 0..5 and 0 for an empty range. The same rule
+        is applied here so the announced text carries the digits the tick
+        label shows -- "45%" on a 0-100 axis, not "45.0%". Returns None when
+        the formatter is not attached to an axis yet, or the range is not a
+        finite number, because there is nothing to derive from.
+        """
+        if explicit is not None:
+            return explicit
+        axis = getattr(formatter, "axis", None)
+        if axis is None:
+            return None
+        vmin, vmax = axis.get_view_interval()
+        scaled_range = 100.0 * (abs(float(vmax) - float(vmin)) / xmax)
+        if not math.isfinite(scaled_range):
+            return None
+        if scaled_range <= 0:
+            return 0
+        return min(5, max(0, math.ceil(2.0 - math.log10(2.0 * scaled_range))))
 
     @staticmethod
     def _parse_str_method_formatter(
@@ -501,7 +680,7 @@ class FormatConfigBuilder:
             js_body = JSBodyConverter.currency_format_to_js("$", 2)
             return FormatConfig(function=js_body)
         elif "date" in func_name.lower() or "time" in func_name.lower():
-            js_body = "return new Date(value).toLocaleDateString()"
+            js_body = JSBodyConverter.date_format_to_js()
             return FormatConfig(function=js_body)
 
         # For unknown FuncFormatters, return default (value as-is)
@@ -540,6 +719,27 @@ class FormatConfigBuilder:
         if "%" in fmt and "{" in fmt:
             if re.search(r"\{[^}]*%\}", fmt):
                 return FormatConfig(type=FormatType.PERCENT, decimals=decimals)
+
+        # A literal % closing the string, like {x:.0f}% or {x} %, is a
+        # percentage the data already hold: keep the suffix as written,
+        # without the preset's multiply-by-100. A % followed by more text is
+        # not a suffix and is read as whatever the field itself says; so is
+        # a field whose spec is not one of empty, grouping, fixed-point or
+        # scientific -- the presets below would drop the suffix (#703).
+        suffix_match = re.search(r"\{[^}:]*(?::([^}]*))?\}(\s*%\s*)$", fmt)
+        if suffix_match:
+            spec, suffix = suffix_match.group(1) or "", suffix_match.group(2)
+            parsed = re.fullmatch(r"(,)?(?:\.(\d+)([fe]))?", spec)
+            if parsed:
+                grouping, precision, kind = parsed.groups()
+                return FormatConfig(
+                    function=JSBodyConverter.literal_percent_format_to_js(
+                        int(precision) if precision else None,
+                        suffix,
+                        grouping=bool(grouping),
+                        exponent=kind == "e",
+                    )
+                )
 
         # Detect scientific notation like {x:.2e} - use type-based preset
         if re.search(r"\{[^}]*[eE]\}", fmt):
