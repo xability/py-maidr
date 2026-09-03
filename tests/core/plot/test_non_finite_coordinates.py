@@ -40,6 +40,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 
+from maidr.core.enum import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 
 
@@ -206,3 +207,70 @@ class TestWhatMustNotChange:
         line = plt.plot(["a", "b", "c"], [1, 2, 3])[0]
 
         assert [point["x"] for point in series_of(line)[0]] == ["a", "b", "c"]
+
+
+class TestTheCandlestickWithAGap:
+    """A row mplfinance draws as a gap took the whole figure down.
+
+    mplfinance accepts a row whose open, high, low and close are all NaN and
+    draws it as empty geometry. ``float(nan)`` raises none of the errors the
+    extraction loop skipped a row on, so the candle went out as a bare
+    ``NaN`` -- the #427 failure again, and worse here, because the volume
+    bars and moving averages on the same figure share the payload and went
+    dark with it (#706).
+    """
+
+    @staticmethod
+    def _frame():
+        import pandas as pd
+
+        frame = pd.DataFrame(
+            {
+                "Open": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+                "High": [2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
+                "Low": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+                "Close": [1.5, 2.5, 3.5, 4.5, 5.5, 6.5],
+            },
+            index=pd.date_range("2026-01-01", periods=6),
+        )
+        frame.iloc[2] = np.nan
+        return frame
+
+    def _candlestick(self):
+        mpf = pytest.importorskip("mplfinance")
+        frame = self._frame()
+        fig, _ = mpf.plot(frame, type="candle", returnfig=True)
+        plots = FigureManager.get_maidr(fig)._plots
+        return frame, next(p for p in plots if p.type == PlotType.CANDLESTICK)
+
+    def test_its_payload_is_parseable(self):
+        _, plot = self._candlestick()
+
+        parses_as_strict_json(plot.ax)
+
+    def test_the_gap_row_is_dropped_and_the_rest_kept(self):
+        frame, plot = self._candlestick()
+        candles = plot.schema["data"]
+
+        assert len(candles) == len(frame) - 1
+        # The rows either side of the gap keep their own values, so what is
+        # lost is the gap and nothing else.
+        assert [candle["open"] for candle in candles] == [1.0, 2.0, 4.0, 5.0, 6.0]
+        assert not any(
+            value != value  # NaN is the one float unequal to itself
+            for candle in candles
+            for value in candle.values()
+            if isinstance(value, float)
+        )
+
+    def test_the_wick_selectors_still_count_every_row(self):
+        # The SVG keeps a body path and two wick paths for the gap row, so the
+        # nth-child split between low and high wicks must go on counting the
+        # frame, not the candles emitted. The cost is that a highlight after
+        # the gap lands one path early; before, there was no highlight at all.
+        frame, plot = self._candlestick()
+        selectors = plot.schema["selectors"]
+
+        assert len(plot._maidr_wick_collection.get_paths()) == 2 * len(frame)
+        assert f"nth-child(-n+{len(frame)})" in selectors["wickLow"]
+        assert f"nth-child(n+{len(frame) + 1})" in selectors["wickHigh"]

@@ -120,13 +120,13 @@ class DatetimeConverter:
         if len(self.data) < 2:
             return "unknown"
 
-        # Calculate average time difference between consecutive data points
-        time_diffs = []
-        for i in range(1, len(self.data)):
-            diff = self.data.index[i] - self.data.index[i - 1]
-            time_diffs.append(diff.total_seconds())
-
-        avg_diff_seconds = np.mean(time_diffs)
+        # Average time difference between consecutive data points, computed
+        # on the datetime64 array rather than one Timestamp pair at a time
+        # (#706). Dividing by a one-second timedelta rather than by 1e9 keeps
+        # this right whatever resolution the index carries.
+        avg_diff_seconds = float(
+            np.diff(self.data.index.values).mean() / np.timedelta64(1, "s")
+        )
 
         # Determine time period based on average difference
         if avg_diff_seconds < 60:  # Less than 1 minute
@@ -220,7 +220,7 @@ class DatetimeConverter:
         -------
         List[float]
             List of matplotlib date numbers converted from the DatetimeIndex.
-            Empty list if conversion fails.
+            A NaT in the index is left out. Empty list if conversion fails.
 
         Notes
         -----
@@ -230,14 +230,12 @@ class DatetimeConverter:
         try:
             import matplotlib.dates as mdates
 
-            date_nums = []
-            for d in self.data.index:
-                try:
-                    date_num = mdates.date2num(d)
-                    date_nums.append(float(date_num))
-                except (ValueError, TypeError):
-                    continue
-            return date_nums
+            # ``date2num`` maps a NaT to NaN on a naive index and raises on a
+            # tz-aware one, so the NaT goes first. The ``isfinite`` check is
+            # the promise itself: a NaN here would reach the ``int(date_num)``
+            # fallback in ``mplfinance_utils`` and raise there, uncaught.
+            index = self.data.index[self.data.index.notna()]
+            return [float(num) for num in mdates.date2num(index) if np.isfinite(num)]
         except Exception:
             return []
 
@@ -359,25 +357,30 @@ class DatetimeConverter:
         -------
         List[Tuple[str, float]]
             List of tuples containing (formatted_datetime, volume) pairs.
-            Zero and NaN volume values are filtered out.
+            Zero, NaN, infinite and non-numeric volume values are filtered out.
 
         Notes
         -----
         This method extracts volume data from the original DataFrame and formats
         datetime values using the enhanced datetime conversion logic.
         """
-        volume_data = []
-        if hasattr(self.data, "Volume"):
-            for i in range(len(self.data)):
-                try:
-                    volume = self.data.iloc[i]["Volume"]
-                    if pd.isna(volume) or volume <= 0:
-                        continue
-                    formatted_datetime = self.get_formatted_datetime(i)
-                    volume_data.append((formatted_datetime, float(volume)))
-                except (KeyError, IndexError, ValueError):
-                    continue
-        return volume_data
+        if not hasattr(self.data, "Volume"):
+            return []
+
+        # One mask over the column instead of an ``iloc`` row per bar (#706).
+        # The label still comes from ``get_formatted_datetime`` so its text is
+        # unchanged.
+        # ``errors="coerce"`` turns a value that is not a number into NaN, and
+        # ``isfinite`` drops NaN and infinity alike: ``json.dumps`` would write
+        # either as a bare token that ``JSON.parse`` rejects.
+        volumes = pd.to_numeric(self.data["Volume"], errors="coerce").to_numpy(
+            dtype=float
+        )
+        keep = np.isfinite(volumes) & (volumes > 0)
+        return [
+            (self.get_formatted_datetime(int(i)), float(volumes[i]))
+            for i in np.flatnonzero(keep)
+        ]
 
 
 def create_datetime_converter(
