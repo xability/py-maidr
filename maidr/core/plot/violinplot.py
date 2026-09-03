@@ -136,16 +136,32 @@ class ViolinDataExtractor:
         if isinstance(df, pd.DataFrame) and isinstance(val_col, str):
             return ["Violin"], [df[val_col].dropna().values]
 
-        # Case 3 — list/array as positional arg
-        if len(args) > 0:
-            data = args[0]
-            if isinstance(data, (list, tuple, np.ndarray)):
-                if len(data) > 0 and isinstance(data[0], (list, tuple, np.ndarray)):
-                    return (
-                        [f"Group {i + 1}" for i in range(len(data))],
-                        [np.asarray(d).flatten() for d in data],
-                    )
-                return ["Violin"], [np.asarray(data).flatten()]
+        # Case 3 — the dataset, positional or as `dataset=` (its real name)
+        data = args[0] if len(args) > 0 else kwargs.get("dataset", None)
+
+        # Counted the way matplotlib counts them. It hands the dataset to
+        # `cbook._reshape_2D`, which unpacks a DataFrame to an ndarray and
+        # then reads "2D ndarrays [as] the list of their *columns*", while
+        # "lists of iterables are converted by applying `numpy.asanyarray` to
+        # each of their elements". Applying the element rule to an array
+        # read the rows of a (100, 3) array as 100 violins of three values
+        # for the three matplotlib drew, and the column rule must not reach a
+        # list -- `[[1, 2, 3, 4, 9], [2, 3, 4, 5, 6]]` is two violins, not
+        # five (#705).
+        if isinstance(data, pd.DataFrame):
+            data = data.to_numpy()
+        if isinstance(data, np.ndarray) and data.ndim == 2:
+            return (
+                [f"Group {j + 1}" for j in range(data.shape[1])],
+                [data[:, j] for j in range(data.shape[1])],
+            )
+        if isinstance(data, (list, tuple, np.ndarray)):
+            if len(data) > 0 and isinstance(data[0], (list, tuple, np.ndarray)):
+                return (
+                    [f"Group {i + 1}" for i in range(len(data))],
+                    [np.asarray(d).flatten() for d in data],
+                )
+            return ["Violin"], [np.asarray(data).flatten()]
 
         # Case 4 — data= (non-DataFrame)
         if "data" in kwargs and not isinstance(kwargs["data"], pd.DataFrame):
