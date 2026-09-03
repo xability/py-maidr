@@ -222,15 +222,6 @@ def test_barh_height_keyword_reads_dodged_like_the_positional_spelling() -> None
     assert [kind for kind, _ in _emitted(horizontal)] == ["dodged_bar"]
 
 
-@pytest.mark.parametrize(
-    "baseline",
-    [
-        pytest.param(5, id="int"),
-        pytest.param(5.0, id="float"),
-        pytest.param([5, 5, 5], id="list"),
-        pytest.param(np.full(len(CATEGORIES), 5.0), id="array"),
-    ],
-)
 def test_a_baseline_with_a_gap_is_read_from_its_measured_values() -> None:
     """NaN is not equal to itself, which must not make a baseline vary.
 
@@ -243,6 +234,15 @@ def test_a_baseline_with_a_gap_is_read_from_its_measured_values() -> None:
     assert not _is_constant_baseline([5.0, np.nan, 6.0])
 
 
+@pytest.mark.parametrize(
+    "baseline",
+    [
+        pytest.param(5, id="int"),
+        pytest.param(5.0, id="float"),
+        pytest.param([5, 5, 5], id="list"),
+        pytest.param(np.full(len(CATEGORIES), 5.0), id="array"),
+    ],
+)
 def test_a_constant_baseline_on_bare_axes_is_a_plain_bar(baseline) -> None:
     """The reproduction of #760: ``bottom=5`` with nothing beneath it.
 
