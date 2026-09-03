@@ -2,6 +2,7 @@ import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from matplotlib.axes import Axes
+from matplotlib.category import UnitData
 from matplotlib.cm import ScalarMappable
 from matplotlib.collections import PolyQuadMesh, QuadMesh
 from matplotlib.image import AxesImage
@@ -201,11 +202,16 @@ class LineExtractorMixin:
         tick layouts that are neither contiguous nor zero-based.
 
         Empty unless the axis really is a string-category axis: matplotlib
-        leaves a ``UnitData`` on the axis it mapped strings onto, and nothing
-        else. A numeric axis has tick labels too -- "0", "25", "1.00" -- and
-        they are formatted renderings of the numbers rather than names for
-        them, so substituting one costs the value both its type and its
-        precision.
+        leaves a ``UnitData`` on the axis it mapped strings onto. It is the
+        *kind* of units that decides, not their presence -- a date axis
+        carries units too, because matplotlib's date converter records the
+        data's ``tzinfo`` there, so a tz-aware index leaves a ``timezone``
+        where a naive one leaves ``None``. That axis is numeric for this
+        purpose: reading it as categories snapped every hourly point onto a
+        daily tick (#709). A numeric axis has tick labels too -- "0", "25",
+        "1.00" -- and they are formatted renderings of the numbers rather than
+        names for them, so substituting one costs the value both its type and
+        its precision.
 
         Parameters
         ----------
@@ -220,7 +226,7 @@ class LineExtractorMixin:
             Tick coordinate to label, or an empty mapping on a numeric axis
         """
         holder = ax.xaxis if axis == "x" else ax.yaxis
-        if holder.units is None:
+        if not isinstance(holder.units, UnitData):
             return {}
 
         positions = ax.get_xticks() if axis == "x" else ax.get_yticks()
