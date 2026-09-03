@@ -123,6 +123,25 @@ class TestBackendShow:
         plt.close("all")
         plt.show()  # Should not raise
 
+    def test_show_rejects_a_non_canonical_use_cdn_before_rendering(self, mocker):
+        """``plt.show(use_cdn="false")`` is refused, not rendered CDN-only.
+
+        The backend forwarded the kwarg to :meth:`Maidr.show` untouched,
+        so a spelling ``maidr.render`` now rejects reached the renderer
+        and picked the CDN-only branch for someone asking for offline
+        (#694). Routed through the same resolver, it fails first.
+        """
+        fig, ax = plt.subplots()
+        ax.bar([1, 2, 3], [4, 5, 6])
+
+        maidr_obj = FigureManager.get_maidr(fig)
+        mock_show = mocker.patch.object(maidr_obj, "show")
+
+        with pytest.raises(TypeError, match="use_cdn"):
+            plt.show(use_cdn="false")
+
+        mock_show.assert_not_called()
+
     def test_show_falls_back_for_untracked_figures(self, mocker):
         """plt.show() should warn and fall back to static image for untracked figures."""
         fig, ax = plt.subplots()

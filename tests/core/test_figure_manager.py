@@ -1,12 +1,17 @@
 import copy
 import gc
+import html
+import json
 import pickle
+import re
 import threading
 import weakref
 
 import matplotlib.pyplot as plt
+import pandas as pd
 import pytest
 import seaborn as sns
+from htmltools import Tag
 
 import maidr
 
@@ -89,6 +94,136 @@ class TestSeabornFigureManager:
     def test_get_figure_from_countplot_axes(self, axes):
         count_ax = sns.countplot(x=[1, 2, 2, 3, 3, 3])
         assert FigureManager.get_axes(count_ax) == axes
+
+    # seaborn's figure-level functions return a Grid, which is not an Artist.
+    # Each resolved to None, so `maidr.render(sns.lmplot(...))` raised on the
+    # very object the user was handed, though every layer was registered on
+    # the grid's figure (#694).
+    def test_get_axes_from_facet_grid(self):
+        grid = sns.lmplot(data=_frame(), x="x", y="y")
+        try:
+            assert FigureManager.get_axes(grid) == grid.figure.axes
+        finally:
+            plt.close(grid.figure)
+
+    def test_get_axes_from_joint_grid(self):
+        grid = sns.jointplot(data=_frame(), x="x", y="y")
+        try:
+            assert FigureManager.get_axes(grid) == grid.figure.axes
+        finally:
+            plt.close(grid.figure)
+
+    def test_get_axes_from_pair_grid(self):
+        grid = sns.pairplot(_frame())
+        try:
+            assert FigureManager.get_axes(grid) == grid.figure.axes
+        finally:
+            plt.close(grid.figure)
+
+
+def _frame():
+    return pd.DataFrame(
+        {"x": [1.0, 2.0, 3.0, 4.0, 5.0], "y": [2.0, 4.0, 5.0, 4.0, 6.0]}
+    )
+
+
+def _layer_types(rendered) -> list[str]:
+    """The layer types in the schema on the emitted ``<svg>``."""
+    markup = str(rendered)
+    frame = re.search(r'srcdoc="([^"]*)"', markup)
+    if frame is not None:
+        markup = html.unescape(frame.group(1))
+    match = re.search(r'maidr="([^"]*)"', markup)
+    assert match, "no MAIDR schema in the emitted markup"
+    schema = json.loads(html.unescape(match.group(1)))
+    return [
+        layer["type"]
+        for row in schema["subplots"]
+        for cell in row
+        for layer in cell.get("layers", [])
+    ]
+
+
+class TestAGridGoesThroughTheFrontDoor:
+    """A seaborn Grid is what `lmplot` returns, and `lmplot` is documented
+    as stable, so the documented way to use it must reach every entry
+    point -- not only `grid.figure`, which is what the tests had been
+    handing over."""
+
+    def test_render_reads_the_layers_registered_on_the_grids_figure(self):
+        grid = sns.lmplot(data=_frame(), x="x", y="y")
+        try:
+            tag = maidr.render(grid, use_cdn=False)
+
+            assert isinstance(tag, Tag)
+            assert _layer_types(tag) == ["point", "smooth"]
+        finally:
+            plt.close(grid.figure)
+
+    def test_close_forgets_the_grids_figure(self):
+        grid = sns.lmplot(data=_frame(), x="x", y="y")
+        try:
+            assert grid.figure in FigureManager.figs
+
+            maidr.close(grid)
+
+            assert grid.figure not in FigureManager.figs
+        finally:
+            plt.close(grid.figure)
+
+
+class TestCloseResolvesTheFigureItIsHanded:
+    """`maidr.close()` and `maidr.close(fig)` raised `AttributeError`.
+
+    A `Figure` is an `Artist`, so `get_axes` answered it with `fig.axes` --
+    a list -- and `close` called `.get_figure()` on the list. Only the
+    `close(ax)` form was ever exercised, and the documented default
+    (`plot=None`, meaning `plt.gcf()`) was exactly the broken one (#694).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _fresh_figure(self):
+        plt.close("all")
+        fig, ax = plt.subplots()
+        ax.bar(["a", "b"], [1, 2])
+        assert fig in FigureManager.figs
+        self.fig, self.ax = fig, ax
+        yield
+        FigureManager.figs.pop(fig, None)
+        plt.close(fig)
+
+    def test_close_with_no_argument_closes_the_current_figure(self):
+        maidr.close()
+
+        assert self.fig not in FigureManager.figs
+
+    def test_close_with_the_figure(self):
+        maidr.close(self.fig)
+
+        assert self.fig not in FigureManager.figs
+
+    def test_close_with_an_axes_still_works(self):
+        maidr.close(self.ax)
+
+        assert self.fig not in FigureManager.figs
+
+    def test_a_list_of_axes_resolves_to_their_figure(self):
+        # A raw list is resolved to its first entry; both axes here belong to
+        # the one figure, so that is the figure rendered.
+        other = self.fig.add_subplot(2, 1, 2)
+        other.bar(["c", "d"], [3, 4])
+
+        tag = maidr.render([self.ax, other], use_cdn=False)
+
+        assert isinstance(tag, Tag)
+        assert _layer_types(tag) == ["bar", "bar"]
+
+    def test_close_on_something_that_is_not_a_plot_does_not_raise(self):
+        # Closing is the one call that should not complain about what it was
+        # handed: there is nothing to close, so nothing happens.
+        maidr.close("not a plot")
+
+        assert self.fig in FigureManager.figs
 
 
 def test_one_figure_registered_concurrently_gets_one_maidr():

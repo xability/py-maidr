@@ -681,7 +681,11 @@ def test_an_axes_less_current_figure_is_still_resolved_only_once(monkeypatch):
 
     monkeypatch.setattr(pyplot, "gcf", counting_gcf)
     try:
-        with pytest.raises(Exception):  # noqa: B017 - what it raises is not the point
+        # A figure with no axes used to raise out of the entry point; since
+        # #694 it reaches the same warn-and-fall-back path as a figure with
+        # an empty axes. What comes out is not the point -- the count is.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             maidr_html(use_cdn=True)
     finally:
         monkeypatch.setattr(pyplot, "gcf", real_gcf)

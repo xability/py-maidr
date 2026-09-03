@@ -8,6 +8,8 @@ import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import pytest
 
 import maidr
@@ -282,6 +284,39 @@ def test_render_auto_tag_contains_cdn_and_fallback(bar_plot):
     rendered = tag.render()["html"]
     assert "cdn.jsdelivr.net" in rendered
     assert "onerror" in rendered
+
+
+# The consumers branch `is False` / `== "auto"` / else-CDN, so a value that
+# is none of the three used to fall into the CDN-only mode -- the one
+# furthest from what `use_cdn="false"` or `use_cdn=0` asked for -- with no
+# offline fallback and no warning. `set_use_cdn` and `MAIDR_USE_CDN` accept
+# those spellings, which is what makes the slip a plausible one (#694).
+@pytest.mark.parametrize("value", ["false", "False", 0, 1, "bundled"])
+def test_render_rejects_non_canonical_use_cdn(bar_plot, tmp_path, value):
+    with pytest.raises(TypeError, match="use_cdn"):
+        maidr.render(bar_plot, use_cdn=value)
+    with pytest.raises(TypeError, match="use_cdn"):
+        maidr.save_html(bar_plot, file=str(tmp_path / "out.html"), use_cdn=value)
+
+
+@pytest.mark.parametrize("value", [True, False, "auto"])
+def test_canonical_use_cdn_values_pass_through_unchanged(value):
+    assert maidr_api._resolve_use_cdn(value) is value
+
+
+# A value with a vectorised `__eq__` answers `value == "auto"` with an array,
+# and asking that for a bool raises ValueError ("ambiguous truth value")
+# rather than the TypeError every other wrong value gets.
+@pytest.mark.parametrize(
+    "value",
+    [np.array([True]), pd.Series([False]), [False]],
+    ids=["numpy_array", "pandas_series", "list"],
+)
+def test_array_like_use_cdn_gets_the_intended_type_error(bar_plot, value):
+    with pytest.raises(TypeError, match="use_cdn"):
+        maidr_api._resolve_use_cdn(value)
+    with pytest.raises(TypeError, match="use_cdn"):
+        maidr.render(bar_plot, use_cdn=value)
 
 
 # ---------------------------------------------------------------------------

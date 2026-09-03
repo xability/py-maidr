@@ -293,7 +293,12 @@ class Maidr:
         )  # Always use iframe for display
 
         if clear_fig:
-            plt.close()
+            # This figure, not pyplot's current one: `plt.close()` with no
+            # argument closes whichever figure was created or activated
+            # last, which is not the one just rendered whenever the caller
+            # has more than one open (#694). A no-op for a `Figure()` that
+            # pyplot never tracked, as before.
+            plt.close(self._fig)
         return html.show(_renderer)
 
     def clear(self):
