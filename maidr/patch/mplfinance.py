@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 import uuid
+from typing import Any
+
 import wrapt
+import matplotlib.pyplot as plt
 import mplfinance as mpf
 import numpy as np
 from matplotlib.collections import LineCollection, PolyCollection
+from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
@@ -21,15 +27,32 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
     This function intercepts calls to `mplfinance.plot`, identifies the resulting
     candlestick, volume, and moving average components, and registers them with
     maidr using the common patching mechanism.
+
+    mplfinance only hands back its figure and axes under ``returnfig=True``, so
+    the call is forced into that mode. That mode also skips mplfinance's own
+    ``plt.show()`` and ``closefig`` tail, which a caller who did not ask for
+    the figure is relying on, so it is replayed here once the layers are
+    registered -- see `_finish_as_mplfinance_would`.
     """
     # Ensure `returnfig=True` to capture the figure and axes objects.
     original_returnfig = kwargs.get("returnfig", False)
     kwargs["returnfig"] = True
 
+    # Under a forced `returnfig` mplfinance would still honour `closefig=True`,
+    # closing the figure before it can be shown -- and the maidr backend only
+    # renders figures that are still open. Hold the close back to the replay,
+    # where it follows the show as it does in mplfinance itself.
+    closefig = kwargs.get("closefig", "auto")
+    if not original_returnfig:
+        kwargs["closefig"] = False
+
     with ContextManager.set_internal_context():
         result = _draw_quietly(wrapped, args, kwargs)
 
-    # Validate that we received the expected figure and axes tuple
+    # Validate that we received the expected figure and axes tuple. Nothing
+    # drawable came back (mplfinance returns None when drawing onto external
+    # axes), so there is nothing to register and nothing to show: the replay
+    # below is deliberately bypassed.
     if not (isinstance(result, tuple) and len(result) >= 2):
         return result if original_returnfig else None
 
@@ -180,14 +203,14 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
                 # Store the period directly on the line for easy access
                 setattr(line, "_maidr_ma_period", estimated_period)
 
-                # Create a better label for the line
+                # Name an unlabelled moving average after its period. A line
+                # the caller labelled (an addplot) keeps that label: it is the
+                # series name the schema announces and the legend entry, and
+                # the period is already on `_maidr_ma_period` for the line
+                # plot to read.
                 label = str(line.get_label())
                 if label.startswith("_child"):
                     new_label = f"Moving Average {estimated_period} days"
-                    line.set_label(new_label)
-                else:
-                    # If it's not a _child label, still add the period info
-                    new_label = f"{label}_MA{estimated_period}"
                     line.set_label(new_label)
 
             # Create a unique identifier for this line based on its data
@@ -242,10 +265,51 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
 
             common(PlotType.LINE, lambda *a, **k: price_ax, instance, args, line_kwargs)
 
-    if not original_returnfig:
-        return None
+    if original_returnfig:
+        return result
 
-    return result
+    _finish_as_mplfinance_would(
+        result[0], kwargs.get("savefig"), kwargs.get("block"), closefig
+    )
+    return None
+
+
+def _finish_as_mplfinance_would(
+    fig: Figure, savefig: Any, block: bool | None, closefig: bool | str
+) -> None:
+    """
+    Replay what `mplfinance.plot` does after drawing when `returnfig` is false.
+
+    This mirrors the tail of ``mplfinance/plotting.py::plot``. The ``savefig``
+    write itself has already happened inside mplfinance, so only its close is
+    replayed; otherwise the figure is shown and then closed on the same
+    conditions mplfinance uses. ``closefig`` is ``True``, ``False`` or
+    mplfinance's default ``'auto'``, which counts as set after a save but
+    closes after a show only when ``block`` is set.
+
+    Parameters
+    ----------
+    fig : Figure
+        The figure mplfinance drew.
+    savefig : Any
+        The caller's ``savefig`` argument, or ``None`` if there was none.
+    block : bool | None
+        The caller's ``block`` argument, forwarded to ``plt.show``.
+    closefig : bool | str
+        The caller's ``closefig`` argument, or ``'auto'``.
+    """
+    # mplfinance's validator admits only True and False, so the only other
+    # value is its untouched default 'auto'; name both rather than rely on
+    # truthiness, which would also close on an unexpected string.
+    close_is_set = closefig is True or closefig == "auto"
+    if savefig is not None:
+        if close_is_set:
+            plt.close(fig)
+        return
+
+    plt.show(block=block)
+    if closefig is True or (block and close_is_set):
+        plt.close(fig)
 
 
 # Apply the patch to mplfinance.plot
