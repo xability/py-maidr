@@ -1,15 +1,17 @@
-"""Tests for the IPython and Shiny probes in :mod:`maidr.util.environment`.
+"""Tests for the IPython, Shiny and Flask probes in :mod:`maidr.util.environment`.
 
 ``is_notebook()`` runs during ``import maidr`` and ``get_renderer()`` /
-``is_shiny()`` run on every render, so importing the package they probe
-for charged every plain script the whole import (~200 ms for IPython,
-~0.2 s for Shiny) just to learn it was not in use (#707).  A shell or a
-session cannot exist unless its package is already in ``sys.modules``,
-which is therefore the only thing the probes may consult before importing.
+``is_shiny()`` / ``is_flask()`` run on every render, so importing the
+package they probe for charged every plain script the whole import
+(~200 ms for IPython, ~0.2 s for Shiny) just to learn it was not in use
+(#707).  A shell, a session or an app context cannot exist unless its
+package is already in ``sys.modules``, which is therefore the only thing
+the probes may consult before importing.
 """
 
 from __future__ import annotations
 
+import builtins
 import importlib.abc
 import sys
 import types
@@ -41,6 +43,25 @@ class _RecordingFinder(importlib.abc.MetaPathFinder):
         if fullname == self._package or fullname.startswith(self._package + "."):
             self.attempts.append(fullname)
         return None
+
+
+def _record_imports(monkeypatch, package: str) -> list[str]:
+    """Record ``import`` statements naming ``package`` at ``__import__``.
+
+    A ``meta_path`` finder cannot see the blocked-import case: with a
+    ``None`` sentinel in ``sys.modules`` the machinery raises before it
+    asks any finder.  ``builtins.__import__`` runs first regardless.
+    """
+    real_import = builtins.__import__
+    attempts: list[str] = []
+
+    def recording_import(name, *args, **kwargs):
+        if name == package or name.startswith(package + "."):
+            attempts.append(name)
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", recording_import)
+    return attempts
 
 
 def _unload(monkeypatch, package: str) -> None:
@@ -108,3 +129,23 @@ def test_is_shiny_does_not_import_shiny(monkeypatch):
     assert Environment.is_shiny() is False
     assert finder.attempts == []
     assert "shiny" not in sys.modules
+
+
+def test_a_blocked_shiny_import_is_not_a_session(monkeypatch):
+    """A ``None`` sentinel reads as "not loaded", not as a package to ask."""
+    monkeypatch.setitem(sys.modules, "shiny", None)
+    attempts = _record_imports(monkeypatch, "shiny")
+
+    assert Environment.is_shiny() is False
+    assert attempts == []
+
+
+def test_is_flask_does_not_import_flask(monkeypatch):
+    """Same shape as ``is_shiny``, on the same per-render path."""
+    _unload(monkeypatch, "flask")
+    finder = _RecordingFinder("flask")
+    monkeypatch.setattr(sys, "meta_path", [finder, *sys.meta_path])
+
+    assert Environment.is_flask() is False
+    assert finder.attempts == []
+    assert "flask" not in sys.modules

@@ -29,6 +29,11 @@ class Environment:
         >>> Environment.is_flask()
         False  # When not in a Flask app
         """
+        # Same argument as is_notebook: an app context cannot exist unless
+        # the flask package is already imported, so do not pay its import
+        # on every render to learn there is none.
+        if sys.modules.get("flask") is None:
+            return False
         try:
             # Import Flask's has_app_context function
             from flask import has_app_context
@@ -123,8 +128,10 @@ class Environment:
         """
         # Same argument as is_notebook: a live session cannot exist unless
         # the shiny package is already imported, so do not pay its import
-        # (~0.2 s cold, on every render) to learn there is none.
-        if "shiny" not in sys.modules:
+        # (~0.2 s cold, on every render) to learn there is none.  ``.get()
+        # is None`` also covers a blocked import, where the entry is a None
+        # sentinel.
+        if sys.modules.get("shiny") is None:
             return False
         try:
             from shiny.session import get_current_session

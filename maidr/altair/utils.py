@@ -12,7 +12,9 @@ def is_altair_chart(obj: Any) -> bool:
     # altair here would cost ~1.6 s of lark grammar compilation on every
     # process's first render of a matplotlib figure, so ask sys.modules
     # first -- which is what the docstring has promised all along.
-    if "altair" not in sys.modules:
+    # ``.get() is None`` also short-circuits a blocked import, where the
+    # entry is a None sentinel.
+    if sys.modules.get("altair") is None:
         return False
     try:
         import altair as alt
