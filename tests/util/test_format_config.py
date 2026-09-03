@@ -209,6 +209,38 @@ def test_a_category_name_on_a_percent_axis_is_announced_as_itself(formatter):
     assert _run_js(body, "Cherries") == "Cherries"
 
 
+# 0.25 sits exactly on a rounding tie: Python's ``.1f`` rounds it half-even
+# to 0.2, JavaScript's ``toFixed`` half-up to 0.3. Every ``toFixed`` body,
+# upstream's ``fixed`` preset included, differs from Python there; it is not
+# what the literal suffix changes, so it is recorded rather than papered over.
+TOFIXED_TIE = pytest.mark.xfail(
+    strict=True, reason="toFixed rounds a half up where Python rounds it even"
+)
+
+
+def _suffix_case(fmt, value):
+    marks = [TOFIXED_TIE] if (fmt, value) == ("{x:.1f} %", 0.25) else []
+    return pytest.param(fmt, value, marks=marks)
+
+
+@pytest.mark.parametrize(
+    ("fmt", "value"),
+    [
+        _suffix_case(fmt, value)
+        for fmt in ("{x}%", "{x} %", "{x:.1f} %")
+        for value in (45, 45.5, 0.25)
+    ],
+)
+def test_a_literal_percent_suffix_is_announced_as_python_formats_it(fmt, value):
+    """The suffix verbatim -- space included -- and, with no precision given,
+    the float's default form: matplotlib hands the formatter a float, so the
+    tick at 45 reads "45.0%", and the body keeps that ``.0``."""
+    formatter = StrMethodFormatter(fmt)
+    body = FormatConfigBuilder.from_formatter(formatter).function
+    assert body.endswith("+" + json.dumps(fmt[fmt.index("}") + 1 :]))
+    assert _run_js(body, float(value)) == formatter(float(value))
+
+
 def test_a_percent_sign_that_is_not_a_suffix_is_read_as_the_field_says():
     """``{x:.0f}% of total`` is a fixed-point field with some text after it."""
     config = FormatConfigBuilder.from_formatter(StrMethodFormatter("{x:.0f}% of total"))

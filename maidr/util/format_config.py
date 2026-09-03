@@ -328,6 +328,39 @@ class JSBodyConverter:
         return guard + f"return n.toFixed({decimals})+'%'"
 
     @staticmethod
+    def literal_percent_format_to_js(decimals: Optional[int], suffix: str) -> str:
+        """
+        Convert a format string ending in a literal percent sign, like
+        ``{x:.1f} %``, to a JavaScript function body.
+
+        Parameters
+        ----------
+        decimals : int, optional
+            Fixed-point precision of the field. None is a field with no
+            format spec, ``{x}``, which Python renders with the float's
+            default form -- ``45.0``, ``45.5`` -- so the body keeps the
+            ``.0`` on an integral value where ``String(n)`` would drop it.
+        suffix : str
+            The literal text after the field, emitted verbatim -- ``%``,
+            or `` %`` with the space the format string carries.
+
+        Returns
+        -------
+        str
+            JavaScript function body for a literal-suffix percent format.
+            A value that is not a finite number is announced as itself, as
+            upstream's ``asFiniteNumber`` does for the percent preset.
+        """
+        if decimals is None:
+            number = "(Number.isInteger(n)?n.toFixed(1):String(n))"
+        else:
+            number = f"n.toFixed({decimals})"
+        return (
+            "var n=parseFloat(value);if(!isFinite(n))return String(value);"
+            f"return {number}+{json.dumps(suffix)}"
+        )
+
+    @staticmethod
     def scaled_percent_format_to_js(scale: float, decimals: int, symbol: str) -> str:
         """
         Convert a ``PercentFormatter`` that is not the fraction preset to a
@@ -655,16 +688,21 @@ class FormatConfigBuilder:
             if re.search(r"\{[^}]*%\}", fmt):
                 return FormatConfig(type=FormatType.PERCENT, decimals=decimals)
 
-        # A literal % closing the string, like {x:.0f}%, is a percentage the
-        # data already hold: keep the symbol without the preset's
-        # multiply-by-100. A % followed by more text is not a suffix and is
-        # read as whatever the field itself says.
-        if re.search(r"\}\s*%\s*$", fmt):
-            return FormatConfig(
-                function=JSBodyConverter.percent_format_to_js(
-                    decimals if decimals is not None else 0, multiply=False
+        # A literal % closing the string, like {x:.0f}% or {x} %, is a
+        # percentage the data already hold: keep the suffix as written,
+        # without the preset's multiply-by-100. A % followed by more text is
+        # not a suffix and is read as whatever the field itself says; so is
+        # a field whose spec is neither empty nor fixed-point.
+        suffix_match = re.search(r"\{[^}:]*(?::([^}]*))?\}(\s*%\s*)$", fmt)
+        if suffix_match:
+            spec, suffix = suffix_match.group(1) or "", suffix_match.group(2)
+            precision = re.fullmatch(r"\.(\d+)f", spec)
+            if not spec or precision:
+                return FormatConfig(
+                    function=JSBodyConverter.literal_percent_format_to_js(
+                        int(precision.group(1)) if precision else None, suffix
+                    )
                 )
-            )
 
         # Detect scientific notation like {x:.2e} - use type-based preset
         if re.search(r"\{[^}]*[eE]\}", fmt):
