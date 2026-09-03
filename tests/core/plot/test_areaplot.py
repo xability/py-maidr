@@ -387,7 +387,7 @@ def _parses_as_strict_json(schema: dict) -> None:
     schema : dict
         The layer schema.
     """
-    json.loads(json.dumps(schema["data"]), parse_constant=_reject_constant)
+    json.loads(json.dumps(schema), parse_constant=_reject_constant)
 
 
 @pytest.mark.parametrize(
