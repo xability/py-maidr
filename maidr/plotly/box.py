@@ -171,6 +171,30 @@ def _precomputed_box(
     }
 
 
+def _trace_is_horizontal(trace: dict) -> bool:
+    """Return whether plotly draws *trace*'s boxes horizontally.
+
+    An explicit ``orientation="h"`` wins. Otherwise a precomputed trace reads
+    its arrays the other way round from a raw one. Raw samples in ``x`` alone
+    are the values of a horizontal box; but once ``q1``/``median``/``q3``
+    carry the values, a lone ``x`` is the *positions* of vertical boxes and a
+    lone ``y`` the positions of horizontal ones -- plotly's box defaults,
+    case ``"10"`` -> ``v`` and case ``"01"`` -> ``h``. Applying the raw rule
+    to both swapped the announced value axis for every precomputed trace
+    with one array.
+
+    With both a 1-D ``x`` and ``y`` (plotly's case ``"11"``) a precomputed
+    trace sets no orientation at all: plotly hides it and draws nothing, so
+    the ``False`` it gets here is a default, not a match.
+    """
+    if trace.get("orientation") == "h":
+        return True
+    if _has_precomputed_stats(trace):
+        return trace.get("y") is not None and trace.get("x") is None
+    # Plotly uses x for horizontal when y is absent
+    return trace.get("x") is not None and trace.get("y") is None
+
+
 def _compute_stats(
     arr: np.ndarray,
     label: str = "",
@@ -310,25 +334,8 @@ class PlotlyBoxPlot(PlotlyPlot):
         ]
 
     def _is_horizontal(self) -> bool:
-        """Detect if this box trace is horizontal.
-
-        A precomputed box reads its arrays the other way round from a raw
-        one. Raw samples in ``x`` alone are the values of a horizontal box;
-        but once ``q1``/``median``/``q3`` carry the values, a lone ``x`` is
-        the *positions* of vertical boxes and a lone ``y`` the positions of
-        horizontal ones -- plotly's box defaults, case ``"10"`` -> ``v`` and
-        case ``"01"`` -> ``h``. Applying the raw rule to both swapped the
-        announced value axis for every precomputed box with one array.
-        """
-        if self._trace.get("orientation") == "h":
-            return True
-        # With both a 1-D `x` and `y` (plotly's case "11") the trace sets no
-        # orientation at all: plotly hides it and draws nothing, so the
-        # fall-through `vert` below is a default, not a match.
-        if _has_precomputed_stats(self._trace):
-            return self._trace.get("y") is not None and self._trace.get("x") is None
-        # Plotly uses x for horizontal when y is absent
-        return self._trace.get("x") is not None and self._trace.get("y") is None
+        """Detect if this box trace is horizontal -- see `_trace_is_horizontal`."""
+        return _trace_is_horizontal(self._trace)
 
     def render(self) -> dict:
         schema = super().render()

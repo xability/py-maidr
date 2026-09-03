@@ -12,6 +12,7 @@ from maidr.plotly.box import (
     _compute_stats,
     _has_precomputed_stats,
     _precomputed_box,
+    _trace_is_horizontal,
 )
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
@@ -90,27 +91,10 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
     def _is_horizontal(self) -> bool:
         """Detect if box traces are horizontal.
 
-        A precomputed trace reads its arrays the other way round from a raw
-        one. Raw samples in ``x`` alone are the values of a horizontal box;
-        but once ``q1``/``median``/``q3`` carry the values, a lone ``x`` is
-        the *positions* of vertical boxes and a lone ``y`` the positions of
-        horizontal ones -- plotly's box defaults, case ``"10"`` -> ``v`` and
-        case ``"01"`` -> ``h``. Applying the raw rule to both swapped the
-        announced value axis for every precomputed trace with one array.
+        Any one horizontal trace makes the layer horizontal; each is judged
+        by its own form, precomputed or raw -- see `_trace_is_horizontal`.
         """
-        for trace in self._traces:
-            if trace.get("orientation") == "h":
-                return True
-            # With both a 1-D `x` and `y` (plotly's case "11") the trace sets no
-            # orientation at all: plotly hides it and draws nothing, so the
-            # fall-through `vert` below is a default, not a match.
-            if _has_precomputed_stats(trace):
-                if trace.get("y") is not None and trace.get("x") is None:
-                    return True
-                continue
-            if trace.get("x") is not None and trace.get("y") is None:
-                return True
-        return False
+        return any(_trace_is_horizontal(trace) for trace in self._traces)
 
     def render(self) -> dict:
         schema = super().render()
