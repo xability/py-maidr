@@ -180,3 +180,20 @@ def test_the_candlestick_layer_matches_a_row_by_row_loop(frame, axes):
     candles = CandlestickPlot([axes])._extract_from_dataframe(frame)
     assert candles == _reference_candles(frame)
     assert len(candles) == ROWS - 1
+
+
+@pytest.mark.parametrize(
+    "bad", [np.inf, -np.inf, "n/a"], ids=["inf", "-inf", "non-numeric"]
+)
+def test_a_volume_that_is_not_a_finite_number_is_left_out(bad):
+    """``inf`` would serialise as ``Infinity`` and a string would raise on ``>``."""
+    frame = _frame(INDEXES["daily"])
+    frame["Volume"] = frame["Volume"].astype(object)
+    frame.loc[frame.index[3], "Volume"] = bad
+    converter = create_datetime_converter(frame)
+
+    labels = [label for label, _ in converter.extract_volume_data(None)]
+
+    assert str(frame.index[3]) not in labels
+    assert len(labels) == ROWS - 3
+    assert all(np.isfinite(v) for _, v in converter.extract_volume_data(None))

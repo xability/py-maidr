@@ -122,7 +122,9 @@ class CandlestickPlot(MaidrPlot):
         ``len(df)``.
         """
         try:
-            columns = [df[name].to_numpy() for name in ("Open", "High", "Low", "Close")]
+            columns = [
+                df[name].to_numpy() for name in ("Open", "High", "Low", "Close")
+            ]
         except KeyError:
             return []
         volumes = df["Volume"].to_numpy() if "Volume" in df.columns else None

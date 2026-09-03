@@ -352,7 +352,7 @@ class DatetimeConverter:
         -------
         List[Tuple[str, float]]
             List of tuples containing (formatted_datetime, volume) pairs.
-            Zero and NaN volume values are filtered out.
+            Zero, NaN, infinite and non-numeric volume values are filtered out.
 
         Notes
         -----
@@ -365,8 +365,13 @@ class DatetimeConverter:
         # One mask over the column instead of an ``iloc`` row per bar (#706).
         # The label still comes from ``get_formatted_datetime`` so its text is
         # unchanged.
-        volumes = self.data["Volume"].to_numpy()
-        keep = ~pd.isna(volumes) & (volumes > 0)
+        # ``errors="coerce"`` turns a value that is not a number into NaN, and
+        # ``isfinite`` drops NaN and infinity alike: ``json.dumps`` would write
+        # either as a bare token that ``JSON.parse`` rejects.
+        volumes = pd.to_numeric(self.data["Volume"], errors="coerce").to_numpy(
+            dtype=float
+        )
+        keep = np.isfinite(volumes) & (volumes > 0)
         return [
             (self.get_formatted_datetime(int(i)), float(volumes[i]))
             for i in np.flatnonzero(keep)
