@@ -49,6 +49,9 @@ class Environment:
     @staticmethod
     def is_interactive_shell() -> bool:
         """Return True if the environment is an interactive shell."""
+        # See is_notebook: no shell without the package already loaded.
+        if sys.modules.get("IPython") is None:
+            return False
         try:
             from IPython.core.interactiveshell import InteractiveShell
 
@@ -62,6 +65,15 @@ class Environment:
     @staticmethod
     def is_notebook() -> bool:
         """Return True if the environment is a Jupyter notebook."""
+        # An InteractiveShell cannot exist unless the IPython package is
+        # already imported: get_ipython() is InteractiveShell.instance(),
+        # defined in IPython.core.interactiveshell.  So a plain script must
+        # not pay the ~200 ms IPython import to learn it is not a notebook
+        # -- the same idiom as matplotlib.pyplot.install_repl_displayhook.
+        # ``.get() is None`` also short-circuits a blocked import, where the
+        # entry is a None sentinel.
+        if sys.modules.get("IPython") is None:
+            return False
         try:
             from IPython import get_ipython  # type: ignore
 
@@ -109,6 +121,11 @@ class Environment:
         >>> Environment.is_shiny()
         False  # When not inside a Shiny session
         """
+        # Same argument as is_notebook: a live session cannot exist unless
+        # the shiny package is already imported, so do not pay its import
+        # (~0.2 s cold, on every render) to learn there is none.
+        if "shiny" not in sys.modules:
+            return False
         try:
             from shiny.session import get_current_session
 
@@ -218,6 +235,9 @@ class Environment:
     @staticmethod
     def get_renderer() -> str:
         """Return renderer which can be ipython or browser."""
+        # See is_notebook: no shell without the package already loaded.
+        if sys.modules.get("IPython") is None:
+            return "browser"
         try:
             import IPython  # pyright: ignore[reportUnknownVariableType]
 
