@@ -73,7 +73,9 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
             try:
                 import matplotlib.dates as mdates
 
-                date_nums = [mdates.date2num(d) for d in data.index]
+                # The array form gives the same values as a call per
+                # element, without the Python call per row (#706).
+                date_nums = list(mdates.date2num(data.index))
             except Exception:
                 pass
 

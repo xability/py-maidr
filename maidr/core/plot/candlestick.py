@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Union, Dict
 from matplotlib.axes import Axes
 import pandas as pd
@@ -101,25 +102,54 @@ class CandlestickPlot(MaidrPlot):
         Returns
         -------
         list[dict]
-            List of candlestick data dictionaries with raw values.
+            List of candlestick data dictionaries with raw values. A row whose
+            open, high, low or close is not finite is left out; a missing or
+            non-finite volume is reported as ``0.0``.
+
+        Notes
+        -----
+        The frame is read one column at a time. Building ``df.iloc[i]`` for
+        every row constructs a fresh Series (with dtype upcasting) five times
+        per candle, which came to about 0.5 ms a row -- 39% of a render of a
+        decade of daily bars (#706). Column access gives the same values.
+
+        A row mplfinance draws as a gap (all four prices NaN) is skipped rather
+        than emitted, for the reason `test_non_finite_coordinates.py` gives:
+        ``json.dumps`` writes a bare ``NaN`` token, ``JSON.parse`` rejects it,
+        and the whole figure -- volume bars and moving averages included --
+        loses its accessibility. The SVG still holds a body path and two wick
+        paths for the gap row, which is why `_get_selector` keeps counting
+        ``len(df)``.
         """
+        try:
+            columns = [df[name].to_numpy() for name in ("Open", "High", "Low", "Close")]
+        except KeyError:
+            return []
+        volumes = df["Volume"].to_numpy() if "Volume" in df.columns else None
+        # Raw representation of the index, exactly as ``str(df.index[i])``.
+        dates = [str(date) for date in df.index]
+
         candles = []
-
-        for i in range(len(df)):
+        for i, date_value in enumerate(dates):
             try:
-                # Get date directly from index - raw representation
-                date_value = str(df.index[i])
+                open_price, high_price, low_price, close_price = (
+                    float(column[i]) for column in columns
+                )
+                # Volume when available, otherwise 0
+                volume = float(volumes[i]) if volumes is not None else 0.0
+            except (ValueError, TypeError):
+                continue
 
-                # Get OHLC values directly from DataFrame columns
-                open_price = float(df.iloc[i]["Open"])
-                high_price = float(df.iloc[i]["High"])
-                low_price = float(df.iloc[i]["Low"])
-                close_price = float(df.iloc[i]["Close"])
+            if not all(
+                math.isfinite(price)
+                for price in (open_price, high_price, low_price, close_price)
+            ):
+                continue
+            if not math.isfinite(volume):
+                volume = 0.0
 
-                # Get volume if available, otherwise 0
-                volume = float(df.iloc[i].get("Volume", 0.0))
-
-                candle_data = {
+            candles.append(
+                {
                     "value": date_value,
                     "open": open_price,
                     "high": high_price,
@@ -127,9 +157,7 @@ class CandlestickPlot(MaidrPlot):
                     "close": close_price,
                     "volume": volume,
                 }
-                candles.append(candle_data)
-            except (KeyError, IndexError, ValueError, TypeError):
-                continue
+            )
 
         return candles
 
