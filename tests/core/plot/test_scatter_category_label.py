@@ -159,6 +159,46 @@ class TestWhatMustNotChange:
         assert {sample["xLabel"] for sample in drawn} == {"a", "b", "c"}
 
 
+class TestSnappingToASlot:
+    """How a drawn coordinate finds its slot, pinned where the loop changed.
+
+    #715 moved the sorting of the slots out of the per-point loop and read the
+    coordinates off the collection in one pass. Nothing about *where* a point
+    lands was meant to change, and the one place a rewrite could quietly move
+    one is a tie.
+    """
+
+    def test_a_point_midway_between_two_slots_snaps_to_the_lower_one(self):
+        # `min()` keeps the first of two equally near slots and the slots are
+        # ascending, so a tie goes down. A snap written another way -- an
+        # `argmin` over a reversed list, a `searchsorted` that rounds up --
+        # would move exactly these points and no others, and no chart drawn
+        # by seaborn happens to place one there to notice.
+        _, ax = plt.subplots()
+        collection = ax.scatter(["a", "b", "c"], [1.0, 2.0, 3.0])
+        collection.set_offsets([[0.5, 1.0], [1.5, 2.0], [1.0, 3.0]])
+
+        assert [(p["x"], p["xLabel"]) for p in points(ax)] == [
+            (0.0, "a"),
+            (1.0, "b"),
+            (1.0, "b"),
+        ]
+
+    def test_sampling_with_the_slots_in_hand_reads_as_sampling_does(self):
+        # The scatter loop hands the sorted slots in; a dash or a text label
+        # still asks `_sample` to sort them. Both must be one reading.
+        from maidr.core.plot.scatterplot import ScatterPlot
+
+        x_ticks = {0.0: "a", 1.0: "b", 2.0: "c"}
+        y_ticks = {10.0: "low", 20.0: "high"}
+        x_slots, y_slots = sorted(x_ticks), sorted(y_ticks)
+
+        for x, y in [(-0.3, 9.0), (0.5, 15.0), (1.49, 21.0), (1.5, 14.9), (2.7, 30.0)]:
+            assert ScatterPlot._sample_on(
+                x, y, x_ticks, y_ticks, x_slots, y_slots
+            ) == ScatterPlot._sample(x, y, x_ticks, y_ticks)
+
+
 class TestADateAxis:
     """A tz-aware date axis carries units too, and is not a category axis.
 
