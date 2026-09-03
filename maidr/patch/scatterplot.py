@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import matplotlib.pyplot as plt
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
@@ -9,7 +8,7 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.scatterplot import DRAWN_POINTS, HUE_GROUP, hue_groups
-from maidr.patch.common import drew_nothing
+from maidr.patch.common import drew_nothing, prospective_axes
 from maidr.patch.common import _draw_quietly, wrap_seaborn
 
 
@@ -73,10 +72,16 @@ def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
     # Guessed axes are not trusted: the count is used only when the axes
     # counted is the one the call came back with, which is exact. Anything
     # else declines to decide and registers as before.
-    counted = kwargs.get("ax")
-    if counted is None and plt.get_fignums():
-        counted = plt.gca()
-    before = len(counted.collections) if isinstance(counted, Axes) else None
+    #
+    # Which means it is only ever read for the seaborn binding, whose return
+    # value is the axes. `Axes.scatter` hands its collection back and its
+    # `instance` is the axes, so a count taken there could never be used --
+    # and asking pyplot for a current axes to take it had one effect only:
+    # `plt.gca()` on a pyplot figure with no axes creates one, so an
+    # object-oriented `ax.scatter()` put an empty panel on whatever unrelated
+    # pyplot figure happened to be current (#755).
+    counted = None if isinstance(instance, Axes) else prospective_axes(kwargs)
+    before = len(counted.collections) if counted is not None else None
 
     # Hand the layer the collection this call drew. `ScatterPlot` otherwise
     # takes the *first* `PathCollection` on the axes, which is right only
