@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 import numpy as np
 import wrapt
@@ -328,9 +329,44 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
     return drawn
 
 
+def _looks_smooth(label: str) -> bool:
+    """
+    Whether a line's label says it is a fitted curve.
+
+    A keyword matches as a whole word, because "Profit" is not a fit. The
+    match used to be a substring one, so any label containing ``fit``,
+    ``kde`` or ``density`` -- Profit, Benefit, Fitness -- registered the
+    line as a SMOOTH layer, and the per-axes rule that drops the ``line``
+    duplicate of a fitted curve then took every sibling series on the axes
+    with it: ``ax.plot(label="Profit"); ax.plot(label="Revenue")`` emitted
+    one smooth layer and no Revenue at all (#710).
+
+    A multi-word keyword such as ``linear fit`` is still matched as a
+    phrase, since its words are the boundary; a single-word one has to be
+    a word of the label on its own. Tokens are runs of letters, so
+    ``Group 1 KDE`` and ``kde_1`` both still read as a fit.
+
+    Parameters
+    ----------
+    label : str
+        The line's label, as matplotlib holds it.
+
+    Returns
+    -------
+    bool
+        True when a smooth keyword is a word, or a phrase, of the label.
+    """
+    text = label.lower()
+    tokens = set(re.findall(r"[a-z]+", text))
+    return any(
+        (key in text) if " " in key else (key in tokens) for key in SMOOTH_KEYWORDS
+    )
+
+
 def patched_plot(wrapped, instance, args, kwargs):
     """
-    Patch matplotlib Axes.plot to register SMOOTH layers for MAIDR if the label matches SMOOTH_KEYWORDS.
+    Patch matplotlib Axes.plot to register SMOOTH layers for MAIDR if the
+    label carries a SMOOTH_KEYWORDS entry as a whole word.
     """
     # Call the original plot function
     lines = _draw_quietly(wrapped, args, kwargs)
@@ -341,7 +377,7 @@ def patched_plot(wrapped, instance, args, kwargs):
             label = line.get_label() or ""
             label_str = str(label)
             # Detect if this is a smooth/regression line by label
-            if any(key in label_str.lower() for key in SMOOTH_KEYWORDS):
+            if _looks_smooth(label_str):
                 # Assign a unique gid if not already set
                 if line.get_gid() is None:
                     new_gid = f"maidr-{uuid.uuid4()}"
