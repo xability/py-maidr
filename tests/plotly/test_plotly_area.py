@@ -41,7 +41,9 @@ from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.plotly.area import (  # noqa: E402
     area_plot_type,
     area_stack_groups,
+    groupnorm_scale,
     is_area_trace,
+    normalised_bands,
 )
 from maidr.plotly.area import PlotlyAreaPlot  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
@@ -402,3 +404,189 @@ class TestAreasAndLinesCoexist:
             found = layer["selectors"]
             emitted += found if isinstance(found, list) else [found]
         assert len(emitted) == len(set(emitted))
+
+
+def issue_frame() -> pd.DataFrame:
+    """The figure from #691: two bands whose shares at each x are 3:1 and 1:3."""
+    return pd.DataFrame(
+        {"x": [1, 2, 1, 2], "y": [30, 20, 10, 60], "g": ["D", "D", "P", "P"]}
+    )
+
+
+def values(fig) -> list[list]:
+    return [[point["y"] for point in series] for series in only_layer(fig)["data"]]
+
+
+def bands_of(*series: list[tuple]) -> list[list[dict]]:
+    """Build bands the way ``_line_series_with_positions`` emits them."""
+    return [[{"x": x, "y": y} for x, y in one] for one in series]
+
+
+def ys(bands: list[list[dict]]) -> list[list]:
+    return [[point["y"] for point in series] for series in bands]
+
+
+class TestTheGroupnormScale:
+    @pytest.mark.parametrize(
+        ("groupnorm", "expected"), [("percent", 100.0), ("fraction", 1.0)]
+    )
+    def test_the_two_normalising_settings(self, groupnorm, expected):
+        assert groupnorm_scale([{"groupnorm": groupnorm}]) == expected
+
+    @pytest.mark.parametrize("groupnorm", [None, "", "nonsense", 5, True])
+    def test_everything_else_normalises_nothing(self, groupnorm):
+        assert groupnorm_scale([{"groupnorm": groupnorm}]) is None
+
+    def test_the_first_trace_that_sets_it_governs(self):
+        # plotly's `stack_defaults` reads `groupnorm` from the first trace in
+        # the group that sets it, so a later trace cannot override it.
+        traces = [{}, {"groupnorm": "percent"}, {"groupnorm": "fraction"}]
+        assert groupnorm_scale(traces) == 100.0
+
+
+class TestNormalisedBands:
+    """The scatter rule, which is not the bar rule.
+
+    plotly.js's cross-trace calc for a stack group sums every band's ``s`` at
+    each position and divides by ``(groupnorm === "fraction" ? m : m / 100)
+    || 1`` -- so a zero total divides by 1 rather than becoming a gap the way
+    ``barnorm`` makes it, and there is no per-sign split.
+    """
+
+    def test_fraction_gives_shares_of_one(self):
+        bands = bands_of([(1, 30), (2, 20)], [(1, 10), (2, 60)])
+        assert ys(normalised_bands(bands, 1.0)) == [[0.75, 0.25], [0.25, 0.75]]
+
+    def test_percent_gives_shares_of_a_hundred(self):
+        bands = bands_of([(1, 30), (2, 20)], [(1, 10), (2, 60)])
+        assert ys(normalised_bands(bands, 100.0)) == [[75.0, 25.0], [25.0, 75.0]]
+
+    def test_a_band_that_skips_an_x_contributes_zero_there(self):
+        # plotly's default `stackgaps` is "infer zero", so the lone band at
+        # x=2 is the whole of that column.
+        bands = bands_of([(1, 30), (2, 20)], [(1, 10)])
+        assert ys(normalised_bands(bands, 100.0)) == [[75.0, 100.0], [25.0]]
+
+    def test_totals_are_keyed_by_x_not_by_index(self):
+        bands = bands_of([(1, 30), (2, 20)], [(2, 60), (1, 10)])
+        assert ys(normalised_bands(bands, 1.0)) == [[0.75, 0.25], [0.75, 0.25]]
+
+    def test_a_column_totalling_zero_keeps_its_values(self):
+        # The `|| 1` in plotly's rule: a zero total divides by 1, so the
+        # zeros stay zeros rather than becoming an undefined 0/0. This is
+        # where the scatter rule parts from `barnorm.stack_shares`.
+        bands = bands_of([(1, 0), (2, 3)], [(1, 0), (2, 1)])
+        assert ys(normalised_bands(bands, 100.0)) == [[0.0, 75.0], [0.0, 25.0]]
+
+    def test_a_none_stays_none_and_leaves_the_total_alone(self):
+        bands = bands_of([(1, None), (2, 3)], [(1, 4), (2, 1)])
+        assert ys(normalised_bands(bands, 100.0)) == [[None, 75.0], [100.0, 25.0]]
+
+    def test_a_nan_is_left_alone_too(self):
+        bands = bands_of([(1, float("nan"))], [(1, 4)])
+        got = ys(normalised_bands(bands, 100.0))
+        assert got[0][0] != got[0][0]  # still NaN
+        assert got[1] == [100.0]
+
+    def test_the_input_is_not_mutated(self):
+        bands = bands_of([(1, 30)], [(1, 10)])
+        normalised_bands(bands, 100.0)
+        assert ys(bands) == [[30], [10]]
+
+    def test_the_other_keys_survive(self):
+        bands = [[{"x": 1, "y": 30, "z": "D"}], [{"x": 1, "y": 10, "z": "P"}]]
+        assert normalised_bands(bands, 100.0) == [
+            [{"x": 1, "y": 75.0, "z": "D"}],
+            [{"x": 1, "y": 25.0, "z": "P"}],
+        ]
+
+
+class TestTheEmittedNormalisedLayer:
+    """The layer's values match what plotly draws, as they do for `barnorm`."""
+
+    def test_fraction_reaches_the_layer(self):
+        fig = px.area(issue_frame(), x="x", y="y", color="g", groupnorm="fraction")
+        assert values(fig) == [[0.75, 0.25], [0.25, 0.75]]
+
+    def test_percent_reaches_the_layer(self):
+        fig = px.area(issue_frame(), x="x", y="y", color="g", groupnorm="percent")
+        assert values(fig) == [[75.0, 25.0], [25.0, 75.0]]
+
+    def test_the_type_and_the_values_now_agree(self):
+        fig = px.area(issue_frame(), x="x", y="y", color="g", groupnorm="fraction")
+        layer = only_layer(fig)
+        assert layer["type"] == PlotType.NORMALIZED_AREA.value
+        assert layer["data"][0][0]["y"] == 0.75
+
+    def test_a_band_that_skips_an_x_contributes_zero_there(self):
+        fig = go.Figure(
+            [
+                go.Scatter(x=[1, 2], y=[30, 20], stackgroup="one", groupnorm="percent"),
+                go.Scatter(x=[1], y=[10], stackgroup="one"),
+            ]
+        )
+        assert values(fig) == [[75.0, 100.0], [25.0]]
+
+    def test_a_column_totalling_zero_keeps_its_values(self):
+        fig = go.Figure(
+            [
+                go.Scatter(x=[1, 2], y=[0, 3], stackgroup="one", groupnorm="percent"),
+                go.Scatter(x=[1, 2], y=[0, 1], stackgroup="one"),
+            ]
+        )
+        assert values(fig) == [[0.0, 75.0], [0.0, 25.0]]
+
+    def test_a_stack_without_groupnorm_is_untouched(self):
+        fig = px.area(issue_frame(), x="x", y="y", color="g")
+        assert only_layer(fig)["type"] == PlotType.STACKED_AREA.value
+        assert values(fig) == [[30, 20], [10, 60]]
+
+    def test_a_lone_band_is_untouched(self):
+        single = issue_frame()[lambda d: d.g == "D"]
+        fig = px.area(single, x="x", y="y")
+        assert only_layer(fig)["type"] == PlotType.AREA.value
+        assert values(fig) == [[30, 20]]
+
+    def test_a_groupnorm_on_the_second_trace_alone_still_governs(self):
+        # `stack_defaults` takes the setting from the first trace that has
+        # one, wherever it sits in the group -- and `area_plot_type` already
+        # types the stack that way, so the values must follow the same rule.
+        fig = go.Figure(
+            [
+                go.Scatter(x=[1, 2], y=[30, 20], stackgroup="one"),
+                go.Scatter(x=[1, 2], y=[10, 60], stackgroup="one", groupnorm="percent"),
+            ]
+        )
+        layer = only_layer(fig)
+        assert layer["type"] == PlotType.NORMALIZED_AREA.value
+        assert values(fig) == [[75.0, 25.0], [25.0, 75.0]]
+
+    def test_only_the_group_carrying_groupnorm_is_rescaled(self):
+        fig = go.Figure(
+            [
+                go.Scatter(x=[1], y=[30], stackgroup="one", groupnorm="percent"),
+                go.Scatter(x=[1], y=[10], stackgroup="one"),
+                go.Scatter(x=[1], y=[5], stackgroup="two"),
+            ]
+        )
+        emitted = layers(fig)
+        assert [layer["type"] for layer in emitted] == [
+            PlotType.NORMALIZED_AREA.value,
+            PlotType.AREA.value,
+        ]
+        assert [point["y"] for point in emitted[1]["data"][0]] == [5]
+
+    def test_a_normalised_step_area_keeps_its_direction(self):
+        # The rescale touches the bands only; the step convention rides on
+        # the traces and is unaffected.
+        fig = px.area(
+            issue_frame(),
+            x="x",
+            y="y",
+            color="g",
+            groupnorm="percent",
+            line_shape="hv",
+        )
+        layer = only_layer(fig)
+        assert layer["stepDirection"] == "hv"
+        assert values(fig) == [[75.0, 25.0], [25.0, 75.0]]

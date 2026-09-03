@@ -19,7 +19,10 @@ Both r-maidr paths do exactly that -- base R because the author normalised the
 matrix before calling ``barplot()``, ggplot2 because ``position = "fill"``
 builds its data in 0..1 -- which is what makes py-maidr's plotly path the
 outlier rather than the standard-setter. Contrast ``AreaTrace``, which *does*
-compute its own stack totals, and so is deliberately fed raw values.
+compute its own stack totals, and so is deliberately fed raw values -- for a
+plain stack. It normalises nothing either, so a ``groupnorm`` stack is
+rescaled too, in :mod:`maidr.plotly.area`, under plotly's scatter rule rather
+than this one (#691).
 """
 
 from __future__ import annotations
