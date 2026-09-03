@@ -165,11 +165,12 @@ def edges_of(collection, x_data: np.ndarray, y_data: np.ndarray) -> tuple | None
     between vertices is also what matplotlib does to draw the band, so it
     reads the same shape the reader sees.
 
-    Read in numpy rather than vertex by vertex. The ring is sorted by (x, y),
-    so each column's lowest vertex is where its run starts and its highest is
-    the run's maximum -- the same lowest-and-highest-at-each-x the module
-    docstring describes, without a Python loop over what is, for a long line,
-    a couple of hundred thousand vertices (#714).
+    Read in NumPy rather than vertex by vertex. The ring's vertices are
+    concatenated and sorted by (x, y) first, so each column's lowest vertex is
+    where its run starts and its highest is the run's maximum -- the same
+    lowest-and-highest-at-each-x the module docstring describes, without a
+    Python loop over what is, for a long line, a couple of hundred thousand
+    vertices (#714).
 
     Parameters
     ----------
