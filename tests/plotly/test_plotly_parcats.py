@@ -26,6 +26,7 @@ Two things measured in Chromium decided the rest:
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 # `plotly` is an optional extra; guard it the way the rest of this directory
@@ -191,6 +192,32 @@ def test_a_row_weighs_one_when_the_trace_declares_no_counts() -> None:
     )
 
     assert _flows(layer) == [("A: x", "B: p", 2.0)]
+
+
+@pytest.mark.parametrize("counts", [5, np.int64(5)], ids=["int", "numpy"])
+def test_a_scalar_counts_weighs_every_row(counts) -> None:
+    """A scalar `counts` is the array-of-one-value spelling, not a mistake.
+
+    Plotly declares `counts` as `arrayOk`, so `counts=5` weights every row
+    at five, and `to_dict()` hands a numpy scalar back as a numpy scalar.
+    Either has to read exactly as the list of the same value does; a scalar
+    that fell through to the default announced every flow at weight one.
+    """
+    dimensions = [
+        {"label": "A", "values": ["x", "y", "x"]},
+        {"label": "B", "values": ["p", "p", "q"]},
+    ]
+    (scalar,) = _layers(go.Figure([go.Parcats(dimensions=dimensions, counts=counts)]))
+    (listed,) = _layers(
+        go.Figure([go.Parcats(dimensions=dimensions, counts=[5, 5, 5])])
+    )
+
+    assert _flows(scalar) == _flows(listed)
+    assert _flows(scalar) == [
+        ("A: x", "B: p", 5.0),
+        ("A: y", "B: p", 5.0),
+        ("A: x", "B: q", 5.0),
+    ]
 
 
 def test_a_single_dimension_forms_no_layer() -> None:

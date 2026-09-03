@@ -217,3 +217,49 @@ def test_an_empty_trace_does_not_reserve_a_grid_cell() -> None:
 
     assert [layer["type"] for row in grid for cell in row for layer in cell["layers"]]
     assert sum(len(cell.get("layers", [])) for row in grid for cell in row) == 1
+
+
+def _grid_types(figure: go.Figure) -> list[list[list[str]]]:
+    """The subplot grid as the layer types each cell holds."""
+    grid = PlotlyMaidr(figure)._flatten_maidr()["subplots"]
+    return [
+        [[layer["type"] for layer in cell.get("layers", [])] for cell in row]
+        for row in grid
+    ]
+
+
+def _domain_beside_a_bar(trace: go.BaseTraceType) -> go.Figure:
+    """A domain trace in the left cell of a two-column figure, a bar in the right."""
+    from plotly.subplots import make_subplots
+
+    figure = make_subplots(rows=1, cols=2, specs=[[{"type": "domain"}, {"type": "xy"}]])
+    figure.add_trace(trace, row=1, col=1)
+    figure.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=2)
+    return figure
+
+
+@pytest.mark.parametrize(
+    "trace",
+    [
+        pytest.param(go.Pie(labels=[], values=[]), id="pie-empty"),
+        pytest.param(go.Pie(labels=["a", "b"], values=[]), id="pie-labels-only"),
+        pytest.param(go.Funnelarea(labels=[], values=[]), id="funnelarea-empty"),
+    ],
+)
+def test_an_empty_domain_trace_does_not_reserve_a_grid_cell(trace) -> None:
+    """The same consequence for a trace placed by a ``domain`` rectangle.
+
+    A pie or funnelarea with nothing to draw forms no layer (#638), so its
+    rectangle must not claim a column either: that leaves an empty cell to
+    tab into and shifts the bar beside it into the second column (#702). The
+    rule is the pie's own -- ``labels=["a", "b"]`` with ``values=[]`` draws
+    nothing, whatever the labels say.
+    """
+    assert _grid_types(_domain_beside_a_bar(trace)) == [[["bar"]]]
+
+
+def test_a_drawn_pie_still_reserves_its_grid_cell() -> None:
+    """The control: a pie with a wedge keeps its column beside the bar."""
+    figure = _domain_beside_a_bar(go.Pie(labels=["a"], values=[1]))
+
+    assert _grid_types(figure) == [[["pie"], ["bar"]]]

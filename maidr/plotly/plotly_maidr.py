@@ -15,6 +15,7 @@ from maidr.plotly.candlestick import is_ohlc_trace, layer_position
 from maidr.plotly.geo import geo_block
 from maidr.plotly.gauge import draws_a_dial
 from maidr.plotly.hierarchy import has_one_root, is_hierarchy_trace
+from maidr.plotly.pie import draws_wedges
 from maidr.plotly.area import is_area_trace
 from maidr.plotly.contour import is_contour_trace
 from maidr.plotly.splom import is_splom_trace, splom_panels
@@ -111,10 +112,14 @@ def _occupies_a_cell(trace: dict) -> bool:
     through and shift every renderable subplot beside it into a different
     column.
 
-    Only ``indicator`` splits on that. A pie and a funnelarea are always
-    read; an indicator is read only when it draws a dial, so a
-    ``mode="number"`` one is a domain trace that renders nothing, exactly
-    like a ``go.Table``.
+    Each family answers that with the same rule its extractor uses to form a
+    layer, so the two cannot disagree. An indicator is read only when it
+    draws a dial, so a ``mode="number"`` one is a domain trace that renders
+    nothing, exactly like a ``go.Table``. A hierarchy is read only when it has
+    one root. A pie or funnelarea is read only when it draws a wedge: #638
+    made an empty one form no layer, and until #702 this still handed it a
+    cell, so a figure with an empty pie beside a bar tabbed through an empty
+    first column before reaching the bar in its second.
 
     Parameters
     ----------
@@ -131,6 +136,8 @@ def _occupies_a_cell(trace: dict) -> bool:
         return False
     if kind == "indicator":
         return draws_a_dial(trace)
+    if kind in ("pie", "funnelarea"):
+        return draws_wedges(trace)
     if is_hierarchy_trace(trace):
         return has_one_root(trace)
     return True
