@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pytest
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 
 import plotly.graph_objects as go  # noqa: E402
 

@@ -21,7 +21,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 pd = pytest.importorskip("pandas")
 
 import plotly.express as px  # noqa: E402

@@ -22,7 +22,7 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_maidr import PlotlyMaidr
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 import plotly.graph_objects as go  # noqa: E402
 from plotly.subplots import make_subplots  # noqa: E402
 

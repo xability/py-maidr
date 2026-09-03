@@ -36,7 +36,7 @@ import pytest
 
 from maidr.plotly.violin_stats import violin_stats
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 
 #: Comfortably above the 5.9e-15 worst case measured across eight samples,
 #: and far below the ~1e-2 a wrong rule moves things by.

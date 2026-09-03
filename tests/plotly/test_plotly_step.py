@@ -11,7 +11,7 @@ from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory
 from maidr.plotly.step import PlotlyStepPlot
 from maidr.plotly.step_shape import group_by_direction, step_direction_of
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 import plotly.graph_objects as go  # noqa: E402
 
 

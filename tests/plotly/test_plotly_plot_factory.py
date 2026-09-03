@@ -13,7 +13,7 @@ from maidr.plotly.histogram import PlotlyHistogramPlot
 from maidr.plotly.pie import PlotlyPiePlot
 from maidr.plotly.candlestick import PlotlyCandlestickPlot
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 
 
 class TestPlotlyPlotFactory:

@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import pytest
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 
 import pandas as pd  # noqa: E402
 import plotly.express as px  # noqa: E402

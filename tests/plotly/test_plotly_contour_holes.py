@@ -40,7 +40,7 @@ import pytest
 
 # `plotly` is an optional extra; guard it the way the rest of this directory
 # does, so a minimal install skips rather than failing at collection.
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 
 import numpy as np  # noqa: E402
 import plotly.graph_objects as go  # noqa: E402

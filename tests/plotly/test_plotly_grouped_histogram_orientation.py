@@ -27,7 +27,7 @@ import warnings
 
 import pytest
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 import plotly.graph_objects as go  # noqa: E402
 
 from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402

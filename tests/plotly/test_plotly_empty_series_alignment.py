@@ -22,7 +22,7 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.plotly.multiline import PlotlyMultiLinePlot
 from maidr.plotly.step import PlotlyStepPlot
 
-plotly = pytest.importorskip("plotly")
+pytest.importorskip("plotly")
 
 
 def _step(x: list, y: list, name: str) -> dict:
