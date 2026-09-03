@@ -740,3 +740,98 @@ class TestPlotlyFigureMetadata:
         metadata = pm._figure_metadata()
 
         assert metadata == {MaidrKey.TITLE: "Overview"}
+
+
+class TestPlotlyEmbeddedSchema:
+    """The `var maidrSchema = {...}` literal inside the init script."""
+
+    def test_embedded_schema_is_emitted_compact_and_round_trips(self, monkeypatch):
+        """Compact on the wire, equal once parsed.
+
+        The browser re-serialises the literal with ``JSON.stringify`` so
+        indentation never reaches the DOM, and passing ``indent`` to
+        ``json.dumps`` drops CPython's C encoder -- 5-6x slower and ~2.8x
+        the bytes on a 50k-point line. The consumed slice holding no
+        newline is what pins the C-encoder path.
+        """
+        import json
+
+        fig = go.Figure(go.Scatter(x=[1, 2, 3], y=[4, 5, 6], mode="lines"))
+        pm = PlotlyMaidr(fig)
+
+        # Every flatten mints fresh subplot ids, so the reference is the
+        # schema the page was actually handed rather than a second flatten.
+        handed = []
+        flatten = pm._flatten_maidr
+
+        def recording_flatten():
+            handed.append(flatten())
+            return handed[-1]
+
+        monkeypatch.setattr(pm, "_flatten_maidr", recording_flatten)
+        html_str = str(pm.render().get_html_string())
+
+        marker = "var maidrSchema = "
+        start = html_str.index(marker) + len(marker)
+        embedded, consumed = json.JSONDecoder().raw_decode(html_str[start:])
+
+        assert len(handed) == 1
+        assert embedded == json.loads(json.dumps(handed[0]))
+        assert "\n" not in html_str[start : start + consumed]
+
+
+class TestPlotlyShow:
+    """``show()`` builds the page exactly once, whichever way it is shown."""
+
+    @pytest.fixture
+    def build_count(self, monkeypatch):
+        """Count calls to ``_create_html_tag`` without changing its result."""
+        from maidr.plotly import plotly_maidr as module
+
+        calls = []
+        original = module.PlotlyMaidr._create_html_tag
+
+        def counted(self, *args, **kwargs):
+            calls.append(kwargs)
+            return original(self, *args, **kwargs)
+
+        monkeypatch.setattr(module.PlotlyMaidr, "_create_html_tag", counted)
+        return calls
+
+    def test_show_in_browser_builds_the_document_once(
+        self, plotly_bar_fig, build_count, monkeypatch
+    ):
+        """The browser path renders through ``save_html``.
+
+        Building the Tag before deciding on the renderer serialised the
+        figure and the schema twice and threw the first copy away -- 2.9x
+        the time of ``save_html`` alone on a 50k-point line.
+        """
+        from maidr.plotly import plotly_maidr as module
+        from maidr.util.environment import Environment
+
+        opened = []
+        monkeypatch.setattr(module.webbrowser, "open", lambda url: opened.append(url))
+        monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: False))
+        monkeypatch.setattr(
+            Environment, "get_renderer", staticmethod(lambda: "browser")
+        )
+
+        PlotlyMaidr(plotly_bar_fig).show()
+
+        assert len(opened) == 1
+        assert len(build_count) == 1
+
+    def test_show_in_ipython_builds_the_document_once(
+        self, plotly_bar_fig, build_count, monkeypatch
+    ):
+        """The reorder must not cost the notebook path its one build."""
+        from maidr.util.environment import Environment
+
+        monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: False))
+        monkeypatch.setattr("htmltools._core.Tag.show", lambda self, *a, **k: "shown")
+
+        shown = PlotlyMaidr(plotly_bar_fig).show(renderer="ipython")
+
+        assert shown == "shown"
+        assert len(build_count) == 1

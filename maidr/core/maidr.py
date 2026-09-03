@@ -274,19 +274,23 @@ class Maidr:
                 # the bundle is unreachable.
                 pass
 
-        html = self._create_html_tag(
-            use_iframe=True, use_cdn=use_cdn
-        )  # Always use iframe for display
-
         # Use the passed renderer parameter, fallback to auto-detection
         if renderer == "auto":
             _renderer = cast(Literal["ipython", "browser"], Environment.get_renderer())
         else:
             _renderer = renderer
 
-        # Only try browser opening if explicitly requested as browser and not in notebook
+        # Only try browser opening if explicitly requested as browser and not
+        # in notebook. That path renders through `save_html`, which builds
+        # the whole document itself, so the Tag must not be built ahead of
+        # this decision: it would rasterise the SVG and dump the schema
+        # twice and throw the first copy away.
         if _renderer == "browser" and not Environment.is_notebook():
             return self._open_plot_in_browser(use_cdn=use_cdn)
+
+        html = self._create_html_tag(
+            use_iframe=True, use_cdn=use_cdn
+        )  # Always use iframe for display
 
         if clear_fig:
             plt.close()
@@ -520,10 +524,13 @@ class Maidr:
         # is in one and not the other -- see :mod:`maidr.util.render_census`.
         warn_if_figure_changed(drawn_before, self._fig)
 
-        # Generate external payload if data is not embedded in SVG
+        # Generate external payload if data is not embedded in SVG.
+        # No `indent`: it would switch json to its pure-Python encoder
+        # (~6x slower, twice the bytes at 100k points) for whitespace the
+        # engine parses straight back out. Same in `_get_svg`.
         maidr = None
         if not data_in_svg:
-            maidr = f"\nvar maidr = {json.dumps(schema, indent=2)}\n"
+            maidr = f"\nvar maidr = {json.dumps(schema)}\n"
 
         # Inject plot's svg and MAIDR structure into html tag.
         return Maidr._inject_plot(
@@ -952,7 +959,10 @@ class Maidr:
             if isinstance(current_schema, dict) and "id" in current_schema:
                 element.attrib["id"] = str(current_schema["id"])  # ensure match
             if embed_data:
-                element.attrib["maidr"] = json.dumps(current_schema, indent=2)
+                # Compact on purpose: an attribute value is one line to a
+                # reader anyway (newlines become `&#10;`), and `indent`
+                # would cost the C encoder -- see `_create_html_tag`.
+                element.attrib["maidr"] = json.dumps(current_schema)
             root_svg = element
             break
 

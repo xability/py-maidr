@@ -200,3 +200,50 @@ def test_figure_metadata_survives_svg_embedding():
         assert embedded["id"] == root.attrib["id"]
     finally:
         plt.close(fig)
+
+
+def test_the_embedded_schema_is_compact(monkeypatch):
+    """Both embeddings are written without indentation.
+
+    The ``maidr`` attribute is one line to a reader anyway (newlines become
+    ``&#10;``) and the ``var maidr`` script is parsed straight back out, so
+    the whitespace bought nothing -- while passing ``indent`` to
+    ``json.dumps`` drops CPython's C encoder, ~6x slower and twice the
+    bytes on a 100k-point line. Equality once parsed is the contract; no
+    newline in either literal pins the C-encoder path.
+    """
+    import json
+
+    from lxml import etree
+
+    fig, ax = plt.subplots()
+    try:
+        ax.bar(["a", "b"], [1, 2])
+        fig.suptitle("Sales by Region")
+
+        m = FigureManager.get_maidr(fig)
+
+        # Every flatten mints fresh ids, so the reference is the schema each
+        # embedding was actually handed rather than a second flatten.
+        handed = []
+        flatten = m._flatten_maidr
+
+        def recording_flatten():
+            handed.append(flatten())
+            return handed[-1]
+
+        monkeypatch.setattr(m, "_flatten_maidr", recording_flatten)
+
+        svg = str(m._get_svg(embed_data=True))
+        attribute = etree.fromstring(svg.encode(), parser=None).attrib["maidr"]
+        assert json.loads(attribute) == json.loads(json.dumps(handed[-1]))
+        assert "\n" not in attribute
+
+        html_str = str(m._create_html_tag(data_in_svg=False, use_cdn=True))
+        marker = "var maidr = "
+        start = html_str.index(marker) + len(marker)
+        script, consumed = json.JSONDecoder().raw_decode(html_str[start:])
+        assert script == json.loads(json.dumps(handed[-1]))
+        assert "\n" not in html_str[start : start + consumed]
+    finally:
+        plt.close(fig)
