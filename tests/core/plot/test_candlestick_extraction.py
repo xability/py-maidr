@@ -104,6 +104,17 @@ def test_a_non_finite_price_skips_the_row(extract):
     assert extract(frame) == [EXPECTED[0], EXPECTED[2], EXPECTED[4]]
 
 
+def test_a_non_numeric_volume_is_zero_and_the_prices_survive(extract):
+    # A stray string in Volume is no reason to lose the candle: the prices
+    # are read, and the volume is reported as it would be for a NaN.
+    frame = _frame(Volume=[10, "n/a", 30, 40, 50])
+
+    candles = extract(frame)
+    assert len(candles) == 5
+    assert candles[1] == dict(EXPECTED[1], volume=0.0)
+    assert [candles[i] for i in (0, 2, 3, 4)] == [EXPECTED[i] for i in (0, 2, 3, 4)]
+
+
 def test_a_non_finite_volume_is_reported_as_zero(extract):
     # The same value the frame gets when it carries no Volume at all.
     frame = _frame(Volume=[10, 20, np.nan, 40, 50])

@@ -103,8 +103,8 @@ class CandlestickPlot(MaidrPlot):
         -------
         list[dict]
             List of candlestick data dictionaries with raw values. A row whose
-            open, high, low or close is not finite is left out; a missing or
-            non-finite volume is reported as ``0.0``.
+            open, high, low or close is not finite or not a number is left out;
+            a missing, non-finite or non-numeric volume is reported as ``0.0``.
 
         Notes
         -----
@@ -127,7 +127,14 @@ class CandlestickPlot(MaidrPlot):
             ]
         except KeyError:
             return []
-        volumes = df["Volume"].to_numpy() if "Volume" in df.columns else None
+        # A stray string in Volume is no reason to lose the candle: coerced to
+        # NaN here, it is reported as 0.0 below, exactly like a NaN in the
+        # frame, and the prices are read as usual.
+        volumes = (
+            pd.to_numeric(df["Volume"], errors="coerce").to_numpy(dtype=float)
+            if "Volume" in df.columns
+            else None
+        )
         # Raw representation of the index, exactly as ``str(df.index[i])``.
         dates = [str(date) for date in df.index]
 
@@ -137,8 +144,6 @@ class CandlestickPlot(MaidrPlot):
                 open_price, high_price, low_price, close_price = (
                     float(column[i]) for column in columns
                 )
-                # Volume when available, otherwise 0
-                volume = float(volumes[i]) if volumes is not None else 0.0
             except (ValueError, TypeError):
                 continue
 
@@ -147,6 +152,8 @@ class CandlestickPlot(MaidrPlot):
                 for price in (open_price, high_price, low_price, close_price)
             ):
                 continue
+            # Volume when available, otherwise 0
+            volume = float(volumes[i]) if volumes is not None else 0.0
             if not math.isfinite(volume):
                 volume = 0.0
 
