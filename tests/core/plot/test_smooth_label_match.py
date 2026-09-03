@@ -75,6 +75,18 @@ def test_a_label_that_is_a_keyword_is_still_a_fit(label):
     assert "smooth" in kinds
 
 
+def test_a_phrase_straddling_two_words_does_not_take_the_revenue_line_with_it():
+    # The same loss by another door. The phrase keyword "linear fit" was
+    # still a substring test, and "Nonlinear fitness" holds those letters
+    # across a word break -- so the line typed as a fit and Revenue went
+    # with it, exactly the reading #710 was about.
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [10, 12, 9], label="Nonlinear fitness")
+    ax.plot([1, 2, 3], [20, 25, 21], label="Revenue")
+
+    assert _layers(fig) == [("line", 2)]
+
+
 def test_a_profit_line_does_not_take_the_revenue_line_with_it():
     # The regression itself, by name. The mis-typing was the cause; the
     # missing sibling series is what a reader would have met.
@@ -96,8 +108,18 @@ def test_a_profit_line_does_not_take_the_revenue_line_with_it():
         ("kde_1", True),
         ("Density", True),
         ("linear regression", True),
-        # A multi-word keyword is a phrase, so its words are its boundary.
+        # A multi-word keyword is a phrase that starts on a word boundary. Its
+        # last word may run on, as a single-word keyword's may not.
+        ("Linear fit", True),
         ("Linear fitting", True),
+        ("a linear fit of y", True),
+        # The phrase's words are not a boundary of their own: as a substring,
+        # "linear fit" spans "...linear" and "fit..." here (#710, again).
+        ("Nonlinear fitness", False),
+        ("Nonlinear fits", False),
+        ("Nonlinear fitting", False),
+        # Though "fit" as a whole word of its own still is one.
+        ("Nonlinear fit", True),
         ("Fitness benefit", False),
         ("", False),
     ],
