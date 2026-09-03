@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import io
 import json
+import threading
 from urllib.error import HTTPError
 
 import pytest
@@ -227,6 +228,43 @@ def test_a_reset_discards_the_verdict_with_the_lookup(monkeypatch, clean) -> Non
     cdn.reset_cdn_version_cache()
 
     assert freshness.resolver_outcome() is None
+
+
+def test_a_reset_during_a_lookup_discards_its_verdict(monkeypatch, clean) -> None:
+    """The concurrent half of the promise the test above pins.
+
+    ``reset_cdn_version_cache`` bumps a generation counter rather than
+    taking the fetch lock, and the fetcher declines to publish a *version*
+    from a superseded generation. The *verdict* was written by the fetch
+    itself, unguarded, so an abandoned lookup landed its outcome after the
+    reset had cleared the previous one -- and a monitor reading it saw the
+    abandoned lookup as the current one, on a cache that says no lookup
+    has happened.
+    """
+    in_flight = threading.Event()
+    may_finish = threading.Event()
+
+    def slow_responder(request, timeout=None):
+        in_flight.set()
+        may_finish.wait(timeout=5)
+        return json_body({"version": "9.9.9"})(request, timeout)
+
+    answer_with(monkeypatch, slow_responder)
+
+    fetcher = threading.Thread(target=cdn.get_cdn_version)
+    fetcher.start()
+
+    assert in_flight.wait(timeout=5), "the lookup never started"
+    cdn.reset_cdn_version_cache()
+    may_finish.set()
+    fetcher.join(timeout=5)
+
+    assert cdn._cached_resolution() is None, (
+        "the pre-reset result was published anyway, undoing the reset"
+    )
+    assert freshness.resolver_outcome() is None, (
+        "the abandoned lookup's verdict was published over the reset"
+    )
 
 
 def test_the_render_path_is_unchanged_by_any_of_it(monkeypatch, clean) -> None:

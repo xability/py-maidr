@@ -385,6 +385,15 @@ def get_cdn_version() -> str:
       which is how an app that wants the newer release gets it without
       any render paying for the request.
 
+    The same applies to every Jupyter/IPython kernel, where each cell
+    executes on the kernel's event loop: a notebook on the default setting
+    serves the bundled version for the life of the kernel and never arms
+    :func:`warn_if_bundle_is_stale`.  There is no synchronous start-up
+    code in a notebook, so the way to move off the bundled version there
+    is ``MAIDR_CDN_VERSION``, :func:`set_cdn_version`, or one explicit
+    :func:`maidr.bundle_status` call, which resolves regardless of the
+    loop and caches the answer.
+
     Synchronous callers are unaffected, including threads: they still
     resolve once per process and queue on ``_fetch_lock`` while the first
     of them does.  That queueing is not fixed here; it is the event loop
@@ -642,6 +651,15 @@ def _resolution_would_block() -> bool:
     the process.  Resolving once from synchronous code at start-up is
     therefore the way to have an async app serve the resolved version.
 
+    The same applies to every Jupyter/IPython kernel, where each cell
+    executes on the kernel's event loop: a notebook on the default setting
+    serves the bundled version for the life of the kernel and never arms
+    :func:`warn_if_bundle_is_stale`.  A notebook has no synchronous
+    start-up code, so the way off the bundled version there is
+    ``MAIDR_CDN_VERSION``, :func:`set_cdn_version`, or one explicit
+    :func:`maidr.bundle_status` call, which resolves regardless of the
+    loop and caches the answer.
+
     Returns
     -------
     bool
@@ -707,7 +725,9 @@ def reset_cdn_version_cache() -> None:
     version afterwards still queues on ``_fetch_lock`` behind the
     abandoned request, and only then makes its own.  What the generation
     counter guarantees is that the abandoned answer is discarded rather
-    than published over the reset.
+    than published over the reset -- its :func:`resolver_outcome` with
+    it, since that verdict lands after this call cleared the previous one
+    and would otherwise be read as the current one.
     """
     global _resolved_cdn_version, _resolution_attempted, _resolution_generation
     global _resolver_outcome
@@ -1034,9 +1054,12 @@ def _resolve_latest_version() -> str | None:
     A :func:`reset_cdn_version_cache` call that lands while this lookup is
     in flight wins: the result is returned to *this* caller but not
     cached, so the next render re-resolves rather than seeing the answer
-    the reset asked to discard.
+    the reset asked to discard.  The verdict :func:`_fetch_latest_version`
+    recorded for it is dropped with it, because that reset cleared
+    :func:`resolver_outcome` and the abandoned lookup's verdict would
+    otherwise land after the reset and read as the current one.
     """
-    global _resolved_cdn_version, _resolution_attempted
+    global _resolved_cdn_version, _resolution_attempted, _resolver_outcome
     attempted, value = _resolution_state()
     if attempted:
         return value
@@ -1080,6 +1103,11 @@ def _resolve_latest_version() -> str | None:
             if generation == _resolution_generation:
                 _resolved_cdn_version = result
                 _resolution_attempted = True
+            else:
+                # The verdict belongs to the lookup the reset abandoned,
+                # and it landed after the reset cleared the previous one
+                # -- so it would otherwise be read as current.
+                _resolver_outcome = None
         return result
 
 
@@ -1102,6 +1130,12 @@ def _fetch_latest_version(budget: float) -> str | None:
     -----
     Never raises: a version lookup failing must degrade to the ``@latest``
     URL, not break rendering.
+
+    Records its verdict in :data:`_resolver_outcome` unconditionally, as a
+    lone reference assignment.  Whether that verdict still describes the
+    current lookup is the caller's question: :func:`_resolve_latest_version`
+    is the one holding the generation it started under, so it is the one
+    that discards the verdict when a reset intervened.
 
     The budget is approximate, not a hard ceiling.  It is enforced by
     handing each attempt the remaining time as its socket timeout, and
