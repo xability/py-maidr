@@ -140,6 +140,14 @@ class HighlightContextManager:
         # dict installed once would still be shared across every concurrent
         # render. See the class docstring.
         #
+        # `zip` would silently drop the tail of a mismatched pair, where the
+        # old `selector_ids[index]` raised; keep the failure loud.
+        if len(elements) != len(selector_ids):
+            raise ValueError(
+                f"{len(elements)} elements to highlight but "
+                f"{len(selector_ids)} selector ids; they must pair one to one"
+            )
+
         # `setdefault` keeps the first selector for an artist listed twice,
         # which is what `list.index` gave and what #376 relies on.
         selector_by_element: dict = {}

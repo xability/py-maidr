@@ -98,6 +98,15 @@ def test_an_artist_that_was_never_tagged_is_left_alone():
         assert not HighlightContextManager.is_maidr_element("gid-tagged")
 
 
+def test_a_mismatched_elements_and_selectors_pair_is_refused():
+    """``zip`` would drop the tail silently; the old indexing raised."""
+    elements = [Rectangle((0, 0), 1, 1), Rectangle((1, 0), 1, 1)]
+
+    with pytest.raises(ValueError, match=r"2 elements .* 1 selector"):
+        with HighlightContextManager.set_maidr_elements(elements, ["only"]):
+            pass  # pragma: no cover - never entered
+
+
 def test_outside_a_render_nothing_is_tagged():
     """The class-wide ``draw`` patch runs for every figure, rendered or not."""
     with HighlightContextManager.set_maidr_element(Rectangle((0, 0), 1, 1), "gid"):
