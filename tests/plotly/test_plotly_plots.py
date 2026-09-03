@@ -455,7 +455,9 @@ class TestPlotlyMultiBoxPlot:
         "extra, expected",
         [
             ({"x": [0, 1, 2]}, "vert"),
+            ({"x": ["a", "b", "c"]}, "vert"),
             ({"y": [0, 1, 2]}, "horz"),
+            ({"y": ["a", "b", "c"]}, "horz"),
             ({}, "vert"),
             ({"y": [0, 1, 2], "orientation": "h"}, "horz"),
         ],
