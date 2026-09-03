@@ -239,6 +239,47 @@ def test_a_level_the_field_only_touches_draws_no_curve() -> None:
     assert "g.contourlevel:nth-of-type(2)" in layer["selectors"][0]
 
 
+def test_a_dense_field_emits_plain_floats() -> None:
+    """A noisy field traces thousands of short curves, each read off in one go.
+
+    Building the series from ``curve.tolist()`` rather than indexing every
+    vertex is where a dense field's Python-side cost went (#701). It must be
+    invisible: every coordinate is still a Python ``float`` -- not an
+    ``np.float64`` for the JSON encoder to choke on -- and still the vertex
+    ``contourpy`` traced, exactly.
+    """
+    from contourpy import contour_generator
+
+    x, y = list(range(12)), list(range(12))
+    z = np.random.default_rng(701).random((12, 12))
+    levels = [0.25, 0.5, 0.75]
+    figure = go.Figure(
+        go.Contour(
+            x=x,
+            y=y,
+            z=z.tolist(),
+            contours=dict(coloring="lines", start=0.25, end=0.75, size=0.25),
+        )
+    )
+    generator = contour_generator(
+        x=x, y=y, z=z, name="mpl2014", line_type="SeparateCode"
+    )
+    curves = [curve for level in levels for curve in generator.lines(level)[0]]
+
+    (layer,) = _layers(figure)
+
+    # Dozens of short curves, so it is the per-curve path being exercised
+    # rather than one ring.
+    assert len(layer["data"]) == len(curves) > 30
+    for series, curve in zip(layer["data"], curves):
+        # `is float` rather than `isinstance`: `np.float64` is a `float`
+        # subclass, and it is the subclass this guards against.
+        assert {type(v) for p in series for v in (p["x"], p["y"])} == {float}
+        assert [(p["x"], p["y"]) for p in series] == [
+            (float(v[0]), float(v[1])) for v in curve
+        ]
+
+
 def test_a_layer_with_an_island_ships_without_a_highlight() -> None:
     """Plotly's order for a level's curves is its own, and not derivable.
 

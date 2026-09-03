@@ -40,6 +40,9 @@ equal. The comparison is elementwise for that reason.
 
 from __future__ import annotations
 
+import math
+import warnings
+
 import pytest
 
 plotly = pytest.importorskip("plotly")
@@ -231,6 +234,108 @@ class TestBothCallersSeedTheShiftEquivalently:
         )
 
         assert from_explicit == pytest.approx(from_autobin, abs=1e-12)
+
+
+def _shift_by_plotly_loop(
+    bin_start: float,
+    data: np.ndarray,
+    dtick: float,
+    data_min: float,
+    data_max: float,
+) -> float:
+    """``_auto_shift_bins`` as it was before #701: plotly's loop, verbatim.
+
+    Kept as the reference because it is the port that was measured against
+    the browser. The numpy form is only right insofar as it agrees with this
+    on every sample, so the comparison is exact rather than approximate.
+    """
+    edge_count = 0
+    mid_count = 0
+    int_count = 0
+
+    def near_edge(v: float) -> bool:
+        return (1 + (v - bin_start) * 100 / dtick) % 100 < 2
+
+    for v in data:
+        if v % 1 == 0:
+            int_count += 1
+        if near_edge(v):
+            edge_count += 1
+        if near_edge(v + dtick / 2):
+            mid_count += 1
+
+    n = len(data)
+    if n == 0:
+        return bin_start
+
+    if int_count == n:
+        if dtick < 1:
+            return data_min - 0.5 * dtick
+        else:
+            shifted = bin_start - 0.5
+            if shifted + dtick < data_min:
+                shifted += dtick
+            return shifted
+
+    if mid_count < n * 0.1:
+        if edge_count > n * 0.3 or near_edge(data_min) or near_edge(data_max):
+            binshift = dtick / 2
+            if bin_start + binshift < data_min:
+                return bin_start + binshift
+            else:
+                return bin_start - binshift
+
+    return bin_start
+
+
+class TestTheCountsAreTakenInNumpy:
+    """``_auto_shift_bins`` counts its samples elementwise, and exactly.
+
+    The per-sample loop was most of a histogram's render at 50k samples
+    (#701), so the three counts the branches consume are now numpy
+    reductions. They are the same IEEE operations the loop performed, on
+    the same ``np.float64`` values, so the start they choose is bit-identical
+    -- which this pins, rather than approximates, against a copy of that
+    loop over seeded samples of every shape the predicates react to: whole
+    numbers, values rounded to a decimal or two, values sitting at an offset,
+    values far below the width, and a ``nan``.
+    """
+
+    #: One draw of a few hundred samples per kind, seeded so a mismatch is
+    #: reproducible.
+    KINDS = {
+        "normal": lambda rng: rng.normal(size=300),
+        "integer": lambda rng: rng.integers(-20, 20, size=300).astype(float),
+        "one decimal": lambda rng: np.round(rng.normal(size=300) * 5, 1),
+        "two decimals": lambda rng: np.round(rng.normal(size=300) * 5, 2),
+        "offset uniform": lambda rng: rng.uniform(0.25, 9.25, size=300),
+        "sub-milli": lambda rng: rng.normal(size=300) * 1e-3,
+        "with a nan": lambda rng: np.append(rng.normal(size=300), np.nan),
+    }
+
+    #: Both seeds the callers pass -- see the class above.
+    SEEDS = {
+        "autobin": lambda low, width: math.ceil(low / width) * width - width,
+        "explicit": lambda low, width: math.floor(low / width) * width,
+    }
+
+    @pytest.mark.parametrize("kind", sorted(KINDS))
+    @pytest.mark.parametrize("width", [0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10])
+    @pytest.mark.parametrize("seed", sorted(SEEDS))
+    def test_the_vectorised_counts_match_the_plotly_loop(self, kind, width, seed):
+        arr = self.KINDS[kind](np.random.default_rng(701))
+        low, high = float(np.nanmin(arr)), float(np.nanmax(arr))
+        start = self.SEEDS[seed](low, width)
+
+        # The loop is the one that may warn, on the `nan` sample; the numpy
+        # form must not, because a render is not the place for one.
+        with np.errstate(invalid="ignore"):
+            expected = _shift_by_plotly_loop(start, arr, width, low, high)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            actual = _auto_shift_bins(start, arr, width, low, high)
+
+        assert float(actual) == float(expected)
 
 
 class TestNothingToAnnounce:
