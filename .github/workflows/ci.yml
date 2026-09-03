@@ -149,9 +149,6 @@ jobs:
             exit 1
           fi
 
-      - name: Install the project
-        run: uv sync --locked --all-extras --dev
-
       - name: Check format with ruff
         uses: astral-sh/ruff-action@v3
         with:
