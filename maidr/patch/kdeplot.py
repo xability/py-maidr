@@ -237,10 +237,16 @@ def deferred_names(resolve, count: int) -> list:
 
 
 def _register_smooth(
-    ax: Axes | None, instance, args, kwargs, faceted: bool = False
+    ax: Axes | None,
+    instance,
+    args,
+    kwargs,
+    faceted: bool = False,
+    before_lines: set | frozenset = frozenset(),
+    before_fills: set | frozenset = frozenset(),
 ) -> None:
     """
-    Register every KDE curve on one axes as a SMOOTH layer.
+    Register the KDE curves this call drew on one axes as SMOOTH layers.
 
     Split out of :func:`kde` so ``seaborn.displot(kind="kde")`` can reuse it.
     ``displot`` does not import ``kdeplot`` -- it drives
@@ -249,6 +255,16 @@ def _register_smooth(
     ``line`` where the axes-level function gives ``smooth`` (#446). A fitted
     curve is not a series of observations, and `smooth` is the type that says
     so.
+
+    Only what *this call* drew, not everything on the axes. The sweep used to
+    take every line and every band it found, so a second ``kdeplot`` on the
+    same axes registered the first call's curve again -- and for a filled
+    one moved the band's gid onto the new layer, leaving the first layer
+    selecting a group no artist carried -- while a caller's own ``ax.plot``
+    was re-announced as a fitted curve and a ``fill_between`` as the smooth
+    of its outline (#711). The before/after snapshot is the answer
+    ``maidr/patch/regplot.py`` gave the same problem (#451): whatever was
+    on the axes beforehand already belongs to whichever call drew it.
 
     Parameters
     ----------
@@ -260,10 +276,18 @@ def _register_smooth(
     faceted : bool
         Whether this panel is one of several, which is what lets a panel
         holding a single curve still be named (#608).
+    before_lines, before_fills : set or frozenset
+        The lines and collections already on the axes before the call drew,
+        which are skipped. Empty by default, which is right for ``displot``:
+        its panels are fresh, so everything on them is its own.
     """
     if ax is not None:
-        # Register all unique Line2D objects
-        lines = [line for line in ax.get_lines() if isinstance(line, Line2D)]
+        # The Line2D curves this call drew, deduplicated by their data
+        lines = [
+            line
+            for line in ax.get_lines()
+            if isinstance(line, Line2D) and line not in before_lines
+        ]
         curves = list(unique_lines_by_xy(lines))
         for kde_line, name in zip(
             curves,
@@ -279,8 +303,12 @@ def _register_smooth(
                 args,
                 dict(kwargs, regression_line=kde_line, **{GROUP_NAME: name}),
             )
-        # Register all PolyCollection boundaries as SMOOTH
-        fills = [c for c in ax.collections if isinstance(c, PolyCollection)]
+        # The PolyCollection bands this call drew, each read as its boundary
+        fills = [
+            c
+            for c in ax.collections
+            if isinstance(c, PolyCollection) and c not in before_fills
+        ]
         for poly, fill_name in zip(
             fills, deferred_names(lambda: _fill_names(ax, fills, faceted), len(fills))
         ):
@@ -316,13 +344,27 @@ def kde(wrapped, instance, args, kwargs) -> Axes | Line2D | PolyCollection:
     bivariate one is a scalar field drawn as iso-value curves and registers as
     ``contour``; see :func:`_register_field` for why that has to happen here.
     """
-    before = _contour_sets_of(prospective_axes(kwargs))
+    target = prospective_axes(kwargs)
+    before = _contour_sets_of(target)
+    # The artists themselves rather than their ids, for the reason
+    # `maidr/patch/regplot.py` gives: an id is only unique while its object
+    # is, and holding the artist keeps it so. Sets, because membership is
+    # asked once per artist drawn.
+    before_lines = set(target.lines) if target is not None else set()
+    before_fills = set(target.collections) if target is not None else set()
 
     with ContextManager.set_internal_context():
         plot = _draw_quietly(wrapped, args, kwargs)
     ax = plot if isinstance(plot, Axes) else getattr(plot, "axes", None)
     _register_field(ax, before)
-    _register_smooth(ax, instance, args, kwargs)
+    _register_smooth(
+        ax,
+        instance,
+        args,
+        kwargs,
+        before_lines=before_lines,
+        before_fills=before_fills,
+    )
     return plot
 
 
