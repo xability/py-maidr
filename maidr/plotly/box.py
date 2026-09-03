@@ -143,7 +143,9 @@ def _precomputed_box(
     q1, median, q3, lowerfence, upperfence : Any
         The box's precomputed values, as native scalars.
     label : str
-        The box's name, for the warning when it is dropped.
+        The box's name: announced as ``z`` when it is not empty, the way
+        ``_compute_stats`` announces a raw box's category, and named in
+        the warning when the box is dropped.
     """
     if not (
         _is_finite_number(q1)
@@ -160,7 +162,7 @@ def _precomputed_box(
     min_val = lowerfence if _is_finite_number(lowerfence) and lowerfence <= q1 else q1
     max_val = upperfence if _is_finite_number(upperfence) and upperfence >= q3 else q3
 
-    return {
+    result = {
         MaidrKey.LOWER_OUTLIER.value: [],
         MaidrKey.MIN.value: min_val,
         MaidrKey.Q1.value: q1,
@@ -169,6 +171,9 @@ def _precomputed_box(
         MaidrKey.MAX.value: max_val,
         MaidrKey.UPPER_OUTLIER.value: [],
     }
+    if label:
+        result[MaidrKey.Z.value] = label
+    return result
 
 
 def _trace_is_horizontal(trace: dict) -> bool:
