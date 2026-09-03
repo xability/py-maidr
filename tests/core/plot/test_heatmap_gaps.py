@@ -170,6 +170,24 @@ class TestAMaskedCell:
         assert points[0][1] == 0.5
         _parses_as_strict_json(fig)
 
+    def test_a_masked_float32_grid_is_read_at_its_own_precision(self):
+        # The two halves of the change meeting: the mask has to be filled
+        # with a NaN, and float32 is the dtype the fast path declines --
+        # numpy 1.x spells a float32 at its own shortest repr -- so the
+        # filled grid goes through the format loop. The measured cells are
+        # what that loop makes of the float32 values, spelled from the same
+        # values here rather than from a float64 reading of them.
+        grid = np.array([[0.1, 0.2], [0.3, 0.7]], dtype=np.float32)
+        fig, ax = plt.subplots()
+        ax.imshow(np.ma.masked_greater(grid, 0.5))
+
+        points = _points(fig)
+
+        assert points[1][1] is None
+        assert points[0] == [float(format(cell, "")) for cell in grid[0]]
+        assert points[1][0] == float(format(grid[1][0], ""))
+        _parses_as_strict_json(fig)
+
     def test_a_masked_integer_grid_still_serialises(self):
         # Pinned because it can break: a NaN needs a float to sit in, and
         # `ma.filled` refuses to write one into an integer grid.
