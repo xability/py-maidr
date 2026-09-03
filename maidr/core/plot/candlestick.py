@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Union, Dict
+from typing import Dict, List, Optional, Union
 from matplotlib.axes import Axes
 import pandas as pd
 
@@ -40,6 +40,10 @@ class CandlestickPlot(MaidrPlot):
         self._maidr_wick_collection = kwargs.get("_maidr_wick_collection", None)
         self._maidr_body_collection = kwargs.get("_maidr_body_collection", None)
         self._maidr_original_data = kwargs.get("_maidr_original_data", None)
+
+        # Positions in the frame of the rows whose candles were emitted, set by
+        # `_extract_from_dataframe` and read by `_get_selector` (#749).
+        self._drawn_rows: Optional[List[int]] = None
 
         # Store the GID for selector generation
         self._maidr_gid = None
@@ -118,9 +122,10 @@ class CandlestickPlot(MaidrPlot):
         ``json.dumps`` writes a bare ``NaN`` token, ``JSON.parse`` rejects it,
         and the whole figure -- volume bars and moving averages included --
         loses its accessibility. The SVG still holds a body path and two wick
-        paths for the gap row, which is why `_get_selector` keeps counting
-        ``len(df)``.
+        paths for the gap row, so the position of every row that *was* emitted
+        is kept on ``_drawn_rows`` for `_get_selector` to name its paths by.
         """
+        self._drawn_rows = []
         try:
             columns = [
                 df[name].to_numpy() for name in ("Open", "High", "Low", "Close")
@@ -157,6 +162,7 @@ class CandlestickPlot(MaidrPlot):
             if not math.isfinite(volume):
                 volume = 0.0
 
+            self._drawn_rows.append(i)
             candles.append(
                 {
                     "value": date_value,
@@ -196,8 +202,13 @@ class CandlestickPlot(MaidrPlot):
             MaidrKey.Y: self._axis_config(label=y_label),
         }
 
-    def _get_selector(self) -> Union[str, Dict[str, str]]:
-        """Return selectors for highlighting candlestick elements."""
+    def _get_selector(self) -> Union[str, Dict[str, Union[str, List[str]]]]:
+        """Return selectors for highlighting candlestick elements.
+
+        Each of ``body``, ``wickLow`` and ``wickHigh`` is one selector for all
+        candles when every row of the frame became a candle, and a list with
+        one selector per candle otherwise -- see the comment in the body.
+        """
         # Modern path: build structured selectors using separate gids
         if (
             self._maidr_body_collection
@@ -229,10 +240,37 @@ class CandlestickPlot(MaidrPlot):
             if N is None:
                 raise ExtractionError(PlotType.CANDLESTICK, self._maidr_wick_collection)
 
+            body = f"g[id='{self._maidr_body_gid}'] > path"
+            wick = f"g[id='{self._maidr_wick_gid}'] > path"
+
+            # A row the extraction left out -- a gap, all four prices NaN --
+            # still has a body path and two wick paths in the SVG, so from the
+            # gap on `data[i]` and path `i` no longer name the same candle,
+            # and one selector per kind lands every later highlight one candle
+            # early (#749). Naming each emitted candle's own paths keeps the
+            # two in step: the core reads a list of selectors in order, so
+            # element `i` is candle `i` again.
+            #
+            # Emitting the gap as a null record instead would keep the counts
+            # equal but not the reading. The core keeps the `open` section only
+            # while every candle's open is a finite number, so one null would
+            # silence "open" for the whole chart; it takes the gap's high minus
+            # low as a volatility of 0; and it finds the chart's range with
+            # `Math.min` over the prices, where null counts as 0.
+            drawn = self._drawn_rows
+            if drawn is not None and len(drawn) != N:
+                return {
+                    "body": [f"{body}:nth-child({row + 1})" for row in drawn],
+                    "wickLow": [f"{wick}:nth-child({row + 1})" for row in drawn],
+                    "wickHigh": [
+                        f"{wick}:nth-child({N + row + 1})" for row in drawn
+                    ],
+                }
+
             selectors = {
-                "body": f"g[id='{self._maidr_body_gid}'] > path",
-                "wickLow": f"g[id='{self._maidr_wick_gid}'] > path:nth-child(-n+{N})",
-                "wickHigh": f"g[id='{self._maidr_wick_gid}'] > path:nth-child(n+{N + 1})",
+                "body": body,
+                "wickLow": f"{wick}:nth-child(-n+{N})",
+                "wickHigh": f"{wick}:nth-child(n+{N + 1})",
             }
             return selectors
 
