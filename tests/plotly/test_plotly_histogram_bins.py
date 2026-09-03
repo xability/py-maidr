@@ -538,6 +538,31 @@ class TestABlankIsNoObservation:
         # distribution the chart does not draw (#636).
         assert layers(go.Figure(go.Histogram(x=[None, float("nan")]))) == []
 
+    def test_the_shift_counts_the_sample_without_its_blanks(self):
+        """``autoShiftNumericBins`` subtracts the blanks from its length.
+
+        The bundle tallies them alongside the integers
+        (``t[c]%1===0?s++:zh(t[c])||l++``), takes ``f=t.length-l``, and tests
+        ``s===f``, ``f*.1`` and ``f*.3`` against that ``f``. Forty integers
+        and thirty blanks pin which length is meant: over the finite sample
+        every value is an integer and the grid shifts half a step off them,
+        to ``-0.5``. Counted over the whole array, ``s`` would be 40 against
+        an ``f`` of 70, the integer branch would not fire, and the sample's
+        minimum sitting on an edge would send it half a *bin* down instead,
+        to ``-2.5`` -- a start the chart does not draw.
+
+        The width is named so that only the shift is under test: the
+        automatic one does read the whole length, through its exponent.
+        """
+        integers = list(range(40))
+        with_blanks = integers + [None] * 30
+
+        finite = bins(go.Figure(go.Histogram(x=integers, xbins=dict(size=5))))
+        blanked = bins(go.Figure(go.Histogram(x=with_blanks, xbins=dict(size=5))))
+
+        assert blanked == finite
+        assert finite[0][0] == -0.5
+
     def test_a_blank_still_counts_toward_the_width_exponent(self):
         """The one term plotly reads off the whole array, blanks included.
 

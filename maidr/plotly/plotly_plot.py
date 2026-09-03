@@ -971,6 +971,7 @@ def as_list(value: Any) -> list:
     here as the ISO strings plotly's own ``to_json`` writes, since the
     ``datetime64`` scalars it would otherwise decompose into serialise as
     nothing the schema can hold -- see :meth:`PlotlyPlot._to_native` (#699).
+    A list of such scalars is spelled the same way, for the same reason.
 
     A plain list or tuple is handed back as a list, so a hand-built
     ``go.Bar(y=[1, 2, 3])`` travels this path unchanged. An absent array
@@ -1001,6 +1002,17 @@ def as_list(value: Any) -> list:
 
     if isinstance(value, np.ndarray) and value.dtype.kind == "M":
         return _iso_dates(value)
+
+    # A list of `datetime64` scalars is the same series spelled by hand, and
+    # takes the same path so it gets one unit throughout: entry by entry
+    # through `_to_native` it would come out as `2024-01-01` beside
+    # `2024-01-01T12:00`. `all` of nothing is True, hence the emptiness check.
+    if (
+        isinstance(value, (list, tuple))
+        and value
+        and all(isinstance(entry, np.datetime64) for entry in value)
+    ):
+        return _iso_dates(np.array(value))
 
     try:
         return list(value)

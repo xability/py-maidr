@@ -111,6 +111,23 @@ class TestTheSpelling:
             "2024-01-02T00:00",
         ]
 
+    def test_a_list_of_datetime64_scalars_is_spelled_as_one_series(self):
+        # Entry by entry through `_to_native` the midnight would read
+        # `2024-01-01` and the noon `2024-01-01T12:00`; as one series they
+        # share the finer unit.
+        by_hand = [
+            np.datetime64("2024-01-01T00:00"),
+            np.datetime64("2024-01-01T12:00"),
+            np.datetime64("2024-01-02"),
+        ]
+
+        assert as_list(by_hand) == [
+            "2024-01-01T00:00",
+            "2024-01-01T12:00",
+            "2024-01-02T00:00",
+        ]
+        assert as_list(tuple(by_hand)) == as_list(by_hand)
+
     def test_a_missing_date_stays_missing(self):
         with_a_gap = np.array(
             ["2024-01-01", "NaT", "2024-01-03"], dtype="datetime64[ns]"

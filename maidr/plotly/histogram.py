@@ -886,12 +886,17 @@ def compute_bin_edges(
     A blank in the sample -- a ``None`` or a ``NaN``, which plotly draws
     around -- is no observation, and the grid is worked out from the values
     that are. ``min``/``max``, ``distinctVals`` and ``stdev`` all skip a blank
-    in plotly.js, and ``autoShiftNumericBins`` counts them off its length;
-    read off the whole array instead, the minimum was ``NaN`` and the first
-    ``ceil`` of it raised out of a figure plotly draws (#699). For a sample
-    with no blanks every intermediate is the same number, so its grid is
-    unchanged. A sample of nothing but blanks draws no bars, and comes back
-    as no edges at all.
+    in plotly.js, and ``autoShiftNumericBins`` **subtracts the blanks from
+    its length** before every threshold it tests: the bundle counts them in
+    the same pass as the integers (``t[c]%1===0?s++:zh(t[c])||l++``), takes
+    ``f=t.length-l``, and reads ``s===f``, ``f*.1`` and ``f*.3`` off that
+    ``f``. So the finite sample is what it is handed here, and the one term
+    that does see the whole length is the automatic width's exponent -- see
+    :func:`_plotly_default_size0`. Read off the whole array instead, the
+    minimum was ``NaN`` and the first ``ceil`` of it raised out of a figure
+    plotly draws (#699). For a sample with no blanks every intermediate is
+    the same number, so its grid is unchanged. A sample of nothing but blanks
+    draws no bars, and comes back as no edges at all.
 
     Parameters
     ----------
