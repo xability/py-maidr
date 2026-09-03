@@ -43,6 +43,13 @@ def _point_colours(collection: PathCollection) -> list:
     the seaborn release that ends it turns a test red rather than this branch
     silently load-bearing.
 
+    The rows are converted per *distinct* row rather than per point. The
+    collection holds one colour per hue level, repeated down the panel, so
+    50,000 points are a handful of colours -- and ``to_rgba`` on every one of
+    them was over a second on a chart that size (#718). The same row gets the
+    same conversion either way, ``None`` included, so what comes back is
+    identical; only the number of calls changes.
+
     Parameters
     ----------
     collection : PathCollection
@@ -58,7 +65,11 @@ def _point_colours(collection: PathCollection) -> list:
     count = len(np.asarray(collection.get_offsets()))
     if len(rows) != count:
         return [None] * count
-    return [_rgba(row) for row in rows]
+    distinct, inverse = np.unique(rows, axis=0, return_inverse=True)
+    named = [_rgba(row) for row in distinct]
+    # numpy 2.0 shapes the inverse `(n, 1)` for `axis=0`; later releases and
+    # earlier ones give `(n,)`. Ravelled so it indexes either way.
+    return [named[index] for index in np.asarray(inverse).ravel()]
 
 
 def _hue_colours(plotter: Any) -> dict | None:
