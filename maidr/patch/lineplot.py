@@ -185,11 +185,25 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     # handed over by reference and extraction is lazy, so lines added after the
     # layer is registered still reach it -- which is what the sweep provided
     # and the only part of it worth keeping.
+    #
+    # Listing is by identity -- `Line2D` defines no `__eq__`, so that is all
+    # `in` ever tested -- and it is only the seaborn path that can list a line
+    # twice: its `drawn` is a diff against a snapshot, which can include an
+    # earlier call's lines when the axes snapshotted was not the one drawn
+    # on. `Axes.plot` hands back the lines it just made, none of which can be
+    # listed yet, so that path extends outright. Checking every line against
+    # the whole list cost a walk that grew with the axes -- 8 us per call over
+    # 1,000 lines, 77 us over 8,000 -- paid once per `ax.plot()` for nothing
+    # (#755).
     series = getattr(ax, DRAWN_SERIES, None)
     if series is None:
         series = []
         setattr(ax, DRAWN_SERIES, series)
-    series.extend(item for item in drawn if item not in series)
+    if before is None:
+        series.extend(drawn)
+    else:
+        listed = {id(line) for line in series}
+        series.extend(line for line in drawn if id(line) not in listed)
 
     # Check if a MAIDR plot already exists for this axes
     if not hasattr(ax, PLOT_CREATED):
