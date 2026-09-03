@@ -407,8 +407,9 @@ class HeatPlot(
         One cell's value, or ``None`` where it has none.
 
         A NaN in the input and a masked cell both arrive here as NaN, and
-        neither is a reading. Emitted as it stands, ``json.dumps`` writes it
-        as a bare ``NaN`` token -- legal JavaScript, invalid JSON -- and the
+        neither is a reading; an infinite value is no reading either, and
+        ``json.dumps`` spells it ``Infinity``. Emitted as it stands, a NaN is
+        written as a bare ``NaN`` token -- legal JavaScript, invalid JSON -- and the
         core parses the SVG's ``maidr`` attribute with ``JSON.parse``, so one
         such cell stops the chart initialising at all (#427, #696).
 

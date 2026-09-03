@@ -135,6 +135,22 @@ class TestACellWithNoValue:
         _parses_as_strict_json(fig)
 
 
+class TestAnInfiniteCell:
+    """``inf`` is no reading either, and ``json.dumps`` spells it ``Infinity``."""
+
+    @pytest.mark.parametrize("sign", [1.0, -1.0], ids=["inf", "-inf"])
+    def test_it_is_emitted_as_null(self, sign):
+        fig, ax = plt.subplots()
+        ax.imshow(np.array([[1.0, sign * np.inf], [3.0, 4.0]]))
+
+        points = _points(fig)
+
+        assert points[0][1] is None
+        assert points[0][0] == 1.0
+        assert points[1] == [3.0, 4.0]
+        _parses_as_strict_json(fig)
+
+
 class TestAMaskedCell:
     def test_a_masked_heatmap_hides_what_the_caller_hid(self):
         # The idiom for half a correlation matrix. The artist's mask is the
