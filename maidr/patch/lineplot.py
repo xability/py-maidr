@@ -202,6 +202,9 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
     if before is None:
         series.extend(drawn)
     else:
+        # The set is taken once: `drawn` is a snapshot difference of
+        # `ax.get_lines()`, which never lists one artist twice, so the batch
+        # has nothing to check against itself.
         listed = {id(line) for line in series}
         series.extend(line for line in drawn if id(line) not in listed)
 
