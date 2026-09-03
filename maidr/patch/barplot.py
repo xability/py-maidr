@@ -14,6 +14,7 @@ from maidr.core.plot.barplot import DRAWN_BARS
 from maidr.patch.common import (
     _argument,
     _draw_quietly,
+    _resolve,
     common,
     plotter_panels,
     wrap_seaborn,
@@ -85,6 +86,10 @@ def bar(
     baseline = _argument("bottom", wrapped, args, kwargs)
     if baseline is None:
         baseline = _argument("left", wrapped, args, kwargs)
+    # A name under `data=` is looked up before the zero test, so the two
+    # spellings of one chart -- `bottom="b", data=df` and `bottom=df["b"]` --
+    # read the same column and give the same answer.
+    baseline = _resolve(baseline, kwargs.get("data"))
     if baseline is not None and not _is_zero_baseline(baseline):
         plot_type = PlotType.STACKED
     else:
@@ -126,15 +131,15 @@ def _is_zero_baseline(baseline: Any) -> bool:
     Parameters
     ----------
     baseline : Any
-        The ``bottom`` or ``left`` argument as the caller passed it: a
-        scalar, a sequence, or a column name resolved against ``data=``.
+        The ``bottom`` or ``left`` argument, a scalar or a sequence, after
+        a name under ``data=`` has been resolved to its column.
 
     Returns
     -------
     bool
         True for a scalar zero or an all-zero sequence. Anything that cannot
-        be read as numbers -- a column name, in particular -- is False, so it
-        keeps reading as the stack it names.
+        be read as numbers -- a name that resolved to nothing, in particular
+        -- is False, so it keeps reading as the stack it names.
     """
     try:
         return bool(np.all(np.asarray(baseline, dtype=float) == 0))

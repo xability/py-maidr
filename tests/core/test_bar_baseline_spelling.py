@@ -30,6 +30,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 import pytest  # noqa: E402
+from matplotlib.axes import Axes  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.figure_manager import FigureManager  # noqa: E402
@@ -136,6 +137,47 @@ def test_a_zero_first_baseline_still_collapses_into_the_stack() -> None:
     assert _registered(fig) == ["bar", "stacked_bar"]
     assert [kind for kind, _ in _emitted(fig)] == ["stacked_bar"]
     assert len(_emitted(fig)[0][1]) == 2
+
+
+def test_an_unbound_call_reads_its_arguments_at_the_same_indices() -> None:
+    """``Axes.bar(ax, x, h, w, b)`` binds ``b`` to ``bottom`` too.
+
+    The unbound spelling reaches the patch through wrapt's partial proxy,
+    whose signature still opens with ``self`` while the instance is already
+    out of ``args``. Read naively, every index lands one argument early:
+    the width was found at the baseline's slot, so two side-by-side calls
+    stopped reading as dodged, and a positional baseline was not found at
+    all. Both have to read exactly as the bound call does.
+    """
+    positions = np.arange(len(CATEGORIES))
+
+    dodged, dodged_ax = plt.subplots()
+    Axes.bar(dodged_ax, positions + 0.2, SERIES_0, 0.4, label="s0")
+    Axes.bar(dodged_ax, positions - 0.2, SERIES_1, 0.4, label="s1")
+
+    stacked, stacked_ax = plt.subplots()
+    Axes.bar(stacked_ax, CATEGORIES, SERIES_0, label="s0")
+    Axes.bar(stacked_ax, CATEGORIES, SERIES_1, 0.8, SERIES_0, label="s1")
+
+    assert _registered(dodged) == ["dodged_bar", "dodged_bar"]
+    assert _registered(stacked) == ["bar", "stacked_bar"]
+
+
+def test_a_zero_baseline_named_in_data_is_a_plain_bar() -> None:
+    """``bottom="b", data=df`` with a column of zeros reads as the bare call.
+
+    The name is looked up before the zero test, so the two spellings of one
+    chart -- the column by name and the column by value -- agree.
+    """
+    frame = pd.DataFrame({"x": CATEGORIES, "h": SERIES_0, "b": np.zeros(3)})
+    fig, ax = plt.subplots()
+    ax.bar("x", "h", bottom="b", data=frame)
+
+    bare, bare_ax = plt.subplots()
+    bare_ax.bar(CATEGORIES, SERIES_0)
+
+    assert _registered(fig) == ["bar"]
+    assert _emitted(fig) == _emitted(bare)
 
 
 def test_a_baseline_named_in_data_still_stacks() -> None:

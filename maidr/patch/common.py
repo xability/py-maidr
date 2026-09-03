@@ -146,6 +146,13 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
             break
         positional.append(parameter_name)
 
+    # An unbound call, `Axes.bar(ax, ...)`, reaches the patch through wrapt's
+    # partial proxy, whose signature still opens with `self` although the
+    # instance is already out of `args`. Dropping it keeps each index on the
+    # argument it names; a bound call opens with `x` or `y` and is untouched.
+    if positional and positional[0] in ("self", "cls"):
+        positional.pop(0)
+
     if name not in positional:
         return None
 
