@@ -185,6 +185,12 @@ def _auto_shift_bins(
     start across a spread of samples and widths, which would otherwise be
     rediscovered by hand the next time this function is touched.
 
+    The three counts the branches consume are taken elementwise in numpy
+    rather than by the per-sample loop plotly writes, which cost ~100 ms per
+    50k samples and was most of a histogram's render (#701). The arithmetic
+    is the same IEEE operations the loop performed, in the same order, so the
+    counts -- and the start -- are bit-identical to the loop's.
+
     Parameters
     ----------
     bin_start : float
@@ -198,20 +204,22 @@ def _auto_shift_bins(
     data_max : float
         Maximum data value.
     """
-    edge_count = 0
-    mid_count = 0
-    int_count = 0
-
-    def near_edge(v: float) -> bool:
+    def near_edge(v: float | np.ndarray) -> bool | np.ndarray:
         return (1 + (v - bin_start) * 100 / dtick) % 100 < 2
 
-    for v in data:
-        if v % 1 == 0:
-            int_count += 1
-        if near_edge(v):
-            edge_count += 1
-        if near_edge(v + dtick / 2):
-            mid_count += 1
+    # Plotly's per-sample loop as three elementwise predicates. Iterating an
+    # ndarray already handed the loop `np.float64` scalars, so these are the
+    # operations it performed and the counts must stay bit-identical to its
+    # -- `test_plotly_histogram_bins.py` pins them against a copy of the
+    # loop. `near_edge` stays a closure because the scalar `data_min` and
+    # `data_max` checks below read it too. `invalid` is ignored so a `nan`
+    # sample -- which fails every predicate and still counts in `n`, as it
+    # did in the loop -- does not put a RuntimeWarning on a render.
+    data = np.asarray(data, dtype=float)
+    with np.errstate(invalid="ignore"):
+        int_count = int(np.count_nonzero(data % 1 == 0))
+        edge_count = int(np.count_nonzero(near_edge(data)))
+        mid_count = int(np.count_nonzero(near_edge(data + dtick / 2)))
 
     n = len(data)
     if n == 0:

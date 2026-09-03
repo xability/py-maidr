@@ -188,14 +188,14 @@ class PlotlyContourPlot(PlotlyPlot):
             for curve in curves:
                 if not _has_extent(curve, cell):
                     continue
+                # `tolist()` hands over every coordinate as a plain float in
+                # one call, where indexing each vertex made an `np.float64`
+                # per coordinate to convert -- the same floats, and on a
+                # noisy field there are hundreds of thousands of them (#701).
                 data.append(
                     [
-                        {
-                            MaidrKey.X: float(vertex[0]),
-                            MaidrKey.Y: float(vertex[1]),
-                            MaidrKey.LEVEL: levels[index],
-                        }
-                        for vertex in curve
+                        {MaidrKey.X: x, MaidrKey.Y: y, MaidrKey.LEVEL: levels[index]}
+                        for x, y in curve.tolist()
                     ]
                 )
                 self._series_levels.append(index)
@@ -585,7 +585,12 @@ def _has_extent(curve: Any, cell: float) -> bool:
     vertices = np.asarray(curve, dtype=float)
     if vertices.size == 0:
         return False
-    span = max(float(np.ptp(vertices[:, 0])), float(np.ptp(vertices[:, 1])))
+    # The span `np.ptp` answers, as one reduction per axis rather than two
+    # over strided views: this runs once per curve, and a noisy field traces
+    # tens of thousands of them (#701).
+    lo = vertices.min(axis=0)
+    hi = vertices.max(axis=0)
+    span = float(max(hi[0] - lo[0], hi[1] - lo[1]))
     return span > cell * _POINT_FRACTION
 
 
