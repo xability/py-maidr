@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import uuid
 
 import numpy as np
@@ -90,6 +91,30 @@ def _box_colour(box):
     return None
 
 
+def _finite_box(whisker: dict, cap: dict, median: float) -> bool:
+    """
+    Whether one box's five statistics are all numbers matplotlib could draw.
+
+    Parameters
+    ----------
+    whisker : dict
+        The box's ``q1`` and ``q3``.
+    cap : dict
+        The box's ``min`` and ``max``.
+    median : float
+        The box's ``q2``.
+
+    Returns
+    -------
+    bool
+        ``False`` for a box any of whose statistics is ``NaN`` or infinite.
+    """
+    return all(
+        math.isfinite(value)
+        for value in (whisker["q1"], whisker["q3"], cap["min"], cap["max"], median)
+    )
+
+
 class BoxPlotContainer(DictMergerMixin):
     def __init__(self):
         self._orientation = None
@@ -137,12 +162,47 @@ class BoxPlotExtractor:
     def extract_whiskers(self, whiskers: list) -> list[dict]:
         return self._extract_extremes(whiskers, MaidrKey.Q1, MaidrKey.Q3)
 
-    def extract_caps(self, caps: list) -> list[dict]:
-        return self._extract_extremes(caps, MaidrKey.MIN, MaidrKey.MAX)
+    def extract_caps(self, caps: list, whiskers: list | None = None) -> list[dict]:
+        """
+        The min and max of every box, read off its caps.
+
+        A box drawn ``showcaps=False`` has no caps to read, and used to vanish
+        with them: the ``zip`` that assembles the rows ends at the shortest of
+        its lists, so an empty ``caps`` emptied the layer while the boxes
+        stayed on screen (#697). The whiskers still end where the caps would
+        have sat -- measured on the default chart, every cap's value equals
+        its whisker's far end -- so a chart with no caps reads its extremes
+        off the whiskers instead.
+
+        Parameters
+        ----------
+        caps : list
+            The cap artists, two per box, in drawing order.
+        whiskers : list, optional
+            The whisker artists, two per box, read only when ``caps`` is empty.
+
+        Returns
+        -------
+        list of dict
+            One ``{"min": ..., "max": ...}`` per box.
+        """
+        if caps:
+            return self._extract_extremes(caps, MaidrKey.MIN, MaidrKey.MAX)
+        return self._extract_extremes(
+            whiskers or [], MaidrKey.MIN, MaidrKey.MAX, position=1
+        )
 
     def _extract_extremes(
-        self, extremes: list, start_key: MaidrKey, end_key: MaidrKey
+        self,
+        extremes: list,
+        start_key: MaidrKey,
+        end_key: MaidrKey,
+        position: int = 0,
     ) -> list[dict]:
+        # `position` is which vertex of each line carries the value. A cap
+        # is a short stroke across the value, so any vertex does and the
+        # first is read; a whisker runs from the box edge out to the extreme,
+        # and the extreme is its second.
         data = []
 
         for start, end in zip(extremes[::2], extremes[1::2]):
@@ -151,8 +211,8 @@ class BoxPlotExtractor:
             )
             end_data_fn = end.get_ydata if self.orientation == "vert" else end.get_xdata
 
-            start_data = float(start_data_fn()[0])
-            end_data = float(end_data_fn()[0])
+            start_data = float(start_data_fn()[position])
+            end_data = float(end_data_fn()[position])
 
             data.append(
                 {
@@ -174,13 +234,44 @@ class BoxPlotExtractor:
         ]
 
     def extract_outliers(self, fliers: list, caps: list) -> list[dict]:
+        """
+        Every box's outliers, split into those below its min and above its max.
+
+        One entry per box in ``caps`` rather than per flier artist. A chart
+        drawn ``showfliers=False`` or ``sym=""`` has no flier artists at all,
+        and pairing the two lists with ``zip`` emptied every box along with
+        them (#697). A box with no flier artist shows nothing beyond its
+        whiskers, so two empty lists are what it shows.
+
+        A non-finite flier is left out: matplotlib draws nothing for it, and
+        it would reach the schema as a bare ``NaN`` token ``JSON.parse``
+        refuses.
+
+        Parameters
+        ----------
+        fliers : list
+            The flier artists, one per box or none at all.
+        caps : list of dict
+            The min and max of every box, as :meth:`extract_caps` returns.
+
+        Returns
+        -------
+        list of dict
+            One ``{"lowerOutliers": [...], "upperOutliers": [...]}`` per box.
+        """
         data = []
 
-        for outlier, cap in zip(fliers, caps):
-            outlier_fn = (
-                outlier.get_ydata if self.orientation == "vert" else outlier.get_xdata
-            )
-            outliers = [float(value) for value in outlier_fn()]
+        for index, cap in enumerate(caps):
+            outliers = []
+            if index < len(fliers):
+                outlier = fliers[index]
+                outlier_fn = (
+                    outlier.get_ydata
+                    if self.orientation == "vert"
+                    else outlier.get_xdata
+                )
+                outliers = [float(value) for value in outlier_fn()]
+                outliers = [value for value in outliers if math.isfinite(value)]
             _min, _max = cap.values()
 
             data.append(
@@ -395,6 +486,23 @@ class BoxPlot(
                 named.append(label or level or "")
         return named
 
+    def _claim(self, artists: list, slot: str) -> None:
+        """
+        Stamp a fresh gid on each artist and record it under ``slot``.
+
+        Parameters
+        ----------
+        artists : list
+            The artists of one kind, in box order.
+        slot : str
+            Which list of :attr:`elements_map` the gids belong to.
+        """
+        for artist in artists:
+            gid = "maidr-" + str(uuid.uuid4())
+            artist.set_gid(gid)
+            self.elements_map[slot].append(gid)
+            self._elements.append(artist)
+
     def _extract_plot_data(self) -> list:
         data = self._extract_bxp_maidr(self._bxp_stats)
 
@@ -419,30 +527,76 @@ class BoxPlot(
         self.lower_outliers_count.clear()
 
         whiskers = self._bxp_extractor.extract_whiskers(bxp_stats["whiskers"])
-        caps = self._bxp_extractor.extract_caps(bxp_stats["caps"])
+        caps = self._bxp_extractor.extract_caps(
+            bxp_stats["caps"], bxp_stats["whiskers"]
+        )
         medians = self._bxp_extractor.extract_medians(bxp_stats["medians"])
         outliers = self._bxp_extractor.extract_outliers(bxp_stats["fliers"], caps)
-
-        for outlier in outliers:
-            self.lower_outliers_count.append(len(outlier[MaidrKey.LOWER_OUTLIER.value]))
-
-        caps_elements = self._bxp_elements_extractor.extract_caps(bxp_stats["caps"])
-        bxp_maidr = []
 
         key = MaidrKey.X if self._orientation == "vert" else MaidrKey.Y
         levels = self.extract_level(self.ax, key) or []
 
-        # A `hue` draws one box per category *per level*, and the axis still
-        # carries one tick per category -- so the `zip` below, which ends at
-        # the shortest of what it is given, stopped at the ticks and dropped
-        # every box past them. Measured on three categories and two levels:
-        # six boxes drawn, three announced, and the three that survived were
-        # the first level's paired with the tick labels in order (#593). The
-        # selector list is built from the artists rather than from this, so
-        # the same chart also emitted six selectors against three rows.
-        if len(medians) > len(levels):
-            levels = self._named_boxes(bxp_stats["boxes"], levels, key)
+        # A box whose statistics are not finite was never on screen.
+        # `cbook.boxplot_stats` does not drop a NaN, so one missing value in
+        # a group -- or an empty group -- makes every statistic NaN, and
+        # matplotlib draws nothing for it while `json.dumps` writes each as a
+        # bare `NaN` token that `JSON.parse` refuses, taking the whole chart
+        # with it. The grammar types the statistics as numbers, so `null` is
+        # no reading either: the box is dropped instead, together with its
+        # artists and its level, so data, selectors and levels stay one per
+        # box that is there to be read (#697).
+        keep = [
+            index
+            for index, (whisker, cap, median) in enumerate(zip(whiskers, caps, medians))
+            if _finite_box(whisker, cap, median)
+        ]
 
+        def kept(items: list) -> list:
+            # Tolerates a list shorter than the boxes: there are no flier
+            # artists at all when the fliers are hidden.
+            return [items[index] for index in keep if index < len(items)]
+
+        # Two charts whose boxes and tick labels do not share an index, and
+        # so are named off the drawing -- each box by the tick nearest it --
+        # rather than paired with the labels in order:
+        #
+        # - A `hue` draws one box per category *per level*, and the axis
+        #   still carries one tick per category -- so the `zip` below, which
+        #   ends at the shortest of what it is given, stopped at the ticks and
+        #   dropped every box past them. Measured on three categories and two
+        #   levels: six boxes drawn, three announced, and the three that
+        #   survived were the first level's paired with the tick labels in
+        #   order (#593). The selector list is built from the artists rather
+        #   than from this, so the same chart also emitted six selectors
+        #   against three rows.
+        # - A chart with a box dropped. The labels are the ticks inside the
+        #   *data* limits, and a box that drew nothing contributes nothing to
+        #   those, so its own tick may or may not still be in the list --
+        #   the counts can agree while the alignment is off, and filtering
+        #   the labels by `keep` would then hand a surviving box the label
+        #   of an extra tick beside it. A chart missing nothing takes neither
+        #   branch and reads as it always has.
+        if len(medians) > len(levels) or len(keep) != len(medians):
+            levels = self._named_boxes(bxp_stats["boxes"], levels, key)
+        if len(levels) == len(medians):
+            levels = kept(levels)
+        whiskers, caps, medians, outliers = (
+            kept(whiskers),
+            kept(caps),
+            kept(medians),
+            kept(outliers),
+        )
+
+        for outlier in outliers:
+            self.lower_outliers_count.append(len(outlier[MaidrKey.LOWER_OUTLIER.value]))
+
+        # With the caps hidden, the min and max selectors address the
+        # whiskers, whose far ends are where the two values were read from.
+        caps_elements = kept(
+            self._bxp_elements_extractor.extract_caps(
+                bxp_stats["caps"] or bxp_stats["whiskers"]
+            )
+        )
         _pairs = [(e["min"], e["max"]) for e in caps_elements if e]
 
         if _pairs:
@@ -450,39 +604,24 @@ class BoxPlot(
         else:
             mins, maxs = [], []
 
-        elements = []
+        self._claim(mins, "min")
+        self._claim(maxs, "max")
+        self._claim(kept(bxp_stats["medians"]), "median")
+        self._claim(kept(bxp_stats["boxes"]), "boxes")
 
-        for element in mins:
-            gid = "maidr-" + str(uuid.uuid4())
-            element.set_gid(gid)
-            self.elements_map["min"].append(gid)
-            elements.append(element)
+        fliers = kept(bxp_stats["fliers"])
+        if fliers:
+            self._claim(fliers, "outliers")
+        else:
+            # No flier artist to address. `_get_selector` zips this list with
+            # the others, so leaving it empty would leave every box without a
+            # selector; the box's own gid stands in, and the outlier selectors
+            # built on it -- `g > use` under a box path -- match nothing,
+            # which is the empty list the core already reads for a box with
+            # no outliers.
+            self.elements_map["outliers"].extend(self.elements_map["boxes"])
 
-        for element in maxs:
-            gid = "maidr-" + str(uuid.uuid4())
-            element.set_gid(gid)
-            self.elements_map["max"].append(gid)
-            elements.append(element)
-
-        for element in bxp_stats["medians"]:
-            gid = "maidr-" + str(uuid.uuid4())
-            element.set_gid(gid)
-            self.elements_map["median"].append(gid)
-            elements.append(element)
-
-        for element in bxp_stats["boxes"]:
-            gid = "maidr-" + str(uuid.uuid4())
-            element.set_gid(gid)
-            self.elements_map["boxes"].append(gid)
-            elements.append(element)
-
-        for element in bxp_stats["fliers"]:
-            gid = "maidr-" + str(uuid.uuid4())
-            element.set_gid(gid)
-            self.elements_map["outliers"].append(gid)
-            elements.append(element)
-
-        self._elements.extend(elements)
+        bxp_maidr = []
 
         for whisker, cap, median, outlier, level in zip(
             whiskers, caps, medians, outliers, levels
