@@ -203,6 +203,18 @@ def test_numpy_tickvals_keep_the_grid():
     assert x_axis["max"] == 10.0
 
 
+def test_a_nan_in_a_precomputed_statistic_does_not_reach_the_schema():
+    # A numpy `q1` with a NaN is exported as an `f8` typed array and decoded
+    # back to a NaN, which `json.dumps` writes as a bare `NaN` token -- the
+    # same failure a NaN sample used to cause. Plotly draws no box there.
+    fig = go.Figure(go.Box(q1=np.array([1.0, np.nan]), median=[2, 3], q3=[3, 4]))
+
+    data = _data_of(fig)[0]
+
+    assert len(data) == 1
+    assert "NaN" not in str(PlotlyMaidr(fig).render())
+
+
 class TestAsList:
     """The decoder leaves everything that already worked alone."""
 

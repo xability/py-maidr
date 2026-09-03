@@ -331,6 +331,41 @@ class TestPlotlyBoxPlot:
 
         assert PlotlyBoxPlot(trace, {}).render()["orientation"] == "vert"
 
+    @pytest.mark.parametrize("missing", [None, float("nan")])
+    def test_a_precomputed_box_with_a_missing_quartile_is_dropped(self, missing):
+        # Sent straight through, the gap landed in the schema as a bare
+        # `null`/`NaN`. Plotly draws no box for it, so dropping it keeps the
+        # remaining boxes' positional selectors on the elements they describe.
+        trace = {"type": "box", "q1": [1, missing], "median": [2, 3], "q3": [3, 4]}
+        plot = PlotlyBoxPlot(trace, {})
+        data = plot._extract_plot_data()
+
+        assert [box["q1"] for box in data] == [1]
+        assert len(plot._get_selector()) == 1
+
+    def test_unordered_precomputed_quartiles_are_dropped(self):
+        # Plotly's calc requires q1 <= median <= q3 before it draws anything.
+        trace = {"type": "box", "q1": [3], "median": [2], "q3": [4]}
+
+        assert PlotlyBoxPlot(trace, {})._extract_plot_data() == []
+
+    def test_a_bad_precomputed_fence_falls_back_to_its_quartile(self):
+        # A fence plotly rejects -- missing, or on the wrong side of its
+        # quartile -- costs nothing but the fence: with no points to measure
+        # from, plotly uses the quartile itself.
+        trace = {
+            "type": "box",
+            "q1": [1, 2],
+            "median": [2, 3],
+            "q3": [3, 4],
+            "lowerfence": [None, 5],
+            "upperfence": [float("nan"), 3],
+        }
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert [box["min"] for box in data] == [1, 2]
+        assert [box["max"] for box in data] == [3, 4]
+
 
 class TestPlotlyMultiBoxPlot:
     """The multi-trace extractor keeps its own copy of the box rules."""
@@ -451,6 +486,33 @@ class TestPlotlyMultiBoxPlot:
         }
 
         assert PlotlyMultiBoxPlot([trace], {}).render()["orientation"] == "vert"
+
+    @pytest.mark.parametrize("missing", [None, float("nan")])
+    def test_a_precomputed_box_with_a_missing_quartile_is_dropped(self, missing):
+        traces = [
+            {"type": "box", "q1": [1, missing], "median": [2, 3], "q3": [3, 4]},
+            {"type": "box", "q1": [5], "median": [6], "q3": [7]},
+        ]
+        plot = PlotlyMultiBoxPlot(traces, {})
+        data = plot._extract_plot_data()
+
+        assert [box["q1"] for box in data] == [1, 5]
+        assert plot._boxes_per_trace == [1, 1]
+        assert len(plot._get_selector()) == 2
+
+    def test_a_bad_precomputed_fence_falls_back_to_its_quartile(self):
+        trace = {
+            "type": "box",
+            "q1": [1, 2],
+            "median": [2, 3],
+            "q3": [3, 4],
+            "lowerfence": [None, 5],
+            "upperfence": [float("nan"), 3],
+        }
+        data = PlotlyMultiBoxPlot([trace], {})._extract_plot_data()
+
+        assert [box["min"] for box in data] == [1, 2]
+        assert [box["max"] for box in data] == [3, 4]
 
 
 class TestPlotlyHeatmapPlot:

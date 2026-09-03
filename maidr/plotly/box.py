@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 import numpy as np
@@ -97,6 +98,71 @@ def _has_precomputed_stats(trace: dict) -> bool:
     than one place, so it is spelled once.
     """
     return "q1" in trace and "median" in trace
+
+
+def _is_finite_number(value: Any) -> bool:
+    """Return whether *value* is a number plotly's ``isNumeric`` would take."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
+
+
+def _precomputed_box(
+    q1: Any,
+    median: Any,
+    q3: Any,
+    lowerfence: Any,
+    upperfence: Any,
+    label: str = "",
+) -> dict | None:
+    """
+    Build one box's stats from its precomputed values, the way plotly reads them.
+
+    Plotly's calc keeps a precomputed box only when ``q1``, ``median`` and
+    ``q3`` are all numeric and in order; otherwise it draws nothing there.
+    Such a box is dropped here for the same reason the sample path drops a
+    box with no finite samples: a ``None`` or NaN sent straight through
+    became a bare ``null``/``NaN`` in the schema, and plotly's ``boxlayer``
+    has no ``path.box`` for it, so leaving it in would also shift every
+    later box's positional selector off the element it describes.
+
+    A fence plotly rejects -- non-numeric, or a lower fence above ``q1`` /
+    an upper fence below ``q3`` -- does not cost it the box: with no sample
+    points to fall back on it uses the quartile itself, and so does this.
+
+    Parameters
+    ----------
+    q1, median, q3, lowerfence, upperfence : Any
+        The box's precomputed values, as native scalars.
+    label : str
+        The box's name, for the warning when it is dropped.
+    """
+    if not (
+        _is_finite_number(q1)
+        and _is_finite_number(median)
+        and _is_finite_number(q3)
+        and q1 <= median <= q3
+    ):
+        _logger.warning(
+            "maidr: box %r has no complete quartiles; dropping it.",
+            label or "<unnamed>",
+        )
+        return None
+
+    min_val = lowerfence if _is_finite_number(lowerfence) and lowerfence <= q1 else q1
+    max_val = upperfence if _is_finite_number(upperfence) and upperfence >= q3 else q3
+
+    return {
+        MaidrKey.LOWER_OUTLIER.value: [],
+        MaidrKey.MIN.value: min_val,
+        MaidrKey.Q1.value: q1,
+        MaidrKey.Q2.value: median,
+        MaidrKey.Q3.value: q3,
+        MaidrKey.MAX.value: max_val,
+        MaidrKey.UPPER_OUTLIER.value: [],
+    }
 
 
 def _compute_stats(
@@ -291,6 +357,9 @@ class PlotlyBoxPlot(PlotlyPlot):
         the loop indexing past the end of it. A short layer is the same answer
         the rest of this module gives to data it cannot read; a crash would
         take the whole figure with it.
+
+        A box whose quartiles are missing or out of order is dropped too,
+        because plotly draws none there -- see `_precomputed_box`.
         """
         q1_vals = as_list(self._trace.get("q1"))
         median_vals = as_list(self._trace.get("median"))
@@ -313,19 +382,19 @@ class PlotlyBoxPlot(PlotlyPlot):
                 count,
             )
 
+        name = self._trace.get("name") or "box"
         results = []
         for i in range(count):
-            results.append(
-                {
-                    MaidrKey.LOWER_OUTLIER.value: [],
-                    MaidrKey.MIN.value: self._to_native(lowerfence[i]),
-                    MaidrKey.Q1.value: self._to_native(q1_vals[i]),
-                    MaidrKey.Q2.value: self._to_native(median_vals[i]),
-                    MaidrKey.Q3.value: self._to_native(q3_vals[i]),
-                    MaidrKey.MAX.value: self._to_native(upperfence[i]),
-                    MaidrKey.UPPER_OUTLIER.value: [],
-                }
+            box = _precomputed_box(
+                self._to_native(q1_vals[i]),
+                self._to_native(median_vals[i]),
+                self._to_native(q3_vals[i]),
+                self._to_native(lowerfence[i]),
+                self._to_native(upperfence[i]),
+                label=f"{name} {i + 1}",
             )
+            if box is not None:
+                results.append(box)
         return results
 
     def _extract_from_raw_data(self) -> list[dict]:

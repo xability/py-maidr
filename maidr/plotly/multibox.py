@@ -11,6 +11,7 @@ from maidr.plotly.box import (
     _build_box_selector,
     _compute_stats,
     _has_precomputed_stats,
+    _precomputed_box,
 )
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
@@ -184,6 +185,9 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         the loop indexing past the end of it. A short layer is the same answer
         the rest of this module gives to data it cannot read; a crash would
         take the whole figure with it.
+
+        A box whose quartiles are missing or out of order is dropped too,
+        because plotly draws none there -- see `_precomputed_box`.
         """
         q1_vals = as_list(trace.get("q1"))
         median_vals = as_list(trace.get("median"))
@@ -206,19 +210,19 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 count,
             )
 
+        name = trace.get("name") or "box"
         results = []
         for i in range(count):
-            results.append(
-                {
-                    MaidrKey.LOWER_OUTLIER.value: [],
-                    MaidrKey.MIN.value: self._to_native(lowerfence[i]),
-                    MaidrKey.Q1.value: self._to_native(q1_vals[i]),
-                    MaidrKey.Q2.value: self._to_native(median_vals[i]),
-                    MaidrKey.Q3.value: self._to_native(q3_vals[i]),
-                    MaidrKey.MAX.value: self._to_native(upperfence[i]),
-                    MaidrKey.UPPER_OUTLIER.value: [],
-                }
+            box = _precomputed_box(
+                self._to_native(q1_vals[i]),
+                self._to_native(median_vals[i]),
+                self._to_native(q3_vals[i]),
+                self._to_native(lowerfence[i]),
+                self._to_native(upperfence[i]),
+                label=f"{name} {i + 1}",
             )
+            if box is not None:
+                results.append(box)
         return results
 
     def _extract_grouped(
