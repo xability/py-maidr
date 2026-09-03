@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, Tuple, Union
 
+import numpy as np
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.container import BarContainer
@@ -11,7 +12,9 @@ from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS
 from maidr.patch.common import (
+    _argument,
     _draw_quietly,
+    _resolve,
     common,
     plotter_panels,
     wrap_seaborn,
@@ -27,12 +30,13 @@ def bar(
 
     This function patches the bar plotting functions to identify whether the
     plot should be rendered as a normal, stacked, or dodged bar plot.
-    It uses the 'bottom' keyword -- or 'left', which is how a horizontal bar
-    spells the same thing -- to identify stacked bar plots. For dodged
-    plots, it uses robust detection logic that considers both width and
-    context to avoid misclassifying simple bar plots with narrow widths as
-    dodged plots. Seaborn's bar plots do not come through here — they are
-    classified from the bars they drew, in `sns_bar` below.
+    It uses the 'bottom' argument -- or 'left', which is how a horizontal bar
+    spells the same thing -- to identify stacked bar plots, whether passed by
+    name or by position; a baseline of zeros is not one. For dodged plots, it
+    uses robust detection logic that considers both width and context to
+    avoid misclassifying simple bar plots with narrow widths as dodged plots.
+    Seaborn's bar plots do not come through here — they are classified from
+    the bars they drew, in `sns_bar` below.
 
     Parameters
     ----------
@@ -66,15 +70,36 @@ def bar(
     # The numbers were right and the layer count was plausible; what a reader
     # was not told is that the second bar sits on top of the first, which is
     # the whole content of a stacked chart (#385).
-    baseline = kwargs.get("bottom", kwargs.get("left"))
-    if baseline is not None:
+    #
+    # Read by name or by position, because both spellings are matplotlib's:
+    # `bottom` is the fourth parameter of `Axes.bar` and `left` the fourth of
+    # `Axes.barh`, and `ax.bar(x, b, 0.8, a)` said where its baseline was just
+    # as plainly as `bottom=a` -- yet arrived as a second plain bar layer, the
+    # same failure one argument over (#754).
+    #
+    # A baseline of zeros is where a bar starts anyway, so it says nothing
+    # about stacking: `bottom=0` is matplotlib's own default written out, and
+    # reading it as a stack announced a plain chart as a one-group stack named
+    # after its container. The first layer of a stack registers BAR either way
+    # and is superseded by the STACKED layer that follows it -- see
+    # `_drop_superseded_layers`, which records that idiom as the supported one.
+    baseline = _argument("bottom", wrapped, args, kwargs)
+    if baseline is None:
+        baseline = _argument("left", wrapped, args, kwargs)
+    # A name under `data=` is looked up before the zero test, so the two
+    # spellings of one chart -- `bottom="b", data=df` and `bottom=df["b"]` --
+    # read the same column and give the same answer.
+    baseline = _resolve(baseline, kwargs.get("data"))
+    if baseline is not None and not _is_zero_baseline(baseline):
         plot_type = PlotType.STACKED
     else:
-        # Extract width and align parameters
-        if len(args) >= 3:
-            real_width = args[2]
-        else:
-            real_width = kwargs.get("width", 0.8)
+        # The thickness across the bar, which is `height` on `barh` -- where
+        # `width` is the bar's length, and reading it compared two calls'
+        # values rather than their spacing.
+        thickness = "height" if getattr(wrapped, "__name__", "") == "barh" else "width"
+        real_width = _argument(thickness, wrapped, args, kwargs)
+        if real_width is None:
+            real_width = 0.8
 
         align = kwargs.get("align", "center")
 
@@ -99,6 +124,29 @@ def bar(
     return common(plot_type, wrapped, instance, args, kwargs, drawn_as=DRAWN_BARS)
 
 
+def _is_zero_baseline(baseline: Any) -> bool:
+    """
+    Whether a bar's baseline is zero everywhere, and so no baseline at all.
+
+    Parameters
+    ----------
+    baseline : Any
+        The ``bottom`` or ``left`` argument, a scalar or a sequence, after
+        a name under ``data=`` has been resolved to its column.
+
+    Returns
+    -------
+    bool
+        True for a scalar zero or an all-zero sequence. Anything that cannot
+        be read as numbers -- a name that resolved to nothing, in particular
+        -- is False, so it keeps reading as the stack it names.
+    """
+    try:
+        return bool(np.all(np.asarray(baseline, dtype=float) == 0))
+    except (TypeError, ValueError):
+        return False
+
+
 def _should_classify_as_dodged(
     ax: Any, width: Any, align: str, args: Tuple[Any, ...], kwargs: Dict[str, Any]
 ) -> bool:
@@ -113,7 +161,8 @@ def _should_classify_as_dodged(
     ax : Any
         The axes instance where the plot is being created.
     width : Any
-        The width parameter for the bar plot.
+        The thickness across the bar: ``width`` on ``bar``, ``height`` on
+        ``barh``, whichever the caller passed.
     align : str
         The alignment parameter for the bar plot.
     args : tuple

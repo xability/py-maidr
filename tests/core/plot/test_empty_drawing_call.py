@@ -176,3 +176,28 @@ def test_drew_nothing_declines_to_guess():
     assert drew_nothing(None) is False
     assert drew_nothing({}) is False
     assert drew_nothing("not an artist") is False
+
+
+def test_an_axes_scatter_leaves_the_current_pyplot_figure_alone():
+    """The count above is only ever read for the seaborn binding.
+
+    `Axes.scatter` returns its collection, so `counted is plot` can never
+    hold on that path and its snapshot was dead -- yet taking it asked
+    pyplot for a current axes, and `plt.gca()` on a figure with none
+    *creates* one. An object-oriented `ax.scatter()` on a figure pyplot has
+    never heard of therefore put an empty axes on whatever pyplot figure
+    happened to be current, which showed up as a blank panel the next time
+    that figure was saved (#755).
+    """
+    from matplotlib.figure import Figure
+
+    empty = plt.figure()
+    try:
+        fignums = plt.get_fignums()
+        axes = Figure().add_subplot()
+        axes.scatter([1.0, 2.0], [3.0, 4.0])
+
+        assert plt.get_fignums() == fignums
+        assert empty.axes == []
+    finally:
+        plt.close(empty)

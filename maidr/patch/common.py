@@ -106,12 +106,16 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
     name : str
         Name of the parameter to read.
     wrapped : Callable
-        The wrapped function, used for its parameter order. It is the bound
-        method, so ``self`` is not among its parameters. Matplotlib's, when
-        this was written; ``maidr/patch/violinplot.py`` now reads ``inner``
-        off ``_CategoricalPlotter.plot_violins`` through it as well, which
-        works for the same reason and is worth saying so a reader does not
-        assume matplotlib is the only caller.
+        The wrapped function, used for its parameter order. On a bound call
+        it is the bound method and ``self`` is not among its parameters; on
+        an unbound one, ``Axes.bar(ax, ...)``, wrapt's proxy still lists
+        ``self`` while the instance is already out of ``args``, and that
+        leading name is dropped below. Matplotlib's, when this was written;
+        ``maidr/patch/violinplot.py`` reads ``inner`` off
+        ``_CategoricalPlotter.plot_violins`` through it and
+        ``maidr/patch/barplot.py`` reads a bar's baseline and thickness,
+        which works for the same reason and is worth saying so a reader
+        does not assume matplotlib is the only caller.
     args : tuple
         Positional arguments the caller passed.
     kwargs : dict
@@ -145,6 +149,13 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
         ):
             break
         positional.append(parameter_name)
+
+    # An unbound call, `Axes.bar(ax, ...)`, reaches the patch through wrapt's
+    # partial proxy, whose signature still opens with `self` although the
+    # instance is already out of `args`. Dropping it keeps each index on the
+    # argument it names; a bound call opens with `x` or `y` and is untouched.
+    if positional and positional[0] in ("self", "cls"):
+        positional.pop(0)
 
     if name not in positional:
         return None
