@@ -37,6 +37,7 @@ import pytest
 
 plotly = pytest.importorskip("plotly")
 
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import plotly.express as px  # noqa: E402
 import plotly.graph_objects as go  # noqa: E402
@@ -304,3 +305,37 @@ class TestBarnormValuesStayRaw:
     def test_the_type_still_reports_the_normalisation(self):
         layer = only_layer(stacked(SMALL_A, SMALL_B, barnorm="percent"))
         assert layer["type"] == PlotType.NORMALIZED.value
+
+
+class TestABlankIsNoObservation:
+    """A missing entry in any series raised out of the whole figure (#699).
+
+    The shared grid is worked out from the pooled sample, and one ``nan`` in
+    it made the pool's minimum ``nan`` -- the same failure as the single
+    histogram's, reached through the union. The grouped path also handed an
+    empty grid straight to ``_bin_counts``, so a spec the single-trace path
+    declines raised ``IndexError`` here instead.
+    """
+
+    def test_a_blank_in_one_series_leaves_the_shared_grid_alone(self):
+        with_a_blank = pd.concat(
+            [frame(), pd.DataFrame({"v": [np.nan], "h": ["x"]})],
+            ignore_index=True,
+        )
+
+        emitted = only_layer(px.histogram(with_a_blank, x="v", color="h"))
+        clean = only_layer(px.histogram(frame(), x="v", color="h"))
+
+        assert emitted["data"] == clean["data"]
+
+    def test_a_negative_width_forms_no_layer(self):
+        # What the single-trace path already does with it -- see
+        # `test_plotly_histogram_bins.py` -- rather than an `IndexError`.
+        figure = px.histogram(frame(), x="v", color="h").update_traces(
+            xbins=dict(size=-2)
+        )
+
+        assert layers(figure) == []
+
+    def test_a_group_of_nothing_but_blanks_forms_no_layer(self):
+        assert layers(stacked([None, None], [float("nan")])) == []

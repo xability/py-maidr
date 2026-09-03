@@ -45,9 +45,15 @@ import pytest
 plotly = pytest.importorskip("plotly")
 
 import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import plotly.express as px  # noqa: E402
 import plotly.graph_objects as go  # noqa: E402
 
-from maidr.plotly.histogram import _auto_shift_bins, _occupied_span  # noqa: E402
+from maidr.plotly.histogram import (  # noqa: E402
+    _auto_shift_bins,
+    _occupied_span,
+    _plotly_default_size0,
+)
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
 #: Spans a window given below in one test and above it in another.
@@ -292,9 +298,7 @@ class TestTheRoundUpIsStrict:
         the loose reading would have given a width of 2.
         """
         values = list(np.linspace(0, 30, 61))
-        figure = go.Figure(
-            go.Histogram2d(x=values, y=values, nbinsx=15, nbinsy=15)
-        )
+        figure = go.Figure(go.Histogram2d(x=values, y=values, nbinsx=15, nbinsy=15))
 
         layer = PlotlyMaidr(figure)._flatten_maidr()["subplots"][0][0]["layers"][0]
 
@@ -345,9 +349,7 @@ class TestABinSpecWithoutASize:
 
     def test_both_ends_without_a_width_get_one_derived_for_them(self):
         """The width is still the automatic one; only the window is theirs."""
-        drawn = bins(
-            go.Figure(go.Histogram(x=self.SAMPLE, xbins=dict(start=2, end=6)))
-        )
+        drawn = bins(go.Figure(go.Histogram(x=self.SAMPLE, xbins=dict(start=2, end=6))))
 
         assert drawn == [(2.0, 4.0, 5), (4.0, 6.0, 5)]
 
@@ -405,9 +407,9 @@ class TestABinSpecWithoutASize:
         flat = [3, 3, 3, 3, 3]
 
         assert bins(go.Figure(go.Histogram(x=flat))) == [(2.5, 3.5, 5)]
-        assert bins(
-            go.Figure(go.Histogram(x=flat, xbins=dict(start=0)))
-        ) == [(3.0, 4.0, 5)]
+        assert bins(go.Figure(go.Histogram(x=flat, xbins=dict(start=0)))) == [
+            (3.0, 4.0, 5)
+        ]
 
     def test_a_window_a_hair_over_whole_bins_is_still_whole_bins(self):
         """``(-2.8 - -3.0) / 0.1`` is 2.0000000000000018 in binary.
@@ -478,3 +480,113 @@ class TestABinSpecWithoutASize:
         figure = go.Figure(go.Histogram(x=self.SAMPLE, xbins=dict(start=20)))
 
         assert layers(figure) == []
+
+
+class TestABlankIsNoObservation:
+    """A ``None`` or a ``NaN`` in the sample raised out of the figure (#699).
+
+    ``_bin_assignment`` already put a blank in no bin; the grid was still
+    worked out from the whole array, so its minimum was ``NaN`` and the first
+    ``ceil`` of it raised ``ValueError`` -- out of ``maidr.render``, taking
+    every other layer of the figure down with the histogram. Plotly draws
+    around a blank: ``min``/``max``, ``distinctVals`` and ``stdev`` all skip
+    it, and only the ``data.length`` under the automatic width's exponent
+    still counts it.
+    """
+
+    WITH_BLANKS = BIMODAL[:3] + [None, float("nan")] + BIMODAL[3:]
+
+    def test_the_finite_values_are_binned_as_they_would_be_alone(self):
+        with_blanks = go.Figure(go.Histogram(x=self.WITH_BLANKS))
+        finite = go.Figure(go.Histogram(x=BIMODAL))
+
+        assert bins(with_blanks) == bins(finite)
+        assert bins(finite) == [(0.0, 5.0, 4), (5.0, 10.0, 2), (10.0, 15.0, 2)]
+
+    def test_on_a_horizontal_trace_too(self):
+        with_blanks = go.Figure(go.Histogram(y=self.WITH_BLANKS))
+        finite = go.Figure(go.Histogram(y=BIMODAL))
+
+        assert bins(with_blanks) == bins(finite)
+
+    def test_from_a_frame_column(self):
+        # The ordinary way to meet one: a column with a missing entry, which
+        # `to_dict` hands over as an array holding a `nan`.
+        column = px.histogram(pd.DataFrame({"v": self.WITH_BLANKS}), x="v")
+
+        assert bins(column) == bins(go.Figure(go.Histogram(x=BIMODAL)))
+
+    @pytest.mark.parametrize(
+        "spec",
+        [
+            dict(xbins=dict(size=2)),
+            dict(xbins=dict(start=0.5)),
+            dict(nbinsx=3),
+        ],
+        ids=["size", "start", "nbins"],
+    )
+    def test_under_every_spelling_of_the_spec(self, spec):
+        # Each spelling read the minimum or the maximum on a path of its own,
+        # and every one of them raised.
+        with_blanks = go.Figure(go.Histogram(x=self.WITH_BLANKS, **spec))
+        finite = go.Figure(go.Histogram(x=BIMODAL, **spec))
+
+        assert bins(with_blanks) == bins(finite)
+
+    def test_a_sample_of_nothing_but_blanks_forms_no_layer(self):
+        # Plotly draws no bars for it, and a layer of no bins would announce a
+        # distribution the chart does not draw (#636).
+        assert layers(go.Figure(go.Histogram(x=[None, float("nan")]))) == []
+
+    def test_the_shift_counts_the_sample_without_its_blanks(self):
+        """``autoShiftNumericBins`` subtracts the blanks from its length.
+
+        The bundle tallies them alongside the integers
+        (``t[c]%1===0?s++:zh(t[c])||l++``), takes ``f=t.length-l``, and tests
+        ``s===f``, ``f*.1`` and ``f*.3`` against that ``f``. Forty integers
+        and thirty blanks pin which length is meant: over the finite sample
+        every value is an integer and the grid shifts half a step off them,
+        to ``-0.5``. Counted over the whole array, ``s`` would be 40 against
+        an ``f`` of 70, the integer branch would not fire, and the sample's
+        minimum sitting on an edge would send it half a *bin* down instead,
+        to ``-2.5`` -- a start the chart does not draw.
+
+        The width is named so that only the shift is under test: the
+        automatic one does read the whole length, through its exponent.
+        """
+        integers = list(range(40))
+        with_blanks = integers + [None] * 30
+
+        finite = bins(go.Figure(go.Histogram(x=integers, xbins=dict(size=5))))
+        blanked = bins(go.Figure(go.Histogram(x=with_blanks, xbins=dict(size=5))))
+
+        assert blanked == finite
+        assert finite[0][0] == -0.5
+
+    def test_a_blank_still_counts_toward_the_width_exponent(self):
+        """The one term plotly reads off the whole array, blanks included.
+
+        ``autoBin`` divides ``2 * stdev`` by ``data.length ** 0.4``, and that
+        length is the array as given, where the standard deviation beside it
+        is over the numeric entries alone. So the finite values do **not**
+        always bin as they would on their own: two blanks make this sample
+        two longer, the rough width smaller by ``(6 / 8) ** 0.4``, and that is
+        enough to carry it across the 2 the nice rounding turns on.
+        """
+        sample = np.array(NARROW, dtype=float)
+        alone = _plotly_default_size0(sample)
+        with_two_blanks = _plotly_default_size0(sample, sample_size=len(NARROW) + 2)
+
+        assert with_two_blanks == pytest.approx(alone * (6 / 8) ** 0.4)
+
+        two_blanks = NARROW[:3] + [None, float("nan")] + NARROW[3:]
+        assert bins(go.Figure(go.Histogram(x=NARROW))) == [
+            (-5.0, 0.0, 2),
+            (0.0, 5.0, 4),
+        ]
+        assert bins(go.Figure(go.Histogram(x=two_blanks))) == [
+            (-4.0, -2.0, 1),
+            (-2.0, 0.0, 1),
+            (0.0, 2.0, 2),
+            (2.0, 4.0, 2),
+        ]

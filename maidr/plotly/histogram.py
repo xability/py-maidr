@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+from datetime import date
+from typing import Any
 
 import numpy as np
 
@@ -35,7 +37,9 @@ def _plotly_round_up(val: float, array: list[float], reverse: bool = False) -> f
     return array[lo]
 
 
-def _plotly_default_size0(arr: np.ndarray, *, is_2d: bool = False) -> float:
+def _plotly_default_size0(
+    arr: np.ndarray, *, is_2d: bool = False, sample_size: int | None = None
+) -> float:
     """Compute the default rough bin size when ``nbinsx`` is not given.
 
     Mirrors the logic in Plotly.js ``axes.autoBin`` (the ``else`` branch
@@ -49,7 +53,7 @@ def _plotly_default_size0(arr: np.ndarray, *, is_2d: bool = False) -> float:
     Parameters
     ----------
     arr : np.ndarray
-        The raw data values.
+        The finite data values.
     is_2d : bool, default False
         Bin an axis of a **two-dimensional** histogram, which plotly bins
         more coarsely: the sample-size exponent is ``0.25`` rather than
@@ -58,9 +62,17 @@ def _plotly_default_size0(arr: np.ndarray, *, is_2d: bool = False) -> float:
         axes across four figures -- gaussian, uniform, a six-value sample and
         a normalised one -- ``0.4`` matched none of them and ``0.25`` matched
         all eight.
+    sample_size : int, optional
+        How long the sample was *before* its blanks were dropped, for the
+        exponent alone. That is the one place plotly reads the whole array:
+        ``distinctVals`` sorts the blanks to the end and stops short of them,
+        and ``stdev`` divides by the numeric count, but the ``n`` in
+        ``n ** 0.4`` is ``data.length`` as given. Defaults to the length of
+        *arr*, which is the same number for a sample with no blanks.
     """
     sorted_arr = np.sort(arr)
     n = len(sorted_arr)
+    n_total = sample_size or n
     if n < 2:
         return 1.0
 
@@ -82,7 +94,7 @@ def _plotly_default_size0(arr: np.ndarray, *, is_2d: bool = False) -> float:
 
     # size0 = max(minSize, 2 * stdev / n^(is2d ? 0.25 : 0.4))
     stdev = float(np.std(arr, ddof=0))
-    size0 = max(min_size, 2 * stdev / (n ** (0.25 if is_2d else 0.4)))
+    size0 = max(min_size, 2 * stdev / (n_total ** (0.25 if is_2d else 0.4)))
 
     if not np.isfinite(size0) or size0 <= 0:
         return 1.0
@@ -517,6 +529,51 @@ def _occupied_span(counts: np.ndarray) -> tuple[int | None, int | None]:
     return int(occupied[0]), int(occupied[-1])
 
 
+def is_temporal_sample(values: Any) -> bool:
+    """Whether plotly would bin *values* along a date axis.
+
+    Plotly bins a date axis by rules of its own -- a width from the date
+    branch of ``autoTicks`` (day multiples, then months), no anti-clustering
+    shift, date labels -- and none of that is ported yet. Run through the
+    numeric arithmetic instead, six days of ``px.histogram`` came out as bin
+    bounds around ``1.704e15`` on a grid of ``1e11`` microseconds, which is
+    no number on the chart (#699). Until the date rules are measured, a
+    temporal sample forms no layer, which is what #636 settled for every
+    other reading this cannot make right, and what the two-dimensional path
+    already does with one.
+
+    Read off the trace's array as ``to_dict`` handed it over, rather than
+    after :func:`~maidr.plotly.plotly_plot.as_list` has spelled a
+    ``datetime64`` array as ISO strings. A sample the author wrote as date
+    *strings* is not caught here, and takes the categorical path as before.
+
+    Parameters
+    ----------
+    values : Any
+        A trace's binned array: a numpy array, a list, a typed-array spec,
+        or ``None``.
+
+    Returns
+    -------
+    bool
+        True for a ``datetime64`` array, or any list holding a ``date``, a
+        ``datetime`` (``pandas.Timestamp`` is one) or a ``datetime64``.
+    """
+    if values is None or isinstance(values, (dict, str)):
+        return False
+    if isinstance(values, np.ndarray):
+        if values.dtype.kind == "M":
+            return True
+        # Only an object array can hold a date; the check per entry below is
+        # not worth walking a numeric one for.
+        if values.dtype.kind != "O":
+            return False
+    try:
+        return any(isinstance(value, (date, np.datetime64)) for value in values)
+    except TypeError:
+        return False
+
+
 def binned_axis(trace: dict) -> str:
     """Return which of ``x``/``y`` plotly bins for *trace*.
 
@@ -637,6 +694,9 @@ class PlotlyHistogramPlot(PlotlyPlot):
     def _extract_plot_data(self) -> list[dict]:
         values, _ = paired_arrays(self._trace, self._binned)
         if values is None:
+            return []
+
+        if is_temporal_sample(self._trace.get(self._binned)):
             return []
 
         # Detect categorical (string) data — Plotly renders these as
@@ -823,10 +883,25 @@ def compute_bin_edges(
     ybins=dict(size=2))`` does the same. Reading ``xbins`` for every trace
     would have honoured a spec plotly discards and missed the one it uses.
 
+    A blank in the sample -- a ``None`` or a ``NaN``, which plotly draws
+    around -- is no observation, and the grid is worked out from the values
+    that are. ``min``/``max``, ``distinctVals`` and ``stdev`` all skip a blank
+    in plotly.js, and ``autoShiftNumericBins`` **subtracts the blanks from
+    its length** before every threshold it tests: the bundle counts them in
+    the same pass as the integers (``t[c]%1===0?s++:zh(t[c])||l++``), takes
+    ``f=t.length-l``, and reads ``s===f``, ``f*.1`` and ``f*.3`` off that
+    ``f``. So the finite sample is what it is handed here, and the one term
+    that does see the whole length is the automatic width's exponent -- see
+    :func:`_plotly_default_size0`. Read off the whole array instead, the
+    minimum was ``NaN`` and the first ``ceil`` of it raised out of a figure
+    plotly draws (#699). For a sample with no blanks every intermediate is
+    the same number, so its grid is unchanged. A sample of nothing but blanks
+    draws no bars, and comes back as no edges at all.
+
     Parameters
     ----------
     arr : np.ndarray
-        The raw data values.
+        The raw data values, blanks included.
     is_2d : bool, default False
         Bin one axis of a ``histogram2d``, which changes only the sample-size
         exponent of the automatic width -- see :func:`_plotly_default_size0`.
@@ -836,10 +911,13 @@ def compute_bin_edges(
     Returns
     -------
     np.ndarray
-        Bin edges matching what Plotly renders.
+        Bin edges matching what Plotly renders; empty when it renders none.
     """
     named = bins if isinstance(bins, dict) else {}
-    data_min, data_max = float(arr.min()), float(arr.max())
+    finite = arr[np.isfinite(arr)]
+    if not finite.size:
+        return np.array([])
+    data_min, data_max = float(finite.min()), float(finite.max())
     data_range = data_max - data_min
     # A sample with no spread and nothing said about it: one bin around the
     # single value, which is what plotly draws (measured -- a run of 3s is
@@ -850,7 +928,9 @@ def compute_bin_edges(
 
     # 1. The width: the author's, the one an `nbins` hint rounds up to, or
     #    the automatic one -- see :func:`_bin_size`.
-    size = _bin_size(arr, named, nbins, data_range, is_2d=is_2d)
+    size = _bin_size(
+        finite, named, nbins, data_range, is_2d=is_2d, sample_size=arr.size
+    )
     if size <= 0:
         # Only a *negative* explicit width reaches here -- a zero one is read
         # as an absence above. Plotly draws something for it rather than
@@ -875,7 +955,11 @@ def compute_bin_edges(
         start = float(named["start"])
     else:
         start = _auto_shift_bins(
-            math.ceil(data_min / size) * size - size, arr, size, data_min, data_max
+            math.ceil(data_min / size) * size - size,
+            finite,
+            size,
+            data_min,
+            data_max,
         )
 
     # 3. How many bins. Plotly steps from `start` while the *bin's own*
@@ -910,6 +994,7 @@ def _bin_size(
     data_range: float,
     *,
     is_2d: bool,
+    sample_size: int | None = None,
 ) -> float:
     """The bin width plotly settles on, before any start or end is applied.
 
@@ -939,5 +1024,6 @@ def _bin_size(
     # differently.
     if nbins is not None and "size" not in named:
         return _plotly_dtick(data_range / max(1, nbins))
-    return _plotly_dtick(_plotly_default_size0(arr, is_2d=is_2d))
-
+    return _plotly_dtick(
+        _plotly_default_size0(arr, is_2d=is_2d, sample_size=sample_size)
+    )

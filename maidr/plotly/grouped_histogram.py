@@ -21,6 +21,7 @@ from maidr.plotly.histogram import (
     as_numeric,
     binned_axis,
     compute_bin_edges,
+    is_temporal_sample,
     paired_arrays,
 )
 from maidr.plotly.plotly_plot import PlotlyPlot
@@ -153,7 +154,12 @@ class PlotlyGroupedHistogramPlot(PlotlyPlot):
         if not pooled.size:
             return None
         bins, nbins = group_bin_spec(self._traces, self._binned)
-        return compute_bin_edges(pooled, bins, nbins)
+        edges = compute_bin_edges(pooled, bins, nbins)
+        # Fewer than two edges is no grid: a negative width, a window past
+        # the data, or a pool of nothing but blanks. The single-trace path
+        # reads that as no layer, and so does this, rather than handing an
+        # empty array to `_bin_counts` and raising out of it (#699).
+        return edges if edges.size >= 2 else None
 
     def _extract_plot_data(self) -> list[list[dict]]:
         samples: list[np.ndarray] = []
@@ -164,6 +170,11 @@ class PlotlyGroupedHistogramPlot(PlotlyPlot):
                 samples.append(np.empty(0))
                 values.append(None)
                 continue
+            # A date axis is binned by rules this does not port yet -- see
+            # `is_temporal_sample`. Declining the group as a whole, since
+            # every trace of it shares the one axis.
+            if is_temporal_sample(trace.get(self._binned)):
+                return []
             try:
                 samples.append(np.array(sample, dtype=float))
             except (ValueError, TypeError):
