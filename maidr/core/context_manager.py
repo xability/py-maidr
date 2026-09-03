@@ -139,7 +139,9 @@ class HighlightContextManager:
             elements[gid] = selector_id
             yield
         finally:
-            del elements[gid]
+            # `pop`, not `del`: a user gid is kept verbatim (#753), so two
+            # artists can share a key, and no draw is assumed not to nest.
+            elements.pop(gid, None)
 
     @classmethod
     @contextlib.contextmanager
