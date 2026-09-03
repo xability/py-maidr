@@ -108,12 +108,12 @@ class HighlightContextManager:
     )
 
     @classmethod
-    def is_maidr_element(cls, id):
-        return id in cls._elements.get({})
+    def is_maidr_element(cls, gid):
+        return gid in cls._elements.get({})
 
     @classmethod
-    def get_selector_id(cls, id):
-        return cls._elements.get({})[id]
+    def get_selector_id(cls, gid):
+        return cls._elements.get({})[gid]
 
     @classmethod
     @contextlib.contextmanager
