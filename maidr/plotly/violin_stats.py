@@ -56,7 +56,7 @@ _MIN_BANDWIDTH_FRACTION = 100
 #: The quantile rule plotly uses. Not numpy's default (`linear`), and not
 #: plotly's own documented `quartilemethod` values either -- measured against
 #: plotly's `calcdata` across eight sample sizes, this is the one that agrees.
-_QUANTILE_METHOD = "hazen"
+QUANTILE_METHOD = "hazen"
 
 _INV_SQRT_2PI = 1.0 / math.sqrt(2.0 * math.pi)
 
@@ -156,7 +156,7 @@ def violin_stats(values: np.ndarray) -> ViolinStats | None:
         )
 
     q1, median, q3 = (
-        float(q) for q in np.percentile(values, [25, 50, 75], method=_QUANTILE_METHOD)
+        float(q) for q in np.percentile(values, [25, 50, 75], method=QUANTILE_METHOD)
     )
     bandwidth = _bandwidth(values, q1, q3)
 
@@ -177,9 +177,16 @@ def violin_stats(values: np.ndarray) -> ViolinStats | None:
     step = width / intervals
     positions = low + np.arange(intervals + 1) * step
 
-    # The Gaussian kernel, summed over the sample at every position.
-    scaled = (positions[:, None] - values[None, :]) / bandwidth
-    density = np.exp(-0.5 * scaled**2).sum(axis=1)
+    # The Gaussian kernel, summed over the sample at every position -- one
+    # position at a time rather than as an (intervals x n) outer product.
+    # The outer product is O(intervals * n) memory, and intervals grows with
+    # n: measured, 1.5 GB of peak memory for a 200k-sample violin, for every
+    # violin on the subplot. A row at a time is O(n) memory. The result is
+    # bit-identical, because reducing one contiguous row of the matrix is the
+    # same pairwise summation numpy applies to a one-dimensional array.
+    density = np.empty(len(positions))
+    for i, position in enumerate(positions):
+        density[i] = np.exp(-0.5 * ((position - values) / bandwidth) ** 2).sum()
     density *= _INV_SQRT_2PI / (len(values) * bandwidth)
 
     return ViolinStats(

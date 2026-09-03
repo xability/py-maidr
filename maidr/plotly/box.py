@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 import numpy as np
@@ -8,6 +9,7 @@ import numpy as np
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.violin_stats import QUANTILE_METHOD
 
 _logger = logging.getLogger(__name__)
 
@@ -88,6 +90,210 @@ def _build_box_selector(
     }
 
 
+def _has_precomputed_stats(trace: dict) -> bool:
+    """Return whether *trace* carries its quartiles rather than its samples.
+
+    Plotly's own signature for the form (``_hasPreCompStats``): ``q1``,
+    ``median`` and ``q3`` all present and non-empty; a trace missing any of
+    the three is read as a raw sample. Both extractors branch on it in more
+    than one place, so it is spelled once.
+    """
+    for key in ("q1", "median", "q3"):
+        value = trace.get(key)
+        # Sized rather than truthy: a numpy array raises on ``bool()``.
+        if value is None or not hasattr(value, "__len__") or len(value) == 0:
+            return False
+    return True
+
+
+def _is_finite_number(value: Any) -> bool:
+    """Return whether *value* is a number plotly's ``isNumeric`` would take."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
+
+
+def _precomputed_box(
+    q1: Any,
+    median: Any,
+    q3: Any,
+    lowerfence: Any,
+    upperfence: Any,
+    label: str = "",
+) -> dict | None:
+    """
+    Build one box's stats from its precomputed values, the way plotly reads them.
+
+    Plotly's calc keeps a precomputed box only when ``q1``, ``median`` and
+    ``q3`` are all numeric and in order; otherwise it draws nothing there.
+    Such a box is dropped here for the same reason the sample path drops a
+    box with no finite samples: a ``None`` or NaN sent straight through
+    became a bare ``null``/``NaN`` in the schema, and plotly's ``boxlayer``
+    has no ``path.box`` for it, so leaving it in would also shift every
+    later box's positional selector off the element it describes.
+
+    A fence plotly rejects -- non-numeric, or a lower fence above ``q1`` /
+    an upper fence below ``q3`` -- does not cost it the box: with no sample
+    points to fall back on it uses the quartile itself, and so does this.
+
+    Parameters
+    ----------
+    q1, median, q3, lowerfence, upperfence : Any
+        The box's precomputed values, as native scalars.
+    label : str
+        The box's name, for the warning when it is dropped.
+    """
+    if not (
+        _is_finite_number(q1)
+        and _is_finite_number(median)
+        and _is_finite_number(q3)
+        and q1 <= median <= q3
+    ):
+        _logger.warning(
+            "maidr: box %r has no complete quartiles; dropping it.",
+            label or "<unnamed>",
+        )
+        return None
+
+    min_val = lowerfence if _is_finite_number(lowerfence) and lowerfence <= q1 else q1
+    max_val = upperfence if _is_finite_number(upperfence) and upperfence >= q3 else q3
+
+    return {
+        MaidrKey.LOWER_OUTLIER.value: [],
+        MaidrKey.MIN.value: min_val,
+        MaidrKey.Q1.value: q1,
+        MaidrKey.Q2.value: median,
+        MaidrKey.Q3.value: q3,
+        MaidrKey.MAX.value: max_val,
+        MaidrKey.UPPER_OUTLIER.value: [],
+    }
+
+
+def _trace_is_horizontal(trace: dict) -> bool:
+    """Return whether plotly draws *trace*'s boxes horizontally.
+
+    An explicit ``orientation="h"`` wins. Otherwise a precomputed trace reads
+    its arrays the other way round from a raw one. Raw samples in ``x`` alone
+    are the values of a horizontal box; but once ``q1``/``median``/``q3``
+    carry the values, a lone ``x`` is the *positions* of vertical boxes and a
+    lone ``y`` the positions of horizontal ones -- plotly's box defaults,
+    case ``"10"`` -> ``v`` and case ``"01"`` -> ``h``. Applying the raw rule
+    to both swapped the announced value axis for every precomputed trace
+    with one array.
+
+    With both a 1-D ``x`` and ``y`` (plotly's case ``"11"``) a precomputed
+    trace sets no orientation at all: plotly hides it and draws nothing, so
+    the ``False`` it gets here is a default, not a match.
+    """
+    if trace.get("orientation") == "h":
+        return True
+    if _has_precomputed_stats(trace):
+        return trace.get("y") is not None and trace.get("x") is None
+    # Plotly uses x for horizontal when y is absent
+    return trace.get("x") is not None and trace.get("y") is None
+
+
+def _compute_stats(
+    arr: np.ndarray,
+    label: str = "",
+    quartilemethod: str | None = None,
+) -> dict | None:
+    """
+    Compute box plot statistics for a numeric array.
+
+    The statistics are the ones plotly draws, not a textbook's: non-finite
+    samples are skipped, and the quartiles follow the trace's
+    ``quartilemethod`` the way plotly's box calc reads it. Shared by
+    ``PlotlyBoxPlot`` and ``PlotlyMultiBoxPlot``, which describe the same
+    boxes and must not describe them two different ways.
+
+    Answers None for an array with no finite samples. Every quartile of a
+    box with no samples is undefined -- `np.percentile` raises rather than
+    inventing one -- and an array arrives empty when the samples behind it
+    could not be read, a corrupt typed-array spec being the way that
+    happens. The caller drops the box; letting the raise through would take
+    the whole figure with it, including the layers that read perfectly
+    well. The precomputed path bounds its loop for the same reason.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        The box's samples, as floats.
+    label : str
+        The box's name, for the warning when it is dropped.
+    quartilemethod : str or None
+        The trace's ``quartilemethod``; ``None`` or ``"linear"`` is plotly's
+        default.
+    """
+    # Plotly's box calc skips every sample that is not a number (its
+    # `isNumeric` guard), so a `None` gap in the sample leaves the box it
+    # draws untouched. Left in, the NaN it became would poison every
+    # statistic and land as a bare `NaN` token in the schema. A box with
+    # nothing finite in it is the same "no samples" case as an empty one.
+    arr = arr[np.isfinite(arr)]
+    if arr.size == 0:
+        _logger.warning(
+            "maidr: box %r has no samples to summarise; dropping it.",
+            label or "<unnamed>",
+        )
+        return None
+
+    # Hazen quartiles, the rule plotly's `Lib.interp` applies -- the same
+    # constant the violin uses, measured there against plotly's calcdata.
+    # numpy's default `linear` disagrees in the third significant figure,
+    # and the fences and outliers all follow from q1/q3.
+    q2 = float(np.percentile(arr, 50, method=QUANTILE_METHOD))
+    # `quartilemethod="exclusive"`/`"inclusive"` only change plotly's
+    # answer for an odd sample size: the median is left out of, or shared
+    # by, the two halves whose medians become q1 and q3. An even sample
+    # is Hazen whatever the method says. So is a single sample under
+    # `exclusive`: its halves are empty, and plotly's `Lib.interp` on an
+    # empty array answers `undefined` -- there is no drawn quartile to
+    # match, and a NaN in the schema is worse than the value itself.
+    halves = None
+    if arr.size % 2 and quartilemethod in ("exclusive", "inclusive"):
+        middle = arr.size // 2
+        ordered = np.sort(arr)
+        if quartilemethod == "exclusive":
+            halves = ordered[:middle], ordered[middle + 1 :]
+        else:
+            halves = ordered[: middle + 1], ordered[middle:]
+    if halves is not None and all(half.size for half in halves):
+        q1, q3 = (float(np.median(half)) for half in halves)
+    else:
+        q1, q3 = (
+            float(q) for q in np.percentile(arr, [25, 75], method=QUANTILE_METHOD)
+        )
+    iqr = q3 - q1
+    lower_fence = q1 - 1.5 * iqr
+    upper_fence = q3 + 1.5 * iqr
+
+    min_val = (
+        float(np.min(arr[arr >= lower_fence])) if np.any(arr >= lower_fence) else q1
+    )
+    max_val = (
+        float(np.max(arr[arr <= upper_fence])) if np.any(arr <= upper_fence) else q3
+    )
+
+    lower_outliers = sorted(float(v) for v in arr[arr < lower_fence])
+    upper_outliers = sorted(float(v) for v in arr[arr > upper_fence])
+
+    result = {
+        MaidrKey.LOWER_OUTLIER.value: lower_outliers,
+        MaidrKey.MIN.value: min_val,
+        MaidrKey.Q1.value: q1,
+        MaidrKey.Q2.value: q2,
+        MaidrKey.Q3.value: q3,
+        MaidrKey.MAX.value: max_val,
+        MaidrKey.UPPER_OUTLIER.value: upper_outliers,
+    }
+    if label:
+        result[MaidrKey.Z.value] = label
+    return result
+
+
 class PlotlyBoxPlot(PlotlyPlot):
     """Extract data from a Plotly box trace."""
 
@@ -128,11 +334,8 @@ class PlotlyBoxPlot(PlotlyPlot):
         ]
 
     def _is_horizontal(self) -> bool:
-        """Detect if this box trace is horizontal."""
-        if self._trace.get("orientation") == "h":
-            return True
-        # Plotly uses x for horizontal when y is absent
-        return self._trace.get("x") is not None and self._trace.get("y") is None
+        """Detect if this box trace is horizontal -- see `_trace_is_horizontal`."""
+        return _trace_is_horizontal(self._trace)
 
     def render(self) -> dict:
         schema = super().render()
@@ -143,7 +346,7 @@ class PlotlyBoxPlot(PlotlyPlot):
 
     def _extract_plot_data(self) -> list[dict]:
         # Plotly box traces can have pre-computed stats or raw data
-        if self._has_precomputed_stats():
+        if _has_precomputed_stats(self._trace):
             data = self._extract_precomputed()
         else:
             data = self._extract_from_raw_data()
@@ -157,10 +360,6 @@ class PlotlyBoxPlot(PlotlyPlot):
         ]
         return data
 
-    def _has_precomputed_stats(self) -> bool:
-        """Check if the trace has pre-computed quartile values."""
-        return "q1" in self._trace and "median" in self._trace
-
     def _extract_precomputed(self) -> list[dict]:
         """
         Extract box stats from pre-computed values in the trace.
@@ -171,6 +370,9 @@ class PlotlyBoxPlot(PlotlyPlot):
         the loop indexing past the end of it. A short layer is the same answer
         the rest of this module gives to data it cannot read; a crash would
         take the whole figure with it.
+
+        A box whose quartiles are missing or out of order is dropped too,
+        because plotly draws none there -- see `_precomputed_box`.
         """
         q1_vals = as_list(self._trace.get("q1"))
         median_vals = as_list(self._trace.get("median"))
@@ -193,19 +395,19 @@ class PlotlyBoxPlot(PlotlyPlot):
                 count,
             )
 
+        name = self._trace.get("name") or "box"
         results = []
         for i in range(count):
-            results.append(
-                {
-                    MaidrKey.LOWER_OUTLIER.value: [],
-                    MaidrKey.MIN.value: self._to_native(lowerfence[i]),
-                    MaidrKey.Q1.value: self._to_native(q1_vals[i]),
-                    MaidrKey.Q2.value: self._to_native(median_vals[i]),
-                    MaidrKey.Q3.value: self._to_native(q3_vals[i]),
-                    MaidrKey.MAX.value: self._to_native(upperfence[i]),
-                    MaidrKey.UPPER_OUTLIER.value: [],
-                }
+            box = _precomputed_box(
+                self._to_native(q1_vals[i]),
+                self._to_native(median_vals[i]),
+                self._to_native(q3_vals[i]),
+                self._to_native(lowerfence[i]),
+                self._to_native(upperfence[i]),
+                label=f"{name} {i + 1}",
             )
+            if box is not None:
+                results.append(box)
         return results
 
     def _extract_from_raw_data(self) -> list[dict]:
@@ -225,7 +427,11 @@ class PlotlyBoxPlot(PlotlyPlot):
         data = y if y is not None else x
         if data is not None:
             arr = np.array(as_list(data), dtype=float)
-            stats = self._compute_stats(arr, label=self._trace.get("name", ""))
+            stats = _compute_stats(
+                arr,
+                label=self._trace.get("name", ""),
+                quartilemethod=self._trace.get("quartilemethod"),
+            )
             return [stats] if stats is not None else []
 
         return []
@@ -243,56 +449,11 @@ class PlotlyBoxPlot(PlotlyPlot):
         results = []
         for cat in categories:
             arr = np.array(groups[cat], dtype=float)
-            stats = self._compute_stats(arr, label=str(cat))
+            stats = _compute_stats(
+                arr,
+                label=str(cat),
+                quartilemethod=self._trace.get("quartilemethod"),
+            )
             if stats is not None:
                 results.append(stats)
         return results
-
-    def _compute_stats(self, arr: np.ndarray, label: str = "") -> dict | None:
-        """
-        Compute box plot statistics for a numeric array.
-
-        Answers None for an empty array. Every quartile of a box with no
-        samples is undefined -- `np.percentile` raises rather than inventing
-        one -- and an array arrives empty when the samples behind it could not
-        be read, a corrupt typed-array spec being the way that happens. The
-        caller drops the box; letting the raise through would take the whole
-        figure with it, including the layers that read perfectly well. The
-        precomputed path bounds its loop for the same reason.
-        """
-        if arr.size == 0:
-            _logger.warning(
-                "maidr: box %r has no samples to summarise; dropping it.",
-                label or "<unnamed>",
-            )
-            return None
-
-        q1 = float(np.percentile(arr, 25))
-        q2 = float(np.percentile(arr, 50))
-        q3 = float(np.percentile(arr, 75))
-        iqr = q3 - q1
-        lower_fence = q1 - 1.5 * iqr
-        upper_fence = q3 + 1.5 * iqr
-
-        min_val = (
-            float(np.min(arr[arr >= lower_fence])) if np.any(arr >= lower_fence) else q1
-        )
-        max_val = (
-            float(np.max(arr[arr <= upper_fence])) if np.any(arr <= upper_fence) else q3
-        )
-
-        lower_outliers = sorted(float(v) for v in arr[arr < lower_fence])
-        upper_outliers = sorted(float(v) for v in arr[arr > upper_fence])
-
-        result = {
-            MaidrKey.LOWER_OUTLIER.value: lower_outliers,
-            MaidrKey.MIN.value: min_val,
-            MaidrKey.Q1.value: q1,
-            MaidrKey.Q2.value: q2,
-            MaidrKey.Q3.value: q3,
-            MaidrKey.MAX.value: max_val,
-            MaidrKey.UPPER_OUTLIER.value: upper_outliers,
-        }
-        if label:
-            result[MaidrKey.Z.value] = label
-        return result

@@ -7,7 +7,13 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.box import _build_box_selector
+from maidr.plotly.box import (
+    _build_box_selector,
+    _compute_stats,
+    _has_precomputed_stats,
+    _precomputed_box,
+    _trace_is_horizontal,
+)
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
 _logger = logging.getLogger(__name__)
@@ -83,13 +89,12 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         return selectors
 
     def _is_horizontal(self) -> bool:
-        """Detect if box traces are horizontal."""
-        for trace in self._traces:
-            if trace.get("orientation") == "h":
-                return True
-            if trace.get("x") is not None and trace.get("y") is None:
-                return True
-        return False
+        """Detect if box traces are horizontal.
+
+        Any one horizontal trace makes the layer horizontal; each is judged
+        by its own form, precomputed or raw -- see `_trace_is_horizontal`.
+        """
+        return any(_trace_is_horizontal(trace) for trace in self._traces)
 
     def render(self) -> dict:
         schema = super().render()
@@ -118,14 +123,18 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             before = len(all_boxes)
 
             # Pre-computed stats
-            if "q1" in trace and "median" in trace:
+            if _has_precomputed_stats(trace):
                 all_boxes.extend(self._extract_precomputed(trace))
                 self._boxes_per_trace.append(len(all_boxes) - before)
                 continue
 
             # Grouped by x
             if x is not None and y is not None:
-                all_boxes.extend(self._extract_grouped(x, y))
+                all_boxes.extend(
+                    self._extract_grouped(
+                        x, y, quartilemethod=trace.get("quartilemethod")
+                    )
+                )
                 self._boxes_per_trace.append(len(all_boxes) - before)
                 continue
 
@@ -133,7 +142,9 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             data = y if y is not None else x
             if data is not None:
                 arr = np.array(as_list(data), dtype=float)
-                stats = self._compute_stats(arr, label=name)
+                stats = _compute_stats(
+                    arr, label=name, quartilemethod=trace.get("quartilemethod")
+                )
                 if stats is not None:
                     all_boxes.append(stats)
             self._boxes_per_trace.append(len(all_boxes) - before)
@@ -158,6 +169,9 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         the loop indexing past the end of it. A short layer is the same answer
         the rest of this module gives to data it cannot read; a crash would
         take the whole figure with it.
+
+        A box whose quartiles are missing or out of order is dropped too,
+        because plotly draws none there -- see `_precomputed_box`.
         """
         q1_vals = as_list(trace.get("q1"))
         median_vals = as_list(trace.get("median"))
@@ -180,23 +194,23 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 count,
             )
 
+        name = trace.get("name") or "box"
         results = []
         for i in range(count):
-            results.append(
-                {
-                    MaidrKey.LOWER_OUTLIER.value: [],
-                    MaidrKey.MIN.value: self._to_native(lowerfence[i]),
-                    MaidrKey.Q1.value: self._to_native(q1_vals[i]),
-                    MaidrKey.Q2.value: self._to_native(median_vals[i]),
-                    MaidrKey.Q3.value: self._to_native(q3_vals[i]),
-                    MaidrKey.MAX.value: self._to_native(upperfence[i]),
-                    MaidrKey.UPPER_OUTLIER.value: [],
-                }
+            box = _precomputed_box(
+                self._to_native(q1_vals[i]),
+                self._to_native(median_vals[i]),
+                self._to_native(q3_vals[i]),
+                self._to_native(lowerfence[i]),
+                self._to_native(upperfence[i]),
+                label=f"{name} {i + 1}",
             )
+            if box is not None:
+                results.append(box)
         return results
 
     def _extract_grouped(
-        self, x: list[Any], y: list[Any]
+        self, x: list[Any], y: list[Any], quartilemethod: str | None = None
     ) -> list[dict]:
         """Extract stats grouped by x categories."""
         x_list = as_list(x)
@@ -209,60 +223,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         results = []
         for cat in categories:
             arr = np.array(groups[cat], dtype=float)
-            stats = self._compute_stats(arr, label=str(cat))
+            stats = _compute_stats(arr, label=str(cat), quartilemethod=quartilemethod)
             if stats is not None:
                 results.append(stats)
         return results
-
-    def _compute_stats(self, arr: np.ndarray, label: str = "") -> dict | None:
-        """
-        Compute box plot statistics for a numeric array.
-
-        Answers None for an empty array. Every quartile of a box with no
-        samples is undefined -- `np.percentile` raises rather than inventing
-        one -- and an array arrives empty when the samples behind it could not
-        be read, a corrupt typed-array spec being the way that happens. The
-        caller drops the box; letting the raise through would take the whole
-        figure with it, including the layers that read perfectly well. The
-        precomputed path bounds its loop for the same reason.
-        """
-        if arr.size == 0:
-            _logger.warning(
-                "maidr: box %r has no samples to summarise; dropping it.",
-                label or "<unnamed>",
-            )
-            return None
-
-        q1 = float(np.percentile(arr, 25))
-        q2 = float(np.percentile(arr, 50))
-        q3 = float(np.percentile(arr, 75))
-        iqr = q3 - q1
-        lower_fence = q1 - 1.5 * iqr
-        upper_fence = q3 + 1.5 * iqr
-
-        min_val = (
-            float(np.min(arr[arr >= lower_fence]))
-            if np.any(arr >= lower_fence)
-            else q1
-        )
-        max_val = (
-            float(np.max(arr[arr <= upper_fence]))
-            if np.any(arr <= upper_fence)
-            else q3
-        )
-
-        lower_outliers = sorted(float(v) for v in arr[arr < lower_fence])
-        upper_outliers = sorted(float(v) for v in arr[arr > upper_fence])
-
-        result = {
-            MaidrKey.LOWER_OUTLIER.value: lower_outliers,
-            MaidrKey.MIN.value: min_val,
-            MaidrKey.Q1.value: q1,
-            MaidrKey.Q2.value: q2,
-            MaidrKey.Q3.value: q3,
-            MaidrKey.MAX.value: max_val,
-            MaidrKey.UPPER_OUTLIER.value: upper_outliers,
-        }
-        if label:
-            result[MaidrKey.Z.value] = label
-        return result

@@ -9,6 +9,7 @@ from maidr.plotly.bar import PlotlyBarPlot
 from maidr.plotly.scatter import PlotlyScatterPlot
 from maidr.plotly.line import PlotlyLinePlot
 from maidr.plotly.box import PlotlyBoxPlot
+from maidr.plotly.multibox import PlotlyMultiBoxPlot
 from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
 from maidr.plotly.grouped_bar import PlotlyGroupedBarPlot
@@ -202,6 +203,384 @@ class TestPlotlyBoxPlot:
         assert len(data) == 2
         assert data[0]["z"] == "A"
         assert data[1]["z"] == "B"
+
+    @pytest.mark.parametrize(
+        "sample, expected",
+        [
+            ([1, 2, 3, 4], (1.5, 2.5, 3.5)),
+            ([1, 2, 3, 4, 5], (1.75, 3.0, 4.25)),
+        ],
+    )
+    def test_quartiles_are_plotlys(self, sample, expected):
+        """Hazen, the rule plotly's `Lib.interp` draws with.
+
+        Read straight from the bundle: `t = p * n - 0.5`, interpolated between
+        the samples either side. The violin module already pins that rule
+        against plotly's calcdata; the box has to agree with the same chart.
+        """
+        plot = PlotlyBoxPlot({"type": "box", "y": sample}, {})
+        box = plot._extract_plot_data()[0]
+
+        assert (box["q1"], box["q2"], box["q3"]) == expected
+
+    def test_the_default_quantile_rule_would_not_pass(self):
+        """The control, so the test above cannot pass by coincidence."""
+        linear = np.percentile([1, 2, 3, 4], [25, 75], method="linear")
+
+        assert tuple(linear) != (1.5, 3.5)
+
+    @pytest.mark.parametrize(
+        "method, expected",
+        [
+            ("exclusive", (2.5, 7.5)),
+            ("inclusive", (3.0, 7.0)),
+        ],
+    )
+    def test_quartilemethod_splits_an_odd_sample_the_way_plotly_does(
+        self, method, expected
+    ):
+        """Plotly's own documented example for the two methods, 1..9."""
+        trace = {"type": "box", "y": list(range(1, 10)), "quartilemethod": method}
+        box = PlotlyBoxPlot(trace, {})._extract_plot_data()[0]
+
+        assert (box["q1"], box["q3"]) == expected
+
+    @pytest.mark.parametrize("method", ["exclusive", "inclusive"])
+    def test_quartilemethod_leaves_an_even_sample_hazen(self, method):
+        # Plotly only branches on the method when the sample size is odd.
+        trace = {"type": "box", "y": [1, 2, 3, 4], "quartilemethod": method}
+        box = PlotlyBoxPlot(trace, {})._extract_plot_data()[0]
+
+        assert (box["q1"], box["q3"]) == (1.5, 3.5)
+
+    @pytest.mark.parametrize("method", ["exclusive", "inclusive"])
+    def test_a_single_sample_box_keeps_finite_quartiles(self, method):
+        # One sample is odd, so the method branch runs -- and under
+        # `exclusive` both halves are empty. Plotly's `Lib.interp` on an
+        # empty array answers `undefined`, so there is nothing drawn to
+        # match; the Hazen rule gives the only value there is.
+        trace = {"type": "box", "y": [7.0], "quartilemethod": method}
+        box = PlotlyBoxPlot(trace, {})._extract_plot_data()[0]
+
+        assert (box["min"], box["q1"], box["q2"], box["q3"], box["max"]) == (
+            7.0,
+            7.0,
+            7.0,
+            7.0,
+            7.0,
+        )
+
+    def test_a_gap_in_the_sample_is_skipped(self):
+        """Plotly's box calc skips a non-numeric sample; so does this.
+
+        Left in, the `None` becomes a NaN that poisons every statistic and
+        lands in the schema as a bare `NaN` token.
+        """
+        with_gap = PlotlyBoxPlot(
+            {"type": "box", "y": [1, 2, None, 3, 4, 100]}, {}
+        )._extract_plot_data()
+        without = PlotlyBoxPlot(
+            {"type": "box", "y": [1, 2, 3, 4, 100]}, {}
+        )._extract_plot_data()
+
+        assert with_gap == without
+        assert with_gap[0]["upperOutliers"] == [100.0]
+
+    def test_an_all_missing_box_is_dropped(self):
+        plot = PlotlyBoxPlot({"type": "box", "y": [None, None]}, {})
+
+        assert plot._extract_plot_data() == []
+
+    @pytest.mark.parametrize(
+        "extra, expected",
+        [
+            ({"x": [0, 1, 2]}, "vert"),
+            ({"x": ["a", "b", "c"]}, "vert"),
+            ({"y": [0, 1, 2]}, "horz"),
+            ({"y": ["a", "b", "c"]}, "horz"),
+            ({}, "vert"),
+            ({"y": [0, 1, 2], "orientation": "h"}, "horz"),
+        ],
+    )
+    def test_a_precomputed_box_reads_its_lone_array_as_positions(self, extra, expected):
+        """Plotly's box defaults: case "10" draws `v`, case "01" draws `h`.
+
+        With the values in `q1`/`median`/`q3`, a lone `x` is where the boxes
+        stand, not what they hold -- the reverse of the raw-sample rule.
+        """
+        trace = {"type": "box", "q1": [1, 2, 3], "median": [4, 5, 6], "q3": [7, 8, 9]}
+        trace.update(extra)
+
+        assert PlotlyBoxPlot(trace, {}).render()["orientation"] == expected
+
+    def test_a_raw_sample_in_x_alone_is_still_horizontal(self):
+        plot = PlotlyBoxPlot({"type": "box", "x": [1, 2, 3, 4]}, {})
+
+        assert plot.render()["orientation"] == "horz"
+
+    def test_a_precomputed_box_with_both_arrays_falls_through_to_vertical(self):
+        # Plotly's case "11": no orientation is chosen and the trace is hidden
+        # (`visible = false`), so nothing is drawn to match. This pins the
+        # default the extractor answers with rather than a plotly rule.
+        trace = {
+            "type": "box",
+            "q1": [1, 2, 3],
+            "median": [4, 5, 6],
+            "q3": [7, 8, 9],
+            "x": [0, 1, 2],
+            "y": [0, 1, 2],
+        }
+
+        assert PlotlyBoxPlot(trace, {}).render()["orientation"] == "vert"
+
+    @pytest.mark.parametrize("missing", [None, float("nan")])
+    def test_a_precomputed_box_with_a_missing_quartile_is_dropped(self, missing):
+        # Sent straight through, the gap landed in the schema as a bare
+        # `null`/`NaN`. Plotly draws no box for it, so dropping it keeps the
+        # remaining boxes' positional selectors on the elements they describe.
+        trace = {"type": "box", "q1": [1, missing], "median": [2, 3], "q3": [3, 4]}
+        plot = PlotlyBoxPlot(trace, {})
+        data = plot._extract_plot_data()
+
+        assert [box["q1"] for box in data] == [1]
+        assert len(plot._get_selector()) == 1
+
+    @pytest.mark.parametrize("absent", ["q1", "median", "q3"])
+    def test_a_trace_missing_one_quartile_array_is_read_as_a_sample(self, absent):
+        """Plotly's ``_hasPreCompStats`` needs ``q1``, ``median`` and ``q3``.
+
+        With one of them absent the trace is a raw box, so its ``y`` is the
+        sample and the two quartile arrays it does carry are ignored.
+        """
+        trace = {"type": "box", "y": [1, 2, 3, 4, 5], "q1": [0], "median": [0]}
+        trace["q3"] = [0]
+        del trace[absent]
+
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert len(data) == 1
+        assert data[0]["q2"] == 3.0
+
+    def test_numpy_quartile_arrays_are_read_as_precomputed(self):
+        # ``bool(np.ndarray)`` raises; the predicate has to size, not test.
+        trace = {
+            "type": "box",
+            "q1": np.array([1.0, 2.0]),
+            "median": np.array([2.0, 3.0]),
+            "q3": np.array([3.0, 4.0]),
+        }
+
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert [box["q2"] for box in data] == [2.0, 3.0]
+
+    def test_unordered_precomputed_quartiles_are_dropped(self):
+        # Plotly's calc requires q1 <= median <= q3 before it draws anything.
+        trace = {"type": "box", "q1": [3], "median": [2], "q3": [4]}
+
+        assert PlotlyBoxPlot(trace, {})._extract_plot_data() == []
+
+    def test_a_bad_precomputed_fence_falls_back_to_its_quartile(self):
+        # A fence plotly rejects -- missing, or on the wrong side of its
+        # quartile -- costs nothing but the fence: with no points to measure
+        # from, plotly uses the quartile itself.
+        trace = {
+            "type": "box",
+            "q1": [1, 2],
+            "median": [2, 3],
+            "q3": [3, 4],
+            "lowerfence": [None, 5],
+            "upperfence": [float("nan"), 3],
+        }
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert [box["min"] for box in data] == [1, 2]
+        assert [box["max"] for box in data] == [3, 4]
+
+
+class TestPlotlyMultiBoxPlot:
+    """The multi-trace extractor keeps its own copy of the box rules."""
+
+    @pytest.mark.parametrize(
+        "sample, expected",
+        [
+            ([1, 2, 3, 4], (1.5, 2.5, 3.5)),
+            ([1, 2, 3, 4, 5], (1.75, 3.0, 4.25)),
+        ],
+    )
+    def test_quartiles_are_plotlys(self, sample, expected):
+        plot = PlotlyMultiBoxPlot([{"type": "box", "y": sample}], {})
+        box = plot._extract_plot_data()[0]
+
+        assert (box["q1"], box["q2"], box["q3"]) == expected
+
+    @pytest.mark.parametrize(
+        "method, expected",
+        [
+            ("exclusive", (2.5, 7.5)),
+            ("inclusive", (3.0, 7.0)),
+        ],
+    )
+    def test_quartilemethod_is_read_per_trace(self, method, expected):
+        traces = [
+            {"type": "box", "y": list(range(1, 10)), "quartilemethod": method},
+            {"type": "box", "y": list(range(1, 10))},
+        ]
+        boxes = PlotlyMultiBoxPlot(traces, {})._extract_plot_data()
+
+        assert (boxes[0]["q1"], boxes[0]["q3"]) == expected
+        assert (boxes[1]["q1"], boxes[1]["q3"]) == (2.75, 7.25)
+
+    @pytest.mark.parametrize("method", ["exclusive", "inclusive"])
+    def test_a_single_sample_box_keeps_finite_quartiles(self, method):
+        trace = {"type": "box", "y": [7.0], "quartilemethod": method}
+        box = PlotlyMultiBoxPlot([trace], {})._extract_plot_data()[0]
+
+        assert (box["min"], box["q1"], box["q2"], box["q3"], box["max"]) == (
+            7.0,
+            7.0,
+            7.0,
+            7.0,
+            7.0,
+        )
+
+    def test_quartilemethod_reaches_a_grouped_trace(self):
+        trace = {
+            "type": "box",
+            "x": ["a"] * 9,
+            "y": list(range(1, 10)),
+            "quartilemethod": "exclusive",
+        }
+        box = PlotlyMultiBoxPlot([trace], {})._extract_plot_data()[0]
+
+        assert (box["q1"], box["q3"]) == (2.5, 7.5)
+
+    def test_a_gap_in_the_sample_is_skipped(self):
+        with_gap = PlotlyMultiBoxPlot(
+            [{"type": "box", "y": [1, 2, None, 3, 4, 100]}], {}
+        )._extract_plot_data()
+        without = PlotlyMultiBoxPlot(
+            [{"type": "box", "y": [1, 2, 3, 4, 100]}], {}
+        )._extract_plot_data()
+
+        assert with_gap == without
+        assert with_gap[0]["upperOutliers"] == [100.0]
+
+    def test_a_gap_in_a_grouped_sample_is_skipped(self):
+        trace = {
+            "type": "box",
+            "x": ["a", "a", "a", "b", "b", "b"],
+            "y": [1, 2, 3, 4, None, 6],
+        }
+        boxes = PlotlyMultiBoxPlot([trace], {})._extract_plot_data()
+
+        assert boxes[1]["z"] == "b"
+        assert boxes[1]["q2"] == 5.0
+
+    def test_an_all_missing_box_is_dropped(self):
+        plot = PlotlyMultiBoxPlot([{"type": "box", "y": [None, None]}], {})
+
+        assert plot._extract_plot_data() == []
+
+    @pytest.mark.parametrize(
+        "extra, expected",
+        [
+            ({"x": [0, 1, 2]}, "vert"),
+            ({"x": ["a", "b", "c"]}, "vert"),
+            ({"y": [0, 1, 2]}, "horz"),
+            ({"y": ["a", "b", "c"]}, "horz"),
+            ({}, "vert"),
+            ({"y": [0, 1, 2], "orientation": "h"}, "horz"),
+        ],
+    )
+    def test_a_precomputed_trace_reads_its_lone_array_as_positions(
+        self, extra, expected
+    ):
+        trace = {"type": "box", "q1": [1, 2, 3], "median": [4, 5, 6], "q3": [7, 8, 9]}
+        trace.update(extra)
+
+        assert PlotlyMultiBoxPlot([trace], {}).render()["orientation"] == expected
+
+    def test_a_raw_sample_in_x_alone_is_still_horizontal(self):
+        plot = PlotlyMultiBoxPlot([{"type": "box", "x": [1, 2, 3, 4]}], {})
+
+        assert plot.render()["orientation"] == "horz"
+
+    @pytest.mark.parametrize(
+        "precomputed_axis, raw_axis, expected",
+        [
+            # A lone x positions a precomputed trace's boxes: vertical, like
+            # a raw trace whose samples are in y.
+            ("x", "y", "vert"),
+            # A lone y positions them horizontally, and one horizontal trace
+            # makes the layer horizontal -- even beside a raw y-sample trace,
+            # which read alone would say vertical.
+            ("y", "y", "horz"),
+            # The raw rule is the reverse: samples in x alone are horizontal,
+            # and that outvotes the precomputed x-positioned trace.
+            ("x", "x", "horz"),
+        ],
+    )
+    def test_orientation_is_judged_per_trace_across_mixed_forms(
+        self, precomputed_axis, raw_axis, expected
+    ):
+        traces = [
+            {
+                "type": "box",
+                "q1": [4],
+                "median": [5],
+                "q3": [6],
+                precomputed_axis: [0],
+            },
+            {"type": "box", raw_axis: [1, 2, 3, 4, 5]},
+        ]
+        plot = PlotlyMultiBoxPlot(traces, {})
+        schema = plot.render()
+
+        assert schema["orientation"] == expected
+        assert [box["q2"] for box in schema["data"]] == [5, 3.0]
+        assert plot._boxes_per_trace == [1, 1]
+
+    def test_a_precomputed_trace_with_both_arrays_falls_through_to_vertical(self):
+        # Plotly's case "11": the trace is hidden and draws nothing, so this
+        # pins the extractor's default rather than a plotly rule.
+        trace = {
+            "type": "box",
+            "q1": [1, 2, 3],
+            "median": [4, 5, 6],
+            "q3": [7, 8, 9],
+            "x": [0, 1, 2],
+            "y": [0, 1, 2],
+        }
+
+        assert PlotlyMultiBoxPlot([trace], {}).render()["orientation"] == "vert"
+
+    @pytest.mark.parametrize("missing", [None, float("nan")])
+    def test_a_precomputed_box_with_a_missing_quartile_is_dropped(self, missing):
+        traces = [
+            {"type": "box", "q1": [1, missing], "median": [2, 3], "q3": [3, 4]},
+            {"type": "box", "q1": [5], "median": [6], "q3": [7]},
+        ]
+        plot = PlotlyMultiBoxPlot(traces, {})
+        data = plot._extract_plot_data()
+
+        assert [box["q1"] for box in data] == [1, 5]
+        assert plot._boxes_per_trace == [1, 1]
+        assert len(plot._get_selector()) == 2
+
+    def test_a_bad_precomputed_fence_falls_back_to_its_quartile(self):
+        trace = {
+            "type": "box",
+            "q1": [1, 2],
+            "median": [2, 3],
+            "q3": [3, 4],
+            "lowerfence": [None, 5],
+            "upperfence": [float("nan"), 3],
+        }
+        data = PlotlyMultiBoxPlot([trace], {})._extract_plot_data()
+
+        assert [box["min"] for box in data] == [1, 2]
+        assert [box["max"] for box in data] == [3, 4]
 
 
 class TestPlotlyHeatmapPlot:
