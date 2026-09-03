@@ -8,6 +8,8 @@ import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import pytest
 
 import maidr
@@ -300,6 +302,21 @@ def test_render_rejects_non_canonical_use_cdn(bar_plot, tmp_path, value):
 @pytest.mark.parametrize("value", [True, False, "auto"])
 def test_canonical_use_cdn_values_pass_through_unchanged(value):
     assert maidr_api._resolve_use_cdn(value) is value
+
+
+# A value with a vectorised `__eq__` answers `value == "auto"` with an array,
+# and asking that for a bool raises ValueError ("ambiguous truth value")
+# rather than the TypeError every other wrong value gets.
+@pytest.mark.parametrize(
+    "value",
+    [np.array([True]), pd.Series([False]), [False]],
+    ids=["numpy_array", "pandas_series", "list"],
+)
+def test_array_like_use_cdn_gets_the_intended_type_error(bar_plot, value):
+    with pytest.raises(TypeError, match="use_cdn"):
+        maidr_api._resolve_use_cdn(value)
+    with pytest.raises(TypeError, match="use_cdn"):
+        maidr.render(bar_plot, use_cdn=value)
 
 
 # ---------------------------------------------------------------------------

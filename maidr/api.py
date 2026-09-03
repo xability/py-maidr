@@ -170,7 +170,13 @@ def _resolve_use_cdn(
     """
     if value is None:
         return get_use_cdn()
-    if value is True or value is False or value == "auto":
+    if value is True or value is False:
+        return value
+    # The string check is guarded by `isinstance` so that a value with a
+    # vectorised `__eq__` -- a numpy array, a pandas Series -- gets the
+    # TypeError below rather than an "ambiguous truth value" ValueError
+    # from `value == "auto"` being asked for a bool.
+    if isinstance(value, str) and value == "auto":
         return value
     raise TypeError(
         f"use_cdn must be True, False or 'auto', got {value!r}; "
