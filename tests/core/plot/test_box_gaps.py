@@ -130,6 +130,23 @@ class TestABoxWithNoStatistics:
     def test_the_payload_is_loadable(self, groups, drawn):
         parses_as_strict_json(draw(groups))
 
+    def test_an_extra_tick_does_not_shift_the_surviving_boxes(self):
+        # The labels are the ticks inside the data limits, and a box that
+        # drew nothing contributes nothing to those -- so here the NaN box's
+        # own tick `a` drops out while the box-less tick `c` stays, leaving
+        # three labels for three boxes that do not line up. Filtering the
+        # labels by the kept indices would read the survivors as `c, d`;
+        # each is named by the tick nearest it instead.
+        fig, ax = plt.subplots()
+        ax.set_xticks([1, 2, 3, 4], ["a", "b", "c", "d"])
+        ax.boxplot(
+            [[np.nan, np.nan], FINITE, FINITE], positions=[1, 2, 4], manage_ticks=False
+        )
+
+        rows = _layer(fig)["data"]
+
+        assert [row["z"] for row in rows] == ["b", "d"]
+
 
 class TestWhatMustNotChange:
     def test_a_chart_with_no_gaps_is_unchanged(self):

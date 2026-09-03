@@ -536,17 +536,6 @@ class BoxPlot(
         key = MaidrKey.X if self._orientation == "vert" else MaidrKey.Y
         levels = self.extract_level(self.ax, key) or []
 
-        # A `hue` draws one box per category *per level*, and the axis still
-        # carries one tick per category -- so the `zip` below, which ends at
-        # the shortest of what it is given, stopped at the ticks and dropped
-        # every box past them. Measured on three categories and two levels:
-        # six boxes drawn, three announced, and the three that survived were
-        # the first level's paired with the tick labels in order (#593). The
-        # selector list is built from the artists rather than from this, so
-        # the same chart also emitted six selectors against three rows.
-        if len(medians) > len(levels):
-            levels = self._named_boxes(bxp_stats["boxes"], levels, key)
-
         # A box whose statistics are not finite was never on screen.
         # `cbook.boxplot_stats` does not drop a NaN, so one missing value in
         # a group -- or an empty group -- makes every statistic NaN, and
@@ -567,8 +556,28 @@ class BoxPlot(
             # artists at all when the fliers are hidden.
             return [items[index] for index in keep if index < len(items)]
 
-        # One level per box is the only shape a dropped box can be taken out
-        # of; more ticks than boxes is a chart the levels never lined up with.
+        # Two charts whose boxes and tick labels do not share an index, and
+        # so are named off the drawing -- each box by the tick nearest it --
+        # rather than paired with the labels in order:
+        #
+        # - A `hue` draws one box per category *per level*, and the axis
+        #   still carries one tick per category -- so the `zip` below, which
+        #   ends at the shortest of what it is given, stopped at the ticks and
+        #   dropped every box past them. Measured on three categories and two
+        #   levels: six boxes drawn, three announced, and the three that
+        #   survived were the first level's paired with the tick labels in
+        #   order (#593). The selector list is built from the artists rather
+        #   than from this, so the same chart also emitted six selectors
+        #   against three rows.
+        # - A chart with a box dropped. The labels are the ticks inside the
+        #   *data* limits, and a box that drew nothing contributes nothing to
+        #   those, so its own tick may or may not still be in the list --
+        #   the counts can agree while the alignment is off, and filtering
+        #   the labels by `keep` would then hand a surviving box the label
+        #   of an extra tick beside it. A chart missing nothing takes neither
+        #   branch and reads as it always has.
+        if len(medians) > len(levels) or len(keep) != len(medians):
+            levels = self._named_boxes(bxp_stats["boxes"], levels, key)
         if len(levels) == len(medians):
             levels = kept(levels)
         whiskers, caps, medians, outliers = (
