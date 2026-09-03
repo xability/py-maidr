@@ -32,7 +32,8 @@ def bar(
     plot should be rendered as a normal, stacked, or dodged bar plot.
     It uses the 'bottom' argument -- or 'left', which is how a horizontal bar
     spells the same thing -- to identify stacked bar plots, whether passed by
-    name or by position; a baseline of zeros is not one. For dodged plots, it
+    name or by position; a baseline of zeros is not one, and neither is a
+    constant baseline with no bar layer beneath it. For dodged plots, it
     uses robust detection logic that considers both width and context to
     avoid misclassifying simple bar plots with narrow widths as dodged plots.
     Seaborn's bar plots do not come through here — they are classified from
@@ -90,7 +91,22 @@ def bar(
     # spellings of one chart -- `bottom="b", data=df` and `bottom=df["b"]` --
     # read the same column and give the same answer.
     baseline = _resolve(baseline, kwargs.get("data"))
-    if baseline is not None and not _is_zero_baseline(baseline):
+    #
+    # A constant non-zero baseline is the same misreading one step over. A
+    # baseline only says "stacked" when another bar layer sits under it;
+    # `ax.bar(x, h, bottom=5)` on bare axes draws every bar from 5 upward,
+    # which is an axis offset and not a second series, yet it registered a
+    # one-group stack named `_container0` too (#760). So a scalar -- or a
+    # sequence that is one value repeated -- reads as a stack only when a bar
+    # container already stands on the axes. It has to be asked here, before
+    # `common` draws: what is on the axes now is what this call sits on. A
+    # per-bar baseline with differing values is a stack whatever is beneath
+    # it, because only another series has that shape.
+    if (
+        baseline is not None
+        and not _is_zero_baseline(baseline)
+        and (not _is_constant_baseline(baseline) or _has_bar_container(instance))
+    ):
         plot_type = PlotType.STACKED
     else:
         # The thickness across the bar, which is `height` on `barh` -- where
@@ -145,6 +161,50 @@ def _is_zero_baseline(baseline: Any) -> bool:
         return bool(np.all(np.asarray(baseline, dtype=float) == 0))
     except (TypeError, ValueError):
         return False
+
+
+def _is_constant_baseline(baseline: Any) -> bool:
+    """
+    Whether a bar's baseline is one value everywhere, and so an axis offset.
+
+    Parameters
+    ----------
+    baseline : Any
+        The ``bottom`` or ``left`` argument, a scalar or a sequence, after
+        a name under ``data=`` has been resolved to its column.
+
+    Returns
+    -------
+    bool
+        True for a scalar or a sequence whose elements are all equal. An
+        empty sequence is constant too, vacuously. Anything that cannot be
+        read as numbers -- a name that resolved to nothing, in particular --
+        is False, so it keeps reading as the stack it names.
+    """
+    try:
+        values = np.asarray(baseline, dtype=float).ravel()
+    except (TypeError, ValueError):
+        return False
+    return values.size == 0 or bool(np.all(values == values[0]))
+
+
+def _has_bar_container(ax: Any) -> bool:
+    """
+    Whether a bar layer is already drawn on the axes.
+
+    Parameters
+    ----------
+    ax : Any
+        The axes the patched call is bound to. Read before the call draws,
+        so only containers from earlier calls are seen.
+
+    Returns
+    -------
+    bool
+        True when any ``BarContainer`` stands on the axes.
+    """
+    containers = getattr(ax, "containers", None) or []
+    return any(isinstance(container, BarContainer) for container in containers)
 
 
 def _should_classify_as_dodged(

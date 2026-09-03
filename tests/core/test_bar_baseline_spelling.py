@@ -18,6 +18,11 @@ matplotlib's container label ``_container0``. And the thickness that decides
 whether two calls are dodged was read as ``width`` for both orientations, so
 ``ax.barh(..., height=0.4)`` twice compared the bar *lengths* and read as two
 plain layers where ``ax.bar(..., width=0.4)`` twice reads as dodged.
+
+And the same misreading one step over (#760): a constant non-zero baseline
+on bare axes -- ``bottom=5``, ``bottom=[5, 5, 5]``, ``left=5`` -- is an axis
+offset, not a second series, yet it registered the same one-group stack. A
+baseline only says "stacked" when a bar layer already sits under it.
 """
 
 from __future__ import annotations
@@ -214,3 +219,75 @@ def test_barh_height_keyword_reads_dodged_like_the_positional_spelling() -> None
     assert _registered(vertical) == ["dodged_bar", "dodged_bar"]
     assert _registered(horizontal) == _registered(vertical)
     assert [kind for kind, _ in _emitted(horizontal)] == ["dodged_bar"]
+
+
+@pytest.mark.parametrize(
+    "baseline",
+    [
+        pytest.param(5, id="int"),
+        pytest.param(5.0, id="float"),
+        pytest.param([5, 5, 5], id="list"),
+        pytest.param(np.full(len(CATEGORIES), 5.0), id="array"),
+    ],
+)
+def test_a_constant_baseline_on_bare_axes_is_a_plain_bar(baseline) -> None:
+    """The reproduction of #760: ``bottom=5`` with nothing beneath it.
+
+    Every bar is drawn from 5 upward, which is an axis offset and not a
+    second series, yet it registered a one-group stack whose only group
+    wore matplotlib's container label. Each constant spelling has to read
+    exactly as the bare call does: the same type, and the category names
+    as labels rather than ``_container0``.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(CATEGORIES, SERIES_0, bottom=baseline)
+
+    bare, bare_ax = plt.subplots()
+    bare_ax.bar(CATEGORIES, SERIES_0)
+
+    assert _registered(fig) == ["bar"]
+    assert _emitted(fig) == _emitted(bare)
+    (kind, data), = _emitted(fig)
+    assert kind == "bar"
+    assert [point["x"] for point in data] == CATEGORIES
+
+
+def test_a_constant_left_on_bare_axes_reads_barh_as_a_plain_bar() -> None:
+    """``left=5`` is ``barh``'s spelling of the same offset."""
+    fig, ax = plt.subplots()
+    ax.barh(CATEGORIES, SERIES_0, left=5)
+
+    bare, bare_ax = plt.subplots()
+    bare_ax.barh(CATEGORIES, SERIES_0)
+
+    assert _registered(fig) == ["bar"]
+    assert _emitted(fig) == _emitted(bare)
+    (kind, data), = _emitted(fig)
+    assert kind == "bar"
+    assert [point["y"] for point in data] == CATEGORIES
+
+
+@pytest.mark.parametrize(
+    ("method", "baseline_name"),
+    [
+        pytest.param("bar", "bottom", id="bar"),
+        pytest.param("barh", "left", id="barh"),
+    ],
+)
+def test_a_constant_baseline_over_an_existing_layer_still_stacks(
+    method: str, baseline_name: str
+) -> None:
+    """A constant offset on a second series is a stack, because one is beneath.
+
+    ``ax.bar(x, a); ax.bar(x, b, bottom=5)`` is how a matplotlib user writes
+    a second series sitting on a first of constant height. The baseline is
+    constant, but a bar container already stands on the axes, so the rule
+    that reads a lone ``bottom=5`` as an offset must not reach this call.
+    """
+    fig, ax = plt.subplots()
+    getattr(ax, method)(CATEGORIES, np.full(len(CATEGORIES), 5.0), label="s0")
+    getattr(ax, method)(CATEGORIES, SERIES_1, label="s1", **{baseline_name: 5})
+
+    assert _registered(fig) == ["bar", "stacked_bar"]
+    assert [kind for kind, _ in _emitted(fig)] == ["stacked_bar"]
+    assert len(_emitted(fig)[0][1]) == 2, "both series are groups of the stack"
