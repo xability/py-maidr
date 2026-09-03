@@ -726,8 +726,8 @@ def reset_cdn_version_cache() -> None:
     abandoned request, and only then makes its own.  What the generation
     counter guarantees is that the abandoned answer is discarded rather
     than published over the reset -- its :func:`resolver_outcome` with
-    it, since that verdict lands after this call cleared the previous one
-    and would otherwise be read as the current one.
+    it, which is never written at all rather than written and cleared, so
+    no reader catches the abandoned verdict in between.
     """
     global _resolved_cdn_version, _resolution_attempted, _resolution_generation
     global _resolver_outcome
@@ -1054,12 +1054,13 @@ def _resolve_latest_version() -> str | None:
     A :func:`reset_cdn_version_cache` call that lands while this lookup is
     in flight wins: the result is returned to *this* caller but not
     cached, so the next render re-resolves rather than seeing the answer
-    the reset asked to discard.  The verdict :func:`_fetch_latest_version`
-    recorded for it is dropped with it, because that reset cleared
-    :func:`resolver_outcome` and the abandoned lookup's verdict would
-    otherwise land after the reset and read as the current one.
+    the reset asked to discard.  Its verdict goes the same way: the fetch
+    is handed the generation this lookup started under and publishes to
+    :func:`resolver_outcome` under the same lock as the check, so the
+    abandoned verdict is never written at all -- not written and then
+    cleared, which would still let a reader see it in between.
     """
-    global _resolved_cdn_version, _resolution_attempted, _resolver_outcome
+    global _resolved_cdn_version, _resolution_attempted
     attempted, value = _resolution_state()
     if attempted:
         return value
@@ -1077,7 +1078,7 @@ def _resolve_latest_version() -> str | None:
         # read that lock, so holding it here would make a stalled lookup
         # block a render that promised to make no request at all.
         try:
-            result = _fetch_latest_version(_cdn_timeout())
+            result = _fetch_latest_version(_cdn_timeout(), generation=generation)
         except Exception:
             # ``_fetch_latest_version`` is written not to raise, but if it
             # ever does, record the attempt so the failure is cached
@@ -1103,15 +1104,12 @@ def _resolve_latest_version() -> str | None:
             if generation == _resolution_generation:
                 _resolved_cdn_version = result
                 _resolution_attempted = True
-            else:
-                # The verdict belongs to the lookup the reset abandoned,
-                # and it landed after the reset cleared the previous one
-                # -- so it would otherwise be read as current.
-                _resolver_outcome = None
         return result
 
 
-def _fetch_latest_version(budget: float) -> str | None:
+def _fetch_latest_version(
+    budget: float, generation: int | None = None
+) -> str | None:
     """Query the resolver endpoints for the concrete ``latest`` version.
 
     Parameters
@@ -1120,6 +1118,15 @@ def _fetch_latest_version(budget: float) -> str | None:
         Total seconds allowed for the whole lookup.  Each attempt gets
         whatever is left, so trying a second endpoint cannot double how
         long the caller blocks.
+    generation : int or None, optional
+        The :data:`_resolution_generation` the caller read before starting.
+        The verdict is published to :data:`_resolver_outcome` only if that
+        is still current when the lookup ends, and the check and the write
+        share one critical section -- so a :func:`reset_cdn_version_cache`
+        that lands mid-lookup never lets a reader see the abandoned
+        lookup's verdict, not even for the instant before the caller could
+        have cleared it.  ``None`` publishes unconditionally, for a direct
+        caller that is not racing a reset.
 
     Returns
     -------
@@ -1130,12 +1137,6 @@ def _fetch_latest_version(budget: float) -> str | None:
     -----
     Never raises: a version lookup failing must degrade to the ``@latest``
     URL, not break rendering.
-
-    Records its verdict in :data:`_resolver_outcome` unconditionally, as a
-    lone reference assignment.  Whether that verdict still describes the
-    current lookup is the caller's question: :func:`_resolve_latest_version`
-    is the one holding the generation it started under, so it is the one
-    that discards the verdict when a reset intervened.
 
     The budget is approximate, not a hard ceiling.  It is enforced by
     handing each attempt the remaining time as its socket timeout, and
@@ -1226,9 +1227,15 @@ def _fetch_latest_version(budget: float) -> str | None:
         _logger.debug("maidr: unusable CDN version %r from %s", candidate, url)
         answered_badly.append(url)
 
-    _resolver_outcome = ResolverOutcome(
+    outcome = ResolverOutcome(
         resolved=resolved,
         unreachable=tuple(unreachable),
         answered_badly=tuple(answered_badly),
     )
+    with _resolution_lock:
+        # A reset that landed mid-lookup cleared the verdict this one
+        # would replace; publishing anyway would hand a reader the
+        # abandoned lookup's verdict as the current one.
+        if generation is None or generation == _resolution_generation:
+            _resolver_outcome = outcome
     return resolved

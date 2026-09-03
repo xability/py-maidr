@@ -151,7 +151,9 @@ def test_a_cached_failure_is_not_retried_on_a_loop(monkeypatch, requests) -> Non
     agreeing is the point: after any resolution attempt, context stops
     mattering.
     """
-    monkeypatch.setattr(cdn, "_fetch_latest_version", lambda budget: None)
+    monkeypatch.setattr(
+        cdn, "_fetch_latest_version", lambda budget, generation=None: None
+    )
 
     assert cdn.get_cdn_version() == dependencies.maidr_js_version()
 

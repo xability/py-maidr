@@ -113,7 +113,9 @@ def test_a_failed_lookup_stays_quiet(monkeypatch, caplog, no_pin) -> None:
     it. The warning is about the broken install, not about being offline,
     and a healthy bundle is what keeps it quiet here.
     """
-    monkeypatch.setattr(cdn, "_fetch_latest_version", lambda budget: None)
+    monkeypatch.setattr(
+        cdn, "_fetch_latest_version", lambda budget, generation=None: None
+    )
 
     with caplog.at_level(logging.WARNING):
         version = cdn.get_cdn_version()

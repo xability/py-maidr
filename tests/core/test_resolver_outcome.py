@@ -240,9 +240,18 @@ def test_a_reset_during_a_lookup_discards_its_verdict(monkeypatch, clean) -> Non
     reset had cleared the previous one -- and a monitor reading it saw the
     abandoned lookup as the current one, on a cache that says no lookup
     has happened.
+
+    Clearing it again afterwards is not enough either: between the write
+    and the clear a reader still saw it. The verdict has to be published
+    under the same lock as the generation check, so that an abandoned
+    lookup's verdict is never written at all. The spy below stands in for
+    that reader: it looks at the outcome every time the fetcher thread
+    takes the lock after the reset, which is exactly the instant before
+    the generation is checked.
     """
     in_flight = threading.Event()
     may_finish = threading.Event()
+    reset_done = threading.Event()
 
     def slow_responder(request, timeout=None):
         in_flight.set()
@@ -252,11 +261,25 @@ def test_a_reset_during_a_lookup_discards_its_verdict(monkeypatch, clean) -> Non
     answer_with(monkeypatch, slow_responder)
 
     fetcher = threading.Thread(target=cdn.get_cdn_version, daemon=True)
+    seen_by_a_reader: list = []
+    real_lock = cdn._resolution_lock
+
+    class SpyLock:
+        def __enter__(self):
+            if reset_done.is_set() and threading.current_thread() is fetcher:
+                seen_by_a_reader.append(freshness.resolver_outcome())
+            return real_lock.__enter__()
+
+        def __exit__(self, *exc_info):
+            return real_lock.__exit__(*exc_info)
+
+    monkeypatch.setattr(cdn, "_resolution_lock", SpyLock())
     fetcher.start()
 
     try:
         assert in_flight.wait(timeout=5), "the lookup never started"
         cdn.reset_cdn_version_cache()
+        reset_done.set()
     finally:
         # Release the responder whatever happened above, so a failed
         # assertion does not leave the thread blocked for later tests.
@@ -269,6 +292,10 @@ def test_a_reset_during_a_lookup_discards_its_verdict(monkeypatch, clean) -> Non
     )
     assert freshness.resolver_outcome() is None, (
         "the abandoned lookup's verdict was published over the reset"
+    )
+    assert seen_by_a_reader, "the fetcher never took the lock after the reset"
+    assert all(seen is None for seen in seen_by_a_reader), (
+        "the abandoned lookup's verdict was visible before the generation check"
     )
 
 
