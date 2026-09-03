@@ -65,7 +65,8 @@ class FormatExtractorMixin:
         -----
         Supported formatter types:
         - StrMethodFormatter: Detected by parsing format string
-        - PercentFormatter: Detected as percent type
+        - PercentFormatter: Percent type for ``xmax=1.0``, otherwise a
+          function body scaled by ``100 / xmax`` as matplotlib draws it
         - ScalarFormatter: Detected for scientific notation
         - FormatStrFormatter: Detected by parsing old-style format string
 
