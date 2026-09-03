@@ -57,8 +57,8 @@ def _box_layer(fig):
     return layers[0] if layers else None
 
 
-#: (label, positional dataset, keyword arguments) -- every shape
-#: ``Axes.violinplot`` accepts, with the violin count matplotlib gives each.
+#: ``(positional dataset, keyword arguments)`` pairs, one per shape
+#: ``Axes.violinplot`` accepts; the ``id`` names the shape.
 SHAPES = [
     pytest.param(LIST_OF_LISTS, {}, id="list of lists"),
     pytest.param(np.array(LIST_OF_LISTS), {}, id="ndarray of the same lists"),
