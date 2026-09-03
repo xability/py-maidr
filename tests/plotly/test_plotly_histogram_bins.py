@@ -668,6 +668,59 @@ class TestABlankIsNoObservation:
         assert blanked == finite
         assert finite[0][0] == -0.5
 
+    #: Eight even integers on the edges of a width-2 grid, one odd integer at
+    #: a midpoint, and a half that is neither -- so not every finite value is
+    #: an integer, and the integer branch above stays out of it.
+    ON_EDGES = [0, 2, 4, 6, 8, 10, 12, 14, 5, 0.5]
+
+    def test_the_thresholds_are_of_the_sample_without_its_blanks_too(self):
+        """The 10% and 30% tests read the same ``f``, blanks subtracted.
+
+        Derived from the bundle's rule rather than measured, on a sample
+        built so that the two lengths answer differently. The routine
+        shifts the start by half a width when ``o < f * .1`` and either
+        ``a > f * .3`` or an extreme sits on an edge, ``o`` and ``a`` being
+        the values within 1% of a bin midpoint and of a bin edge. A width
+        of 2 over ``ON_EDGES`` seeds the start at -2, so the eight evens are
+        on edges and the lone 5 is the one midpoint: ``o`` is 1 against ten
+        finite values, ``1 < 1.0`` fails, and the start stays at -2 -- whose
+        first bin, ``[-2, 0)``, holds nothing and is trimmed, so the chart is
+        drawn from 0. Seven ``None`` make the array seventeen long; were ``f``
+        that length, ``1 < 1.7`` and ``8 > 5.1`` would both hold and the
+        start would move to -1, a grid the chart does not draw.
+
+        A blank reaches the routine as ``undefined``: ``makeCalcdata`` maps
+        whatever is not numeric to ``BADNUM``, which fails ``%1===0``,
+        fails ``isNumeric`` and so is counted into ``l``, and fails
+        ``nearEdge`` on both counts. Running the bundle's function on the
+        array with seven ``undefined`` answers -2; on the finite ten alone,
+        -2 as well; with the length left whole, -1. The port answers the
+        same three ways, which is asserted first so a change to which
+        sample it is handed cannot pass by the figure agreeing by accident.
+        """
+        finite = np.array(self.ON_EDGES, dtype=float)
+        whole = np.concatenate([finite, np.full(7, np.nan)])
+
+        assert _auto_shift_bins(-2, finite, 2, 0, 14) == -2
+        assert _auto_shift_bins(-2, whole, 2, 0, 14) == -1
+
+        alone = bins(go.Figure(go.Histogram(x=self.ON_EDGES, xbins=dict(size=2))))
+        blanked = bins(
+            go.Figure(go.Histogram(x=self.ON_EDGES + [None] * 7, xbins=dict(size=2)))
+        )
+
+        assert blanked == alone
+        assert alone == [
+            (0.0, 2.0, 2),
+            (2.0, 4.0, 1),
+            (4.0, 6.0, 2),
+            (6.0, 8.0, 1),
+            (8.0, 10.0, 1),
+            (10.0, 12.0, 1),
+            (12.0, 14.0, 1),
+            (14.0, 16.0, 1),
+        ]
+
     def test_a_blank_still_counts_toward_the_width_exponent(self):
         """The one term plotly reads off the whole array, blanks included.
 
