@@ -67,6 +67,19 @@ def points(ax) -> list[dict]:
     ]
 
 
+def line_points(ax) -> list[dict]:
+    """Every sample of every line series on the axes, in series order."""
+    ax = getattr(ax, "axes", ax)
+    maidr = FigureManager.get_maidr(ax.get_figure())
+    return [
+        sample
+        for plot in maidr._plots
+        if plot.type.value == "line"
+        for series in plot.schema["data"]
+        for sample in series
+    ]
+
+
 @pytest.mark.parametrize("kind", ["stripplot", "swarmplot"])
 class TestTheCategoryAxisIsNamed:
     def test_every_sample_carries_its_category(self, kind):
@@ -144,3 +157,52 @@ class TestWhatMustNotChange:
         drawn = points(sns.scatterplot(frame(), x="g", y="v"))
 
         assert {sample["xLabel"] for sample in drawn} == {"a", "b", "c"}
+
+
+class TestADateAxis:
+    """A tz-aware date axis carries units too, and is not a category axis.
+
+    matplotlib's date converter records the data's ``tzinfo`` as the axis
+    units, so ``pd.date_range(..., tz="UTC")`` leaves ``timezone.utc`` on the
+    axis where a naive index leaves ``None``. Reading "has units" as "is a
+    string-category axis" snapped 48 hourly points onto the 9 daily ticks and
+    named each after the day it fell nearest, and turned a line's x into the
+    tick strings (#709). Naive dates were never affected, which is why it went
+    unseen.
+    """
+
+    VALUES = np.sin(np.arange(48) / 5)
+
+    @staticmethod
+    def hours(tz: str | None) -> pd.DatetimeIndex:
+        return pd.date_range("2024-01-01", periods=48, freq="h", tz=tz)
+
+    def test_a_tz_aware_scatter_keeps_every_hour(self):
+        _, ax = plt.subplots()
+        ax.scatter(self.hours("UTC"), self.VALUES)
+
+        assert len({sample["x"] for sample in points(ax)}) == 48
+
+    def test_a_tz_aware_scatter_is_not_named_after_its_ticks(self):
+        _, ax = plt.subplots()
+        ax.scatter(self.hours("UTC"), self.VALUES)
+
+        assert not any("xLabel" in sample for sample in points(ax))
+
+    def test_a_tz_aware_line_keeps_numeric_x(self):
+        _, ax = plt.subplots()
+        ax.plot(self.hours("UTC"), self.VALUES)
+        drawn = line_points(ax)
+
+        assert len(drawn) == 48
+        assert all(isinstance(sample["x"], float) for sample in drawn)
+
+    def test_a_timezone_does_not_move_the_points(self):
+        # The tz-aware chart must read as the naive one always has: the same
+        # ordinals, one per hour, with nothing rounded onto a tick.
+        _, aware = plt.subplots()
+        aware.scatter(self.hours("UTC"), self.VALUES)
+        _, naive = plt.subplots()
+        naive.scatter(self.hours(None), self.VALUES)
+
+        assert [s["x"] for s in points(aware)] == [s["x"] for s in points(naive)]

@@ -241,6 +241,33 @@ def test_native_scale_still_finds_the_category_axis():
     assert [point["x"] for point in schema["data"]] == [1.0, 2.0, 3.0]
 
 
+def test_native_scale_reads_a_tz_aware_date_axis_as_numeric():
+    """
+    A tz-aware date axis carries units and is still not a category axis.
+
+    matplotlib's date converter records the data's ``tzinfo`` as the axis
+    units, so a ``tz="UTC"`` index left a ``timezone`` where a naive one left
+    ``None``, and "has units" was read as "is the category axis": the naive
+    chart emitted ordinals and the tz-aware one the tick strings (#709).
+    """
+    days = pd.date_range("2024-01-01", periods=6, freq="D", tz="UTC")
+    aware = pd.DataFrame(
+        {"d": np.repeat(days, 5), "v": np.tile([1.0, 2.0, 3.0, 4.0, 5.0], 6)}
+    )
+    naive = aware.assign(d=aware["d"].dt.tz_localize(None))
+
+    fig_aware, ax = plt.subplots()
+    sns.pointplot(aware, x="d", y="v", native_scale=True, ax=ax)
+    fig_naive, ax = plt.subplots()
+    sns.pointplot(naive, x="d", y="v", native_scale=True, ax=ax)
+
+    aware_x = [point["x"] for point in _schema(fig_aware)["data"]]
+    naive_x = [point["x"] for point in _schema(fig_naive)["data"]]
+
+    assert all(isinstance(x, float) for x in aware_x)
+    assert aware_x == naive_x
+
+
 def test_a_symmetric_interval_does_not_flip_the_orientation():
     """
     ``errorbar='sd'`` draws bounds equidistant from the estimate.

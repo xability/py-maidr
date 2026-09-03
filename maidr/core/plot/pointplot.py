@@ -5,6 +5,7 @@ from typing import Sequence
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.axis import Axis
+from matplotlib.category import UnitData
 from matplotlib.lines import Line2D
 
 from maidr.core.enum import MaidrKey
@@ -316,7 +317,10 @@ class PointPlot(ErrorBarPlot):
            category machinery, which leaves ``UnitData`` on that axis and
            nothing on the other. That holds whatever the category *values*
            are -- a numeric grouping column still travels this way -- so it
-           is the whole answer whenever it fires.
+           is the whole answer whenever it fires. The test is for
+           ``UnitData`` itself rather than for any units at all, because a
+           tz-aware date axis carries its ``tzinfo`` as units and is not a
+           category axis (#709).
         2. Under ``native_scale=True`` the category axis is an ordinary
            numeric one and signal 1 is silent. Then the intervals themselves
            say it: an interval spans the value axis and, at the default
@@ -328,8 +332,8 @@ class PointPlot(ErrorBarPlot):
             True when the categories run along x, which is seaborn's default
             and the answer when neither signal fires.
         """
-        x_is_category = self.ax.xaxis.units is not None
-        y_is_category = self.ax.yaxis.units is not None
+        x_is_category = isinstance(self.ax.xaxis.units, UnitData)
+        y_is_category = isinstance(self.ax.yaxis.units, UnitData)
         if x_is_category != y_is_category:
             return x_is_category
 
@@ -359,8 +363,9 @@ class PointPlot(ErrorBarPlot):
             Coordinate to label, for the labelled ticks only.
         """
         axis: Axis = self.ax.xaxis if is_vertical else self.ax.yaxis
-        if axis.units is None:
-            # A numeric axis under `native_scale=True`. Its tick labels are
+        if not isinstance(axis.units, UnitData):
+            # A numeric axis under `native_scale=True` -- including a tz-aware
+            # date axis, whose units are its `tzinfo`. Its tick labels are
             # renderings of the coordinates rather than names, and returning
             # them would replace a group's value with whatever rounding the
             # tick formatter happened to apply.
