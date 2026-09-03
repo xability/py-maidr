@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import uuid
 from typing import Any, Sequence
 
@@ -9,58 +8,8 @@ from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.lineplot import _has_position, _reading
 from maidr.exception import ExtractionError
-
-
-def _has_position(x: Any) -> bool:
-    """
-    Whether a sample sits anywhere a reader could be sent.
-
-    The rule ``lineplot._has_position`` applies, for the reason it gives: a
-    sample whose ``x`` is not finite has no place on the axis, and emitted as
-    it stands it is a bare ``NaN`` token that ``JSON.parse`` refuses, so one
-    stopped the chart initialising at all (#427). Such a sample is dropped
-    -- from **every** series, since the positions are shared, which is what
-    keeps the columns the consumer sums for the running total aligned.
-
-    Parameters
-    ----------
-    x : Any
-        A sample's position as :meth:`AreaPlot._scalar` returned it.
-
-    Returns
-    -------
-    bool
-        False only for a number that is NaN or infinite. A categorical
-        position arrives as a string, which is both placed and never a JSON
-        hazard, so it is kept.
-    """
-    return not (isinstance(x, float) and not math.isfinite(x))
-
-
-def _reading(y: Any) -> Any:
-    """
-    A sample's value, or ``None`` where it was positioned but never measured.
-
-    The counterpart of :func:`_has_position`, following
-    ``lineplot._reading``: a sample with a position and no value is kept,
-    since there is somewhere to send a reader, and its value emitted as
-    ``null``, which the core's area trace reads as a gap that stays out of
-    the running total. A bare ``NaN`` would stop the chart initialising
-    (#427) and a zero would claim a reading of zero.
-
-    Parameters
-    ----------
-    y : Any
-        A sample's magnitude as :meth:`AreaPlot._scalar` returned it.
-
-    Returns
-    -------
-    Any
-        The value unchanged, or ``None`` for a number that is NaN or
-        infinite.
-    """
-    return None if isinstance(y, float) and not math.isfinite(y) else y
 
 
 class AreaPlot(MaidrPlot):
@@ -184,6 +133,15 @@ class AreaPlot(MaidrPlot):
             label = self._labels[index] if index < len(self._labels) else None
             points = []
             for position, magnitude in zip(positions, magnitudes):
+                # The line layer's two rules, for the reason it gives: a
+                # sample with no *position* is nowhere a reader could be
+                # sent and is dropped -- from every series, since the
+                # positions are shared, so the columns the consumer sums
+                # stay aligned -- while one with a position and no *value*
+                # is kept and emitted as `null`, which the core's area trace
+                # reads as a gap that stays out of the running total. Either
+                # written out as a bare `NaN` stops the chart initialising
+                # (#427).
                 x = self._scalar(position)
                 if not _has_position(x):
                     continue
