@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import uuid
 
 import numpy as np
@@ -653,19 +652,36 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # diverge over. `test_seaborn_drops_a_non_finite_row_before_drawing`
         # pins that, and turns red on the release where this arithmetic
         # starts mattering.
+        #
+        # The tick maps and their sorted slots are the same for every point,
+        # so they are read once here rather than once per point: measured on
+        # a 100k-point numeric scatter, sorting the two (empty) maps inside
+        # the loop was most of the extraction (#715). The finiteness test is
+        # one array pass for the same reason, and `drawn_at` is the running
+        # count of drawn points up to each offset -- the position the old
+        # per-point counter reached -- so an offset's place in the SVG is
+        # read off rather than counted up to.
+        x_slots = sorted(x_ticks)
+        y_slots = sorted(y_ticks)
+
+        offsets = np.asarray(ma.getdata(plot.get_offsets()), dtype=float)
+        offsets = offsets.reshape(-1, 2)
+        finite = np.isfinite(offsets).all(axis=1)
+        drawn_at = (np.cumsum(finite) - 1).tolist()
+        xs = offsets[:, 0].tolist()
+        ys = offsets[:, 1].tolist()
+
         samples: list[dict] = []
         positions: list[int] = []
-        position = 0
-
-        for index, (x, y) in enumerate(ma.getdata(plot.get_offsets())):
-            if not (math.isfinite(x) and math.isfinite(y)):
-                continue
-            drawn_at = position
-            position += 1
+        for index in np.flatnonzero(finite).tolist():
             if members is not None and index not in members:
                 continue
-            samples.append(self._sample(float(x), float(y), x_ticks, y_ticks))
-            positions.append(drawn_at)
+            samples.append(
+                self._sample_on(
+                    xs[index], ys[index], x_ticks, y_ticks, x_slots, y_slots
+                )
+            )
+            positions.append(drawn_at[index])
 
         return samples, positions
 
@@ -711,8 +727,44 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         dict
             The sample, carrying a label only for an axis that has one.
         """
-        x_slots = sorted(x_ticks)
-        y_slots = sorted(y_ticks)
+        return cls._sample_on(x, y, x_ticks, y_ticks, sorted(x_ticks), sorted(y_ticks))
+
+    @classmethod
+    def _sample_on(
+        cls,
+        x: float,
+        y: float,
+        x_ticks: dict[float, str],
+        y_ticks: dict[float, str],
+        x_slots: list[float],
+        y_slots: list[float],
+    ) -> dict:
+        """
+        :meth:`_sample`, given the slots it would otherwise sort itself.
+
+        The one difference is who sorts. A scatter reads thousands of points
+        against the same two tick maps, and sorting them afresh for each was
+        most of what a large extraction cost (#715); a caller that has the
+        slots already hands them in here. :meth:`_sample` stays the
+        one-point spelling for the layers that read a handful -- a dash, a
+        text label -- so nothing about *what* is announced lives in two
+        places.
+
+        Parameters
+        ----------
+        x, y : float
+            The drawn coordinates.
+        x_ticks, y_ticks : dict of float to str
+            As for :meth:`_sample`.
+        x_slots, y_slots : list of float
+            ``sorted(x_ticks)`` and ``sorted(y_ticks)``, what
+            :meth:`_on_axis` snaps to.
+
+        Returns
+        -------
+        dict
+            The sample, carrying a label only for an axis that has one.
+        """
         sample = {
             MaidrKey.X: cls._on_axis(x, x_slots),
             MaidrKey.Y: cls._on_axis(y, y_slots),

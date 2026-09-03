@@ -123,3 +123,27 @@ class TestWhatMustNotChange:
         collection = plt.scatter([-1, -2], [-10, -20])
 
         assert len(points_of(collection)) == 2
+
+
+class TestWhereADrawnPointSits:
+    def test_a_group_member_after_a_gap_is_numbered_by_what_was_drawn(self):
+        # Two indices run through extraction and they are not the same one: a
+        # hue group's membership is written in *offset* order, and the SVG is
+        # numbered in *drawn* order, so a dropped row between two members
+        # pulls the two apart. `_drawn_positions` is the drawn one, and it is
+        # what the selector addresses a marker by -- so a reading that
+        # numbered by offset would highlight the neighbour. Pinned because
+        # #715 stopped counting the drawn points up one by one and read the
+        # count off an array instead.
+        from maidr.core.plot.scatterplot import DRAWN_POINTS, HUE_GROUP, ScatterPlot
+
+        _, ax = plt.subplots()
+        collection = ax.scatter([1, 2, np.nan, 4, 5], [10, 20, 30, np.nan, 50])
+        layer = ScatterPlot(
+            ax, **{DRAWN_POINTS: collection, HUE_GROUP: ("g", [{0, 2, 4}])}
+        )
+
+        samples = layer._extract_plot_data()
+
+        assert [(s["x"], s["y"]) for s in samples] == [(1.0, 10.0), (5.0, 50.0)]
+        assert layer._drawn_positions == [(0, 0), (0, 2)]

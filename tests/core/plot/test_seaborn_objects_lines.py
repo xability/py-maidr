@@ -231,6 +231,31 @@ def test_one_colour_over_many_segments_is_cycled_the_way_it_is_drawn():
     }
 
 
+def test_the_selectors_are_counted_off_the_collection_rather_than_rebuilt(
+    monkeypatch,
+):
+    # A render needs the stand-ins once, to read the payload. Counting the
+    # selectors by building every one of them again doubled the work of a
+    # render for nothing but a length -- measured, 0.44 s to 0.27 s at 1000
+    # groups (#715). The count is the collection's own: one path per segment.
+    from maidr.core.plot.segment_lineplot import SegmentLinePlot
+
+    figure = plt.figure()
+    so.Plot(_frame(), x="x", y="y", color="g").add(so.Lines()).on(figure).plot()
+    plot = FigureManager.get_maidr(figure).plots[0]
+    collection = figure.axes[0].collections[0]
+
+    calls = []
+    series = SegmentLinePlot._series
+    monkeypatch.setattr(
+        SegmentLinePlot, "_series", lambda self: calls.append(1) or series(self)
+    )
+    schema = plot.render()
+
+    assert len(calls) == 1
+    assert len(schema["selectors"]) == len(collection.get_paths()) == 2
+
+
 def test_the_collection_is_what_gets_tagged_rather_than_the_stand_ins():
     # `plot.elements` is the list the highlight machinery writes a `maidr`
     # attribute onto. The stand-ins were never added to the axes, so tagging
