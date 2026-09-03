@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 
 import numpy as np
@@ -17,6 +18,8 @@ from maidr.util.mixin import (
     LevelExtractorMixin,
     ScalarMappableExtractorMixin,
 )
+
+_logger = logging.getLogger(__name__)
 
 #: Key the patch passes the artist its own call drew under. Named like
 #: ``scatterplot.DRAWN_POINTS`` and read the same way.
@@ -273,7 +276,10 @@ class HeatPlot(
     def _extract_scalar_mappable_data(
         self, sm: ScalarMappable | None
     ) -> list[list] | None:
-        if sm is None or sm.get_array() is None:
+        if sm is None:
+            return None
+        array = self._array_of(sm)
+        if array is None:
             return None
 
         # The masked array, not the buffer beneath it. `.data` is what is
@@ -282,7 +288,7 @@ class HeatPlot(
         # `np.ma.masked_where` -- that is a number nobody drew: the mask
         # blanks six cells of a 3 x 3 correlation and the full symmetric
         # matrix was announced (#696).
-        array = ma.asarray(sm.get_array())
+        array = ma.asarray(array)
         if isinstance(sm, (QuadMesh, PolyQuadMesh)):
             # The two mesh classes disagree about the shape they keep their
             # values in: `pcolormesh`'s QuadMesh flattens them, while
@@ -292,6 +298,19 @@ class HeatPlot(
             if array.ndim == 1:
                 m, n, _ = ma.shape(sm.get_coordinates())
                 # Coordinates shape is (M + 1, N + 1)
+                if array.size != (m - 1) * (n - 1):
+                    # An array that does not fit the grid cannot be laid
+                    # onto it, and `reshape` would say so with a ValueError
+                    # out of the middle of a render. Left unread instead,
+                    # the way a mesh with no array is.
+                    _logger.debug(
+                        "maidr: %s holds %d values for a %d x %d grid; not read",
+                        type(sm).__name__,
+                        array.size,
+                        m - 1,
+                        n - 1,
+                    )
+                    return None
                 array = array.reshape(m - 1, n - 1)
 
             # Tag the elements for highlighting
@@ -350,6 +369,37 @@ class HeatPlot(
             rows = [[float(format(x, self._fmt)) for x in row] for row in array]
 
         return [[self._cell(value) for value in row] for row in rows]
+
+    @staticmethod
+    def _array_of(sm: ScalarMappable) -> np.ndarray | None:
+        """
+        The grid as the artist holds it, masked cells and all.
+
+        For every artist but one that is ``sm.get_array()``. matplotlib 3.8
+        and 3.9 make ``pcolor``'s ``PolyQuadMesh`` the exception: a mesh
+        drawn from a masked array hands back ``np.ma.compressed`` of it --
+        the masked cells *dropped*, with a deprecation warning -- so a 2 x 2
+        grid with one cell masked arrived here as three values, and laying
+        them onto the grid raised ``ValueError: cannot reshape array of size
+        3 into shape (2,2)``. The base class still holds the full
+        two-dimensional masked array, which is what 3.10 returns once the
+        deprecation expires, so it is read from there; matplotlib itself
+        reads around the same compression in ``_get_unmasked_polys``.
+
+        Parameters
+        ----------
+        sm : ScalarMappable
+            The artist that drew the grid.
+
+        Returns
+        -------
+        numpy.ndarray or None
+            Its array, in the shape the caller gave it, or ``None`` when it
+            has none.
+        """
+        if isinstance(sm, PolyQuadMesh):
+            return ScalarMappable.get_array(sm)
+        return sm.get_array()
 
     @staticmethod
     def _cell(value: float) -> float | None:

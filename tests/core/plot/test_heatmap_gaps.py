@@ -32,6 +32,7 @@ path has to produce the values the loop did, cell for cell.
 from __future__ import annotations
 
 import json
+import logging
 
 import matplotlib
 
@@ -44,6 +45,7 @@ import seaborn as sns  # noqa: E402
 
 from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.exception import ExtractionError  # noqa: E402
 
 #: A 2 x 2 grid with one missing cell, small enough to spell out in full.
 HOLED = np.array([[1.0, np.nan], [3.0, 4.0]])
@@ -101,6 +103,12 @@ def _parses_as_strict_json(fig) -> None:
         ("imshow", lambda ax: ax.imshow(HOLED)),
         ("pcolormesh", lambda ax: ax.pcolormesh(np.ma.masked_invalid(HOLED))),
         ("pcolormesh_nan", lambda ax: ax.pcolormesh(HOLED)),
+        # Deliberately not gated on the matplotlib version. On 3.8 and 3.9
+        # `pcolor`'s mesh hands back the masked cells *dropped* -- three
+        # values for this 2 x 2 grid -- and the extractor reads around that
+        # to the full grid the base class still holds, so the same answer is
+        # expected everywhere. CI's Python 3.9 job, pinned to matplotlib
+        # 3.9.4, is what exercises the older path.
         ("pcolor", lambda ax: ax.pcolor(np.ma.masked_invalid(HOLED))),
     ],
 )
@@ -170,6 +178,26 @@ class TestAMaskedCell:
 
         assert _points(fig) == [[1.0, 2.0], [3.0, None]]
         _parses_as_strict_json(fig)
+
+
+class TestAnArrayThatDoesNotFitItsGrid:
+    def test_it_is_left_unread_rather_than_raising_out_of_the_render(
+        self, mocker, caplog
+    ):
+        # What the older `pcolor` did by accident, done on purpose to a mesh
+        # of either kind: the values cannot be laid onto the grid, and the
+        # answer is the `ExtractionError` a mesh with no array gets, not a
+        # `ValueError` from `reshape` in the middle of a render.
+        fig, ax = plt.subplots()
+        mesh = ax.pcolormesh(HOLED)
+        mocker.patch.object(mesh, "get_array", return_value=np.array([1.0, 3.0, 4.0]))
+        plot = FigureManager.get_maidr(fig)._plots[0]
+
+        with caplog.at_level(logging.DEBUG, logger="maidr.core.plot.heatmap"):
+            with pytest.raises(ExtractionError):
+                plot.render()
+
+        assert "holds 3 values for a 2 x 2 grid" in caplog.text
 
 
 class TestWhatMustNotChange:
