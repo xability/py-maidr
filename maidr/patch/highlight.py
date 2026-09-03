@@ -24,11 +24,24 @@ def inject_maidr_attribute(wrapped, instance, args, kwargs):
 
 
 def tag_elements(wrapped, instance, args, kwargs):
-    id = str(instance.get_gid())
-    if not id.startswith("maidr-"):
-        id = "maidr-" + str(uuid.uuid4())
-        instance.set_gid(id)
-    with HighlightContextManager.set_maidr_element(instance, id):
+    # The draw patches below are class-wide, so outside a render this must
+    # be a no-op: a plain `savefig` used to rewrite every artist's gid in the
+    # process, including ones the user set to target from their own CSS or
+    # JS, and on figures `FigureManager` never saw (#753). Nothing reads a
+    # gid minted outside a render.
+    if not HighlightContextManager.is_rendering():
+        return wrapped(*args, **kwargs)
+
+    # Inside a render an existing gid is kept: matplotlib writes it as the
+    # `<g id>` that `XMLWriter.start` keys on, so a user's gid resolves to
+    # its selector exactly as a minted one does. The mapping is set and
+    # deleted around each artist's own draw, so two artists sharing a gid
+    # do not collide in `elements`.
+    gid = instance.get_gid()
+    if gid is None:
+        gid = "maidr-" + str(uuid.uuid4())
+        instance.set_gid(gid)
+    with HighlightContextManager.set_maidr_element(instance, str(gid)):
         return wrapped(*args, **kwargs)
 
 

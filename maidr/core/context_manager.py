@@ -108,6 +108,15 @@ class HighlightContextManager:
     )
 
     @classmethod
+    def is_rendering(cls) -> bool:
+        """Whether a maidr render is writing its SVG in this context.
+
+        True only inside :meth:`set_maidr_elements`. Per-context, so a plain
+        draw on another thread during a render sees ``False``.
+        """
+        return cls._selector_by_element.get(None) is not None
+
+    @classmethod
     def is_maidr_element(cls, gid):
         return gid in cls._elements.get({})
 
