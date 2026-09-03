@@ -112,6 +112,17 @@ def test_two_unfilled_kdeplots_register_one_curve_each():
     assert _registered(fig) == [PlotType.SMOOTH, PlotType.SMOOTH]
 
 
+@pytest.mark.parametrize("first_filled", [True, False], ids=["band then curve", "curve then band"])
+def test_a_filled_and_an_unfilled_kdeplot_register_one_layer_each(first_filled):
+    # Lines and bands are filtered independently, so a mixed pair must not
+    # let the first call's artist through the second call's other filter.
+    fig, ax = plt.subplots()
+    sns.kdeplot(_samples(), fill=first_filled, ax=ax)
+    sns.kdeplot(_samples(1.0), fill=not first_filled, ax=ax)
+
+    assert _registered(fig) == [PlotType.SMOOTH, PlotType.SMOOTH]
+
+
 def test_a_line_drawn_beforehand_is_not_announced_as_a_curve():
     fig, ax = plt.subplots()
     ax.plot([0, 1, 2], [1, 2, 1])
