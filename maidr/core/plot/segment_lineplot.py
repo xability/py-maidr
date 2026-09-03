@@ -139,6 +139,10 @@ class SegmentLinePlot(MultiLinePlot):
         that already begins with ``maidr-`` when the artist is drawn, so the
         one written here is the one that reaches the SVG.
 
+        The count is the collection's own path count -- one per segment, as
+        above -- rather than the length of :meth:`_series`, which would build
+        every stand-in a second time per render only to count them (#715).
+
         Returns
         -------
         list of str
@@ -151,5 +155,5 @@ class SegmentLinePlot(MultiLinePlot):
 
         return [
             f"g[id='{gid}'] > path:nth-of-type({position + 1})"
-            for position in range(len(self._series()))
+            for position in range(len(self._collection.get_paths()))
         ]
