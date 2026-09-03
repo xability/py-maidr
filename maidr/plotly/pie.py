@@ -150,29 +150,20 @@ class PlotlyPiePlot(PlotlyPlot):
         list of (str, float)
             One ``(label, value)`` pair per drawn wedge, in slice order.
         """
+        # Whether anything is drawn at all is decided by `draws_wedges`, which
+        # the subplot grid asks as well: a pie that yields no slices forms no
+        # layer, and a layer-less pie must not claim a grid cell either.
+        if not draws_wedges(self._trace):
+            return []
+
         raw_labels = self._trace.get("labels")
         raw_values = self._trace.get("values")
         labels = as_list(raw_labels)
         values = as_list(raw_values)
-
-        # Each array bounds the other, and an array the author never supplied
-        # bounds nothing -- an empty one still bounds the pie down to nothing.
         has_labels = raw_labels is not None
         has_values = raw_values is not None
-        lengths = [len(labels)] if has_labels else []
-        if has_values:
-            lengths.append(len(values))
-        length = min(lengths) if lengths else 0
-        if not length:
-            return []
-
+        length = _entry_count(self._trace)
         numbers = [_as_number(value) for value in values[:length]]
-        # Plotly marks a pie with nothing positive to draw invisible, so it
-        # renders no wedges at all. This is a short circuit, not a rule of its
-        # own: the merge and filter steps below reach the same empty answer,
-        # since merging can only sum values that were already non-positive.
-        if has_values and not any(n is not None and n > 0 for n in numbers):
-            return []
 
         # Without a ``values`` array plotly weighs every entry equally and the
         # pie reports label counts; without a ``labels`` array it names the
@@ -271,6 +262,74 @@ class PlotlyPiePlot(PlotlyPlot):
             MaidrKey.X: self._axis_config(label=_axis_title(x_axis, x_default)),
             MaidrKey.Y: self._axis_config(label=_axis_title(y_axis, y_default)),
         }
+
+
+def draws_wedges(trace: dict) -> bool:
+    """
+    Report whether plotly draws any wedge for a pie or funnelarea trace.
+
+    This is the emptiness rule of :meth:`PlotlyPiePlot._slices`, kept apart
+    so it has a second caller: :func:`~maidr.plotly.plotly_maidr.PlotlyMaidr`
+    decides whether the trace's ``domain`` rectangle earns a grid cell, and a
+    trace that draws nothing forms no layer (#638), so it must not reserve a
+    cell either (#702). The two go together: a cell without a layer is an
+    empty stop for the reader to tab into.
+
+    Two things leave a pie with nothing to draw. An array the author supplied
+    bounds the other, so an empty ``labels`` or ``values`` bounds the pie down
+    to no entries at all -- ``labels=["a", "b"]`` with ``values=[]`` draws
+    nothing, whatever the labels say. And plotly marks a pie whose values hold
+    nothing positive invisible, rendering no wedges; that is a short circuit
+    rather than a rule of its own, since the merge and filter steps of
+    :meth:`~PlotlyPiePlot._slices` reach the same empty answer, but it is
+    what lets the question be asked without building the slices.
+
+    Parameters
+    ----------
+    trace : dict
+        The pie or funnelarea trace dict.
+
+    Returns
+    -------
+    bool
+        True when at least one wedge is drawn.
+    """
+    length = _entry_count(trace)
+    if not length:
+        return False
+    raw_values = trace.get("values")
+    if raw_values is None:
+        # Without a `values` array every entry weighs one, so every entry is
+        # a wedge.
+        return True
+    numbers = [_as_number(value) for value in as_list(raw_values)[:length]]
+    return any(n is not None and n > 0 for n in numbers)
+
+
+def _entry_count(trace: dict) -> int:
+    """
+    Return how many entries plotly reads off a pie's arrays.
+
+    Each of ``labels`` and ``values`` bounds the other, and an array the
+    author never supplied bounds nothing -- an empty one still bounds the pie
+    down to nothing, and a pie with neither array has no entries at all.
+
+    Parameters
+    ----------
+    trace : dict
+        The pie or funnelarea trace dict.
+
+    Returns
+    -------
+    int
+        The length of the shortest supplied array, or 0 when none is.
+    """
+    lengths = [
+        len(as_list(trace.get(key)))
+        for key in ("labels", "values")
+        if trace.get(key) is not None
+    ]
+    return min(lengths) if lengths else 0
 
 
 def _wedge_label(label: Any, index: int) -> str:

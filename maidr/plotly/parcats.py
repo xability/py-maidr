@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import numbers
+
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
@@ -77,8 +79,10 @@ class PlotlyParcatsPlot(PlotlyPlot):
           nodes the chart never places side by side.
 
         ``counts`` weights each row and defaults to one per row, which is
-        what plotly does with it. A row longer than the shortest dimension is
-        dropped, because it has no value on every axis and so no ribbon.
+        what plotly does with it. It is ``arrayOk``, so a scalar is the
+        one-value-for-every-row spelling and weights each row at that value.
+        A row longer than the shortest dimension is dropped, because it has
+        no value on every axis and so no ribbon.
         """
         columns = [
             dimension
@@ -99,7 +103,14 @@ class PlotlyParcatsPlot(PlotlyPlot):
             return []
 
         labels = [_column_name(column, index) for index, column in enumerate(columns)]
-        weights = as_list(self._trace.get("counts")) or [1] * rows
+        raw_counts = self._trace.get("counts")
+        # `numbers.Real` takes a numpy scalar too, which is what `to_dict()`
+        # hands back for one; a bool is a Real that no author means as a
+        # weight, and `as_list` turns a scalar into nothing, not into a row.
+        if isinstance(raw_counts, numbers.Real) and not isinstance(raw_counts, bool):
+            weights = [float(raw_counts)] * rows
+        else:
+            weights = as_list(raw_counts) or [1] * rows
 
         flows: dict[tuple[str, str], float] = {}
         order: list[tuple[str, str]] = []
