@@ -42,6 +42,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import seaborn as sns  # noqa: E402
 from matplotlib.collections import PolyCollection  # noqa: E402
 
+import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 
@@ -67,9 +68,9 @@ def _rendered_layers(fig) -> list:
     Rendering first, because that is the pass that tags the artists and
     assigns every smooth its gid; the schema read cold has none of them.
     """
-    maidr = FigureManager.get_maidr(fig)
-    maidr.render(use_cdn=False)
-    return maidr._flatten_maidr()["subplots"][0][0]["layers"]
+    figure = FigureManager.get_maidr(fig)
+    figure.render(use_cdn=False)
+    return figure._flatten_maidr()["subplots"][0][0]["layers"]
 
 
 def _gid_of(layer: dict) -> str:
