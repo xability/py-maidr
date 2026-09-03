@@ -218,19 +218,30 @@ def schema_trace_types(schema: object) -> set[str]:
     -------
     set of str
         The distinct ``type`` values of every layer found.
+
+    Notes
+    -----
+    Only the dicts inside a ``layers`` list are read. ``type`` is not a
+    layer's key alone: an axis ``format`` carries one too, naming a number
+    format (``percent``, ``currency``, ``date``...) that no bundle has a
+    renderer for, so a walk over every dict reported a formatted axis as
+    an undrawable chart. And a layer's ``data`` is the bulk of the schema
+    -- one dict per point -- with nothing to find in it.
     """
     found: set[str] = set()
 
-    def walk(node: object) -> None:
+    def walk(node: object, in_layers: bool = False) -> None:
         if isinstance(node, dict):
-            name = _trace_type_name(node.get("type"))
-            if name is not None:
-                found.add(name)
-            for child in node.values():
-                walk(child)
+            if in_layers:
+                name = _trace_type_name(node.get("type"))
+                if name is not None:
+                    found.add(name)
+                return  # a layer's data, axes and format hold no layers
+            for key, child in node.items():
+                walk(child, key == "layers")
         elif isinstance(node, list):
             for child in node:
-                walk(child)
+                walk(child, in_layers)
 
     walk(schema)
     return found

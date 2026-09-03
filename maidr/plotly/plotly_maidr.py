@@ -1468,8 +1468,6 @@ class PlotlyMaidr:
                 # the bundle is unreachable.
                 pass
 
-        html = self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
-
         if renderer == "auto":
             _renderer = cast(
                 Literal["ipython", "browser"], Environment.get_renderer()
@@ -1477,9 +1475,14 @@ class PlotlyMaidr:
         else:
             _renderer = renderer
 
+        # The browser path renders through `save_html`, which builds the
+        # whole document itself, so the Tag must not be built ahead of
+        # this decision: that would serialise the figure and the schema
+        # twice and throw the first copy away.
         if _renderer == "browser" and not Environment.is_notebook():
             return self._open_plot_in_browser(use_cdn=use_cdn)
 
+        html = self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
         return html.show(_renderer)
 
     def save_html(
@@ -1662,8 +1665,13 @@ class PlotlyMaidr:
             notebook/Shiny srcdoc iframe.  Switches the loader to use
             the parent-window source strings instead of relative paths.
         """
+        # The browser re-serialises this with JSON.stringify before it
+        # reaches the DOM, so indentation would never be seen -- and passing
+        # `indent` switches json to its pure-Python encoder, which is 5-6x
+        # slower and ~2.8x the bytes at 50k points. Default separators are
+        # kept on purpose: the literal stays greppable (`"type": "pie"`).
         dom_wiring = f"""
-            var maidrSchema = {json.dumps(schema, indent=2)};
+            var maidrSchema = {json.dumps(schema)};
 
             var _maidrDone = false;
             function initMaidr() {{

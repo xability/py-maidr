@@ -174,6 +174,72 @@ def test_a_layer_type_is_collected_as_the_string_it_is_emitted_as(bar_plot):
     assert all(str(name) == "bar" for name in collected)
 
 
+def test_an_axis_format_type_is_not_a_layer_type():
+    """
+    ``type`` is not a layer's key alone.
+
+    An axis ``format`` carries one too, naming a number format that no
+    bundle has a renderer for. The walk used to collect it, and a bar chart
+    with a percent axis was reported as a chart the bundle could not draw.
+    """
+    from matplotlib.ticker import PercentFormatter, StrMethodFormatter
+
+    fig, ax = plt.subplots()
+    try:
+        ax.bar([1.0, 2.0, 3.0], [0.2, 0.5, 0.3])
+        ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
+        ax.xaxis.set_major_formatter(StrMethodFormatter("${x:,.2f}"))
+        schema = FigureManager.figs.get(fig)._flatten_maidr()
+
+        assert schema_trace_types(schema) == {"bar"}
+        assert _caught(lambda: maidr.render(fig, use_cdn=False)) == []
+    finally:
+        plt.close(fig)
+
+
+def test_a_plotly_axis_format_type_is_not_a_layer_type():
+    """The plotly emitter formats its axes the same way."""
+    go = pytest.importorskip("plotly.graph_objects")
+    from maidr.plotly.plotly_maidr import PlotlyMaidr
+
+    fig = go.Figure(go.Bar(x=["a", "b"], y=[0.2, 0.8]))
+    fig.update_layout(yaxis_tickformat=",.0%")
+    pm = PlotlyMaidr(fig)
+
+    assert schema_trace_types(pm._flatten_maidr()) == {"bar"}
+    assert _caught(lambda: pm._create_html_tag(use_cdn=False)) == []
+
+
+def test_a_layer_payload_is_not_descended():
+    """
+    A layer's ``data`` is the bulk of the schema and holds no layers.
+
+    Reading it was ~24 ms of every 50k-point render, twice per ``show()``,
+    for nothing -- and anything in there spelled ``type`` is a data value,
+    not a renderer.
+    """
+    schema = {
+        "id": "x",
+        "subplots": [
+            [
+                {
+                    "id": "p",
+                    "layers": [
+                        {
+                            "id": "l",
+                            "type": "bar",
+                            "data": [{"x": "a", "y": 1, "type": "bogus"}],
+                            "axes": {"x": {"format": {"type": "percent"}}},
+                        }
+                    ],
+                }
+            ]
+        ],
+    }
+
+    assert schema_trace_types(schema) == {"bar"}
+
+
 def test_the_enum_is_not_the_source_of_truth():
     """
     ``PlotType`` and the emitted types are different sets.
