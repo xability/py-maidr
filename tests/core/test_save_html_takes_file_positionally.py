@@ -65,25 +65,49 @@ def test_leaving_file_out_says_which_argument_is_missing():
         maidr.save_html(_bar())
 
 
-def _documented_calls() -> list[tuple[str, str]]:
-    """Every ``maidr.save_html(...)`` call in the docs, with its argument text.
+def _calls_in(text: str, page: str) -> list[tuple[str, str]]:
+    """Every ``maidr.save_html(...)`` call in ``text``, with its argument text.
 
     Balanced-parenthesis scan rather than a regex, because a call may span
-    lines or nest a call of its own.
+    lines or nest a call of its own. A call whose parenthesis never closes
+    is reported here, naming the page and the offset, rather than as a
+    ``SyntaxError`` from parsing the rest of the file as an argument list.
     """
     found = []
-    for page in sorted(_DOCS.rglob("*.qmd")):
-        text = page.read_text(encoding="utf-8")
-        for match in re.finditer(r"maidr\.save_html\(", text):
-            depth, start = 1, match.end()
-            for end in range(start, len(text)):
-                depth += {"(": 1, ")": -1}.get(text[end], 0)
-                if depth == 0:
-                    break
-            found.append(
-                (f"{page.name}:{text.count(chr(10), 0, start) + 1}", text[start:end])
-            )
+    for match in re.finditer(r"maidr\.save_html\(", text):
+        depth, start = 1, match.end()
+        for end in range(start, len(text)):
+            depth += {"(": 1, ")": -1}.get(text[end], 0)
+            if depth == 0:
+                break
+        assert depth == 0, (
+            f"{page}: maidr.save_html( at offset {match.start()} is never closed"
+        )
+        found.append((f"{page}:{text.count(chr(10), 0, start) + 1}", text[start:end]))
     return found
+
+
+def _documented_calls() -> list[tuple[str, str]]:
+    """Every ``maidr.save_html(...)`` call across the docs."""
+    return [
+        call
+        for page in sorted(_DOCS.rglob("*.qmd"))
+        for call in _calls_in(page.read_text(encoding="utf-8"), page.name)
+    ]
+
+
+def test_the_scan_finds_nested_and_multi_line_calls():
+    text = 'x = maidr.save_html(\n    fig, str(tmp / "o.html"),\n)\nmaidr.save_html(fig, file=f("a"))\n'
+
+    assert _calls_in(text, "page.qmd") == [
+        ("page.qmd:1", '\n    fig, str(tmp / "o.html"),\n'),
+        ("page.qmd:4", 'fig, file=f("a")'),
+    ]
+
+
+def test_an_unclosed_call_is_reported_with_its_page_and_offset():
+    with pytest.raises(AssertionError, match=r"page\.qmd: .* offset 7 is never closed"):
+        _calls_in("before maidr.save_html(fig, str(x)", "page.qmd")
 
 
 @pytest.mark.parametrize("where,args", _documented_calls())
