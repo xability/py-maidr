@@ -152,9 +152,20 @@ def test_an_unattached_percent_formatter_keeps_the_presets_one_decimal():
     }
 
 
-@pytest.mark.parametrize(
-    "xmax", [0, float("nan"), float("inf")], ids=["zero", "nan", "inf"]
-)
+def test_an_infinite_xmax_scales_to_zero_as_matplotlib_draws_it():
+    """``100 / inf`` is ``0.0``, a numeral the body can carry.
+
+    matplotlib draws every tick of such an axis as ``0%``; the preset would
+    have announced ``4500%`` instead.
+    """
+    formatter = _formatter_with_axis(PercentFormatter(xmax=float("inf")))
+
+    config = FormatConfigBuilder.from_formatter(formatter).to_dict()
+
+    assert "n*0.0" in config["function"]
+
+
+@pytest.mark.parametrize("xmax", [0, float("nan")], ids=["zero", "nan"])
 def test_a_percent_formatter_with_no_finite_scale_keeps_the_preset(xmax):
     """matplotlib divides by xmax at draw time; extraction must not raise.
 

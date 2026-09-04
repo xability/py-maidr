@@ -564,12 +564,14 @@ class FormatConfigBuilder:
         xmax = float(getattr(formatter, "xmax", 100.0))
 
         # matplotlib divides by xmax at draw time and raises on zero, and a
-        # NaN or infinite xmax is no scale either -- `repr` spells `100 / nan`
-        # as `nan`, which is not a JavaScript numeral, so the body would throw
-        # a ReferenceError. A schema extraction has nothing sensible to scale
-        # by in either case, so it keeps the preset. A negative xmax draws a
-        # sign-flipped percentage and scales as usual.
-        if xmax == 0 or not math.isfinite(xmax):
+        # NaN xmax is no scale either -- `repr` spells `100 / nan` as `nan`,
+        # which is not a JavaScript numeral, so the body would throw a
+        # ReferenceError. A schema extraction has nothing sensible to scale
+        # by in either case, so it keeps the preset. An infinite xmax is a
+        # scale of zero, which matplotlib draws as `0%` and this scales the
+        # same way; a negative one draws a sign-flipped percentage and
+        # scales as usual.
+        if xmax == 0 or math.isnan(xmax):
             return FormatConfig(type=FormatType.PERCENT, decimals=explicit)
 
         decimals = FormatConfigBuilder._percent_decimals(formatter, xmax, explicit)
