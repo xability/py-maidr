@@ -27,6 +27,15 @@ from maidr.util.mixin import (
 DRAWN_GROUPS = "_maidr_bar_groups"
 
 
+# How the helpers below fit together. `grouped_layout` is the one decision:
+# it asks `bars_are_ragged` whether every container is full, `ticks_are_categories`
+# and `ticks_are_the_axis_categories` what kind of ticks the axis has, then
+# `bars_by_category` to place each container's bars against those ticks, and
+# `shares_a_category` / `every_category_has_a_bar` to judge that placement.
+# The seaborn classifier and the extractor both call `grouped_layout` and
+# nothing else, so they cannot disagree.
+
+
 def bars_are_ragged(plot: list[BarContainer]) -> bool:
     """
     Whether the containers of one layer hold different numbers of bars.
@@ -310,6 +319,10 @@ def grouped_layout(
     if rows is None:
         return None
 
+    # Deliberately asymmetric -- see reading 2 in the docstring. Equal-length
+    # containers on hand-fixed ticks can be read by position, so an unclaimed
+    # tick sends them there; ragged containers have no positional reading, so
+    # the unclaimed tick is announced as a gap in every series.
     if (
         not bars_are_ragged(containers)
         and not ticks_are_the_axis_categories(ax, key)

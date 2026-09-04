@@ -54,7 +54,7 @@ class ContainerExtractorMixin:
         return matches[0] if matches else None
 
 
-def _a_hair_from(position: float, bound: float) -> bool:
+def _within_tolerance_of(position: float, bound: float) -> bool:
     """
     Whether a tick sits on a data bound to within a rounding error.
 
@@ -68,8 +68,9 @@ def _a_hair_from(position: float, bound: float) -> bool:
     Returns
     -------
     bool
-        True when the two differ by no more than float noise -- one part in
-        a billion of the bound, or 1e-12 outright beside zero.
+        True when the two differ by no more than float noise: one part in a
+        billion of the larger magnitude of the two, as ``math.isclose``
+        measures it, or 1e-12 outright beside zero.
     """
     return math.isclose(position, bound, rel_tol=1e-9, abs_tol=1e-12)
 
@@ -172,8 +173,8 @@ class LevelExtractorMixin:
             index
             for index, position in enumerate(ticks)
             if span == 0
-            or (position >= low or _a_hair_from(position, low))
-            and (position <= high or _a_hair_from(position, high))
+            or (position >= low or _within_tolerance_of(position, low))
+            and (position <= high or _within_tolerance_of(position, high))
         ]
         return [
             (ticks[index], labels[index]) for index in kept if index < len(labels)
