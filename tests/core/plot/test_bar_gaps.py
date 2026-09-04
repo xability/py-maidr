@@ -520,3 +520,65 @@ class TestASeabornHueMissingACategory:
 
         assert [point["x"] for point in points[0]] == ["0", "1", "2"]
         assert [point["y"] for point in points[1]] == [4.0, 5.0, 6.0]
+
+
+class TestTicksChangedAfterDrawing:
+    # A seaborn layer is classified when it is drawn and read when the
+    # figure renders, and the ticks are read afresh at both. The two used to
+    # decide from the same primitives with different checks, so a layer
+    # classified grouped could be one the reading declined -- and the
+    # decline was an `ExtractionError`, fatal to the whole figure. Both now
+    # come from `grouped_layout`; and when a caller's `set_xticks` between
+    # the two leaves ticks that no longer name the bars, the layer is read
+    # from its bars alone rather than raised on.
+
+    @staticmethod
+    def _ragged_with_ticks(ticks, labels):
+        ax = TestASeabornHueMissingACategory._hued()
+        ax.set_xticks(ticks, labels)
+        return ax
+
+    def test_a_tick_inside_the_data_no_bar_claims_is_a_gap_in_every_series(self):
+        # Hand-fixed ticks with one at 1.5 between "b" and "c". The
+        # containers are ragged, so there is no reading of them by position
+        # to fall back on; the unclaimed tick is announced as a category
+        # every series has a gap at, which is what the axis now shows.
+        ax = self._ragged_with_ticks([0, 1, 1.5, 2], ["a", "b", "bc", "c"])
+        record = FigureManager.get_maidr(ax.get_figure())
+        points = stacked_points(ax)
+
+        assert record._plots[-1].type is PlotType.DODGED
+        assert [[point["x"] for point in series] for series in points] == [
+            ["a", "b", "bc", "c"],
+            ["a", "b", "bc", "c"],
+        ]
+        assert [point["y"] for point in points[0]] == [1.0, 2.0, None, 3.0]
+        assert [point["y"] for point in points[1]] == [4.0, None, None, 6.0]
+        parses_as_strict_json(ax)
+
+    def test_a_tick_past_the_data_is_furniture(self):
+        # A fourth tick at 3, past every bar, is dropped by the data-limit
+        # filter before any of this, so the layer reads as it did.
+        ax = self._ragged_with_ticks([0, 1, 2, 3], ["a", "b", "c", "d"])
+        points = stacked_points(ax)
+
+        assert [point["x"] for point in points[1]] == ["a", "b", "c"]
+        assert [point["y"] for point in points[1]] == [4.0, None, 6.0]
+
+    def test_ticks_two_bars_share_read_each_series_from_its_bars(self):
+        # Two ticks for three categories put two of g1's bars nearest one
+        # tick, so no placement; the containers are ragged, so no pairing
+        # by position either. The last resort: each series' own bars at the
+        # positions they were drawn, which no longer share one axis but is
+        # a lesser wrong than no figure. This raised `ExtractionError`.
+        ax = self._ragged_with_ticks([0, 2], ["start", "end"])
+        record = FigureManager.get_maidr(ax.get_figure())
+        points = stacked_points(ax)
+
+        assert record._plots[-1].type is PlotType.DODGED
+        assert [[point["x"] for point in series] for series in points] == [
+            ["-0.2", "0.8", "1.8"],
+            ["0.2", "2.2"],
+        ]
+        assert [point["y"] for point in points[1]] == [4.0, 6.0]
+        parses_as_strict_json(ax)

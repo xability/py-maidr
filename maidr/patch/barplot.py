@@ -13,9 +13,8 @@ from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS
 from maidr.core.plot.grouped_barplot import (
     bars_are_ragged,
-    bars_by_category,
+    grouped_layout,
     shares_a_category,
-    ticks_are_categories,
 )
 from maidr.patch.common import (
     _argument,
@@ -25,7 +24,6 @@ from maidr.patch.common import (
     plotter_panels,
     wrap_seaborn,
 )
-from maidr.util.mixin import LevelExtractorMixin
 
 
 def bar(
@@ -390,10 +388,10 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
     per category -- or short of it, where seaborn dropped a ``NaN`` cell
     before drawing (#752). Anything else — a single container, or
     containers that do not line up with the categorical axis — is a plain
-    bar layer. The bars are counted against the same tick labels
-    `GroupedBarPlot` pairs them with, and a short layer's bars are placed
-    against the same tick positions it places them by, so the layer is only
-    called grouped when it can be read as one.
+    bar layer. Whether the containers line up is
+    :func:`~maidr.core.plot.grouped_barplot.grouped_layout`'s answer, the
+    same one `GroupedBarPlot` reads the layer by, so the layer is only
+    called grouped when it will be read as one.
 
     Parameters
     ----------
@@ -417,32 +415,10 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
 
     # The bar labels sit on y when the bars grow along x.
     level_key = MaidrKey.Y if containers[0].orientation == "horizontal" else MaidrKey.X
-    levels = LevelExtractorMixin.extract_level(ax, level_key)
-    if not levels:
+    layout = grouped_layout(ax, containers, level_key)
+    if layout is None:
         return PlotType.BAR
-
-    if all(len(container.patches) == len(levels) for container in containers):
-        return PlotType.DODGED
-
-    # A container short of the axis is still a hue level when its bars sit
-    # against distinct ticks -- a level that lacks a category is a bar
-    # short, and `GroupedBarPlot` reads the bar it lacks as a gap (#752).
-    # This used to turn every such layer back, and the plain bar layer it
-    # fell to announced the bars' fractional positions, "-0.2", in place of
-    # their category and hue names. Only against ticks that are categories:
-    # `native_scale=True` leaves the locator to choose breaks, and a bar
-    # placed against a break is a bar placed against nothing.
-    if not ticks_are_categories(ax, level_key):
-        return PlotType.BAR
-
-    positions = LevelExtractorMixin.extract_level_positions(ax, level_key)
-    if positions is None or len(positions) != len(levels):
-        return PlotType.BAR
-
-    horizontal = containers[0].orientation == "horizontal"
-    rows = bars_by_category(containers, positions, horizontal)
-    if rows is None:
-        return PlotType.BAR
+    _, rows = layout
 
     # Ragged containers can only be a hue split. Equal-length ones short of
     # the axis are either that with a category missing from every level, or
