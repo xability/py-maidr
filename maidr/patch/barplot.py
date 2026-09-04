@@ -101,11 +101,13 @@ def bar(
     # container already stands on the axes. It has to be asked here, before
     # `common` draws: what is on the axes now is what this call sits on. A
     # per-bar baseline with differing values is a stack whatever is beneath
-    # it, because only another series has that shape.
+    # it, because only another series has that shape. The one idiom this
+    # cannot see is a stack drawn top segment first, `bar(x, b, bottom=a)`
+    # and then `bar(x, a)`: at the first call nothing is beneath it yet.
     if (
         baseline is not None
         and not _is_zero_baseline(baseline)
-        and (not _is_constant_baseline(baseline) or _has_bar_container(instance))
+        and (not _is_constant_baseline(baseline) or _has_bar_layer(instance))
     ):
         plot_type = PlotType.STACKED
     else:
@@ -140,6 +142,35 @@ def bar(
     return common(plot_type, wrapped, instance, args, kwargs, drawn_as=DRAWN_BARS)
 
 
+def _baseline_values(baseline: Any) -> Any:
+    """
+    The measured values of a bar's baseline, or None when it has none.
+
+    Parameters
+    ----------
+    baseline : Any
+        The ``bottom`` or ``left`` argument, a scalar or a sequence, after
+        a name under ``data=`` has been resolved to its column.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        The finite entries as a flat float array: a masked or NaN entry
+        draws no bar, so it is left out rather than compared. None for
+        anything that cannot be read as numbers -- a name that resolved to
+        nothing, in particular -- so the callers keep reading it as the
+        stack it names.
+    """
+    try:
+        values = np.ma.filled(np.ma.asarray(baseline), np.nan)
+        values = np.asarray(values, dtype=float).ravel()
+    except (TypeError, ValueError):
+        return None
+    # NaN is not equal to itself, and not equal to zero either, so compare
+    # only what was measured.
+    return values[np.isfinite(values)]
+
+
 def _is_zero_baseline(baseline: Any) -> bool:
     """
     Whether a bar's baseline is zero everywhere, and so no baseline at all.
@@ -153,14 +184,12 @@ def _is_zero_baseline(baseline: Any) -> bool:
     Returns
     -------
     bool
-        True for a scalar zero or an all-zero sequence. Anything that cannot
-        be read as numbers -- a name that resolved to nothing, in particular
-        -- is False, so it keeps reading as the stack it names.
+        True for a scalar zero or a sequence whose measured entries are all
+        zero. Anything that cannot be read as numbers is False, so it keeps
+        reading as the stack it names.
     """
-    try:
-        return bool(np.all(np.asarray(baseline, dtype=float) == 0))
-    except (TypeError, ValueError):
-        return False
+    values = _baseline_values(baseline)
+    return values is not None and bool(np.all(values == 0))
 
 
 def _is_constant_baseline(baseline: Any) -> bool:
@@ -176,39 +205,52 @@ def _is_constant_baseline(baseline: Any) -> bool:
     Returns
     -------
     bool
-        True for a scalar or a sequence whose finite elements are all equal.
-        An empty sequence is constant too, vacuously, and so is one with no
-        finite element: a NaN baseline draws no bar, so it says nothing about
-        stacking either. Anything that cannot be read as numbers -- a name
-        that resolved to nothing, in particular -- is False, so it keeps
-        reading as the stack it names.
+        True for a scalar or a sequence whose measured entries are all
+        equal. An empty sequence is constant too, vacuously, and so is one
+        with no measured entry: a NaN or masked baseline draws no bar, so
+        it says nothing about stacking either. Anything that cannot be read
+        as numbers is False, so it keeps reading as the stack it names.
     """
-    try:
-        values = np.asarray(baseline, dtype=float).ravel()
-    except (TypeError, ValueError):
+    values = _baseline_values(baseline)
+    if values is None:
         return False
-    # NaN is not equal to itself, so compare only what was measured.
-    values = values[np.isfinite(values)]
     return values.size == 0 or bool(np.all(values == values[0]))
 
 
-def _has_bar_container(ax: Any) -> bool:
+#: The layer types a bar call registers, any of which a later constant
+#: baseline can sit on.
+_BAR_LAYERS = (PlotType.BAR, PlotType.STACKED, PlotType.DODGED)
+
+
+def _has_bar_layer(ax: Any) -> bool:
     """
-    Whether a bar layer is already drawn on the axes.
+    Whether a bar layer is already registered on the axes.
+
+    Asked of maidr's own registrations rather than of ``ax.containers``,
+    because ``Axes.hist`` leaves a ``BarContainer`` behind too and a
+    histogram is not a series a bar can stack on: ``ax.hist(sample)`` then
+    ``ax.bar(x, h, bottom=5)`` on one axes would otherwise read the offset
+    as a stack.
 
     Parameters
     ----------
     ax : Any
         The axes the patched call is bound to. Read before the call draws,
-        so only containers from earlier calls are seen.
+        so only earlier calls' layers are seen.
 
     Returns
     -------
     bool
-        True when any ``BarContainer`` stands on the axes.
+        True when a bar, stacked or dodged layer stands on the axes.
     """
-    containers = getattr(ax, "containers", None) or []
-    return any(isinstance(container, BarContainer) for container in containers)
+    figure = getattr(ax, "figure", None)
+    if figure is None:
+        return False
+    try:
+        maidr = FigureManager.get_maidr(figure)
+    except KeyError:
+        return False
+    return any(plot.ax is ax and plot.type in _BAR_LAYERS for plot in maidr.plots)
 
 
 def _should_classify_as_dodged(

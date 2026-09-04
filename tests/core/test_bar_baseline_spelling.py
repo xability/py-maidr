@@ -27,6 +27,8 @@ baseline only says "stacked" when a bar layer already sits under it.
 
 from __future__ import annotations
 
+from typing import Any
+
 import matplotlib
 import numpy as np
 import pandas as pd
@@ -39,7 +41,10 @@ from matplotlib.axes import Axes  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.figure_manager import FigureManager  # noqa: E402
-from maidr.patch.barplot import _is_constant_baseline  # noqa: E402
+from maidr.patch.barplot import (  # noqa: E402
+    _is_constant_baseline,
+    _is_zero_baseline,
+)
 
 CATEGORIES = ["a", "b", "c"]
 SERIES_0 = np.array([10.0, 20.0, 30.0])
@@ -249,6 +254,33 @@ def test_a_baseline_with_a_gap_is_read_from_its_measured_values() -> None:
     assert _is_constant_baseline([5.0, np.nan, 5.0])
     assert _is_constant_baseline([np.nan, np.nan])
     assert not _is_constant_baseline([5.0, np.nan, 6.0])
+    assert _is_constant_baseline(np.ma.masked_array([5.0, 9.0, 5.0], [0, 1, 0]))
+    assert _is_zero_baseline([0.0, np.nan, 0.0])
+
+
+def test_a_zero_baseline_with_a_gap_over_a_layer_is_not_a_stack() -> None:
+    """``bottom=[0, nan, 0]`` is a zero baseline with a gap, not a series.
+
+    Read as varying it would have stacked on the layer beneath, which is the
+    #758 misreading with one cell missing.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(CATEGORIES, SERIES_0, label="s0")
+    ax.bar(CATEGORIES, SERIES_1, bottom=[0.0, np.nan, 0.0], label="s1")
+
+    assert _registered(fig) == ["bar", "bar"]
+
+
+def test_a_histogram_is_not_a_bar_to_stack_on() -> None:
+    """``Axes.hist`` leaves a ``BarContainer`` behind, but no bar series.
+
+    The offset bar drawn over it is still an offset bar.
+    """
+    fig, ax = plt.subplots()
+    ax.hist([0.5, 1.5, 1.5, 2.5])
+    ax.bar(CATEGORIES, SERIES_0, bottom=5)
+
+    assert _registered(fig) == ["hist", "bar"]
 
 
 @pytest.mark.parametrize(
@@ -260,7 +292,7 @@ def test_a_baseline_with_a_gap_is_read_from_its_measured_values() -> None:
         pytest.param(np.full(len(CATEGORIES), 5.0), id="array"),
     ],
 )
-def test_a_constant_baseline_on_bare_axes_is_a_plain_bar(baseline) -> None:
+def test_a_constant_baseline_on_bare_axes_is_a_plain_bar(baseline: Any) -> None:
     """The reproduction of #760: ``bottom=5`` with nothing beneath it.
 
     Every bar is drawn from 5 upward, which is an axis offset and not a
