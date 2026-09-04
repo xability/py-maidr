@@ -203,7 +203,8 @@ def _precomputed_labels(trace: dict, count: int) -> list[str]:
     list of str
         One label per box, empty where there is nothing to announce.
     """
-    positions = as_list(trace.get("y") if _trace_is_horizontal(trace) else trace.get("x"))
+    along = "y" if _trace_is_horizontal(trace) else "x"
+    positions = as_list(trace.get(along))
     if len(positions) >= count and not any(
         isinstance(position, (list, tuple)) for position in positions[:count]
     ):

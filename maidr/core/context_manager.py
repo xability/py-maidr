@@ -141,6 +141,10 @@ class HighlightContextManager:
         finally:
             # `pop`, not `del`: a user gid is kept verbatim (#753), so two
             # artists can share a key, and no draw is assumed not to nest.
+            # The entry is dropped, not restored: when two artists share a gid
+            # and nest their draws, the outer one is unmapped from here until it
+            # exits. No wrapped artist draws another today, so nothing reads it in
+            # that window.
             elements.pop(gid, None)
 
     @classmethod
