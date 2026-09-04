@@ -70,3 +70,21 @@ def test_the_y_axis_reads_the_same_way() -> None:
 
     assert ax.dataLim.y0 > 0
     assert _labels(ax, MaidrKey.Y) == ["a", "b", "c"]
+
+
+def test_a_log_axis_keeps_only_the_ticks_its_data_reaches() -> None:
+    # The tolerance is a rounding error beside each bound, not a slice of
+    # the span: cut from the span, it was decades wide here and admitted
+    # ticks at 1e-6 and 1e-4 that no data reaches.
+    fig, ax = plt.subplots()
+    ax.plot([1e-3, 1e12], [1, 2])
+    ax.set_xscale("log")
+    fig.canvas.draw()
+
+    ticks = LevelExtractorMixin._ticks_in_view(ax, MaidrKey.X)
+    positions = [position for position, _ in ticks]
+
+    # No tick sits at 1e-3 itself; the first the data reaches is 1e-2.
+    assert min(positions) == pytest.approx(1e-2)
+    assert max(positions) == pytest.approx(1e12)
+    assert all(1e-3 <= position <= 1e12 for position in positions)

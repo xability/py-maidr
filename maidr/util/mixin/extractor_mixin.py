@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -50,6 +52,26 @@ class ContainerExtractorMixin:
 
         # Otherwise, return the first container of the specified type.
         return matches[0] if matches else None
+
+
+def _a_hair_from(position: float, bound: float) -> bool:
+    """
+    Whether a tick sits on a data bound to within a rounding error.
+
+    Parameters
+    ----------
+    position : float
+        The tick's position in data coordinates.
+    bound : float
+        The data limit it is measured against.
+
+    Returns
+    -------
+    bool
+        True when the two differ by no more than float noise -- one part in
+        a billion of the bound, or 1e-12 outright beside zero.
+    """
+    return math.isclose(position, bound, rel_tol=1e-9, abs_tol=1e-12)
 
 
 class LevelExtractorMixin:
@@ -131,18 +153,27 @@ class LevelExtractorMixin:
             span = ax.dataLim.height if hasattr(ax, "dataLim") else 0
             low = ax.dataLim.y0 if span else 0
 
-        # To within a hair of the span. A bar whose edge is meant to sit on a
-        # tick can land a float past it: seaborn dodges two hue levels to
-        # +-0.2 and draws each 0.4 wide, so the second level's first bar
-        # starts at `0.2 - 0.2`, which arrives as 5.6e-17 -- and when that
-        # bar is the only one at the first category, the tick at 0 sat
-        # outside its own data by that much and the category was dropped
-        # (#752). A tick a rounding error outside the data is not furniture.
-        slack = abs(span) * 1e-9
+        # To within a rounding error of either bound. A bar whose edge is
+        # meant to sit on a tick can land a float past it: seaborn dodges
+        # two hue levels to +-0.2 and draws each 0.4 wide, so the second
+        # level's first bar starts at `0.2 - 0.2`, which arrives as 5.6e-17
+        # -- and when that bar is the only one at the first category, the
+        # tick at 0 sat outside its own data by that much and the category
+        # was dropped (#752). A tick a rounding error outside the data is
+        # not furniture.
+        #
+        # Anchored on the bound, not on the span: a slack cut from the span
+        # is decades wide on a log axis running 1e-3 to 1e12, and admitted
+        # ticks at 1e-6 and 1e-4 that no data reaches. `isclose` against
+        # the bound itself keeps 5.6e-17 beside 0 and nothing beside 1e-3
+        # but 1e-3.
+        high = low + span
         kept = [
             index
             for index, position in enumerate(ticks)
-            if span == 0 or low - slack <= position <= low + span + slack
+            if span == 0
+            or (position >= low or _a_hair_from(position, low))
+            and (position <= high or _a_hair_from(position, high))
         ]
         return [
             (ticks[index], labels[index]) for index in kept if index < len(labels)
