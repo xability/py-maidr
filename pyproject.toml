@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "maidr"
 version = "1.23.0"
-description = "Multimodal Access and Interactive Data Representations"
+description = "Make matplotlib, seaborn, Plotly, and Altair charts accessible through sonification, braille, and screen reader support"
 authors = [
     { name = "JooYoung Seo", email = "jseo1005@illinois.edu" },
     { name = "Saairam Venkatesh", email = "saairam2@illinois.edu" },
@@ -15,7 +15,8 @@ readme = "README.md"
 license = "GPL-3.0-or-later"
 keywords = [
     "accessibility",
-    "visualization",
+    "a11y",
+    "screen reader",
     "sonification",
     "braille",
     "tactile",
@@ -24,21 +25,40 @@ keywords = [
     "blind",
     "low vision",
     "visual impairments",
+    "data visualization",
+    "visualization",
+    "charts",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "altair",
+    "jupyter",
+    "quarto",
+    "shiny",
+    "streamlit",
 ]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: Jupyter",
+    "Framework :: Matplotlib",
+    "Intended Audience :: Education",
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: Financial and Insurance Industry",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Healthcare Industry",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Adaptive Technologies",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Text Processing :: Markup :: HTML",
     "Topic :: Scientific/Engineering :: Visualization",
@@ -141,8 +161,11 @@ test = [
 maidr = "maidr.backend"
 
 [project.urls]
-Homepage = "https://xability.github.io/py-maidr"
+Homepage = "https://py.maidr.ai/"
+Documentation = "https://py.maidr.ai/"
 Repository = "https://github.com/xability/py-maidr"
+Issues = "https://github.com/xability/py-maidr/issues"
+Changelog = "https://github.com/xability/py-maidr/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
