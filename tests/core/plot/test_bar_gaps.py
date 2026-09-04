@@ -488,6 +488,32 @@ class TestASeabornHueMissingACategory:
         assert [point["y"] for point in points[0]] == [1.0, None, 3.0]
         assert [point["y"] for point in points[1]] == [4.0, None, 6.0]
 
+    def test_a_level_with_no_bars_on_a_numeric_axis_is_left_out(self):
+        # The same all-NaN level over `native_scale=True`, whose ticks are
+        # the locator's own breaks rather than categories. There is no row
+        # of gaps to place it in and no position to read it at, so the
+        # bars-only reading leaves it out rather than emitting an empty
+        # series beside g1's -- and the layer stands on g1's bars.
+        frame = pd.DataFrame(
+            {
+                "x": [1, 2, 3] * 2,
+                "grp": ["g1"] * 3 + ["g2"] * 3,
+                "val": [1.0, 2.0, 3.0, np.nan, np.nan, np.nan],
+            }
+        )
+        fig, ax = plt.subplots()
+        sns.barplot(data=frame, x="x", y="val", hue="grp", native_scale=True, ax=ax)
+        # The premise: an empty container on an axis with chosen breaks.
+        assert [len(c.patches) for c in ax.containers] == [3, 0]
+        assert type(ax.xaxis.get_major_locator()).__name__ == "AutoLocator"
+        maidr.stacked(ax)
+        points = stacked_points(ax)
+
+        assert len(points) == 1
+        assert [point["z"] for point in points[0]] == ["g1"] * 3
+        assert [point["y"] for point in points[0]] == [1.0, 2.0, 3.0]
+        parses_as_strict_json(ax)
+
     def test_a_hue_that_repeats_the_category_stays_a_plain_bar(self):
         # The control. Seaborn draws this one container per bar, all the
         # same length and short of the axis -- the shape above -- but no

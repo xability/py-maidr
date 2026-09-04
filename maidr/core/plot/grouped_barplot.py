@@ -478,6 +478,16 @@ class GroupedBarPlot(
         hue_categories = self._extract_hue_categories_from_legend()
 
         for i, (container, row) in enumerate(zip(plot, rows)):
+            # A container with no bars, read from the bars alone -- a hue
+            # level whose every value is NaN, on an axis whose ticks are not
+            # categories. There is nothing to announce for it and no
+            # position to place it at, so it is left out rather than
+            # emitted as an empty series; the level is still named in the
+            # legend, which is where a reader learns of it. On categorical
+            # ticks the same level is a row of gaps, and kept -- see
+            # `test_a_level_with_no_bars_at_all_is_an_all_null_series`.
+            if not row:
+                continue
             container_data = []
 
             # Use hue category if available, otherwise fall back to container label
@@ -577,7 +587,9 @@ class GroupedBarPlot(
         axis, so the announcement has to agree across them, and this is
         what main emitted -- and, when they do not, each container's own.
         The series then no longer share one axis, which is a lesser wrong
-        than no figure.
+        than no figure. A container with no bars at all has no position to
+        be read at and comes back as an empty row, which the caller leaves
+        out; the layer stands as long as some container has bars.
 
         Parameters
         ----------
