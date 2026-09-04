@@ -56,7 +56,7 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 
 | | |
 |---|---|
-| **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Altair, mplfinance |
+| **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit |
 | **Plot types** | 38 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-three are experimental |
 
