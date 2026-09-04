@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from matplotlib.axes import Axes
+from matplotlib.category import StrCategoryLocator
 from matplotlib.container import BarContainer
 from matplotlib.patches import Rectangle
+from matplotlib.ticker import FixedLocator
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
@@ -24,16 +26,18 @@ from maidr.util.mixin import (
 DRAWN_GROUPS = "_maidr_bar_groups"
 
 
-def ragged(plot: list[BarContainer]) -> bool:
+def bars_are_ragged(plot: list[BarContainer]) -> bool:
     """
     Whether the containers of one layer hold different numbers of bars.
 
     ``seaborn.barplot(hue=)`` drops a row whose value is ``NaN`` before it
     draws, so a hue level that lacks one category comes out a bar short of
     its siblings (#752). Containers that are all the same length are not
-    ragged, however short of the axis they run: one bar per container is
-    the shape a hue that repeats the category draws, and it is read as a
-    plain bar layer, not as a grouped one with every other cell missing.
+    ragged, however short of the axis they run -- and that shape is two
+    things: a category missing from every hue level, or the hue that
+    repeats the category, which draws one bar per container. Raggedness
+    alone can only be the first, so it is evidence of a hue split on its
+    own; equal lengths need :func:`shares_a_category` to tell the two apart.
 
     Parameters
     ----------
@@ -46,6 +50,63 @@ def ragged(plot: list[BarContainer]) -> bool:
         True when at least two containers differ in length.
     """
     return len({len(container.patches) for container in plot}) > 1
+
+
+def ticks_are_categories(ax: Axes, key: MaidrKey) -> bool:
+    """
+    Whether the ticks on one axis are its categories, one per tick.
+
+    Placing bars against the ticks only means something when the ticks
+    were put there for the categories -- by ``seaborn``'s categorical axis
+    or matplotlib's, which lay them with a ``StrCategoryLocator``, or by a
+    caller's ``set_xticks``, which fixes them. A locator that chose its own
+    breaks lays ticks that are breaks, not categories: a stacked chart over
+    ``np.arange(len(species))`` has five of them in view for three bars
+    (#384), and placing the bars against those would announce ``"0.5"`` as
+    a category no bar was drawn for.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes to read.
+    key : MaidrKey
+        Which axis, ``X`` or ``Y``.
+
+    Returns
+    -------
+    bool
+        True when the ticks were fixed rather than chosen.
+    """
+    axis = ax.xaxis if key == MaidrKey.X else ax.yaxis
+    return isinstance(axis.get_major_locator(), (FixedLocator, StrCategoryLocator))
+
+
+def shares_a_category(rows: list[list[Rectangle | None]]) -> bool:
+    """
+    Whether some category holds bars of more than one container.
+
+    Side by side is what a dodged chart is, so a layer in which every
+    category holds one bar is not one: that is the hue that repeats the
+    category, which colours the bars a plain chart would have drawn anyway
+    and splits them one per container, with every container the same
+    length and short of the axis. A category missing from every hue level
+    leaves the containers that same shape (#752), and this is what tells
+    the two apart -- the hue levels still meet at the categories they
+    share.
+
+    Parameters
+    ----------
+    rows : list of list of Rectangle or None
+        The placement :func:`bars_by_category` returned.
+
+    Returns
+    -------
+    bool
+        True when a category holds bars from at least two containers.
+    """
+    return any(
+        sum(patch is not None for patch in column) > 1 for column in zip(*rows)
+    )
 
 
 def bars_by_category(
@@ -94,6 +155,8 @@ def bars_by_category(
             else:
                 centre = patch.get_x() + patch.get_width() / 2
             distances = [abs(position - centre) for position in positions]
+            # The nearest tick; on a tie the lower index wins, `index` being
+            # the first match.
             slot = distances.index(min(distances))
             if row[slot] is not None:
                 return None
@@ -274,6 +337,22 @@ class GroupedBarPlot(
                 # drawing (#752) -- is the same gap: `None`, which the core
                 # reads as "missing" and, having no element for it in the DOM,
                 # steps over when it pairs the bars with their rectangles.
+                #
+                # Checked against the bundle shipped in `maidr/static/maidr.js`
+                # rather than the core's source. Its segmented layer claims
+                # one element per cell off a single cursor `s`, and when the
+                # DOM holds fewer elements than there are cells (`r`) a cell
+                # that is zero or unmeasured (`Qo`, the source's
+                # `isDomOmittable`) takes an empty placeholder without
+                # advancing it::
+                #
+                #     function Qo(e){return e===0||!ao(e)}
+                #     ...s=0,c=(e,n)=>r&&Qo(this.barValues[e][n])||s>=t.length
+                #         ?M.createEmptyElement():t[s++];
+                #
+                # So the `null` consumes no rectangle and the bars after it
+                # still land on their own. One flat selector is therefore
+                # enough; a per-bar list is not needed for alignment.
                 if self._is_horizontal:
                     point = {
                         MaidrKey.X.value: self._magnitude_of(patch, horizontal=True),
@@ -319,15 +398,17 @@ class GroupedBarPlot(
         """
         One bar, or ``None`` for a gap, per announced label for every container.
 
-        Paired by position when the containers all run the same length,
-        which they do by construction for every layer that is not ragged:
-        each holds one bar per category, so the n-th bar is the n-th label.
-        That pairing was the only one, and a ragged layer -- ``seaborn``'s
-        hue with a ``NaN`` cell (#752) -- had nothing to be paired with, so
-        the layer gave up and the patch fell back to a plain bar layer whose
-        labels were the bars' fractional positions. The bars that were drawn
-        still sit against their category's tick, so a ragged layer is placed
-        against the ticks instead, by :func:`bars_by_category`.
+        Paired by position when every container holds one bar per label,
+        which is how every layer is drawn by construction until seaborn
+        drops a ``NaN`` cell before drawing (#752): the n-th bar is the n-th
+        label. That pairing was the only one, and a layer with a container
+        short of the labels had nothing to be paired with, so the layer
+        gave up and the patch fell back to a plain bar layer whose labels
+        were the bars' fractional positions. The bars that were drawn still
+        sit against their category's tick, so such a layer is placed against
+        the ticks instead, by :func:`bars_by_category` -- whether one
+        container is short or every one of them is, which is the layer a
+        category missing from every hue level leaves.
 
         Parameters
         ----------
@@ -343,10 +424,14 @@ class GroupedBarPlot(
             as one per category -- the caller turns that into an
             ``ExtractionError``, as the old length check did.
         """
-        if not ragged(plot):
-            if any(len(container.patches) != len(level) for container in plot):
-                return None
+        if all(len(container.patches) == len(level) for container in plot):
             return [list(container.patches) for container in plot]
+
+        # A tick the locator chose for itself is a break, not a category,
+        # and a bar has no business being placed against one; the labels
+        # are positional there, and paired above.
+        if not ticks_are_categories(self.ax, self._level_key):
+            return None
 
         # The positions are paired with the labels index for index by
         # `_ticks_in_view`; a count that disagrees means `extract_level` fell
@@ -379,10 +464,11 @@ class GroupedBarPlot(
         The first container is the one measured. Every container of a
         segmented layer holds one bar per category by construction, so they
         agree -- except when seaborn dropped a ``NaN`` cell before drawing
-        and left the containers ragged (#752). The tick labels are kept for
-        that layer too, because the bars it does have are placed against
-        the ticks by :meth:`_bars_for` rather than paired by position; the
-        gaps are what that placement is for.
+        and left a container short (#752). The tick labels are kept for
+        that layer too, whenever the ticks are the categories, because the
+        bars it does have are placed against the ticks by :meth:`_bars_for`
+        rather than paired by position; the gaps are what that placement is
+        for.
 
         Parameters
         ----------
@@ -396,7 +482,10 @@ class GroupedBarPlot(
         """
         level = self.extract_level(self.ax, self._level_key)
         first = plot[0].patches if plot else []
-        if level and (len(level) == len(first) or ragged(plot)):
+        if level and (
+            len(level) == len(first)
+            or ticks_are_categories(self.ax, self._level_key)
+        ):
             return level
 
         return [self._bar_position(patch) for patch in first]

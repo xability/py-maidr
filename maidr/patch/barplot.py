@@ -11,7 +11,12 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS
-from maidr.core.plot.grouped_barplot import bars_by_category, ragged
+from maidr.core.plot.grouped_barplot import (
+    bars_are_ragged,
+    bars_by_category,
+    shares_a_category,
+    ticks_are_categories,
+)
 from maidr.patch.common import (
     _argument,
     _draw_quietly,
@@ -382,11 +387,11 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
     Classify a drawn seaborn bar layer as grouped or plain.
 
     A grouped layer draws one container per hue level, each holding one bar
-    per category -- or one bar short of it, where seaborn dropped a ``NaN``
-    cell before drawing (#752). Anything else — a single container, or
+    per category -- or short of it, where seaborn dropped a ``NaN`` cell
+    before drawing (#752). Anything else — a single container, or
     containers that do not line up with the categorical axis — is a plain
     bar layer. The bars are counted against the same tick labels
-    `GroupedBarPlot` pairs them with, and a ragged layer's bars are placed
+    `GroupedBarPlot` pairs them with, and a short layer's bars are placed
     against the same tick positions it places them by, so the layer is only
     called grouped when it can be read as one.
 
@@ -419,15 +424,15 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
     if all(len(container.patches) == len(levels) for container in containers):
         return PlotType.DODGED
 
-    # Containers of one length short of the axis are not a grouped layer:
-    # that is the shape a hue that repeats the category draws, one container
-    # per bar. Ragged ones are, when each container's bars sit against
-    # distinct ticks -- a hue level that lacks a category is one bar short,
-    # and `GroupedBarPlot` reads the bar it lacks as a gap (#752). This used
-    # to turn every ragged layer back, and the plain bar layer it fell to
-    # announced the bars' fractional positions, "-0.2", in place of their
-    # category and hue names.
-    if not ragged(containers):
+    # A container short of the axis is still a hue level when its bars sit
+    # against distinct ticks -- a level that lacks a category is a bar
+    # short, and `GroupedBarPlot` reads the bar it lacks as a gap (#752).
+    # This used to turn every such layer back, and the plain bar layer it
+    # fell to announced the bars' fractional positions, "-0.2", in place of
+    # their category and hue names. Only against ticks that are categories:
+    # `native_scale=True` leaves the locator to choose breaks, and a bar
+    # placed against a break is a bar placed against nothing.
+    if not ticks_are_categories(ax, level_key):
         return PlotType.BAR
 
     positions = LevelExtractorMixin.extract_level_positions(ax, level_key)
@@ -435,7 +440,16 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
         return PlotType.BAR
 
     horizontal = containers[0].orientation == "horizontal"
-    if bars_by_category(containers, positions, horizontal) is None:
+    rows = bars_by_category(containers, positions, horizontal)
+    if rows is None:
+        return PlotType.BAR
+
+    # Ragged containers can only be a hue split. Equal-length ones short of
+    # the axis are either that with a category missing from every level, or
+    # the hue that repeats the category -- one container per bar, colouring
+    # a plain chart. Side by side is what dodged means, so a category that
+    # holds bars of two containers is what tells them apart.
+    if not bars_are_ragged(containers) and not shares_a_category(rows):
         return PlotType.BAR
 
     return PlotType.DODGED

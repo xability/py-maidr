@@ -353,3 +353,123 @@ class TestASeabornHueMissingACategory:
         assert [point["y"] for point in points[1]] == ["a", "b", "c"]
         assert [point["x"] for point in points[1]] == [4.0, None, 6.0]
         parses_as_strict_json(ax)
+
+    # Two hue levels each missing a *different* category -- containers of
+    # [2, 2] bars over 3 ticks -- are equal in length and short of the
+    # axis, which raggedness cannot see: the layer was still a plain bar
+    # labelled by position, "1.2" for g2's "b".
+    # It is the shape the hue that repeats the category draws as well, one
+    # container per bar, so the two are told apart by whether a category
+    # holds bars of two containers -- side by side is what dodged means.
+
+    @staticmethod
+    def _frame_short_everywhere(g1_lacks: str = "c", g2_lacks: str = "a"):
+        # Containers of two bars over three ticks. With the defaults they
+        # meet only at "b".
+        frame = pd.DataFrame(
+            {
+                "cat": ["a", "b", "c"] * 2,
+                "grp": ["g1"] * 3 + ["g2"] * 3,
+                "val": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            }
+        )
+        frame.loc[(frame["cat"] == g1_lacks) & (frame["grp"] == "g1"), "val"] = np.nan
+        frame.loc[(frame["cat"] == g2_lacks) & (frame["grp"] == "g2"), "val"] = np.nan
+        return frame
+
+    @pytest.mark.parametrize(
+        "g1_lacks, g2_lacks",
+        [
+            pytest.param("c", "a", id="meet-at-b"),
+            # The first category's only bar is g2's, dodged to +0.2 and 0.4
+            # wide, so its left edge is `0.2 - 0.2` -- a float hair past
+            # the tick at 0. The tick filter used to drop that category as
+            # outside the data, which left two labels for two bars and let
+            # the layer pair by position: g2's "a" was announced as "b".
+            pytest.param("a", "b", id="edge-a-hair-past-the-tick"),
+        ],
+    )
+    def test_two_levels_each_missing_a_different_category_are_grouped(
+        self, g1_lacks: str, g2_lacks: str
+    ):
+        fig, ax = plt.subplots()
+        sns.barplot(
+            data=self._frame_short_everywhere(g1_lacks, g2_lacks),
+            x="cat",
+            y="val",
+            hue="grp",
+            ax=ax,
+        )
+        # The premise: [2, 2] bars over three ticks, equal and both short.
+        assert [len(c.patches) for c in ax.containers] == [2, 2]
+        assert [t.get_text() for t in ax.get_xticklabels()] == ["a", "b", "c"]
+        record = FigureManager.get_maidr(fig)
+        points = stacked_points(ax)
+
+        assert record._plots[-1].type is PlotType.DODGED
+        heights = {"a": [1.0, 4.0], "b": [2.0, 5.0], "c": [3.0, 6.0]}
+        assert points == [
+            [
+                {
+                    "x": cat,
+                    "z": "g1",
+                    "y": None if cat == g1_lacks else heights[cat][0],
+                }
+                for cat in ["a", "b", "c"]
+            ],
+            [
+                {
+                    "x": cat,
+                    "z": "g2",
+                    "y": None if cat == g2_lacks else heights[cat][1],
+                }
+                for cat in ["a", "b", "c"]
+            ],
+        ]
+        parses_as_strict_json(ax)
+
+    def test_two_levels_each_missing_a_different_category_sideways(self):
+        fig, ax = plt.subplots()
+        sns.barplot(
+            data=self._frame_short_everywhere(), y="cat", x="val", hue="grp", ax=ax
+        )
+        record = FigureManager.get_maidr(fig)
+        points = stacked_points(ax)
+
+        assert record._plots[-1].type is PlotType.DODGED
+        assert [point["y"] for point in points[1]] == ["a", "b", "c"]
+        assert [point["x"] for point in points[0]] == [1.0, 2.0, None]
+        assert [point["x"] for point in points[1]] == [None, 5.0, 6.0]
+
+    def test_a_hue_that_repeats_the_category_stays_a_plain_bar(self):
+        # The control. Seaborn draws this one container per bar, all the
+        # same length and short of the axis -- the shape above -- but no
+        # category holds two bars, so nothing about it is grouped, and the
+        # plain bar layer names the categories as it always did.
+        frame = pd.DataFrame({"cat": ["a", "b", "c"], "val": [1.0, 2.0, 3.0]})
+        fig, ax = plt.subplots()
+        sns.barplot(data=frame, x="cat", y="val", hue="cat", ax=ax)
+        record = FigureManager.get_maidr(fig)
+
+        assert [len(c.patches) for c in ax.containers] == [1, 1, 1]
+        assert record._plots[-1].type is PlotType.BAR
+        assert bar_points(ax) == [
+            {"x": "a", "y": 1.0},
+            {"x": "b", "y": 2.0},
+            {"x": "c", "y": 3.0},
+        ]
+
+    def test_a_numeric_axis_is_not_placed_against_its_breaks(self):
+        # The guard the placement needs. A stacked chart over
+        # `np.arange(3)` has more ticks in view than bars, all chosen by the
+        # locator; those are breaks, not categories, and the layer keeps
+        # announcing the positions its bars were drawn at (#384).
+        fig, ax = plt.subplots()
+        positions = np.arange(3)
+        ax.bar(positions, [1.0, 2.0, 3.0], label="lower")
+        ax.bar(positions, [4.0, 5.0, 6.0], bottom=[1.0, 2.0, 3.0], label="upper")
+        maidr.stacked(ax)
+        points = stacked_points(ax)
+
+        assert [point["x"] for point in points[0]] == ["0", "1", "2"]
+        assert [point["y"] for point in points[1]] == [4.0, 5.0, 6.0]
