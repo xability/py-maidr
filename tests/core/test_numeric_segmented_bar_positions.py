@@ -203,3 +203,54 @@ def test_an_explicit_none_baseline_still_reaches_dodge_detection() -> None:
 
     assert "stacked_bar" not in types, "None is not a baseline"
     assert types == ["dodged_bar"], types
+
+
+def _dodged_with_ticks(ticks, labels):
+    """Two series dodged over ``np.arange(3)``, with ticks set by hand."""
+    fig, ax = plt.subplots()
+    positions = np.arange(3)
+    ax.bar(positions - 0.2, LOWER, width=0.4, label="lower")
+    ax.bar(positions + 0.2, UPPER, width=0.4, label="upper")
+    ax.set_xticks(ticks, labels)
+    maidr.stacked(ax)
+    return fig
+
+
+# The first series' positions name both, decided once for the layer: every
+# series of a segmented chart shares one category axis, so the announcement
+# has to agree across them. What main emitted, and what the fallback keeps.
+POSITIONAL = [["-0.2", "0.8", "1.8"], ["-0.2", "0.8", "1.8"]]
+
+
+def test_ticks_two_bars_share_fall_back_to_positions() -> None:
+    """Two ticks for three bars of each series: no tick names the bars.
+
+    Placing the bars against ``start`` and ``end`` puts two bars of one
+    series on one tick, which is not one bar per category. The layer used
+    to raise there -- the labels had already chosen the tick names -- where
+    it had announced the bars' positions before; it announces them again.
+    """
+    fig = _dodged_with_ticks([0.0, 2.0], ["start", "end"])
+
+    layer = _layer(fig)
+
+    # The width-0.4 idiom types the layer dodged on its own; what is at
+    # stake is the labels, and that it renders at all.
+    assert layer["type"].value == "dodged_bar"
+    assert [[point["x"] for point in series] for series in layer["data"]] == POSITIONAL
+    assert maidr.render(fig) is not None
+
+
+def test_ticks_no_bar_was_drawn_for_fall_back_to_positions() -> None:
+    """Five ticks for three bars: the half steps are not categories.
+
+    Placed against them, the layer announced ``a5`` and ``b5`` as
+    categories with a gap in every series -- five points where the chart
+    drew three. A tick no series claims declines the placement.
+    """
+    fig = _dodged_with_ticks([0, 0.5, 1, 1.5, 2], ["a", "a5", "b", "b5", "c"])
+
+    layer = _layer(fig)
+
+    assert [len(series) for series in layer["data"]] == [3, 3]
+    assert [[point["x"] for point in series] for series in layer["data"]] == POSITIONAL

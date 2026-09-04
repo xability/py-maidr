@@ -11,6 +11,11 @@ from maidr.core.context_manager import ContextManager
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.barplot import DRAWN_BARS
+from maidr.core.plot.grouped_barplot import (
+    bars_are_ragged,
+    grouped_layout,
+    shares_a_category,
+)
 from maidr.patch.common import (
     _argument,
     _draw_quietly,
@@ -19,7 +24,6 @@ from maidr.patch.common import (
     plotter_panels,
     wrap_seaborn,
 )
-from maidr.util.mixin import LevelExtractorMixin
 
 
 def bar(
@@ -487,10 +491,13 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
     Classify a drawn seaborn bar layer as grouped or plain.
 
     A grouped layer draws one container per hue level, each holding one bar
-    per category. Anything else — a single container, or containers that do
-    not line up with the categorical axis — is a plain bar layer. The bars
-    are counted against the same tick labels `GroupedBarPlot` pairs them
-    with, so the layer is only called grouped when it can be read as one.
+    per category -- or short of it, where seaborn dropped a ``NaN`` cell
+    before drawing (#752). Anything else — a single container, or
+    containers that do not line up with the categorical axis — is a plain
+    bar layer. Whether the containers line up is
+    :func:`~maidr.core.plot.grouped_barplot.grouped_layout`'s answer, the
+    same one `GroupedBarPlot` reads the layer by, so the layer is only
+    called grouped when it will be read as one.
 
     Parameters
     ----------
@@ -514,11 +521,17 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
 
     # The bar labels sit on y when the bars grow along x.
     level_key = MaidrKey.Y if containers[0].orientation == "horizontal" else MaidrKey.X
-    levels = LevelExtractorMixin.extract_level(ax, level_key)
-    if not levels:
+    layout = grouped_layout(ax, containers, level_key)
+    if layout is None:
         return PlotType.BAR
+    _, rows = layout
 
-    if any(len(container.patches) != len(levels) for container in containers):
+    # Ragged containers can only be a hue split. Equal-length ones short of
+    # the axis are either that with a category missing from every level, or
+    # the hue that repeats the category -- one container per bar, colouring
+    # a plain chart. Side by side is what dodged means, so a category that
+    # holds bars of two containers is what tells them apart.
+    if not bars_are_ragged(containers) and not shares_a_category(rows):
         return PlotType.BAR
 
     return PlotType.DODGED
