@@ -173,8 +173,10 @@ class LevelExtractorMixin:
             index
             for index, position in enumerate(ticks)
             if span == 0
-            or (position >= low or _within_tolerance_of(position, low))
-            and (position <= high or _within_tolerance_of(position, high))
+            or (
+                (position >= low or _within_tolerance_of(position, low))
+                and (position <= high or _within_tolerance_of(position, high))
+            )
         ]
         return [
             (ticks[index], labels[index]) for index in kept if index < len(labels)
