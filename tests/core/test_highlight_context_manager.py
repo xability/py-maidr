@@ -103,6 +103,23 @@ def test_an_artist_that_was_never_tagged_is_left_alone():
         assert not HighlightContextManager.is_maidr_element("gid-tagged")
 
 
+def test_two_artists_sharing_a_gid_can_nest_their_draws():
+    """A user gid is kept verbatim (#753), so two tagged artists can share one.
+
+    The per-render mapping is keyed by gid. Should one such artist draw the
+    other, the inner draw's exit removes the key and the outer's must not
+    raise a ``KeyError`` over the entry it no longer finds.
+    """
+    outer = Rectangle((0, 0), 1, 1)
+    inner = Rectangle((1, 0), 1, 1)
+
+    with HighlightContextManager.set_maidr_elements([outer, inner], ["a", "b"]):
+        with HighlightContextManager.set_maidr_element(outer, "shared"):
+            with HighlightContextManager.set_maidr_element(inner, "shared"):
+                assert HighlightContextManager.get_selector_id("shared") == "b"
+        assert not HighlightContextManager.is_maidr_element("shared")
+
+
 def test_a_mismatched_elements_and_selectors_pair_is_refused():
     """``zip`` would drop the tail silently; the old indexing raised."""
     elements = [Rectangle((0, 0), 1, 1), Rectangle((1, 0), 1, 1)]

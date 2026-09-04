@@ -332,7 +332,7 @@ class JSBodyConverter:
         decimals: Optional[int],
         suffix: str,
         grouping: bool = False,
-        exponent: bool = False,
+        kind: Optional[str] = None,
     ) -> str:
         """
         Convert a format string ending in a literal percent sign, like
@@ -341,10 +341,12 @@ class JSBodyConverter:
         Parameters
         ----------
         decimals : int, optional
-            Precision of the field. None is a field with no precision,
-            ``{x}`` or ``{x:,}``, which Python renders with the float's
-            default form -- ``45.0``, ``45.5`` -- so the body keeps the
-            ``.0`` on an integral value where ``String(n)`` would drop it.
+            Precision of the field. None with no *kind* is a field with no
+            precision, ``{x}`` or ``{x:,}``, which Python renders with the
+            float's default form -- ``45.0``, ``45.5`` -- so the body keeps
+            the ``.0`` on an integral value where ``String(n)`` would drop
+            it. None with a kind, ``{x:f}`` or ``{x:e}``, is Python's
+            default precision for that kind: six decimals.
         suffix : str
             The literal text after the field, emitted verbatim -- ``%``,
             or `` %`` with the space the format string carries.
@@ -352,10 +354,11 @@ class JSBodyConverter:
             Whether the spec asks for thousands separators, ``{x:,.0f}``.
             Written the way the comma preset's body is, through
             ``toLocaleString('en-US')``.
-        exponent : bool
-            Whether the spec is scientific, ``{x:.2e}``. Python pads the
-            exponent to two digits, ``1.23e+03``, where ``toExponential``
-            gives ``1.23e+3``; the body pads it back.
+        kind : str, optional
+            The presentation type of the spec: ``"f"`` for fixed-point,
+            ``"e"`` for scientific, None for a field without one. Python
+            pads a scientific exponent to two digits, ``1.23e+03``, where
+            ``toExponential`` gives ``1.23e+3``; the body pads it back.
 
         Returns
         -------
@@ -364,7 +367,11 @@ class JSBodyConverter:
             A value that is not a finite number is announced as itself, as
             upstream's ``asFiniteNumber`` does for the percent preset.
         """
-        if exponent:
+        if kind is not None and decimals is None:
+            # `format(45.0, "f")` is `45.000000` and `format(45.0, "e")` is
+            # `4.500000e+01`: a bare kind draws six decimals.
+            decimals = 6
+        if kind == "e":
             number = (
                 f"n.toExponential({decimals})"
                 ".replace(/e([+-])(\\d)$/,function(s,a,b){return 'e'+a+'0'+b})"
@@ -556,10 +563,15 @@ class FormatConfigBuilder:
             explicit = int(formatter.decimals)
         xmax = float(getattr(formatter, "xmax", 100.0))
 
-        # matplotlib divides by xmax at draw time and raises on zero; a schema
-        # extraction has nothing sensible to scale by, so it keeps the preset.
-        # A negative xmax draws a sign-flipped percentage and scales as usual.
-        if xmax == 0:
+        # matplotlib divides by xmax at draw time and raises on zero, and a
+        # NaN xmax is no scale either -- `repr` spells `100 / nan` as `nan`,
+        # which is not a JavaScript numeral, so the body would throw a
+        # ReferenceError. A schema extraction has nothing sensible to scale
+        # by in either case, so it keeps the preset. An infinite xmax is a
+        # scale of zero, which matplotlib draws as `0%` and this scales the
+        # same way; a negative one draws a sign-flipped percentage and
+        # scales as usual.
+        if xmax == 0 or math.isnan(xmax):
             return FormatConfig(type=FormatType.PERCENT, decimals=explicit)
 
         decimals = FormatConfigBuilder._percent_decimals(formatter, xmax, explicit)
@@ -729,7 +741,10 @@ class FormatConfigBuilder:
         suffix_match = re.search(r"\{[^}:]*(?::([^}]*))?\}(\s*%\s*)$", fmt)
         if suffix_match:
             spec, suffix = suffix_match.group(1) or "", suffix_match.group(2)
-            parsed = re.fullmatch(r"(,)?(?:\.(\d+)([fe]))?", spec)
+            # A precision needs a kind, but a kind needs no precision:
+            # `{x:e}` and `{x:f}` are Python at six decimals. `{x:.2}` has
+            # no kind and is left to the presets below, as before.
+            parsed = re.fullmatch(r"(,)?(?:(?:\.(\d+))?([fe]))?", spec)
             if parsed:
                 grouping, precision, kind = parsed.groups()
                 return FormatConfig(
@@ -737,7 +752,7 @@ class FormatConfigBuilder:
                         int(precision) if precision else None,
                         suffix,
                         grouping=bool(grouping),
-                        exponent=kind == "e",
+                        kind=kind,
                     )
                 )
 

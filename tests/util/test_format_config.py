@@ -152,13 +152,33 @@ def test_an_unattached_percent_formatter_keeps_the_presets_one_decimal():
     }
 
 
-def test_a_percent_formatter_with_a_zero_xmax_keeps_the_preset():
-    """matplotlib divides by xmax at draw time; extraction must not raise."""
-    for formatter in (PercentFormatter(xmax=0), PercentFormatter(xmax=0, decimals=2)):
+def test_an_infinite_xmax_scales_to_zero_as_matplotlib_draws_it():
+    """``100 / inf`` is ``0.0``, a numeral the body can carry.
+
+    matplotlib draws every tick of such an axis as ``0%``; the preset would
+    have announced ``4500%`` instead.
+    """
+    formatter = _formatter_with_axis(PercentFormatter(xmax=float("inf")))
+
+    config = FormatConfigBuilder.from_formatter(formatter).to_dict()
+
+    assert "n*0.0" in config["function"]
+
+
+@pytest.mark.parametrize("xmax", [0, float("nan")], ids=["zero", "nan"])
+def test_a_percent_formatter_with_no_finite_scale_keeps_the_preset(xmax):
+    """matplotlib divides by xmax at draw time; extraction must not raise.
+
+    Nor may it emit a body it cannot run: ``100 / nan`` is ``nan``, and
+    ``repr`` spells that ``nan``, which is not a JavaScript numeral -- the
+    body would throw a ``ReferenceError`` at the first tick.
+    """
+    for formatter in (PercentFormatter(xmax=xmax), PercentFormatter(xmax, 2)):
         formatter = _formatter_with_axis(formatter)
         config = FormatConfigBuilder.from_formatter(formatter).to_dict()
         assert config["type"] == "percent"
         assert config.get("decimals") == formatter.decimals
+        assert "function" not in config
 
 
 def test_a_non_default_percent_axis_is_announced_as_its_tick_is_drawn():
@@ -273,6 +293,26 @@ def test_a_grouped_or_scientific_field_keeps_its_literal_suffix(fmt, value):
     body = FormatConfigBuilder.from_formatter(formatter).function
     assert body.endswith("+" + json.dumps("%"))
     assert ("toExponential" if "e}" in fmt else "toLocaleString") in body
+    assert _run_js(body, float(value)) == _drawn(formatter, float(value))
+
+
+@pytest.mark.parametrize(
+    ("fmt", "value"),
+    [
+        (fmt, value)
+        for fmt in ("{x:e}%", "{x:f}%", "{x:f} %")
+        for value in (45, 1234.5, 0.25)
+    ],
+)
+def test_a_bare_kind_with_no_precision_keeps_pythons_six_decimals(fmt, value):
+    """``{x:e}`` and ``{x:f}`` are valid with no precision: Python draws six
+    decimals for either, ``4.500000e+01`` and ``45.000000``. The suffix
+    parser wanted a ``.`` before the kind, so both fell through to the
+    scientific and fixed presets and lost the ``%``."""
+    formatter = StrMethodFormatter(fmt)
+    body = FormatConfigBuilder.from_formatter(formatter).function
+    assert body.endswith("+" + json.dumps(fmt[fmt.index("}") + 1 :]))
+    assert "(6)" in body
     assert _run_js(body, float(value)) == _drawn(formatter, float(value))
 
 

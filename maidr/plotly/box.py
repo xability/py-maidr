@@ -122,6 +122,7 @@ def _precomputed_box(
     lowerfence: Any,
     upperfence: Any,
     label: str = "",
+    z: str = "",
 ) -> dict | None:
     """
     Build one box's stats from its precomputed values, the way plotly reads them.
@@ -143,7 +144,13 @@ def _precomputed_box(
     q1, median, q3, lowerfence, upperfence : Any
         The box's precomputed values, as native scalars.
     label : str
-        The box's name, for the warning when it is dropped.
+        The box's name for the warning when it is dropped.
+    z : str
+        What a reader hears the box called: announced as ``z`` when it is
+        not empty, the way ``_compute_stats`` announces a raw box's
+        category. Kept apart from ``label`` because the warning wants a
+        name for every box, ``box 3``, where a reader wants only the ones
+        the chart carries -- see `_precomputed_labels`.
     """
     if not (
         _is_finite_number(q1)
@@ -160,7 +167,7 @@ def _precomputed_box(
     min_val = lowerfence if _is_finite_number(lowerfence) and lowerfence <= q1 else q1
     max_val = upperfence if _is_finite_number(upperfence) and upperfence >= q3 else q3
 
-    return {
+    result = {
         MaidrKey.LOWER_OUTLIER.value: [],
         MaidrKey.MIN.value: min_val,
         MaidrKey.Q1.value: q1,
@@ -169,6 +176,45 @@ def _precomputed_box(
         MaidrKey.MAX.value: max_val,
         MaidrKey.UPPER_OUTLIER.value: [],
     }
+    if z:
+        result[MaidrKey.Z.value] = z
+    return result
+
+
+def _precomputed_labels(trace: dict, count: int) -> list[str]:
+    """
+    What each of a precomputed trace's boxes is announced as.
+
+    The same rule the raw path follows: a box drawn at a category carries
+    the category, and a trace of one box carries the trace's name. A trace
+    of several boxes with a name and no positions is told apart by number,
+    ``Sales 1``; one with neither is announced as nothing, the way a lone
+    unnamed raw box is.
+
+    Parameters
+    ----------
+    trace : dict
+        The plotly trace.
+    count : int
+        How many boxes are being described.
+
+    Returns
+    -------
+    list of str
+        One label per box, empty where there is nothing to announce.
+    """
+    along = "y" if _trace_is_horizontal(trace) else "x"
+    positions = as_list(trace.get(along))
+    if len(positions) >= count and not any(
+        isinstance(position, (list, tuple)) for position in positions[:count]
+    ):
+        return [str(position) for position in positions[:count]]
+    name = trace.get("name") or ""
+    if not name:
+        return [""] * count
+    if count == 1:
+        return [name]
+    return [f"{name} {i + 1}" for i in range(count)]
 
 
 def _trace_is_horizontal(trace: dict) -> bool:
@@ -396,6 +442,7 @@ class PlotlyBoxPlot(PlotlyPlot):
             )
 
         name = self._trace.get("name") or "box"
+        announced = _precomputed_labels(self._trace, count)
         results = []
         for i in range(count):
             box = _precomputed_box(
@@ -405,6 +452,7 @@ class PlotlyBoxPlot(PlotlyPlot):
                 self._to_native(lowerfence[i]),
                 self._to_native(upperfence[i]),
                 label=f"{name} {i + 1}",
+                z=announced[i],
             )
             if box is not None:
                 results.append(box)

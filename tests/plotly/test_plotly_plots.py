@@ -8,7 +8,7 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.bar import PlotlyBarPlot
 from maidr.plotly.scatter import PlotlyScatterPlot
 from maidr.plotly.line import PlotlyLinePlot
-from maidr.plotly.box import PlotlyBoxPlot
+from maidr.plotly.box import PlotlyBoxPlot, _precomputed_box
 from maidr.plotly.multibox import PlotlyMultiBoxPlot
 from maidr.plotly.heatmap import PlotlyHeatmapPlot
 from maidr.plotly.histogram import PlotlyHistogramPlot
@@ -291,6 +291,20 @@ class TestPlotlyBoxPlot:
 
         assert plot._extract_plot_data() == []
 
+    @pytest.mark.parametrize("sign", [1.0, -1.0], ids=["inf", "-inf"])
+    def test_an_infinite_sample_is_skipped_the_way_a_gap_is(self, sign):
+        # Plotly's `isNumeric` guard is `isFinite`: an infinity is no more a
+        # sample than a `None`, and left in it would swallow every fence.
+        with_inf = PlotlyBoxPlot(
+            {"type": "box", "y": [1, 2, sign * float("inf"), 3, 4, 100]}, {}
+        )._extract_plot_data()
+        without = PlotlyBoxPlot(
+            {"type": "box", "y": [1, 2, 3, 4, 100]}, {}
+        )._extract_plot_data()
+
+        assert with_inf == without
+        assert with_inf[0]["upperOutliers"] == [100.0]
+
     @pytest.mark.parametrize(
         "extra, expected",
         [
@@ -379,6 +393,47 @@ class TestPlotlyBoxPlot:
         trace = {"type": "box", "q1": [3], "median": [2], "q3": [4]}
 
         assert PlotlyBoxPlot(trace, {})._extract_plot_data() == []
+
+    @pytest.mark.parametrize(
+        "extra, expected",
+        [
+            ({"x": ["A", "B"]}, ["A", "B"]),
+            ({"name": "Sales", "x": ["A", "B"]}, ["A", "B"]),
+            ({"name": "Sales"}, ["Sales 1", "Sales 2"]),
+            ({"orientation": "h", "y": ["A", "B"]}, ["A", "B"]),
+        ],
+        ids=["categories", "categories_win", "name_numbered", "horizontal"],
+    )
+    def test_a_precomputed_box_announces_its_category_or_name(self, extra, expected):
+        # A raw box carries its category as `z`; a precomputed one carried
+        # nothing, so a reader moving between its boxes heard no name. The
+        # rule is the raw path's: the position's category first, the trace
+        # name otherwise.
+        trace = {"type": "box", "q1": [1, 2], "median": [2, 3], "q3": [3, 4], **extra}
+
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert [box["z"] for box in data] == expected
+
+    def test_a_single_precomputed_box_is_announced_by_its_trace_name(self):
+        trace = {"type": "box", "name": "Sales", "q1": [1], "median": [2], "q3": [3]}
+
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert data[0]["z"] == "Sales"
+
+    def test_an_unnamed_precomputed_trace_announces_nothing(self):
+        # As a lone unnamed raw box does: the warning's `box 1` is for the
+        # log, not the reader.
+        trace = {"type": "box", "q1": [1, 2], "median": [2, 3], "q3": [3, 4]}
+
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert all("z" not in box for box in data)
+
+    def test_a_precomputed_box_with_no_label_carries_no_z(self):
+        # The same rule as `_compute_stats`: an empty label is not announced.
+        assert "z" not in _precomputed_box(1, 2, 3, 1, 3)
 
     def test_a_bad_precomputed_fence_falls_back_to_its_quartile(self):
         # A fence plotly rejects -- missing, or on the wrong side of its
@@ -481,6 +536,27 @@ class TestPlotlyMultiBoxPlot:
         plot = PlotlyMultiBoxPlot([{"type": "box", "y": [None, None]}], {})
 
         assert plot._extract_plot_data() == []
+
+    @pytest.mark.parametrize("sign", [1.0, -1.0], ids=["inf", "-inf"])
+    def test_an_infinite_sample_is_skipped_the_way_a_gap_is(self, sign):
+        with_inf = PlotlyMultiBoxPlot(
+            [{"type": "box", "y": [1, 2, sign * float("inf"), 3, 4, 100]}], {}
+        )._extract_plot_data()
+        without = PlotlyMultiBoxPlot(
+            [{"type": "box", "y": [1, 2, 3, 4, 100]}], {}
+        )._extract_plot_data()
+
+        assert with_inf == without
+        assert with_inf[0]["upperOutliers"] == [100.0]
+
+    def test_precomputed_boxes_announce_their_labels_across_traces(self):
+        traces = [
+            {"type": "box", "name": "A", "q1": [1, 2], "median": [2, 3], "q3": [3, 4]},
+            {"type": "box", "q1": [5], "median": [6], "q3": [7]},
+        ]
+        data = PlotlyMultiBoxPlot(traces, {})._extract_plot_data()
+
+        assert [box.get("z") for box in data] == ["A 1", "A 2", None]
 
     @pytest.mark.parametrize(
         "extra, expected",
