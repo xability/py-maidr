@@ -441,6 +441,53 @@ class TestASeabornHueMissingACategory:
         assert [point["x"] for point in points[0]] == [1.0, 2.0, None]
         assert [point["x"] for point in points[1]] == [None, 5.0, 6.0]
 
+    def test_a_level_with_no_bars_at_all_is_an_all_null_series(self):
+        # Every value of g2 is NaN, so seaborn draws an empty container for
+        # it and still lists it in the legend. The level is announced as a
+        # series of gaps rather than dropped: the legend names it, so a
+        # reader is told the group exists and has nothing in it, which is
+        # what a sighted reader sees.
+        frame = self._frame()
+        frame.loc[frame["grp"] == "g2", "val"] = np.nan
+        fig, ax = plt.subplots()
+        sns.barplot(data=frame, x="cat", y="val", hue="grp", ax=ax)
+        record = FigureManager.get_maidr(fig)
+        points = stacked_points(ax)
+
+        assert [len(c.patches) for c in ax.containers] == [3, 0]
+        assert record._plots[-1].type is PlotType.DODGED
+        assert [point["y"] for point in points[0]] == [1.0, 2.0, 3.0]
+        assert points[1] == [
+            {"x": "a", "z": "g2", "y": None},
+            {"x": "b", "z": "g2", "y": None},
+            {"x": "c", "z": "g2", "y": None},
+        ]
+        parses_as_strict_json(ax)
+
+    def test_a_category_empty_in_every_level_is_a_gap_in_every_series(self):
+        # "b" is NaN for g1 and g2 alike. Seaborn still lists it on the
+        # axis -- its categories are the data's, not the drawn bars' -- so
+        # it is a category the chart shows empty, and every series has a
+        # gap there. Not to be confused with a tick a caller fixed by hand
+        # that no bar was drawn for, which is no category at all and turns
+        # the placement down (see `test_numeric_segmented_bar_positions`).
+        frame = self._frame()
+        frame.loc[frame["cat"] == "b", "val"] = np.nan
+        fig, ax = plt.subplots()
+        sns.barplot(data=frame, x="cat", y="val", hue="grp", ax=ax)
+        record = FigureManager.get_maidr(fig)
+        points = stacked_points(ax)
+
+        assert [len(c.patches) for c in ax.containers] == [2, 2]
+        assert [t.get_text() for t in ax.get_xticklabels()] == ["a", "b", "c"]
+        assert record._plots[-1].type is PlotType.DODGED
+        assert [[point["x"] for point in series] for series in points] == [
+            ["a", "b", "c"],
+            ["a", "b", "c"],
+        ]
+        assert [point["y"] for point in points[0]] == [1.0, None, 3.0]
+        assert [point["y"] for point in points[1]] == [4.0, None, 6.0]
+
     def test_a_hue_that_repeats_the_category_stays_a_plain_bar(self):
         # The control. Seaborn draws this one container per bar, all the
         # same length and short of the axis -- the shape above -- but no
