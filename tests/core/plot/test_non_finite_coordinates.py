@@ -218,10 +218,19 @@ class TestTheCandlestickWithAGap:
     ``NaN`` -- the #427 failure again, and worse here, because the volume
     bars and moving averages on the same figure share the payload and went
     dark with it (#706).
+
+    Leaving the row out of ``data`` fixed that and opened a quieter defect:
+    the SVG still holds the gap's body path and two wick paths, so from the
+    gap on ``data[i]`` and path ``i`` name different candles, and a highlight
+    for any later candle landed one candle early (#749). Emitting the gap as
+    a ``null`` record would keep the counts equal but not the reading -- the
+    core drops the ``open`` section for the whole chart unless every open is
+    a finite number, and its ``Math.min`` over the prices counts ``null`` as
+    0 -- so the fix names each emitted candle's own paths instead.
     """
 
     @staticmethod
-    def _frame():
+    def _frame(gap: int | None = 2):
         import pandas as pd
 
         frame = pd.DataFrame(
@@ -233,15 +242,38 @@ class TestTheCandlestickWithAGap:
             },
             index=pd.date_range("2026-01-01", periods=6),
         )
-        frame.iloc[2] = np.nan
+        if gap is not None:
+            frame.iloc[gap] = np.nan
         return frame
 
-    def _candlestick(self):
+    def _candlestick(self, gap: int | None = 2):
         mpf = pytest.importorskip("mplfinance")
-        frame = self._frame()
+        frame = self._frame(gap)
         fig, _ = mpf.plot(frame, type="candle", returnfig=True)
         plots = FigureManager.get_maidr(fig)._plots
         return frame, next(p for p in plots if p.type == PlotType.CANDLESTICK)
+
+    @staticmethod
+    def _svg(fig):
+        """The exported SVG, with namespaces stripped.
+
+        ``cssselect`` translates a selector into namespace-free XPath and the
+        core's ``querySelectorAll`` matches on local names, so stripping is
+        what makes the two resolve a selector the same way.
+        """
+        pytest.importorskip("cssselect")
+        from lxml import etree
+
+        import maidr
+
+        html = maidr.render(fig)._repr_html_()
+        start = html.index("<svg")
+        end = html.index("</svg>", start) + len("</svg>")
+        root = etree.fromstring(html[start:end].encode("utf-8"))
+        for element in root.iter():
+            if isinstance(element.tag, str) and "}" in element.tag:
+                element.tag = element.tag.split("}", 1)[1]
+        return root
 
     def test_its_payload_is_parseable(self):
         _, plot = self._candlestick()
@@ -263,14 +295,66 @@ class TestTheCandlestickWithAGap:
             if isinstance(value, float)
         )
 
-    def test_the_wick_selectors_still_count_every_row(self):
-        # The SVG keeps a body path and two wick paths for the gap row, so the
-        # nth-child split between low and high wicks must go on counting the
-        # frame, not the candles emitted. The cost is that a highlight after
-        # the gap lands one path early; before, there was no highlight at all.
-        frame, plot = self._candlestick()
+    def test_a_highlight_after_the_gap_lands_on_its_own_candle(self):
+        from lxml.cssselect import CSSSelector
+
+        frame, plot = self._candlestick(gap=1)
+        root = self._svg(plot.ax.get_figure())
+        tree = root.getroottree()
         selectors = plot.schema["selectors"]
 
-        assert len(plot._maidr_wick_collection.get_paths()) == 2 * len(frame)
+        # What mplfinance drew, in document order: a body and two wicks per
+        # source row -- the low wicks first, then the high ones -- with the
+        # gap row's among them as paths with no geometry.
+        bodies = CSSSelector(f"g[id='{plot._maidr_body_gid}'] > path")(root)
+        wicks = CSSSelector(f"g[id='{plot._maidr_wick_gid}'] > path")(root)
+        assert len(bodies) == len(frame)
+        assert len(wicks) == 2 * len(frame)
+        assert bodies[1].get("d") is None
+
+        # Data index 1 is source row 2, so its selectors have to name row 2's
+        # paths and not the gap's, which is where a count of the frame put
+        # them.
+        assert plot.schema["data"][1]["open"] == 3.0
+        for key, drawn in (
+            ("body", bodies[2]),
+            ("wickLow", wicks[2]),
+            ("wickHigh", wicks[len(frame) + 2]),
+        ):
+            found = CSSSelector(selectors[key][1])(root)
+            assert [tree.getpath(e) for e in found] == [tree.getpath(drawn)]
+
+    def test_every_candle_owns_one_body_and_two_wicks(self):
+        # The frame test above pins one index; this one walks them all. Each
+        # candle resolves to a single path with geometry for each kind, and
+        # its two wicks stand at the same x, so none of them is the gap's.
+        from lxml.cssselect import CSSSelector
+
+        _, plot = self._candlestick(gap=1)
+        root = self._svg(plot.ax.get_figure())
+        selectors = plot.schema["selectors"]
+        candles = plot.schema["data"]
+
+        assert all(len(selectors[key]) == len(candles) for key in selectors)
+        for index in range(len(candles)):
+            wick_x = set()
+            for key in ("body", "wickLow", "wickHigh"):
+                found = CSSSelector(selectors[key][index])(root)
+                assert len(found) == 1
+                geometry = found[0].get("d")
+                assert geometry is not None
+                if key != "body":
+                    wick_x.add(geometry.split()[1])
+            assert len(wick_x) == 1
+
+    def test_a_frame_without_a_gap_keeps_one_selector_per_kind(self):
+        # The list form is for the gap alone. A frame every row of which
+        # became a candle still addresses its paths with the nth-child split,
+        # which is the shape every candlestick chart has shipped with.
+        frame, plot = self._candlestick(gap=None)
+        selectors = plot.schema["selectors"]
+
+        assert len(plot.schema["data"]) == len(frame)
+        assert selectors["body"].endswith("> path")
         assert f"nth-child(-n+{len(frame)})" in selectors["wickLow"]
         assert f"nth-child(n+{len(frame) + 1})" in selectors["wickHigh"]

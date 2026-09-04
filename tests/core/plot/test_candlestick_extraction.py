@@ -122,3 +122,15 @@ def test_a_non_finite_volume_is_reported_as_zero(extract):
     candles = extract(frame)
     assert len(candles) == 5
     assert candles[2] == dict(EXPECTED[2], volume=0.0)
+
+
+def test_a_skipped_row_is_left_out_of_the_drawn_rows(axes):
+    # The SVG keeps a body path and two wick paths for a row the loop skipped,
+    # so `_get_selector` names each candle's paths by the position of its row
+    # in the frame rather than by its index in the data (#749).
+    plot = CandlestickPlot([axes])
+    frame = _frame(Low=[0, np.nan, 2, 3, 4], High=[2.5, 3.5, 4.5, np.inf, 6.5])
+
+    plot._extract_from_dataframe(frame)
+
+    assert plot._drawn_rows == [0, 2, 4]
