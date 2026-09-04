@@ -271,6 +271,15 @@ def test_a_zero_baseline_with_a_gap_over_a_layer_is_not_a_stack() -> None:
     assert _registered(fig) == ["bar", "bar"]
 
 
+def test_a_bar_on_another_subplot_is_not_beneath_this_one() -> None:
+    """The layer beneath is looked for on this axes, not on the figure."""
+    fig, (left, right) = plt.subplots(1, 2)
+    left.bar(CATEGORIES, SERIES_0)
+    right.bar(CATEGORIES, SERIES_1, bottom=5)
+
+    assert _registered(fig) == ["bar", "bar"]
+
+
 def test_a_histogram_is_not_a_bar_to_stack_on() -> None:
     """``Axes.hist`` leaves a ``BarContainer`` behind, but no bar series.
 
