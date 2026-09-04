@@ -7,7 +7,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/maidr.svg)](https://pypi.org/project/maidr/)
 [![Python versions](https://img.shields.io/pypi/pyversions/maidr.svg)](https://pypi.org/project/maidr/)
-[![Downloads](https://img.shields.io/pypi/dm/maidr.svg)](https://pypistats.org/packages/maidr)
+[![Downloads](https://img.shields.io/pepy/dt/maidr.svg)](https://pepy.tech/project/maidr)
 [![CI](https://github.com/xability/py-maidr/actions/workflows/ci.yml/badge.svg)](https://github.com/xability/py-maidr/actions/workflows/ci.yml)
 [![License](https://img.shields.io/pypi/l/maidr.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-py.maidr.ai-1f6feb.svg)](https://py.maidr.ai/)
