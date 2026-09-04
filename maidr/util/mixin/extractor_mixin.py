@@ -131,10 +131,18 @@ class LevelExtractorMixin:
             span = ax.dataLim.height if hasattr(ax, "dataLim") else 0
             low = ax.dataLim.y0 if span else 0
 
+        # To within a hair of the span. A bar whose edge is meant to sit on a
+        # tick can land a float past it: seaborn dodges two hue levels to
+        # +-0.2 and draws each 0.4 wide, so the second level's first bar
+        # starts at `0.2 - 0.2`, which arrives as 5.6e-17 -- and when that
+        # bar is the only one at the first category, the tick at 0 sat
+        # outside its own data by that much and the category was dropped
+        # (#752). A tick a rounding error outside the data is not furniture.
+        slack = abs(span) * 1e-9
         kept = [
             index
             for index, position in enumerate(ticks)
-            if span == 0 or low <= position <= low + span
+            if span == 0 or low - slack <= position <= low + span + slack
         ]
         return [
             (ticks[index], labels[index]) for index in kept if index < len(labels)
