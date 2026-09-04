@@ -12,6 +12,7 @@ from maidr.plotly.box import (
     _compute_stats,
     _has_precomputed_stats,
     _precomputed_box,
+    _precomputed_labels,
     _trace_is_horizontal,
 )
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
@@ -195,6 +196,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             )
 
         name = trace.get("name") or "box"
+        announced = _precomputed_labels(trace, count)
         results = []
         for i in range(count):
             box = _precomputed_box(
@@ -204,6 +206,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 self._to_native(lowerfence[i]),
                 self._to_native(upperfence[i]),
                 label=f"{name} {i + 1}",
+                z=announced[i],
             )
             if box is not None:
                 results.append(box)

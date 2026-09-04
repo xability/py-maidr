@@ -395,20 +395,41 @@ class TestPlotlyBoxPlot:
         assert PlotlyBoxPlot(trace, {})._extract_plot_data() == []
 
     @pytest.mark.parametrize(
-        "name, expected",
-        [("Sales", ["Sales 1", "Sales 2"]), (None, ["box 1", "box 2"])],
-        ids=["named", "unnamed"],
+        "extra, expected",
+        [
+            ({"x": ["A", "B"]}, ["A", "B"]),
+            ({"name": "Sales", "x": ["A", "B"]}, ["A", "B"]),
+            ({"name": "Sales"}, ["Sales 1", "Sales 2"]),
+            ({"orientation": "h", "y": ["A", "B"]}, ["A", "B"]),
+        ],
+        ids=["categories", "categories_win", "name_numbered", "horizontal"],
     )
-    def test_a_precomputed_box_announces_its_label(self, name, expected):
+    def test_a_precomputed_box_announces_its_category_or_name(self, extra, expected):
         # A raw box carries its category as `z`; a precomputed one carried
-        # nothing, so a reader moving between its boxes heard no name.
-        trace = {"type": "box", "q1": [1, 2], "median": [2, 3], "q3": [3, 4]}
-        if name is not None:
-            trace["name"] = name
+        # nothing, so a reader moving between its boxes heard no name. The
+        # rule is the raw path's: the position's category first, the trace
+        # name otherwise.
+        trace = {"type": "box", "q1": [1, 2], "median": [2, 3], "q3": [3, 4], **extra}
 
         data = PlotlyBoxPlot(trace, {})._extract_plot_data()
 
         assert [box["z"] for box in data] == expected
+
+    def test_a_single_precomputed_box_is_announced_by_its_trace_name(self):
+        trace = {"type": "box", "name": "Sales", "q1": [1], "median": [2], "q3": [3]}
+
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert data[0]["z"] == "Sales"
+
+    def test_an_unnamed_precomputed_trace_announces_nothing(self):
+        # As a lone unnamed raw box does: the warning's `box 1` is for the
+        # log, not the reader.
+        trace = {"type": "box", "q1": [1, 2], "median": [2, 3], "q3": [3, 4]}
+
+        data = PlotlyBoxPlot(trace, {})._extract_plot_data()
+
+        assert all("z" not in box for box in data)
 
     def test_a_precomputed_box_with_no_label_carries_no_z(self):
         # The same rule as `_compute_stats`: an empty label is not announced.
@@ -535,7 +556,7 @@ class TestPlotlyMultiBoxPlot:
         ]
         data = PlotlyMultiBoxPlot(traces, {})._extract_plot_data()
 
-        assert [box["z"] for box in data] == ["A 1", "A 2", "box 1"]
+        assert [box.get("z") for box in data] == ["A 1", "A 2", None]
 
     @pytest.mark.parametrize(
         "extra, expected",
