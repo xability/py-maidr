@@ -236,6 +236,15 @@ prerelease_token = "rc"
 prerelease = false
 
 [tool.semantic_release.changelog]
+# ``templates/`` is a copy of python-semantic-release 9.21.0's own Markdown
+# templates with one change: an entry is the commit's subject line, and the
+# body is left out.  Every commit on ``main`` is a squash merge whose body is
+# the whole pull request description, and the upstream template appends that
+# body to every entry.  ``templates`` is the default, written out so it is
+# visible; ``tests/core/test_changelog_template.py`` renders the directory
+# the way a release does.
+template_dir = "templates"
+
 # ``exclude_commit_patterns`` belongs to *this* table, not to
 # ``changelog.default_templates``.  python-semantic-release parses its config
 # with pydantic, which silently drops unknown keys, so while this list lived
@@ -274,7 +283,10 @@ lstrip_blocks = false
 newline_sequence = "\n"
 keep_trailing_newline = false
 extensions = []
-autoescape = true
+# The bundled template is rendered with escaping off regardless; a template
+# directory of our own is rendered with *this* environment, and with escaping
+# on the apostrophe in a subject reaches the Markdown as ``&#39;``.
+autoescape = false
 
 [tool.semantic_release.commit_author]
 env = "GIT_COMMIT_AUTHOR"
