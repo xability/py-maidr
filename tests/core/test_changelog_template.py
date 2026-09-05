@@ -17,6 +17,7 @@ package's own loader, context and filters, against a synthetic squash commit.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,6 +41,7 @@ pytest.importorskip(
     reason="rendering the templates needs python-semantic-release",
 )
 
+import semantic_release  # noqa: E402
 from git import Actor  # noqa: E402
 from semantic_release.changelog.context import (  # noqa: E402
     ChangelogMode,
@@ -50,7 +52,10 @@ from semantic_release.changelog.template import (  # noqa: E402
     environment,
     recursive_render,
 )
-from semantic_release.cli.changelog_writer import generate_release_notes  # noqa: E402
+from semantic_release.cli.changelog_writer import (  # noqa: E402
+    generate_release_notes,
+    get_default_tpl_dir,
+)
 from semantic_release.commit_parser.conventional import (  # noqa: E402
     ConventionalCommitParser,
     ConventionalCommitParserOptions,
@@ -60,6 +65,12 @@ from semantic_release.version.version import Version  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_DIR = PROJECT_ROOT / "templates"
+
+#: The two files that differ from upstream on purpose: the entry point
+#: carries a note saying where the copy came from, and ``changes.md.j2``
+#: carries the change.  Everything else must be the bundled file, byte for
+#: byte.
+CHANGED_FROM_UPSTREAM = {"CHANGELOG.md.j2", ".components/changes.md.j2"}
 
 #: A squash-merge commit as GitHub writes one: the pull request title as the
 #: subject, the pull request description as the body.
@@ -186,6 +197,59 @@ def test_psr_finds_the_templates() -> None:
     assert release_config()["changelog"]["template_dir"] == "templates"
     assert (TEMPLATE_DIR / "CHANGELOG.md.j2").is_file()
     assert (TEMPLATE_DIR / ".release_notes.md.j2").is_file()
+
+
+def test_the_copy_is_of_the_release_tooling_in_use() -> None:
+    """A python-semantic-release bump must not leave a stale copy behind.
+
+    Three places name the version: the ``dev`` dependency pin (what these
+    tests render with), the action tag in ``release.yml`` (what a release
+    renders with), and the note at the top of ``CHANGELOG.md.j2`` (what the
+    copy was taken from).  Bumping one without the others would render a
+    release with templates written for a different version, and nothing
+    else would say so.
+    """
+    installed = semantic_release.__version__
+
+    header = (TEMPLATE_DIR / "CHANGELOG.md.j2").read_text()
+    copied_from = re.search(r"python-semantic-release (\d+\.\d+\.\d+)", header)
+    assert copied_from is not None, "CHANGELOG.md.j2 must name its upstream version"
+    assert copied_from.group(1) == installed
+
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text()
+    action = re.search(
+        r"python-semantic-release/python-semantic-release@v(\d+\.\d+\.\d+)",
+        workflow,
+    )
+    assert action is not None, "release.yml must pin the release action"
+    assert action.group(1) == installed
+
+
+def test_everything_else_is_verbatim_upstream() -> None:
+    """Only the two files meant to differ may differ from the bundled set.
+
+    This is what makes the copy safe to keep: when a version bump changes a
+    bundled template, this fails on the file that changed, and the copy is
+    refreshed rather than quietly rendering an old layout.  It also catches
+    a drive-by edit to the one of the eight untouched files.
+    """
+    upstream = get_default_tpl_dir(style="angular", sub_dir="md")
+    upstream_files = {
+        str(path.relative_to(upstream))
+        for path in upstream.rglob("*")
+        if path.is_file()
+    }
+    copied_files = {
+        str(path.relative_to(TEMPLATE_DIR))
+        for path in TEMPLATE_DIR.rglob("*")
+        if path.is_file()
+    }
+    assert copied_files == upstream_files
+
+    for name in sorted(upstream_files - CHANGED_FROM_UPSTREAM):
+        assert (TEMPLATE_DIR / name).read_bytes() == (
+            upstream / name
+        ).read_bytes(), f"templates/{name} differs from the bundled file"
 
 
 def test_only_the_subject_reaches_the_changelog(tmp_path: Path) -> None:
