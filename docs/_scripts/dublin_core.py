@@ -50,12 +50,15 @@ _DESCRIPTION = re.compile(
     r'<meta\s+name="description"\s+content="(?P<content>[^"]*)"', re.I
 )
 _CANONICAL = re.compile(r'<link\s+rel="canonical"\s+href="(?P<href>[^"]*)"', re.I)
+# The first `</head>` closes the real head: a page that shows HTML in its body
+# has it after this one, and a literal `</head>` inside the head would end the
+# head for a browser too, so such a page is already broken.
 _HEAD_END = re.compile(r"</head>", re.I)
 _ALREADY = re.compile(r'<meta\s+name="DC\.', re.I)
 
 
 def _has_history(repo: Path) -> bool:
-    """Whether ``repo`` holds enough history to date a file by.
+    """Report whether ``repo`` holds enough history to date a file by.
 
     A depth-1 checkout has a single commit with no parent, so git treats every
     tracked path as added by it and ``git log -1 -- <path>`` reports that one
@@ -66,6 +69,17 @@ def _has_history(repo: Path) -> bool:
     Being shallow is not itself the problem: a checkout deepened to many
     commits still distinguishes the files changed recently, which is what the
     dates are for. Only the single-commit case is unusable.
+
+    Parameters
+    ----------
+    repo : Path
+        Working directory of the repository to ask.
+
+    Returns
+    -------
+    bool
+        True when the checkout holds more than one commit. False when it holds
+        one, or when git cannot be run at all.
     """
     try:
         out = subprocess.run(
@@ -86,7 +100,21 @@ def _has_history(repo: Path) -> bool:
 
 
 def _git_date(repo: Path, rel_path: str) -> str:
-    """Return the last commit date for ``rel_path``, or "" when unknown."""
+    """Return the date of the last commit touching ``rel_path``.
+
+    Parameters
+    ----------
+    repo : Path
+        Working directory of the repository to ask.
+    rel_path : str
+        Path relative to ``repo``.
+
+    Returns
+    -------
+    str
+        An ISO date, or an empty string when git cannot answer -- an untracked
+        path, or no git at all.
+    """
     try:
         out = subprocess.run(
             ["git", "log", "-1", "--format=%cs", "--", rel_path],
@@ -105,6 +133,25 @@ def _source_date(repo: Path, page: Path, site_dir: Path, package_date: str) -> s
 
     The ``api/`` pages are written by ``quartodoc build`` and are not in git,
     so they take the date of the package they document.
+
+    Parameters
+    ----------
+    repo : Path
+        Working directory of the repository.
+    page : Path
+        The rendered HTML file.
+    site_dir : Path
+        Render output directory ``page`` sits under.
+    package_date : str
+        Date of the ``maidr`` package, used for the generated ``api/`` pages
+        and as the fallback for a page whose source git cannot date. Empty
+        when the checkout has no usable history, which makes this return
+        empty too rather than guess.
+
+    Returns
+    -------
+    str
+        An ISO date, or an empty string when no date can be trusted.
     """
     rel = page.relative_to(site_dir).with_suffix(".qmd")
     if rel.parts and rel.parts[0] == "api":
@@ -118,12 +165,32 @@ def _source_date(repo: Path, page: Path, site_dir: Path, package_date: str) -> s
 def _tags(
     title: str, description: str, identifier: str, date: str, dc_type: str
 ) -> str:
-    """Build the Dublin Core block for one page."""
+    """Build the Dublin Core block for one page.
+
+    Parameters
+    ----------
+    title : str
+        Page title, with the site-name suffix already stripped.
+    description : str
+        Same text as the page's meta description; omitted when empty.
+    identifier : str
+        Canonical URL of the page.
+    date : str
+        ISO date the page's source was last changed; omitted when empty.
+    dc_type : str
+        A Dublin Core Type Vocabulary term, ``Software`` or ``Text``.
+
+    Returns
+    -------
+    str
+        Newline-terminated ``<meta>`` tags, ready to splice before ``</head>``.
+    """
     pairs: list[tuple[str, str]] = [("DC.title", title)]
     pairs += [("DC.creator", creator) for creator in CREATORS]
+    pairs.append(("DC.publisher", PUBLISHER))
+    if description:
+        pairs.append(("DC.description", description))
     pairs += [
-        ("DC.publisher", PUBLISHER),
-        ("DC.description", description),
         ("DC.identifier", identifier),
         ("DC.type", dc_type),
         ("DC.format", "text/html"),
@@ -188,7 +255,15 @@ def process(page: Path, site_dir: Path, repo: Path, package_date: str) -> str:
 
 
 def main() -> int:
-    """Add the Dublin Core block to every page under the render output."""
+    """Add the Dublin Core block to every page under the render output.
+
+    Returns
+    -------
+    int
+        0 when at least one page carries the block, 1 when none does. Quarto
+        swallows this script's stdout, so exiting non-zero is the only way a
+        silent no-op reaches the build log.
+    """
     site_dir = Path(
         os.environ.get("QUARTO_PROJECT_OUTPUT_DIR")
         or Path(__file__).parent.parent / "_site"
