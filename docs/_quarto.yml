@@ -8,6 +8,11 @@ project:
   # Runs before every render, after CI's `quartodoc build`: gives the
   # generated api/*.qmd pages a <title> and a meta description.
   pre-render: _scripts/api_front_matter.py
+  # Runs after every render: adds the Dublin Core block reference managers
+  # read. It is a post-render step rather than `include-in-header` because
+  # that key injects identical text into every page, and the title,
+  # identifier and date differ per page.
+  post-render: _scripts/dublin_core.py
 
 
 metadata-files:

@@ -45,6 +45,12 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: _scripts/dublin_core.py dates each page from the
+          # commit that last touched its source. A shallow clone has one
+          # commit with no parent, so git reports that commit for every path
+          # and every page would carry the build date instead.
+          fetch-depth: 0
 
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
@@ -96,6 +102,8 @@ jobs:
           # A workflow_run event checks out the default branch by default; name
           # it so the run publishes the release commit it was chained to.
           ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
+          # Full history, for the same reason as the render job above.
+          fetch-depth: 0
 
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
