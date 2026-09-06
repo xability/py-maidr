@@ -113,12 +113,15 @@ def process(path: Path) -> bool:
     if path.name == "index.qmd":
         pagetitle, description = INDEX_PAGETITLE, INDEX_DESCRIPTION
     else:
-        match = _HEADING.match(lines[0]) if lines else None
+        # quartodoc starts each page with its heading; tolerate leading
+        # blank lines so a format change fails loudly rather than silently.
+        first = next((i for i, line in enumerate(lines) if line.strip()), None)
+        match = _HEADING.match(lines[first]) if first is not None else None
         if match is None:
-            return False
+            raise SystemExit(f"{path}: no quartodoc heading on its first line")
         qualname = match.group("anchor")
         pagetitle = f"{qualname} API reference"
-        description = _describe(qualname, lines[1:])
+        description = _describe(qualname, lines[first + 1 :])
     front_matter = (
         "---\n"
         f"pagetitle: {_yaml_string(pagetitle)}\n"

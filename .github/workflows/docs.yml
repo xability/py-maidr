@@ -25,14 +25,69 @@ on:
       - ".github/workflows/docs.yml"
 
 permissions:
-  contents: write
-  pages: write
+  contents: read
 
 jobs:
+  # Pull requests: render only, with a read-only token. The rendered pages
+  # execute the Python in every .qmd cell, so this job never carries write
+  # access to the repository or to Pages.
+  render-pull-request:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Run quartodoc
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          cd docs
+          uv run quartodoc build --verbose
+          uv run quartodoc interlinks
+
+      - name: Render site
+        env:
+          QUARTO_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        run: |
+          cd docs
+          quarto render
+
+      # Googlebot fetches only the first 2 MB (2,097,152 bytes, uncompressed)
+      # of an HTML file and discards the rest, so any page above that is
+      # partly invisible to search. Fail well before the limit.
+      - name: Check rendered page sizes
+        run: |
+          limit=1900000
+          echo "Five largest HTML files under docs/_site:"
+          find docs/_site -type f -name '*.html' -printf '%s %p\n' | sort -nr | head -n 5
+          too_big="$(find docs/_site -type f -name '*.html' -size +"${limit}"c -printf '%s %p\n' | sort -nr)"
+          if [ -n "${too_big}" ]; then
+            echo "::error::HTML pages larger than ${limit} bytes:"
+            echo "${too_big}"
+            exit 1
+          fi
+          echo "All HTML pages are at most ${limit} bytes."
+
   build-and-deploy:
     # A failed or cancelled release run must not republish the site.
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
     strategy:
       fail-fast: false
       matrix:
@@ -60,33 +115,7 @@ jobs:
           uv run quartodoc build --verbose
           uv run quartodoc interlinks
 
-      - name: Render site (pull request, no publish)
-        if: github.event_name == 'pull_request'
-        env:
-          QUARTO_PYTHON: ${{ github.workspace }}/.venv/bin/python
-        run: |
-          cd docs
-          quarto render
-
-      # Googlebot fetches only the first 2 MB (2,097,152 bytes, uncompressed)
-      # of an HTML file and discards the rest, so any page above that is
-      # partly invisible to search. Fail well before the limit.
-      - name: Check rendered page sizes
-        if: github.event_name == 'pull_request'
-        run: |
-          limit=1900000
-          echo "Five largest HTML files under docs/_site:"
-          find docs/_site -type f -name '*.html' -printf '%s %p\n' | sort -nr | head -n 5
-          too_big="$(find docs/_site -type f -name '*.html' -size +"${limit}"c -printf '%s %p\n' | sort -nr)"
-          if [ -n "${too_big}" ]; then
-            echo "::error::HTML pages larger than ${limit} bytes:"
-            echo "${too_big}"
-            exit 1
-          fi
-          echo "All HTML pages are at most ${limit} bytes."
-
       - name: Publish to GitHub Pages
-        if: github.event_name != 'pull_request'
         uses: quarto-dev/quarto-actions/publish@v2
         with:
           target: gh-pages
