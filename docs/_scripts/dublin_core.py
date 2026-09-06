@@ -54,6 +54,37 @@ _HEAD_END = re.compile(r"</head>", re.I)
 _ALREADY = re.compile(r'<meta\s+name="DC\.', re.I)
 
 
+def _has_history(repo: Path) -> bool:
+    """Whether ``repo`` holds enough history to date a file by.
+
+    A depth-1 checkout has a single commit with no parent, so git treats every
+    tracked path as added by it and ``git log -1 -- <path>`` reports that one
+    commit for all of them -- every page would carry the build date while
+    looking correctly per-page. A wrong date that looks right is worse than
+    none, so that case is reported rather than dated.
+
+    Being shallow is not itself the problem: a checkout deepened to many
+    commits still distinguishes the files changed recently, which is what the
+    dates are for. Only the single-commit case is unusable.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    if out.returncode != 0:
+        return False
+    try:
+        return int(out.stdout.strip()) > 1
+    except ValueError:
+        return False
+
+
 def _git_date(repo: Path, rel_path: str) -> str:
     """Return the last commit date for ``rel_path``, or "" when unknown."""
     try:
@@ -78,6 +109,8 @@ def _source_date(repo: Path, page: Path, site_dir: Path, package_date: str) -> s
     rel = page.relative_to(site_dir).with_suffix(".qmd")
     if rel.parts and rel.parts[0] == "api":
         return package_date
+    if not package_date:
+        return ""
     date = _git_date(repo, str(Path("docs") / rel))
     return date or package_date
 
@@ -165,7 +198,18 @@ def main() -> int:
         return 0
 
     repo = Path(__file__).resolve().parents[2]
-    package_date = _git_date(repo, "maidr")
+    if _has_history(repo):
+        package_date = _git_date(repo, "maidr")
+    else:
+        # Emit the block without DC.date rather than stamping every page with
+        # the checkout's own commit. Fix by giving the workflow's checkout step
+        # `fetch-depth: 0`.
+        print(
+            "dublin_core: single-commit checkout, omitting DC.date "
+            "(set fetch-depth: 0 on the checkout step)",
+            file=sys.stderr,
+        )
+        package_date = ""
 
     counts = {"added": 0, "present": 0, "skipped": 0}
     for page in sorted(site_dir.rglob("*.html")):
