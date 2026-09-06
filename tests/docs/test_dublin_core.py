@@ -210,8 +210,12 @@ class TestSourceDate:
 class TestHasHistory:
     """``_has_history`` separates a usable checkout from a depth-1 one."""
 
-    def test_this_repository_has_history(self) -> None:
-        assert dc._has_history(_REPO) is True
+    def test_a_repository_with_several_commits_has_history(
+        self, dated_repo: Path
+    ) -> None:
+        # Built rather than asserted against this checkout, whose depth is a
+        # CI setting rather than a property of the code.
+        assert dc._has_history(dated_repo) is True
 
     def test_a_single_commit_checkout_does_not(self, tmp_path: Path) -> None:
         repo = tmp_path / "shallow"
@@ -325,7 +329,38 @@ class TestProcess:
 
 
 class TestMain:
-    """``main`` fails loudly when it tagged nothing."""
+    """``main`` fails loudly when it tagged nothing, or when a page raised."""
+
+    def test_one_unreadable_page_does_not_stop_the_rest(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        # Not valid UTF-8: `read_text` raises, where the whole run used to die.
+        (tmp_path / "broken.html").write_bytes(b"<html><head>\xff\xfe</head></html>")
+        _write_page(tmp_path / "fine.html")
+        monkeypatch.setenv("QUARTO_PROJECT_OUTPUT_DIR", str(tmp_path))
+
+        # The build still fails -- a page that raised is not "skipped" -- but
+        # every other page was processed first and the cause is named.
+        assert dc.main() == 1
+        assert "DC.title" in (tmp_path / "fine.html").read_text(encoding="utf-8")
+        assert "broken.html" in capsys.readouterr().err
+
+    def test_every_failing_page_is_named_not_just_the_first(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        for name in ("a.html", "b.html"):
+            (tmp_path / name).write_bytes(b"<html><head>\xff\xfe</head></html>")
+        monkeypatch.setenv("QUARTO_PROJECT_OUTPUT_DIR", str(tmp_path))
+
+        assert dc.main() == 1
+        err = capsys.readouterr().err
+        assert "a.html" in err and "b.html" in err
 
     def test_exits_non_zero_when_no_page_could_be_tagged(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

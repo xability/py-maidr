@@ -352,13 +352,35 @@ def main() -> int:
         package_date = ""
 
     counts = {"added": 0, "present": 0, "skipped": 0}
+    failed = 0
     for page in sorted(site_dir.rglob("*.html")):
-        counts[process(page, site_dir, repo, package_date, dated)] += 1
+        # One page must not decide the fate of the rest. The backslash bug
+        # this guard was written after aborted the whole render from a single
+        # title; anything else that raises -- a page that is not valid UTF-8,
+        # say -- would have done the same. Every page is still attempted, and
+        # every failure is named rather than only the first, so one run
+        # reports all of them instead of one per rebuild.
+        try:
+            counts[process(page, site_dir, repo, package_date, dated)] += 1
+        except Exception as error:  # noqa: BLE001 - reported, then re-raised as exit 1
+            failed += 1
+            print(
+                f"dublin_core: {page.relative_to(site_dir)}: "
+                f"{type(error).__name__}: {error}",
+                file=sys.stderr,
+            )
 
     print(
         f"dublin_core: {counts['added']} page(s) tagged, "
         f"{counts['present']} already tagged, {counts['skipped']} skipped"
     )
+
+    # Failing pages do not get swallowed: the build stops, having said which
+    # ones and why. Counting them as merely skipped would be the silent
+    # partial result this script exists to avoid.
+    if failed:
+        print(f"dublin_core: {failed} page(s) raised", file=sys.stderr)
+        return 1
 
     # Quarto swallows this script's stdout, so a silent no-op would ship a
     # site with no bibliographic metadata and nothing in the log to show it.
