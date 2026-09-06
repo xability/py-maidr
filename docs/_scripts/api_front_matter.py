@@ -47,6 +47,17 @@ def _first_paragraph(body: list[str]) -> str:
     The heading and the fenced signature block are skipped; the paragraph is
     the first run of non-empty lines that is not inside a code fence and does
     not start a Markdown heading or table.
+
+    Parameters
+    ----------
+    body : list of str
+        The page's lines after its quartodoc heading.
+
+    Returns
+    -------
+    str
+        The paragraph as a single space-joined line, or an empty string when
+        the page has no prose outside its code fences.
     """
     paragraph: list[str] = []
     in_fence = False
@@ -70,7 +81,19 @@ def _first_paragraph(body: list[str]) -> str:
 
 
 def _clean(text: str) -> str:
-    """Strip RST roles and inline code markers and collapse whitespace."""
+    """Strip RST roles and inline code markers and collapse whitespace.
+
+    Parameters
+    ----------
+    text : str
+        A docstring summary as quartodoc rendered it.
+
+    Returns
+    -------
+    str
+        The summary with roles such as ``:func:`~maidr.show``` reduced to the
+        name they reference and runs of whitespace collapsed to one space.
+    """
     text = _RST_ROLE.sub(r"\1", text)
     text = text.replace("``", "").replace("`", "")
     text = re.sub(r"\s+", " ", text).strip()
@@ -78,7 +101,26 @@ def _clean(text: str) -> str:
 
 
 def _truncate(text: str, limit: int = MAX_DESCRIPTION) -> str:
-    """Cut ``text`` to ``limit`` characters at a sentence or word boundary."""
+    """Cut ``text`` to ``limit`` characters at a sentence or word boundary.
+
+    A sentence or clause boundary is preferred, but only past the halfway mark
+    of the limit: a text opening with a short sentence would otherwise be
+    truncated to just that sentence. Failing that, the cut falls back to the
+    last word boundary and an ellipsis, which counts towards the limit.
+
+    Parameters
+    ----------
+    text : str
+        The description to shorten.
+    limit : int, optional
+        The maximum length of the result, by default ``MAX_DESCRIPTION``.
+
+    Returns
+    -------
+    str
+        ``text`` unchanged when it already fits, otherwise a cut of at most
+        ``limit`` characters.
+    """
     if len(text) <= limit:
         return text
     head = text[: limit - 1]
@@ -92,12 +134,40 @@ def _truncate(text: str, limit: int = MAX_DESCRIPTION) -> str:
 
 
 def _yaml_string(text: str) -> str:
-    """Quote ``text`` as a double-quoted YAML scalar."""
+    """Quote ``text`` as a double-quoted YAML scalar.
+
+    Parameters
+    ----------
+    text : str
+        The value to quote.
+
+    Returns
+    -------
+    str
+        ``text`` wrapped in double quotes with backslashes and double quotes
+        escaped, so it cannot terminate the front matter early.
+    """
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def _describe(qualname: str, body: list[str]) -> str:
-    """Build the meta description for one API page."""
+    """Build the meta description for one API page.
+
+    Parameters
+    ----------
+    qualname : str
+        The symbol's qualified name, used when the page has no prose to draw
+        a summary from.
+    body : list of str
+        The page's lines after its quartodoc heading.
+
+    Returns
+    -------
+    str
+        A description of at most ``MAX_DESCRIPTION`` characters. A summary
+        shorter than ``SHORT_SUMMARY`` is padded with the site context so the
+        page still gets a full, unique snippet.
+    """
     summary = _clean(_first_paragraph(body))
     if not summary:
         summary = f"Signature and reference documentation for {qualname}."
@@ -107,7 +177,26 @@ def _describe(qualname: str, body: list[str]) -> str:
 
 
 def process(path: Path) -> bool:
-    """Prepend front matter to ``path``; return True when the file changed."""
+    """Prepend front matter to ``path``.
+
+    Parameters
+    ----------
+    path : Path
+        An ``api/*.qmd`` page written by quartodoc.
+
+    Returns
+    -------
+    bool
+        True when front matter was added, False when the page already had a
+        YAML block and was left alone.
+
+    Raises
+    ------
+    SystemExit
+        If the page does not open with a quartodoc heading. Failing here is
+        deliberate: a silent fallback would ship a page titled after its
+        lowercase file stem.
+    """
     text = path.read_text(encoding="utf-8")
     if text.startswith("---"):
         return False
@@ -135,7 +224,15 @@ def process(path: Path) -> bool:
 
 
 def main() -> int:
-    """Process every ``api/*.qmd`` under the Quarto project directory."""
+    """Process every ``api/*.qmd`` under the Quarto project directory.
+
+    Returns
+    -------
+    int
+        The process exit status, always 0. A missing ``api`` directory is not
+        an error: the pre-render step runs before ``quartodoc build`` on a
+        clean checkout.
+    """
     project_dir = Path(
         os.environ.get("QUARTO_PROJECT_DIR", Path(__file__).parent.parent)
     )
