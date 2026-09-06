@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Save the HTML representation of the figure with MAIDR to a file.">
+<meta name="description" content="Draw an accessible MAIDR chart in a Streamlit app. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>maidr.Maidr.save_html API reference – py-maidr</title>
+<title>maidr.widget.streamlit.render_maidr API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,18 +219,18 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.Maidr.save_html API reference">
-<meta property="og:description" content="Save the HTML representation of the figure with MAIDR to a file.">
+<meta property="og:title" content="maidr.widget.streamlit.render_maidr API reference">
+<meta property="og:description" content="Draw an accessible MAIDR chart in a Streamlit app. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.Maidr.save_html API reference">
-<meta name="twitter:description" content="Save the HTML representation of the figure with MAIDR to a file.">
+<meta name="twitter:title" content="maidr.widget.streamlit.render_maidr API reference">
+<meta name="twitter:description" content="Draw an accessible MAIDR chart in a Streamlit app. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/Maidr.save_html.html">
+<link rel="canonical" href="https://py.maidr.ai/api/streamlit.render_maidr.html">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -349,9 +349,11 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.Maidr.save_html" id="toc-maidr.Maidr.save_html" class="nav-link active" data-scroll-target="#maidr.Maidr.save_html">Maidr.save_html</a>
+  <li><a href="#maidr.widget.streamlit.render_maidr" id="toc-maidr.widget.streamlit.render_maidr" class="nav-link active" data-scroll-target="#maidr.widget.streamlit.render_maidr">streamlit.render_maidr</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -362,17 +364,17 @@ cookieconsent.run({
 
 
 
-<section id="maidr.Maidr.save_html" class="level1">
-<h1>Maidr.save_html</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Maidr.save_html(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">file</span></span>
+<section id="maidr.widget.streamlit.render_maidr" class="level1">
+<h1>streamlit.render_maidr</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>widget.streamlit.render_maidr(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    plot<span class="op">=</span><span class="va">None</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    lib_dir<span class="op">=</span><span class="st">'lib'</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    include_version<span class="op">=</span><span class="va">True</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    data_in_svg<span class="op">=</span><span class="va">True</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    use_cdn<span class="op">=</span><span class="st">'auto'</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    height<span class="op">=</span><span class="st">'content'</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="st">'stretch'</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    tab_index<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    use_cdn<span class="op">=</span><span class="va">None</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Save the HTML representation of the figure with MAIDR to a file.</p>
+<p>Draw an accessible MAIDR chart in a Streamlit app.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
@@ -386,37 +388,70 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>file</td>
-<td><a href="https://docs.python.org/3/library/stdtypes.html#str">str</a></td>
-<td>The file to save to.</td>
-<td><em>required</em></td>
+<td>plot</td>
+<td><a href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></td>
+<td>The plot to render – a matplotlib or seaborn artist, a Plotly <code>Figure</code>, or an Altair chart. <code>None</code> uses the current matplotlib figure, and warns: that figure is process-global, and Streamlit runs sessions on separate threads, so by the time it is rendered it may be another session’s. Pass the plot explicitly.</td>
+<td><code>None</code></td>
 </tr>
 <tr class="even">
-<td>lib_dir</td>
-<td><a href="https://docs.python.org/3/library/stdtypes.html#str">str</a></td>
-<td>The directory to save the dependencies to (relative to the file’s directory).</td>
-<td><code>"lib"</code></td>
+<td>height</td>
+<td>(<a href="https://docs.python.org/3/library/functions.html#int">int</a>, {'content', 'stretch'})</td>
+<td>Height of the embed. <code>"content"</code> lets Streamlit measure the chart, which is what keeps maidr’s braille and text panels visible when they open.</td>
+<td><code>"content"</code></td>
 </tr>
 <tr class="odd">
-<td>include_version</td>
-<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a></td>
-<td>Whether to include the version number in the dependency folder name.</td>
-<td><code>True</code></td>
+<td>width</td>
+<td>(<a href="https://docs.python.org/3/library/functions.html#int">int</a>, {'content', 'stretch'})</td>
+<td>Width of the embed.</td>
+<td><code>"stretch"</code></td>
 </tr>
 <tr class="even">
-<td>data_in_svg</td>
-<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a></td>
-<td>Controls where the MAIDR JSON payload is placed in the output HTML or SVG.</td>
-<td><code>True</code></td>
+<td>tab_index</td>
+<td><a href="https://docs.python.org/3/library/functions.html#int">int</a> or None</td>
+<td>Tab order of the <em>frame</em>, passed through to Streamlit. <code>None</code> is the browser default and is deliberate: an iframe’s contents already take part in sequential focus navigation, and maidr gives the chart inside its own tab stop, so a keyboard user tabs straight onto the chart. Passing <code>0</code> makes the frame itself a stop as well, which is one extra Tab before the chart – and Streamlit hardcodes the frame’s accessible name as <code>st.iframe</code>, so that stop announces the same on every chart on the page. It is exposed for layouts that want a deterministic landing point, not because the chart needs it to be reachable.</td>
+<td><code>None</code></td>
 </tr>
 <tr class="odd">
 <td>use_cdn</td>
-<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a> or {'auto'}</td>
-<td>* <code>True</code>: load <code>maidr.js</code> from the CDN only. * <code>False</code>: copy the bundled <code>maidr.js</code> and its assets into <code>lib_dir</code> next to the saved HTML and reference the script with a relative path (no network access required). * <code>"auto"</code> (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails. The bundled files are still copied alongside the HTML so the fallback works offline.</td>
-<td><code>"auto"</code></td>
+<td>bool, {"auto"}, or None</td>
+<td>Where the chart loads <code>maidr.js</code> from; see :func:<code>maidr.render</code>. Pass <code>False</code> for an air-gapped deployment. Prefer this argument over :func:<code>maidr.set_use_cdn</code>: the setter writes process-wide state, and Streamlit runs sessions on separate threads, so one session calling it changes what every other session renders.</td>
+<td><code>None</code></td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 5%">
+<col style="width: 89%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>None</td>
+<td>Nothing is returned. The embed sends no data back, and handing back a Streamlit object would suggest an interactivity this does not have.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> maidr.widget.streamlit <span class="im">import</span> render_maidr</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> fig, ax <span class="op">=</span> plt.subplots()</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ax.bar([<span class="st">"a"</span>, <span class="st">"b"</span>], [<span class="dv">1</span>, <span class="dv">2</span>])</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> render_maidr(ax)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

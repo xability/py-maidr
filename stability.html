@@ -6,6 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
 <meta name="description" content="Which py-maidr plot types are settled and which are experimental prototypes that may change without a deprecation period.">
 
 <title>Plot Type Stability – py-maidr</title>
@@ -83,7 +84,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-dd413af1298e352d8fe9223d27e63c61.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-0e479ab012f249957d467615ffd4bedf.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <link href="site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
@@ -149,87 +150,70 @@ cookieconsent.run({
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "SoftwareSourceCode",
-  "name": "py-maidr",
-  "alternateName": "maidr",
-  "description": "A Python library that makes matplotlib, seaborn, and plotly visualizations accessible to blind and low-vision users through sonification, braille, text, and AI modalities.",
-  "url": "https://py.maidr.ai/",
-  "codeRepository": "https://github.com/xability/py-maidr",
-  "downloadUrl": "https://pypi.org/project/maidr/",
-  "installUrl": "https://pypi.org/project/maidr/",
-  "license": "https://opensource.org/license/gpl-3-0",
-  "programmingLanguage": {
-    "@type": "ComputerLanguage",
-    "name": "Python"
-  },
-  "runtimePlatform": "Python 3.9+",
-  "softwareVersion": "1.13.0",
-  "operatingSystem": "Cross-platform",
-  "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly"],
-  "sameAs": [
-    "https://github.com/xability/py-maidr",
-    "https://pypi.org/project/maidr/"
-  ],
-  "author": {
-    "@type": "Organization",
-    "name": "(x)Ability Design Lab",
-    "url": "https://xabilitylab.ischool.illinois.edu/",
-    "sameAs": [
-      "https://github.com/xability",
-      "https://xabilitylab.ischool.illinois.edu/"
-    ],
-    "parentOrganization": {
-      "@type": "CollegeOrUniversity",
-      "name": "University of Illinois Urbana-Champaign",
-      "url": "https://illinois.edu/",
-      "department": {
-        "@type": "Organization",
-        "name": "School of Information Sciences",
-        "url": "https://ischool.illinois.edu/"
-      }
-    }
-  },
-  "contributor": [
+  "@graph": [
     {
-      "@type": "Person",
-      "name": "JooYoung Seo",
-      "url": "https://jooyoungseo.github.io",
-      "jobTitle": "Assistant Professor",
-      "affiliation": {
-        "@type": "Organization",
-        "name": "School of Information Sciences, University of Illinois Urbana-Champaign"
-      },
+      "@type": "Organization",
+      "@id": "https://maidr.ai/#organization",
+      "name": "(x)Ability Design Lab",
+      "url": "https://xabilitylab.ischool.illinois.edu/",
       "sameAs": [
-        "https://scholar.google.com/citations?user=c0x8E5YAAAAJ&hl=en",
-        "https://www.linkedin.com/in/jooyoungseo",
-        "https://github.com/jooyoungseo",
-        "https://ischool.illinois.edu/people/jooyoung-seo"
-      ]
+        "https://github.com/xability",
+        "https://xability.github.io/"
+      ],
+      "parentOrganization": {
+        "@type": "CollegeOrUniversity",
+        "name": "University of Illinois Urbana-Champaign",
+        "url": "https://illinois.edu/"
+      }
     },
     {
-      "@type": "Person",
-      "name": "Saairam Venkatesh",
-      "url": "https://github.com/SaaiVenkat",
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://maidr.ai/#software",
+      "name": "MAIDR",
+      "url": "https://maidr.ai/",
+      "sameAs": ["https://github.com/xability/maidr"]
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://py.maidr.ai/#software",
+      "name": "py-maidr",
+      "alternateName": ["maidr (PyPI)"],
+      "description": "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "url": "https://py.maidr.ai/",
+      "codeRepository": "https://github.com/xability/py-maidr",
+      "downloadUrl": "https://pypi.org/project/maidr/",
+      "installUrl": "https://pypi.org/project/maidr/",
+      "applicationCategory": "DeveloperApplication",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "programmingLanguage": "Python",
+      "runtimePlatform": "Python",
+      "softwareRequirements": ["Python >= 3.9", "matplotlib"],
+      "softwareVersion": "1.23.0",
+      "operatingSystem": "Cross-platform",
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
       "sameAs": [
-        "https://github.com/SaaiVenkat"
-      ]
+        "https://github.com/xability/py-maidr",
+        "https://pypi.org/project/maidr/"
+      ],
+      "author": {"@id": "https://maidr.ai/#organization"},
+      "isBasedOn": {"@id": "https://maidr.ai/#software"}
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://py.maidr.ai/#website",
+      "name": "py-maidr",
+      "url": "https://py.maidr.ai/",
+      "inLanguage": "en",
+      "publisher": {"@id": "https://maidr.ai/#organization"},
+      "about": {"@id": "https://py.maidr.ai/#software"}
     }
   ]
-}
-</script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "py-maidr Documentation",
-  "url": "https://py.maidr.ai/",
-  "description": "Documentation for py-maidr, a Python library for accessible data visualization with sonification, braille, text, and AI modalities.",
-  "inLanguage": "en",
-  "publisher": {
-    "@type": "Organization",
-    "name": "(x)Ability Design Lab",
-    "url": "https://xabilitylab.ischool.illinois.edu/"
-  }
 }
 </script>
 
@@ -237,14 +221,16 @@ cookieconsent.run({
 <link rel="stylesheet" href="styles.css">
 <meta property="og:title" content="Plot Type Stability – py-maidr">
 <meta property="og:description" content="Which py-maidr plot types are settled and which are experimental prototypes that may change without a deprecation period.">
-<meta property="og:image" content="https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg">
+<meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
+<meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
 <meta name="twitter:title" content="Plot Type Stability – py-maidr">
 <meta name="twitter:description" content="Which py-maidr plot types are settled and which are experimental prototypes that may change without a deprecation period.">
-<meta name="twitter:image" content="https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg">
+<meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://py.maidr.ai/stability.html">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -275,8 +261,53 @@ cookieconsent.run({
     <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
         <li>
     <a class="dropdown-item" href="./examples.html">
- <span class="dropdown-text">Matplotlib / Seaborn</span></a>
+ <span class="dropdown-text">Matplotlib / Seaborn (overview)</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/bar.html">
+ <span class="dropdown-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/pie-wordcloud.html">
+ <span class="dropdown-text">Pie Charts and Word Clouds</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/histogram-kde.html">
+ <span class="dropdown-text">Histograms and KDE Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/line-step.html">
+ <span class="dropdown-text">Line and Step Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/heatmap-hexbin-contour.html">
+ <span class="dropdown-text">Heatmaps, Hexbin and Contour Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/box-boxen-violin.html">
+ <span class="dropdown-text">Box, Boxen and Violin Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/area-errorbar-point-lollipop.html">
+ <span class="dropdown-text">Area, Error Bar, Point and Lollipop Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/scatter-regression.html">
+ <span class="dropdown-text">Scatter and Regression Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/multi-layer-panel-facet.html">
+ <span class="dropdown-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/candlestick-gantt.html">
+ <span class="dropdown-text">Candlestick and Gantt Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/dashboards.html">
+ <span class="dropdown-text">Shiny and Streamlit Dashboards</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
         <li>
     <a class="dropdown-item" href="./examples-plotly.html">
  <span class="dropdown-text">Plotly</span></a>
@@ -999,14 +1030,14 @@ cookieconsent.run({
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-      &nbsp;
-    </div>   
+<p>© (x)Ability Design Lab, University of Illinois Urbana-Champaign</p>
+</div>   
     <div class="nav-footer-center">
-
+<p><a href="https://maidr.ai/">maidr.ai</a> | <a href="https://r.maidr.ai/">r.maidr.ai</a> | <a href="https://pypi.org/project/maidr/">PyPI</a></p>
 <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="cookie-consent-footer"><a href="#" id="open_preferences_center">Cookie Preferences</a></div></div>
     <div class="nav-footer-right">
-      &nbsp;
-    </div>
+<p><a href="https://github.com/xability/py-maidr">GitHub</a></p>
+</div>
   </div>
 </footer>
 

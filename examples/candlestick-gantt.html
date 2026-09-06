@@ -1,0 +1,2281 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
+<meta name="description" content="Make mplfinance candlestick charts and matplotlib broken_barh Gantt charts accessible with py-maidr: OHLC values and task spans read by keyboard.">
+
+<title>Accessible Candlestick and Gantt Charts in matplotlib – py-maidr</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../examples/dashboards.html" rel="next">
+<link href="../examples/multi-layer-panel-facet.html" rel="prev">
+<script src="../site_libs/cookie-consent/cookie-consent.js"></script>
+<link href="../site_libs/cookie-consent/cookie-consent.css" rel="stylesheet">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-0e479ab012f249957d467615ffd4bedf.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-TL8SVL5VRE"></script>
+
+<script type="text/plain" cookie-consent="tracking">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-TL8SVL5VRE', { 'anonymize_ip': true});
+</script>
+
+<script type="text/javascript" charset="UTF-8">
+document.addEventListener('DOMContentLoaded', function () {
+cookieconsent.run({
+  "notice_banner_type":"simple",
+  "consent_type":"express",
+  "palette":"light",
+  "language":"en",
+  "page_load_consent_levels":["strictly-necessary"],
+  "notice_banner_reject_button_hide":false,
+  "preferences_center_close_button_hide":false,
+  "website_name":""
+  ,
+"language":"en"
+  });
+});
+</script> 
+  
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script type="text/plain" cookie-consent="tracking">
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "vwqybbep0i");
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://maidr.ai/#organization",
+      "name": "(x)Ability Design Lab",
+      "url": "https://xabilitylab.ischool.illinois.edu/",
+      "sameAs": [
+        "https://github.com/xability",
+        "https://xability.github.io/"
+      ],
+      "parentOrganization": {
+        "@type": "CollegeOrUniversity",
+        "name": "University of Illinois Urbana-Champaign",
+        "url": "https://illinois.edu/"
+      }
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://maidr.ai/#software",
+      "name": "MAIDR",
+      "url": "https://maidr.ai/",
+      "sameAs": ["https://github.com/xability/maidr"]
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://py.maidr.ai/#software",
+      "name": "py-maidr",
+      "alternateName": ["maidr (PyPI)"],
+      "description": "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "url": "https://py.maidr.ai/",
+      "codeRepository": "https://github.com/xability/py-maidr",
+      "downloadUrl": "https://pypi.org/project/maidr/",
+      "installUrl": "https://pypi.org/project/maidr/",
+      "applicationCategory": "DeveloperApplication",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "programmingLanguage": "Python",
+      "runtimePlatform": "Python",
+      "softwareRequirements": ["Python >= 3.9", "matplotlib"],
+      "softwareVersion": "1.23.0",
+      "operatingSystem": "Cross-platform",
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
+      "sameAs": [
+        "https://github.com/xability/py-maidr",
+        "https://pypi.org/project/maidr/"
+      ],
+      "author": {"@id": "https://maidr.ai/#organization"},
+      "isBasedOn": {"@id": "https://maidr.ai/#software"}
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://py.maidr.ai/#website",
+      "name": "py-maidr",
+      "url": "https://py.maidr.ai/",
+      "inLanguage": "en",
+      "publisher": {"@id": "https://maidr.ai/#organization"},
+      "about": {"@id": "https://py.maidr.ai/#software"}
+    }
+  ]
+}
+</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+<meta property="og:title" content="Accessible Candlestick and Gantt Charts in matplotlib">
+<meta property="og:description" content="Make mplfinance candlestick charts and matplotlib broken_barh Gantt charts accessible with py-maidr: OHLC values and task spans read by keyboard.">
+<meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta property="og:site_name" content="py-maidr">
+<meta property="og:locale" content="en_US">
+<meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
+<meta name="twitter:title" content="Accessible Candlestick and Gantt Charts in matplotlib">
+<meta name="twitter:description" content="Make mplfinance candlestick charts and matplotlib broken_barh Gantt charts accessible with py-maidr: OHLC values and task spans read by keyboard.">
+<meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
+<link rel="canonical" href="https://py.maidr.ai/examples/candlestick-gantt.html">
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="https://py.maidr.ai/">
+    <span class="navbar-title">py-maidr</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Welcome</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="../examples.html">
+ <span class="dropdown-text">Matplotlib / Seaborn (overview)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/bar.html">
+ <span class="dropdown-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/pie-wordcloud.html">
+ <span class="dropdown-text">Pie Charts and Word Clouds</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/histogram-kde.html">
+ <span class="dropdown-text">Histograms and KDE Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/line-step.html">
+ <span class="dropdown-text">Line and Step Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/heatmap-hexbin-contour.html">
+ <span class="dropdown-text">Heatmaps, Hexbin and Contour Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/box-boxen-violin.html">
+ <span class="dropdown-text">Box, Boxen and Violin Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/area-errorbar-point-lollipop.html">
+ <span class="dropdown-text">Area, Error Bar, Point and Lollipop Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/scatter-regression.html">
+ <span class="dropdown-text">Scatter and Regression Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multi-layer-panel-facet.html">
+ <span class="dropdown-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/candlestick-gantt.html">
+ <span class="dropdown-text">Candlestick and Gantt Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/dashboards.html">
+ <span class="dropdown-text">Shiny and Streamlit Dashboards</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../examples-plotly.html">
+ <span class="dropdown-text">Plotly</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-altair.html">
+ <span class="dropdown-text">Altair</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../stability.html"> 
+<span class="menu-text">Plot Type Stability</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../api/"> 
+<span class="menu-text">API Reference</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/xability/py-maidr"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/bar.html">Plot families</a></li><li class="breadcrumb-item"><a href="../examples/candlestick-gantt.html">Accessible Candlestick and Gantt Charts in matplotlib with py-maidr</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Plot families</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/bar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Bar Charts in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/pie-wordcloud.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Pie Charts and Word Clouds in matplotlib with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/histogram-kde.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Histograms and KDE Plots in seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/line-step.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Line and Step Plots in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/heatmap-hexbin-contour.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Heatmaps, Hexbin and Contour Plots in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/box-boxen-violin.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/area-errorbar-point-lollipop.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Area, Error Bar, Point and Lollipop Plots in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/scatter-regression.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Scatter and Regression Plots in seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/multi-layer-panel-facet.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/candlestick-gantt.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Accessible Candlestick and Gantt Charts in matplotlib with py-maidr</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/dashboards.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Shiny and Streamlit Dashboards with py-maidr</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Other libraries</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-plotly.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Plotly Accessible Plot Examples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-altair.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Altair Accessible Plot Examples</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#candlestick-chart" id="toc-candlestick-chart" class="nav-link" data-scroll-target="#candlestick-chart">Candlestick Chart</a></li>
+  <li><a href="#gantt-chart" id="toc-gantt-chart" class="nav-link" data-scroll-target="#gantt-chart">Gantt Chart</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/bar.html">Plot families</a></li><li class="breadcrumb-item"><a href="../examples/candlestick-gantt.html">Accessible Candlestick and Gantt Charts in matplotlib with py-maidr</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Accessible Candlestick and Gantt Charts in matplotlib with py-maidr</h1>
+</div>
+
+<div>
+  <div class="description">
+    Make mplfinance candlestick charts and matplotlib broken_barh Gantt charts accessible with py-maidr: OHLC values and task spans read by keyboard.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Both of these charts draw a span rather than a point. A candlestick chart (drawn with <code>mplfinance</code>) is read one trading day at a time: Left and Right move along the dates and each stop announces the open, high, low and close, with the volume panel available as its own subplot. A Gantt chart drawn with <code>ax.broken_barh()</code> is read as lanes of spans, so a reader hears when a task starts, when it ends and therefore how long it runs.</p>
+<p><code>CANDLESTICK</code> is in the <strong>stable</strong> set. <code>GANTT</code> is <strong>experimental</strong> and may change without a deprecation period: see <a href="../stability.html">Plot Type Stability</a>.</p>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<p>Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.</p>
+<div id="105ba9f0" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="3,4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Just import maidr package: plt.show() now renders accessible output </span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<script src="https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js"></script>
+</div>
+</div>
+</section>
+<section id="candlestick-chart" class="level2">
+<h2 class="anchored" data-anchor-id="candlestick-chart">Candlestick Chart</h2>
+<div id="92223287" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" data-source-line-numbers="nil" data-code-line-numbers="5,21,34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mplfinance <span class="im">as</span> mpf</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.dates <span class="im">as</span> mdates</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr </span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the sample data</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>daily <span class="op">=</span> pd.read_csv(<span class="st">"../../example/candle_stick/volcandat.csv"</span>, index_col<span class="op">=</span><span class="dv">0</span>, parse_dates<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the candlestick chart with moving averages and volume</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>fig, axlist <span class="op">=</span> mpf.plot(</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    daily,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="bu">type</span><span class="op">=</span><span class="st">"candle"</span>,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    volume<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    mav <span class="op">=</span> (<span class="dv">3</span>,<span class="dv">6</span>,<span class="dv">9</span>),</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    returnfig<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    ylabel<span class="op">=</span><span class="st">"Price"</span>,</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    ylabel_lower<span class="op">=</span><span class="st">"Volume"</span>,</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    xlabel<span class="op">=</span><span class="st">"Date"</span>,</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">"Stock Price with Volume"</span>,</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>)  </span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Add formatters for better screen reader output</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Price axis - Currency format</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>axlist[<span class="dv">0</span>].yaxis.set_major_formatter(<span class="st">"$</span><span class="sc">{x:,.2f}</span><span class="st">"</span>)</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Date axis - Custom date format like "Nov 18, 2016"</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>axlist[<span class="dv">0</span>].xaxis.set_major_formatter(mdates.DateFormatter(<span class="st">"%b </span><span class="sc">%d</span><span class="st">, %Y"</span>))</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Volume axis - Integer with thousands separator</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>axlist[<span class="dv">2</span>].yaxis.set_major_formatter(<span class="st">"</span><span class="sc">{x:,.0f}</span><span class="st">"</span>)</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Display with maidr</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>plt.show() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<iframe id="iframe_ed445e62-8096-4e76-9b24-c3cd3369b0dd" title="Stock Price with Volume, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+  <script type=&quot;text/javascript&quot;>
+                (function() {
+                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js&quot;]');
+                    if (!existing) {
+                        var s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js';
+                        s.onload = function() { if (window.main) window.main(); };
+                        document.head.appendChild(s);
+                    } else {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function() { if (window.main) window.main(); });
+                        } else {
+                            if (window.main) window.main();
+                        }
+                    }
+                })();
+            </script>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;576pt&quot; height=&quot;414pt&quot; viewBox=&quot;0 0 576 414&quot; version=&quot;1.1&quot; id=&quot;41426231-da92-4ce4-a867-d82024739968&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;41426231-da92-4ce4-a867-d82024739968&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Stock Price with Volume&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;416998fb-e7b4-4b52-9a4b-117ee347ab26&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;3054bfe0-176d-4c86-a793-734b87905c82&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;candlestick&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Candlestick Chart&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Date&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;var n=Number(value);if(!isFinite(n))return String(value);var d=new Date(Math.round(0+n*86400000));var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Price&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}}, &amp;quot;data&amp;quot;: [{&amp;quot;value&amp;quot;: &amp;quot;2019-11-01 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3050.72, &amp;quot;high&amp;quot;: 3066.95, &amp;quot;low&amp;quot;: 3050.72, &amp;quot;close&amp;quot;: 3066.91, &amp;quot;volume&amp;quot;: 510301237.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-04 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3078.96, &amp;quot;high&amp;quot;: 3085.2, &amp;quot;low&amp;quot;: 3074.87, &amp;quot;close&amp;quot;: 3078.27, &amp;quot;volume&amp;quot;: 524848878.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-05 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3080.8, &amp;quot;high&amp;quot;: 3083.95, &amp;quot;low&amp;quot;: 3072.15, &amp;quot;close&amp;quot;: 3074.62, &amp;quot;volume&amp;quot;: 585634570.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-06 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3075.1, &amp;quot;high&amp;quot;: 3078.34, &amp;quot;low&amp;quot;: 3065.89, &amp;quot;close&amp;quot;: 3076.78, &amp;quot;volume&amp;quot;: 544288522.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-07 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3087.02, &amp;quot;high&amp;quot;: 3097.77, &amp;quot;low&amp;quot;: 3080.23, &amp;quot;close&amp;quot;: 3085.18, &amp;quot;volume&amp;quot;: 566117910.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3081.25, &amp;quot;high&amp;quot;: 3093.09, &amp;quot;low&amp;quot;: 3073.58, &amp;quot;close&amp;quot;: 3093.08, &amp;quot;volume&amp;quot;: 460757054.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3080.33, &amp;quot;high&amp;quot;: 3088.33, &amp;quot;low&amp;quot;: 3075.82, &amp;quot;close&amp;quot;: 3087.01, &amp;quot;volume&amp;quot;: 366044400.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3089.28, &amp;quot;high&amp;quot;: 3102.61, &amp;quot;low&amp;quot;: 3084.73, &amp;quot;close&amp;quot;: 3091.84, &amp;quot;volume&amp;quot;: 434953689.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3084.18, &amp;quot;high&amp;quot;: 3098.06, &amp;quot;low&amp;quot;: 3078.8, &amp;quot;close&amp;quot;: 3094.04, &amp;quot;volume&amp;quot;: 454607412.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3090.75, &amp;quot;high&amp;quot;: 3098.2, &amp;quot;low&amp;quot;: 3083.26, &amp;quot;close&amp;quot;: 3096.63, &amp;quot;volume&amp;quot;: 408390424.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3107.92, &amp;quot;high&amp;quot;: 3120.46, &amp;quot;low&amp;quot;: 3104.6, &amp;quot;close&amp;quot;: 3120.46, &amp;quot;volume&amp;quot;: 579104868.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3117.91, &amp;quot;high&amp;quot;: 3124.17, &amp;quot;low&amp;quot;: 3112.06, &amp;quot;close&amp;quot;: 3122.03, &amp;quot;volume&amp;quot;: 521730492.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3127.45, &amp;quot;high&amp;quot;: 3127.64, &amp;quot;low&amp;quot;: 3113.47, &amp;quot;close&amp;quot;: 3120.18, &amp;quot;volume&amp;quot;: 513153035.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3114.66, &amp;quot;high&amp;quot;: 3118.97, &amp;quot;low&amp;quot;: 3091.41, &amp;quot;close&amp;quot;: 3108.46, &amp;quot;volume&amp;quot;: 756408988.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3108.49, &amp;quot;high&amp;quot;: 3110.11, &amp;quot;low&amp;quot;: 3094.55, &amp;quot;close&amp;quot;: 3103.54, &amp;quot;volume&amp;quot;: 476836171.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3111.41, &amp;quot;high&amp;quot;: 3112.87, &amp;quot;low&amp;quot;: 3099.26, &amp;quot;close&amp;quot;: 3110.29, &amp;quot;volume&amp;quot;: 418027927.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3117.44, &amp;quot;high&amp;quot;: 3133.83, &amp;quot;low&amp;quot;: 3117.44, &amp;quot;close&amp;quot;: 3133.64, &amp;quot;volume&amp;quot;: 513728761.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3134.85, &amp;quot;high&amp;quot;: 3142.69, &amp;quot;low&amp;quot;: 3131.0, &amp;quot;close&amp;quot;: 3140.52, &amp;quot;volume&amp;quot;: 986041660.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3145.49, &amp;quot;high&amp;quot;: 3154.26, &amp;quot;low&amp;quot;: 3143.41, &amp;quot;close&amp;quot;: 3153.63, &amp;quot;volume&amp;quot;: 421853938.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3147.18, &amp;quot;high&amp;quot;: 3150.3, &amp;quot;low&amp;quot;: 3139.34, &amp;quot;close&amp;quot;: 3140.98, &amp;quot;volume&amp;quot;: 286602291.0}], &amp;quot;selectors&amp;quot;: {&amp;quot;body&amp;quot;: &amp;quot;g[id='maidr-c68b6e84-0d91-49af-899a-61fe74418cac'] &amp;gt; path&amp;quot;, &amp;quot;wickLow&amp;quot;: &amp;quot;g[id='maidr-d24addd4-1367-4637-bfce-82d9ea54ddde'] &amp;gt; path:nth-child(-n+20)&amp;quot;, &amp;quot;wickHigh&amp;quot;: &amp;quot;g[id='maidr-d24addd4-1367-4637-bfce-82d9ea54ddde'] &amp;gt; path:nth-child(n+21)&amp;quot;}}, {&amp;quot;id&amp;quot;: &amp;quot;e621c98f-1aa6-4c11-896b-5b8293f39eb3&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Volume Bar Plot&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Date&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;var n=Number(value);if(!isFinite(n))return String(value);var d=new Date(Math.round(0+n*86400000));var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Volume&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;number&amp;quot;, &amp;quot;decimals&amp;quot;: 0}}}, &amp;quot;data&amp;quot;: [{&amp;quot;x&amp;quot;: &amp;quot;2019-11-01 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 510301237.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-04 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 524848878.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-05 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 585634570.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-06 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 544288522.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-07 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 566117910.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 460757054.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 366044400.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 434953689.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 454607412.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 408390424.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 579104868.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 521730492.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 513153035.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 756408988.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 476836171.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 418027927.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 513728761.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 986041660.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 421853938.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 286602291.0}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='35fa3201-0c1d-47e1-8877-ea0fe579ba24'] &amp;gt; path&amp;quot;}, {&amp;quot;id&amp;quot;: &amp;quot;dd0d5844-17db-4049-a49a-88cea901c8f7&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;line&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Moving Average Line Plot&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Date&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;var n=Number(value);if(!isFinite(n))return String(value);var d=new Date(Math.round(0+n*86400000));var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Price&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: &amp;quot;2019-11-05 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3073.2666666666664, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-06 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3076.556666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-07 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3078.86, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3085.013333333334, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3088.4233333333336, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3090.6433333333334, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3090.963333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3094.17, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3103.7099999999996, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3113.0400000000004, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3120.89, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3116.89, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3110.726666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3107.43, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3115.8233333333337, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3128.1499999999996, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3142.596666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3145.0433333333335, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}], [{&amp;quot;x&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3079.14, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3082.49, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3084.7516666666666, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3087.9883333333332, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3091.2966666666666, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3097.1766666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3102.001666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3107.53, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3110.2999999999997, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3111.883333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3114.16, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3116.3566666666666, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3119.4383333333335, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3125.013333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3130.433333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}], [{&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3083.081111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3086.383333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3091.071111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3096.3388888888894, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3101.161111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3103.747777777778, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3104.91, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3107.496666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3112.141111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3117.3055555555557, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3123.6388888888887, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3125.918888888889, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-6b2f4ae2-a97e-4061-8879-b446d8d64ba2'] path&amp;quot;, &amp;quot;g[id='maidr-cecc6933-050e-4844-a52b-1c7ee018b642'] path&amp;quot;, &amp;quot;g[id='maidr-fda834df-4478-4aa3-8beb-1cdeab2fad4b'] path&amp;quot;]}]}]]}&quot;>
+ <metadata>
+  <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
+   <cc:Work>
+    <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
+    <dc:date>2026-09-06T10:27:22.530077</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.9, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id=&quot;figure_1&quot;>
+  <g id=&quot;maidr-c03d90c9-f4f9-45eb-983b-1c7358a3319b&quot;>
+   <path d=&quot;M 0 414  L 576 414  L 576 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
+  </g>
+  <g id=&quot;axes_1&quot;>
+   <g id=&quot;maidr-a07476df-0922-4c83-b479-528ed2fc60cb&quot;>
+    <path d=&quot;M 103.68 256.68  L 518.4 256.68  L 518.4 49.68  L 103.68 49.68  z &quot; style=&quot;fill: #dce3ef&quot;/>
+   </g>
+   <g id=&quot;matplotlib.axis_1&quot;>
+    <g id=&quot;xtick_1&quot;>
+     <g id=&quot;maidr-d0ef2820-6735-4a95-8912-7bc51f28b45c&quot;>
+      <path d=&quot;M 139.668099 256.68  L 139.668099 49.68  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-99da1383-7dae-4c96-a15c-6828bd370d51&quot;/>
+    </g>
+    <g id=&quot;xtick_2&quot;>
+     <g id=&quot;maidr-947cadcf-3927-4d53-81cc-48afa233f254&quot;>
+      <path d=&quot;M 229.863836 256.68  L 229.863836 49.68  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-94a9bfb4-42eb-4cfe-9449-c552bc130487&quot;/>
+    </g>
+    <g id=&quot;xtick_3&quot;>
+     <g id=&quot;maidr-642c0d2f-8526-4676-bbe1-afa79fd0005c&quot;>
+      <path d=&quot;M 320.059574 256.68  L 320.059574 49.68  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-398235e0-2ed0-47de-bb0c-b59df0ca1d04&quot;/>
+    </g>
+    <g id=&quot;xtick_4&quot;>
+     <g id=&quot;maidr-047a0eff-82aa-44fb-96b5-275591637eca&quot;>
+      <path d=&quot;M 410.255311 256.68  L 410.255311 49.68  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-b6fa00c0-d594-4105-a0d2-09481cb50974&quot;/>
+    </g>
+    <g id=&quot;xtick_5&quot;>
+     <g id=&quot;maidr-9dd8ec88-6deb-4df5-bc6b-a46703eefaba&quot;>
+      <path d=&quot;M 500.451048 256.68  L 500.451048 49.68  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-35e64b28-aef0-4cb3-b589-0cc0866192de&quot;/>
+    </g>
+   </g>
+   <g id=&quot;matplotlib.axis_2&quot;>
+    <g id=&quot;ytick_1&quot;>
+     <g id=&quot;maidr-c2d6899e-2dc9-4a9e-a65d-56163f0641a3&quot;>
+      <path d=&quot;M 103.68 230.4047  L 518.4 230.4047  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-fa27be92-677f-4135-91ba-91a577ed3253&quot;/>
+     <g id=&quot;text_1&quot;>
+      <!-- $3,060.00 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 234.752825) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-24&quot; d=&quot;M 1619 63  Q 288 119 69 1184  L 600 1300  Q 678 928 926 740  Q 1175 553 1619 525  L 1619 2075  Q 1066 2213 855 2322  Q 644 2431 514 2573  Q 384 2716 326 2878  Q 269 3041 269 3269  Q 269 3753 620 4026  Q 972 4300 1619 4328  L 1619 4738  L 2006 4738  L 2006 4328  Q 2591 4300 2909 4064  Q 3228 3828 3359 3328  L 2816 3225  Q 2753 3519 2562 3683  Q 2372 3847 2006 3881  L 2006 2491  Q 2566 2359 2802 2250  Q 3038 2141 3175 2003  Q 3313 1866 3384 1678  Q 3456 1491 3456 1238  Q 3456 722 3078 409  Q 2700 97 2006 63  L 2006 -444  L 1619 -444  L 1619 63  z M 2919 1231  Q 2919 1434 2837 1565  Q 2756 1697 2603 1783  Q 2450 1869 2006 1984  L 2006 522  Q 2447 550 2683 731  Q 2919 913 2919 1231  z M 806 3275  Q 806 3091 884 2962  Q 963 2834 1117 2746  Q 1272 2659 1619 2572  L 1619 3888  Q 806 3844 806 3275  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-33&quot; d=&quot;M 3278 1216  Q 3278 606 2890 271  Q 2503 -63 1784 -63  Q 1116 -63 717 239  Q 319 541 244 1131  L 825 1184  Q 938 403 1784 403  Q 2209 403 2451 612  Q 2694 822 2694 1234  Q 2694 1594 2417 1795  Q 2141 1997 1619 1997  L 1300 1997  L 1300 2484  L 1606 2484  Q 2069 2484 2323 2686  Q 2578 2888 2578 3244  Q 2578 3597 2370 3801  Q 2163 4006 1753 4006  Q 1381 4006 1151 3815  Q 922 3625 884 3278  L 319 3322  Q 381 3863 767 4166  Q 1153 4469 1759 4469  Q 2422 4469 2789 4161  Q 3156 3853 3156 3303  Q 3156 2881 2920 2617  Q 2684 2353 2234 2259  L 2234 2247  Q 2728 2194 3003 1916  Q 3278 1638 3278 1216  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-2c&quot; d=&quot;M 1203 684  L 1203 159  Q 1203 -172 1143 -394  Q 1084 -616 959 -819  L 575 -819  Q 869 -394 869 0  L 594 0  L 594 684  L 1203 684  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-30&quot; d=&quot;M 3309 2203  Q 3309 1100 2920 518  Q 2531 -63 1772 -63  Q 1013 -63 631 515  Q 250 1094 250 2203  Q 250 3338 620 3903  Q 991 4469 1791 4469  Q 2569 4469 2939 3897  Q 3309 3325 3309 2203  z M 2738 2203  Q 2738 3156 2517 3584  Q 2297 4013 1791 4013  Q 1272 4013 1045 3591  Q 819 3169 819 2203  Q 819 1266 1048 831  Q 1278 397 1778 397  Q 2275 397 2506 840  Q 2738 1284 2738 2203  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-36&quot; d=&quot;M 3278 1441  Q 3278 744 2900 340  Q 2522 -63 1856 -63  Q 1113 -63 719 490  Q 325 1044 325 2100  Q 325 3244 734 3856  Q 1144 4469 1900 4469  Q 2897 4469 3156 3572  L 2619 3475  Q 2453 4013 1894 4013  Q 1413 4013 1148 3564  Q 884 3116 884 2266  Q 1038 2550 1316 2698  Q 1594 2847 1953 2847  Q 2563 2847 2920 2465  Q 3278 2084 3278 1441  z M 2706 1416  Q 2706 1894 2472 2153  Q 2238 2413 1819 2413  Q 1425 2413 1183 2183  Q 941 1953 941 1550  Q 941 1041 1192 716  Q 1444 391 1838 391  Q 2244 391 2475 664  Q 2706 938 2706 1416  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-2e&quot; d=&quot;M 584 0  L 584 684  L 1194 684  L 1194 0  L 584 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-24&quot;/>
+       <use xlink:href=&quot;#LiberationSans-33&quot; transform=&quot;translate(55.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(111.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(139.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-36&quot; transform=&quot;translate(194.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(250.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2e&quot; transform=&quot;translate(305.859375 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(333.642578 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(389.257812 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_2&quot;>
+     <g id=&quot;maidr-428f5441-b0ea-4ba6-80e8-2817434f34ff&quot;>
+      <path d=&quot;M 103.68 194.055112  L 518.4 194.055112  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-ff506850-ee4a-4991-acd8-f0a4ee1b774a&quot;/>
+     <g id=&quot;text_2&quot;>
+      <!-- $3,080.00 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 198.403237) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-38&quot; d=&quot;M 3281 1228  Q 3281 619 2893 278  Q 2506 -63 1781 -63  Q 1075 -63 676 271  Q 278 606 278 1222  Q 278 1653 525 1947  Q 772 2241 1156 2303  L 1156 2316  Q 797 2400 589 2681  Q 381 2963 381 3341  Q 381 3844 757 4156  Q 1134 4469 1769 4469  Q 2419 4469 2795 4162  Q 3172 3856 3172 3334  Q 3172 2956 2962 2675  Q 2753 2394 2391 2322  L 2391 2309  Q 2813 2241 3047 1952  Q 3281 1663 3281 1228  z M 2588 3303  Q 2588 4050 1769 4050  Q 1372 4050 1164 3862  Q 956 3675 956 3303  Q 956 2925 1170 2726  Q 1384 2528 1775 2528  Q 2172 2528 2380 2711  Q 2588 2894 2588 3303  z M 2697 1281  Q 2697 1691 2453 1898  Q 2209 2106 1769 2106  Q 1341 2106 1100 1882  Q 859 1659 859 1269  Q 859 359 1788 359  Q 2247 359 2472 579  Q 2697 800 2697 1281  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-24&quot;/>
+       <use xlink:href=&quot;#LiberationSans-33&quot; transform=&quot;translate(55.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(111.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(139.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-38&quot; transform=&quot;translate(194.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(250.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2e&quot; transform=&quot;translate(305.859375 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(333.642578 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(389.257812 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_3&quot;>
+     <g id=&quot;maidr-8d7a2c2c-d811-485e-958b-7e5f1baab364&quot;>
+      <path d=&quot;M 103.68 157.705524  L 518.4 157.705524  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-52503459-723d-4526-b7e7-dd3e4f7f7fe6&quot;/>
+     <g id=&quot;text_3&quot;>
+      <!-- $3,100.00 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 162.053649) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-31&quot; d=&quot;M 488 0  L 488 478  L 1609 478  L 1609 3866  L 616 3156  L 616 3688  L 1656 4403  L 2175 4403  L 2175 478  L 3247 478  L 3247 0  L 488 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-24&quot;/>
+       <use xlink:href=&quot;#LiberationSans-33&quot; transform=&quot;translate(55.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(111.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(139.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(194.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(250.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2e&quot; transform=&quot;translate(305.859375 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(333.642578 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(389.257812 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_4&quot;>
+     <g id=&quot;maidr-c6fc627a-ecaa-40fd-a22e-ec9a720463b0&quot;>
+      <path d=&quot;M 103.68 121.355936  L 518.4 121.355936  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-1686c9e7-04e5-46b5-b19f-c35528cccc0a&quot;/>
+     <g id=&quot;text_4&quot;>
+      <!-- $3,120.00 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 125.704061) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-32&quot; d=&quot;M 322 0  L 322 397  Q 481 763 711 1042  Q 941 1322 1194 1548  Q 1447 1775 1695 1969  Q 1944 2163 2144 2356  Q 2344 2550 2467 2762  Q 2591 2975 2591 3244  Q 2591 3606 2378 3806  Q 2166 4006 1788 4006  Q 1428 4006 1195 3811  Q 963 3616 922 3263  L 347 3316  Q 409 3844 795 4156  Q 1181 4469 1788 4469  Q 2453 4469 2811 4155  Q 3169 3841 3169 3263  Q 3169 3006 3051 2753  Q 2934 2500 2703 2247  Q 2472 1994 1819 1463  Q 1459 1169 1246 933  Q 1034 697 941 478  L 3238 478  L 3238 0  L 322 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-24&quot;/>
+       <use xlink:href=&quot;#LiberationSans-33&quot; transform=&quot;translate(55.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(111.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(139.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-32&quot; transform=&quot;translate(194.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(250.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2e&quot; transform=&quot;translate(305.859375 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(333.642578 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(389.257812 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_5&quot;>
+     <g id=&quot;maidr-67ccf53f-75ba-452d-bdf3-a33a7fd05228&quot;>
+      <path d=&quot;M 103.68 85.006347  L 518.4 85.006347  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-fef5e64f-32cc-40cb-83fc-8f5fee81ec39&quot;/>
+     <g id=&quot;text_5&quot;>
+      <!-- $3,140.00 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 89.354472) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-34&quot; d=&quot;M 2753 997  L 2753 0  L 2222 0  L 2222 997  L 147 997  L 147 1434  L 2163 4403  L 2753 4403  L 2753 1441  L 3372 1441  L 3372 997  L 2753 997  z M 2222 3769  Q 2216 3750 2134 3603  Q 2053 3456 2013 3397  L 884 1734  L 716 1503  L 666 1441  L 2222 1441  L 2222 3769  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-24&quot;/>
+       <use xlink:href=&quot;#LiberationSans-33&quot; transform=&quot;translate(55.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(111.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(139.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-34&quot; transform=&quot;translate(194.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(250.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2e&quot; transform=&quot;translate(305.859375 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(333.642578 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(389.257812 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_6&quot;>
+     <!-- Price -->
+     <g style=&quot;fill: #262626&quot; transform=&quot;translate(39.812625 170.793) rotate(-90) scale(0.144 -0.144)&quot;>
+      <defs>
+       <path id=&quot;LiberationSans-Bold-50&quot; d=&quot;M 4050 3009  Q 4050 2584 3856 2250  Q 3663 1916 3302 1733  Q 2941 1550 2444 1550  L 1350 1550  L 1350 0  L 428 0  L 428 4403  L 2406 4403  Q 3197 4403 3623 4039  Q 4050 3675 4050 3009  z M 3122 2994  Q 3122 3688 2303 3688  L 1350 3688  L 1350 2259  L 2328 2259  Q 2709 2259 2915 2448  Q 3122 2638 3122 2994  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-72&quot; d=&quot;M 447 0  L 447 2588  Q 447 2866 439 3052  Q 431 3238 422 3381  L 1259 3381  Q 1269 3325 1284 3039  Q 1300 2753 1300 2659  L 1313 2659  Q 1441 3016 1541 3161  Q 1641 3306 1778 3376  Q 1916 3447 2122 3447  Q 2291 3447 2394 3400  L 2394 2666  Q 2181 2713 2019 2713  Q 1691 2713 1508 2447  Q 1325 2181 1325 1659  L 1325 0  L 447 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-69&quot; d=&quot;M 447 3991  L 447 4638  L 1325 4638  L 1325 3991  L 447 3991  z M 447 0  L 447 3381  L 1325 3381  L 1325 0  L 447 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-63&quot; d=&quot;M 1856 -63  Q 1088 -63 669 395  Q 250 853 250 1672  Q 250 2509 672 2976  Q 1094 3444 1869 3444  Q 2466 3444 2856 3144  Q 3247 2844 3347 2316  L 2463 2272  Q 2425 2531 2275 2686  Q 2125 2841 1850 2841  Q 1172 2841 1172 1706  Q 1172 538 1863 538  Q 2113 538 2281 695  Q 2450 853 2491 1166  L 3372 1125  Q 3325 778 3123 506  Q 2922 234 2594 85  Q 2266 -63 1856 -63  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-65&quot; d=&quot;M 1831 -63  Q 1069 -63 659 389  Q 250 841 250 1706  Q 250 2544 665 2994  Q 1081 3444 1844 3444  Q 2572 3444 2956 2961  Q 3341 2478 3341 1547  L 3341 1522  L 1172 1522  Q 1172 1028 1355 776  Q 1538 525 1875 525  Q 2341 525 2463 928  L 3291 856  Q 2931 -63 1831 -63  z M 1831 2891  Q 1522 2891 1355 2675  Q 1188 2459 1178 2072  L 2491 2072  Q 2466 2481 2294 2686  Q 2122 2891 1831 2891  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#LiberationSans-Bold-50&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-72&quot; transform=&quot;translate(66.699219 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-69&quot; transform=&quot;translate(105.615234 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-63&quot; transform=&quot;translate(133.398438 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-65&quot; transform=&quot;translate(189.013672 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;maidr-c68b6e84-0d91-49af-899a-61fe74418cac&quot;>
+    <path d=&quot;M 133.805376 247.270909  L 133.805376 217.845917  L 145.530822 217.845917  L 145.530822 247.270909  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 151.844524 195.945291  L 151.844524 197.199351  L 163.56997 197.199351  L 163.56997 195.945291  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 169.883671 192.601128  L 169.883671 203.833151  L 181.609117 203.833151  L 181.609117 192.601128  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 187.922819 202.960761  L 187.922819 199.907396  L 199.648264 199.907396  L 199.648264 202.960761  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 205.961966 181.296406  L 205.961966 184.640569  L 217.687412 184.640569  L 217.687412 181.296406  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 224.001114 191.783263  L 224.001114 170.282481  L 235.726559 170.282481  L 235.726559 191.783263  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 242.040261 193.455344  L 242.040261 181.314581  L 253.765707 181.314581  L 253.765707 193.455344  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 260.079408 177.188903  L 260.079408 172.536156  L 271.804854 172.536156  L 271.804854 177.188903  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 278.118556 186.458048  L 278.118556 168.537701  L 289.844002 168.537701  L 289.844002 186.458048  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 296.157703 174.517208  L 296.157703 163.830429  L 307.883149 163.830429  L 307.883149 174.517208  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 314.196851 143.311087  L 314.196851 120.519895  L 325.922297 120.519895  L 325.922297 143.311087  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 332.235998 125.154467  L 332.235998 117.666452  L 343.961444 117.666452  L 343.961444 125.154467  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 350.275146 107.815714  L 350.275146 121.028789  L 362.000592 121.028789  L 362.000592 107.815714  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 368.314293 131.061276  L 368.314293 142.329648  L 380.039739 142.329648  L 380.039739 131.061276  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 386.353441 142.275124  L 386.353441 151.271647  L 398.078886 151.271647  L 398.078886 142.275124  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 404.392588 136.968084  L 404.392588 139.003661  L 416.118034 139.003661  L 416.118034 136.968084  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 422.431736 126.008683  L 422.431736 96.565516  L 434.157181 96.565516  L 434.157181 126.008683  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 440.470883 94.366366  L 440.470883 84.061258  L 452.196329 84.061258  L 452.196329 94.366366  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 458.51003 75.028385  L 458.51003 60.234103  L 470.235476 60.234103  L 470.235476 75.028385  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 476.549178 71.956845  L 476.549178 83.225217  L 488.274624 83.225217  L 488.274624 71.956845  z &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+   </g>
+   <g id=&quot;maidr-d24addd4-1367-4637-bfce-82d9ea54ddde&quot; maidr=&quot;772fc708-a078-43e5-88f9-fb56d2e1c5f9&quot;>
+    <path d=&quot;M 139.668099 247.270909  L 139.668099 247.270909  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 157.707247 203.378781  L 157.707247 197.199351  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 175.746394 208.322325  L 175.746394 203.833151  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 193.785542 219.699746  L 193.785542 202.960761  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 211.824689 193.637092  L 211.824689 184.640569  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 229.863836 205.72333  L 229.863836 191.783263  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 247.902984 201.652176  L 247.902984 193.455344  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 265.942131 185.458434  L 265.942131 177.188903  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 283.981279 196.236087  L 283.981279 186.458048  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 302.020426 188.130129  L 302.020426 174.517208  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 320.059574 149.345118  L 320.059574 143.311087  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 338.098721 135.786722  L 338.098721 125.154467  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 356.137869 133.224076  L 356.137869 121.028789  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 374.177016 173.317672  L 374.177016 142.329648  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 392.216164 167.610787  L 392.216164 151.271647  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 410.255311 159.050458  L 410.255311 139.003661  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 428.294458 126.008683  L 428.294458 126.008683  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 446.333606 101.363662  L 446.333606 94.366366  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 464.372753 78.808743  L 464.372753 75.028385  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 482.411901 86.205884  L 482.411901 83.225217  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 139.668099 217.773218  L 139.668099 217.845917  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 157.707247 184.604219  L 157.707247 195.945291  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 175.746394 186.876068  L 175.746394 192.601128  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 193.785542 197.072128  L 193.785542 199.907396  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 211.824689 161.758503  L 211.824689 181.296406  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 229.863836 170.264306  L 229.863836 170.282481  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 247.902984 178.915508  L 247.902984 181.314581  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 265.942131 152.961902  L 265.942131 172.536156  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 283.981279 161.231434  L 283.981279 168.537701  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 302.020426 160.976987  L 302.020426 163.830429  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 320.059574 120.519895  L 320.059574 120.519895  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 338.098721 113.777046  L 338.098721 117.666452  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 356.137869 107.470393  L 356.137869 107.815714  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 374.177016 123.227939  L 374.177016 131.061276  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 392.216164 139.330807  L 392.216164 142.275124  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 410.255311 134.314564  L 410.255311 136.968084  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 428.294458 96.220195  L 428.294458 96.565516  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 446.333606 80.117328  L 446.333606 84.061258  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 464.372753 59.089091  L 464.372753 60.234103  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 482.411901 66.286309  L 482.411901 71.956845  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+   </g>
+   <g id=&quot;maidr-6b2f4ae2-a97e-4061-8879-b446d8d64ba2&quot; maidr=&quot;91fb7bf8-0f82-420b-882b-d9f99ff0588f&quot;>
+    <path d=&quot;M 175.746394 206.292807  L 193.785542 200.313299  L 211.824689 196.127038  L 229.863836 184.943482  L 247.902984 178.745877  L 265.942131 174.711073  L 283.981279 174.129479  L 302.020426 168.301429  L 320.059574 150.962675  L 338.098721 134.005592  L 356.137869 119.738379  L 374.177016 127.008296  L 392.216164 138.210028  L 410.255311 144.201652  L 428.294458 128.946941  L 446.333606 106.543478  L 464.372753 80.286959  L 482.411901 75.840193  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #40e0d0; stroke-width: 2.25; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;maidr-cecc6933-050e-4844-a52b-1c7ee018b642&quot; maidr=&quot;91fb7bf8-0f82-420b-882b-d9f99ff0588f&quot;>
+    <path d=&quot;M 229.863836 195.618144  L 247.902984 189.529588  L 265.942131 185.419056  L 283.981279 179.536481  L 302.020426 173.523653  L 320.059574 162.836874  L 338.098721 154.067536  L 356.137869 144.019904  L 374.177016 138.985486  L 392.216164 136.10781  L 410.255311 131.970015  L 428.294458 127.977619  L 446.333606 122.376753  L 464.372753 112.244305  L 482.411901 102.393567  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ff00ff; stroke-width: 2.25; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;maidr-fda834df-4478-4aa3-8beb-1cdeab2fad4b&quot; maidr=&quot;91fb7bf8-0f82-420b-882b-d9f99ff0588f&quot;>
+    <path d=&quot;M 283.981279 188.455256  L 302.020426 182.453535  L 320.059574 173.933595  L 338.098721 164.359518  L 356.137869 155.595228  L 374.177016 150.894015  L 392.216164 148.7817  L 410.255311 144.080486  L 428.294458 135.639304  L 446.333606 126.253033  L 464.372753 114.74233  L 482.411901 110.598477  &quot; clip-path=&quot;url(#pdafd00da0e)&quot; style=&quot;fill: none; stroke: #ffd700; stroke-width: 2.25; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;maidr-ec47451b-9d27-4c6e-b2af-ada411725253&quot;>
+    <path d=&quot;M 103.68 256.68  L 103.68 49.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-3ed93774-fe21-4071-ab25-ade86492f1ac&quot;>
+    <path d=&quot;M 518.4 256.68  L 518.4 49.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-820596b5-f59a-4456-846d-7f8e6e6cec79&quot;>
+    <path d=&quot;M 103.68 256.68  L 518.4 256.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-ebfd1fe9-5e83-423f-b8fb-70d6e18df460&quot;>
+    <path d=&quot;M 103.68 49.68  L 518.4 49.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+  </g>
+  <g id=&quot;axes_2&quot;>
+   <g id=&quot;maidr-ad482a02-b14b-412e-bfe1-c26e946e59f4&quot;>
+    <path d=&quot;M 103.68 339.48  L 518.4 339.48  L 518.4 256.68  L 103.68 256.68  z &quot; style=&quot;fill: #dce3ef&quot;/>
+   </g>
+   <g id=&quot;matplotlib.axis_3&quot;>
+    <g id=&quot;xtick_6&quot;>
+     <g id=&quot;maidr-25eabff1-6281-4810-ae2e-660d17364b79&quot;>
+      <path d=&quot;M 139.668099 339.48  L 139.668099 256.68  &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-0440892c-7bd4-4e91-b986-4b0e749ae897&quot;/>
+     <g id=&quot;text_7&quot;>
+      <!-- Jan 01, 1970 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(117.330596 398.192665) rotate(-45) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-4a&quot; d=&quot;M 1428 -63  Q 309 -63 100 1094  L 684 1191  Q 741 828 937 625  Q 1134 422 1431 422  Q 1756 422 1943 645  Q 2131 869 2131 1300  L 2131 3916  L 1284 3916  L 1284 4403  L 2725 4403  L 2725 1313  Q 2725 672 2378 304  Q 2031 -63 1428 -63  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-61&quot; d=&quot;M 1294 -63  Q 784 -63 528 206  Q 272 475 272 944  Q 272 1469 617 1750  Q 963 2031 1731 2050  L 2491 2063  L 2491 2247  Q 2491 2659 2316 2837  Q 2141 3016 1766 3016  Q 1388 3016 1216 2887  Q 1044 2759 1009 2478  L 422 2531  Q 566 3444 1778 3444  Q 2416 3444 2737 3151  Q 3059 2859 3059 2306  L 3059 850  Q 3059 600 3125 473  Q 3191 347 3375 347  Q 3456 347 3559 369  L 3559 19  Q 3347 -31 3125 -31  Q 2813 -31 2670 133  Q 2528 297 2509 647  L 2491 647  Q 2275 259 1989 98  Q 1703 -63 1294 -63  z M 1422 359  Q 1731 359 1972 500  Q 2213 641 2352 886  Q 2491 1131 2491 1391  L 2491 1669  L 1875 1656  Q 1478 1650 1273 1575  Q 1069 1500 959 1344  Q 850 1188 850 934  Q 850 659 998 509  Q 1147 359 1422 359  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-6e&quot; d=&quot;M 2578 0  L 2578 2144  Q 2578 2478 2512 2662  Q 2447 2847 2303 2928  Q 2159 3009 1881 3009  Q 1475 3009 1240 2731  Q 1006 2453 1006 1959  L 1006 0  L 444 0  L 444 2659  Q 444 3250 425 3381  L 956 3381  Q 959 3366 962 3297  Q 966 3228 970 3139  Q 975 3050 981 2803  L 991 2803  Q 1184 3153 1439 3298  Q 1694 3444 2072 3444  Q 2628 3444 2886 3167  Q 3144 2891 3144 2253  L 3144 0  L 2578 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-20&quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-39&quot; d=&quot;M 3256 2291  Q 3256 1156 2842 546  Q 2428 -63 1663 -63  Q 1147 -63 836 154  Q 525 372 391 856  L 928 941  Q 1097 391 1672 391  Q 2156 391 2422 841  Q 2688 1291 2700 2125  Q 2575 1844 2272 1673  Q 1969 1503 1606 1503  Q 1013 1503 656 1909  Q 300 2316 300 2988  Q 300 3678 687 4073  Q 1075 4469 1766 4469  Q 2500 4469 2878 3925  Q 3256 3381 3256 2291  z M 2644 2834  Q 2644 3366 2400 3689  Q 2156 4013 1747 4013  Q 1341 4013 1106 3736  Q 872 3459 872 2988  Q 872 2506 1106 2226  Q 1341 1947 1741 1947  Q 1984 1947 2193 2058  Q 2403 2169 2523 2372  Q 2644 2575 2644 2834  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-37&quot; d=&quot;M 3238 3947  Q 2563 2916 2284 2331  Q 2006 1747 1867 1178  Q 1728 609 1728 0  L 1141 0  Q 1141 844 1498 1776  Q 1856 2709 2694 3925  L 328 3925  L 328 4403  L 3238 4403  L 3238 3947  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-4a&quot;/>
+       <use xlink:href=&quot;#LiberationSans-61&quot; transform=&quot;translate(50 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-6e&quot; transform=&quot;translate(105.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(161.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(189.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(244.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(300.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(328.027344 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(355.810547 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-39&quot; transform=&quot;translate(411.425781 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-37&quot; transform=&quot;translate(467.041016 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(522.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_7&quot;>
+     <g id=&quot;maidr-838ff8a4-d401-41ad-9e4e-47cbb46dd433&quot;>
+      <path d=&quot;M 229.863836 339.48  L 229.863836 256.68  &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-96e4a3e7-b774-4254-851d-e6a3450398ec&quot;/>
+     <g id=&quot;text_8&quot;>
+      <!-- Jan 06, 1970 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(207.526333 398.192665) rotate(-45) scale(0.12 -0.12)&quot;>
+       <use xlink:href=&quot;#LiberationSans-4a&quot;/>
+       <use xlink:href=&quot;#LiberationSans-61&quot; transform=&quot;translate(50 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-6e&quot; transform=&quot;translate(105.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(161.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(189.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-36&quot; transform=&quot;translate(244.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(300.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(328.027344 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(355.810547 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-39&quot; transform=&quot;translate(411.425781 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-37&quot; transform=&quot;translate(467.041016 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(522.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_8&quot;>
+     <g id=&quot;maidr-97b7a045-ed51-4c6c-a092-4814fcac67a3&quot;>
+      <path d=&quot;M 320.059574 339.48  L 320.059574 256.68  &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-4aaf8b47-8908-4590-99c7-bb455e5d03f2&quot;/>
+     <g id=&quot;text_9&quot;>
+      <!-- Jan 11, 1970 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(298.034965 397.566876) rotate(-45) scale(0.12 -0.12)&quot;>
+       <use xlink:href=&quot;#LiberationSans-4a&quot;/>
+       <use xlink:href=&quot;#LiberationSans-61&quot; transform=&quot;translate(50 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-6e&quot; transform=&quot;translate(105.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(161.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(189.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(237.253906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(292.869141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(320.652344 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(348.435547 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-39&quot; transform=&quot;translate(404.050781 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-37&quot; transform=&quot;translate(459.666016 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(515.28125 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_9&quot;>
+     <g id=&quot;maidr-04d01f1f-e625-481f-93bd-a44d59203707&quot;>
+      <path d=&quot;M 410.255311 339.48  L 410.255311 256.68  &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-6af0c2a3-2e01-4d24-bbf0-ba19e0c4caa7&quot;/>
+     <g id=&quot;text_10&quot;>
+      <!-- Jan 16, 1970 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(387.917808 398.192665) rotate(-45) scale(0.12 -0.12)&quot;>
+       <use xlink:href=&quot;#LiberationSans-4a&quot;/>
+       <use xlink:href=&quot;#LiberationSans-61&quot; transform=&quot;translate(50 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-6e&quot; transform=&quot;translate(105.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(161.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(189.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-36&quot; transform=&quot;translate(244.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(300.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(328.027344 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(355.810547 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-39&quot; transform=&quot;translate(411.425781 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-37&quot; transform=&quot;translate(467.041016 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(522.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_10&quot;>
+     <g id=&quot;maidr-bde882a4-617b-49be-bd4a-ee949ac31f04&quot;>
+      <path d=&quot;M 500.451048 339.48  L 500.451048 256.68  &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-18f83f22-9b28-4b9a-99fb-f19425f295d9&quot;/>
+     <g id=&quot;text_11&quot;>
+      <!-- Jan 21, 1970 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(478.113545 398.192665) rotate(-45) scale(0.12 -0.12)&quot;>
+       <use xlink:href=&quot;#LiberationSans-4a&quot;/>
+       <use xlink:href=&quot;#LiberationSans-61&quot; transform=&quot;translate(50 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-6e&quot; transform=&quot;translate(105.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(161.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-32&quot; transform=&quot;translate(189.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(244.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(300.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(328.027344 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-31&quot; transform=&quot;translate(355.810547 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-39&quot; transform=&quot;translate(411.425781 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-37&quot; transform=&quot;translate(467.041016 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(522.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_12&quot;>
+     <!-- Date -->
+     <g style=&quot;fill: #262626&quot; transform=&quot;translate(295.435125 414.388861) scale(0.144 -0.144)&quot;>
+      <defs>
+       <path id=&quot;LiberationSans-Bold-44&quot; d=&quot;M 4353 2234  Q 4353 1553 4086 1045  Q 3819 538 3330 269  Q 2841 0 2209 0  L 428 0  L 428 4403  L 2022 4403  Q 3134 4403 3743 3842  Q 4353 3281 4353 2234  z M 3425 2234  Q 3425 2944 3056 3317  Q 2688 3691 2003 3691  L 1350 3691  L 1350 713  L 2131 713  Q 2725 713 3075 1122  Q 3425 1531 3425 2234  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-61&quot; d=&quot;M 1228 -63  Q 738 -63 463 204  Q 188 472 188 956  Q 188 1481 530 1756  Q 872 2031 1522 2038  L 2250 2050  L 2250 2222  Q 2250 2553 2134 2714  Q 2019 2875 1756 2875  Q 1513 2875 1398 2764  Q 1284 2653 1256 2397  L 341 2441  Q 425 2934 792 3189  Q 1159 3444 1794 3444  Q 2434 3444 2781 3128  Q 3128 2813 3128 2231  L 3128 1000  Q 3128 716 3192 608  Q 3256 500 3406 500  Q 3506 500 3600 519  L 3600 44  Q 3522 25 3459 9  Q 3397 -6 3334 -15  Q 3272 -25 3201 -31  Q 3131 -38 3038 -38  Q 2706 -38 2548 125  Q 2391 288 2359 603  L 2341 603  Q 1972 -63 1228 -63  z M 2250 1566  L 1800 1559  Q 1494 1547 1366 1492  Q 1238 1438 1170 1325  Q 1103 1213 1103 1025  Q 1103 784 1214 667  Q 1325 550 1509 550  Q 1716 550 1886 662  Q 2056 775 2153 973  Q 2250 1172 2250 1394  L 2250 1566  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-74&quot; d=&quot;M 1313 -56  Q 925 -56 715 155  Q 506 366 506 794  L 506 2788  L 78 2788  L 78 3381  L 550 3381  L 825 4175  L 1375 4175  L 1375 3381  L 2016 3381  L 2016 2788  L 1375 2788  L 1375 1031  Q 1375 784 1469 667  Q 1563 550 1759 550  Q 1863 550 2053 594  L 2053 50  Q 1728 -56 1313 -56  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#LiberationSans-Bold-44&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-61&quot; transform=&quot;translate(72.216797 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-74&quot; transform=&quot;translate(127.832031 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-65&quot; transform=&quot;translate(161.132812 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;matplotlib.axis_4&quot;>
+    <g id=&quot;ytick_6&quot;>
+     <g id=&quot;maidr-7c4c3f8e-7bbd-4b00-b143-48dc75da8728&quot;>
+      <path d=&quot;M 103.68 305.15338  L 518.4 305.15338  &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-f127c149-fbf9-4609-9f73-6f231820e58b&quot;/>
+     <g id=&quot;text_13&quot;>
+      <!-- 500,000,000 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(33.454375 309.501505) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-35&quot; d=&quot;M 3291 1434  Q 3291 738 2877 337  Q 2463 -63 1728 -63  Q 1113 -63 734 206  Q 356 475 256 984  L 825 1050  Q 1003 397 1741 397  Q 2194 397 2450 670  Q 2706 944 2706 1422  Q 2706 1838 2448 2094  Q 2191 2350 1753 2350  Q 1525 2350 1328 2278  Q 1131 2206 934 2034  L 384 2034  L 531 4403  L 3034 4403  L 3034 3925  L 1044 3925  L 959 2528  Q 1325 2809 1869 2809  Q 2519 2809 2905 2428  Q 3291 2047 3291 1434  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-35&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(55.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(111.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(166.845703 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(194.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(250.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(305.859375 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(361.474609 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(389.257812 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(444.873047 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(500.488281 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_7&quot;>
+     <g id=&quot;maidr-e0cdc32f-1148-48a1-8ce7-13c16d5a00ea&quot;>
+      <path d=&quot;M 103.68 263.698043  L 518.4 263.698043  &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-a00b3fb0-128b-4707-88a7-c75ef0154762&quot;/>
+     <g id=&quot;text_14&quot;>
+      <!-- 1,000,000,000 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(23.4475 268.046168) scale(0.12 -0.12)&quot;>
+       <use xlink:href=&quot;#LiberationSans-31&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(55.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(83.398438 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(139.013672 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(194.628906 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(250.244141 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(278.027344 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(333.642578 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(389.257812 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-2c&quot; transform=&quot;translate(444.873047 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(472.65625 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(528.271484 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(583.886719 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_15&quot;>
+     <!-- Volume -->
+     <g style=&quot;fill: #262626&quot; transform=&quot;translate(0.9489 323.553375) rotate(-90) scale(0.144 -0.144)&quot;>
+      <defs>
+       <path id=&quot;LiberationSans-Bold-56&quot; d=&quot;M 2606 0  L 1672 0  L 44 4403  L 1006 4403  L 1913 1575  Q 1997 1300 2144 744  L 2209 1013  L 2369 1575  L 3272 4403  L 4225 4403  L 2606 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-6f&quot; d=&quot;M 3659 1694  Q 3659 872 3203 404  Q 2747 -63 1941 -63  Q 1150 -63 700 406  Q 250 875 250 1694  Q 250 2509 700 2976  Q 1150 3444 1959 3444  Q 2788 3444 3223 2992  Q 3659 2541 3659 1694  z M 2741 1694  Q 2741 2297 2544 2569  Q 2347 2841 1972 2841  Q 1172 2841 1172 1694  Q 1172 1128 1367 833  Q 1563 538 1931 538  Q 2741 538 2741 1694  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-6c&quot; d=&quot;M 447 0  L 447 4638  L 1325 4638  L 1325 0  L 447 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-75&quot; d=&quot;M 1275 3381  L 1275 1484  Q 1275 594 1875 594  Q 2194 594 2389 867  Q 2584 1141 2584 1569  L 2584 3381  L 3463 3381  L 3463 756  Q 3463 325 3488 0  L 2650 0  Q 2613 450 2613 672  L 2597 672  Q 2422 288 2151 112  Q 1881 -63 1509 -63  Q 972 -63 684 267  Q 397 597 397 1234  L 397 3381  L 1275 3381  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-6d&quot; d=&quot;M 2438 0  L 2438 1897  Q 2438 2788 1925 2788  Q 1659 2788 1492 2516  Q 1325 2244 1325 1813  L 1325 0  L 447 0  L 447 2625  Q 447 2897 439 3070  Q 431 3244 422 3381  L 1259 3381  Q 1269 3322 1284 3064  Q 1300 2806 1300 2709  L 1313 2709  Q 1475 3097 1717 3272  Q 1959 3447 2297 3447  Q 3072 3447 3238 2709  L 3256 2709  Q 3428 3103 3668 3275  Q 3909 3447 4281 3447  Q 4775 3447 5034 3111  Q 5294 2775 5294 2147  L 5294 0  L 4422 0  L 4422 1897  Q 4422 2788 3909 2788  Q 3653 2788 3489 2539  Q 3325 2291 3309 1853  L 3309 0  L 2438 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#LiberationSans-Bold-56&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-6f&quot; transform=&quot;translate(59.324219 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-6c&quot; transform=&quot;translate(120.408203 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-75&quot; transform=&quot;translate(148.191406 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-6d&quot; transform=&quot;translate(209.275391 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-65&quot; transform=&quot;translate(298.191406 0)&quot;/>
+     </g>
+     <!--   $10^{6}$ -->
+     <g style=&quot;fill: #262626&quot; transform=&quot;translate(16.4595 314.784) rotate(-90) scale(0.144 -0.144)&quot;>
+      <defs>
+       <path id=&quot;LiberationSans-Bold-20&quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-31&quot; d=&quot;M 794 531  L 1825 531  L 1825 4091  L 703 3866  L 703 4441  L 1819 4666  L 2450 4666  L 2450 531  L 3481 531  L 3481 0  L 794 0  L 794 531  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-30&quot; d=&quot;M 2034 4250  Q 1547 4250 1301 3770  Q 1056 3291 1056 2328  Q 1056 1369 1301 889  Q 1547 409 2034 409  Q 2525 409 2770 889  Q 3016 1369 3016 2328  Q 3016 3291 2770 3770  Q 2525 4250 2034 4250  z M 2034 4750  Q 2819 4750 3233 4129  Q 3647 3509 3647 2328  Q 3647 1150 3233 529  Q 2819 -91 2034 -91  Q 1250 -91 836 529  Q 422 1150 422 2328  Q 422 3509 836 4129  Q 1250 4750 2034 4750  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-36&quot; d=&quot;M 2113 2584  Q 1688 2584 1439 2293  Q 1191 2003 1191 1497  Q 1191 994 1439 701  Q 1688 409 2113 409  Q 2538 409 2786 701  Q 3034 994 3034 1497  Q 3034 2003 2786 2293  Q 2538 2584 2113 2584  z M 3366 4563  L 3366 3988  Q 3128 4100 2886 4159  Q 2644 4219 2406 4219  Q 1781 4219 1451 3797  Q 1122 3375 1075 2522  Q 1259 2794 1537 2939  Q 1816 3084 2150 3084  Q 2853 3084 3261 2657  Q 3669 2231 3669 1497  Q 3669 778 3244 343  Q 2819 -91 2113 -91  Q 1303 -91 875 529  Q 447 1150 447 2328  Q 447 3434 972 4092  Q 1497 4750 2381 4750  Q 2619 4750 2861 4703  Q 3103 4656 3366 4563  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#LiberationSans-Bold-20&quot; transform=&quot;translate(0 0.765625)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-20&quot; transform=&quot;translate(27.783203 0.765625)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-31&quot; transform=&quot;translate(55.566406 0.765625)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(119.189453 0.765625)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-36&quot; transform=&quot;translate(183.769531 39.046875) scale(0.7)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;maidr-eb4cf4a0-2b13-4a66-95b4-69d196c042e0&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 130.828917 346.608717  L 148.507281 346.608717  L 148.507281 304.299297  L 130.828917 304.299297  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-085f2428-933b-4445-bd98-a59558b3d8c9&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 148.868064 346.608717  L 166.546429 346.608717  L 166.546429 303.093142  L 148.868064 303.093142  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-42d77488-63b4-4d66-8876-63747732c2f8&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 166.907212 346.608717  L 184.585576 346.608717  L 184.585576 298.05336  L 166.907212 298.05336  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-056382f4-051e-4ec2-9a85-953f22acb8a3&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 184.946359 346.608717  L 202.624724 346.608717  L 202.624724 301.481388  L 184.946359 301.481388  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-d6c89c95-b196-429d-9612-3798c317d0f7&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 202.985507 346.608717  L 220.663871 346.608717  L 220.663871 299.671499  L 202.985507 299.671499  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-90f3f4b1-4f45-4013-be26-01bb6b018d38&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 221.024654 346.608717  L 238.703019 346.608717  L 238.703019 308.407039  L 221.024654 308.407039  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-2451752c-acab-42c9-9c62-d5b86b3f8199&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 239.063802 346.608717  L 256.742166 346.608717  L 256.742166 316.259729  L 239.063802 316.259729  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-c46c8c2b-03b6-4710-8ed4-f3b6c46bce49&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 257.102949 346.608717  L 274.781314 346.608717  L 274.781314 310.546413  L 257.102949 310.546413  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-b0a5f775-1cf6-4eb8-8578-66ae18f43996&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 275.142097 346.608717  L 292.820461 346.608717  L 292.820461 308.91691  L 275.142097 308.91691  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-84237183-e005-420c-bea5-3d9fa3321a60&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 293.181244 346.608717  L 310.859609 346.608717  L 310.859609 312.748791  L 293.181244 312.748791  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-8d0a97c4-d8a3-4cd8-b2e9-692faa07c30d&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 311.220391 346.608717  L 328.898756 346.608717  L 328.898756 298.594742  L 311.220391 298.594742  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-c546f7eb-83c1-40a5-aaba-8e6f11b56134&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 329.259539 346.608717  L 346.937903 346.608717  L 346.937903 303.35169  L 329.259539 303.35169  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-59bb498f-3433-4ca6-9373-9ff22289da27&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 347.298686 346.608717  L 364.977051 346.608717  L 364.977051 304.062853  L 347.298686 304.062853  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-e9d792ce-7ce2-49f5-b3d6-0bf7978191ac&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 365.337834 346.608717  L 383.016198 346.608717  L 383.016198 283.894338  L 365.337834 283.894338  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-206fab2e-f865-4d8a-821a-5e4cad4e304b&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 383.376981 346.608717  L 401.055346 346.608717  L 401.055346 307.073908  L 383.376981 307.073908  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-ee634871-316d-46b5-8632-ef60b0ccad28&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 401.416129 346.608717  L 419.094493 346.608717  L 419.094493 311.949739  L 401.416129 311.949739  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-36c7a9d9-2371-4969-a75d-9514adda8bf0&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 419.455276 346.608717  L 437.133641 346.608717  L 437.133641 304.015119  L 419.455276 304.015119  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-fc548287-974a-409e-84fb-f4b3cfd58860&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 437.494424 346.608717  L 455.172788 346.608717  L 455.172788 264.855338  L 437.494424 264.855338  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-0b520124-eef6-4c69-902a-c15f8d8aafda&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 455.533571 346.608717  L 473.211936 346.608717  L 473.211936 311.632522  L 455.533571 311.632522  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-75f71a92-4061-4375-a23f-8afd86384ccf&quot; maidr=&quot;35fa3201-0c1d-47e1-8877-ea0fe579ba24&quot;>
+    <path d=&quot;M 473.572719 346.608717  L 491.251083 346.608717  L 491.251083 322.846328  L 473.572719 322.846328  z &quot; clip-path=&quot;url(#p25c3a755f8)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-80aee47f-c84e-4f37-8a33-d64af70cea04&quot;>
+    <path d=&quot;M 103.68 339.48  L 103.68 256.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-1178625e-92f2-4f75-9a88-6277bdd32713&quot;>
+    <path d=&quot;M 518.4 339.48  L 518.4 256.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-1092e0a8-60c0-418a-85ae-939e703b01a9&quot;>
+    <path d=&quot;M 103.68 339.48  L 518.4 339.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-706152e2-c4a4-4059-aea3-0778d6e51c13&quot;>
+    <path d=&quot;M 103.68 256.68  L 518.4 256.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+  </g>
+  <g id=&quot;text_16&quot;>
+   <!-- Stock Price with Volume -->
+   <g style=&quot;fill: #262626&quot; transform=&quot;translate(188.2944 12.7485) scale(0.1728 -0.1728)&quot;>
+    <defs>
+     <path id=&quot;LiberationSans-Bold-53&quot; d=&quot;M 4019 1269  Q 4019 622 3539 279  Q 3059 -63 2131 -63  Q 1284 -63 803 237  Q 322 538 184 1147  L 1075 1294  Q 1166 944 1428 786  Q 1691 628 2156 628  Q 3122 628 3122 1216  Q 3122 1403 3011 1525  Q 2900 1647 2698 1728  Q 2497 1809 1925 1925  Q 1431 2041 1237 2111  Q 1044 2181 887 2276  Q 731 2372 622 2506  Q 513 2641 452 2822  Q 391 3003 391 3238  Q 391 3834 839 4151  Q 1288 4469 2144 4469  Q 2963 4469 3373 4212  Q 3784 3956 3903 3366  L 3009 3244  Q 2941 3528 2730 3672  Q 2519 3816 2125 3816  Q 1288 3816 1288 3291  Q 1288 3119 1377 3009  Q 1466 2900 1641 2823  Q 1816 2747 2350 2631  Q 2984 2497 3257 2383  Q 3531 2269 3690 2117  Q 3850 1966 3934 1755  Q 4019 1544 4019 1269  z &quot; transform=&quot;scale(0.015625)&quot;/>
+     <path id=&quot;LiberationSans-Bold-6b&quot; d=&quot;M 2606 0  L 1703 1531  L 1325 1269  L 1325 0  L 447 0  L 447 4638  L 1325 4638  L 1325 1981  L 2531 3381  L 3475 3381  L 2288 2063  L 3566 0  L 2606 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+     <path id=&quot;LiberationSans-Bold-77&quot; d=&quot;M 4103 0  L 3175 0  L 2638 2063  Q 2600 2203 2491 2756  L 2328 2056  L 1784 0  L 856 0  L -19 3381  L 806 3381  L 1363 797  L 1406 1028  L 1484 1394  L 2016 3381  L 2956 3381  L 3475 1394  Q 3519 1231 3603 797  L 3691 1209  L 4178 3381  L 4991 3381  L 4103 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+     <path id=&quot;LiberationSans-Bold-68&quot; d=&quot;M 1313 2706  Q 1491 3094 1759 3269  Q 2028 3444 2400 3444  Q 2938 3444 3225 3112  Q 3513 2781 3513 2144  L 3513 0  L 2638 0  L 2638 1894  Q 2638 2784 2034 2784  Q 1716 2784 1520 2511  Q 1325 2238 1325 1809  L 1325 0  L 447 0  L 447 4638  L 1325 4638  L 1325 3372  Q 1325 3031 1300 2706  L 1313 2706  z &quot; transform=&quot;scale(0.015625)&quot;/>
+    </defs>
+    <use xlink:href=&quot;#LiberationSans-Bold-53&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-74&quot; transform=&quot;translate(66.699219 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-6f&quot; transform=&quot;translate(100 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-63&quot; transform=&quot;translate(161.083984 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-6b&quot; transform=&quot;translate(216.699219 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-20&quot; transform=&quot;translate(272.314453 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-50&quot; transform=&quot;translate(300.097656 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-72&quot; transform=&quot;translate(366.796875 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-69&quot; transform=&quot;translate(405.712891 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-63&quot; transform=&quot;translate(433.496094 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-65&quot; transform=&quot;translate(489.111328 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-20&quot; transform=&quot;translate(544.726562 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-77&quot; transform=&quot;translate(572.509766 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-69&quot; transform=&quot;translate(650.292969 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-74&quot; transform=&quot;translate(678.076172 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-68&quot; transform=&quot;translate(711.376953 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-20&quot; transform=&quot;translate(772.460938 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-56&quot; transform=&quot;translate(800.244141 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-6f&quot; transform=&quot;translate(859.568359 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-6c&quot; transform=&quot;translate(920.652344 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-75&quot; transform=&quot;translate(948.435547 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-6d&quot; transform=&quot;translate(1009.519531 0)&quot;/>
+    <use xlink:href=&quot;#LiberationSans-Bold-65&quot; transform=&quot;translate(1098.435547 0)&quot;/>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id=&quot;pdafd00da0e&quot;>
+   <rect x=&quot;103.68&quot; y=&quot;49.68&quot; width=&quot;414.72&quot; height=&quot;207&quot;/>
+  </clipPath>
+  <clipPath id=&quot;p25c3a755f8&quot;>
+   <rect x=&quot;103.68&quot; y=&quot;256.68&quot; width=&quot;414.72&quot; height=&quot;82.8&quot;/>
+  </clipPath>
+ </defs>
+</svg>
+</div>
+</div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
+        function resizeIframe() {
+            let iframe = document.getElementById('iframe_ed445e62-8096-4e76-9b24-c3cd3369b0dd');
+            if (
+                iframe &amp;&amp; iframe.contentWindow &amp;&amp;
+                iframe.contentWindow.document
+            ) {
+                let iframeDocument = iframe.contentWindow.document;
+                let body = iframeDocument.body;
+                let de = iframeDocument.documentElement;
+
+                iframe.style.height = 'auto';
+
+                // Use Math.max() across multiple DOM measurements (industry standard)
+                let height = Math.max(
+                    body.scrollHeight || 0,
+                    body.offsetHeight || 0,
+                    de.scrollHeight || 0,
+                    de.offsetHeight || 0,
+                    de.clientHeight || 0
+                );
+
+                // Scan specific MAIDR elements with getBoundingClientRect()
+                // This ensures elements with overflow:visible parents are included
+                let selectors = [
+                    '#maidr-rotor-area',
+                    '#maidr-text-container',
+                    '[id^=&quot;maidr-braille-textarea&quot;]',
+                    '.maidr-review-input'
+                ];
+                for (let i = 0; i < selectors.length; i++) {
+                    let el = iframeDocument.querySelector(selectors[i]);
+                    if (el) {
+                        let rect = el.getBoundingClientRect();
+                        let bottom = rect.bottom + (iframe.contentWindow.scrollY || 0);
+                        if (bottom > height) {
+                            height = bottom;
+                        }
+                    }
+                }
+
+                // Detect braille textarea by dynamic id prefix
+                let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                // Detect review input container by class name
+                let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
+                // Consider braille active if it or any descendant has focus
+                let isBrailleActive = brailleContainer &amp;&amp; (
+                    brailleContainer === iframeDocument.activeElement ||
+                    (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                );
+                // Consider review input active if it or any descendant has focus
+                let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                    reviewInputContainer === iframeDocument.activeElement ||
+                    (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                );
+
+                // Add buffer for active states (rotor-area height is measured directly above)
+                if (isBrailleActive) {
+                    height += 100;
+                } else if (isReviewInputActive) {
+                    height += 50;
+                }
+                iframe.style.height = (height) + 'px';
+                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+            }
+        }
+        let iframe = document.getElementById('iframe_ed445e62-8096-4e76-9b24-c3cd3369b0dd');
+        resizeIframe();
+        iframe.onload = function() {
+            resizeIframe();
+            iframe.contentWindow.addEventListener('resize', resizeIframe);
+        };
+        // Delegate focus events for braille textarea (by id prefix)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Delegate focus events for review input container (by class name)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Modern resize detection: ResizeObserver with MutationObserver fallback
+        try {
+            let rafId = 0;
+            let scheduleResize = function() {
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(function() {
+                    resizeIframe();
+                });
+            };
+
+            // Try ResizeObserver first (modern, more efficient)
+            if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {
+                new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body
+                );
+            } else {
+                // Fallback to MutationObserver (observe entire document for all changes)
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body,
+                    { childList: true, subtree: true, characterData: true, attributes: true }
+                );
+            }
+        } catch (_) {}
+    "></iframe>
+</div>
+</div>
+</section>
+<section id="gantt-chart" class="level2">
+<h2 class="anchored" data-anchor-id="gantt-chart">Gantt Chart</h2>
+<div class="callout callout-style-default callout-warning callout-titled" title="Prototype">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Prototype
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This is one of the experimental plot types. It has not been through a user study, and it may change without a deprecation period. See <a href="../stability.html">Plot type stability</a>.</p>
+</div>
+</div>
+<p><code>ax.broken_barh()</code> draws horizontal bars that start and stop along an axis, which is what a schedule looks like. maidr reads it as a gantt: every bar is a <strong>span</strong>, carrying both its start and its end rather than a single position, so a reader hears when a task begins, when it finishes, and therefore how long it runs.</p>
+<p>The whole chart is one layer, organised into <strong>lanes</strong>. Each <code>broken_barh()</code> call contributes one lane, and the spans passed in that call are the spans of that lane — so a phase that stops and restarts is two spans on one lane, not two separate rows.</p>
+<div id="2cb93bc8" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="3,9,10,11,19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr </span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>))</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># One call is one lane. A lane can hold several spans: "Build" runs for four</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># weeks, pauses for one, then resumes for three.</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>ax.broken_barh([(<span class="dv">0</span>, <span class="dv">3</span>)], (<span class="dv">10</span>, <span class="dv">6</span>)) </span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>ax.broken_barh([(<span class="dv">3</span>, <span class="dv">4</span>), (<span class="dv">8</span>, <span class="dv">3</span>)], (<span class="dv">20</span>, <span class="dv">6</span>)) </span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>ax.broken_barh([(<span class="dv">11</span>, <span class="dv">2</span>)], (<span class="dv">30</span>, <span class="dv">6</span>)) </span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"Week"</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"Phase"</span>)</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>ax.set_yticks([<span class="dv">13</span>, <span class="dv">23</span>, <span class="dv">33</span>])</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>ax.set_yticklabels([<span class="st">"Design"</span>, <span class="st">"Build"</span>, <span class="st">"Launch"</span>])</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"Project schedule"</span>)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>plt.show() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<iframe id="iframe_ed3b668d-978b-46cc-904c-3bd65f8fc623" title="Project schedule, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+  <script type=&quot;text/javascript&quot;>
+                (function() {
+                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js&quot;]');
+                    if (!existing) {
+                        var s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js';
+                        s.onload = function() { if (window.main) window.main(); };
+                        document.head.appendChild(s);
+                    } else {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function() { if (window.main) window.main(); });
+                        } else {
+                            if (window.main) window.main();
+                        }
+                    }
+                })();
+            </script>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;576pt&quot; height=&quot;288pt&quot; viewBox=&quot;0 0 576 288&quot; version=&quot;1.1&quot; id=&quot;8243129d-f6fd-4dae-9d67-a12f566bca51&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;8243129d-f6fd-4dae-9d67-a12f566bca51&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;0e58dde9-417b-488d-bd0f-d1f05c300fe1&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;4dcbfbed-ec22-41de-82c5-d760366c53a5&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;gantt&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Project schedule&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Week&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Phase&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;return String(value)&amp;quot;}}}, &amp;quot;data&amp;quot;: {&amp;quot;points&amp;quot;: [[{&amp;quot;x&amp;quot;: &amp;quot;Design&amp;quot;, &amp;quot;start&amp;quot;: 0.0, &amp;quot;end&amp;quot;: 3.0}], [{&amp;quot;x&amp;quot;: &amp;quot;Build&amp;quot;, &amp;quot;start&amp;quot;: 3.0, &amp;quot;end&amp;quot;: 7.0}, {&amp;quot;x&amp;quot;: &amp;quot;Build&amp;quot;, &amp;quot;start&amp;quot;: 8.0, &amp;quot;end&amp;quot;: 11.0}], [{&amp;quot;x&amp;quot;: &amp;quot;Launch&amp;quot;, &amp;quot;start&amp;quot;: 11.0, &amp;quot;end&amp;quot;: 13.0}]], &amp;quot;lanes&amp;quot;: [&amp;quot;Design&amp;quot;, &amp;quot;Build&amp;quot;, &amp;quot;Launch&amp;quot;]}, &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-063d3617-855d-4040-8595-a91579d2f083'] &amp;gt; path&amp;quot;, &amp;quot;g[id='maidr-73eb7945-3cdd-4878-be11-decfe90b9f1f'] &amp;gt; path&amp;quot;, &amp;quot;g[id='maidr-2045ac85-a912-4e6a-b85f-12515e94e898'] &amp;gt; path&amp;quot;]}]}]]}&quot;>
+ <metadata>
+  <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
+   <cc:Work>
+    <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
+    <dc:date>2026-09-06T10:27:22.599147</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.9, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id=&quot;figure_1&quot;>
+  <g id=&quot;maidr-e62ab20a-6568-4c78-acf5-2eeadc04e2ae&quot;>
+   <path d=&quot;M 0 288  L 576 288  L 576 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
+  </g>
+  <g id=&quot;axes_1&quot;>
+   <g id=&quot;maidr-d477091c-bc6c-41a6-92a4-a8912aef4781&quot;>
+    <path d=&quot;M 72 256.32  L 518.4 256.32  L 518.4 34.56  L 72 34.56  z &quot; style=&quot;fill: #dce3ef&quot;/>
+   </g>
+   <g id=&quot;matplotlib.axis_1&quot;>
+    <g id=&quot;xtick_1&quot;>
+     <g id=&quot;maidr-d8e149f3-26e2-4c51-bfe3-0b080c39fb24&quot;>
+      <path d=&quot;M 92.290909 256.32  L 92.290909 34.56  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-18e155a3-2aec-478a-9836-0985f69c7214&quot;/>
+     <g id=&quot;text_1&quot;>
+      <!-- 0 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(88.954347 268.51625) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-30&quot; d=&quot;M 3309 2203  Q 3309 1100 2920 518  Q 2531 -63 1772 -63  Q 1013 -63 631 515  Q 250 1094 250 2203  Q 250 3338 620 3903  Q 991 4469 1791 4469  Q 2569 4469 2939 3897  Q 3309 3325 3309 2203  z M 2738 2203  Q 2738 3156 2517 3584  Q 2297 4013 1791 4013  Q 1272 4013 1045 3591  Q 819 3169 819 2203  Q 819 1266 1048 831  Q 1278 397 1778 397  Q 2275 397 2506 840  Q 2738 1284 2738 2203  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-30&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_2&quot;>
+     <g id=&quot;maidr-9a00674b-6924-40da-9e95-dbac4f1fca7c&quot;>
+      <path d=&quot;M 154.724476 256.32  L 154.724476 34.56  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-55cb8f32-ad3e-4e92-bb4e-3c820707262a&quot;/>
+     <g id=&quot;text_2&quot;>
+      <!-- 2 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(151.387913 268.51625) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-32&quot; d=&quot;M 322 0  L 322 397  Q 481 763 711 1042  Q 941 1322 1194 1548  Q 1447 1775 1695 1969  Q 1944 2163 2144 2356  Q 2344 2550 2467 2762  Q 2591 2975 2591 3244  Q 2591 3606 2378 3806  Q 2166 4006 1788 4006  Q 1428 4006 1195 3811  Q 963 3616 922 3263  L 347 3316  Q 409 3844 795 4156  Q 1181 4469 1788 4469  Q 2453 4469 2811 4155  Q 3169 3841 3169 3263  Q 3169 3006 3051 2753  Q 2934 2500 2703 2247  Q 2472 1994 1819 1463  Q 1459 1169 1246 933  Q 1034 697 941 478  L 3238 478  L 3238 0  L 322 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-32&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_3&quot;>
+     <g id=&quot;maidr-a44e3589-71e4-4ba4-b88e-493d35861024&quot;>
+      <path d=&quot;M 217.158042 256.32  L 217.158042 34.56  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-8da28c66-2281-4d9d-b398-07f42f25f1b8&quot;/>
+     <g id=&quot;text_3&quot;>
+      <!-- 4 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(213.821479 268.51625) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-34&quot; d=&quot;M 2753 997  L 2753 0  L 2222 0  L 2222 997  L 147 997  L 147 1434  L 2163 4403  L 2753 4403  L 2753 1441  L 3372 1441  L 3372 997  L 2753 997  z M 2222 3769  Q 2216 3750 2134 3603  Q 2053 3456 2013 3397  L 884 1734  L 716 1503  L 666 1441  L 2222 1441  L 2222 3769  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-34&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_4&quot;>
+     <g id=&quot;maidr-0754d39b-83ea-4c55-83e5-053d7542aa25&quot;>
+      <path d=&quot;M 279.591608 256.32  L 279.591608 34.56  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-9b8ab58d-07ba-47c5-b790-58debc1c8b22&quot;/>
+     <g id=&quot;text_4&quot;>
+      <!-- 6 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(276.255046 268.51625) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-36&quot; d=&quot;M 3278 1441  Q 3278 744 2900 340  Q 2522 -63 1856 -63  Q 1113 -63 719 490  Q 325 1044 325 2100  Q 325 3244 734 3856  Q 1144 4469 1900 4469  Q 2897 4469 3156 3572  L 2619 3475  Q 2453 4013 1894 4013  Q 1413 4013 1148 3564  Q 884 3116 884 2266  Q 1038 2550 1316 2698  Q 1594 2847 1953 2847  Q 2563 2847 2920 2465  Q 3278 2084 3278 1441  z M 2706 1416  Q 2706 1894 2472 2153  Q 2238 2413 1819 2413  Q 1425 2413 1183 2183  Q 941 1953 941 1550  Q 941 1041 1192 716  Q 1444 391 1838 391  Q 2244 391 2475 664  Q 2706 938 2706 1416  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-36&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_5&quot;>
+     <g id=&quot;maidr-fc441761-6fce-4c86-b435-d5cf543a6a95&quot;>
+      <path d=&quot;M 342.025175 256.32  L 342.025175 34.56  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-722321c6-2d28-4b7e-9855-c1ea75fcd412&quot;/>
+     <g id=&quot;text_5&quot;>
+      <!-- 8 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(338.688612 268.51625) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-38&quot; d=&quot;M 3281 1228  Q 3281 619 2893 278  Q 2506 -63 1781 -63  Q 1075 -63 676 271  Q 278 606 278 1222  Q 278 1653 525 1947  Q 772 2241 1156 2303  L 1156 2316  Q 797 2400 589 2681  Q 381 2963 381 3341  Q 381 3844 757 4156  Q 1134 4469 1769 4469  Q 2419 4469 2795 4162  Q 3172 3856 3172 3334  Q 3172 2956 2962 2675  Q 2753 2394 2391 2322  L 2391 2309  Q 2813 2241 3047 1952  Q 3281 1663 3281 1228  z M 2588 3303  Q 2588 4050 1769 4050  Q 1372 4050 1164 3862  Q 956 3675 956 3303  Q 956 2925 1170 2726  Q 1384 2528 1775 2528  Q 2172 2528 2380 2711  Q 2588 2894 2588 3303  z M 2697 1281  Q 2697 1691 2453 1898  Q 2209 2106 1769 2106  Q 1341 2106 1100 1882  Q 859 1659 859 1269  Q 859 359 1788 359  Q 2247 359 2472 579  Q 2697 800 2697 1281  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-38&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_6&quot;>
+     <g id=&quot;maidr-6e02109e-a711-4365-b457-ded338a57f62&quot;>
+      <path d=&quot;M 404.458741 256.32  L 404.458741 34.56  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-b5506b7a-ddc8-443f-a849-710bad766873&quot;/>
+     <g id=&quot;text_6&quot;>
+      <!-- 10 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(397.785616 268.51625) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-31&quot; d=&quot;M 488 0  L 488 478  L 1609 478  L 1609 3866  L 616 3156  L 616 3688  L 1656 4403  L 2175 4403  L 2175 478  L 3247 478  L 3247 0  L 488 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-31&quot;/>
+       <use xlink:href=&quot;#LiberationSans-30&quot; transform=&quot;translate(55.615234 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_7&quot;>
+     <g id=&quot;maidr-c80891a5-b2fd-41be-941a-c6bbc4185f06&quot;>
+      <path d=&quot;M 466.892308 256.32  L 466.892308 34.56  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-a394e40b-ac26-47e3-8c3d-c32a1c231f79&quot;/>
+     <g id=&quot;text_7&quot;>
+      <!-- 12 -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(460.219183 268.51625) scale(0.12 -0.12)&quot;>
+       <use xlink:href=&quot;#LiberationSans-31&quot;/>
+       <use xlink:href=&quot;#LiberationSans-32&quot; transform=&quot;translate(55.615234 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_8&quot;>
+     <!-- Week -->
+     <g style=&quot;fill: #262626&quot; transform=&quot;translate(276.51825 285.44175) scale(0.144 -0.144)&quot;>
+      <defs>
+       <path id=&quot;LiberationSans-Bold-57&quot; d=&quot;M 4897 0  L 3803 0  L 3206 2547  Q 3097 2997 3022 3488  Q 2947 3078 2900 2864  Q 2853 2650 2234 0  L 1141 0  L 6 4403  L 941 4403  L 1578 1559  L 1722 872  Q 1809 1306 1892 1701  Q 1975 2097 2516 4403  L 3547 4403  L 4103 2059  Q 4169 1797 4325 872  L 4403 1234  L 4569 1953  L 5100 4403  L 6034 4403  L 4897 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-65&quot; d=&quot;M 1831 -63  Q 1069 -63 659 389  Q 250 841 250 1706  Q 250 2544 665 2994  Q 1081 3444 1844 3444  Q 2572 3444 2956 2961  Q 3341 2478 3341 1547  L 3341 1522  L 1172 1522  Q 1172 1028 1355 776  Q 1538 525 1875 525  Q 2341 525 2463 928  L 3291 856  Q 2931 -63 1831 -63  z M 1831 2891  Q 1522 2891 1355 2675  Q 1188 2459 1178 2072  L 2491 2072  Q 2466 2481 2294 2686  Q 2122 2891 1831 2891  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-6b&quot; d=&quot;M 2606 0  L 1703 1531  L 1325 1269  L 1325 0  L 447 0  L 447 4638  L 1325 4638  L 1325 1981  L 2531 3381  L 3475 3381  L 2288 2063  L 3566 0  L 2606 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#LiberationSans-Bold-57&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-65&quot; transform=&quot;translate(92.634766 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-65&quot; transform=&quot;translate(148.25 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-6b&quot; transform=&quot;translate(203.865234 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;matplotlib.axis_2&quot;>
+    <g id=&quot;ytick_1&quot;>
+     <g id=&quot;maidr-faeb9edd-6221-4675-998a-8f1b199a1550&quot;>
+      <path d=&quot;M 72 222.978462  L 518.4 222.978462  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-3e4567eb-1943-4027-bef4-d29fa3918a09&quot;/>
+     <g id=&quot;text_9&quot;>
+      <!-- Design -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(31.148125 227.326587) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-44&quot; d=&quot;M 4316 2247  Q 4316 1566 4050 1055  Q 3784 544 3296 272  Q 2809 0 2172 0  L 525 0  L 525 4403  L 1981 4403  Q 3100 4403 3708 3842  Q 4316 3281 4316 2247  z M 3716 2247  Q 3716 3066 3267 3495  Q 2819 3925 1969 3925  L 1122 3925  L 1122 478  L 2103 478  Q 2588 478 2955 690  Q 3322 903 3519 1303  Q 3716 1703 3716 2247  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-65&quot; d=&quot;M 863 1572  Q 863 991 1103 675  Q 1344 359 1806 359  Q 2172 359 2392 506  Q 2613 653 2691 878  L 3184 738  Q 2881 -63 1806 -63  Q 1056 -63 664 384  Q 272 831 272 1713  Q 272 2550 664 2997  Q 1056 3444 1784 3444  Q 3275 3444 3275 1647  L 3275 1572  L 863 1572  z M 2694 2003  Q 2647 2538 2422 2783  Q 2197 3028 1775 3028  Q 1366 3028 1127 2754  Q 888 2481 869 2003  L 2694 2003  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-73&quot; d=&quot;M 2969 934  Q 2969 456 2608 196  Q 2247 -63 1597 -63  Q 966 -63 623 145  Q 281 353 178 794  L 675 891  Q 747 619 972 492  Q 1197 366 1597 366  Q 2025 366 2223 497  Q 2422 628 2422 891  Q 2422 1091 2284 1216  Q 2147 1341 1841 1422  L 1438 1528  Q 953 1653 748 1773  Q 544 1894 428 2066  Q 313 2238 313 2488  Q 313 2950 642 3192  Q 972 3434 1603 3434  Q 2163 3434 2492 3237  Q 2822 3041 2909 2606  L 2403 2544  Q 2356 2769 2151 2889  Q 1947 3009 1603 3009  Q 1222 3009 1040 2893  Q 859 2778 859 2544  Q 859 2400 934 2306  Q 1009 2213 1156 2147  Q 1303 2081 1775 1966  Q 2222 1853 2419 1758  Q 2616 1663 2730 1547  Q 2844 1431 2906 1279  Q 2969 1128 2969 934  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-69&quot; d=&quot;M 428 4100  L 428 4638  L 991 4638  L 991 4100  L 428 4100  z M 428 0  L 428 3381  L 991 3381  L 991 0  L 428 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-67&quot; d=&quot;M 1713 -1328  Q 1159 -1328 831 -1111  Q 503 -894 409 -494  L 975 -413  Q 1031 -647 1223 -773  Q 1416 -900 1728 -900  Q 2569 -900 2569 84  L 2569 628  L 2563 628  Q 2403 303 2125 139  Q 1847 -25 1475 -25  Q 853 -25 561 387  Q 269 800 269 1684  Q 269 2581 583 3007  Q 897 3434 1538 3434  Q 1897 3434 2161 3270  Q 2425 3106 2569 2803  L 2575 2803  Q 2575 2897 2587 3128  Q 2600 3359 2613 3381  L 3147 3381  Q 3128 3213 3128 2681  L 3128 97  Q 3128 -1328 1713 -1328  z M 2569 1691  Q 2569 2103 2456 2401  Q 2344 2700 2139 2858  Q 1934 3016 1675 3016  Q 1244 3016 1047 2703  Q 850 2391 850 1691  Q 850 997 1034 694  Q 1219 391 1666 391  Q 1931 391 2137 547  Q 2344 703 2456 995  Q 2569 1288 2569 1691  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-6e&quot; d=&quot;M 2578 0  L 2578 2144  Q 2578 2478 2512 2662  Q 2447 2847 2303 2928  Q 2159 3009 1881 3009  Q 1475 3009 1240 2731  Q 1006 2453 1006 1959  L 1006 0  L 444 0  L 444 2659  Q 444 3250 425 3381  L 956 3381  Q 959 3366 962 3297  Q 966 3228 970 3139  Q 975 3050 981 2803  L 991 2803  Q 1184 3153 1439 3298  Q 1694 3444 2072 3444  Q 2628 3444 2886 3167  Q 3144 2891 3144 2253  L 3144 0  L 2578 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-44&quot;/>
+       <use xlink:href=&quot;#LiberationSans-65&quot; transform=&quot;translate(72.216797 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-73&quot; transform=&quot;translate(127.832031 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-69&quot; transform=&quot;translate(177.832031 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-67&quot; transform=&quot;translate(200.048828 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-6e&quot; transform=&quot;translate(255.664062 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_2&quot;>
+     <g id=&quot;maidr-eaf8103b-2b4b-49dc-abe8-4c6337c19739&quot;>
+      <path d=&quot;M 72 145.44  L 518.4 145.44  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-3e57d4b2-a551-45a9-86a8-50e234384d05&quot;/>
+     <g id=&quot;text_10&quot;>
+      <!-- Build -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(41.816875 149.788125) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-42&quot; d=&quot;M 3931 1241  Q 3931 653 3503 326  Q 3075 0 2313 0  L 525 0  L 525 4403  L 2125 4403  Q 3675 4403 3675 3334  Q 3675 2944 3456 2678  Q 3238 2413 2838 2322  Q 3363 2259 3647 1970  Q 3931 1681 3931 1241  z M 3075 3263  Q 3075 3619 2831 3772  Q 2588 3925 2125 3925  L 1122 3925  L 1122 2531  L 2125 2531  Q 2603 2531 2839 2711  Q 3075 2891 3075 3263  z M 3328 1288  Q 3328 2066 2234 2066  L 1122 2066  L 1122 478  L 2281 478  Q 2828 478 3078 681  Q 3328 884 3328 1288  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-75&quot; d=&quot;M 981 3381  L 981 1238  Q 981 903 1047 718  Q 1113 534 1256 453  Q 1400 372 1678 372  Q 2084 372 2318 650  Q 2553 928 2553 1422  L 2553 3381  L 3116 3381  L 3116 722  Q 3116 131 3134 0  L 2603 0  Q 2600 16 2597 84  Q 2594 153 2589 242  Q 2584 331 2578 578  L 2569 578  Q 2375 228 2120 82  Q 1866 -63 1488 -63  Q 931 -63 673 214  Q 416 491 416 1128  L 416 3381  L 981 3381  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-6c&quot; d=&quot;M 431 0  L 431 4638  L 994 4638  L 994 0  L 431 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-64&quot; d=&quot;M 2566 544  Q 2409 219 2151 78  Q 1894 -63 1513 -63  Q 872 -63 570 368  Q 269 800 269 1675  Q 269 3444 1513 3444  Q 1897 3444 2153 3303  Q 2409 3163 2566 2856  L 2572 2856  L 2566 3234  L 2566 4638  L 3128 4638  L 3128 697  Q 3128 169 3147 0  L 2609 0  Q 2600 50 2589 231  Q 2578 413 2578 544  L 2566 544  z M 859 1694  Q 859 984 1046 678  Q 1234 372 1656 372  Q 2134 372 2350 703  Q 2566 1034 2566 1731  Q 2566 2403 2350 2715  Q 2134 3028 1663 3028  Q 1238 3028 1048 2714  Q 859 2400 859 1694  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-42&quot;/>
+       <use xlink:href=&quot;#LiberationSans-75&quot; transform=&quot;translate(66.699219 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-69&quot; transform=&quot;translate(122.314453 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-6c&quot; transform=&quot;translate(144.53125 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-64&quot; transform=&quot;translate(166.748047 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_3&quot;>
+     <g id=&quot;maidr-6a220c7e-5354-481f-ac70-6df156cca1ca&quot;>
+      <path d=&quot;M 72 67.901538  L 518.4 67.901538  &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     </g>
+     <g id=&quot;maidr-964ceabc-5ba8-4a5f-a673-0c2ce848e7b4&quot;/>
+     <g id=&quot;text_11&quot;>
+      <!-- Launch -->
+      <g style=&quot;fill: #262626&quot; transform=&quot;translate(29.134375 72.249663) scale(0.12 -0.12)&quot;>
+       <defs>
+        <path id=&quot;LiberationSans-4c&quot; d=&quot;M 525 0  L 525 4403  L 1122 4403  L 1122 488  L 3347 488  L 3347 0  L 525 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-61&quot; d=&quot;M 1294 -63  Q 784 -63 528 206  Q 272 475 272 944  Q 272 1469 617 1750  Q 963 2031 1731 2050  L 2491 2063  L 2491 2247  Q 2491 2659 2316 2837  Q 2141 3016 1766 3016  Q 1388 3016 1216 2887  Q 1044 2759 1009 2478  L 422 2531  Q 566 3444 1778 3444  Q 2416 3444 2737 3151  Q 3059 2859 3059 2306  L 3059 850  Q 3059 600 3125 473  Q 3191 347 3375 347  Q 3456 347 3559 369  L 3559 19  Q 3347 -31 3125 -31  Q 2813 -31 2670 133  Q 2528 297 2509 647  L 2491 647  Q 2275 259 1989 98  Q 1703 -63 1294 -63  z M 1422 359  Q 1731 359 1972 500  Q 2213 641 2352 886  Q 2491 1131 2491 1391  L 2491 1669  L 1875 1656  Q 1478 1650 1273 1575  Q 1069 1500 959 1344  Q 850 1188 850 934  Q 850 659 998 509  Q 1147 359 1422 359  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-63&quot; d=&quot;M 859 1706  Q 859 1031 1071 706  Q 1284 381 1713 381  Q 2013 381 2214 543  Q 2416 706 2463 1044  L 3031 1006  Q 2966 519 2616 228  Q 2266 -63 1728 -63  Q 1019 -63 645 385  Q 272 834 272 1694  Q 272 2547 647 2995  Q 1022 3444 1722 3444  Q 2241 3444 2583 3175  Q 2925 2906 3013 2434  L 2434 2391  Q 2391 2672 2212 2837  Q 2034 3003 1706 3003  Q 1259 3003 1059 2706  Q 859 2409 859 1706  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;LiberationSans-68&quot; d=&quot;M 991 2803  Q 1172 3134 1426 3289  Q 1681 3444 2072 3444  Q 2622 3444 2883 3170  Q 3144 2897 3144 2253  L 3144 0  L 2578 0  L 2578 2144  Q 2578 2500 2512 2673  Q 2447 2847 2297 2928  Q 2147 3009 1881 3009  Q 1484 3009 1245 2734  Q 1006 2459 1006 1994  L 1006 0  L 444 0  L 444 4638  L 1006 4638  L 1006 3431  Q 1006 3241 995 3037  Q 984 2834 981 2803  L 991 2803  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#LiberationSans-4c&quot;/>
+       <use xlink:href=&quot;#LiberationSans-61&quot; transform=&quot;translate(55.615234 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-75&quot; transform=&quot;translate(111.230469 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-6e&quot; transform=&quot;translate(166.845703 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-63&quot; transform=&quot;translate(222.460938 0)&quot;/>
+       <use xlink:href=&quot;#LiberationSans-68&quot; transform=&quot;translate(272.460938 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_12&quot;>
+     <!-- Phase -->
+     <g style=&quot;fill: #262626&quot; transform=&quot;translate(22.146375 166.651875) rotate(-90) scale(0.144 -0.144)&quot;>
+      <defs>
+       <path id=&quot;LiberationSans-Bold-50&quot; d=&quot;M 4050 3009  Q 4050 2584 3856 2250  Q 3663 1916 3302 1733  Q 2941 1550 2444 1550  L 1350 1550  L 1350 0  L 428 0  L 428 4403  L 2406 4403  Q 3197 4403 3623 4039  Q 4050 3675 4050 3009  z M 3122 2994  Q 3122 3688 2303 3688  L 1350 3688  L 1350 2259  L 2328 2259  Q 2709 2259 2915 2448  Q 3122 2638 3122 2994  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-68&quot; d=&quot;M 1313 2706  Q 1491 3094 1759 3269  Q 2028 3444 2400 3444  Q 2938 3444 3225 3112  Q 3513 2781 3513 2144  L 3513 0  L 2638 0  L 2638 1894  Q 2638 2784 2034 2784  Q 1716 2784 1520 2511  Q 1325 2238 1325 1809  L 1325 0  L 447 0  L 447 4638  L 1325 4638  L 1325 3372  Q 1325 3031 1300 2706  L 1313 2706  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-61&quot; d=&quot;M 1228 -63  Q 738 -63 463 204  Q 188 472 188 956  Q 188 1481 530 1756  Q 872 2031 1522 2038  L 2250 2050  L 2250 2222  Q 2250 2553 2134 2714  Q 2019 2875 1756 2875  Q 1513 2875 1398 2764  Q 1284 2653 1256 2397  L 341 2441  Q 425 2934 792 3189  Q 1159 3444 1794 3444  Q 2434 3444 2781 3128  Q 3128 2813 3128 2231  L 3128 1000  Q 3128 716 3192 608  Q 3256 500 3406 500  Q 3506 500 3600 519  L 3600 44  Q 3522 25 3459 9  Q 3397 -6 3334 -15  Q 3272 -25 3201 -31  Q 3131 -38 3038 -38  Q 2706 -38 2548 125  Q 2391 288 2359 603  L 2341 603  Q 1972 -63 1228 -63  z M 2250 1566  L 1800 1559  Q 1494 1547 1366 1492  Q 1238 1438 1170 1325  Q 1103 1213 1103 1025  Q 1103 784 1214 667  Q 1325 550 1509 550  Q 1716 550 1886 662  Q 2056 775 2153 973  Q 2250 1172 2250 1394  L 2250 1566  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;LiberationSans-Bold-73&quot; d=&quot;M 3297 988  Q 3297 497 2895 217  Q 2494 -63 1784 -63  Q 1088 -63 717 157  Q 347 378 225 844  L 997 959  Q 1063 719 1223 619  Q 1384 519 1784 519  Q 2153 519 2322 612  Q 2491 706 2491 906  Q 2491 1069 2355 1164  Q 2219 1259 1894 1325  Q 1150 1472 890 1598  Q 631 1725 495 1926  Q 359 2128 359 2422  Q 359 2906 732 3176  Q 1106 3447 1791 3447  Q 2394 3447 2761 3212  Q 3128 2978 3219 2534  L 2441 2453  Q 2403 2659 2256 2761  Q 2109 2863 1791 2863  Q 1478 2863 1322 2783  Q 1166 2703 1166 2516  Q 1166 2369 1286 2283  Q 1406 2197 1691 2141  Q 2088 2059 2395 1973  Q 2703 1888 2889 1769  Q 3075 1650 3186 1464  Q 3297 1278 3297 988  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#LiberationSans-Bold-50&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-68&quot; transform=&quot;translate(66.699219 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-61&quot; transform=&quot;translate(127.783203 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-73&quot; transform=&quot;translate(183.398438 0)&quot;/>
+      <use xlink:href=&quot;#LiberationSans-Bold-65&quot; transform=&quot;translate(239.013672 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;maidr-063d3617-855d-4040-8595-a91579d2f083&quot;>
+    <path d=&quot;M 92.290909 246.24  L 92.290909 199.716923  L 185.941259 199.716923  L 185.941259 246.24  z &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: #1f77b4&quot;/>
+   </g>
+   <g id=&quot;maidr-73eb7945-3cdd-4878-be11-decfe90b9f1f&quot;>
+    <path d=&quot;M 185.941259 168.701538  L 185.941259 122.178462  L 310.808392 122.178462  L 310.808392 168.701538  z &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: #1f77b4&quot;/>
+    <path d=&quot;M 342.025175 168.701538  L 342.025175 122.178462  L 435.675524 122.178462  L 435.675524 168.701538  z &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: #1f77b4&quot;/>
+   </g>
+   <g id=&quot;maidr-2045ac85-a912-4e6a-b85f-12515e94e898&quot;>
+    <path d=&quot;M 435.675524 91.163077  L 435.675524 44.64  L 498.109091 44.64  L 498.109091 91.163077  z &quot; clip-path=&quot;url(#pa9b22d55f9)&quot; style=&quot;fill: #1f77b4&quot;/>
+   </g>
+   <g id=&quot;maidr-79920655-1677-4601-8452-712f0a507d2a&quot;>
+    <path d=&quot;M 72 256.32  L 72 34.56  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-40499d76-df6b-4582-aeb9-af20a6b7d96c&quot;>
+    <path d=&quot;M 518.4 256.32  L 518.4 34.56  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-3d8b107c-b65f-4372-9c60-53b3877883cd&quot;>
+    <path d=&quot;M 72 256.32  L 518.4 256.32  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-215790b7-9c87-4946-963d-dbb56dd425b9&quot;>
+    <path d=&quot;M 72 34.56  L 518.4 34.56  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;text_13&quot;>
+    <!-- Project schedule -->
+    <g style=&quot;fill: #262626&quot; transform=&quot;translate(241.972875 28.56) scale(0.144 -0.144)&quot;>
+     <defs>
+      <path id=&quot;LiberationSans-50&quot; d=&quot;M 3931 3078  Q 3931 2453 3523 2084  Q 3116 1716 2416 1716  L 1122 1716  L 1122 0  L 525 0  L 525 4403  L 2378 4403  Q 3119 4403 3525 4056  Q 3931 3709 3931 3078  z M 3331 3072  Q 3331 3925 2306 3925  L 1122 3925  L 1122 2188  L 2331 2188  Q 3331 2188 3331 3072  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;LiberationSans-72&quot; d=&quot;M 444 0  L 444 2594  Q 444 2950 425 3381  L 956 3381  Q 981 2806 981 2691  L 994 2691  Q 1128 3125 1303 3284  Q 1478 3444 1797 3444  Q 1909 3444 2025 3413  L 2025 2897  Q 1913 2928 1725 2928  Q 1375 2928 1190 2626  Q 1006 2325 1006 1763  L 1006 0  L 444 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;LiberationSans-6f&quot; d=&quot;M 3291 1694  Q 3291 806 2900 371  Q 2509 -63 1766 -63  Q 1025 -63 647 389  Q 269 841 269 1694  Q 269 3444 1784 3444  Q 2559 3444 2925 3017  Q 3291 2591 3291 1694  z M 2700 1694  Q 2700 2394 2492 2711  Q 2284 3028 1794 3028  Q 1300 3028 1079 2704  Q 859 2381 859 1694  Q 859 1025 1076 689  Q 1294 353 1759 353  Q 2266 353 2483 678  Q 2700 1003 2700 1694  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;LiberationSans-6a&quot; d=&quot;M 428 4100  L 428 4638  L 991 4638  L 991 4100  L 428 4100  z M 991 -419  Q 991 -897 803 -1112  Q 616 -1328 241 -1328  Q 0 -1328 -156 -1300  L -156 -866  L 38 -884  Q 253 -884 340 -771  Q 428 -659 428 -334  L 428 3381  L 991 3381  L 991 -419  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;LiberationSans-74&quot; d=&quot;M 1731 25  Q 1453 -50 1163 -50  Q 488 -50 488 716  L 488 2972  L 97 2972  L 97 3381  L 509 3381  L 675 4138  L 1050 4138  L 1050 3381  L 1675 3381  L 1675 2972  L 1050 2972  L 1050 838  Q 1050 594 1129 495  Q 1209 397 1406 397  Q 1519 397 1731 441  L 1731 25  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;LiberationSans-20&quot; transform=&quot;scale(0.015625)&quot;/>
+     </defs>
+     <use xlink:href=&quot;#LiberationSans-50&quot;/>
+     <use xlink:href=&quot;#LiberationSans-72&quot; transform=&quot;translate(66.699219 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-6f&quot; transform=&quot;translate(100 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-6a&quot; transform=&quot;translate(155.615234 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-65&quot; transform=&quot;translate(177.832031 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-63&quot; transform=&quot;translate(233.447266 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-74&quot; transform=&quot;translate(283.447266 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-20&quot; transform=&quot;translate(311.230469 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-73&quot; transform=&quot;translate(339.013672 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-63&quot; transform=&quot;translate(389.013672 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-68&quot; transform=&quot;translate(439.013672 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-65&quot; transform=&quot;translate(494.628906 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-64&quot; transform=&quot;translate(550.244141 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-75&quot; transform=&quot;translate(605.859375 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-6c&quot; transform=&quot;translate(661.474609 0)&quot;/>
+     <use xlink:href=&quot;#LiberationSans-65&quot; transform=&quot;translate(683.691406 0)&quot;/>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id=&quot;pa9b22d55f9&quot;>
+   <rect x=&quot;72&quot; y=&quot;34.56&quot; width=&quot;446.4&quot; height=&quot;221.76&quot;/>
+  </clipPath>
+ </defs>
+</svg>
+</div>
+</div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
+        function resizeIframe() {
+            let iframe = document.getElementById('iframe_ed3b668d-978b-46cc-904c-3bd65f8fc623');
+            if (
+                iframe &amp;&amp; iframe.contentWindow &amp;&amp;
+                iframe.contentWindow.document
+            ) {
+                let iframeDocument = iframe.contentWindow.document;
+                let body = iframeDocument.body;
+                let de = iframeDocument.documentElement;
+
+                iframe.style.height = 'auto';
+
+                // Use Math.max() across multiple DOM measurements (industry standard)
+                let height = Math.max(
+                    body.scrollHeight || 0,
+                    body.offsetHeight || 0,
+                    de.scrollHeight || 0,
+                    de.offsetHeight || 0,
+                    de.clientHeight || 0
+                );
+
+                // Scan specific MAIDR elements with getBoundingClientRect()
+                // This ensures elements with overflow:visible parents are included
+                let selectors = [
+                    '#maidr-rotor-area',
+                    '#maidr-text-container',
+                    '[id^=&quot;maidr-braille-textarea&quot;]',
+                    '.maidr-review-input'
+                ];
+                for (let i = 0; i < selectors.length; i++) {
+                    let el = iframeDocument.querySelector(selectors[i]);
+                    if (el) {
+                        let rect = el.getBoundingClientRect();
+                        let bottom = rect.bottom + (iframe.contentWindow.scrollY || 0);
+                        if (bottom > height) {
+                            height = bottom;
+                        }
+                    }
+                }
+
+                // Detect braille textarea by dynamic id prefix
+                let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                // Detect review input container by class name
+                let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
+                // Consider braille active if it or any descendant has focus
+                let isBrailleActive = brailleContainer &amp;&amp; (
+                    brailleContainer === iframeDocument.activeElement ||
+                    (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                );
+                // Consider review input active if it or any descendant has focus
+                let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                    reviewInputContainer === iframeDocument.activeElement ||
+                    (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                );
+
+                // Add buffer for active states (rotor-area height is measured directly above)
+                if (isBrailleActive) {
+                    height += 100;
+                } else if (isReviewInputActive) {
+                    height += 50;
+                }
+                iframe.style.height = (height) + 'px';
+                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+            }
+        }
+        let iframe = document.getElementById('iframe_ed3b668d-978b-46cc-904c-3bd65f8fc623');
+        resizeIframe();
+        iframe.onload = function() {
+            resizeIframe();
+            iframe.contentWindow.addEventListener('resize', resizeIframe);
+        };
+        // Delegate focus events for braille textarea (by id prefix)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Delegate focus events for review input container (by class name)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Modern resize detection: ResizeObserver with MutationObserver fallback
+        try {
+            let rafId = 0;
+            let scheduleResize = function() {
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(function() {
+                    resizeIframe();
+                });
+            };
+
+            // Try ResizeObserver first (modern, more efficient)
+            if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {
+                new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body
+                );
+            } else {
+                // Fallback to MutationObserver (observe entire document for all changes)
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body,
+                    { childList: true, subtree: true, characterData: true, attributes: true }
+                );
+            }
+        } catch (_) {}
+    "></iframe>
+</div>
+</div>
+<p>Naming the lanes takes <strong>both</strong> <code>set_yticks()</code> and <code>set_yticklabels()</code>, as the example does. Labels alone are ignored, because a lane name is only trusted when the axis carries fixed tick positions to attach it to; otherwise a lane falls back to the centre of the row it was drawn on — the <code>(10, 6)</code> above puts one at 13. Measured on the three lanes above:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>what the axis sets</th>
+<th>lanes announced as</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>set_yticks()</code> and <code>set_yticklabels()</code></td>
+<td><code>Design</code>, <code>Build</code>, <code>Launch</code></td>
+</tr>
+<tr class="even">
+<td><code>set_yticklabels()</code> alone</td>
+<td><code>13.0</code>, <code>23.0</code>, <code>33.0</code></td>
+</tr>
+<tr class="odd">
+<td><code>set_yticks()</code> alone</td>
+<td><code>13</code>, <code>23</code>, <code>33</code></td>
+</tr>
+<tr class="even">
+<td>neither</td>
+<td><code>13.0</code>, <code>23.0</code>, <code>33.0</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>label=</code> is the argument that looks like it should do this, and it does not — it adds a legend entry and leaves the lane unnamed.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("^(?:http:|https:)");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+            // default icon
+            link.classList.add("external");
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../examples/multi-layer-panel-facet.html" class="pagination-link" aria-label="Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../examples/dashboards.html" class="pagination-link" aria-label="Accessible Shiny and Streamlit Dashboards with py-maidr">
+        <span class="nav-page-text">Accessible Shiny and Streamlit Dashboards with py-maidr</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© (x)Ability Design Lab, University of Illinois Urbana-Champaign</p>
+</div>   
+    <div class="nav-footer-center">
+<p><a href="https://maidr.ai/">maidr.ai</a> | <a href="https://r.maidr.ai/">r.maidr.ai</a> | <a href="https://pypi.org/project/maidr/">PyPI</a></p>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="cookie-consent-footer"><a href="#" id="open_preferences_center">Cookie Preferences</a></div></div>
+    <div class="nav-footer-right">
+<p><a href="https://github.com/xability/py-maidr">GitHub</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.js" defer="true"></script>
+</body></html>

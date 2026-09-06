@@ -1,0 +1,2102 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
+<meta name="description" content="Make seaborn histograms and kernel density (KDE) plots accessible with py-maidr: bins are read as ranges with counts, densities as a smooth curve.">
+
+<title>Accessible Histograms and KDE Plots in seaborn – py-maidr</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../examples/line-step.html" rel="next">
+<link href="../examples/pie-wordcloud.html" rel="prev">
+<script src="../site_libs/cookie-consent/cookie-consent.js"></script>
+<link href="../site_libs/cookie-consent/cookie-consent.css" rel="stylesheet">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-0e479ab012f249957d467615ffd4bedf.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-TL8SVL5VRE"></script>
+
+<script type="text/plain" cookie-consent="tracking">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-TL8SVL5VRE', { 'anonymize_ip': true});
+</script>
+
+<script type="text/javascript" charset="UTF-8">
+document.addEventListener('DOMContentLoaded', function () {
+cookieconsent.run({
+  "notice_banner_type":"simple",
+  "consent_type":"express",
+  "palette":"light",
+  "language":"en",
+  "page_load_consent_levels":["strictly-necessary"],
+  "notice_banner_reject_button_hide":false,
+  "preferences_center_close_button_hide":false,
+  "website_name":""
+  ,
+"language":"en"
+  });
+});
+</script> 
+  
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script type="text/plain" cookie-consent="tracking">
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "vwqybbep0i");
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://maidr.ai/#organization",
+      "name": "(x)Ability Design Lab",
+      "url": "https://xabilitylab.ischool.illinois.edu/",
+      "sameAs": [
+        "https://github.com/xability",
+        "https://xability.github.io/"
+      ],
+      "parentOrganization": {
+        "@type": "CollegeOrUniversity",
+        "name": "University of Illinois Urbana-Champaign",
+        "url": "https://illinois.edu/"
+      }
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://maidr.ai/#software",
+      "name": "MAIDR",
+      "url": "https://maidr.ai/",
+      "sameAs": ["https://github.com/xability/maidr"]
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://py.maidr.ai/#software",
+      "name": "py-maidr",
+      "alternateName": ["maidr (PyPI)"],
+      "description": "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "url": "https://py.maidr.ai/",
+      "codeRepository": "https://github.com/xability/py-maidr",
+      "downloadUrl": "https://pypi.org/project/maidr/",
+      "installUrl": "https://pypi.org/project/maidr/",
+      "applicationCategory": "DeveloperApplication",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "programmingLanguage": "Python",
+      "runtimePlatform": "Python",
+      "softwareRequirements": ["Python >= 3.9", "matplotlib"],
+      "softwareVersion": "1.23.0",
+      "operatingSystem": "Cross-platform",
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
+      "sameAs": [
+        "https://github.com/xability/py-maidr",
+        "https://pypi.org/project/maidr/"
+      ],
+      "author": {"@id": "https://maidr.ai/#organization"},
+      "isBasedOn": {"@id": "https://maidr.ai/#software"}
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://py.maidr.ai/#website",
+      "name": "py-maidr",
+      "url": "https://py.maidr.ai/",
+      "inLanguage": "en",
+      "publisher": {"@id": "https://maidr.ai/#organization"},
+      "about": {"@id": "https://py.maidr.ai/#software"}
+    }
+  ]
+}
+</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+<meta property="og:title" content="Accessible Histograms and KDE Plots in seaborn">
+<meta property="og:description" content="Make seaborn histograms and kernel density (KDE) plots accessible with py-maidr: bins are read as ranges with counts, densities as a smooth curve.">
+<meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta property="og:site_name" content="py-maidr">
+<meta property="og:locale" content="en_US">
+<meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
+<meta name="twitter:title" content="Accessible Histograms and KDE Plots in seaborn">
+<meta name="twitter:description" content="Make seaborn histograms and kernel density (KDE) plots accessible with py-maidr: bins are read as ranges with counts, densities as a smooth curve.">
+<meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
+<link rel="canonical" href="https://py.maidr.ai/examples/histogram-kde.html">
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="https://py.maidr.ai/">
+    <span class="navbar-title">py-maidr</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Welcome</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="../examples.html">
+ <span class="dropdown-text">Matplotlib / Seaborn (overview)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/bar.html">
+ <span class="dropdown-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/pie-wordcloud.html">
+ <span class="dropdown-text">Pie Charts and Word Clouds</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/histogram-kde.html">
+ <span class="dropdown-text">Histograms and KDE Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/line-step.html">
+ <span class="dropdown-text">Line and Step Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/heatmap-hexbin-contour.html">
+ <span class="dropdown-text">Heatmaps, Hexbin and Contour Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/box-boxen-violin.html">
+ <span class="dropdown-text">Box, Boxen and Violin Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/area-errorbar-point-lollipop.html">
+ <span class="dropdown-text">Area, Error Bar, Point and Lollipop Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/scatter-regression.html">
+ <span class="dropdown-text">Scatter and Regression Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multi-layer-panel-facet.html">
+ <span class="dropdown-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/candlestick-gantt.html">
+ <span class="dropdown-text">Candlestick and Gantt Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/dashboards.html">
+ <span class="dropdown-text">Shiny and Streamlit Dashboards</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../examples-plotly.html">
+ <span class="dropdown-text">Plotly</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-altair.html">
+ <span class="dropdown-text">Altair</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../stability.html"> 
+<span class="menu-text">Plot Type Stability</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../api/"> 
+<span class="menu-text">API Reference</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/xability/py-maidr"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/bar.html">Plot families</a></li><li class="breadcrumb-item"><a href="../examples/histogram-kde.html">Accessible Histograms and KDE Plots in seaborn with py-maidr</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Plot families</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/bar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Bar Charts in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/pie-wordcloud.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Pie Charts and Word Clouds in matplotlib with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/histogram-kde.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Accessible Histograms and KDE Plots in seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/line-step.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Line and Step Plots in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/heatmap-hexbin-contour.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Heatmaps, Hexbin and Contour Plots in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/box-boxen-violin.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/area-errorbar-point-lollipop.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Area, Error Bar, Point and Lollipop Plots in matplotlib and seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/scatter-regression.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Scatter and Regression Plots in seaborn with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/multi-layer-panel-facet.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/candlestick-gantt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Candlestick and Gantt Charts in matplotlib with py-maidr</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/dashboards.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Shiny and Streamlit Dashboards with py-maidr</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Other libraries</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-plotly.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Plotly Accessible Plot Examples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-altair.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Altair Accessible Plot Examples</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#histogram" id="toc-histogram" class="nav-link" data-scroll-target="#histogram">Histogram</a></li>
+  <li><a href="#kde-kernel-density-estimation-plot" id="toc-kde-kernel-density-estimation-plot" class="nav-link" data-scroll-target="#kde-kernel-density-estimation-plot">KDE (Kernel Density Estimation) Plot</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/bar.html">Plot families</a></li><li class="breadcrumb-item"><a href="../examples/histogram-kde.html">Accessible Histograms and KDE Plots in seaborn with py-maidr</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Accessible Histograms and KDE Plots in seaborn with py-maidr</h1>
+</div>
+
+<div>
+  <div class="description">
+    Make seaborn histograms and kernel density (KDE) plots accessible with py-maidr: bins are read as ranges with counts, densities as a smooth curve.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>A histogram is read bin by bin: the Left and Right arrows move across the bins, and each stop announces the bin’s range and its count while the tone’s pitch follows the count. A KDE curve is read as a smooth line, so moving along it plays the density as a continuous rise and fall in pitch and the text view gives the value under the cursor.</p>
+<p><code>HIST</code> and the <code>SMOOTH</code> layer that carries a KDE curve are both in the <strong>stable</strong> set: see <a href="../stability.html">Plot Type Stability</a>.</p>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<p>Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.</p>
+<div id="fdb3404e" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="3,4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Just import maidr package: plt.show() now renders accessible output </span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<script src="https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js"></script>
+</div>
+</div>
+</section>
+<section id="histogram" class="level2">
+<h2 class="anchored" data-anchor-id="histogram">Histogram</h2>
+<div id="2a027157" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" data-source-line-numbers="nil" data-code-line-numbers="4,16,26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr </span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the Iris dataset</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>iris <span class="op">=</span> sns.load_dataset(<span class="st">"iris"</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Select the petal lengths</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>petal_lengths <span class="op">=</span> iris[<span class="st">"petal_length"</span>]</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot a histogram of the petal lengths</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">6</span>))</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>hist_plot <span class="op">=</span> sns.histplot(petal_lengths, kde<span class="op">=</span><span class="va">True</span>, color<span class="op">=</span><span class="st">"blue"</span>, binwidth<span class="op">=</span><span class="fl">0.5</span>, ax<span class="op">=</span>ax) </span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"Petal Lengths in Iris Dataset"</span>)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"Petal Length (cm)"</span>)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"Frequency"</span>)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Add number formatters for better screen reader output</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>ax.xaxis.set_major_formatter(<span class="st">"</span><span class="sc">{x:.1f}</span><span class="st">"</span>)</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>ax.yaxis.set_major_formatter(<span class="st">"</span><span class="sc">{x:.0f}</span><span class="st">"</span>)</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>plt.show() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<iframe id="iframe_6ae3ac82-f566-413b-8f2a-5be481144cec" title="Petal Lengths in Iris Dataset, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+  <script type=&quot;text/javascript&quot;>
+                (function() {
+                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js&quot;]');
+                    if (!existing) {
+                        var s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js';
+                        s.onload = function() { if (window.main) window.main(); };
+                        document.head.appendChild(s);
+                    } else {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function() { if (window.main) window.main(); });
+                        } else {
+                            if (window.main) window.main();
+                        }
+                    }
+                })();
+            </script>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;d8ccc354-03f2-4a7c-9ac5-fa09a1932c85&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;d8ccc354-03f2-4a7c-9ac5-fa09a1932c85&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;1bd4e364-9ba9-4950-b746-b491f60da772&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;b3eaea58-14ef-45d3-bcd1-39f2e6268eb0&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;hist&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Petal Lengths in Iris Dataset&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Petal Length (cm)&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 1}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Frequency&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 0}}}, &amp;quot;data&amp;quot;: [{&amp;quot;y&amp;quot;: 24.0, &amp;quot;x&amp;quot;: 1.2458333333333333, &amp;quot;xMin&amp;quot;: 1.0, &amp;quot;xMax&amp;quot;: 1.4916666666666667, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 24.0}, {&amp;quot;y&amp;quot;: 26.0, &amp;quot;x&amp;quot;: 1.7375, &amp;quot;xMin&amp;quot;: 1.4916666666666667, &amp;quot;xMax&amp;quot;: 1.9833333333333334, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 26.0}, {&amp;quot;y&amp;quot;: 0.0, &amp;quot;x&amp;quot;: 2.229166666666667, &amp;quot;xMin&amp;quot;: 1.9833333333333336, &amp;quot;xMax&amp;quot;: 2.4750000000000005, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 0.0}, {&amp;quot;y&amp;quot;: 0.0, &amp;quot;x&amp;quot;: 2.720833333333333, &amp;quot;xMin&amp;quot;: 2.4749999999999996, &amp;quot;xMax&amp;quot;: 2.9666666666666663, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 0.0}, {&amp;quot;y&amp;quot;: 3.0, &amp;quot;x&amp;quot;: 3.2125000000000004, &amp;quot;xMin&amp;quot;: 2.966666666666667, &amp;quot;xMax&amp;quot;: 3.4583333333333335, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 3.0}, {&amp;quot;y&amp;quot;: 8.0, &amp;quot;x&amp;quot;: 3.7041666666666666, &amp;quot;xMin&amp;quot;: 3.458333333333333, &amp;quot;xMax&amp;quot;: 3.9499999999999997, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 8.0}, {&amp;quot;y&amp;quot;: 18.0, &amp;quot;x&amp;quot;: 4.195833333333333, &amp;quot;xMin&amp;quot;: 3.9499999999999997, &amp;quot;xMax&amp;quot;: 4.441666666666666, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 18.0}, {&amp;quot;y&amp;quot;: 25.0, &amp;quot;x&amp;quot;: 4.6875, &amp;quot;xMin&amp;quot;: 4.441666666666666, &amp;quot;xMax&amp;quot;: 4.933333333333334, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 25.0}, {&amp;quot;y&amp;quot;: 18.0, &amp;quot;x&amp;quot;: 5.179166666666667, &amp;quot;xMin&amp;quot;: 4.933333333333334, &amp;quot;xMax&amp;quot;: 5.425000000000001, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 18.0}, {&amp;quot;y&amp;quot;: 17.0, &amp;quot;x&amp;quot;: 5.670833333333334, &amp;quot;xMin&amp;quot;: 5.425000000000001, &amp;quot;xMax&amp;quot;: 5.916666666666667, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 17.0}, {&amp;quot;y&amp;quot;: 7.0, &amp;quot;x&amp;quot;: 6.1625, &amp;quot;xMin&amp;quot;: 5.916666666666666, &amp;quot;xMax&amp;quot;: 6.408333333333332, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 7.0}, {&amp;quot;y&amp;quot;: 4.0, &amp;quot;x&amp;quot;: 6.654166666666667, &amp;quot;xMin&amp;quot;: 6.408333333333333, &amp;quot;xMax&amp;quot;: 6.9, &amp;quot;yMin&amp;quot;: 0, &amp;quot;yMax&amp;quot;: 4.0}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='d05d0162-4581-4408-b817-119a12cac415'] &amp;gt; path&amp;quot;, &amp;quot;orientation&amp;quot;: &amp;quot;vert&amp;quot;}, {&amp;quot;id&amp;quot;: &amp;quot;8c36480a-dbde-4e11-ad67-f3e876d77423&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;smooth&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Petal Lengths in Iris Dataset&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Petal Length (cm)&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 1}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Frequency&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 0}}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 11.54740854702345, &amp;quot;svg_x&amp;quot;: 61.52130681818183, &amp;quot;svg_y&amp;quot;: 236.35386890810048}, {&amp;quot;x&amp;quot;: 1.203448275862069, &amp;quot;y&amp;quot;: 13.599203085815514, &amp;quot;svg_x&amp;quot;: 73.33341496865205, &amp;quot;svg_y&amp;quot;: 208.92896681267104}, {&amp;quot;x&amp;quot;: 1.406896551724138, &amp;quot;y&amp;quot;: 14.613483056817504, &amp;quot;svg_x&amp;quot;: 85.14552311912227, &amp;quot;svg_y&amp;quot;: 195.371796064736}, {&amp;quot;x&amp;quot;: 1.610344827586207, &amp;quot;y&amp;quot;: 14.343664496175888, &amp;quot;svg_x&amp;quot;: 96.95763126959248, &amp;quot;svg_y&amp;quot;: 198.97827199067467}, {&amp;quot;x&amp;quot;: 1.813793103448276, &amp;quot;y&amp;quot;: 12.891439235668704, &amp;quot;svg_x&amp;quot;: 108.76973942006269, &amp;quot;svg_y&amp;quot;: 218.3891510221425}, {&amp;quot;x&amp;quot;: 2.017241379310345, &amp;quot;y&amp;quot;: 10.6734993582784, &amp;quot;svg_x&amp;quot;: 120.58184757053293, &amp;quot;svg_y&amp;quot;: 248.03480161773666}, {&amp;quot;x&amp;quot;: 2.220689655172414, &amp;quot;y&amp;quot;: 8.264477264894516, &amp;quot;svg_x&amp;quot;: 132.39395572100312, &amp;quot;svg_y&amp;quot;: 280.2345145069594}, {&amp;quot;x&amp;quot;: 2.424137931034483, &amp;quot;y&amp;quot;: 6.203087324452782, &amp;quot;svg_x&amp;quot;: 144.20606387147336, &amp;quot;svg_y&amp;quot;: 307.78767162297356}, {&amp;quot;x&amp;quot;: 2.627586206896552, &amp;quot;y&amp;quot;: 4.856586263498236, &amp;quot;svg_x&amp;quot;: 156.01817202194357, &amp;quot;svg_y&amp;quot;: 325.7854092472342}, {&amp;quot;x&amp;quot;: 2.831034482758621, &amp;quot;y&amp;quot;: 4.3773661625138836, &amp;quot;svg_x&amp;quot;: 167.8302801724138, &amp;quot;svg_y&amp;quot;: 332.1908090585598}, {&amp;quot;x&amp;quot;: 3.03448275862069, &amp;quot;y&amp;quot;: 4.748085643856546, &amp;quot;svg_x&amp;quot;: 179.64238832288405, &amp;quot;svg_y&amp;quot;: 327.2356611192947}, {&amp;quot;x&amp;quot;: 3.237931034482759, &amp;quot;y&amp;quot;: 5.852720517218839, &amp;quot;svg_x&amp;quot;: 191.45449647335425, &amp;quot;svg_y&amp;quot;: 312.47077960684413}, {&amp;quot;x&amp;quot;: 3.4413793103448276, &amp;quot;y&amp;quot;: 7.529198997975624, &amp;quot;svg_x&amp;quot;: 203.26660462382443, &amp;quot;svg_y&amp;quot;: 290.06246467541007}, {&amp;quot;x&amp;quot;: 3.6448275862068966, &amp;quot;y&amp;quot;: 9.591877866254816, &amp;quot;svg_x&amp;quot;: 215.07871277429467, &amp;quot;svg_y&amp;quot;: 262.49207936276986}, {&amp;quot;x&amp;quot;: 3.8482758620689657, &amp;quot;y&amp;quot;: 11.834437591162303, &amp;quot;svg_x&amp;quot;: 226.89082092476488, &amp;quot;svg_y&amp;quot;: 232.5173524902885}, {&amp;quot;x&amp;quot;: 4.051724137931035, &amp;quot;y&amp;quot;: 14.032431963466433, &amp;quot;svg_x&amp;quot;: 238.70292907523515, &amp;quot;svg_y&amp;quot;: 203.13829950663367}, {&amp;quot;x&amp;quot;: 4.255172413793104, &amp;quot;y&amp;quot;: 15.959165535578835, &amp;quot;svg_x&amp;quot;: 250.51503722570536, &amp;quot;svg_y&amp;quot;: 177.38499985594441}, {&amp;quot;x&amp;quot;: 4.458620689655173, &amp;quot;y&amp;quot;: 17.416640114885507, &amp;quot;svg_x&amp;quot;: 262.3271453761755, &amp;quot;svg_y&amp;quot;: 157.90395685268422}, {&amp;quot;x&amp;quot;: 4.662068965517242, &amp;quot;y&amp;quot;: 18.265855093250046, &amp;quot;svg_x&amp;quot;: 274.13925352664575, &amp;quot;svg_y&amp;quot;: 146.55309437630248}, {&amp;quot;x&amp;quot;: 4.865517241379311, &amp;quot;y&amp;quot;: 18.447195392864188, &amp;quot;svg_x&amp;quot;: 285.951361677116, &amp;quot;svg_y&amp;quot;: 144.12924546314497}, {&amp;quot;x&amp;quot;: 5.06896551724138, &amp;quot;y&amp;quot;: 17.981306406459627, &amp;quot;svg_x&amp;quot;: 297.7634698275862, &amp;quot;svg_y&amp;quot;: 150.35645759277958}, {&amp;quot;x&amp;quot;: 5.272413793103449, &amp;quot;y&amp;quot;: 16.951845898361416, &amp;quot;svg_x&amp;quot;: 309.57557797805646, &amp;quot;svg_y&amp;quot;: 164.1165359592645}, {&amp;quot;x&amp;quot;: 5.475862068965518, &amp;quot;y&amp;quot;: 15.479634411144852, &amp;quot;svg_x&amp;quot;: 321.3876861285267, &amp;quot;svg_y&amp;quot;: 183.79455690011883}, {&amp;quot;x&amp;quot;: 5.679310344827587, &amp;quot;y&amp;quot;: 13.700595142346188, &amp;quot;svg_x&amp;quot;: 333.1997942789969, &amp;quot;svg_y&amp;quot;: 207.57373013032512}, {&amp;quot;x&amp;quot;: 5.882758620689655, &amp;quot;y&amp;quot;: 11.75234331159787, &amp;quot;svg_x&amp;quot;: 345.0119024294671, &amp;quot;svg_y&amp;quot;: 233.61464928930172}, {&amp;quot;x&amp;quot;: 6.086206896551724, &amp;quot;y&amp;quot;: 9.764289765505055, &amp;quot;svg_x&amp;quot;: 356.82401057993735, &amp;quot;svg_y&amp;quot;: 260.18757013066687}, {&amp;quot;x&amp;quot;: 6.289655172413793, &amp;quot;y&amp;quot;: 7.85097410715285, &amp;quot;svg_x&amp;quot;: 368.6361187304075, &amp;quot;svg_y&amp;quot;: 285.7615219157482}, {&amp;quot;x&amp;quot;: 6.493103448275862, &amp;quot;y&amp;quot;: 6.102914158082536, &amp;quot;svg_x&amp;quot;: 380.4482268808777, &amp;quot;svg_y&amp;quot;: 309.1266162533217}, {&amp;quot;x&amp;quot;: 6.696551724137931, &amp;quot;y&amp;quot;: 4.579535490403391, &amp;quot;svg_x&amp;quot;: 392.26033503134795, &amp;quot;svg_y&amp;quot;: 329.48855309713565}, {&amp;quot;x&amp;quot;: 6.9, &amp;quot;y&amp;quot;: 3.3085056665177444, &amp;quot;svg_x&amp;quot;: 404.07244318181824, &amp;quot;svg_y&amp;quot;: 346.477519497717}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-0e0408bb-7105-4ef0-85b3-0af3bcc050e4'] path&amp;quot;]}]}]]}&quot;>
+ <metadata>
+  <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
+   <cc:Work>
+    <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
+    <dc:date>2026-09-06T10:28:13.295221</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.9, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id=&quot;figure_1&quot;>
+  <g id=&quot;maidr-c626b4a3-f1bd-4ad8-b8b8-faaa90caac7a&quot;>
+   <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
+  </g>
+  <g id=&quot;axes_1&quot;>
+   <g id=&quot;maidr-67ce6880-39a9-4322-85a4-12230da23404&quot;>
+    <path d=&quot;M 44.39375 390.7  L 421.2 390.7  L 421.2 25.8  L 44.39375 25.8  z &quot; style=&quot;fill: #ffffff&quot;/>
+   </g>
+   <g id=&quot;maidr-e2905997-7234-4e45-96e9-3689528284b1&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 61.521307 390.7  L 90.067235 390.7  L 90.067235 69.908791  L 61.521307 69.908791  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-0ab759c0-9307-4ead-9875-82f299812e95&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 90.067235 390.7  L 118.613163 390.7  L 118.613163 43.17619  L 90.067235 43.17619  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-b34eefd7-cd75-4a15-a62e-9cdc03f09039&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 118.613163 390.7  L 147.159091 390.7  L 147.159091 390.7  L 118.613163 390.7  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-564f0698-8bb5-4531-9dc4-41ed7ff53ab7&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 147.159091 390.7  L 175.705019 390.7  L 175.705019 390.7  L 147.159091 390.7  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-b44f5a09-550a-453b-a883-0be46408f28e&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 175.705019 390.7  L 204.250947 390.7  L 204.250947 350.601099  L 175.705019 350.601099  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-6b0b0d02-dc3b-447d-894a-8a762c06006d&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 204.250947 390.7  L 232.796875 390.7  L 232.796875 283.769597  L 204.250947 283.769597  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-bd5bcdba-84bf-4ca5-b1eb-4b744d7e94e2&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 232.796875 390.7  L 261.342803 390.7  L 261.342803 150.106593  L 232.796875 150.106593  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-0b11a6a4-035b-4bb7-9317-632afe110c47&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 261.342803 390.7  L 289.888731 390.7  L 289.888731 56.542491  L 261.342803 56.542491  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-c8177ff4-6464-4225-bd11-7481c5e1bd7b&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 289.888731 390.7  L 318.434659 390.7  L 318.434659 150.106593  L 289.888731 150.106593  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-d54b3220-43b2-46f7-adab-aaacf08da9a6&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 318.434659 390.7  L 346.980587 390.7  L 346.980587 163.472894  L 318.434659 163.472894  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-303a3681-0983-4caa-afd7-e4ff4cee9bc1&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 346.980587 390.7  L 375.526515 390.7  L 375.526515 297.135897  L 346.980587 297.135897  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;maidr-2978b2ec-2a44-4901-a217-231a36729471&quot; maidr=&quot;d05d0162-4581-4408-b817-119a12cac415&quot;>
+    <path d=&quot;M 375.526515 390.7  L 404.072443 390.7  L 404.072443 337.234799  L 375.526515 337.234799  z &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: #0000ff; fill-opacity: 0.5; stroke: #000000; stroke-linejoin: miter&quot;/>
+   </g>
+   <g id=&quot;matplotlib.axis_1&quot;>
+    <g id=&quot;xtick_1&quot;>
+     <g id=&quot;maidr-ad8e1900-c3ce-42d0-b504-1271838fdb14&quot;>
+      <defs>
+       <path id=&quot;m3ba9874f3e&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </defs>
+      <g>
+       <use xlink:href=&quot;#m3ba9874f3e&quot; x=&quot;61.521307&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_1&quot;>
+      <!-- 1.0 -->
+      <g transform=&quot;translate(53.569744 405.298437) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-31&quot; d=&quot;M 794 531  L 1825 531  L 1825 4091  L 703 3866  L 703 4441  L 1819 4666  L 2450 4666  L 2450 531  L 3481 531  L 3481 0  L 794 0  L 794 531  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;DejaVuSans-2e&quot; d=&quot;M 684 794  L 1344 794  L 1344 0  L 684 0  L 684 794  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;DejaVuSans-30&quot; d=&quot;M 2034 4250  Q 1547 4250 1301 3770  Q 1056 3291 1056 2328  Q 1056 1369 1301 889  Q 1547 409 2034 409  Q 2525 409 2770 889  Q 3016 1369 3016 2328  Q 3016 3291 2770 3770  Q 2525 4250 2034 4250  z M 2034 4750  Q 2819 4750 3233 4129  Q 3647 3509 3647 2328  Q 3647 1150 3233 529  Q 2819 -91 2034 -91  Q 1250 -91 836 529  Q 422 1150 422 2328  Q 422 3509 836 4129  Q 1250 4750 2034 4750  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-31&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_2&quot;>
+     <g id=&quot;maidr-9c7f9cdf-6f2f-47f4-973f-f51085c45713&quot;>
+      <g>
+       <use xlink:href=&quot;#m3ba9874f3e&quot; x=&quot;119.580821&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_2&quot;>
+      <!-- 2.0 -->
+      <g transform=&quot;translate(111.629259 405.298437) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-32&quot; d=&quot;M 1228 531  L 3431 531  L 3431 0  L 469 0  L 469 531  Q 828 903 1448 1529  Q 2069 2156 2228 2338  Q 2531 2678 2651 2914  Q 2772 3150 2772 3378  Q 2772 3750 2511 3984  Q 2250 4219 1831 4219  Q 1534 4219 1204 4116  Q 875 4013 500 3803  L 500 4441  Q 881 4594 1212 4672  Q 1544 4750 1819 4750  Q 2544 4750 2975 4387  Q 3406 4025 3406 3419  Q 3406 3131 3298 2873  Q 3191 2616 2906 2266  Q 2828 2175 2409 1742  Q 1991 1309 1228 531  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-32&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_3&quot;>
+     <g id=&quot;maidr-405b721a-bacd-4322-be89-7041cb6471dc&quot;>
+      <g>
+       <use xlink:href=&quot;#m3ba9874f3e&quot; x=&quot;177.640336&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_3&quot;>
+      <!-- 3.0 -->
+      <g transform=&quot;translate(169.688774 405.298437) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-33&quot; d=&quot;M 2597 2516  Q 3050 2419 3304 2112  Q 3559 1806 3559 1356  Q 3559 666 3084 287  Q 2609 -91 1734 -91  Q 1441 -91 1130 -33  Q 819 25 488 141  L 488 750  Q 750 597 1062 519  Q 1375 441 1716 441  Q 2309 441 2620 675  Q 2931 909 2931 1356  Q 2931 1769 2642 2001  Q 2353 2234 1838 2234  L 1294 2234  L 1294 2753  L 1863 2753  Q 2328 2753 2575 2939  Q 2822 3125 2822 3475  Q 2822 3834 2567 4026  Q 2313 4219 1838 4219  Q 1578 4219 1281 4162  Q 984 4106 628 3988  L 628 4550  Q 988 4650 1302 4700  Q 1616 4750 1894 4750  Q 2613 4750 3031 4423  Q 3450 4097 3450 3541  Q 3450 3153 3228 2886  Q 3006 2619 2597 2516  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-33&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_4&quot;>
+     <g id=&quot;maidr-a74e13e4-911b-41cd-b0e8-1ca8438a301c&quot;>
+      <g>
+       <use xlink:href=&quot;#m3ba9874f3e&quot; x=&quot;235.699851&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_4&quot;>
+      <!-- 4.0 -->
+      <g transform=&quot;translate(227.748288 405.298437) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-34&quot; d=&quot;M 2419 4116  L 825 1625  L 2419 1625  L 2419 4116  z M 2253 4666  L 3047 4666  L 3047 1625  L 3713 1625  L 3713 1100  L 3047 1100  L 3047 0  L 2419 0  L 2419 1100  L 313 1100  L 313 1709  L 2253 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-34&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_5&quot;>
+     <g id=&quot;maidr-0f6ea16f-a59f-41a8-848a-d05c0dcaa911&quot;>
+      <g>
+       <use xlink:href=&quot;#m3ba9874f3e&quot; x=&quot;293.759365&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_5&quot;>
+      <!-- 5.0 -->
+      <g transform=&quot;translate(285.807803 405.298437) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-35&quot; d=&quot;M 691 4666  L 3169 4666  L 3169 4134  L 1269 4134  L 1269 2991  Q 1406 3038 1543 3061  Q 1681 3084 1819 3084  Q 2600 3084 3056 2656  Q 3513 2228 3513 1497  Q 3513 744 3044 326  Q 2575 -91 1722 -91  Q 1428 -91 1123 -41  Q 819 9 494 109  L 494 744  Q 775 591 1075 516  Q 1375 441 1709 441  Q 2250 441 2565 725  Q 2881 1009 2881 1497  Q 2881 1984 2565 2268  Q 2250 2553 1709 2553  Q 1456 2553 1204 2497  Q 953 2441 691 2322  L 691 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-35&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_6&quot;>
+     <g id=&quot;maidr-b16988b6-9593-40be-a091-9a436e9216b4&quot;>
+      <g>
+       <use xlink:href=&quot;#m3ba9874f3e&quot; x=&quot;351.81888&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_6&quot;>
+      <!-- 6.0 -->
+      <g transform=&quot;translate(343.867318 405.298437) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-36&quot; d=&quot;M 2113 2584  Q 1688 2584 1439 2293  Q 1191 2003 1191 1497  Q 1191 994 1439 701  Q 1688 409 2113 409  Q 2538 409 2786 701  Q 3034 994 3034 1497  Q 3034 2003 2786 2293  Q 2538 2584 2113 2584  z M 3366 4563  L 3366 3988  Q 3128 4100 2886 4159  Q 2644 4219 2406 4219  Q 1781 4219 1451 3797  Q 1122 3375 1075 2522  Q 1259 2794 1537 2939  Q 1816 3084 2150 3084  Q 2853 3084 3261 2657  Q 3669 2231 3669 1497  Q 3669 778 3244 343  Q 2819 -91 2113 -91  Q 1303 -91 875 529  Q 447 1150 447 2328  Q 447 3434 972 4092  Q 1497 4750 2381 4750  Q 2619 4750 2861 4703  Q 3103 4656 3366 4563  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-36&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_7&quot;>
+     <g id=&quot;maidr-1624a34c-8cd9-4619-997b-361a8f578d8c&quot;>
+      <g>
+       <use xlink:href=&quot;#m3ba9874f3e&quot; x=&quot;409.878395&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_7&quot;>
+      <!-- 7.0 -->
+      <g transform=&quot;translate(401.926832 405.298437) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-37&quot; d=&quot;M 525 4666  L 3525 4666  L 3525 4397  L 1831 0  L 1172 0  L 2766 4134  L 525 4134  L 525 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-37&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_8&quot;>
+     <!-- Petal Length (cm) -->
+     <g transform=&quot;translate(188.527344 418.976562) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-50&quot; d=&quot;M 1259 4147  L 1259 2394  L 2053 2394  Q 2494 2394 2734 2622  Q 2975 2850 2975 3272  Q 2975 3691 2734 3919  Q 2494 4147 2053 4147  L 1259 4147  z M 628 4666  L 2053 4666  Q 2838 4666 3239 4311  Q 3641 3956 3641 3272  Q 3641 2581 3239 2228  Q 2838 1875 2053 1875  L 1259 1875  L 1259 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-65&quot; d=&quot;M 3597 1894  L 3597 1613  L 953 1613  Q 991 1019 1311 708  Q 1631 397 2203 397  Q 2534 397 2845 478  Q 3156 559 3463 722  L 3463 178  Q 3153 47 2828 -22  Q 2503 -91 2169 -91  Q 1331 -91 842 396  Q 353 884 353 1716  Q 353 2575 817 3079  Q 1281 3584 2069 3584  Q 2775 3584 3186 3129  Q 3597 2675 3597 1894  z M 3022 2063  Q 3016 2534 2758 2815  Q 2500 3097 2075 3097  Q 1594 3097 1305 2825  Q 1016 2553 972 2059  L 3022 2063  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-74&quot; d=&quot;M 1172 4494  L 1172 3500  L 2356 3500  L 2356 3053  L 1172 3053  L 1172 1153  Q 1172 725 1289 603  Q 1406 481 1766 481  L 2356 481  L 2356 0  L 1766 0  Q 1100 0 847 248  Q 594 497 594 1153  L 594 3053  L 172 3053  L 172 3500  L 594 3500  L 594 4494  L 1172 4494  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-61&quot; d=&quot;M 2194 1759  Q 1497 1759 1228 1600  Q 959 1441 959 1056  Q 959 750 1161 570  Q 1363 391 1709 391  Q 2188 391 2477 730  Q 2766 1069 2766 1631  L 2766 1759  L 2194 1759  z M 3341 1997  L 3341 0  L 2766 0  L 2766 531  Q 2569 213 2275 61  Q 1981 -91 1556 -91  Q 1019 -91 701 211  Q 384 513 384 1019  Q 384 1609 779 1909  Q 1175 2209 1959 2209  L 2766 2209  L 2766 2266  Q 2766 2663 2505 2880  Q 2244 3097 1772 3097  Q 1472 3097 1187 3025  Q 903 2953 641 2809  L 641 3341  Q 956 3463 1253 3523  Q 1550 3584 1831 3584  Q 2591 3584 2966 3190  Q 3341 2797 3341 1997  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-6c&quot; d=&quot;M 603 4863  L 1178 4863  L 1178 0  L 603 0  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-20&quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-4c&quot; d=&quot;M 628 4666  L 1259 4666  L 1259 531  L 3531 531  L 3531 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-6e&quot; d=&quot;M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-67&quot; d=&quot;M 2906 1791  Q 2906 2416 2648 2759  Q 2391 3103 1925 3103  Q 1463 3103 1205 2759  Q 947 2416 947 1791  Q 947 1169 1205 825  Q 1463 481 1925 481  Q 2391 481 2648 825  Q 2906 1169 2906 1791  z M 3481 434  Q 3481 -459 3084 -895  Q 2688 -1331 1869 -1331  Q 1566 -1331 1297 -1286  Q 1028 -1241 775 -1147  L 775 -588  Q 1028 -725 1275 -790  Q 1522 -856 1778 -856  Q 2344 -856 2625 -561  Q 2906 -266 2906 331  L 2906 616  Q 2728 306 2450 153  Q 2172 0 1784 0  Q 1141 0 747 490  Q 353 981 353 1791  Q 353 2603 747 3093  Q 1141 3584 1784 3584  Q 2172 3584 2450 3431  Q 2728 3278 2906 2969  L 2906 3500  L 3481 3500  L 3481 434  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-68&quot; d=&quot;M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 4863  L 1159 4863  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-28&quot; d=&quot;M 1984 4856  Q 1566 4138 1362 3434  Q 1159 2731 1159 2009  Q 1159 1288 1364 580  Q 1569 -128 1984 -844  L 1484 -844  Q 1016 -109 783 600  Q 550 1309 550 2009  Q 550 2706 781 3412  Q 1013 4119 1484 4856  L 1984 4856  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-63&quot; d=&quot;M 3122 3366  L 3122 2828  Q 2878 2963 2633 3030  Q 2388 3097 2138 3097  Q 1578 3097 1268 2742  Q 959 2388 959 1747  Q 959 1106 1268 751  Q 1578 397 2138 397  Q 2388 397 2633 464  Q 2878 531 3122 666  L 3122 134  Q 2881 22 2623 -34  Q 2366 -91 2075 -91  Q 1284 -91 818 406  Q 353 903 353 1747  Q 353 2603 823 3093  Q 1294 3584 2113 3584  Q 2378 3584 2631 3529  Q 2884 3475 3122 3366  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-6d&quot; d=&quot;M 3328 2828  Q 3544 3216 3844 3400  Q 4144 3584 4550 3584  Q 5097 3584 5394 3201  Q 5691 2819 5691 2113  L 5691 0  L 5113 0  L 5113 2094  Q 5113 2597 4934 2840  Q 4756 3084 4391 3084  Q 3944 3084 3684 2787  Q 3425 2491 3425 1978  L 3425 0  L 2847 0  L 2847 2094  Q 2847 2600 2669 2842  Q 2491 3084 2119 3084  Q 1678 3084 1418 2786  Q 1159 2488 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1356 3278 1631 3431  Q 1906 3584 2284 3584  Q 2666 3584 2933 3390  Q 3200 3197 3328 2828  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-29&quot; d=&quot;M 513 4856  L 1013 4856  Q 1481 4119 1714 3412  Q 1947 2706 1947 2009  Q 1947 1309 1714 600  Q 1481 -109 1013 -844  L 513 -844  Q 928 -128 1133 580  Q 1338 1288 1338 2009  Q 1338 2731 1133 3434  Q 928 4138 513 4856  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-50&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-65&quot; transform=&quot;translate(56.677734 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-74&quot; transform=&quot;translate(118.201172 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-61&quot; transform=&quot;translate(157.410156 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-6c&quot; transform=&quot;translate(218.689453 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(246.472656 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(278.259766 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-65&quot; transform=&quot;translate(332.222656 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-6e&quot; transform=&quot;translate(393.746094 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-67&quot; transform=&quot;translate(457.125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-74&quot; transform=&quot;translate(520.601562 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-68&quot; transform=&quot;translate(559.810547 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(623.189453 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-28&quot; transform=&quot;translate(654.976562 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-63&quot; transform=&quot;translate(693.990234 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-6d&quot; transform=&quot;translate(748.970703 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-29&quot; transform=&quot;translate(846.382812 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;matplotlib.axis_2&quot;>
+    <g id=&quot;ytick_1&quot;>
+     <g id=&quot;maidr-8fe8588e-0842-459c-a841-8835d6ca7b74&quot;>
+      <defs>
+       <path id=&quot;m7f067591f0&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </defs>
+      <g>
+       <use xlink:href=&quot;#m7f067591f0&quot; x=&quot;44.39375&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_9&quot;>
+      <!-- 0 -->
+      <g transform=&quot;translate(31.03125 394.499219) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_2&quot;>
+     <g id=&quot;maidr-7654906e-09db-45c9-aec1-dd91fd7a2b80&quot;>
+      <g>
+       <use xlink:href=&quot;#m7f067591f0&quot; x=&quot;44.39375&quot; y=&quot;323.868498&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_10&quot;>
+      <!-- 5 -->
+      <g transform=&quot;translate(31.03125 327.667717) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-35&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_3&quot;>
+     <g id=&quot;maidr-ce5fc532-0168-4569-8c02-09e2ecfdf720&quot;>
+      <g>
+       <use xlink:href=&quot;#m7f067591f0&quot; x=&quot;44.39375&quot; y=&quot;257.036996&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_11&quot;>
+      <!-- 10 -->
+      <g transform=&quot;translate(24.66875 260.836215) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-31&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(63.623047 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_4&quot;>
+     <g id=&quot;maidr-8768ce08-a7e9-4fb0-8c64-b17f9550d157&quot;>
+      <g>
+       <use xlink:href=&quot;#m7f067591f0&quot; x=&quot;44.39375&quot; y=&quot;190.205495&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_12&quot;>
+      <!-- 15 -->
+      <g transform=&quot;translate(24.66875 194.004713) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-31&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-35&quot; transform=&quot;translate(63.623047 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_5&quot;>
+     <g id=&quot;maidr-b696dfda-e197-45e9-8da8-d24f03df4239&quot;>
+      <g>
+       <use xlink:href=&quot;#m7f067591f0&quot; x=&quot;44.39375&quot; y=&quot;123.373993&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_13&quot;>
+      <!-- 20 -->
+      <g transform=&quot;translate(24.66875 127.173211) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-32&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(63.623047 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_6&quot;>
+     <g id=&quot;maidr-ce0ca34a-fd2d-4cec-bc95-6a1f1c97193a&quot;>
+      <g>
+       <use xlink:href=&quot;#m7f067591f0&quot; x=&quot;44.39375&quot; y=&quot;56.542491&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_14&quot;>
+      <!-- 25 -->
+      <g transform=&quot;translate(24.66875 60.34171) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-32&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-35&quot; transform=&quot;translate(63.623047 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_15&quot;>
+     <!-- Frequency -->
+     <g transform=&quot;translate(18.589063 234.079688) rotate(-90) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-46&quot; d=&quot;M 628 4666  L 3309 4666  L 3309 4134  L 1259 4134  L 1259 2759  L 3109 2759  L 3109 2228  L 1259 2228  L 1259 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-72&quot; d=&quot;M 2631 2963  Q 2534 3019 2420 3045  Q 2306 3072 2169 3072  Q 1681 3072 1420 2755  Q 1159 2438 1159 1844  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1341 3275 1631 3429  Q 1922 3584 2338 3584  Q 2397 3584 2469 3576  Q 2541 3569 2628 3553  L 2631 2963  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-71&quot; d=&quot;M 947 1747  Q 947 1113 1208 752  Q 1469 391 1925 391  Q 2381 391 2643 752  Q 2906 1113 2906 1747  Q 2906 2381 2643 2742  Q 2381 3103 1925 3103  Q 1469 3103 1208 2742  Q 947 2381 947 1747  z M 2906 525  Q 2725 213 2448 61  Q 2172 -91 1784 -91  Q 1150 -91 751 415  Q 353 922 353 1747  Q 353 2572 751 3078  Q 1150 3584 1784 3584  Q 2172 3584 2448 3432  Q 2725 3281 2906 2969  L 2906 3500  L 3481 3500  L 3481 -1331  L 2906 -1331  L 2906 525  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-75&quot; d=&quot;M 544 1381  L 544 3500  L 1119 3500  L 1119 1403  Q 1119 906 1312 657  Q 1506 409 1894 409  Q 2359 409 2629 706  Q 2900 1003 2900 1516  L 2900 3500  L 3475 3500  L 3475 0  L 2900 0  L 2900 538  Q 2691 219 2414 64  Q 2138 -91 1772 -91  Q 1169 -91 856 284  Q 544 659 544 1381  z M 1991 3584  L 1991 3584  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-79&quot; d=&quot;M 2059 -325  Q 1816 -950 1584 -1140  Q 1353 -1331 966 -1331  L 506 -1331  L 506 -850  L 844 -850  Q 1081 -850 1212 -737  Q 1344 -625 1503 -206  L 1606 56  L 191 3500  L 800 3500  L 1894 763  L 2988 3500  L 3597 3500  L 2059 -325  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-46&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-72&quot; transform=&quot;translate(50.269531 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-65&quot; transform=&quot;translate(89.132812 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-71&quot; transform=&quot;translate(150.65625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-75&quot; transform=&quot;translate(214.132812 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-65&quot; transform=&quot;translate(277.511719 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-6e&quot; transform=&quot;translate(339.035156 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-63&quot; transform=&quot;translate(402.414062 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-79&quot; transform=&quot;translate(457.394531 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;maidr-0e0408bb-7105-4ef0-85b3-0af3bcc050e4&quot; maidr=&quot;dfa01b32-ef60-440a-8fc9-0be5251bc525&quot;>
+    <path d=&quot;M 61.521307 236.353869  L 64.964032 227.270247  L 68.406757 218.99843  L 71.849482 211.710037  L 73.570844 208.483996  L 75.292207 205.560518  L 77.013569 202.955563  L 78.734932 200.683392  L 80.456294 198.756427  L 82.177657 197.185127  L 83.899019 195.977878  L 85.620382 195.140908  L 87.341744 194.678215  L 89.063107 194.591525  L 90.784469 194.88026  L 92.505832 195.541542  L 94.227194 196.570206  L 95.948557 197.958844  L 97.669919 199.697868  L 99.391282 201.775588  L 101.112644 204.178318  L 102.834007 206.890494  L 104.555369 209.894808  L 106.276732 213.172363  L 109.719457 220.464624  L 113.162182 228.590675  L 116.604907 237.359745  L 121.768994 251.283297  L 132.097169 279.463593  L 135.539894 288.28703  L 138.982619 296.562657  L 142.425344 304.161969  L 145.868069 310.978021  L 149.310794 316.92573  L 151.032157 319.553242  L 152.753519 321.941396  L 154.474882 324.085385  L 156.196244 325.981566  L 157.917606 327.627402  L 159.638969 329.021396  L 161.360331 330.163026  L 163.081694 331.052669  L 164.803056 331.691538  L 166.524419 332.08161  L 168.245781 332.225554  L 169.967144 332.126667  L 171.688506 331.788809  L 173.409869 331.216343  L 175.131231 330.414079  L 176.852594 329.38722  L 178.573956 328.141312  L 180.295319 326.682208  L 182.016681 325.016021  L 183.738044 323.149098  L 185.459406 321.087987  L 188.902131 316.410267  L 192.344856 311.038499  L 195.787581 305.030466  L 199.230306 298.445876  L 202.673031 291.346305  L 206.115756 283.795248  L 211.279844 271.765972  L 216.443931 259.09861  L 225.050744 237.22548  L 233.657556 215.415079  L 238.821644 202.85408  L 243.985731 190.995137  L 247.428456 183.597301  L 250.871181 176.683047  L 254.313906 170.312832  L 257.756631 164.541144  L 261.199356 159.415729  L 264.642081 154.976941  L 266.363444 153.025499  L 268.084806 151.257261  L 269.806169 149.675006  L 271.527531 148.280994  L 273.248894 147.076966  L 274.970256 146.064147  L 276.691619 145.243252  L 278.412981 144.614496  L 280.134344 144.177606  L 281.855706 143.931836  L 283.577069 143.875979  L 285.298431 144.008391  L 287.019794 144.327008  L 288.741156 144.829367  L 290.462519 145.512631  L 292.183881 146.373613  L 293.905244 147.408796  L 295.626606 148.614366  L 297.347969 149.986228  L 299.069331 151.520037  L 302.512056 155.05501  L 305.954781 159.180413  L 309.397506 163.854849  L 312.840231 169.035048  L 316.282956 174.676443  L 319.725681 180.73365  L 323.168406 187.160861  L 328.332493 197.39504  L 333.496581 208.204345  L 340.382031 223.249352  L 354.152931 254.217267  L 362.759743 273.252841  L 369.645193 287.864004  L 374.809281 298.315103  L 379.973368 308.247897  L 385.137456 317.604967  L 390.301543 326.34499  L 393.744268 331.815334  L 397.186993 336.995131  L 400.629718 341.882448  L 404.072443 346.477519  L 404.072443 346.477519  &quot; clip-path=&quot;url(#pf35d866709)&quot; style=&quot;fill: none; stroke: #0000ff; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-ff996c46-201c-4121-85cd-2c35fdcabfc4&quot;>
+    <path d=&quot;M 44.39375 390.7  L 44.39375 25.8  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-4e67599c-d064-432b-90eb-7e171927fec5&quot;>
+    <path d=&quot;M 421.2 390.7  L 421.2 25.8  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-51b70abf-e9e3-42bc-af67-e154eedf4c3e&quot;>
+    <path d=&quot;M 44.39375 390.7  L 421.2 390.7  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-fc05f973-c0b2-455e-80ef-27955746a0d8&quot;>
+    <path d=&quot;M 44.39375 25.8  L 421.2 25.8  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;text_16&quot;>
+    <!-- Petal Lengths in Iris Dataset -->
+    <g transform=&quot;translate(148.565313 19.8) scale(0.12 -0.12)&quot;>
+     <defs>
+      <path id=&quot;DejaVuSans-73&quot; d=&quot;M 2834 3397  L 2834 2853  Q 2591 2978 2328 3040  Q 2066 3103 1784 3103  Q 1356 3103 1142 2972  Q 928 2841 928 2578  Q 928 2378 1081 2264  Q 1234 2150 1697 2047  L 1894 2003  Q 2506 1872 2764 1633  Q 3022 1394 3022 966  Q 3022 478 2636 193  Q 2250 -91 1575 -91  Q 1294 -91 989 -36  Q 684 19 347 128  L 347 722  Q 666 556 975 473  Q 1284 391 1588 391  Q 1994 391 2212 530  Q 2431 669 2431 922  Q 2431 1156 2273 1281  Q 2116 1406 1581 1522  L 1381 1569  Q 847 1681 609 1914  Q 372 2147 372 2553  Q 372 3047 722 3315  Q 1072 3584 1716 3584  Q 2034 3584 2315 3537  Q 2597 3491 2834 3397  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-69&quot; d=&quot;M 603 3500  L 1178 3500  L 1178 0  L 603 0  L 603 3500  z M 603 4863  L 1178 4863  L 1178 4134  L 603 4134  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-49&quot; d=&quot;M 628 4666  L 1259 4666  L 1259 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-44&quot; d=&quot;M 1259 4147  L 1259 519  L 2022 519  Q 2988 519 3436 956  Q 3884 1394 3884 2338  Q 3884 3275 3436 3711  Q 2988 4147 2022 4147  L 1259 4147  z M 628 4666  L 1925 4666  Q 3281 4666 3915 4102  Q 4550 3538 4550 2338  Q 4550 1131 3912 565  Q 3275 0 1925 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+     </defs>
+     <use xlink:href=&quot;#DejaVuSans-50&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-65&quot; transform=&quot;translate(56.677734 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-74&quot; transform=&quot;translate(118.201172 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-61&quot; transform=&quot;translate(157.410156 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-6c&quot; transform=&quot;translate(218.689453 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(246.472656 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(278.259766 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-65&quot; transform=&quot;translate(332.222656 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-6e&quot; transform=&quot;translate(393.746094 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-67&quot; transform=&quot;translate(457.125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-74&quot; transform=&quot;translate(520.601562 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-68&quot; transform=&quot;translate(559.810547 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-73&quot; transform=&quot;translate(623.189453 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(675.289062 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-69&quot; transform=&quot;translate(707.076172 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-6e&quot; transform=&quot;translate(734.859375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(798.238281 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-49&quot; transform=&quot;translate(830.025391 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-72&quot; transform=&quot;translate(859.517578 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-69&quot; transform=&quot;translate(900.630859 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-73&quot; transform=&quot;translate(928.414062 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(980.513672 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(1012.300781 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-61&quot; transform=&quot;translate(1089.302734 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-74&quot; transform=&quot;translate(1150.582031 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-61&quot; transform=&quot;translate(1189.791016 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-73&quot; transform=&quot;translate(1251.070312 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-65&quot; transform=&quot;translate(1303.169922 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-74&quot; transform=&quot;translate(1364.693359 0)&quot;/>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id=&quot;pf35d866709&quot;>
+   <rect x=&quot;44.39375&quot; y=&quot;25.8&quot; width=&quot;376.80625&quot; height=&quot;364.9&quot;/>
+  </clipPath>
+ </defs>
+</svg>
+</div>
+</div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
+        function resizeIframe() {
+            let iframe = document.getElementById('iframe_6ae3ac82-f566-413b-8f2a-5be481144cec');
+            if (
+                iframe &amp;&amp; iframe.contentWindow &amp;&amp;
+                iframe.contentWindow.document
+            ) {
+                let iframeDocument = iframe.contentWindow.document;
+                let body = iframeDocument.body;
+                let de = iframeDocument.documentElement;
+
+                iframe.style.height = 'auto';
+
+                // Use Math.max() across multiple DOM measurements (industry standard)
+                let height = Math.max(
+                    body.scrollHeight || 0,
+                    body.offsetHeight || 0,
+                    de.scrollHeight || 0,
+                    de.offsetHeight || 0,
+                    de.clientHeight || 0
+                );
+
+                // Scan specific MAIDR elements with getBoundingClientRect()
+                // This ensures elements with overflow:visible parents are included
+                let selectors = [
+                    '#maidr-rotor-area',
+                    '#maidr-text-container',
+                    '[id^=&quot;maidr-braille-textarea&quot;]',
+                    '.maidr-review-input'
+                ];
+                for (let i = 0; i < selectors.length; i++) {
+                    let el = iframeDocument.querySelector(selectors[i]);
+                    if (el) {
+                        let rect = el.getBoundingClientRect();
+                        let bottom = rect.bottom + (iframe.contentWindow.scrollY || 0);
+                        if (bottom > height) {
+                            height = bottom;
+                        }
+                    }
+                }
+
+                // Detect braille textarea by dynamic id prefix
+                let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                // Detect review input container by class name
+                let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
+                // Consider braille active if it or any descendant has focus
+                let isBrailleActive = brailleContainer &amp;&amp; (
+                    brailleContainer === iframeDocument.activeElement ||
+                    (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                );
+                // Consider review input active if it or any descendant has focus
+                let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                    reviewInputContainer === iframeDocument.activeElement ||
+                    (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                );
+
+                // Add buffer for active states (rotor-area height is measured directly above)
+                if (isBrailleActive) {
+                    height += 100;
+                } else if (isReviewInputActive) {
+                    height += 50;
+                }
+                iframe.style.height = (height) + 'px';
+                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+            }
+        }
+        let iframe = document.getElementById('iframe_6ae3ac82-f566-413b-8f2a-5be481144cec');
+        resizeIframe();
+        iframe.onload = function() {
+            resizeIframe();
+            iframe.contentWindow.addEventListener('resize', resizeIframe);
+        };
+        // Delegate focus events for braille textarea (by id prefix)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Delegate focus events for review input container (by class name)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Modern resize detection: ResizeObserver with MutationObserver fallback
+        try {
+            let rafId = 0;
+            let scheduleResize = function() {
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(function() {
+                    resizeIframe();
+                });
+            };
+
+            // Try ResizeObserver first (modern, more efficient)
+            if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {
+                new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body
+                );
+            } else {
+                // Fallback to MutationObserver (observe entire document for all changes)
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body,
+                    { childList: true, subtree: true, characterData: true, attributes: true }
+                );
+            }
+        } catch (_) {}
+    "></iframe>
+</div>
+</div>
+</section>
+<section id="kde-kernel-density-estimation-plot" class="level2">
+<h2 class="anchored" data-anchor-id="kde-kernel-density-estimation-plot">KDE (Kernel Density Estimation) Plot</h2>
+<div id="c9274607" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="5,13,23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr </span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate sample data</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> np.random.randn(<span class="dv">500</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a KDE plot</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">6</span>))</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>kde_plot <span class="op">=</span> sns.kdeplot(data, color<span class="op">=</span><span class="st">"blue"</span>, ax<span class="op">=</span>ax) </span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"KDE Plot of Random Data"</span>)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"Value"</span>)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"Density"</span>)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Add number formatters for better screen reader output</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>ax.xaxis.set_major_formatter(<span class="st">"</span><span class="sc">{x:.1f}</span><span class="st">"</span>)</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>ax.yaxis.set_major_formatter(<span class="st">"</span><span class="sc">{x:.3f}</span><span class="st">"</span>)</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>plt.show() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<iframe id="iframe_caeee632-ab4b-445a-a8dc-e9d24d9b8a91" title="KDE Plot of Random Data, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+  <script type=&quot;text/javascript&quot;>
+                (function() {
+                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js&quot;]');
+                    if (!existing) {
+                        var s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js';
+                        s.onload = function() { if (window.main) window.main(); };
+                        document.head.appendChild(s);
+                    } else {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function() { if (window.main) window.main(); });
+                        } else {
+                            if (window.main) window.main();
+                        }
+                    }
+                })();
+            </script>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;a0b7dc3e-104d-4f5d-bb49-11813261e6bd&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;a0b7dc3e-104d-4f5d-bb49-11813261e6bd&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;8c4df5ae-0ca0-4fcb-bf20-35b14299157e&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;adddba38-9936-4fe5-b9c2-ef047809a7c9&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;smooth&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;KDE Plot of Random Data&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Value&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 1}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Density&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 3}}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: -4.090659720653129, &amp;quot;y&amp;quot;: 3.130990414432052e-05, &amp;quot;svg_x&amp;quot;: 76.73437500000003, &amp;quot;svg_y&amp;quot;: 390.6725248935503}, {&amp;quot;x&amp;quot;: -3.7874602864499596, &amp;quot;y&amp;quot;: 0.0004406441391567099, &amp;quot;svg_x&amp;quot;: 88.04687500000001, &amp;quot;svg_y&amp;quot;: 390.3133254009992}, {&amp;quot;x&amp;quot;: -3.4842608522467904, &amp;quot;y&amp;quot;: 0.001976523971079616, &amp;quot;svg_x&amp;quot;: 99.359375, &amp;quot;svg_y&amp;quot;: 388.96555819987685}, {&amp;quot;x&amp;quot;: -3.181061418043621, &amp;quot;y&amp;quot;: 0.0031757349438575498, &amp;quot;svg_x&amp;quot;: 110.67187500000001, &amp;quot;svg_y&amp;quot;: 387.91322507931454}, {&amp;quot;x&amp;quot;: -2.877861983840452, &amp;quot;y&amp;quot;: 0.003732593534214578, &amp;quot;svg_x&amp;quot;: 121.98437500000003, &amp;quot;svg_y&amp;quot;: 387.4245698289837}, {&amp;quot;x&amp;quot;: -2.574662549637283, &amp;quot;y&amp;quot;: 0.008597522962697314, &amp;quot;svg_x&amp;quot;: 133.29687500000003, &amp;quot;svg_y&amp;quot;: 383.15549084037895}, {&amp;quot;x&amp;quot;: -2.2714631154341136, &amp;quot;y&amp;quot;: 0.025062474811193836, &amp;quot;svg_x&amp;quot;: 144.60937500000006, &amp;quot;svg_y&amp;quot;: 368.70714559342076}, {&amp;quot;x&amp;quot;: -1.9682636812309444, &amp;quot;y&amp;quot;: 0.05646671476194093, &amp;quot;svg_x&amp;quot;: 155.92187500000003, &amp;quot;svg_y&amp;quot;: 341.14925746827913}, {&amp;quot;x&amp;quot;: -1.6650642470277752, &amp;quot;y&amp;quot;: 0.10415980907403873, &amp;quot;svg_x&amp;quot;: 167.23437500000003, &amp;quot;svg_y&amp;quot;: 299.2975533845014}, {&amp;quot;x&amp;quot;: -1.361864812824606, &amp;quot;y&amp;quot;: 0.17056027443405036, &amp;quot;svg_x&amp;quot;: 178.54687500000003, &amp;quot;svg_y&amp;quot;: 241.02973353856964}, {&amp;quot;x&amp;quot;: -1.0586653786214368, &amp;quot;y&amp;quot;: 0.24585414206374842, &amp;quot;svg_x&amp;quot;: 189.859375, &amp;quot;svg_y&amp;quot;: 174.95776415154808}, {&amp;quot;x&amp;quot;: -0.7554659444182676, &amp;quot;y&amp;quot;: 0.31126637754792574, &amp;quot;svg_x&amp;quot;: 201.17187500000006, &amp;quot;svg_y&amp;quot;: 117.55713702872882}, {&amp;quot;x&amp;quot;: -0.45226651021509845, &amp;quot;y&amp;quot;: 0.343826261175105, &amp;quot;svg_x&amp;quot;: 212.48437500000003, &amp;quot;svg_y&amp;quot;: 88.98514701169003}, {&amp;quot;x&amp;quot;: -0.14906707601192926, &amp;quot;y&amp;quot;: 0.37509206115618365, &amp;quot;svg_x&amp;quot;: 223.79687500000003, &amp;quot;svg_y&amp;quot;: 61.548742902788085}, {&amp;quot;x&amp;quot;: 0.15413235819123994, &amp;quot;y&amp;quot;: 0.39596651968895147, &amp;quot;svg_x&amp;quot;: 235.10937500000006, &amp;quot;svg_y&amp;quot;: 43.230961806314156}, {&amp;quot;x&amp;quot;: 0.4573317923944096, &amp;quot;y&amp;quot;: 0.366053662090327, &amp;quot;svg_x&amp;quot;: 246.42187500000003, &amp;quot;svg_y&amp;quot;: 69.48013021475315}, {&amp;quot;x&amp;quot;: 0.7605312265975783, &amp;quot;y&amp;quot;: 0.29633385588258077, &amp;quot;svg_x&amp;quot;: 257.734375, &amp;quot;svg_y&amp;quot;: 130.66074221469162}, {&amp;quot;x&amp;quot;: 1.063730660800747, &amp;quot;y&amp;quot;: 0.20806268055667432, &amp;quot;svg_x&amp;quot;: 269.046875, &amp;quot;svg_y&amp;quot;: 208.12057496725035}, {&amp;quot;x&amp;quot;: 1.3669300950039167, &amp;quot;y&amp;quot;: 0.14390000474794415, &amp;quot;svg_x&amp;quot;: 280.35937500000006, &amp;quot;svg_y&amp;quot;: 264.42468691263923}, {&amp;quot;x&amp;quot;: 1.6701295292070863, &amp;quot;y&amp;quot;: 0.1019688816918248, &amp;quot;svg_x&amp;quot;: 291.67187500000006, &amp;quot;svg_y&amp;quot;: 301.2201387355257}, {&amp;quot;x&amp;quot;: 1.973328963410255, &amp;quot;y&amp;quot;: 0.06553022545223935, &amp;quot;svg_x&amp;quot;: 302.98437500000006, &amp;quot;svg_y&amp;quot;: 333.1958341720619}, {&amp;quot;x&amp;quot;: 2.276528397613424, &amp;quot;y&amp;quot;: 0.036759997703315825, &amp;quot;svg_x&amp;quot;: 314.29687500000006, &amp;quot;svg_y&amp;quot;: 358.4423205981987}, {&amp;quot;x&amp;quot;: 2.5797278318165935, &amp;quot;y&amp;quot;: 0.015377831237061202, &amp;quot;svg_x&amp;quot;: 325.60937500000006, &amp;quot;svg_y&amp;quot;: 377.20562619879104}, {&amp;quot;x&amp;quot;: 2.882927266019763, &amp;quot;y&amp;quot;: 0.006721799521162317, &amp;quot;svg_x&amp;quot;: 336.921875, &amp;quot;svg_y&amp;quot;: 384.8014780330828}, {&amp;quot;x&amp;quot;: 3.186126700222932, &amp;quot;y&amp;quot;: 0.0036890365760454133, &amp;quot;svg_x&amp;quot;: 348.23437500000006, &amp;quot;svg_y&amp;quot;: 387.4627919856791}, {&amp;quot;x&amp;quot;: 3.4893261344261006, &amp;quot;y&amp;quot;: 0.0023043575132855603, &amp;quot;svg_x&amp;quot;: 359.546875, &amp;quot;svg_y&amp;quot;: 388.6778772977455}, {&amp;quot;x&amp;quot;: 3.7925255686292703, &amp;quot;y&amp;quot;: 0.0028690027551025446, &amp;quot;svg_x&amp;quot;: 370.859375, &amp;quot;svg_y&amp;quot;: 388.1823890952356}, {&amp;quot;x&amp;quot;: 4.09572500283244, &amp;quot;y&amp;quot;: 0.001953444610847902, &amp;quot;svg_x&amp;quot;: 382.17187500000006, &amp;quot;svg_y&amp;quot;: 388.98581082908436}, {&amp;quot;x&amp;quot;: 4.398924437035609, &amp;quot;y&amp;quot;: 0.00044011385014492294, &amp;quot;svg_x&amp;quot;: 393.4843750000001, &amp;quot;svg_y&amp;quot;: 390.31379074087954}, {&amp;quot;x&amp;quot;: 4.702123871238777, &amp;quot;y&amp;quot;: 3.130622022639982e-05, &amp;quot;svg_x&amp;quot;: 404.79687500000006, &amp;quot;svg_y&amp;quot;: 390.67252812626657}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-f8ab4077-f7ab-4ce1-b384-13afa350f132'] path&amp;quot;]}]}]]}&quot;>
+ <metadata>
+  <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
+   <cc:Work>
+    <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
+    <dc:date>2026-09-06T10:28:13.413477</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.9, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id=&quot;figure_1&quot;>
+  <g id=&quot;maidr-1af327ae-f59b-4bae-bd91-758647455150&quot;>
+   <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
+  </g>
+  <g id=&quot;axes_1&quot;>
+   <g id=&quot;maidr-9d24b122-deb8-4f01-b3fa-c1189c57a47f&quot;>
+    <path d=&quot;M 60.33125 390.7  L 421.2 390.7  L 421.2 25.8  L 60.33125 25.8  z &quot; style=&quot;fill: #ffffff&quot;/>
+   </g>
+   <g id=&quot;matplotlib.axis_1&quot;>
+    <g id=&quot;xtick_1&quot;>
+     <g id=&quot;maidr-6aa195c0-b7fd-4a51-8a17-6c68fbe59dfa&quot;>
+      <defs>
+       <path id=&quot;m0f6c000166&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </defs>
+      <g>
+       <use xlink:href=&quot;#m0f6c000166&quot; x=&quot;80.116928&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_1&quot;>
+      <!-- −4.0 -->
+      <g transform=&quot;translate(67.975522 405.298437) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-2212&quot; d=&quot;M 678 2272  L 4684 2272  L 4684 1741  L 678 1741  L 678 2272  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;DejaVuSans-34&quot; d=&quot;M 2419 4116  L 825 1625  L 2419 1625  L 2419 4116  z M 2253 4666  L 3047 4666  L 3047 1625  L 3713 1625  L 3713 1100  L 3047 1100  L 3047 0  L 2419 0  L 2419 1100  L 313 1100  L 313 1709  L 2253 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;DejaVuSans-2e&quot; d=&quot;M 684 794  L 1344 794  L 1344 0  L 684 0  L 684 794  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;DejaVuSans-30&quot; d=&quot;M 2034 4250  Q 1547 4250 1301 3770  Q 1056 3291 1056 2328  Q 1056 1369 1301 889  Q 1547 409 2034 409  Q 2525 409 2770 889  Q 3016 1369 3016 2328  Q 3016 3291 2770 3770  Q 2525 4250 2034 4250  z M 2034 4750  Q 2819 4750 3233 4129  Q 3647 3509 3647 2328  Q 3647 1150 3233 529  Q 2819 -91 2034 -91  Q 1250 -91 836 529  Q 422 1150 422 2328  Q 422 3509 836 4129  Q 1250 4750 2034 4750  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-2212&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-34&quot; transform=&quot;translate(83.789062 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(147.412109 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(179.199219 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_2&quot;>
+     <g id=&quot;maidr-6061f1d0-8c07-474a-9d24-6b3b53d667ed&quot;>
+      <g>
+       <use xlink:href=&quot;#m0f6c000166&quot; x=&quot;154.737779&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_2&quot;>
+      <!-- −2.0 -->
+      <g transform=&quot;translate(142.596373 405.298437) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-32&quot; d=&quot;M 1228 531  L 3431 531  L 3431 0  L 469 0  L 469 531  Q 828 903 1448 1529  Q 2069 2156 2228 2338  Q 2531 2678 2651 2914  Q 2772 3150 2772 3378  Q 2772 3750 2511 3984  Q 2250 4219 1831 4219  Q 1534 4219 1204 4116  Q 875 4013 500 3803  L 500 4441  Q 881 4594 1212 4672  Q 1544 4750 1819 4750  Q 2544 4750 2975 4387  Q 3406 4025 3406 3419  Q 3406 3131 3298 2873  Q 3191 2616 2906 2266  Q 2828 2175 2409 1742  Q 1991 1309 1228 531  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-2212&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-32&quot; transform=&quot;translate(83.789062 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(147.412109 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(179.199219 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_3&quot;>
+     <g id=&quot;maidr-754d64d0-50a3-46aa-92cd-e8c3b7f12f5b&quot;>
+      <g>
+       <use xlink:href=&quot;#m0f6c000166&quot; x=&quot;229.358631&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_3&quot;>
+      <!-- 0.0 -->
+      <g transform=&quot;translate(221.407069 405.298437) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_4&quot;>
+     <g id=&quot;maidr-e6ff1a4c-c63a-4143-a472-03f0aa07f2df&quot;>
+      <g>
+       <use xlink:href=&quot;#m0f6c000166&quot; x=&quot;303.979483&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_4&quot;>
+      <!-- 2.0 -->
+      <g transform=&quot;translate(296.02792 405.298437) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-32&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_5&quot;>
+     <g id=&quot;maidr-fba55e71-a007-4364-a5b6-0559519dd06f&quot;>
+      <g>
+       <use xlink:href=&quot;#m0f6c000166&quot; x=&quot;378.600334&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_5&quot;>
+      <!-- 4.0 -->
+      <g transform=&quot;translate(370.648772 405.298437) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-34&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_6&quot;>
+     <!-- Value -->
+     <g transform=&quot;translate(227.034375 418.976562) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-56&quot; d=&quot;M 1831 0  L 50 4666  L 709 4666  L 2188 738  L 3669 4666  L 4325 4666  L 2547 0  L 1831 0  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-61&quot; d=&quot;M 2194 1759  Q 1497 1759 1228 1600  Q 959 1441 959 1056  Q 959 750 1161 570  Q 1363 391 1709 391  Q 2188 391 2477 730  Q 2766 1069 2766 1631  L 2766 1759  L 2194 1759  z M 3341 1997  L 3341 0  L 2766 0  L 2766 531  Q 2569 213 2275 61  Q 1981 -91 1556 -91  Q 1019 -91 701 211  Q 384 513 384 1019  Q 384 1609 779 1909  Q 1175 2209 1959 2209  L 2766 2209  L 2766 2266  Q 2766 2663 2505 2880  Q 2244 3097 1772 3097  Q 1472 3097 1187 3025  Q 903 2953 641 2809  L 641 3341  Q 956 3463 1253 3523  Q 1550 3584 1831 3584  Q 2591 3584 2966 3190  Q 3341 2797 3341 1997  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-6c&quot; d=&quot;M 603 4863  L 1178 4863  L 1178 0  L 603 0  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-75&quot; d=&quot;M 544 1381  L 544 3500  L 1119 3500  L 1119 1403  Q 1119 906 1312 657  Q 1506 409 1894 409  Q 2359 409 2629 706  Q 2900 1003 2900 1516  L 2900 3500  L 3475 3500  L 3475 0  L 2900 0  L 2900 538  Q 2691 219 2414 64  Q 2138 -91 1772 -91  Q 1169 -91 856 284  Q 544 659 544 1381  z M 1991 3584  L 1991 3584  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-65&quot; d=&quot;M 3597 1894  L 3597 1613  L 953 1613  Q 991 1019 1311 708  Q 1631 397 2203 397  Q 2534 397 2845 478  Q 3156 559 3463 722  L 3463 178  Q 3153 47 2828 -22  Q 2503 -91 2169 -91  Q 1331 -91 842 396  Q 353 884 353 1716  Q 353 2575 817 3079  Q 1281 3584 2069 3584  Q 2775 3584 3186 3129  Q 3597 2675 3597 1894  z M 3022 2063  Q 3016 2534 2758 2815  Q 2500 3097 2075 3097  Q 1594 3097 1305 2825  Q 1016 2553 972 2059  L 3022 2063  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-56&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-61&quot; transform=&quot;translate(60.658203 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-6c&quot; transform=&quot;translate(121.9375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-75&quot; transform=&quot;translate(149.720703 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-65&quot; transform=&quot;translate(213.099609 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;matplotlib.axis_2&quot;>
+    <g id=&quot;ytick_1&quot;>
+     <g id=&quot;maidr-35f4bdbe-47ab-48c5-8ab2-f1b59f0ff6d5&quot;>
+      <defs>
+       <path id=&quot;m30caf31c4a&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </defs>
+      <g>
+       <use xlink:href=&quot;#m30caf31c4a&quot; x=&quot;60.33125&quot; y=&quot;390.7&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_7&quot;>
+      <!-- 0.000 -->
+      <g transform=&quot;translate(24.703125 394.499219) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(159.033203 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(222.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_2&quot;>
+     <g id=&quot;maidr-33c3ac6d-d540-43ed-a9dd-093d5f21255f&quot;>
+      <g>
+       <use xlink:href=&quot;#m30caf31c4a&quot; x=&quot;60.33125&quot; y=&quot;346.823937&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_8&quot;>
+      <!-- 0.050 -->
+      <g transform=&quot;translate(24.703125 350.623156) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-35&quot; d=&quot;M 691 4666  L 3169 4666  L 3169 4134  L 1269 4134  L 1269 2991  Q 1406 3038 1543 3061  Q 1681 3084 1819 3084  Q 2600 3084 3056 2656  Q 3513 2228 3513 1497  Q 3513 744 3044 326  Q 2575 -91 1722 -91  Q 1428 -91 1123 -41  Q 819 9 494 109  L 494 744  Q 775 591 1075 516  Q 1375 441 1709 441  Q 2250 441 2565 725  Q 2881 1009 2881 1497  Q 2881 1984 2565 2268  Q 2250 2553 1709 2553  Q 1456 2553 1204 2497  Q 953 2441 691 2322  L 691 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(95.410156 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-35&quot; transform=&quot;translate(159.033203 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(222.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_3&quot;>
+     <g id=&quot;maidr-8f3ab641-9494-473e-bbf5-b00eaa5c8b6a&quot;>
+      <g>
+       <use xlink:href=&quot;#m30caf31c4a&quot; x=&quot;60.33125&quot; y=&quot;302.947874&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_9&quot;>
+      <!-- 0.100 -->
+      <g transform=&quot;translate(24.703125 306.747093) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-31&quot; d=&quot;M 794 531  L 1825 531  L 1825 4091  L 703 3866  L 703 4441  L 1819 4666  L 2450 4666  L 2450 531  L 3481 531  L 3481 0  L 794 0  L 794 531  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-31&quot; transform=&quot;translate(95.410156 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(159.033203 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(222.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_4&quot;>
+     <g id=&quot;maidr-fdf37876-90c9-46ab-8e38-b468344d176e&quot;>
+      <g>
+       <use xlink:href=&quot;#m30caf31c4a&quot; x=&quot;60.33125&quot; y=&quot;259.071811&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_10&quot;>
+      <!-- 0.150 -->
+      <g transform=&quot;translate(24.703125 262.87103) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-31&quot; transform=&quot;translate(95.410156 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-35&quot; transform=&quot;translate(159.033203 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(222.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_5&quot;>
+     <g id=&quot;maidr-fe260023-0183-4710-b7dd-c42bbc60b008&quot;>
+      <g>
+       <use xlink:href=&quot;#m30caf31c4a&quot; x=&quot;60.33125&quot; y=&quot;215.195749&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_11&quot;>
+      <!-- 0.200 -->
+      <g transform=&quot;translate(24.703125 218.994967) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-32&quot; transform=&quot;translate(95.410156 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(159.033203 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(222.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_6&quot;>
+     <g id=&quot;maidr-3ca22d46-3930-4572-89c2-b4ea67c56ce2&quot;>
+      <g>
+       <use xlink:href=&quot;#m30caf31c4a&quot; x=&quot;60.33125&quot; y=&quot;171.319686&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_12&quot;>
+      <!-- 0.250 -->
+      <g transform=&quot;translate(24.703125 175.118904) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-32&quot; transform=&quot;translate(95.410156 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-35&quot; transform=&quot;translate(159.033203 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(222.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_7&quot;>
+     <g id=&quot;maidr-97ba34da-fdea-43b5-b321-cb6e1d169a6a&quot;>
+      <g>
+       <use xlink:href=&quot;#m30caf31c4a&quot; x=&quot;60.33125&quot; y=&quot;127.443623&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_13&quot;>
+      <!-- 0.300 -->
+      <g transform=&quot;translate(24.703125 131.242842) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-33&quot; d=&quot;M 2597 2516  Q 3050 2419 3304 2112  Q 3559 1806 3559 1356  Q 3559 666 3084 287  Q 2609 -91 1734 -91  Q 1441 -91 1130 -33  Q 819 25 488 141  L 488 750  Q 750 597 1062 519  Q 1375 441 1716 441  Q 2309 441 2620 675  Q 2931 909 2931 1356  Q 2931 1769 2642 2001  Q 2353 2234 1838 2234  L 1294 2234  L 1294 2753  L 1863 2753  Q 2328 2753 2575 2939  Q 2822 3125 2822 3475  Q 2822 3834 2567 4026  Q 2313 4219 1838 4219  Q 1578 4219 1281 4162  Q 984 4106 628 3988  L 628 4550  Q 988 4650 1302 4700  Q 1616 4750 1894 4750  Q 2613 4750 3031 4423  Q 3450 4097 3450 3541  Q 3450 3153 3228 2886  Q 3006 2619 2597 2516  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-33&quot; transform=&quot;translate(95.410156 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(159.033203 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(222.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_8&quot;>
+     <g id=&quot;maidr-a1cc505f-ba6d-4f9f-a9fa-38a52a47e5a8&quot;>
+      <g>
+       <use xlink:href=&quot;#m30caf31c4a&quot; x=&quot;60.33125&quot; y=&quot;83.56756&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_14&quot;>
+      <!-- 0.350 -->
+      <g transform=&quot;translate(24.703125 87.366779) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-33&quot; transform=&quot;translate(95.410156 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-35&quot; transform=&quot;translate(159.033203 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(222.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_9&quot;>
+     <g id=&quot;maidr-85401b22-b04c-4ba1-a1e0-1c2b0fe70d95&quot;>
+      <g>
+       <use xlink:href=&quot;#m30caf31c4a&quot; x=&quot;60.33125&quot; y=&quot;39.691497&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_15&quot;>
+      <!-- 0.400 -->
+      <g transform=&quot;translate(24.703125 43.490716) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-30&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-2e&quot; transform=&quot;translate(63.623047 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-34&quot; transform=&quot;translate(95.410156 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(159.033203 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(222.65625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_16&quot;>
+     <!-- Density -->
+     <g transform=&quot;translate(18.623438 227.258594) rotate(-90) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-44&quot; d=&quot;M 1259 4147  L 1259 519  L 2022 519  Q 2988 519 3436 956  Q 3884 1394 3884 2338  Q 3884 3275 3436 3711  Q 2988 4147 2022 4147  L 1259 4147  z M 628 4666  L 1925 4666  Q 3281 4666 3915 4102  Q 4550 3538 4550 2338  Q 4550 1131 3912 565  Q 3275 0 1925 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-6e&quot; d=&quot;M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-73&quot; d=&quot;M 2834 3397  L 2834 2853  Q 2591 2978 2328 3040  Q 2066 3103 1784 3103  Q 1356 3103 1142 2972  Q 928 2841 928 2578  Q 928 2378 1081 2264  Q 1234 2150 1697 2047  L 1894 2003  Q 2506 1872 2764 1633  Q 3022 1394 3022 966  Q 3022 478 2636 193  Q 2250 -91 1575 -91  Q 1294 -91 989 -36  Q 684 19 347 128  L 347 722  Q 666 556 975 473  Q 1284 391 1588 391  Q 1994 391 2212 530  Q 2431 669 2431 922  Q 2431 1156 2273 1281  Q 2116 1406 1581 1522  L 1381 1569  Q 847 1681 609 1914  Q 372 2147 372 2553  Q 372 3047 722 3315  Q 1072 3584 1716 3584  Q 2034 3584 2315 3537  Q 2597 3491 2834 3397  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-69&quot; d=&quot;M 603 3500  L 1178 3500  L 1178 0  L 603 0  L 603 3500  z M 603 4863  L 1178 4863  L 1178 4134  L 603 4134  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-74&quot; d=&quot;M 1172 4494  L 1172 3500  L 2356 3500  L 2356 3053  L 1172 3053  L 1172 1153  Q 1172 725 1289 603  Q 1406 481 1766 481  L 2356 481  L 2356 0  L 1766 0  Q 1100 0 847 248  Q 594 497 594 1153  L 594 3053  L 172 3053  L 172 3500  L 594 3500  L 594 4494  L 1172 4494  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-79&quot; d=&quot;M 2059 -325  Q 1816 -950 1584 -1140  Q 1353 -1331 966 -1331  L 506 -1331  L 506 -850  L 844 -850  Q 1081 -850 1212 -737  Q 1344 -625 1503 -206  L 1606 56  L 191 3500  L 800 3500  L 1894 763  L 2988 3500  L 3597 3500  L 2059 -325  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-44&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-65&quot; transform=&quot;translate(77.001953 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-6e&quot; transform=&quot;translate(138.525391 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-73&quot; transform=&quot;translate(201.904297 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-69&quot; transform=&quot;translate(254.003906 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-74&quot; transform=&quot;translate(281.787109 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-79&quot; transform=&quot;translate(320.996094 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;maidr-f8ab4077-f7ab-4ce1-b384-13afa350f132&quot; maidr=&quot;3bfab730-96bb-4a77-a277-152389a52fff&quot;>
+    <path d=&quot;M 76.734375 390.672525  L 84.977151 390.48933  L 89.922817 390.165597  L 94.868483 389.608763  L 104.759815 388.270342  L 108.056925 388.011778  L 113.002591 387.8727  L 117.948257 387.777244  L 121.245367 387.526721  L 124.542478 386.983886  L 126.191033 386.567701  L 127.839589 386.03462  L 129.488144 385.366297  L 131.136699 384.540956  L 132.785254 383.533375  L 134.43381 382.315749  L 136.082365 380.859478  L 137.73092 379.137655  L 139.379476 377.127876  L 141.028031 374.814848  L 142.676586 372.192206  L 144.325141 369.263043  L 145.973697 366.038838  L 149.270807 358.77556  L 152.567918 350.531263  L 155.865028 341.322076  L 159.162139 330.983139  L 162.459249 319.234627  L 165.75636 305.854442  L 169.05347 290.839521  L 172.350581 274.433505  L 175.647692 256.996054  L 180.593357 229.49283  L 185.539023 200.684264  L 192.133244 161.636343  L 195.430355 143.433444  L 197.07891 135.103843  L 198.727465 127.440677  L 200.376021 120.521329  L 202.024576 114.381217  L 203.673131 109.007609  L 205.321687 104.338416  L 206.970242 100.266377  L 208.618797 96.648377  L 215.213018 83.42638  L 216.861573 79.737725  L 220.158684 71.485649  L 226.752905 53.819022  L 228.40146 50.092705  L 230.050016 47.017766  L 231.698571 44.758887  L 233.347126 43.447607  L 234.995682 43.174882  L 236.644237 43.988035  L 238.292792 45.892188  L 239.941347 48.855798  L 241.589903 52.819457  L 243.238458 57.70672  L 244.887013 63.435424  L 246.535568 69.927886  L 248.184124 77.118474  L 249.832679 84.957411  L 251.481234 93.410257  L 254.778345 112.065015  L 258.075455 132.863434  L 261.372566 155.322377  L 267.966787 201.129354  L 271.263898 221.85617  L 272.912453 231.202529  L 274.561008 239.792731  L 276.209563 247.631291  L 277.858119 254.770426  L 279.506674 261.301145  L 282.803785 273.013409  L 287.74945 288.940871  L 294.343671 309.429775  L 297.640782 319.099978  L 300.937893 328.043854  L 304.235003 336.239929  L 307.532114 343.867096  L 312.47778 354.657194  L 315.77489 361.429286  L 319.072001 367.629208  L 320.720556 370.424967  L 322.369111 372.976342  L 324.017666 375.262831  L 325.666222 377.275012  L 327.314777 379.014901  L 328.963332 380.495005  L 330.611888 381.736439  L 332.260443 382.766517  L 333.908998 383.6162  L 337.206109 384.90227  L 340.503219 385.831858  L 345.448885 386.924494  L 350.394551 387.84471  L 353.691661 388.318953  L 356.988772 388.608967  L 360.285883 388.682281  L 365.231548 388.47111  L 370.177214 388.196641  L 373.474325 388.174224  L 376.771435 388.349851  L 381.717101 388.921595  L 389.959878 390.007237  L 394.905543 390.405902  L 401.499764 390.63326  L 404.796875 390.672528  L 404.796875 390.672528  &quot; clip-path=&quot;url(#p8101385724)&quot; style=&quot;fill: none; stroke: #0000ff; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-6923fd1b-6ea9-47ae-9b2e-cb05cf869330&quot;>
+    <path d=&quot;M 60.33125 390.7  L 60.33125 25.8  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-8e3ac243-1f7d-4697-9560-6d30e0997251&quot;>
+    <path d=&quot;M 421.2 390.7  L 421.2 25.8  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-c4055666-2502-47d1-8de8-8e9f462b39f7&quot;>
+    <path d=&quot;M 60.33125 390.7  L 421.2 390.7  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-6f5c6707-f52e-496a-a65e-43bdd2a74859&quot;>
+    <path d=&quot;M 60.33125 25.8  L 421.2 25.8  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;text_17&quot;>
+    <!-- KDE Plot of Random Data -->
+    <g transform=&quot;translate(164.536563 19.8) scale(0.12 -0.12)&quot;>
+     <defs>
+      <path id=&quot;DejaVuSans-4b&quot; d=&quot;M 628 4666  L 1259 4666  L 1259 2694  L 3353 4666  L 4166 4666  L 1850 2491  L 4331 0  L 3500 0  L 1259 2247  L 1259 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-45&quot; d=&quot;M 628 4666  L 3578 4666  L 3578 4134  L 1259 4134  L 1259 2753  L 3481 2753  L 3481 2222  L 1259 2222  L 1259 531  L 3634 531  L 3634 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-20&quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-50&quot; d=&quot;M 1259 4147  L 1259 2394  L 2053 2394  Q 2494 2394 2734 2622  Q 2975 2850 2975 3272  Q 2975 3691 2734 3919  Q 2494 4147 2053 4147  L 1259 4147  z M 628 4666  L 2053 4666  Q 2838 4666 3239 4311  Q 3641 3956 3641 3272  Q 3641 2581 3239 2228  Q 2838 1875 2053 1875  L 1259 1875  L 1259 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-6f&quot; d=&quot;M 1959 3097  Q 1497 3097 1228 2736  Q 959 2375 959 1747  Q 959 1119 1226 758  Q 1494 397 1959 397  Q 2419 397 2687 759  Q 2956 1122 2956 1747  Q 2956 2369 2687 2733  Q 2419 3097 1959 3097  z M 1959 3584  Q 2709 3584 3137 3096  Q 3566 2609 3566 1747  Q 3566 888 3137 398  Q 2709 -91 1959 -91  Q 1206 -91 779 398  Q 353 888 353 1747  Q 353 2609 779 3096  Q 1206 3584 1959 3584  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-66&quot; d=&quot;M 2375 4863  L 2375 4384  L 1825 4384  Q 1516 4384 1395 4259  Q 1275 4134 1275 3809  L 1275 3500  L 2222 3500  L 2222 3053  L 1275 3053  L 1275 0  L 697 0  L 697 3053  L 147 3053  L 147 3500  L 697 3500  L 697 3744  Q 697 4328 969 4595  Q 1241 4863 1831 4863  L 2375 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-52&quot; d=&quot;M 2841 2188  Q 3044 2119 3236 1894  Q 3428 1669 3622 1275  L 4263 0  L 3584 0  L 2988 1197  Q 2756 1666 2539 1819  Q 2322 1972 1947 1972  L 1259 1972  L 1259 0  L 628 0  L 628 4666  L 2053 4666  Q 2853 4666 3247 4331  Q 3641 3997 3641 3322  Q 3641 2881 3436 2590  Q 3231 2300 2841 2188  z M 1259 4147  L 1259 2491  L 2053 2491  Q 2509 2491 2742 2702  Q 2975 2913 2975 3322  Q 2975 3731 2742 3939  Q 2509 4147 2053 4147  L 1259 4147  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-64&quot; d=&quot;M 2906 2969  L 2906 4863  L 3481 4863  L 3481 0  L 2906 0  L 2906 525  Q 2725 213 2448 61  Q 2172 -91 1784 -91  Q 1150 -91 751 415  Q 353 922 353 1747  Q 353 2572 751 3078  Q 1150 3584 1784 3584  Q 2172 3584 2448 3432  Q 2725 3281 2906 2969  z M 947 1747  Q 947 1113 1208 752  Q 1469 391 1925 391  Q 2381 391 2643 752  Q 2906 1113 2906 1747  Q 2906 2381 2643 2742  Q 2381 3103 1925 3103  Q 1469 3103 1208 2742  Q 947 2381 947 1747  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-6d&quot; d=&quot;M 3328 2828  Q 3544 3216 3844 3400  Q 4144 3584 4550 3584  Q 5097 3584 5394 3201  Q 5691 2819 5691 2113  L 5691 0  L 5113 0  L 5113 2094  Q 5113 2597 4934 2840  Q 4756 3084 4391 3084  Q 3944 3084 3684 2787  Q 3425 2491 3425 1978  L 3425 0  L 2847 0  L 2847 2094  Q 2847 2600 2669 2842  Q 2491 3084 2119 3084  Q 1678 3084 1418 2786  Q 1159 2488 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1356 3278 1631 3431  Q 1906 3584 2284 3584  Q 2666 3584 2933 3390  Q 3200 3197 3328 2828  z &quot; transform=&quot;scale(0.015625)&quot;/>
+     </defs>
+     <use xlink:href=&quot;#DejaVuSans-4b&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(65.576172 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-45&quot; transform=&quot;translate(142.578125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(205.761719 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-50&quot; transform=&quot;translate(237.548828 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-6c&quot; transform=&quot;translate(297.851562 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-6f&quot; transform=&quot;translate(325.634766 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-74&quot; transform=&quot;translate(386.816406 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(426.025391 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-6f&quot; transform=&quot;translate(457.8125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-66&quot; transform=&quot;translate(518.994141 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(554.199219 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(585.986328 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-61&quot; transform=&quot;translate(653.21875 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-6e&quot; transform=&quot;translate(714.498047 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-64&quot; transform=&quot;translate(777.876953 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-6f&quot; transform=&quot;translate(841.353516 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-6d&quot; transform=&quot;translate(902.535156 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-20&quot; transform=&quot;translate(999.947266 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(1031.734375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-61&quot; transform=&quot;translate(1108.736328 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-74&quot; transform=&quot;translate(1170.015625 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-61&quot; transform=&quot;translate(1209.224609 0)&quot;/>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id=&quot;p8101385724&quot;>
+   <rect x=&quot;60.33125&quot; y=&quot;25.8&quot; width=&quot;360.86875&quot; height=&quot;364.9&quot;/>
+  </clipPath>
+ </defs>
+</svg>
+</div>
+</div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
+        function resizeIframe() {
+            let iframe = document.getElementById('iframe_caeee632-ab4b-445a-a8dc-e9d24d9b8a91');
+            if (
+                iframe &amp;&amp; iframe.contentWindow &amp;&amp;
+                iframe.contentWindow.document
+            ) {
+                let iframeDocument = iframe.contentWindow.document;
+                let body = iframeDocument.body;
+                let de = iframeDocument.documentElement;
+
+                iframe.style.height = 'auto';
+
+                // Use Math.max() across multiple DOM measurements (industry standard)
+                let height = Math.max(
+                    body.scrollHeight || 0,
+                    body.offsetHeight || 0,
+                    de.scrollHeight || 0,
+                    de.offsetHeight || 0,
+                    de.clientHeight || 0
+                );
+
+                // Scan specific MAIDR elements with getBoundingClientRect()
+                // This ensures elements with overflow:visible parents are included
+                let selectors = [
+                    '#maidr-rotor-area',
+                    '#maidr-text-container',
+                    '[id^=&quot;maidr-braille-textarea&quot;]',
+                    '.maidr-review-input'
+                ];
+                for (let i = 0; i < selectors.length; i++) {
+                    let el = iframeDocument.querySelector(selectors[i]);
+                    if (el) {
+                        let rect = el.getBoundingClientRect();
+                        let bottom = rect.bottom + (iframe.contentWindow.scrollY || 0);
+                        if (bottom > height) {
+                            height = bottom;
+                        }
+                    }
+                }
+
+                // Detect braille textarea by dynamic id prefix
+                let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                // Detect review input container by class name
+                let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
+                // Consider braille active if it or any descendant has focus
+                let isBrailleActive = brailleContainer &amp;&amp; (
+                    brailleContainer === iframeDocument.activeElement ||
+                    (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                );
+                // Consider review input active if it or any descendant has focus
+                let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                    reviewInputContainer === iframeDocument.activeElement ||
+                    (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                );
+
+                // Add buffer for active states (rotor-area height is measured directly above)
+                if (isBrailleActive) {
+                    height += 100;
+                } else if (isReviewInputActive) {
+                    height += 50;
+                }
+                iframe.style.height = (height) + 'px';
+                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+            }
+        }
+        let iframe = document.getElementById('iframe_caeee632-ab4b-445a-a8dc-e9d24d9b8a91');
+        resizeIframe();
+        iframe.onload = function() {
+            resizeIframe();
+            iframe.contentWindow.addEventListener('resize', resizeIframe);
+        };
+        // Delegate focus events for braille textarea (by id prefix)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Delegate focus events for review input container (by class name)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Modern resize detection: ResizeObserver with MutationObserver fallback
+        try {
+            let rafId = 0;
+            let scheduleResize = function() {
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(function() {
+                    resizeIframe();
+                });
+            };
+
+            // Try ResizeObserver first (modern, more efficient)
+            if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {
+                new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body
+                );
+            } else {
+                // Fallback to MutationObserver (observe entire document for all changes)
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body,
+                    { childList: true, subtree: true, characterData: true, attributes: true }
+                );
+            }
+        } catch (_) {}
+    "></iframe>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("^(?:http:|https:)");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+            // default icon
+            link.classList.add("external");
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../examples/pie-wordcloud.html" class="pagination-link" aria-label="Accessible Pie Charts and Word Clouds in matplotlib with py-maidr">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Accessible Pie Charts and Word Clouds in matplotlib with py-maidr</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../examples/line-step.html" class="pagination-link" aria-label="Accessible Line and Step Plots in matplotlib and seaborn with py-maidr">
+        <span class="nav-page-text">Accessible Line and Step Plots in matplotlib and seaborn with py-maidr</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© (x)Ability Design Lab, University of Illinois Urbana-Champaign</p>
+</div>   
+    <div class="nav-footer-center">
+<p><a href="https://maidr.ai/">maidr.ai</a> | <a href="https://r.maidr.ai/">r.maidr.ai</a> | <a href="https://pypi.org/project/maidr/">PyPI</a></p>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="cookie-consent-footer"><a href="#" id="open_preferences_center">Cookie Preferences</a></div></div>
+    <div class="nav-footer-right">
+<p><a href="https://github.com/xability/py-maidr">GitHub</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.js" defer="true"></script>
+</body></html>

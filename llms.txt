@@ -1,0 +1,30 @@
+# py-maidr
+
+> py-maidr (PyPI package `maidr`) is a Python library that makes matplotlib, seaborn, Plotly and Altair data visualizations accessible to blind and low-vision users through sonification, braille, text, and AI-powered conversational modalities. It is the Python binding of MAIDR (https://maidr.ai/), developed by the (x)Ability Design Lab at the University of Illinois Urbana-Champaign; a sibling package exists for R (https://r.maidr.ai/).
+
+maidr (pronounced "mader") patches matplotlib, seaborn and Plotly at import time, so users just `import maidr` and call `plt.show()` (or `maidr.show(plot)`) to get interactive HTML with keyboard-navigable sonification, braille, text, and AI chat; `maidr.save_html()` writes a standalone file. Supported plot types: bar, stacked bar, dodged bar, count, histogram, KDE, line, multi-line, step, pie, box, boxen, violin, heatmap, hexbin, contour, scatter, smooth/regression, candlestick, error bar, point, lollipop, area, stacked area, Gantt, word cloud, multi-layer, multi-panel, and facet plots. Works in Jupyter, Colab, VS Code, Streamlit, Shiny, and Quarto.
+
+## Docs
+- [Documentation Home](https://py.maidr.ai/): Installation, quick start, related projects and how to cite
+- [Matplotlib/Seaborn Examples overview](https://py.maidr.ai/examples.html): Custom backend, keyboard shortcuts, links to every plot family
+- [Bar Charts](https://py.maidr.ai/examples/bar.html): Bar, count, stacked and dodged bar charts
+- [Pie Charts and Word Clouds](https://py.maidr.ai/examples/pie-wordcloud.html)
+- [Histograms and KDE Plots](https://py.maidr.ai/examples/histogram-kde.html)
+- [Line and Step Plots](https://py.maidr.ai/examples/line-step.html)
+- [Heatmaps, Hexbin and Contour Plots](https://py.maidr.ai/examples/heatmap-hexbin-contour.html)
+- [Box, Boxen and Violin Plots](https://py.maidr.ai/examples/box-boxen-violin.html)
+- [Area, Error Bar, Point and Lollipop Plots](https://py.maidr.ai/examples/area-errorbar-point-lollipop.html)
+- [Scatter and Regression Plots](https://py.maidr.ai/examples/scatter-regression.html)
+- [Multi-Layer, Multi-Panel and Facet Plots](https://py.maidr.ai/examples/multi-layer-panel-facet.html)
+- [Candlestick and Gantt Charts](https://py.maidr.ai/examples/candlestick-gantt.html)
+- [Shiny and Streamlit Dashboards](https://py.maidr.ai/examples/dashboards.html)
+- [Plotly Examples](https://py.maidr.ai/examples-plotly.html): Plotly-specific accessible plot examples
+- [Altair Examples](https://py.maidr.ai/examples-altair.html): Altair (Vega-Lite) accessible chart examples
+- [Plot Type Stability](https://py.maidr.ai/stability.html): Which plot types are stable and which are experimental
+- [API Reference](https://py.maidr.ai/api/): show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook, Shiny and Streamlit widgets
+
+## Optional
+- [PyPI](https://pypi.org/project/maidr/): Install with `pip install maidr`
+- [GitHub](https://github.com/xability/py-maidr): Source code and issue tracker
+- [MAIDR JavaScript core](https://maidr.ai/): The core library that powers py-maidr (npm package `maidr`)
+- [maidr for R](https://r.maidr.ai/): The R package counterpart (CRAN package `maidr`)

@@ -6,8 +6,10 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
+<meta name="description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
 
-<title>index – py-maidr</title>
+<title>API Reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -47,7 +49,7 @@ ul.task-list li input[type="checkbox"] {
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dd413af1298e352d8fe9223d27e63c61.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-0e479ab012f249957d467615ffd4bedf.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <link href="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
@@ -113,100 +115,87 @@ cookieconsent.run({
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "SoftwareSourceCode",
-  "name": "py-maidr",
-  "alternateName": "maidr",
-  "description": "A Python library that makes matplotlib, seaborn, and plotly visualizations accessible to blind and low-vision users through sonification, braille, text, and AI modalities.",
-  "url": "https://py.maidr.ai/",
-  "codeRepository": "https://github.com/xability/py-maidr",
-  "downloadUrl": "https://pypi.org/project/maidr/",
-  "installUrl": "https://pypi.org/project/maidr/",
-  "license": "https://opensource.org/license/gpl-3-0",
-  "programmingLanguage": {
-    "@type": "ComputerLanguage",
-    "name": "Python"
-  },
-  "runtimePlatform": "Python 3.9+",
-  "softwareVersion": "1.13.0",
-  "operatingSystem": "Cross-platform",
-  "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly"],
-  "sameAs": [
-    "https://github.com/xability/py-maidr",
-    "https://pypi.org/project/maidr/"
-  ],
-  "author": {
-    "@type": "Organization",
-    "name": "(x)Ability Design Lab",
-    "url": "https://xabilitylab.ischool.illinois.edu/",
-    "sameAs": [
-      "https://github.com/xability",
-      "https://xabilitylab.ischool.illinois.edu/"
-    ],
-    "parentOrganization": {
-      "@type": "CollegeOrUniversity",
-      "name": "University of Illinois Urbana-Champaign",
-      "url": "https://illinois.edu/",
-      "department": {
-        "@type": "Organization",
-        "name": "School of Information Sciences",
-        "url": "https://ischool.illinois.edu/"
-      }
-    }
-  },
-  "contributor": [
+  "@graph": [
     {
-      "@type": "Person",
-      "name": "JooYoung Seo",
-      "url": "https://jooyoungseo.github.io",
-      "jobTitle": "Assistant Professor",
-      "affiliation": {
-        "@type": "Organization",
-        "name": "School of Information Sciences, University of Illinois Urbana-Champaign"
-      },
+      "@type": "Organization",
+      "@id": "https://maidr.ai/#organization",
+      "name": "(x)Ability Design Lab",
+      "url": "https://xabilitylab.ischool.illinois.edu/",
       "sameAs": [
-        "https://scholar.google.com/citations?user=c0x8E5YAAAAJ&hl=en",
-        "https://www.linkedin.com/in/jooyoungseo",
-        "https://github.com/jooyoungseo",
-        "https://ischool.illinois.edu/people/jooyoung-seo"
-      ]
+        "https://github.com/xability",
+        "https://xability.github.io/"
+      ],
+      "parentOrganization": {
+        "@type": "CollegeOrUniversity",
+        "name": "University of Illinois Urbana-Champaign",
+        "url": "https://illinois.edu/"
+      }
     },
     {
-      "@type": "Person",
-      "name": "Saairam Venkatesh",
-      "url": "https://github.com/SaaiVenkat",
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://maidr.ai/#software",
+      "name": "MAIDR",
+      "url": "https://maidr.ai/",
+      "sameAs": ["https://github.com/xability/maidr"]
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://py.maidr.ai/#software",
+      "name": "py-maidr",
+      "alternateName": ["maidr (PyPI)"],
+      "description": "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "url": "https://py.maidr.ai/",
+      "codeRepository": "https://github.com/xability/py-maidr",
+      "downloadUrl": "https://pypi.org/project/maidr/",
+      "installUrl": "https://pypi.org/project/maidr/",
+      "applicationCategory": "DeveloperApplication",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "programmingLanguage": "Python",
+      "runtimePlatform": "Python",
+      "softwareRequirements": ["Python >= 3.9", "matplotlib"],
+      "softwareVersion": "1.23.0",
+      "operatingSystem": "Cross-platform",
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
       "sameAs": [
-        "https://github.com/SaaiVenkat"
-      ]
+        "https://github.com/xability/py-maidr",
+        "https://pypi.org/project/maidr/"
+      ],
+      "author": {"@id": "https://maidr.ai/#organization"},
+      "isBasedOn": {"@id": "https://maidr.ai/#software"}
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://py.maidr.ai/#website",
+      "name": "py-maidr",
+      "url": "https://py.maidr.ai/",
+      "inLanguage": "en",
+      "publisher": {"@id": "https://maidr.ai/#organization"},
+      "about": {"@id": "https://py.maidr.ai/#software"}
     }
   ]
-}
-</script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "py-maidr Documentation",
-  "url": "https://py.maidr.ai/",
-  "description": "Documentation for py-maidr, a Python library for accessible data visualization with sonification, braille, text, and AI modalities.",
-  "inLanguage": "en",
-  "publisher": {
-    "@type": "Organization",
-    "name": "(x)Ability Design Lab",
-    "url": "https://xabilitylab.ischool.illinois.edu/"
-  }
 }
 </script>
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="py-maidr">
-<meta property="og:image" content="https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg">
+<meta property="og:title" content="API Reference">
+<meta property="og:description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
-<meta name="twitter:title" content="py-maidr">
-<meta name="twitter:image" content="https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg">
+<meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
+<meta name="twitter:title" content="API Reference">
+<meta name="twitter:description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://py.maidr.ai/api/">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -237,8 +226,53 @@ cookieconsent.run({
     <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
         <li>
     <a class="dropdown-item" href="../examples.html">
- <span class="dropdown-text">Matplotlib / Seaborn</span></a>
+ <span class="dropdown-text">Matplotlib / Seaborn (overview)</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/bar.html">
+ <span class="dropdown-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/pie-wordcloud.html">
+ <span class="dropdown-text">Pie Charts and Word Clouds</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/histogram-kde.html">
+ <span class="dropdown-text">Histograms and KDE Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/line-step.html">
+ <span class="dropdown-text">Line and Step Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/heatmap-hexbin-contour.html">
+ <span class="dropdown-text">Heatmaps, Hexbin and Contour Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/box-boxen-violin.html">
+ <span class="dropdown-text">Box, Boxen and Violin Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/area-errorbar-point-lollipop.html">
+ <span class="dropdown-text">Area, Error Bar, Point and Lollipop Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/scatter-regression.html">
+ <span class="dropdown-text">Scatter and Regression Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multi-layer-panel-facet.html">
+ <span class="dropdown-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/candlestick-gantt.html">
+ <span class="dropdown-text">Candlestick and Gantt Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/dashboards.html">
+ <span class="dropdown-text">Shiny and Streamlit Dashboards</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
         <li>
     <a class="dropdown-item" href="../examples-plotly.html">
  <span class="dropdown-text">Plotly</span></a>
@@ -284,7 +318,11 @@ cookieconsent.run({
   <ul class="collapse">
   <li><a href="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats" id="toc-displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="nav-link" data-scroll-target="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</a></li>
   <li><a href="#saving-a-maidr-plot-as-an-html-file" id="toc-saving-a-maidr-plot-as-an-html-file" class="nav-link" data-scroll-target="#saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</a></li>
+  <li><a href="#registering-and-releasing-figures" id="toc-registering-and-releasing-figures" class="nav-link" data-scroll-target="#registering-and-releasing-figures">Registering and releasing figures</a></li>
   <li><a href="#switching-the-matplotlib-backend" id="toc-switching-the-matplotlib-backend" class="nav-link" data-scroll-target="#switching-the-matplotlib-backend">Switching the matplotlib backend</a></li>
+  <li><a href="#where-the-maidr.js-runtime-comes-from" id="toc-where-the-maidr.js-runtime-comes-from" class="nav-link" data-scroll-target="#where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</a></li>
+  <li><a href="#shiny-for-python" id="toc-shiny-for-python" class="nav-link" data-scroll-target="#shiny-for-python">Shiny for Python</a></li>
+  <li><a href="#streamlit" id="toc-streamlit" class="nav-link" data-scroll-target="#streamlit">Streamlit</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -299,9 +337,17 @@ cookieconsent.run({
 <h1 class="doc doc-index">API Reference</h1>
 <section id="displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="level2">
 <h2 class="anchored" data-anchor-id="displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</h2>
-<p>Plots genereated by <strong>Matplotlib</strong> or <strong>Seaborn</strong> can be displayed in MAIDR format in default browser. Input plot object as an argument in <code>maidr.show()</code>.</p>
+<p>Plots generated by <strong>matplotlib</strong>, <strong>seaborn</strong>, <strong>Plotly</strong> or <strong>Altair</strong> can be displayed in MAIDR format. Pass the plot object to <code>maidr.show()</code>, or call <code>plt.show()</code> after <code>import maidr</code> and let the custom backend do it.</p>
 <table class="caption-top table">
 <tbody>
+<tr class="odd">
+<td><a href="../api/show.html#maidr.show">show</a></td>
+<td>Display a MAIDR plot.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/render.html#maidr.render">render</a></td>
+<td>Render a MAIDR plot to HTML.</td>
+</tr>
 <tr class="odd">
 <td><a href="../api/Maidr.show.html#maidr.Maidr.show">Maidr.show</a></td>
 <td>Preview the HTML content using the specified renderer.</td>
@@ -311,12 +357,32 @@ cookieconsent.run({
 </section>
 <section id="saving-a-maidr-plot-as-an-html-file" class="level2">
 <h2 class="anchored" data-anchor-id="saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</h2>
-<p>Save a plot as an HTML file with <code>maidr.save_html()</code>.</p>
+<p>Save a plot as a standalone HTML file with <code>maidr.save_html()</code>.</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
+<td><a href="../api/save_html.html#maidr.save_html">save_html</a></td>
+<td>Save a MAIDR plot as HTML file.</td>
+</tr>
+<tr class="even">
 <td><a href="../api/Maidr.save_html.html#maidr.Maidr.save_html">Maidr.save_html</a></td>
 <td>Save the HTML representation of the figure with MAIDR to a file.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="registering-and-releasing-figures" class="level2">
+<h2 class="anchored" data-anchor-id="registering-and-releasing-figures">Registering and releasing figures</h2>
+<p>Mark a bar container as a stacked bar plot with <code>maidr.stacked()</code>, and release the figures maidr tracks with <code>maidr.close()</code>.</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../api/stacked.html#maidr.stacked">stacked</a></td>
+<td></td>
+</tr>
+<tr class="even">
+<td><a href="../api/close.html#maidr.close">close</a></td>
+<td>Close a MAIDR plot and clean up resources.</td>
 </tr>
 </tbody>
 </table>
@@ -329,6 +395,58 @@ cookieconsent.run({
 <tr class="odd">
 <td><a href="../api/set_backend.html#maidr.set_backend">set_backend</a></td>
 <td>Switch the matplotlib backend between maidr and the platform default.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="where-the-maidr.js-runtime-comes-from" class="level2">
+<h2 class="anchored" data-anchor-id="where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</h2>
+<p>Choose between the jsDelivr CDN and the copy bundled in the wheel with <code>maidr.set_use_cdn()</code>, and emit the notebook loader by hand with <code>maidr.init_notebook()</code>.</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../api/set_use_cdn.html#maidr.set_use_cdn">set_use_cdn</a></td>
+<td>Set the process-wide default for <code>use_cdn</code>.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/get_use_cdn.html#maidr.get_use_cdn">get_use_cdn</a></td>
+<td>Return the current default for <code>use_cdn</code>.</td>
+</tr>
+<tr class="odd">
+<td><a href="../api/init_notebook.html#maidr.init_notebook">init_notebook</a></td>
+<td>Inject the bundled <code>maidr.js</code> / <code>maidr-math.css</code> into the notebook DOM.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="shiny-for-python" class="level2">
+<h2 class="anchored" data-anchor-id="shiny-for-python">Shiny for Python</h2>
+<p>Pair <code>output_maidr()</code> in the UI with <code>@render_maidr</code> in the server. Requires the <code>shiny</code> extra: <code>pip install "maidr[shiny]"</code>.</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../api/shiny.output_maidr.html#maidr.widget.shiny.output_maidr">shiny.output_maidr</a></td>
+<td>Create a container for a :class:<code>render_maidr</code> output.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/shiny.render_maidr.html#maidr.widget.shiny.render_maidr">shiny.render_maidr</a></td>
+<td>Render a plot as an accessible MAIDR chart in a Shiny app.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="streamlit" class="level2">
+<h2 class="anchored" data-anchor-id="streamlit">Streamlit</h2>
+<p>Place an accessible chart in a Streamlit app with <code>render_maidr()</code>, or get the HTML string to cache with <code>maidr_html()</code>. Requires the <code>streamlit</code> extra: <code>pip install "maidr[streamlit]"</code>.</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../api/streamlit.render_maidr.html#maidr.widget.streamlit.render_maidr">streamlit.render_maidr</a></td>
+<td>Draw an accessible MAIDR chart in a Streamlit app.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/streamlit.maidr_html.html#maidr.widget.streamlit.maidr_html">streamlit.maidr_html</a></td>
+<td>Return an accessible chart as a self-contained HTML string.</td>
 </tr>
 </tbody>
 </table>
@@ -749,14 +867,14 @@ cookieconsent.run({
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-      &nbsp;
-    </div>   
+<p>© (x)Ability Design Lab, University of Illinois Urbana-Champaign</p>
+</div>   
     <div class="nav-footer-center">
-
+<p><a href="https://maidr.ai/">maidr.ai</a> | <a href="https://r.maidr.ai/">r.maidr.ai</a> | <a href="https://pypi.org/project/maidr/">PyPI</a></p>
 <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="cookie-consent-footer"><a href="#" id="open_preferences_center">Cookie Preferences</a></div></div>
     <div class="nav-footer-right">
-      &nbsp;
-    </div>
+<p><a href="https://github.com/xability/py-maidr">GitHub</a></p>
+</div>
   </div>
 </footer>
 

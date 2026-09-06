@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Save the HTML representation of the figure with MAIDR to a file.">
+<meta name="description" content="Render a plot as an accessible MAIDR chart in a Shiny app. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>maidr.Maidr.save_html API reference – py-maidr</title>
+<title>maidr.widget.shiny.render_maidr API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,18 +219,18 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.Maidr.save_html API reference">
-<meta property="og:description" content="Save the HTML representation of the figure with MAIDR to a file.">
+<meta property="og:title" content="maidr.widget.shiny.render_maidr API reference">
+<meta property="og:description" content="Render a plot as an accessible MAIDR chart in a Shiny app. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.Maidr.save_html API reference">
-<meta name="twitter:description" content="Save the HTML representation of the figure with MAIDR to a file.">
+<meta name="twitter:title" content="maidr.widget.shiny.render_maidr API reference">
+<meta name="twitter:description" content="Render a plot as an accessible MAIDR chart in a Shiny app. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/Maidr.save_html.html">
+<link rel="canonical" href="https://py.maidr.ai/api/shiny.render_maidr.html">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -349,9 +349,17 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.Maidr.save_html" id="toc-maidr.Maidr.save_html" class="nav-link active" data-scroll-target="#maidr.Maidr.save_html">Maidr.save_html</a>
+  <li><a href="#maidr.widget.shiny.render_maidr" id="toc-maidr.widget.shiny.render_maidr" class="nav-link active" data-scroll-target="#maidr.widget.shiny.render_maidr">shiny.render_maidr</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
+  <ul class="collapse">
+  <li><a href="#maidr.widget.shiny.render_maidr.auto_output_ui" id="toc-maidr.widget.shiny.render_maidr.auto_output_ui" class="nav-link" data-scroll-target="#maidr.widget.shiny.render_maidr.auto_output_ui">auto_output_ui</a></li>
+  <li><a href="#maidr.widget.shiny.render_maidr.render" id="toc-maidr.widget.shiny.render_maidr.render" class="nav-link" data-scroll-target="#maidr.widget.shiny.render_maidr.render">render</a></li>
+  </ul></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -362,17 +370,18 @@ cookieconsent.run({
 
 
 
-<section id="maidr.Maidr.save_html" class="level1">
-<h1>Maidr.save_html</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Maidr.save_html(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">file</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    lib_dir<span class="op">=</span><span class="st">'lib'</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    include_version<span class="op">=</span><span class="va">True</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    data_in_svg<span class="op">=</span><span class="va">True</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    use_cdn<span class="op">=</span><span class="st">'auto'</span></span>
+<section id="maidr.widget.shiny.render_maidr" class="level1">
+<h1>shiny.render_maidr</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>widget.shiny.render_maidr(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    _fn<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="st">'100%'</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    height<span class="op">=</span><span class="st">'auto'</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    use_cdn<span class="op">=</span><span class="va">None</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Save the HTML representation of the figure with MAIDR to a file.</p>
+<p>Render a plot as an accessible MAIDR chart in a Shiny app.</p>
+<p>Decorate a function that returns a plot, and pair it with :func:<code>output_maidr</code> in the UI. The chart is sonified, navigable by keyboard, and readable as braille and text.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
@@ -386,39 +395,175 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>file</td>
-<td><a href="https://docs.python.org/3/library/stdtypes.html#str">str</a></td>
-<td>The file to save to.</td>
-<td><em>required</em></td>
+<td>_fn</td>
+<td><a href="https://docs.python.org/3/library/functions.html#callable">callable</a></td>
+<td>The decorated function. Supplied by Python when the decorator is used bare; <code>None</code> when it is called with options.</td>
+<td><code>None</code></td>
 </tr>
 <tr class="even">
-<td>lib_dir</td>
+<td>width</td>
 <td><a href="https://docs.python.org/3/library/stdtypes.html#str">str</a></td>
-<td>The directory to save the dependencies to (relative to the file’s directory).</td>
-<td><code>"lib"</code></td>
+<td>CSS width of the output container.</td>
+<td><code>"100%"</code></td>
 </tr>
 <tr class="odd">
-<td>include_version</td>
-<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a></td>
-<td>Whether to include the version number in the dependency folder name.</td>
-<td><code>True</code></td>
-</tr>
-<tr class="even">
-<td>data_in_svg</td>
-<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a></td>
-<td>Controls where the MAIDR JSON payload is placed in the output HTML or SVG.</td>
-<td><code>True</code></td>
-</tr>
-<tr class="odd">
-<td>use_cdn</td>
-<td><a href="https://docs.python.org/3/library/functions.html#bool">bool</a> or {'auto'}</td>
-<td>* <code>True</code>: load <code>maidr.js</code> from the CDN only. * <code>False</code>: copy the bundled <code>maidr.js</code> and its assets into <code>lib_dir</code> next to the saved HTML and reference the script with a relative path (no network access required). * <code>"auto"</code> (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails. The bundled files are still copied alongside the HTML so the fallback works offline.</td>
+<td>height</td>
+<td><a href="https://docs.python.org/3/library/stdtypes.html#str">str</a></td>
+<td>CSS height of the output container.</td>
 <td><code>"auto"</code></td>
+</tr>
+<tr class="even">
+<td>use_cdn</td>
+<td>bool, {"auto"}, or None</td>
+<td>Where the chart loads <code>maidr.js</code> from – see :func:<code>maidr.render</code>. <code>None</code> defers to the process-wide default. Prefer this argument over :func:<code>maidr.set_use_cdn</code> in a Shiny app: the setter is process-wide state shared by every concurrent session, while this is scoped to one output.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../api/shiny.render_maidr.html#maidr.widget.shiny.render_maidr">render_maidr</a></td>
+<td>The renderer, registered as a Shiny output.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="notes" class="level2 doc-section doc-section-notes">
+<h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
+<p>The decorated function may return a matplotlib or seaborn artist, a Plotly <code>Figure</code>, or an Altair chart. Returning <code>None</code> renders nothing, which is the documented way to leave an output blank.</p>
+<p>Any pyplot figure the function opens is closed once the chart has been rendered; see :func:<code>_close_new_figures</code>.</p>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> shiny <span class="im">import</span> App, ui</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> maidr.widget.shiny <span class="im">import</span> output_maidr, render_maidr</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> app_ui <span class="op">=</span> ui.page_fluid(output_maidr(<span class="st">"bars"</span>))</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="kw">def</span> server(<span class="bu">input</span>, output, session):</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>...     <span class="op">@</span>render_maidr</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>...     <span class="kw">def</span> bars():</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>...         fig, ax <span class="op">=</span> plt.subplots()</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>...         ax.bar([<span class="st">"a"</span>, <span class="st">"b"</span>], [<span class="dv">1</span>, <span class="dv">2</span>])</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>...         <span class="cf">return</span> ax</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> app <span class="op">=</span> App(app_ui, server)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="methods" class="level2">
+<h2 class="anchored" data-anchor-id="methods">Methods</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="#maidr.widget.shiny.render_maidr.auto_output_ui">auto_output_ui</a></td>
+<td>Return the container Shiny Express places for this output.</td>
+</tr>
+<tr class="even">
+<td><a href="#maidr.widget.shiny.render_maidr.render">render</a></td>
+<td>Run the decorated function and return its chart as Shiny UI.</td>
+</tr>
+</tbody>
+</table>
+<section id="maidr.widget.shiny.render_maidr.auto_output_ui" class="level3">
+<h3 class="anchored" data-anchor-id="maidr.widget.shiny.render_maidr.auto_output_ui">auto_output_ui</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>widget.shiny.render_maidr.auto_output_ui(<span class="op">**</span>kwargs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return the container Shiny Express places for this output.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>**kwargs</td>
+<td><a href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></td>
+<td>Arguments for :func:<code>output_maidr</code>, supplied by :func:<code>shiny.express.output_args</code> and taking precedence over the ones given to the decorator. Shiny splats <code>@output_args(...)</code> into this method, so a renderer whose signature takes nothing raises <code>TypeError</code> there – <code>shiny.render.plot</code> accepts <code>**kwargs</code> here for the same reason.</td>
+<td><code>{}</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 61%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>htmltools</code>.<code>Tag</code></td>
+<td>The output container.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="maidr.widget.shiny.render_maidr.render" class="level3">
+<h3 class="anchored" data-anchor-id="maidr.widget.shiny.render_maidr.render">render</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>widget.shiny.render_maidr.render()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Run the decorated function and return its chart as Shiny UI.</p>
+<p>Implemented instead of <code>transform()</code> because the pyplot figures to clean up afterwards can only be told apart from the app’s own by what was open <em>before</em> the function ran. :class:<code>shiny.render.plot</code> overrides <code>render()</code> for the same reason.</p>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 38%">
+<col style="width: 56%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Jsonifiable</code> or None</td>
+<td>Shiny’s rendered-UI payload, or <code>None</code> when the decorated function returned <code>None</code>.</td>
 </tr>
 </tbody>
 </table>
 
 
+</section>
+</section>
 </section>
 </section>
 
