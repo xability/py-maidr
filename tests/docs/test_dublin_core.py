@@ -103,6 +103,13 @@ class TestTags:
         assert "DC.date" not in block
         assert "DC.description" not in block
 
+    def test_a_backslash_does_not_become_a_regex_replacement(self) -> None:
+        # `re.sub` with a string replacement would read these as escapes or
+        # group references and raise, taking the whole render down.
+        for title in (r"C:\1 drive", r"regex \d+ example", r"C:\Users\docs"):
+            block = dc._tags(title, "D", "https://py.maidr.ai/", "", "Text")
+            assert title in block or title.replace("&", "&amp;") in block
+
     def test_escapes_a_value_that_would_close_the_attribute(self) -> None:
         block = dc._tags('A "quoted" <b>t</b> & more', "D", "u", "", "Text")
         assert "&quot;quoted&quot;" in block
@@ -178,6 +185,29 @@ class TestProcess:
         assert _tag_values(html, "DC.identifier") == ["https://py.maidr.ai/a-page.html"]
         # The block goes inside the head, before the body.
         assert html.index("DC.title") < html.index("</head>")
+
+    @pytest.mark.parametrize(
+        "title",
+        [r"C:\1 drive – py-maidr", r"regex \d+ – py-maidr", r"C:\Users – py-maidr"],
+    )
+    def test_a_backslash_in_the_title_does_not_crash_the_render(
+        self, tmp_path: Path, title: str
+    ) -> None:
+        # One such page used to abort the run for the entire site.
+        page = _write_page(tmp_path / "a.html", title=title)
+        assert dc.process(page, tmp_path, _REPO, "") == "added"
+        assert _tag_values(page.read_text("utf-8"), "DC.title") == [
+            title[: -len(" – py-maidr")]
+        ]
+
+    def test_a_backslash_in_the_description_does_not_crash_the_render(
+        self, tmp_path: Path
+    ) -> None:
+        page = _write_page(tmp_path / "a.html", description=r"Matches \d+ digits")
+        assert dc.process(page, tmp_path, _REPO, "") == "added"
+        assert _tag_values(page.read_text("utf-8"), "DC.description") == [
+            r"Matches \d+ digits"
+        ]
 
     def test_is_idempotent(self, tmp_path: Path) -> None:
         page = _write_page(tmp_path / "a-page.html")

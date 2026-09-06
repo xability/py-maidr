@@ -299,7 +299,15 @@ def process(
         date=_source_date(repo, page, site_dir, package_date, dated),
         dc_type="Software" if rel == SOFTWARE_PAGE else "Text",
     )
-    page.write_text(_HEAD_END.sub(block + "</head>", text, count=1), encoding="utf-8")
+    # A function replacement, not a string one: `re.sub` parses a string
+    # `repl` for backslash escapes and group references, so a title or
+    # description containing a backslash -- a Windows path, a regex, LaTeX --
+    # would raise "bad escape" or "invalid group reference" and, with no
+    # per-page handler in main(), take the whole site's render down with it.
+    # `html.escape` does not help: it guards the HTML context, not this one.
+    page.write_text(
+        _HEAD_END.sub(lambda _: block + "</head>", text, count=1), encoding="utf-8"
+    )
     return "added"
 
 
