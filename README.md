@@ -63,6 +63,19 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 Plot types not yet supported fall back to a static image with a warning, so a
 plot is never lost.
 
+## Keyboard shortcuts
+
+Press **Tab** (or click) to focus a rendered plot, move between data points with the **arrow keys**, and toggle **B** braille, **T** text, **S** sonification, and **R** review mode. Four global shortcuts open maidr's own interfaces:
+
+| Action | Windows / Linux | macOS |
+|---|---|---|
+| Show or hide the keyboard shortcut help | Ctrl + / | Command + / |
+| Open the command palette listing every available command | Ctrl + Shift + P | Command + Shift + P |
+| Open the AI chat (requires your own API key, entered in Settings, or a local Ollama server) | Shift + / (that is, **?**) | Shift + / (**?**) |
+| Open Settings | Ctrl + , | Command + , |
+
+The full list, including autoplay, label announcements, and layer switching, is in the [maidr controls documentation](https://maidr.ai/docs/CONTROLS.html).
+
 ## Install and Upgrade
 
 ```sh
@@ -107,6 +120,13 @@ Shiny support requires the optional extra `pip install "maidr[shiny]"`, which
 provides `output_maidr()` and `@render_maidr` in `maidr.widget.shiny`.
 Streamlit support requires `pip install "maidr[streamlit]"`, which provides
 `render_maidr()` and `maidr_html()` in `maidr.widget.streamlit`.
+
+## Using with AI coding agents
+
+If an AI coding agent (Claude Code, Codex, Cursor, GitHub Copilot, and others) writes your plotting code, install the
+[maidr skill](https://github.com/xability/maidr-skill) with `npx skills add xability/maidr-skill`. The agent then
+routes every matplotlib, seaborn, Plotly, or Altair chart through py-maidr, verifies the output, and hands back an
+accessible HTML file or chat artifact instead of a static image.
 
 ## Contributing
 

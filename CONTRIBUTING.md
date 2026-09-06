@@ -89,7 +89,10 @@ Types: `feat`, `fix`, `docs`, `perf`, `refactor`, `style`, `test`, `build`,
 `chore`, `ci`. Releases are cut automatically from `main` by semantic-release,
 so the type matters: `feat` makes a minor release and `fix` or `perf` a patch
 release. Pull requests are squash-merged and the PR title becomes the commit
-subject, so the title must follow the same format.
+subject, so the title must follow the same format. The title is also the
+whole of the pull request that reaches `CHANGELOG.md` and the GitHub release
+notes: the description becomes the commit body, which the changelog leaves
+out. Write the title as the one line a reader of the release notes sees.
 
 ## Documentation
 
