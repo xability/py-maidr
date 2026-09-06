@@ -72,21 +72,11 @@ jobs:
           cd docs
           quarto render
 
-      # Googlebot fetches only the first 2 MB (2,097,152 bytes, uncompressed)
-      # of an HTML file and discards the rest, so any page above that is
-      # partly invisible to search. Fail well before the limit.
+      # Googlebot reads only the first 2 MB of an HTML file; the script
+      # holds every page well below that. The publish job runs it too, so
+      # what ships is what was checked.
       - name: Check rendered page sizes
-        run: |
-          limit=1900000
-          echo "Five largest HTML files under docs/_site:"
-          find docs/_site -type f -name '*.html' -printf '%s %p\n' | sort -nr | head -n 5
-          too_big="$(find docs/_site -type f -name '*.html' -size +"${limit}"c -printf '%s %p\n' | sort -nr)"
-          if [ -n "${too_big}" ]; then
-            echo "::error::HTML pages larger than ${limit} bytes:"
-            echo "${too_big}"
-            exit 1
-          fi
-          echo "All HTML pages are at most ${limit} bytes."
+        run: docs/_scripts/check-page-sizes.sh docs/_site
 
   build-and-deploy:
     # A failed or cancelled release run must not republish the site.
@@ -133,21 +123,11 @@ jobs:
           cd docs
           quarto render
 
-      # Googlebot fetches only the first 2 MB (2,097,152 bytes, uncompressed)
-      # of an HTML file and discards the rest, so any page above that is
-      # partly invisible to search. Fail well before the limit.
+      # Googlebot reads only the first 2 MB of an HTML file; the script
+      # holds every page well below that. The publish job runs it too, so
+      # what ships is what was checked.
       - name: Check rendered page sizes
-        run: |
-          limit=1900000
-          echo "Five largest HTML files under docs/_site:"
-          find docs/_site -type f -name '*.html' -printf '%s %p\n' | sort -nr | head -n 5
-          too_big="$(find docs/_site -type f -name '*.html' -size +"${limit}"c -printf '%s %p\n' | sort -nr)"
-          if [ -n "${too_big}" ]; then
-            echo "::error::HTML pages larger than ${limit} bytes:"
-            echo "${too_big}"
-            exit 1
-          fi
-          echo "All HTML pages are at most ${limit} bytes."
+        run: docs/_scripts/check-page-sizes.sh docs/_site
 
       # `render: false` publishes what the guarded step above rendered; the
       # action would otherwise render again, unchecked, on its way out.
