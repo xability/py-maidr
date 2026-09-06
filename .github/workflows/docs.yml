@@ -7,13 +7,84 @@ on:
     branches:
       - main
 
+  # The release workflow pushes its version-bump commit with GITHUB_TOKEN, and
+  # pushes made with GITHUB_TOKEN never trigger `on: push`. Chaining on the
+  # completed run rebuilds the site (and its JSON-LD softwareVersion) after
+  # every release.
+  workflow_run:
+    workflows: ["Test & Release"]
+    types: [completed]
+    branches:
+      - main
+
+  # Pull requests that touch the site get a render-only build with a page-size
+  # guard; nothing is published.
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+
 permissions:
-  contents: write
-  pages: write
+  contents: read
+
+# One publish at a time: a push to main and the post-release workflow_run can
+# fire within seconds of each other, and two `quarto publish` runs racing on
+# gh-pages interleave. Pull request renders queue per branch instead.
+concurrency:
+  group: docs-${{ github.event_name == 'pull_request' && github.head_ref || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-and-deploy:
+  # Pull requests: render only, with a read-only token. The rendered pages
+  # execute the Python in every .qmd cell, so this job never carries write
+  # access to the repository or to Pages.
+  render-pull-request:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Run quartodoc
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          cd docs
+          uv run quartodoc build --verbose
+          uv run quartodoc interlinks
+
+      - name: Render site
+        env:
+          QUARTO_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        run: |
+          cd docs
+          quarto render
+
+      # Googlebot reads only the first 2 MB of an HTML file; the script
+      # holds every page well below that. The publish job runs it too, so
+      # what ships is what was checked.
+      - name: Check rendered page sizes
+        run: docs/_scripts/check-page-sizes.sh docs/_site
+
+  build-and-deploy:
+    # A failed or cancelled release run must not republish the site.
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
     strategy:
       fail-fast: false
       matrix:
@@ -21,6 +92,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A workflow_run event checks out the default branch by default; name
+          # it so the run publishes the release commit it was chained to.
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
 
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
@@ -41,11 +116,27 @@ jobs:
           uv run quartodoc build --verbose
           uv run quartodoc interlinks
 
+      - name: Render site
+        env:
+          QUARTO_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        run: |
+          cd docs
+          quarto render
+
+      # Googlebot reads only the first 2 MB of an HTML file; the script
+      # holds every page well below that. The publish job runs it too, so
+      # what ships is what was checked.
+      - name: Check rendered page sizes
+        run: docs/_scripts/check-page-sizes.sh docs/_site
+
+      # `render: false` publishes what the guarded step above rendered; the
+      # action would otherwise render again, unchecked, on its way out.
       - name: Publish to GitHub Pages
         uses: quarto-dev/quarto-actions/publish@v2
         with:
           target: gh-pages
           path: docs
+          render: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           QUARTO_PYTHON: .venv/bin/python

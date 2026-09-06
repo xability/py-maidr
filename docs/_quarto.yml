@@ -1,6 +1,13 @@
 project:
   type: website
   output-dir: _site
+  # Files Quarto would not otherwise copy to _site (it only copies files that
+  # pages reference, plus robots.txt / CNAME / 404.html).
+  resources:
+    - llms.txt
+  # Runs before every render, after CI's `quartodoc build`: gives the
+  # generated api/*.qmd pages a <title> and a meta description.
+  pre-render: _scripts/api_front_matter.py
 
 
 metadata-files:
@@ -9,15 +16,15 @@ metadata-files:
 
 website:
   title: "py-maidr"
-  description: "A Python library that makes matplotlib, seaborn, plotly, and altair visualizations accessible through sonification, braille, text, and AI-powered multimodal data representation."
+  description: "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI."
+  # Social preview image (shared with maidr.ai). A local file lets Quarto
+  # emit og:image:width/height; a remote URL does not.
+  image: "/media/logo.jpg"
+  image-alt: "MAIDR logo - Data Insight for All"
   open-graph:
-    image: "https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg"
     locale: en_US
-    site-name: "py-maidr Documentation"
   twitter-card:
-    card-style: summary
-    image: "https://raw.githubusercontent.com/xability/maidr/refs/heads/main/media/logo.jpg"
-    image-alt: "MAIDR logo - Data Insight for All"
+    card-style: summary_large_image
   # GA4 for traffic analytics
   google-analytics: "G-TL8SVL5VRE"
   # Cookie consent banner (GDPR compliance) — gates GA4 and Clarity
@@ -26,7 +33,9 @@ website:
     style: simple
     palette: light
 
-  site-url: https://py.maidr.ai/
+  # No trailing slash: Quarto joins site-url and resource paths verbatim, so a
+  # trailing slash yields double-slash image URLs.
+  site-url: https://py.maidr.ai
   repo-url: https://github.com/xability/py-maidr
   issue-url: https://github.com/xability/py-maidr/issues/new/choose
   repo-actions: [issue]
@@ -46,8 +55,31 @@ website:
         text: "Welcome"
       - text: "Examples"
         menu:
-          - text: "Matplotlib / Seaborn"
+          - text: "Matplotlib / Seaborn (overview)"
             href: examples.qmd
+          - text: "Bar, Count, Stacked and Dodged Bar Charts"
+            href: examples/bar.qmd
+          - text: "Pie Charts and Word Clouds"
+            href: examples/pie-wordcloud.qmd
+          - text: "Histograms and KDE Plots"
+            href: examples/histogram-kde.qmd
+          - text: "Line and Step Plots"
+            href: examples/line-step.qmd
+          - text: "Heatmaps, Hexbin and Contour Plots"
+            href: examples/heatmap-hexbin-contour.qmd
+          - text: "Box, Boxen and Violin Plots"
+            href: examples/box-boxen-violin.qmd
+          - text: "Area, Error Bar, Point and Lollipop Plots"
+            href: examples/area-errorbar-point-lollipop.qmd
+          - text: "Scatter and Regression Plots"
+            href: examples/scatter-regression.qmd
+          - text: "Multi-Layer, Multi-Panel and Facet Plots"
+            href: examples/multi-layer-panel-facet.qmd
+          - text: "Candlestick and Gantt Charts"
+            href: examples/candlestick-gantt.qmd
+          - text: "Shiny and Streamlit Dashboards"
+            href: examples/dashboards.qmd
+          - text: "---"
           - text: "Plotly"
             href: examples-plotly.qmd
           - text: "Altair"
@@ -61,11 +93,45 @@ website:
         href: https://github.com/xability/py-maidr
         aria-label: GitHub
 
+  sidebar:
+    - id: examples
+      title: "Matplotlib / Seaborn Examples"
+      style: docked
+      collapse-level: 1
+      contents:
+        - text: "Overview"
+          href: examples.qmd
+        - section: "Plot families"
+          contents:
+            - examples/bar.qmd
+            - examples/pie-wordcloud.qmd
+            - examples/histogram-kde.qmd
+            - examples/line-step.qmd
+            - examples/heatmap-hexbin-contour.qmd
+            - examples/box-boxen-violin.qmd
+            - examples/area-errorbar-point-lollipop.qmd
+            - examples/scatter-regression.qmd
+            - examples/multi-layer-panel-facet.qmd
+            - examples/candlestick-gantt.qmd
+        - examples/dashboards.qmd
+        - section: "Other libraries"
+          contents:
+            - examples-plotly.qmd
+            - examples-altair.qmd
+
+  page-footer:
+    left: "© (x)Ability Design Lab, University of Illinois Urbana-Champaign"
+    center: "[maidr.ai](https://maidr.ai/) | [r.maidr.ai](https://r.maidr.ai/) | [PyPI](https://pypi.org/project/maidr/)"
+    right: "[GitHub](https://github.com/xability/py-maidr)"
+
 format:
   html:
     theme: cosmo
     css: styles.css
     toc: true
+    lang: en
+    canonical-url: true
+    author-meta: "(x)Ability Design Lab, University of Illinois Urbana-Champaign"
     link-external-icon: true
     link-external-newwindow: true
     link-external-filter: '^(?:http:|https:)'
@@ -79,123 +145,82 @@ format:
               y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
             })(window, document, "clarity", "script", "vwqybbep0i");
           </script>
-      # JSON-LD structured data — update softwareVersion on each release
+      # JSON-LD structured data, shared by every page. The @id values are the
+      # same ones maidr.ai and r.maidr.ai use, so the three sites describe one
+      # lab and one software family. softwareVersion is stamped by
+      # python-semantic-release (pyproject.toml version_variables); keep the key
+      # on one line, double-quoted, and do not edit it by hand. Home-only nodes
+      # (WebPage, the papers, maintainers) live in index.qmd.
       - text: |
           <script type="application/ld+json">
           {
             "@context": "https://schema.org",
-            "@type": "SoftwareSourceCode",
-            "name": "py-maidr",
-            "alternateName": "maidr",
-            "description": "A Python library that makes matplotlib, seaborn, and plotly visualizations accessible to blind and low-vision users through sonification, braille, text, and AI modalities.",
-            "url": "https://py.maidr.ai/",
-            "codeRepository": "https://github.com/xability/py-maidr",
-            "downloadUrl": "https://pypi.org/project/maidr/",
-            "installUrl": "https://pypi.org/project/maidr/",
-            "license": "https://opensource.org/license/gpl-3-0",
-            "programmingLanguage": {
-              "@type": "ComputerLanguage",
-              "name": "Python"
-            },
-            "runtimePlatform": "Python 3.9+",
-            "softwareVersion": "1.13.0",
-            "operatingSystem": "Cross-platform",
-            "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly"],
-            "sameAs": [
-              "https://github.com/xability/py-maidr",
-              "https://pypi.org/project/maidr/"
-            ],
-            "author": {
-              "@type": "Organization",
-              "name": "(x)Ability Design Lab",
-              "url": "https://xabilitylab.ischool.illinois.edu/",
-              "sameAs": [
-                "https://github.com/xability",
-                "https://xabilitylab.ischool.illinois.edu/"
-              ],
-              "parentOrganization": {
-                "@type": "CollegeOrUniversity",
-                "name": "University of Illinois Urbana-Champaign",
-                "url": "https://illinois.edu/",
-                "department": {
-                  "@type": "Organization",
-                  "name": "School of Information Sciences",
-                  "url": "https://ischool.illinois.edu/"
-                }
-              }
-            },
-            "contributor": [
+            "@graph": [
               {
-                "@type": "Person",
-                "name": "JooYoung Seo",
-                "url": "https://jooyoungseo.github.io",
-                "jobTitle": "Assistant Professor",
-                "affiliation": {
-                  "@type": "Organization",
-                  "name": "School of Information Sciences, University of Illinois Urbana-Champaign"
-                },
+                "@type": "Organization",
+                "@id": "https://maidr.ai/#organization",
+                "name": "(x)Ability Design Lab",
+                "url": "https://xabilitylab.ischool.illinois.edu/",
                 "sameAs": [
-                  "https://scholar.google.com/citations?user=c0x8E5YAAAAJ&hl=en",
-                  "https://www.linkedin.com/in/jooyoungseo",
-                  "https://github.com/jooyoungseo",
-                  "https://ischool.illinois.edu/people/jooyoung-seo"
-                ]
+                  "https://github.com/xability",
+                  "https://xability.github.io/"
+                ],
+                "parentOrganization": {
+                  "@type": "CollegeOrUniversity",
+                  "name": "University of Illinois Urbana-Champaign",
+                  "url": "https://illinois.edu/"
+                }
               },
               {
-                "@type": "Person",
-                "name": "Saairam Venkatesh",
-                "url": "https://github.com/SaaiVenkat",
+                "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+                "@id": "https://maidr.ai/#software",
+                "name": "MAIDR",
+                "url": "https://maidr.ai/",
+                "sameAs": ["https://github.com/xability/maidr"]
+              },
+              {
+                "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+                "@id": "https://py.maidr.ai/#software",
+                "name": "py-maidr",
+                "alternateName": ["maidr (PyPI)"],
+                "description": "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+                "url": "https://py.maidr.ai/",
+                "codeRepository": "https://github.com/xability/py-maidr",
+                "downloadUrl": "https://pypi.org/project/maidr/",
+                "installUrl": "https://pypi.org/project/maidr/",
+                "applicationCategory": "DeveloperApplication",
+                "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+                "isAccessibleForFree": true,
+                "offers": {
+                  "@type": "Offer",
+                  "price": "0",
+                  "priceCurrency": "USD"
+                },
+                "programmingLanguage": "Python",
+                "runtimePlatform": "Python",
+                "softwareRequirements": ["Python >= 3.9", "matplotlib"],
+                "softwareVersion": "1.23.0",
+                "operatingSystem": "Cross-platform",
+                "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
                 "sameAs": [
-                  "https://github.com/SaaiVenkat"
-                ]
+                  "https://github.com/xability/py-maidr",
+                  "https://pypi.org/project/maidr/"
+                ],
+                "author": {"@id": "https://maidr.ai/#organization"},
+                "isBasedOn": {"@id": "https://maidr.ai/#software"}
+              },
+              {
+                "@type": "WebSite",
+                "@id": "https://py.maidr.ai/#website",
+                "name": "py-maidr",
+                "url": "https://py.maidr.ai/",
+                "inLanguage": "en",
+                "publisher": {"@id": "https://maidr.ai/#organization"},
+                "about": {"@id": "https://py.maidr.ai/#software"}
               }
             ]
           }
           </script>
-          <script type="application/ld+json">
-          {
-            "@context": "https://schema.org",
-            "@type": "WebSite",
-            "name": "py-maidr Documentation",
-            "url": "https://py.maidr.ai/",
-            "description": "Documentation for py-maidr, a Python library for accessible data visualization with sonification, braille, text, and AI modalities.",
-            "inLanguage": "en",
-            "publisher": {
-              "@type": "Organization",
-              "name": "(x)Ability Design Lab",
-              "url": "https://xabilitylab.ischool.illinois.edu/"
-            }
-          }
-          </script>
-
-
-# quartodoc:
-#   package: maidr
-#   dir: api
-#   sidebar: _sidebar.yml
-#   style: pkgdown
-#   title: "PyMAIDR"
-#   renderer:
-#     style: markdown
-# #  sections:
-# #    - title: Plot API
-# #      desc: ""
-# #      contents:
-# #        - bar
-# #        - box
-# #        - count
-# #        - heat
-# #        - hist
-# #        - line
-# #        - scatter
-# #
-#    - title: Maidr API
-# #      desc: ""
-# #      package: maidr.core
-# #      contents:
-# #        - Maidr.render
-# #        - Maidr.show
-# #        - Maidr.save_html
 
 
 filters:
@@ -221,18 +246,59 @@ quartodoc:
   sections:
     - title: Displaying an accessible and interactive plot with multimodal formats
       desc: >
-        Plots genereated by **Matplotlib** or **Seaborn** can be displayed in MAIDR format in default browser.
-        Input plot object as an argument in `maidr.show()`.
+        Plots generated by **matplotlib**, **seaborn**, **Plotly** or **Altair**
+        can be displayed in MAIDR format. Pass the plot object to `maidr.show()`,
+        or call `plt.show()` after `import maidr` and let the custom backend do it.
       contents:
+        - show
+        - render
         - Maidr.show
     - title: Saving a maidr plot as an HTML file
       desc: >
-        Save a plot as an HTML file with `maidr.save_html()`.
+        Save a plot as a standalone HTML file with `maidr.save_html()`.
       contents:
+        - save_html
         - Maidr.save_html
+    - title: Registering and releasing figures
+      desc: >
+        Mark a bar container as a stacked bar plot with `maidr.stacked()`, and
+        release the figures maidr tracks with `maidr.close()`.
+      contents:
+        - stacked
+        - close
     - title: Switching the matplotlib backend
       desc: >
         Control whether `plt.show()` uses the maidr accessible backend or the
         platform default with `maidr.set_backend()`.
       contents:
         - set_backend
+    - title: Where the maidr.js runtime comes from
+      desc: >
+        Choose between the jsDelivr CDN and the copy bundled in the wheel with
+        `maidr.set_use_cdn()`, and emit the notebook loader by hand with
+        `maidr.init_notebook()`.
+      contents:
+        - set_use_cdn
+        - get_use_cdn
+        - init_notebook
+    - title: Shiny for Python
+      desc: >
+        Pair `output_maidr()` in the UI with `@render_maidr` in the server.
+        Requires the `shiny` extra: `pip install "maidr[shiny]"`.
+      package: maidr.widget
+      contents:
+        - name: shiny.output_maidr
+          dynamic: false
+        - name: shiny.render_maidr
+          dynamic: false
+    - title: Streamlit
+      desc: >
+        Place an accessible chart in a Streamlit app with `render_maidr()`, or
+        get the HTML string to cache with `maidr_html()`.
+        Requires the `streamlit` extra: `pip install "maidr[streamlit]"`.
+      package: maidr.widget
+      contents:
+        - name: streamlit.render_maidr
+          dynamic: false
+        - name: streamlit.maidr_html
+          dynamic: false

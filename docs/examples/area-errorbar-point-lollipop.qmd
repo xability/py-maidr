@@ -1,0 +1,231 @@
+---
+title: "Accessible Area, Error Bar, Point and Lollipop Plots in matplotlib and seaborn with py-maidr"
+pagetitle: "Accessible Area, Error Bar, Point and Lollipop Plots in matplotlib and seaborn"
+description: "Make matplotlib area charts, error bar plots, seaborn point plots and stem (lollipop) charts accessible with py-maidr, intervals included."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+These four charts share one idea: a value with something drawn around it.
+An area chart is read like a line, but a stacked area announces each band's
+own value beside the running total. Error bar and point plots are read as a
+grid, so Left and Right walk the samples and Up and Down at one sample walk
+the lower bound, the estimate and the upper bound. A lollipop (`ax.stem()`)
+is read as a bar chart whose bars have been thinned to lines: one stop per
+stem, carrying its value.
+
+`AREA`, `STACKED_AREA`, `ERRORBAR` and `LOLLIPOP` are **experimental** and may
+change without a deprecation period; a point plot is read through the error
+bar layer, so it inherits that status. See
+[Plot Type Stability](../stability.qmd).
+
+## Setup
+
+Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+
+# The point plot below reuses this dataset.
+penguins = sns.load_dataset("penguins")
+```
+
+## Area Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
+
+`ax.stackplot()` reads as an area chart rather than a line one, and the
+distinction matters: a stacked area draws **two** numbers at each point that a
+line would conflate. The band's height is the series' own value; its top edge
+is the running total. maidr announces the value and reports the total beside
+it, so a reader always knows which they heard.
+
+A single band is a plain area — nothing is stacked on it, so a running total
+equal to its own value would be noise. `baseline="wiggle"` (a streamgraph)
+reads the same way as any stacked area: floating the stack moves where the
+bands sit without changing what any band measures.
+
+```{python}
+#| fig-alt: Stacked area chart of revenue by source over four years
+
+import matplotlib.pyplot as plt
+
+import maidr #<<
+
+years = [2019, 2020, 2021, 2022]
+subscriptions = [10, 20, 25, 30]
+services = [5, 8, 12, 14]
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.stackplot( #<<
+    years, subscriptions, services, labels=["Subscriptions", "Services"]
+)
+
+ax.set_title("Revenue by Source")
+ax.set_xlabel("Year")
+ax.set_ylabel("Revenue (millions)")
+ax.legend(loc="upper left")
+
+plt.show() #<<
+```
+
+Pass `labels=` and each band is announced by name. Without it the bands are
+still read, but they can only be told apart by their order in the stack.
+
+`ax.fill_between()` reads as an area too, when it draws one: `fill_between(x,
+y)` fills from zero up to a curve, which is the same chart a single
+`stackplot` band draws. `ax.fill_betweenx()` is the same picture turned over
+and reads the same way.
+
+```{python}
+#| fig-alt: Filled area chart of monthly rainfall
+
+import matplotlib.pyplot as plt
+
+import maidr #<<
+
+months = list(range(1, 13))
+rainfall = [78, 62, 71, 55, 48, 39, 31, 35, 52, 74, 89, 84]
+
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.fill_between(months, rainfall, alpha=0.6, label="Rainfall") #<<
+
+ax.set_title("Monthly Rainfall")
+ax.set_xlabel("Month")
+ax.set_ylabel("Rainfall (mm)")
+
+plt.show() #<<
+```
+
+A band drawn **between two curves** — `fill_between(x, lower, upper)`, the
+usual way to shade a confidence interval — is a different chart, and maidr
+does not read it as an area. Its content is the gap between the edges rather
+than the height of either, so announcing it as an area would report the upper
+edge as a magnitude and drop the lower one. Those charts render as a static
+image for now; see [issue #339](https://github.com/xability/py-maidr/issues/339).
+
+## Error Bar Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
+
+Uncertainty is usually the finding, not the decoration: whether two group means
+differ is answered by whether their intervals overlap. `ax.errorbar()` draws
+that, and maidr reads the estimate **and** its interval, so the comparison the
+chart was drawn to support can be made by ear.
+
+Navigation is a grid. Left and right walk the samples; up and down at one
+sample walk the lower bound, the estimate and the upper bound — so a reader
+traces one interval rather than rebuilding it from three passes over the chart.
+
+The bounds are read off the drawn bars rather than from the `yerr` you passed,
+so asymmetric errors, one-sided errors, `uplims`/`lolims` and `fmt="none"` all
+read correctly without you having to present them any particular way.
+
+```{python}
+#| fig-alt: Mean response by dose with 95% confidence intervals
+
+import matplotlib.pyplot as plt
+
+import maidr #<<
+
+groups = ["control", "low dose", "high dose"]
+means = [4.2, 5.1, 7.3]
+
+# Asymmetric intervals, as a real confidence interval usually is: the lower
+# and upper distances from the mean are given separately.
+lower = [0.4, 1.1, 0.2]
+upper = [0.4, 1.5, 0.1]
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.errorbar(groups, means, yerr=[lower, upper], fmt="o", capsize=5)
+
+ax.set_title("Mean Response by Dose, with 95% Confidence Intervals")
+ax.set_xlabel("Group")
+ax.set_ylabel("Response")
+
+plt.show() #<<
+```
+
+## Point Plot
+
+`sns.pointplot()` is the same reading from the other direction: it estimates a
+group mean from raw observations and draws the interval around it for you. It
+reads as an error bar layer, so navigation is the same grid — left and right
+walk the groups, up and down walk the lower bound, the estimate and the upper
+bound.
+
+`capsize`, `orient` and `errorbar=` change how the chart is drawn, not how it
+is read; the bounds come from the drawn interval either way. A `hue` splits the
+chart into groups, and each group keeps its own estimate and interval on the
+error bar layer, so up and down at a category walk that group's bounds. A point
+plot drawn with `errorbar=None`, or one whose groups each hold a single
+observation, has no intervals to carry and is read as a line chart instead.
+
+```{python}
+#| fig-alt: Mean body mass by penguin species with 95% confidence intervals
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+fig, ax = plt.subplots(figsize=(8, 5))
+sns.pointplot( #<<
+    penguins, x="species", y="body_mass_g", capsize=0.1, ax=ax
+)
+
+ax.set_title("Mean Body Mass by Species, with 95% Confidence Intervals")
+ax.set_xlabel("Species")
+ax.set_ylabel("Body Mass (g)")
+
+plt.show() #<<
+```
+
+## Lollipop Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
+
+`ax.stem()` draws a stem down to each value with a marker at the top — a bar
+chart with the bars thinned to lines, which is the usual answer when there are
+too many categories for bars to stay readable. maidr reads it as a lollipop:
+one term per stem, carrying its value.
+
+```{python}
+#| fig-alt: Lollipop chart of eight measurements
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+positions = np.arange(1, 9)
+values = [2.1, 5.4, 3.3, 9.2, 4.0, 7.1, 6.4, 8.3]
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.stem(positions, values) #<<
+ax.set_xlabel("Sample")
+ax.set_ylabel("Concentration (mg/L)")
+ax.set_title("Concentration by sample")
+
+plt.show() #<<
+```

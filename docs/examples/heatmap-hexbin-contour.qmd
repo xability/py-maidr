@@ -1,0 +1,165 @@
+---
+title: "Accessible Heatmaps, Hexbin and Contour Plots in matplotlib and seaborn with py-maidr"
+pagetitle: "Accessible Heatmaps, Hexbin and Contour Plots in matplotlib and seaborn"
+description: "Make seaborn heatmaps, matplotlib hexbin plots and contour plots accessible with py-maidr: navigate cells, bins and level curves by keyboard."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+These three charts all encode a third variable as colour, which is exactly
+what a screen reader cannot see. py-maidr reads a heatmap as a grid: all four
+arrows move between cells, and each cell is announced by its row, its column
+and its value, with the value also played as pitch. A hexbin plot is read as a
+lattice of counted cells, one row at a time, and a contour plot is read one
+level curve at a time so the height is always stated rather than inferred.
+
+`HEAT` is in the **stable** set. `HEXBIN` and `CONTOUR` are **experimental**
+and may change without a deprecation period: see
+[Plot Type Stability](../stability.qmd).
+
+## Setup
+
+Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+```
+
+## Heat Map
+
+```{python}
+#| fig-alt: Heatmap of model scores by task
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Load an example dataset from seaborn
+glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Score")
+
+# Plot a heatmap
+fig, ax = plt.subplots(figsize=(8, 8))
+heatmap = sns.heatmap(glue, annot=True, z_label="Score", ax=ax) #<<
+ax.set_title("Model Scores by Task")
+
+# Add number formatter for colorbar for better screen reader output
+cbar = heatmap.collections[0].colorbar
+if cbar:
+    cbar.ax.yaxis.set_major_formatter("{x:.1f}")
+
+# Show the plot
+plt.show() #<<
+```
+
+## Hexbin Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
+
+A hexbin is the usual answer to a scatter plot with too many points to read:
+the points are binned into hexagons and the count is shown as fill. maidr reads
+it as a lattice of counted cells, one row at a time.
+
+Hexagons tessellate by offsetting alternate rows by half a cell, so a bin's
+column index is not its position — bin 3 of one row and bin 3 of the next sit
+at different x. Each bin is therefore announced by its **centre** rather than
+by an index, and moving up or down keeps to the x you started from instead of
+carrying the index into a row where it means something else.
+
+```{python}
+#| fig-alt: Hexbin plot of two thousand points drawn from two overlapping clusters
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+rng = np.random.default_rng(20260813)
+x = np.concatenate([rng.normal(-1, 0.8, 1200), rng.normal(1.5, 0.5, 800)])
+y = np.concatenate([rng.normal(0, 0.9, 1200), rng.normal(1.5, 0.6, 800)])
+
+fig, ax = plt.subplots(figsize=(7, 6))
+# `z_label` names the colour axis for maidr, so a bin reads as
+# "First measurement: -1.02, Second measurement: 0.31, Points: 47".
+# Without it the axis is named "count", which is what the fill encodes.
+hexes = ax.hexbin(x, y, gridsize=12, cmap="Blues", z_label="Points") #<<
+ax.set_xlabel("First measurement")
+ax.set_ylabel("Second measurement")
+ax.set_title("Where the points pile up")
+
+plt.show() #<<
+```
+
+`hexbin` has two arguments that change what the fill means, and maidr names the
+colour axis to match rather than calling everything a count: `C=` replaces the
+count with a reduction of the values you supply, and a numeric `bins=`
+discretises the counts so the colour shows *which interval* a bin landed in.
+Pass `z_label=` to name it yourself.
+
+## Contour Plot
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
+
+A contour plot draws a surface as a set of level curves, each joining the
+points where the surface has one particular height. maidr reads the **levels
+themselves**: navigation walks one curve at a time, and every point on a
+curve carries the level it belongs to, so the height is never something you
+have to infer from position.
+
+That is the difference between a contour and a heatmap of the same surface.
+A heatmap gives you one number per cell on a fixed grid; a contour gives you
+the shape of a chosen height, which is what the chart was drawn to show.
+
+```{python}
+#| fig-alt: Contour plot of a two-dimensional Gaussian surface
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+x = np.linspace(-3, 3, 80)
+y = np.linspace(-3, 3, 80)
+grid_x, grid_y = np.meshgrid(x, y)
+height = np.exp(-(grid_x**2 + grid_y**2) / 2)
+
+fig, ax = plt.subplots(figsize=(7, 6))
+contours = ax.contour(grid_x, grid_y, height, levels=6) #<<
+ax.clabel(contours, inline=True, fontsize=8)
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.set_title("A Gaussian surface, six levels")
+
+plt.show() #<<
+```
+
+`levels=` asks for a number of heights, not a number of curves, and the
+reading follows the curves matplotlib actually drew rather than re-deriving
+its own. On a single-peaked surface like this one the two coincide — six
+levels, six curves. On a surface where one height is crossed in more than one
+place they do not, because each closed island is its own curve to walk:
+
+| surface | `levels=` | curves read |
+|---|---|---|
+| one peak | 6 | 6 |
+| two peaks | 6 | 12 |
+
+A level that nothing on the surface reaches contributes no curve at all.
+
+A bivariate `sns.kdeplot(x=..., y=...)` draws its density the same way and
+gets the same reading.
