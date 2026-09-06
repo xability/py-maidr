@@ -15,7 +15,11 @@ site="${1:?usage: check-page-sizes.sh <site-directory>}"
 limit=1900000
 
 echo "Five largest HTML files under ${site}:"
-find "${site}" -type f -name '*.html' -printf '%s %p\n' | sort -nr | head -n 5
+# awk rather than `head`: `head` closes the pipe once it has its five lines,
+# and `sort` then dies of SIGPIPE. Under the `pipefail` set above that is the
+# script's exit status, so the docs build fails intermittently on a report it
+# only prints for information. awk reads to the end, so `sort` always finishes.
+find "${site}" -type f -name '*.html' -printf '%s %p\n' | sort -nr | awk 'NR <= 5'
 
 too_big="$(find "${site}" -type f -name '*.html' -size +"${limit}"c -printf '%s %p\n' | sort -nr)"
 if [ -n "${too_big}" ]; then
