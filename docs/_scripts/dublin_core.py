@@ -108,15 +108,23 @@ def _tags(
     )
 
 
-def process(page: Path, site_dir: Path, repo: Path, package_date: str) -> bool:
-    """Insert the Dublin Core block into ``page``; True when it changed."""
+def process(page: Path, site_dir: Path, repo: Path, package_date: str) -> str:
+    """Insert the Dublin Core block into ``page``.
+
+    Returns
+    -------
+    str
+        ``"added"`` when the block was written, ``"present"`` when the page
+        already had one, ``"skipped"`` when the page carries no title or no
+        canonical URL to build one from.
+    """
     text = page.read_text(encoding="utf-8")
     if _ALREADY.search(text):
-        return False
+        return "present"
 
     title_match = _TITLE.search(text)
     if title_match is None:
-        return False
+        return "skipped"
     # Quarto renders "<page title> – <site name>"; the suffix is site
     # furniture, and a reference manager should record the page's own title.
     title = html.unescape(title_match.group("title")).strip()
@@ -131,7 +139,7 @@ def process(page: Path, site_dir: Path, repo: Path, package_date: str) -> bool:
     if canonical_match is None:
         # Without a canonical URL there is no stable identifier to record, and
         # `canonical-url: true` in _quarto.yml means every page has one.
-        return False
+        return "skipped"
     identifier = html.unescape(canonical_match.group("href"))
 
     rel = page.relative_to(site_dir).as_posix()
@@ -143,7 +151,7 @@ def process(page: Path, site_dir: Path, repo: Path, package_date: str) -> bool:
         dc_type="Software" if rel == SOFTWARE_PAGE else "Text",
     )
     page.write_text(_HEAD_END.sub(block + "</head>", text, count=1), encoding="utf-8")
-    return True
+    return "added"
 
 
 def main() -> int:
@@ -159,12 +167,27 @@ def main() -> int:
     repo = Path(__file__).resolve().parents[2]
     package_date = _git_date(repo, "maidr")
 
-    changed = sum(
-        process(page, site_dir, repo, package_date)
-        for page in sorted(site_dir.rglob("*.html"))
-    )
+    counts = {"added": 0, "present": 0, "skipped": 0}
+    for page in sorted(site_dir.rglob("*.html")):
+        counts[process(page, site_dir, repo, package_date)] += 1
+
     if not os.environ.get("QUARTO_PROJECT_SCRIPT_QUIET"):
-        print(f"dublin_core: added Dublin Core to {changed} page(s)")
+        print(
+            f"dublin_core: {counts['added']} page(s) tagged, "
+            f"{counts['present']} already tagged, {counts['skipped']} skipped"
+        )
+
+    # Quarto swallows this script's stdout, so a silent no-op would ship a
+    # site with no bibliographic metadata and nothing in the log to show it.
+    # Fail loudly instead: the site always has pages, and they always have a
+    # canonical URL, so ending with none tagged means something broke.
+    if counts["added"] + counts["present"] == 0:
+        print(
+            f"dublin_core: no page under {site_dir} could be tagged "
+            f"({counts['skipped']} skipped)",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 
