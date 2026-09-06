@@ -14,11 +14,15 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 from types import ModuleType
 
 import pytest
+
+try:  # pragma: no cover - the import itself is the version check
+    import tomllib
+except ModuleNotFoundError:  # Python 3.9 and 3.10; this package supports 3.9+
+    tomllib = None
 
 _REPO = Path(__file__).parents[2]
 _SCRIPT = _REPO / "docs" / "_scripts" / "dublin_core.py"
@@ -264,8 +268,15 @@ class TestMain:
         assert dc.main() == 0
 
 
+@pytest.mark.skipif(tomllib is None, reason="tomllib is Python 3.11+")
 class TestMetadataAgreesWithPackaging:
-    """The hand-written constants match what the package declares."""
+    """The hand-written constants match what the package declares.
+
+    Skipped on Python 3.9 and 3.10, which have no ``tomllib``. Reading
+    pyproject.toml is the whole point of these two cases, and the test matrix
+    covers 3.11 through 3.13, so the drift they guard against is still caught
+    without adding a parser dependency for two interpreters.
+    """
 
     def test_creators_are_the_pyproject_authors(self) -> None:
         with (_REPO / "pyproject.toml").open("rb") as handle:
