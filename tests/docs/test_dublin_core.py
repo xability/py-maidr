@@ -12,6 +12,7 @@ is what these pin.
 from __future__ import annotations
 
 import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -116,42 +117,94 @@ class TestTags:
         assert "<b>" not in block
 
 
+def _git(repo: Path, *args: str, date: str | None = None) -> None:
+    """Run a git command in ``repo``, optionally at a fixed commit date."""
+    env = {
+        "GIT_AUTHOR_NAME": "T",
+        "GIT_AUTHOR_EMAIL": "t@e",
+        "GIT_COMMITTER_NAME": "T",
+        "GIT_COMMITTER_EMAIL": "t@e",
+        "PATH": os.environ.get("PATH", ""),
+    }
+    if date is not None:
+        env["GIT_AUTHOR_DATE"] = date
+        env["GIT_COMMITTER_DATE"] = date
+    subprocess.run(["git", *args], cwd=repo, check=True, env=env)
+
+
+@pytest.fixture
+def dated_repo(tmp_path: Path) -> Path:
+    """A repository whose two files were committed on different days.
+
+    Built rather than borrowed: asserting against this repository's own
+    history would pass today and fail the day one commit happens to touch
+    both paths -- a rename, a licence sweep, a formatting pass -- even though
+    the code under test is still correct.
+    """
+    repo = tmp_path / "repo"
+    (repo / "docs").mkdir(parents=True)
+    (repo / "maidr").mkdir()
+    _git(repo, "init", "-q")
+
+    (repo / "docs" / "guide.qmd").write_text("guide", encoding="utf-8")
+    _git(repo, "add", "docs/guide.qmd")
+    _git(repo, "commit", "-qm", "add the guide", date="2026-01-02T00:00:00Z")
+
+    (repo / "maidr" / "api.py").write_text("code", encoding="utf-8")
+    _git(repo, "add", "maidr/api.py")
+    _git(repo, "commit", "-qm", "add the package", date="2026-03-04T00:00:00Z")
+    return repo
+
+
 class TestSourceDate:
     """``_source_date`` dates a page from the file it was rendered from."""
 
-    def test_generated_api_pages_take_the_package_date(self, tmp_path: Path) -> None:
+    def test_generated_api_pages_take_the_package_date(self, dated_repo: Path) -> None:
         # quartodoc writes these; they are not in git.
-        page = tmp_path / "api" / "show.html"
+        site = dated_repo / "_site"
+        page = site / "api" / "show.html"
         assert (
-            dc._source_date(_REPO, page, tmp_path, "2026-01-02", True) == "2026-01-02"
+            dc._source_date(dated_repo, page, site, "2026-03-04", True) == "2026-03-04"
         )
 
-    def test_a_page_dates_from_its_own_source(self, tmp_path: Path) -> None:
-        page = tmp_path / "stability.html"
-        date = dc._source_date(_REPO, page, tmp_path, "2026-01-02", True)
-        # Its own commit date, not the package's placeholder.
-        assert date != "2026-01-02"
-        assert date.count("-") == 2
+    def test_a_page_dates_from_its_own_source(self, dated_repo: Path) -> None:
+        site = dated_repo / "_site"
+        page = site / "guide.html"
+        # Its own commit date, not the package's.
+        assert (
+            dc._source_date(dated_repo, page, site, "2026-03-04", True) == "2026-01-02"
+        )
 
     def test_pages_with_different_sources_get_different_dates(
-        self, tmp_path: Path
+        self, dated_repo: Path
     ) -> None:
         # The whole point of the feature: one shared timestamp is the bug.
-        package_date = dc._git_date(_REPO, "maidr")
+        site = dated_repo / "_site"
+        package_date = dc._git_date(dated_repo, "maidr")
         dates = {
-            dc._source_date(_REPO, tmp_path / rel, tmp_path, package_date, True)
-            for rel in ("stability.html", "api/show.html")
+            dc._source_date(dated_repo, site / rel, site, package_date, True)
+            for rel in ("guide.html", "api/show.html")
         }
-        assert len(dates) > 1
+        assert dates == {"2026-01-02", "2026-03-04"}
+
+    def test_a_page_whose_source_is_untracked_falls_back_to_the_package(
+        self, dated_repo: Path
+    ) -> None:
+        site = dated_repo / "_site"
+        assert (
+            dc._source_date(dated_repo, site / "absent.html", site, "2026-03-04", True)
+            == "2026-03-04"
+        )
 
     def test_no_usable_history_yields_no_date_rather_than_a_wrong_one(
-        self, tmp_path: Path
+        self, dated_repo: Path
     ) -> None:
         # `dated` is False when the checkout holds a single commit. It is a
         # separate signal from an empty package date, which only means the
         # package directory itself has no commit.
-        page = tmp_path / "stability.html"
-        assert dc._source_date(_REPO, page, tmp_path, "2026-01-02", False) == ""
+        site = dated_repo / "_site"
+        page = site / "guide.html"
+        assert dc._source_date(dated_repo, page, site, "2026-03-04", False) == ""
 
 
 class TestHasHistory:

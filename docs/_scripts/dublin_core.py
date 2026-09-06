@@ -326,6 +326,10 @@ def main() -> int:
         or Path(__file__).parent.parent / "_site"
     )
     if not site_dir.is_dir():
+        # Not the fail-loud case below: that one means the render produced
+        # pages this script could not read. No directory at all means it was
+        # run outside a render -- by hand, or on a clean checkout -- where
+        # there is genuinely nothing to do.
         print(f"dublin_core: {site_dir} not found, nothing to do", file=sys.stderr)
         return 0
 
@@ -348,11 +352,10 @@ def main() -> int:
     for page in sorted(site_dir.rglob("*.html")):
         counts[process(page, site_dir, repo, package_date, dated)] += 1
 
-    if not os.environ.get("QUARTO_PROJECT_SCRIPT_QUIET"):
-        print(
-            f"dublin_core: {counts['added']} page(s) tagged, "
-            f"{counts['present']} already tagged, {counts['skipped']} skipped"
-        )
+    print(
+        f"dublin_core: {counts['added']} page(s) tagged, "
+        f"{counts['present']} already tagged, {counts['skipped']} skipped"
+    )
 
     # Quarto swallows this script's stdout, so a silent no-op would ship a
     # site with no bibliographic metadata and nothing in the log to show it.
