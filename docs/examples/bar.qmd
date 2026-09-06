@@ -1,0 +1,187 @@
+---
+title: "Accessible Bar Charts in matplotlib and seaborn with py-maidr"
+pagetitle: "Accessible Bar Charts in matplotlib and seaborn"
+description: "Make matplotlib and seaborn bar, count, stacked and dodged bar charts accessible with py-maidr: sonification, braille and text for every bar."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+A bar chart is the plot most readers start with, and it is the one py-maidr
+reads most directly: each bar is one stop, the Left and Right arrows move
+across the categories, and the bar's height is played as a tone whose pitch
+rises with the value while the text and braille views name the category and
+its number. A **stacked** or **dodged** bar chart adds a second dimension, so
+Up and Down move between the series that share a category and the total is
+reported alongside each part.
+
+The examples below cover `sns.barplot()`, `sns.countplot()`, and stacked and
+dodged bars drawn with `ax.bar()`. All four plot types (`BAR`, `COUNT`,
+`STACKED`, `DODGED`) are in the **stable** set: see
+[Plot Type Stability](../stability.qmd).
+
+## Setup
+
+Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+```
+
+## Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Bar plot showing the average body mass of penguins by species
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Just import maidr package #<<
+import maidr  #<<
+
+
+# Load the penguins dataset
+penguins = sns.load_dataset("penguins")
+
+# Create a bar plot showing the average body mass of penguins by species
+fig, ax = plt.subplots(figsize=(6, 6))
+
+# Assign the plot to a variable
+bar_plot = sns.barplot(
+    x="species", y="body_mass_g", data=penguins, errorbar="sd", palette="Blues_d", ax=ax
+)
+ax.set_title("Average Body Mass of Penguins by Species")
+ax.set_xlabel("Species")
+ax.set_ylabel("Body Mass (g)")
+
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:,.0f}")
+
+# plt.show() now renders accessible maidr output #<<
+plt.show()  #<<
+```
+
+## Count Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Count plot showing frequency of categorical data
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Load the Titanic dataset
+titanic = sns.load_dataset("titanic")
+
+# Create a count plot
+fig, ax = plt.subplots(figsize=(6, 6))
+count_plot = sns.countplot(x="class", data=titanic, palette="viridis", ax=ax) #<<
+
+ax.set_title("Passenger Class Distribution on the Titanic")
+ax.set_xlabel("Passenger Class")
+ax.set_ylabel("Count")
+
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:.0f}")
+
+plt.show() #<<
+```
+
+## Stacked Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Stacked bar plot of the number of penguins with above average body mass
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+species = (
+    "Adelie",
+    "Chinstrap",
+    "Gentoo",
+)
+weight_counts = {
+    "Below": np.array([70, 31, 58]),
+    "Above": np.array([82, 37, 66]),
+}
+width = 0.5
+
+fig, ax = plt.subplots()
+
+bottom = np.zeros(3)
+
+for boolean, weight_count in weight_counts.items():
+    p = ax.bar(species, weight_count, width, label=boolean, bottom=bottom) #<<
+    bottom += weight_count
+
+ax.set_xlabel("Species of Penguins")
+ax.set_ylabel("Average Body Mass")
+
+ax.set_title("Number of penguins with above average body mass")
+ax.legend(loc="upper right")
+
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:.0f}")
+
+plt.show() #<<
+```
+
+## Dodged Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Dodged bar plot of penguin weight counts
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+species: tuple[str, str, str] = (
+    "Adelie",
+    "Chinstrap",
+    "Gentoo",
+)
+weight_counts: dict[str, np.ndarray] = {
+    "Below": np.array([70, 31, 58]),
+    "Above": np.array([82, 37, 66]),
+}
+
+x: np.ndarray = np.arange(len(species))
+total_groups: int = len(weight_counts)
+width: float = 0.35
+
+fig, ax = plt.subplots() #<<
+
+offsets: list[float] = [(-width / 2) + i * width for i in range(total_groups)]
+
+for offset, (category, counts) in zip(offsets, weight_counts.items()):
+    positions = x + offset
+    p = ax.bar(positions, counts, width, label=category) #<<
+
+# Set x-axis labels and title
+ax.set_xticks(x)
+ax.set_xticklabels(species)
+ax.set_xlabel("Species")
+ax.set_ylabel("Weight")
+ax.set_title("Dodged Bar Plot: Penguin Weight Counts")
+ax.legend(loc="upper right")
+
+# Add number formatter for better screen reader output
+ax.yaxis.set_major_formatter("{x:.0f}")
+
+# Display the plot
+plt.show() #<<
+```

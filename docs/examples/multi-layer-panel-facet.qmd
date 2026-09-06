@@ -1,0 +1,214 @@
+---
+title: "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr"
+pagetitle: "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib"
+description: "Make matplotlib figures with several layers, subplots or facets accessible with py-maidr: switch layers with Page Up/Down, subplots from a list."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+A figure with more than one chart in it needs more than arrow keys. When two
+plot types share one set of axes (a bar chart with a line on a twin axis, for
+example) py-maidr treats them as **layers** and Page Up and Page Down switch
+between them. When a figure holds several subplots, each panel becomes an
+entry in a **subplot list**: the arrows move through the list, Enter activates
+a panel, and Escape returns to the list. A facet grid is the same mechanism
+with shared scales, so values stay comparable from panel to panel.
+
+The individual plot types used below (`BAR`, `LINE`) are in the **stable**
+set: see [Plot Type Stability](../stability.qmd).
+
+## Setup
+
+Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+```
+
+## Multi-Layered Plot
+
+```{python}
+#| fig-alt: Multi-layered plot with bar and line plots
+
+import matplotlib.pyplot as plt
+import numpy as np
+import maidr #<<
+
+# Generate sample data
+x = np.arange(5)
+bar_data = np.array([3, 5, 2, 7, 3])
+line_data = np.array([10, 8, 12, 14, 9])
+
+# Create a figure and a set of subplots
+fig, ax1 = plt.subplots(figsize=(8, 5)) #<<
+
+# Create the bar chart on the first y-axis
+ax1.bar(x, bar_data, color="skyblue", label="Bar Data")
+ax1.set_xlabel("X values")
+ax1.set_ylabel("Bar values", color="blue")
+ax1.tick_params(axis="y", labelcolor="blue")
+
+# Create a second y-axis sharing the same x-axis
+ax2 = ax1.twinx()
+
+# Create the line chart on the second y-axis
+ax2.plot(x, line_data, color="red", marker="o", linestyle="-", label="Line Data")
+ax2.set_xlabel("X values")
+ax2.set_ylabel("Line values", color="red")
+ax2.tick_params(axis="y", labelcolor="red")
+
+# Add title and legend
+plt.title("Multilayer Plot Example")
+
+# Add legends for both axes
+lines1, labels1 = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left")
+
+# Add number formatters for better screen reader output
+ax1.xaxis.set_major_formatter("{x:.0f}")
+ax1.yaxis.set_major_formatter("{x:.0f}")
+ax2.yaxis.set_major_formatter("{x:.0f}")
+
+# Adjust layout
+fig.tight_layout()
+
+plt.show() #<<
+```
+
+## Multi-Panel Plot (Multiple Subplots)
+
+```{python}
+#| fig-alt: Multi-panel plot with line and bar plots
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+import maidr #<<
+
+# Set the plotting style
+sns.set_theme(style="whitegrid")
+
+# Data for line plot
+x_line = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+y_line = np.array([2, 4, 1, 5, 3, 7, 6, 8])
+line_data = {"x": x_line, "y": y_line}
+
+# Data for first bar plot
+categories = ["A", "B", "C", "D", "E"]
+values = np.random.rand(5) * 10
+bar_data = {"categories": categories, "values": values}
+
+# Data for second bar plot
+categories_2 = ["A", "B", "C", "D", "E"]
+values_2 = np.random.randn(5) * 100
+bar_data_2 = {"categories": categories_2, "values": values_2}
+
+# Create a figure with 3 subplots arranged vertically
+fig, axs = plt.subplots(3, 1, figsize=(6, 12)) #<<
+
+# First panel: Line plot using seaborn
+sns.lineplot(x="x", y="y", data=line_data, color="blue", linewidth=2, ax=axs[0])
+axs[0].set_title("Line Plot: Random Data")
+axs[0].set_xlabel("X-axis")
+axs[0].set_ylabel("Values")
+
+# Second panel: Bar plot using seaborn
+sns.barplot(
+    x="categories", y="values", data=bar_data, color="green", alpha=0.7, ax=axs[1]
+)
+axs[1].set_title("Bar Plot: Random Values")
+axs[1].set_xlabel("Categories")
+axs[1].set_ylabel("Values")
+
+# Third panel: Bar plot using seaborn
+sns.barplot(
+    x="categories", y="values", data=bar_data_2, color="blue", alpha=0.7, ax=axs[2]
+)
+axs[2].set_title("Bar Plot 2: Random Values")  # Fixed the typo in the title
+axs[2].set_xlabel("Categories")
+axs[2].set_ylabel("Values")
+
+# Add number formatters for better screen reader output
+axs[0].xaxis.set_major_formatter("{x:.0f}")
+axs[0].yaxis.set_major_formatter("{x:.0f}")
+axs[1].yaxis.set_major_formatter("{x:.1f}")
+axs[2].yaxis.set_major_formatter("{x:.1f}")
+
+# Adjust layout to prevent overlap
+plt.tight_layout()
+
+# Display the figure
+plt.show() #<<
+```
+
+## Facet Plot
+
+```{python}
+#| fig-alt: Facet Plot Example using maidr
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+categories = ["A", "B", "C", "D", "E"]
+
+np.random.seed(42)
+data_group1 = np.random.rand(5) * 10
+data_group2 = np.random.rand(5) * 100
+data_group3 = np.random.rand(5) * 36
+data_group4 = np.random.rand(5) * 42
+
+data_sets = [data_group1, data_group2, data_group3, data_group4]
+condition_names = ["Group 1", "Group 2", "Group 3", "Group 4"]
+
+fig, axs = plt.subplots(2, 2, figsize=(7, 7), sharey=True, sharex=True)
+axs = axs.flatten()
+
+all_data = np.concatenate(data_sets)
+y_min, y_max = np.min(all_data) * 0.9, np.max(all_data) * 1.1
+
+# Create a bar plot in each subplot
+for i, (data, condition) in enumerate(zip(data_sets, condition_names)):
+    axs[i].bar(categories, data, color=f"C{i}", alpha=0.7)
+    axs[i].set_title(f"{condition}")
+    axs[i].set_ylim(y_min, y_max)  # Set consistent y-axis limits
+
+    # Add value labels on top of each bar
+    for j, value in enumerate(data):
+        axs[i].text(
+            j,
+            value + (y_max - y_min) * 0.02,
+            f"{value:.1f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
+
+# Add common labels
+fig.text(0.5, 0.04, "Categories", ha="center", va="center", fontsize=14)
+fig.text(
+    0.06, 0.5, "Values", ha="center", va="center", rotation="vertical", fontsize=14
+)
+
+# Add a common title
+fig.suptitle("Facet Plot: Bar Charts by Condition", fontsize=16)
+
+# Add number formatters for better screen reader output
+for ax in axs:
+    ax.yaxis.set_major_formatter("{x:.1f}")
+
+# Adjust layout
+plt.tight_layout(rect=(0.08, 0.08, 0.98, 0.95))
+
+plt.show() #<<
+```

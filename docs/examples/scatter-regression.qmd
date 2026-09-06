@@ -1,0 +1,103 @@
+---
+title: "Accessible Scatter and Regression Plots in seaborn with py-maidr"
+pagetitle: "Accessible Scatter and Regression Plots in seaborn"
+description: "Make seaborn scatter plots and regression (regplot) plots accessible with py-maidr: points read in x order, fitted line as a separate layer."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+A scatter plot is read point by point in x order: the Left and Right arrows
+move across the points, each stop announces its x and y (and its hue group
+when one is set), and the pitch follows y. A regression plot adds a fitted
+line, which py-maidr exposes as a second layer: Page Up and Page Down switch
+between the points and the smooth curve, so the trend can be heard on its own
+and then checked against the scatter.
+
+`SCATTER` and `SMOOTH` are in the **stable** set: see
+[Plot Type Stability](../stability.qmd).
+
+## Setup
+
+Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+
+# The scatter plot below reuses this dataset.
+iris = sns.load_dataset("iris")
+```
+
+## Scatter Plot
+
+```{python}
+#| fig-alt: Scatter plot of Iris sepal length vs sepal width
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+# Create a scatter plot
+fig, ax = plt.subplots()
+scatter_plot = sns.scatterplot( #<<
+    data=iris, x="sepal_length", y="sepal_width", hue="species", ax=ax
+)
+
+# Adding title and labels
+ax.set_title("Iris Sepal Length vs Sepal Width")
+ax.set_xlabel("Sepal Length (cm)")
+ax.set_ylabel("Sepal Width (cm)")
+
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.1f}")
+
+# Show the plot
+plt.show() #<<
+```
+
+## Regression Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Regression plot with scatter points and fitted line
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+import maidr #<<
+
+# Generate sample data
+np.random.seed(42)
+x = np.linspace(0, 10, 50)
+y = 2 * x + 1 + np.random.normal(0, 2, 50)
+
+# Create a regression plot
+fig, ax = plt.subplots(figsize=(6, 6))
+reg_plot = sns.regplot(
+    x=x,
+    y=y,
+    scatter_kws={"s": 50, "alpha": 0.7},
+    line_kws={"color": "red", "lw": 2},
+    ax=ax,
+) #<<
+
+ax.set_title("Regression Plot with Fitted Line")
+ax.set_xlabel("X values")
+ax.set_ylabel("Y values")
+
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.2f}")
+
+plt.show() #<<
+```

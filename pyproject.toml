@@ -228,7 +228,14 @@ commit_parser = "conventional"
 logging_use_named_masks = false
 major_on_zero = false
 tag_format = "v{version}"
-version_variables = ["maidr/__init__.py:__version__", "pyproject.toml:version"]
+# ``docs/_quarto.yml:softwareVersion`` is the JSON-LD version on py.maidr.ai;
+# python-semantic-release matches the ``"softwareVersion": "x.y.z"`` line, so
+# keep that key on one line and double-quoted.
+version_variables = [
+  "maidr/__init__.py:__version__",
+  "pyproject.toml:version",
+  "docs/_quarto.yml:softwareVersion",
+]
 
 [tool.semantic_release.branches.main]
 match = "(main|master)"

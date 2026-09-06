@@ -1,12 +1,120 @@
 ---
 title: "py-maidr: Accessible Data Visualization for Python"
-description: "Make matplotlib, seaborn, plotly, and altair charts accessible to blind and low-vision users with sonification, braille, text, and AI chat modalities."
+# Quarto appends the site title ("py-maidr") to <title>, so the browser title
+# is built from this shorter form to avoid "py-maidr ... - py-maidr".
+pagetitle: "Accessible Data Visualization for Python"
+# Social previews should still carry the brand once; Quarto otherwise derives
+# og:title and twitter:title from pagetitle.
+open-graph:
+  title: "py-maidr: Accessible Data Visualization for Python"
+twitter-card:
+  title: "py-maidr: Accessible Data Visualization for Python"
+description: "Make matplotlib, seaborn, Plotly and Altair plots accessible to blind and low-vision users via sonification, braille, text and AI chat. Python binding of MAIDR."
 jupyter: python3
 # aliases:
   # - ../index.html
 html-table-processing: none
 filters:
   - line-highlight
+# Structured data that only this page may carry, because only this page shows
+# the papers (Cite py-maidr) and the maintainers (Governance). The site-wide
+# graph in _quarto.yml defines the Organization, the software and the WebSite;
+# the software node below merges into it by @id.
+include-in-header:
+  - text: |
+      <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": "https://py.maidr.ai/#webpage",
+            "url": "https://py.maidr.ai/",
+            "name": "py-maidr: Accessible Data Visualization for Python",
+            "isPartOf": {"@id": "https://py.maidr.ai/#website"},
+            "about": {"@id": "https://py.maidr.ai/#software"},
+            "mainEntity": {"@id": "https://py.maidr.ai/#software"},
+            "relatedLink": ["https://maidr.ai/", "https://r.maidr.ai/"]
+          },
+          {
+            "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+            "@id": "https://py.maidr.ai/#software",
+            "name": "py-maidr",
+            "url": "https://py.maidr.ai/",
+            "maintainer": [
+              {"@id": "https://maidr.ai/#jooyoung-seo"},
+              {"@id": "https://py.maidr.ai/#saairam-venkatesh"}
+            ],
+            "citation": [
+              {"@id": "https://doi.org/10.1145/3613904.3642730"},
+              {"@id": "https://doi.org/10.2312/eved.20241053"}
+            ]
+          },
+          {
+            "@type": "Person",
+            "@id": "https://maidr.ai/#jooyoung-seo",
+            "name": "JooYoung Seo",
+            "url": "https://ischool.illinois.edu/people/jooyoung-seo",
+            "affiliation": {"@id": "https://maidr.ai/#organization"},
+            "sameAs": [
+              "https://github.com/jooyoungseo",
+              "https://scholar.google.com/citations?user=c0x8E5YAAAAJ",
+              "https://www.linkedin.com/in/jooyoungseo"
+            ]
+          },
+          {
+            "@type": "Person",
+            "@id": "https://py.maidr.ai/#saairam-venkatesh",
+            "name": "Saairam Venkatesh",
+            "url": "https://github.com/SaaiVenkat",
+            "sameAs": ["https://github.com/SaaiVenkat"]
+          },
+          {
+            "@type": "ScholarlyArticle",
+            "@id": "https://doi.org/10.1145/3613904.3642730",
+            "name": "MAIDR: Making Statistical Visualizations Accessible with Multimodal Data Representation",
+            "author": [
+              {"@id": "https://maidr.ai/#jooyoung-seo"},
+              {"@type": "Person", "name": "Yilin Xia"},
+              {"@type": "Person", "name": "Bongshin Lee"},
+              {"@type": "Person", "name": "Sean Mccurry"},
+              {"@type": "Person", "name": "Yu Jun Yam"}
+            ],
+            "datePublished": "2024-05",
+            "isPartOf": {
+              "@type": "Book",
+              "name": "Proceedings of the CHI Conference on Human Factors in Computing Systems (CHI '24)",
+              "isbn": "9798400703300"
+            },
+            "publisher": {"@type": "Organization", "name": "Association for Computing Machinery"},
+            "identifier": "10.1145/3613904.3642730",
+            "url": "https://doi.org/10.1145/3613904.3642730"
+          },
+          {
+            "@type": "ScholarlyArticle",
+            "@id": "https://doi.org/10.2312/eved.20241053",
+            "name": "Designing Born-Accessible Courses in Data Science and Visualization: Challenges and Opportunities of a Remote Curriculum Taught by Blind Instructors to Blind Students",
+            "author": [
+              {"@id": "https://maidr.ai/#jooyoung-seo"},
+              {"@type": "Person", "name": "Sile O'Modhrain"},
+              {"@type": "Person", "name": "Yilin Xia"},
+              {"@type": "Person", "name": "Sanchita Kamath"},
+              {"@type": "Person", "name": "Bongshin Lee"},
+              {"@type": "Person", "name": "James M. Coughlan"}
+            ],
+            "datePublished": "2024",
+            "isPartOf": {
+              "@type": "Book",
+              "name": "EuroVis 2024 - Education Papers",
+              "isbn": "978-3-03868-257-8"
+            },
+            "publisher": {"@type": "Organization", "name": "The Eurographics Association"},
+            "identifier": "10.2312/eved.20241053",
+            "url": "https://doi.org/10.2312/eved.20241053"
+          }
+        ]
+      }
+      </script>
 ---
 
 <div align="center">
@@ -19,13 +127,9 @@ filters:
 _maidr: Data Insight for All_
 </div>
 
-Are you eager to uncover new insights from data science but frustrated by visual-only data representations? Do you want to make your data visualizations accessible to everyone, including those who are blind or low-vision? If so, **maidr** is for you!
+**py-maidr** (PyPI package `maidr`, pronounced "mader") is a Python library that makes **matplotlib**, **seaborn**, **Plotly** and **Altair** charts accessible to blind and low-vision users. After `import maidr`, `plt.show()` renders an interactive chart that can be explored by keyboard and read as _touchable_ (braille), _readable_ (text), _audible_ (sonification) and _conversational_ (AI chat) representations; `maidr.save_html()` exports the same chart as a standalone HTML file. py-maidr is the Python binding of [MAIDR](https://maidr.ai/), the Multimodal Access and Interactive Data Representation engine developed by the [(x)Ability Design Lab](https://xabilitylab.ischool.illinois.edu/) at the University of Illinois Urbana-Champaign; a sibling package, [maidr for R](https://r.maidr.ai/), brings the same accessibility layer to ggplot2 and base R graphics.
 
-**maidr** (pronounced as 'mader') is an accessible framework for multimodal data representation. With maidr, blind and sighted users can easily augment data visualizations into _touchable_ (Braille), _readable_ (text), _audible_ (sonification), and _conversational_ (AI) formats.
-
-To learn more about maidr framework and its scientific background, please visit [the original maidr JavaScript engine repo](https://github.com/xability/maidr).
-
-The following summarizes the key features and design principles of Py maidr:
+The following summarizes the key features and design principles of py-maidr:
 
 1. Accessibility: maidr is designed to be accessible to both blind and sighted users from the ground up. Beyond the passive consumption level, blind users can also independently create, modify, and share data visualizations with others.
 
@@ -245,7 +349,7 @@ If you want to set the backend manually, use `matplotlib.use("module://maidr.bac
 
 #### Unsupported Plot Types
 
-For plot types not yet supported by maidr (e.g. pie charts, contour plots, 3D plots), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed — your plots will always be visible.
+For plot types not yet supported by maidr (e.g. 3D plots; see [Plot Type Stability](stability.qmd) for what is stable and what is experimental), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed: your plots will always be visible.
 
 ## Offline Use and the JavaScript Bundle
 
@@ -605,7 +709,7 @@ As an example, consider a boxplot with the following distribution: [10, 0, 20, 4
 
 ### Scatter Plot
 
-* Note: The line layer in py maidr has not been implemented yet. The following is a placeholder for the future implementation.
+* Note: The line layer in py-maidr has not been implemented yet. The following is a placeholder for the future implementation.
 
 In the Braille representation of a scatterplot, the encoding is performed only for the line layer (layer 2). The method is similar to that used for barplots, wherein data values are represented as Braille characters based on their relative magnitude within the plot. Low values are denoted by dots along the bottom, while high values are indicated by dots along the top. With four height levels of Braille, the encoding is as follows:
 
@@ -616,7 +720,7 @@ In the Braille representation of a scatterplot, the encoding is performed only f
 
 ### Segmented Bar Plots
 
-* Note: The segmented bar plot in py maidr has not been implemented yet. The following is a placeholder for the future implementation.
+* Note: The segmented bar plot in py-maidr has not been implemented yet. The following is a placeholder for the future implementation.
 
 Stacked bar, dodged bar, and normalized stacked bar all share the same system:
 
@@ -690,6 +794,48 @@ You can manually provide your own AI API keys in the Help menu. These keys are n
 6. Return to the interactive plot area and press **Ctrl+Shift+/** (forward slash) or **Alt+Shift+/** (on Mac) to open the AI modal. You can now chat with the selected AI models about your plot.
 * **Note**: The AI Chat modal is togglable. Use the same key combination to switch between the plot and the AI Chat modal.
 
+## Related projects
+
+py-maidr is one of three packages that share the MAIDR engine. Each is maintained by the (x)Ability Design Lab and documented on its own site:
+
+- [MAIDR JavaScript core](https://maidr.ai/): the TypeScript engine that provides the keyboard model, sonification, braille, text and AI chat, published on npm as `maidr`. py-maidr bundles it and loads it from the CDN.
+- [py-maidr for Python](https://py.maidr.ai/): this package, for matplotlib, seaborn, Plotly and Altair (PyPI package `maidr`, source on [GitHub](https://github.com/xability/py-maidr)).
+- [maidr for R](https://r.maidr.ai/): the R package for ggplot2 and base graphics, published on CRAN as `maidr`.
+
+## Cite py-maidr
+
+If you use py-maidr or MAIDR in research, please cite the MAIDR paper:
+
+Seo, J., Xia, Y., Lee, B., Mccurry, S., & Yam, Y. J. (2024). MAIDR: Making Statistical Visualizations Accessible with Multimodal Data Representation. In Proceedings of the CHI Conference on Human Factors in Computing Systems (CHI '24). ACM. [https://doi.org/10.1145/3613904.3642730](https://doi.org/10.1145/3613904.3642730)
+
+For the teaching context in which MAIDR was developed, cite:
+
+Seo, J., O'Modhrain, S., Xia, Y., Kamath, S., Lee, B., & Coughlan, J. M. (2024). Designing Born-Accessible Courses in Data Science and Visualization: Challenges and Opportunities of a Remote Curriculum Taught by Blind Instructors to Blind Students. In EuroVis 2024 - Education Papers. The Eurographics Association. [https://doi.org/10.2312/eved.20241053](https://doi.org/10.2312/eved.20241053)
+
+::: {.callout-note collapse="true"}
+## BibTeX
+
+```bibtex
+@inproceedings{seo2024maidr,
+  title     = {MAIDR: Making Statistical Visualizations Accessible with Multimodal Data Representation},
+  author    = {Seo, JooYoung and Xia, Yilin and Lee, Bongshin and Mccurry, Sean and Yam, Yu Jun},
+  booktitle = {Proceedings of the CHI Conference on Human Factors in Computing Systems (CHI '24)},
+  year      = {2024},
+  publisher = {Association for Computing Machinery},
+  doi       = {10.1145/3613904.3642730}
+}
+
+@inproceedings{seo2024bornaccessible,
+  title     = {Designing Born-Accessible Courses in Data Science and Visualization: Challenges and Opportunities of a Remote Curriculum Taught by Blind Instructors to Blind Students},
+  author    = {Seo, JooYoung and O'Modhrain, Sile and Xia, Yilin and Kamath, Sanchita and Lee, Bongshin and Coughlan, James M.},
+  booktitle = {EuroVis 2024 - Education Papers},
+  year      = {2024},
+  publisher = {The Eurographics Association},
+  doi       = {10.2312/eved.20241053}
+}
+```
+:::
+
 ## Bug Report
 
 If you encounter a bug, have usage questions, or want to share ideas to make this package better, please feel free to file an [issue](https://github.com/xability/py-maidr/issues).
@@ -698,13 +844,13 @@ If you encounter a bug, have usage questions, or want to share ideas to make thi
 
 Please note that the **maidr** project is released with a [contributor code of conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).<br>By participating in this project you agree to abide by its terms.
 
-## 📄 License
+## License
 
 **maidr** is licensed under the GPL3 license.
 
-© [(x)Ability Design Lab](https://xability.github.io/).
+© [(x)Ability Design Lab](https://xabilitylab.ischool.illinois.edu/), University of Illinois Urbana-Champaign.
 
-## 🏛️ Governance
+## Governance
 
 This project is primarily maintained by [JooYoung Seo](https://ischool.illinois.edu/people/jooyoung-seo) and [Saairam Venkatesh](https://github.com/SaaiVenkat).
 Other authors may occasionally assist with some of these duties.

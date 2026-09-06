@@ -1,0 +1,134 @@
+---
+title: "Accessible Candlestick and Gantt Charts in matplotlib with py-maidr"
+pagetitle: "Accessible Candlestick and Gantt Charts in matplotlib"
+description: "Make mplfinance candlestick charts and matplotlib broken_barh Gantt charts accessible with py-maidr: OHLC values and task spans read by keyboard."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+Both of these charts draw a span rather than a point. A candlestick chart
+(drawn with `mplfinance`) is read one trading day at a time: Left and Right
+move along the dates and each stop announces the open, high, low and close,
+with the volume panel available as its own subplot. A Gantt chart drawn with
+`ax.broken_barh()` is read as lanes of spans, so a reader hears when a task
+starts, when it ends and therefore how long it runs.
+
+`CANDLESTICK` is in the **stable** set. `GANTT` is **experimental** and may
+change without a deprecation period: see
+[Plot Type Stability](../stability.qmd).
+
+## Setup
+
+Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+```
+
+## Candlestick Chart
+
+```{python}
+#| warning: false
+#| fig-alt: Candlestick chart showing stock price movements with volume
+
+import mplfinance as mpf
+import pandas as pd
+import matplotlib.dates as mdates
+
+import maidr #<<
+
+# Load the sample data
+daily = pd.read_csv("../../example/candle_stick/volcandat.csv", index_col=0, parse_dates=True)
+
+# Create the candlestick chart with moving averages and volume
+fig, axlist = mpf.plot(
+    daily,
+    type="candle",
+    volume=True,
+    mav = (3,6,9),
+    returnfig=True,
+    ylabel="Price",
+    ylabel_lower="Volume",
+    xlabel="Date",
+    title="Stock Price with Volume",
+)  #<<
+
+# Add formatters for better screen reader output
+# Price axis - Currency format
+axlist[0].yaxis.set_major_formatter("${x:,.2f}")
+# Date axis - Custom date format like "Nov 18, 2016"
+axlist[0].xaxis.set_major_formatter(mdates.DateFormatter("%b %d, %Y"))
+# Volume axis - Integer with thousands separator
+axlist[2].yaxis.set_major_formatter("{x:,.0f}")
+
+fig.tight_layout()
+
+# Display with maidr
+plt.show() #<<
+```
+
+## Gantt Chart
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
+
+`ax.broken_barh()` draws horizontal bars that start and stop along an axis,
+which is what a schedule looks like. maidr reads it as a gantt: every bar is a
+**span**, carrying both its start and its end rather than a single position,
+so a reader hears when a task begins, when it finishes, and therefore how long
+it runs.
+
+The whole chart is one layer, organised into **lanes**. Each `broken_barh()`
+call contributes one lane, and the spans passed in that call are the spans of
+that lane — so a phase that stops and restarts is two spans on one lane, not
+two separate rows.
+
+```{python}
+#| fig-alt: Gantt chart of three project phases across a thirteen-week schedule
+
+import matplotlib.pyplot as plt
+
+import maidr #<<
+
+fig, ax = plt.subplots(figsize=(8, 4))
+
+# One call is one lane. A lane can hold several spans: "Build" runs for four
+# weeks, pauses for one, then resumes for three.
+ax.broken_barh([(0, 3)], (10, 6)) #<<
+ax.broken_barh([(3, 4), (8, 3)], (20, 6)) #<<
+ax.broken_barh([(11, 2)], (30, 6)) #<<
+
+ax.set_xlabel("Week")
+ax.set_ylabel("Phase")
+ax.set_yticks([13, 23, 33])
+ax.set_yticklabels(["Design", "Build", "Launch"])
+ax.set_title("Project schedule")
+
+plt.show() #<<
+```
+
+Naming the lanes takes **both** `set_yticks()` and `set_yticklabels()`, as the
+example does. Labels alone are ignored, because a lane name is only trusted
+when the axis carries fixed tick positions to attach it to; otherwise a lane
+falls back to the centre of the row it was drawn on — the `(10, 6)` above puts
+one at 13. Measured on the three lanes above:
+
+| what the axis sets | lanes announced as |
+|---|---|
+| `set_yticks()` and `set_yticklabels()` | `Design`, `Build`, `Launch` |
+| `set_yticklabels()` alone | `13.0`, `23.0`, `33.0` |
+| `set_yticks()` alone | `13`, `23`, `33` |
+| neither | `13.0`, `23.0`, `33.0` |
+
+`label=` is the argument that looks like it should do this, and it does not —
+it adds a legend entry and leaves the lane unnamed.

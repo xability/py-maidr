@@ -7,12 +7,31 @@ on:
     branches:
       - main
 
+  # The release workflow pushes its version-bump commit with GITHUB_TOKEN, and
+  # pushes made with GITHUB_TOKEN never trigger `on: push`. Chaining on the
+  # completed run rebuilds the site (and its JSON-LD softwareVersion) after
+  # every release.
+  workflow_run:
+    workflows: ["Test & Release"]
+    types: [completed]
+    branches:
+      - main
+
+  # Pull requests that touch the site get a render-only build with a page-size
+  # guard; nothing is published.
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+
 permissions:
   contents: write
   pages: write
 
 jobs:
   build-and-deploy:
+    # A failed or cancelled release run must not republish the site.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -41,7 +60,33 @@ jobs:
           uv run quartodoc build --verbose
           uv run quartodoc interlinks
 
+      - name: Render site (pull request, no publish)
+        if: github.event_name == 'pull_request'
+        env:
+          QUARTO_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        run: |
+          cd docs
+          quarto render
+
+      # Googlebot fetches only the first 2 MB (2,097,152 bytes, uncompressed)
+      # of an HTML file and discards the rest, so any page above that is
+      # partly invisible to search. Fail well before the limit.
+      - name: Check rendered page sizes
+        if: github.event_name == 'pull_request'
+        run: |
+          limit=1900000
+          echo "Five largest HTML files under docs/_site:"
+          find docs/_site -type f -name '*.html' -printf '%s %p\n' | sort -nr | head -n 5
+          too_big="$(find docs/_site -type f -name '*.html' -size +"${limit}"c -printf '%s %p\n' | sort -nr)"
+          if [ -n "${too_big}" ]; then
+            echo "::error::HTML pages larger than ${limit} bytes:"
+            echo "${too_big}"
+            exit 1
+          fi
+          echo "All HTML pages are at most ${limit} bytes."
+
       - name: Publish to GitHub Pages
+        if: github.event_name != 'pull_request'
         uses: quarto-dev/quarto-actions/publish@v2
         with:
           target: gh-pages

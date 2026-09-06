@@ -1,0 +1,96 @@
+---
+title: "Accessible Histograms and KDE Plots in seaborn with py-maidr"
+pagetitle: "Accessible Histograms and KDE Plots in seaborn"
+description: "Make seaborn histograms and kernel density (KDE) plots accessible with py-maidr: bins are read as ranges with counts, densities as a smooth curve."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+A histogram is read bin by bin: the Left and Right arrows move across the
+bins, and each stop announces the bin's range and its count while the tone's
+pitch follows the count. A KDE curve is read as a smooth line, so moving along
+it plays the density as a continuous rise and fall in pitch and the text view
+gives the value under the cursor.
+
+`HIST` and the `SMOOTH` layer that carries a KDE curve are both in the
+**stable** set: see [Plot Type Stability](../stability.qmd).
+
+## Setup
+
+Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+```
+
+## Histogram
+
+```{python}
+# | warning: false
+# | fig-alt: Histogram of petal lengths in the Iris dataset
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import maidr #<<
+
+
+# Load the Iris dataset
+iris = sns.load_dataset("iris")
+
+# Select the petal lengths
+petal_lengths = iris["petal_length"]
+
+# Plot a histogram of the petal lengths
+fig, ax = plt.subplots(figsize=(6, 6))
+
+hist_plot = sns.histplot(petal_lengths, kde=True, color="blue", binwidth=0.5, ax=ax) #<<
+
+ax.set_title("Petal Lengths in Iris Dataset")
+ax.set_xlabel("Petal Length (cm)")
+ax.set_ylabel("Frequency")
+
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.0f}")
+
+plt.show() #<<
+```
+
+## KDE (Kernel Density Estimation) Plot
+
+```{python}
+#| warning: false
+#| fig-alt: KDE plot showing probability density distribution
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+import maidr #<<
+
+# Generate sample data
+np.random.seed(42)
+data = np.random.randn(500)
+
+# Create a KDE plot
+fig, ax = plt.subplots(figsize=(6, 6))
+kde_plot = sns.kdeplot(data, color="blue", ax=ax) #<<
+
+ax.set_title("KDE Plot of Random Data")
+ax.set_xlabel("Value")
+ax.set_ylabel("Density")
+
+# Add number formatters for better screen reader output
+ax.xaxis.set_major_formatter("{x:.1f}")
+ax.yaxis.set_major_formatter("{x:.3f}")
+
+plt.show() #<<
+```
