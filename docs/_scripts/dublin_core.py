@@ -201,6 +201,9 @@ def _source_date(
     """
     if not dated:
         return ""
+    # Every page under docs/ is authored as .qmd today. One authored as .md
+    # or .ipynb would miss here and fall back to the package date rather than
+    # warn -- a stale date, not a wrong one, but silent either way.
     rel = page.relative_to(site_dir).with_suffix(".qmd")
     if rel.parts and rel.parts[0] == "api":
         return package_date
