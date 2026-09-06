@@ -50,6 +50,14 @@ _DESCRIPTION = re.compile(
     r'<meta\s+name="description"\s+content="(?P<content>[^"]*)"', re.I
 )
 _CANONICAL = re.compile(r'<link\s+rel="canonical"\s+href="(?P<href>[^"]*)"', re.I)
+_SITE_NAME = re.compile(
+    r'<meta\s+property="og:site_name"\s+content="(?P<content>[^"]*)"', re.I
+)
+
+# Quarto writes "<page title> <separator> <site name>". Which separator it uses
+# is a theme detail, so match any of them -- but only as part of an exact
+# trailing site name, never on their own.
+_SEPARATORS = (" – ", " — ", " | ", " - ", " • ")
 # The first `</head>` closes the real head: a page that shows HTML in its body
 # has it after this one, and a literal `</head>` inside the head would end the
 # head for a browser too, so such a page is already broken.
@@ -99,6 +107,38 @@ def _has_history(repo: Path) -> bool:
         return False
 
 
+def _strip_site_name(title: str, site_name: str) -> str:
+    """Drop the trailing site name from a page title.
+
+    ``<title>`` and ``og:title`` carry the suffix, which is right for a browser
+    tab and a link preview. A bibliographic record is neither: a reference
+    manager should file the page under its own title.
+
+    Only an exact ``<separator><site name>`` ending is removed, so a title that
+    merely contains a separator keeps all of it -- "Sonification — A Deep Dive"
+    survives, and so does a page whose title is the site name alone.
+
+    Parameters
+    ----------
+    title : str
+        Title as rendered, suffix included.
+    site_name : str
+        Value of the page's ``og:site_name``; empty when it has none.
+
+    Returns
+    -------
+    str
+        ``title`` without its trailing site name.
+    """
+    if not site_name:
+        return title
+    for separator in _SEPARATORS:
+        suffix = f"{separator}{site_name}"
+        if title.endswith(suffix) and len(title) > len(suffix):
+            return title[: -len(suffix)]
+    return title
+
+
 def _git_date(repo: Path, rel_path: str) -> str:
     """Return the date of the last commit touching ``rel_path``.
 
@@ -128,7 +168,9 @@ def _git_date(repo: Path, rel_path: str) -> str:
     return out.stdout.strip() if out.returncode == 0 else ""
 
 
-def _source_date(repo: Path, page: Path, site_dir: Path, package_date: str) -> str:
+def _source_date(
+    repo: Path, page: Path, site_dir: Path, package_date: str, dated: bool
+) -> str:
     """Date for ``page``, from the .qmd it was rendered from.
 
     The ``api/`` pages are written by ``quartodoc build`` and are not in git,
@@ -144,20 +186,24 @@ def _source_date(repo: Path, page: Path, site_dir: Path, package_date: str) -> s
         Render output directory ``page`` sits under.
     package_date : str
         Date of the ``maidr`` package, used for the generated ``api/`` pages
-        and as the fallback for a page whose source git cannot date. Empty
-        when the checkout has no usable history, which makes this return
-        empty too rather than guess.
+        and as the fallback for a page whose source git cannot date.
+    dated : bool
+        Whether the checkout holds enough history to date a file by. False
+        makes this return empty rather than guess. It is passed rather than
+        inferred from an empty ``package_date``, which would conflate "no
+        history at all" with "the package directory happens to have no commit
+        date".
 
     Returns
     -------
     str
         An ISO date, or an empty string when no date can be trusted.
     """
+    if not dated:
+        return ""
     rel = page.relative_to(site_dir).with_suffix(".qmd")
     if rel.parts and rel.parts[0] == "api":
         return package_date
-    if not package_date:
-        return ""
     date = _git_date(repo, str(Path("docs") / rel))
     return date or package_date
 
@@ -208,7 +254,9 @@ def _tags(
     )
 
 
-def process(page: Path, site_dir: Path, repo: Path, package_date: str) -> str:
+def process(
+    page: Path, site_dir: Path, repo: Path, package_date: str, dated: bool = True
+) -> str:
     """Insert the Dublin Core block into ``page``.
 
     Returns
@@ -225,10 +273,11 @@ def process(page: Path, site_dir: Path, repo: Path, package_date: str) -> str:
     title_match = _TITLE.search(text)
     if title_match is None:
         return "skipped"
-    # Quarto renders "<page title> – <site name>"; the suffix is site
-    # furniture, and a reference manager should record the page's own title.
-    title = html.unescape(title_match.group("title")).strip()
-    title = re.split(r"\s+[–—|]\s+", title)[0].strip() or title
+    site_match = _SITE_NAME.search(text)
+    site_name = html.unescape(site_match.group("content")) if site_match else ""
+    title = _strip_site_name(
+        html.unescape(title_match.group("title")).strip(), site_name
+    )
 
     description_match = _DESCRIPTION.search(text)
     description = (
@@ -247,7 +296,7 @@ def process(page: Path, site_dir: Path, repo: Path, package_date: str) -> str:
         title=title,
         description=description,
         identifier=identifier,
-        date=_source_date(repo, page, site_dir, package_date),
+        date=_source_date(repo, page, site_dir, package_date, dated),
         dc_type="Software" if rel == SOFTWARE_PAGE else "Text",
     )
     page.write_text(_HEAD_END.sub(block + "</head>", text, count=1), encoding="utf-8")
@@ -273,7 +322,8 @@ def main() -> int:
         return 0
 
     repo = Path(__file__).resolve().parents[2]
-    if _has_history(repo):
+    dated = _has_history(repo)
+    if dated:
         package_date = _git_date(repo, "maidr")
     else:
         # Emit the block without DC.date rather than stamping every page with
@@ -288,7 +338,7 @@ def main() -> int:
 
     counts = {"added": 0, "present": 0, "skipped": 0}
     for page in sorted(site_dir.rglob("*.html")):
-        counts[process(page, site_dir, repo, package_date)] += 1
+        counts[process(page, site_dir, repo, package_date, dated)] += 1
 
     if not os.environ.get("QUARTO_PROJECT_SCRIPT_QUIET"):
         print(

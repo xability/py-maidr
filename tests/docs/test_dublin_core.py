@@ -39,6 +39,7 @@ dc = _load()
 _PAGE = (
     "<html><head><title>{title}</title>"
     '<meta name="description" content="{description}">'
+    '<meta property="og:site_name" content="{site_name}">'
     '<link rel="canonical" href="{canonical}"></head><body>x</body></html>'
 )
 
@@ -48,11 +49,17 @@ def _write_page(
     title: str = "A Page – py-maidr",
     description: str = "What the page is about.",
     canonical: str = "https://py.maidr.ai/a-page.html",
+    site_name: str = "py-maidr",
 ) -> Path:
     """Write a page shaped like Quarto's output."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        _PAGE.format(title=title, description=description, canonical=canonical),
+        _PAGE.format(
+            title=title,
+            description=description,
+            canonical=canonical,
+            site_name=site_name,
+        ),
         encoding="utf-8",
     )
     return path
@@ -104,11 +111,13 @@ class TestSourceDate:
     def test_generated_api_pages_take_the_package_date(self, tmp_path: Path) -> None:
         # quartodoc writes these; they are not in git.
         page = tmp_path / "api" / "show.html"
-        assert dc._source_date(_REPO, page, tmp_path, "2026-01-02") == "2026-01-02"
+        assert (
+            dc._source_date(_REPO, page, tmp_path, "2026-01-02", True) == "2026-01-02"
+        )
 
     def test_a_page_dates_from_its_own_source(self, tmp_path: Path) -> None:
         page = tmp_path / "stability.html"
-        date = dc._source_date(_REPO, page, tmp_path, "2026-01-02")
+        date = dc._source_date(_REPO, page, tmp_path, "2026-01-02", True)
         # Its own commit date, not the package's placeholder.
         assert date != "2026-01-02"
         assert date.count("-") == 2
@@ -119,7 +128,7 @@ class TestSourceDate:
         # The whole point of the feature: one shared timestamp is the bug.
         package_date = dc._git_date(_REPO, "maidr")
         dates = {
-            dc._source_date(_REPO, tmp_path / rel, tmp_path, package_date)
+            dc._source_date(_REPO, tmp_path / rel, tmp_path, package_date, True)
             for rel in ("stability.html", "api/show.html")
         }
         assert len(dates) > 1
@@ -127,9 +136,11 @@ class TestSourceDate:
     def test_no_usable_history_yields_no_date_rather_than_a_wrong_one(
         self, tmp_path: Path
     ) -> None:
-        # `package_date` is empty when the checkout holds a single commit.
+        # `dated` is False when the checkout holds a single commit. It is a
+        # separate signal from an empty package date, which only means the
+        # package directory itself has no commit.
         page = tmp_path / "stability.html"
-        assert dc._source_date(_REPO, page, tmp_path, "") == ""
+        assert dc._source_date(_REPO, page, tmp_path, "2026-01-02", False) == ""
 
 
 class TestHasHistory:
@@ -188,10 +199,12 @@ class TestProcess:
             ("A Page – py-maidr", "A Page"),
             ("A Page — py-maidr", "A Page"),
             ("A Page | py-maidr", "A Page"),
-            # A hyphen is not a separator here: package names contain them,
-            # and "py-maidr" alone must survive rather than become "py".
-            ("py-maidr", "py-maidr"),
+            # Only an exact trailing site name is a suffix. A title that
+            # merely contains a separator keeps all of it.
+            ("Sonification — A Deep Dive – py-maidr", "Sonification — A Deep Dive"),
             ("Bar - Line Comparison – py-maidr", "Bar - Line Comparison"),
+            # "py-maidr" alone must survive rather than become empty.
+            ("py-maidr", "py-maidr"),
         ],
     )
     def test_title_stripping(self, tmp_path: Path, title: str, expected: str) -> None:
@@ -205,6 +218,15 @@ class TestProcess:
         page.write_text("<html><head><title>T</title></head></html>", encoding="utf-8")
         assert dc.process(page, tmp_path, _REPO, "") == "skipped"
         assert "DC." not in page.read_text(encoding="utf-8")
+
+    def test_a_page_without_og_site_name_keeps_its_whole_title(
+        self, tmp_path: Path
+    ) -> None:
+        # Nothing to strip means nothing is stripped, rather than a guess at
+        # where a suffix might begin.
+        page = _write_page(tmp_path / "a.html", title="A – B", site_name="")
+        dc.process(page, tmp_path, _REPO, "")
+        assert _tag_values(page.read_text("utf-8"), "DC.title") == ["A – B"]
 
     def test_a_page_without_a_title_is_skipped(self, tmp_path: Path) -> None:
         page = tmp_path / "a.html"
