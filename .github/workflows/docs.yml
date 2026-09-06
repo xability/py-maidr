@@ -27,6 +27,13 @@ on:
 permissions:
   contents: read
 
+# One publish at a time: a push to main and the post-release workflow_run can
+# fire within seconds of each other, and two `quarto publish` runs racing on
+# gh-pages interleave. Pull request renders queue per branch instead.
+concurrency:
+  group: docs-${{ github.event_name == 'pull_request' && github.head_ref || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Pull requests: render only, with a read-only token. The rendered pages
   # execute the Python in every .qmd cell, so this job never carries write
@@ -95,6 +102,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A workflow_run event checks out the default branch by default; name
+          # it so the run publishes the release commit it was chained to.
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
 
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
@@ -115,11 +126,37 @@ jobs:
           uv run quartodoc build --verbose
           uv run quartodoc interlinks
 
+      - name: Render site
+        env:
+          QUARTO_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        run: |
+          cd docs
+          quarto render
+
+      # Googlebot fetches only the first 2 MB (2,097,152 bytes, uncompressed)
+      # of an HTML file and discards the rest, so any page above that is
+      # partly invisible to search. Fail well before the limit.
+      - name: Check rendered page sizes
+        run: |
+          limit=1900000
+          echo "Five largest HTML files under docs/_site:"
+          find docs/_site -type f -name '*.html' -printf '%s %p\n' | sort -nr | head -n 5
+          too_big="$(find docs/_site -type f -name '*.html' -size +"${limit}"c -printf '%s %p\n' | sort -nr)"
+          if [ -n "${too_big}" ]; then
+            echo "::error::HTML pages larger than ${limit} bytes:"
+            echo "${too_big}"
+            exit 1
+          fi
+          echo "All HTML pages are at most ${limit} bytes."
+
+      # `render: false` publishes what the guarded step above rendered; the
+      # action would otherwise render again, unchecked, on its way out.
       - name: Publish to GitHub Pages
         uses: quarto-dev/quarto-actions/publish@v2
         with:
           target: gh-pages
           path: docs
+          render: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           QUARTO_PYTHON: .venv/bin/python

@@ -85,6 +85,8 @@ def _truncate(text: str, limit: int = MAX_DESCRIPTION) -> str:
     cut = max(head.rfind(". "), head.rfind("; "))
     if cut >= limit // 2:
         return head[: cut + 1]
+    # The ellipsis counts towards the limit, so cut three characters earlier.
+    head = text[: limit - 3]
     cut = head.rfind(" ")
     return (head[:cut] if cut > 0 else head).rstrip(",;:") + "..."
 
