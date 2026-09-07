@@ -18,6 +18,40 @@ from maidr.util import cdn
 from maidr.util import dependencies
 
 
+#: The jsDelivr path every CDN mode loads ``maidr.js`` from.
+#:
+#: Matched on the package path rather than on the bare host.  Since
+#: maidr.js 4.7.0 the bundle carries vendor URLs of its own -- the DotPad
+#: SDK, which upstream may not redistribute (#771) -- so a document with
+#: the bundle inlined into it contains the host either way, and a bare
+#: ``cdn.jsdelivr.net`` answers "does this load maidr from the CDN?" with
+#: yes for an offline document.
+_CDN_LOADER = "cdn.jsdelivr.net/npm/maidr"
+
+
+def _external_asset_urls(html: str) -> list[str]:
+    """Return the absolute URLs ``html`` fetches as it loads.
+
+    Reads ``src`` / ``href`` attributes, so it sees what the document
+    itself requests and not what the inlined bundle merely mentions: a URL
+    in the JS source is a string maidr.js may or may not fetch later, an
+    attribute is a request the browser makes on its own.
+
+    Parameters
+    ----------
+    html : str
+        A rendered document, already unescaped.
+
+    Returns
+    -------
+    list of str
+        Every absolute (``http``, ``https`` or protocol-relative) URL in an
+        asset attribute, in document order.
+    """
+    urls = re.findall(r"""(?:src|href)\s*=\s*["']([^"']*)["']""", html)
+    return [url for url in urls if url.startswith(("http://", "https://", "//"))]
+
+
 # ---------------------------------------------------------------------------
 # Bundled assets
 # ---------------------------------------------------------------------------
@@ -279,6 +313,28 @@ def test_render_use_cdn_false_tag_contains_no_cdn(bar_plot):
     )
 
 
+def test_offline_documents_request_no_external_assets(bar_plot):
+    """``use_cdn=False`` markup must point at no host at all.
+
+    The needle checks elsewhere in this file answer "is maidr.js loaded
+    from the CDN?".  This one asks what those checks stand for -- an
+    offline document fetches nothing -- of the paths that inline the
+    bundle, where a needle cannot: the bundled source carries the DotPad
+    SDK's own jsDelivr URLs since 4.7.0, and the document containing it
+    therefore contains them too.  Reading the asset attributes tells the
+    two apart, so an unrelated URL inside the bundle neither fails this
+    nor hides a real external asset that creeps into the markup.
+
+    What the bundle itself fetches once a reader connects a DotPad is
+    #771, not something this file can assert away.
+    """
+    from maidr.widget.streamlit import maidr_html
+
+    rendered = maidr.render(bar_plot, use_cdn=False).render()["html"]
+    assert _external_asset_urls(rendered) == []
+    assert _external_asset_urls(maidr_html(bar_plot, use_cdn=False)) == []
+
+
 def test_render_auto_tag_contains_cdn_and_fallback(bar_plot):
     tag = maidr.render(bar_plot, use_cdn="auto")
     rendered = tag.render()["html"]
@@ -483,8 +539,12 @@ def test_init_notebook_false_injects_bundled_source(
     # KaTeX travels as a source string because a srcdoc iframe has no
     # base URL for maidr.js to resolve the stylesheet against.
     assert "window.__maidrMathCssSource" in html_arg
-    # No CDN reference when explicitly offline.
-    assert "cdn.jsdelivr.net" not in html_arg
+    # No CDN loader when explicitly offline, and nothing else the document
+    # would fetch either.  The bundle it inlines mentions jsDelivr itself
+    # (#771), which is why this asks the two questions it means rather than
+    # grepping the whole payload for the host.
+    assert _CDN_LOADER not in html_arg
+    assert _external_asset_urls(html_arg) == []
     # Closing </script> must be escaped so an embedded </script> in the
     # bundled source cannot prematurely close the outer <script> tag.
     assert "</script>" in html_arg  # one outer, intentional

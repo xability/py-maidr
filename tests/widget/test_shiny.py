@@ -36,6 +36,12 @@ from maidr.widget.shiny import output_maidr, render_maidr  # noqa: E402
 #: enough chart could cross on its own.
 _BUNDLE_HEAD = read_bundled_js()[:200]
 
+#: The jsDelivr path a CDN mode loads ``maidr.js`` from.  Matched on the
+#: package path, not the bare host: the bundle carries the DotPad SDK's own
+#: jsDelivr URLs since 4.7.0 (#771), so an inlined offline bundle answers a
+#: bare ``cdn.jsdelivr`` with yes.
+_CDN_LOADER = "cdn.jsdelivr.net/npm/maidr"
+
 
 def _bar_axes():
     """Return the axes of a freshly created two-bar chart."""
@@ -297,7 +303,7 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     document = _iframe_document(payload["html"])
 
     assert payload["deps"] == [], "an iframed render cannot carry dependencies"
-    assert ("cdn.jsdelivr" in document) is expect_cdn
+    assert (_CDN_LOADER in document) is expect_cdn
     assert (_BUNDLE_HEAD in document) is expect_inline_bundle
 
 

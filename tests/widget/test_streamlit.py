@@ -28,6 +28,12 @@ from maidr.widget.streamlit import maidr_html, render_maidr  # noqa: E402
 #: looking for the bundle rather than by a size threshold.
 _BUNDLE_HEAD = read_bundled_js()[:200]
 
+#: The jsDelivr path a CDN mode loads ``maidr.js`` from.  Matched on the
+#: package path, not the bare host: the bundle carries the DotPad SDK's own
+#: jsDelivr URLs since 4.7.0 (#771), so an inlined offline bundle answers a
+#: bare ``cdn.jsdelivr`` with yes.
+_CDN_LOADER = "cdn.jsdelivr.net/npm/maidr"
+
 
 @pytest.fixture
 def bar_axes():
@@ -108,7 +114,7 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     so a reference to the bundle would not survive the trip.
     """
     html = maidr_html(bar_axes, use_cdn=use_cdn)
-    assert ("cdn.jsdelivr" in html) is expect_cdn
+    assert (_CDN_LOADER in html) is expect_cdn
     assert (_BUNDLE_HEAD in html) is expect_inline_bundle
 
 
