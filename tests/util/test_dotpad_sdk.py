@@ -8,13 +8,15 @@ copy downloaded with ``download_dotpad_sdk()`` rides along in ``lib/``
 beside a saved offline document.
 
 The download is exercised against a fake manifest and a fake fetch, so no
-test reaches the network; the real pins are checked for shape only.
+test reaches the network; the real pins are checked for shape, and against
+the shipped ``maidr/static/dotpad-sdk.json`` they are read from.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -28,10 +30,18 @@ import pytest  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.core import Maidr  # noqa: E402
-from maidr.util import dotpad  # noqa: E402
+from maidr.util import dotpad, warn  # noqa: E402
 
-SDK_URL = "https://intranet.example/dotpad/DotPadSDK-3.0.2.js"
+SDK_URL = f"https://intranet.example/dotpad/{dotpad.DOTPAD_SDK_MODULE}"
 ASSET_URL = "https://intranet.example/dotpad/lib/"
+
+#: The folder ``save_html`` copies a downloaded SDK into, beside a document.
+SDK_FOLDER = f"dotpad-sdk-{dotpad.DOTPAD_SDK_VERSION}"
+MODULE = dotpad.DOTPAD_SDK_MODULE
+
+PINS_PATH = (
+    Path(maidr.__file__).resolve().parent / "static" / dotpad.DOTPAD_SDK_PINS_FILENAME
+)
 
 
 @pytest.fixture(autouse=True)
@@ -52,7 +62,7 @@ def _clean_settings(monkeypatch):
 def fake_sdk(monkeypatch):
     """A three-file stand-in for the real manifest, with its bytes."""
     contents = {
-        "DotPadSDK-3.0.2.js": b"export class DotPadSDK {}\n",
+        MODULE: b"export class DotPadSDK {}\n",
         "lib/liblouis.js": b"// liblouis\n",
         "lib/liblouis.data": b"tables" * 100,
     }
@@ -89,12 +99,19 @@ def figure():
 # ---------------------------------------------------------------------------
 
 
-def test_the_pins_describe_one_commit_of_the_vendor_repository():
+def test_the_pins_describe_one_commit_of_the_pinned_repository():
     assert re.fullmatch(r"[0-9a-f]{40}", dotpad.DOTPAD_SDK_COMMIT)
+    # jsDelivr serves a GitHub repository at ``gh/<owner>/<repo>@<commit>``,
+    # whichever repository the manifest names.
+    github = "https://github.com/"
+    assert dotpad.DOTPAD_SDK_REPOSITORY.startswith(github)
+    owner_repo = dotpad.DOTPAD_SDK_REPOSITORY[len(github) :].rstrip("/")
+    assert re.fullmatch(r"[\w.-]+/[\w.-]+", owner_repo)
     assert dotpad.DOTPAD_SDK_BASE_URL == (
-        "https://cdn.jsdelivr.net/gh/dotincorp/dotpad-sdk-guide@"
+        f"https://cdn.jsdelivr.net/gh/{owner_repo}@"
         f"{dotpad.DOTPAD_SDK_COMMIT}/Web/{dotpad.DOTPAD_SDK_VERSION}/"
     )
+    assert dotpad.DOTPAD_SDK_MODULE == f"DotPadSDK-{dotpad.DOTPAD_SDK_VERSION}.js"
     names = set(dotpad.DOTPAD_SDK_FILES)
     assert dotpad.DOTPAD_SDK_MODULE in names
     for engine in ("liblouis.js", "liblouis.wasm", "liblouis.data"):
@@ -103,6 +120,27 @@ def test_the_pins_describe_one_commit_of_the_vendor_repository():
         assert not name.startswith("/")
         assert entry.bytes > 0
         assert re.fullmatch(r"[0-9a-f]{64}", entry.sha256)
+
+
+def test_the_pins_are_the_shipped_manifest():
+    # Read independently of the module, so a constant that stopped tracking
+    # the file -- or a file the wheel stopped shipping -- shows up here.
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    assert dotpad.DOTPAD_SDK_VERSION == manifest["version"]
+    assert dotpad.DOTPAD_SDK_REPOSITORY == manifest["repository"]
+    assert dotpad.DOTPAD_SDK_COMMIT == manifest["commit"]
+    assert dotpad.DOTPAD_SDK_BASE_URL == manifest["baseUrl"]
+    assert dotpad.DOTPAD_SDK_MODULE == manifest["module"]
+    assert dotpad.DOTPAD_SDK_ASSET_DIR == manifest["assetDir"]
+    assert set(dotpad.DOTPAD_SDK_FILES) == set(manifest["files"])
+    for name, entry in manifest["files"].items():
+        pinned = dotpad.DOTPAD_SDK_FILES[name]
+        assert isinstance(pinned, dotpad.DotPadSdkFile)
+        assert pinned.bytes == entry["bytes"]
+        assert pinned.sha256 == entry["sha256"]
+    # The mirror records which vendor archive its files were checked against.
+    assert re.fullmatch(r"[0-9a-f]{40}", manifest["upstream"]["commit"])
+    assert re.fullmatch(r"[0-9a-f]{64}", manifest["upstream"]["sha256"])
 
 
 def test_the_pinned_liblouis_data_is_the_intact_one():
@@ -117,6 +155,100 @@ def test_the_lgpl_notice_and_wrapper_sources_travel_with_the_engine():
     assert "lib/LICENSES/liblouis-LGPL-2.1.txt" in names
     assert "lib/liblouis-web/liblouis_web.c" in names
     assert "lib/liblouis-web/build_liblouis_web.sh" in names
+
+
+# ---------------------------------------------------------------------------
+# A manifest that will not read
+# ---------------------------------------------------------------------------
+#
+# The manifest comes from outside this repository: the bundle refresh copies
+# whatever ``dist/dotpad-sdk.json`` the pinned ``maidr.js`` ships, and commits
+# it. A release that renamed a field would reach an installed wheel, and this
+# module is imported by ``maidr/__init__.py`` -- so a raised exception here
+# would be ``import maidr`` failing, for every user, over a tactile display
+# most of them do not own. It warns and goes inert instead, the way an
+# unreadable bundled ``VERSION`` does.
+
+
+def _manifest_without(field: str) -> dict:
+    """The real manifest, with one top-level field dropped."""
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    del manifest[field]
+    return manifest
+
+
+def _manifest_without_a_digest() -> dict:
+    """The real manifest, with one file's ``sha256`` dropped.
+
+    The drift that motivates the check: a future ``maidr.js`` release
+    renaming a per-file field, which a top-level key check would miss.
+    """
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    del manifest["files"]["lib/liblouis.wasm"]["sha256"]
+    return manifest
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        pytest.param("not a manifest", id="not-an-object"),
+        pytest.param({}, id="empty"),
+        pytest.param(_manifest_without("version"), id="no-version"),
+        pytest.param(_manifest_without("baseUrl"), id="no-base-url"),
+        pytest.param(_manifest_without("files"), id="no-files"),
+        pytest.param(_manifest_without_a_digest(), id="no-file-digest"),
+    ],
+)
+def test_a_manifest_of_the_wrong_shape_is_named_as_such(broken):
+    with pytest.raises(ValueError):
+        dotpad._parse_pins(broken)
+
+
+def test_a_file_entry_of_the_wrong_type_is_named_as_such():
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    manifest["files"]["lib/liblouis.wasm"]["bytes"] = "171970"
+    with pytest.raises(ValueError, match="liblouis.wasm"):
+        dotpad._parse_pins(manifest)
+
+
+def test_a_digest_of_the_wrong_shape_is_named_at_the_manifest():
+    # A truncated or non-hex digest can only ever fail the download; saying
+    # so here names the manifest instead of a file that never matches.
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    manifest["files"]["lib/liblouis.wasm"]["sha256"] = "abc123"
+    with pytest.raises(ValueError, match="liblouis.wasm"):
+        dotpad._parse_pins(manifest)
+
+
+def test_an_unreadable_manifest_warns_and_leaves_the_pins_inert(monkeypatch, caplog):
+    class _Missing:
+        def joinpath(self, *parts):
+            return self
+
+        def read_text(self, encoding=None):
+            raise FileNotFoundError("no dotpad-sdk.json")
+
+    monkeypatch.setattr(dotpad, "files", lambda package: _Missing())
+    warn._warned_keys.clear()
+    with caplog.at_level(logging.WARNING):
+        pins = dotpad._read_pins()
+    assert pins["files"] == {}
+    assert pins["version"] == "0.0.0"
+    assert dotpad.DOTPAD_SDK_PINS_FILENAME in caplog.text
+    assert "reinstall py-maidr" in caplog.text.lower()
+
+
+def test_without_pins_no_directory_counts_as_a_copy(monkeypatch, tmp_path):
+    # An empty manifest must not make every directory look complete: the
+    # check is a loop over the pinned files, and a loop over nothing passes.
+    monkeypatch.setattr(dotpad, "DOTPAD_SDK_FILES", {})
+    assert dotpad.dotpad_sdk_path(tmp_path) is None
+
+
+def test_without_pins_the_download_says_what_is_broken(monkeypatch, tmp_path):
+    monkeypatch.setattr(dotpad, "DOTPAD_SDK_FILES", {})
+    with pytest.raises(RuntimeError, match=dotpad.DOTPAD_SDK_PINS_FILENAME):
+        dotpad.download_dotpad_sdk(tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -377,18 +509,13 @@ def test_an_offline_document_carries_the_copy_and_points_at_it(
     out.parent.mkdir()
     maidr.save_html(figure, str(out), use_cdn=False)
 
-    copied = out.parent / "lib" / "dotpad-sdk-3.0.2"
-    assert (copied / "DotPadSDK-3.0.2.js").read_bytes() == (
-        local_sdk / "DotPadSDK-3.0.2.js"
-    ).read_bytes()
+    copied = out.parent / "lib" / SDK_FOLDER
+    assert (copied / MODULE).read_bytes() == (local_sdk / MODULE).read_bytes()
     assert (copied / "lib" / "liblouis.data").is_file()
 
     html = out.read_text(encoding="utf-8")
-    assert (
-        'window.MAIDR_DOTPAD_SDK_URL = "lib/dotpad-sdk-3.0.2/DotPadSDK-3.0.2.js";'
-        in html
-    )
-    assert 'window.MAIDR_DOTPAD_ASSET_BASE_URL = "lib/dotpad-sdk-3.0.2/lib/";' in html
+    assert f'window.MAIDR_DOTPAD_SDK_URL = "lib/{SDK_FOLDER}/{MODULE}";' in html
+    assert f'window.MAIDR_DOTPAD_ASSET_BASE_URL = "lib/{SDK_FOLDER}/lib/";' in html
 
 
 def test_the_copy_follows_the_lib_dir_and_version_settings(figure, local_sdk, tmp_path):
@@ -396,9 +523,9 @@ def test_the_copy_follows_the_lib_dir_and_version_settings(figure, local_sdk, tm
     maidr.save_html(
         figure, str(out), use_cdn=False, lib_dir="deps", include_version=False
     )
-    assert (tmp_path / "deps" / "dotpad-sdk" / "DotPadSDK-3.0.2.js").is_file()
+    assert (tmp_path / "deps" / "dotpad-sdk" / MODULE).is_file()
     html = out.read_text(encoding="utf-8")
-    assert 'window.MAIDR_DOTPAD_SDK_URL = "deps/dotpad-sdk/DotPadSDK-3.0.2.js";' in html
+    assert f'window.MAIDR_DOTPAD_SDK_URL = "deps/dotpad-sdk/{MODULE}";' in html
 
 
 @pytest.mark.parametrize("use_cdn", ["auto", True])
@@ -408,7 +535,7 @@ def test_only_an_offline_document_carries_the_copy(
     monkeypatch.setenv("MAIDR_CDN_VERSION", "bundled")
     out = tmp_path / "chart.html"
     maidr.save_html(figure, str(out), use_cdn=use_cdn)
-    assert not (tmp_path / "lib" / "dotpad-sdk-3.0.2").exists()
+    assert not (tmp_path / "lib" / SDK_FOLDER).exists()
     assert "MAIDR_DOTPAD" not in out.read_text(encoding="utf-8")
 
 
@@ -416,10 +543,10 @@ def test_a_configured_url_wins_over_a_local_copy(figure, local_sdk, tmp_path):
     maidr.set_dotpad_sdk(SDK_URL)
     out = tmp_path / "chart.html"
     maidr.save_html(figure, str(out), use_cdn=False)
-    assert not (tmp_path / "lib" / "dotpad-sdk-3.0.2").exists()
+    assert not (tmp_path / "lib" / SDK_FOLDER).exists()
     html = out.read_text(encoding="utf-8")
     assert f'window.MAIDR_DOTPAD_SDK_URL = "{SDK_URL}";' in html
-    assert "dotpad-sdk-3.0.2" not in html
+    assert SDK_FOLDER not in html
 
 
 @pytest.mark.parametrize(
@@ -436,11 +563,11 @@ def test_either_url_setting_keeps_a_local_copy_out(
     maidr.set_dotpad_sdk(*configured)
     out = tmp_path / "chart.html"
     maidr.save_html(figure, str(out), use_cdn=False)
-    assert not (tmp_path / "lib" / "dotpad-sdk-3.0.2").exists()
+    assert not (tmp_path / "lib" / SDK_FOLDER).exists()
     html = out.read_text(encoding="utf-8")
     assert html.count("MAIDR_DOTPAD_ASSET_BASE_URL") == 1
     assert f'window.MAIDR_DOTPAD_ASSET_BASE_URL = "{ASSET_URL}";' in html
-    assert "dotpad-sdk-3.0.2" not in html
+    assert SDK_FOLDER not in html
 
 
 def test_a_session_that_never_downloaded_is_left_alone(figure, tmp_path, monkeypatch):
@@ -459,12 +586,9 @@ def test_a_plotly_offline_document_carries_the_copy_too(local_sdk, tmp_path):
     fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
     out = tmp_path / "plotly.html"
     maidr.save_html(fig, str(out), use_cdn=False)
-    assert (tmp_path / "lib" / "dotpad-sdk-3.0.2" / "DotPadSDK-3.0.2.js").is_file()
+    assert (tmp_path / "lib" / SDK_FOLDER / MODULE).is_file()
     html = out.read_text(encoding="utf-8")
-    assert (
-        'window.MAIDR_DOTPAD_SDK_URL = "lib/dotpad-sdk-3.0.2/DotPadSDK-3.0.2.js";'
-        in html
-    )
+    assert f'window.MAIDR_DOTPAD_SDK_URL = "lib/{SDK_FOLDER}/{MODULE}";' in html
     assert _declaration_precedes_the_bundle(html)
 
 
