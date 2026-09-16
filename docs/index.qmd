@@ -135,13 +135,13 @@ The following summarizes the key features and design principles of py-maidr:
 
 2. Inclusivity: maidr does not pursue a special version for blind users. Instead, it provides a unified interface that supports both visual and non-visual data exploration. This way, blind and sighted users can work together on the same data science projects.
 
-3. Integration: maidr seamlessly integrates with the popular and mainstream data science environments  (e.g., Python, pandas, and NumPy) as well as data visualization libraries in Python like **matplotlib** and **seaborn**.
+3. Integration: maidr seamlessly integrates with the popular and mainstream data science environments (e.g., Python, pandas, and NumPy) as well as data visualization libraries in Python (e.g., **matplotlib** and **seaborn**).
 
 4. Unintrusiveness: maidr does not require changes to existing core data visualization code. Without needing to reconstruct an accessible version separately, you can just `import maidr` and call `plt.show()` as usual — maidr's custom backend automatically renders your plots accessibly. Blind and sighted users can use and share the same visualization codebase in their shared data science projects.
 
 5. Synchronization: maidr treats visualization as one of the multimodal data representations and ensures that all representations (e.g., visual, tactile, textual, audible) cursor and braille routing key positions are synchronized across different modalities.
 
-6. Reactivity: maidr supports widely adopted reactive and interactive computing including Jupyter Notebooks, Jupyter Labs, Google Colab, Streamlit dashboard, and Shiny dashboard. maidr also supports interactive computing inside code editors, such as Visual Studio Code.
+6. Reactivity: maidr supports widely adopted reactive and interactive computing including Jupyter Notebook, JupyterLab, Google Colab, Streamlit dashboard, and Shiny dashboard. maidr also supports interactive computing inside code editors, such as Visual Studio Code.
 
 7. Reproducibility: maidr supports the generation of accessible data visualizations as part of the reproducible data science workflow with [Quarto scientific publishing system](https://quarto.org/). You can easily create accessible data representations within your reproducible reports, website blogs, slides, e-books, dashboards, and more.
 
@@ -165,7 +165,7 @@ We currently support the following data visualization libraries in Python:, and 
 
 * KDE (Kernel Density Estimation) plot having one x (numerical) and one y (density) axis showing probability density curves.
 
-* Single line plot having one x (numerical) and one y (numerical) axis.
+* Single-line plot having one x (numerical) and one y (numerical) axis.
 
 * Multi-line plot having one x (numerical) and one y (numerical) axis with multiple data series on the same axes.
 
@@ -191,7 +191,7 @@ We currently support the following data visualization libraries in Python:, and 
 
 * Candlestick chart having one x (time/date) and four y (numerical) axes (open, high, low, close) for financial data visualization (using mplfinance).
 
-* Multi-layered plots combining different plot types on the same figure with shared axes.
+* Multi-layer plots combining different plot types on the same figure with shared axes.
 
 * Multi-panel plots (subplots) with multiple charts in a grid layout having independent axes.
 
@@ -208,7 +208,7 @@ We currently support the following data visualization libraries in Python:, and 
 
 * `sns.kdeplot()`: KDE (Kernel Density Estimation) plot having one x (numerical) and one y (density) axis showing probability density curves.
 
-* `sns.lineplot()`: Single line plot having one x (numerical) and one y (numerical) axis.
+* `sns.lineplot()`: Single-line plot having one x (numerical) and one y (numerical) axis.
 
 * `sns.boxplot(..., orient="v")`: Vertical box plot having one x (categorical) and one y (numerical) axis.
 
@@ -248,7 +248,7 @@ py-maidr ships an [Altair](https://altair-viz.github.io/) adapter that compiles 
 
 * Scatter plot (`mark_point` / `mark_circle`).
 
-* Multi-layered plots combining `mark_point` + `mark_line` (e.g. line-with-points overlays) on a `LayerChart`.
+* Multi-layer plots combining `mark_point` + `mark_line` (e.g. line-with-points overlays) on a `LayerChart`.
 
 * Regression-style scatter overlaid with a `transform_loess` smoothing line on a `LayerChart`.
 
@@ -325,7 +325,7 @@ When you `import maidr`, a custom matplotlib backend is automatically activated.
 
 If you want to temporarily use the default matplotlib renderer (e.g. for unsupported plot types or debugging), you can switch the backend:
 
-**In Jupyter notebooks:**
+**In Jupyter Notebook:**
 
 ```python
 maidr.set_backend(use_maidr=False)   # plt.show() now renders static inline images
@@ -470,7 +470,7 @@ You give up picking up a release newer than your wheel, automatically, in an asy
 - `maidr.set_cdn_version("3.74.0")` at startup, if you know which version you want.
 - Call `maidr.get_cdn_version()` once from synchronous code at startup. That resolves and caches, and every async render then uses the resolved version — the request is paid for once, by your startup, not by a render.
 
-**The same applies to every Jupyter/IPython kernel**, where each cell executes on the kernel's event loop: a notebook on the default setting serves the bundled version for the life of the kernel and never arms the staleness warning. A notebook has no synchronous start-up code, so the way off the bundled version there is:
+**The same applies to every Jupyter/IPython kernel**, where each cell executes on the kernel's event loop: a notebook on the default setting serves the bundled version for the life of the kernel and never arms the staleness warning. A notebook has no synchronous startup code, so the way off the bundled version there is:
 
 - `MAIDR_CDN_VERSION` in the kernel's environment, or `maidr.set_cdn_version("3.74.0")` in a cell, if you know which version you want.
 - One explicit `maidr.bundle_status()` call in a cell. It resolves regardless of the loop and caches the answer, so every later render in that kernel uses the resolved version.
@@ -682,7 +682,7 @@ left the chart on the *current* slide unreachable as well.
 
 With the extension enabled, each slide gives one **Tab** to its own chart and
 **Shift+Tab** back out. The extension also adds a skip link ahead of the
-slides, so Shift+Tab lands there rather than on the slide element itself;
+slides, so **Shift+Tab** lands there rather than on the slide element itself;
 either way **Space** still moves to the next slide.
 
 ## Braille Generation
@@ -787,7 +787,7 @@ In the braille representation of segmented bar plots, braille depends on where y
 - Summary level: Same as regular level, but values now reflect the combined magnitude of all levels' values for this point.
 - Combined level: Similar to heatmap, where there are groups of magnitudes for each point separated by a ⢳ character. The first group has braille characters for each level for the first point, then a separator, then the second group has braille characters for each level in the second point, then a separator, and so on.
 
-## Getting Refreshable Braille Display Loaner
+## Getting a Refreshable Braille Display Loaner
 
 If you are a blind user and do not have a refreshable Braille display, you can request a loaner from the National Library Service (NLS) for the Blind and Print Disabled. Please follow our instruction on [how to request an NLS eReader Braille Display](https://xabilitylab.ischool.illinois.edu/braille-display).
 
@@ -856,7 +856,7 @@ You can manually provide your own AI API keys in the Help menu. These keys are n
 py-maidr is one of three packages that share the MAIDR engine. Each is maintained by the (x)Ability Design Lab and documented on its own site:
 
 - [MAIDR JavaScript core](https://maidr.ai/): the TypeScript engine that provides the keyboard model, sonification, braille, text and AI chat, published on npm as `maidr`. py-maidr bundles it and loads it from the CDN.
-- [py-maidr for Python](https://py.maidr.ai/): this package, for matplotlib, seaborn, Plotly and Altair (PyPI package `maidr`, source on [GitHub](https://github.com/xability/py-maidr)).
+- [py-maidr for Python](https://py.maidr.ai/): this package, for matplotlib, seaborn, Plotly, and Altair (PyPI package `maidr`, source on [GitHub](https://github.com/xability/py-maidr)).
 - [maidr for R](https://r.maidr.ai/): the R package for ggplot2 and base graphics, published on CRAN as `maidr`.
 
 ## Cite py-maidr
