@@ -177,6 +177,11 @@ if grep -qx 'package/dist/dotpad-sdk.json' <<<"$TARBALL_FILES"; then
         and ((.files | length) > 0)
         and (.files | all(.bytes | type == "number" and . > 0))
         and (.files | all(.sha256 | test("^[0-9a-f]{64}$")))
+        and (.files | keys | all(
+              (test("\\\\") | not)
+              and (test("^([/~]|[A-Za-z]:)") | not)
+              and (split("/") | all(. != "" and . != "." and . != ".."))
+            ))
         and (.files | all(if has("md5")
                           then (.md5 | test("^[0-9a-f]{32}$"))
                           else true end))

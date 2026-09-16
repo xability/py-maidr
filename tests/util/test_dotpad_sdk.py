@@ -211,6 +211,36 @@ def test_a_file_entry_of_the_wrong_type_is_named_as_such():
         dotpad._parse_pins(manifest)
 
 
+@pytest.mark.parametrize(
+    "escape",
+    [
+        "../../../.ssh/authorized_keys",
+        "lib/../../outside.js",
+        "/etc/passwd",
+        "~/.bashrc",
+        "C:/Windows/System32/drivers/etc/hosts",
+        "lib\\..\\..\\outside.js",
+        "lib//liblouis.js",
+        "./liblouis.js",
+    ],
+)
+def test_a_path_that_leaves_its_directory_is_refused(escape):
+    # Each path is joined onto the download directory to decide where the
+    # fetched bytes are written, so a manifest could otherwise name any file
+    # on the machine. The download is the one place this package writes
+    # files it did not name itself.
+    assert not dotpad._path_is_safe(escape)
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    manifest["files"][escape] = manifest["files"]["lib/liblouis.wasm"]
+    with pytest.raises(ValueError, match="inside the directory"):
+        dotpad._parse_pins(manifest)
+
+
+def test_the_paths_the_manifest_names_are_allowed():
+    for relative in dotpad.DOTPAD_SDK_FILES:
+        assert dotpad._path_is_safe(relative)
+
+
 def test_a_digest_of_the_wrong_shape_is_named_at_the_manifest():
     # A truncated or non-hex digest can only ever fail the download; saying
     # so here names the manifest instead of a file that never matches.

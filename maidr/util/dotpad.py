@@ -91,6 +91,33 @@ _UNREADABLE_PINS: dict[str, Any] = {
 }
 
 
+def _path_is_safe(relative: str) -> bool:
+    """Whether a manifest's file path stays inside the directory it is written to.
+
+    Each path is joined onto the download directory to decide where the
+    fetched bytes land, so a manifest naming ``../../../.ssh/authorized_keys``
+    would otherwise write there. Nothing user-authored reaches this today --
+    the manifest is shipped in the wheel and only a bundle refresh replaces
+    it -- but the download is the one place this package writes files it did
+    not name itself.
+
+    Parameters
+    ----------
+    relative : str
+        One key of the manifest's ``files``.
+
+    Returns
+    -------
+    bool
+        True when the path is relative and stays put.
+    """
+    if not relative or "\\" in relative:
+        return False
+    if relative.startswith(("/", "~")) or re.match(r"[A-Za-z]:", relative):
+        return False
+    return all(part not in ("", ".", "..") for part in relative.split("/"))
+
+
 def _parse_pins(document: Any) -> dict[str, Any]:
     """Check a parsed manifest and turn its ``files`` into named tuples.
 
@@ -127,6 +154,10 @@ def _parse_pins(document: Any) -> dict[str, Any]:
         raise ValueError("'files' is missing or names no file")
     parsed: dict[str, DotPadSdkFile] = {}
     for name, entry in entries.items():
+        if not isinstance(name, str) or not _path_is_safe(name):
+            raise ValueError(
+                f"{name!r} is not a path inside the directory it is fetched into"
+            )
         if not isinstance(entry, dict):
             raise ValueError(f"the entry for {name!r} is not an object")
         size = entry.get("bytes")
