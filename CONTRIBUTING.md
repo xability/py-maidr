@@ -117,5 +117,5 @@ Quarto itself is installed separately, following its own instructions.
   before and passes after, and update any docstring or documentation the
   change makes wrong.
 - Fill in the pull request template. CI runs the test suite on Python 3.9
-  through 3.12, the browser tests, an install of the package with no extras,
+  through 3.13, the browser tests, an install of the package with no extras,
   ruff, and commitlint.
