@@ -34,6 +34,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 from importlib.resources import files
 from pathlib import Path
@@ -57,6 +58,11 @@ class DotPadSdkFile(NamedTuple):
     bytes: int
     sha256: str
 
+
+#: A SHA-256 as the manifest writes it. Checked rather than merely
+#: required, because a digest of the wrong shape can only ever fail the
+#: download, and failing at the manifest says why.
+_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 #: The string fields every manifest names, all of them non-empty.
 _REQUIRED_PIN_FIELDS = (
@@ -127,8 +133,8 @@ def _parse_pins(document: Any) -> dict[str, Any]:
         digest = entry.get("sha256")
         if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
             raise ValueError(f"{name!r} has no positive integer 'bytes'")
-        if not isinstance(digest, str) or not digest:
-            raise ValueError(f"{name!r} has no 'sha256'")
+        if not isinstance(digest, str) or not _SHA256.fullmatch(digest):
+            raise ValueError(f"{name!r} has no 'sha256', or not one of 64 hex digits")
         parsed[name] = DotPadSdkFile(size, digest)
     return {**document, "files": parsed}
 

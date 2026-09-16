@@ -211,6 +211,15 @@ def test_a_file_entry_of_the_wrong_type_is_named_as_such():
         dotpad._parse_pins(manifest)
 
 
+def test_a_digest_of_the_wrong_shape_is_named_at_the_manifest():
+    # A truncated or non-hex digest can only ever fail the download; saying
+    # so here names the manifest instead of a file that never matches.
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    manifest["files"]["lib/liblouis.wasm"]["sha256"] = "abc123"
+    with pytest.raises(ValueError, match="liblouis.wasm"):
+        dotpad._parse_pins(manifest)
+
+
 def test_an_unreadable_manifest_warns_and_leaves_the_pins_inert(monkeypatch, caplog):
     class _Missing:
         def joinpath(self, *parts):
