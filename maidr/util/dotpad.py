@@ -40,6 +40,8 @@ from pathlib import Path
 from typing import Any, NamedTuple, Optional
 from urllib.request import Request, urlopen
 
+from maidr.util.warn import warn_once
+
 #: The manifest the pins below are read from, relative to ``maidr/static/``.
 #: It is ``dist/dotpad-sdk.json`` from the ``maidr`` npm package, copied
 #: beside ``maidr.js`` by ``fetch-maidr-bundle.sh``.
@@ -56,8 +58,90 @@ class DotPadSdkFile(NamedTuple):
     sha256: str
 
 
+#: The string fields every manifest names, all of them non-empty.
+_REQUIRED_PIN_FIELDS = (
+    "version",
+    "repository",
+    "commit",
+    "baseUrl",
+    "module",
+    "assetDir",
+)
+
+#: What the pins read as when the manifest will not. Every value is inert:
+#: the version stands in for the unknown one the way
+#: ``dependencies._UNKNOWN_VERSION`` does, and an empty ``files`` is what
+#: :func:`download_dotpad_sdk` and :func:`dotpad_sdk_path` check before
+#: they do anything with a copy.
+_UNKNOWN_VERSION = "0.0.0"
+_UNREADABLE_PINS: dict[str, Any] = {
+    "version": _UNKNOWN_VERSION,
+    "repository": "",
+    "commit": "",
+    "baseUrl": "",
+    "module": "",
+    "assetDir": "lib/",
+    "files": {},
+}
+
+
+def _parse_pins(document: Any) -> dict[str, Any]:
+    """Check a parsed manifest and turn its ``files`` into named tuples.
+
+    Every field the module publishes is checked here, because the manifest
+    arrives from outside this repository: ``fetch-maidr-bundle.sh`` copies
+    whatever ``dist/dotpad-sdk.json`` the pinned ``maidr.js`` release ships.
+    A field that changed shape upstream is a broken manifest, named as such,
+    rather than a ``KeyError`` from somewhere further down.
+
+    Parameters
+    ----------
+    document : Any
+        The result of parsing ``dotpad-sdk.json``.
+
+    Returns
+    -------
+    dict
+        The manifest, with ``files`` mapping each path to a
+        :class:`DotPadSdkFile`.
+
+    Raises
+    ------
+    ValueError
+        When a field is missing or is not the shape the module expects.
+    """
+    if not isinstance(document, dict):
+        raise ValueError("the manifest is not a JSON object")
+    for field in _REQUIRED_PIN_FIELDS:
+        value = document.get(field)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"{field!r} is missing or is not a non-empty string")
+    entries = document.get("files")
+    if not isinstance(entries, dict) or not entries:
+        raise ValueError("'files' is missing or names no file")
+    parsed: dict[str, DotPadSdkFile] = {}
+    for name, entry in entries.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"the entry for {name!r} is not an object")
+        size = entry.get("bytes")
+        digest = entry.get("sha256")
+        if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
+            raise ValueError(f"{name!r} has no positive integer 'bytes'")
+        if not isinstance(digest, str) or not digest:
+            raise ValueError(f"{name!r} has no 'sha256'")
+        parsed[name] = DotPadSdkFile(size, digest)
+    return {**document, "files": parsed}
+
+
 def _read_pins() -> dict[str, Any]:
     """Load the shipped manifest, as ``maidr.js`` published it.
+
+    A manifest that is missing or malformed is a broken install, and
+    nobody but the user can fix it -- so it is a warning and inert pins
+    rather than an exception, because this module is imported by
+    ``maidr/__init__.py`` and raising here would take ``import maidr``
+    down over a tactile display most readers do not own. Every path that
+    needs a real pin checks for one and says what is wrong.
 
     Returns
     -------
@@ -65,14 +149,26 @@ def _read_pins() -> dict[str, Any]:
         The parsed ``dotpad-sdk.json``: ``version``, ``repository``,
         ``commit``, ``baseUrl``, ``module``, ``assetDir`` and ``files``,
         plus ``upstream`` naming the vendor archive the files came from.
-
-    Raises
-    ------
-    FileNotFoundError
-        When the manifest is not shipped with the installed package.
+        :data:`_UNREADABLE_PINS` when it will not read.
     """
-    resource = files(_STATIC_PACKAGE).joinpath(_STATIC_SUBDIR, DOTPAD_SDK_PINS_FILENAME)
-    return json.loads(resource.read_text(encoding="utf-8"))
+    try:
+        resource = files(_STATIC_PACKAGE).joinpath(
+            _STATIC_SUBDIR, DOTPAD_SDK_PINS_FILENAME
+        )
+        return _parse_pins(json.loads(resource.read_text(encoding="utf-8")))
+    except (OSError, ModuleNotFoundError, TypeError, ValueError) as error:
+        # ``json.JSONDecodeError`` is a ``ValueError``; a missing file is
+        # an ``OSError``; an installed package without the resource is a
+        # ``ModuleNotFoundError``.
+        warn_once(
+            f"dotpad-pins:{error}",
+            "Bundled DotPad SDK manifest '%s' will not read (%s). "
+            "The tactile display cannot be set up offline until it does; "
+            "reinstall py-maidr or run the update-maidr-js workflow.",
+            DOTPAD_SDK_PINS_FILENAME,
+            error,
+        )
+        return dict(_UNREADABLE_PINS)
 
 
 _pins = _read_pins()
@@ -115,10 +211,7 @@ DOTPAD_SDK_ASSET_DIR: str = _pins["assetDir"]
 #: sources of the WebAssembly wrapper are here because the vendor's README
 #: asks anyone who redistributes the SDK to keep them beside the runtime
 #: files, which is the LGPL's relinking requirement.
-DOTPAD_SDK_FILES: dict[str, DotPadSdkFile] = {
-    name: DotPadSdkFile(int(entry["bytes"]), str(entry["sha256"]))
-    for name, entry in _pins["files"].items()
-}
+DOTPAD_SDK_FILES: dict[str, DotPadSdkFile] = _pins["files"]
 
 #: The record :func:`download_dotpad_sdk` writes beside the files, so a copy
 #: found on a server can be traced back to a commit.
@@ -420,12 +513,19 @@ def download_dotpad_sdk(
     Raises
     ------
     RuntimeError
-        When a downloaded file does not match its recorded size or digest.
-        Nothing is written for that file, and the error names the
-        difference.
+        When the shipped manifest did not read, so there is no pin to
+        fetch; or when a downloaded file does not match its recorded size
+        or digest, in which case nothing is written for that file and the
+        error names the difference.
     urllib.error.URLError
         When a file cannot be fetched at all.
     """
+    if not DOTPAD_SDK_FILES:
+        raise RuntimeError(
+            f"The bundled DotPad SDK manifest '{DOTPAD_SDK_PINS_FILENAME}' did "
+            "not read, so there is nothing to download. Reinstall py-maidr or "
+            "run the update-maidr-js workflow."
+        )
     target_dir = (
         Path(directory).expanduser() if directory is not None else dotpad_sdk_dir()
     )
@@ -482,7 +582,12 @@ def dotpad_sdk_path(
     Returns
     -------
     pathlib.Path or None
+        ``None`` when the copy is incomplete, and when the shipped
+        manifest did not read: with nothing to check against, no directory
+        can be called complete.
     """
+    if not DOTPAD_SDK_FILES:
+        return None
     candidate = (
         Path(directory).expanduser() if directory is not None else dotpad_sdk_dir()
     )

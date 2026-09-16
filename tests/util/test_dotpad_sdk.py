@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -29,7 +30,7 @@ import pytest  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.core import Maidr  # noqa: E402
-from maidr.util import dotpad  # noqa: E402
+from maidr.util import dotpad, warn  # noqa: E402
 
 SDK_URL = f"https://intranet.example/dotpad/{dotpad.DOTPAD_SDK_MODULE}"
 ASSET_URL = "https://intranet.example/dotpad/lib/"
@@ -154,6 +155,91 @@ def test_the_lgpl_notice_and_wrapper_sources_travel_with_the_engine():
     assert "lib/LICENSES/liblouis-LGPL-2.1.txt" in names
     assert "lib/liblouis-web/liblouis_web.c" in names
     assert "lib/liblouis-web/build_liblouis_web.sh" in names
+
+
+# ---------------------------------------------------------------------------
+# A manifest that will not read
+# ---------------------------------------------------------------------------
+#
+# The manifest comes from outside this repository: the bundle refresh copies
+# whatever ``dist/dotpad-sdk.json`` the pinned ``maidr.js`` ships, and commits
+# it. A release that renamed a field would reach an installed wheel, and this
+# module is imported by ``maidr/__init__.py`` -- so a raised exception here
+# would be ``import maidr`` failing, for every user, over a tactile display
+# most of them do not own. It warns and goes inert instead, the way an
+# unreadable bundled ``VERSION`` does.
+
+
+def _manifest_without(field: str) -> dict:
+    """The real manifest, with one top-level field dropped."""
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    del manifest[field]
+    return manifest
+
+
+def _manifest_without_a_digest() -> dict:
+    """The real manifest, with one file's ``sha256`` dropped.
+
+    The drift that motivates the check: a future ``maidr.js`` release
+    renaming a per-file field, which a top-level key check would miss.
+    """
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    del manifest["files"]["lib/liblouis.wasm"]["sha256"]
+    return manifest
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        pytest.param("not a manifest", id="not-an-object"),
+        pytest.param({}, id="empty"),
+        pytest.param(_manifest_without("version"), id="no-version"),
+        pytest.param(_manifest_without("baseUrl"), id="no-base-url"),
+        pytest.param(_manifest_without("files"), id="no-files"),
+        pytest.param(_manifest_without_a_digest(), id="no-file-digest"),
+    ],
+)
+def test_a_manifest_of_the_wrong_shape_is_named_as_such(broken):
+    with pytest.raises(ValueError):
+        dotpad._parse_pins(broken)
+
+
+def test_a_file_entry_of_the_wrong_type_is_named_as_such():
+    manifest = json.loads(PINS_PATH.read_text(encoding="utf-8"))
+    manifest["files"]["lib/liblouis.wasm"]["bytes"] = "171970"
+    with pytest.raises(ValueError, match="liblouis.wasm"):
+        dotpad._parse_pins(manifest)
+
+
+def test_an_unreadable_manifest_warns_and_leaves_the_pins_inert(monkeypatch, caplog):
+    class _Missing:
+        def joinpath(self, *parts):
+            return self
+
+        def read_text(self, encoding=None):
+            raise FileNotFoundError("no dotpad-sdk.json")
+
+    monkeypatch.setattr(dotpad, "files", lambda package: _Missing())
+    warn._warned_keys.clear()
+    with caplog.at_level(logging.WARNING):
+        pins = dotpad._read_pins()
+    assert pins["files"] == {}
+    assert pins["version"] == "0.0.0"
+    assert dotpad.DOTPAD_SDK_PINS_FILENAME in caplog.text
+    assert "reinstall py-maidr" in caplog.text.lower()
+
+
+def test_without_pins_no_directory_counts_as_a_copy(monkeypatch, tmp_path):
+    # An empty manifest must not make every directory look complete: the
+    # check is a loop over the pinned files, and a loop over nothing passes.
+    monkeypatch.setattr(dotpad, "DOTPAD_SDK_FILES", {})
+    assert dotpad.dotpad_sdk_path(tmp_path) is None
+
+
+def test_without_pins_the_download_says_what_is_broken(monkeypatch, tmp_path):
+    monkeypatch.setattr(dotpad, "DOTPAD_SDK_FILES", {})
+    with pytest.raises(RuntimeError, match=dotpad.DOTPAD_SDK_PINS_FILENAME):
+        dotpad.download_dotpad_sdk(tmp_path)
 
 
 # ---------------------------------------------------------------------------

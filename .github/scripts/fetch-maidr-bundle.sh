@@ -161,10 +161,23 @@ if grep -qx 'package/dist/dotpad-sdk.json' <<<"$TARBALL_FILES"; then
   tar -xzf "$TGZ" -C "$WORK" package/dist/dotpad-sdk.json
   cp "$WORK/package/dist/dotpad-sdk.json" "$DEST_DIR/dotpad-sdk.json"
   test -s "$DEST_DIR/dotpad-sdk.json"
-  # The fields ``maidr/util/dotpad.py`` reads at import, so a malformed
-  # manifest fails here rather than as ``import maidr`` on every install.
-  if ! jq -e '.version and .repository and .commit and .baseUrl
-              and .module and .assetDir and .files' \
+  # Everything ``maidr/util/dotpad.py`` reads, down to the shape of each
+  # file entry, so a manifest that changed shape upstream fails here
+  # rather than reaching an install.  This workflow commits to ``main``
+  # and CI does not run on that push, so this check is the gate.
+  if ! jq -e '
+        def nonempty: type == "string" and length > 0;
+        (.version | nonempty)
+        and (.repository | nonempty)
+        and (.commit | nonempty)
+        and (.baseUrl | nonempty)
+        and (.module | nonempty)
+        and (.assetDir | nonempty)
+        and (.files | type == "object")
+        and ((.files | length) > 0)
+        and (.files | all(.bytes | type == "number" and . > 0))
+        and (.files | all(.sha256 | nonempty))
+      ' \
       "$DEST_DIR/dotpad-sdk.json" >/dev/null; then
     echo "dist/dotpad-sdk.json in maidr@$VERSION is not a DotPad SDK manifest" >&2
     exit 1
