@@ -134,6 +134,47 @@ class TestTheBundleStillBindsWhatTheTableClaims:
         )
 
 
+class TestThereIsOnlyOneTable:
+    """A second copy of the table is how the first one drifted.
+
+    ``docs/examples.qmd`` carried a byte-identical duplicate, under the same
+    ``{#tbl-shortcuts}`` id, and it kept all three defects after the copy on
+    the Welcome page was fixed -- so a reader landing on ``/examples`` was
+    still told to press ``Ctrl + Home``. Two pages defining one crossref id
+    also makes ``@tbl-shortcuts`` ambiguous.
+
+    The checks above pin one page's rows. This pins that there is only one
+    page to check.
+    """
+
+    def test_the_crossref_id_is_defined_once(self) -> None:
+        defined = sorted(
+            page.relative_to(_REPO).as_posix()
+            for page in (_REPO / "docs").rglob("*.qmd")
+            if "{#tbl-shortcuts}" in page.read_text(encoding="utf-8")
+        )
+        assert defined == ["docs/index.qmd"], (
+            f"`{{#tbl-shortcuts}}` is defined in {defined}. It belongs to "
+            "docs/index.qmd alone -- another page wanting the shortcuts links "
+            "to that section instead of copying the table, which is what let "
+            "the copies disagree"
+        )
+
+    def test_no_other_page_lists_the_mode_toggles_as_a_table(self) -> None:
+        """A copied table is still a copy without the crossref id."""
+        row = "| Toggle Braille Mode | b | b |"
+        carrying = sorted(
+            page.relative_to(_REPO).as_posix()
+            for page in (_REPO / "docs").rglob("*.qmd")
+            if row in page.read_text(encoding="utf-8")
+        )
+        assert carrying == ["docs/index.qmd"], (
+            f"a shortcut table appears in {carrying}. Dropping the crossref id "
+            "from a copy does not make it maintainable -- link to "
+            "docs/index.qmd#keyboard-shortcuts-and-controls instead"
+        )
+
+
 class TestTheTableStillReadsAsExpected:
     """The rows this pins are still on the page, spelled the same way."""
 
