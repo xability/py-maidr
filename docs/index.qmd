@@ -607,11 +607,11 @@ Below is a detailed list of keyboard shortcuts for various functions:
 | Toggle Review Mode | r | r |
 | Move around plot | Arrow keys | Arrow keys |
 | Go to the very left right up down | Ctrl + Arrow key | CMD + Arrow key |
-| Select the first element | Ctrl + Home | CMD + Home |
-| Select the last element | Ctrl + End | CMD + End |
+| Jump to the lowest value | Open bracket ([) | Open bracket ([) |
+| Jump to the highest value | Close bracket (]) | Close bracket (]) |
 | Repeat current sound | Space | Space |
 | Auto-play outward in direction of arrow | Ctrl + Shift + Arrow key | CMD + Shift + Arrow key |
-| Stop Auto-play | Ctrl | Ctrl |
+| Stop Auto-play | Ctrl | CMD |
 | Auto-play speed up | Period (.) | Period (.) |
 | Auto-play speed down | Comma (,) | Comma (,) |
 | Auto-play speed reset | Slash (/) | Slash (/) |
@@ -624,11 +624,25 @@ Below is a detailed list of keyboard shortcuts for various functions:
 | Move around subplot list | Arrow keys | Arrow keys |
 | Activate selected subplot in the list | Enter | Enter |
 | Escape from current subplot to return to the subplot list | ESC | ESC |
-| Open settings | Ctrl + comma (,) | CMD + comma (,) |
-| Open Chat View | Question (?) | Question (?) |
-| Open keyboard help | Ctrl + Slash (/) | CMD + Slash (/) |
+| Open or close settings, including AI providers and API keys | Ctrl + Comma (,) | CMD + Comma (,) |
+| Open or close the AI chat | Shift + Slash (?) | Shift + Slash (?) |
+| Open or close the keyboard help | Ctrl + Slash (/) | CMD + Slash (/) |
 
 Table: Keyboard Shortcuts {#tbl-shortcuts}
+
+Three surfaces are easy to confuse, so to be explicit about what each key
+opens:
+
+* **Keyboard help** (`Ctrl + /`, `CMD + /` on Mac) lists these shortcuts. It is
+  the only help dialog; there is no separate "Help menu", and no `H` shortcut.
+* **Settings** (`Ctrl + ,`, `CMD + ,` on Mac) is where preferences live,
+  including the **AI** tab that holds the AI providers, their API keys and the
+  model each one uses.
+* **AI chat** (`?`, that is `Shift + /`) opens the conversation about the
+  current plot. It is a toggle: the same key returns you to the plot.
+
+@tbl-shortcuts is the canonical list. Where another section of this page
+mentions a key, it refers back to this table rather than restating the binding.
 
 ## Quarto reveal.js Slides
 
