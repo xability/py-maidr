@@ -49,7 +49,7 @@ import maidr #<<
 # Load the iris dataset
 iris = load_dataset("iris")
 
-# Create the horizontal boxplot
+# Create the horizontal box plot
 fig, ax = plt.subplots()
 horz_box_plot = sns.boxplot(x="petal_length", y="species", data=iris, orient="h", ax=ax) #<<
 ax.set_ylabel("Species")

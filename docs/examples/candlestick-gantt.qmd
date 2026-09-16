@@ -88,7 +88,7 @@ which is what a schedule looks like. maidr reads it as a gantt: every bar is a
 so a reader hears when a task begins, when it finishes, and therefore how long
 it runs.
 
-The whole chart is one layer, organised into **lanes**. Each `broken_barh()`
+The whole chart is one layer, organized into **lanes**. Each `broken_barh()`
 call contributes one lane, and the spans passed in that call are the spans of
 that lane — so a phase that stops and restarts is two spans on one lane, not
 two separate rows.
@@ -120,7 +120,7 @@ plt.show() #<<
 Naming the lanes takes **both** `set_yticks()` and `set_yticklabels()`, as the
 example does. Labels alone are ignored, because a lane name is only trusted
 when the axis carries fixed tick positions to attach it to; otherwise a lane
-falls back to the centre of the row it was drawn on — the `(10, 6)` above puts
+falls back to the center of the row it was drawn on — the `(10, 6)` above puts
 one at 13. Measured on the three lanes above:
 
 | what the axis sets | lanes announced as |

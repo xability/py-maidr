@@ -10,7 +10,7 @@ filters:
 
 A pie chart and a word cloud have something in common that makes them hard
 for a screen reader: their data is drawn as angle or as glyph size and written
-down nowhere on the page. py-maidr reads both as a flat row of labelled
+down nowhere on the page. py-maidr reads both as a flat row of labeled
 values, so the Left and Right arrows walk the slices or terms and each stop is
 announced by its label, its value and, for a pie, the share of the whole it
 works out to.
@@ -40,7 +40,7 @@ its label, its value, and the share of the whole that value works out to. The
 percentage is derived from the values at render time rather than authored, so
 it can never disagree with the numbers it is derived from.
 
-`ax.pie()` normalises what it is given — it draws `x / sum(x)`, and each wedge
+`ax.pie()` normalizes what it is given — it draws `x / sum(x)`, and each wedge
 keeps only its angles — so the counts below survive as counts because maidr
 reads them off the call rather than off the drawn wedges.
 
