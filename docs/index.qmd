@@ -426,14 +426,20 @@ maidr.download_dotpad_sdk()          # ~14 MB, once, into a per-user cache
 maidr.save_html(fig, "chart.html", use_cdn=False)
 ```
 
-The SDK is written to `lib/dotpad-sdk-3.0.2/` beside the file, next to the
-`lib/maidr-<version>/` folder that already travels with it, and the document
-declares where to find it ahead of `maidr.js`. Ship the HTML with its `lib/`
-folder, as before. Every downloaded file is verified against the size and
-SHA-256 recorded for the pinned commit, and the copy includes the LGPL licence
-text and wrapper sources the vendor asks redistributors to keep beside the
-braille engine. `MAIDR_DOTPAD_SDK_DIR` moves the cache somewhere else, for
-instance a directory shared by a whole machine.
+The SDK is written to `lib/dotpad-sdk-<version>/` beside the file (so
+`lib/dotpad-sdk-3.0.3/` today), next to the `lib/maidr-<version>/` folder that
+already travels with it, and the document declares where to find it ahead of
+`maidr.js`. Ship the HTML with its `lib/` folder, as before. Every downloaded
+file is verified against the size and SHA-256 recorded for the pinned commit,
+and the copy includes the LGPL licence text and wrapper sources the vendor asks
+redistributors to keep beside the braille engine. `MAIDR_DOTPAD_SDK_DIR` moves
+the cache somewhere else, for instance a directory shared by a whole machine.
+
+The pins themselves — the SDK version, the repository and commit it is served
+from, and the digest of every file — come from `maidr/static/dotpad-sdk.json`,
+the manifest `maidr.js` ships and reads its own pins from. It is refreshed
+together with the bundled `maidr.js`, so `maidr.DOTPAD_SDK_VERSION` always
+names the release the bundle would load from the CDN.
 
 A page served from somewhere else — an intranet host, or a notebook, where the
 chart lives in a `srcdoc` iframe with no base URL for a relative path to
@@ -442,7 +448,7 @@ produces then declares it:
 
 ```python
 maidr.set_dotpad_sdk(
-    "https://intranet.example/dotpad/DotPadSDK-3.0.2.js",
+    "https://intranet.example/dotpad/DotPadSDK-3.0.3.js",
     "https://intranet.example/dotpad/lib/",
 )
 # or: MAIDR_DOTPAD_SDK_URL=... MAIDR_DOTPAD_ASSET_BASE_URL=...

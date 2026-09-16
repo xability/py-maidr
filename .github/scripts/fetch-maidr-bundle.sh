@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Resolve, download, and verify the bundled ``maidr.js``, ``maidr.css`` and
-# ``maidr-math.css`` assets.  Shared by the release workflow
+# ``maidr-math.css`` assets, plus the ``dotpad-sdk.json`` manifest when the
+# release ships one.  Shared by the release workflow
 # (``release.yml``, release-time refresh) and the manual refresh workflow
 # (``update-maidr-js.yml``) so the
 # download + integrity-check logic lives in exactly one place and cannot
@@ -18,8 +19,8 @@
 #
 #   VERSION   maidr npm version to fetch.  Resolves the latest published
 #             version on npm when empty or omitted.
-#   DEST_DIR  directory to write the assets and ``VERSION``
-#             into.  Defaults to ``maidr/static``.
+#   DEST_DIR  directory to write the assets, ``VERSION`` and
+#             ``dotpad-sdk.json`` into.  Defaults to ``maidr/static``.
 #
 # The resolved version is written to ``<DEST_DIR>/VERSION`` and printed as the
 # final line of stdout so callers can capture it, e.g.
@@ -149,6 +150,31 @@ cp "$WORK/package/dist/maidr.js" "$DEST_DIR/maidr.js"
 cp "$WORK/package/dist/maidr.css" "$DEST_DIR/maidr.css"
 cp "$WORK/package/dist/maidr-math.css" "$DEST_DIR/maidr-math.css"
 printf "%s\n" "$VERSION" > "$DEST_DIR/VERSION"
+
+# ``dotpad-sdk.json`` names the DotPad tactile-display SDK ``maidr.js`` is
+# pinned to -- version, mirror repository, commit, and the size and digest
+# of every file -- and is the single source ``maidr/util/dotpad.py`` reads
+# its pins from, so a bundle refresh moves the Python side along with the
+# JavaScript one.  Releases before it shipped have no manifest to copy;
+# the one already in ``DEST_DIR`` then stays as it is, and the log says so.
+if grep -qx 'package/dist/dotpad-sdk.json' <<<"$TARBALL_FILES"; then
+  tar -xzf "$TGZ" -C "$WORK" package/dist/dotpad-sdk.json
+  cp "$WORK/package/dist/dotpad-sdk.json" "$DEST_DIR/dotpad-sdk.json"
+  test -s "$DEST_DIR/dotpad-sdk.json"
+  # The fields ``maidr/util/dotpad.py`` reads at import, so a malformed
+  # manifest fails here rather than as ``import maidr`` on every install.
+  if ! jq -e '.version and .repository and .commit and .baseUrl
+              and .module and .assetDir and .files' \
+      "$DEST_DIR/dotpad-sdk.json" >/dev/null; then
+    echo "dist/dotpad-sdk.json in maidr@$VERSION is not a DotPad SDK manifest" >&2
+    exit 1
+  fi
+  SDK_VERSION=$(jq -r '.version' "$DEST_DIR/dotpad-sdk.json")
+  echo "Copied dist/dotpad-sdk.json (DotPad SDK ${SDK_VERSION})" >&2
+else
+  echo "maidr@$VERSION ships no dist/dotpad-sdk.json;" \
+    "leaving ${DEST_DIR}/dotpad-sdk.json as it is" >&2
+fi
 
 # Defense-in-depth sanity checks: non-empty, and not an HTML error page
 # masquerading as JS / CSS.  The check is a positive match: fail when the

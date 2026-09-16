@@ -23,8 +23,10 @@ into ``lib/`` next to a ``use_cdn=False`` document. Dot Inc. permit MAIDR
 to redistribute the SDK; the package stays small because nothing here runs
 until it is asked to.
 
-The pins mirror ``src/service/dotPadSdk.json`` in the maidr repository,
-which is where ``maidr.js`` itself reads them from. Keep the two in step.
+The pins are read at import from ``maidr/static/dotpad-sdk.json``: the
+manifest ``maidr.js`` ships as ``dist/dotpad-sdk.json`` in its npm package
+and reads its own pins from. ``fetch-maidr-bundle.sh`` copies it beside
+``maidr.js`` with every bundle refresh, so the two cannot drift apart.
 """
 
 from __future__ import annotations
@@ -33,36 +35,18 @@ import hashlib
 import json
 import os
 import sys
+from importlib.resources import files
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Any, NamedTuple, Optional
 from urllib.request import Request, urlopen
 
-#: The SDK release these pins describe.
-DOTPAD_SDK_VERSION = "3.0.2"
+#: The manifest the pins below are read from, relative to ``maidr/static/``.
+#: It is ``dist/dotpad-sdk.json`` from the ``maidr`` npm package, copied
+#: beside ``maidr.js`` by ``fetch-maidr-bundle.sh``.
+DOTPAD_SDK_PINS_FILENAME = "dotpad-sdk.json"
 
-#: The vendor's repository, and the commit every URL below is pinned to.
-#:
-#: The commit matters beyond immutability. Earlier ones carry a corrupt
-#: ``liblouis.data``: the repository's ``.gitattributes`` said
-#: ``* text=auto`` and the file is braille-table text with no NUL byte in
-#: it, so git rewrote its line endings on commit. It is an Emscripten
-#: package addressed by absolute byte offsets, so every table after the
-#: first dropped byte was read from the wrong place and the braille line
-#: silently fell back to grade 1. This commit marks ``*.data binary`` and
-#: restores the bytes.
-DOTPAD_SDK_REPOSITORY = "https://github.com/dotincorp/dotpad-sdk-guide"
-DOTPAD_SDK_COMMIT = "781f2308b3b80908e7ea335454c12d013101c91b"
-
-#: Where the pinned files are served from. Referencing a commit on jsDelivr
-#: is what makes the bytes immutable.
-DOTPAD_SDK_BASE_URL = (
-    "https://cdn.jsdelivr.net/gh/dotincorp/dotpad-sdk-guide@"
-    f"{DOTPAD_SDK_COMMIT}/Web/{DOTPAD_SDK_VERSION}/"
-)
-
-#: The SDK module, and the directory beside it that liblouis loads from.
-DOTPAD_SDK_MODULE = "DotPadSDK-3.0.2.js"
-DOTPAD_SDK_ASSET_DIR = "lib/"
+_STATIC_PACKAGE = "maidr"
+_STATIC_SUBDIR = "static"
 
 
 class DotPadSdkFile(NamedTuple):
@@ -72,6 +56,59 @@ class DotPadSdkFile(NamedTuple):
     sha256: str
 
 
+def _read_pins() -> dict[str, Any]:
+    """Load the shipped manifest, as ``maidr.js`` published it.
+
+    Returns
+    -------
+    dict
+        The parsed ``dotpad-sdk.json``: ``version``, ``repository``,
+        ``commit``, ``baseUrl``, ``module``, ``assetDir`` and ``files``,
+        plus ``upstream`` naming the vendor archive the files came from.
+
+    Raises
+    ------
+    FileNotFoundError
+        When the manifest is not shipped with the installed package.
+    """
+    resource = files(_STATIC_PACKAGE).joinpath(_STATIC_SUBDIR, DOTPAD_SDK_PINS_FILENAME)
+    return json.loads(resource.read_text(encoding="utf-8"))
+
+
+_pins = _read_pins()
+
+#: The SDK release these pins describe.
+DOTPAD_SDK_VERSION: str = _pins["version"]
+
+#: The repository the files are served from, and the commit every URL
+#: below is pinned to.
+#:
+#: This is a mirror, ``xability/dotpad-sdk-guide``, rather than the
+#: vendor's own repository: Dot Inc. publish this release only as a zip
+#: archive, which a browser cannot import a module out of, so the mirror
+#: carries the extracted files, byte-verified against that archive. The
+#: manifest's ``upstream`` entry records the vendor repository, commit,
+#: archive path and archive SHA-256 they were checked against.
+#:
+#: Pinning a commit matters beyond immutability. An earlier vendor commit
+#: carried a corrupt ``liblouis.data``: the repository's ``.gitattributes``
+#: said ``* text=auto`` and the file is braille-table text with no NUL
+#: byte in it, so git rewrote its line endings on commit. It is an
+#: Emscripten package addressed by absolute byte offsets, so every table
+#: after the first dropped byte was read from the wrong place and the
+#: braille line silently fell back to grade 1. The digests below are the
+#: intact bytes.
+DOTPAD_SDK_REPOSITORY: str = _pins["repository"]
+DOTPAD_SDK_COMMIT: str = _pins["commit"]
+
+#: Where the pinned files are served from. Referencing a commit on jsDelivr
+#: is what makes the bytes immutable.
+DOTPAD_SDK_BASE_URL: str = _pins["baseUrl"]
+
+#: The SDK module, and the directory beside it that liblouis loads from.
+DOTPAD_SDK_MODULE: str = _pins["module"]
+DOTPAD_SDK_ASSET_DIR: str = _pins["assetDir"]
+
 #: Every file a copy of the SDK consists of, relative to the base URL.
 #:
 #: The liblouis build is LGPL-2.1-or-later. Its licence text and the
@@ -79,30 +116,8 @@ class DotPadSdkFile(NamedTuple):
 #: asks anyone who redistributes the SDK to keep them beside the runtime
 #: files, which is the LGPL's relinking requirement.
 DOTPAD_SDK_FILES: dict[str, DotPadSdkFile] = {
-    "DotPadSDK-3.0.2.js": DotPadSdkFile(
-        46489, "074c50a1096452df6defa1c7ae99eacdf55ae02e1ff6008b9978c2b1bcc16f62"
-    ),
-    "lib/liblouis.js": DotPadSdkFile(
-        117694, "c5023cb27680f27df77db51d133718b70d837d855feb74e575a4fac6b1dd4059"
-    ),
-    "lib/liblouis.wasm": DotPadSdkFile(
-        171970, "c8d96fbcdd90ee3aa2fe9fa2857092ac832b7b356e23b7e33fb861a486e9b53c"
-    ),
-    "lib/liblouis.data": DotPadSdkFile(
-        13751594, "8475e6eaa539639c36353c10a2c38bcd8692ae0f8b47534ee2dd2d8b6fd00192"
-    ),
-    "lib/LICENSES/liblouis-LGPL-2.1.txt": DotPadSdkFile(
-        26530, "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
-    ),
-    "lib/liblouis-web/build_liblouis_web.sh": DotPadSdkFile(
-        4154, "34ff70dda4502b8733a2614b649da3e563358598fc4edfdd5417e2c29267f902"
-    ),
-    "lib/liblouis-web/liblouis.post.js": DotPadSdkFile(
-        1154, "fc969620ae5870dbfbdb6ea0fc820ef44fbd70cd0b203f9a705db469b25c7602"
-    ),
-    "lib/liblouis-web/liblouis_web.c": DotPadSdkFile(
-        8441, "460dc6bf6db662d14d8ce6113233e68858a4e4a1429834231c0525d646102b26"
-    ),
+    name: DotPadSdkFile(int(entry["bytes"]), str(entry["sha256"]))
+    for name, entry in _pins["files"].items()
 }
 
 #: The record :func:`download_dotpad_sdk` writes beside the files, so a copy
@@ -120,7 +135,7 @@ _SDK_URL_GLOBAL = "MAIDR_DOTPAD_SDK_URL"
 _ASSET_BASE_URL_GLOBAL = "MAIDR_DOTPAD_ASSET_BASE_URL"
 
 #: The name of the dependency ``save_html`` copies a local SDK under, so the
-#: folder beside the document reads ``lib/dotpad-sdk-3.0.2/``.
+#: folder beside the document reads ``lib/dotpad-sdk-<version>/``.
 _DEPENDENCY_NAME = "dotpad-sdk"
 
 
@@ -155,7 +170,7 @@ def set_dotpad_sdk(
     Parameters
     ----------
     sdk_url : str, optional
-        URL of the SDK ES module (``DotPadSDK-3.0.2.js``). ``None`` or an
+        URL of the SDK ES module (``DotPadSDK-<version>.js``). ``None`` or an
         empty string falls back to ``MAIDR_DOTPAD_SDK_URL``, and then to the
         vendor's copy on the CDN.
     asset_base_url : str, optional
@@ -326,7 +341,7 @@ def dotpad_sdk_dir() -> Path:
     """Where a downloaded copy of the SDK lives.
 
     ``MAIDR_DOTPAD_SDK_DIR`` when set, otherwise a per-user cache directory
-    (``~/.cache/maidr/dotpad-sdk/3.0.2`` on Linux, the platform's equivalent
+    (``~/.cache/maidr/dotpad-sdk/<version>`` on Linux, the platform's equivalent
     elsewhere). Nothing is created by asking.
 
     Returns
@@ -377,7 +392,7 @@ def download_dotpad_sdk(
 ) -> Path:
     """Fetch the pinned DotPad SDK into a directory, for use offline.
 
-    Downloads every file in :data:`DOTPAD_SDK_FILES` from the vendor's
+    Downloads every file in :data:`DOTPAD_SDK_FILES` from the pinned
     repository at the pinned commit, verifies each against its recorded
     size and SHA-256, and writes a ``manifest.json`` beside them naming the
     commit they came from. A file already present and correct is left
@@ -486,7 +501,7 @@ def dotpad_sdk_dependency(
 ):
     """An ``HTMLDependency`` that copies a local SDK beside a saved document.
 
-    ``htmltools`` materialises it into ``<lib_prefix>/dotpad-sdk-3.0.2/``
+    ``htmltools`` materialises it into ``<lib_prefix>/dotpad-sdk-<version>/``
     when the document is saved, and its ``head`` declares the two globals
     with that relative path, so the saved page finds the copy wherever the
     folder is moved to, as long as the two move together.
