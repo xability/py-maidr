@@ -624,9 +624,10 @@ Below is a detailed list of keyboard shortcuts for various functions:
 | Move around subplot list | Arrow keys | Arrow keys |
 | Activate selected subplot in the list | Enter | Enter |
 | Escape from current subplot to return to the subplot list | ESC | ESC |
-| Open or close settings, including AI providers and API keys | Ctrl + Comma (,) | CMD + Comma (,) |
-| Open or close the AI chat | Shift + Slash (?) | Shift + Slash (?) |
-| Open or close the keyboard help | Ctrl + Slash (/) | CMD + Slash (/) |
+| Open settings, including AI providers and API keys | Ctrl + Comma (,) | CMD + Comma (,) |
+| Open the AI chat | Shift + Slash (?) | Shift + Slash (?) |
+| Open the keyboard help | Ctrl + Slash (/) | CMD + Slash (/) |
+| Close the settings, chat or help dialog | ESC | ESC |
 
 Table: Keyboard Shortcuts {#tbl-shortcuts}
 
@@ -639,7 +640,12 @@ opens:
   including the **AI** tab that holds the AI providers, their API keys and the
   model each one uses.
 * **AI chat** (`?`, that is `Shift + /`) opens the conversation about the
-  current plot. It is a toggle: the same key returns you to the plot.
+  current plot.
+
+All three are closed with **Esc**, not by pressing the key that opened them
+again: while a dialog is up, the chart's shortcuts are deliberately out of
+scope so they cannot fire underneath it, and the opening chord is not rebound
+inside that scope.
 
 @tbl-shortcuts is the canonical list. Where another section of this page
 mentions a key, it refers back to this table rather than restating the binding.

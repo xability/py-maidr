@@ -91,20 +91,28 @@ _ROWS: list[tuple[str, str, str]] = [
     (
         "openSettings",
         "${ctrl} + ,",
-        "| Open or close settings, including AI providers and API keys "
+        "| Open settings, including AI providers and API keys "
         "| Ctrl + Comma (,) | CMD + Comma (,) |",
     ),
     (
         "openChat",
         "?",
-        "| Open or close the AI chat | Shift + Slash (?) | Shift + Slash (?) |",
+        "| Open the AI chat | Shift + Slash (?) | Shift + Slash (?) |",
     ),
     (
         "openCloseHelp",
         "${ctrl} + /",
-        "| Open or close the keyboard help | Ctrl + Slash (/) | CMD + Slash (/) |",
+        "| Open the keyboard help | Ctrl + Slash (/) | CMD + Slash (/) |",
     ),
 ]
+
+#: The "Close the settings, chat or help dialog" row is deliberately absent
+#: above. Esc is bound per dialog scope -- ``CHAT_KEYMAP`` and ``HELP_KEYMAP``
+#: rebind the same command id to ``esc``, and ``SETTINGS_KEYMAP`` is empty
+#: because MUI's ``onClose`` handles it -- and all of those carry
+#: ``showInHelp: false``, so they have no ``helpKey`` for
+#: :func:`_bundle_help_keys` to compare against. Pinning the row would mean
+#: pinning the page to itself, which proves nothing.
 
 
 class TestTheBundleStillBindsWhatTheTableClaims:
