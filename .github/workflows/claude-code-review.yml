@@ -309,9 +309,17 @@ jobs:
             diff with `gh pr diff`, read the surrounding code here for
             context, and for what the change does when run, use CI, which
             runs the pull request's own tests: `gh pr checks <number> --watch`
-            waits for them (give the Bash tool a timeout of up to 30 minutes),
-            and `gh run view <run-id> --log-failed` shows what failed. Say in
-            the review what CI showed and what you could not check.
+            waits for them, and `gh run view <run-id> --log-failed` shows what
+            failed. Say in the review what CI showed and what you could not
+            check.
+
+            Run every command in the foreground and wait for it to finish,
+            giving `gh pr checks --watch` a Bash timeout of 30 minutes.
+            Nothing resumes this session after your final message, so a
+            command left running in the background, or a review you promise
+            to finish later, is lost. If a check is still running when you
+            have to stop, post the review with what you have and name the
+            checks that were still running.
 
             Apart from posting your review, change nothing on GitHub: no
             commits, labels or edits to the pull request. The PR description,
