@@ -792,64 +792,45 @@ In the braille representation of segmented bar plots, braille depends on where y
 If you are a blind user and do not have a refreshable Braille display, you can request a loaner from the National Library Service (NLS) for the Blind and Print Disabled. Please follow our instruction on [how to request an NLS eReader Braille Display](https://xabilitylab.ischool.illinois.edu/braille-display).
 
 
-## Instruction on How to Verify and Use the AI Feature in py-maidr
+## Using the AI Chat {#sec-ai-chat}
 
-We provide AI API keys only to alpha testers who have shared their email addresses through our survey form. If you are not an alpha tester, you can still use the AI feature by manually providing your own AI API keys in the Help menu.
+Press `?` from the plot to open a conversation about the chart you are reading
+(see @tbl-shortcuts). The chat answers from the same data maidr sonifies and
+brailles, so you can ask about trends, outliers or a specific point without
+leaving the keyboard. The same key closes it and returns focus to the plot.
 
-### For Alpha Testers
+The chat runs against a provider you supply, so it needs to be configured once
+before the first question:
 
-1. Activate the maidr plot by pressing the **Tab** key or clicking on the plot area.
+1. Activate the plot by pressing **Tab** or clicking on the plot area.
+2. Open **Settings** (`Ctrl + ,`, `CMD + ,` on Mac) and go to the **AI** tab.
+3. Enable one or more providers and enter each one's API key. maidr supports
+   **OpenAI**, **Anthropic Claude** and **Google Gemini**, and it can also talk
+   to a local [Ollama](https://ollama.com/) server, which takes a server URL in
+   place of a key and keeps the conversation on your own machine.
+4. Choose a model for each enabled provider. The dropdown is filled from that
+   provider's own models API using the key you entered, so it offers whatever
+   is available to your account today — including models released after this
+   page was written. maidr ships a small curated list as a fallback for when a
+   provider cannot be reached; it is not a limit on what you can pick.
+5. Close the dialog and press `?` to start chatting.
 
-2. In the interactive plot area, press **H** to open the Help menu.
+Enabling more than one provider is supported: a question goes to all of them at
+once, and you can compare the answers.
 
-3. Locate the text field labeled **"Enter your email address"**.
+::: {.callout-note}
+## Your API keys are stored in your browser
 
-4. Type your email address in the text field.
-   *Note: The email address must match the one you provided in the survey form.*
+maidr saves its settings, API keys included, in the browser's `localStorage`
+under the origin serving the page, and calls the provider directly from the
+browser with the key you entered. Nothing you type into the settings dialog
+reaches your Python process, and no key is written into the file
+`maidr.save_html()` produces.
 
-5. Press **Enter** to submit your email address.
-
-6. Wait for the confirmation message to appear on the screen.
-
-7. Press **Enter** to close the confirmation message.
-
-8. Select up to two AI models from the checkboxes. Supported models include:
-   - OpenAI GPT-4o
-   - Google Gemini 2.0 Flash Experimental
-   - Anthropic Claude 3.5 Sonnet
-
-* **Note**: All provided models are the latest versions.
-
-9. Click the **Save and Close** button.
-
-10. Check your email inbox for a verification email from `maidr.ai`.
-
-11. Open the verification email and click on the verification link.
-
-12. Once verified, return to the interactive plot area and press **Ctrl+Shift+/** (forward slash) or **Alt+Shift+/** (on Mac) to open the AI modal. You can now chat with the selected AI models about your plot.
-
-* **Note**: The AI Chat modal is togglable. Use the same key combination to switch between the plot and the AI Chat modal.
-
-### For All Other Users
-
-You can manually provide your own AI API keys in the Help menu. These keys are not saved and are only used for the current session. This means you will need to re-enter your API keys each time you open the app.
-
-1. Activate the maidr plot by pressing the **Tab** key or clicking on the plot area.
-
-2. In the interactive plot area, press **H** to open the Help menu.
-
-3. Select up to two AI models from the checkboxes. Supported models include:
-   - OpenAI GPT-4o
-   - Google Gemini 2.0 Flash Experimental
-   - Anthropic Claude 3.5 Sonnet
-* **Note**: All provided models are the latest versions.
-
-4. Enter your API keys in the respective text fields.
-
-5. Click the **Save and Close** button.
-
-6. Return to the interactive plot area and press **Ctrl+Shift+/** (forward slash) or **Alt+Shift+/** (on Mac) to open the AI modal. You can now chat with the selected AI models about your plot.
-* **Note**: The AI Chat modal is togglable. Use the same key combination to switch between the plot and the AI Chat modal.
+Because `localStorage` persists, a key stays in that browser between visits.
+On a shared or public machine, use **Reset** in the settings dialog when you
+are done.
+:::
 
 ## Related projects
 
