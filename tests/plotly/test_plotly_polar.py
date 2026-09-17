@@ -37,8 +37,11 @@ pytest.importorskip("plotly")
 import plotly.graph_objects as go  # noqa: E402
 from plotly.subplots import make_subplots  # noqa: E402
 
+from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
+from maidr.plotly.plotly_plot_factory import PlotlyPlotFactory  # noqa: E402
+from maidr.plotly.polar import PlotlyPolarPlot  # noqa: E402
 
 SPOKES = ["N", "E", "S", "W"]
 RADII = [3, 9, 5, 1]
@@ -489,3 +492,64 @@ def test_a_scatterpolargl_still_reads_its_own_spokes_beside_an_svg_one() -> None
 
     assert _spokes(first) == [("N", 3), ("E", 9), ("S", 5)]
     assert _spokes(second) == [("N", 2), ("E", 6), ("S", 4)]
+
+
+# --------------------------------------------------------------------------
+# Constructing one straight from the factory.
+#
+# These are defensive, and say so: no user path reaches `PlotlyPlotFactory`
+# with a polar trace. `_extract_plots` filters every `scatterpolar`,
+# `scatterpolargl` and `barpolar` out of its group, builds each itself with a
+# real position, and marks them merged, so the factory's polar branch is dead
+# for `PlotlyMaidr` -- which is why nothing caught that the branch could not
+# run at all. It passed no `trace_position` while the constructor made it
+# keyword-only and *required*, so every call raised ``TypeError: missing 1
+# required keyword-only argument: 'trace_position'``, for both trace types.
+#
+# The branch is kept because the factory is usable standalone -- its own
+# lines branch says so and is tested that way -- and a class whose sole
+# caller cannot construct it is a trap for the next one. The guard below is
+# the one `PlotlyPiePlot` and `PlotlyChoroplethPlot` keep over their
+# positions, which this class lacked along with the default.
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("trace", "plot_type"),
+    [
+        (go.Scatterpolar(r=RADII, theta=SPOKES), PlotType.RADAR),
+        (go.Barpolar(r=RADII, theta=SPOKES), PlotType.POLAR_AREA),
+    ],
+    ids=["scatterpolar", "barpolar"],
+)
+def test_the_factory_can_build_the_polar_plot_it_dispatches_to(
+    trace: go.Scatterpolar | go.Barpolar, plot_type: PlotType
+) -> None:
+    """The reproduction: the branch raised instead of returning a layer."""
+    plot = PlotlyPlotFactory.create(trace.to_plotly_json(), {})
+
+    assert isinstance(plot, PlotlyPolarPlot)
+    assert plot.type is plot_type
+    assert _spokes(plot.schema) == list(zip(SPOKES, RADII))
+
+
+def test_a_factory_built_radar_is_scoped_to_the_first_trace() -> None:
+    """Position 0 is the assumption the default carries, spelled out."""
+    plot = PlotlyPlotFactory.create(
+        go.Scatterpolar(r=RADII, theta=SPOKES).to_plotly_json(), {}
+    )
+    (selector,) = plot.schema[MaidrKey.SELECTOR]
+
+    assert ".polarlayer > g.polar .scatterlayer" in selector
+    assert "nth-child(1)" in selector
+
+
+def test_a_negative_trace_position_is_rejected() -> None:
+    """``nth-child(0)`` matches nothing, so it is refused rather than drawn."""
+    with pytest.raises(ValueError, match="must be >= 0"):
+        PlotlyPolarPlot(
+            go.Scatterpolar(r=RADII, theta=SPOKES).to_plotly_json(),
+            {},
+            PlotType.RADAR,
+            trace_position=-1,
+        )

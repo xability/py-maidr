@@ -134,7 +134,10 @@ class PlotlyPlotFactory:
                 PlotType.RADAR if trace_type == "scatterpolar" else PlotType.POLAR_AREA
             )
             # ``trace_position`` is left at its default: this factory sees
-            # one trace with no idea what else shares the polar subplot.
+            # one trace with no idea what else shares the polar subplot, and
+            # "assume it is the only one" is the only assumption available.
+            # ``PlotlyMaidr`` never reaches here precisely because it does
+            # know, and passes real positions.
             return PlotlyPolarPlot(trace, layout, polar_type, **axis_kwargs)
 
         if trace_type == "sankey":
