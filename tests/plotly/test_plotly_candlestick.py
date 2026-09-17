@@ -411,7 +411,7 @@ def test_a_hidden_candlestick_is_not_read(hidden) -> None:
 
 
 def test_a_figure_of_other_traces_is_unchanged() -> None:
-    """The control: recognising a new type must cost the existing ones nothing.
+    """The control: recognizing a new type must cost the existing ones nothing.
 
     `_extract_plots` gained a branch ahead of the factory fallback, and a bar
     and a scatter both reach that fallback, so this drives the path the new

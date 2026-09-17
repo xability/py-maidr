@@ -191,7 +191,7 @@ class TestAStandaloneLineIsGuardedToo:
 
 
 class TestSvgTracesAreUnaffected:
-    """The pre-existing SVG behaviour is untouched."""
+    """The pre-existing SVG behavior is untouched."""
 
     def test_an_svg_line_still_gets_its_selector(self):
         fig = go.Figure()

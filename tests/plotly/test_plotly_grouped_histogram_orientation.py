@@ -4,7 +4,7 @@ A horizontal grouped plotly histogram pitched its bin position (#482).
 `PlotlyGroupedHistogramPlot` declared ``orientation: "horz"`` for a horizontal
 layer -- it always had -- but built every point bin-in-``x`` and count-in-``y``,
 the vertical arrangement, whichever way the chart was drawn. The core read
-``point.x`` as the magnitude and so pitched the bin's *centre* instead of its
+``point.x`` as the magnitude and so pitched the bin's *center* instead of its
 count: a number belonging to nothing in the data.
 
 That makes it the third form of one bug. r-maidr #184 declared the key without
@@ -17,7 +17,7 @@ The single-histogram class swaps correctly, and a grouped layer emits
 ``stacked_bar`` / ``dodged_bar``, so it is in the bar family and reads by the
 same rule: ``horz`` means the magnitude is in ``x``.
 
-Bin centres near 10 and 50 against counts of 6 and 0, so no value here can be
+Bin centers near 10 and 50 against counts of 6 and 0, so no value here can be
 mistaken for the other kind.
 """
 
@@ -40,7 +40,7 @@ warnings.filterwarnings("ignore")
 FIRST = [10] * 6 + [50] * 2
 SECOND = [10] * 3 + [50] * 5
 
-BIN_CENTRE = 9.5
+BIN_CENTER = 9.5
 FIRST_COUNT = 6
 
 
@@ -77,16 +77,16 @@ def _first_point(layer: dict) -> dict:
 @pytest.mark.parametrize("barmode", ["stack", "group"])
 class TestTheLayoutFollowsTheDeclaration:
     def test_a_horizontal_group_puts_the_count_in_x(self, barmode) -> None:
-        # The defect: `x` held 9.5, the bin's centre, and the core pitched it.
+        # The defect: `x` held 9.5, the bin's center, and the core pitched it.
         point = _first_point(_layer(_grouped(True, barmode)))
 
         assert point["x"] == FIRST_COUNT
-        assert point["y"] == BIN_CENTRE
+        assert point["y"] == BIN_CENTER
 
     def test_a_vertical_group_is_unchanged(self, barmode) -> None:
         point = _first_point(_layer(_grouped(False, barmode)))
 
-        assert point["x"] == BIN_CENTRE
+        assert point["x"] == BIN_CENTER
         assert point["y"] == FIRST_COUNT
 
     def test_the_orientation_key_still_says_which(self, barmode) -> None:
@@ -112,7 +112,7 @@ class TestItAgreesWithTheSingleHistogram:
         category_field = "y" if horizontal else "x"
 
         assert single[magnitude_field] == grouped[magnitude_field] == FIRST_COUNT
-        assert single[category_field] == grouped[category_field] == BIN_CENTRE
+        assert single[category_field] == grouped[category_field] == BIN_CENTER
 
 
 class TestTheOtherFieldsSurvive:
@@ -127,6 +127,6 @@ class TestTheOtherFieldsSurvive:
         layer = _layer(_grouped(True))
         counts = {int(p[str(MaidrKey.X.value)]) for p in layer["data"][0]}
 
-        # Counts, not bin centres: 9.5 and 29.5 are not integers, so a point
+        # Counts, not bin centers: 9.5 and 29.5 are not integers, so a point
         # left unswapped could not produce this set.
         assert counts <= {0, 2, 3, 5, 6}

@@ -7,7 +7,7 @@ which -- or that any of them is a chart at all.
 
 `tests/` asserts the ``title`` attribute is in the emitted markup. That
 is not the same as the browser resolving it to an accessible name: a
-`title` overridden by an `aria-label`, or a frame relabelled by the host
+`title` overridden by an `aria-label`, or a frame relabeled by the host
 framework, would still pass the markup check.
 """
 

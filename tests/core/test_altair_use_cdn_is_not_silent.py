@@ -1,12 +1,12 @@
-"""``use_cdn=False`` on an Altair chart says it cannot be honoured.
+"""``use_cdn=False`` on an Altair chart says it cannot be honored.
 
 The Altair path renders through the upstream Vega-Lite adapter, which is
 published only on a CDN, so there is nothing to inline and the flag cannot
 be obeyed. It was accepted and discarded in silence, which fails the one
 reader it matters to: ``use_cdn=False`` means they cannot reach a CDN, so
-they got a chart that never initialises and no reason why (#521).
+they got a chart that never initializes and no reason why (#521).
 
-Whether the flag should one day be honoured is a packaging question about
+Whether the flag should one day be honored is a packaging question about
 maidr's own ``vegalite.js``. Saying so is not, and is what these pin.
 """
 
@@ -28,7 +28,7 @@ from maidr.api import _ALTAIR_REMOTE_RUNTIME  # noqa: E402
 
 alt = pytest.importorskip("altair")
 
-_COMPLAINT = "cannot be honoured"
+_COMPLAINT = "cannot be honored"
 
 
 @pytest.fixture(autouse=True)
@@ -109,7 +109,7 @@ def test_a_process_wide_default_of_false_also_warns():
 
 
 def test_a_matplotlib_chart_is_not_warned_about():
-    """It honours the flag by inlining the bundle, so it has nothing to say."""
+    """It honors the flag by inlining the bundle, so it has nothing to say."""
     fig, ax = plt.subplots()
     ax.bar(["p", "q"], [1, 2])
 

@@ -36,7 +36,7 @@ def _labels(ax, key=MaidrKey.X) -> list[str]:
     return [label for _, label in LevelExtractorMixin._ticks_in_view(ax, key)]
 
 
-#: A centre one float past 0.2: with a width of 0.4 the bar's edge is one
+#: A center one float past 0.2: with a width of 0.4 the bar's edge is one
 #: float past the tick at 0, which is where seaborn's offset arithmetic
 #: lands it. Spelled outright rather than as `0.2`, because matplotlib's own
 #: `0.2 - 0.2` is exactly zero and the premise below would not hold.

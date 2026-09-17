@@ -1,7 +1,7 @@
-"""Keep seaborn's colour probe from registering as a chart.
+"""Keep seaborn's color probe from registering as a chart.
 
-``seaborn.utils._default_color`` resolves a default colour by *drawing* a
-throwaway artist, reading its face colour, and removing it again. Every
+``seaborn.utils._default_color`` resolves a default color by *drawing* a
+throwaway artist, reading its face color, and removing it again. Every
 branch ends in ``scout.remove()``::
 
     elif method.__name__ == "fill_between":
@@ -30,7 +30,7 @@ from maidr.core.context_manager import ContextManager
 
 def _suppress_registration(wrapped, _, args, kwargs) -> Any:
     """
-    Resolve a default colour without registering the artist it drew.
+    Resolve a default color without registering the artist it drew.
 
     A layer from the probe describes a fill of two empty arrays. It has no
     elements on the chart, so it announces a region that is not drawn and
@@ -58,7 +58,7 @@ def _suppress_registration(wrapped, _, args, kwargs) -> Any:
     Returns
     -------
     Any
-        The resolved colour, unchanged.
+        The resolved color, unchanged.
     """
     with ContextManager.set_internal_context():
         return wrapped(*args, **kwargs)
@@ -98,9 +98,9 @@ def _patch_default_color() -> None:
     original = getattr(seaborn.utils, "_default_color", None)
     if original is None:
         warnings.warn(
-            "maidr: seaborn.utils._default_color is gone, so the colour probe "
+            "maidr: seaborn.utils._default_color is gone, so the color probe "
             "is no longer suppressed. If seaborn still resolves default "
-            "colours by drawing a throwaway artist, that artist will be "
+            "colors by drawing a throwaway artist, that artist will be "
             "registered as a chart of its own.",
             stacklevel=2,
         )

@@ -425,7 +425,7 @@ class ScalarMappableExtractorMixin:
 
         A heatmap's values live in a mesh or an image. Preferring one matters
         because ``ScalarMappable`` is a much wider net than it looks: a
-        scatter's ``PathCollection`` is one too -- that is how a colour-mapped
+        scatter's ``PathCollection`` is one too -- that is how a color-mapped
         scatter works -- so "the first ``ScalarMappable`` on the axes" finds
         the *scatter* whenever one was drawn first, and the heatmap beside it
         is then read from an artist that has no grid at all::

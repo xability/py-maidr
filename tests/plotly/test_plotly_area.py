@@ -43,7 +43,7 @@ from maidr.plotly.area import (  # noqa: E402
     area_stack_groups,
     groupnorm_scale,
     is_area_trace,
-    normalised_bands,
+    normalized_bands,
 )
 from maidr.plotly.area import PlotlyAreaPlot  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
@@ -99,7 +99,7 @@ class TestIsAreaTrace:
 
     def test_a_bar_with_a_stackgroup_is_not_an_area(self):
         # Guards the scatter-family half of the test: `stackgroup` alone is
-        # not enough, or a mislabelled trace of another type would be filled.
+        # not enough, or a mislabeled trace of another type would be filled.
         assert is_area_trace({"type": "bar", "stackgroup": "one"}) is False
 
     def test_a_webgl_trace_is_not_an_area_even_carrying_a_stackgroup(self):
@@ -156,21 +156,21 @@ class TestPlotType:
         )
 
     @pytest.mark.parametrize("groupnorm", ["percent", "fraction"])
-    def test_groupnorm_normalises(self, groupnorm):
+    def test_groupnorm_normalizes(self, groupnorm):
         traces = [
             {"stackgroup": "one", "groupnorm": groupnorm},
             {"stackgroup": "one"},
         ]
         assert area_plot_type(traces) == PlotType.NORMALIZED_AREA
 
-    def test_the_normalised_type_reads_naturally_to_a_user(self):
+    def test_the_normalized_type_reads_naturally_to_a_user(self):
         # The wire value is `stacked_normalized_area`, which is not what
         # anyone would call it out loud. Asserted here because every other
         # user-facing name for this layer family is.
         assert PlotType.NORMALIZED_AREA.display_name == "100% stacked area"
         assert PlotType.STACKED_AREA.display_name == "stacked area"
 
-    def test_an_unrecognised_groupnorm_is_left_alone(self):
+    def test_an_unrecognized_groupnorm_is_left_alone(self):
         traces = [{"stackgroup": "one", "groupnorm": ""}, {"stackgroup": "one"}]
         assert area_plot_type(traces) == PlotType.STACKED_AREA
 
@@ -322,7 +322,7 @@ class TestAreasAndLinesCoexist:
         # Not a mis-announcement either way: maidr's `LineTrace`, which
         # `AreaTrace` extends, reads `z` through a truthiness guard
         # (`point.z ? ... : {}`), so `""` already degrades to the absent-key
-        # behaviour. This keeps the emitted schema free of a key whose value
+        # behavior. This keeps the emitted schema free of a key whose value
         # carries nothing.
         single = frame()[lambda d: d.g == "a"]
         point = only_layer(px.area(single, x="x", y="y"))["data"][0][0]
@@ -430,11 +430,11 @@ class TestTheGroupnormScale:
     @pytest.mark.parametrize(
         ("groupnorm", "expected"), [("percent", 100.0), ("fraction", 1.0)]
     )
-    def test_the_two_normalising_settings(self, groupnorm, expected):
+    def test_the_two_normalizing_settings(self, groupnorm, expected):
         assert groupnorm_scale([{"groupnorm": groupnorm}]) == expected
 
     @pytest.mark.parametrize("groupnorm", [None, "", "nonsense", 5, True])
-    def test_everything_else_normalises_nothing(self, groupnorm):
+    def test_everything_else_normalizes_nothing(self, groupnorm):
         assert groupnorm_scale([{"groupnorm": groupnorm}]) is None
 
     def test_the_first_trace_that_sets_it_governs(self):
@@ -444,7 +444,7 @@ class TestTheGroupnormScale:
         assert groupnorm_scale(traces) == 100.0
 
 
-class TestNormalisedBands:
+class TestNormalizedBands:
     """The scatter rule, which is not the bar rule.
 
     plotly.js's cross-trace calc for a stack group sums every band's ``s`` at
@@ -455,53 +455,53 @@ class TestNormalisedBands:
 
     def test_fraction_gives_shares_of_one(self):
         bands = bands_of([(1, 30), (2, 20)], [(1, 10), (2, 60)])
-        assert ys(normalised_bands(bands, 1.0)) == [[0.75, 0.25], [0.25, 0.75]]
+        assert ys(normalized_bands(bands, 1.0)) == [[0.75, 0.25], [0.25, 0.75]]
 
     def test_percent_gives_shares_of_a_hundred(self):
         bands = bands_of([(1, 30), (2, 20)], [(1, 10), (2, 60)])
-        assert ys(normalised_bands(bands, 100.0)) == [[75.0, 25.0], [25.0, 75.0]]
+        assert ys(normalized_bands(bands, 100.0)) == [[75.0, 25.0], [25.0, 75.0]]
 
     def test_a_band_that_skips_an_x_contributes_zero_there(self):
         # plotly's default `stackgaps` is "infer zero", so the lone band at
         # x=2 is the whole of that column.
         bands = bands_of([(1, 30), (2, 20)], [(1, 10)])
-        assert ys(normalised_bands(bands, 100.0)) == [[75.0, 100.0], [25.0]]
+        assert ys(normalized_bands(bands, 100.0)) == [[75.0, 100.0], [25.0]]
 
     def test_totals_are_keyed_by_x_not_by_index(self):
         bands = bands_of([(1, 30), (2, 20)], [(2, 60), (1, 10)])
-        assert ys(normalised_bands(bands, 1.0)) == [[0.75, 0.25], [0.75, 0.25]]
+        assert ys(normalized_bands(bands, 1.0)) == [[0.75, 0.25], [0.75, 0.25]]
 
     def test_a_column_totalling_zero_keeps_its_values(self):
         # The `|| 1` in plotly's rule: a zero total divides by 1, so the
         # zeros stay zeros rather than becoming an undefined 0/0. This is
         # where the scatter rule parts from `barnorm.stack_shares`.
         bands = bands_of([(1, 0), (2, 3)], [(1, 0), (2, 1)])
-        assert ys(normalised_bands(bands, 100.0)) == [[0.0, 75.0], [0.0, 25.0]]
+        assert ys(normalized_bands(bands, 100.0)) == [[0.0, 75.0], [0.0, 25.0]]
 
     def test_a_none_stays_none_and_leaves_the_total_alone(self):
         bands = bands_of([(1, None), (2, 3)], [(1, 4), (2, 1)])
-        assert ys(normalised_bands(bands, 100.0)) == [[None, 75.0], [100.0, 25.0]]
+        assert ys(normalized_bands(bands, 100.0)) == [[None, 75.0], [100.0, 25.0]]
 
     def test_a_nan_is_left_alone_too(self):
         bands = bands_of([(1, float("nan"))], [(1, 4)])
-        got = ys(normalised_bands(bands, 100.0))
+        got = ys(normalized_bands(bands, 100.0))
         assert got[0][0] != got[0][0]  # still NaN
         assert got[1] == [100.0]
 
     def test_the_input_is_not_mutated(self):
         bands = bands_of([(1, 30)], [(1, 10)])
-        normalised_bands(bands, 100.0)
+        normalized_bands(bands, 100.0)
         assert ys(bands) == [[30], [10]]
 
     def test_the_other_keys_survive(self):
         bands = [[{"x": 1, "y": 30, "z": "D"}], [{"x": 1, "y": 10, "z": "P"}]]
-        assert normalised_bands(bands, 100.0) == [
+        assert normalized_bands(bands, 100.0) == [
             [{"x": 1, "y": 75.0, "z": "D"}],
             [{"x": 1, "y": 25.0, "z": "P"}],
         ]
 
 
-class TestTheEmittedNormalisedLayer:
+class TestTheEmittedNormalizedLayer:
     """The layer's values match what plotly draws, as they do for `barnorm`."""
 
     def test_fraction_reaches_the_layer(self):
@@ -576,7 +576,7 @@ class TestTheEmittedNormalisedLayer:
         ]
         assert [point["y"] for point in emitted[1]["data"][0]] == [5]
 
-    def test_a_normalised_step_area_keeps_its_direction(self):
+    def test_a_normalized_step_area_keeps_its_direction(self):
         # The rescale touches the bands only; the step convention rides on
         # the traces and is unaffected.
         fig = px.area(

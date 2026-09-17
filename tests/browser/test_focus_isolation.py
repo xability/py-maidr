@@ -1,6 +1,6 @@
 """With two charts on a page, the reader comes back to their own (#484).
 
-What this establishes is the behaviour: both charts are replaced at once,
+What this establishes is the behavior: both charts are replaced at once,
 and focus returns to the one the reader was in rather than to the other.
 
 What it does **not** establish, despite two attempts, is the container-id

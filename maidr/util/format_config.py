@@ -191,7 +191,7 @@ class JSBodyConverter:
         since ``matplotlib.dates.get_epoch()`` -- as floats, or as strings on a
         bar axis; ``new Date(value)`` would read either as milliseconds and
         announce every one of them as 1970. The epoch is read here rather than
-        at import so a user's ``rcParams['date.epoch']`` is honoured, and the
+        at import so a user's ``rcParams['date.epoch']`` is honored, and the
         product is rounded to the millisecond so a day number carrying a
         time of day does not land a fraction of a millisecond before it.
 

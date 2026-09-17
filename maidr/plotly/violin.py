@@ -1,7 +1,7 @@
 """Read a plotly violin trace as the `violin_box` + `violin_kde` layer pair.
 
 A violin is announced as two layers, matching the matplotlib path: the box
-summarises the distribution, and the KDE is the shape the chart actually
+summarizes the distribution, and the KDE is the shape the chart actually
 draws. Every violin on a subplot shares one pair, however many traces they
 came from -- the same grouping the browser-side plotly adapter uses.
 
@@ -46,7 +46,7 @@ def is_violin_trace(trace: dict) -> bool:
 
 
 class Violin(NamedTuple):
-    """One violin: a labelled sample, with selectors for what plotly drew.
+    """One violin: a labeled sample, with selectors for what plotly drew.
 
     Attributes
     ----------

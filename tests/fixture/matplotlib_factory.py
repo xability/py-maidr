@@ -70,7 +70,7 @@ class MatplotlibFactory(LibraryFactory):
     def create_pieplot(self, ax: Axes) -> Any:
         """Draw a pie whose magnitudes do not survive matplotlib.
 
-        The sizes sum well above 1, so ``Axes.pie`` normalises them and the
+        The sizes sum well above 1, so ``Axes.pie`` normalizes them and the
         wedges it draws keep only the fractions 0.3/0.5/0.2. The layer must
         still report 30/50/20, which is what the caller plotted.
         """

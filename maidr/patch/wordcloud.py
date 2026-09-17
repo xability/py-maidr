@@ -16,7 +16,7 @@ def wordcloud(wrapped, instance, args, kwargs):
 
     ``WordCloud`` renders to a bitmap and the conventional way to display one
     is ``ax.imshow(wc)``, so a cloud arrives at MAIDR through the same entry
-    point a heatmap does. It is not one: the array is ``(M, N, 3)`` colour,
+    point a heatmap does. It is not one: the array is ``(M, N, 3)`` color,
     and ``maidr.patch.heatmap`` declines exactly that shape (#564) because
     there is no number per cell to announce. Measured before this patch, a
     figure holding only a cloud registered no layer at all and
@@ -30,7 +30,7 @@ def wordcloud(wrapped, instance, args, kwargs):
     Two wrappers now sit on ``Axes.imshow``, this one and the heatmap's. That
     is deliberate rather than a merge into ``heat``: the two answer different
     questions about the same call, and only one of them can be true. The
-    heatmap wrapper declines a colour image whether or not it is a cloud, so
+    heatmap wrapper declines a color image whether or not it is a cloud, so
     the pair cannot both register a layer for one call.
 
     **This one has to be the outer of the two, and the import order in
@@ -39,7 +39,7 @@ def wordcloud(wrapped, instance, args, kwargs):
     ``wordcloud``. Reversed, nothing registers at all: ``heat`` would run
     first, set the internal context for its own draw, and the call would
     reach this wrapper with ``is_internal_context()`` already true, so the
-    cloud goes unrecorded -- and then ``heat`` declines it as a colour image
+    cloud goes unrecorded -- and then ``heat`` declines it as a color image
     too. Measured on the reversed stack, a figure holding only a cloud raises
     ``UnsupportedPlotError`` again, exactly as it did before this patch
     existed.
@@ -48,7 +48,7 @@ def wordcloud(wrapped, instance, args, kwargs):
     ``test_a_cloud_is_read_rather_than_refused`` fails outright under the
     reversed stack, because there is no layer to read.
 
-    ``wc.to_array()`` and ``wc.to_image()`` are not recognised, and cannot
+    ``wc.to_array()`` and ``wc.to_image()`` are not recognized, and cannot
     be: both hand ``imshow`` a plain array, and the terms are not in it. A
     cloud displayed that way stays a picture, which is the honest answer.
 

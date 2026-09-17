@@ -1,5 +1,5 @@
 """
-A colour-split ``so.Line`` gave two series a reader could not tell apart
+A color-split ``so.Line`` gave two series a reader could not tell apart
 (#672).
 
 `so.Plot(..., color="g").add(so.Line())` drew two lines and read as two
@@ -11,9 +11,9 @@ function named both::
     so.Line() + color="g"   axes.z absent           first point z absent
 
 **A `so.Plot`'s legend is the figure's, never the axes'.** Measured on every
-colour-split mark: `ax.legend_` is `None` and `fig.legends` holds exactly
+color-split mark: `ax.legend_` is `None` and `fig.legends` holds exactly
 one, whose title is the grouping variable, whose texts are the group names,
-and whose handles carry the drawn artists' own colours.
+and whose handles carry the drawn artists' own colors.
 
 `maidr.util.legend_names.legend_of` already knows that -- it falls back to
 the figure's legend when the axes has none, and the scatter and bar paths
@@ -76,7 +76,7 @@ def _named_series(schema) -> list[list]:
     return [sorted({point.get("z") for point in series}) for series in schema["data"]]
 
 
-def test_a_colour_split_so_line_names_each_series():
+def test_a_color_split_so_line_names_each_series():
     # The reproduction. Before this the layer held two series of bare
     # (x, y) and a reader met "line 1" and "line 2".
     schema = _so_line(plt.figure())
@@ -84,7 +84,7 @@ def test_a_colour_split_so_line_names_each_series():
     assert _named_series(schema) == [["p"], ["q"]]
 
 
-def test_a_colour_split_so_line_names_the_variable_it_split_by():
+def test_a_color_split_so_line_names_the_variable_it_split_by():
     # The other half, and the one a reader needs first: `z` says which group
     # a point is in, `axes.z` says what kind of thing a group *is*.
     schema = _so_line(plt.figure())
@@ -114,7 +114,7 @@ def test_the_classic_spelling_of_the_same_chart_reads_the_same_way():
     assert schema["axes"]["z"] == {"label": "g"}
 
 
-def test_a_colour_split_so_dot_names_the_variable_too():
+def test_a_color_split_so_dot_names_the_variable_too():
     # The scatter path already split and named its *groups* -- it goes
     # through `legend_of` via `hue_groups` -- but the `z` label came from
     # `_legend_title`, which did not, so the variable went unnamed.
@@ -134,7 +134,7 @@ def _moved_to_the_figure(draw) -> plt.Figure:
 
     The swatches are the *drawn* ones, which is what makes this the real
     case rather than a stand-in: a grid's ``add_legend()`` gathers the
-    panels' own handles, so the colour match that names the groups still
+    panels' own handles, so the color match that names the groups still
     holds and only the legend's owner has changed.
     """
     figure, ax = plt.subplots()

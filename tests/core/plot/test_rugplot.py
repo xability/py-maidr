@@ -110,7 +110,7 @@ def test_the_strip_the_ticks_sit_in_is_named_rather_than_left_as_a_value(frame):
 def test_a_rug_on_y_names_the_other_axis(frame):
     # `MaidrPlot.render()` builds the axes payload *before* the data, so
     # resolving which axis the observations lie along during extraction left
-    # this case labelling the y axis "Rug" while the observations it carries
+    # this case labeling the y axis "Rug" while the observations it carries
     # were announced under "X".
     fig, ax = plt.subplots()
     sns.rugplot(frame, y="other", ax=ax)
@@ -232,7 +232,7 @@ def test_a_second_rug_on_the_same_axes_reads_only_its_own_ticks(frame):
 def test_a_hue_split_rug_still_marks_every_observation(frame):
     # The question this has always answered -- does a hue split lose ticks --
     # asked of the reading it has now. Seaborn draws one collection either
-    # way and only recolours it, so the split is made in the patch (#597);
+    # way and only recolors it, so the split is made in the patch (#597);
     # what must not change is that every observation is still marked, exactly
     # once, across whatever layers it takes.
     frame = frame.assign(sex=["F", "F", "M", "M"])
@@ -267,10 +267,10 @@ def test_a_rug_under_a_hue_split_density_reads_beside_it(frame):
     assert sorted(marked) == [1.0, 2.5, 3.0, 7.25]
 
 
-def test_a_name_can_come_off_an_axis_another_plot_labelled(frame):
+def test_a_name_can_come_off_an_axis_another_plot_labeled(frame):
     # The documented limit of `_name_for`. The artist carries no record of
     # the column it came from, so a rug drawn onto an axis something else
-    # already labelled takes that label. Pinned so the behaviour is known
+    # already labeled takes that label. Pinned so the behavior is known
     # rather than discovered: the layer's *data* is unaffected, only what it
     # is announced as.
     fig, ax = plt.subplots()
@@ -310,9 +310,9 @@ def test_a_hue_split_rug_reads_one_layer_per_level(frame):
     than a level, with no `z`. The grouping was not merely unnamed -- it was
     absent, on a chart drawn to compare two distributions' raw observations.
 
-    Seaborn leaves it readable: one `LineCollection` with a colour per tick,
-    and the legend that names those colours built inside the call. Measured
-    on twelve observations over two levels, `colour rows=12, unique=2` and
+    Seaborn leaves it readable: one `LineCollection` with a color per tick,
+    and the legend that names those colors built inside the call. Measured
+    on twelve observations over two levels, `color rows=12, unique=2` and
     `names_for` names every one of them.
     """
     frame = frame.assign(sex=["F", "F", "M", "M"])
@@ -338,7 +338,7 @@ def test_each_layer_names_the_variable_it_is_split_by(frame):
 
 def test_a_rug_on_y_splits_the_same_way(frame):
     # The observations move to the other axis and the grouping does not move
-    # at all; reading the colours off the wrong thing would show here.
+    # at all; reading the colors off the wrong thing would show here.
     frame = frame.assign(sex=["F", "F", "M", "M"])
     fig, ax = plt.subplots()
     sns.rugplot(frame, y="value", hue="sex", ax=ax)
@@ -368,7 +368,7 @@ def test_each_group_addresses_only_its_own_ticks(frame):
 
 
 def test_a_split_drawn_without_a_legend_is_declined(frame):
-    # The colours are still there and nothing names them. Groups called "1"
+    # The colors are still there and nothing names them. Groups called "1"
     # and "2" are not an improvement on one strip, so the chart keeps the
     # reading it had.
     frame = frame.assign(sex=["F", "F", "M", "M"])
@@ -404,9 +404,9 @@ def test_the_layers_follow_the_legend_order_not_the_drawing_order(frame):
 
 
 def test_a_continuous_hue_is_a_scale_and_is_not_split(frame):
-    """One layer per observation is not a reading of a colour scale.
+    """One layer per observation is not a reading of a color scale.
 
-    The colours cannot say so themselves, and on a small frame they look
+    The colors cannot say so themselves, and on a small frame they look
     exactly like a grouping: seaborn's legend samples every value, so all
     four ticks match a swatch and `names_for` names all four. Measured, the
     first draft split this into four layers of one tick each.
@@ -424,31 +424,31 @@ def test_a_continuous_hue_is_a_scale_and_is_not_split(frame):
 
 
 def _grouped_axes(frame):
-    """An axes carrying a real hue-split rug, for its legend and colours."""
+    """An axes carrying a real hue-split rug, for its legend and colors."""
     frame = frame.assign(sex=["F", "F", "M", "M"])
     _, ax = plt.subplots()
     sns.rugplot(frame, x="value", hue="sex", ax=ax)
     return ax, list(np.asarray(ax.collections[0].get_colors()))
 
 
-def test_a_colour_list_that_does_not_correspond_to_the_ticks_is_declined(frame):
-    """Fewer colours than ticks cannot say which tick wore which.
+def test_a_color_list_that_does_not_correspond_to_the_ticks_is_declined(frame):
+    """Fewer colors than ticks cannot say which tick wore which.
 
     Splitting on them would hand the first ticks to groups and drop the
     rest, which is silent data loss. Nothing measured draws such a
-    collection -- seaborn gives one colour per tick under a hue, and one for
+    collection -- seaborn gives one color per tick under a hue, and one for
     the whole rug without -- so it is asserted directly.
 
-    Built on an axes whose legend *does* name these colours, so the decline
+    Built on an axes whose legend *does* name these colors, so the decline
     is the count and not the naming: given four of them the same call
     splits.
     """
     from maidr.patch.rugplot import _HUE_MAP_TYPE, _hue_groups
 
-    ax, colours = _grouped_axes(frame)
+    ax, colors = _grouped_axes(frame)
     segments = [[(0.0, 0.0), (0.0, 1.0)] for _ in range(4)]
-    short = LineCollection(segments, colors=[colours[0], colours[-1]])
-    full = LineCollection(segments, colors=colours)
+    short = LineCollection(segments, colors=[colors[0], colors[-1]])
+    full = LineCollection(segments, colors=colors)
 
     token = _HUE_MAP_TYPE.set("categorical")
     try:
@@ -468,11 +468,11 @@ def test_a_tick_no_swatch_names_declines_the_whole_split(frame):
     """
     from maidr.patch.rugplot import _HUE_MAP_TYPE, _hue_groups
 
-    ax, colours = _grouped_axes(frame)
+    ax, colors = _grouped_axes(frame)
     segments = [[(0.0, 0.0), (0.0, 1.0)] for _ in range(4)]
-    # Two ticks in a colour the legend names, two in one it does not.
+    # Two ticks in a color the legend names, two in one it does not.
     partly = LineCollection(
-        segments, colors=[colours[0], colours[0], "magenta", "magenta"]
+        segments, colors=[colors[0], colors[0], "magenta", "magenta"]
     )
 
     token = _HUE_MAP_TYPE.set("categorical")
@@ -498,8 +498,8 @@ def test_a_split_named_by_a_figure_legend_still_says_what_it_split_by():
     fig, ax = plt.subplots()
     palette = sns.color_palette(n_colors=2)
     handles = [
-        plt.Line2D([], [], color=colour, label=name)
-        for name, colour in zip(["a", "b"], palette)
+        plt.Line2D([], [], color=color, label=name)
+        for name, color in zip(["a", "b"], palette)
     ]
     fig.legend(handles=handles, title="g")
 
@@ -569,11 +569,11 @@ def test_the_strip_is_one_row_deep(frame):
     ticks. A finer step buys a second row of zeroes -- measured against
     `ScatterTrace`, `tickStep` 0.5 gives `[[2, 1, 0, 1], [0, 0, 0, 0]]`.
 
-    Centred on the entries rather than starting at them. `0` to `1` was the
+    Centered on the entries rather than starting at them. `0` to `1` was the
     first spelling and reads identically -- measured against `ScatterTrace`,
     both give `values [[2, 1, 0, 1]]` -- but it puts the entries on a cell
     *edge*, and which side of an edge a value falls on is the frontend's
-    tie-break rather than something this states. `one_row_around` centres
+    tie-break rather than something this states. `one_row_around` centers
     them, which also generalises to a layer whose row is not zero.
     """
     fig, ax = plt.subplots()

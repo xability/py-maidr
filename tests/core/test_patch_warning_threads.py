@@ -14,7 +14,7 @@ B puts back a snapshot it took while A was suppressing, so a process-wide
 ``ignore`` outlives every draw -- which is precisely the leak #327 removed,
 reintroduced under concurrency and this time permanently.
 
-Serialising the suppression is what makes the save and restore pair up, and
+Serializing the suppression is what makes the save and restore pair up, and
 that is what these tests pin. They are about the *filter list*, not about
 drawing: the work under the lock is a plain sleep rather than a plot, so the
 failure is attributable to the suppression rather than to matplotlib's own
@@ -98,7 +98,7 @@ def test_a_warning_after_concurrent_draws_still_reaches_the_caller():
 
 def test_every_concurrent_draw_sees_its_own_suppression():
     """
-    Serialising must not cost the property the helper exists for.
+    Serializing must not cost the property the helper exists for.
 
     Asserted by *reading* the filter list from inside each draw rather than by
     recording warnings around it. A recorder would need its own
@@ -149,7 +149,7 @@ def test_a_nested_draw_does_not_deadlock():
 
 @pytest.mark.parametrize("threads", [2, THREADS])
 def test_the_return_value_survives_concurrency(threads: int):
-    # Serialising changes when a draw runs, never what it returns.
+    # Serializing changes when a draw runs, never what it returns.
     results: list[str] = []
     lock = threading.Lock()
 

@@ -157,7 +157,7 @@ class TestWhatDoesNotShareTheLayer:
 
         assert layers[1]["selectors"] == _image_selector(1)
 
-    def test_a_heatmap_coloured_contour_does_not_shift_it_either(self) -> None:
+    def test_a_heatmap_colored_contour_does_not_shift_it_either(self) -> None:
         """It looks like it should and it does not.
 
         `contours.coloring = "heatmap"` fills the whole field, so the trace

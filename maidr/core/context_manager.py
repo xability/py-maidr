@@ -72,7 +72,7 @@ class HighlightContextManager:
     ``savefig`` walks its figure.
 
     As plain class attributes it was safe only because every render ran
-    serialised on one thread. It stopped being safe when the Shiny renderer
+    serialized on one thread. It stopped being safe when the Shiny renderer
     began rendering off the event loop (#504): two **different** figures
     drawing at once would overwrite each other's tagged artists, and
     artists checked after the overwrite would match nothing, so

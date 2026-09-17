@@ -18,9 +18,9 @@ and every count is held coming back. An empty bin survives that: the outward
 leg still walks through it, where the return leg runs flat across a whole run
 of them and could not tell one wide gap from two narrow ones.
 
-**`poly` traces the bin centres**, and the edges are not in the drawing at all.
+**`poly` traces the bin centers**, and the edges are not in the drawing at all.
 They come back from the spacing, which is exact when the bins are even and
-impossible when they are not -- `bins=[0, 1, 5, 10]` gives centres 0.5, 3.0 and
+impossible when they are not -- `bins=[0, 1, 5, 10]` gives centers 0.5, 3.0 and
 7.5, and gaps of 2.5 and 4.5 do not say where the boundaries were.
 """
 
@@ -139,7 +139,7 @@ def test_a_step_outline_reads_author_set_thresholds():
 
 
 def test_a_poly_outline_with_uneven_bins_is_declined():
-    # Its centres are 0.5, 3.0 and 7.5, and gaps of 2.5 and 4.5 do not say
+    # Its centers are 0.5, 3.0 and 7.5, and gaps of 2.5 and 4.5 do not say
     # where the boundaries were. Declined *before* a layer exists, so the
     # chart falls back rather than carrying an empty row (#421).
     fig = _drawn(UNEVEN, "poly", bins=[0, 1, 5, 10])
@@ -181,7 +181,7 @@ def test_a_one_bin_step_is_not_mistaken_for_a_three_bin_polygon():
     # Their rings are the same length -- 4k+5 and 2k+3 collide at nine -- so
     # the vertex count alone is not decisive. What separates them is how many
     # distinct positions the ring visits along the binned axis: a step walks
-    # every edge, a poly visits every centre.
+    # every edge, a poly visits every center.
     fig = _drawn(SAMPLE, "step", bins=1)
 
     bins = _vertical_bins(fig)
@@ -244,5 +244,5 @@ def test_the_artist_fill_between_returns_is_one_this_reads():
 
     assert type(band) in patch_histogram._OUTLINE_TYPES, (
         f"fill_between returns {type(band).__name__}, which the outline "
-        "reader does not recognise, so a stepped histogram reads as nothing"
+        "reader does not recognize, so a stepped histogram reads as nothing"
     )

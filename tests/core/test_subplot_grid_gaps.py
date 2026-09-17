@@ -9,7 +9,7 @@ real panels.
 Those holes are not cosmetic. ``Subplot``'s constructor in maidr.js reads
 ``subplot.layers.length`` without guarding, so a position that carries no
 ``layers`` key throws on activation and the *whole figure* fails to
-initialise -- the reader gets a chart that looks fine and does nothing.
+initialize -- the reader gets a chart that looks fine and does nothing.
 ``tests/browser/test_grid_gap.py`` checks that end in a real browser; this
 file checks the schema contract that keeps it true.
 """

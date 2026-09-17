@@ -152,7 +152,7 @@ class TestEveryPanelIsRead:
             "violin_kde",
         ]
 
-    def test_a_panel_summarises_only_its_own_rows(self):
+    def test_a_panel_summarizes_only_its_own_rows(self):
         # The half that a layer count cannot catch. Both panels hold both
         # categories, so a wrapper that handed each panel the whole figure's
         # data would still produce four layers -- with the second panel
@@ -299,7 +299,7 @@ class TestTheNamesGroupsAreGiven:
         assert named(ax.get_figure()) == ["a_x", "a_y", "b_x", "b_y"]
 
     def test_a_hue_that_is_the_category_is_not_said_twice(self):
-        # Colouring a plain violin by its own category is seaborn's own idiom,
+        # Coloring a plain violin by its own category is seaborn's own idiom,
         # and would otherwise announce "a_a".
         _, ax = plt.subplots()
         sns.violinplot(data=frame(), x="g", y="v", hue="g", ax=ax)

@@ -17,7 +17,7 @@ def contour(wrapped, instance, args, kwargs) -> ContourSet:
     Draw a patched contour call and register the field it produced.
 
     A contour is the one chart of its family whose value is a number rather
-    than a colour: ``ContourSet.levels`` is the data, and ``get_paths()``
+    than a color: ``ContourSet.levels`` is the data, and ``get_paths()``
     gives one path per level. Nothing is inverted from a fill.
 
     Shared by ``Axes.contour`` and ``Axes.tricontour`` rather than copied,

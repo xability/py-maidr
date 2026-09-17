@@ -144,7 +144,7 @@ def test_hexbin_registers_a_hexbin_layer():
 
     The type matters as much as the registration: hexagons tessellate by
     offsetting alternate rows, so a bin's column index is not its position and
-    the frontend has a trace that announces centres instead. Registering it as
+    the frontend has a trace that announces centers instead. Registering it as
     ``heat`` would navigate, and would place every bin past the first row on
     the wrong x.
     """
@@ -175,7 +175,7 @@ def test_bivariate_kdeplot_is_read_as_a_contour():
     A 2D KDE draws its joint density as iso-value curves, and reads as one.
 
     This case was pinned as unreadable while MAIDR had no contour trace, on
-    the reasoning that a contour is not a heatmap with different colours: the
+    the reasoning that a contour is not a heatmap with different colors: the
     *level* is the navigable object, not the cell, so describing one as a grid
     would be a different chart rather than an approximate one. The trace
     exists now (xability/maidr#802), so the level has somewhere of its own to

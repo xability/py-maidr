@@ -71,11 +71,11 @@ def test_each_region_carries_its_name_and_its_value() -> None:
     assert _regions(layer) == [("USA", 10), ("CAN", 20), ("MEX", 30)]
 
 
-def test_the_colour_bar_title_names_the_value() -> None:
+def test_the_color_bar_title_names_the_value() -> None:
     """It is the one thing the author may have written about the value.
 
     A choropleth draws no cartesian axes, so `layout.xaxis` holds neither
-    name and reading it would take another trace's titles. The colour bar's
+    name and reading it would take another trace's titles. The color bar's
     title is exactly what the shading means, so it is used where it is there.
     """
     (layer,) = _layers(go.Figure([COUNTRIES]))
@@ -84,7 +84,7 @@ def test_the_colour_bar_title_names_the_value() -> None:
     assert layer["axes"]["y"]["label"] == "Score"
 
 
-def test_an_unnamed_colour_bar_falls_back_to_the_generic_word() -> None:
+def test_an_unnamed_color_bar_falls_back_to_the_generic_word() -> None:
     """What the field holds, said plainly, rather than left blank."""
     (layer,) = _layers(go.Figure([go.Choropleth(locations=["USA"], z=[1])]))
 

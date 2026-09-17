@@ -1,4 +1,4 @@
-"""A hue-grouped ECDF names each curve from its own colour (#582).
+"""A hue-grouped ECDF names each curve from its own color (#582).
 
 seaborn draws an ECDF's hue levels in the reverse of its legend order, so
 pairing the two by position gives every curve the other group's name. The

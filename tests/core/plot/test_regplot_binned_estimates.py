@@ -21,7 +21,7 @@ Six layers for four estimates and one line. Three losses, and they compound:
 
 The same sweep had a second symptom needing no `x_estimator` at all. It matched
 any label starting with `_child`, which is what matplotlib names *any*
-unlabelled artist rather than something a regression line is distinguished by:
+unlabeled artist rather than something a regression line is distinguished by:
 
     ax.plot(...); sns.regplot(...)   ->  line, point, smooth, smooth
 
@@ -226,7 +226,7 @@ class TestTheCurveIsStillACurve:
 class TestALineTheCallDidNotDraw:
     def test_a_line_drawn_first_is_not_read_as_the_fit(self):
         # The `_child` label heuristic. `_child0` is what matplotlib names any
-        # unlabelled artist, so the caller's own series was swept up and
+        # unlabeled artist, so the caller's own series was swept up and
         # announced twice -- once as `line` and once as a model of itself.
         _, ax = plt.subplots()
         ax.plot([1.0, 2.0, 3.0, 4.0], [0.5, 1.5, 2.5, 3.5])

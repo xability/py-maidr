@@ -22,7 +22,7 @@ def test_the_warn_module_imports_nothing_from_maidr():
     is to be simple enough not to need one.
 
     Asserted on the parse tree rather than on ``sys.modules``: importing
-    any submodule initialises the ``maidr`` package first, so at runtime
+    any submodule initializes the ``maidr`` package first, so at runtime
     everything looks imported no matter what this file does.
     """
     tree = ast.parse(pathlib.Path(warn.__file__).read_text())

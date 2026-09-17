@@ -294,7 +294,7 @@ def is_contour_trace(trace: dict) -> bool:
 def draws_its_lines(trace: dict) -> bool:
     """Report whether plotly writes this trace's level curves as paths.
 
-    ``showlines`` is only honoured under ``coloring: "fill"``, which is the
+    ``showlines`` is only honored under ``coloring: "fill"``, which is the
     default. Measured: with ``coloring: "heatmap"`` and ``showlines: False``
     the curves are still drawn, and only the filled case removes them -- and
     removes the ``g.contourlevel`` groups with them, so there is no element

@@ -27,7 +27,7 @@ def filled(z: np.ndarray) -> np.ndarray | None:
     A missing point in a ``contour``'s ``z`` is not a hole in the chart:
     plotly runs ``findEmpties`` and ``interp2d`` over the grid before tracing
     it, so the curves run *through* what was missing. Measured off
-    ``calcdata`` in Chromium -- a 5x5 field with its centre cell set to None
+    ``calcdata`` in Chromium -- a 5x5 field with its center cell set to None
     comes back with 0.6 in it, and ``_emptypoints`` counting the one it
     filled. A ``go.Heatmap`` given the same field keeps its None, and keeps
     it until asked for ``connectgaps``, so this is a step contours take and

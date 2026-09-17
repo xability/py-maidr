@@ -46,7 +46,7 @@ BUNDLE_WARNING_ENV_VAR = "MAIDR_BUNDLE_STALE_WARNING"
 def warn_once(key: str, message: str, *args: object) -> None:
     """Log a warning the first time it is seen, then stay quiet about it.
 
-    :func:`_normalise_version_pin` runs on every URL build — twice per
+    :func:`_normalize_version_pin` runs on every URL build — twice per
     figure in the CDN modes — so a single typo'd ``MAIDR_CDN_VERSION``
     would otherwise log two lines per rendered plot for the life of the
     process.  Deduplicating by ``key`` rather than warning once globally

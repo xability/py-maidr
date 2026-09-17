@@ -21,7 +21,7 @@ from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
 #: under -- one ``PathCollection``, or a list of them where a layer spans
 #: several. Named once and imported at both ends rather than spelled twice:
 #: ``kwargs.get`` falls back to sweeping the axes on a mismatch, so a typo
-#: would not raise -- it would quietly restore the behaviour #426 removed.
+#: would not raise -- it would quietly restore the behavior #426 removed.
 #:
 #: Lives here rather than beside ``common.drawn_as`` because ``maidr.patch``
 #: imports ``maidr.core`` and not the other way about.
@@ -48,42 +48,42 @@ HUE_GROUP = "_maidr_hue_group"
 #: kind of is half a reading.
 GROUP_LABEL = "_maidr_group_label"
 
-#: How closely two colours must agree to be the same colour. Both sides come
+#: How closely two colors must agree to be the same color. Both sides come
 #: from the same palette object -- the legend handle is built from the swatch
-#: the points were coloured with -- so they agree exactly today; the rounding
+#: the points were colored with -- so they agree exactly today; the rounding
 #: is there so a future round trip through a hex string or a float32 buffer
 #: does not silently turn one group into none.
-_COLOUR_TOLERANCE = 6
+_COLOR_TOLERANCE = 6
 
 
-def _rgba(colour) -> tuple[float, ...] | None:
+def _rgba(color) -> tuple[float, ...] | None:
     """
-    One colour as a rounded RGBA tuple, or ``None`` when it is not one.
+    One color as a rounded RGBA tuple, or ``None`` when it is not one.
 
     Parameters
     ----------
-    colour : Any
-        Anything matplotlib accepts as a colour, or anything at all: a
-        legend handle's colour is whatever the artist was given, and for a
+    color : Any
+        Anything matplotlib accepts as a color, or anything at all: a
+        legend handle's color is whatever the artist was given, and for a
         legend *section header* seaborn gives ``'w'`` on a markerless line.
 
     Returns
     -------
     tuple of float or None
-        The rounded RGBA, or ``None`` when the value names no colour.
+        The rounded RGBA, or ``None`` when the value names no color.
     """
     try:
-        return tuple(np.round(to_rgba(colour), _COLOUR_TOLERANCE))
+        return tuple(np.round(to_rgba(color), _COLOR_TOLERANCE))
     except (ValueError, TypeError):
         return None
 
 
-def _handle_colour(handle) -> tuple[float, ...] | None:
+def _handle_color(handle) -> tuple[float, ...] | None:
     """
-    The colour a legend handle draws its swatch in.
+    The color a legend handle draws its swatch in.
 
     ``seaborn`` builds scatter legend handles as ``Line2D`` markers rather
-    than as collections, so the colour is on ``get_color``; the marker face
+    than as collections, so the color is on ``get_color``; the marker face
     is asked first for the handle types that carry it there instead.
 
     Parameters
@@ -94,31 +94,31 @@ def _handle_colour(handle) -> tuple[float, ...] | None:
     Returns
     -------
     tuple of float or None
-        The rounded RGBA, or ``None`` when the handle names no single colour.
+        The rounded RGBA, or ``None`` when the handle names no single color.
     """
     for getter in ("get_markerfacecolor", "get_facecolor", "get_color"):
         read = getattr(handle, getter, None)
         if read is None:
             continue
-        colour = _rgba(read())
-        if colour is not None:
-            return colour
+        color = _rgba(read())
+        if color is not None:
+            return color
     return None
 
 
-def _named_colours(legend, drawn: set[tuple[float, ...]]) -> dict | None:
+def _named_colors(legend, drawn: set[tuple[float, ...]]) -> dict | None:
     """
-    Map each colour the legend names to the name it gives it.
+    Map each color the legend names to the name it gives it.
 
-    Only colours that are *also* on the points count. That one condition does
+    Only colors that are *also* on the points count. That one condition does
     all the discriminating, and it is measured rather than guessed at::
 
         sns.scatterplot(..., hue='g', style='s')
 
     gives seven legend entries -- two section headers drawn ``'w'`` with no
-    marker, two hue swatches in the palette colours, and three style markers
+    marker, two hue swatches in the palette colors, and three style markers
     all drawn in the neutral ``'.2'``. Only the two hue swatches appear among
-    the point colours, so keeping those is exactly the hue split, without this
+    the point colors, so keeping those is exactly the hue split, without this
     having to know anything about how seaborn lays a legend out.
 
     Parameters
@@ -126,24 +126,24 @@ def _named_colours(legend, drawn: set[tuple[float, ...]]) -> dict | None:
     legend : matplotlib.legend.Legend
         The axes' legend.
     drawn : set of tuple
-        The distinct colours the points were drawn in.
+        The distinct colors the points were drawn in.
 
     Returns
     -------
     dict or None
-        Colour to name, in legend order, or ``None`` when two names claim one
-        colour -- a ``style=`` legend does that, and a swatch that means two
+        Color to name, in legend order, or ``None`` when two names claim one
+        color -- a ``style=`` legend does that, and a swatch that means two
         things cannot name the group a point belongs to.
     """
     named: dict[tuple[float, ...], str] = {}
     for handle, text in zip(legend.legend_handles, legend.get_texts()):
-        colour = _handle_colour(handle)
-        if colour is None or colour not in drawn:
+        color = _handle_color(handle)
+        if color is None or color not in drawn:
             continue
         name = text.get_text()
-        if named.get(colour, name) != name:
+        if named.get(color, name) != name:
             return None
-        named[colour] = name
+        named[color] = name
     return named
 
 
@@ -186,16 +186,16 @@ def hue_groups(
     The hue groups a scatter was drawn with, or ``None`` when it has none.
 
     ``seaborn`` draws a hue-grouped scatter as **one** ``PathCollection``
-    carrying a colour per point, not one collection per group, so the grouping
-    survives only in those colours and in the legend that names them. Read
-    together they give it back exactly: every point's colour is one of the
+    carrying a color per point, not one collection per group, so the grouping
+    survives only in those colors and in the legend that names them. Read
+    together they give it back exactly: every point's color is one of the
     legend's swatches, and each swatch carries its group's name.
 
-    Reading those colours off the collection is the whole of what is specific
-    to the artist, and :func:`drawn_colours` is the whole of that -- a
+    Reading those colors off the collection is the whole of what is specific
+    to the artist, and :func:`drawn_colors` is the whole of that -- a
     ``so.Dash()`` draws the same grouping as an unfilled ``LineCollection``
     and is read here too (#680). Every reason to decline is
-    :func:`groups_from_colours`', which a bar layer reaches from a
+    :func:`groups_from_colors`', which a bar layer reaches from a
     ``BarContainer`` and must be told the same (#599, #617).
 
     Parameters
@@ -213,25 +213,25 @@ def hue_groups(
         collection offsets that belong to it, or ``None`` for a scatter that
         is not grouped.
     """
-    return groups_from_colours(ax, [_rgba(row) for row in drawn_colours(collection)])
+    return groups_from_colors(ax, [_rgba(row) for row in drawn_colors(collection)])
 
 
-def drawn_colours(collection: Collection) -> np.ndarray:
+def drawn_colors(collection: Collection) -> np.ndarray:
     """
-    The colours a collection drew its marks in.
+    The colors a collection drew its marks in.
 
-    Face colours where the artist has them and edge colours otherwise, which
+    Face colors where the artist has them and edge colors otherwise, which
     is a fact about the artist rather than about the chart -- and so belongs
     beside :func:`hue_groups`, whose whole job is the part that is specific
     to the artist.
 
     A ``PathCollection``'s markers are filled; a ``LineCollection``'s ticks
-    are not. Measured on a colour-split ``so.Dash()`` over two levels::
+    are not. Measured on a color-split ``so.Dash()`` over two levels::
 
         get_facecolors()   (0, 4)     <- empty
         get_edgecolors()   (40, 4)
 
-    So asking for faces alone read nothing off a chart whose colours were all
+    So asking for faces alone read nothing off a chart whose colors were all
     there, one attribute over: the split was declined and the reader was
     handed one anonymous layer of forty ticks (#680).
 
@@ -251,12 +251,12 @@ def drawn_colours(collection: Collection) -> np.ndarray:
     return np.asarray(collection.get_edgecolors())
 
 
-def groups_from_colours(ax: Axes, colours: list) -> list[tuple[str, list[int]]] | None:
+def groups_from_colors(ax: Axes, colors: list) -> list[tuple[str, list[int]]] | None:
     """
-    The groups a legend names among one layer's drawn colours.
+    The groups a legend names among one layer's drawn colors.
 
     Everything :func:`hue_groups` does after reading a collection's drawn
-    colours, which is everything that is not about the artist. A bar layer
+    colors, which is everything that is not about the artist. A bar layer
     asks the same question of a ``BarContainer``'s patches
     (:func:`maidr.core.plot.barplot.bar_groups`) and must get the same answer,
     including the declines -- three implementations of one rule had begun to
@@ -264,12 +264,12 @@ def groups_from_colours(ax: Axes, colours: list) -> list[tuple[str, list[int]]] 
 
     Everything here is a reason to decline, and each has a chart behind it:
 
-    - **One colour for the whole layer.** A collection reports a single
-      colour row when every mark shares one, which is what an ungrouped
+    - **One color for the whole layer.** A collection reports a single
+      color row when every mark shares one, which is what an ungrouped
       scatter and a ``style=``-only scatter both produce; a bar drawn without
       ``color=`` arrives one-long the same way.
     - **No legend.** ``legend=False`` suppresses it, and a manual
-      ``ax.scatter(c=[...])`` never had one. The colours are still there but
+      ``ax.scatter(c=[...])`` never had one. The colors are still there but
       nothing names them, and groups called "1" and "2" are not an improvement
       on one cloud.
 
@@ -289,7 +289,7 @@ def groups_from_colours(ax: Axes, colours: list) -> list[tuple[str, list[int]]] 
     ----------
     ax : Axes
         The axes drawn on, for its legend.
-    colours : list
+    colors : list
         One rounded RGBA per drawn thing, in draw order, as :func:`_rgba`
         gives them. A ``None`` among them declines the split.
 
@@ -300,26 +300,26 @@ def groups_from_colours(ax: Axes, colours: list) -> list[tuple[str, list[int]]] 
         positions that belong to it, or ``None`` when the layer is not
         grouped.
     """
-    if len(colours) < 2 or any(colour is None for colour in colours):
+    if len(colors) < 2 or any(color is None for color in colors):
         return None
 
     # `legend_of` rather than `ax.get_legend()`, which is what this asked
     # before. The two answer the same question -- which legend names this
-    # axes' colours -- and answering it twice, differently, in one module is
+    # axes' colors -- and answering it twice, differently, in one module is
     # the drift #599 extracted `legend_names` to end. The wider answer also
     # reads a lone *figure* legend (#561) and a lone shared-axis sibling's
     # (#610), which is where `seaborn.objects` puts the only legend a
     # `so.Plot(color=...)` has.
     #
     # Imported here rather than at module scope because `legend_names` reads
-    # `_handle_colour` from this module, so the two would import each other.
+    # `_handle_color` from this module, so the two would import each other.
     from maidr.util.legend_names import legend_of
 
     legend = legend_of(ax)
     if legend is None:
         return None
 
-    named = _named_colours(legend, set(colours))
+    named = _named_colors(legend, set(colors))
     if named is None or len(named) < 2:
         return None
 
@@ -328,7 +328,7 @@ def groups_from_colours(ax: Axes, colours: list) -> list[tuple[str, list[int]]] 
     # declines that go with it, are `grouped_by_name`'s -- shared with the rug
     # split, which reaches the same three decisions from a different artist.
     return grouped_by_name(
-        [named.get(colour) for colour in colours], list(named.values())
+        [named.get(color) for color in colors], list(named.values())
     )
 
 
@@ -402,7 +402,7 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
 
         A callable is resolved here rather than at registration, which is what
         an ``lmplot`` needs: ``FacetGrid.add_legend()`` runs after every panel
-        is drawn, so the legend that names the colours does not exist when the
+        is drawn, so the legend that names the colors does not exist when the
         layer registers (#561, #612).
         """
         schema = super().render()
@@ -422,10 +422,10 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
 
         A hue-grouped one cannot use it: the collections hold every group's
         points, so that selector would light up the whole chart for a layer
-        that announces a third of it. Under per-point colours matplotlib
+        that announces a third of it. Under per-point colors matplotlib
         writes **one ``<g>`` per point** instead -- measured, six points give
         six groups of one ``<use>`` each, and a strip plot's uniformly
-        coloured dodged collection writes them too, because seaborn colours
+        colored dodged collection writes them too, because seaborn colors
         it point by point either way -- so each point has an element of its
         own to name, and the layer names only its own.
 
@@ -628,7 +628,7 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # It is also what keeps the payload loadable. `json.dumps` writes `NaN`
         # as a bare token, which is legal JavaScript and invalid JSON, and the
         # core parses the SVG's `maidr` attribute with `JSON.parse` -- so one
-        # of them stops the chart initialising at all (#427).
+        # of them stops the chart initializing at all (#427).
         #
         # Unlike a bar, a scatter point has nothing left to announce once its
         # position is gone: a bar keeps its category and reports a missing
@@ -646,7 +646,7 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # a neighbour.
         #
         # No chart that splits makes them differ today, and that is measured
-        # rather than assumed: only seaborn produces the per-point colours
+        # rather than assumed: only seaborn produces the per-point colors
         # and the legend a split needs, and seaborn drops non-finite rows
         # before it draws, so its collection holds no gaps for the two to
         # diverge over. `test_seaborn_drops_a_non_finite_row_before_drawing`
@@ -797,7 +797,7 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
             {"x":  0.0629..., "y": -0.1321...}
             {"x": -0.0739..., "y": 0.6404...}
 
-        against an axis labelled ``g`` whose ticks read ``a``, ``b``, ``c``. A
+        against an axis labeled ``g`` whose ticks read ``a``, ``b``, ``c``. A
         reader was given a precise number for a quantity that does not exist,
         where the chart says a name.
 

@@ -60,7 +60,7 @@ def _plotly_default_size0(
         ``0.4``, which is `autoBin`'s own ``is2d`` flag and the only thing
         that differs between the two. Measured against the browser on eight
         axes across four figures -- gaussian, uniform, a six-value sample and
-        a normalised one -- ``0.4`` matched none of them and ``0.25`` matched
+        a normalized one -- ``0.4`` matched none of them and ``0.25`` matched
         all eight.
     sample_size : int, optional
         How long the sample was *before* its blanks were dropped, for the
@@ -330,7 +330,7 @@ def as_numeric(values: list) -> np.ndarray:
     the aggregate. Plotly does not error on that -- it drops them -- so a
     plain ``np.array(..., dtype=float)`` would raise where the chart renders.
 
-    ``nan`` rather than ``0`` because that is the measured behaviour:
+    ``nan`` rather than ``0`` because that is the measured behavior:
     :func:`aggregate_bins` drops them, and a bin holding ``['z', 'w', 8]``
     averages to 8.
     """
@@ -455,7 +455,7 @@ def apply_histnorm(
     widths : np.ndarray
         Per-bin widths, aligned with *values*.
     histnorm : str | None
-        Plotly's ``histnorm``. Anything falsy or unrecognised leaves the
+        Plotly's ``histnorm``. Anything falsy or unrecognized leaves the
         values alone, matching plotly's own handling of an unset attribute.
 
     Returns
@@ -607,7 +607,7 @@ def binned_axis(trace: dict) -> str:
 
     So an explicit ``orientation`` wins outright, and only in its absence does
     the presence of the arrays decide. The last row is the one that settles
-    the precedence: plotly honours the attribute and bins the *absent* ``y``,
+    the precedence: plotly honors the attribute and bins the *absent* ``y``,
     drawing an empty trace rather than falling back to ``x``.
 
     Parameters
@@ -889,7 +889,7 @@ def compute_bin_edges(
     ``go.Histogram(y=v, xbins=dict(size=2))`` autobins to 13 bins of 0.5
     exactly as if no spec were given, and ``go.Histogram(x=v,
     ybins=dict(size=2))`` does the same. Reading ``xbins`` for every trace
-    would have honoured a spec plotly discards and missed the one it uses.
+    would have honored a spec plotly discards and missed the one it uses.
 
     A blank in the sample -- a ``None`` or a ``NaN``, which plotly draws
     around -- is no observation, and the grid is worked out from the values
@@ -913,7 +913,7 @@ def compute_bin_edges(
     is_2d : bool, default False
         Bin one axis of a ``histogram2d``, which changes only the sample-size
         exponent of the automatic width -- see :func:`_plotly_default_size0`.
-        An explicit ``size`` or ``nbins`` is honoured identically either way,
+        An explicit ``size`` or ``nbins`` is honored identically either way,
         which is why this reaches no further than that one branch.
 
     Returns
@@ -930,7 +930,7 @@ def compute_bin_edges(
     # A sample with no spread and nothing said about it: one bin around the
     # single value, which is what plotly draws (measured -- a run of 3s is
     # binned from 2.5 to 3.5). With something said about it there is a spec
-    # to honour, and the width below answers 1 for a zero range anyway.
+    # to honor, and the width below answers 1 for a zero range anyway.
     if data_range == 0 and not named:
         return np.array([data_min - 0.5, data_max + 0.5])
 
@@ -949,7 +949,7 @@ def compute_bin_edges(
         # drawing ten, which is the outcome #636 settled against.
         return np.array([])
 
-    # 2. The start. An explicit one is honoured verbatim -- and honoured
+    # 2. The start. An explicit one is honored verbatim -- and honored
     #    *whether or not* a size came with it, which is what #650 was about:
     #    reading it only alongside a size left `xbins={"start": 0.5}` binned
     #    from the automatic -0.5, five bars announced as six and not one of

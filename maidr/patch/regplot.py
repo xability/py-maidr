@@ -36,7 +36,7 @@ def _is_interval_bar(line: Line2D) -> bool:
 
     Asked of the geometry rather than of the label. The label is what the old
     sweep used, and `_child0`/`_child1` is what matplotlib names *any*
-    unlabelled artist rather than something a regression line is distinguished
+    unlabeled artist rather than something a regression line is distinguished
     by, so the bars answered to it and so did a line the caller drew
     beforehand (#451).
 
@@ -118,16 +118,16 @@ def _paired_estimates(
     return estimates, ordered_intervals
 
 
-def _group_colour(points: PathCollection | None, curves: list[Line2D]):
+def _group_color(points: PathCollection | None, curves: list[Line2D]):
     """
-    The one colour this call drew in, when it has one.
+    The one color this call drew in, when it has one.
 
-    A ``regplot`` draws one group, so its colour is what says which level of
+    A ``regplot`` draws one group, so its color is what says which level of
     a ``hue=`` it belongs to -- the shape #595 named, where a *layer* is the
     artist rather than one of several on it.
 
     The fitted curve is asked first. It is a ``Line2D``, which carries exactly
-    one colour, so there is nothing to resolve; the scatter's collection can
+    one color, so there is nothing to resolve; the scatter's collection can
     hold a row per point and needs checking. The scatter answers for
     ``fit_reg=False``, which draws points and no curve at all.
 
@@ -141,19 +141,19 @@ def _group_colour(points: PathCollection | None, curves: list[Line2D]):
     Returns
     -------
     tuple of float or None
-        The rounded RGBA, or ``None`` when nothing here has a single colour.
+        The rounded RGBA, or ``None`` when nothing here has a single color.
     """
     for line in curves:
         return _rgba(line.get_color())
     if points is None:
         return None
-    colours = {_rgba(row) for row in np.asarray(points.get_facecolor())}
-    return colours.pop() if len(colours) == 1 else None
+    colors = {_rgba(row) for row in np.asarray(points.get_facecolor())}
+    return colors.pop() if len(colors) == 1 else None
 
 
-def _group_named(axes: Axes, colour) -> dict:
+def _group_named(axes: Axes, color) -> dict:
     """
-    The ``GROUP_NAME`` keyword for a call drawn in one colour, if any.
+    The ``GROUP_NAME`` keyword for a call drawn in one color, if any.
 
     **Deferred**, not resolved here. ``lmplot(hue=...)`` is one ``regplot``
     call per level and builds its single figure legend through
@@ -169,17 +169,17 @@ def _group_named(axes: Axes, colour) -> dict:
     ----------
     axes : Axes
         The axes drawn on, for the legend it will have by render.
-    colour : tuple of float or None
-        What :func:`_group_colour` found.
+    color : tuple of float or None
+        What :func:`_group_color` found.
 
     Returns
     -------
     dict
         ``{GROUP_NAME: callable}``, or empty.
     """
-    if colour is None:
+    if color is None:
         return {}
-    return {GROUP_NAME: lambda: name_for(axes, colour)}
+    return {GROUP_NAME: lambda: name_for(axes, color)}
 
 
 def _register_curves(
@@ -222,7 +222,7 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
 
     **A line drawn before the regplot was announced twice.** The sweep matched
     any label starting with ``_child``, which is what matplotlib names *any*
-    unlabelled artist::
+    unlabeled artist::
 
         ax.plot(...); sns.regplot(...)   line, point, smooth, smooth
 
@@ -290,7 +290,7 @@ def regplot(wrapped, instance, args, kwargs) -> Axes:
     # calls `regplot` once per level and both of the layers below came out
     # anonymous, so a reader was handed point, curve, point, curve with
     # nothing saying which pair was which (#612).
-    named = _group_named(axes, _group_colour(points, curves))
+    named = _group_named(axes, _group_color(points, curves))
 
     paired = (
         _paired_estimates(points, intervals)

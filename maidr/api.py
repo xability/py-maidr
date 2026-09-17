@@ -65,7 +65,7 @@ _NOTEBOOK_LOADED: bool = False
 
 
 def _coerce_use_cdn(value: Any) -> bool | Literal["auto"]:
-    """Normalise an arbitrary value into ``bool`` or ``"auto"``.
+    """Normalize an arbitrary value into ``bool`` or ``"auto"``.
 
     Accepts strings (``"1"``, ``"true"``, ``"auto"``, ``"0"``, ``"false"``,
     ``""``) as well as proper booleans.  Unknown / missing / empty values
@@ -206,13 +206,13 @@ def _listed() -> str:
 def _warn_altair_ignores_use_cdn(
     use_cdn: bool | Literal["auto"] | None, *, stacklevel: int
 ) -> None:
-    """Say that ``use_cdn=False`` cannot be honoured for an Altair chart.
+    """Say that ``use_cdn=False`` cannot be honored for an Altair chart.
 
     The Altair path delegates to the upstream Vega-Lite adapter, which is
     loaded from a CDN and has no bundled counterpart -- so the flag was
     accepted and discarded, and the reader who most needs to know is the
     one it fails for: ``use_cdn=False`` means they cannot reach a CDN, and
-    without this they get a chart that never initialises and no reason why
+    without this they get a chart that never initializes and no reason why
     (#521).
 
     Only an explicit ``False`` warns. ``"auto"`` is the CDN with a fallback
@@ -237,10 +237,10 @@ def _warn_altair_ignores_use_cdn(
         return
 
     warnings.warn(
-        "maidr: use_cdn=False cannot be honoured for an Altair chart. That "
+        "maidr: use_cdn=False cannot be honored for an Altair chart. That "
         "path renders through the upstream Vega-Lite adapter, which is only "
         f"published on a CDN, so the page still loads {_listed()} remotely "
-        "and will not initialise without network access. Render the "
+        "and will not initialize without network access. Render the "
         "same data through matplotlib or seaborn for an offline chart.",
         stacklevel=stacklevel,
     )
@@ -363,7 +363,7 @@ def init_notebook(
             # break the user's notebook.
             #
             # This branch is reachable with ``mode is False``, where the
-            # caller was promised no Python-side network I/O.  Honour
+            # caller was promised no Python-side network I/O.  Honor
             # that: resolving a version here would issue exactly the
             # request they opted out of, on an install that is already
             # broken.  Emit the unresolved ``@latest`` URL instead, and

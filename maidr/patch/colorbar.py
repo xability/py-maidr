@@ -58,7 +58,7 @@ def _suppress_registration(wrapped, _, args, kwargs) -> Any:
 
 
 # `_draw_all` is private, so a rename upstream must degrade to the previous
-# behaviour rather than stop the package importing. That is a phantom layer
+# behavior rather than stop the package importing. That is a phantom layer
 # and a broken render, which is bad -- but a package that cannot be imported
 # is worse, and the failure would be caught by the tests that pin this rather
 # than by a user.

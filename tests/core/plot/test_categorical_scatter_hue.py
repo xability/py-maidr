@@ -8,7 +8,7 @@ the levels.
 
 The cause was where the reading happened rather than what it read. These
 charts registered at the inner ``Axes.scatter`` calls seaborn makes, one per
-category, and ``hue_groups`` needs the per-point colours and the legend, both
+category, and ``hue_groups`` needs the per-point colors and the legend, both
 of which ``plot_strips`` writes *after* those calls return::
 
     points = ax.scatter(...)
@@ -17,7 +17,7 @@ of which ``plot_strips`` writes *after* those calls return::
     ...
     self._configure_legend(...)
 
-Measured at each of the three returns: one uniform colour, no legend.
+Measured at each of the three returns: one uniform color, no legend.
 
 ``maidr/patch/stripplot.py`` moves the decision to the plotter method, which
 ``sns.catplot`` drives as well, and reads the grouping off the plotter's own
@@ -128,7 +128,7 @@ class TestAHueGroupedCategoricalScatter:
             assert {point["xLabel"] for point in layer["data"]} == set(CATEGORIES)
 
     def test_every_drawn_point_is_announced_exactly_once(self, plot):
-        # Stronger than "the layers are named": splitting by colour could
+        # Stronger than "the layers are named": splitting by color could
         # drop a point no swatch claims, or double one claimed by two.
         figure, ax = plt.subplots()
         getattr(sns, plot)(data=frame(), x="cat", y="val", hue="hue", ax=ax)
@@ -166,7 +166,7 @@ class TestAHueGroupedCategoricalScatter:
 class TestTheShapesTheGroupingSurvives:
     def test_a_dodged_chart_groups_by_level_too(self):
         # `dodge=True` splits each category into one collection per level, so
-        # every collection is uniformly coloured and the legend-based split
+        # every collection is uniformly colored and the legend-based split
         # declines for a second reason. The hue map does not care.
         figure, ax = plt.subplots()
         sns.stripplot(data=frame(), x="cat", y="val", hue="hue", dodge=True, ax=ax)
@@ -177,7 +177,7 @@ class TestTheShapesTheGroupingSurvives:
     def test_a_translucent_chart_is_still_named(self):
         # `alpha=` scales the drawn points' opacity and leaves the hue map's
         # alone -- measured, (0.12, 0.47, 0.71, 0.4) drawn against a lookup
-        # entry of (..., 1.0) -- so the match is on the three colour channels.
+        # entry of (..., 1.0) -- so the match is on the three color channels.
         figure, ax = plt.subplots()
         sns.stripplot(data=frame(), x="cat", y="val", hue="hue", alpha=0.4, ax=ax)
 
@@ -318,7 +318,7 @@ class TestTheCategoryEachLayerHolds:
 class TestWhatIsDeclined:
     def test_a_continuous_hue_is_not_a_grouping(self):
         # seaborn gives a numeric `hue=` one "level" per distinct value --
-        # eighteen of them here -- which is a colour scale. One layer per
+        # eighteen of them here -- which is a color scale. One layer per
         # point is not a reading of it, so the chart keeps the reading it had.
         figure, ax = plt.subplots()
         sns.stripplot(
@@ -343,13 +343,13 @@ class TestWhatIsDeclined:
         [
             pytest.param({"x": (0.0, 0.0, 1.0, 0.3), "y": (0.0, 0.0, 1.0, 0.9)},
                          id="same-hue-different-opacity"),
-            pytest.param({"x": "blue", "y": "blue"}, id="the-same-colour-twice"),
+            pytest.param({"x": "blue", "y": "blue"}, id="the-same-color-twice"),
         ],
     )
-    def test_two_levels_drawn_the_same_colour_are_not_told_apart(self, palette):
-        # The levels are matched on their three colour channels, so opacity
+    def test_two_levels_drawn_the_same_color_are_not_told_apart(self, palette):
+        # The levels are matched on their three color channels, so opacity
         # alone does not separate them -- and a palette that draws two levels
-        # the same colour does not separate them at all. Measured: both come
+        # the same color does not separate them at all. Measured: both come
         # out as the ungrouped reading -- three layers, one per category and
         # named for it -- rather than every point of both levels handed to
         # whichever name matched first.
@@ -390,7 +390,7 @@ class TestTheOrderAndTheNeighbours:
         # The panel is read by what this call *added* to it. Reading every
         # collection instead would fold a neighbouring scatter into the strip
         # plot's groups, or -- worse -- decline the grouping because that
-        # scatter's colour matches no hue level.
+        # scatter's color matches no hue level.
         figure, ax = plt.subplots()
         ax.scatter([0.5], [30])
         sns.stripplot(data=frame(), x="cat", y="val", hue="hue", ax=ax)
@@ -463,8 +463,8 @@ class TestTheAssumptionTheGroupingRestsOn:
             ),
         ],
     )
-    def test_seaborn_gives_every_point_its_own_colour(self, call):
-        # The whole grouping rests on this: a point's colour is what says
+    def test_seaborn_gives_every_point_its_own_color(self, call):
+        # The whole grouping rests on this: a point's color is what says
         # which level it belongs to, so `get_facecolor` has to answer a row
         # per point rather than the one row a uniformly styled collection
         # would give. Seaborn assigns them in a single `set_facecolors` call
@@ -472,7 +472,7 @@ class TestTheAssumptionTheGroupingRestsOn:
         # empty collections a faceted grid leaves, which have neither rows
         # nor points.
         #
-        # `_point_colours` declines a collection where the counts disagree,
+        # `_point_colors` declines a collection where the counts disagree,
         # and that branch is unreachable while this passes. It is pinned here
         # rather than left implicit so the release that ends it fails loudly.
         call(frame())
@@ -483,12 +483,12 @@ class TestTheAssumptionTheGroupingRestsOn:
                 assert rows == len(np.asarray(collection.get_offsets()))
 
 
-class TestHowThePointColoursAreRead:
+class TestHowThePointColorsAreRead:
     """
-    One conversion per distinct colour, one answer per point (#718).
+    One conversion per distinct color, one answer per point (#718).
 
-    ``_point_colours`` used to run ``to_rgba`` on every row, and a collection
-    of 50,000 points coloured by a two-level hue is 50,000 calls that return
+    ``_point_colors`` used to run ``to_rgba`` on every row, and a collection
+    of 50,000 points colored by a two-level hue is 50,000 calls that return
     two values between them: measured, over a second on top of a 370 ms draw.
     Converting each distinct row once and fanning the result back out is the
     same list, point for point.
@@ -499,25 +499,25 @@ class TestHowThePointColoursAreRead:
         # the rows carry an alpha `to_rgba` has to keep, and on every one of
         # the collections rather than a chosen one.
         from maidr.core.plot.scatterplot import _rgba
-        from maidr.patch.stripplot import _point_colours
+        from maidr.patch.stripplot import _point_colors
 
         _, ax = plt.subplots()
         sns.stripplot(data=frame(), x="cat", y="val", hue="hue", alpha=0.4, ax=ax)
 
         for collection in ax.collections:
             expected = [_rgba(row) for row in collection.get_facecolor()]
-            assert _point_colours(collection) == expected
+            assert _point_colors(collection) == expected
             assert len(expected) == len(collection.get_offsets())
-            # Two levels drawn, so two colours -- the reason the per-distinct
+            # Two levels drawn, so two colors -- the reason the per-distinct
             # conversion is worth having at all.
             assert len(set(expected)) == 2
 
     def test_a_row_count_that_does_not_match_the_points_still_declines(self):
         # The guard the docstring describes: rows that do not correspond to
-        # the points answer `None` per point rather than a colour each,
+        # the points answer `None` per point rather than a color each,
         # before any conversion happens. Monkeypatched, because seaborn never
         # produces the mismatch (the test above pins that).
-        from maidr.patch.stripplot import _point_colours
+        from maidr.patch.stripplot import _point_colors
 
         _, ax = plt.subplots()
         sns.stripplot(data=frame(), x="cat", y="val", hue="hue", ax=ax)
@@ -531,11 +531,11 @@ class TestHowThePointColoursAreRead:
         one_row = collection.get_facecolor()[:1]
         collection.get_facecolor = lambda: one_row
 
-        assert _point_colours(collection) == [None] * count
+        assert _point_colors(collection) == [None] * count
 
-    def test_each_distinct_colour_is_converted_once(self, monkeypatch):
+    def test_each_distinct_color_is_converted_once(self, monkeypatch):
         # The change itself, pinned by count rather than by clock: a
-        # collection of six points in two colours is two conversions, not
+        # collection of six points in two colors is two conversions, not
         # six. A conversion per point would pass every equality test above
         # and cost the second #718 measured back.
         import maidr.patch.stripplot as stripplot
@@ -550,7 +550,7 @@ class TestHowThePointColoursAreRead:
         monkeypatch.setattr(
             stripplot, "_rgba", lambda row: converted.append(row) or tuple(row)
         )
-        stripplot._point_colours(collection)
+        stripplot._point_colors(collection)
 
         assert len(converted) == len(np.unique(rows, axis=0)) == 2
 

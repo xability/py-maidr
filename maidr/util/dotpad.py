@@ -16,7 +16,7 @@ produces as the globals ``maidr.js`` reads::
     window.MAIDR_DOTPAD_ASSET_BASE_URL   the directory holding liblouis
 
 And :func:`download_dotpad_sdk` fetches the pinned copy -- the module, the
-liblouis build, and the LGPL licence text and wrapper sources the vendor
+liblouis build, and the LGPL license text and wrapper sources the vendor
 asks redistributors to keep beside it -- verified against the digests in
 :data:`DOTPAD_SDK_FILES`, into a directory :func:`save_html` then copies
 into ``lib/`` next to a ``use_cdn=False`` document. Dot Inc. permit MAIDR
@@ -244,7 +244,7 @@ DOTPAD_SDK_ASSET_DIR: str = _pins["assetDir"]
 
 #: Every file a copy of the SDK consists of, relative to the base URL.
 #:
-#: The liblouis build is LGPL-2.1-or-later. Its licence text and the
+#: The liblouis build is LGPL-2.1-or-later. Its license text and the
 #: sources of the WebAssembly wrapper are here because the vendor's README
 #: asks anyone who redistributes the SDK to keep them beside the runtime
 #: files, which is the LGPL's relinking requirement.
@@ -388,7 +388,7 @@ def dotpad_config_script(config: Optional[DotPadSdkConfig] = None) -> Optional[s
 def dotpad_config_tag(config: Optional[DotPadSdkConfig] = None):
     """A ``<script>`` declaring the configured globals, or ``None``.
 
-    For the paths that serialise a tag into an iframe's ``srcdoc``, where an
+    For the paths that serialize a tag into an iframe's ``srcdoc``, where an
     ``HTMLDependency`` would be dropped; :func:`dotpad_config_dependency`
     is the same declaration for a document with a head.
 
@@ -441,7 +441,7 @@ def dotpad_config_child(*, inline: bool):
     Parameters
     ----------
     inline : bool
-        True on a path that serialises into an iframe, which keeps only
+        True on a path that serializes into an iframe, which keeps only
         tags; False for a document, which keeps dependencies in its head.
 
     Returns

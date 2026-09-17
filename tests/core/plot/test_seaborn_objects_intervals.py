@@ -9,7 +9,7 @@ three positions::
     so.Band(), so.Est()    one Polygon         lower forward, upper backward
     so.Range(), so.Est()   one LineCollection  one segment per position
 
-Neither draws a centre of its own, and that is the reading rather than a gap
+Neither draws a center of its own, and that is the reading rather than a gap
 to fill in: ``ErrorBarPoint.y`` is optional precisely for "a band that draws
 only bounds". A chart wanting the estimate adds ``so.Dot(), so.Agg()``
 beside it, which registers as its own layer.
@@ -22,9 +22,9 @@ position sits on, so whichever of the pair matches names the position axis.
 That is true of a polygon's paired vertices and a segment's two endpoints
 alike, and it holds whether the caller wrote ``orient="y"`` or not.
 
-**The split.** A colour-split ``Band`` leaves one polygon per level; a split
-``Range`` leaves *one* collection carrying a colour per segment. Both are
-named through the legend the way every other colour split is, which is
+**The split.** A color-split ``Band`` leaves one polygon per level; a split
+``Range`` leaves *one* collection carrying a color per segment. Both are
+named through the legend the way every other color split is, which is
 available here only because #672 taught the lookup to find a
 ``seaborn.objects`` legend -- it is the figure's, never the axes'.
 """
@@ -106,7 +106,7 @@ def test_the_mark_is_read_as_an_interval_rather_than_registering_nothing(make, m
     ids=["band", "range"],
 )
 def test_each_position_carries_bounds_and_no_estimate(make, mark):
-    # Not an omission: neither mark draws a centre, so inventing one -- the
+    # Not an omission: neither mark draws a center, so inventing one -- the
     # midpoint, say -- would announce a value the chart never plotted.
     points = _only(make(x="x", y="y"))["data"]
 
@@ -150,7 +150,7 @@ def test_a_sideways_chart_is_read_from_the_drawing(make, mark):
     [(_band, "Band"), (_range, "Range")],
     ids=["band", "range"],
 )
-def test_a_colour_split_becomes_one_series_per_level(make, mark):
+def test_a_color_split_becomes_one_series_per_level(make, mark):
     # The grouped shape `ErrorBarPoint[][]` exists for exactly this (#942):
     # it is what lets a reader move between two levels' intervals at one
     # position, which is the comparison a grouped interval chart is drawn
@@ -216,7 +216,7 @@ def test_a_split_range_declines_to_outline_rather_than_outlining_the_wrong_one()
 
 
 def test_an_estimate_drawn_beside_it_is_its_own_layer():
-    # `so.Dot(), so.Agg()` is how a caller adds the centre these marks do
+    # `so.Dot(), so.Agg()` is how a caller adds the center these marks do
     # not draw. It registers as the scatter it is rather than being folded
     # into the interval, which is what keeps the interval honest about
     # having no estimate of its own.
@@ -262,29 +262,29 @@ def test_a_closed_path_is_folded_without_its_closing_vertex():
     assert [tuple(high) for _, _, high in folded] == [(0.0, 3.0), (1.0, 4.0)]
 
 
-def test_one_colour_over_many_segments_is_cycled_rather_than_run_off():
+def test_one_color_over_many_segments_is_cycled_rather_than_run_off():
     # `get_colors()` returns exactly what was set, and a collection given one
-    # colour carries one row however many segments it draws. Indexing that
+    # color carries one row however many segments it draws. Indexing that
     # would leave every segment after the first unnamed, so a split whose
-    # levels happen to share a set colour would lose its names.
-    from maidr.core.plot.intervalplot import _segment_colours
+    # levels happen to share a set color would lose its names.
+    from maidr.core.plot.intervalplot import _segment_colors
     from matplotlib.collections import LineCollection
 
     one = LineCollection([[(0, 0), (0, 1)]] * 3, colors="C0")
-    colours = _segment_colours(one, 3)
+    colors = _segment_colors(one, 3)
 
-    assert len(colours) == 3
-    assert len(set(colours)) == 1
+    assert len(colors) == 3
+    assert len(set(colors)) == 1
 
 
-def test_a_collection_with_no_colours_names_nothing_rather_than_raising():
-    from maidr.core.plot.intervalplot import _segment_colours
+def test_a_collection_with_no_colors_names_nothing_rather_than_raising():
+    from maidr.core.plot.intervalplot import _segment_colors
     from matplotlib.collections import LineCollection
 
     bare = LineCollection([[(0, 0), (0, 1)]])
     bare.set_color([])
 
-    assert _segment_colours(bare, 2) == [None, None]
+    assert _segment_colors(bare, 2) == [None, None]
 
 
 def test_a_degenerate_first_interval_does_not_decide_the_orientation():

@@ -28,8 +28,8 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
       somewhere for its curves to close, so plotly puts an empty bin outside
       the range it binned into. See
       :func:`~maidr.plotly.histogram2d.extended_edges`.
-    - **The curves run through the bin centres**, not the edges. Plotly's own
-      ``calcdata`` for this trace carries centres where a ``histogram2d``
+    - **The curves run through the bin centers**, not the edges. Plotly's own
+      ``calcdata`` for this trace carries centers where a ``histogram2d``
       carries edges -- 5 coordinates for 5 bins rather than 4 edges for 3.
 
     The levels are then whatever :func:`~maidr.plotly.contour.levels_of`
@@ -56,7 +56,7 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
         Returns
         -------
         tuple or None
-            ``(x, y, z)`` with ``x`` and ``y`` the bin centres and ``z``
+            ``(x, y, z)`` with ``x`` and ``y`` the bin centers and ``z``
             the counts, bottom row first and zero where a cell has no answer
             -- see :func:`_traced`. None when there is nothing to bin, or
             when what was binned is too small to trace: marching squares
@@ -73,7 +73,7 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
         if z.shape[0] < 2 or z.shape[1] < 2:
             return None
 
-        return _centres(x_edges), _centres(y_edges), z
+        return _centers(x_edges), _centers(y_edges), z
 
     def _level_field(self, z: Any) -> Any:
         """The binned cells with their gaps left out, not filled with zeros.
@@ -104,11 +104,11 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
 
         A plain ``contour``'s levels are the author's own numbers, so only
         the author can say what they are and the parent emits no ``z`` unless
-        they titled the colour bar. These levels are computed here, so their
+        they titled the color bar. These levels are computed here, so their
         name is known -- and leaving it unsaid would announce a chart of bare
         numbers with no word for what they count. The same reading a
         ``histogram2d`` settled for its cells, and the same order of
-        precedence: the author's colour bar title first.
+        precedence: the author's color bar title first.
         """
         axes = super()._extract_axes_data()
         label = colorbar_title(self._trace) or cell_name(self._trace)
@@ -148,7 +148,7 @@ def _traced(value: Any) -> float:
     return 0.0 if value is None or not np.isfinite(value) else float(value)
 
 
-def _centres(edges: np.ndarray) -> list[float]:
+def _centers(edges: np.ndarray) -> list[float]:
     """The middle of each bin, which is where plotly puts the grid's points."""
     return [
         float((edges[index] + edges[index + 1]) / 2)

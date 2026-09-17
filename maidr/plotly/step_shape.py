@@ -1,4 +1,4 @@
-"""Recognising Plotly staircase traces and the convention they draw.
+"""Recognizing Plotly staircase traces and the convention they draw.
 
 Plotly has no step trace type. A step chart is an ordinary ``scatter`` trace
 whose ``line.shape`` tells plotly.js to draw risers between the samples

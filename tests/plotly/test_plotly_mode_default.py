@@ -77,7 +77,7 @@ class TestTheTranscribedRuleStillMatchesUpstream:
 
     **If one of these fails, check for a wording change before changing any
     code.** They match on the docstring's prose, so a purely cosmetic rewrite
-    upstream ("fewer than" for "less than") fails them without the behaviour
+    upstream ("fewer than" for "less than") fails them without the behavior
     having moved at all. The question to answer first is whether the *rule*
     changed; ``go.Figure``'s resolved ``_fullData[i].mode`` in a browser is
     the ground truth if it is ever unclear.

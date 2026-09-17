@@ -148,7 +148,7 @@ def test_bundled_tag_uses_shipped_version(forbid_network):
 def test_bundled_version_file_is_read_once(monkeypatch):
     """Pinning to ``bundled`` must not re-read VERSION per URL build.
 
-    ``_normalise_version_pin`` runs on every URL build — twice per figure
+    ``_normalize_version_pin`` runs on every URL build — twice per figure
     — so without the cache this would be a package-resource read per
     call for anyone pinning ``bundled`` (e.g. air-gapped CI).
     """
@@ -584,7 +584,7 @@ def test_hostile_resolver_version_is_rejected(monkeypatch):
     assert "evil" not in cdn.maidr_js_cdn_url()
 
 
-def test_timeout_env_var_is_honoured(monkeypatch):
+def test_timeout_env_var_is_honored(monkeypatch):
     monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
     monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, "0.25")
     cdn.set_cdn_version(None)
@@ -666,7 +666,7 @@ def test_oversized_timeout_is_clamped(monkeypatch, caplog):
     )
 
 
-def test_timeout_just_under_the_cap_is_honoured(monkeypatch):
+def test_timeout_just_under_the_cap_is_honored(monkeypatch):
     monkeypatch.setenv(cdn.CDN_TIMEOUT_ENV_VAR, "29")
     assert cdn._cdn_timeout() == 29.0
 
@@ -731,7 +731,7 @@ def test_dedup_selector_matches_the_emitted_script_src(bar_plot, tmp_path):
 # ---------------------------------------------------------------------------
 #
 # The module carries three locks and docstrings that reason explicitly
-# about GIL versus free-threaded (PEP 703) behaviour, but single-threaded
+# about GIL versus free-threaded (PEP 703) behavior, but single-threaded
 # tests cannot exercise any of it.  These drive real contention with a
 # barrier so every thread arrives together, and assert on counts rather
 # than timing, so they are deterministic rather than flaky.
@@ -911,7 +911,7 @@ def test_bundle_status_resolves_even_when_pinned_to_latest(monkeypatch):
 
     ``MAIDR_CDN_VERSION=latest`` stops URL building from resolving, but
     ``bundle_status()`` ignores pins by design — asking what is published
-    has no answer otherwise. Pin the behaviour so the docs and the code
+    has no answer otherwise. Pin the behavior so the docs and the code
     cannot drift apart.
     """
     monkeypatch.setenv(cdn.CDN_VERSION_ENV_VAR, cdn.LATEST_TAG)
@@ -1057,7 +1057,7 @@ def test_bundled_cdn_url_needs_no_lookup(monkeypatch, forbid_network):
     assert "maidr@latest" not in url
 
 
-def test_bundled_cdn_url_honours_an_explicit_pin(monkeypatch, forbid_network):
+def test_bundled_cdn_url_honors_an_explicit_pin(monkeypatch, forbid_network):
     """A pin governs these tags too, or one page loads two maidr.js builds.
 
     ``init_notebook`` emits its tag through :func:`bundled_cdn_url` while
@@ -1311,7 +1311,7 @@ def test_an_unreadable_bundled_version_leaves_the_answer_alone(monkeypatch):
     assert cdn.get_cdn_version() == "1.0.0"
 
 
-def test_an_explicit_pin_below_the_bundle_is_honoured(monkeypatch):
+def test_an_explicit_pin_below_the_bundle_is_honored(monkeypatch):
     """A pin is the caller's own decision about their own process.
 
     `set_cdn_version` and `MAIDR_CDN_VERSION` name a version by hand, so a

@@ -5,7 +5,7 @@ bug, D is the failure a careless fix introduces. A test suite that only
 covered A would pass on a version that grabs focus from whatever the
 reader was doing.
 
-These need a browser. The behaviour is a browser behaviour -- an element
+These need a browser. The behavior is a browser behavior -- an element
 losing focus because it left the document -- and nothing about it is
 visible in the emitted markup, which is all the rest of the suite can see.
 """

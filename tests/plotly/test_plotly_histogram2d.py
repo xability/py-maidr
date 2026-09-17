@@ -58,7 +58,7 @@ def _layers(figure: go.Figure) -> list[dict]:
 
 
 def _histogram2d(**kwargs: object) -> go.Figure:
-    """One 2-D histogram, with its colour bar out of the way."""
+    """One 2-D histogram, with its color bar out of the way."""
     return go.Figure(go.Histogram2d(showscale=False, **kwargs))
 
 
@@ -85,7 +85,7 @@ def test_the_grid_is_the_counts_the_samples_make() -> None:
 
 
 def test_a_cell_is_named_by_the_range_it_covers() -> None:
-    """Not by its index and not by its centre.
+    """Not by its index and not by its center.
 
     "A count of 4" says nothing without "between 0 and 2", and the range is
     what a sighted reader takes off the axis. r-maidr settled the same
@@ -113,10 +113,10 @@ def test_a_two_dimensional_axis_is_binned_more_coarsely() -> None:
     assert layer["data"]["x"] == ["-0.5 – 9.5", "9.5 – 19.5", "19.5 – 29.5"]
 
 
-def test_an_nbins_hint_is_honoured() -> None:
+def test_an_nbins_hint_is_honored() -> None:
     """Plotly rounds it to a nice width rather than obeying it exactly.
 
-    Which is the 1-D behaviour unchanged: only the *automatic* width differs
+    Which is the 1-D behavior unchanged: only the *automatic* width differs
     between one dimension and two, so the hint path needed nothing.
     """
     values = list(range(30))
@@ -246,14 +246,14 @@ def test_histnorm_rescales_a_cell_the_way_plotly_does(
     ("kwargs", "expected"),
     [
         pytest.param({}, "Count", id="the-default"),
-        pytest.param({"histnorm": "percent"}, "Percent", id="a-normalisation"),
+        pytest.param({"histnorm": "percent"}, "Percent", id="a-normalization"),
         pytest.param(
             {"z": [1, 2, 3], "histfunc": "max"}, "Maximum", id="an-aggregate"
         ),
         pytest.param(
             {"z": [1, 2, 3], "histfunc": "sum", "histnorm": "density"},
             "Density",
-            id="the-normalisation-wins-over-the-aggregate",
+            id="the-normalization-wins-over-the-aggregate",
         ),
         pytest.param({"histfunc": "sum"}, "Count", id="an-aggregate-with-no-z"),
     ],
@@ -264,7 +264,7 @@ def test_the_third_axis_is_named_for_what_a_cell_holds(
     """A heatmap's numbers are the author's; these are computed.
 
     So their name is known here, and leaving it unsaid would announce a grid
-    of bare numbers with no word for what they count. The normalisation wins
+    of bare numbers with no word for what they count. The normalization wins
     over the aggregate because it is what decides the units -- measured, a
     ``sum`` under ``histnorm="percent"`` still totals 100.
     """
@@ -273,7 +273,7 @@ def test_the_third_axis_is_named_for_what_a_cell_holds(
     assert layer["axes"]["z"]["label"] == expected
 
 
-def test_a_colour_bar_the_author_titled_wins() -> None:
+def test_a_color_bar_the_author_titled_wins() -> None:
     """It is the one thing they may have written about the cells."""
     (layer,) = _layers(
         _histogram2d(
@@ -472,7 +472,7 @@ def test_mismatched_x_and_y_pair_down_to_the_shorter() -> None:
         pytest.param("density", [[5.0, 0.0], [5.0, 10.0]], id="per-unit-of-area"),
     ],
 )
-def test_a_normalised_aggregate_scales_its_populated_cells_too(
+def test_a_normalized_aggregate_scales_its_populated_cells_too(
     histnorm: str, expected: list
 ) -> None:
     """The empty cell is not the only thing the pair of rules decides.

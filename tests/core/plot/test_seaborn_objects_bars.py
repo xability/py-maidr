@@ -22,8 +22,8 @@ not, so no fixed pair of vertices names the edges. The reading takes the
 rectangle's extent per axis instead, and the orientation comes from the fact
 that bins advance while the baseline does not.
 
-**A colour split overlays every level in one collection**, contiguous by
-colour, where a classic ``seaborn.histplot(hue=...)`` draws a container per
+**A color split overlays every level in one collection**, contiguous by
+color, where a classic ``seaborn.histplot(hue=...)`` draws a container per
 level. Read whole it would announce two distributions' bins as one — the same
 edge twice with two different counts. Split, it matches the classic reading.
 """
@@ -127,7 +127,7 @@ def test_one_bin_is_still_a_histogram():
     assert schema["data"][0]["y"] == 240
 
 
-def test_a_colour_split_becomes_one_layer_per_level():
+def test_a_color_split_becomes_one_layer_per_level():
     # What the classic spelling already gives: `seaborn.histplot(hue=...)`
     # draws a container per level and reads as one layer each. This mark
     # overlays them in one collection, so the split happens here instead.
@@ -254,17 +254,17 @@ def test_each_selector_resolves_to_exactly_one_drawn_rectangle():
 
 
 
-def test_a_collection_given_fewer_colours_than_rectangles_still_splits():
+def test_a_collection_given_fewer_colors_than_rectangles_still_splits():
     """
-    Grouping reads a collection's colours cyclically, as matplotlib draws them.
+    Grouping reads a collection's colors cyclically, as matplotlib draws them.
 
     ``PatchCollection.get_facecolors()`` returns exactly what was set, and a
-    collection given fewer colours than it has paths cycles them at draw
-    time -- measured, four rectangles and two colours come back as a ``(2, 4)``
+    collection given fewer colors than it has paths cycles them at draw
+    time -- measured, four rectangles and two colors come back as a ``(2, 4)``
     array while all four are drawn. Indexed straight, the third rectangle
     would fall off the end of the array.
 
-    No ``so.Bars`` chart is in that position: seaborn sets one colour per
+    No ``so.Bars`` chart is in that position: seaborn sets one color per
     rectangle, measured 8 for 8 bins and 16 for a two-level split. The cycle
     is here for the collection contract rather than for a spelling of the
     mark, so it is tested against a collection built to have it.
@@ -285,7 +285,7 @@ def test_a_collection_given_fewer_colours_than_rectangles_still_splits():
         handles=[Patch(facecolor=red, label="a"), Patch(facecolor=blue, label="b")]
     )
 
-    assert len(collection.get_facecolors()) == 2, "the fixture must be short of colours"
+    assert len(collection.get_facecolors()) == 2, "the fixture must be short of colors"
     assert hist_groups(ax, collection) == [("a", [0, 2]), ("b", [1, 3])]
 
 

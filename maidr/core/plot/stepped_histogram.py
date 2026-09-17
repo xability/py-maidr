@@ -41,10 +41,10 @@ class SteppedHistPlot(HistPlot):
     bin included: its edges are on both legs, and its count is sampled inside
     it rather than taken from the flat run the return leg makes across it.
 
-    ``poly`` traces the **bin centres**, joining them with straight lines, and
+    ``poly`` traces the **bin centers**, joining them with straight lines, and
     the edges are not in the drawing at all. They are recovered from the
     spacing, which is exact when the bins are even and impossible when they
-    are not: ``bins=[0, 1, 5, 10]`` gives centres 0.5, 3.0 and 7.5, and three
+    are not: ``bins=[0, 1, 5, 10]`` gives centers 0.5, 3.0 and 7.5, and three
     numbers whose gaps are 2.5 and 4.5 do not say where the boundaries were.
     Such a chart is declined rather than announced with invented edges.
 
@@ -166,7 +166,7 @@ def _read_outline(
 
     What separates them is how many distinct positions the ring visits along
     the binned axis: a step ring walks every **edge**, so ``k + 1`` of them,
-    while a poly ring visits every **centre**, so ``k``. The two counts agree
+    while a poly ring visits every **center**, so ``k``. The two counts agree
     only at five vertices, which is below the step shape's own minimum -- so
     asking both and taking the one that matches is decisive rather than a
     tie-break.
@@ -253,7 +253,7 @@ def _read_step(along: np.ndarray, across: np.ndarray, bins: int) -> list | None:
 
 def _read_poly(along: np.ndarray, across: np.ndarray, bins: int) -> list | None:
     """
-    Read a ``poly`` outline, whose ring joins the bin centres.
+    Read a ``poly`` outline, whose ring joins the bin centers.
 
     Parameters
     ----------
@@ -268,7 +268,7 @@ def _read_poly(along: np.ndarray, across: np.ndarray, bins: int) -> list | None:
     -------
     list of tuple, or None
         The bins, or None when the edges cannot be recovered -- a single bin,
-        which has no spacing, or uneven bins, whose boundaries the centres do
+        which has no spacing, or uneven bins, whose boundaries the centers do
         not determine.
     """
     if bins < 2:
@@ -276,12 +276,12 @@ def _read_poly(along: np.ndarray, across: np.ndarray, bins: int) -> list | None:
 
     # The tops are the last leg of the ring, right to left, before the vertex
     # that closes it.
-    centres = along[bins + 2 : 2 * bins + 2][::-1]
+    centers = along[bins + 2 : 2 * bins + 2][::-1]
     counts = across[bins + 2 : 2 * bins + 2][::-1]
-    if len(centres) != bins:
+    if len(centers) != bins:
         return None
 
-    widths = np.diff(centres)
+    widths = np.diff(centers)
     if len(widths) == 0 or not np.all(np.isfinite(widths)):
         return None
     width = float(widths[0])
@@ -293,8 +293,8 @@ def _read_poly(along: np.ndarray, across: np.ndarray, bins: int) -> list | None:
 
     half = width / 2
     return [
-        (float(centre) - half, float(centre) + half, float(count))
-        for centre, count in zip(centres, counts)
+        (float(center) - half, float(center) + half, float(count))
+        for center, count in zip(centers, counts)
     ]
 
 
@@ -326,7 +326,7 @@ def reads(collection: PolyCollection) -> bool:
     """
     Whether an outline is one this can read, asked before a layer exists.
 
-    An outline it cannot read -- an uneven ``poly``, whose centres do not say
+    An outline it cannot read -- an uneven ``poly``, whose centers do not say
     where the boundaries were -- must not become a layer at all. Registered
     anyway it is an empty row the core has to navigate into and cannot
     announce, which is the phantom-layer shape of #421, and the reading's own

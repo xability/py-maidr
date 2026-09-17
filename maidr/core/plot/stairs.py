@@ -102,7 +102,7 @@ def bins_to_points(orientation: str, values: Any, edges: Any) -> list[dict]:
         high = float(edges[index + 1])
         # A bin with no position is nowhere to navigate to, and a bare
         # `NaN` or `Infinity` in the payload is not JSON -- `JSON.parse`
-        # rejects the whole schema and the chart never initialises (#427).
+        # rejects the whole schema and the chart never initializes (#427).
         if not (math.isfinite(low) and math.isfinite(high)):
             continue
         data.append(
@@ -118,7 +118,7 @@ def _reading(value: Any) -> float | None:
 
     ``NaN`` is how a ``stairs`` chart leaves a bin blank -- matplotlib draws a
     gap there -- and unlike the edges that is a bin with a position and no
-    value, which the payload can say. ``None`` serialises to ``null``, which
+    value, which the payload can say. ``None`` serializes to ``null``, which
     the core's bar family reads as a gap: kept out of the range, sounded as
     the empty tone, announced as missing. A zero would claim the bin was
     measured and found empty, which is a different statement.
@@ -135,7 +135,7 @@ def _reading(value: Any) -> float | None:
 
     Notes
     -----
-    The ``float()`` is not decoration: ``json.dumps`` cannot serialise a
+    The ``float()`` is not decoration: ``json.dumps`` cannot serialize a
     ``numpy.int64``, and ``ax.stairs([1, 3, 2], ...)`` hands back exactly
     that.
     """

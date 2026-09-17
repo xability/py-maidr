@@ -244,7 +244,7 @@ class SpanPlot(GanttPlot):
     call shaped the other way round: **one call draws every lane**, and hands
     back a single ``LineCollection`` whose ``get_segments()`` gives both ends
     of every segment exactly -- nothing inverted, nothing rounded, since a
-    collection stores its ends rather than serialising a path.
+    collection stores its ends rather than serializing a path.
 
     Measured on matplotlib 3.9.4::
 

@@ -172,7 +172,7 @@ def test_the_axis_the_rows_are_stacked_along_is_named():
     """
     "Row", where the caller named nothing, on whichever axis carries them.
 
-    The base fills "X" and "Y" as placeholders, so a reader of an unlabelled
+    The base fills "X" and "Y" as placeholders, so a reader of an unlabeled
     raster would otherwise be told the series are stacked along "Y" -- a
     letter, where the chart has rows.
     """
@@ -217,9 +217,9 @@ def test_named_rows_are_announced_by_their_names():
     ]
 
 
-def test_an_unlabelled_row_is_not_named_after_its_own_number():
+def test_an_unlabeled_row_is_not_named_after_its_own_number():
     """
-    An unlabelled axis still has ticks, and their text is the offset.
+    An unlabeled axis still has ticks, and their text is the offset.
 
     Taking it would "name" every row `0.0`, `1.0`, `2.0` -- the coordinate the
     payload already carries, so a reader switching layers would hear a number
@@ -495,7 +495,7 @@ def test_each_row_is_one_cell_deep_at_the_offset_it_was_drawn_at():
     Measured against maidr's `ScatterTrace`, the two readings are the
     difference between a surface and a blank one. With its own cell the
     second row gives `values [[0, 1, 0, 0, 1, 0, 0]]` -- its two events,
-    where they fall. Handed the zero-centred cell instead, every one of its
+    where they fall. Handed the zero-centered cell instead, every one of its
     points is outside the surface and it gives `[[0, 0, 0, 0, 0, 0, 0]]`: a
     grid that renders, reports nothing wrong, and says the row is empty.
 

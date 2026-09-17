@@ -185,7 +185,7 @@ def test_a_data_frame_of_series_is_read_by_row_like_matplotlib_reads_it(columns)
     A ``DataFrame`` handed to ``stackplot`` is rows, not columns.
 
     Both of the obvious ways to split one give the columns instead. ``df[0]``
-    is the column *labelled* zero, so it raises for named columns and picks
+    is the column *labeled* zero, so it raises for named columns and picks
     the wrong axis when a column happens to be called that; iterating a frame
     yields the labels themselves and no data at all. Matplotlib reads the
     rows, and a description that disagreed with the drawing would be a
@@ -245,7 +245,7 @@ def test_each_band_is_named_after_its_label():
     assert schema["data"][1][0]["z"] == "Services"
 
 
-def test_an_unlabelled_chart_emits_no_series_name():
+def test_an_unlabeled_chart_emits_no_series_name():
     """A caller who named nothing gets no invented names."""
     fig, ax = plt.subplots()
     ax.stackplot(X, SUBS, SERVICES)
@@ -259,7 +259,7 @@ def test_a_streamgraph_reads_as_the_stacked_area_it_is():
 
     That moves where the bands sit on the value axis without changing what any
     band measures, so the reading -- and the layer type -- are the same. A
-    streamgraph is a stacked area drawn around a moving centre.
+    streamgraph is a stacked area drawn around a moving center.
     """
     fig, ax = plt.subplots()
     ax.stackplot(X, SUBS, SERVICES, baseline="wiggle", labels=["a", "b"])
@@ -428,7 +428,7 @@ def test_a_missing_value_is_a_gap_rather_than_a_nan_token(draw):
 
     matplotlib draws a hole in the band, and ``json.dumps`` wrote the value
     as a bare ``NaN`` token that ``JSON.parse`` refuses, so the chart never
-    initialised (#427). ``null`` is what the core's area trace reads as a
+    initialized (#427). ``null`` is what the core's area trace reads as a
     gap that stays out of the running total.
     """
     fig, ax = plt.subplots()

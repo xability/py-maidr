@@ -57,7 +57,7 @@ class BarsHistPlot(HistPlot):
     def __init__(self, ax: Axes, **kwargs) -> None:
         self._collection: PatchCollection = kwargs.pop(DRAWN_BINS, None)
 
-        # Which of the collection's paths are this layer's. A colour split
+        # Which of the collection's paths are this layer's. A color split
         # overlays every group in one collection, so a layer is a slice of it
         # rather than the whole; absent means all of them.
         self._members: Sequence[int] | None = kwargs.pop(BIN_MEMBERS, None)
@@ -93,7 +93,7 @@ class BarsHistPlot(HistPlot):
                 # unreachable claim.
                 continue
             # Plain floats, not the numpy scalars the vertices come back as:
-            # `json.dumps` cannot write one, and the payload is serialised
+            # `json.dumps` cannot write one, and the payload is serialized
             # into the SVG's `maidr` attribute (#429).
             data.append(
                 self._bin_point(
@@ -114,7 +114,7 @@ class BarsHistPlot(HistPlot):
         One selector per bin, addressing its own path inside the group.
 
         The collection draws one path per bin as direct children of one
-        group, and a colour split puts every group's bins in that same
+        group, and a color split puts every group's bins in that same
         collection -- so a layer addresses its own paths by position and
         leaves its neighbours' alone. Numbered against the **collection**
         rather than against this layer's bins, which is what keeps the
@@ -214,12 +214,12 @@ def _span(values: np.ndarray) -> float:
 
 def hist_groups(ax: Axes, collection: PatchCollection) -> list[tuple[str, list[int]]] | None:
     """
-    The groups a colour-split ``so.Bars`` layer was drawn with, or ``None``.
+    The groups a color-split ``so.Bars`` layer was drawn with, or ``None``.
 
     The ``PatchCollection`` counterpart of
     :func:`maidr.core.plot.barplot.bar_groups`, and the same question: one
     artist carries every level, so the grouping survives only in the
-    rectangles' colours and in the legend that names them.
+    rectangles' colors and in the legend that names them.
 
     Needed here for the reason the bar one is needed and one more. A classic
     ``seaborn.histplot(hue=...)`` draws a container **per level**, so each
@@ -245,25 +245,25 @@ def hist_groups(ax: Axes, collection: PatchCollection) -> list[tuple[str, list[i
         collection positions that belong to it, or ``None`` when the layer is
         not grouped.
     """
-    from maidr.core.plot.scatterplot import _rgba, groups_from_colours
+    from maidr.core.plot.scatterplot import _rgba, groups_from_colors
 
-    colours = np.asarray(collection.get_facecolors(), dtype=float)
-    if colours.ndim == 1:
-        colours = colours.reshape(1, -1)
+    colors = np.asarray(collection.get_facecolors(), dtype=float)
+    if colors.ndim == 1:
+        colors = colors.reshape(1, -1)
     count = len(collection.get_paths())
-    if len(colours) == 0:
+    if len(colors) == 0:
         return None
 
     # Cycled rather than indexed, for the reason `SegmentLinePlot` cycles its
     # own: `get_facecolors()` returns exactly what was set, and matplotlib
     # cycles those over the paths at draw time -- measured, four rectangles
-    # given two colours come back as a (2, 4) array with all four drawn.
+    # given two colors come back as a (2, 4) array with all four drawn.
     # Indexed straight, the third rectangle falls off the end.
     #
     # Measured, `so.Bars` always sets one per rectangle -- 8 for 8 bins, 16
     # for a two-level split -- so no chart drawn by this mark reaches the
     # cycle. It is the collection's contract rather than the mark's, and it
     # is tested against a collection built to have it.
-    return groups_from_colours(
-        ax, [_rgba(colours[index % len(colours)][:4]) for index in range(count)]
+    return groups_from_colors(
+        ax, [_rgba(colors[index % len(colors)][:4]) for index in range(count)]
     )

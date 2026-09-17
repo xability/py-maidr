@@ -1,9 +1,9 @@
-"""Recognising the fitted trend lines ``plotly.express`` adds to a figure.
+"""Recognizing the fitted trend lines ``plotly.express`` adds to a figure.
 
 ``px.scatter(..., trendline="ols")`` appends a second ``scatter`` trace
 carrying the fit. Structurally it is indistinguishable from a line the user
 drew themselves -- same ``type``, same ``mode``, no ``name``, same marker
-colour -- so it was read as an ordinary line and a reader was told a model's
+color -- so it was read as an ordinary line and a reader was told a model's
 prediction was data (#343).
 
 The one thing that separates it is ``hovertemplate``, which is a display

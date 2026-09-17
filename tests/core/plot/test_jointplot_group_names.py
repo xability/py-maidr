@@ -122,14 +122,14 @@ def _drawn_curves(ax) -> list:
 
 
 def _axes_legend(ax, source, labels):
-    """An axes legend naming another axes' drawn colours.
+    """An axes legend naming another axes' drawn colors.
 
     Parameters
     ----------
     ax : Axes
         Where to hang it.
     source : Axes
-        Whose curves supply the swatch colours.
+        Whose curves supply the swatch colors.
     labels : list of str
         The names, in legend order.
     """
@@ -143,7 +143,7 @@ def test_an_unshared_panels_legend_is_not_read():
     """The line this fix holds, from the other side.
 
     Two panels of a hand-built figure with a legend on one of them: the
-    second's colours match those swatches -- both panels draw the same
+    second's colors match those swatches -- both panels draw the same
     default cycle -- and it is still not named, because the panels share no
     axis and nothing says they are one chart. This is the same figure
     `test_one_figure_legend_names_every_panel_below_it` measures as the
@@ -183,7 +183,7 @@ def test_a_shared_panels_legend_is_read():
 
 def test_two_sharers_with_legends_name_nothing():
     """The guard, the same one the figure fallback has: two of them cannot
-    say which names this axes' colours, and a wrong name is worse than none.
+    say which names this axes' colors, and a wrong name is worse than none.
 
     Both legends carry the real swatches, so the test above is what makes
     this one bite -- either alone would name the curves.

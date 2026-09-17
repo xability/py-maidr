@@ -40,7 +40,7 @@ def _fresh_latch(monkeypatch):
     """Give each test its own once-per-process latch.
 
     The warning fires once per trace type per severity for the life of the
-    process, which is the behaviour a user wants and the one that would
+    process, which is the behavior a user wants and the one that would
     otherwise make every test after the first pass vacuously.
     """
     monkeypatch.setattr(bundle_capability, "_bundle_trace_warned", set())

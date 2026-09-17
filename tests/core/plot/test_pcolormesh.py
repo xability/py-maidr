@@ -195,7 +195,7 @@ def test_fmt_is_read_but_not_forwarded_to_matplotlib(draw):
 @pytest.mark.parametrize("draw", ["pcolormesh", "pcolor", "imshow"])
 def test_z_label_reaches_the_schema_and_not_matplotlib(draw):
     """
-    ``z_label`` names the colour dimension and is MAIDR's own — matplotlib has
+    ``z_label`` names the color dimension and is MAIDR's own — matplotlib has
     never heard of it, so it must be lifted out of ``kwargs`` before the draw
     and still reach the emitted axes.
 
@@ -215,7 +215,7 @@ def test_z_label_reaches_the_schema_and_not_matplotlib(draw):
 
 
 def test_z_label_defaults_when_the_caller_omits_it():
-    """A heatmap drawn without a ``z_label`` still names its colour axis."""
+    """A heatmap drawn without a ``z_label`` still names its color axis."""
     fig, ax = plt.subplots()
     ax.pcolormesh(X_EDGES, Y_EDGES, VALUES)
 

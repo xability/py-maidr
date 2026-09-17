@@ -29,7 +29,7 @@ _PARSE_TIMEOUT_MS = 30_000
 _TEXT = "#maidr-text-container"
 
 #: The rectangles matplotlib drew, in document order. The core stands a hidden
-#: clone beside each one when it initialises (`Svg.cloneHidden`), marked
+#: clone beside each one when it initializes (`Svg.cloneHidden`), marked
 #: `data-maidr-owned`; those are not bars.
 _DRAWN_BARS = """() => [...document.querySelectorAll(
   "g[maidr] > path:not([data-maidr-owned])"

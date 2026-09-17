@@ -90,7 +90,7 @@ def _clip_sentinel(transform: Transform) -> Optional[float]:
     scale's NaN both fall to the finiteness check in :func:`to_scaled_coords`,
     which is why the guards there cover a mode each.
 
-    This reads matplotlib's behaviour rather than a promise, and would fail
+    This reads matplotlib's behavior rather than a promise, and would fail
     quietly: a release that stopped collapsing rejected values would leave the
     sentinel never found, and a curve touching zero on a log axis thinned
     against it again and drifting off the canvas.

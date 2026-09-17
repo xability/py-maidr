@@ -163,7 +163,7 @@ def test_drew_nothing_reads_the_artists_whose_emptiness_is_unambiguous(make, emp
 
 
 def test_drew_nothing_declines_to_guess():
-    """Everything it does not recognise registers as before, which is what
+    """Everything it does not recognize registers as before, which is what
     makes this additive rather than a new way to lose a layer.
 
     An `Axes` is the case that matters: `seaborn.scatterplot` returns one

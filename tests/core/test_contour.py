@@ -1,11 +1,11 @@
 """`Axes.contour` draws a scalar field, and it was read as nothing.
 
 A contour is the one chart of its family whose value is a **number rather than
-a colour**. `QuadContourSet.levels` is the data the caller asked for and
+a color**. `QuadContourSet.levels` is the data the caller asked for and
 `get_paths()` returns one path per level, so both halves invert exactly and
 nothing has to be recovered from a fill -- which is precisely what left the
 same chart unread in the Observable adapter (xability/maidr#1084), where a
-contour keeps its magnitude only in a continuous colour.
+contour keeps its magnitude only in a continuous color.
 
 Two things about the drawing had to be decided rather than assumed.
 
@@ -80,7 +80,7 @@ def test_a_contour_is_read_as_the_field_it_draws():
 
 def test_every_curve_carries_the_level_it_runs_at():
     # The levels are the ones the caller asked for, taken off `.levels` rather
-    # than inverted from a fill colour.
+    # than inverted from a fill color.
     fig, ax = plt.subplots()
 
     ax.contour(*_field(), levels=[0.2, 0.5, 0.8])
@@ -94,7 +94,7 @@ def test_every_curve_carries_the_level_it_runs_at():
 
 
 def test_the_curves_run_where_the_field_reaches_that_value():
-    # A gaussian bump centred on the origin: the 0.5 contour is the circle of
+    # A gaussian bump centered on the origin: the 0.5 contour is the circle of
     # radius sqrt(-ln 0.5), which every point on that curve sits on.
     fig, ax = plt.subplots()
 

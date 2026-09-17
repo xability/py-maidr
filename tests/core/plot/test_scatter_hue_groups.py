@@ -1,11 +1,11 @@
 """A hue-grouped scatter reads as one layer per group (#544).
 
 ``seaborn`` draws a hue-grouped scatter as **one** ``PathCollection`` with a
-colour per point, not one collection per group, so the grouping survives in
-the drawn artist only as those colours and in the legend that names them.
+color per point, not one collection per group, so the grouping survives in
+the drawn artist only as those colors and in the legend that names them.
 Read as a single layer -- which is what happened before this -- every point
 is announced and nothing says which group it belongs to. A sighted reader
-sees three colours and a legend; a blind reader gets one undifferentiated
+sees three colors and a legend; a blind reader gets one undifferentiated
 cloud, and the grouping *is* the chart.
 
 The split is a layer per group rather than a field per point because the
@@ -124,7 +124,7 @@ def _marker_fills(html: str, gid: str) -> list[str]:
     Returns
     -------
     list of str
-        One hex colour per ``<g>`` holding a marker, in document order.
+        One hex color per ``<g>`` holding a marker, in document order.
     """
     svg = html[html.index("<svg") : html.index("</svg>") + 6]
     opening = svg.rfind("<g", 0, svg.index(f'id="{gid}"'))
@@ -148,7 +148,7 @@ def _marker_fills(html: str, gid: str) -> list[str]:
 
 def _legend_fills(ax) -> dict[str, str]:
     """
-    The colour the legend gives each group.
+    The color the legend gives each group.
 
     Parameters
     ----------
@@ -158,7 +158,7 @@ def _legend_fills(ax) -> dict[str, str]:
     Returns
     -------
     dict of str to str
-        Group name to hex colour.
+        Group name to hex color.
     """
     legend = ax.get_legend()
     return {
@@ -244,7 +244,7 @@ def test_every_selector_lands_on_a_marker_of_its_own_group():
     correctly through audio, braille and text while outlining the wrong dots,
     which is the failure xability/maidr#814 describes. So the assertion is
     made against the document: resolve each selector's position and check the
-    marker there is painted this group's colour.
+    marker there is painted this group's color.
     """
     ax = sns.scatterplot(data=FRAME, x="x", y="y", hue="g")
     html = str(maidr.render(ax.figure).get_html_string())
@@ -270,7 +270,7 @@ def test_every_selector_lands_on_a_marker_of_its_own_group():
 
 def test_an_ungrouped_scatter_is_untouched():
     """
-    One colour, one layer, and the selector it has always had.
+    One color, one layer, and the selector it has always had.
 
     matplotlib writes a uniformly styled collection as one ``<g>`` holding
     every ``<use>``, so the group-wide selector is both correct and in
@@ -295,9 +295,9 @@ def test_an_ungrouped_scatter_is_untouched():
 
 def test_a_scatter_with_no_legend_is_read_as_one_layer():
     """
-    Colours with no names are not a grouping worth splitting on.
+    Colors with no names are not a grouping worth splitting on.
 
-    ``legend=False`` leaves the per-point colours in place and takes away the
+    ``legend=False`` leaves the per-point colors in place and takes away the
     only thing that says what they mean. Layers called "1" and "2" are not an
     improvement on one cloud, so the chart is read as it always was.
     """
@@ -311,11 +311,11 @@ def test_a_scatter_with_no_legend_is_read_as_one_layer():
 
 def test_a_continuous_hue_is_not_split():
     """
-    A colour *scale* is not a grouping.
+    A color *scale* is not a grouping.
 
-    Measured: ``hue=`` on a numeric column gives one distinct colour per
+    Measured: ``hue=`` on a numeric column gives one distinct color per
     point against a legend of round-numbered levels that mostly match no
-    point at all. Split on colour it would give one layer per observation,
+    point at all. Split on color it would give one layer per observation,
     which is nonsense -- so a point that no swatch claims declines the whole
     reading.
     """
@@ -330,10 +330,10 @@ def test_a_continuous_hue_is_not_split():
 
 def test_a_style_only_scatter_is_not_split():
     """
-    ``style=`` groups by marker shape, which is not a colour and not read.
+    ``style=`` groups by marker shape, which is not a color and not read.
 
-    Every point is drawn in one colour, and the three legend swatches are
-    that same colour -- so a colour there means three things at once and
+    Every point is drawn in one color, and the three legend swatches are
+    that same color -- so a color there means three things at once and
     cannot say which group a point is in. Declined rather than guessed at.
     """
     ax = sns.scatterplot(data=FRAME, x="x", y="y", style="g")
@@ -349,13 +349,13 @@ def test_a_hue_and_style_scatter_still_splits_on_the_hue():
     The extra legend entries do not confuse the split.
 
     Measured, that legend carries seven entries: two section headers drawn
-    ``'w'`` with no marker, three hue swatches in the palette colours, and
+    ``'w'`` with no marker, three hue swatches in the palette colors, and
     two style markers drawn in the neutral ``'.2'``. Only the hue swatches
-    are colours the points were actually painted in.
+    are colors the points were actually painted in.
 
     The two headers are why that condition is load-bearing rather than
     tidiness: both are white, so a reading that let them in would see one
-    colour claimed by two names, refuse the ambiguity, and read a perfectly
+    color claimed by two names, refuse the ambiguity, and read a perfectly
     ordinary grouped scatter as one cloud.
 
     Styled by a *different* column than the hue on purpose. Given the same
@@ -376,7 +376,7 @@ def test_a_joint_panel_and_its_marginals_agree_about_the_groups():
     ``jointplot(hue=)``'s marginals already emitted one ``smooth`` per hue
     level while the joint panel emitted one ``point`` layer for all of them,
     so within a single chart the summaries were navigable by group and the
-    observations they summarise were not.
+    observations they summarize were not.
     """
     grid = sns.jointplot(data=FRAME, x="x", y="y", hue="g")
 
@@ -418,11 +418,11 @@ def test_a_hue_order_that_names_only_some_levels_is_not_split():
     A point no swatch claims declines the split, rather than vanishing.
 
     ``hue_order=["a", "b"]`` on a three-level column is a real chart and an
-    awkward one: measured, seaborn draws all twelve points in three colours
+    awkward one: measured, seaborn draws all twelve points in three colors
     and puts two of them in the legend. The four points of the unnamed level
     are on the chart with nothing saying what they are.
 
-    Split on the two named colours, those four would belong to no layer --
+    Split on the two named colors, those four would belong to no layer --
     announced nowhere, with nothing to say they had been dropped, which is
     the worst of the three possible outcomes. Declining reads all twelve as
     one cloud, which is what the chart did before any of this and loses
@@ -444,7 +444,7 @@ def test_seaborn_drops_a_non_finite_row_before_drawing():
     numbered by *drawn* markers, and the reader tracks both because a marker
     matplotlib declines to draw would put every later highlight on its
     neighbour. Today the two never diverge on a chart that splits: only
-    seaborn produces the per-point colours and the legend a split needs, and
+    seaborn produces the per-point colors and the legend a split needs, and
     seaborn drops the non-finite row upstream of the artist.
 
     So this is the assumption made checkable. If a seaborn release stops
@@ -488,7 +488,7 @@ def test_a_hue_on_one_level_is_read_as_one_layer():
     shared helper is reached.
 
     Its own ``len(named) < 2`` catches it: measured, a one-level ``hue=``
-    gives two face-colour rows in one colour and one legend swatch. So
+    gives two face-color rows in one color and one legend swatch. So
     `grouped_by_name`'s own fewer-than-two decline is **not** reachable from
     this caller, and no test here can exercise it -- which is why the rug
     split, where it is reachable, carries that half.

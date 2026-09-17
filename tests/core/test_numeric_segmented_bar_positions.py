@@ -132,7 +132,7 @@ def test_the_same_chart_with_ticks_set_is_unchanged() -> None:
 
 
 def test_a_horizontal_stack_over_numeric_positions() -> None:
-    """The mirror, which could not be written until `left=` was recognised.
+    """The mirror, which could not be written until `left=` was recognized.
 
     `ax.barh(..., left=...)` is how a stacked bar is written horizontally.
     The patch used to classify on ``"bottom" in kwargs`` alone, so this

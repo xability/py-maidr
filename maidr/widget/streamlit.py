@@ -103,7 +103,7 @@ def maidr_html(
     stops matching its own controls.
 
     Under ``use_cdn=False`` the ~1.9 MB bundle is embedded in the string.
-    Serialising to HTML is what makes an embed possible at all, and it
+    Serializing to HTML is what makes an embed possible at all, and it
     drops :class:`htmltools.HTMLDependency` children on the way, so a
     reference to the bundle would not survive; the source itself has to.
     """
@@ -147,7 +147,7 @@ def maidr_html(
             # would add ~1.9 MB the page never loads -- while still needing
             # the network.  Say so rather than doing it.
             warnings.warn(
-                "maidr: use_cdn=False cannot be honoured for this chart; it "
+                "maidr: use_cdn=False cannot be honored for this chart; it "
                 "loads maidr.js from the CDN regardless, so the embed still "
                 "requires network access.",
                 UserWarning,
@@ -178,7 +178,7 @@ def maidr_html(
 #: renderers.
 #: The ``/`` is load-bearing: without it, any quoted string merely ending in
 #: ``...maidr@1.js`` would match -- ``notmaidr@1.js`` among them. Every URL
-#: this needs to recognise carries the npm path segment ``/maidr@``.
+#: this needs to recognize carries the npm path segment ``/maidr@``.
 _MAIDR_RUNTIME_URL = re.compile(r"[\"'][^\"']*/maidr@[^\"']*\.js", re.I)
 
 
@@ -193,7 +193,7 @@ def _references_maidr_runtime(html: str) -> bool:
     Parameters
     ----------
     html : str
-        The serialised chart.
+        The serialized chart.
 
     Returns
     -------
@@ -205,7 +205,7 @@ def _references_maidr_runtime(html: str) -> bool:
 
 @lru_cache(maxsize=1)
 def _bundle_marker() -> Optional[str]:
-    """Return a slice of the bundled ``maidr.js``, for recognising it inline.
+    """Return a slice of the bundled ``maidr.js``, for recognizing it inline.
 
     Asking whether the bundle is in the string by looking for the bundle
     beats asking whether the string is large, which a big enough chart can
@@ -237,7 +237,7 @@ def _warn_if_no_runtime(html: str, use_cdn: Any, stacklevel: int = 3) -> None:
     Parameters
     ----------
     html : str
-        The serialised chart.
+        The serialized chart.
     use_cdn : Any
         The resolved mode, quoted back in the message.
     stacklevel : int, default 3

@@ -122,7 +122,7 @@ def test_the_page_says_what_experimental_does_not_promise() -> None:
     What makes the page usable is the claim attached to it, so the claim is
     pinned too: softening the wording without revisiting the split fails here.
     """
-    # Normalised, because these phrases are wrapped across lines in the
+    # Normalized, because these phrases are wrapped across lines in the
     # source and a reflow should not be what breaks this test.
     prose = " ".join(STABILITY_PAGE.read_text(encoding="utf-8").split())
 

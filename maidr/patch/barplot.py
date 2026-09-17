@@ -452,7 +452,7 @@ def sns_categorical_bars(
     oriented to a chart that is not there -- ``Axes.bar`` has to guess at that
     from bar widths and positions, because seaborn does not forward the
     decision to it, and here it guessed wrong. And the ``line`` layer is the
-    error-bar geometry travelling as a two-sample series of its own, the
+    error-bar geometry traveling as a two-sample series of its own, the
     #440 shape.
 
     Both fall out of registering here: the type comes from
@@ -528,7 +528,7 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
 
     # Ragged containers can only be a hue split. Equal-length ones short of
     # the axis are either that with a category missing from every level, or
-    # the hue that repeats the category -- one container per bar, colouring
+    # the hue that repeats the category -- one container per bar, coloring
     # a plain chart. Side by side is what dodged means, so a category that
     # holds bars of two containers is what tells them apart.
     if not bars_are_ragged(containers) and not shares_a_category(rows):

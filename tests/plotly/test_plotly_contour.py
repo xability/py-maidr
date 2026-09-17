@@ -319,7 +319,7 @@ def test_a_filled_contour_with_its_lines_off_has_nothing_to_point_at() -> None:
 
 
 def test_showlines_off_under_another_coloring_still_draws_the_curves() -> None:
-    """`showlines` is only honoured for `coloring: "fill"` -- measured.
+    """`showlines` is only honored for `coloring: "fill"` -- measured.
 
     Under `heatmap` the level groups are written whatever it says, so reading
     it as "no lines" would drop a highlight the chart does have.

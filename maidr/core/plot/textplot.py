@@ -1,4 +1,4 @@
-"""Read a ``so.Text`` mark as the labelled scatter it draws."""
+"""Read a ``so.Text`` mark as the labeled scatter it draws."""
 
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ class TextPlot(ScatterPlot):
             # A label at no coordinate has nowhere to be announced, and
             # `json.dumps` writes `NaN` as a bare token, which is legal
             # JavaScript and invalid JSON -- one of them stops the chart
-            # initialising at all (#427).
+            # initializing at all (#427).
             if not (math.isfinite(float(x)) and math.isfinite(float(y))):
                 continue
             sample = self._sample(float(x), float(y), x_ticks, y_ticks)

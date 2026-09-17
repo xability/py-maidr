@@ -15,7 +15,7 @@ Two things had to change, and neither alone is enough.
 rest of the module goes through `legend_of`, which also reads a lone *figure*
 legend (#561) and a lone shared-axis sibling's (#610). A `so.Plot` puts its
 one legend on the figure, so the axes had none and the split declined before
-looking at a colour. Two answers to one question in one module is the drift
+looking at a color. Two answers to one question in one module is the drift
 #599 extracted `legend_names` to end.
 
 **The split was asked too early.** `Plotter._plot_layer` is the only place
@@ -86,7 +86,7 @@ def _drawn(build) -> plt.Figure:
     return figure
 
 
-def test_a_colour_split_dot_reads_one_named_layer_per_group():
+def test_a_color_split_dot_reads_one_named_layer_per_group():
     """Two layers, named, each holding its own half."""
     figure = _drawn(
         lambda fig: (
@@ -123,7 +123,7 @@ def test_it_reads_exactly_as_the_classic_spelling_of_the_same_chart():
     assert objects == classic
 
 
-def test_a_colour_split_dots_mark_splits_too():
+def test_a_color_split_dots_mark_splits_too():
     """`so.Dots` is the many-points spelling and draws the same artist."""
     figure = _drawn(
         lambda fig: (
@@ -134,7 +134,7 @@ def test_a_colour_split_dots_mark_splits_too():
     assert [name for _, name, _ in _named(figure)] == ["p", "q"]
 
 
-def test_a_dot_with_no_colour_is_untouched():
+def test_a_dot_with_no_color_is_untouched():
     """Additive. One group against no legend reads exactly as it did."""
     figure = _drawn(
         lambda fig: so.Plot(_frame(), x="x", y="y").add(so.Dot()).on(fig).plot()
@@ -143,7 +143,7 @@ def test_a_dot_with_no_colour_is_untouched():
     assert _named(figure) == [("point", None, [1.0, 2.0, 3.0, 11.0, 12.0, 13.0])]
 
 
-def test_a_colour_split_line_is_still_one_layer_of_several_series():
+def test_a_color_split_line_is_still_one_layer_of_several_series():
     """Deliberately unchanged, and pinned so a later change is a decision.
 
     `seaborn.lineplot(hue=)` reads as one `line` layer of two unnamed series,
@@ -219,46 +219,46 @@ def test_every_split_layer_can_be_highlighted():
 # --------------------------------------------------------------------------
 
 
-def test_a_collection_swatch_and_a_marker_swatch_name_the_same_colour():
+def test_a_collection_swatch_and_a_marker_swatch_name_the_same_color():
     """The handle type `seaborn.objects` builds is not the classic one.
 
     Classic seaborn builds scatter legend handles as `Line2D` markers, which
     answer with a flat RGBA; `seaborn.objects` builds `PathCollection`s,
-    which answer `get_facecolor()` with a row per colour. `to_rgba` accepts
-    both -- measured, a ``(1, 4)`` array resolves to its single colour -- so
+    which answer `get_facecolor()` with a row per color. `to_rgba` accepts
+    both -- measured, a ``(1, 4)`` array resolves to its single color -- so
     nothing had to be added for this, and this test says so rather than
     leaving the shape difference looking like a hazard that was handled.
     """
     from matplotlib.collections import PathCollection
     from matplotlib.lines import Line2D
 
-    from maidr.core.plot.scatterplot import _handle_colour
+    from maidr.core.plot.scatterplot import _handle_color
 
     _, axes = plt.subplots()
     collection = axes.scatter([0.0], [0.0], color="#1f77b4")
     line = Line2D([], [], color="#1f77b4")
 
     assert isinstance(collection, PathCollection)
-    assert _handle_colour(collection) == _handle_colour(line) is not None
+    assert _handle_color(collection) == _handle_color(line) is not None
 
 
-def test_a_handle_drawn_in_several_colours_names_none():
-    """A swatch drawn in several colours names no group, and must keep
-    declining -- a handle resolved to the first of its colours would name a
-    group after a colour it only partly stands for."""
-    from maidr.core.plot.scatterplot import _handle_colour
+def test_a_handle_drawn_in_several_colors_names_none():
+    """A swatch drawn in several colors names no group, and must keep
+    declining -- a handle resolved to the first of its colors would name a
+    group after a color it only partly stands for."""
+    from maidr.core.plot.scatterplot import _handle_color
 
     _, axes = plt.subplots()
     many = axes.scatter([0.0, 1.0], [0.0, 1.0], color=["#1f77b4", "#ff7f0e"])
 
-    assert _handle_colour(many) is None
+    assert _handle_color(many) is None
 
 
 def test_the_groups_are_read_off_the_legend_wherever_it_was_put():
     """`hue_groups` goes through `legend_of` now, so a figure legend answers.
 
     Built by hand rather than through `so.Plot`, so this states the rule
-    rather than one library's use of it: one collection carrying two colours,
+    rather than one library's use of it: one collection carrying two colors,
     and the only legend naming them on the figure.
     """
     from matplotlib.lines import Line2D
@@ -342,12 +342,12 @@ def _bars() -> pd.DataFrame:
     )
 
 
-def test_a_colour_split_bar_announces_its_categories_not_its_coordinates():
+def test_a_color_split_bar_announces_its_categories_not_its_coordinates():
     """The half of #617 that fixes a *wrong* reading rather than a missing one.
 
     `BarPlot._labels_for` announces bar positions whenever the tick labels do
     not number the bars -- right where #382 put it, since a numeric axis picks
-    its own breaks -- and a colour split walks straight into it: every level's
+    its own breaks -- and a color split walks straight into it: every level's
     bars land on one axes against one tick per category. Measured before, two
     categories and two levels::
 
@@ -599,10 +599,10 @@ def test_only_a_stack_that_reaches_a_whole_is_a_hundred_percent_bar(build, expec
 
     So the drawn bars are asked instead, and a plain `Stack()` is left alone
     even when its categories happen to total alike -- the author has to have
-    asked for a sum-normalisation *and* the bars have to have landed on it.
+    asked for a sum-normalization *and* the bars have to have landed on it.
 
     `Stack()` before `Norm(...)` is turned away by the totals rather than by
-    a rule about the order; `test_a_stack_normalised_afterwards_is_claimed_
+    a rule about the order; `test_a_stack_normalized_afterwards_is_claimed_
     only_when_it_landed` covers where that lands and why the order is not
     asked about separately.
     """
@@ -615,8 +615,8 @@ def test_only_a_stack_that_reaches_a_whole_is_a_hundred_percent_bar(build, expec
     ] == [expected]
 
 
-def test_a_stack_normalised_afterwards_is_claimed_only_when_it_landed():
-    """Why `_normalises_to_a_whole` does not check where `Norm` sits relative
+def test_a_stack_normalized_afterwards_is_claimed_only_when_it_landed():
+    """Why `_normalizes_to_a_whole` does not check where `Norm` sits relative
     to `Stack`, even though the order plainly changes the drawing.
 
     After `Stack()` then `Norm(func="sum")` the drawn tops are each
@@ -703,7 +703,7 @@ def test_a_callable_sum_is_read_like_the_named_one():
 
 
 def test_a_dodge_beside_the_stack_is_not_a_whole():
-    """Where the boundary of `_normalises_to_a_whole` sits, stated rather
+    """Where the boundary of `_normalizes_to_a_whole` sits, stated rather
     than left implicit.
 
     Totals are keyed on the drawn position, and a `Dodge()` moves the
@@ -742,8 +742,8 @@ def test_a_dodge_beside_the_stack_is_not_a_whole():
     ] == ["stacked_bar"]
 
 
-def test_only_a_sum_normalisation_counts_as_asking_for_a_whole():
-    """The intent half of `_normalises_to_a_whole`, asked of the function
+def test_only_a_sum_normalization_counts_as_asking_for_a_whole():
+    """The intent half of `_normalizes_to_a_whole`, asked of the function
     directly because no `so.Bar` reaches it.
 
     `Norm(func="max", by=["x"])` divides each category by its own maximum,
@@ -759,11 +759,11 @@ def test_only_a_sum_normalisation_counts_as_asking_for_a_whole():
     """
     from types import SimpleNamespace
 
-    from maidr.patch.seaborn_objects import _normalises_to_a_whole
+    from maidr.patch.seaborn_objects import _normalizes_to_a_whole
 
     _, axes = plt.subplots()
     # Two categories, each a stack reaching exactly 1.0 -- what a sum
-    # normalisation draws, and what a max normalisation would draw if a
+    # normalization draws, and what a max normalization would draw if a
     # chart could get there.
     container = axes.bar([0, 1, 0, 1], [0.25, 0.5, 0.75, 0.5], bottom=[0, 0, 0.25, 0.5])
 
@@ -774,11 +774,11 @@ def test_only_a_sum_normalisation_counts_as_asking_for_a_whole():
     class Stack(SimpleNamespace):
         pass
 
-    assert _normalises_to_a_whole([Norm(func="sum"), Stack()], container) is True
-    assert _normalises_to_a_whole([Norm(func="max"), Stack()], container) is False
+    assert _normalizes_to_a_whole([Norm(func="sum"), Stack()], container) is True
+    assert _normalizes_to_a_whole([Norm(func="max"), Stack()], container) is False
     # No stack at all is not a whole either, however the bars happen to land.
-    assert _normalises_to_a_whole([Norm(func="sum")], container) is False
-    assert _normalises_to_a_whole(None, container) is False
+    assert _normalizes_to_a_whole([Norm(func="sum")], container) is False
+    assert _normalizes_to_a_whole(None, container) is False
 
 
 def test_a_hundred_percent_bar_announces_the_shares_it_drew():
@@ -854,11 +854,11 @@ def test_the_grouped_reading_names_its_z_axis_from_the_figure_legend():
         pytest.param(lambda plot: plot.add(so.Bar(), so.Dodge()), id="grouped"),
     ],
 )
-def test_a_horizontal_colour_split_bar_keeps_its_orientation(build):
+def test_a_horizontal_color_split_bar_keeps_its_orientation(build):
     """The synthetic container carries the original's `orientation`, and both
     readings depend on it -- `BarPlot._extract_orientation` on the split path,
     `GroupedBarPlot._extract_orientation` on the grouped one. Drop it and a
-    horizontal colour-split bar defaults to vertical, putting the category in
+    horizontal color-split bar defaults to vertical, putting the category in
     the magnitude field: exactly the reading #950 warns about.
     """
     figure = _drawn(
@@ -888,7 +888,7 @@ def test_a_horizontal_colour_split_bar_keeps_its_orientation(build):
     ]
 
 
-def test_a_bar_with_no_colour_is_untouched():
+def test_a_bar_with_no_color_is_untouched():
     """Additive. One group against no legend reads exactly as it did."""
     frame = _bars().groupby("cat", as_index=False).sum(numeric_only=True)
     figure = _drawn(
@@ -938,6 +938,6 @@ def test_an_ungrouped_container_names_no_groups():
     from maidr.core.plot.barplot import bar_groups
 
     _, axes = plt.subplots()
-    one_colour = axes.bar(["a", "b"], [1.0, 2.0])
+    one_color = axes.bar(["a", "b"], [1.0, 2.0])
 
-    assert bar_groups(axes, one_colour) is None
+    assert bar_groups(axes, one_color) is None

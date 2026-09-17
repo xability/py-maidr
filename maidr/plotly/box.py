@@ -281,7 +281,7 @@ def _compute_stats(
     arr = arr[np.isfinite(arr)]
     if arr.size == 0:
         _logger.warning(
-            "maidr: box %r has no samples to summarise; dropping it.",
+            "maidr: box %r has no samples to summarize; dropping it.",
             label or "<unnamed>",
         )
         return None

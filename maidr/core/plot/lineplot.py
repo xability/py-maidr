@@ -76,12 +76,12 @@ def _reading(y: object) -> object:
     working and the interval polylines out of the data. That padding has a
     real x and no y: something to navigate to, nothing to report.
 
-    ``None`` serialises to ``null``, which the core has read as a gap since
+    ``None`` serializes to ``null``, which the core has read as a gap since
     maidr 4.3.0 (xability/maidr#926) -- it becomes ``NaN`` inside
     ``LineTrace``, stays out of the range, sounds as the empty tone rather
     than a floor tone, and announces as "missing". Before that release there
     was no honest way to say it: the bare ``NaN`` stopped the chart
-    initialising at all, and a zero would have claimed a reading of zero
+    initializing at all, and a zero would have claimed a reading of zero
     (#429).
 
     Distinct from {@link _has_position}, which drops a sample outright. A
@@ -298,7 +298,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         # before. The two answer differently wherever the legend was not put
         # on the axes, and a `seaborn.objects` chart is *always* that case:
         # measured, `Plotter._make_legend` builds one **figure** legend and
-        # leaves every panel's own at `None`, so a colour-split `so.Line`
+        # leaves every panel's own at `None`, so a color-split `so.Line`
         # found no labels, fell back to each line's own -- seaborn's
         # `_child0` sentinel -- and announced two series a reader could not
         # tell apart, where `sns.lineplot(hue=)` names both (#672).
@@ -353,7 +353,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         own = [series_name(line) for line in all_lines]
         from_legend: dict = {}
         if len(legend_labels) == len(all_lines):
-            # Before either of those: the *colour* each line was drawn in is
+            # Before either of those: the *color* each line was drawn in is
             # what the legend swatch beside a name actually refers to, and it
             # survives an order the position does not. seaborn draws an ECDF's
             # hue levels in the reverse of its legend order, so pairing by
@@ -365,13 +365,13 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             # swatch claims, a swatch naming two lines, or fewer than two
             # lines to tell apart. Position is the fallback for all of those,
             # so nothing that was named before stops being named.
-            by_colour = names_for(ax_legend_source, [_rgba(line.get_color()) for line in all_lines])
-            if any(name is not None for name in by_colour):
+            by_color = names_for(ax_legend_source, [_rgba(line.get_color()) for line in all_lines])
+            if any(name is not None for name in by_color):
                 # A line no swatch claimed is recorded as `None` rather than
                 # filtered out, because the lookup below falls through to the
                 # line's own name on a `None` either way. Filtering it was
                 # tried and removed: no test could tell the two apart.
-                from_legend = dict(enumerate(by_colour))
+                from_legend = dict(enumerate(by_color))
                 renaming = False
             else:
                 renaming = set(legend_labels) == set(own)

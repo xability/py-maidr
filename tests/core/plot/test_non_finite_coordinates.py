@@ -135,7 +135,7 @@ class TestASampleWithAPositionButNoValue:
     ``seaborn.pointplot`` NaN-pads a hue level that never appears in some
     category, and that padding is load-bearing: it keeps both estimate lines
     at one vertex per category, which is what stops the pairing failing and
-    the interval polylines travelling as data (see ``test_pointplot.py``).
+    the interval polylines traveling as data (see ``test_pointplot.py``).
 
     So a real x with a non-finite y is *not* the same thing as a point with no
     position, and the position rule asks about x alone. The value is emitted
@@ -146,7 +146,7 @@ class TestASampleWithAPositionButNoValue:
 
     This was a strict ``xfail`` when #430 landed, because before that release
     there was no honest representation -- a bare ``NaN`` stopped the chart
-    initialising and a zero would have claimed a reading of zero.
+    initializing and a zero would have claimed a reading of zero.
     """
 
     @staticmethod

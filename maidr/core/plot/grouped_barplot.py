@@ -22,7 +22,7 @@ from maidr.util.mixin import (
 #: Key a patch uses to hand this layer the containers it drew, one per group,
 #: instead of letting it sweep the axes. A `seaborn.objects` bar needs it for
 #: a reason the classic path never has: `so.Bar(color=)` draws every level
-#: into *one* container, so the groups are synthesised from the bars' colours
+#: into *one* container, so the groups are synthesised from the bars' colors
 #: and are not on the axes to be found (#617).
 DRAWN_GROUPS = "_maidr_bar_groups"
 
@@ -141,7 +141,7 @@ def shares_a_category(rows: list[list[Rectangle | None]]) -> bool:
 
     Side by side is what a dodged chart is, so a layer in which every
     category holds one bar is not one: that is the hue that repeats the
-    category, which colours the bars a plain chart would have drawn anyway
+    category, which colors the bars a plain chart would have drawn anyway
     and splits them one per container, with every container the same
     length and short of the axis. A category missing from every hue level
     leaves the containers that same shape (#752), and this is what tells
@@ -198,7 +198,7 @@ def bars_by_category(
     category no bar of a container is nearest to is that container's gap.
     Read off the rectangles rather than the caller's arguments for the
     reason :meth:`~maidr.util.mixin.BarPositionMixin._bar_position` gives:
-    the arguments are not available here, and the drawn centre is what the
+    the arguments are not available here, and the drawn center is what the
     value became.
 
     Parameters
@@ -209,7 +209,7 @@ def bars_by_category(
         Where each category's tick sits on the label axis, in the order
         the labels are announced.
     horizontal : bool
-        Whether the bars grow along x, so their centres are read on y.
+        Whether the bars grow along x, so their centers are read on y.
 
     Returns
     -------
@@ -228,10 +228,10 @@ def bars_by_category(
         row: list[Rectangle | None] = [None] * len(positions)
         for patch in container.patches:
             if horizontal:
-                centre = patch.get_y() + patch.get_height() / 2
+                center = patch.get_y() + patch.get_height() / 2
             else:
-                centre = patch.get_x() + patch.get_width() / 2
-            distances = [abs(position - centre) for position in positions]
+                center = patch.get_x() + patch.get_width() / 2
+            distances = [abs(position - center) for position in positions]
             # The nearest tick; on a tie the lower index wins, `index` being
             # the first match.
             slot = distances.index(min(distances))
@@ -412,7 +412,7 @@ class GroupedBarPlot(
         ``ax.get_legend()``, which is what this read before. The two answer
         the same question -- which legend names this axes' groups -- and the
         wider answer also reads a lone *figure* legend, which is where
-        ``so.Plot`` puts the only legend a colour-split bar has (#617).
+        ``so.Plot`` puts the only legend a color-split bar has (#617).
         """
         legend = legend_of(self.ax)
         if legend is None:
@@ -430,7 +430,7 @@ class GroupedBarPlot(
         right for the classic spelling -- ``seaborn.barplot(hue=)`` draws one
         container per level and nothing else onto that axes. It cannot serve
         a ``seaborn.objects`` bar, whose levels arrive in a single container
-        and are split by colour after the fact (#617): the sweep would find
+        and are split by color after the fact (#617): the sweep would find
         the one undivided container and read every level as one group.
 
         The same shape :meth:`maidr.core.plot.barplot.BarPlot._own_containers`
@@ -504,7 +504,7 @@ class GroupedBarPlot(
                 # that way: matplotlib draws a rectangle for a NaN height, and
                 # `ax.bar(..., bottom=a)` over data with a gap emitted it as a
                 # bare `NaN` token that `JSON.parse` refuses, so the whole
-                # figure stopped initialising (#427, #696).
+                # figure stopped initializing (#427, #696).
                 #
                 # A bar seaborn never drew -- the `NaN` cell it dropped before
                 # drawing (#752) -- is the same gap: `None`, which the core
@@ -655,7 +655,7 @@ class GroupedBarPlot(
         -----
         Read through :func:`~maidr.util.legend_names.legend_of`, so a lone
         figure legend counts -- ``so.Plot`` puts the only legend a
-        colour-split bar has there, and ``ax.get_legend()`` is ``None`` (#617).
+        color-split bar has there, and ``ax.get_legend()`` is ``None`` (#617).
         """
         legend = legend_of(self.ax)
         if legend is None:

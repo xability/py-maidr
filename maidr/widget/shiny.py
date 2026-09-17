@@ -339,7 +339,7 @@ class render_maidr(Renderer[Any]):
         Lock contention eats into that same pool rather than sitting
         outside it. This function no longer takes a lock itself -- since
         #532 it is :meth:`maidr.core.maidr.Maidr._create_html_tag`, one
-        call down through :func:`maidr.render`, that serialises renders of
+        call down through :func:`maidr.render`, that serializes renders of
         one figure -- but it waits on that lock *inside* its executor
         thread, still holding the slot. Enough sessions rendering one
         shared module-level figure could therefore make unrelated figures

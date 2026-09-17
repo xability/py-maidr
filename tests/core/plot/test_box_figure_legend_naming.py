@@ -21,13 +21,13 @@ boxenplot    on the figure   **absent**             ``"a"``  ``"a"``  ...
 
 So the two halves fail differently, and the boxen half is the worse one.
 
-``BoxPlot`` names each box by matching its drawn colour against a swatch,
+``BoxPlot`` names each box by matching its drawn color against a swatch,
 through :func:`~maidr.util.legend_names.names_for`, which already reads the
 chosen legend -- so only the *variable*'s name was dropped. A reader was
 told which side of a grouping each box was on and never told what the
 grouping was.
 
-``BoxenPlot`` cannot match on colour: a ladder is many boxes shading from
+``BoxenPlot`` cannot match on color: a ladder is many boxes shading from
 dark to light, so its level comes from its rank in the dodge lattice looked
 up in the legend's own list of names. With no axes legend that list was
 empty, and **every ladder in a category was announced identically** -- two
@@ -76,11 +76,11 @@ def _moved_to_the_figure(draw, title: str = "g") -> plt.Figure:
 
     The swatches are the *drawn* ones. That is what makes this the real case
     rather than a stand-in: a grid's ``add_legend()`` gathers the panels' own
-    handles, so the colour match that names a box still holds and only the
+    handles, so the color match that names a box still holds and only the
     legend's owner has changed. Handing it fresh patches instead would break
     the match for a reason that has nothing to do with where the legend is --
     seaborn desaturates a box's face, so a stand-in swatch in the palette
-    colour names nothing.
+    color names nothing.
     """
     figure, ax = plt.subplots()
     draw(ax)
@@ -193,7 +193,7 @@ def test_a_chart_with_no_legend_names_nothing_rather_than_something(draw, catego
 @pytest.mark.parametrize("draw", [_box, _boxen], ids=["box", "boxen"])
 def test_two_figure_legends_name_nothing_rather_than_one_of_them(draw):
     # Also `legend_of`'s: two figure legends cannot say which names this
-    # axes' colours, and a confident wrong name is worse than none. Asserted
+    # axes' colors, and a confident wrong name is worse than none. Asserted
     # for both classes because both now route through it.
     figure, ax = plt.subplots()
     draw(ax)

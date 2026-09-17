@@ -5,7 +5,7 @@ it — so emitting one leaves the layer with more entries than the selector
 resolves to ``<use>`` elements. Every point after it is then highlighted at its
 neighbour's marker, and the last has none left.
 
-That is the failure worth prioritising over a crash: a reader is shown a mark
+That is the failure worth prioritizing over a crash: a reader is shown a mark
 that does not correspond to the value being announced, and nothing in the
 output says so.
 

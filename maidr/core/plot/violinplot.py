@@ -326,7 +326,7 @@ class ViolinPositionExtractor:
                     else:
                         positions.append(child.get_y() + h / 2)
 
-        # Fallback: PolyCollection / PathPatch centres.
+        # Fallback: PolyCollection / PathPatch centers.
         if not positions:
             for child in ax.get_children():
                 if isinstance(child, (PolyCollection, PathPatch)):

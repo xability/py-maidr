@@ -20,7 +20,7 @@ pin.
 The split alone is not enough. Several ``hist`` layers over one axis with
 nothing to tell them apart is the position ``MaidrLayer.name`` was added for
 (xability/maidr#828), so each is named from the legend swatch drawn in its
-own colour -- the match ``scatterplot.hue_groups`` already makes point by
+own color -- the match ``scatterplot.hue_groups`` already makes point by
 point, one level up.
 """
 
@@ -112,7 +112,7 @@ def test_a_filled_outline_is_named_the_way_the_bars_are(element: str):
     one axis with no way to tell them apart, which is the position
     ``MaidrLayer.name`` exists to fix.
 
-    Named from the outline's *face* colour: seaborn draws face and edge in
+    Named from the outline's *face* color: seaborn draws face and edge in
     the same hue and the legend swatch carries the face's translucency, so
     the face matches a swatch outright.
     """
@@ -127,8 +127,8 @@ def test_a_filled_outline_is_named_the_way_the_bars_are(element: str):
     ]
 
 
-def test_an_outline_drawn_with_one_edge_colour_is_still_named():
-    """`edgecolor=` colours every group's edge alike; the face is untouched.
+def test_an_outline_drawn_with_one_edge_color_is_still_named():
+    """`edgecolor=` colors every group's edge alike; the face is untouched.
 
     The reason the name comes off the face. By default the edge carries the
     hue as well and either would do, so nothing in the ordinary chart
@@ -138,7 +138,7 @@ def test_an_outline_drawn_with_one_edge_colour_is_still_named():
         element="step", edgecolor="black"  edges (0, 0, 0) / (0, 0, 0)
 
     An edge-based match names the second chart `[None, None]`, because two
-    groups drawn one colour cannot be told apart by it.
+    groups drawn one color cannot be told apart by it.
     """
     frame = _frame(["x", "y"])
     fig, ax = plt.subplots()
@@ -160,7 +160,7 @@ def test_a_filled_outline_with_no_hue_stays_unnamed(element: str):
 
 
 def test_a_filled_outline_reads_the_same_on_its_side():
-    # The name comes from the colour and the orientation from the geometry,
+    # The name comes from the color and the orientation from the geometry,
     # so turning the chart moves one and not the other.
     frame = _frame(["x", "y"])
     fig, ax = plt.subplots()
@@ -202,7 +202,7 @@ def test_every_layout_splits(multiple):
     assert len(_layers(fig)) == 2
 
 
-def test_a_name_is_matched_by_colour_rather_than_by_position():
+def test_a_name_is_matched_by_color_rather_than_by_position():
     # The trap, measured rather than guarded against in the abstract: on this
     # chart seaborn draws the groups x then y and lists them y then x. So
     # zipping the containers with the legend's entries -- the obvious cheap
@@ -212,11 +212,11 @@ def test_a_name_is_matched_by_colour_rather_than_by_position():
     # Worth being exact about what these cases do and do not show. Measured on
     # seaborn 0.13.2 the legend is the *exact reverse* of the draw order, for
     # two groups and for three, so a positional rule that read the legend
-    # backwards would agree with the colour match on every chart here. The
-    # colour match is still what is implemented, because it does not rest on
+    # backwards would agree with the color match on every chart here. The
+    # color match is still what is implemented, because it does not rest on
     # that reversal holding -- it is nothing seaborn documents -- and because
     # it declines rather than mislabels when a legend carries entries that are
-    # not group swatches, which `_named_colours` was written for.
+    # not group swatches, which `_named_colors` was written for.
     frame = _frame(["x", "y"])
     fig, ax = plt.subplots()
     sns.histplot(data=frame, x="a", hue="g", bins=5, ax=ax)
@@ -235,13 +235,13 @@ def test_a_name_is_matched_by_colour_rather_than_by_position():
 
 def test_a_single_level_hue_is_one_unnamed_layer():
     # A `hue` whose column holds one value: seaborn draws a single container
-    # and still builds a legend naming its colour, which is the one case that
+    # and still builds a legend naming its color, which is the one case that
     # reaches the guard. Naming the layer would be *accurate* and still wrong
     # to say -- a name on the only layer of a chart reads as though there were
     # another to tell it from.
     #
     # `label=` plus a later `ax.legend()` does not reach it, measured: the
-    # legend does not exist yet when the layer registers, so the colour match
+    # legend does not exist yet when the layer registers, so the color match
     # declines a step earlier for a different reason.
     frame = _frame(["x", "y"])
     fig, ax = plt.subplots()
@@ -264,7 +264,7 @@ def test_an_ungrouped_histogram_is_one_unnamed_layer():
 
 
 def test_a_suppressed_legend_still_reads_every_group():
-    # `legend=False` takes away the only thing that names the colours. The
+    # `legend=False` takes away the only thing that names the colors. The
     # groups are still there and still drawn, so they are still read -- just
     # unnamed, which is the honest answer rather than inventing labels.
     frame = _frame(["x", "y"])

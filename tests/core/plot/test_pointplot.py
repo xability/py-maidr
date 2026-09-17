@@ -273,7 +273,7 @@ def test_a_symmetric_interval_does_not_flip_the_orientation():
     ``errorbar='sd'`` draws bounds equidistant from the estimate.
 
     That symmetry defeats any rule that looks for the estimate sitting at the
-    centre of its interval, because it then sits at the centre along *both*
+    center of its interval, because it then sits at the center along *both*
     axes. The signals actually used are unaffected by it, and this is what
     holds them to that.
     """
@@ -335,7 +335,7 @@ def test_a_hue_keeps_its_intervals_as_a_grouped_error_bar():
             assert point["yMin"] <= point["y"] <= point["yMax"]
 
     # The grouping variable is named, so the reader hears "half" rather than
-    # an unlabelled third axis.
+    # an unlabeled third axis.
     assert schema["axes"]["z"]["label"] == "half"
 
 
@@ -373,7 +373,7 @@ def test_a_legend_that_does_not_name_every_group_names_none():
     Naming only the groups the legend covers would leave the layer
     declaring an ``axes.z`` while some of its series carried no ``z`` --
     a shape the consumer has no reading for. The clean fallback is an
-    unlabelled grouped chart, which is what the old ``line`` path gave.
+    unlabeled grouped chart, which is what the old ``line`` path gave.
 
     Driven through the guards directly rather than through a contrived
     seaborn state. A legend short at *registration* time is the case this
@@ -388,7 +388,7 @@ def test_a_legend_that_does_not_name_every_group_names_none():
     sns.pointplot(frame, x="group", y="value", hue="half", dodge=True, ax=ax)
 
     # The reader: one name per drawn group, or nothing. The stand-ins carry
-    # the drawn colours because the naming is settled by colour rather than
+    # the drawn colors because the naming is settled by color rather than
     # by position (#502); the guard under test is the count.
     handles = ax.get_legend().legend_handles
     estimates = [Line2D([], [], color=handle.get_color()) for handle in handles]
@@ -517,7 +517,7 @@ def test_a_group_name_lands_on_that_group_s_own_values():
     """The one assumption in the naming that geometry can be made to check.
 
     Group names come from the legend, and which name goes on which series is
-    settled by colour rather than by position (#502) -- so a legend listed
+    settled by color rather than by position (#502) -- so a legend listed
     out of draw order names the groups correctly anyway. This is the
     end-to-end half of that: the names have to come out on the right values
     through the whole emit path, not just out of ``_group_labels``.
@@ -566,8 +566,8 @@ def test_a_reordered_legend_still_names_each_group():
     every name on the wrong series -- estimates and bounds all correct, and
     nothing to indicate the swap (#502).
 
-    The hue mapping that names a group is the same one that colours it, so
-    the pairing is made on colour. This stages the divergence the API does
+    The hue mapping that names a group is the same one that colors it, so
+    the pairing is made on color. This stages the divergence the API does
     not forbid: the legend is turned round, entries intact, and the answer
     has to stay with the values.
     """
@@ -601,10 +601,10 @@ def test_a_reordered_legend_still_names_each_group():
     plt.close(fig)
 
 
-def test_groups_sharing_a_colour_fall_back_to_legend_order():
-    """Colour cannot settle a naming it cannot tell apart.
+def test_groups_sharing_a_color_fall_back_to_legend_order():
+    """Color cannot settle a naming it cannot tell apart.
 
-    A monochrome palette draws every group in one colour, so there is no
+    A monochrome palette draws every group in one color, so there is no
     mapping to derive and legend order is all there is -- which is what this
     read before, and no worse for the case it cannot improve.
     """
@@ -631,11 +631,11 @@ def test_groups_sharing_a_colour_fall_back_to_legend_order():
     plt.close(fig)
 
 
-def test_an_estimate_matching_no_legend_colour_falls_back_to_order():
-    """A colour the legend does not carry decides nothing.
+def test_an_estimate_matching_no_legend_color_falls_back_to_order():
+    """A color the legend does not carry decides nothing.
 
     Rather than pair the groups it can and guess the rest -- which would put
-    a name on a series from a different reading -- the colour mapping steps
+    a name on a series from a different reading -- the color mapping steps
     aside whole and legend order answers, as it did before.
     """
     frame = FRAME.assign(half=["x", "y"] * 9)
@@ -727,7 +727,7 @@ def test_an_earlier_chart_on_the_same_axes_is_left_alone():
     assert len(plots[1].render()["data"]) == 3
 
 
-def test_an_unrecognised_rendering_falls_back_to_describing_the_lines():
+def test_an_unrecognized_rendering_falls_back_to_describing_the_lines():
     """
     The split between estimates and intervals is verified, not assumed.
 
@@ -795,7 +795,7 @@ def test_a_group_of_one_carries_no_interval():
     assert [point["y"] for point in schema["data"][0]] == [1.0, 2.0, 3.0]
 
 
-def test_nothing_recognisable_still_describes_the_lines():
+def test_nothing_recognizable_still_describes_the_lines():
     """
     The one path that used to register no layer at all.
 
@@ -825,7 +825,7 @@ def test_a_horizontal_dodge_names_its_groups():
     offsets and no way to reach the names.
 
     The names moved from ``y`` to ``x`` when this chart stopped falling back
-    to ``line`` (#462), and that is a change of key rather than of behaviour:
+    to ``line`` (#462), and that is a change of key rather than of behavior:
     an error bar layer carries the category as ``x`` in **both** orientations
     and lets ``orientation`` say which is on screen where -- the convention
     ``ErrorBarPlot`` documents and the single-series path has always used.
@@ -1027,7 +1027,7 @@ def test_a_hue_level_missing_a_category_does_not_break_the_pairing():
     # consumer names rather than reading out -- not as cap geometry.
     #
     # `None` rather than `NaN` since #429: a bare `NaN` is not JSON, so it
-    # stopped the chart initialising at all, and the core has read `null` as
+    # stopped the chart initializing at all, and the core has read `null` as
     # "positioned, no reading" since maidr 4.3.0 (xability/maidr#926). What
     # this case is really pinning is unchanged -- the padding survives, so
     # both estimate lines keep one vertex per category.

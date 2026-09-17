@@ -120,7 +120,7 @@ class PlotlyHierarchyPlot(PlotlyPlot):
     def _extract_plot_data(self) -> list[dict]:
         """One point per node, in the trace's own order.
 
-        ``ids`` is honoured where the author gives it: plotly then reads
+        ``ids`` is honored where the author gives it: plotly then reads
         ``parents`` as *ids* rather than as labels, which is how a tree with
         two nodes of the same name is written at all. The path is resolved
         through those ids and then spelled in labels, because

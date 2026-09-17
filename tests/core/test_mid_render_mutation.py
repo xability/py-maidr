@@ -156,7 +156,7 @@ def test_the_census_is_not_confused_by_a_second_render_of_the_same_figure():
 
     The census is taken fresh inside each render rather than stored on the
     instance, so nothing carries over. Worth pinning because storing it
-    would be the obvious optimisation and would break exactly this.
+    would be the obvious optimization and would break exactly this.
     """
     fig, ax = plt.subplots()
     ax.bar(["a", "b"], [1, 2])
@@ -177,7 +177,7 @@ def test_the_census_is_not_confused_by_a_second_render_of_the_same_figure():
         pytest.param(
             lambda ax: ax.text(0, 0, "note"), "an annotation", id="annotation"
         ),
-        # Just the legend: the labelled line is drawn before the render,
+        # Just the legend: the labeled line is drawn before the render,
         # so `len(ax.lines)` does not move and only the legend dimension
         # can catch this. An earlier version of this case plotted the line
         # here too, and passed with that dimension deleted.
@@ -204,7 +204,7 @@ def test_each_census_dimension_is_load_bearing(monkeypatch, mutate, what):
 
     A dimension nothing exercises is a dimension that can be dropped in a
     refactor without a test noticing -- which is how ``get_title()``
-    reading only the centre title stayed invisible until review of #541.
+    reading only the center title stayed invisible until review of #541.
     """
     from maidr.core.maidr import Maidr
 
@@ -420,7 +420,7 @@ def test_collisions_are_reported_while_another_thread_is_plotting():
 
     A healthy run is ~2s, and it holds the window for one second, so a
     much longer run means the warn is blocked on the lock rather than
-    passing through it -- which is the behaviour, not a hang.
+    passing through it -- which is the behavior, not a hang.
     """
     import subprocess
     import sys

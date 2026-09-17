@@ -2,7 +2,7 @@
 
 ``px.scatter(..., trendline="ols")`` appends a second ``scatter`` trace
 carrying the fit. Nothing structural separates it from a line the user drew:
-same ``type``, same ``mode``, no ``name``, the scatter's own marker colour. So
+same ``type``, same ``mode``, no ``name``, the scatter's own marker color. So
 it was merged into the multi-line layer and read as data, and a blind reader
 was told a model's prediction was a measurement -- the remaining sub-item of
 #343, after the candlestick and violin halves.
@@ -16,7 +16,7 @@ plotly path existed.
 
 The four selectors this emits were resolved against real Plotly.js output in
 Chromium: 4 of 4 matched exactly one element, across a lone trendline and a
-pair fitted per colour group.
+pair fitted per color group.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ def trendline_of(fig) -> dict:
     return found[0]
 
 
-class TestEveryTrendlineModeIsRecognised:
+class TestEveryTrendlineModeIsRecognized:
     @pytest.mark.parametrize(
         ("kind", "options"),
         [
@@ -93,7 +93,7 @@ class TestEveryTrendlineModeIsRecognised:
 
 
 class TestOneLayerHoldsEveryFit:
-    def test_a_fit_per_colour_group_shares_a_layer(self):
+    def test_a_fit_per_color_group_shares_a_layer(self):
         # `color=` fits one trend per group. They are the same kind of thing
         # and are navigated together, exactly as the multi-line layer holds
         # the series they were fitted to.

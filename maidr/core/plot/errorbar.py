@@ -74,7 +74,7 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
         The axes the error bars were drawn on.
     **kwargs
         ``container`` is the ``ErrorbarContainer`` the patched call returned;
-        ``x`` and ``y`` are the centre coordinates the caller passed, used
+        ``x`` and ``y`` are the center coordinates the caller passed, used
         only when the container carries no data line.
 
     See Also
@@ -128,7 +128,7 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
 
         # A callable is resolved here rather than at registration, which is
         # what an `lmplot` needs: `FacetGrid.add_legend()` runs after every
-        # panel is drawn, so the legend that names the colours does not exist
+        # panel is drawn, so the legend that names the colors does not exist
         # when the layer registers (#561, #612).
         name = self._group_name() if callable(self._group_name) else self._group_name
         if name:
@@ -243,7 +243,7 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
         self, container: ErrorbarContainer
     ) -> tuple[Sequence, Sequence] | None:
         """
-        Return the estimate coordinates the bars are centred on.
+        Return the estimate coordinates the bars are centered on.
 
         Parameters
         ----------
@@ -262,8 +262,8 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
             return x_data, y_data
 
         # `fmt="none"` draws the intervals without the estimate markers, so
-        # the container has no data line to read. The centres are genuinely
-        # unrecoverable from the geometry -- an asymmetric bar is not centred
+        # the container has no data line to read. The centers are genuinely
+        # unrecoverable from the geometry -- an asymmetric bar is not centered
         # on its own midpoint -- so they come from the arguments the caller
         # passed, which the patch kept for exactly this case.
         if self._fallback_x is None or self._fallback_y is None:
@@ -373,7 +373,7 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
     @staticmethod
     def _scalar(value: Any) -> Any:
         """
-        Convert one coordinate to a JSON-serialisable scalar.
+        Convert one coordinate to a JSON-serializable scalar.
 
         Parameters
         ----------

@@ -13,7 +13,7 @@ its own. Two things followed, and the second is the one a user notices:
   produced nothing at all (#369).
 
 Not specific to heatmaps: the fault is in what the colorbar's own draw
-registers, so every plot type that wants a colour scale was affected.
+registers, so every plot type that wants a color scale was affected.
 
 Hidden this long because ``sns.heatmap()`` creates its colorbar *inside* the
 patched call, where the recursion guard already suppressed it, and every
@@ -52,7 +52,7 @@ def _layers(fig) -> list:
 
 
 def _mappables():
-    """One chart per plot type that carries a colour scale."""
+    """One chart per plot type that carries a color scale."""
     rng = np.random.default_rng(20260814)
 
     def mesh(ax):

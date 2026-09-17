@@ -13,12 +13,12 @@ one in front of it:
 The first went wrong the way #427 did: ``json.dumps`` writes ``NaN`` as a bare
 token, legal JavaScript and invalid JSON, and the core parses the SVG's
 ``maidr`` attribute with ``JSON.parse``, so one cell stopped the chart
-initialising at all. The second was worse for being quiet -- the extractor
+initializing at all. The second was worse for being quiet -- the extractor
 read ``.data``, the buffer *under* the mask, so the six blank cells of a
 3 x 3 correlation were announced with the numbers the caller had hidden and
 nothing raised.
 
-``None`` serialises to ``null``, which ``HeatmapData.points`` is typed to
+``None`` serializes to ``null``, which ``HeatmapData.points`` is typed to
 carry and the core reads as a gap, the way it already does for a bar
 (``barplot._magnitude``) and a hexbin (``hexbinplot._count``).
 
@@ -205,7 +205,7 @@ class TestAMaskedCell:
         assert points[1][0] == float(format(grid[1][0], ""))
         _parses_as_strict_json(fig)
 
-    def test_a_masked_integer_grid_still_serialises(self):
+    def test_a_masked_integer_grid_still_serializes(self):
         # Pinned because it can break: a NaN needs a float to sit in, and
         # `ma.filled` refuses to write one into an integer grid.
         fig, ax = plt.subplots()

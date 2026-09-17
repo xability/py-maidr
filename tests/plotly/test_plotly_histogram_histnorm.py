@@ -3,7 +3,7 @@ counts (#404).
 
 `histnorm` decides what a bar *measures*. `_extract_plot_data` called
 `np.histogram`, which returns counts, and never read the attribute -- so a
-`px.histogram(histnorm="percent")` layer carried an axis labelled **percent**
+`px.histogram(histnorm="percent")` layer carried an axis labeled **percent**
 and a first value of **2**, where plotly draws **3.33**.
 
 The label was right: it comes from `layout`, which plotly express fills in
@@ -76,7 +76,7 @@ class TestApplyHistnorm:
             ("probability", [0.2, 0.3, 0.5]),
             ("density", [4.0, 6.0, 10.0]),
             ("probability density", [0.4, 0.6, 1.0]),
-            # Plotly leaves an attribute it does not recognise alone rather
+            # Plotly leaves an attribute it does not recognize alone rather
             # than erroring, and a layer that quietly rescaled by some other
             # rule would be worse than one that did not rescale at all.
             ("nonsense", [2.0, 3.0, 5.0]),

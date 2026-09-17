@@ -389,7 +389,7 @@ class TestPartialDecodeFailure:
         with caplog.at_level(logging.WARNING, logger="maidr.plotly.box"):
             plot._extract_plot_data()
 
-        assert "no samples to summarise" in caplog.text
+        assert "no samples to summarize" in caplog.text
         assert "north" in caplog.text
 
     def test_a_readable_box_beside_an_unreadable_one_survives(self):

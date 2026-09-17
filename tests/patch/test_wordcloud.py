@@ -3,7 +3,7 @@
 Before this, a figure holding only a cloud registered no layer at all and
 ``FigureManager.get_maidr`` raised ``UnsupportedPlotError``. The cloud
 reaches MAIDR through ``Axes.imshow``, the same entry point a heatmap does,
-but it is not one -- it rasterises to an ``(M, N, 3)`` colour array, and
+but it is not one -- it rasterises to an ``(M, N, 3)`` color array, and
 ``maidr.patch.heatmap`` declines exactly that shape (#564).
 
 So the cloud was unread rather than misread, and the reading is additive.
@@ -24,7 +24,7 @@ from maidr.core.plot.wordcloudplot import TERM_LABEL, WEIGHT_LABEL
 
 wordcloud = pytest.importorskip("wordcloud")
 
-#: Counts whose ratios are distinctive enough to recognise after normalising.
+#: Counts whose ratios are distinctive enough to recognize after normalizing.
 #:
 #: Deliberately **not** written heaviest-first. ``words_`` re-sorts by weight,
 #: and a fixture that arrived already sorted could not tell that apart from a
@@ -76,7 +76,7 @@ def test_each_term_is_paired_with_its_weight():
     # And the fixture is not already in that order, so the assertion above is
     # about `words_` re-sorting rather than about a dict keeping its keys.
     assert list(COUNTS) != BY_WEIGHT
-    # Normalised by the largest count, so the heaviest term is exactly 1.0.
+    # Normalized by the largest count, so the heaviest term is exactly 1.0.
     assert data[0][MaidrKey.Y] == pytest.approx(1.0)
     assert data[1][MaidrKey.Y] == pytest.approx(300 / 412)
 
@@ -159,7 +159,7 @@ def test_a_real_heatmap_is_still_a_heatmap():
 
 def test_a_photograph_is_still_declined():
     # An `(M, N, 3)` array is a picture with no value per cell (#564), and
-    # recognising clouds must not have made it readable.
+    # recognizing clouds must not have made it readable.
     from maidr.exception import UnsupportedPlotError
 
     fig, ax = plt.subplots()
@@ -169,7 +169,7 @@ def test_a_photograph_is_still_declined():
         FigureManager.get_maidr(fig)
 
 
-def test_an_array_from_the_cloud_is_not_recognised():
+def test_an_array_from_the_cloud_is_not_recognized():
     # `wc.to_array()` hands `imshow` a plain RGB array and the terms are not
     # in it. There is nothing to read, and claiming otherwise would announce
     # a chart whose data was never passed.
@@ -199,13 +199,13 @@ def test_a_layer_built_without_a_cloud_raises_rather_than_emits():
 def test_a_facet_grid_label_names_the_terms():
     # One cloud per group carries its label on the shared outer axes rather
     # than on its own, so asking only `self.ax` would fall through to the
-    # generic name for a figure that was labelled -- the same fallback
+    # generic name for a figure that was labeled -- the same fallback
     # `PiePlot` uses.
     fig, axs = plt.subplots(2, 1, sharex=True)
     for ax in axs:
         ax.imshow(cloud())
     axs[-1].set_xlabel("Keyword")
 
-    labelled = layers(fig)[0][MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL]
+    labeled = layers(fig)[0][MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL]
 
-    assert labelled == "Keyword"
+    assert labeled == "Keyword"

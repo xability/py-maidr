@@ -6,7 +6,7 @@ cannot tell whether the core accepts the schema -- which is the whole
 question here, because the core is where the cost lands: ``Subplot``'s
 constructor reads ``subplot.layers.length`` unguarded, so one bare
 position throws during figure construction and *no* part of the chart
-initialises.
+initializes.
 
 The failure is silent in the way that matters most. The SVG draws, the
 page looks finished, and pressing the key that should start navigation
@@ -22,7 +22,7 @@ import pytest
 pytestmark = pytest.mark.browser
 
 #: Built only once the core has finished constructing the figure, so its
-#: presence is the initialisation this test is about. Chosen over a node
+#: presence is the initialization this test is about. Chosen over a node
 #: count, which moves whenever the UI gains a wrapper.
 _RUNTIME_UI = "#maidr-text-container"
 

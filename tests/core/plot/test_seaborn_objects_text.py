@@ -65,12 +65,12 @@ def _only(plot) -> dict:
     return schemas[0]
 
 
-def _labelled(**kwargs):
+def _labeled(**kwargs):
     return so.Plot(_frame(), x="x", y="y", text="name", **kwargs).add(so.Text())
 
 
 def test_a_text_mark_is_read_rather_than_registering_nothing():
-    schema = _only(_labelled())
+    schema = _only(_labeled())
 
     assert schema[MaidrKey.TYPE] is PlotType.SCATTER
     assert len(schema[MaidrKey.DATA]) == 12
@@ -82,14 +82,14 @@ def test_the_label_is_the_payload_and_not_a_decoration():
     drawn to show. `ScatterPoint.label` is the field xability/maidr#1106
     added for exactly this."""
     frame = _frame()
-    points = _only(_labelled())[MaidrKey.DATA]
+    points = _only(_labeled())[MaidrKey.DATA]
 
     assert {point[MaidrKey.LABEL] for point in points} == set(frame["name"])
 
 
 def test_each_label_is_read_where_it_was_written():
     frame = _frame()
-    points = _only(_labelled())[MaidrKey.DATA]
+    points = _only(_labeled())[MaidrKey.DATA]
 
     written = {
         (float(x), round(float(y), 6)): name
@@ -105,7 +105,7 @@ def test_a_selector_resolves_to_the_element_the_label_was_written_as():
     element to name — and the gid has to be assigned before the SVG is, since
     matplotlib stamps one at draw time and the schema is built first."""
     figure = plt.figure()
-    _labelled().on(figure).plot()
+    _labeled().on(figure).plot()
     selectors = FigureManager.get_maidr(figure).plots[0].schema[MaidrKey.SELECTOR]
 
     html = maidr.render(figure)._repr_html_()
@@ -187,7 +187,7 @@ def test_a_blank_label_among_written_ones_is_dropped():
 def test_a_label_written_at_no_coordinate_is_dropped():
     """`json.dumps` writes `NaN` as a bare token, which `JSON.parse` rejects.
 
-    One of them stops the chart initialising at all (#427), so the label is
+    One of them stops the chart initializing at all (#427), so the label is
     dropped rather than announced -- and a point with no position has
     nothing left to say, unlike a bar that keeps its category.
 

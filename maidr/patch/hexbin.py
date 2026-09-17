@@ -17,20 +17,20 @@ def _fill_label(wrapped, args: tuple, kwargs: dict) -> str:
 
     Usually it is the count of points that fell in the bin, and usually saying
     so is the whole of it. Two of ``hexbin``'s own arguments change what the
-    colour means, and neither changes anything else a reader could notice:
+    color means, and neither changes anything else a reader could notice:
 
     * ``C`` replaces the count with ``reduce_C_function`` applied to the values
       given for the points in the bin -- a mean by default, which is not a
       count and is routinely not even an integer.
     * ``bins``, given as a number or a sequence of edges, discretises the
-      counts and colours each bin by *which* interval its count landed in.
+      counts and colors each bin by *which* interval its count landed in.
       ``get_array()`` then holds an interval index. A three-point bin and a
       nine-point bin can both read 1.
 
     Announcing either as "count" would be wrong in the way that is hardest to
     catch: the number is plausible, the chart is otherwise sound, and nothing
     contradicts it. ``bins="log"`` is not one of these -- it only installs a
-    log norm for the colouring and leaves the array as raw counts.
+    log norm for the coloring and leaves the array as raw counts.
 
     Parameters
     ----------
@@ -71,10 +71,10 @@ def _is_readable(wrapped, args, kwargs, collection: Collection) -> bool:
 
     **A log axis.** ``hexbin`` takes its own ``xscale``/``yscale``, and bins in
     the transformed space. On matplotlib 3.10 the offsets come back in that
-    space too, so a bin centred at x = 3.4 would be announced as ``0.53``:
+    space too, so a bin centered at x = 3.4 would be announced as ``0.53``:
     right structure, right counts, wrong coordinates, and nothing in the
     output to contradict them. On 3.9 the same call returns one path per
-    hexagon and a single placeholder offset, so the centres are not in
+    hexagon and a single placeholder offset, so the centers are not in
     ``get_offsets()`` at all.
 
     Un-transforming the 3.10 case would be an assumption about matplotlib's
@@ -143,7 +143,7 @@ def hexbin(wrapped, _, args, kwargs) -> Collection:
         Whatever the wrapped function returned, unchanged.
     """
     # Lifted before the recursion guard, not after. `hexbin` forwards what it
-    # does not recognise to the collection, so a `z_label` still in `kwargs`
+    # does not recognize to the collection, so a `z_label` still in `kwargs`
     # on the internal-context path would reach matplotlib and raise from
     # somewhere the caller cannot connect back to MAIDR. There is no live path
     # that reaches this in an internal context today; popping first costs

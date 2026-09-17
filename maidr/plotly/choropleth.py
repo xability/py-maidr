@@ -61,7 +61,7 @@ class PlotlyChoroplethPlot(PlotlyPlot):
 
         A choropleth draws no cartesian axes, so ``layout.xaxis`` holds
         neither name -- reading it would take another trace's titles. The
-        colour bar's title is the one thing the author may have written about
+        color bar's title is the one thing the author may have written about
         the *value*, and it is exactly what it means, so it is used when it
         is there.
         """

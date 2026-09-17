@@ -19,7 +19,7 @@ from maidr.util.mixin import (
 )
 
 
-def _box_centre(box, horizontal: bool) -> float | None:
+def _box_center(box, horizontal: bool) -> float | None:
     """
     Where on the category axis a box sits.
 
@@ -62,12 +62,12 @@ def _box_centre(box, horizontal: bool) -> float | None:
     return float((along.min() + along.max()) / 2)
 
 
-def _box_colour(box):
+def _box_color(box):
     """
-    The one colour a box was drawn in, if it has one.
+    The one color a box was drawn in, if it has one.
 
     Its face where it is filled and its edge otherwise, which is the same
-    order :func:`maidr.core.plot.scatterplot._handle_colour` asks a legend
+    order :func:`maidr.core.plot.scatterplot._handle_color` asks a legend
     handle in -- a filled box carries the hue on its face, and an unfilled
     one has only its outline to carry it.
 
@@ -79,15 +79,15 @@ def _box_colour(box):
     Returns
     -------
     tuple of float or None
-        The rounded RGBA, or ``None`` when the artist names no single colour.
+        The rounded RGBA, or ``None`` when the artist names no single color.
     """
     for getter in ("get_facecolor", "get_edgecolor", "get_color"):
         read = getattr(box, getter, None)
         if read is None:
             continue
-        colour = _rgba(read())
-        if colour is not None:
-            return colour
+        color = _rgba(read())
+        if color is not None:
+            return color
     return None
 
 
@@ -441,7 +441,7 @@ class BoxPlot(
           so a box never lands nearer another category's tick. Measured on
           three categories and two levels, against a half-spacing of 0.5, the
           outermost box sits 0.267 from its own tick.
-        - **Which level.** The colour it was drawn in, matched against the
+        - **Which level.** The color it was drawn in, matched against the
           legend swatch that names it -- the same match the histogram and the
           strip plot make, and the reason it is not the dodge lattice
           :meth:`BoxenPlot._category_of` reads: a box carries its level on its
@@ -471,15 +471,15 @@ class BoxPlot(
         """
         positions = self.extract_level_positions(self.ax, key) or []
         ticks = list(zip(positions, labels)) if len(positions) == len(labels) else []
-        levels = names_for(self.ax, [_box_colour(box) for box in boxes])
+        levels = names_for(self.ax, [_box_color(box) for box in boxes])
         horizontal = self._orientation != "vert"
 
         named = []
         for box, level in zip(boxes, levels):
-            centre = _box_centre(box, horizontal)
+            center = _box_center(box, horizontal)
             label = ""
-            if ticks and centre is not None:
-                label = min(ticks, key=lambda tick: abs(tick[0] - centre))[1]
+            if ticks and center is not None:
+                label = min(ticks, key=lambda tick: abs(tick[0] - center))[1]
             if label and level:
                 named.append(f"{label}, {level}")
             else:

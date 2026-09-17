@@ -695,7 +695,7 @@ def test_a_record_naming_another_figure_is_refused_not_quietly_kept():
     Storing a ``Maidr`` that names a different figure used to succeed, set
     the attribute, and then read back as unregistered -- a write that did
     not stick, leaving a stray attribute behind. The dict this replaced
-    would have stored and returned it, so this is a behaviour change, and a
+    would have stored and returned it, so this is a behavior change, and a
     deliberate one: the alternative is a silent disagreement discovered at
     some later lookup rather than an error at the mistake.
     """

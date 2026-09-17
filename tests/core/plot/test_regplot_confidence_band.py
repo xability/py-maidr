@@ -127,7 +127,7 @@ class TestTheBandIsReadRatherThanGuessed:
     """
 
     def test_the_interval_narrows_where_the_data_is_dense(self):
-        # A confidence band on a linear fit is narrowest near the centre of x
+        # A confidence band on a linear fit is narrowest near the center of x
         # and widest at the ends. If the bounds were read off the wrong
         # vertices, or interpolated against a mismatched grid, that shape is
         # the first thing to go.

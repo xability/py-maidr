@@ -103,7 +103,7 @@ class TestEveryBoxIsAnnounced:
 
     def test_the_name_matches_the_box_it_is_on(self):
         # The category comes from the box's position and the level from its
-        # colour, so a chart that got either wrong would still pass the case
+        # color, so a chart that got either wrong would still pass the case
         # above. This pins the pairing.
         data = frame()
         figure, ax = plt.subplots()
@@ -146,7 +146,7 @@ class TestEveryBoxIsAnnounced:
         # And each row still names the box it is on. Reading the position off
         # x here finds the *values*, which all fall near one category tick --
         # so every box comes out named after that one category, with the
-        # medians above still all present and all mislabelled.
+        # medians above still all present and all mislabeled.
         for point in emitted:
             cat, grp = str(point["z"]).split(", ")
             rows = data.val[(data.cat == cat) & (data.grp == grp)]
@@ -262,11 +262,11 @@ class TestTheFigureLevelSpelling:
             LEVELS
         )
 
-    def test_a_call_whose_boxes_differ_in_colour_is_not_named(self):
+    def test_a_call_whose_boxes_differ_in_color_is_not_named(self):
         """A layer holding two levels is neither of them.
 
-        Nothing measured draws one -- `bxp` colours a call's boxes together,
-        and the two callers that reach `_level_of` each draw one colour per
+        Nothing measured draws one -- `bxp` colors a call's boxes together,
+        and the two callers that reach `_level_of` each draw one color per
         call -- so this is the guard rather than a live path, asserted
         directly because no chart can assert it.
         """
@@ -284,7 +284,7 @@ class TestTheFigureLevelSpelling:
         ]
 
         assert _level_of(ax, mixed) is None
-        # And one colour, on the same axes and legend, does resolve -- so the
+        # And one color, on the same axes and legend, does resolve -- so the
         # decline above is the mixture and not the setup.
         alone = [PathPatch(square, facecolor=mixed[0].get_facecolor())]
         assert callable(_level_of(ax, alone))

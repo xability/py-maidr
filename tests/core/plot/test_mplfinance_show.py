@@ -132,7 +132,7 @@ class TestItIsNotShownTwice:
         assert target.exists()
 
 
-class TestCloseFigIsHonoured:
+class TestCloseFigIsHonored:
     def test_closefig_closes_after_the_show_not_before(self, show_calls) -> None:
         mpf.plot(_prices(), type="candle", closefig=True)
 
@@ -231,7 +231,7 @@ class TestACallersLineLabelIsKept:
     An addplot line named by the caller keeps that name (#717).
 
     Every ``Line2D`` on the price axes went through the moving-average
-    relabelling, so ``label='Upper band'`` came out as ``'Upper band_MA1'``:
+    relabeling, so ``label='Upper band'`` came out as ``'Upper band_MA1'``:
     that was the series name in the schema and the entry in any later
     ``ax.legend()``, while mplfinance's own legend still read ``'Upper
     band'``. The period was already stored on the line for
@@ -257,8 +257,8 @@ class TestACallersLineLabelIsKept:
         assert "Upper band" in text
         assert "Upper band_MA" not in text
 
-    def test_an_unlabelled_moving_average_is_still_named(self) -> None:
-        # The other half of the relabelling is what the schema already calls
+    def test_an_unlabeled_moving_average_is_still_named(self) -> None:
+        # The other half of the relabeling is what the schema already calls
         # these series, and stays.
         fig, axlist = self._plot()
 

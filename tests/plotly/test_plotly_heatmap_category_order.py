@@ -260,9 +260,9 @@ class TestNumericLabels:
         ]
 
     def test_sorts_them_once_the_axis_is_declared_categorical(self) -> None:
-        # ``type: "category"`` is what makes plotly honour the array, and it
+        # ``type: "category"`` is what makes plotly honor the array, and it
         # is also what makes the labels comparable: ``_to_native`` floats an
-        # integer, so both sides have to normalise the same way.
+        # integer, so both sides have to normalize the same way.
         layout = {
             "xaxis": {
                 "type": "category",
@@ -277,7 +277,7 @@ class TestNumericLabels:
 
     def test_sorts_labels_named_nan_and_inf(self) -> None:
         # Python parses both, where the coercion plotly tests with does not.
-        # Measured: ['nan', 'inf', 'zeta'] gets a *category* axis and honours
+        # Measured: ['nan', 'inf', 'zeta'] gets a *category* axis and honors
         # its array, so reading them as numbers would decline a real sort.
         fig = go.Figure(go.Heatmap(x=["nan", "inf", "zeta"], y=["r1"], z=[[1, 2, 3]]))
         trace = fig.to_dict()["data"][0]
@@ -391,7 +391,7 @@ class TestDateLabels:
         ],
     )
     def test_sorts_labels_plotly_leaves_as_names(self, labels: list) -> None:
-        # These all stay category axes, so their array is honoured.
+        # These all stay category axes, so their array is honored.
         order = [labels[2], labels[0], labels[1]]
         layout = {"xaxis": {"categoryorder": "array", "categoryarray": order}}
 
@@ -516,7 +516,7 @@ class TestDeclines:
 
     def test_declines_an_array_that_repeats_an_entry(self) -> None:
         # Names every label the right number of times without being a
-        # permutation of them: 'alpha' twice, 'bravo' never. Honouring it
+        # permutation of them: 'alpha' twice, 'bravo' never. Honoring it
         # would emit one column's values twice and lose another's.
         layout = {
             "xaxis": {

@@ -48,7 +48,7 @@ def boxen(
     the plotter patch below. What it used to suppress -- the median drawn
     through ``Axes.plot`` and the fliers through ``Axes.scatter``, both of
     which MAIDR patches -- is drawn *inside* ``plot_boxens``, so it is inside
-    the context that patch sets. The colour probe seaborn runs before it draws
+    the context that patch sets. The color probe seaborn runs before it draws
     has been handled in ``maidr/patch/seaborn_probe.py`` since #373.
 
     Parameters
@@ -89,7 +89,7 @@ def sns_categorical_boxens(
 
     Sweeping the axes instead, and pairing each ladder with whatever collection
     follows it, is right until something else draws on the same axes -- and a
-    strip plot over a boxen is a standard idiom, since the ladder summarises
+    strip plot over a boxen is a standard idiom, since the ladder summarizes
     the distribution the points make up. ``showfliers=False`` is what breaks
     the pairing: seaborn then adds no flier collection at all, so the run stops
     alternating and the last ladder takes the *strip plot's* first cloud as its

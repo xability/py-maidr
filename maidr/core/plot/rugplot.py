@@ -27,7 +27,7 @@ RUG_LABEL = "_maidr_rug_label"
 #: The split is made in the patch rather than here for the reason
 #: :func:`maidr.patch.scatterplot.scatter` gives: a layer *is* one entry in
 #: the schema, and seaborn draws a hue-grouped rug as one ``LineCollection``
-#: carrying a colour per tick, so one artist has to become several layers.
+#: carrying a color per tick, so one artist has to become several layers.
 RUG_GROUP = "_maidr_rug_group"
 
 #: What the layer's constant axis is called when the chart does not say.
@@ -151,7 +151,7 @@ class RugPlot(MaidrPlot):
         # `_extract_plot_data` is still the default when
         # `_extract_axes_data` reads it -- measured, a `rugplot(y=...)` then
         # named the y axis "Rug" and left the observations it carries
-        # labelled "X". The second is that `render()` can run more than once
+        # labeled "X". The second is that `render()` can run more than once
         # for a layer, and the collection cannot change underneath it, so
         # revalidating every segment each time buys nothing.
         read = read_rug(self._collection)
@@ -214,7 +214,7 @@ class RugPlot(MaidrPlot):
         Name the axes, calling the strip the ticks sit in what it is.
 
         The axis carrying the observations keeps the chart's own label. The
-        one across the ticks is renamed even when the caller labelled it,
+        one across the ticks is renamed even when the caller labeled it,
         unlike ``EventPlot``'s "Row" which only fills a blank: a rug over a
         ``kdeplot`` has a real "Density" label on that axis, and every point
         this layer emits sits at 0 rather than at any density.
