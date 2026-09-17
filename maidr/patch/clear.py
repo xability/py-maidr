@@ -19,6 +19,39 @@ def clear(wrapped, instance, args, kwargs) -> None:
     maidr.clear()
 
 
+def _discarded_child_axes(ax: Axes) -> list[Axes]:
+    """Every axes ``ax`` is about to discard along with its own artists.
+
+    ``Axes.inset_axes`` parents the inset to the axes it sits in rather than
+    to the figure, and ``_AxesBase.__clear`` empties ``child_axes`` -- so a
+    clear detaches every inset as surely as it removes the artists drawn
+    directly on the axes. ``clear_axes`` keys layers by their own axes, which
+    is right for a ``twinx`` twin (a sibling on the figure, and not a child)
+    but leaves the inset's layer registered against an axes nothing will
+    draw again.
+
+    Depth first, because an inset may hold an inset. The parent's clear
+    detaches the outer one and stops there -- the inner one is still
+    attached to a detached axes -- so a single level would leave the deeper
+    layer behind.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes being cleared, read **before** matplotlib clears it.
+
+    Returns
+    -------
+    list of Axes
+        The discarded children, deepest last.
+    """
+    discarded = []
+    for child in getattr(ax, "child_axes", ()):
+        discarded.append(child)
+        discarded.extend(_discarded_child_axes(child))
+    return discarded
+
+
 def _clear_axes(wrapped, instance, args, kwargs) -> None:
     """Drop the layers drawn on an axes when matplotlib clears it.
 
@@ -36,6 +69,14 @@ def _clear_axes(wrapped, instance, args, kwargs) -> None:
     Narrower than ``Figure.clear``'s ``maidr.clear()`` on purpose: on a
     figure with several axes, clearing one must leave the others registered.
 
+    Narrow by *axes*, though, not by artist: a clear also discards the axes'
+    own children, and a layer drawn into an inset is keyed by the inset, so
+    the narrow rule that correctly spares a ``twinx`` twin missed the inset
+    entirely. The inset's layer survived a clear it did not survive the
+    drawing of -- announced first, with its old data, and with a highlight
+    resolving to nothing -- and five clear-and-rebuild cycles left six
+    layers, which is #499 again through a route this hook did not reach.
+
     Dropping the layers is not enough on its own. ``lineplot`` keeps its
     own "already registered" latch on the axes, which matplotlib does not
     reset because it does not own it -- so clearing the layers while
@@ -45,15 +86,30 @@ def _clear_axes(wrapped, instance, args, kwargs) -> None:
 
     Runs after ``wrapped``, matching the ``Figure.clear`` patch above -- the
     layers are dropped once matplotlib has actually removed the artists, not
-    before.
+    before. The one thing that has to be read *first* is the list of child
+    axes, which the clear empties; see ``_discarded_child_axes``.
     """
+    # Read before `wrapped`, because `_AxesBase.__clear` empties
+    # `child_axes`: after the call there is nothing left on `instance` to
+    # say an inset was ever there.
+    discarded = _discarded_child_axes(instance)
+
     wrapped(*args, **kwargs)
 
     # Before the registration lookup, not after: this state lives on the
     # axes and outlives any maidr entry. A figure closed with `maidr.close()`
     # and then cleared would otherwise keep the latch set, and nothing drawn
     # on it afterwards would register.
-    forget_axes_state(instance)
+    #
+    # The discarded children get the same treatment as the axes itself. They
+    # are detached rather than destroyed -- a caller holding the inset can
+    # draw on it again -- and dropping a layer while leaving the latch set is
+    # the one failure `forget_axes_state` exists to prevent: the redraw
+    # registers nothing and the chart goes from mis-described to undescribed.
+    # It also drops the detached `Line2D` objects the series list holds.
+    cleared = (instance, *discarded)
+    for axes in cleared:
+        forget_axes_state(axes)
 
     figure = instance.get_figure()
     if figure is None:
@@ -62,7 +118,11 @@ def _clear_axes(wrapped, instance, args, kwargs) -> None:
         maidr = FigureManager.get_maidr(figure)
     except KeyError:
         return
-    maidr.clear_axes(instance)
+    # The children are looked up against the *parent's* figure: a detached
+    # inset still answers `get_figure()`, but the registration that owns its
+    # layer is the one the clear was addressed to.
+    for axes in cleared:
+        maidr.clear_axes(axes)
 
 
 # Both spellings, because they delegate to each other depending on

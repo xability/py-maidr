@@ -19,6 +19,14 @@ narrows ``clear()`` and the way to get that wrong is to take too much.
 ``selector_ids`` is checked alongside, because it is paired with ``_plots`` by
 index in both directions and ``clear()`` used to empty only one of them. See
 ``Maidr._drop_superseded_layers`` for the invariant.
+
+The inset cases were added while auditing #498, which asked whether a layer
+can outlive the artists it describes. It can, and this was the route: a clear
+also discards the axes' *children*, and a layer drawn into an inset is keyed
+by the inset rather than by the axes the clear was addressed to. So the
+narrowness that spares a ``twinx`` twin -- a sibling on the figure, not a
+child -- spared the inset's layer too, and #499 came back one level down,
+carrying the detached ``Axes`` and its artists with it.
 """
 
 from __future__ import annotations
@@ -207,6 +215,158 @@ def test_clearing_an_axes_drops_the_accumulated_line_series():
     assert len(getattr(ax, DRAWN_SERIES)) == 1, (
         "the redrawn layer is carrying lines from before the clear"
     )
+
+
+def test_clearing_an_axes_drops_the_layers_on_the_insets_it_discards():
+    """The layer described a chart matplotlib had already thrown away.
+
+    ``ax.inset_axes`` parents the inset to the axes rather than to the
+    figure, and ``__clear`` empties ``child_axes`` -- so the inset is gone
+    from the drawing as surely as the bars are, while its layer stayed
+    registered. Measured before the fix: the line layer was offered
+    **first**, with its old data, and its ``g[id=...]`` selector matched no
+    node in the emitted SVG. Nothing warned.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b", "c"], [1, 2, 3])
+    inset = ax.inset_axes([0.6, 0.6, 0.35, 0.35])
+    inset.plot([0, 1, 2], [3, 1, 4])
+    maidr_obj = FigureManager.get_maidr(fig)
+    assert len(maidr_obj._plots) == 2, "the inset should have registered a layer"
+
+    ax.clear()
+
+    assert maidr_obj._plots == [], (
+        "the inset's layer outlived the clear that discarded the inset"
+    )
+    assert paired(maidr_obj)
+
+
+def test_clearing_an_axes_reaches_an_inset_inside_an_inset():
+    """One level deep is not enough.
+
+    The parent's clear detaches the outer inset and stops -- the inner one
+    is still attached to the outer, which is itself no longer drawn. A
+    ``list(ax.child_axes)`` with no recursion passes the case above and
+    leaves this layer behind.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    outer = ax.inset_axes([0.5, 0.5, 0.4, 0.4])
+    outer.plot([0, 1], [1, 2])
+    inner = outer.inset_axes([0.5, 0.5, 0.4, 0.4])
+    inner.plot([0, 1], [3, 4])
+    maidr_obj = FigureManager.get_maidr(fig)
+    assert len(maidr_obj._plots) == 3
+
+    ax.clear()
+
+    assert maidr_obj._plots == [], "the layer on the inset's own inset survived"
+    assert paired(maidr_obj)
+
+
+def test_repeated_clear_cycles_do_not_accumulate_inset_layers():
+    """#499's unbounded growth, through the route the hook did not reach.
+
+    The bar layer is replaced each cycle and the inset's was not, so the
+    count grew by one per cycle: six layers after five cycles, measured.
+    """
+    fig, ax = plt.subplots()
+
+    for value in range(5):
+        ax.clear()
+        ax.bar(["a", "b"], [value, value])
+        inset = ax.inset_axes([0.6, 0.6, 0.3, 0.3])
+        inset.plot([0, 1], [value, value])
+
+    maidr_obj = FigureManager.get_maidr(fig)
+    assert layer_count(maidr_obj) == 2
+    assert paired(maidr_obj)
+
+
+def test_a_discarded_inset_is_not_kept_alive_by_its_layer():
+    """The retention half, which is what #498 is about.
+
+    The figure survives the clear, so nothing collects the detached inset on
+    the figure's behalf -- the only thing that was still pointing at it was
+    the layer, through ``MaidrPlot.ax`` and the artists in ``_elements``.
+
+    Everything is allocated and dropped inside this function on purpose. The
+    same measurement run at module scope, or with the candidate objects bound
+    by a loop variable, holds the inset by that binding and reports a leak
+    that is the harness's own -- the false negative recorded on #498.
+    """
+    import gc
+    import weakref
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    inset = ax.inset_axes([0.5, 0.5, 0.4, 0.4])
+    inset.plot([0, 1], [1, 2])
+    reference = weakref.ref(inset)
+    line = weakref.ref(inset.lines[0])
+
+    ax.clear()
+    del inset
+    gc.collect()
+    gc.collect()
+
+    assert reference() is None, "the detached inset is still held by its layer"
+    assert line() is None, "the inset's artists are still held by its layer"
+    assert fig.axes, "the figure itself must be untouched"
+
+
+def test_clearing_an_inset_leaves_the_axes_it_sits_in_registered():
+    """The mirror of the twin and second-panel cases: do not take too much.
+
+    An inset holds its own layers and clearing it is an ordinary clear. The
+    axes it sits in is not a child of anything and keeps its own.
+    """
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    inset = ax.inset_axes([0.5, 0.5, 0.4, 0.4])
+    inset.plot([0, 1], [1, 2])
+    maidr_obj = FigureManager.get_maidr(fig)
+
+    inset.clear()
+
+    assert len(maidr_obj._plots) == 1, "clearing the inset took the axes' layer"
+    assert layer_count(maidr_obj) == 1
+    assert paired(maidr_obj)
+
+
+def test_a_discarded_inset_can_be_described_again_after_a_redraw():
+    """The same regression the axes itself has, one level down.
+
+    ``lineplot``'s latch lives on the inset, and matplotlib does not reset it
+    because it does not own it. Dropping the inset's layer while leaving the
+    latch set is the failure ``forget_axes_state`` exists to prevent: the
+    redraw registers nothing and the chart is undescribed rather than
+    mis-described. The series list is the other half -- left alone it still
+    holds the ``Line2D`` the clear detached, which is both stale and a leak.
+    """
+    from maidr.patch.lineplot import DRAWN_SERIES, PLOT_CREATED
+
+    fig, ax = plt.subplots()
+    ax.bar(["a", "b"], [1, 2])
+    inset = ax.inset_axes([0.5, 0.5, 0.4, 0.4])
+    inset.plot([0, 1], [1, 2])
+    maidr_obj = FigureManager.get_maidr(fig)
+
+    ax.clear()
+
+    assert not hasattr(inset, PLOT_CREATED)
+    assert not hasattr(inset, DRAWN_SERIES)
+
+    ax.bar(["a", "b"], [3, 4])
+    ax.add_child_axes(inset)
+    inset.plot([0, 1], [5, 6])
+
+    assert len(maidr_obj._plots) == 2, "the redrawn inset registered no layer"
+    assert len(getattr(inset, DRAWN_SERIES)) == 1, (
+        "the redrawn layer is carrying the line from before the clear"
+    )
+    assert paired(maidr_obj)
 
 
 def test_figure_clear_empties_every_axes_on_a_multi_axes_figure():
