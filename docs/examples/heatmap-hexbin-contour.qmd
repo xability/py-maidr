@@ -8,7 +8,7 @@ filters:
   - line-highlight
 ---
 
-These three charts all encode a third variable as colour, which is exactly
+These three charts all encode a third variable as color, which is exactly
 what a screen reader cannot see. py-maidr reads a heatmap as a grid: all four
 arrows move between cells, and each cell is announced by its row, its column
 and its value, with the value also played as pitch. A hexbin plot is read as a
@@ -73,7 +73,7 @@ it as a lattice of counted cells, one row at a time.
 
 Hexagons tessellate by offsetting alternate rows by half a cell, so a bin's
 column index is not its position — bin 3 of one row and bin 3 of the next sit
-at different x. Each bin is therefore announced by its **centre** rather than
+at different x. Each bin is therefore announced by its **center** rather than
 by an index, and moving up or down keeps to the x you started from instead of
 carrying the index into a row where it means something else.
 
@@ -90,7 +90,7 @@ x = np.concatenate([rng.normal(-1, 0.8, 1200), rng.normal(1.5, 0.5, 800)])
 y = np.concatenate([rng.normal(0, 0.9, 1200), rng.normal(1.5, 0.6, 800)])
 
 fig, ax = plt.subplots(figsize=(7, 6))
-# `z_label` names the colour axis for maidr, so a bin reads as
+# `z_label` names the color axis for maidr, so a bin reads as
 # "First measurement: -1.02, Second measurement: 0.31, Points: 47".
 # Without it the axis is named "count", which is what the fill encodes.
 hexes = ax.hexbin(x, y, gridsize=12, cmap="Blues", z_label="Points") #<<
@@ -102,9 +102,9 @@ plt.show() #<<
 ```
 
 `hexbin` has two arguments that change what the fill means, and maidr names the
-colour axis to match rather than calling everything a count: `C=` replaces the
+color axis to match rather than calling everything a count: `C=` replaces the
 count with a reduction of the values you supply, and a numeric `bins=`
-discretises the counts so the colour shows *which interval* a bin landed in.
+discretizes the counts so the color shows *which interval* a bin landed in.
 Pass `z_label=` to name it yourself.
 
 ## Contour Plot

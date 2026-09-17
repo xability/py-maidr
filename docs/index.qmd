@@ -169,7 +169,7 @@ We currently support the following data visualization libraries in Python, and w
 
 * Multi-line plot having one x (numerical) and one y (numerical) axis with multiple data series on the same axes.
 
-* Step plot having one x (numerical) and one y (numerical or ordinal) axis, for piecewise-constant values that are held over an interval and then jump — e.g. a hypnogram of sleep stage against time. Named y tick labels are announced as level names in place of the numeric level. Recognised from matplotlib's `drawstyle="steps-*"` (including `ax.step()`), Plotly's `line_shape`, and Altair's `interpolate`.
+* Step plot having one x (numerical) and one y (numerical or ordinal) axis, for piecewise-constant values that are held over an interval and then jump — e.g. a hypnogram of sleep stage against time. Named y tick labels are announced as level names in place of the numeric level. Recognized from matplotlib's `drawstyle="steps-*"` (including `ax.step()`), Plotly's `line_shape`, and Altair's `interpolate`.
 
 * Vertical box plot having one x (categorical) and one y (numerical) axis.
 
@@ -181,7 +181,7 @@ We currently support the following data visualization libraries in Python, and w
 
 * Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
 
-* Hexbin plot (`ax.hexbin()`) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon's count by default, the reduction of `C` when one is given, or the count's interval when `bins` is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its centre rather than by a column index.
+* Hexbin plot (`ax.hexbin()`) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon's count by default, the reduction of `C` when one is given, or the count's interval when `bins` is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its center rather than by a column index.
 
 * Filled area plot (`ax.stackplot()`, `ax.fill_between()`, `ax.fill_betweenx()`) having one x (numerical) and one y (numerical) axis. A band drawn from the baseline to a curve reads as an area; several stacked bands read as a stacked area, with each band's own value announced alongside the running total. A band drawn *between two curves* is not read as an area, since its content is the gap rather than either edge.
 
@@ -501,7 +501,7 @@ The SDK is written to `lib/dotpad-sdk-<version>/` beside the file (so
 already travels with it, and the document declares where to find it ahead of
 `maidr.js`. Ship the HTML with its `lib/` folder, as before. Every downloaded
 file is verified against the size and SHA-256 recorded for the pinned commit,
-and the copy includes the LGPL licence text and wrapper sources the vendor asks
+and the copy includes the LGPL license text and wrapper sources the vendor asks
 redistributors to keep beside the braille engine. `MAIDR_DOTPAD_SDK_DIR` moves
 the cache somewhere else, for instance a directory shared by a whole machine.
 
@@ -559,13 +559,13 @@ Measured through the renderer on a 50-bar chart, longest gap between successive 
 
 Same throughput either way — the work did not get cheaper, it stopped being in everyone else's way.
 
-Two things this does not do. Renders of the **same figure** are serialised, because `savefig` writes `fig.dpi` for its duration and two concurrent writes leave one chart drawn at the other's scale; distinct figures, which is the usual per-session shape, run in parallel. That lock is held by the render path itself rather than by this integration, so a figure is rendered one at a time however it is reached — through Shiny, through Streamlit, or from a thread of your own. And the chart still travels over the websocket on every flush — roughly 25 KB, or a couple of megabytes with `use_cdn=False`; that part is tracked in [#534](https://github.com/xability/py-maidr/issues/534).
+Two things this does not do. Renders of the **same figure** are serialized, because `savefig` writes `fig.dpi` for its duration and two concurrent writes leave one chart drawn at the other's scale; distinct figures, which is the usual per-session shape, run in parallel. That lock is held by the render path itself rather than by this integration, so a figure is rendered one at a time however it is reached — through Shiny, through Streamlit, or from a thread of your own. And the chart still travels over the websocket on every flush — roughly 25 KB, or a couple of megabytes with `use_cdn=False`; that part is tracked in [#534](https://github.com/xability/py-maidr/issues/534).
 
-**What the lock cannot do is stop your app.** It serialises renders against each other; it does not stop a render function drawing into a figure another session is in the middle of rendering. That produces a chart whose SVG and announced data disagree — visible to a sighted reader, invisible to a screen-reader one — so maidr says so, naming the figure:
+**What the lock cannot do is stop your app.** It serializes renders against each other; it does not stop a render function drawing into a figure another session is in the middle of rendering. That produces a chart whose SVG and announced data disagree — visible to a sighted reader, invisible to a screen-reader one — so maidr says so, naming the figure:
 
 > maidr: figure 2 was drawn into while it was being rendered, so the chart's SVG and the data maidr announces for it may not match. Finish plotting before rendering, or render a figure no other thread is using.
 
-It notices artists appearing, disappearing or being relabelled, **not** a value changed in place on an existing artist — so hearing nothing is not a guarantee that a render was clean. Silence a `maidr.MaidrRenderRaceWarning` if you have decided a figure is deliberately shared.
+It notices artists appearing, disappearing or being relabeled, **not** a value changed in place on an existing artist — so hearing nothing is not a guarantee that a render was clean. Silence a `maidr.MaidrRenderRaceWarning` if you have decided a figure is deliberately shared.
 
 `uv run pytest tests/core/test_render_is_synchronous.py --run-benchmark` re-measures the underlying `maidr.render()`, which is still synchronous and still blocks its caller — that is what makes moving it off the loop necessary rather than optional.
 :::
@@ -757,30 +757,30 @@ either way **Space** still moves to the next slide.
 
 ## Braille Generation
 
-maidr incorporates a Braille mode that represents the plot using Braille symbols. This allows users with visual impairments to explore and interact with the plot using a refreshable Braille display. To achieve this, our system translates the plot's visual elements and data points into a corresponding tactile representation using Braille patterns. For different plot types, such as barplot, boxplot, heatmap, and scatterplot, maidr employs unique encoding strategies tailored to effectively convey the data distribution, patterns, and trends. These tactile encodings range from using distinct Braille characters to represent value ranges, to employing characters that visually resemble the corresponding sections of a plot. By providing a comprehensive Braille representation for various plot types, maidr enables users with visual impairments to gain a deeper understanding of the underlying data and its insights.
+maidr incorporates a Braille mode that represents the plot using braille symbols. This allows users with visual impairments to explore and interact with the plot using a refreshable braille display. To achieve this, our system translates the plot's visual elements and data points into a corresponding tactile representation using braille patterns. For different plot types, such as bar plot, box plot, heatmap, and scatter plot, maidr employs unique encoding strategies tailored to effectively convey the data distribution, patterns, and trends. These tactile encodings range from using distinct braille characters to represent value ranges, to employing characters that visually resemble the corresponding sections of a plot. By providing a comprehensive braille representation for various plot types, maidr enables users with visual impairments to gain a deeper understanding of the underlying data and its insights.
 
 ### Bar Plot
 
-In the Braille representation of a barplot, data values are encoded as Braille characters based on their relative magnitude within the plot. Low values are denoted by Braille characters that have dots only along the bottom, while high values are indicated by characters that have dots along the top. Given the four height levels of Braille, the encoding is as follows:
+In the braille representation of a bar plot, data values are encoded as braille characters based on their relative magnitude within the plot. Low values are denoted by braille characters that have dots only along the bottom, while high values are indicated by characters that have dots along the top. Given the four height levels of braille, the encoding is as follows:
 
 - ⣀ represents values 0 to 25%
 - ⠤ represents the 25% to 50%
 - ⠒ represents the 50% to 75%
 - ⠉ represents the 75% to 100%
 
-This tactile encoding allows users to easily differentiate between the various value ranges in the barplot, facilitating their understanding of the data distribution and its underlying trends.
+This tactile encoding allows users to easily differentiate between the various value ranges in the bar plot, facilitating their understanding of the data distribution and its underlying trends.
 
 ### Histogram
 
-The braille representation of a histogram is the same as that of a barplot.
+The braille representation of a histogram is the same as that of a bar plot.
 
 ### Line Plot
 
-In the Braille representation of a lineplot, braille is nearly identical to the above barplot: data values are encoded as Braille characters based on their relative magnitude within the plot. Low values are denoted by Braille characters that have dots only along the bottom, while high values are indicated by characters that have dots higher up.
+In the braille representation of a line plot, braille is nearly identical to the above bar plot: data values are encoded as braille characters based on their relative magnitude within the plot. Low values are denoted by braille characters that have dots only along the bottom, while high values are indicated by characters that have dots higher up.
 
 ### Heatmap
 
-In the Braille representation of a heatmap, values are depicted based on their relative magnitude within the plot, much like the approach used for barplots and scatterplots. Low values are denoted by Braille characters with dots only along the bottom, high values are represented by characters filled with dots, and blank or null values are indicated by empty spaces. With three height levels of Braille, the encoding is as follows:
+In the braille representation of a heatmap, values are depicted based on their relative magnitude within the plot, much like the approach used for bar plots and scatter plots. Low values are denoted by braille characters with dots only along the bottom, high values are represented by characters filled with dots, and blank or null values are indicated by empty spaces. With three height levels of braille, the encoding is as follows:
 
 - ⠤ represents values from 0% to 33%
 - ⠒ represents values from 33% to 66%
@@ -790,7 +790,7 @@ In the Braille representation of a heatmap, values are depicted based on their r
 
 ### Box Plot
 
-The Braille representation of a boxplot employs Braille characters that visually resemble the corresponding sections of the boxplot. An example of such braille may look like ⠂ ⠒⠒⠒⠒⠒⠒⠿⠸⠿⠒ . The size of each section is denoted by the number of Braille characters used. The sections are encoded as follows:
+The braille representation of a box plot employs braille characters that visually resemble the corresponding sections of the box plot. An example of such braille may look like ⠂ ⠒⠒⠒⠒⠒⠒⠿⠸⠿⠒ . The size of each section is denoted by the number of braille characters used. The sections are encoded as follows:
 
 - ⠂ represents lower outlier and upper outlier(s)
 - ⠒ represents the left or right whiskers
@@ -804,7 +804,7 @@ We also impose some overarching rules:
 2. Differences or equalities in whiskers and quartiles must be upheld. That is, if the min and max whisker are of equal length, they must have the same number of braille characters, or if they're different, the number of characters must be different.
 3. Zero length sections, such as outliers and the median, are always represented by a set character. ⠂ in the case of outliers, ⠸⠇ in the case of the median.
 
-This tactile encoding enables users to discern the various components of the boxplot, allowing them to comprehend the data distribution, detect outliers, and identify central tendencies and dispersion within the dataset.
+This tactile encoding enables users to discern the various components of the box plot, allowing them to comprehend the data distribution, detect outliers, and identify central tendencies and dispersion within the dataset.
 
 To generate the braille, we use an algorithm that generates a distribution of characters based on a given proportional distribution and a specified total number of characters in the user's braille display. This can be described mathematically as follows:
 
@@ -825,12 +825,12 @@ Where
 
 The process is as follows in the code:
 
-1. We first convert our data set for a particular boxplot to an array of lengths.
+1. We first convert our dataset for a particular box plot to an array of lengths.
 2. We then assign the single required character to each section.
 3. We also note connected sections, such as min and max.
 4. We then normalize and allocate all remaining characters according to their proportional distribution, making sure to add extra characters where needed to keep differences or equalities.
 
-As an example, consider a boxplot with the following distribution: [10, 0, 20, 40, 30, 0, 30, 60, 50, 30, 0, 10, 0], with types [blank space, outlier, larger blank space, large min whisker, moderate sized lower quartile, the median, moderate sized upper quartile, another larger max whisker, a large blank space, an outlier, a small blank space, then another outlier], and a braille display length of 33. We would produce braille that looks like so:
+As an example, consider a box plot with the following distribution: [10, 0, 20, 40, 30, 0, 30, 60, 50, 30, 0, 10, 0], with types [blank space, outlier, larger blank space, large min whisker, moderate-sized lower quartile, the median, moderate-sized upper quartile, another larger max whisker, a large blank space, an outlier, a small blank space, then another outlier], and a braille display length of 33. We would produce braille that looks like so:
 
 ⠂ ⠒⠒⠒⠒⠿⠿⠿⠸⠇⠿⠿⠿⠒⠒⠒⠒⠒⠒ ⠂ ⠂
 
@@ -838,7 +838,7 @@ As an example, consider a boxplot with the following distribution: [10, 0, 20, 4
 
 * Note: The line layer in py-maidr has not been implemented yet. The following is a placeholder for the future implementation.
 
-In the Braille representation of a scatterplot, the encoding is performed only for the line layer (layer 2). The method is similar to that used for barplots, wherein data values are represented as Braille characters based on their relative magnitude within the plot. Low values are denoted by dots along the bottom, while high values are indicated by dots along the top. With four height levels of Braille, the encoding is as follows:
+In the braille representation of a scatter plot, the encoding is performed only for the line layer (layer 2). The method is similar to that used for bar plots, wherein data values are represented as braille characters based on their relative magnitude within the plot. Low values are denoted by dots along the bottom, while high values are indicated by dots along the top. With four height levels of braille, the encoding is as follows:
 
 - ⣀ represents values from 0% to 25%
 - ⠤ represents values from 25% to 50%
@@ -853,13 +853,13 @@ Stacked bar, dodged bar, and normalized stacked bar all share the same system:
 
 In the braille representation of segmented bar plots, braille depends on where you are. There are typically multiple levels to a segmented bar plot, and as you move (Up and Down arrow keys) between levels, the braille changes to represent your current level. At the top, there is also a Summary pseudo level of all levels added together, and a Combined pseudo level of each level separately.
 
-- Regular level: Braille appears similar to a bar plot, with braille values corresponding to the magnitude of the level's value for this point.
+- Regular level: the braille appears similar to a bar plot, with braille values corresponding to the magnitude of the level's value for this point.
 - Summary level: Same as regular level, but values now reflect the combined magnitude of all levels' values for this point.
 - Combined level: Similar to heatmap, where there are groups of magnitudes for each point separated by a ⢳ character. The first group has braille characters for each level for the first point, then a separator, then the second group has braille characters for each level in the second point, then a separator, and so on.
 
 ## Getting a Refreshable Braille Display Loaner
 
-If you are a blind user and do not have a refreshable Braille display, you can request a loaner from the National Library Service (NLS) for the Blind and Print Disabled. Please follow our instruction on [how to request an NLS eReader Braille Display](https://xabilitylab.ischool.illinois.edu/braille-display).
+If you are a blind user and do not have a refreshable braille display, you can request a loaner from the National Library Service (NLS) for the Blind and Print Disabled. Please follow our instructions on [how to request an NLS eReader Braille Display](https://xabilitylab.ischool.illinois.edu/braille-display).
 
 
 ## Instruction on How to Verify and Use the AI Feature in py-maidr
