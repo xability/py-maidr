@@ -440,7 +440,7 @@ def chart_html(_fig, key):
 
 html = chart_html(fig, key=selected_day)</code></pre>
 <p>Both arguments are load-bearing. The underscore on <code>_fig</code> tells Streamlit not to hash it, which a matplotlib <code>Figure</code> does not support – and <code>key</code> is then the only thing left to hash. Without it every argument is skipped, the cache key is constant, and the first chart is returned for the rest of the session: a chart that silently stops matching its own controls.</p>
-<p>Under <code>use_cdn=False</code> the ~1.9 MB bundle is embedded in the string. Serialising to HTML is what makes an embed possible at all, and it drops :class:<code>htmltools.HTMLDependency</code> children on the way, so a reference to the bundle would not survive; the source itself has to.</p>
+<p>Under <code>use_cdn=False</code> the ~1.9 MB bundle is embedded in the string. Serializing to HTML is what makes an embed possible at all, and it drops :class:<code>htmltools.HTMLDependency</code> children on the way, so a reference to the bundle would not survive; the source itself has to.</p>
 
 
 </section>
