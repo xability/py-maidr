@@ -206,12 +206,15 @@ def test_a_marker_with_a_non_finite_coordinate_is_dropped_not_announced() -> Non
 
 
 def test_a_map_ships_without_a_selector() -> None:
-    """The limit `PlotlyChoroplethPlot` already documents, for the same reason.
+    """A limit of these traces, no longer one borrowed from the choropleth.
 
-    Plotly fetches a projection's land geometry, and a tiled map's tiles, from
-    the network at render time, so what the markers are drawn as could not be
-    measured here. A highlight that lands on the wrong marker is worse than
-    none; the layer keeps its audio, braille and text (#640).
+    This used to cite `PlotlyChoroplethPlot`, which shipped without a
+    selector because the map could not be measured offline. It can be now,
+    and the choropleth is addressed (#640) -- so what is left is two limits
+    of these traces: the tiled markers paint to a GL base map and put no
+    mark in the SVG at all, and a `scattergeo`'s mark, which is in the SVG,
+    has not been measured. A selector that has never resolved would be a
+    guess, so the layer keeps its audio, braille and text and names nothing.
     """
     (layer,) = _layers(go.Figure([go.Scattergeo(lat=LAT, lon=LON)]))
 

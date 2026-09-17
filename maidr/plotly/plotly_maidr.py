@@ -486,6 +486,14 @@ class PlotlyMaidr:
         """
         fig_dict = self._fig.to_dict()
         layout = fig_dict.get("layout", {})
+        # An animated figure's payload is its *base* trace, which is plotly's
+        # first frame, while plotly.js advances the drawing to the last one
+        # within about half a second of load. The reading is stale either way
+        # -- nothing here reads `frames` for any trace -- but a layer that
+        # also names elements would lay a confident highlight over it, on
+        # whichever region now sits at that position. Passed down so a layer
+        # can decline; see `PlotlyChoroplethPlot._get_selector`.
+        animated = bool(fig_dict.get("frames"))
         # Dropped once, here, rather than in each branch below. Plotly renders
         # no group at all for a hidden trace, so one that is `visible=False`
         # or `"legendonly"` is not on the chart: reading it announces marks
@@ -1084,10 +1092,35 @@ class PlotlyMaidr:
 
             choropleth_traces = [t for t in group_traces if is_choropleth_trace(t)]
             if choropleth_traces:
-                from maidr.plotly.choropleth import PlotlyChoroplethPlot
+                from maidr.plotly.choropleth import (
+                    PlotlyChoroplethPlot,
+                    enters_the_region_layer,
+                )
 
+                # Counted per geo subplot, because that is the scope of the
+                # `.choroplethlayer` a trace's `nth-of-type` counts within --
+                # `group_traces` is keyed by the cartesian defaults and so
+                # holds every choropleth of the figure, however many maps
+                # they are spread over.
+                block_positions: dict[str, int] = {}
                 for choropleth_trace in choropleth_traces:
-                    plot = PlotlyChoroplethPlot(choropleth_trace, layout, **axis_kwargs)
+                    block = geo_block(choropleth_trace)
+                    plot = PlotlyChoroplethPlot(
+                        choropleth_trace,
+                        layout,
+                        trace_position=block_positions.get(block, 0),
+                        animated=animated,
+                        **axis_kwargs,
+                    )
+                    # Counted over the traces plotly actually appends a group
+                    # for, not the ones declared: a tiled map hands its
+                    # regions to a GL base map, and an empty trace draws
+                    # nothing at all. Counting either would push every SVG
+                    # sibling one `nth-of-type` along onto an element plotly
+                    # never drew -- the trap #635 named for the WebGL polar
+                    # traces.
+                    if enters_the_region_layer(choropleth_trace):
+                        block_positions[block] = block_positions.get(block, 0) + 1
                     plot.row_index, plot.col_index = self._grid_position(
                         x_starts,
                         y_starts,

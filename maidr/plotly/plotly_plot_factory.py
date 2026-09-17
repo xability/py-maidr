@@ -207,6 +207,12 @@ class PlotlyPlotFactory:
         ):
             from maidr.plotly.choropleth import PlotlyChoroplethPlot
 
+            # ``trace_position`` is left at its default for the reason the
+            # polar branch leaves its own: this factory sees one trace with
+            # no idea what else is drawn into its geo subplot's
+            # ``.choroplethlayer``, and "assume it is the only one" is the
+            # only assumption available. ``PlotlyMaidr`` never reaches here
+            # precisely because it does know, and passes real positions.
             return PlotlyChoroplethPlot(trace, layout, **axis_kwargs)
 
         if trace_type in (
