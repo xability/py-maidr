@@ -26,10 +26,16 @@ Read end to end against the browser on 13 figures -- automatic bins, an
 `ncontours` and an explicit level spec. Eleven agree curve for curve. The two
 that do not are levels whose curves reach the grid's own edge, where plotly's
 `<path>` elements are the outlines of the filled regions rather than the
-curves themselves; every one of those levels has more than one curve, so the
-layer declines its selectors there anyway. Measured separately: a level whose
-single curve ends on the grid edge *does* match its drawn path exactly, in
-every `coloring` mode.
+curves themselves. Measured separately: a level whose single curve ends on the
+grid edge *does* match its drawn path exactly, in every `coloring` mode.
+
+Those two levels used to cost the whole layer its selectors, because every one
+of them has more than one curve and a repeat anywhere was a decline (#643).
+Since #658 they are named like any other level, and what the reader gets
+outlined there is whatever that `g.contourlevel` drew -- which on those levels
+is the region outline, not the curve. Whether the two coincide closely enough
+to read as the same shape has not been measured, and this paragraph should not
+be taken as saying it has.
 """
 
 from __future__ import annotations
@@ -80,6 +86,27 @@ def test_a_binned_contour_is_read_as_a_contour_layer() -> None:
     assert layer["type"] is PlotType.CONTOUR
     assert _levels(layer) == [1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert len(layer["data"]) == 12
+
+
+def test_a_binned_contour_names_the_level_group_of_every_curve() -> None:
+    """The selector is inherited whole, islands and all.
+
+    `PlotlyHistogram2dContourPlot` overrides the binning and the axes and
+    nothing about the selectors, so this is `PlotlyContourPlot._get_selector`
+    read through a trace that carries samples rather than a grid. Nine levels,
+    twelve curves, and the three levels that cross the band twice name their
+    group twice each -- measured in Chromium, plotly draws those nine groups
+    holding [1, 1, 1, 1, 2, 2, 2, 1, 1] paths, curve for curve.
+    """
+    (layer,) = _layers(go.Figure(go.Histogram2dContour(x=X, y=Y)))
+
+    groups = [
+        int(selector.split("nth-of-type(")[2].split(")")[0])
+        for selector in layer["selectors"]
+    ]
+
+    assert groups == [1, 2, 3, 4, 5, 5, 6, 6, 7, 7, 8, 9]
+    assert all(selector.endswith(" path") for selector in layer["selectors"])
 
 
 def test_the_curves_run_through_the_bin_centres() -> None:
@@ -170,6 +197,10 @@ class TestACellWithNoAnswer:
 
         assert _levels(layer) == [4, 6, 8, 10, 12, 14, 16, 18]
         assert len(layer["data"]) == 10
+        # Ten curves over eight levels, so two levels have islands and name
+        # their group twice. This layer declined outright before #658.
+        assert len(layer["selectors"]) == 10
+        assert len(set(layer["selectors"])) == 8
 
     def test_a_histfunc_that_fills_every_cell_needs_none_of_that(self) -> None:
         """`sum` puts a 0 in an empty cell rather than leaving it empty.
@@ -182,7 +213,11 @@ class TestACellWithNoAnswer:
         )
 
         assert _levels(layer) == [10 * step for step in range(1, 14)]
+        # Distinct as well as thirteen: a bare count no longer carries the
+        # claim, now that a level with islands emits one selector per curve
+        # rather than declining the layer.
         assert len(layer["selectors"]) == 13
+        assert len(set(layer["selectors"])) == 13
 
 
 def test_a_normalisation_reaches_the_levels() -> None:
@@ -221,7 +256,7 @@ def test_an_explicit_level_spec_is_the_author_s() -> None:
 
     assert _levels(layer) == [1, 2, 3, 4]
     assert [selector.split("contourlevel:")[1] for selector in layer["selectors"]] == [
-        f"nth-of-type({group}) path:nth-of-type(1)" for group in range(1, 5)
+        f"nth-of-type({group}) path" for group in range(1, 5)
     ]
 
 
@@ -295,3 +330,4 @@ class TestNothingToRead:
 
         assert _levels(layer) == pytest.approx([0.1 * step for step in range(1, 10)])
         assert len(layer["selectors"]) == 9
+        assert len(set(layer["selectors"])) == 9

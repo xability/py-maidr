@@ -43,10 +43,17 @@ covered for them is that the selector finds the right *number* of elements,
 which is what catches a selector that has stopped matching.
 
 Several layers deliberately emit **no** selectors, each for a measured
-reason: `barpolar` (#635), `parcoords` (#637), `parcats` (#639), `scattergl`
-and `scatterpolargl` (painted to canvas, #668), and a contour whose level
-holds islands (#643). Those are listed rather than skipped, so that a layer
-which starts declining silently fails here.
+reason: `barpolar` (#635), `parcoords` (#637), `parcats` (#639), and
+`scattergl` and `scatterpolargl` (painted to canvas, #668). Those are listed
+rather than skipped, so that a layer which starts declining silently fails
+here.
+
+A contour is the one layer whose selector may name **several** elements on
+purpose: a level with islands draws a `<path>` per island in no dependable
+order, so every series of that level names the level and the core outlines it
+whole (#643, #658, xability/maidr#1142). That is the `"level"` shape below,
+and it is the only thing in the repo that measures those selectors against a
+drawn chart.
 
 ## The one figure that needs an asset
 
@@ -177,6 +184,22 @@ _BOUND_DATUM = """(query) => [...document.querySelectorAll(query)].map((el) => {
 _SAMPLES = {"x": [1, 2, 2, 3], "y": [1, 2, 2, 3]}
 _FIELD = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
+#: A field with two peaks. At level 0.5 it draws one ring around each, so the
+#: level is two `<path>` elements and both series name the level.
+_TWO_PEAKS = [
+    [0, 0, 0, 0, 0],
+    [0, 1, 0, 1, 0],
+    [0, 0, 0, 0, 0],
+]
+
+#: Twenty samples along a diagonal band, binned into nine levels of which
+#: three cross the band twice. The real-world island shape, as opposed to a
+#: field built to have one.
+_BAND = {
+    "x": [1, 1, 2, 2, 2, 3, 3, 4, 5, 5, 5, 5, 6, 6, 7, 8, 8, 9, 9, 10],
+    "y": [1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10],
+}
+
 
 def _figure(name: str) -> go.Figure:
     """One figure per plotly trace type py-maidr reads."""
@@ -288,6 +311,15 @@ def _figure(name: str) -> go.Figure:
         ).update_layout(
             geo={"domain": {"x": [0, 0.45]}}, geo2={"domain": {"x": [0.55, 1]}}
         ),
+        "contour islands": lambda: go.Figure(
+            go.Contour(
+                z=_TWO_PEAKS,
+                contours=dict(coloring="lines", start=0.5, end=0.5, size=0.5),
+            )
+        ),
+        "histogram2dcontour islands": lambda: go.Figure(
+            go.Histogram2dContour(**_BAND)
+        ),
     }[name]()
 
 
@@ -299,6 +331,10 @@ def _figure(name: str) -> go.Figure:
 #:   sankey each announce as their one point.
 #: * ``"series"`` -- one element per announced series. A path: a line, a
 #:   contour level, a violin's KDE outline.
+#: * ``"level"`` -- a contour whose selectors name levels rather than curves,
+#:   so one selector may resolve to several elements and several series may
+#:   share it. Checked per distinct selector instead of by a sum, and against
+#:   the curve count only for the figures listed, which were measured.
 #: * ``"none"`` -- the layer names nothing, each for a measured reason.
 #:
 #: A figure with two entries emits two layers: a ``go.Violin`` is read as a
@@ -339,10 +375,13 @@ SHAPES: dict[str, tuple[str, ...]] = {
     # And `scatterpolargl` paints its spokes to one, so neither the outline
     # an SVG radar names nor its markers exist (#668).
     "scatterpolargl": ("none",),
-    # Every level of this field draws a single curve, so each is addressed;
-    # a level with islands declines instead, which #643 measured and
-    # xability/maidr#1142 is what would let it be outlined whole.
+    # Every level of this field draws a single curve, so each selector
+    # resolves to exactly one path and the reader keeps a per-point highlight.
     "histogram2dcontour": ("series",),
+    # These two have levels that break into islands, which is where a selector
+    # names the level and resolves to every path in it (#658).
+    "contour islands": ("level",),
+    "histogram2dcontour islands": ("level",),
     # One `path.choroplethlocation` per region, addressed one selector per
     # region (#640). The map is handed to the page rather than fetched --
     # see `PRELOAD_TOPOJSON` -- so this stays offline like the rest.
@@ -432,6 +471,14 @@ def _expected(layer: dict, shape: str) -> int:
     return _points(layer) if shape == "point" else _series(layer)
 
 
+def _names_per_selector(layer: dict) -> dict[str, int]:
+    """How many series name each distinct selector."""
+    counts: dict[str, int] = {}
+    for selector in _selector_strings(layer):
+        counts[selector] = counts.get(selector, 0) + 1
+    return counts
+
+
 @pytest.mark.parametrize("name", sorted(SHAPES))
 def test_every_emitted_selector_finds_the_element_it_names(
     browser, tmp_path, name: str
@@ -484,6 +531,24 @@ def test_a_layer_names_as_many_elements_as_it_announces(
     try:
         for layer, shape in zip(layers, SHAPES[name]):
             if shape == "none":
+                continue
+            if shape == "level":
+                # Per distinct selector, not by a sum: a k-curve level
+                # contributes k selectors of k matches each, so a sum would
+                # square it.
+                #
+                # Measured on these two figures, a level's group holds one
+                # path per curve naming it. That is not true of plotly
+                # contours in general -- plotly joins two open curves whose
+                # ends meet into one path, and draws a level reaching the
+                # grid's own edge as the filled region's outline -- so a new
+                # island figure failing here means plotly did not draw the
+                # curves one for one, which is worth knowing and is not the
+                # same as a broken selector.
+                named = _names_per_selector(layer)
+                assert named, f"{name}: named nothing"
+                resolved = _resolved(page, list(named))
+                assert dict(zip(named, resolved)) == named, f"{name}: {resolved}"
                 continue
             counts = _resolved(page, _selector_strings(layer))
             assert sum(counts) == _expected(layer, shape), f"{name}: {counts}"
