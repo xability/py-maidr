@@ -137,14 +137,25 @@ class PlotlyGeoScatterPlot(PlotlyPlot):
         super().__init__(trace, layout, PlotType.SCATTER, **kwargs)
 
     def _get_selector(self) -> str:
-        """No selector, for the reason ``PlotlyChoroplethPlot`` gives.
+        """No selector, and the reason is no longer the choropleth's.
 
-        Plotly requests a geographic projection's land geometry, and a
-        tiled map's tiles, from the network at render time, so what a map
-        trace's markers are drawn as could not be measured here. Emitting a
-        selector that has never resolved would be guessing, and a highlight
-        that lands on the wrong marker is worse than none. The layer keeps
-        its audio, braille and text; see #640.
+        This used to defer to ``PlotlyChoroplethPlot``, which shipped
+        without one because the map could not be measured offline. It can
+        be now -- plotly's topojson is served locally and the choropleth is
+        addressed (#640) -- so what is left is a limit of *these* traces
+        rather than of where the code was written, and it is two different
+        limits:
+
+        ``scattermap``, ``scattermapbox``, ``densitymap`` and
+        ``densitymapbox`` draw onto a GL base map. Measured in Chromium on
+        a fully painted tiled figure, the SVG holds no mark at all -- the
+        ``scattergl`` conclusion of #668, reached by the same route.
+
+        ``scattergeo`` does draw into the SVG, under the geo subplot's
+        ``.scatterlayer`` rather than the ``.choroplethlayer`` a choropleth
+        uses. Its mark was not measured here, and a selector that has never
+        resolved would be a guess, so the layer keeps its audio, braille
+        and text and names nothing until someone measures it.
 
         Returns
         -------

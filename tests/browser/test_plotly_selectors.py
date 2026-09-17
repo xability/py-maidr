@@ -43,10 +43,10 @@ covered for them is that the selector finds the right *number* of elements,
 which is what catches a selector that has stopped matching.
 
 Several layers deliberately emit **no** selectors, each for a measured
-reason: `barpolar` (#635), `parcoords` (#637), `parcats` (#639), `choropleth`
-(#640), and `scattergl` and `scatterpolargl` (painted to canvas, #668). Those
-are listed rather than skipped, so that a layer which starts declining
-silently fails here.
+reason: `barpolar` (#635), `parcoords` (#637), `parcats` (#639), and
+`scattergl` and `scatterpolargl` (painted to canvas, #668). Those are listed
+rather than skipped, so that a layer which starts declining silently fails
+here.
 
 A contour is the one layer whose selector may name **several** elements on
 purpose: a level with islands draws a `<path>` per island in no dependable
@@ -54,6 +54,16 @@ order, so every series of that level names the level and the core outlines it
 whole (#643, #658, xability/maidr#1142). That is the `"level"` shape below,
 and it is the only thing in the repo that measures those selectors against a
 drawn chart.
+
+## The one figure that needs an asset
+
+A `go.Choropleth` resolves its regions against geometry plotly fetches from
+`cdn.plot.ly` while it draws, so with nothing to draw against there are no
+region paths to resolve a selector to -- which is why #640 shipped without
+one. The map is handed to the page before plotly.js parses instead of being
+fetched, so the `file://` design above survives; `WORLD_110M_STUB` and
+`PRELOAD_TOPOJSON` below carry the stub and the reasoning, and
+`test_the_map_is_drawn_without_a_network_fetch` holds it to it.
 """
 
 from __future__ import annotations
@@ -71,6 +81,89 @@ plotly = pytest.importorskip("plotly")
 import plotly.graph_objects as go  # noqa: E402
 
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
+
+def _ring(west: float, east: float, south: float, north: float) -> list[list[float]]:
+    """One rectangular arc, as topojson's own ``[[lon, lat], ...]`` quantised
+    off (``transform`` absent means the coordinates are already degrees)."""
+    return [[west, south], [east, south], [east, north], [west, north], [west, south]]
+
+
+_NOTHING = {"type": "GeometryCollection", "geometries": []}
+
+#: The world plotly would fetch, cut down to the countries these tests name.
+#:
+#: A `go.Choropleth` resolves its region names against geometry plotly
+#: requests from `cdn.plot.ly/un/world_110m.json` while it draws, and the
+#: fetch is unconditional -- an inline `geojson=` does not avoid it, because
+#: `locationmode` defaults to `"ISO-3"`. With no map there are no region
+#: paths at all, so the selector tests below would have nothing to resolve
+#: against.
+#:
+#: Fetching it would put a network request in the middle of a suite whose
+#: whole argument is that it needs none, and a `file://` page cannot read a
+#: sibling `file://` copy either -- Chromium refuses it as cross-origin
+#: ("Cross origin requests are only supported for protocol schemes: chrome,
+#: chrome-extension, chrome-untrusted, data, http, https, isolated-app").
+#: So the asset is handed to the page instead; see `PRELOAD_TOPOJSON`.
+#:
+#: `objects.countries` is the key plotly reads for the default locationmode,
+#: and each geometry's `id` is the ISO-3 code it matches on. The base layers
+#: have to exist even when they are empty: plotly indexes
+#: `topojson.objects[land|coastlines|...]` unconditionally and throws
+#: "Cannot read properties of undefined" without them, drawing nothing.
+WORLD_110M_STUB = {
+    "type": "Topology",
+    "arcs": [
+        _ring(-125, -70, 25, 49),
+        _ring(-140, -60, 50, 70),
+        _ring(-117, -87, 15, 32),
+    ],
+    "objects": {
+        "countries": {
+            "type": "GeometryCollection",
+            "geometries": [
+                {"type": "Polygon", "id": "USA", "arcs": [[0]]},
+                {"type": "Polygon", "id": "CAN", "arcs": [[1]]},
+                {"type": "Polygon", "id": "MEX", "arcs": [[2]]},
+            ],
+        },
+        "land": {
+            "type": "GeometryCollection",
+            "geometries": [
+                {"type": "Polygon", "arcs": [[0]]},
+                {"type": "Polygon", "arcs": [[1]]},
+                {"type": "Polygon", "arcs": [[2]]},
+            ],
+        },
+        "coastlines": {
+            "type": "GeometryCollection",
+            "geometries": [{"type": "LineString", "arcs": [0]}],
+        },
+        "ocean": _NOTHING,
+        "lakes": _NOTHING,
+        "rivers": _NOTHING,
+        "subunits": _NOTHING,
+    },
+}
+
+#: Hand the map over before plotly.js runs, so it never asks for one.
+#:
+#: Plotly skips the fetch for an asset already on the global -- its own
+#: `PlotlyGeoAssets.topojson[name] === undefined && fetchTopojson()` -- and
+#: it creates that global only if nothing has (`window.PlotlyGeoAssets ===
+#: undefined && (window.PlotlyGeoAssets = {topojson: {}})`), so a value set
+#: first survives. `world_110m` is what plotly names the default scope and
+#: resolution: `scope + "_" + resolution + "m"`.
+#:
+#: Run through `add_init_script` rather than injected into the page, so it
+#: is in place before the inlined bundle parses. It is inert for a figure
+#: that draws no map.
+PRELOAD_TOPOJSON = (
+    "window.PlotlyGeoAssets = {topojson: {world_110m: "
+    + json.dumps(WORLD_110M_STUB, separators=(",", ":"))
+    + "}};"
+)
+
 
 #: Long enough for plotly to draw into the DOM on a slow runner. Waited on
 #: through a condition rather than slept through, so a fast machine pays
@@ -186,6 +279,38 @@ def _figure(name: str) -> go.Figure:
         "histogram2dcontour": lambda: go.Figure(
             go.Histogram2dContour(**_SAMPLES)
         ),
+        # The three countries the preloaded stub map carries; see
+        # `WORLD_110M_STUB` above.
+        "choropleth": lambda: go.Figure(
+            go.Choropleth(
+                locations=["USA", "CAN", "MEX"], z=[10, 20, 30], locationmode="ISO-3"
+            )
+        ),
+        # The hole is the case the declared-index rule exists for: plotly
+        # keeps a slot for the region it draws nothing for, so `MEX` is the
+        # third path while it is the second announced point.
+        "choropleth hole": lambda: go.Figure(
+            go.Choropleth(
+                locations=["USA", "CAN", "MEX"], z=[10, None, 30], locationmode="ISO-3"
+            )
+        ),
+        # Two maps, because a geo subplot's class token is ambiguous in a way
+        # a polar one's is not -- see `PlotlyChoroplethPlot._get_selector`.
+        "choropleth grid": lambda: go.Figure(
+            [
+                go.Choropleth(
+                    locations=["USA"], z=[10], locationmode="ISO-3", geo="geo"
+                ),
+                go.Choropleth(
+                    locations=["CAN", "MEX"],
+                    z=[20, 30],
+                    locationmode="ISO-3",
+                    geo="geo2",
+                ),
+            ]
+        ).update_layout(
+            geo={"domain": {"x": [0, 0.45]}}, geo2={"domain": {"x": [0.55, 1]}}
+        ),
         "contour islands": lambda: go.Figure(
             go.Contour(
                 z=_TWO_PEAKS,
@@ -257,6 +382,12 @@ SHAPES: dict[str, tuple[str, ...]] = {
     # names the level and resolves to every path in it (#658).
     "contour islands": ("level",),
     "histogram2dcontour islands": ("level",),
+    # One `path.choroplethlocation` per region, addressed one selector per
+    # region (#640). The map is handed to the page rather than fetched --
+    # see `PRELOAD_TOPOJSON` -- so this stays offline like the rest.
+    "choropleth": ("point",),
+    "choropleth hole": ("point",),
+    "choropleth grid": ("point", "point"),
 }
 
 
@@ -271,17 +402,24 @@ def _selector_strings(layer: dict) -> list[str]:
     A layer names its elements as a bare string, a list of them, a list of
     lists (one group per series), or -- a box -- a list of dicts whose values
     are the selectors for the parts of one box.
+
+    Flattened in the layer's own order. That was not so while every caller
+    only counted: taking the next item off the *end* of the pending stack
+    read a list back to front, which no assertion here could see. A layer
+    that names one element per point pairs its selectors with its points by
+    position, so a test that checks *which* element a selector finds needs
+    the order the layer stated.
     """
     found: list[str] = []
     pending: list[Any] = [layer.get("selectors")]
     while pending:
-        item = pending.pop()
+        item = pending.pop(0)
         if isinstance(item, str):
             found.append(item)
         elif isinstance(item, list):
-            pending.extend(item)
+            pending[:0] = item
         elif isinstance(item, dict):
-            pending.extend(item.values())
+            pending[:0] = list(item.values())
     return found
 
 
@@ -312,6 +450,7 @@ def _drawn(browser, tmp_path: Path, figure: go.Figure):
     path = tmp_path / "figure.html"
     figure.write_html(str(path), include_plotlyjs=True, full_html=True)
     page = browser.new_page()
+    page.add_init_script(PRELOAD_TOPOJSON)
     page.goto(path.as_uri(), wait_until="load")
     page.wait_for_function(_DRAWN, timeout=_DRAW_TIMEOUT_MS)
     # Plotly draws on the frame after the container appears; one more frame is
@@ -462,5 +601,81 @@ def test_a_scatter_point_is_outlined_on_the_point_it_announces(
         assert drawn == [
             {"x": point["x"], "y": point["y"]} for point in layer["data"]
         ]
+    finally:
+        page.close()
+
+
+#: What plotly bound to a region's path. A choropleth's datum carries the
+#: region and its value rather than the `x`/`y` a positional mark does.
+#: `drawn` is the geometry, and it is read for a reason: plotly keeps a
+#: `path.choroplethlocation` for a region it resolved to nothing, with the
+#: `d` attribute simply absent. Without it a stub that matched no region at
+#: all would satisfy every count and identity check here on a blank map.
+_BOUND_REGION = """(query) => [...document.querySelectorAll(query)].map((el) => {
+  const datum = el.__data__;
+  return { loc: datum.loc, z: datum.z, drawn: el.hasAttribute('d') };
+})"""
+
+
+def test_a_region_is_outlined_on_the_region_it_announces(browser, tmp_path) -> None:
+    """Step 4 of #644 on the shape #640 left unaddressed.
+
+    Counting says the selectors still match; it cannot say each one matches
+    the region the payload names at that position. A choropleth is the shape
+    where getting that wrong is worst -- the reader is told "France" while
+    Brazil lights up -- and it is the shape where it is most likely, because
+    the elements carry no identity of their own: measured, a region path's
+    whole attribute set is `class`, `fill`, `d` and `style`, so position is
+    all there is to go on.
+    """
+    figure = _figure("choropleth hole")
+    (layer,) = _layers(figure)
+    page = _drawn(browser, tmp_path, figure)
+    try:
+        drawn = [
+            page.evaluate(_BOUND_REGION, query)
+            for query in _selector_strings(layer)
+        ]
+
+        assert drawn == [
+            [{"loc": point["x"], "z": point["y"], "drawn": True}]
+            for point in layer["data"]
+        ]
+    finally:
+        page.close()
+
+
+def test_the_map_is_drawn_without_a_network_fetch(browser, tmp_path) -> None:
+    """The claim the whole preload rests on, asserted rather than assumed.
+
+    The stub can stop working two measured ways, and this covers both. If
+    the key is absent or renamed, plotly asks `cdn.plot.ly` for the map --
+    every other test here would still pass on any machine with a network
+    while failing in CI, which is the exact silence this file exists to
+    break, and the request assertion catches it. If the key is present but
+    the topology is malformed, plotly does *not* fall back -- its skip
+    condition is only that the asset is defined -- so it throws and draws
+    nothing; that is what waiting on the geometry catches.
+    """
+    figure = _figure("choropleth")
+    path = tmp_path / "figure.html"
+    figure.write_html(str(path), include_plotlyjs=True, full_html=True)
+
+    page = browser.new_page()
+    page.add_init_script(PRELOAD_TOPOJSON)
+    requested: list[str] = []
+    page.on("request", lambda request: requested.append(request.url))
+    try:
+        page.goto(path.as_uri(), wait_until="load")
+        # `[d]` rather than a bare count: plotly draws a slot for a region it
+        # resolved to nothing, so counting elements is satisfied by a blank
+        # map. Measured -- lowercasing the stub's ids so nothing matches
+        # leaves three `path.choroplethlocation` with no geometry at all.
+        page.wait_for_function(
+            "() => document.querySelectorAll('path.choroplethlocation[d]').length === 3",
+            timeout=_DRAW_TIMEOUT_MS,
+        )
+
+        assert [url for url in requested if not url.startswith("file:")] == []
     finally:
         page.close()
