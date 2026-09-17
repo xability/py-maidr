@@ -70,15 +70,13 @@ def test_replotting_a_cleared_axes_replaces_the_layer(clear_it):
     clear_it(ax)
     fig.gca().bar(["a", "b", "c"], [9, 9, 9])
 
-    assert (
-        layer_count(maidr_obj) == 1
-    ), "the cleared layer is still offered alongside the redrawn one"
+    assert layer_count(maidr_obj) == 1, (
+        "the cleared layer is still offered alongside the redrawn one"
+    )
     layer = maidr_obj._flatten_maidr()["subplots"][0][0]["layers"][0]
-    assert [point["y"] for point in layer["data"]] == [
-        9.0,
-        9.0,
-        9.0,
-    ], "the surviving layer must be the redrawn one, not the discarded one"
+    assert [point["y"] for point in layer["data"]] == [9.0, 9.0, 9.0], (
+        "the surviving layer must be the redrawn one, not the discarded one"
+    )
 
 
 def test_repeated_clear_cycles_do_not_accumulate_layers():
@@ -105,9 +103,9 @@ def test_clearing_one_panel_leaves_the_other_registered():
 
     first.clear()
 
-    assert [plot.ax for plot in maidr_obj._plots] == [
-        second
-    ], "clearing one panel unregistered the other"
+    assert [plot.ax for plot in maidr_obj._plots] == [second], (
+        "clearing one panel unregistered the other"
+    )
     assert paired(maidr_obj)
 
 
@@ -126,9 +124,9 @@ def test_clearing_a_twin_leaves_the_axes_it_was_twinned_from():
 
     twin.clear()
 
-    assert [plot.ax for plot in maidr_obj._plots] == [
-        ax
-    ], "clearing the twin took the axes it was twinned from with it"
+    assert [plot.ax for plot in maidr_obj._plots] == [ax], (
+        "clearing the twin took the axes it was twinned from with it"
+    )
     assert paired(maidr_obj)
 
 
@@ -187,9 +185,9 @@ def test_a_line_layer_is_registered_again_after_its_axes_is_cleared(draw):
     ax.clear()
     getattr(ax, draw)([0, 1, 2], [9, 8, 7])
 
-    assert (
-        len(maidr_obj._plots) == 1
-    ), "the redrawn line registered no layer; the chart is undescribed"
+    assert len(maidr_obj._plots) == 1, (
+        "the redrawn line registered no layer; the chart is undescribed"
+    )
     assert layer_count(maidr_obj) == 1
     assert paired(maidr_obj)
 
@@ -214,9 +212,9 @@ def test_clearing_an_axes_drops_the_accumulated_line_series():
     assert not hasattr(ax, PLOT_CREATED)
 
     ax.plot([0, 1], [5, 6])
-    assert (
-        len(getattr(ax, DRAWN_SERIES)) == 1
-    ), "the redrawn layer is carrying lines from before the clear"
+    assert len(getattr(ax, DRAWN_SERIES)) == 1, (
+        "the redrawn layer is carrying lines from before the clear"
+    )
 
 
 def test_clearing_an_axes_drops_the_layers_on_the_insets_it_discards():
@@ -238,9 +236,9 @@ def test_clearing_an_axes_drops_the_layers_on_the_insets_it_discards():
 
     ax.clear()
 
-    assert (
-        maidr_obj._plots == []
-    ), "the inset's layer outlived the clear that discarded the inset"
+    assert maidr_obj._plots == [], (
+        "the inset's layer outlived the clear that discarded the inset"
+    )
     assert paired(maidr_obj)
 
 
@@ -365,9 +363,9 @@ def test_a_discarded_inset_can_be_described_again_after_a_redraw():
     inset.plot([0, 1], [5, 6])
 
     assert len(maidr_obj._plots) == 2, "the redrawn inset registered no layer"
-    assert (
-        len(getattr(inset, DRAWN_SERIES)) == 1
-    ), "the redrawn layer is carrying the line from before the clear"
+    assert len(getattr(inset, DRAWN_SERIES)) == 1, (
+        "the redrawn layer is carrying the line from before the clear"
+    )
     assert paired(maidr_obj)
 
 
@@ -420,16 +418,16 @@ def test_clear_drops_the_selector_ids_with_the_layers():
     maidr_obj.clear()
 
     assert maidr_obj._plots == []
-    assert (
-        maidr_obj.selector_ids == []
-    ), "the ids outlived the layers they were minted for"
+    assert maidr_obj.selector_ids == [], (
+        "the ids outlived the layers they were minted for"
+    )
 
     ax.bar(["a", "b"], [9, 9])
 
     assert paired(maidr_obj)
-    assert (
-        maidr_obj.selector_ids[0] not in discarded
-    ), "the re-plotted layer is wearing the discarded layer's selector id"
+    assert maidr_obj.selector_ids[0] not in discarded, (
+        "the re-plotted layer is wearing the discarded layer's selector id"
+    )
 
 
 def _maidr_state_stashed_in(source_file):
@@ -542,6 +540,6 @@ def test_no_new_module_stashes_maidr_state_on_an_axes():
 
     # The allowlist must not outlive what it describes: an entry for
     # something no longer there would quietly widen the guard.
-    assert set(allowed) == set(
-        found
-    ), f"`allowed` lists {set(allowed) - set(found)}, which no longer exists"
+    assert set(allowed) == set(found), (
+        f"`allowed` lists {set(allowed) - set(found)}, which no longer exists"
+    )
