@@ -21,6 +21,36 @@ class PlotlyPolarPlot(PlotlyPlot):
     A polar chart has no orientation. `IS_ORIENTED` marks both false --
     "spokes sit around a circle rather than along an axis, so there is no
     main and cross axis to swap" -- so nothing is declared.
+
+    Parameters
+    ----------
+    trace : dict
+        One ``scatterpolar``, ``scatterpolargl`` or ``barpolar`` trace.
+    layout : dict
+        The figure's layout block.
+    plot_type : PlotType
+        ``PlotType.RADAR`` for the scatter family, ``PlotType.POLAR_AREA``
+        for a ``barpolar``.
+    trace_position : int, default 0
+        This trace's position among the SVG scatter traces of its **own**
+        polar subplot, counted from zero; see :meth:`_get_selector` for why
+        the subplot scopes the count. Only
+        :class:`~maidr.plotly.plotly_maidr.PlotlyMaidr` knows it, and it
+        passes real positions; the factory leaves it at its default because
+        it sees one trace and cannot know.
+
+        The default is what the factory's polar branch always claimed to
+        rely on and what this class did not in fact offer: the parameter was
+        keyword-only and required, so
+        :meth:`~maidr.plotly.plotly_plot_factory.PlotlyPlotFactory.create`
+        raised ``TypeError: ... missing 1 required keyword-only argument``
+        for every ``scatterpolar`` and ``barpolar`` handed to it directly.
+        No user path reached it -- ``_extract_plots`` consumes every polar
+        trace itself, so the branch is dead for `PlotlyMaidr` -- but the
+        factory is kept usable standalone, as its lines branch states, and
+        for polar alone it was not.
+    **kwargs : str
+        Axis names forwarded to the parent class.
     """
 
     def __init__(
@@ -29,9 +59,16 @@ class PlotlyPolarPlot(PlotlyPlot):
         layout: dict,
         plot_type: PlotType,
         *,
-        trace_position: int,
+        trace_position: int = 0,
         **kwargs: str,
     ) -> None:
+        # A negative position builds ``nth-child(0)`` or lower, which matches
+        # nothing and reports nothing -- the highlight simply never appears.
+        # The same guard `PlotlyPiePlot` and `PlotlyChoroplethPlot` keep over
+        # their own positions.
+        if trace_position < 0:
+            raise ValueError(f"trace position must be >= 0, got {trace_position}")
+
         super().__init__(trace, layout, plot_type, **kwargs)
         self._trace_position = trace_position
         self._subplot = subplot_name(trace)
