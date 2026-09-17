@@ -16,7 +16,7 @@ from maidr.plotly.plotly_plot import as_list
 
 #: What separates a bin's two edges when it is named.
 #:
-#: A bin's label is its coordinate *range*, not its index or its centre: "a
+#: A bin's label is its coordinate *range*, not its index or its center: "a
 #: count of 4" says nothing without "between -2.2 and -1.1", and the range is
 #: what a sighted reader takes off the axis. r-maidr settled the same question
 #: the same way for `geom_bin_2d` (xability/r-maidr#136).
@@ -28,7 +28,7 @@ _RANGE_SEPARATOR = " – "
 #: ``0.30000000000000004``.
 _EDGE_FIGURES = 6
 
-#: What the cells hold, said plainly, when the author named no colour bar.
+#: What the cells hold, said plainly, when the author named no color bar.
 #: ``histnorm`` decides the units when it is set -- measured, a ``histfunc``
 #: of ``sum`` under ``histnorm="percent"`` still totals 100 -- so it wins over
 #: the aggregate, and the aggregate wins over the default count.
@@ -123,13 +123,13 @@ class PlotlyHistogram2dPlot(PlotlyHeatmapPlot):
     def _extract_axes_data(self) -> dict:
         """Name the third axis for what the cells actually hold.
 
-        The parent emits a ``z`` only when the author titled the colour bar,
+        The parent emits a ``z`` only when the author titled the color bar,
         which is right for a heatmap: its numbers are the author's and only
         they can say what they are. A ``histogram2d``'s numbers are computed,
         so their name is known here -- and leaving it unsaid would announce
         a grid of bare numbers with no word for what they count.
 
-        The author's colour bar title still wins where there is one.
+        The author's color bar title still wins where there is one.
         """
         axes = super()._extract_axes_data()
         axes.setdefault(MaidrKey.Z, self._axis_config(label=cell_name(self._trace)))
@@ -137,7 +137,7 @@ class PlotlyHistogram2dPlot(PlotlyHeatmapPlot):
 
 
 def cell_name(trace: dict) -> str:
-    """What one cell measures: the normalisation, the aggregate, or a count.
+    """What one cell measures: the normalization, the aggregate, or a count.
 
     Shared with the contour reading of the same binning, whose *levels* are
     the same numbers -- see
@@ -267,7 +267,7 @@ def binned_cells(
         histfunc = "count"
 
     histnorm = trace.get("histnorm")
-    cells = _normalised(cells, histnorm, x_edges, y_edges)
+    cells = _normalized(cells, histnorm, x_edges, y_edges)
 
     return _as_payload(cells, histfunc, histnorm), x_edges, y_edges
 
@@ -412,7 +412,7 @@ def _aggregate(
     return cells
 
 
-def _normalised(
+def _normalized(
     cells: list[list[float | None]],
     histnorm: str | None,
     x_edges: np.ndarray,

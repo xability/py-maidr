@@ -195,7 +195,7 @@ class MaidrPlotFactory:
             # A `NORMALIZED` layer's bars are already shares, because the
             # library drew them that way; the plotly path computes its own
             # (`maidr/plotly/barnorm.py`) only because plotly draws the raw
-            # values and normalises them in the view (#338, #620).
+            # values and normalizes them in the view (#338, #620).
             return GroupedBarPlot(single_ax, plot_type, **kwargs)
         elif PlotType.SMOOTH == plot_type:
             return SmoothPlot(single_ax, **kwargs)

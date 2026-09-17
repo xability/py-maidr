@@ -81,7 +81,7 @@ def artist_census(figure: Figure) -> tuple[Any, ...]:
     *existing* artist in place -- ``patch.set_height``, ``line.set_ydata``,
     ``collection.set_offsets`` -- moves no count and no label, and passes
     unnoticed. So this is a detector for artists appearing, disappearing,
-    or being relabelled, not for the data inside them, and silence from it
+    or being relabeled, not for the data inside them, and silence from it
     is not a promise that a figure was still. Nor is this read itself
     atomic against the application: it walks ``figure.axes`` while another
     thread may be part-way through changing it, so the "before" it
@@ -122,7 +122,7 @@ def artist_census(figure: Figure) -> tuple[Any, ...]:
                 len(ax.images),
                 len(ax.texts),
                 ax.get_legend() is not None,
-                # Three titles, not one: `get_title()` reads the centre one
+                # Three titles, not one: `get_title()` reads the center one
                 # only, so a left- or right-placed title moved during a
                 # render would otherwise be invisible here.
                 ax.get_title(loc="center"),
@@ -208,7 +208,7 @@ def warn_if_figure_changed(before: tuple[Any, ...], figure: Figure) -> None:
             # user's call varies by entry point -- `render`, `save_html`
             # and `show` reach this through different numbers of frames.
             # 4 names maidr's own render machinery, which is at least a
-            # frame a reader recognises. What went wrong is in the
+            # frame a reader recognizes. What went wrong is in the
             # message, not the location.
             stacklevel=4,
         )

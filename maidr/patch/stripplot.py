@@ -23,12 +23,12 @@ from maidr.patch.common import _draw_quietly, plotter_axes
 from maidr.util.mixin import LineExtractorMixin
 
 
-def _point_colours(collection: PathCollection) -> list:
+def _point_colors(collection: PathCollection) -> list:
     """
-    One colour per point.
+    One color per point.
 
     ``get_facecolor`` answers a row per point on every collection seaborn
-    colours by hue -- it assigns them in one ``set_facecolors`` call over the
+    colors by hue -- it assigns them in one ``set_facecolors`` call over the
     panel's rows -- and no rows at all on the empty collections a faceted grid
     leaves where a panel holds none of a category. Measured across strip,
     swarm, dodged, faceted, translucent and unfilled-marker charts: the two
@@ -36,16 +36,16 @@ def _point_colours(collection: PathCollection) -> list:
 
     The mismatch below is therefore not a live path but where this stops if
     that ever changes. Zipping a shorter list over the points would name each
-    point after whichever colour fell opposite it, which is a grouping made
+    point after whichever color fell opposite it, which is a grouping made
     up rather than read; answering ``None`` per point makes the caller decline
     the panel instead.
-    ``test_seaborn_gives_every_point_its_own_colour`` pins the agreement, so
+    ``test_seaborn_gives_every_point_its_own_color`` pins the agreement, so
     the seaborn release that ends it turns a test red rather than this branch
     silently load-bearing.
 
     The rows are converted per *distinct* row rather than per point. The
-    collection holds one colour per hue level, repeated down the panel, so
-    50,000 points are a handful of colours -- and ``to_rgba`` on every one of
+    collection holds one color per hue level, repeated down the panel, so
+    50,000 points are a handful of colors -- and ``to_rgba`` on every one of
     them was over a second on a chart that size (#718). The same row gets the
     same conversion either way, ``None`` included, so what comes back is
     identical; only the number of calls changes.
@@ -59,7 +59,7 @@ def _point_colours(collection: PathCollection) -> list:
     -------
     list
         One rounded RGBA per drawn point, ``None`` where a row names no
-        colour or where the rows do not correspond to the points at all.
+        color or where the rows do not correspond to the points at all.
     """
     rows = np.asarray(collection.get_facecolor())
     count = len(np.asarray(collection.get_offsets()))
@@ -72,19 +72,19 @@ def _point_colours(collection: PathCollection) -> list:
     return [named[index] for index in np.asarray(inverse).ravel()]
 
 
-def _hue_colours(plotter: Any) -> dict | None:
+def _hue_colors(plotter: Any) -> dict | None:
     """
-    Each hue level's name against the colour seaborn drew it in.
+    Each hue level's name against the color seaborn drew it in.
 
     Read off the plotter's own ``_hue_map`` rather than off the legend, and
     that is the point of doing this here at all. The legend is the only
     source the ``Axes.scatter`` patch has, and for these charts it has two
     problems: a faceted ``catplot`` has no per-panel legend -- the grid's is
     built afterwards, at the figure -- and a panel holding only one of the
-    levels could not be named from a legend anyway, since one colour matched
+    levels could not be named from a legend anyway, since one color matched
     against a swatch is a guess. The plotter knows the mapping outright.
 
-    Keyed by the three colour channels, not by four. ``alpha=`` scales the
+    Keyed by the three color channels, not by four. ``alpha=`` scales the
     drawn points' opacity and leaves the mapping's alone -- measured,
     ``stripplot(hue=..., alpha=.4)`` draws ``(0.12, 0.47, 0.71, 0.4)`` against
     a lookup entry of ``(0.12, 0.47, 0.71, 1.0)`` -- and what identifies a
@@ -94,7 +94,7 @@ def _hue_colours(plotter: Any) -> dict | None:
 
     Declined too when the mapping is numeric. Seaborn builds a lookup entry
     per distinct value there, so a continuous ``hue=`` on eighteen rows offers
-    eighteen "levels" -- a colour *scale*, not a grouping, and one layer per
+    eighteen "levels" -- a color *scale*, not a grouping, and one layer per
     point is not a reading of it. ``hue_groups`` declines the same chart for
     the same reason, one step further down.
 
@@ -118,8 +118,8 @@ def _hue_colours(plotter: Any) -> dict | None:
         return None
 
     named: dict = {}
-    for level, colour in lookup.items():
-        rgba = _rgba(colour)
+    for level, color in lookup.items():
+        rgba = _rgba(color)
         if rgba is None:
             return None
         named[rgba[:3]] = str(level)
@@ -144,7 +144,7 @@ def _hue_levels(
 
     Returns ``None`` the moment a point cannot be placed, which leaves the
     caller reading the chart the way it read it before there was a hue to
-    find. A point no level claims means the colours are not the grouping, and
+    find. A point no level claims means the colors are not the grouping, and
     a partly-named chart is worse than an unnamed one.
 
     Parameters
@@ -159,16 +159,16 @@ def _hue_levels(
     list of (str, list of list of int) or None
         The groups in the plotter's own level order, or ``None``.
     """
-    named = _hue_colours(plotter)
+    named = _hue_colors(plotter)
     if named is None:
         return None
 
     members: Dict[str, list] = {}
     for part, collection in enumerate(drawn):
-        for index, colour in enumerate(_point_colours(collection)):
-            if colour is None:
+        for index, color in enumerate(_point_colors(collection)):
+            if color is None:
                 return None
-            name = named.get(colour[:3])
+            name = named.get(color[:3])
             if name is None:
                 return None
             members.setdefault(name, [[] for _ in drawn])[part].append(index)
@@ -192,7 +192,7 @@ def _collection_category(ax: Axes, collection: PathCollection) -> str | None:
 
     A strip or swarm drawn without a hue gets a collection per category, and
     every point in it belongs to that category -- so the name is read off the
-    points rather than matched by colour, which is what makes this different
+    points rather than matched by color, which is what makes this different
     from the hue path above. Both axes are asked, because ``x='g', y='v'``
     puts the names on x and ``y='g', x='v'`` puts them on y, and asking about
     one alone was itself the #353 defect.
@@ -280,7 +280,7 @@ def sns_categorical_points(
     ``maidr/patch/barplot.py`` wraps ``plot_bars``.
 
     The reading has to happen *after* the method rather than under it, and
-    that is the defect this fixes (#586). ``plot_strips`` colours its points
+    that is the defect this fixes (#586). ``plot_strips`` colors its points
     by hue and builds its legend as its last two acts::
 
         points = ax.scatter(...)
@@ -291,7 +291,7 @@ def sns_categorical_points(
 
     so the ``Axes.scatter`` patch, which registered these charts until now,
     was asked for the grouping before either existed -- measured, one uniform
-    colour and no legend at every one of the three calls. It declined both
+    color and no legend at every one of the three calls. It declined both
     times and the chart came out with its hue dropped: identical, point for
     point, to the same call without one.
 

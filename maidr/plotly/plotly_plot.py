@@ -77,7 +77,7 @@ class PlotlyPlot(ABC):
         for it, rather than unwrapped: ``.item()`` on a ``datetime64`` gives a
         ``datetime`` at microsecond resolution and an epoch *integer* at
         nanosecond, and neither is what the schema wants -- the first cannot
-        be serialised at all and the second announces a date as
+        be serialized at all and the second announces a date as
         ``1704067200000000000`` (#699). The ``datetime64`` check comes before
         ``.item()`` for that reason, and ``date`` covers ``datetime`` and
         ``pandas.Timestamp`` with it.
@@ -386,7 +386,7 @@ class PlotlyPlot(ABC):
         ``nan`` and ``inf`` do not, in either spelling. Python parses both,
         where the JavaScript coercion plotly tests with does not -- measured,
         a heatmap over ``['nan', 'inf', 'zeta']`` gets a *category* axis and
-        honours its ``categoryarray``. Reading them as numbers here would
+        honors its ``categoryarray``. Reading them as numbers here would
         decline a sort plotly applies.
 
         Parameters
@@ -542,7 +542,7 @@ class PlotlyPlot(ABC):
         # *date* axis from ISO dates, drawn chronologically. Applying a
         # declared order to either would reorder a chart plotly did not.
         # Declaring ``type: "category"`` is what makes it categorical again,
-        # and then the order is honoured.
+        # and then the order is honored.
         #
         # One such label is enough, rather than all of them: measured, a mixed
         # set like ``[1, 3, 'b']`` still resolves linear. That is the
@@ -577,7 +577,7 @@ class PlotlyPlot(ABC):
             # Through ``_to_native`` because ``labels`` came through it too: it
             # floats an integer, so a categoryarray of ``3`` compared raw would
             # never match a label of ``3.0`` and the sort would be declined
-            # without a word. Both sides normalise the same way or neither can.
+            # without a word. Both sides normalize the same way or neither can.
             drawn = [str(self._to_native(v)) for v in declared]
         elif order in ("category ascending", "category descending"):
             drawn = sorted(str(v) for v in labels)
@@ -639,7 +639,7 @@ class PlotlyPlot(ABC):
     def _title_anchor(self) -> tuple[float, float]:
         """Return the point on the page a subplot title annotation sits at.
 
-        ``make_subplots`` puts each subplot's title centred over the top of
+        ``make_subplots`` puts each subplot's title centered over the top of
         that subplot, so the pair is the horizontal midpoint and the top edge
         of whatever rectangle the subplot occupies. A cartesian subplot's
         rectangle is the product of its two axis domains, which is what this
@@ -935,7 +935,7 @@ def subplot_css_prefix(xaxis_name: str, yaxis_name: str) -> str:
 
 
 def colorbar_title(trace: dict) -> str:
-    """The title the author gave the colour bar, or an empty string.
+    """The title the author gave the color bar, or an empty string.
 
     Plotly accepts the title either as a string or as a ``{"text": ...}``
     block, and the trace may carry no ``colorbar`` at all. Read in one place
@@ -969,7 +969,7 @@ def as_list(value: Any) -> list:
 
     A date column is one of the arrays that stays numpy, and it is spelled
     here as the ISO strings plotly's own ``to_json`` writes, since the
-    ``datetime64`` scalars it would otherwise decompose into serialise as
+    ``datetime64`` scalars it would otherwise decompose into serialize as
     nothing the schema can hold -- see :meth:`PlotlyPlot._to_native` (#699).
     A list of such scalars is spelled the same way, for the same reason.
 
@@ -1153,7 +1153,7 @@ def paired_axes(trace: dict) -> tuple:
 
     Generated only when an array is missing entirely. A short one is left
     short, because plotly pairs the two positionally and draws only as far
-    as the shorter reaches -- truncating is its behaviour, not an error to
+    as the shorter reaches -- truncating is its behavior, not an error to
     repair here.
 
     Parameters

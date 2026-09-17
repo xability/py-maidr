@@ -67,7 +67,7 @@ def patch_violinplot(
     Nothing here sets the internal context, and that is deliberate: the
     context is what makes a patch decline, so setting it here would silence
     the plotter patch below. The two things it used to suppress are covered
-    elsewhere -- ``maidr/patch/seaborn_probe.py`` handles the colour probe
+    elsewhere -- ``maidr/patch/seaborn_probe.py`` handles the color probe
     seaborn runs before it draws (#373), and everything drawn *inside*
     ``plot_violins`` is inside the context that patch sets.
 
@@ -126,7 +126,7 @@ def _panel_groups(
     panel: pd.DataFrame, plotter: Any
 ) -> tuple[list[str], list[np.ndarray]]:
     """
-    The named groups one panel summarises, read from seaborn's own frame.
+    The named groups one panel summarizes, read from seaborn's own frame.
 
     ``plot_data`` holds the values in *resolved* roles: seaborn has already
     decided which variable is the category and which is the measurement, and
@@ -140,7 +140,7 @@ def _panel_groups(
     Group labels follow the axes-level convention exactly, including the
     ``"Violin"`` placeholder for a single ungrouped distribution and the
     ``f"{category}_{hue}"`` join -- collapsed to the category alone when the
-    hue *is* the category, which is seaborn's own idiom for colouring a plain
+    hue *is* the category, which is seaborn's own idiom for coloring a plain
     violin and would otherwise announce "a_a".
 
     An empty combination is skipped rather than announced as a group with no
@@ -178,7 +178,7 @@ def _panel_groups(
     # `sns.violinplot(x=values)` has no categorical variable at all, and
     # seaborn does not leave the column out: `scale_categorical` invents the
     # axis and fills it with the empty string, so the frame looks grouped and
-    # the group is called "". Recognised by both halves together -- an unnamed
+    # the group is called "". Recognized by both halves together -- an unnamed
     # variable *and* nothing but the placeholder in it -- because an unnamed
     # variable on its own is just a bare list of real categories,
     # `sns.violinplot(x=["a", "b", ...], y=[...])`, which does have groups to

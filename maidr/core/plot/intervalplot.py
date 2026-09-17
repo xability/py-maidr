@@ -33,7 +33,7 @@ class IntervalPlot(MaidrPlot, DictMergerMixin):
         so.Range()  one LineCollection  one segment per position
 
     Both carry **bounds and no estimate**, and that is not a gap to be filled
-    in: neither mark draws a centre of its own, and
+    in: neither mark draws a center of its own, and
     :class:`~maidr.core.enum.PlotType.ERRORBAR`'s point shape declares its
     estimate optional for exactly this -- "absent on a band that draws only
     bounds". A chart wanting the estimate too adds ``so.Dot(), so.Agg()``
@@ -78,7 +78,7 @@ class IntervalPlot(MaidrPlot, DictMergerMixin):
         """
         Extend the base per-axis mapping with the legend title as ``z``.
 
-        A colour split names each series by the level it belongs to, so the
+        A color split names each series by the level it belongs to, so the
         dimension itself needs a name for those levels to be announced
         against. Omitted when there is no legend, which is every chart drawn
         without a split.
@@ -222,7 +222,7 @@ class IntervalPlot(MaidrPlot, DictMergerMixin):
 
         for collection in collections:
             segments = [np.asarray(seg, dtype=float) for seg in collection.get_segments()]
-            named = names_for(self.ax, _segment_colours(collection, len(segments)))
+            named = names_for(self.ax, _segment_colors(collection, len(segments)))
             for segment, name in zip(segments, named):
                 if len(segment) < 2:
                     continue
@@ -307,7 +307,7 @@ def _folded(vertices: np.ndarray) -> list[tuple]:
 
 def _face_of(poly: Polygon):
     """
-    One band's fill colour, as the rounded RGBA the legend is matched on.
+    One band's fill color, as the rounded RGBA the legend is matched on.
 
     Parameters
     ----------
@@ -317,19 +317,19 @@ def _face_of(poly: Polygon):
     Returns
     -------
     tuple of float or None
-        The rounded RGBA, or ``None`` when the patch names no single colour.
+        The rounded RGBA, or ``None`` when the patch names no single color.
     """
     face = np.asarray(poly.get_facecolor(), dtype=float).ravel()
     return _rgba(face[:4]) if len(face) >= 4 else None
 
 
-def _segment_colours(collection: LineCollection, count: int) -> list:
+def _segment_colors(collection: LineCollection, count: int) -> list:
     """
     One rounded RGBA per drawn segment.
 
     Cycled rather than indexed, for the reason ``SegmentLinePlot`` cycles its
     own: ``get_colors()`` returns exactly what was set, which for a chart
-    drawn without a split is one colour over every segment.
+    drawn without a split is one color over every segment.
 
     Parameters
     ----------
@@ -341,14 +341,14 @@ def _segment_colours(collection: LineCollection, count: int) -> list:
     Returns
     -------
     list
-        One rounded RGBA per segment, or ``None`` where there is no colour.
+        One rounded RGBA per segment, or ``None`` where there is no color.
     """
-    colours = np.asarray(collection.get_colors(), dtype=float)
-    if colours.ndim == 1:
-        colours = colours.reshape(1, -1)
-    if len(colours) == 0:
+    colors = np.asarray(collection.get_colors(), dtype=float)
+    if colors.ndim == 1:
+        colors = colors.reshape(1, -1)
+    if len(colors) == 0:
         return [None] * count
-    return [_rgba(colours[index % len(colours)][:4]) for index in range(count)]
+    return [_rgba(colors[index % len(colors)][:4]) for index in range(count)]
 
 
 def _plain(value) -> Any:

@@ -281,7 +281,7 @@ class TestStepLevelLabels:
         "y_values, configure",
         [
             # Default ScalarFormatter factors out an offset, so the tick at
-            # y = 1000000 is labelled "0.0". Labelling the point "0.0" would
+            # y = 1000000 is labeled "0.0". Labeling the point "0.0" would
             # announce a flatly wrong value.
             ([1000000, 1000002, 1000004], lambda ax: None),
             # Scientific notation rescales the same way: "1.00" at y = 1e6.

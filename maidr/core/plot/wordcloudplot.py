@@ -26,10 +26,10 @@ def cloud_shown(args: tuple, kwargs: dict) -> Any | None:
     """
     The word cloud an ``Axes.imshow`` call is displaying, if it is showing one.
 
-    Recognised **structurally** rather than with ``isinstance``. ``wordcloud``
+    Recognized **structurally** rather than with ``isinstance``. ``wordcloud``
     is not a dependency of py-maidr and need not be installed, so importing it
     here to test against would either make it one or make this patch's
-    behaviour depend on an unrelated import having happened. ``words_`` is
+    behavior depend on an unrelated import having happened. ``words_`` is
     specific enough on its own: it is a non-empty mapping of term to weight,
     on an object being handed to ``imshow``.
 
@@ -64,7 +64,7 @@ class WordCloudPlot(MaidrPlot):
     reading is a term and its number.
 
     **The weights are relative, and the axis label says so.** ``WordCloud``
-    normalises by the largest frequency in
+    normalizes by the largest frequency in
     ``generate_from_frequencies`` and keeps only the ratio -- measured, the
     counts ``{machine: 412, learning: 300, data: 250}`` come back as
     ``{machine: 1.0, learning: 0.728, data: 0.607}``, and the raw counts are
@@ -80,7 +80,7 @@ class WordCloudPlot(MaidrPlot):
     that would announce alpha twice, at two different weights, when the
     repetition is the packer filling space rather than anything in the data.
     ``words_`` is keyed by term, so it cannot repeat one, and it already
-    honours ``max_words``.
+    honors ``max_words``.
 
     **No selectors.** ``imshow`` rasterises the whole cloud into one
     ``<image>`` element; there is no per-term element to point at, so this
@@ -114,13 +114,13 @@ class WordCloudPlot(MaidrPlot):
         A cloud has no x or y scale -- the glyph positions are packing, not
         data -- so the axes name what a point *holds* rather than where it
         sits, the way :class:`~maidr.core.plot.pieplot.PiePlot` does. An
-        author who labelled the axes has already named them; otherwise the
+        author who labeled the axes has already named them; otherwise the
         base class's generic "X"/"Y" would be read out against every term.
 
         The shared-label fallback is the rest of that pattern: one cloud per
         group on a facet grid carries its label on the shared outer axes
         rather than on its own, so asking only ``self.ax`` would fall through
-        to the generic name for a figure that was labelled.
+        to the generic name for a figure that was labeled.
 
         Returns
         -------
@@ -164,7 +164,7 @@ class WordCloudPlot(MaidrPlot):
         ExtractionError
             If the layer was built without a cloud to read. Unlike an empty
             pie, an empty cloud is not a legal chart someone drew: ``words_``
-            is non-empty by the time :func:`cloud_shown` recognises one, so
+            is non-empty by the time :func:`cloud_shown` recognizes one, so
             reaching here with nothing means the layer and its artist came
             apart.
         """

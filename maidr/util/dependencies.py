@@ -354,7 +354,7 @@ def maidr_js_version() -> str:
     Cached for the process: the file ships inside the wheel and cannot
     change under a running interpreter.  Without this, pinning to
     :data:`BUNDLED_TAG` would re-read it twice per figure, since
-    :func:`_normalise_version_pin` runs on every URL build.
+    :func:`_normalize_version_pin` runs on every URL build.
 
     The cache is part of the contract: this will not observe a ``VERSION``
     file edited at runtime, and exposes ``.cache_clear()`` for the tests
@@ -530,7 +530,7 @@ def maidr_html_dependency():
         Dependency describing the bundled assets.
     """
     # Imported lazily so this module stays importable even in contexts
-    # where ``htmltools`` may not be fully initialised.
+    # where ``htmltools`` may not be fully initialized.
     from htmltools import HTMLDependency
 
     return HTMLDependency(
@@ -622,7 +622,7 @@ def inline_bundle_tags() -> "list | None":
 
     An ``HTMLDependency`` is the right way to ship the bundle whenever the
     host serves the assets and htmltools can materialise them.  It is not
-    an option for output that is serialised with
+    an option for output that is serialized with
     :meth:`htmltools.Tag.get_html_string` -- which silently drops
     ``HTMLDependency`` children -- and then embedded in an iframe
     ``srcdoc``.  A ``srcdoc`` document also has no reachable
@@ -801,7 +801,7 @@ def __getattr__(name: str) -> object:
     file.  ``bundle_capability`` imports *from here*, so importing it back
     eagerly would make the direction of the dependency circular: whichever
     module a program happened to import first would find the other
-    half-initialised.  Resolving on attribute access instead means the
+    half-initialized.  Resolving on attribute access instead means the
     import only ever runs after both modules are loadable.
 
     Parameters

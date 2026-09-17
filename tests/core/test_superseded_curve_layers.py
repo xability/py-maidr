@@ -88,7 +88,7 @@ def test_a_panel_with_no_fit_keeps_its_line() -> None:
 
 
 def test_a_fit_still_supersedes_the_line_it_drew() -> None:
-    """The behaviour that was right, and has to stay right.
+    """The behavior that was right, and has to stay right.
 
     ``regplot`` draws its fit through ``ax.plot``, so the curve arrives twice.
     Scoping the rule per axes must not stop it firing on the axes it belongs
@@ -149,7 +149,7 @@ def test_a_deliberate_line_over_a_fit_is_kept() -> None:
     its axes", and an annotation drawn there is collateral.
 
     Naming it here means the day it is fixed, this test fails and has to be
-    rewritten, rather than the behaviour quietly changing.
+    rewritten, rather than the behavior quietly changing.
     """
     fig, ax = plt.subplots()
     sns.regplot(data=_frame(), x="a", y="b", ax=ax)

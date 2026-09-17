@@ -108,7 +108,7 @@ def test_the_gallery_example_with_its_ticks_is_unchanged() -> None:
 def test_a_horizontal_numeric_bar_announces_its_positions() -> None:
     """``barh`` reads its label off y and its magnitude off x.
 
-    The centre of a horizontal bar is its ``y + height / 2``, a different
+    The center of a horizontal bar is its ``y + height / 2``, a different
     branch from the vertical case, so the mirror is worth driving rather than
     assuming.
     """
@@ -124,7 +124,7 @@ def test_a_horizontal_numeric_bar_announces_its_positions() -> None:
 def test_a_position_is_printed_the_way_an_axis_prints_it() -> None:
     """A bar at x=0 is at "0", not "0.0".
 
-    The centre is a float because the rectangle's geometry is, but a numeric
+    The center is a float because the rectangle's geometry is, but a numeric
     axis writes whole numbers without a trailing zero and the announcement
     should match what is on the chart. Half-steps keep their fraction, so
     this is formatting rather than rounding -- a bar really at 1.5 still says

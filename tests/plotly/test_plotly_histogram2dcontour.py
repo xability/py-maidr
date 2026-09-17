@@ -11,7 +11,7 @@ in Chromium:
 - **The grid is one bin wider at each automatic edge**, so the curves have
   somewhere to close. Which edges move is per-side and not simply "the
   automatic ones" -- see `histogram2d.extended_edges`.
-- **The curves run through the bin centres**, not the edges. Plotly's own
+- **The curves run through the bin centers**, not the edges. Plotly's own
   `calcdata` for this trace carries five coordinates for five bins where a
   `histogram2d` carries four edges for three bins.
 - **A cell nothing landed in traces as zero.** The heatmap reading of the
@@ -109,11 +109,11 @@ def test_a_binned_contour_names_the_level_group_of_every_curve() -> None:
     assert all(selector.endswith(" path") for selector in layer["selectors"])
 
 
-def test_the_curves_run_through_the_bin_centres() -> None:
+def test_the_curves_run_through_the_bin_centers() -> None:
     """Not the edges, which is where a `histogram2d` reads its grid.
 
     Plotly bins these into five bins from -5.5 in steps of 5 and traces the
-    contour through their centres, -3 .. 17 -- measured off its own
+    contour through their centers, -3 .. 17 -- measured off its own
     `calcdata`, which carries five coordinates here where a `histogram2d`
     carries six edges. Every vertex therefore lies within that span, and the
     curves of the outermost level touch it.
@@ -220,8 +220,8 @@ class TestACellWithNoAnswer:
         assert len(set(layer["selectors"])) == 13
 
 
-def test_a_normalisation_reaches_the_levels() -> None:
-    """The cells are normalised before the levels are picked, as plotly does.
+def test_a_normalization_reaches_the_levels() -> None:
+    """The cells are normalized before the levels are picked, as plotly does.
 
     Twenty samples under ``probability`` put the fullest cell at 0.5, and the
     levels follow at every twentieth -- measured, nine of them and twelve
@@ -287,7 +287,7 @@ class TestTheThirdAxisIsNamed:
             pytest.param({"z": Z, "histfunc": "avg"}, "Average", id="averaged"),
             pytest.param({"z": Z, "histfunc": "max"}, "Maximum", id="reduced"),
             pytest.param(
-                {"histnorm": "percent"}, "Percent", id="normalised-wins-over-the-rest"
+                {"histnorm": "percent"}, "Percent", id="normalized-wins-over-the-rest"
             ),
         ],
     )
@@ -298,7 +298,7 @@ class TestTheThirdAxisIsNamed:
 
         assert layer["axes"][MaidrKey.Z][MaidrKey.LABEL] == expected
 
-    def test_the_author_s_colour_bar_title_wins(self) -> None:
+    def test_the_author_s_color_bar_title_wins(self) -> None:
         (layer,) = _layers(
             go.Figure(
                 go.Histogram2dContour(x=X, y=Y, colorbar=dict(title="Sightings"))

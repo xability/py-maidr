@@ -3,7 +3,7 @@
 The orientation reaches the MAIDR JSON as ``orientation`` and drives two
 user-visible things: the announced plot type ("vertical box" / "horizontal
 box") and which axis the extractor reads the Tukey statistics off. Recent
-matplotlib deprecated ``vert`` in favour of ``orientation`` and ``Axes.boxplot``
+matplotlib deprecated ``vert`` in favor of ``orientation`` and ``Axes.boxplot``
 forwards both to ``Axes.bxp``, so the detection has to read them the way
 matplotlib itself does.
 """

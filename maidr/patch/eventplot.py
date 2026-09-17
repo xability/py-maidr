@@ -64,7 +64,7 @@ def _a_name(text: str | None, offset: float) -> str | None:
     """
     The tick's text, unless it is only the row's own number.
 
-    An unlabelled axis still has ticks, and their text is the offset -- so
+    An unlabeled axis still has ticks, and their text is the offset -- so
     without this every row would be "named" `0.0`, `1.0`, `2.0`, which is the
     coordinate the payload already carries and worse than no name at all: a
     reader switching layers would hear a number they were about to be told

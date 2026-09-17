@@ -14,7 +14,7 @@ from maidr.core.enum import PlotType
 #:
 #: `texts` is included because `ax.text()` and `annotate()` land there, and
 #: excluded from mattering elsewhere: an axes title or axis label does *not*,
-#: which is what keeps a labelled-but-empty axes reading as empty.
+#: which is what keeps a labeled-but-empty axes reading as empty.
 _ARTIST_LISTS = (
     "lines",
     "collections",
@@ -81,7 +81,7 @@ class UnsupportedPlotError(KeyError):
     matplotlib backend already catches ``KeyError`` around ``get_maidr`` to
     decide whether to fall back, and so may anyone else's code, so narrowing
     the type without keeping the base would break the working half of the
-    behaviour while fixing the broken half.
+    behavior while fixing the broken half.
 
     Parameters
     ----------

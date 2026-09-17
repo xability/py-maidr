@@ -21,7 +21,7 @@ import uuid
 #: ``MaidrLayer.name`` was added for (xability/maidr#828).
 #:
 #: Defined here because more than one layer type answers to it, and
-#: **honoured per class** rather than read by this base: most subclasses call
+#: **honored per class** rather than read by this base: most subclasses call
 #: ``super().__init__(ax, PlotType.X)`` without forwarding their keyword
 #: arguments, so a key read here would arrive for some layer types and be
 #: swallowed by the rest -- a promise kept by accident of how each
@@ -45,7 +45,7 @@ import uuid
 #: ``pairplot(hue=...)`` is that chart: ``PairGrid.add_legend()`` runs after
 #: every panel is drawn, so at registration there is no legend anywhere and
 #: every diagonal came out anonymous while the scatters beside it were named
-#: (#561). Each class that honours this key resolves the callable itself.
+#: (#561). Each class that honors this key resolves the callable itself.
 GROUP_NAME = "_maidr_group_name"
 
 
@@ -54,7 +54,7 @@ def group_name_of(kwargs: dict):
     Read :data:`GROUP_NAME` out of a layer's keyword arguments.
 
     One line in each opting-in constructor, and the same line. Three copies
-    of it drifted apart is a layer honouring the key in a way the others do
+    of it drifted apart is a layer honoring the key in a way the others do
     not, which is the failure this whole mechanism exists to prevent -- and
     they had already begun to: ``SmoothPlot`` read the key with ``get`` where
     the others used ``pop``. Harmless there, since nothing reads it again and

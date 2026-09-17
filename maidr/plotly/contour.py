@@ -272,7 +272,7 @@ class PlotlyContourPlot(PlotlyPlot):
         It ends at ``path`` rather than at the ``g.contourlevel`` because the
         core sets ``stroke`` on a *clone* of what it resolves, and ``stroke``
         is inherited only by a child declaring none -- plotly stamps one on
-        every contour path, so a cloned group comes out colourless.
+        every contour path, so a cloned group comes out colorless.
 
         **What an island still costs the rest of its layer.** A series here is
         one curve, so a level's curves all carry the *same* selector string,
@@ -344,7 +344,7 @@ def is_contour_trace(trace: dict) -> bool:
 def draws_its_lines(trace: dict) -> bool:
     """Report whether plotly writes this trace's level curves as paths.
 
-    ``showlines`` is only honoured under ``coloring: "fill"``, which is the
+    ``showlines`` is only honored under ``coloring: "fill"``, which is the
     default. Measured: with ``coloring: "heatmap"`` and ``showlines: False``
     the curves are still drawn, and only the filled case removes them -- and
     removes the ``g.contourlevel`` groups with them, so there is no element

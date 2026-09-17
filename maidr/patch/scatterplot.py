@@ -49,7 +49,7 @@ def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
 
     The split has to happen here rather than inside the layer because a layer
     *is* one entry in the schema: seaborn draws every hue group as a single
-    ``PathCollection`` with a colour per point, so one call produces one
+    ``PathCollection`` with a color per point, so one call produces one
     artist and has to produce several layers from it. That is the shape the
     plotly binding already has -- there each group arrives as its own trace --
     and the shape ``jointplot(hue=)``'s own marginals already emit, one

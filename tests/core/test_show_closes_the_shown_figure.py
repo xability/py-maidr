@@ -4,7 +4,7 @@ Two faults, one cause. `Maidr.show` closed the figure with a bare
 `plt.close()`, which closes pyplot's *current* figure -- the one created or
 activated last -- rather than the one it had just rendered, so showing an
 older figure while a newer one was open closed the wrong one. And
-`maidr.show(clear_fig=False)` was honoured only for an `Axes`: the `Figure`
+`maidr.show(clear_fig=False)` was honored only for an `Axes`: the `Figure`
 form, which includes the default `plot=None`, went through a branch of
 `maidr.show` that never forwarded `clear_fig`, so the figure was closed
 regardless (#694).

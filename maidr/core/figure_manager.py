@@ -60,7 +60,7 @@ class _FigureRecords:
     Neither is a contract matplotlib publishes. If either changes the
     failure is quiet -- the attribute is simply absent and a figure reads as
     unregistered -- so ``tests/core/test_figure_manager.py`` pins all three
-    behaviours rather than leaving them to be assumed.
+    behaviors rather than leaving them to be assumed.
     """
 
     #: Attribute the record is stored under on the figure.

@@ -60,7 +60,7 @@ def _layer_type(fig) -> PlotType:
 
 @pytest.mark.parametrize("dodge", [None, True, False])
 def test_a_hued_barplot_is_grouped_however_dodge_was_left(dodge: bool | None) -> None:
-    """The bug: only `dodge=True` was recognised, and it is not the default.
+    """The bug: only `dodge=True` was recognized, and it is not the default.
 
     `dodge` defaults to `"auto"`, so the common call — hue and nothing else —
     was bound as a plain bar layer and raised while extracting. `dodge=False`
@@ -149,7 +149,7 @@ def test_a_single_category_split_by_hue_is_still_grouped() -> None:
 def test_a_hue_that_repeats_the_category_stays_a_plain_bar_layer() -> None:
     """Seaborn draws this one container per bar, and does not group it.
 
-    It is only colouring the bars it would have drawn anyway, so reading it
+    It is only coloring the bars it would have drawn anyway, so reading it
     as groups would report one group per bar. The bars are counted against
     the tick labels to tell the two apart.
     """

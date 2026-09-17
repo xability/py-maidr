@@ -52,7 +52,7 @@ def test_the_name_a_caller_chose_is_announced() -> None:
     plt.close(fig)
 
 
-def test_an_unlabelled_line_is_announced_without_a_name() -> None:
+def test_an_unlabeled_line_is_announced_without_a_name() -> None:
     """The case that already worked, pinned so the rule cannot narrow to it."""
     fig, ax = plt.subplots()
     ax.plot([1, 2, 3], [4, 9, 2])

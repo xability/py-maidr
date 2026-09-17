@@ -13,7 +13,7 @@ the worst version of this failure, because the person hitting it is on an
 air-gapped deployment and the setting that works (``use_cdn=False``) is
 otherwise only discoverable by reading the source.
 
-These assert on the emitted script rather than on browser behaviour: what is
+These assert on the emitted script rather than on browser behavior: what is
 in scope here is that every path out of the fallback reports, and that the
 report names the fix.
 """
@@ -129,7 +129,7 @@ class TestThePlotlyRenderReportsToo:
         Named apart from the module-level ``_rendered`` deliberately. A bare
         ``_rendered(...)`` inside a method resolves to the module-level one
         -- class scope is not in the lookup chain -- so two same-named
-        helpers read as a typo even where the behaviour is intended.
+        helpers read as a typo even where the behavior is intended.
         """
         import html as html_module
         import re

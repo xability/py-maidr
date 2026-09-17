@@ -103,7 +103,7 @@ def test_each_cdn_mode_ships_the_source_it_promises(
 ):
     """Every mode must put a real source for maidr.js in the string.
 
-    ``use_cdn=False`` has to inline: serialising to HTML is what makes the
+    ``use_cdn=False`` has to inline: serializing to HTML is what makes the
     embed possible, and it drops ``HTMLDependency`` children on the way,
     so a reference to the bundle would not survive the trip.
     """
@@ -172,7 +172,7 @@ def test_render_maidr_falls_back_to_components_html(bar_axes, monkeypatch):
 
 
 def test_legacy_fallback_passes_an_integer_height_through(bar_axes, monkeypatch):
-    """An explicit int height is honoured rather than replaced."""
+    """An explicit int height is honored rather than replaced."""
     _st, v1 = _stub_streamlit(monkeypatch, with_iframe=False)
 
     render_maidr(bar_axes, height=321, width=654, use_cdn=True)
@@ -183,7 +183,7 @@ def test_legacy_fallback_passes_an_integer_height_through(bar_axes, monkeypatch)
 
 
 def test_tab_index_is_passed_through_verbatim(bar_axes, monkeypatch):
-    """The default is the browser's, and an explicit value is honoured.
+    """The default is the browser's, and an explicit value is honored.
 
     An iframe's contents already take part in sequential focus navigation
     and maidr gives the chart its own tab stop, so the frame does not need
@@ -255,7 +255,7 @@ def test_legacy_fallback_forwards_tab_index_when_supported(bar_axes, monkeypatch
 
 
 def test_legacy_fallback_says_so_when_tab_index_cannot_be_set(bar_axes, monkeypatch):
-    """Older still: the argument cannot be honoured, so it is not dropped mutely."""
+    """Older still: the argument cannot be honored, so it is not dropped mutely."""
     v1 = _stub_legacy_html(monkeypatch, accepts_tab_index=False)
 
     with pytest.warns(UserWarning, match="too old to set tab_index"):
@@ -265,7 +265,7 @@ def test_legacy_fallback_says_so_when_tab_index_cannot_be_set(bar_axes, monkeypa
 
 
 def test_legacy_fallback_is_quiet_when_tab_index_is_unset(bar_axes, monkeypatch):
-    """Nothing to honour, so nothing to warn about."""
+    """Nothing to honor, so nothing to warn about."""
     _stub_legacy_html(monkeypatch, accepts_tab_index=False)
 
     with warnings.catch_warnings(record=True) as caught:
@@ -276,7 +276,7 @@ def test_legacy_fallback_is_quiet_when_tab_index_is_unset(bar_axes, monkeypatch)
 
 
 def test_a_chart_that_only_loads_maidr_remotely_is_not_inlined(bar_axes, monkeypatch):
-    """The Altair shape: ``use_cdn=False`` cannot be honoured, so say so.
+    """The Altair shape: ``use_cdn=False`` cannot be honored, so say so.
 
     ``maidr.render`` hands an Altair chart to the Vega-Lite adapter before
     ``use_cdn`` is consulted, so the chart already names a remote runtime.
@@ -302,7 +302,7 @@ def test_a_chart_that_only_loads_maidr_remotely_is_not_inlined(bar_axes, monkeyp
         lambda: maidr_html(bar_axes, use_cdn=False),
         lambda: render_maidr(bar_axes, use_cdn=False),
     ):
-        with pytest.warns(UserWarning, match="cannot be honoured") as caught:
+        with pytest.warns(UserWarning, match="cannot be honored") as caught:
             call()
         assert (
             caught[0].filename == __file__
@@ -393,7 +393,7 @@ def test_an_unrelated_cdn_script_does_not_vouch_for_maidr(bar_axes, monkeypatch)
 
 
 @pytest.mark.parametrize("use_cdn", [True, "auto"])
-def test_a_normal_render_is_recognised_as_having_a_runtime(bar_axes, use_cdn):
+def test_a_normal_render_is_recognized_as_having_a_runtime(bar_axes, use_cdn):
     """The runtime check must not fire on the ordinary path.
 
     matplotlib and Plotly build the script element in JavaScript, so the

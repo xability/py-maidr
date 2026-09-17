@@ -34,7 +34,7 @@ _VOLATILE_IN_SVG = re.compile(
 
 
 def _render_from_threads(name, workers=6):
-    """Render ``name`` from ``workers`` threads at once, normalised."""
+    """Render ``name`` from ``workers`` threads at once, normalized."""
     outputs: list[str] = []
     failures: list[Exception] = []
     # One constant for the barrier and the thread count, because they must
@@ -67,7 +67,7 @@ def _render_from_threads(name, workers=6):
 
 @pytest.mark.parametrize("names", ["axes", "figure"], ids=["axes", "figure"])
 def test_concurrent_renders_through_the_api_agree(names):
-    """``maidr.render`` serialises by itself, with no integration involved.
+    """``maidr.render`` serializes by itself, with no integration involved.
 
     Measured before the lock moved here, six threads on one figure through
     ``maidr.render`` directly: 1 of 5 trials came back with two distinct
@@ -101,7 +101,7 @@ def test_concurrent_renders_through_the_api_agree(names):
 
 
 def test_two_figures_still_render_in_parallel(monkeypatch):
-    """The lock is per figure, so unrelated renders are not serialised.
+    """The lock is per figure, so unrelated renders are not serialized.
 
     A process-wide lock would pass the test above and quietly throw away
     the parallelism that rendering on a thread exists for. Asserted by
@@ -148,5 +148,5 @@ def test_two_figures_still_render_in_parallel(monkeypatch):
 
     assert overlapped.is_set(), (
         "two distinct figures did not render at the same time; the lock is "
-        "serialising more than one figure's worth of work"
+        "serializing more than one figure's worth of work"
     )

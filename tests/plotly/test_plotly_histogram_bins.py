@@ -186,7 +186,7 @@ class TestBinStartShift:
         fig = go.Figure([go.Histogram(x=[0.5, 1.5, 4.0], xbins=dict(size=2))])
         assert bins(fig) == [(-1.0, 1.0, 1), (1.0, 3.0, 1), (3.0, 5.0, 1)]
 
-    def test_an_explicit_start_is_honoured_rather_than_shifted(self):
+    def test_an_explicit_start_is_honored_rather_than_shifted(self):
         # The shift only chooses a start; given one, plotly uses it verbatim.
         fig = go.Figure(
             [go.Histogram(x=[0, 1, 2, 3, 4], xbins=dict(start=0, end=6, size=2))]

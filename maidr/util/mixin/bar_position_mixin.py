@@ -24,24 +24,24 @@ class BarPositionMixin:
 
     def _bar_position(self, patch: Rectangle) -> str:
         """
-        The centre a bar was drawn at, as the axis would print it.
+        The center a bar was drawn at, as the axis would print it.
 
         Read off the rectangle rather than the caller's argument, because the
-        caller's is not available here and the drawn centre is what the value
+        caller's is not available here and the drawn center is what the value
         became. With matplotlib's default ``align="center"`` the two are the
         same number.
 
         Whole numbers lose their trailing ``.0``: a bar at x=0 is at ``"0"``,
         not ``"0.0"``, matching what a numeric axis shows. They are also the
-        reason this is not simply ``f"{centre:g}"`` -- that is six significant
+        reason this is not simply ``f"{center:g}"`` -- that is six significant
         figures and goes exponential past them, so a bar at x=1234567 would
         announce ``"1.23457e+06"``, which is both lossy and hard to listen to.
         A large x is overwhelmingly an integer one (an index, an id, a year),
         so integers are formatted exactly and only fractions fall back.
 
-        That scopes the problem rather than solving it: a bar centred at
+        That scopes the problem rather than solving it: a bar centered at
         1234567.5 still announces ``"1.23457e+06"``. Rounding fractions is not
-        incidental, though -- the centre is computed from the rectangle's
+        incidental, though -- the center is computed from the rectangle's
         geometry, so ``0.1 + 0.2`` arrives as ``0.30000000000000004`` and
         printing it exactly would be worse than printing it short. Fixing the
         large-fraction case properly means telling float noise from a real
@@ -58,9 +58,9 @@ class BarPositionMixin:
             The bar's position along its label axis.
         """
         if self._is_horizontal:
-            centre = patch.get_y() + patch.get_height() / 2
+            center = patch.get_y() + patch.get_height() / 2
         else:
-            centre = patch.get_x() + patch.get_width() / 2
-        if float(centre).is_integer():
-            return str(int(centre))
-        return f"{centre:g}"
+            center = patch.get_x() + patch.get_width() / 2
+        if float(center).is_integer():
+            return str(int(center))
+        return f"{center:g}"

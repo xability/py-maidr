@@ -150,20 +150,20 @@ def _group_labels(ax: Axes, estimates: list[Line2D]) -> list[str]:
     the groups it does cover would leave the layer declaring an ``axes.z``
     while some of its series carried no ``z`` at all -- a shape the consumer
     has no reading for. Returning nothing instead gives the clean fallback:
-    an unlabelled grouped chart, which is what the old ``line`` fallback
+    an unlabeled grouped chart, which is what the old ``line`` fallback
     produced anyway.
 
-    **Which name goes on which group is settled by colour, not by
+    **Which name goes on which group is settled by color, not by
     position.** Reading the legend in order assumes seaborn lists its
     handles in the order it drew the lines -- true today, and not part of
     its public API, so a release that kept the count and reordered the
     legend would attach every name to the wrong series with the estimates
     and bounds all correct and nothing to indicate the swap (#502). The hue
-    mapping that names a group is the same one that colours it, so matching
-    each legend handle's colour to an estimate line's is independent
+    mapping that names a group is the same one that colors it, so matching
+    each legend handle's color to an estimate line's is independent
     evidence rather than the same assumption restated.
 
-    Legend order remains the fallback, for the case where colour cannot
+    Legend order remains the fallback, for the case where color cannot
     tell the groups apart -- a monochrome palette, or one whose entries
     repeat. That is no worse than reading positionally always, which is
     what this did before.
@@ -189,19 +189,19 @@ def _group_labels(ax: Axes, estimates: list[Line2D]) -> list[str]:
     if len(names) != len(estimates):
         return []
 
-    return _names_by_colour(legend, names, estimates) or names
+    return _names_by_color(legend, names, estimates) or names
 
 
-def _names_by_colour(
+def _names_by_color(
     legend: Legend, names: list[str], estimates: list[Line2D]
 ) -> list[str]:
     """
-    Pair each estimate line with the legend entry drawn in its colour.
+    Pair each estimate line with the legend entry drawn in its color.
 
     Answers empty whenever the pairing cannot be made to stand on its own:
     a legend whose handles do not correspond one-to-one with its texts, a
-    handle carrying no readable colour, two groups sharing one, or an
-    estimate whose colour matches no handle. In every one of those the
+    handle carrying no readable color, two groups sharing one, or an
+    estimate whose color matches no handle. In every one of those the
     caller falls back to legend order, which is what the whole function
     used to do.
 
@@ -223,7 +223,7 @@ def _names_by_colour(
     Returns
     -------
     list of str
-        One name per estimate line, or empty when colour cannot settle it.
+        One name per estimate line, or empty when color cannot settle it.
     """
     handles = getattr(legend, "legend_handles", None)
     if handles is None:
@@ -231,14 +231,14 @@ def _names_by_colour(
     if handles is None or len(handles) != len(names):
         return []
 
-    keys = [_colour_key(handle) for handle in handles]
+    keys = [_color_key(handle) for handle in handles]
     if any(key is None for key in keys) or len(set(keys)) != len(keys):
         return []
 
-    by_colour = dict(zip(keys, names))
+    by_color = dict(zip(keys, names))
     named: list[str] = []
     for line in estimates:
-        name = by_colour.get(_colour_key(line))
+        name = by_color.get(_color_key(line))
         if name is None:
             return []
         named.append(name)
@@ -246,15 +246,15 @@ def _names_by_colour(
     return named
 
 
-def _colour_key(artist: object) -> tuple[float, ...] | None:
+def _color_key(artist: object) -> tuple[float, ...] | None:
     """
-    Normalise an artist's colour into something two artists can be compared by.
+    Normalize an artist's color into something two artists can be compared by.
 
-    A colour reaches matplotlib as a name, a hex string, an RGB tuple or an
+    A color reaches matplotlib as a name, a hex string, an RGB tuple or an
     RGBA one, and seaborn does not use one spelling throughout -- so the
     comparison is made on the resolved RGBA rather than on whatever was
     handed in. Rounded, because a value that survived a float conversion on
-    one artist and not on the other is the same colour.
+    one artist and not on the other is the same color.
 
     Parameters
     ----------
@@ -264,7 +264,7 @@ def _colour_key(artist: object) -> tuple[float, ...] | None:
     Returns
     -------
     tuple of float or None
-        The rounded RGBA, or None when the artist has no readable colour.
+        The rounded RGBA, or None when the artist has no readable color.
     """
     getter = getattr(artist, "get_color", None)
     if getter is None:

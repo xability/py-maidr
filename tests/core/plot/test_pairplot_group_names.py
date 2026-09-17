@@ -1,7 +1,7 @@
 """
 A ``pairplot`` hue left its diagonal panels anonymous (#561).
 
-#559 and #560 name a hue's layers by matching each artist's colour against
+#559 and #560 name a hue's layers by matching each artist's color against
 the legend swatch that names it, and both do the match **at registration**.
 `sns.pairplot(hue=...)` is the one chart where that cannot fire, and the
 reason is timing rather than the match: ``PairGrid.add_legend()`` builds one
@@ -83,7 +83,7 @@ def test_a_pairplots_kde_diagonals_are_named():
 
 
 def test_a_pairplots_histogram_diagonals_are_named():
-    # The spelling that also needed the hue-only colour pass: these bars are
+    # The spelling that also needed the hue-only color pass: these bars are
     # translucent and the figure legend's swatches are not.
     named = _named(sns.pairplot(_frame(), hue="g", diag_kind="hist").figure)
 
@@ -147,7 +147,7 @@ def _drawn_curves(ax) -> list:
 
 
 def _figure_legend(fig, ax, **kwargs):
-    """A figure legend naming the drawn colours, as a `PairGrid` builds one."""
+    """A figure legend naming the drawn colors, as a `PairGrid` builds one."""
     from matplotlib.patches import Patch
 
     curves = _drawn_curves(ax)
@@ -170,7 +170,7 @@ def test_one_figure_legend_names_the_axes_below_it():
 
 def test_two_figure_legends_name_nothing():
     # The guard on reading the figure's legend: with two of them, nothing
-    # says which names this axes' colours, and a wrong name is worse than
+    # says which names this axes' colors, and a wrong name is worse than
     # none. Both carry the real swatches, so the test above is what makes
     # this one bite -- either alone would name the curves.
     fig, ax = plt.subplots()
@@ -198,7 +198,7 @@ def test_one_figure_legend_names_every_panel_below_it():
     # The accepted cost, pinned rather than left to be discovered. One figure
     # legend is read as naming every axes, and nothing in the artists can say
     # otherwise: two panels with independent hues draw the same default
-    # colour cycle, so a legend built for the first matches the second too.
+    # color cycle, so a legend built for the first matches the second too.
     #
     # It needs a figure built by hand with both panels' legends suppressed.
     # The trade is this against no name at all on every `pairplot`.
@@ -219,7 +219,7 @@ def test_one_figure_legend_names_every_panel_below_it():
     )
 
     # The second panel's groups are `s` and `t`, and they are announced with
-    # the first panel's names. Both panels drew the same two colours.
+    # the first panel's names. Both panels drew the same two colors.
     assert [name for _, name in _named(fig)] == ["p", "q", "p", "q"]
 
 
@@ -239,11 +239,11 @@ def test_the_name_is_resolved_once_and_stays_put():
 
 
 def test_a_translucent_bar_is_named_by_an_opaque_swatch():
-    # The colour half, stated on its own. A pairplot's legend swatches are
+    # The color half, stated on its own. A pairplot's legend swatches are
     # opaque while its bars are not, so the exact-RGBA pass names nothing and
     # the hue-only pass is what answers.
-    from maidr.patch.histogram import _container_colour
-    from maidr.patch.kdeplot import _handle_colour, legend_of
+    from maidr.patch.histogram import _container_color
+    from maidr.patch.kdeplot import _handle_color, legend_of
 
     figure = sns.pairplot(_frame(), hue="g", diag_kind="hist").figure
     maidr.render(figure)._repr_html_()
@@ -258,9 +258,9 @@ def test_a_translucent_bar_is_named_by_an_opaque_swatch():
     containers = [c for c in axes[0].containers if isinstance(c, BarContainer)]
     legend = legend_of(axes[0])
 
-    bars = {_container_colour(c) for c in containers}
-    swatches = {_handle_colour(h) for h in legend.legend_handles}
+    bars = {_container_color(c) for c in containers}
+    swatches = {_handle_color(h) for h in legend.legend_handles}
 
     # Same hues, different alpha -- which is why an exact comparison fails.
     assert bars.isdisjoint(swatches)
-    assert {colour[:3] for colour in bars} == {colour[:3] for colour in swatches}
+    assert {color[:3] for color in bars} == {color[:3] for color in swatches}

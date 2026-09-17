@@ -24,7 +24,7 @@ _WIDEST_RUNG_P = 0.25
 #: The keyword the patch hands this layer its own collections under. Named
 #: once and imported at both ends rather than spelled twice, for the reason
 #: ``ScatterPlot.DRAWN_POINTS`` gives: a mismatch falls back to sweeping the
-#: axes, so a typo would restore the behaviour rather than raise.
+#: axes, so a typo would restore the behavior rather than raise.
 DRAWN_LADDERS = "_maidr_ladders"
 
 
@@ -147,7 +147,7 @@ class BoxenPlot(MaidrPlot):
 
         The core reads ``layer.orientation`` and falls back to vertical when
         it is absent, so a horizontal boxen without it is not merely
-        unlabelled -- it is labelled *backwards*. ``BoxenTrace.text`` picks
+        unlabeled -- it is labeled *backwards*. ``BoxenTrace.text`` picks
         the announcement's two axis labels off this flag::
 
             label: isHorizontal ? this.yAxis : this.xAxis,   // the category
@@ -393,7 +393,7 @@ class BoxenPlot(MaidrPlot):
             hue_order=["q","p","r"]  legend ['q','p','r']  z 'a, q' 'a, p' 'a, r'
 
         If a future seaborn ever ordered the legend independently of the
-        dodge, every level would be silently mislabelled rather than raising,
+        dodge, every level would be silently mislabeled rather than raising,
         which is why ``test_a_reordered_hue_keeps_each_ladder_with_its_level``
         exists rather than the assumption being left implicit.
         """
@@ -408,7 +408,7 @@ class BoxenPlot(MaidrPlot):
             for position, text in zip(axis.get_ticklocs(), axis.get_ticklabels())
         ]
 
-    def _dodge_offsets(self, centres: list[float], vertical: bool) -> list[float]:
+    def _dodge_offsets(self, centers: list[float], vertical: bool) -> list[float]:
         """
         The distinct offsets from a tick at which ladders are drawn.
 
@@ -430,7 +430,7 @@ class BoxenPlot(MaidrPlot):
 
         Parameters
         ----------
-        centres : list of float
+        centers : list of float
             Every ladder's midpoint on the category axis.
         vertical : bool
             Whether the category axis is x.
@@ -446,9 +446,9 @@ class BoxenPlot(MaidrPlot):
             return []
 
         offsets: list[float] = []
-        for centre in centres:
-            position = min(ticks, key=lambda tick: abs(tick[0] - centre))[0]
-            offset = centre - position
+        for center in centers:
+            position = min(ticks, key=lambda tick: abs(tick[0] - center))[0]
+            offset = center - position
             # Clustered rather than compared exactly: the same lattice
             # position arrives with different last bits from category to
             # category.
@@ -467,13 +467,13 @@ class BoxenPlot(MaidrPlot):
 
     def _category_of(
         self,
-        centre: float,
+        center: float,
         offsets: list[float],
         ticks: list[tuple[float, str]],
         levels: list[str],
     ) -> str:
         """
-        Name the distribution a ladder at ``centre`` summarises.
+        Name the distribution a ladder at ``center`` summarizes.
 
         Without a hue split a ladder sits on its tick and the tick's label is
         the answer. With one, the ladder sits at one of the dodge lattice's
@@ -483,7 +483,7 @@ class BoxenPlot(MaidrPlot):
 
         Parameters
         ----------
-        centre : float
+        center : float
             The ladder's midpoint on the category axis.
         offsets : list of float
             The dodge lattice, from :meth:`_dodge_offsets`.
@@ -502,7 +502,7 @@ class BoxenPlot(MaidrPlot):
 
         # Nearest tick, which is safe by construction rather than by luck.
         # seaborn dodges `n` levels into a slot `width` wide, so the outermost
-        # ladder's centre sits `width * (n - 1) / (2n)` from its tick -- always
+        # ladder's center sits `width * (n - 1) / (2n)` from its tick -- always
         # under `width / 2`, and `width` is a fraction of the categorical unit
         # whose spacing is 1. Measured, against a half-spacing of 0.5::
         #
@@ -513,12 +513,12 @@ class BoxenPlot(MaidrPlot):
         # The bound tightens toward 0.5 as levels are added and only reaches
         # it in the limit, at a width that would already have adjacent
         # categories touching.
-        position, label = min(ticks, key=lambda tick: abs(tick[0] - centre))
+        position, label = min(ticks, key=lambda tick: abs(tick[0] - center))
 
         if len(levels) < 2 or len(offsets) < 2:
             return label
 
-        offset = centre - position
+        offset = center - position
         index = min(range(len(offsets)), key=lambda rank: abs(offsets[rank] - offset))
         if index < len(levels):
             return f"{label}, {levels[index]}"
@@ -634,7 +634,7 @@ class BoxenPlot(MaidrPlot):
         """
         # Read every ladder's geometry first, then name them. Naming needs the
         # dodge lattice, and the lattice is only visible once every ladder's
-        # centre is known -- a ladder cannot say which hue level it is from
+        # center is known -- a ladder cannot say which hue level it is from
         # its own position alone.
         read = []
         ladders = self._ladders()
@@ -651,7 +651,7 @@ class BoxenPlot(MaidrPlot):
             median = float(xy[0][1] if vertical else xy[0][0])  # type: ignore[index]
 
             # Along the value axis the boxes tile edge to edge; along the
-            # category axis they are nested about a shared centre.
+            # category axis they are nested about a shared center.
             if vertical:
                 boxes = sorted((bound[2], bound[3]) for bound in bounds)
                 spans = [(bound[0], bound[1]) for bound in bounds]
@@ -663,7 +663,7 @@ class BoxenPlot(MaidrPlot):
             if not levels:
                 continue
 
-            centre = (
+            center = (
                 min(span[0] for span in spans) + max(span[1] for span in spans)
             ) / 2
             lower, upper = self._outliers(
@@ -672,7 +672,7 @@ class BoxenPlot(MaidrPlot):
                 levels[0][MaidrKey.LO.value],
                 levels[0][MaidrKey.HI.value],
             )
-            read.append((centre, vertical, median, levels, lower, upper))
+            read.append((center, vertical, median, levels, lower, upper))
 
         # Read once for the layer rather than once per ladder: the ticks and
         # the legend belong to the axes, not to any one ladder, and asking
@@ -684,9 +684,9 @@ class BoxenPlot(MaidrPlot):
         hue_levels = self._hue_levels()
 
         points = []
-        for centre, _vertical, median, levels, lower, upper in read:
+        for center, _vertical, median, levels, lower, upper in read:
             point = {
-                MaidrKey.Z.value: self._category_of(centre, offsets, ticks, hue_levels),
+                MaidrKey.Z.value: self._category_of(center, offsets, ticks, hue_levels),
                 MaidrKey.MEDIAN.value: median,
                 MaidrKey.LEVELS.value: levels,
             }

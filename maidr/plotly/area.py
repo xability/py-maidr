@@ -28,7 +28,7 @@ from maidr.plotly.step_shape import (
 #: and the scale its values are rescaled by cannot disagree (#409's lesson
 #: on the bar path).
 _GROUPNORM_SCALES: dict[str, float] = {"percent": 100.0, "fraction": 1.0}
-_NORMALISING_GROUPNORMS = frozenset(_GROUPNORM_SCALES)
+_NORMALIZING_GROUPNORMS = frozenset(_GROUPNORM_SCALES)
 
 
 def is_area_trace(trace: dict) -> bool:
@@ -99,10 +99,10 @@ def area_plot_type(traces: list[dict]) -> PlotType:
 
     A lone band has nothing stacked on it, so it is a plain ``area`` -- the
     same distinction the matplotlib path draws for a single ``stackplot``
-    band. ``groupnorm`` then separates a stack from a normalised one, exactly
+    band. ``groupnorm`` then separates a stack from a normalized one, exactly
     as ``barnorm`` does for bars.
     """
-    if any(t.get("groupnorm") in _NORMALISING_GROUPNORMS for t in traces):
+    if any(t.get("groupnorm") in _NORMALIZING_GROUPNORMS for t in traces):
         return PlotType.NORMALIZED_AREA
     if len(traces) > 1:
         return PlotType.STACKED_AREA
@@ -129,8 +129,8 @@ def groupnorm_scale(traces: list[dict]) -> float | None:
     -------
     float or None
         ``100.0`` for ``percent``, ``1.0`` for ``fraction``, and ``None``
-        when plotly normalises nothing -- ``None``, ``""`` and anything
-        unrecognised alike -- so the caller emits the values untouched.
+        when plotly normalizes nothing -- ``None``, ``""`` and anything
+        unrecognized alike -- so the caller emits the values untouched.
     """
     for trace in traces:
         groupnorm = trace.get("groupnorm")
@@ -150,7 +150,7 @@ def _finite(value: Any) -> bool:
     return math.isfinite(value)
 
 
-def normalised_bands(bands: list[list[dict]], scale: float) -> list[list[dict]]:
+def normalized_bands(bands: list[list[dict]], scale: float) -> list[list[dict]]:
     """Rescale every band's value to its share of its column, as plotly does.
 
     The rule is plotly.js's scatter cross-trace calc, not the bar one. For a
@@ -333,9 +333,9 @@ class PlotlyAreaPlot(PlotlyPlot):
         layer is typed ``stacked_normalized_area`` for it, and the values
         underneath were the untouched inputs -- a reader heard ``30`` on a
         chart whose axis runs 0..1 and whose band top sits at ``0.75`` (#691),
-        the area half of what #409 was for ``barnorm``. The core normalises
+        the area half of what #409 was for ``barnorm``. The core normalizes
         nothing: ``AreaTrace`` sums whatever values it is given, so a
-        normalised layer has to arrive already carrying shares. Gated on the
+        normalized layer has to arrive already carrying shares. Gated on the
         type rather than on the setting alone so a plain or stacked area is
         emitted exactly as before.
         """
@@ -346,4 +346,4 @@ class PlotlyAreaPlot(PlotlyPlot):
         scale = groupnorm_scale(self._traces)
         if scale is None:
             return bands
-        return normalised_bands(bands, scale)
+        return normalized_bands(bands, scale)

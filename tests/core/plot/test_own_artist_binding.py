@@ -142,7 +142,7 @@ def test_one_heatmap_alone_is_unchanged():
 
 def test_a_layer_told_nothing_still_finds_the_axes_heatmap():
     # The documented fallback, exercised directly: a producer that registers a
-    # heatmap without naming the artist keeps the behaviour it has always had.
+    # heatmap without naming the artist keeps the behavior it has always had.
     from maidr.core.plot.heatmap import HeatPlot
 
     fig, ax = plt.subplots()
@@ -262,7 +262,7 @@ def test_a_hue_grouped_histogram_gives_each_group_its_own_layer():
     # Three observations at 1 in one group and three at 50 in the other, which
     # is the half the old reading threw away. Group `b` is drawn first here:
     # seaborn's container order is not its hue order, which is why #558 names
-    # each layer by the colour of the swatch that claims it rather than by
+    # each layer by the color of the swatch that claims it rather than by
     # where it sits.
     assert [[point["y"] for point in layer] for layer in layers] == [
         [0.0, 3.0],

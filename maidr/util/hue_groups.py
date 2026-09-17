@@ -10,7 +10,7 @@ def grouped_by_name(
     Turn one name per drawn thing into one group per distinct name.
 
     The tail every hue split ends in. What a chart is read *from* differs by
-    artist -- a scatter has a face colour per point, a rug a colour per
+    artist -- a scatter has a face color per point, a rug a color per
     segment, a strip plot a plotter to consult outright -- but what happens
     after is the same three decisions every time, and they were made three
     times in three ways before this existed:
@@ -19,9 +19,9 @@ def grouped_by_name(
       chart announces a group called "None" holding the rest -- maidr's own
       word for "unmatched", read aloud as a level -- and is worse than an
       unnamed one. The case behind it is a continuous ``hue=``: measured on a
-      scatter, ten points took ten distinct colours against five legend
+      scatter, ten points took ten distinct colors against five legend
       levels sampled at round numbers, so most points matched nothing. That
-      is a colour *scale*, and one layer per point is not a reading of it.
+      is a color *scale*, and one layer per point is not a reading of it.
     - **Fewer than two groups is not a grouping.** Nothing to tell apart.
     - **The groups come out in the order given**, which for every caller so
       far is the legend's rather than the draw order -- the convention #502

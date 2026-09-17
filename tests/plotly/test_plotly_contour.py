@@ -234,7 +234,7 @@ def test_a_layer_whose_levels_each_draw_one_curve_is_addressable() -> None:
 
     With one curve in the level there is one path in its group, so the
     selector resolves to exactly one element and the core keeps the per-point
-    highlight that walks with the reader -- the behaviour this layer already
+    highlight that walks with the reader -- the behavior this layer already
     had, now reached without naming a curve.
     """
     (layer,) = _layers(go.Figure(_contour(ONE_PEAK, start=0.3, end=0.7, size=0.2)))
@@ -484,7 +484,7 @@ def test_a_filled_contour_with_its_lines_off_declines_even_with_islands() -> Non
 
 
 def test_showlines_off_under_another_coloring_still_draws_the_curves() -> None:
-    """`showlines` is only honoured for `coloring: "fill"` -- measured.
+    """`showlines` is only honored for `coloring: "fill"` -- measured.
 
     Under `heatmap` the level groups are written whatever it says, so reading
     it as "no lines" would drop a highlight the chart does have.

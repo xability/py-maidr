@@ -57,7 +57,7 @@ class MaidrKey(str, Enum):
     # Scatter plot grid navigation keys.
     TICK_STEP = "tickStep"
 
-    # Hexbin keys. A bin carries its centre and how many points fell in it.
+    # Hexbin keys. A bin carries its center and how many points fell in it.
     COUNT = "count"
 
     # Step plot keys. The per-point ordinal level name reuses LABEL above.

@@ -125,7 +125,7 @@ def test_a_filled_contour_path_spans_two_levels(field):
     #
     # This one reads matplotlib's own output, with no maidr patch in the way,
     # which makes it the odd test here: it pins an assumption about
-    # `contourf` rather than a behaviour of ours. If a future matplotlib
+    # `contourf` rather than a behavior of ours. If a future matplotlib
     # changes how it builds those vertices this fails without anything in
     # maidr having regressed -- so it wants reading, not just re-running.
     # Kept because the decision not to patch `contourf` rests on it, and an
@@ -186,11 +186,11 @@ def test_a_chart_with_no_trace_to_be_read_as_is_declined(field, draw):
 
 
 @pytest.mark.parametrize("label", ["fit", "smooth", "regression"])
-def test_a_mesh_labelled_like_a_fit_is_still_declined(triangulation, label):
+def test_a_mesh_labeled_like_a_fit_is_still_declined(triangulation, label):
     # The interaction review asked about, measured rather than traced.
     # `regplot.patched_plot` registers a SMOOTH layer when a plot call's
     # label matches `SMOOTH_KEYWORDS`, and `triplot` reaches `Axes.plot` --
-    # so a mesh labelled "fit" is the shape where a second patch on the same
+    # so a mesh labeled "fit" is the shape where a second patch on the same
     # method could slip a layer through the decline. It does not: the
     # `common()` call that would register checks the context itself.
     x, y, _ = triangulation

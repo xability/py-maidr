@@ -61,14 +61,14 @@ def _grid_of(plot, ax: Axes | None):
     return drawn[-1] if drawn else None
 
 
-def _is_colour_image(grid) -> bool:
+def _is_color_image(grid) -> bool:
     """
     Whether the artist holds a picture rather than a grid of values.
 
     ``ax.imshow`` accepts three shapes: an ``(M, N)`` array of scalars, which
     is a heatmap, and ``(M, N, 3)`` / ``(M, N, 4)`` arrays whose last axis is
-    **colour**. The last two are photographs and rendered images, and there is
-    no number per cell to announce -- no value, and nothing for the colourbar
+    **color**. The last two are photographs and rendered images, and there is
+    no number per cell to announce -- no value, and nothing for the colorbar
     the ``z`` axis describes to mean.
 
     Registered as a heatmap they did not merely read badly, they killed the
@@ -89,7 +89,7 @@ def _is_colour_image(grid) -> bool:
     Returns
     -------
     bool
-        True when the artist's array carries colour rather than values.
+        True when the artist's array carries color rather than values.
     """
     array = getattr(grid, "get_array", lambda: None)()
     return array is not None and getattr(array, "ndim", 0) >= 3
@@ -138,7 +138,7 @@ def heat(wrapped, _, args, kwargs) -> Axes | AxesImage | Collection:
     Wraps every way a heatmap reaches the canvas: ``Axes.imshow``,
     ``Axes.pcolormesh``, ``Axes.pcolor`` and ``seaborn.heatmap``. Two MAIDR-only
     parameters are lifted out of ``kwargs`` before the draw — ``z_label``, which
-    names the colour dimension and which matplotlib has never heard of, and
+    names the color dimension and which matplotlib has never heard of, and
     ``fmt``, which only ``seaborn.heatmap`` declares.
 
     This does not route through :func:`maidr.patch.common.common` precisely
@@ -163,8 +163,8 @@ def heat(wrapped, _, args, kwargs) -> Axes | AxesImage | Collection:
         Whatever the wrapped function returned: an ``Axes`` from seaborn, an
         ``AxesImage`` from ``imshow``, or the mesh the two ``pcolor`` variants
         render. The draw always happens; the return is the same either way.
-        No layer is registered when the artist turns out to hold a colour
-        image rather than a grid of values -- see :func:`_is_colour_image`.
+        No layer is registered when the artist turns out to hold a color
+        image rather than a grid of values -- see :func:`_is_color_image`.
     """
     # `seaborn.heatmap` draws through `Axes.pcolormesh`, and both are patched
     # here. Without this guard the inner call registers a second HEAT layer for
@@ -195,8 +195,8 @@ def heat(wrapped, _, args, kwargs) -> Axes | AxesImage | Collection:
     ax = FigureManager.get_axes(plot)
     grid = _grid_of(plot, ax)
 
-    # An RGB or RGBA image is not a heatmap -- see `_is_colour_image`.
-    if _is_colour_image(grid):
+    # An RGB or RGBA image is not a heatmap -- see `_is_color_image`.
+    if _is_color_image(grid):
         return plot
 
     optional_params[DRAWN_GRID] = grid
@@ -218,7 +218,7 @@ wrapt.wrap_function_wrapper(Axes, "imshow", heat)
 wrapt.wrap_function_wrapper(Axes, "pcolormesh", heat)
 wrapt.wrap_function_wrapper(Axes, "pcolor", heat)
 
-# The fourth spelling of the same grid. `pcolorfast` is matplotlib's optimised
+# The fourth spelling of the same grid. `pcolorfast` is matplotlib's optimized
 # path for the charts the three above draw, and it hands back one of the very
 # artists they do -- measured on matplotlib 3.10, all three of its input forms:
 #
@@ -230,8 +230,8 @@ wrapt.wrap_function_wrapper(Axes, "pcolor", heat)
 # only thing keeping such a figure silent was that nothing dispatched the call
 # (xability/py-maidr#626).
 #
-# `tripcolor` is deliberately *not* here, though it colours cells too. It
-# colours the triangles of a triangulation, and a heatmap is addressed by row
+# `tripcolor` is deliberately *not* here, though it colors cells too. It
+# colors the triangles of a triangulation, and a heatmap is addressed by row
 # and column -- a mesh has neither, so the grid a reader would be handed would
 # be one this call never drew. Declined for the reason `triplot` is (#572).
 wrapt.wrap_function_wrapper(Axes, "pcolorfast", heat)

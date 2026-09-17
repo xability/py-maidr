@@ -181,7 +181,7 @@ class TestTheWarningSaysSomethingUseful:
         # omitting smooth and the violin variants.
         assert supported_plot_types() in message
 
-    def test_the_supported_list_uses_names_a_user_would_recognise(self):
+    def test_the_supported_list_uses_names_a_user_would_recognize(self):
         # `PlotType.SCATTER.value` is "point"; someone who called ax.scatter
         # should be told about "scatter".
         listed = supported_plot_types()

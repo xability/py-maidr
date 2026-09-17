@@ -136,7 +136,7 @@ def one_row_around(position: float) -> tuple[float, float, float]:
     Returns
     -------
     tuple
-        ``(min, max, tickStep)`` for a single cell centred on ``position``.
+        ``(min, max, tickStep)`` for a single cell centered on ``position``.
 
     Examples
     --------

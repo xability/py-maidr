@@ -41,14 +41,14 @@ def frame() -> pd.DataFrame:
     return pd.DataFrame({"d": DAYS, "v": VALUES})
 
 
-def serialised(fig) -> dict:
+def serialized(fig) -> dict:
     """The schema, round-tripped through the JSON the page embeds it as."""
     return json.loads(json.dumps(PlotlyMaidr(fig)._flatten_maidr()))
 
 
 def points(fig) -> list[dict]:
     """Every point of a single-subplot figure's first layer, series flattened."""
-    data = serialised(fig)["subplots"][0][0]["layers"][0]["data"]
+    data = serialized(fig)["subplots"][0][0]["layers"][0]["data"]
     if data and isinstance(data[0], list):
         return [point for series in data for point in series]
     return data
@@ -56,7 +56,7 @@ def points(fig) -> list[dict]:
 
 class TestADateAxisRenders:
     @pytest.mark.parametrize("plot", [px.line, px.bar, px.scatter])
-    def test_an_express_date_column_serialises(self, plot):
+    def test_an_express_date_column_serializes(self, plot):
         # Raised `TypeError: Object of type datetime is not JSON serializable`
         # from inside the page template.
         figure = plot(frame(), x="d", y="v")

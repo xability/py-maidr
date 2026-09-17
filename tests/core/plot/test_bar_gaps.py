@@ -6,12 +6,12 @@ it stood went wrong twice over:
 
 * ``json.dumps`` writes ``NaN`` as a bare token, which is legal JavaScript and
   invalid JSON. The core parses the SVG's ``maidr`` attribute with
-  ``JSON.parse``, so one of them stops the chart initialising at all -- audio,
+  ``JSON.parse``, so one of them stops the chart initializing at all -- audio,
   text, braille and highlight all absent, with a ``console.error`` as the only
   trace (#427).
 * Even reaching the model, ``NaN`` is not a reading a listener wants.
 
-``None`` serialises to ``null``, which the core's ``toBarValue`` has read as a
+``None`` serializes to ``null``, which the core's ``toBarValue`` has read as a
 gap since the bar family gained the concept: it becomes ``NaN`` inside the
 model, stays out of the range, sounds as the empty tone rather than a floor
 tone, and announces as "missing". No release dependency -- that helper is in
@@ -127,7 +127,7 @@ class TestWhatMustNotChange:
         assert bar_points(ax)[0]["y"] == 0.0
         assert bar_points(ax)[0]["y"] is not None
 
-    def test_numpy_integer_heights_still_serialise(self):
+    def test_numpy_integer_heights_still_serialize(self):
         # Pinned because it broke. The `float()` cast in the extractor was
         # doing two jobs, and a first version of this fix kept only the
         # finiteness test -- which left matplotlib's numpy types in the
@@ -242,7 +242,7 @@ class TestADodgedBarWithNoHeight:
     def test_a_horizontal_bar_is_covered_too(self):
         # `barh` says its bar thickness with `height`, which the grouping
         # test does not read, so the sideways chart is drawn edge-aligned
-        # instead -- the other idiom that test recognises. The gap lands on
+        # instead -- the other idiom that test recognizes. The gap lands on
         # x, as it does for every horizontal layer.
         fig, ax = plt.subplots()
         y = np.arange(3)
@@ -343,7 +343,7 @@ class TestASeabornHueMissingACategory:
 
     def test_a_horizontal_layer_is_covered_too(self):
         # The gap lands on x for a horizontal layer, as it does for every
-        # other one, and the bars are placed by their y centres.
+        # other one, and the bars are placed by their y centers.
         fig, ax = plt.subplots()
         sns.barplot(data=self._frame(), y="cat", x="val", hue="grp", ax=ax)
         record = FigureManager.get_maidr(fig)
@@ -357,7 +357,7 @@ class TestASeabornHueMissingACategory:
     # Two hue levels each missing a *different* category -- containers of
     # [2, 2] bars over 3 ticks -- are equal in length and short of the
     # axis, which raggedness cannot see: the layer was still a plain bar
-    # labelled by position, "1.2" for g2's "b".
+    # labeled by position, "1.2" for g2's "b".
     # It is the shape the hue that repeats the category draws as well, one
     # container per bar, so the two are told apart by whether a category
     # holds bars of two containers -- side by side is what dodged means.

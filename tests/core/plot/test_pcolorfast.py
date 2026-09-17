@@ -1,7 +1,7 @@
 """``ax.pcolorfast`` draws the grid its three siblings do, and read nothing.
 
 `imshow`, `pcolormesh` and `pcolor` have been patched as heatmaps since #337.
-`pcolorfast` is matplotlib's optimised path for the same charts, and nothing
+`pcolorfast` is matplotlib's optimized path for the same charts, and nothing
 dispatched it -- so a figure drawn with it registered no layer at all and the
 caller got silence with no indication anything had been missed, which is the
 shape #337 was filed against.
@@ -15,7 +15,7 @@ It is not a new reading. Measured on matplotlib 3.10, every input form
 
 so the extraction was already proven for every shape the call can produce.
 
-`tripcolor` colours cells too and is deliberately *not* patched: it colours
+`tripcolor` colors cells too and is deliberately *not* patched: it colors
 the triangles of a triangulation, and a heatmap is addressed by row and
 column, which a mesh has neither of. Declined for the reason `triplot` is
 (#572), and asserted below so the omission reads as a decision.
@@ -93,8 +93,8 @@ def test_pcolorfast_reads_the_same_grid_as_pcolormesh(grid: np.ndarray) -> None:
 def test_tripcolor_is_still_declined() -> None:
     """A triangulation is not a grid, so it is not read as one.
 
-    The guard on the change: patching one more cell-colouring call must not
-    become patching every one of them. `tripcolor` colours triangles, which
+    The guard on the change: patching one more cell-coloring call must not
+    become patching every one of them. `tripcolor` colors triangles, which
     have no row and no column for a reader to navigate by, so handing back a
     grid would mean handing back one the call never drew.
     """

@@ -69,7 +69,7 @@ class PlotlyGroupedHistogramPlot(PlotlyPlot):
 
     Emits the same ``list[list[dict]]`` shape as
     :class:`~maidr.plotly.grouped_bar.PlotlyGroupedBarPlot`: one inner list per
-    trace, each item carrying ``x`` (the bin centre), ``z`` (the trace's name)
+    trace, each item carrying ``x`` (the bin center), ``z`` (the trace's name)
     and ``y`` (its value). The plot type decides how the core reads them, and
     is worked out from ``barmode``/``barnorm`` by
     :meth:`~maidr.plotly.plotly_maidr.PlotlyMaidr._extract_plots`, the same way
@@ -110,8 +110,8 @@ class PlotlyGroupedHistogramPlot(PlotlyPlot):
         the *bin's position* instead of its count, which is a number belonging
         to nothing (#482).
 
-        Swapped here rather than in `_extract_plot_data` because `_normalised`
-        matches bins across series by their centre, and it reads that centre
+        Swapped here rather than in `_extract_plot_data` because `_normalized`
+        matches bins across series by their center, and it reads that center
         from ``x``. Doing it at the emit boundary keeps every internal step
         written against the one arrangement and leaves this the only place
         that knows about the other -- and it takes the swap and the key from
@@ -235,16 +235,16 @@ class PlotlyGroupedHistogramPlot(PlotlyPlot):
                 )
             data.append(series)
 
-        return self._normalised(data)
+        return self._normalized(data)
 
-    def _normalised(self, data: list[list[dict]]) -> list[list[dict]]:
+    def _normalized(self, data: list[list[dict]]) -> list[list[dict]]:
         """Rescale each bin to a common total when ``barnorm`` says to.
 
         Applied to the bar values rather than the raw counts, so it composes
         with ``histnorm`` in plotly's own order -- ``histnorm`` first, then
-        the stack rescaled. Bins are matched by centre, which is shared: the
+        the stack rescaled. Bins are matched by center, which is shared: the
         group already bins on one grid, so two series' bars at the same
-        position carry the same centre.
+        position carry the same center.
 
         The bar path does the same thing through the same helper; see
         :mod:`maidr.plotly.barnorm` for why the two must move together.

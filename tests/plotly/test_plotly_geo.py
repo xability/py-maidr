@@ -66,7 +66,7 @@ def _placed(layer: dict) -> list[tuple]:
 def test_a_map_of_markers_is_read_rather_than_registering_nothing(trace) -> None:
     """The reproduction, across the three spellings of one chart.
 
-    `scattermapbox` is deprecated in favour of `scattermap`, but plotly still
+    `scattermapbox` is deprecated in favor of `scattermap`, but plotly still
     draws it and figures in the wild still use it, so it is read too.
     """
     (layer,) = _layers(go.Figure([trace]))
@@ -136,8 +136,8 @@ def test_a_density_map_carries_its_magnitude(trace) -> None:
     assert layer["axes"][MaidrKey.Z][MaidrKey.LABEL] == "Density"
 
 
-def test_a_density_map_takes_the_colour_bar_title_for_its_magnitude() -> None:
-    """The one thing the author may have written about what the colour means."""
+def test_a_density_map_takes_the_color_bar_title_for_its_magnitude() -> None:
+    """The one thing the author may have written about what the color means."""
     (layer,) = _layers(
         go.Figure(
             [
@@ -190,7 +190,7 @@ def test_a_trace_that_placed_no_marker_is_declined_rather_than_emitted_empty() -
 def test_a_marker_with_a_non_finite_coordinate_is_dropped_not_announced() -> None:
     """`json.dumps` writes `NaN` as a bare token, which `JSON.parse` rejects.
 
-    One such value stops the chart initialising at all (#427) -- and plotly
+    One such value stops the chart initializing at all (#427) -- and plotly
     draws nothing there either, so announcing it would put a place on the map
     the reader cannot be told anything about.
     """

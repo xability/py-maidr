@@ -130,7 +130,7 @@ def test_an_explicit_pin_still_wins_on_a_loop(requests) -> None:
 def test_a_completed_lookup_is_used_on_a_loop(requests) -> None:
     """Resolve once from synchronous code and every async render benefits.
 
-    This is what keeps the behaviour from being context-dependent for the
+    This is what keeps the behavior from being context-dependent for the
     life of the process: after any resolution anywhere, the loop and the
     main thread agree. It is also the supported way for an async app to
     serve a release newer than its wheel.

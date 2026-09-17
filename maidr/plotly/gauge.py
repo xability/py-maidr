@@ -91,7 +91,7 @@ class PlotlyGaugePlot(PlotlyPlot):
 
     ``gauge.steps`` deliberately does **not** become ``bands``. A
     `GaugeBand` carries a required ``label`` -- it exists so a reader hears
-    "in the 'ok' band" -- and a plotly step is a colour over a range with no
+    "in the 'ok' band" -- and a plotly step is a color over a range with no
     name at all. Synthesising one would announce a name the chart does not
     carry, which is worse than announcing no band: the reader would have no
     way to know the word was ours.

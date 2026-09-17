@@ -15,7 +15,7 @@ Measured -- with a session active the three emit byte-identical markup.
 What holds them together is therefore weaker than "these paths differ" and
 still worth pinning: **no door may grow post-processing of its own.** #443
 is why. `plt.show()` degraded gracefully for an unregistered figure while
-`render`/`show`/`save_html` raised, because a behaviour had been wired into
+`render`/`show`/`save_html` raised, because a behavior had been wired into
 one door and not the others, and nothing failed until a user went through
 the wrong one.
 

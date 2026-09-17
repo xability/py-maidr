@@ -12,7 +12,7 @@ Which axis is binned is not always stated. ``px.histogram(y=...)`` writes
 leaves Plotly.js to infer it. The rule in ``binned_axis`` is plotly's own,
 taken from ``gd._fullData[i].orientation`` read back out of Chromium rather
 than from the documentation, and the case that fixes the precedence is
-``go.Histogram(x=v, orientation="h")``: plotly honours the attribute and bins
+``go.Histogram(x=v, orientation="h")``: plotly honors the attribute and bins
 the *absent* ``y``, drawing an empty trace rather than falling back to ``x``.
 
 The bin spec follows the binned axis too, and plotly discards the other axis's
@@ -154,7 +154,7 @@ class TestHorizontalHistogram:
 class TestBinSpecFollowsTheBinnedAxis:
     """``ybins``/``nbinsy`` govern a horizontal trace; ``xbins``/``nbinsx`` do not."""
 
-    def test_ybins_is_honoured_on_a_horizontal_trace(self):
+    def test_ybins_is_honored_on_a_horizontal_trace(self):
         fig = go.Figure([go.Histogram(y=SAMPLE, ybins=dict(size=2))])
         # plotly's own bins for this figure, its trailing empty bin aside
         # (#402): four bins of width 2 starting at -4.
@@ -165,7 +165,7 @@ class TestBinSpecFollowsTheBinnedAxis:
             (2.0, 4.0, 2),
         ]
 
-    def test_nbinsy_is_honoured_on_a_horizontal_trace(self):
+    def test_nbinsy_is_honored_on_a_horizontal_trace(self):
         fig = go.Figure([go.Histogram(y=SAMPLE, nbinsy=4)])
         assert bins(only_layer(fig)) == [
             (-4.0, -2.0, 4),
@@ -184,7 +184,7 @@ class TestBinSpecFollowsTheBinnedAxis:
     def test_the_other_axiss_spec_is_discarded_the_way_plotly_discards_it(
         self, ignored
     ):
-        # Plotly does not fall back to the other axis: it autobins. Honouring
+        # Plotly does not fall back to the other axis: it autobins. Honoring
         # the spec here would announce four wide bins for a chart drawn with
         # thirteen narrow ones.
         autobinned = bins(only_layer(go.Figure([go.Histogram(y=SAMPLE)])))

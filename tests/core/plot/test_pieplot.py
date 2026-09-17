@@ -38,7 +38,7 @@ from maidr.exception import ExtractionError  # noqa: E402
 from maidr.patch.pieplot import _resolve  # noqa: E402
 
 
-#: A pie whose sizes sum far above 1, so matplotlib normalises them away.
+#: A pie whose sizes sum far above 1, so matplotlib normalizes them away.
 FRUIT = ["Apples", "Bananas", "Cherries"]
 UNITS = [30, 50, 20]
 
@@ -89,7 +89,7 @@ def _highlight_groups(fig) -> list[list]:
     ]
 
 
-class TestValuesSurviveNormalisation:
+class TestValuesSurviveNormalization:
     """The caller's magnitudes, not the fractions matplotlib kept."""
 
     def test_counts_are_reported_as_counts(self):
@@ -224,7 +224,7 @@ class TestLabels:
         finally:
             plt.close(fig)
 
-    def test_an_unlabelled_pie_falls_back_to_positions(self):
+    def test_an_unlabeled_pie_falls_back_to_positions(self):
         # Still navigable: every slice can be named, even if only by index.
         fig, ax = plt.subplots()
         try:
@@ -286,7 +286,7 @@ class TestSliceOrder:
             plt.close(fig)
 
     def test_the_elements_are_in_slice_order(self):
-        # The wedge colours come from the property cycle, so matching them
+        # The wedge colors come from the property cycle, so matching them
         # against the drawn wedges pins the order without depending on
         # geometry.
         from matplotlib.colors import to_hex
@@ -404,7 +404,7 @@ class TestAxesPayload:
         finally:
             plt.close(fig)
 
-    def test_unlabelled_axes_read_as_english(self):
+    def test_unlabeled_axes_read_as_english(self):
         # "X: Apples" is not a sentence; the generic pair of the base class
         # would be announced against every slice.
         fig, ax = plt.subplots()

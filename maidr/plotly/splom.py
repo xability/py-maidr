@@ -88,7 +88,7 @@ def _draws_panel(trace: dict, row: int, col: int) -> bool:
 
 
 def _axis_title(label: Any) -> dict:
-    """A layout axis carrying one title, or an empty one when unlabelled."""
+    """A layout axis carrying one title, or an empty one when unlabeled."""
     if isinstance(label, str) and label != "":
         return {"title": {"text": label}}
     return {}

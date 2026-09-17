@@ -10,9 +10,9 @@ lattice and, within each, x index by x index, so consecutive offsets walk up a
 *column* and the offset rows all come after the aligned ones. Grouping the
 points into rows is therefore a permutation, not a reshape -- and the selector
 list has to be permuted with them. It would not have looked broken: every bin
-would still announce a real centre and a real count, while the highlight sat
+would still announce a real center and a real count, while the highlight sat
 on someone else's hexagon. That is the same defect as #316 and #350, in the
-trace where it would be hardest to notice, because a hexbin announces centres
+trace where it would be hardest to notice, because a hexbin announces centers
 rather than indices and so has nothing that would give it away.
 
 The second is that the rows are **ragged**, by construction rather than by
@@ -21,7 +21,7 @@ accident: the two lattices hold different numbers of bins, and ``mincnt`` or a
 bins that were never drawn.
 
 So the selector test here resolves the emitted CSS against the real exported
-SVG and checks that each match is the hexagon whose centre and count that bin
+SVG and checks that each match is the hexagon whose center and count that bin
 announces. Nothing weaker distinguishes a correct mapping from an off-by-a-row
 one.
 """
@@ -190,7 +190,7 @@ def test_each_selector_addresses_the_bin_it_describes(hexbin) -> None:
     """The one that catches an off-by-a-row highlight.
 
     Resolved against the exported SVG rather than reasoned about: the claim is
-    that selector *k* matches the hexagon whose centre and count bin *k*
+    that selector *k* matches the hexagon whose center and count bin *k*
     announces, and only walking the document can say whether it does.
     """
     collection, layer, html = hexbin()
@@ -249,7 +249,7 @@ def test_mincnt_drops_the_empty_bins_and_the_lattice_still_lines_up(hexbin) -> N
         assert counts[emitted] == pytest.approx(bin["count"])
 
 
-def test_the_colour_axis_is_named_for_what_the_fill_encodes(hexbin) -> None:
+def test_the_color_axis_is_named_for_what_the_fill_encodes(hexbin) -> None:
     """"count" is the usual answer and is wrong in two of hexbin's own modes.
 
     ``C`` replaces the count with a reduction of the given values, and a
@@ -257,7 +257,7 @@ def test_the_colour_axis_is_named_for_what_the_fill_encodes(hexbin) -> None:
     three-point bin and a nine-point bin can both read 1. Announcing either as
     a count is the kind of wrong that nothing else in the output contradicts.
 
-    ``bins="log"`` only installs a log norm for the colouring and leaves the
+    ``bins="log"`` only installs a log norm for the coloring and leaves the
     array as raw counts, so it is not one of them.
     """
     x, _ = _points()
@@ -303,14 +303,14 @@ def test_a_log_scaled_lattice_is_declined_rather_than_mistranslated(scales) -> N
 
     It bins in the transformed space, and on matplotlib 3.10 the offsets come
     back in that space as well: for data spanning 0.3 to 11.2 they run -0.52
-    to 1.05. Announced as centres, a bin at x = 3.4 reads as ``0.53``. The
+    to 1.05. Announced as centers, a bin at x = 3.4 reads as ``0.53``. The
     structure is right, the counts are right, the coordinates are wrong, and
     nothing in the chart contradicts them -- which is worse than saying
     nothing.
 
     Un-transforming them would be an assumption about matplotlib's internals
     that the neighbouring release already breaks: on 3.9 the same call returns
-    one path per hexagon and a single placeholder offset, so the centres are
+    one path per hexagon and a single placeholder offset, so the centers are
     not in ``get_offsets()`` at all.
 
     So the layer is not registered and the figure keeps the static image it

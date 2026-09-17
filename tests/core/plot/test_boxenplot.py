@@ -108,7 +108,7 @@ def true_rungs(values: np.ndarray, depth: int) -> list[tuple[float, float, float
     """The ladder seaborn would compute, straight from ``np.percentile``.
 
     Deliberately re-derived from the definition rather than imported from
-    seaborn, so a change of behaviour upstream shows up as a failure here
+    seaborn, so a change of behavior upstream shows up as a failure here
     instead of being mirrored into both sides at once.
     """
     return [
@@ -168,7 +168,7 @@ class TestTheLadderIsTheChart:
 
     def test_the_widest_rung_is_the_quartile_pair(self):
         # Every letter-value ladder starts from the middle half, whatever its
-        # depth. If this drifts, every `p` below it is mislabelled too.
+        # depth. If this drifts, every `p` below it is mislabeled too.
         for point, values in zip(
             ladders(sns.boxenplot(frame(), x="g", y="v")), GROUPS.values()
         ):
@@ -208,7 +208,7 @@ class TestTheCategoriesAreNamed:
     @pytest.mark.parametrize("gap", [0.0, 0.3, 0.6], ids=["flush", "gap", "wide-gap"])
     def test_a_gap_between_dodged_boxes_does_not_rename_the_levels(self, gap):
         # `gap=` shrinks each box within its dodge slot, so the drawn box is
-        # narrower than the centre-to-centre spacing. Taking the box's width
+        # narrower than the center-to-center spacing. Taking the box's width
         # for the spacing therefore drifts, and the drift compounds outward.
         # Measured on four levels: `gap=0.3` left the two outer ladders with
         # no level name at all, and `gap=0.6` gave them the *wrong* one --
@@ -244,7 +244,7 @@ class TestTheCategoriesAreNamed:
     def test_many_levels_in_a_full_width_slot_still_land_on_their_own_tick(self):
         # A ladder is named by its nearest tick, which is safe by
         # construction: seaborn dodges `n` levels into a slot `width` wide, so
-        # the outermost centre sits `width * (n - 1) / (2n)` from its tick --
+        # the outermost center sits `width * (n - 1) / (2n)` from its tick --
         # under `width / 2`, against a tick spacing of 1. This is the tightest
         # case reachable, and the measured offset is 0.4375 against a
         # half-spacing of 0.5.
@@ -369,8 +369,8 @@ class TestWhichWayRoundItIsDrawn:
 
     The core reads ``layer.orientation`` and falls back to vertical when it is
     absent, and ``BoxenTrace.text`` picks the announcement's two axis labels
-    off that flag. So a horizontal boxen that omits it is not unlabelled, it is
-    labelled backwards: the category arrives under the value axis's name and
+    off that flag. So a horizontal boxen that omits it is not unlabeled, it is
+    labeled backwards: the category arrives under the value axis's name and
     the quantile under the category axis's.
 
     Asserting the point values match between orientations -- which is all
@@ -393,7 +393,7 @@ class TestWhichWayRoundItIsDrawn:
 class TestSomethingElseDrawnOnTheSameAxes:
     """A ladder reads the collections its own call drew.
 
-    A strip plot over a boxen is a standard idiom -- the ladder summarises the
+    A strip plot over a boxen is a standard idiom -- the ladder summarizes the
     distribution the points make up -- and it is what breaks a positional
     pairing. With ``showfliers=False`` seaborn adds no flier collection at
     all, so the run stops alternating and the last ladder takes the strip
@@ -545,7 +545,7 @@ class TestALadderThatCannotBeRead:
         # the rest of `maidr/core/plot/` raises for that. Reached by
         # constructing the layer without the collections the patch hands over
         # -- which also pins that the handover is required rather than an
-        # optimisation.
+        # optimization.
         from maidr.core.plot.boxenplot import BoxenPlot
         from maidr.exception import ExtractionError
 
@@ -575,7 +575,7 @@ class TestALadderThatCannotBeRead:
         with pytest.warns(UserWarning, match="legend lists 2 levels"):
             named = BoxenPlot._category_of(
                 layer,
-                centre=0.2,
+                center=0.2,
                 offsets=[-0.2, 0.0, 0.2],
                 ticks=[(0.0, "a"), (1.0, "b")],
                 levels=["p", "q"],

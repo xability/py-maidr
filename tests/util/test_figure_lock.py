@@ -1,10 +1,10 @@
 """The per-figure render lock.
 
-The lock's behaviour was covered from ``tests/widget/test_shiny.py`` while
+The lock's behavior was covered from ``tests/widget/test_shiny.py`` while
 it lived inside the Shiny integration, and moved here when it became
 shared (#531). Since #532 the only thing that takes it is
 ``Maidr._create_html_tag``, so that it covers every caller rather than the
-two doors this package ships; ``tests/core/test_render_serialises.py``
+two doors this package ships; ``tests/core/test_render_serializes.py``
 covers that, and the per-door concurrency tests still assert the
 consequence through each integration.
 """
@@ -27,7 +27,7 @@ from maidr.util.figure_lock import figure_lock  # noqa: E402
 def test_each_figure_gets_its_own_lock_and_keeps_it():
     """Per figure, not process-wide, and stable across calls.
 
-    A single shared lock would serialise unrelated sessions and give back
+    A single shared lock would serialize unrelated sessions and give back
     most of what rendering on a thread buys, since ``savefig`` on
     *distinct* figures is safe in parallel. A lock that differed per call
     would guard nothing at all.

@@ -1,8 +1,8 @@
-"""A numeric-axis heatmap was labelled with its axis ticks, not its cells (#526).
+"""A numeric-axis heatmap was labeled with its axis ticks, not its cells (#526).
 
 ``HeatPlot`` filled ``x`` and ``y`` from the axes' **tick labels**. On a
 categorical axis those are the cells: ``sns.heatmap`` puts one fixed tick at
-the centre of every cell and labels it, so the axis already names the grid. On
+the center of every cell and labels it, so the axis already names the grid. On
 a numeric axis they are not, and there are usually more of them than there are
 cells. Measured on matplotlib 3.9.4, every case below drawing a 2 x 3 grid:
 
@@ -17,10 +17,10 @@ tick locator -- chosen to look tidy on an axis -- with no way to tell it was
 somebody else's coordinate.
 
 Every one of these artists knows its own boundaries: a mesh carries them as its
-coordinates, an image as its extent. A cell is named by its **centre** rather
+coordinates, an image as its extent. A cell is named by its **center** rather
 than by the range it covers, following ``HexbinPoint``, which carries a bin's
-centre for the same reasons -- one label per column in the grammar, announced
-on every move of the cursor, and the spacing between consecutive centres is the
+center for the same reasons -- one label per column in the grammar, announced
+on every move of the cursor, and the spacing between consecutive centers is the
 cell width already.
 """
 
@@ -120,7 +120,7 @@ def test_every_heatmap_names_one_cell_per_cell(name, draw):
     assert len(layer[MaidrKey.DATA][MaidrKey.Y]) == rows, name
 
 
-def test_a_binned_grid_is_named_by_the_centres_of_its_bins():
+def test_a_binned_grid_is_named_by_the_centers_of_its_bins():
     """
     ``hist2d``'s cells are named from the edges it binned to.
 
@@ -191,7 +191,7 @@ def test_a_caller_who_names_the_cells_themselves_keeps_their_names():
     """
     Ticks that *are* the cells are still the answer.
 
-    This is what ``sns.heatmap`` relies on, and what a caller labelling a
+    This is what ``sns.heatmap`` relies on, and what a caller labeling a
     numeric grid by hand relies on too. The check is on where the ticks sit,
     not on how many there are: a locator that happened to draw three ticks on
     a three-column grid would otherwise have its numbers taken as the names.
@@ -224,7 +224,7 @@ def test_ticks_that_merely_count_right_do_not_become_the_names():
     assert layer[MaidrKey.DATA][MaidrKey.X] == ["0.5", "1.5", "2.5"]
 
 
-def test_a_mesh_is_named_by_the_centres_between_its_own_coordinates():
+def test_a_mesh_is_named_by_the_centers_between_its_own_coordinates():
     """
     ``pcolormesh`` cells sit between the coordinates the mesh carries.
 
@@ -270,7 +270,7 @@ def test_cells_too_close_to_separate_at_six_figures_get_longer_names():
     Two cells with one name would tell a reader they had not moved.
 
     Six significant figures is short enough to say on every move and enough
-    for any ordinary grid, but centres around 1e9 spaced by 1 all round to
+    for any ordinary grid, but centers around 1e9 spaced by 1 all round to
     the same six, so the precision is raised until the names differ.
     """
     edges = np.array([1e9, 1e9 + 1, 1e9 + 2, 1e9 + 3])

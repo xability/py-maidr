@@ -1,6 +1,6 @@
 """A 100% stacked bar chart was announced as an ordinary stacked one.
 
-`layout.barnorm` is plotly's own switch for normalising each stack to a common
+`layout.barnorm` is plotly's own switch for normalizing each stack to a common
 total — `'percent'` scales to 100, `'fraction'` to 1. Either way the segment
 values are *shares of their category* rather than counts. MAIDR did not read
 it, so such a chart arrived as `stacked_bar` (#338).
@@ -14,9 +14,9 @@ some time; `PlotType` simply had no member to emit it with, so the type was
 unreachable from Python.
 
 This is a lookup rather than a heuristic, and deliberately so. matplotlib and
-seaborn have no equivalent declaration — a user normalises the data themselves
+seaborn have no equivalent declaration — a user normalizes the data themselves
 and calls `ax.bar(bottom=...)` — so inferring "every category totals 1.0, so
-this must be normalised" would name a chart from a coincidence in its data.
+this must be normalized" would name a chart from a coincidence in its data.
 Plotly states it, so plotly is where this can be read honestly.
 
 
@@ -51,7 +51,7 @@ from maidr.plotly.barnorm import (  # noqa: E402
 )
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
-#: Every combination that decides the layer type. `barnorm` normalises a stack
+#: Every combination that decides the layer type. `barnorm` normalizes a stack
 #: whatever spelling of stacking got it there, and means nothing to a dodge.
 CASES = [
     (None, None, "stacked_bar"),
@@ -99,21 +99,21 @@ def test_barnorm_decides_only_what_it_should(barmode, barnorm, expected) -> None
     assert _types(_figure(barmode, barnorm)) == [expected]
 
 
-def test_a_dodge_is_not_normalised_by_barnorm() -> None:
-    """`barnorm` normalises a *stack*, and a dodge has none to normalise.
+def test_a_dodge_is_not_normalized_by_barnorm() -> None:
+    """`barnorm` normalizes a *stack*, and a dodge has none to normalize.
 
-    Stated on its own because it is the row a "barnorm means normalised"
+    Stated on its own because it is the row a "barnorm means normalized"
     shortcut would get wrong, and the answer would look plausible: side-by-side
     bars announced as shares of a total that the chart never draws.
     """
     assert _types(_figure("group", "percent")) == ["dodged_bar"]
 
 
-def test_an_empty_barnorm_is_not_normalisation() -> None:
+def test_an_empty_barnorm_is_not_normalization() -> None:
     """Plotly's own "off" value is the empty string, not absence.
 
-    `barnorm=""` is how a figure says *not* normalised after something set it,
-    so membership of the normalising set is the test rather than truthiness of
+    `barnorm=""` is how a figure says *not* normalized after something set it,
+    so membership of the normalizing set is the test rather than truthiness of
     the key.
     """
     assert _types(_figure("stack", "")) == ["stacked_bar"]
@@ -183,11 +183,11 @@ class TestTheScale:
     @pytest.mark.parametrize(
         ("barnorm", "expected"), [("percent", 100.0), ("fraction", 1.0)]
     )
-    def test_the_two_normalising_settings(self, barnorm, expected):
+    def test_the_two_normalizing_settings(self, barnorm, expected):
         assert barnorm_scale(barnorm) == expected
 
     @pytest.mark.parametrize("barnorm", [None, "", "nonsense", 5, True])
-    def test_everything_else_normalises_nothing(self, barnorm):
+    def test_everything_else_normalizes_nothing(self, barnorm):
         # `None` rather than 1.0, so the caller emits the values untouched
         # instead of multiplying them by a no-op and turning ints into floats.
         assert barnorm_scale(barnorm) is None
@@ -196,10 +196,10 @@ class TestTheScale:
 class TestTheDenominatorFollowsTheBarmode:
     """The rule the documentation does not spell out."""
 
-    def test_relative_normalises_each_sign_against_its_own_total(self):
+    def test_relative_normalizes_each_sign_against_its_own_total(self):
         # Measured: [3, -1] comes back 100, -100 -- not 75, -25. `relative`
         # draws the positive and negative bars as two stacks growing away
-        # from the baseline and normalises each against its own total.
+        # from the baseline and normalizes each against its own total.
         assert one_position([3, -1], "relative") == [100.0, -100.0]
 
     def test_stack_pools_both_signs_into_one_total(self):
@@ -320,8 +320,8 @@ class TestTheEmittedBarLayer:
         assert only_layer(fig)["type"] == PlotType.STACKED.value
         assert values(fig) == [[3, 2], [1, 6]]
 
-    def test_a_horizontal_bar_normalises_the_value_axis(self):
-        # The category and the magnitude swap axes, so normalising `y` would
+    def test_a_horizontal_bar_normalizes_the_value_axis(self):
+        # The category and the magnitude swap axes, so normalizing `y` would
         # rescale the categories. Measured: the shares come back on `x`.
         fig = px.bar(
             frame(), y="c", x="v", color="g", orientation="h"
@@ -334,7 +334,7 @@ class TestTheEmittedBarLayer:
         ).update_layout(barnorm="percent")
         assert values(fig, "y") == [["a", "b"], ["a", "b"]]
 
-    def test_an_unrecognised_barnorm_changes_nothing(self):
+    def test_an_unrecognized_barnorm_changes_nothing(self):
         fig = px.bar(frame(), x="c", y="v", color="g").update_layout(barnorm="")
         assert values(fig) == [[3, 2], [1, 6]]
 
@@ -345,7 +345,7 @@ class TestDodgedIsLeftAlone:
     def test_a_dodged_barnorm_keeps_its_counts(self):
         # `barmode="group"` makes every bar its own stack, so plotly draws
         # all four at 100% -- measured, every `s` came back 100. The layer
-        # is typed `dodged_bar`, which claims no normalisation, so the type
+        # is typed `dodged_bar`, which claims no normalization, so the type
         # and the values do not contradict each other the way #409 describes.
         #
         # Emitting four 100s would be faithful to the drawn geometry and
@@ -398,13 +398,13 @@ class TestTheTypeAndTheScalingCannotDrift:
     """
 
     @pytest.mark.parametrize("barnorm", ["percent", "fraction", "", None])
-    def test_normalised_typing_agrees_with_being_scaled(self, barnorm):
+    def test_normalized_typing_agrees_with_being_scaled(self, barnorm):
         # Only the values plotly will accept: `update_layout(barnorm="x")`
-        # raises on anything else, so a figure cannot carry an unrecognised
+        # raises on anything else, so a figure cannot carry an unrecognized
         # one and the equivalence is asserted over the whole reachable set.
         layer_types = _types(_figure("stack", barnorm))
-        typed_normalised = layer_types == ["stacked_normalized_bar"]
-        assert typed_normalised is (barnorm_scale(barnorm) is not None)
+        typed_normalized = layer_types == ["stacked_normalized_bar"]
+        assert typed_normalized is (barnorm_scale(barnorm) is not None)
 
     @pytest.mark.parametrize("barnorm", ["nonsense", "PERCENT", 5, True])
     def test_an_unreachable_value_scales_nothing(self, barnorm):
@@ -414,12 +414,12 @@ class TestTheTypeAndTheScalingCannotDrift:
         # purpose: plotly's own enum is lower-case.
         assert barnorm_scale(barnorm) is None
 
-    def test_only_one_definition_of_the_normalising_values_survives(self):
+    def test_only_one_definition_of_the_normalizing_values_survives(self):
         # The frozenset in `plotly_maidr` is gone; asked of the module rather
         # than of the text so a re-added copy fails here rather than drifting.
         from maidr.plotly import plotly_maidr
 
-        assert not hasattr(plotly_maidr, "_NORMALISING_BARNORMS")
+        assert not hasattr(plotly_maidr, "_NORMALIZING_BARNORMS")
 
 
 class TestTheEmittedHistogramLayer:

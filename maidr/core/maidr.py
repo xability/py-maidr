@@ -160,7 +160,7 @@ class Maidr:
                render, where the chart is served inside a ``srcdoc``
                iframe: that document has no base URL for the relative
                ``lib/`` path, and the ``HTMLDependency`` that would have
-               served the file is dropped when the wrapper serialises the
+               served the file is dropped when the wrapper serializes the
                tag. On an air-gapped deployment use ``use_cdn=False``,
                which inlines the bundle. The browser console says so if
                the fallback is ever reached (#455).
@@ -940,7 +940,7 @@ class Maidr:
         # These must carry an empty `layers` list rather than stay bare: the
         # JS core's `Subplot` constructor reads `subplot.layers.length`
         # unguarded, so a cell without the key throws on activation and the
-        # whole figure fails to initialise -- not just the empty position.
+        # whole figure fails to initialize -- not just the empty position.
         for i in range(len(subplot_grid)):
             subplot_grid[i] = [
                 cell if cell else {"id": Maidr._unique_id(), "layers": []}
@@ -1076,7 +1076,7 @@ class Maidr:
             if iframe_in_notebook:
                 # Pull the bundled source from the parent document instead
                 # of emitting an ``HTMLDependency`` (which would be lost
-                # when the iframe wrapper serialises the tag via
+                # when the iframe wrapper serializes the tag via
                 # ``Tag.get_html_string()``).
                 parent_source_script = """
                     (function() {

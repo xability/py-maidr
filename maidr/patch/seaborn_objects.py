@@ -109,7 +109,7 @@ _READINGS: dict[str, _Reading] = {
     # only where the artist itself goes and `_area_handover` supplies the
     # rest.
     "Area": _Reading(PlotType.AREA, "patches", Polygon, "collections"),
-    # The many-series spelling of `Line` and `Path`: measured, a colour split
+    # The many-series spelling of `Line` and `Path`: measured, a color split
     # leaves **one** `LineCollection` carrying a segment per group, where the
     # singular marks leave a `Line2D` each. `SegmentLinePlot` reads those
     # segments, so the collection is handed over singular -- a layer draws one,
@@ -206,7 +206,7 @@ def _panels(plotter: Any) -> list[Axes]:
     return [ax for ax in getattr(figure, "axes", [])]
 
 
-#: What a position transform makes a colour-split bar chart. Keyed on the
+#: What a position transform makes a color-split bar chart. Keyed on the
 #: ``Move``'s class name for the reason the mark table is: ancestry does not
 #: track what a move *does*, and matching the name states exactly what was
 #: asked for.
@@ -217,7 +217,7 @@ def _panels(plotter: Any) -> list[Axes]:
 #: through are the stack's.
 #:
 #: ``Norm`` is not here, because whether it makes a 100% stack cannot be
-#: answered from its class name. See :func:`_normalises_to_a_whole`.
+#: answered from its class name. See :func:`_normalizes_to_a_whole`.
 _MOVES: tuple[tuple[str, PlotType], ...] = (
     ("Stack", PlotType.STACKED),
     ("Dodge", PlotType.DODGED),
@@ -269,13 +269,13 @@ def _sums(func: Any) -> bool:
     return getattr(func, "__name__", None) == "sum"
 
 
-def _normalises_to_a_whole(move: list[Any] | None, container: BarContainer) -> bool:
+def _normalizes_to_a_whole(move: list[Any] | None, container: BarContainer) -> bool:
     """
     Whether a stacked layer's segments are *shares of a whole*.
 
     Asked of the drawn bars rather than of the spelling, because the spelling
     cannot answer it. ``so.Norm`` takes a ``func`` and a ``by``, and only some
-    combinations normalise within the category. Measured, two categories over
+    combinations normalize within the category. Measured, two categories over
     two levels, totalling each category's stack:
 
     ======================================  =======
@@ -288,28 +288,28 @@ def _normalises_to_a_whole(move: list[Any] | None, container: BarContainer) -> b
     ======================================  =======
 
     Only the first is a 100% stack. The second is the trap: it names the
-    category axis, looks right, and normalises *each level* to 1 so the
+    category axis, looks right, and normalizes *each level* to 1 so the
     stacks reach 2. A rule reading ``by`` for the category axis would claim
     it and announce shares that sum to twice the whole.
 
     So this asks the two questions separately. **Did the author ask for a
-    sum-normalisation** (:func:`_sums`), which no plain ``Stack()`` does, and
+    sum-normalization** (:func:`_sums`), which no plain ``Stack()`` does, and
     **did the bars land on a whole**, which is what the type claims. Requiring both leaves
     an ordinary stack reading as ``stacked_bar`` even when its categories
-    happen to total alike, and refuses a normalisation that did not land.
+    happen to total alike, and refuses a normalization that did not land.
 
     Where the moves sit *relative to each other* is deliberately not asked,
     though it plainly matters to what gets drawn -- ``Stack()`` then
-    ``Norm()`` normalises the already-stacked tops and can draw segments of
+    ``Norm()`` normalizes the already-stacked tops and can draw segments of
     negative height. The totals turn every such chart away on their own.
     After that order the drawn tops are each category's ``t_i / sum(t_i)``
     over the *cumulative* tops, so they are all wholes only when one top
     carries the whole sum, which needs every level but the last at zero --
     and seaborn draws no rectangle for a zero, so those levels leave no
-    colour, the split finds one group and no grouped layer is made at all.
+    color, the split finds one group and no grouped layer is made at all.
     Measured: three levels with one at zero totals 0.8 and 0.667, turned
     away on the totals; two levels with one at zero draws **two** patches of
-    one colour and reads as a plain ``bar``. An order check would refuse
+    one color and reads as a plain ``bar``. An order check would refuse
     charts that never reach here.
 
     Parameters
@@ -322,7 +322,7 @@ def _normalises_to_a_whole(move: list[Any] | None, container: BarContainer) -> b
     Returns
     -------
     bool
-        ``True`` when the layer asked to be normalised by sum and its
+        ``True`` when the layer asked to be normalized by sum and its
         categories each total a whole.
     """
     names = [type(one).__name__ for one in move or ()]
@@ -441,8 +441,8 @@ def _area_handover(own: list, orient: str | None) -> list[tuple[PlotType, dict]]
     """
     What to register for an ``so.Area`` layer, or nothing.
 
-    **One polygon, or nothing.** A layer that drew several is a colour split,
-    and a colour split declines for a reason about names rather than numbers:
+    **One polygon, or nothing.** A layer that drew several is a color split,
+    and a color split declines for a reason about names rather than numbers:
     measured, each level's polygon spans every position, so they would fold
     into one layer of several series -- arriving without the names that tell
     them apart. The legend holding those is the figure's, built after every
@@ -515,22 +515,22 @@ def _handovers(
 
     Four shapes, and each is a fact about the plot class being handed to.
 
-    A **colour-split scatter** becomes one layer per group. `so.Dot(color=)`
-    draws a *single* ``PathCollection`` carrying a colour per point -- the
+    A **color-split scatter** becomes one layer per group. `so.Dot(color=)`
+    draws a *single* ``PathCollection`` carrying a color per point -- the
     same shape ``seaborn.scatterplot(hue=)`` produces -- so the grouping
-    survives only in those colours and in the legend naming them, which is
+    survives only in those colors and in the legend naming them, which is
     exactly what ``hue_groups`` inverts. Without it a reader is handed one
     layer of every point where the classic spelling of the same chart gives
     one per level, named (#617).
 
-    A **colour-split bar carrying a position transform** becomes one
+    A **color-split bar carrying a position transform** becomes one
     ``dodged_bar`` or ``stacked_bar`` layer holding every group, which is the
     shape ``seaborn.barplot(hue=)`` already reads as: `data` a list per group,
     each point carrying its group in `z`, and cross-group navigation between
     levels at one category. That is strictly more than the split gives, and
     it is available here because `so` states the transform outright.
 
-    A **colour-split bar with no transform** falls back to one layer per
+    A **color-split bar with no transform** falls back to one layer per
     group. `so.Bar(color=)` alone overplots the levels at the same position
     -- measured, four bars at two x values -- which is neither a dodge nor a
     stack, so a grouped reading would claim a structure the chart does not
@@ -550,12 +550,12 @@ def _handovers(
     reading : _Reading
         How this mark is read.
     ax : Axes
-        The panel drawn on, asked for the legend that names the colours.
+        The panel drawn on, asked for the legend that names the colors.
     own : list
         The artists this layer drew on that panel, in draw order.
     move : list of Move, optional
         ``layer["move"]``: the position transforms the layer was written
-        with, which is what types a colour-split bar.
+        with, which is what types a color-split bar.
 
     Returns
     -------
@@ -630,7 +630,7 @@ def _handovers(
                 for _, members in groups
             ]
             grouped = _grouped_type(move)
-            if grouped is PlotType.STACKED and _normalises_to_a_whole(move, own[0]):
+            if grouped is PlotType.STACKED and _normalizes_to_a_whole(move, own[0]):
                 grouped = PlotType.NORMALIZED
             if grouped is not None:
                 # One layer of every group, which is what `GroupedBarPlot`
@@ -721,7 +721,7 @@ def _layer(wrapped, instance, args, kwargs) -> Any:
         if not own:
             continue
         # Recorded rather than registered, because the legend that names a
-        # colour split does not exist yet: `Plotter._make_legend` runs after
+        # color split does not exist yet: `Plotter._make_legend` runs after
         # every layer has been drawn. That is the timing #612 met with
         # `FacetGrid.add_legend()`, and a name can be deferred to render as a
         # callable -- but a *split* cannot, because it decides how many
@@ -738,7 +738,7 @@ def _register(wrapped, instance, args, kwargs) -> Any:
     The second half of a hook deliberately split in two. ``_plot_layer`` is
     the only place that can say which artists a layer drew, and it runs too
     early to say what *names* them: ``Plotter._make_legend`` builds the one
-    legend a ``so.Plot`` has after every layer is on the page, so a colour
+    legend a ``so.Plot`` has after every layer is on the page, so a color
     split asked about there finds nothing and every chart reads as one
     unnamed layer of every point.
 

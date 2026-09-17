@@ -19,12 +19,12 @@ class ContourPlot(MaidrPlot):
     A contour plot: one curve per level of a scalar field.
 
     ``Axes.contour`` is the one chart in this family whose value is a **number
-    rather than a colour**. ``QuadContourSet.levels`` holds the levels the
+    rather than a color**. ``QuadContourSet.levels`` holds the levels the
     caller asked for, and ``get_paths()`` returns one path per level, so both
     halves invert exactly and nothing has to be recovered from a fill. That is
     what separates it from the same chart elsewhere: xability/maidr#1084 left
     Observable Plot's ``contour`` unread because there the magnitude survives
-    only in a continuous fill colour.
+    only in a continuous fill color.
 
     Two things about the drawing shape the reading.
 

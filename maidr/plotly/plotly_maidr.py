@@ -661,7 +661,7 @@ class PlotlyMaidr:
                     return PlotType.DODGED
                 # Asked of the same function that does the rescaling, rather
                 # than of a second copy of the value list. Two copies is how
-                # #409 comes back: a `barnorm` one of them recognised and the
+                # #409 comes back: a `barnorm` one of them recognized and the
                 # other did not would type the layer
                 # `stacked_normalized_bar` while leaving its values the raw
                 # counts -- the type and the numbers contradicting each other
@@ -761,7 +761,7 @@ class PlotlyMaidr:
                 step_traces = [t for t in renderer_traces if is_step_trace(t)]
                 # A `plotly.express` trendline is a fitted curve, not drawn
                 # data, and nothing structural says so -- same `type`, same
-                # `mode`, no `name`, the scatter's own colour. Merged into the
+                # `mode`, no `name`, the scatter's own color. Merged into the
                 # multi-line layer it was announced as one more series of the
                 # user's data, so a reader was told a model's prediction was a
                 # measurement (#343).
@@ -811,7 +811,7 @@ class PlotlyMaidr:
 
                 # Fitted trends, as their own layer. One layer for all of them
                 # rather than one each: `px.scatter(..., color=...,
-                # trendline="ols")` fits per colour group, and those are the
+                # trendline="ols")` fits per color group, and those are the
                 # same kind of thing navigated together, exactly as the
                 # multi-line layer holds the series they were fitted to.
                 #
@@ -1458,9 +1458,9 @@ class PlotlyMaidr:
         # Proactively stash the bundled ``maidr.js`` and KaTeX source on
         # the parent notebook ``window`` so the iframe bootstrap below
         # can inject them inline when the CDN is unavailable.  Mirrors the
-        # matplotlib ``Maidr.show()`` behaviour (see ``maidr/core/maidr.py``)
+        # matplotlib ``Maidr.show()`` behavior (see ``maidr/core/maidr.py``)
         # and is required because ``Tag.get_html_string()`` drops any
-        # ``HTMLDependency`` children during iframe serialisation.
+        # ``HTMLDependency`` children during iframe serialization.
         if use_cdn is not True and Environment.is_notebook():
             try:
                 from maidr.api import init_notebook
@@ -1479,7 +1479,7 @@ class PlotlyMaidr:
 
         # The browser path renders through `save_html`, which builds the
         # whole document itself, so the Tag must not be built ahead of
-        # this decision: that would serialise the figure and the schema
+        # this decision: that would serialize the figure and the schema
         # twice and throw the first copy away.
         if _renderer == "browser" and not Environment.is_notebook():
             return self._open_plot_in_browser(use_cdn=use_cdn)
@@ -1676,7 +1676,7 @@ class PlotlyMaidr:
             notebook/Shiny srcdoc iframe.  Switches the loader to use
             the parent-window source strings instead of relative paths.
         """
-        # The browser re-serialises this with JSON.stringify before it
+        # The browser re-serializes this with JSON.stringify before it
         # reaches the DOM, so indentation would never be seen -- and passing
         # `indent` switches json to its pure-Python encoder, which is 5-6x
         # slower and ~2.8x the bytes at 50k points. Default separators are
@@ -1954,7 +1954,7 @@ class PlotlyMaidr:
             warn_if_bundle_is_stale()
             if iframe_in_notebook:
                 # ``HTMLDependency`` is dropped by ``get_html_string()``
-                # during iframe serialisation; the init script's
+                # during iframe serialization; the init script's
                 # parent-source loader carries both the JS and KaTeX, so
                 # no extra children are needed here.
                 pass

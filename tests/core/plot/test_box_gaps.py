@@ -8,7 +8,7 @@ it. The extractor cast each with a bare ``float()`` and emitted::
     {min: nan, q1: nan, q2: nan, q3: nan, max: nan}
 
 ``json.dumps`` writes that as bare ``NaN`` tokens, which ``JSON.parse`` in
-the core refuses, so one such group stopped the whole figure initialising --
+the core refuses, so one such group stopped the whole figure initializing --
 the finite boxes beside it included.
 
 ``null`` is not the answer the bar family gave (#429): the grammar types the

@@ -14,9 +14,9 @@ from maidr.plotly.plotly_plot import PlotlyPlot, as_list, colorbar_title, subplo
 MAP_LONGITUDE_AXIS = "Longitude"
 MAP_LATITUDE_AXIS = "Latitude"
 
-#: What a density map's magnitude is called when the author titled no colour
+#: What a density map's magnitude is called when the author titled no color
 #: bar. `Density` rather than `Value`, because that is what the trace weights
-#: its kernel by and what the colour states.
+#: its kernel by and what the color states.
 MAP_DENSITY_AXIS = "Density"
 
 #: The scatter-shaped map traces: a marker per position, and a name for it.
@@ -169,7 +169,7 @@ class PlotlyGeoScatterPlot(PlotlyPlot):
 
         A map draws no cartesian axes, so ``layout.xaxis`` holds neither
         name -- reading it would take another trace's titles. A density
-        trace's colour bar title is the one thing the author may have
+        trace's color bar title is the one thing the author may have
         written about its magnitude, so it is used when it is there.
 
         Returns

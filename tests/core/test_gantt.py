@@ -20,12 +20,12 @@ shows names its lanes *after* drawing them::
     ax.set_yticks([15, 25], labels=["Bill", "Jim"])
 
 Extraction runs when the schema is first asked for, so ticks set afterwards are
-in place by then. But the tick does not sit at the bar's centre: those bars span
-10-19 and 20-29, so their centres are 14.5 and 24.5 while the ticks are at 15
+in place by then. But the tick does not sit at the bar's center: those bars span
+10-19 and 20-29, so their centers are 14.5 and 24.5 while the ticks are at 15
 and 25. The tick that names a lane is the one *inside* it.
 
 And only an explicit tick counts. Left alone, matplotlib puts several inside
-every bar -- measured, an unlabelled version of the chart above offers "8",
+every bar -- measured, an unlabeled version of the chart above offers "8",
 "10", "12", "14" and "16" for the lane spanning 10 to 19, none of which is that
 lane's name. `set_yticks` installs a `FixedLocator`; automatic ticks are an
 `AutoLocator`, and that is the difference between a name and an axis.
@@ -108,9 +108,9 @@ def test_two_calls_are_two_lanes_of_one_chart() -> None:
 
 
 def test_a_lane_is_named_by_the_tick_inside_it() -> None:
-    """The tick at 15 names the lane spanning 10 to 19, whose centre is 14.5.
+    """The tick at 15 names the lane spanning 10 to 19, whose center is 14.5.
 
-    An exact match against the centre finds nothing, which is why this is not
+    An exact match against the center finds nothing, which is why this is not
     written that way.
     """
     fig, _ = _schedule()
@@ -118,12 +118,12 @@ def test_a_lane_is_named_by_the_tick_inside_it() -> None:
     assert _layer(fig)["data"]["lanes"] == ["Bill", "Jim"]
 
 
-def test_an_unlabelled_lane_is_named_by_its_position() -> None:
+def test_an_unlabeled_lane_is_named_by_its_position() -> None:
     """The control, and the reason the locator is consulted at all.
 
     With no `set_yticks` the axis carries an `AutoLocator`, and several of its
     ticks fall inside every bar. Taking one would announce a lane called "12"
-    or "14" depending on which was reached first; the centre is always true.
+    or "14" depending on which was reached first; the center is always true.
     """
     fig, _ = _schedule(named=False)
 
@@ -150,10 +150,10 @@ def test_a_single_automatic_tick_is_still_not_a_name() -> None:
     assert _layer(fig)["data"]["lanes"] == [12.0, 22.0]
 
 
-def test_two_labelled_ticks_in_one_lane_name_neither() -> None:
+def test_two_labeled_ticks_in_one_lane_name_neither() -> None:
     """Why "exactly one" rather than "the first".
 
-    A lane holding two labelled ticks has no single one that names it, and
+    A lane holding two labeled ticks has no single one that names it, and
     taking whichever came first would announce a name chosen by tick order
     rather than by the author. The position is always true.
     """
@@ -183,7 +183,7 @@ def test_the_lane_decision_is_made_under_the_lock(monkeypatch) -> None:
     """The check-then-act, pinned at the invariant rather than by racing it.
 
     Deciding whether a lane already exists and then creating one is two steps.
-    Unserialised, two threads drawing onto the same fresh axes can both find
+    Unserialized, two threads drawing onto the same fresh axes can both find
     none and each call `create_maidr`, and the schedule splits into two
     one-lane charts -- silently, and only sometimes.
 

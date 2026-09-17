@@ -3,7 +3,7 @@
 
 ``mdates.date2num`` accepts an index and returns the same float64 values as
 a call per element, at about 60 us a row less. The values are what the
-volume bars and moving averages are labelled from, so the two spellings are
+volume bars and moving averages are labeled from, so the two spellings are
 asserted equal here for a naive and a tz-aware index.
 """
 

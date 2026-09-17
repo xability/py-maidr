@@ -60,12 +60,12 @@ def _data(fig, index: int = 0):
 
 def _parse_as_a_browser_would(schema) -> None:
     """
-    Serialise a layer and parse it back the way the core does.
+    Serialize a layer and parse it back the way the core does.
 
     Python's ``json.loads`` accepts the bare ``NaN``, ``Infinity`` and
     ``-Infinity`` tokens ``json.dumps`` writes, so a round trip through it
     proves nothing about the payload the browser has to read: ``JSON.parse``
-    rejects all three, and one of them stops the chart initialising at all
+    rejects all three, and one of them stops the chart initializing at all
     (#427). ``parse_constant`` is the hook that makes the two agree.
     """
 
@@ -191,7 +191,7 @@ def test_a_blank_bin_keeps_its_place_and_reports_no_count():
 def test_a_blank_bin_leaves_the_payload_parseable():
     # `json.dumps` writes a bare `NaN`, which is legal JavaScript and not
     # JSON: `JSON.parse` rejects the whole schema and the chart never
-    # initialises at all (#427). Asserted through a real parse rather than by
+    # initializes at all (#427). Asserted through a real parse rather than by
     # looking for the token.
     fig, ax = plt.subplots()
 

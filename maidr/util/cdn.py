@@ -67,7 +67,7 @@ _CDN_URL_TEMPLATE = "https://cdn.jsdelivr.net/npm/maidr@{version}/dist/{filename
 
 
 #: Version specifier meaning "emit the mutable ``@latest`` dist-tag and do
-#: not contact the network".  This is the pre-resolution behaviour.
+#: not contact the network".  This is the pre-resolution behavior.
 LATEST_TAG = "latest"
 
 
@@ -204,7 +204,7 @@ _resolution_generation: int = 0
 _resolution_lock = threading.Lock()
 
 
-# Serialises the lookup itself, so concurrent first renders still make one
+# Serializes the lookup itself, so concurrent first renders still make one
 # request between them.  Fetchers take this *then* ``_resolution_lock`` to
 # publish; readers never take it, so they cannot be blocked by a fetch.
 _fetch_lock = threading.Lock()
@@ -274,8 +274,8 @@ def set_cdn_version(version: str | None) -> None:
     startup, or an explicit ``use_cdn=`` per call.
 
     Takes precedence over the ``MAIDR_CDN_VERSION`` environment variable.
-    A value that is neither a recognised tag nor a valid semver is
-    ignored (with a warning) in favour of the normal resolution path.
+    A value that is neither a recognized tag nor a valid semver is
+    ignored (with a warning) in favor of the normal resolution path.
 
     Warns
     -----
@@ -295,7 +295,7 @@ def set_cdn_version(version: str | None) -> None:
         Raising outright would break a script that has been quietly
         mistyping its pin and rendering fine, so it goes through a
         deprecation the way :func:`bundled_css_path` did.  The warning is
-        the behaviour change; the raise is the next major's.
+        the behavior change; the raise is the next major's.
     """
     global _cdn_version_override
     # A blank string is treated as ``None`` rather than as a malformed
@@ -309,11 +309,11 @@ def set_cdn_version(version: str | None) -> None:
 
     candidate = str(version).strip()
     # Checked here as well as on every URL build, because the two
-    # answer different questions. `_normalise_version_pin` asks "can I
+    # answer different questions. `_normalize_version_pin` asks "can I
     # use this?" every time it needs a URL, and logs. This asks "did the
     # caller just make a mistake?", once, at the point they made it --
     # which is the only moment a stack trace points anywhere useful.
-    if _normalise_version_pin(candidate) is None:
+    if _normalize_version_pin(candidate) is None:
         warnings.warn(
             f"maidr.set_cdn_version({version!r}) was given something that is "
             f"neither a semver such as '3.74.0' nor {BUNDLED_TAG!r} or "
@@ -339,7 +339,7 @@ def get_cdn_version() -> str:
     4. The ``latest`` dist-tag resolved over the network (once per
        process, then cached).
     5. The literal string ``"latest"`` when the lookup fails, which
-       reproduces the library's historical behaviour.
+       reproduces the library's historical behavior.
 
     Returns
     -------
@@ -351,7 +351,7 @@ def get_cdn_version() -> str:
     Step 5 is what makes this safe to call from a render path: an
     unreachable, blocked, or malformed resolver degrades to ``"latest"``
     rather than raising.  That guarantee rests on
-    :func:`_fetch_latest_version` honouring its own "never raises"
+    :func:`_fetch_latest_version` honoring its own "never raises"
     contract — it catches ``Exception`` around every fallible step for
     exactly this reason.  Should something slip past it anyway, the
     handler in :func:`_resolve_latest_version` caches the attempt (so the
@@ -428,13 +428,13 @@ def get_cdn_version() -> str:
 
 
 def _version_pin() -> str | None:
-    """Return the normalised explicit pin, or ``None`` if there is none."""
+    """Return the normalized explicit pin, or ``None`` if there is none."""
     pin = _cdn_version_override
     if pin is None:
         pin = os.environ.get(CDN_VERSION_ENV_VAR)
     if pin is None:
         return None
-    return _normalise_version_pin(pin)
+    return _normalize_version_pin(pin)
 
 
 def _published_version(*, resolve: bool) -> str | None:
@@ -549,7 +549,7 @@ def _bundled_version() -> str:
     if bundled == _UNKNOWN_VERSION:
         detail = "cannot be read (the VERSION file is missing or empty)"
     else:
-        # Truncated for the same reason `_normalise_version_pin` truncates
+        # Truncated for the same reason `_normalize_version_pin` truncates
         # its pin: nothing bounds the length of a garbled file, and a log
         # line is not where a megabyte belongs.
         detail = f"is not a version ({bundled[:_MAX_WARNED_KEY_LEN]!r})"
@@ -769,7 +769,7 @@ def bundled_cdn_url(filename: str) -> str:
     immutable, and therefore free of the seven-day cache lifetime that
     ``@latest`` carries.
 
-    Honours an explicit pin first, then a version an already-completed
+    Honors an explicit pin first, then a version an already-completed
     lookup established, so these tags stay on the same version anything
     else in the page loads.  Falls back to :data:`LATEST_TAG` only when
     none of those is usable, where there is no better answer available
@@ -848,7 +848,7 @@ def maidr_css_cdn_url() -> str:
     return cdn_url(MAIDR_CSS_FILENAME)
 
 
-def _normalise_version_pin(pin: str) -> str | None:
+def _normalize_version_pin(pin: str) -> str | None:
     """Turn a user-supplied version specifier into a URL-safe string.
 
     Parameters
@@ -952,7 +952,7 @@ def _cdn_timeout() -> float:
     to opt out of resolving entirely.
 
     Values above :data:`_MAX_CDN_TIMEOUT` are clamped, with a warning so
-    the clamp is visible rather than silent.  Honouring an arbitrarily
+    the clamp is visible rather than silent.  Honoring an arbitrarily
     large value would respect the letter of the configuration at the cost
     of a render that appears to hang: ``MAIDR_CDN_TIMEOUT=3000`` meant as
     milliseconds would block for fifty minutes.  Nothing legitimate needs
@@ -1210,7 +1210,7 @@ def _fetch_latest_version(
             # propagate out of render().
             #
             # Counted as unreachable rather than as a bad answer, because
-            # that is the safe direction: an unrecognised failure calling
+            # that is the safe direction: an unrecognized failure calling
             # itself "this code is wrong" would redden a scheduled check
             # for a network condition nobody can fix.
             _logger.debug("maidr: CDN version lookup failed at %s", url, exc_info=True)

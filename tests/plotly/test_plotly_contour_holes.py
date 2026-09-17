@@ -5,7 +5,7 @@ curves should stop at it the way plotly's do. Plotly does not stop there. It
 runs `findEmpties` and `interp2d` over the grid first -- each hole becomes the
 average of its orthogonal neighbours, relaxed until the field settles -- and
 traces the curves *through* what was missing. Straight off `calcdata` in
-Chromium, on a 5x5 field with its centre set to None:
+Chromium, on a 5x5 field with its center set to None:
 
 ```
 contour                    -> z[2][2] = 0.6    _emptypoints = 1
@@ -67,7 +67,7 @@ class TestAHoleTakesItsNeighboursAverage:
     def test_one_hole_is_the_mean_of_its_four(self) -> None:
         """The plain case, and the one measured straight off `calcdata`.
 
-        A 5x5 field whose centre is punched comes back from plotly holding
+        A 5x5 field whose center is punched comes back from plotly holding
         0.6, which is what its four neighbours -- all 0.6 -- average to.
         """
         field = np.array(

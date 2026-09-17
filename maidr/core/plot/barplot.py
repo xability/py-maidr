@@ -21,7 +21,7 @@ from maidr.util.mixin import (
 #: The keyword ``Axes.bar`` hands its own ``BarContainer`` to this layer
 #: under. Named once and imported at both ends rather than spelled twice:
 #: ``kwargs.get`` falls back to sweeping the axes on a mismatch, so a typo
-#: would not raise -- it would quietly restore the behaviour #380 removed.
+#: would not raise -- it would quietly restore the behavior #380 removed.
 #:
 #: Lives here rather than beside ``common.drawn_as`` because ``maidr.patch``
 #: imports ``maidr.core`` and not the other way about.
@@ -38,10 +38,10 @@ def _magnitude(raw: float) -> float | None:
 
     ``json.dumps`` writes ``NaN`` as a bare token, which is legal JavaScript
     and invalid JSON, and the core parses the SVG's ``maidr`` attribute with
-    ``JSON.parse`` -- so one of them stops the chart initialising at all
+    ``JSON.parse`` -- so one of them stops the chart initializing at all
     (#427). And ``Number(NaN)`` is not the reading a listener wants either.
 
-    ``None`` serialises to ``null``, which is exactly what the core's
+    ``None`` serializes to ``null``, which is exactly what the core's
     ``toBarValue`` has read as a gap since the bar family gained the concept:
     it becomes ``NaN`` inside the model, is kept out of the range, sounds as
     the empty tone rather than a floor tone, and announces as "missing". A
@@ -62,7 +62,7 @@ def _magnitude(raw: float) -> float | None:
     Notes
     -----
     The ``float()`` is not decoration. matplotlib hands back whatever numpy
-    type the caller's data carried, and ``json.dumps`` cannot serialise a
+    type the caller's data carried, and ``json.dumps`` cannot serialize a
     ``numpy.int64`` -- dropping the cast raised ``TypeError: Object of type
     int64 is not JSON serializable`` on 28 tests, which is the whole render
     rather than one bar.
@@ -72,12 +72,12 @@ def _magnitude(raw: float) -> float | None:
 
 def bar_groups(ax: Axes, container: BarContainer) -> list[tuple[str, list[int]]] | None:
     """
-    The groups a colour-split bar layer was drawn with, or ``None``.
+    The groups a color-split bar layer was drawn with, or ``None``.
 
     The ``BarContainer`` counterpart of
     :func:`maidr.core.plot.scatterplot.hue_groups`, and the same question:
     one artist carries every level, so the grouping survives only in the
-    bars' colours and in the legend that names them.
+    bars' colors and in the legend that names them.
 
     ``seaborn.objects`` needs it where ``seaborn.barplot(hue=...)`` does not.
     The classic function draws one container **per level**, so each layer
@@ -91,7 +91,7 @@ def bar_groups(ax: Axes, container: BarContainer) -> list[tuple[str, list[int]]]
     Those are the dodge offsets. ``BarPlot._labels_for`` announces bar
     *positions* whenever the tick labels do not number the bars, which is
     right where #382 put it -- a numeric axis picks its own breaks -- and
-    which a colour split walks straight into. Splitting the layer per level
+    which a color split walks straight into. Splitting the layer per level
     puts one bar against one tick again, so the category names come back
     with the group names (xability/py-maidr#617).
 
@@ -109,11 +109,9 @@ def bar_groups(ax: Axes, container: BarContainer) -> list[tuple[str, list[int]]]
         container positions that belong to it, or ``None`` when the layer is
         not grouped.
     """
-    from maidr.core.plot.scatterplot import _rgba, groups_from_colours
+    from maidr.core.plot.scatterplot import _rgba, groups_from_colors
 
-    return groups_from_colours(
-        ax, [_rgba(patch.get_facecolor()) for patch in container]
-    )
+    return groups_from_colors(ax, [_rgba(patch.get_facecolor()) for patch in container])
 
 
 class BarPlot(
@@ -181,7 +179,7 @@ class BarPlot(
 
         # `MaidrLayer.name` is what xability/maidr#828 added so that two
         # layers of a kind can be told apart, which is exactly the position a
-        # colour-split bar puts a reader in. A callable is resolved here
+        # color-split bar puts a reader in. A callable is resolved here
         # rather than at registration, for the timing #612 describes.
         name = self._group_name() if callable(self._group_name) else self._group_name
         if name:
@@ -249,7 +247,7 @@ class BarPlot(
         -------
         list of str
             One label per bar, either read off the axis or derived from the
-            bars' own centres.
+            bars' own centers.
         """
         levels = self.extract_level(self.ax, self._level_key)
         if levels and len(levels) == len(data):

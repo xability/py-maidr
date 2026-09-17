@@ -21,7 +21,7 @@ OUTLINE_LINE = "_maidr_outline_line"
 #: Handed over because the drawing cannot always answer it and the caller
 #: always can. A stepped outline gives itself away -- its counts column
 #: closes on a repeated value, so it is never strictly ascending -- but a
-#: ``poly`` outline carries one bin centre and one count per vertex with
+#: ``poly`` outline carries one bin center and one count per vertex with
 #: nothing repeated, and a histogram whose counts happen to climb evenly has
 #: two ascending, evenly spaced columns and no way to tell them apart. Two
 #: bins is the everyday case: a single gap is evenly spaced whatever it
@@ -69,10 +69,10 @@ class OutlinedHistPlot(HistPlot):
     same either way. So the last value is dropped in both, and the drawstyle
     is read only to tell a step from a poly.
 
-    ``poly`` carries the **bin centres** and one value each, with nothing
+    ``poly`` carries the **bin centers** and one value each, with nothing
     repeated. The edges are recovered from the spacing, which is exact when
     the bins are even and impossible when they are not -- measured,
-    ``bins=[0, 1, 5, 10]`` gives centres ``0.5, 3.0, 7.5``, and three numbers
+    ``bins=[0, 1, 5, 10]`` gives centers ``0.5, 3.0, 7.5``, and three numbers
     whose gaps are ``2.5`` and ``4.5`` do not say where the boundaries were.
     Such a chart is declined rather than announced with invented edges, which
     is the rule ``SteppedHistPlot`` already settled for the filled poly.
@@ -97,7 +97,7 @@ class OutlinedHistPlot(HistPlot):
         told = kwargs.get(OUTLINE_HORIZONTAL, None)
         self._told_horizontal = told if isinstance(told, bool) else None
         # Forwarded, not dropped: the patch names each outline from the
-        # legend swatch its colour matches and hands the name over under
+        # legend swatch its color matches and hands the name over under
         # `GROUP_NAME`, which `HistPlot.__init__` is the thing that reads.
         # Calling it with the axes alone computed every name and threw them
         # away, leaving a `hue=` chart with two "hist" layers and no way to
@@ -205,7 +205,7 @@ def _read_line(
     # the caller has to. Taking the first was the defect: measured,
     # `histplot(df, y="v", bins=2, element="poly", fill=False)` over counts 2
     # and 5 came out `vert` with bin edges 0.5 to 3.5 -- the *counts* read as
-    # the axis -- and the bin centre 0.3125 announced as the count. Silently
+    # the axis -- and the bin center 0.3125 announced as the count. Silently
     # transposed, which is worse than the silence this class was written to
     # end.
     #
@@ -228,7 +228,7 @@ def _bins_from(
     ----------
     positions : numpy.ndarray
         The ascending coordinates the bins run along -- edges for a stepped
-        outline, centres for a poly one.
+        outline, centers for a poly one.
     values : numpy.ndarray
         The counts, with the last repeated for a stepped outline.
     stepped : bool
@@ -255,6 +255,6 @@ def _bins_from(
 
     half = widths[0] / 2.0
     return [
-        (float(centre - half), float(centre + half), float(value))
-        for centre, value in zip(positions, values)
+        (float(center - half), float(center + half), float(value))
+        for center, value in zip(positions, values)
     ]

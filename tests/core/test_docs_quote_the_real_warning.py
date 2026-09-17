@@ -1,7 +1,7 @@
 """The warning the docs quote is the warning the code raises.
 
 `docs/index.qmd` quotes the mid-render race warning verbatim, so a reader
-can recognise it when it appears. That makes the message part of the
+can recognize it when it appears. That makes the message part of the
 public-facing contract, and a quote is exactly the kind of thing that
 goes stale silently: the code changes, the docs keep describing the old
 text, and nobody finds out until someone searches the docs for a warning
@@ -68,7 +68,7 @@ def test_the_docs_quote_the_warning_the_code_raises():
     The name is the one part that legitimately differs between a quote and
     any given occurrence -- `figure 2` in the docs, whatever number or
     address the reader's own figure has. Everything else must match, since
-    the point of quoting it is that a reader can recognise it.
+    the point of quoting it is that a reader can recognize it.
     """
     raised = _NAMED_FIGURE.sub("figure", _raised_message())
     quoted = _NAMED_FIGURE.sub("figure", _quoted_message())

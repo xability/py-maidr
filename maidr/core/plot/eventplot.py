@@ -74,7 +74,7 @@ def events(collection: EventCollection) -> list[tuple[int, float]]:
             # A non-finite event. matplotlib drew no line for it, so there is
             # nothing to announce and nothing a reader could be shown -- and
             # emitting it would put `NaN` in the payload, which `JSON.parse`
-            # rejects outright and which stops the chart initialising (#427).
+            # rejects outright and which stops the chart initializing (#427).
             continue
         position = float(marks[0, along])
         if math.isfinite(position):

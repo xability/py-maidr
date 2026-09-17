@@ -170,7 +170,7 @@ def reset_use_cdn_default():
 
 
 def test_save_html_default_references_cdn(bar_plot, tmp_path):
-    """Default behaviour is unchanged: references jsDelivr CDN."""
+    """Default behavior is unchanged: references jsDelivr CDN."""
     out = tmp_path / "plot.html"
     maidr.save_html(bar_plot, file=str(out))
 
@@ -545,7 +545,7 @@ def test_init_notebook_tag_matches_the_pin(mocker, reset_notebook_loaded, monkey
     """The parent document and the iframes it hosts must name one version.
 
     ``init_notebook`` emits its tag without resolving, so that ``import
-    maidr`` never blocks on the network. That is not licence to ignore an
+    maidr`` never blocks on the network. That is not license to ignore an
     explicit pin: reading one costs no request, and disagreeing with the
     render paths would put two builds of maidr.js in a single page.
     """

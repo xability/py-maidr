@@ -39,7 +39,7 @@ def drew_nothing(plot: Any) -> bool:
     than while they are saving.
 
     Only the artists whose emptiness is unambiguous are read. Everything else
-    -- an ``Axes``, a ``dict``, anything unrecognised -- answers ``False`` and
+    -- an ``Axes``, a ``dict``, anything unrecognized -- answers ``False`` and
     registers as before, so this is additive by construction. That is also why
     it does not close the seaborn half of #623: ``seaborn.scatterplot``
     returns the *axes*, so what it drew cannot be read off its return value at
@@ -89,7 +89,7 @@ def drew_nothing(plot: Any) -> bool:
 #: geometry does.
 MAX_INTERVAL_VERTICES = 8
 
-# Serialises the warning-filter save/restore in `_draw_quietly`; see its
+# Serializes the warning-filter save/restore in `_draw_quietly`; see its
 # docstring for why interleaving those corrupts the global filter list.
 # Reentrant because patches nest: `regplot.patched_plot` wraps `Axes.plot`,
 # which `lineplot.line` wraps as well, so one draw can enter twice.
@@ -267,7 +267,7 @@ def _draw_quietly(wrapped: Callable, args: tuple, kwargs: dict) -> Any:
     threads drawing sixty times each leave one ``('ignore', None, Warning,
     None, 0)`` behind.
 
-    Serialising the draw is what prevents it, since the save and restore have
+    Serializing the draw is what prevents it, since the save and restore have
     to pair up. The cost is real but narrow: drawing is already effectively
     single-threaded for the caller that motivated this (Shiny renders on one
     asyncio loop), and matplotlib's own guidance is that a figure belongs to
@@ -453,7 +453,7 @@ def wrap_seaborn(name: str, wrapper: Callable) -> None:
     `Axes.bar` cannot know it is drawing a histogram and the seaborn-level
     patch that would have known never ran. And every panel registered twice:
     `seaborn.utils._default_color` draws a throwaway artist to resolve a
-    default colour and removes it again, and with no seaborn-level patch
+    default color and removes it again, and with no seaborn-level patch
     there was no recursion context to suppress it, so the probe registered as
     a chart of its own (#344).
 

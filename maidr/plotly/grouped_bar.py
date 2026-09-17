@@ -8,7 +8,7 @@ from maidr.plotly.plotly_plot import PlotlyPlot, paired_axes
 
 class PlotlyGroupedBarPlot(PlotlyPlot):
     """Extract data from multiple Plotly bar traces (dodged, stacked or
-    normalised).
+    normalized).
 
     The class does not branch on *plot_type*: every combination hands the
     traces' own ``x``/``y``/``fill`` through unchanged, and the type decides
@@ -131,10 +131,10 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         they share the drawn sequence of category *names*, but not the
         positions those names sit at in their own arrays.
         """
-        # Resolved before the loop so the ordinary, un-normalised layer does
+        # Resolved before the loop so the ordinary, un-normalized layer does
         # not build the `(position, value)` tuples only to discard them.
         scale = barnorm_scale(self._layout.get("barnorm"))
-        normalising = scale is not None and self.type == PlotType.NORMALIZED
+        normalizing = scale is not None and self.type == PlotType.NORMALIZED
 
         data: list[list[dict]] = []
         pairs: list[list[tuple]] = []
@@ -154,7 +154,7 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
                         MaidrKey.Y.value: self._to_native(yv),
                     }
                 )
-                if normalising:
+                if normalizing:
                     # Keyed by the *category* and valued by the magnitude,
                     # which swap with the orientation. Matched by category
                     # rather than by index so a series that skips one
@@ -169,12 +169,12 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
             pairs.append(group_pairs)
 
         # Resolved after the loop, one order per trace. Applying it before
-        # the normalising pass below would be the same answer -- `stack_shares`
+        # the normalizing pass below would be the same answer -- `stack_shares`
         # matches by category rather than by index -- but reordering once, at
         # the end, keeps the two changes independent.
         drawn = self._category_orders()
 
-        if not normalising:
+        if not normalizing:
             return self._in_drawn_order(data, drawn)
 
         shares = stack_shares(pairs, self._layout.get("barmode"), scale)
@@ -193,7 +193,7 @@ class PlotlyGroupedBarPlot(PlotlyPlot):
         axis -- which is what makes them one chart -- so they share the drawn
         sequence of category *names*. They do not share the positions those
         names sit at: `px.bar(df, x=..., color=...)` builds one trace per
-        colour from a filtered slice, and unless the frame happens to be
+        color from a filtered slice, and unless the frame happens to be
         sorted the same way in every slice their arrays disagree.
 
         Resolving from one trace and applying its indices positionally to the

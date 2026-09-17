@@ -69,7 +69,7 @@ def _bare(vert: bool = True):
     return fig
 
 
-def _labelled(vert: bool = True):
+def _labeled(vert: bool = True):
     fig, ax = plt.subplots()
     ax.violinplot(SAMPLES, vert=vert)
     if vert:
@@ -89,10 +89,10 @@ class TestTheTwoLayersAgree:
         assert _kde_names(fig) == _box_names(fig)
 
     @pytest.mark.parametrize("vert", [True, False], ids=["vertical", "horizontal"])
-    def test_on_a_chart_labelled_after_the_call(self, vert) -> None:
+    def test_on_a_chart_labeled_after_the_call(self, vert) -> None:
         # The case the render-time lookup exists for: `set_xticklabels()` runs
         # after `violinplot()`, so the names are not available at patch time.
-        fig = _labelled(vert=vert)
+        fig = _labeled(vert=vert)
 
         assert _kde_names(fig) == _box_names(fig)
         # Set rather than sequence: a horizontal violin plot is emitted
@@ -119,7 +119,7 @@ class TestTheNamesThemselves:
     def test_a_real_category_still_reaches_the_kde_layer(self) -> None:
         # The guard must not throw away labels that are genuine: a categorical
         # axis has one tick per violin and has to pass.
-        assert _kde_names(_labelled()) == NAMES
+        assert _kde_names(_labeled()) == NAMES
 
     def test_every_violin_gets_its_own_name(self) -> None:
         # An off-by-one in the index pairing is what made "1.5" name the

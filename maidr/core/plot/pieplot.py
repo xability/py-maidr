@@ -148,7 +148,7 @@ class PiePlot(MaidrPlot):
         Read one magnitude per slice, in slice order.
 
         A ``Wedge`` carries only its start and end angle, and ``Axes.pie``
-        normalises its input — it plots ``x / sum(x)`` whenever the sum
+        normalizes its input — it plots ``x / sum(x)`` whenever the sum
         exceeds 1 — so the angles no longer hold the magnitudes the caller
         passed. ``ax.pie([30, 50, 20])`` draws wedges spanning 108/180/72
         degrees, and reading those back reports the fractions 0.3/0.5/0.2 for
@@ -223,7 +223,7 @@ class PiePlot(MaidrPlot):
         list
             The ``labels`` argument of the original call where it was given,
             the labels matplotlib set on the wedges themselves where it was
-            not, and the slice's position as a last resort — an unlabelled
+            not, and the slice's position as a last resort — an unlabeled
             pie is still navigable when each slice can be named.
         """
         if self._labels is not None and len(self._labels) == len(wedges):

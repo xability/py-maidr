@@ -38,7 +38,7 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
     original_returnfig = kwargs.get("returnfig", False)
     kwargs["returnfig"] = True
 
-    # Under a forced `returnfig` mplfinance would still honour `closefig=True`,
+    # Under a forced `returnfig` mplfinance would still honor `closefig=True`,
     # closing the figure before it can be shown -- and the maidr backend only
     # renders figures that are still open. Hold the close back to the replay,
     # where it follows the show as it does in mplfinance itself.
@@ -203,8 +203,8 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
                 # Store the period directly on the line for easy access
                 setattr(line, "_maidr_ma_period", estimated_period)
 
-                # Name an unlabelled moving average after its period. A line
-                # the caller labelled (an addplot) keeps that label: it is the
+                # Name an unlabeled moving average after its period. A line
+                # the caller labeled (an addplot) keeps that label: it is the
                 # series name the schema announces and the legend entry, and
                 # the period is already on `_maidr_ma_period` for the line
                 # plot to read.

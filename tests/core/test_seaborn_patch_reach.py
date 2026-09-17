@@ -24,7 +24,7 @@ That cost two things at once, and neither reads as a patching problem:
   drawing a histogram and the seaborn-level patch that would have known never
   ran;
 * every panel registered **twice**. `seaborn.utils._default_color` draws a
-  throwaway artist to resolve a default colour and removes it again, and with
+  throwaway artist to resolve a default color and removes it again, and with
   no seaborn-level patch there was no recursion context to suppress it, so the
   probe registered as a chart of its own (#344).
 
@@ -46,7 +46,7 @@ than naming the ones that agree.
 
 The failure was invisible from a direct call -- `sns.histplot(ax=ax)` has
 always given `hist` -- which is why it survived this long. So the first test
-below asserts the *binding*, not the behaviour: it is the only thing that
+below asserts the *binding*, not the behavior: it is the only thing that
 fails the moment a new patch is added at one name and not the other.
 """
 
@@ -119,7 +119,7 @@ def _layers(fig) -> list:
 
 @pytest.mark.parametrize("name,module", PATCHED)
 def test_both_names_are_wrapped(name, module) -> None:
-    """The binding, asserted directly, because the behaviour hides it.
+    """The binding, asserted directly, because the behavior hides it.
 
     Everything else in this file goes through a grid, which is a long way
     from the line that installs a patch. This is the check that fails the
@@ -215,13 +215,13 @@ def test_a_categorical_plot_reads_the_same_from_either_binding(
 
         from seaborn.categorical import violinplot
 
-    and that import got a reading with nothing recognisable left in it:
+    and that import got a reading with nothing recognizable left in it:
 
         seaborn.violinplot              violin_box, violin_kde
         seaborn.categorical.violinplot  area, line
 
     A violin announced as a **line chart** -- not a degraded violin, a
-    different chart -- plus a phantom `area` layer from the colour probe in
+    different chart -- plus a phantom `area` layer from the color probe in
     `seaborn.utils._default_color`, which had no recursion context to
     suppress it because no seaborn-level patch had run.
 
@@ -406,7 +406,7 @@ def test_a_catplot_kind_reads_the_same_as_its_axes_level_function(
     correct reading of a chart that draws none. And a **wrong type plus a
     phantom layer** for `bar`/`count`: `dodged_bar` names a chart that compares
     groups side by side, which a chart with no hue is not, and the extra `line`
-    was the error-bar geometry travelling as a series of its own.
+    was the error-bar geometry traveling as a series of its own.
 
     `box` already agreed, and that is the evidence the approach works rather
     than a coincidence: `_CategoricalPlotter.plot_boxes` was already patched,

@@ -102,7 +102,7 @@ class HeatPlot(
 
         The axis ticks are the answer when they *are* the cells, which is the
         case a categorical heatmap draws: ``sns.heatmap`` puts one fixed tick
-        at the centre of every cell and labels it, so the axis already names
+        at the center of every cell and labels it, so the axis already names
         the grid.
 
         On a numeric axis they are not. A tick locator chooses positions that
@@ -118,11 +118,11 @@ class HeatPlot(
         artists knows its own boundaries -- a mesh carries them as its
         coordinates, an image as its extent.
 
-        A cell is named by its **centre**, not by the range it covers. That
-        follows ``HexbinPoint``, which carries a bin's centre for the same
+        A cell is named by its **center**, not by the range it covers. That
+        follows ``HexbinPoint``, which carries a bin's center for the same
         reason: the grammar has one label per column, the label is announced
         on every move of the cursor, and a range doubles the length of an
-        announcement to say something consecutive centres already give -- the
+        announcement to say something consecutive centers already give -- the
         spacing between them *is* the cell width.
 
         Parameters
@@ -141,8 +141,8 @@ class HeatPlot(
             cannot be located.
         """
         ticks = self.extract_level(self.ax, key)
-        centres = self._cell_centres(sm, key, count)
-        if centres is None:
+        centers = self._cell_centers(sm, key, count)
+        if centers is None:
             return ticks
 
         at = self.extract_level_positions(self.ax, key)
@@ -152,20 +152,20 @@ class HeatPlot(
         if (
             ticks is not None
             and at is not None
-            and len(ticks) == len(centres)
-            and len(at) == len(centres)
+            and len(ticks) == len(centers)
+            and len(at) == len(centers)
             and all(
-                np.isclose(position, centre) for position, centre in zip(at, centres)
+                np.isclose(position, center) for position, center in zip(at, centers)
             )
         ):
             return ticks
 
-        return self._as_names(centres)
+        return self._as_names(centers)
 
     @staticmethod
-    def _as_names(centres: list[float]) -> list[str]:
+    def _as_names(centers: list[float]) -> list[str]:
         """
-        Write the centres out at the shortest precision that keeps them apart.
+        Write the centers out at the shortest precision that keeps them apart.
 
         Six significant figures to begin with, and deliberately not
         ``self._fmt``: that is the caller's format for the cell *values* --
@@ -174,7 +174,7 @@ class HeatPlot(
         cursor and separates the cells of any ordinary grid.
 
         Not of every grid, though. Cells a millionth of their own magnitude
-        apart -- centres around 1e9 spaced by 1 -- all round to the same six
+        apart -- centers around 1e9 spaced by 1 -- all round to the same six
         figures, and two cells with one name are worse than a long one: a
         reader moving between them is told they have not moved. So the
         precision is raised until the names differ, rather than assumed to be
@@ -182,22 +182,22 @@ class HeatPlot(
 
         Parameters
         ----------
-        centres : list of float
-            One centre per cell.
+        centers : list of float
+            One center per cell.
 
         Returns
         -------
         list of str
-            One name per cell, distinct wherever the centres are.
+            One name per cell, distinct wherever the centers are.
         """
         for precision in (6, 12, 17):
-            names = [f"{centre:.{precision}g}" for centre in centres]
-            if len(set(names)) == len(set(centres)):
+            names = [f"{center:.{precision}g}" for center in centers]
+            if len(set(names)) == len(set(centers)):
                 return names
         return names
 
     @staticmethod
-    def _cell_centres(
+    def _cell_centers(
         sm: ScalarMappable | None, key: MaidrKey, count: int
     ) -> list[float] | None:
         """
@@ -221,7 +221,7 @@ class HeatPlot(
         Returns
         -------
         list of float or None
-            One centre per cell, or ``None`` when the artist does not say.
+            One center per cell, or ``None`` when the artist does not say.
         """
         if count <= 0:
             return None
@@ -411,9 +411,9 @@ class HeatPlot(
         ``json.dumps`` spells it ``Infinity``. Emitted as it stands, a NaN is
         written as a bare ``NaN`` token -- legal JavaScript, invalid JSON -- and the
         core parses the SVG's ``maidr`` attribute with ``JSON.parse``, so one
-        such cell stops the chart initialising at all (#427, #696).
+        such cell stops the chart initializing at all (#427, #696).
 
-        ``None`` serialises to ``null``, which ``HeatmapData.points`` is typed
+        ``None`` serializes to ``null``, which ``HeatmapData.points`` is typed
         to carry and the core's ``toBarValue`` reads as a gap: it stays out of
         the range, sounds as the empty tone and announces as "missing". The
         same rule ``barplot._magnitude`` and ``hexbinplot._count`` apply.

@@ -218,8 +218,8 @@ class StepPlot(MultiLinePlot):
         -----
         A numeral is rejected whatever its value, not only when it matches its
         own tick position: an offset or scaled axis renders y = 1000000 as
-        ``"0.0"``, and labelling that point ``"0.0"`` is worse than leaving it
-        unlabelled. The cost is that an axis deliberately relabelled with
+        ``"0.0"``, and labeling that point ``"0.0"`` is worse than leaving it
+        unlabeled. The cost is that an axis deliberately relabeled with
         numerals (``set_yticks([0, 1], labels=["1", "2"])``) yields no level
         names; those points still sonify and braille from their numeric ``y``.
         """

@@ -36,7 +36,7 @@ def clean():
     cdn.reset_cdn_version_cache()
 
 
-#: Values that are neither a semver nor a recognised tag. The last four are
+#: Values that are neither a semver nor a recognized tag. The last four are
 #: the hostile ones from `test_cdn_version.py`; a caller typing those has a
 #: bigger problem than a typo, and should still be told.
 UNUSABLE = [
@@ -66,7 +66,7 @@ def test_an_unusable_pin_says_so_at_the_call(value) -> None:
 
 @pytest.mark.parametrize("value", UNUSABLE)
 def test_an_unusable_pin_is_still_ignored_for_now(value) -> None:
-    """Today's behaviour is unchanged: warn, then resolve as if unpinned.
+    """Today's behavior is unchanged: warn, then resolve as if unpinned.
 
     Raising outright would break a script that has been quietly mistyping
     its pin and rendering fine. The warning is this release's change; the

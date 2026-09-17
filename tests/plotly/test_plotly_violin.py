@@ -10,7 +10,7 @@ Nothing errored. The HTML rendered and MAIDR loaded; what arrived was an empty
 shell with nothing to navigate and no error saying why (#343).
 
 A violin is announced as two layers, matching the matplotlib path and the
-browser-side plotly adapter: `violin_box` summarises the distribution and
+browser-side plotly adapter: `violin_box` summarizes the distribution and
 `violin_kde` is the shape the chart actually draws. Both are built from one
 list of violins, so row *i* of the box and curve *i* of the KDE cannot come to
 mean different violins.
@@ -18,7 +18,7 @@ mean different violins.
 The density is recomputed here because plotly runs the KDE in the browser --
 `maidr/plotly/violin_stats.py` ports plotly's own rules for that, and
 `test_plotly_violin_stats.py` pins the port against real plotly output. This
-file covers what the *layers* do with it: grouping, labelling, ordering and
+file covers what the *layers* do with it: grouping, labeling, ordering and
 selectors.
 
 Every selector below was checked in Chromium against real plotly output and
@@ -39,7 +39,7 @@ import plotly.graph_objects as go  # noqa: E402
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
 
-#: Two samples with visibly different centres, so a curve paired with the
+#: Two samples with visibly different centers, so a curve paired with the
 #: wrong label fails rather than passing on numbers that look plausible.
 LOWER = list(np.round(np.random.default_rng(5).normal(10, 2, 30), 6))
 UPPER = list(np.round(np.random.default_rng(6).normal(30, 3, 30), 6))
@@ -70,7 +70,7 @@ def test_a_violin_is_read_at_all() -> None:
     ]
 
 
-def test_the_box_summarises_the_sample() -> None:
+def test_the_box_summarizes_the_sample() -> None:
     """The quartiles and extremes a reader is told, from the sample itself."""
     sample = np.array(LOWER)
     (row,) = _of_type(go.Figure([go.Violin(y=LOWER, name="A")]), PlotType.VIOLIN_BOX)[
@@ -138,7 +138,7 @@ def test_one_trace_per_category_becomes_one_violin_each() -> None:
     Plotly draws one per unique category, in the order they first appear --
     its default `categoryorder` is `trace`, not sorted -- so grouping any
     other way would pair a violin's numbers with a neighbour's name. `UPPER`
-    is centred twenty units above `LOWER`, so a swap is visible in the medians
+    is centered twenty units above `LOWER`, so a swap is visible in the medians
     rather than only in the labels.
     """
     figure = go.Figure(
@@ -168,7 +168,7 @@ def test_categories_keep_the_order_they_appear_in() -> None:
 
 
 def test_a_trace_without_categories_is_named_after_itself() -> None:
-    """One violin for the trace, labelled the way plotly labels the axis."""
+    """One violin for the trace, labeled the way plotly labels the axis."""
     figure = go.Figure([go.Violin(y=LOWER, name="measurements")])
 
     (row,) = _of_type(figure, PlotType.VIOLIN_BOX)["data"]

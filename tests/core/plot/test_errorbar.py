@@ -300,8 +300,8 @@ def test_fmt_none_still_reports_the_estimates():
     ``fmt="none"`` draws intervals without markers, and still reads.
 
     The container has no data line in this mode, and the estimate is not
-    recoverable from the geometry -- an asymmetric bar is not centred on its
-    own midpoint -- so the centres come from the call's arguments. Asymmetric
+    recoverable from the geometry -- an asymmetric bar is not centered on its
+    own midpoint -- so the centers come from the call's arguments. Asymmetric
     on purpose: a midpoint fallback would pass on a symmetric fixture.
     """
     fig, ax = plt.subplots()
@@ -317,7 +317,7 @@ def test_fmt_none_reads_column_names_as_their_columns():
     """
     ``errorbar("x", "y", yerr="err", fmt="none", data=df)`` reads the columns.
 
-    ``fmt="none"`` is the one mode that takes the centres from the call's
+    ``fmt="none"`` is the one mode that takes the centers from the call's
     arguments rather than from the data line, and the call sits behind
     matplotlib's `_preprocess_data`, which resolves each string against
     ``data`` before drawing. The patch reads from outside that decorator, so
@@ -344,7 +344,7 @@ def test_a_string_that_names_no_column_is_still_a_value():
 
     `_preprocess_data` falls back to the argument when the lookup fails, so
     ``errorbar("control", 4.2, ..., data=df)`` draws one categorical sample
-    labelled "control" when no such column exists. Resolving the name has to
+    labeled "control" when no such column exists. Resolving the name has to
     stop where matplotlib stops, or the reading and the drawing would part
     ways on a call that raised nothing.
     """
@@ -467,7 +467,7 @@ def test_a_date_axis_reads_the_same_with_no_markers():
     The two fallbacks compose: a date axis drawn with ``fmt="none"``.
 
     Each is covered alone, but they meet on one code path -- ``fmt="none"``
-    takes the centres from the call arguments rather than from a data line, so
+    takes the centers from the call arguments rather than from a data line, so
     the labels travel through ``np.atleast_1d`` before reaching ``_scalar``.
     Were that to coerce the dates to ``datetime64``, the labels would silently
     gain a time component that the ordinary path does not produce, and the

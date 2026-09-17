@@ -40,9 +40,9 @@ def errorbar(wrapped, instance, args, kwargs) -> ErrorbarContainer:
     if ContextManager.is_internal_context():
         return _draw_quietly(wrapped, args, kwargs)
 
-    # Read the centres before drawing. `fmt="none"` renders the intervals
+    # Read the centers before drawing. `fmt="none"` renders the intervals
     # without the estimate markers, leaving the container with no data line,
-    # and an asymmetric bar is not centred on its own midpoint -- so for that
+    # and an asymmetric bar is not centered on its own midpoint -- so for that
     # case the arguments are the only place the estimate still exists. They
     # may be column names of `data=`, which matplotlib resolves inside the
     # call this wraps, so they are resolved the same way here.

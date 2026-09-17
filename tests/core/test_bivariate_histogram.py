@@ -137,7 +137,7 @@ def test_extract_container_returns_rather_than_raises() -> None:
 
     Both branches now agree that "none of that type" is a value, not an
     exception. This is the check that fails if the single-container branch
-    goes back to a bare ``next()`` — which no behavioural test above would
+    goes back to a bare ``next()`` — which no behavioral test above would
     catch once the patch stops registering the layer that reached it.
     """
     fig, ax = plt.subplots()
@@ -151,7 +151,7 @@ def test_extract_container_returns_rather_than_raises() -> None:
 
 
 def test_extract_container_still_finds_the_first_of_several() -> None:
-    """The behaviour the `next()` was there for, kept.
+    """The behavior the `next()` was there for, kept.
 
     Returning ``None`` on an empty match must not change which container is
     returned when there are some — the first, in the order the axes holds
@@ -323,7 +323,7 @@ def test_a_heatmap_is_read_from_the_mesh_and_not_from_a_scatter() -> None:
     """`ScalarMappable` is a wider net than the extractor assumed.
 
     A scatter's `PathCollection` is a `ScalarMappable` -- that is what makes a
-    colour-mapped scatter possible -- so "the first mappable on the axes"
+    color-mapped scatter possible -- so "the first mappable on the axes"
     picked the scatter and `HeatPlot` was handed an artist with no grid. This
     fails on `pcolormesh` alone, with nothing from #522 involved, which is why
     it is asserted on that rather than through `histplot`.

@@ -146,7 +146,7 @@ def test_a_body_that_will_not_parse_is_an_answer(monkeypatch, clean) -> None:
     assert len(freshness.resolver_outcome().answered_badly) == ENDPOINT_COUNT
 
 
-def test_an_unrecognised_failure_counts_as_unreachable(monkeypatch, clean) -> None:
+def test_an_unrecognized_failure_counts_as_unreachable(monkeypatch, clean) -> None:
     """The safe direction for a failure this code did not anticipate.
 
     `pytest-socket` raises `SocketBlockedError`, which is not an `OSError`.

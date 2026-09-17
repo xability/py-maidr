@@ -77,7 +77,7 @@ class TestTheHelper:
 
     def test_a_short_position_array_is_left_short(self):
         # Plotly pairs the two positionally and draws only as far as the
-        # shorter reaches. Truncating is its behaviour, not damage to repair
+        # shorter reaches. Truncating is its behavior, not damage to repair
         # here -- padding would invent points it never drew.
         xs, ys = paired_axes({"x": [1], "y": [1, 2, 3]})
         assert xs == [1]
@@ -277,10 +277,10 @@ class TestTheAxesRangeCoversTheGeneratedPositions:
         assert found["y"]["min"] == 1.0 and found["y"]["max"] == 3.0
 
 
-class TestAMixedNormalisedStack:
+class TestAMixedNormalizedStack:
     """Generated integers beside explicit categories, raised in review.
 
-    The worry was that a normalised group matching by category would fail to
+    The worry was that a normalized group matching by category would fail to
     line generated integer keys up with real labels. Measured: plotly does
     not line them up either -- it places the generated `0, 1` as two *new*
     categories after `a` and `b`, so the figure draws four bars at four

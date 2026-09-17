@@ -9,7 +9,7 @@ entries ran to hundreds of lines.
 
 Like ``test_changelog_filter.py``, this exists because nothing reads the
 release configuration back before a release: a template that quietly reverts
-to the upstream behaviour, or that python-semantic-release quietly stops
+to the upstream behavior, or that python-semantic-release quietly stops
 picking up, is discovered in the published changelog.  The templates are
 rendered here the way ``semantic-release changelog`` renders them, with the
 package's own loader, context and filters, against a synthetic squash commit.

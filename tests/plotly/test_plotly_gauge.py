@@ -94,11 +94,11 @@ def test_a_threshold_becomes_the_target() -> None:
     assert layer["data"]["target"] == 270.0
 
 
-def test_colour_steps_do_not_become_bands() -> None:
+def test_color_steps_do_not_become_bands() -> None:
     """A `GaugeBand` needs a name and a plotly step has none.
 
     `bands` exists so a reader hears "in the 'ok' band"; a plotly step is a
-    colour over a range with no label at all. Synthesising one would
+    color over a range with no label at all. Synthesising one would
     announce a name the chart does not carry, and the reader would have no
     way to know the word was ours.
     """

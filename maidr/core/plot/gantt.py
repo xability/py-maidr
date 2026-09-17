@@ -39,12 +39,12 @@ class GanttPlot(MaidrPlot):
     asked for rather than when the call was patched, so ticks set *after* the
     bars are in place by then. And the tick that names a lane is the one
     **inside** it: measured, the example above puts its ticks at 15 and 25
-    while the bars span 10-19 and 20-29, so their centres are 14.5 and 24.5
+    while the bars span 10-19 and 20-29, so their centers are 14.5 and 24.5
     and an exact match finds nothing.
 
     Only a ``FixedLocator`` counts, which is what tells a name from an axis.
     ``set_yticks`` installs one; left alone, matplotlib uses an ``AutoLocator``
-    and puts several ticks inside every bar -- measured, an unlabelled chart
+    and puts several ticks inside every bar -- measured, an unlabeled chart
     offers "8", "10", "12", "14" and "16" for a lane spanning 10 to 19, none of
     which is that lane's name. A lane with no single tick of its own is named
     by its position, which is always true and never a guess.
@@ -174,14 +174,14 @@ class GanttPlot(MaidrPlot):
         Returns
         -------
         str or float
-            The tick label naming it, or its centre when no single tick does.
+            The tick label naming it, or its center when no single tick does.
         """
         axis = self.ax.get_yaxis() if axis is None else axis
-        centre = (low + high) / 2
+        center = (low + high) / 2
         if not isinstance(axis.get_major_locator(), FixedLocator):
             # An axis matplotlib chose the ticks for. Several land inside a
             # bar and none of them is its name.
-            return centre
+            return center
 
         inside = [
             text.get_text()
@@ -190,7 +190,7 @@ class GanttPlot(MaidrPlot):
         ]
         # Exactly one, or the label is a guess between candidates rather than
         # a name the author gave this lane.
-        return inside[0] if len(inside) == 1 else centre
+        return inside[0] if len(inside) == 1 else center
 
     def _get_selector(self) -> list[str]:
         """

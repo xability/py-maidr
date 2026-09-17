@@ -16,7 +16,7 @@ from maidr.exception import ExtractionError
 #: The keyword the drawn collection is handed over under.
 DRAWN_DASHES = "dashes"
 
-#: Which of the collection's segments one layer announces, when a colour
+#: Which of the collection's segments one layer announces, when a color
 #: split made the layer a slice of it rather than the whole.
 DASH_MEMBERS = "dash_members"
 
@@ -42,7 +42,7 @@ class DashPlot(ScatterPlot):
     **The width is drawing and the middle is the datum.** A segment spans
     ``width`` either side of the position, ``0.8`` by default and halved
     again by a ``Dodge()``, and neither number is anything the chart
-    measured. What both spellings agree on is the segment's *centre*, which
+    measured. What both spellings agree on is the segment's *center*, which
     is where the observation is -- so the reading takes the midpoint and
     discards the span, rather than announcing a bar of no meaning.
 
@@ -70,7 +70,7 @@ class DashPlot(ScatterPlot):
 
     def __init__(self, ax: Axes, **kwargs) -> None:
         self._collection: LineCollection = kwargs.pop(DRAWN_DASHES)
-        # Which of the collection's segments are this layer's. A colour split
+        # Which of the collection's segments are this layer's. A color split
         # draws every level into one collection, so a layer is a slice of it
         # rather than the whole; absent means all of them.
         self._members: Sequence[int] | None = kwargs.pop(DASH_MEMBERS, None)
@@ -194,7 +194,7 @@ def _middle(segment) -> tuple[float, float] | None:
     the wrong shape rather than with a ``NaN`` in it. That matters because
     ``json.dumps`` writes ``NaN`` as a bare token, which is legal JavaScript
     and invalid JSON, and the core parses the payload with ``JSON.parse``:
-    one of them stops the chart initialising at all (#427). An explicit
+    one of them stops the chart initializing at all (#427). An explicit
     ``isfinite`` test beside this one would be unreachable.
     """
     ends = np.asarray(segment, dtype=float)

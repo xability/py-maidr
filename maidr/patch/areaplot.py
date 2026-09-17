@@ -126,7 +126,7 @@ def _rows_of(values) -> list | None:
 
     Asks numpy rather than indexing or iterating the argument directly,
     because for a ``DataFrame`` both of those mean the columns. ``values[0]``
-    is the column labelled ``0`` -- absent for named columns, and the wrong
+    is the column labeled ``0`` -- absent for named columns, and the wrong
     axis when present -- and iterating yields the labels themselves rather
     than any data. Matplotlib reads a ``DataFrame`` here as rows, so a reading
     that took it for columns would describe a chart nobody drew, and would do

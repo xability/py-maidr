@@ -154,7 +154,7 @@ class PointPlot(ErrorBarPlot):
 
         Split out of ``_extract_single`` so the grouped path reads each of
         its series the same way rather than restating the pairing, the
-        category labelling and the dodge-rounding independently.
+        category labeling and the dodge-rounding independently.
 
         Parameters
         ----------
@@ -199,7 +199,7 @@ class PointPlot(ErrorBarPlot):
                 # and no measurement, and `null` is how the core has said
                 # that since maidr 4.3.0 -- it sounds as the empty tone and
                 # announces as "missing". A bare NaN stops the chart
-                # initialising at all, since it is not JSON (#429), and a
+                # initializing at all, since it is not JSON (#429), and a
                 # zero would claim a reading of zero. Same rule
                 # `MultiLinePlot._reading` applies, and this path inherited
                 # the case from it along with the intervals (#462).
@@ -360,7 +360,7 @@ class PointPlot(ErrorBarPlot):
         Returns
         -------
         dict
-            Coordinate to label, for the labelled ticks only.
+            Coordinate to label, for the labeled ticks only.
         """
         axis: Axis = self.ax.xaxis if is_vertical else self.ax.yaxis
         if not isinstance(axis.units, UnitData):

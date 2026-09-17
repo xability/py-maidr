@@ -280,7 +280,7 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     Each mode is asserted exactly rather than as a disjunction. A single
     "some source is present" check would pass on the wrong source, and it
     would hide that ``payload["deps"]`` is always empty here -- the iframe
-    wrapper serialises with ``Tag.get_html_string()``, which drops
+    wrapper serializes with ``Tag.get_html_string()``, which drops
     ``HTMLDependency`` children, which is the whole reason the bundle has
     to travel inline.
 
@@ -544,7 +544,7 @@ def test_two_renders_of_one_figure_do_not_overlap(monkeypatch):
 
     ``tests/util/test_figure_lock.py`` checks that ``figure_lock`` hands
     back matching objects; none of them shows that two renders actually
-    serialise through this door. That is the one thing a race here would
+    serialize through this door. That is the one thing a race here would
     break, so it is worth exercising end to end.
 
     The stub is ``Maidr._build_html_tag`` rather than ``maidr.render``
@@ -652,7 +652,7 @@ def test_two_different_figures_rendering_at_once_keep_their_selectors():
     wiring, and the artist ``draw`` methods and ``XMLWriter.start`` are
     patched *class-wide*, so every render in the process reads it while
     ``savefig`` walks its figure. A lock keyed by figure deliberately does
-    not serialise **distinct** figures -- that parallelism is the point of
+    not serialize **distinct** figures -- that parallelism is the point of
     rendering off the loop -- so nothing stopped two renders from
     overwriting each other's wiring.
 

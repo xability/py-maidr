@@ -88,7 +88,7 @@ class TestTheGroupIsOneLayer:
         assert layer["type"] == PlotType.STACKED.value
         assert len(layer["data"]) == 2
 
-    def test_barnorm_says_the_stack_is_normalised(self):
+    def test_barnorm_says_the_stack_is_normalized(self):
         layer = only_layer(px.histogram(frame(), x="v", color="h", barnorm="percent"))
         assert layer["type"] == PlotType.NORMALIZED.value
 
@@ -121,12 +121,12 @@ class TestJointBinning:
         # The defect the issue did not name. Binned separately these two get
         # widths of 0.2 and 1; plotly bins them together at width 1.
         layer = only_layer(px.histogram(frame(), x="v", color="h"))
-        centres = sorted({point["x"] for series in layer["data"] for point in series})
-        # Every bin centre from *either* series sits on one lattice. Asserted
+        centers = sorted({point["x"] for series in layer["data"] for point in series})
+        # Every bin center from *either* series sits on one lattice. Asserted
         # as a lattice rather than a fixed width so the test says "one grid"
         # rather than pinning whichever width autobin happens to pick.
-        width = min(round(b - a, 9) for a, b in zip(centres, centres[1:]))
-        offsets = {round((c - centres[0]) % width, 6) for c in centres}
+        width = min(round(b - a, 9) for a, b in zip(centers, centers[1:]))
+        offsets = {round((c - centers[0]) % width, 6) for c in centers}
         assert offsets == {0.0}
 
     def test_a_separately_binned_series_would_have_more_bins(self):
@@ -140,7 +140,7 @@ class TestJointBinning:
     def test_every_series_is_binned_on_the_same_edges(self):
         layer = only_layer(stacked(SMALL_A, SMALL_B))
         first, second = layer["data"]
-        # The two series overlap at one bin centre, which they can only do if
+        # The two series overlap at one bin center, which they can only do if
         # they were binned on a shared grid.
         assert {p["x"] for p in first} & {p["x"] for p in second}
 
@@ -302,7 +302,7 @@ class TestBarnormValuesStayRaw:
         # #409 was taken.
         assert first == [100.0, 25.0]
 
-    def test_the_type_still_reports_the_normalisation(self):
+    def test_the_type_still_reports_the_normalization(self):
         layer = only_layer(stacked(SMALL_A, SMALL_B, barnorm="percent"))
         assert layer["type"] == PlotType.NORMALIZED.value
 

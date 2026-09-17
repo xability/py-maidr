@@ -208,7 +208,7 @@ def test_the_candlestick_layer_matches_a_row_by_row_loop(frame, axes):
     "bad", [np.inf, -np.inf, "n/a"], ids=["inf", "-inf", "non-numeric"]
 )
 def test_a_volume_that_is_not_a_finite_number_is_left_out(bad):
-    """``inf`` would serialise as ``Infinity`` and a string would raise on ``>``."""
+    """``inf`` would serialize as ``Infinity`` and a string would raise on ``>``."""
     frame = _frame(INDEXES["daily"])
     frame["Volume"] = frame["Volume"].astype(object)
     frame.loc[frame.index[3], "Volume"] = bad

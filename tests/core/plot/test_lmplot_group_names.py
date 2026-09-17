@@ -20,9 +20,9 @@ figure legend from the panel.
 
 Two things were needed, and neither works alone.
 
-**The colour has to name one layer, not one artist among several.** This is
+**The color has to name one layer, not one artist among several.** This is
 #595's shape -- "wrong where a *layer* is the artist" -- so `name_for`
-rather than `names_for`: a `regplot` call draws one group, and the colour of
+rather than `names_for`: a `regplot` call draws one group, and the color of
 its curve and its collection is what says which level.
 
 **The match has to be deferred.** `FacetGrid.add_legend()` runs after every
@@ -133,7 +133,7 @@ def test_an_lmplot_without_a_hue_is_unnamed():
 
 
 def test_a_hue_split_lmplot_drawn_without_its_fit_is_still_named():
-    """`fit_reg=False` draws points and no curve at all, so the colour has to
+    """`fit_reg=False` draws points and no curve at all, so the color has to
     come off the collection instead. Two branches, and a fix that only read
     the curve would leave this chart exactly as it was."""
     named = _layers(

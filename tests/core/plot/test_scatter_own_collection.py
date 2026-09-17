@@ -233,7 +233,7 @@ class TestTheSingleCollectionCasesAreUnchanged:
         # reading going quietly wrong.
         #
         # One collection is not one layer, though. The grouping is the chart
-        # here, and it survives only in the per-point colours and the legend
+        # here, and it survives only in the per-point colors and the legend
         # that names them, so the layer count follows the groups rather than
         # the artists (#544). Together they still account for every point --
         # a split that lost one would be worse than no split at all.

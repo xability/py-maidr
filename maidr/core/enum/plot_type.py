@@ -13,7 +13,7 @@ class PlotType(str, Enum):
     #: whole point of the chart.
     BOXEN = "boxen"
     #: A scalar field drawn as curves of constant value. The level is a
-    #: number here rather than a colour -- `QuadContourSet.levels` is the
+    #: number here rather than a color -- `QuadContourSet.levels` is the
     #: data, and `get_paths()` gives one path per level -- which is what
     #: separates `Axes.contour` from the same chart in a renderer that keeps
     #: its magnitude only in a fill.
@@ -30,7 +30,7 @@ class PlotType(str, Enum):
     #: A hexagonal bin lattice: the standard answer to an overplotted scatter.
     #: Read as a grid of cells each carrying a count, which is a heatmap --
     #: except that alternate rows are offset by half a cell, so a bin's column
-    #: index is not its position and the trace announces centres instead.
+    #: index is not its position and the trace announces centers instead.
     HEXBIN = "hexbin"
     HIST = "hist"
     LINE = "line"
@@ -125,7 +125,7 @@ class PlotType(str, Enum):
     @property
     def display_name(self) -> str:
         """
-        Name for this plot type as a *user* would recognise it.
+        Name for this plot type as a *user* would recognize it.
 
         A member's value is the MAIDR wire identifier, which does not always
         match what the user called: someone who ran ``ax.scatter`` should be

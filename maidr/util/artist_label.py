@@ -16,7 +16,7 @@ def series_name(artist: Any) -> str:
     caller chose either.
 
     Two spellings of that reach maidr. ``_child0``, ``_line2`` and friends are
-    what an unlabelled artist gets. ``_nolegend_`` is what a caller passes to
+    what an unlabeled artist gets. ``_nolegend_`` is what a caller passes to
     keep an artist out of the legend -- documented, and used by matplotlib
     itself: ``Axes.stem`` labels both its marker line and its baseline that
     way. Announcing either as the series name tells a reader the series is

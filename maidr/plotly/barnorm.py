@@ -13,14 +13,14 @@ two of them are not what the documentation would suggest. See
 
 The MAIDR core does not do this arithmetic for us, and that is the settled
 convention rather than an oversight: ``SegmentedTrace`` handles ``stacked``,
-``dodged`` and ``stacked_normalized_bar`` with one class and normalises
-nothing, so a normalised layer is expected to arrive already carrying shares.
-Both r-maidr paths do exactly that -- base R because the author normalised the
+``dodged`` and ``stacked_normalized_bar`` with one class and normalizes
+nothing, so a normalized layer is expected to arrive already carrying shares.
+Both r-maidr paths do exactly that -- base R because the author normalized the
 matrix before calling ``barplot()``, ggplot2 because ``position = "fill"``
 builds its data in 0..1 -- which is what makes py-maidr's plotly path the
 outlier rather than the standard-setter. Contrast ``AreaTrace``, which *does*
 compute its own stack totals, and so is deliberately fed raw values -- for a
-plain stack. It normalises nothing either, so a ``groupnorm`` stack is
+plain stack. It normalizes nothing either, so a ``groupnorm`` stack is
 rescaled too, in :mod:`maidr.plotly.area`, under plotly's scatter rule rather
 than this one (#691).
 """
@@ -32,8 +32,8 @@ from typing import Any, Hashable, Sequence
 
 #: The values ``layout.barnorm`` takes when plotly rescales a stack. ``percent``
 #: scales each position to 100 and ``fraction`` to 1; anything else -- ``None``,
-#: ``""``, an unrecognised string -- leaves the bars alone.
-_NORMALISING_BARNORMS: dict[str, float] = {"percent": 100.0, "fraction": 1.0}
+#: ``""``, an unrecognized string -- leaves the bars alone.
+_NORMALIZING_BARNORMS: dict[str, float] = {"percent": 100.0, "fraction": 1.0}
 
 #: The one barmode that pools positive and negative into a single stack. Every
 #: other combining mode -- ``relative``, which is plotly's default and what
@@ -55,18 +55,18 @@ def barnorm_scale(barnorm: Any) -> float | None:
     Parameters
     ----------
     barnorm : Any
-        ``layout.barnorm``, which may be absent, empty or unrecognised.
+        ``layout.barnorm``, which may be absent, empty or unrecognized.
 
     Returns
     -------
     float or None
         ``100.0`` for ``percent``, ``1.0`` for ``fraction``, and ``None``
-        when plotly normalises nothing -- in which case the caller should
+        when plotly normalizes nothing -- in which case the caller should
         emit the values unchanged rather than scaling by 1.
     """
     if not isinstance(barnorm, str):
         return None
-    return _NORMALISING_BARNORMS.get(barnorm)
+    return _NORMALIZING_BARNORMS.get(barnorm)
 
 
 def _measured(value: Any) -> bool:
@@ -91,7 +91,7 @@ def stack_totals(
 
     ``relative`` -- plotly's default, and what ``px.bar`` leaves behind --
     draws the positive and negative bars as two stacks growing away from the
-    baseline, and normalises each against its own total. So the denominator
+    baseline, and normalizes each against its own total. So the denominator
     is the sum of the *absolute* values sharing a sign. Measured: ``[3, -1]``
     comes back ``100, -100``, not ``75, -25``.
 

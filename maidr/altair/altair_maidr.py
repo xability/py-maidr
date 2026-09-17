@@ -66,7 +66,7 @@ _VEGA_EMBED_CDN = "https://cdn.jsdelivr.net/npm/vega-embed@6"
 
 
 def _spec_to_safe_json(spec: dict) -> str:
-    """Serialise a Vega-Lite spec for safe embedding in an HTML ``<script>``.
+    """Serialize a Vega-Lite spec for safe embedding in an HTML ``<script>``.
 
     Escapes ``</`` so the spec string cannot terminate the surrounding
     ``<script>`` tag, and escapes the line/paragraph separators U+2028 and

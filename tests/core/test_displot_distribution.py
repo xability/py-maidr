@@ -17,7 +17,7 @@ Three losses at once, each worse than the last:
 
 * the **type** names a chart that compares groups side by side, which a
   distribution is not, so the reader is oriented to a chart that is not there;
-* the **bin edges** are gone, so the bin *centre* is announced where a bar
+* the **bin edges** are gone, so the bin *center* is announced where a bar
   chart puts its category name -- a precise-looking number that is neither an
   observation nor a boundary, and nothing marks it as a midpoint;
 * **`z` carried `_container0`**, maidr's own internal identifier for a
@@ -93,7 +93,7 @@ class TestADistributionReadsAsOne:
     def test_it_carries_the_bin_interval(self):
         # The half that matters most to a reader. A histogram bar means "9
         # observations fell between -2.325 and -0.897"; without the bounds the
-        # centre is all that is left, and a centre is not a value anything was
+        # center is all that is left, and a center is not a value anything was
         # measured at.
         sns.displot(frame(), x="v", bins=3)
         first = {str(key): value for key, value in samples()[0].items()}
@@ -259,7 +259,7 @@ class TestEveryElementDisplotDraws:
 
     @pytest.mark.parametrize("element", ["step", "poly"])
     def test_a_hue_grouped_outline_names_its_groups(self, element):
-        # The names come from the legend by colour, as the bars' do.
+        # The names come from the legend by color, as the bars' do.
         grid = sns.displot(frame(), x="v", hue="g", bins=3, element=element, fill=False)
         names = [
             plot.schema.get("name")
@@ -356,7 +356,7 @@ class TestTheShapesOnlyDisplotCanReach:
     def test_a_hue_grouped_filled_outline_names_its_groups(self, element):
         # The filled branch, which the unfilled test above does not reach:
         # `fill=True` draws a `PolyCollection` per group and the name comes
-        # off its face colour (#587).
+        # off its face color (#587).
         grid = sns.displot(frame(), x="v", hue="g", bins=3, element=element)
         names = [
             plot.schema.get("name")

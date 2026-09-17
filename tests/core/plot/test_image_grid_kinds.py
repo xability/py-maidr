@@ -2,7 +2,7 @@
 A heat layer assumed every grid it was handed was scalar (#564).
 
 ``ax.imshow`` accepts three shapes. ``(M, N)`` of numbers is a heatmap;
-``(M, N, 3)`` and ``(M, N, 4)`` are **pictures**, their last axis colour
+``(M, N, 3)`` and ``(M, N, 4)`` are **pictures**, their last axis color
 rather than value. A boolean ``(M, N)`` mask is a fourth case, and the one
 ``ax.spy()`` draws.
 
@@ -29,8 +29,8 @@ The two get different answers, which is the point of this file:
 - **a mask is read.** True and False are 1 and 0, and showing where a matrix
   is non-zero is the whole purpose of ``spy()``. It only failed at the
   default format; ``format(np.True_, ".2f")`` was already ``"1.00"``.
-- **a colour image is not registered.** There is no number per cell to
-  announce and nothing for the colourbar to mean, so the layer is declined
+- **a color image is not registered.** There is no number per cell to
+  announce and nothing for the colorbar to mean, so the layer is declined
   and the figure renders without it -- what ``ax.quiver`` already does.
 """
 
@@ -121,12 +121,12 @@ def test_a_numeric_grid_is_unchanged():
 
 
 # ---------------------------------------------------------------------------
-# A colour image is not a heatmap
+# A color image is not a heatmap
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("channels", [3, 4])
-def test_a_colour_image_registers_no_layer(channels):
+def test_a_color_image_registers_no_layer(channels):
     fig, ax = plt.subplots()
     ax.imshow(np.zeros((2, 2, channels)) + 0.5)
 
@@ -134,7 +134,7 @@ def test_a_colour_image_registers_no_layer(channels):
     assert _types(fig) == []
 
 
-def test_an_integer_colour_image_is_declined_too():
+def test_an_integer_color_image_is_declined_too():
     # `imshow` takes RGB as floats in 0..1 or as uint8 in 0..255, and the
     # dtype is what a value-shaped test would key on. What makes it a picture
     # is the third axis, not what is stored along it.
@@ -169,8 +169,8 @@ def test_a_picture_beside_a_grid_leaves_the_grid_its_own_values():
 
 
 def test_a_grayscale_image_is_still_a_heatmap():
-    # Two dimensions and no colour axis: a photograph in one channel is read
-    # as the grid of intensities it is, which is the pre-existing behaviour
+    # Two dimensions and no color axis: a photograph in one channel is read
+    # as the grid of intensities it is, which is the pre-existing behavior
     # and the line the decline must not cross.
     fig, ax = plt.subplots()
     ax.imshow(np.array([[0.0, 0.5], [1.0, 0.25]]))

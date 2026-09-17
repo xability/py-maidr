@@ -1,4 +1,4 @@
-"""Helpers for recognising matplotlib step lines and their step convention.
+"""Helpers for recognizing matplotlib step lines and their step convention.
 
 ``matplotlib.axes.Axes.step`` is not a distinct renderer: it sets
 ``kwargs["drawstyle"] = "steps-" + where`` and delegates to ``Axes.plot``,
@@ -8,8 +8,8 @@ which is what these helpers read.
 
 Reading the artists rather than the call kwargs means ``ax.step()``,
 ``plt.step()``, ``ax.plot(drawstyle=...)`` and ``sns.lineplot(drawstyle=...)``
-are all recognised by one rule, and matplotlib's ``ds`` kwarg alias needs no
-special handling because it has already been normalised onto the ``Line2D``
+are all recognized by one rule, and matplotlib's ``ds`` kwarg alias needs no
+special handling because it has already been normalized onto the ``Line2D``
 by the time these functions run.
 """
 
@@ -142,7 +142,7 @@ def resolve_step_direction(lines: Iterable[Line2D]) -> Optional[str]:
 
     Returns ``None`` — meaning "omit the field" — whenever the layer does not
     unambiguously author one direction: no lines, a non-step drawstyle, an
-    unrecognised ``steps-*`` variant, or several series disagreeing. MAIDR's
+    unrecognized ``steps-*`` variant, or several series disagreeing. MAIDR's
     description only names a direction when the data actually reported one,
     so guessing here would put a claim in the audio that nothing supports.
 
@@ -177,5 +177,5 @@ def resolve_step_direction(lines: Iterable[Line2D]) -> Optional[str]:
     if len(directions) != 1:
         return None
 
-    # A lone ``None`` here means every line shares an unrecognised drawstyle.
+    # A lone ``None`` here means every line shares an unrecognized drawstyle.
     return directions.pop()

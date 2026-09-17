@@ -8,7 +8,7 @@ from matplotlib.axes import Axes
 from maidr.core.context_manager import BoxplotContextManager, ContextManager
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.core.plot.boxplot import _box_colour
+from maidr.core.plot.boxplot import _box_color
 from maidr.core.plot.maidr_plot import GROUP_NAME
 from maidr.patch.common import _draw_quietly, resolve_orientation, wrap_seaborn
 from maidr.util.legend_names import name_for
@@ -19,17 +19,17 @@ def _level_of(ax: Axes, boxes: list) -> Callable[[], str | None] | None:
     Name the hue level one ``bxp`` call's boxes belong to, at render.
 
     A call draws one level's boxes across every category, so they share one
-    colour and that colour is what says which level it is.
+    color and that color is what says which level it is.
 
     Only this path asks. ``sns.boxplot`` accumulates every call before
     registering and reaches its layer through ``sns_box``, where the levels
     belong per box -- on each one's ``z`` -- rather than to the layer; naming
     the layer there would say the whole of it was one level.
 
-    A call whose boxes do *not* share a colour therefore declines rather than
-    picking one. Nothing measured produces one -- ``bxp`` colours a call's
+    A call whose boxes do *not* share a color therefore declines rather than
+    picking one. Nothing measured produces one -- ``bxp`` colors a call's
     boxes together, and the two callers that reach here are ``ax.boxplot``
-    and ``catplot``, each of which draws one colour per call -- so a mutation
+    and ``catplot``, each of which draws one color per call -- so a mutation
     naming a mixed call anyway passes the suite. It stays because the answer
     to "which level is this layer" for a layer holding two of them is
     "neither", and an arbitrary one of them is worse than none.
@@ -50,13 +50,13 @@ def _level_of(ax: Axes, boxes: list) -> Callable[[], str | None] | None:
     -------
     callable or None
         A zero-argument callable answering the name, or ``None`` when the
-        call's boxes do not share one colour.
+        call's boxes do not share one color.
     """
-    colours = {_box_colour(box) for box in boxes}
-    if len(colours) != 1:
+    colors = {_box_color(box) for box in boxes}
+    if len(colors) != 1:
         return None
-    colour = colours.pop()
-    return lambda: name_for(ax, colour)
+    color = colors.pop()
+    return lambda: name_for(ax, color)
 
 
 @wrapt.patch_function_wrapper(Axes, "bxp")

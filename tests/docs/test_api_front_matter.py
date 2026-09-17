@@ -153,7 +153,7 @@ class TestDescribe:
         "body",
         [
             ["", "Short."],
-            ["", "A moderately sized summary of the function's behaviour."],
+            ["", "A moderately sized summary of the function's behavior."],
             ["", " ".join(["word"] * 90)],
             ["", "```", "code", "```"],
         ],

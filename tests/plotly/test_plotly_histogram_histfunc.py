@@ -16,7 +16,7 @@ pinned below:
   a layer whose bin bounds are all correct, so nothing else in the
   announcement looks wrong.
 
-The empty-bin behaviour is the part that could not be reasoned out. `count`
+The empty-bin behavior is the part that could not be reasoned out. `count`
 and `sum` announce a zero for a bin nothing landed in; `avg`, `min` and `max`
 have no answer and plotly emits no point at all -- interior bins included, not
 just the edges #402 trims. But setting **any** `histnorm` brings them back as
@@ -368,7 +368,7 @@ class TestHistfuncAndHistnormTogether:
         assert len(values(rescaled)) == 6
         assert values(rescaled)[2:4] == [0, 0]
 
-    def test_sum_and_avg_normalise_to_the_same_shares(self):
+    def test_sum_and_avg_normalize_to_the_same_shares(self):
         # The measurement that settles `histnorm`'s denominator: dividing
         # every value by a constant leaves the shares alone, so the total
         # cannot be the sample size.
@@ -385,7 +385,7 @@ class TestHistfuncAndHistnormTogether:
         assert averaged == pytest.approx(summed)
         assert sum(summed) == pytest.approx(100.0)
 
-    def test_min_normalises_to_a_different_shape(self):
+    def test_min_normalizes_to_a_different_shape(self):
         # And a mode that is not a constant multiple of `sum` must not, or
         # the test above would pass on an implementation that ignored
         # `histfunc` entirely.

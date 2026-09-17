@@ -3,7 +3,7 @@
 
 Both draw one segment per row and hand back a single ``LineCollection``
 whose ``get_segments()`` gives both ends exactly -- a collection stores its
-ends rather than serialising a path, so there is nothing to invert and
+ends rather than serializing a path, so there is nothing to invert and
 nothing to round. Measured on matplotlib 3.9.4::
 
     ax.hlines([1, 2, 3], [0, 2, 4], [5, 7, 6])
@@ -112,7 +112,7 @@ def test_a_lane_is_named_by_the_tick_the_author_put_inside_it():
     ]
 
 
-def test_an_unlabelled_lane_keeps_its_position():
+def test_an_unlabeled_lane_keeps_its_position():
     # Left alone, matplotlib picks the ticks and several land on a lane --
     # none of which is its name. The position is always true.
     fig, ax = plt.subplots()
@@ -339,7 +339,7 @@ def test_a_broken_barh_beside_an_hlines_keeps_its_own_lane(spans_first):
 
 
 def test_two_broken_barh_calls_still_merge_into_one_chart():
-    # The reason `_lane_of` exists, and the behaviour the fix above must not
+    # The reason `_lane_of` exists, and the behavior the fix above must not
     # cost: `broken_barh` draws *one* lane per call, so a two-lane schedule
     # is two calls that have to become one layer. Asserted beside the mixed
     # case so narrowing the lookup any further would fail here.

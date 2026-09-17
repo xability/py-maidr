@@ -8,7 +8,7 @@ where drift starts, and the ordering is #502's convention rather than an
 incidental.
 
 Asserted directly here as well as through the two callers, because two of the
-helper's behaviours are not reachable from either: neither passes an empty
+helper's behaviors are not reachable from either: neither passes an empty
 order, and neither can pass a name its order does not mention -- both draw
 their names from the same legend they order by.
 """

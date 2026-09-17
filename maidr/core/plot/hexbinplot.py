@@ -24,8 +24,8 @@ class HexbinPlot(MaidrPlot):
     shape everything below.
 
     First, a bin's column index is not its position: bin 3 of one row and bin 3
-    of the next sit at different x. So each bin carries its own centre, and the
-    frontend announces centres rather than indices.
+    of the next sit at different x. So each bin carries its own center, and the
+    frontend announces centers rather than indices.
 
     Second, matplotlib does not emit the bins in the order the grid reads them.
     ``get_offsets()`` is built lattice by lattice and, within each, x index by x
@@ -110,8 +110,8 @@ class HexbinPlot(MaidrPlot):
             # pair a bin with a stranger's count.
             raise ExtractionError(self.type, self.ax)
 
-        # Grouped on the y centre by exact equality, which is exact rather
-        # than approximate here: matplotlib builds every centre in a row from
+        # Grouped on the y center by exact equality, which is exact rather
+        # than approximate here: matplotlib builds every center in a row from
         # the same `index * spacing + origin`, so a row's values are identical
         # bit for bit, and the two lattices are half a spacing apart.
         rows: dict[float, list[int]] = {}

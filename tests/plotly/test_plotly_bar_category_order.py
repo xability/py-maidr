@@ -217,7 +217,7 @@ def test_a_numeric_axis_ignores_a_declared_order_here_too():
 
 def test_a_numeric_axis_declared_categorical_is_sorted():
     """`type: "category"` is what makes it categorical again, and then the
-    order is honoured -- the other side of the guard above."""
+    order is honored -- the other side of the guard above."""
     fig = go.Figure(data=[go.Bar(x=[3, 1, 2], y=[30, 10, 20])])
     fig.update_layout(xaxis={"type": "category", "categoryorder": "category ascending"})
 
@@ -338,7 +338,7 @@ def test_traces_written_in_different_orders_each_get_their_own_permutation():
     The traces share the axis -- which is what makes them one chart -- so
     they share the drawn sequence of category *names*. They do not share the
     positions those names sit at: `px.bar(df, x=..., color=...)` builds one
-    trace per colour from a filtered slice, and unless the frame is sorted
+    trace per color from a filtered slice, and unless the frame is sorted
     the same way in every slice their arrays disagree.
 
     Here A is written `charlie, alpha, bravo` and B `alpha, bravo, charlie`.

@@ -140,7 +140,7 @@ class AreaPlot(MaidrPlot):
                 # stay aligned -- while one with a position and no *value*
                 # is kept and emitted as `null`, which the core's area trace
                 # reads as a gap that stays out of the running total. Either
-                # written out as a bare `NaN` stops the chart initialising
+                # written out as a bare `NaN` stops the chart initializing
                 # (#427).
                 x = self._scalar(position)
                 if not _has_position(x):
@@ -191,7 +191,7 @@ class AreaPlot(MaidrPlot):
     @staticmethod
     def _scalar(value: Any) -> Any:
         """
-        Convert one coordinate to a JSON-serialisable scalar.
+        Convert one coordinate to a JSON-serializable scalar.
 
         Parameters
         ----------
@@ -223,7 +223,7 @@ class AreaPlot(MaidrPlot):
         The count is the whole rule. ``baseline`` looks like it should matter
         and does not: ``sym`` and ``wiggle`` move where the stack sits on the
         value axis without changing what any band measures, so a streamgraph
-        is a stacked area drawn around a floating centre and reads as one.
+        is a stacked area drawn around a floating center and reads as one.
 
         Parameters
         ----------

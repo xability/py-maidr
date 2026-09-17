@@ -13,10 +13,10 @@ from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.contour import tag
 from maidr.core.plot.maidr_plot import GROUP_NAME
 
-# `_handle_colour` and `legend_of` are re-exported rather than used here:
-# both moved out when the colour matching became shared, and both are
+# `_handle_color` and `legend_of` are re-exported rather than used here:
+# both moved out when the color matching became shared, and both are
 # imported from this module by name elsewhere.
-from maidr.core.plot.scatterplot import _handle_colour, _rgba  # noqa: F401
+from maidr.core.plot.scatterplot import _handle_color, _rgba  # noqa: F401
 from maidr.patch.common import (
     _draw_quietly,
     common,
@@ -28,7 +28,7 @@ from maidr.core.context_manager import ContextManager
 
 # `legend_of` and `_names_for` are re-exported rather than used here:
 # `tests/core/plot/test_hue_kde_naming.py` and
-# `tests/core/plot/test_pairplot_group_names.py` reach the colour match
+# `tests/core/plot/test_pairplot_group_names.py` reach the color match
 # through this module, which is where it lived before it moved to
 # `maidr/util/legend_names.py`. The blanket noqa is what lets them.
 from maidr.util.legend_names import (  # noqa: F401
@@ -109,12 +109,12 @@ def _register_field(ax: Axes | None, before: list) -> None:
 
 def _curve_names(ax: Axes, curves: list, faceted: bool = False) -> list:
     """
-    Name each KDE curve from the legend swatch drawn in its colour.
+    Name each KDE curve from the legend swatch drawn in its color.
 
     A ``kdeplot(hue=...)`` draws one curve per group and both distributions
     are announced -- but with nothing to tell them apart, so a reader hears
-    the identical announcement twice (#558). The colours are what separate
-    them on screen and the legend is what names those colours, which is the
+    the identical announcement twice (#558). The colors are what separate
+    them on screen and the legend is what names those colors, which is the
     match ``scatterplot.hue_groups`` already makes point by point and
     ``patch/histogram`` container by container.
 
@@ -149,12 +149,12 @@ def _curve_names(ax: Axes, curves: list, faceted: bool = False) -> list:
 
 def _fill_names(ax: Axes, fills: list, faceted: bool = False) -> list:
     """
-    Name each filled KDE band from the legend swatch drawn in its colour.
+    Name each filled KDE band from the legend swatch drawn in its color.
 
     ``kdeplot(hue=..., fill=True)`` draws no lines at all -- measured, two
     groups give two ``PolyCollection`` bands and no ``Line2D`` at all -- so the
     curve match above never sees them. A band's ``get_facecolor`` carries the
-    same translucent colour its swatch does, which is the whole difference.
+    same translucent color its swatch does, which is the whole difference.
 
     Parameters
     ----------
@@ -170,12 +170,12 @@ def _fill_names(ax: Axes, fills: list, faceted: bool = False) -> list:
     list
         One entry per band, naming it or ``None``.
     """
-    return _names_for_panel(ax, [_collection_colour(fill) for fill in fills], faceted)
+    return _names_for_panel(ax, [_collection_color(fill) for fill in fills], faceted)
 
 
-def _collection_colour(collection) -> tuple | None:
+def _collection_color(collection) -> tuple | None:
     """
-    The one colour a collection is filled with, if it has one.
+    The one color a collection is filled with, if it has one.
 
     Parameters
     ----------
@@ -185,13 +185,13 @@ def _collection_colour(collection) -> tuple | None:
     Returns
     -------
     tuple or None
-        The rounded RGBA, or ``None`` when it is filled with several colours
+        The rounded RGBA, or ``None`` when it is filled with several colors
         or none.
     """
-    colours = {_rgba(row) for row in collection.get_facecolor()}
-    if len(colours) != 1:
+    colors = {_rgba(row) for row in collection.get_facecolor()}
+    if len(colors) != 1:
         return None
-    return colours.pop()
+    return colors.pop()
 
 
 def deferred_names(resolve, count: int) -> list:

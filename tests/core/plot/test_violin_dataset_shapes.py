@@ -7,10 +7,10 @@ one dataset per *column* (a DataFrame is unpacked to an ndarray first). The
 KDE layer is built from the ``bodies`` matplotlib drew and so always agrees
 with it. The box layer read the call's arguments itself and applied the list
 rule to everything, so a ``(100, 3)`` array -- three drawn violins -- emitted
-100 box records named ``Group 1..100``, each summarising three numbers, with
+100 box records named ``Group 1..100``, each summarizing three numbers, with
 100 ``nth-child`` selectors pointing at segments that do not exist. A
 DataFrame passed positionally, or any data passed as ``dataset=`` (the
-parameter's real name), was not recognised at all, and the box layer was
+parameter's real name), was not recognized at all, and the box layer was
 silently not registered (#705).
 
 What these assert is the one thing a reader depends on: the box layer has
@@ -103,7 +103,7 @@ def test_dataset_keyword_gets_a_box_layer() -> None:
 
 
 def test_columns_of_a_2d_array_are_the_violins() -> None:
-    """Each box record summarises the column matplotlib drew, not a row of it."""
+    """Each box record summarizes the column matplotlib drew, not a row of it."""
     data = _rng().normal(size=(100, 3)) + np.array([0.0, 10.0, 20.0])
     fig, ax = plt.subplots()
     ax.violinplot(data)

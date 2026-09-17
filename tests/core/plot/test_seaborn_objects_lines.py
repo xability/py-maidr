@@ -14,7 +14,7 @@ written with the singular mark was navigable.
 Two things follow, and each is a fact about the artist rather than a choice:
 
   - **The segments are the series.** One collection carries one per group, in
-    the order the groups were drawn, with a colour each -- and the colour is
+    the order the groups were drawn, with a color each -- and the color is
     what pairs a series with its legend entry, which is the pairing #582
     exists for.
 
@@ -29,7 +29,7 @@ series stay one to one. A single-point group *is* drawn, and keeps its place
 in both.
 
 Related: #672, which had to land first. A `so.Plot`'s legend is the figure's,
-and until that was read a colour split arrived as unnamed series -- the shape
+and until that was read a color split arrived as unnamed series -- the shape
 xability/maidr#828 exists to prevent.
 """
 
@@ -94,7 +94,7 @@ def test_a_collection_of_segments_reads_as_the_series_it_draws(mark):
 
 @pytest.mark.parametrize("mark", MARKS)
 def test_each_series_carries_the_group_it_was_drawn_for(mark):
-    # The colour a segment was drawn in is what pairs it with its legend
+    # The color a segment was drawn in is what pairs it with its legend
     # entry. Pairing by position instead gets two groups the wrong way round
     # whenever the legend is not in the drawn order (#582).
     schema = _split(mark)
@@ -182,8 +182,8 @@ def test_a_group_of_one_point_keeps_its_place_in_both_lists():
     assert len(schema["selectors"]) == 2
 
 
-def test_a_series_stands_in_for_its_segment_and_carries_its_colour():
-    # The stand-ins are what `MultiLinePlot` walks, and the colour is the
+def test_a_series_stands_in_for_its_segment_and_carries_its_color():
+    # The stand-ins are what `MultiLinePlot` walks, and the color is the
     # half that is not obvious: it is what pairs a series with its legend
     # entry, and pairing by position instead gets two groups the wrong way
     # round whenever the legend is not in the drawn order (#582). Asserted
@@ -201,13 +201,13 @@ def test_a_series_stands_in_for_its_segment_and_carries_its_colour():
         segment.tolist() for segment in collection.get_segments()
     ]
     assert [tuple(line.get_color()) for line in stand_ins] == [
-        tuple(colour) for colour in collection.get_colors()
+        tuple(color) for color in collection.get_colors()
     ]
 
 
-def test_one_colour_over_many_segments_is_cycled_the_way_it_is_drawn():
-    # Matplotlib does not expand a short colour list: measured, a collection
-    # drawn in one colour reports exactly one however many segments it
+def test_one_color_over_many_segments_is_cycled_the_way_it_is_drawn():
+    # Matplotlib does not expand a short color list: measured, a collection
+    # drawn in one color reports exactly one however many segments it
     # holds -- and that is the *default*. Reading it by position would raise
     # on the second segment.
     from matplotlib.collections import LineCollection

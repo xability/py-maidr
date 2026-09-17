@@ -88,7 +88,7 @@ class TestPlotlyMaidr:
         # with it. `go.Sunburst` stands in for that here; the test used to use
         # `go.Violin`, which is now read as a `violin_box` + `violin_kde` pair
         # -- so it was pinning "violin is unsupported" rather than the
-        # behaviour this test is named for.
+        # behavior this test is named for.
         fig = go.Figure()
         fig.add_trace(go.Sunburst(labels=["a", "b"], parents=["", ""], values=[1, 2]))
         fig.add_trace(go.Bar(x=["A"], y=[1]))
@@ -545,7 +545,7 @@ class TestPlotlyPieSubplotTitles:
     """``subplot_titles`` reach a pie, which has no axis pair to match on.
 
     ``make_subplots`` stores per-subplot titles as paper-referenced
-    annotations centred over each subplot. The base class finds the right one
+    annotations centered over each subplot. The base class finds the right one
     by matching against the rectangle the subplot's axis domains describe —
     and a pie has no axes, so every pie in a figure reads the same default
     ``[0, 1]`` domain, anchors itself at the middle of the figure, and matches
@@ -748,7 +748,7 @@ class TestPlotlyEmbeddedSchema:
     def test_embedded_schema_is_emitted_compact_and_round_trips(self, monkeypatch):
         """Compact on the wire, equal once parsed.
 
-        The browser re-serialises the literal with ``JSON.stringify`` so
+        The browser re-serializes the literal with ``JSON.stringify`` so
         indentation never reaches the DOM, and passing ``indent`` to
         ``json.dumps`` drops CPython's C encoder -- 5-6x slower and ~2.8x
         the bytes on a 50k-point line. The consumed slice holding no
@@ -803,7 +803,7 @@ class TestPlotlyShow:
     ):
         """The browser path renders through ``save_html``.
 
-        Building the Tag before deciding on the renderer serialised the
+        Building the Tag before deciding on the renderer serialized the
         figure and the schema twice and threw the first copy away -- 2.9x
         the time of ``save_html`` alone on a 50k-point line.
         """

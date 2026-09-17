@@ -17,7 +17,7 @@ does not forward `hue` or `dodge` to `Axes.bar`, so the matplotlib patch has to
 infer grouping from bar widths and positions, and on seaborn's output it
 inferred wrong.
 
-**The phantom layer.** The `line(2)` is the error-bar geometry travelling as a
+**The phantom layer.** The `line(2)` is the error-bar geometry traveling as a
 two-sample series of its own -- the #440 shape, where a `line` layer describes
 another chart's scaffolding. The axes-level patch suppresses it by drawing
 inside the internal context; nothing did that here.
@@ -190,7 +190,7 @@ class TestWhenItIsGroupedItSaysSo:
         assert layers(grid.figure) == ["dodged_bar"]
 
     def test_a_hue_that_repeats_the_category_is_not_grouped(self):
-        # Seaborn's own idiom for colouring a plain bar chart: it draws one
+        # Seaborn's own idiom for coloring a plain bar chart: it draws one
         # container per level, each holding a single bar, and wears a legend.
         # Nothing about that is a second dimension for a reader to navigate.
         grid = sns.catplot(frame(), x="g", y="v", hue="g", kind="bar")

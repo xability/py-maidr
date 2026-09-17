@@ -97,7 +97,7 @@ def test_a_missing_price_column_gives_nothing(extract):
 
 def test_a_non_finite_price_skips_the_row(extract):
     # The rule `test_non_finite_coordinates.py` states: a bare NaN or Infinity
-    # in the payload stops the whole figure initialising, and no price a
+    # in the payload stops the whole figure initializing, and no price a
     # reader could be told is lost by leaving the row out.
     frame = _frame(Low=[0, np.nan, 2, 3, 4], High=[2.5, 3.5, 4.5, np.inf, 6.5])
 

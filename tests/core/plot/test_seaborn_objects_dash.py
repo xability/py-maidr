@@ -18,9 +18,9 @@ Two things had to be measured rather than assumed.
 
 The span is ``0.8`` by default and halved again by a dodge, and neither
 number is anything the chart measured. What both spellings agree on is the
-segment's centre.
+segment's center.
 
-**A dodged tick's centre is not its tick.** Read literally it announces
+**A dodged tick's center is not its tick.** Read literally it announces
 ``-0.2`` where the axis says ``a`` -- the shape #617 describes for
 ``so.Bar``. It needs no special case here, because ``ScatterPlot._on_axis``
 already snaps a drawn coordinate to the slot it belongs to and ``_sample``
@@ -49,7 +49,7 @@ def _close_figures():
 
 
 def _frame() -> pd.DataFrame:
-    """Forty observations over five categories, split two ways by colour."""
+    """Forty observations over five categories, split two ways by color."""
     rng = np.random.default_rng(4)
     return pd.DataFrame(
         {
@@ -80,7 +80,7 @@ def test_a_dash_mark_is_read_rather_than_registering_nothing():
 
 
 def test_every_tick_is_read_off_its_own_middle():
-    """The centre, not either end: the span is the mark's width."""
+    """The center, not either end: the span is the mark's width."""
     frame = _frame()
     schema = _only(so.Plot(frame, x="n", y="v").add(so.Dash()))
 
@@ -109,7 +109,7 @@ def test_a_dodged_tick_announces_its_category_and_not_the_offset():
     midpoint is `-0.2` -- the offset, which is what #617 found `so.Bar`
     announcing where the axis says `a`.
 
-    A dodge needs something to dodge by, so this chart is also colour-split
+    A dodge needs something to dodge by, so this chart is also color-split
     and reads as one layer per level (#680). The snapping is per tick, so it
     is asserted of every layer rather than of the one this used to be.
     """
@@ -232,12 +232,12 @@ def test_a_segment_that_is_not_a_tick_is_declined():
 def test_a_tick_with_a_non_finite_end_is_dropped():
     """`json.dumps` writes `NaN` as a bare token, which `JSON.parse` rejects.
 
-    One such value stops the chart initialising at all (#427), so the tick is
+    One such value stops the chart initializing at all (#427), so the tick is
     dropped rather than announced -- and a scatter point with no position has
     nothing left to say, unlike a bar that keeps its category.
 
     What drops it is the **shape** check, and this pins the matplotlib
-    behaviour that makes it sufficient: a non-finite vertex is stripped
+    behavior that makes it sufficient: a non-finite vertex is stripped
     before `get_segments` returns, so the tick arrives as a single point
     rather than as a pair with a `NaN` in it. If a release stops stripping,
     this test fails here rather than the payload failing to parse in a
@@ -301,12 +301,12 @@ def test_the_nth_selector_addresses_the_nth_tick():
     assert len(paths) == len(selectors)
 
 
-def test_a_colour_split_becomes_one_layer_per_level():
+def test_a_color_split_becomes_one_layer_per_level():
     """A two-level chart offered one anonymous cloud of forty ticks (#680).
 
-    `hue_groups` inverts a collection's colours against the legend that names
-    them, and it read *face* colours — which a line collection has none of.
-    Measured on this chart, 0 face colours against 40 edge colours: the
+    `hue_groups` inverts a collection's colors against the legend that names
+    them, and it read *face* colors — which a line collection has none of.
+    Measured on this chart, 0 face colors against 40 edge colors: the
     grouping was all there, one attribute over.
     """
     schemas = _layers(
@@ -361,7 +361,7 @@ def test_each_level_outlines_its_own_ticks_and_not_its_neighbours():
 
 
 def test_an_ungrouped_dash_is_still_one_unnamed_layer():
-    """The split is a grouping, not a default: one colour is one layer."""
+    """The split is a grouping, not a default: one color is one layer."""
     schema = _only(so.Plot(_frame(), x="x", y="v").add(so.Dash()))
 
     assert MaidrKey.NAME not in schema

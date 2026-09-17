@@ -213,7 +213,7 @@ def test_two_marks_read_as_two_layers_in_the_order_they_were_added():
     assert _kinds(figure) == ["point", "line"]
 
 
-def test_a_colour_split_line_is_one_layer_of_several_series():
+def test_a_color_split_line_is_one_layer_of_several_series():
     """`color=` draws one `Line2D` per level.
 
     All of them belong to the one `.add()`, so they are one layer with a
@@ -535,7 +535,7 @@ def test_a_seaborn_that_moved_the_hook_warns_rather_than_failing_the_import(
         ),
     ],
 )
-def test_a_colour_split_bar_draws_one_container_and_splits_into_its_groups(
+def test_a_color_split_bar_draws_one_container_and_splits_into_its_groups(
     spelling, build
 ):
     """Every `so.Bar` spelling draws exactly **one** `BarContainer` holding
@@ -543,7 +543,7 @@ def test_a_colour_split_bar_draws_one_container_and_splits_into_its_groups(
     `seaborn.barplot`, which draws one per hue level.
 
     That is why `DRAWN_BARS`' singular branch is real but unreached, and why
-    the split has to come from the bars' colours rather than from the
+    the split has to come from the bars' colors rather than from the
     containers: `bar_groups` does for a container what `hue_groups` does for
     a collection (#617).
 
@@ -755,10 +755,10 @@ def test_a_position_transform_with_nothing_to_move_against_still_reads(move):
     ]
 
 
-def test_a_colour_split_area_registers_nothing_until_its_groups_are_named():
+def test_a_color_split_area_registers_nothing_until_its_groups_are_named():
     """Two unnamed series is the shape xability/maidr#828 exists to prevent.
 
-    A colour split draws one polygon per level -- measured, each spanning
+    A color split draws one polygon per level -- measured, each spanning
     every position, so they would fold into one layer of several series. What
     they would arrive without is their names: the legend holding them is the
     figure's, built after every layer is drawn, and `AreaPlot` takes its

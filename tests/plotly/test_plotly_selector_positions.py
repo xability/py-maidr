@@ -191,7 +191,7 @@ class TestTheFallbacksAreGone:
         assert "nth-child(4)" in selector
         assert selector != ".subplot.xy .trace.scatter path.js-line"
 
-    def test_a_step_layer_honours_positions_past_the_leading_ones(self):
+    def test_a_step_layer_honors_positions_past_the_leading_ones(self):
         # Under the old leading-order default this emitted nth-child(1) and
         # (2) regardless -- the silent failure the issue describes.
         plot = PlotlyStepPlot([_step(), _step()], {}, scatter_positions=[2, 4])
@@ -200,7 +200,7 @@ class TestTheFallbacksAreGone:
         assert "nth-child(3)" in first
         assert "nth-child(5)" in second
 
-    def test_a_multiline_layer_honours_positions_past_the_leading_ones(self):
+    def test_a_multiline_layer_honors_positions_past_the_leading_ones(self):
         plot = PlotlyMultiLinePlot(
             [_line("a"), _line("b")], {}, scatter_positions=[1, 3]
         )

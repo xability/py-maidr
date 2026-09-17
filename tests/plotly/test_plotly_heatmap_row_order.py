@@ -14,7 +14,7 @@ bottom row.
 
 The selector names one ``<image>``, because plotly rasterises the grid, so
 the core synthesises its own overlay rects. That code used to place its row 0
-on the top band -- an error that cancelled this one, leaving the highlight
+on the top band -- an error that canceled this one, leaving the highlight
 accidentally right while navigation ran inverted. maidr#972 corrected it, so
 from maidr 4.4.0 the two no longer cancel and this fix is what keeps the
 highlight on the announced cell.

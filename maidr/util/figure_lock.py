@@ -1,7 +1,7 @@
 """One lock per matplotlib ``Figure``, shared by every threaded entry point.
 
 Not process-wide: ``savefig`` on distinct figures is safe in parallel, and
-a single lock would serialise unrelated sessions and throw away most of
+a single lock would serialize unrelated sessions and throw away most of
 what threading buys.
 
 Why a lock is needed at all: ``savefig`` mutates the figure it is writing,
@@ -74,7 +74,7 @@ def figure_lock(figure: Any) -> threading.Lock:
     -------
     threading.Lock
         A lock unique to that figure. An unresolvable figure gets a fresh
-        lock rather than a shared one -- serialising things we cannot tell
+        lock rather than a shared one -- serializing things we cannot tell
         apart would be a guess in the direction of a deadlock, and the
         render is safe on its own.
 

@@ -81,11 +81,11 @@ def test_a_hue_split_gives_one_layer_per_group(element: str) -> None:
 
 
 @pytest.mark.parametrize("element", ["step", "poly"])
-def test_each_hue_group_carries_the_name_its_colour_is_given(element: str) -> None:
+def test_each_hue_group_carries_the_name_its_color_is_given(element: str) -> None:
     """Two layers of a kind need telling apart, which is what #828 added.
 
     Counting the layers is not enough on its own: the patch matches each
-    outline's colour against the legend swatch that names it, and a layer
+    outline's color against the legend swatch that names it, and a layer
     that computed the name and dropped it on the way to the schema counts
     the same as one that carries it. Measured on the first draft, which
     called ``HistPlot.__init__`` with the axes alone: both layers came out
@@ -123,7 +123,7 @@ def test_a_horizontal_outline_whose_counts_climb_is_not_read_transposed(
         sns.histplot(df, y="v", bins=2, element="poly", fill=False)
         orientation 'vert', xMin 0.5, xMax 3.5, y 0.3125
 
-    The bin edges were built out of the counts 2 and 5, and the bin centre
+    The bin edges were built out of the counts 2 and 5, and the bin center
     0.3125 was announced as the count. Silently transposed, which is the one
     outcome this reading is meant not to have.
 
@@ -162,7 +162,7 @@ def test_an_outline_that_reads_either_way_declines_when_nothing_says_which() -> 
 
     from maidr.core.plot.outlined_histogram import _read_line
 
-    # Counts 1..4 against centres 0.125..0.875: both ascend, both evenly.
+    # Counts 1..4 against centers 0.125..0.875: both ascend, both evenly.
     line = Line2D([1.0, 2.0, 3.0, 4.0], [0.125, 0.375, 0.625, 0.875])
 
     assert _read_line(line, None) is None
@@ -182,7 +182,7 @@ def test_a_stepped_outline_reads_uneven_bins_exactly() -> None:
 
 
 def test_an_uneven_poly_outline_is_declined_rather_than_invented() -> None:
-    """It carries only the centres, and centres 0.5, 3.0, 7.5 do not say
+    """It carries only the centers, and centers 0.5, 3.0, 7.5 do not say
     where the boundaries were. The same rule the filled poly already uses."""
     fig, ax = plt.subplots()
     sns.histplot(_frame(), x="v", bins=[0, 1, 5, 10], element="poly", fill=False, ax=ax)

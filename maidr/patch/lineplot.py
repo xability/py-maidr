@@ -119,7 +119,7 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
         ax = instance if isinstance(instance, Axes) else getattr(instance, "axes", None)
 
     # A call that drew no points is not a layer. `seaborn.utils._default_color`
-    # plots a throwaway artist to resolve a default colour and removes it
+    # plots a throwaway artist to resolve a default color and removes it
     # again -- the mechanism #373 described for area layers, which
     # `sns.residplot` reaches here. Measured on one: the returned line is in
     # data space and carries an empty `get_xydata()`.

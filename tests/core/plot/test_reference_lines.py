@@ -19,7 +19,7 @@ why filtering alone was not enough:
   the reference line up as an extra series;
 * ``sns.residplot`` registered a line layer with **no artist of its own**.
   Traced: ``seaborn.utils._default_color`` plots a throwaway artist to resolve
-  a default colour, and the returned line is in data space with an empty
+  a default color, and the returned line is in data space with an empty
   ``get_xydata()`` — the #373 mechanism. That layer then fell back to sweeping
   the axes, where the only line is the ``axhline``.
 
@@ -116,7 +116,7 @@ class TestAReferenceLineBesideRealData:
 class TestALayerWithNoArtistOfItsOwn:
     def test_residplot_does_not_register_a_line_layer(self):
         # `residplot` draws a scatter and a zero reference line. The line layer
-        # it used to register came from the colour probe, not from anything the
+        # it used to register came from the color probe, not from anything the
         # reader can see.
         rng = np.random.default_rng(0)
         ax = sns.residplot(x=rng.normal(size=40), y=rng.normal(size=40))

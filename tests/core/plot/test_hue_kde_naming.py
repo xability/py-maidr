@@ -9,7 +9,7 @@ identical announcement twice::
 
 Several ``smooth`` layers over one axis with nothing to tell them apart is the
 position ``MaidrLayer.name`` was added for (xability/maidr#828). Each is named
-from the legend swatch drawn in **its own colour**, which is the match
+from the legend swatch drawn in **its own color**, which is the match
 ``scatterplot.hue_groups`` makes point by point and ``patch/histogram``
 container by container.
 
@@ -70,7 +70,7 @@ def test_a_filled_kde_is_named_too():
     assert _names(fig) == ["x", "y"]
 
 
-def test_a_name_is_matched_by_colour_rather_than_by_position():
+def test_a_name_is_matched_by_color_rather_than_by_position():
     # The trap: seaborn lists the legend in the reverse of the draw order, so
     # zipping curves against legend entries gives each the other's name.
     fig, ax = plt.subplots()
@@ -90,7 +90,7 @@ def test_an_ungrouped_kde_is_one_unnamed_curve():
 
 
 def test_a_suppressed_legend_leaves_the_curves_unnamed():
-    # `legend=False` takes away the only thing that names the colours. The
+    # `legend=False` takes away the only thing that names the colors. The
     # curves are still read; inventing labels for them would not be better.
     fig, ax = plt.subplots()
     sns.kdeplot(data=_frame(), x="a", hue="g", legend=False, ax=ax)
@@ -110,23 +110,23 @@ def test_a_histogram_s_kde_overlay_is_named_beside_its_bars():
 # ---------------------------------------------------------------------------
 # The guard on the second matching pass, which no seaborn chart reaches.
 #
-# Comparing the three colour channels alone is what lets an opaque overlay
+# Comparing the three color channels alone is what lets an opaque overlay
 # curve find the translucent swatch that names it. Two artists separated *by*
 # their opacity would then both match the same swatch, so the pass runs only
-# where the drawn colours are already distinct without their alpha. Nothing
+# where the drawn colors are already distinct without their alpha. Nothing
 # seaborn draws puts two hue levels on one hue, so this is asserted against
 # the function directly rather than through a chart.
 # ---------------------------------------------------------------------------
 
 
 class _Handle:
-    """A legend handle that names one colour, the way seaborn's do."""
+    """A legend handle that names one color, the way seaborn's do."""
 
-    def __init__(self, colour):
-        self._colour = colour
+    def __init__(self, color):
+        self._color = color
 
     def get_facecolor(self):
-        return self._colour
+        return self._color
 
 
 class _Text:
@@ -140,10 +140,10 @@ class _Text:
 
 
 class _Legend:
-    """Just enough legend for the colour match."""
+    """Just enough legend for the color match."""
 
     def __init__(self, entries):
-        self.legend_handles = [_Handle(colour) for colour, _ in entries]
+        self.legend_handles = [_Handle(color) for color, _ in entries]
         self._texts = [_Text(name) for _, name in entries]
 
     def get_texts(self):
@@ -172,7 +172,7 @@ def test_the_hue_pass_names_an_opaque_artist_from_a_translucent_swatch():
 def test_the_hue_pass_declines_when_two_artists_share_a_hue():
     from maidr.patch.kdeplot import _names_for
 
-    # Both drawn in the same colour at different opacities. Whichever swatch
+    # Both drawn in the same color at different opacities. Whichever swatch
     # the hue matched would claim both, so neither is named.
     legend = _Legend([((0.1, 0.4, 0.7, 0.5), "y"), ((1.0, 0.5, 0.05, 0.5), "x")])
     drawn = [(1.0, 0.5, 0.05, 1.0), (1.0, 0.5, 0.05, 0.3)]

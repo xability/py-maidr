@@ -1,7 +1,7 @@
-"""A colour probe is not a chart, and MAIDR was registering it as one.
+"""A color probe is not a chart, and MAIDR was registering it as one.
 
-``seaborn.utils._default_color`` resolves a default colour by *drawing* a
-throwaway artist, reading its face colour, and removing it again. Every
+``seaborn.utils._default_color`` resolves a default color by *drawing* a
+throwaway artist, reading its face color, and removing it again. Every
 branch ends in ``scout.remove()``::
 
     elif method.__name__ == "fill_between":

@@ -223,10 +223,10 @@ def _group_names(
     ax: Axes | None, containers: list, faceted: bool = False
 ) -> list[str | None]:
     """
-    Name each container from the legend swatch drawn in its colour.
+    Name each container from the legend swatch drawn in its color.
 
     A ``histplot(hue=...)`` draws one container per group, every bar of it in
-    that group's colour, and the legend names those colours -- so the same
+    that group's color, and the legend names those colors -- so the same
     match ``scatterplot.hue_groups`` makes point by point works container by
     container, one level up. The helpers are imported rather than reimplemented
     for that reason.
@@ -244,9 +244,9 @@ def _group_names(
     than to name them wrongly:
 
     - **No legend.** ``legend=False`` suppresses it, and a chart with a single
-      distribution never had one. Nothing names the colours.
+      distribution never had one. Nothing names the colors.
     - **A container no swatch claims.** Nothing to call it.
-    - **Two names for one colour.** A swatch that means two things cannot name
+    - **Two names for one color.** A swatch that means two things cannot name
       the group a container belongs to.
 
     A single container is left unnamed whatever the legend says: one
@@ -261,13 +261,13 @@ def _group_names(
     (#608).
 
     The match itself is ``kdeplot._names_for_panel``, which is the same one this
-    used to make inline against ``_named_colours`` plus a second pass this
+    used to make inline against ``_named_colors`` plus a second pass this
     lacked. That pass is not a nicety here: a ``pairplot(hue=...)`` draws its
     bars translucent and builds its figure legend from **opaque** swatches --
     measured, bars at alpha 0.5 against swatches at 1.0, identical hues -- so
     an RGBA comparison named nothing and every diagonal panel stayed
-    anonymous (#561). Comparing the three colour channels alone, guarded on
-    the drawn colours already being distinct without their alpha, names them.
+    anonymous (#561). Comparing the three color channels alone, guarded on
+    the drawn colors already being distinct without their alpha, names them.
 
     Parameters
     ----------
@@ -286,12 +286,12 @@ def _group_names(
     if ax is None:
         return [None] * len(containers)
 
-    return _names_for_panel(ax, [_container_colour(c) for c in containers], faceted)
+    return _names_for_panel(ax, [_container_color(c) for c in containers], faceted)
 
 
-def _container_colour(container) -> tuple[float, ...] | None:
+def _container_color(container) -> tuple[float, ...] | None:
     """
-    The one colour a container's bars are drawn in, if they share one.
+    The one color a container's bars are drawn in, if they share one.
 
     Parameters
     ----------
@@ -304,10 +304,10 @@ def _container_colour(container) -> tuple[float, ...] | None:
         The rounded RGBA every bar shares, or ``None`` when they differ or
         there are no bars.
     """
-    colours = {_rgba(patch.get_facecolor()) for patch in container}
-    if len(colours) != 1:
+    colors = {_rgba(patch.get_facecolor()) for patch in container}
+    if len(colors) != 1:
         return None
-    return colours.pop()
+    return colors.pop()
 
 
 def _drew_bars(plot: Any, before: list) -> bool:
@@ -374,7 +374,7 @@ def _meshes_of(ax: Axes | None) -> list:
     ``Axes.pcolormesh`` and so produces a ``QuadMesh`` -- but naming only that
     would tie this to a seaborn internal, and the failure if it ever moved to
     ``Axes.pcolor`` would be the silent one this whole change exists to
-    remove: the mesh would go unrecognised, the call would decline as before,
+    remove: the mesh would go unrecognized, the call would decline as before,
     and the chart would be quiet again. ``PolyQuadMesh`` costs nothing to
     accept and is a heatmap by the same argument.
 
@@ -453,21 +453,21 @@ def _outlines_of(ax: Axes | None) -> list:
     ]
 
 
-def _face_colour(outline: PolyCollection):
+def _face_color(outline: PolyCollection):
     """
-    The one colour a filled outline was drawn in, if it has one.
+    The one color a filled outline was drawn in, if it has one.
 
     Its **face**, which is what carries the hue. By default the edge carries
     it too -- measured, the two agree but for the translucency the face and
     the legend swatch share -- so either would name the groups, the edge
     through `_names_for`'s alpha-insensitive pass. `edgecolor=` is what
-    separates them: it is the caller's to set, and setting it once colours
+    separates them: it is the caller's to set, and setting it once colors
     *every* group's edge alike::
 
         histplot(hue="g", element="step")                    edges (1.0, .50, .05) / (.12, .47, .71)
         histplot(hue="g", element="step", edgecolor="black") edges (0, 0, 0) / (0, 0, 0)
 
-    Two groups drawn one colour name nothing, and a chart outlined in black
+    Two groups drawn one color name nothing, and a chart outlined in black
     is an ordinary chart rather than a strange one. The face is untouched by
     it, so it is what this reads.
 
@@ -480,10 +480,10 @@ def _face_colour(outline: PolyCollection):
     -------
     tuple of float or None
         The rounded RGBA of the collection's first row, or ``None`` when it
-        holds no rows or that row names no colour.
+        holds no rows or that row names no color.
 
-        The first row *is* the colour here rather than a sample of several:
-        seaborn draws one outline per series and colours it in one call, so
+        The first row *is* the color here rather than a sample of several:
+        seaborn draws one outline per series and colors it in one call, so
         the collection carries a single face. Said rather than checked, since
         a uniformity test over one row could not fail.
     """
@@ -799,8 +799,8 @@ def _register_outlines(
     readings themselves already existed -- this is the branch that reaches
     them, the same two ``sns_hist`` has.
 
-    Named from the legend by colour, as everything else here is: the filled
-    outline from its face, the unfilled one from the line's colour.
+    Named from the legend by color, as everything else here is: the filled
+    outline from its face, the unfilled one from the line's color.
 
     Parameters
     ----------
@@ -824,13 +824,13 @@ def _register_outlines(
     """
     # `element="step"` / `"poly"`: the same distribution drawn as one closed
     # outline per series instead of a row of bars. Named from the legend by
-    # colour, the way the bars are, and deferred for the reason
+    # color, the way the bars are, and deferred for the reason
     # `_curve_names` gives: a `pairplot`'s legend does not exist until every
     # panel has been drawn (#561).
     drew = _drew_outlines(ax, outlines)
     if drew:
         names = deferred_names(
-            lambda: _names_for_panel(ax, [_face_colour(one) for one in drew], faceted),
+            lambda: _names_for_panel(ax, [_face_color(one) for one in drew], faceted),
             len(drew),
         )
         for outline, name in zip(drew, names):
@@ -880,7 +880,7 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
           hist         {'y': 9.0, 'x': -1.6108, 'xMin': -2.3250, 'xMax': -0.8966, ...}
 
     Three losses at once: the type names a chart that compares groups side by
-    side; `xMin`/`xMax` are gone, so the bin *centre* is announced as though
+    side; `xMin`/`xMax` are gone, so the bin *center* is announced as though
     it were the bar's label, a precise number that is neither an observation
     nor a boundary; and `z` -- the name a reader hears to tell series apart --
     carried ``_container0``, maidr's own internal identifier for a

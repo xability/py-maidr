@@ -40,8 +40,8 @@ def _note_hue_map(wrapped, instance, args, kwargs):
     Record what kind of hue the rug about to be drawn was given.
 
     ``seaborn.rugplot`` does not pass its hue mapping to anything the
-    function-level patch can see, and the drawn colours cannot answer on
-    their own: a **numeric** hue is a colour *scale*, and on a small frame
+    function-level patch can see, and the drawn colors cannot answer on
+    their own: a **numeric** hue is a color *scale*, and on a small frame
     seaborn's legend samples every value, so every tick matches a swatch and
     the rug would split into one layer per observation -- which is not a
     reading of a scale. Measured on four observations with ``hue=`` a numeric
@@ -77,26 +77,26 @@ def _hue_groups(ax: Axes, collection: LineCollection, ticks: int) -> list | None
     The hue groups a rug was drawn with, or ``None`` when it has none.
 
     ``seaborn`` draws a hue-grouped rug as **one** ``LineCollection`` carrying
-    a colour per tick, not one collection per group, so the grouping survives
-    only in those colours and in the legend that names them -- the shape
+    a color per tick, not one collection per group, so the grouping survives
+    only in those colors and in the legend that names them -- the shape
     ``scatterplot.hue_groups`` reads point by point, one artist type over.
     Measured on twelve observations over two levels::
 
-        rugplot(x="v")            colour rows=1,  unique=1, legend None
-        rugplot(x="v", hue="g")   colour rows=12, unique=2, legend ['p', 'q']
+        rugplot(x="v")            color rows=1,  unique=1, legend None
+        rugplot(x="v", hue="g")   color rows=12, unique=2, legend ['p', 'q']
 
     Every reason to decline has a chart behind it:
 
-    - **One colour for the whole rug.** ``get_colors()`` returns a single row
-      when every tick shares a colour, which is what an ungrouped rug gives.
+    - **One color for the whole rug.** ``get_colors()`` returns a single row
+      when every tick shares a color, which is what an ungrouped rug gives.
       A count that does not match the ticks is the same answer: nothing here
-      can say which tick wore which colour.
+      can say which tick wore which color.
     - **A tick no swatch names.** ``legend=False`` suppresses the legend, and
-      the colours alone name nothing -- groups called "1" and "2" are not an
+      the colors alone name nothing -- groups called "1" and "2" are not an
       improvement on one strip.
     - **Fewer than two groups.** Nothing to tell apart.
-    - **A hue that is not a grouping.** A numeric ``hue=`` is a colour
-      *scale*; see :func:`_note_hue_map` for why the colours cannot say so
+    - **A hue that is not a grouping.** A numeric ``hue=`` is a color
+      *scale*; see :func:`_note_hue_map` for why the colors cannot say so
       themselves and the plotter is asked instead.
 
     Parameters
@@ -106,7 +106,7 @@ def _hue_groups(ax: Axes, collection: LineCollection, ticks: int) -> list | None
     collection : LineCollection
         The ticks.
     ticks : int
-        How many ticks ``read_rug`` found, so the colours can be checked
+        How many ticks ``read_rug`` found, so the colors can be checked
         against them rather than assumed to correspond.
 
     Returns
@@ -119,8 +119,8 @@ def _hue_groups(ax: Axes, collection: LineCollection, ticks: int) -> list | None
     if _HUE_MAP_TYPE.get() != "categorical":
         return None
 
-    colours = [_rgba(row) for row in np.asarray(collection.get_colors())]
-    if len(colours) != ticks or ticks < 2:
+    colors = [_rgba(row) for row in np.asarray(collection.get_colors())]
+    if len(colors) != ticks or ticks < 2:
         return None
 
     # Legend order, which is the order #502 settled a grouped layer's layers
@@ -128,7 +128,7 @@ def _hue_groups(ax: Axes, collection: LineCollection, ticks: int) -> list | None
     # that go with it are `grouped_by_name`'s, shared with the scatter split.
     legend = legend_of(ax)
     order = [text.get_text() for text in legend.get_texts()] if legend else []
-    return grouped_by_name(names_for(ax, colours), order)
+    return grouped_by_name(names_for(ax, colors), order)
 
 
 def _collections_of(ax: Axes | None) -> list:
@@ -190,7 +190,7 @@ def _name_for(ax: Axes, along_x: bool) -> str:
     from bare arrays, where the chart never learned a name.
 
     That holds when the rug's own call set the label, which is the ordinary
-    case. It does not when something *else* labelled the axis first and the
+    case. It does not when something *else* labeled the axis first and the
     rug marks values of its own: measured, a `scatterplot(x="value")`
     followed by `rugplot(x=[7.0, 8.0])` names the rug "value", after the
     column the scatter drew rather than anything the rug marks. Accepted
@@ -325,7 +325,7 @@ def _register(ax: Axes | None, drawn, before: list):
 wrap_seaborn("rugplot", rug)
 
 # And the plotter method beneath it, read for the one thing the drawn
-# colours cannot say; see `_note_hue_map`. Wrapped by module path rather than
+# colors cannot say; see `_note_hue_map`. Wrapped by module path rather than
 # by importing the private class, matching how `maidr/patch/boxplot.py`
 # reaches `_CategoricalPlotter`.
 wrapt.wrap_function_wrapper(

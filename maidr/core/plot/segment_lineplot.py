@@ -27,18 +27,18 @@ class SegmentLinePlot(MultiLinePlot):
     ``Line2D`` each.
 
     ``so.Lines`` and ``so.Paths`` are the mark ``seaborn.objects`` draws when
-    the series are many: measured, a colour-split layer leaves **one**
+    the series are many: measured, a color-split layer leaves **one**
     collection carrying one segment per group, where ``so.Line`` leaves one
     ``Line2D`` per group. The reading is the same multi-series line either
     way, so everything about *what is announced* is inherited -- coordinates,
-    the gap rule, per-series naming from whichever legend named the colours,
+    the gap rule, per-series naming from whichever legend named the colors,
     the ``z`` label. Only two things differ, and both are about the artist.
 
     **Where the series come from.** ``MultiLinePlot`` walks ``Line2D``
     objects, so each segment is wrapped in one. They are stand-ins rather
     than drawings: never added to the axes, carrying the segment's points and
-    the colour it was drawn in, which is all the inherited walk reads. The
-    colour matters -- it is what pairs a series with its legend entry, and
+    the color it was drawn in, which is all the inherited walk reads. The
+    color matters -- it is what pairs a series with its legend entry, and
     pairing by position gets two groups the wrong way round whenever the
     legend is not in the drawn order (#582).
 
@@ -74,15 +74,15 @@ class SegmentLinePlot(MultiLinePlot):
         One stand-in ``Line2D`` per drawn segment.
 
         Rebuilt on each walk rather than kept. Nothing downstream holds one
-        by identity -- the payload reads their coordinates and colours, the
+        by identity -- the payload reads their coordinates and colors, the
         selectors read only how many there are, and the artist that gets
         tagged is the collection -- so a cache would be a rule no caller
         relies on.
 
-        The colour **is** relied on: it is what pairs a series with its
+        The color **is** relied on: it is what pairs a series with its
         legend entry, which is the pairing #582 exists for. Matplotlib does
-        not expand a short colour list to match the segments -- measured, a
-        collection drawn in one colour reports exactly one however many
+        not expand a short color list to match the segments -- measured, a
+        collection drawn in one color reports exactly one however many
         segments it holds, and that is the default -- so the reading cycles
         it the way the drawing does rather than running off the end.
 
@@ -92,13 +92,13 @@ class SegmentLinePlot(MultiLinePlot):
             In the order the collection holds its segments, which is the
             order it draws them.
         """
-        colours = np.asarray(self._collection.get_colors())
+        colors = np.asarray(self._collection.get_colors())
         stand_ins: List[Line2D] = []
         for index, segment in enumerate(self._collection.get_segments()):
             points = np.asarray(segment, dtype=float)
             line = Line2D(points[:, 0], points[:, 1])
-            if len(colours):
-                line.set_color(colours[index % len(colours)])
+            if len(colors):
+                line.set_color(colors[index % len(colors)])
             stand_ins.append(line)
         return stand_ins
 

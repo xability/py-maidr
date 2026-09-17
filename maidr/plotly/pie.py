@@ -87,7 +87,7 @@ class PlotlyPiePlot(PlotlyPlot):
         which a pie does not have: every pie in a figure shares the *default*
         axis names, so every one of them would read the default domain
         ``[0, 1]``, put its anchor at the middle of the figure, and match none
-        of the titles ``make_subplots`` centred over the actual columns. A pie
+        of the titles ``make_subplots`` centered over the actual columns. A pie
         is placed by its own ``domain`` rectangle instead — the same one
         :meth:`~maidr.plotly.plotly_maidr.PlotlyMaidr._trace_domain_start`
         reads to give it a grid cell — so that is what it is anchored by.
@@ -243,7 +243,7 @@ class PlotlyPiePlot(PlotlyPlot):
         layout's axis titles; otherwise the generic pair stands in, which at
         least reads as English where ``X`` and ``Y`` would not. It is the same
         pair :class:`~maidr.core.plot.pieplot.PiePlot` falls back to, because
-        an unlabelled pie is announced by its plot type, not by its library.
+        an unlabeled pie is announced by its plot type, not by its library.
 
         Those titles are only borrowed when the pie has them to itself. A
         cartesian trace with no explicit axis pair shares the same default

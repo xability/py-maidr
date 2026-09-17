@@ -138,7 +138,7 @@ def dated_repo(tmp_path: Path) -> Path:
 
     Built rather than borrowed: asserting against this repository's own
     history would pass today and fail the day one commit happens to touch
-    both paths -- a rename, a licence sweep, a formatting pass -- even though
+    both paths -- a rename, a license sweep, a formatting pass -- even though
     the code under test is still correct.
     """
     repo = tmp_path / "repo"
