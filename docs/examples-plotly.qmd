@@ -925,3 +925,466 @@ fig.update_layout(
 
 maidr.show(fig)  #<<
 ```
+
+## Experimental Plot Types
+
+The charts below are read through maidr's **experimental** trace types.
+
+::: {.callout-warning title="Prototypes"}
+None of these has been through a user study, and each may change without a
+deprecation period. See [Plot type stability](stability.qmd).
+:::
+
+Several of them are not x-against-y charts at all — a gauge is one number
+against a range, a sankey is a set of flows, a treemap is a hierarchy — so
+each section says what a reader actually walks rather than assuming the
+usual left/right over a series.
+
+### Waterfall Chart
+
+A waterfall shows how a starting figure becomes an ending one, one movement
+at a time. maidr reads each bar as a **span with a direction**: every point
+carries the `start` it rises or falls from, the `end` it reaches, the `delta`
+that moved it, and whether it is a running total or a step.
+
+That is more than a bar's height. On this chart the height of "Churn" is 60,
+but the useful facts are that it is *negative* and that it leaves the balance
+at 495 — both of which are in the reading.
+
+```{python}
+#| warning: false
+#| fig-alt: Waterfall chart of customer movements from an opening to a closing balance
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Waterfall(
+            x=["Opening", "New", "Upsell", "Churn", "Closing"],
+            y=[420, 90, 45, -60, None],
+            measure=["absolute", "relative", "relative", "relative", "total"],
+        )
+    ],
+    layout=go.Layout(
+        title="Customer movements this quarter",
+        xaxis=dict(title="Movement"),
+        yaxis=dict(title="Customers"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+`measure=` decides how each bar is read, and the reading resolves it to what
+the bar actually does. Measured on the five bars above:
+
+| `measure=` | y | announced `kind` | `start` → `end` |
+|---|---|---|---|
+| `absolute` | 420 | `total` | 0 → 420 |
+| `relative` | 90 | `increase` | 420 → 510 |
+| `relative` | 45 | `increase` | 510 → 555 |
+| `relative` | −60 | `decrease` | 555 → 495 |
+| `total` | — | `total` | 0 → 495 |
+
+A `relative` bar is not announced as "relative" — it is announced as an
+increase or a decrease, resolved from the sign, which is the fact a reader
+needs. A `total` bar restates the running figure from zero.
+
+### Funnel Chart
+
+A funnel is a sequence of stages that only ever narrows. maidr reads one
+point per stage, carrying the count that reached it.
+
+A funnel is drawn **horizontally** by default — the stage is the category on
+`y` and the count is the magnitude on `x` — so that is how it is read.
+Writing `y=stages, x=counts`, as below, matches what plotly draws.
+
+```{python}
+#| warning: false
+#| fig-alt: Funnel chart of four stages from first visit to purchase
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Funnel(
+            y=["Visited", "Signed up", "Activated", "Paid"],
+            x=[12000, 4300, 1800, 640],
+        )
+    ],
+    layout=go.Layout(
+        title="Signup funnel",
+        xaxis=dict(title="People"),
+        yaxis=dict(title="Stage"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Gauge
+
+A gauge is a single number shown against the range it could have taken, so
+there is no series to walk. maidr reads it as exactly that: one value, the
+`min` and `max` that bound it, the label naming what is measured, and the
+target if the chart sets one.
+
+The range is the point. "87.4" on its own says nothing; "87.4 out of 100,
+against a target of 99.9" is the reading.
+
+```{python}
+#| warning: false
+#| fig-alt: Gauge showing uptime of 87.4 percent against a target of 99.9
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Indicator(
+            mode="gauge+number",
+            value=87.4,
+            title={"text": "Uptime (%)"},
+            gauge={
+                "axis": {"range": [0, 100]},
+                "threshold": {"value": 99.9},  #<<
+            },
+        )
+    ]
+)
+
+maidr.show(fig)  #<<
+```
+
+`gauge.axis.range` supplies the bounds and `gauge.threshold.value` becomes the
+target. Without a range there is nothing to read the value against, so it is
+worth setting even when the default happens to look right.
+
+### Sankey Diagram
+
+A sankey draws quantities flowing between nodes, with width as volume. maidr
+reads the **flows** rather than the nodes: each point is a source, a target
+and the value moving between them, so a reader hears "Organic to Trial, 600"
+instead of being left to trace a ribbon by eye.
+
+```{python}
+#| warning: false
+#| fig-alt: Sankey diagram of traffic flowing from two sources through a trial to purchase or churn
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Sankey(
+            node={"label": ["Organic", "Paid", "Trial", "Purchase", "Churn"]},
+            link={
+                "source": [0, 1, 2, 2],
+                "target": [2, 2, 3, 4],
+                "value": [600, 300, 540, 360],
+            },
+        )
+    ],
+    layout=go.Layout(title="Where trials come from and where they go"),
+)
+
+maidr.show(fig)  #<<
+```
+
+`node.label` is what makes a flow legible. `link.source` and `link.target` are
+indices into that list, and the reading resolves them to names — without
+labels a flow can only be announced by its index.
+
+### Hierarchy Charts: Treemap, Sunburst and Icicle
+
+These three draw the same thing three ways: a tree, sized by value. maidr
+gives all three the **same reading** — one point per node, carrying its value
+and its `path`, the chain of ancestors above it.
+
+The path is what makes the chart navigable rather than a flat list. "US, 240"
+is ambiguous across a large tree; "US, 240, under Total then AMER" places it.
+
+```{python}
+#| warning: false
+#| fig-alt: Treemap of revenue split by region and country
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+LABELS = ["Total", "EMEA", "AMER", "UK", "DE", "US"]
+PARENTS = ["", "Total", "Total", "EMEA", "EMEA", "AMER"]
+VALUES = [440, 200, 240, 120, 80, 240]
+
+fig = go.Figure(
+    data=[go.Treemap(labels=LABELS, parents=PARENTS, values=VALUES)],
+    layout=go.Layout(title="Revenue by region"),
+)
+
+maidr.show(fig)  #<<
+```
+
+A sunburst draws the same tree as concentric rings:
+
+```{python}
+#| warning: false
+#| fig-alt: Sunburst of the same revenue hierarchy drawn as concentric rings
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[go.Sunburst(labels=LABELS, parents=PARENTS, values=VALUES)],
+    layout=go.Layout(title="Revenue by region"),
+)
+
+maidr.show(fig)  #<<
+```
+
+An icicle draws it as nested bars:
+
+```{python}
+#| warning: false
+#| fig-alt: Icicle chart of the same revenue hierarchy drawn as nested bars
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[go.Icicle(labels=LABELS, parents=PARENTS, values=VALUES)],
+    layout=go.Layout(title="Revenue by region"),
+)
+
+maidr.show(fig)  #<<
+```
+
+The three readings are identical, which is the intended result: the choice
+between them is a visual one, and it should not change what a reader is told.
+
+### Parallel Coordinates
+
+A parallel coordinates plot gives each variable its own vertical axis and
+draws one line per observation across them. maidr reads **one series per
+observation**, and each point on it names the axis it sits on, so a reader
+walks a single row across the variables rather than reading down a column.
+
+```{python}
+#| warning: false
+#| fig-alt: Parallel coordinates plot of four cars across three measures
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Parcoords(
+            dimensions=[
+                {"label": "Miles per gallon", "values": [21.0, 22.8, 18.7, 16.4]},
+                {"label": "Horsepower", "values": [110, 93, 175, 180]},
+                {"label": "Weight (1000 lbs)", "values": [2.62, 2.32, 3.44, 4.07]},
+            ]
+        )
+    ],
+    layout=go.Layout(title="Four cars across three measures"),
+)
+
+maidr.show(fig)  #<<
+```
+
+Each axis keeps its own scale, which is what lets variables in different units
+share a chart. Give every dimension a `label` — it is the only thing naming
+the axis a value belongs to.
+
+### Alluvial Diagram
+
+`go.Parcats` draws categorical records as ribbons flowing between dimensions.
+maidr reads it as an **alluvial**: one flow per combination, carrying how many
+records took it.
+
+The reading names both ends with their dimension, so a flow is announced as
+`Class: First` to `Survived: Yes` rather than as a bare `First` to `Yes` that
+could belong to any pair of columns.
+
+```{python}
+#| warning: false
+#| fig-alt: Alluvial diagram of passenger class against survival
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Parcats(
+            dimensions=[
+                {
+                    "label": "Class",
+                    "values": ["First", "First", "Third", "Third", "Second"],
+                },
+                {
+                    "label": "Survived",
+                    "values": ["Yes", "Yes", "No", "No", "Yes"],
+                },
+            ]
+        )
+    ],
+    layout=go.Layout(title="Class against survival"),
+)
+
+maidr.show(fig)  #<<
+```
+
+Records are counted rather than listed, so the five rows above become three
+flows: `Class: First → Survived: Yes` carries 2, `Class: Third → Survived: No`
+carries 2, and `Class: Second → Survived: Yes` carries 1.
+
+### Choropleth Map
+
+A choropleth colours regions by a value. maidr reads it as one point per
+region: the region's name and the number behind its colour, which is the
+thing the colour was standing in for.
+
+```{python}
+#| warning: false
+#| fig-alt: Choropleth map of population across four countries in the Americas
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Choropleth(
+            locations=["USA", "CAN", "MEX", "BRA"],
+            z=[331, 38, 128, 214],
+            locationmode="country names",
+            colorbar={"title": "Population (m)"},  #<<
+        )
+    ],
+    layout=go.Layout(title="Population by country"),
+)
+
+maidr.show(fig)  #<<
+```
+
+The colourbar's title is what names the measured quantity in the reading, so
+setting it is what turns "USA, 331" into "USA, 331 million people".
+
+### Polar Area Chart
+
+`go.Barpolar` draws a bar per sector around a circle — the usual shape for
+something measured by direction. maidr reads one series of sectors, each
+carrying its angle and its radius.
+
+```{python}
+#| warning: false
+#| fig-alt: Polar area chart of wind measurements by compass direction
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[go.Barpolar(r=[42, 30, 25, 18, 12], theta=["N", "NE", "E", "SE", "S"])],
+    layout=go.Layout(title="Wind by direction"),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Radar Chart
+
+A radar draws one closed shape per subject across a set of spokes, which is
+how several subjects get compared on the same measures at once. maidr reads
+one series per shape, each point naming its spoke.
+
+```{python}
+#| warning: false
+#| fig-alt: Radar chart comparing two vehicles across five attributes
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+SPOKES = ["Speed", "Power", "Range", "Cost", "Comfort"]
+
+fig = go.Figure(
+    data=[
+        go.Scatterpolar(r=[4, 3, 5, 2, 4], theta=SPOKES, fill="toself", name="Model A"),
+        go.Scatterpolar(r=[3, 5, 2, 4, 3], theta=SPOKES, fill="toself", name="Model B"),
+    ],
+    layout=go.Layout(title="Two models across five attributes"),
+)
+
+maidr.show(fig)  #<<
+```
+
+Each trace is its own series, so up and down move between the models while
+left and right walk the spokes.
+
+### 100% Stacked Bar Chart
+
+Setting `barnorm` rescales every column to the same height, so a segment's
+size is its **share** of that column rather than its raw count. maidr reads
+the shares, which is what the chart is showing.
+
+```{python}
+#| warning: false
+#| fig-alt: 100 percent stacked bar chart of revenue share by channel across three quarters
+
+import plotly.express as px
+
+import maidr  #<<
+
+fig = px.bar(
+    x=["Q1", "Q1", "Q2", "Q2", "Q3", "Q3"],
+    y=[30, 10, 20, 60, 45, 15],
+    color=["Direct", "Partner", "Direct", "Partner", "Direct", "Partner"],
+    labels={"x": "Quarter", "y": "Share of revenue", "color": "Channel"},
+)
+fig.update_layout(barmode="stack", barnorm="percent")  #<<
+
+maidr.show(fig)  #<<
+```
+
+The raw numbers above are 30 against 10 in Q1, and the reading announces 75%
+and 25% — the percentages plotly drew, not the inputs.
+
+### Contour Plot
+
+A contour draws a surface as level curves, each joining the points at one
+height. maidr reads the curves: navigation walks one level at a time, and
+every point carries the level it belongs to.
+
+```{python}
+#| warning: false
+#| fig-alt: Contour plot of a four by four grid of values
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+fig = go.Figure(
+    data=[
+        go.Contour(
+            z=[[2, 4, 7, 12], [3, 6, 10, 15], [5, 9, 14, 20], [8, 13, 18, 25]]
+        )
+    ],
+    layout=go.Layout(
+        title="A rising surface",
+        xaxis=dict(title="Column"),
+        yaxis=dict(title="Row"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
