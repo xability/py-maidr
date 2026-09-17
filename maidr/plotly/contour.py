@@ -17,12 +17,13 @@ _logger = logging.getLogger(__name__)
 #: Which marching-squares implementation to trace the curves with.
 #:
 #: Not a detail: ``mpl2014`` and ``serial`` disagree about the **order** they
-#: return curves in, and the order is what pairs a series with the ``<path>``
-#: that draws it. Measured on a level carrying two open curves and one closed
+#: return curves in, and the order is the one a reader walks the level's
+#: islands in. Measured on a level carrying two open curves and one closed
 #: one, plotly writes the open ones first and ``mpl2014`` returns them in
-#: exactly that order, while ``serial`` returns the closed one first. It is
-#: also what matplotlib traces its own contours with, so the two py-maidr
-#: contour readings describe curves computed the same way.
+#: exactly that order, while ``serial`` returns the closed one first -- so
+#: this is the one whose order was measured against the drawing. It is also
+#: what matplotlib traces its own contours with, so the two py-maidr contour
+#: readings describe curves computed the same way.
 _CURVE_ALGORITHM = "mpl2014"
 
 #: How many levels a trace may declare before it is declined.
@@ -83,8 +84,9 @@ class PlotlyContourPlot(PlotlyPlot):
     staircase, noise -- plotly and ``contourpy`` **always** found the same
     number of curves in a level, and put them in the same order all but 18
     times. So the curves themselves are the same curves and the reading is
-    sound, while *which drawn path is which curve* is not always answerable,
-    which is what :meth:`_get_selector` turns on.
+    sound, while *which drawn path is which curve* is not always answerable --
+    which is why :meth:`_get_selector` names a curve's **level** rather than
+    the curve.
 
     Parameters
     ----------
@@ -108,9 +110,10 @@ class PlotlyContourPlot(PlotlyPlot):
         self._layer_position = layer_position
         #: The level index behind each emitted series, in emission order.
         #:
-        #: What tells each series which ``g.contourlevel`` draws it, and --
-        #: by having a repeat in it -- that a level broke into islands, which
-        #: is when the layer declines its selectors. It indexes the declared
+        #: What tells each series which ``g.contourlevel`` draws it. A repeat
+        #: in it is a level that broke into islands, and every series of that
+        #: level then names one group on purpose: the core outlines it
+        #: whole, however many islands there are. It indexes the declared
         #: levels rather than counting series, and that is load-bearing: a
         #: level nothing reaches emits no series but **does** reach the
         #: document, as a ``g.contourlevel`` holding no ``path`` at all
@@ -159,11 +162,11 @@ class PlotlyContourPlot(PlotlyPlot):
             )
             traced = [generator.lines(level)[0] for level in levels]
         except Exception:
-            # `mpl2014` is the one algorithm whose curve order was measured
-            # against plotly's, so a contourpy that no longer offers it
-            # leaves nothing to emit in the order the selectors assume.
-            # Declining costs one layer; guessing would put every highlight
-            # on the wrong curve.
+            # Declining costs one layer, which is the whole point of catching
+            # here: an exception escaping takes the entire figure's schema
+            # with it. `mpl2014` is also the one algorithm whose curve order
+            # was measured against plotly's, so another one would announce a
+            # level's islands in an order nothing has checked.
             #
             # Logged rather than swallowed outright, because everything a
             # *chart* can decline for is guarded above: reaching here means
@@ -224,7 +227,7 @@ class PlotlyContourPlot(PlotlyPlot):
         return _grid(self._trace)
 
     def _get_selector(self) -> list[str]:
-        """Return one selector per emitted series, or none for the whole layer.
+        """Return one selector per emitted series, naming its level's paths.
 
         Plotly gives every declared level a ``g.contourlevel`` -- including the
         ones the field never reaches, which get the group and no ``path`` --
@@ -246,19 +249,67 @@ class PlotlyContourPlot(PlotlyPlot):
         sweep of 33 fields and 207 levels -- random sums of gaussians, a
         saddle, a monkey saddle, ripples, a staircase, noise -- put the two in
         the opposite order 18 times, five of them on ordinary two-peaked
-        gaussian fields. A positional selector would resolve to a real element
-        and to the wrong one, and the core parses the resolved path to place
-        the per-point highlights, so every point of that series would land on
-        an island the reader is not on. Worse than none, which is the outcome
-        #145 settled.
+        gaussian fields. A ``path:nth-of-type(j)`` tail would resolve to a real
+        element and to the wrong one, and the core parses the resolved path to
+        place the per-point highlights, so every point of that series would
+        land on an island the reader is not on. Worse than none, which is the
+        outcome #145 settled.
 
         The same sweep found **no** disagreement about how many curves a level
         has: 207 levels, 207 agreements. So the ambiguity is exactly the
-        ordering, and it only exists where a level has more than one curve. A
-        layer whose every drawn level draws a single curve therefore has one
-        forced mapping rather than a chosen one, and keeps its highlight; a
-        layer with an island anywhere ships without one and keeps its audio,
-        braille and text.
+        ordering, and the way past it is to stop naming a curve: the selector
+        ends at ``path`` and names every path the level drew. A level with one
+        curve resolves to one element, which is the per-point highlight this
+        layer already had; a level with islands resolves to all of them, and
+        the core reads a contour selector resolving to two or more elements
+        as a *level* and outlines it whole, for every point of the series
+        (``ContourTrace.mapToSvgElements``, xability/maidr#1142, first
+        published in core 4.5.0 and in the bundled one -- see
+        ``maidr/static/VERSION``). The decision is the core's and it is taken
+        per selector, on what that selector resolves to rather than on what
+        was counted here.
+
+        It ends at ``path`` rather than at the ``g.contourlevel`` because the
+        core sets ``stroke`` on a *clone* of what it resolves, and ``stroke``
+        is inherited only by a child declaring none -- plotly stamps one on
+        every contour path, so a cloned group comes out colorless.
+
+        **What an island still costs the rest of its layer.** A series here is
+        one curve, so a level's curves all carry the *same* selector string,
+        and the core tests a layer's strings for distinctness as a whole: one
+        repeat anywhere and every series is resolved positionally against the
+        **first** series' selector instead of its own
+        (``LineTrace.mapViaPathParsing``). The rule that survives is therefore
+        positional, not layer-wide: a level with islands is outlined whole
+        wherever it sits, because the override re-resolves each series' own
+        selector, while a single-curve level keeps its per-point highlight
+        only while its row index is below the number of paths the first
+        series' level drew -- in practice only when it *is* the first level.
+        Measured by driving the bundled core in Chromium over this module's
+        own schema, on ``go.Histogram2dContour(x=X, y=Y)`` -- nine levels,
+        islands at three of them: level 1 keeps its per-point markers, levels
+        5, 6 and 7 are each outlined across both their islands, and levels 2,
+        3, 4, 8 and 9 highlight nothing. Five of nine silent, and before this
+        all nine were, here and in every other layer with an island anywhere,
+        so no reader loses a highlight they had.
+
+        That positional fallback is safe only while the first level's group
+        holds exactly as many ``<path>`` elements as this module emitted
+        curves for it, and plotly can draw either count. **Fewer:** it joins
+        two open curves whose ends meet into one ``<path>`` (``makePath``
+        concatenates an unclosed segment onto an edgepath it touches), and
+        measured in Chromium, ``[[1, 0.5, 1], [0, 0, 0], [0, 0, 0]]`` at level
+        0.5 is two curves to ``contourpy`` and one path to plotly -- so the
+        first series' markers are parsed from a path spanning both islands.
+        **More:** a level whose curves reach the grid's own edge is drawn as
+        the filled region's outline rather than the curves (measured, see
+        ``tests/plotly/test_plotly_histogram2dcontour.py``), and the rows past
+        the first level's curve count then resolve into the first level's
+        group. Neither is answerable from here -- the drawing is the
+        browser's -- and neither can be guarded against without declining the
+        island levels this exists to reach. So the shortfall is usually
+        silence, but it is not always: what the removed bail-out also bought
+        was that an island layer never reached this fallback at all.
 
         The one further case with nothing to address is ``coloring: "fill"``
         (the default) with ``showlines: False``: measured in Chromium, plotly
@@ -270,18 +321,17 @@ class PlotlyContourPlot(PlotlyPlot):
         Returns
         -------
         list of str
-            One selector per series, in emission order, or an empty list.
+            One selector per series, in emission order, naming the
+            ``g.contourlevel`` that draws it -- or an empty list for the one
+            layer that writes no such group.
         """
         if not draws_its_lines(self._trace):
-            return []
-        if len(set(self._series_levels)) != len(self._series_levels):
             return []
 
         return [
             f"{self._subplot_css_prefix()}.contourlayer > "
             f"g.contour:nth-of-type({self._layer_position + 1}) "
-            f"g.contourlevel:nth-of-type({level + 1}) "
-            f"path:nth-of-type(1)"
+            f"g.contourlevel:nth-of-type({level + 1}) path"
             for level in self._series_levels
         ]
 

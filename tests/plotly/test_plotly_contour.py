@@ -16,9 +16,12 @@ gaussians, a saddle, a monkey saddle, ripples, a staircase, noise -- plotly and
 `contourpy` **always** found the same number of curves in a level, and put them
 in the same order all but 18 times, five of those on ordinary two-peaked
 gaussian fields. So the curves are the same curves, and it is only *which drawn
-path is which curve* that is sometimes unanswerable -- which is exactly what
-the selectors turn on, and why a layer with an island anywhere ships without
-one.
+path is which curve* that is sometimes unanswerable -- which is why a selector
+names a curve's **level** and not the curve. A level with islands then resolves
+to several paths, and the core outlines the level whole rather than guessing an
+island (xability/maidr#1142, #658); a level drawing one curve resolves to one
+path, which is the per-point highlight, though only where the core's own
+layer-wide fallback still reaches it -- `_get_selector` has that measurement.
 
 Plotly's level list was pinned the same way: it steps `start`, `start + size`,
 ... while the level is below `end + size / 10`. Neither `<= end` (which drops
@@ -68,9 +71,49 @@ TWO_PEAKS = [
     [0, 0, 0, 0, 0],
 ]
 
-#: What both fields' single-cell peaks look like at level 0.5: the diamond
-#: whose corners are the midpoints of the four edges around the peak.
+#: Two peaks of unequal height, far enough apart to stay apart. The first
+#: drawn level clears both and breaks into islands; the two above it clear
+#: only the taller peak and draw a single curve each -- an island level
+#: *first* and single-curve levels after it, which is the ordering that costs
+#: those levels their highlight (see `_get_selector`) and the opposite of
+#: `RIDGE`.
+UNEVEN_PEAKS = [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 1.0, 0, 0, 0, 0.6, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+]
+
+#: A ridge whose ends stand higher than its middle: one level rings the whole
+#: ridge, the two above it break into an island per end.
+RIDGE = [
+    [0, 0, 0, 0, 0],
+    [0, 1, 0.6, 1, 0],
+    [0, 0, 0, 0, 0],
+]
+
+#: A field whose 0.5 level `contourpy` traces as two open curves that meet:
+#: the second ends at (1.0, 0.0), where the first begins. Plotly joins exactly
+#: that pair into one `<path>`, which is the one shape a level selector cannot
+#: vouch for.
+MEETING_ENDS = [
+    [1, 0.5, 1],
+    [0, 0, 0],
+    [0, 0, 0],
+]
+
+#: What `ONE_PEAK`'s and `TWO_PEAKS`' single-cell peaks look like at level
+#: 0.5: the diamond whose corners are the midpoints of the four edges around
+#: the peak.
 DIAMOND = [(1.0, 0.5), (1.5, 1.0), (1.0, 1.5), (0.5, 1.0), (1.0, 0.5)]
+
+#: Everything before the ``g.contourlevel`` in a one-contour subplot's
+#: selectors.
+PREFIX = ".subplot.xy .contourlayer > g.contour:nth-of-type(1) "
+
+
+def _groups(layer: dict) -> list[str]:
+    """Each series' selector from the ``g.contourlevel`` onwards."""
+    return [selector.split("contourlevel:")[1] for selector in layer["selectors"]]
 
 
 def _layers(figure: go.Figure) -> list[dict]:
@@ -183,25 +226,21 @@ def test_a_level_the_field_never_reaches_still_counts_for_the_selector() -> None
     (layer,) = _layers(go.Figure(_contour(ONE_PEAK, start=-1.5, end=0.5, size=1.0)))
 
     assert _levels(layer) == [0.5]
-    assert layer["selectors"] == [
-        ".subplot.xy .contourlayer > g.contour:nth-of-type(1) "
-        "g.contourlevel:nth-of-type(3) path:nth-of-type(1)"
-    ]
+    assert layer["selectors"] == [f"{PREFIX}g.contourlevel:nth-of-type(3) path"]
 
 
 def test_a_layer_whose_levels_each_draw_one_curve_is_addressable() -> None:
     """One selector per series, naming the level group that draws it.
 
-    With one curve in the level there is one path in its group, so the mapping
-    is forced rather than chosen -- and the sweep found no field where plotly
-    and `contourpy` disagreed about *how many* curves a level has.
+    With one curve in the level there is one path in its group, so the
+    selector resolves to exactly one element and the core keeps the per-point
+    highlight that walks with the reader -- the behavior this layer already
+    had, now reached without naming a curve.
     """
     (layer,) = _layers(go.Figure(_contour(ONE_PEAK, start=0.3, end=0.7, size=0.2)))
 
-    prefix = ".subplot.xy .contourlayer > g.contour:nth-of-type(1) "
     assert layer["selectors"] == [
-        f"{prefix}g.contourlevel:nth-of-type({index}) path:nth-of-type(1)"
-        for index in (1, 2, 3)
+        f"{PREFIX}g.contourlevel:nth-of-type({index}) path" for index in (1, 2, 3)
     ]
 
 
@@ -280,23 +319,130 @@ def test_a_dense_field_emits_plain_floats() -> None:
         ]
 
 
-def test_a_layer_with_an_island_ships_without_a_highlight() -> None:
-    """Plotly's order for a level's curves is its own, and not derivable.
+def test_a_level_with_an_island_is_named_by_every_curve_that_draws_it() -> None:
+    """Both series name the one group, so the level is outlined whole.
 
-    Measured across 33 fields and 207 levels: 18 disagreements about the order
-    of the curves within a level, five of them on ordinary two-peaked gaussian
-    fields rather than contrived ones. A positional selector would resolve to
-    a real element and to the wrong one -- and the core parses the resolved
-    path to place the per-point highlights, so every point of that series
-    would land on an island the reader is not on.
-
-    So the layer keeps its audio, braille and text and claims no highlight,
-    the outcome #145 established.
+    Plotly's order for a level's curves is its own and not derivable: measured
+    across 33 fields and 207 levels, 18 disagreements about the order within a
+    level, five of them on ordinary two-peaked gaussian fields. The counts
+    never disagreed, so the level is addressable even where the curve is not,
+    and a selector resolving to several elements is what the core reads as a
+    level and outlines whole (xability/maidr#1142).
     """
     (layer,) = _layers(go.Figure(_contour(TWO_PEAKS, start=0.5, end=0.5, size=0.5)))
 
     assert len(layer["data"]) == 2
-    assert "selectors" not in layer
+    assert layer["selectors"] == [f"{PREFIX}g.contourlevel:nth-of-type(1) path"] * 2
+
+
+def test_an_island_costs_only_its_own_level_the_distinct_selector() -> None:
+    """The emission is per level, which is why the whole-layer decline is gone.
+
+    One curve rings the ridge at 0.3 and each level above it breaks into an
+    island per end, so only the island levels share a selector.
+
+    What a reader then gets is the core's to decide, and on this field it
+    decides kindly throughout: measured in Chromium, the three groups hold 1,
+    2 and 2 paths, so level 0.3 keeps its per-point markers and levels 0.6 and
+    0.9 are each outlined whole. The markers survive because of the
+    *ordering*, not the emission -- level 0.3 is the layer's first series,
+    which is the only row the core's positional fallback still reaches once a
+    selector repeats. `UNEVEN_PEAKS` is the same emission the other way round
+    and its single-curve levels go silent.
+    """
+    (layer,) = _layers(go.Figure(_contour(RIDGE, start=0.3, end=0.9, size=0.3)))
+
+    assert _levels(layer) == pytest.approx([0.3, 0.6, 0.6, 0.9, 0.9])
+    assert _groups(layer) == [
+        "nth-of-type(1) path",
+        "nth-of-type(2) path",
+        "nth-of-type(2) path",
+        "nth-of-type(3) path",
+        "nth-of-type(3) path",
+    ]
+
+
+def test_a_layer_whose_islands_come_before_its_single_curve_levels() -> None:
+    """The ordering `_get_selector` warns about, kept as a fixture.
+
+    `UNEVEN_PEAKS` clears both peaks at 0.3 and only the taller one above it,
+    so the island level is emitted first and the two single-curve levels after
+    it. Same rule as `RIDGE` -- a selector per level, shared by that level's
+    curves -- and the opposite outcome in the browser: measured in Chromium
+    the three groups hold 2, 1 and 1 paths, so level 0.3 is outlined whole
+    while levels 0.6 and 0.9, rows 2 and 3 and so past the two paths the first
+    selector resolves to, highlight nothing.
+
+    Which is why the promise is stated per level rather than per layer: an
+    island does not cost another level its *selector*, but it can still cost
+    it its highlight.
+    """
+    (layer,) = _layers(go.Figure(_contour(UNEVEN_PEAKS, start=0.3, end=0.9, size=0.3)))
+
+    assert _levels(layer) == pytest.approx([0.3, 0.3, 0.6, 0.9])
+    assert _groups(layer) == [
+        "nth-of-type(1) path",
+        "nth-of-type(1) path",
+        "nth-of-type(2) path",
+        "nth-of-type(3) path",
+    ]
+
+
+def test_two_curves_that_meet_still_name_the_one_level_between_them() -> None:
+    """The one shape a level selector cannot vouch for, recorded not fixed.
+
+    `contourpy` traces this field's 0.5 level as two open curves, and the
+    second ends where the first begins. Plotly joins exactly that pair --
+    `makePath` concatenates an unclosed segment onto an edgepath whose end it
+    touches -- so, measured in Chromium, the level is drawn as **one** `path`
+    though two series name it. The core's level branch needs two elements to
+    fire, so it does not, and the first series' markers are parsed from a path
+    that spans both curves.
+
+    Nothing here can see that coming: whether two ends coincide once drawn is
+    the browser's arithmetic, and declining every level whose curves touch
+    would decline the island levels this change exists to reach. The field is
+    pinned so the case `_get_selector` documents lives in the suite.
+    """
+    (layer,) = _layers(go.Figure(_contour(MEETING_ENDS, start=0.5, end=0.5, size=0.5)))
+
+    first, second = (_curve(series) for series in layer["data"])
+    assert second[-1] == first[0]
+    assert layer["selectors"] == [f"{PREFIX}g.contourlevel:nth-of-type(1) path"] * 2
+
+
+def test_a_level_that_draws_nothing_still_counts_before_one_with_islands() -> None:
+    """The declared level at -0.5 draws no path and still takes a group.
+
+    The two islands at 0.5 therefore name the *second* group, not the first --
+    the same off-by-one `_has_extent` and the unreached levels are guarded
+    against, now on a layer the old bail-out would have declined outright.
+    """
+    (layer,) = _layers(go.Figure(_contour(TWO_PEAKS, start=-0.5, end=0.5, size=1.0)))
+
+    assert _levels(layer) == [0.5, 0.5]
+    assert layer["selectors"] == [f"{PREFIX}g.contourlevel:nth-of-type(2) path"] * 2
+
+
+@pytest.mark.parametrize(
+    "field",
+    [ONE_PEAK, TWO_PEAKS, RIDGE, UNEVEN_PEAKS],
+    ids=["one_peak", "two_peaks", "ridge", "uneven_peaks"],
+)
+def test_no_selector_names_a_curve_within_a_level(field: list) -> None:
+    """The shape guard: nothing here may end in a positional path index.
+
+    Which curve of a level a given ``<path>`` draws is the one thing the sweep
+    found unanswerable, so a ``path:nth-of-type(j)`` tail anywhere in a plotly
+    contour layer is the defect #643 measured, whatever else looks right.
+    """
+    (layer,) = _layers(go.Figure(_contour(field, start=0.3, end=0.9, size=0.3)))
+
+    assert layer["selectors"]
+    assert all(
+        selector.endswith(" path") and "path:nth-of-type(" not in selector
+        for selector in layer["selectors"]
+    )
 
 
 def test_a_filled_contour_with_its_lines_off_has_nothing_to_point_at() -> None:
@@ -315,6 +461,25 @@ def test_a_filled_contour_with_its_lines_off_has_nothing_to_point_at() -> None:
     (layer,) = _layers(figure)
 
     assert [_curve(series) for series in layer["data"]] == [DIAMOND]
+    assert "selectors" not in layer
+
+
+def test_a_filled_contour_with_its_lines_off_declines_even_with_islands() -> None:
+    """`draws_its_lines` is the one decline left, and it outranks the levels.
+
+    A level with islands is now addressable, but only where plotly wrote the
+    groups at all -- and under `coloring: "fill"` with `showlines: False` it
+    writes none, whatever the field does.
+    """
+    figure = go.Figure(
+        go.Contour(
+            z=TWO_PEAKS, contours=dict(start=0.5, end=0.5, size=0.5, showlines=False)
+        )
+    )
+
+    (layer,) = _layers(figure)
+
+    assert len(layer["data"]) == 2
     assert "selectors" not in layer
 
 
@@ -466,9 +631,7 @@ def test_a_group_below_the_field_is_still_one_the_selectors_count() -> None:
     (layer,) = _layers(go.Figure(_contour(RAMP_TO_ZERO)))
 
     assert _levels(layer) == pytest.approx([-0.25, -0.2, -0.15, -0.1, -0.05])
-    assert [selector.split("contourlevel:")[1] for selector in layer["selectors"]] == [
-        f"nth-of-type({group}) path:nth-of-type(1)" for group in range(2, 7)
-    ]
+    assert _groups(layer) == [f"nth-of-type({group}) path" for group in range(2, 7)]
 
 
 def test_a_ceiling_only_exact_arithmetic_reaches_keeps_its_level() -> None:
