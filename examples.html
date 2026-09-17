@@ -242,7 +242,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-09-06">
+<meta name="DC.date" content="2026-09-16">
 </head>
 
 <body class="nav-sidebar docked nav-fixed quarto-light">
@@ -564,10 +564,10 @@ Note
 <p>Each family has its own page so the code, the rendered accessible chart and the notes on how py-maidr reads that chart stay together. Every page starts with <code>import maidr</code> and ends with <code>plt.show()</code>; the plot types marked experimental on <a href="./stability.html">Plot Type Stability</a> are flagged on their pages.</p>
 <ul>
 <li><a href="./examples/bar.html">Bar, count, stacked and dodged bar charts</a>: one tone per bar, Up and Down between series in a stacked or dodged chart.</li>
-<li><a href="./examples/pie-wordcloud.html">Pie charts and word clouds</a>: a flat row of labelled values, with each slice’s share of the whole computed at render time.</li>
+<li><a href="./examples/pie-wordcloud.html">Pie charts and word clouds</a>: a flat row of labeled values, with each slice’s share of the whole computed at render time.</li>
 <li><a href="./examples/histogram-kde.html">Histograms and KDE plots</a>: bins read as ranges with counts, densities read as a smooth curve.</li>
 <li><a href="./examples/line-step.html">Line, multi-line and step plots</a>: pitch follows the value along x; step plots report which side of a sample the value is held on.</li>
-<li><a href="./examples/heatmap-hexbin-contour.html">Heatmaps, hexbin and contour plots</a>: grids navigated with all four arrows, hexagonal bins by centre, contours one level curve at a time.</li>
+<li><a href="./examples/heatmap-hexbin-contour.html">Heatmaps, hexbin and contour plots</a>: grids navigated with all four arrows, hexagonal bins by center, contours one level curve at a time.</li>
 <li><a href="./examples/box-boxen-violin.html">Box, boxen and violin plots</a>: five-number summaries, letter-value ladders and density curves paired with box statistics.</li>
 <li><a href="./examples/area-errorbar-point-lollipop.html">Area, error bar, point and lollipop plots</a>: running totals for stacked areas and a lower bound, estimate, upper bound grid for intervals.</li>
 <li><a href="./examples/scatter-regression.html">Scatter and regression plots</a>: points in x order, with the fitted line as a separate layer.</li>
@@ -595,162 +595,7 @@ Note
 <li>Press <strong>S</strong> to toggle Sonification (tones) mode.</li>
 <li>Press <strong>R</strong> to toggle Review mode.</li>
 </ol>
-<p>Below is a detailed list of keyboard shortcuts for various functions:</p>
-<div id="tbl-shortcuts" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-tbl figure">
-<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-shortcuts-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;1: Keyboard Shortcuts
-</figcaption>
-<div aria-describedby="tbl-shortcuts-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Function</th>
-<th style="text-align: left;">Windows and Linux Key</th>
-<th style="text-align: left;">Mac Key</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">Toggle Braille Mode</td>
-<td style="text-align: left;">b</td>
-<td style="text-align: left;">b</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Toggle Text Mode</td>
-<td style="text-align: left;">t</td>
-<td style="text-align: left;">t</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Toggle Sonification Mode</td>
-<td style="text-align: left;">s</td>
-<td style="text-align: left;">s</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Toggle Review Mode</td>
-<td style="text-align: left;">r</td>
-<td style="text-align: left;">r</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Move around plot</td>
-<td style="text-align: left;">Arrow keys</td>
-<td style="text-align: left;">Arrow keys</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Go to the very left right up down</td>
-<td style="text-align: left;">Ctrl + Arrow key</td>
-<td style="text-align: left;">CMD + Arrow key</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Select the first element</td>
-<td style="text-align: left;">Ctrl + Home</td>
-<td style="text-align: left;">CMD + Home</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Select the last element</td>
-<td style="text-align: left;">Ctrl + End</td>
-<td style="text-align: left;">CMD + End</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Repeat current sound</td>
-<td style="text-align: left;">Space</td>
-<td style="text-align: left;">Space</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Auto-play outward in direction of arrow</td>
-<td style="text-align: left;">Ctrl + Shift + Arrow key</td>
-<td style="text-align: left;">CMD + Shift + Arrow key</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Stop Auto-play</td>
-<td style="text-align: left;">Ctrl</td>
-<td style="text-align: left;">Ctrl</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Auto-play speed up</td>
-<td style="text-align: left;">Period (.)</td>
-<td style="text-align: left;">Period (.)</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Auto-play speed down</td>
-<td style="text-align: left;">Comma (,)</td>
-<td style="text-align: left;">Comma (,)</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Auto-play speed reset</td>
-<td style="text-align: left;">Slash (/)</td>
-<td style="text-align: left;">Slash (/)</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Check label for the title of current plot</td>
-<td style="text-align: left;">l t</td>
-<td style="text-align: left;">l t</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Check label for the x axis of current plot</td>
-<td style="text-align: left;">l x</td>
-<td style="text-align: left;">l x</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Check label for the y axis of current plot</td>
-<td style="text-align: left;">l y</td>
-<td style="text-align: left;">l y</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Check label for the z axis of current plot</td>
-<td style="text-align: left;">l z</td>
-<td style="text-align: left;">l z</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Switch to next layer</td>
-<td style="text-align: left;">PageUp</td>
-<td style="text-align: left;">PageUp</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Switch to previous layer</td>
-<td style="text-align: left;">PageDown</td>
-<td style="text-align: left;">PageDown</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Move around subplot list</td>
-<td style="text-align: left;">Arrow keys</td>
-<td style="text-align: left;">Arrow keys</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Activate selected subplot in the list</td>
-<td style="text-align: left;">Enter</td>
-<td style="text-align: left;">Enter</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Escape from current subplot to return to the subplot list</td>
-<td style="text-align: left;">ESC</td>
-<td style="text-align: left;">ESC</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Open settings</td>
-<td style="text-align: left;">Ctrl + comma (,)</td>
-<td style="text-align: left;">CMD + comma (,)</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Open Chat View</td>
-<td style="text-align: left;">Question (?)</td>
-<td style="text-align: left;">Question (?)</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Open keyboard help</td>
-<td style="text-align: left;">Ctrl + Slash (/)</td>
-<td style="text-align: left;">CMD + Slash (/)</td>
-</tr>
-</tbody>
-</table>
-</div>
-</figure>
-</div>
+<p>The full list is the <a href="./index.html#keyboard-shortcuts-and-controls">keyboard shortcut table on the Welcome page</a>, which is where it is maintained.</p>
 </section>
 <section id="demo-video" class="level2">
 <h2 class="anchored" data-anchor-id="demo-video">Demo Video</h2>

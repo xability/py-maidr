@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Make matplotlib, seaborn, Plotly and Altair plots accessible to blind and low-vision users via sonification, braille, text and AI chat. Python binding of MAIDR.">
+<meta name="description" content="Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
 
 <title>Accessible Data Visualization for Python – py-maidr</title>
 <style>
@@ -345,13 +345,13 @@ window.Quarto = {
 
 <link rel="stylesheet" href="styles.css">
 <meta property="og:title" content="py-maidr: Accessible Data Visualization for Python">
-<meta property="og:description" content="Make matplotlib, seaborn, Plotly and Altair plots accessible to blind and low-vision users via sonification, braille, text and AI chat. Python binding of MAIDR.">
+<meta property="og:description" content="Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
 <meta name="twitter:title" content="py-maidr: Accessible Data Visualization for Python">
-<meta name="twitter:description" content="Make matplotlib, seaborn, Plotly and Altair plots accessible to blind and low-vision users via sonification, braille, text and AI chat. Python binding of MAIDR.">
+<meta name="twitter:description" content="Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
@@ -360,7 +360,7 @@ window.Quarto = {
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Make matplotlib, seaborn, Plotly and Altair plots accessible to blind and low-vision users via sonification, braille, text and AI chat. Python binding of MAIDR.">
+<meta name="DC.description" content="Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
 <meta name="DC.identifier" content="https://py.maidr.ai/">
 <meta name="DC.type" content="Software">
 <meta name="DC.format" content="text/html">
@@ -489,6 +489,7 @@ window.Quarto = {
   <ul class="collapse">
   <li><a href="#matplotlib" id="toc-matplotlib" class="nav-link" data-scroll-target="#matplotlib">Matplotlib</a></li>
   <li><a href="#seaborn" id="toc-seaborn" class="nav-link" data-scroll-target="#seaborn">Seaborn</a></li>
+  <li><a href="#plotly" id="toc-plotly" class="nav-link" data-scroll-target="#plotly">Plotly</a></li>
   <li><a href="#altair" id="toc-altair" class="nav-link" data-scroll-target="#altair">Altair</a></li>
   <li><a href="#additional-libraries" id="toc-additional-libraries" class="nav-link" data-scroll-target="#additional-libraries">Additional Libraries</a></li>
   </ul></li>
@@ -516,12 +517,8 @@ window.Quarto = {
   <li><a href="#scatter-plot" id="toc-scatter-plot" class="nav-link" data-scroll-target="#scatter-plot">Scatter Plot</a></li>
   <li><a href="#segmented-bar-plots" id="toc-segmented-bar-plots" class="nav-link" data-scroll-target="#segmented-bar-plots">Segmented Bar Plots</a></li>
   </ul></li>
-  <li><a href="#getting-refreshable-braille-display-loaner" id="toc-getting-refreshable-braille-display-loaner" class="nav-link" data-scroll-target="#getting-refreshable-braille-display-loaner">Getting Refreshable Braille Display Loaner</a></li>
-  <li><a href="#instruction-on-how-to-verify-and-use-the-ai-feature-in-py-maidr" id="toc-instruction-on-how-to-verify-and-use-the-ai-feature-in-py-maidr" class="nav-link" data-scroll-target="#instruction-on-how-to-verify-and-use-the-ai-feature-in-py-maidr">Instruction on How to Verify and Use the AI Feature in py-maidr</a>
-  <ul class="collapse">
-  <li><a href="#for-alpha-testers" id="toc-for-alpha-testers" class="nav-link" data-scroll-target="#for-alpha-testers">For Alpha Testers</a></li>
-  <li><a href="#for-all-other-users" id="toc-for-all-other-users" class="nav-link" data-scroll-target="#for-all-other-users">For All Other Users</a></li>
-  </ul></li>
+  <li><a href="#getting-a-refreshable-braille-display-loaner" id="toc-getting-a-refreshable-braille-display-loaner" class="nav-link" data-scroll-target="#getting-a-refreshable-braille-display-loaner">Getting a Refreshable Braille Display Loaner</a></li>
+  <li><a href="#sec-ai-chat" id="toc-sec-ai-chat" class="nav-link" data-scroll-target="#sec-ai-chat">Using the AI Chat</a></li>
   <li><a href="#related-projects" id="toc-related-projects" class="nav-link" data-scroll-target="#related-projects">Related projects</a></li>
   <li><a href="#cite-py-maidr" id="toc-cite-py-maidr" class="nav-link" data-scroll-target="#cite-py-maidr">Cite py-maidr</a></li>
   <li><a href="#bug-report" id="toc-bug-report" class="nav-link" data-scroll-target="#bug-report">Bug Report</a></li>
@@ -541,7 +538,7 @@ window.Quarto = {
 
 <div>
   <div class="description">
-    Make matplotlib, seaborn, Plotly and Altair plots accessible to blind and low-vision users via sonification, braille, text and AI chat. Python binding of MAIDR.
+    Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.
   </div>
 </div>
 
@@ -564,22 +561,22 @@ window.Quarto = {
 <p><br></p>
 <p><em>maidr: Data Insight for All</em></p>
 </div>
-<p><strong>py-maidr</strong> (PyPI package <code>maidr</code>, pronounced “mader”) is a Python library that makes <strong>matplotlib</strong>, <strong>seaborn</strong>, <strong>Plotly</strong> and <strong>Altair</strong> charts accessible to blind and low-vision users. After <code>import maidr</code>, <code>plt.show()</code> renders an interactive chart that can be explored by keyboard and read as <em>touchable</em> (braille), <em>readable</em> (text), <em>audible</em> (sonification) and <em>conversational</em> (AI chat) representations; <code>maidr.save_html()</code> exports the same chart as a standalone HTML file. py-maidr is the Python binding of <a href="https://maidr.ai/">MAIDR</a>, the Multimodal Access and Interactive Data Representation engine developed by the <a href="https://xabilitylab.ischool.illinois.edu/">(x)Ability Design Lab</a> at the University of Illinois Urbana-Champaign; a sibling package, <a href="https://r.maidr.ai/">maidr for R</a>, brings the same accessibility layer to ggplot2 and base R graphics.</p>
+<p><strong>py-maidr</strong> (PyPI package <code>maidr</code>, pronounced “mader”) is a Python library that makes <strong>matplotlib</strong>, <strong>seaborn</strong>, <strong>Plotly</strong>, and <strong>Altair</strong> charts accessible to blind and low-vision users. After <code>import maidr</code>, <code>plt.show()</code> renders an interactive chart that can be explored by keyboard and read as <em>touchable</em> (braille), <em>readable</em> (text), <em>audible</em> (sonification), and <em>conversational</em> (AI chat) representations; <code>maidr.save_html()</code> exports the same chart as a standalone HTML file. py-maidr is the Python binding of <a href="https://maidr.ai/">MAIDR</a>, the Multimodal Access and Interactive Data Representation engine developed by the <a href="https://xabilitylab.ischool.illinois.edu/">(x)Ability Design Lab</a> at the University of Illinois Urbana-Champaign; a sibling package, <a href="https://r.maidr.ai/">maidr for R</a>, brings the same accessibility layer to ggplot2 and base R graphics.</p>
 <p>The following summarizes the key features and design principles of py-maidr:</p>
 <ol type="1">
 <li><p>Accessibility: maidr is designed to be accessible to both blind and sighted users from the ground up. Beyond the passive consumption level, blind users can also independently create, modify, and share data visualizations with others.</p></li>
 <li><p>Inclusivity: maidr does not pursue a special version for blind users. Instead, it provides a unified interface that supports both visual and non-visual data exploration. This way, blind and sighted users can work together on the same data science projects.</p></li>
-<li><p>Integration: maidr seamlessly integrates with the popular and mainstream data science environments (e.g., Python, pandas, and NumPy) as well as data visualization libraries in Python like <strong>matplotlib</strong> and <strong>seaborn</strong>.</p></li>
+<li><p>Integration: maidr seamlessly integrates with the popular and mainstream data science environments (e.g., Python, pandas, and NumPy) as well as data visualization libraries in Python such as <strong>matplotlib</strong> and <strong>seaborn</strong>.</p></li>
 <li><p>Unintrusiveness: maidr does not require changes to existing core data visualization code. Without needing to reconstruct an accessible version separately, you can just <code>import maidr</code> and call <code>plt.show()</code> as usual — maidr’s custom backend automatically renders your plots accessibly. Blind and sighted users can use and share the same visualization codebase in their shared data science projects.</p></li>
 <li><p>Synchronization: maidr treats visualization as one of the multimodal data representations and ensures that all representations (e.g., visual, tactile, textual, audible) cursor and braille routing key positions are synchronized across different modalities.</p></li>
-<li><p>Reactivity: maidr supports widely adopted reactive and interactive computing including Jupyter Notebooks, Jupyter Labs, Google Colab, Streamlit dashboard, and Shiny dashboard. maidr also supports interactive computing inside code editors, such as Visual Studio Code.</p></li>
+<li><p>Reactivity: maidr supports widely adopted reactive and interactive computing including Jupyter Notebook, JupyterLab, Google Colab, Streamlit dashboard, and Shiny dashboard. maidr also supports interactive computing inside code editors, such as Visual Studio Code.</p></li>
 <li><p>Reproducibility: maidr supports the generation of accessible data visualizations as part of the reproducible data science workflow with <a href="https://quarto.org/">Quarto scientific publishing system</a>. You can easily create accessible data representations within your reproducible reports, website blogs, slides, e-books, dashboards, and more.</p></li>
 <li><p>Scalability: maidr supports a wide range of data visualization types, including bar plots, histograms, line plots, box plots, violin plots, heatmaps, scatter plots, and more. maidr is designed to be extensible to support new visualization types. Multi-figure and multi-layer visualizations are also supported.</p></li>
 </ol>
 <p>Our core philosophy is to make data science accessible to everyone, regardless of their visual dis/abilities. We believe that by making data visualizations accessible, we can empower blind and sighted users to work together on data science projects, share insights, and make data-driven decisions collaboratively.</p>
 <section id="supported-data-visualization-libraries" class="level2">
 <h2 class="anchored" data-anchor-id="supported-data-visualization-libraries">Supported Data Visualization Libraries</h2>
-<p>We currently support the following data visualization libraries in Python:, and we are working on adding support for more libraries in the future:</p>
+<p>We currently support the following data visualization libraries in Python, and we are working on adding support for more libraries in the future:</p>
 <section id="matplotlib" class="level3">
 <h3 class="anchored" data-anchor-id="matplotlib">Matplotlib</h3>
 <ul>
@@ -588,9 +585,9 @@ window.Quarto = {
 <li><p>Dodged (grouped) bar plot having one x (categorical) and one y (numerical/count) axis with multiple data series displayed side-by-side.</p></li>
 <li><p>One distribution histogram having one x (numerical) and y (numerical/frequency) axis.</p></li>
 <li><p>KDE (Kernel Density Estimation) plot having one x (numerical) and one y (density) axis showing probability density curves.</p></li>
-<li><p>Single line plot having one x (numerical) and one y (numerical) axis.</p></li>
+<li><p>Single-line plot having one x (numerical) and one y (numerical) axis.</p></li>
 <li><p>Multi-line plot having one x (numerical) and one y (numerical) axis with multiple data series on the same axes.</p></li>
-<li><p>Step plot having one x (numerical) and one y (numerical or ordinal) axis, for piecewise-constant values that are held over an interval and then jump — e.g.&nbsp;a hypnogram of sleep stage against time. Named y tick labels are announced as level names in place of the numeric level. Recognised from matplotlib’s <code>drawstyle="steps-*"</code> (including <code>ax.step()</code>), Plotly’s <code>line_shape</code>, and Altair’s <code>interpolate</code>.</p></li>
+<li><p>Step plot having one x (numerical) and one y (numerical or ordinal) axis, for piecewise-constant values that are held over an interval and then jump — e.g.&nbsp;a hypnogram of sleep stage against time. Named y tick labels are announced as level names in place of the numeric level. Recognized from matplotlib’s <code>drawstyle="steps-*"</code> (including <code>ax.step()</code>), Plotly’s <code>line_shape</code>, and Altair’s <code>interpolate</code>.</p></li>
 <li><p>Vertical box plot having one x (categorical) and one y (numerical) axis.</p></li>
 <li><p>Horizontal box plot having one x (numerical) and one y (categorical) axis.</p>
 <ul>
@@ -598,12 +595,12 @@ window.Quarto = {
 </ul></li>
 <li><p>Violin plot having one x (categorical) and one y (numerical) axis, combining a KDE density curve with embedded box plot statistics.</p></li>
 <li><p>Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.</p></li>
-<li><p>Hexbin plot (<code>ax.hexbin()</code>) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon’s count by default, the reduction of <code>C</code> when one is given, or the count’s interval when <code>bins</code> is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its centre rather than by a column index.</p></li>
+<li><p>Hexbin plot (<code>ax.hexbin()</code>) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon’s count by default, the reduction of <code>C</code> when one is given, or the count’s interval when <code>bins</code> is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its center rather than by a column index.</p></li>
 <li><p>Filled area plot (<code>ax.stackplot()</code>, <code>ax.fill_between()</code>, <code>ax.fill_betweenx()</code>) having one x (numerical) and one y (numerical) axis. A band drawn from the baseline to a curve reads as an area; several stacked bands read as a stacked area, with each band’s own value announced alongside the running total. A band drawn <em>between two curves</em> is not read as an area, since its content is the gap rather than either edge.</p></li>
 <li><p>Scatter plot having one x (numerical) and one y (numerical) axis.</p></li>
 <li><p>Regression plot having one x (numerical) and one y (numerical) axis with scatter points and fitted regression line.</p></li>
 <li><p>Candlestick chart having one x (time/date) and four y (numerical) axes (open, high, low, close) for financial data visualization (using mplfinance).</p></li>
-<li><p>Multi-layered plots combining different plot types on the same figure with shared axes.</p></li>
+<li><p>Multi-layer plots combining different plot types on the same figure with shared axes.</p></li>
 <li><p>Multi-panel plots (subplots) with multiple charts in a grid layout having independent axes.</p></li>
 <li><p>Facet plots showing the same chart type across different data subsets with shared axis scales.</p></li>
 </ul>
@@ -615,7 +612,7 @@ window.Quarto = {
 <li><p><code>sns.countplot()</code>: Count plot having one x (categorical) and one y (count) axis showing the frequency of categorical data.</p></li>
 <li><p><code>sns.histplot()</code>: One distribution histogram having one x (numerical) and y (numerical/frequency) axis.</p></li>
 <li><p><code>sns.kdeplot()</code>: KDE (Kernel Density Estimation) plot having one x (numerical) and one y (density) axis showing probability density curves.</p></li>
-<li><p><code>sns.lineplot()</code>: Single line plot having one x (numerical) and one y (numerical) axis.</p></li>
+<li><p><code>sns.lineplot()</code>: Single-line plot having one x (numerical) and one y (numerical) axis.</p></li>
 <li><p><code>sns.boxplot(..., orient="v")</code>: Vertical box plot having one x (categorical) and one y (numerical) axis.</p></li>
 <li><p><code>sns.boxplot(..., orient="h")</code>: Horizontal box plot having one x (numerical) and one y (categorical) axis.</p>
 <ul>
@@ -626,6 +623,52 @@ window.Quarto = {
 <li><p><code>sns.scatterplot()</code>: Scatter plot having one x (numerical) and one y (numerical) axis.</p></li>
 <li><p><code>sns.regplot()</code>: Regression plot having one x (numerical) and one y (numerical) axis with scatter points and fitted regression line.</p></li>
 </ul>
+</section>
+<section id="plotly" class="level3">
+<h3 class="anchored" data-anchor-id="plotly">Plotly</h3>
+<p>py-maidr ships a <a href="https://plotly.com/python/">Plotly</a> adapter that builds a MAIDR schema from a figure’s traces. Use <code>maidr.show(fig)</code> (or <code>maidr.save_html(fig, ...)</code>) to render an accessible version of any supported Plotly figure; <code>plotly.express</code> and <code>plotly.graph_objects</code> both go through the same entry point, since both produce the same figure object.</p>
+<ul>
+<li><p>One-factor bar plot (<code>go.Bar</code>, <code>px.bar</code>) having one x (categorical) and one y (numerical/count) axis.</p></li>
+<li><p>Dodged (grouped) bar plot — several bar traces under <code>barmode="group"</code>.</p></li>
+<li><p>Stacked bar plot — several bar traces under <code>barmode="stack"</code> or <code>"relative"</code>. <code>relative</code> is Plotly’s default, and what <code>px.bar(color=...)</code> leaves behind, so a stack is the ordinary way one arrives. Setting <code>barnorm="percent"</code> or <code>"fraction"</code> makes it the normalized variant, where each segment is announced as its share of the position rather than as a count.</p></li>
+<li><p>Count plot: a bar plot over category frequencies, or <code>px.histogram</code> over a categorical column.</p></li>
+<li><p>One distribution histogram (<code>go.Histogram</code>, <code>px.histogram</code>) having one x (numerical) and one y (numerical/frequency) axis.</p></li>
+<li><p>A density curve over a histogram reads as two layers: the histogram, and the curve as an ordinary line. Plotly has no KDE trace type, so unlike <code>sns.kdeplot()</code> there is nothing here for the adapter to recognize as a density estimate — compute the curve yourself, as the gallery’s example does.</p></li>
+<li><p>Single line plot and multi-line plot (<code>go.Scatter</code> with <code>mode="lines"</code>, <code>px.line</code>) having one x (numerical) and one y (numerical) axis.</p></li>
+<li><p>Step plot, recognized from Plotly’s <code>line_shape</code> (<code>"hv"</code>, <code>"vh"</code>, <code>"hvh"</code>, <code>"vhv"</code>), with named y tick labels announced as level names.</p></li>
+<li><p>Filled area and stacked area plots — a scatter trace carrying <code>stackgroup</code>, which is what <code>px.area</code> produces. <code>stackgroup</code> is the whole signal: <code>fill="tozeroy"</code> on its own is read as a line, not an area. <code>groupnorm="percent"</code> or <code>"fraction"</code> makes it the normalized variant.</p></li>
+<li><p>Scatter plot (<code>go.Scatter</code> with <code>mode="markers"</code>, <code>px.scatter</code>) having one x (numerical) and one y (numerical) axis.</p></li>
+<li><p>Regression plot — a scatter trace overlaid with a fitted trend line, including <code>px.scatter(..., trendline=...)</code>.</p></li>
+<li><p>Vertical and horizontal box plot (<code>go.Box</code>, <code>px.box</code>) having one categorical and one numerical axis, single-class or multi-class.</p></li>
+<li><p>Violin plot (<code>go.Violin</code>, <code>px.violin</code>), read as a density curve plus the embedded box plot statistics.</p></li>
+<li><p>Heatmap (<code>go.Heatmap</code>) having one x (categorical) and one y (categorical) and z (numerical) axis.</p></li>
+<li><p>Two-dimensional histogram (<code>go.Histogram2d</code>) and its contour form (<code>go.Histogram2dContour</code>), read as a lattice of binned cells.</p></li>
+<li><p>Contour plot (<code>go.Contour</code>), read one level curve at a time.</p></li>
+<li><p>Pie chart (<code>go.Pie</code>, <code>px.pie</code>), read wedge by wedge.</p></li>
+<li><p>Candlestick and OHLC charts (<code>go.Candlestick</code>, <code>go.Ohlc</code>) having one x (time/date) and four y (numerical) axes.</p></li>
+<li><p>Funnel chart (<code>go.Funnel</code>, <code>px.funnel</code>), its area form (<code>go.Funnelarea</code>), and waterfall chart (<code>go.Waterfall</code>).</p></li>
+<li><p>Gauge (<code>go.Indicator</code> drawing a dial) announced as a value against its range.</p></li>
+<li><p>Radar chart (<code>go.Scatterpolar</code>) and polar area chart (<code>go.Barpolar</code>).</p></li>
+<li><p>Hierarchy charts — treemap, sunburst and icicle (<code>go.Treemap</code>, <code>go.Sunburst</code>, <code>go.Icicle</code>) — navigated a level at a time.</p></li>
+<li><p>Sankey / alluvial diagram (<code>go.Sankey</code>), read link by link.</p></li>
+<li><p>Parallel coordinates (<code>go.Parcoords</code>) and parallel categories (<code>go.Parcats</code>).</p></li>
+<li><p>Scatter plot matrix (<code>go.Splom</code>), navigated one panel at a time.</p></li>
+<li><p>Choropleth map (<code>go.Choropleth</code>, <code>px.choropleth</code>) and geographic scatter and density maps (<code>go.Scattergeo</code>, <code>go.Scattermap</code>, <code>go.Densitymap</code>).</p></li>
+<li><p>Multi-panel plots (<code>make_subplots</code>) and facet plots, with independent axes per panel.</p></li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Most Plotly chart types above are <strong>experimental</strong>: they were added by the plot coverage roadmap and have not yet been validated with a blind reader, so their announcements may change without a deprecation period. See <a href="./stability.html">Stability</a> for which plot types carry which promise, and the <a href="./examples-plotly.html#sec-plotly-examples">Plotly gallery</a> for runnable examples.</p>
+</div>
+</div>
 </section>
 <section id="altair" class="level3">
 <h3 class="anchored" data-anchor-id="altair">Altair</h3>
@@ -641,7 +684,7 @@ window.Quarto = {
 <li><p>Heatmap built as a <code>LayerChart</code> of <code>mark_rect</code> + <code>mark_text</code> over categorical x/y with a numerical color/z encoding.</p></li>
 <li><p>Single-line plot (<code>mark_line</code>) and multi-line plots — both the per-series-layer pattern and the single-mark-with-<code>color</code>-encoding pattern.</p></li>
 <li><p>Scatter plot (<code>mark_point</code> / <code>mark_circle</code>).</p></li>
-<li><p>Multi-layered plots combining <code>mark_point</code> + <code>mark_line</code> (e.g.&nbsp;line-with-points overlays) on a <code>LayerChart</code>.</p></li>
+<li><p>Multi-layer plots combining <code>mark_point</code> + <code>mark_line</code> (e.g.&nbsp;line-with-points overlays) on a <code>LayerChart</code>.</p></li>
 <li><p>Regression-style scatter overlaid with a <code>transform_loess</code> smoothing line on a <code>LayerChart</code>.</p></li>
 </ul>
 <div class="callout callout-style-default callout-note callout-titled">
@@ -680,7 +723,7 @@ Note
 <p>Check more examples in the <a href="./examples.html#sec-examples">galleries</a>.</p>
 <section id="sample-bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="sample-bar-plot">Sample Bar Plot</h3>
-<div id="75d9f61b" class="cell" data-execution_count="1">
+<div id="7600d725" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,5,22,23,26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -711,7 +754,7 @@ Note
 <script src="https://cdn.jsdelivr.net/npm/maidr@4.8.0/dist/maidr.js"></script>
 </div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_05def4cb-70ab-4112-8a2f-8cef7caef438" title="Average Body Mass of Penguins by Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+<iframe id="iframe_c8974309-6032-46f9-b43c-ce8d0641ebcb" title="Average Body Mass of Penguins by Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.8.0/dist/maidr.js&quot;]');
@@ -729,12 +772,12 @@ Note
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;54a46f4f-7803-43a4-b204-aea04fe44d9b&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;54a46f4f-7803-43a4-b204-aea04fe44d9b&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;18e35561-c0dc-4009-94de-2e6b89f25a2c&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;e961e00e-6884-443c-ad58-fac362494aaa&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Species&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;, &amp;quot;y&amp;quot;: 3700.662251655629}, {&amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;, &amp;quot;y&amp;quot;: 3733.0882352941176}, {&amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;, &amp;quot;y&amp;quot;: 5076.016260162602}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='d2226045-1c34-489e-94bb-b1ab172e51c7'] &amp;gt; path&amp;quot;, &amp;quot;orientation&amp;quot;: &amp;quot;vert&amp;quot;}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;e1181007-fece-47e0-9aeb-b83801c891ee&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;e1181007-fece-47e0-9aeb-b83801c891ee&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;82a4d740-6ba8-41e9-b38f-4084166bcf0b&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;e3179e31-f443-4ae5-ab55-3cbe5a38a22a&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Species&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;, &amp;quot;y&amp;quot;: 3700.662251655629}, {&amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;, &amp;quot;y&amp;quot;: 3733.0882352941176}, {&amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;, &amp;quot;y&amp;quot;: 5076.016260162602}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='5303c74d-de46-41b0-b7e6-2982202ac183'] &amp;gt; path&amp;quot;, &amp;quot;orientation&amp;quot;: &amp;quot;vert&amp;quot;}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-09-17T00:15:33.014630</dc:date>
+    <dc:date>2026-09-17T00:19:00.244791</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -748,30 +791,30 @@ Note
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-41e2d576-0cd0-448e-8808-ee9c5b7786dc&quot;>
+  <g id=&quot;maidr-668bea8b-e4f2-4e47-bc72-7ba62c8efcd3&quot;>
    <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-80cfd0cf-a348-4d46-8d84-0990eda01803&quot;>
+   <g id=&quot;maidr-57d8689c-4048-486e-b609-aa7077603323&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  L 388.8 51.84  L 54 51.84  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
-   <g id=&quot;maidr-5d6f336c-e840-4f75-8ea5-77e918126260&quot; maidr=&quot;d2226045-1c34-489e-94bb-b1ab172e51c7&quot;>
-    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#pbab69dd771)&quot; style=&quot;fill: #7da9c7&quot;/>
+   <g id=&quot;maidr-6c7864af-1359-41b1-b76d-c972892ec87b&quot; maidr=&quot;5303c74d-de46-41b0-b7e6-2982202ac183&quot;>
+    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#p9b23db38db)&quot; style=&quot;fill: #7da9c7&quot;/>
    </g>
-   <g id=&quot;maidr-95b0f48d-b9e5-4bc1-8f10-0330fd8f271c&quot; maidr=&quot;d2226045-1c34-489e-94bb-b1ab172e51c7&quot;>
-    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#pbab69dd771)&quot; style=&quot;fill: #4884af&quot;/>
+   <g id=&quot;maidr-b080891a-b301-401c-a186-aecb589ba004&quot; maidr=&quot;5303c74d-de46-41b0-b7e6-2982202ac183&quot;>
+    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#p9b23db38db)&quot; style=&quot;fill: #4884af&quot;/>
    </g>
-   <g id=&quot;maidr-7a18aa81-1424-4794-a0e4-551308c6229f&quot; maidr=&quot;d2226045-1c34-489e-94bb-b1ab172e51c7&quot;>
-    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#pbab69dd771)&quot; style=&quot;fill: #3d5b70&quot;/>
+   <g id=&quot;maidr-10946324-20d1-4b47-8701-3aa5607309b9&quot; maidr=&quot;5303c74d-de46-41b0-b7e6-2982202ac183&quot;>
+    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#p9b23db38db)&quot; style=&quot;fill: #3d5b70&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-35abc78b-7fad-4a5f-b9d8-1950723e7214&quot;>
+     <g id=&quot;maidr-81ef4429-60b6-4890-a705-cc62987bb906&quot;>
       <defs>
-       <path id=&quot;m57c8ef8c5c&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;me730527095&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m57c8ef8c5c&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me730527095&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -794,9 +837,9 @@ Note
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-ca78bb5b-50d3-48a6-8052-0ef078edab2f&quot;>
+     <g id=&quot;maidr-f92376e1-ce3e-4391-979c-beac106e24e1&quot;>
       <g>
-       <use xlink:href=&quot;#m57c8ef8c5c&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me730527095&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -825,9 +868,9 @@ Note
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-c6ddfa10-210a-416a-9a7b-9e4e88705a9d&quot;>
+     <g id=&quot;maidr-b902dd2d-171a-4dc0-8df9-435679f4329c&quot;>
       <g>
-       <use xlink:href=&quot;#m57c8ef8c5c&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me730527095&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -865,12 +908,12 @@ Note
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-6b605077-bb20-4953-94bf-22e538b91dca&quot;>
+     <g id=&quot;maidr-94cbfc6b-d130-43a3-b8bd-f6df6cd8dfad&quot;>
       <defs>
-       <path id=&quot;m1b1deadc6c&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;mc415112755&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m1b1deadc6c&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mc415112755&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -884,9 +927,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-e8ccdc91-3fbe-438c-b4e2-2e55b9f12c80&quot;>
+     <g id=&quot;maidr-6e2e9639-2102-4944-acda-5ab3bb8a7e86&quot;>
       <g>
-       <use xlink:href=&quot;#m1b1deadc6c&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mc415112755&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -903,9 +946,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-67500332-1cd2-472e-bd53-db3766131ba9&quot;>
+     <g id=&quot;maidr-11b2375c-8363-4842-80f2-382827461d2b&quot;>
       <g>
-       <use xlink:href=&quot;#m1b1deadc6c&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mc415112755&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -922,9 +965,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-706dd48c-be17-4f4f-8cef-df0608fbe2a2&quot;>
+     <g id=&quot;maidr-9ec35935-c3f2-4c99-b153-c46d9d46ced2&quot;>
       <g>
-       <use xlink:href=&quot;#m1b1deadc6c&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mc415112755&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -941,9 +984,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-bb558e62-ee2e-4888-8849-9242470ceb13&quot;>
+     <g id=&quot;maidr-0ff6159e-9f3b-4078-8c50-18808bfebed1&quot;>
       <g>
-       <use xlink:href=&quot;#m1b1deadc6c&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mc415112755&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -960,9 +1003,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-41a92b9b-fa74-4432-84e3-f26e4a56e92c&quot;>
+     <g id=&quot;maidr-57948201-27c2-459c-aad6-d6eeed716151&quot;>
       <g>
-       <use xlink:href=&quot;#m1b1deadc6c&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mc415112755&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -1006,25 +1049,25 @@ Note
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-f374f958-5d7d-4d7c-aea2-fff013b80b62&quot;>
-    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#pbab69dd771)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-215a81a5-0103-46cf-a517-bfcf0f06973e&quot;>
+    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#p9b23db38db)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-0617588f-a42d-43a2-b480-db8cc5465654&quot;>
-    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#pbab69dd771)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-bbb5e9b6-d4aa-4d7f-ad2b-a774eeab63dd&quot;>
+    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#p9b23db38db)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-a9a226c3-2463-4069-910f-faae8faa037c&quot;>
-    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#pbab69dd771)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-13ba541c-0cbf-4016-9bd3-793f641e0d7e&quot;>
+    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#p9b23db38db)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-932aacd5-52cd-4ca1-ba53-a62996ec2012&quot;>
+   <g id=&quot;maidr-a8494a9c-0164-47f6-acd0-8985d3a64afd&quot;>
     <path d=&quot;M 54 384.48  L 54 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-d40dae40-0cc0-4c40-a436-c92c9ff26584&quot;>
+   <g id=&quot;maidr-113c12ee-f51a-4ba2-8bcf-28f08c2618eb&quot;>
     <path d=&quot;M 388.8 384.48  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-badc1b0c-ab61-4359-ae83-9f89cb3e1bcd&quot;>
+   <g id=&quot;maidr-89b724be-098c-4ac0-b093-52397a26507c&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-c0da03d2-78c1-4fb6-ad9f-d38001a5c572&quot;>
+   <g id=&quot;maidr-53544284-77ac-4f74-b0cf-cbaa7dfa9f5e&quot;>
     <path d=&quot;M 54 51.84  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_12&quot;>
@@ -1082,7 +1125,7 @@ Note
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;pbab69dd771&quot;>
+  <clipPath id=&quot;p9b23db38db&quot;>
    <rect x=&quot;54&quot; y=&quot;51.84&quot; width=&quot;334.8&quot; height=&quot;332.64&quot;/>
   </clipPath>
  </defs>
@@ -1090,7 +1133,7 @@ Note
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_05def4cb-70ab-4112-8a2f-8cef7caef438');
+            let iframe = document.getElementById('iframe_c8974309-6032-46f9-b43c-ce8d0641ebcb');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1154,7 +1197,7 @@ Note
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_05def4cb-70ab-4112-8a2f-8cef7caef438');
+        let iframe = document.getElementById('iframe_c8974309-6032-46f9-b43c-ce8d0641ebcb');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();
@@ -1219,7 +1262,7 @@ Note
 <section id="switching-back-to-the-default-renderer" class="level4">
 <h4 class="anchored" data-anchor-id="switching-back-to-the-default-renderer">Switching Back to the Default Renderer</h4>
 <p>If you want to temporarily use the default matplotlib renderer (e.g.&nbsp;for unsupported plot types or debugging), you can switch the backend:</p>
-<p><strong>In Jupyter notebooks:</strong></p>
+<p><strong>In Jupyter Notebook:</strong></p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>maidr.set_backend(use_maidr<span class="op">=</span><span class="va">False</span>)   <span class="co"># plt.show() now renders static inline images</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>maidr.set_backend(use_maidr<span class="op">=</span><span class="va">True</span>)    <span class="co"># plt.show() renders accessible maidr output again</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>In Python scripts (non-notebook):</strong></p>
@@ -1331,7 +1374,7 @@ Note
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>maidr.download_dotpad_sdk()          <span class="co"># ~14 MB, once, into a per-user cache</span></span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>maidr.save_html(fig, <span class="st">"chart.html"</span>, use_cdn<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The SDK is written to <code>lib/dotpad-sdk-&lt;version&gt;/</code> beside the file (so <code>lib/dotpad-sdk-3.0.3/</code> today), next to the <code>lib/maidr-&lt;version&gt;/</code> folder that already travels with it, and the document declares where to find it ahead of <code>maidr.js</code>. Ship the HTML with its <code>lib/</code> folder, as before. Every downloaded file is verified against the size and SHA-256 recorded for the pinned commit, and the copy includes the LGPL licence text and wrapper sources the vendor asks redistributors to keep beside the braille engine. <code>MAIDR_DOTPAD_SDK_DIR</code> moves the cache somewhere else, for instance a directory shared by a whole machine.</p>
+<p>The SDK is written to <code>lib/dotpad-sdk-&lt;version&gt;/</code> beside the file (so <code>lib/dotpad-sdk-3.0.3/</code> today), next to the <code>lib/maidr-&lt;version&gt;/</code> folder that already travels with it, and the document declares where to find it ahead of <code>maidr.js</code>. Ship the HTML with its <code>lib/</code> folder, as before. Every downloaded file is verified against the size and SHA-256 recorded for the pinned commit, and the copy includes the LGPL license text and wrapper sources the vendor asks redistributors to keep beside the braille engine. <code>MAIDR_DOTPAD_SDK_DIR</code> moves the cache somewhere else, for instance a directory shared by a whole machine.</p>
 <p>The pins themselves — the SDK version, the repository and commit it is served from, and the digest of every file — come from <code>maidr/static/dotpad-sdk.json</code>, the manifest <code>maidr.js</code> ships and reads its own pins from. It is refreshed together with the bundled <code>maidr.js</code>, so <code>maidr.DOTPAD_SDK_VERSION</code> always names the release the bundle would load from the CDN.</p>
 <p>A page served from somewhere else — an intranet host, or a notebook, where the chart lives in a <code>srcdoc</code> iframe with no base URL for a relative path to resolve against — names its copy by URL instead, and every document py-maidr produces then declares it:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>maidr.set_dotpad_sdk(</span>
@@ -1356,7 +1399,7 @@ Note
 <li><code>maidr.set_cdn_version("3.74.0")</code> at startup, if you know which version you want.</li>
 <li>Call <code>maidr.get_cdn_version()</code> once from synchronous code at startup. That resolves and caches, and every async render then uses the resolved version — the request is paid for once, by your startup, not by a render.</li>
 </ul>
-<p><strong>The same applies to every Jupyter/IPython kernel</strong>, where each cell executes on the kernel’s event loop: a notebook on the default setting serves the bundled version for the life of the kernel and never arms the staleness warning. A notebook has no synchronous start-up code, so the way off the bundled version there is:</p>
+<p><strong>The same applies to every Jupyter/IPython kernel</strong>, where each cell executes on the kernel’s event loop: a notebook on the default setting serves the bundled version for the life of the kernel and never arms the staleness warning. A notebook has no synchronous startup code, so the way off the bundled version there is:</p>
 <ul>
 <li><code>MAIDR_CDN_VERSION</code> in the kernel’s environment, or <code>maidr.set_cdn_version("3.74.0")</code> in a cell, if you know which version you want.</li>
 <li>One explicit <code>maidr.bundle_status()</code> call in a cell. It resolves regardless of the loop and caches the answer, so every later render in that kernel uses the resolved version.</li>
@@ -1387,12 +1430,12 @@ Note
 </tbody>
 </table>
 <p>Same throughput either way — the work did not get cheaper, it stopped being in everyone else’s way.</p>
-<p>Two things this does not do. Renders of the <strong>same figure</strong> are serialised, because <code>savefig</code> writes <code>fig.dpi</code> for its duration and two concurrent writes leave one chart drawn at the other’s scale; distinct figures, which is the usual per-session shape, run in parallel. That lock is held by the render path itself rather than by this integration, so a figure is rendered one at a time however it is reached — through Shiny, through Streamlit, or from a thread of your own. And the chart still travels over the websocket on every flush — roughly 25 KB, or a couple of megabytes with <code>use_cdn=False</code>; that part is tracked in <a href="https://github.com/xability/py-maidr/issues/534">#534</a>.</p>
-<p><strong>What the lock cannot do is stop your app.</strong> It serialises renders against each other; it does not stop a render function drawing into a figure another session is in the middle of rendering. That produces a chart whose SVG and announced data disagree — visible to a sighted reader, invisible to a screen-reader one — so maidr says so, naming the figure:</p>
+<p>Two things this does not do. Renders of the <strong>same figure</strong> are serialized, because <code>savefig</code> writes <code>fig.dpi</code> for its duration and two concurrent writes leave one chart drawn at the other’s scale; distinct figures, which is the usual per-session shape, run in parallel. That lock is held by the render path itself rather than by this integration, so a figure is rendered one at a time however it is reached — through Shiny, through Streamlit, or from a thread of your own. And the chart still travels over the websocket on every flush — roughly 25 KB, or a couple of megabytes with <code>use_cdn=False</code>; that part is tracked in <a href="https://github.com/xability/py-maidr/issues/534">#534</a>.</p>
+<p><strong>What the lock cannot do is stop your app.</strong> It serializes renders against each other; it does not stop a render function drawing into a figure another session is in the middle of rendering. That produces a chart whose SVG and announced data disagree — visible to a sighted reader, invisible to a screen-reader one — so maidr says so, naming the figure:</p>
 <blockquote class="blockquote">
 <p>maidr: figure 2 was drawn into while it was being rendered, so the chart’s SVG and the data maidr announces for it may not match. Finish plotting before rendering, or render a figure no other thread is using.</p>
 </blockquote>
-<p>It notices artists appearing, disappearing or being relabelled, <strong>not</strong> a value changed in place on an existing artist — so hearing nothing is not a guarantee that a render was clean. Silence a <code>maidr.MaidrRenderRaceWarning</code> if you have decided a figure is deliberately shared.</p>
+<p>It notices artists appearing, disappearing or being relabeled, <strong>not</strong> a value changed in place on an existing artist — so hearing nothing is not a guarantee that a render was clean. Silence a <code>maidr.MaidrRenderRaceWarning</code> if you have decided a figure is deliberately shared.</p>
 <p><code>uv run pytest tests/core/test_render_is_synchronous.py --run-benchmark</code> re-measures the underlying <code>maidr.render()</code>, which is still synchronous and still blocks its caller — that is what makes moving it off the loop necessary rather than optional.</p>
 </div>
 </div>
@@ -1592,14 +1635,14 @@ Table&nbsp;1: Keyboard Shortcuts
 <td style="text-align: left;">CMD + Arrow key</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Select the first element</td>
-<td style="text-align: left;">Ctrl + Home</td>
-<td style="text-align: left;">CMD + Home</td>
+<td style="text-align: left;">Jump to the lowest value</td>
+<td style="text-align: left;">Open bracket ([)</td>
+<td style="text-align: left;">Open bracket ([)</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Select the last element</td>
-<td style="text-align: left;">Ctrl + End</td>
-<td style="text-align: left;">CMD + End</td>
+<td style="text-align: left;">Jump to the highest value</td>
+<td style="text-align: left;">Close bracket (])</td>
+<td style="text-align: left;">Close bracket (])</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Repeat current sound</td>
@@ -1614,7 +1657,7 @@ Table&nbsp;1: Keyboard Shortcuts
 <tr class="odd">
 <td style="text-align: left;">Stop Auto-play</td>
 <td style="text-align: left;">Ctrl</td>
-<td style="text-align: left;">Ctrl</td>
+<td style="text-align: left;">CMD</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Auto-play speed up</td>
@@ -1677,25 +1720,38 @@ Table&nbsp;1: Keyboard Shortcuts
 <td style="text-align: left;">ESC</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Open settings</td>
-<td style="text-align: left;">Ctrl + comma (,)</td>
-<td style="text-align: left;">CMD + comma (,)</td>
+<td style="text-align: left;">Open settings, including AI providers and API keys</td>
+<td style="text-align: left;">Ctrl + Comma (,)</td>
+<td style="text-align: left;">CMD + Comma (,)</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Open Chat View</td>
-<td style="text-align: left;">Question (?)</td>
-<td style="text-align: left;">Question (?)</td>
+<td style="text-align: left;">Open the AI chat</td>
+<td style="text-align: left;">Shift + Slash (?)</td>
+<td style="text-align: left;">Shift + Slash (?)</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Open keyboard help</td>
+<td style="text-align: left;">Open the keyboard help</td>
 <td style="text-align: left;">Ctrl + Slash (/)</td>
 <td style="text-align: left;">CMD + Slash (/)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Close the settings, chat or help dialog</td>
+<td style="text-align: left;">ESC</td>
+<td style="text-align: left;">ESC</td>
 </tr>
 </tbody>
 </table>
 </div>
 </figure>
 </div>
+<p>Three surfaces are easy to confuse, so to be explicit about what each key opens:</p>
+<ul>
+<li><strong>Keyboard help</strong> (<code>Ctrl + /</code>, <code>CMD + /</code> on Mac) lists these shortcuts. It is the only help dialog; there is no separate “Help menu”, and no <code>H</code> shortcut.</li>
+<li><strong>Settings</strong> (<code>Ctrl + ,</code>, <code>CMD + ,</code> on Mac) is where preferences live, including the <strong>AI</strong> tab that holds the AI providers, their API keys and the model each one uses.</li>
+<li><strong>AI chat</strong> (<code>?</code>, that is <code>Shift + /</code>) opens the conversation about the current plot.</li>
+</ul>
+<p>All three are closed with <strong>Esc</strong>, not by pressing the key that opened them again: while a dialog is up, the chart’s shortcuts are deliberately out of scope so they cannot fire underneath it, and the opening chord is not rebound inside that scope.</p>
+<p><a href="#tbl-shortcuts" class="quarto-xref">Table&nbsp;1</a> is the canonical list. Where another section of this page mentions a key, it refers back to this table rather than restating the binding.</p>
 </section>
 <section id="quarto-reveal.js-slides" class="level2">
 <h2 class="anchored" data-anchor-id="quarto-reveal.js-slides">Quarto reveal.js Slides</h2>
@@ -1734,33 +1790,33 @@ Table&nbsp;1: Keyboard Shortcuts
 <p>Earlier versions took off-slide elements out of the tab order by setting <code>tabindex="-1"</code> on them and could not find them again to put them back, which left the chart on the <em>current</em> slide unreachable as well.</p>
 </div>
 </div>
-<p>With the extension enabled, each slide gives one <strong>Tab</strong> to its own chart and <strong>Shift+Tab</strong> back out. The extension also adds a skip link ahead of the slides, so Shift+Tab lands there rather than on the slide element itself; either way <strong>Space</strong> still moves to the next slide.</p>
+<p>With the extension enabled, each slide gives one <strong>Tab</strong> to its own chart and <strong>Shift+Tab</strong> back out. The extension also adds a skip link ahead of the slides, so <strong>Shift+Tab</strong> lands there rather than on the slide element itself; either way <strong>Space</strong> still moves to the next slide.</p>
 </section>
 <section id="braille-generation" class="level2">
 <h2 class="anchored" data-anchor-id="braille-generation">Braille Generation</h2>
-<p>maidr incorporates a Braille mode that represents the plot using Braille symbols. This allows users with visual impairments to explore and interact with the plot using a refreshable Braille display. To achieve this, our system translates the plot’s visual elements and data points into a corresponding tactile representation using Braille patterns. For different plot types, such as barplot, boxplot, heatmap, and scatterplot, maidr employs unique encoding strategies tailored to effectively convey the data distribution, patterns, and trends. These tactile encodings range from using distinct Braille characters to represent value ranges, to employing characters that visually resemble the corresponding sections of a plot. By providing a comprehensive Braille representation for various plot types, maidr enables users with visual impairments to gain a deeper understanding of the underlying data and its insights.</p>
+<p>maidr incorporates a Braille mode that represents the plot using braille symbols. This allows users with visual impairments to explore and interact with the plot using a refreshable braille display. To achieve this, our system translates the plot’s visual elements and data points into a corresponding tactile representation using braille patterns. For different plot types, such as bar plot, box plot, heatmap, and scatter plot, maidr employs unique encoding strategies tailored to effectively convey the data distribution, patterns, and trends. These tactile encodings range from using distinct braille characters to represent value ranges, to employing characters that visually resemble the corresponding sections of a plot. By providing a comprehensive braille representation for various plot types, maidr enables users with visual impairments to gain a deeper understanding of the underlying data and its insights.</p>
 <section id="bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="bar-plot">Bar Plot</h3>
-<p>In the Braille representation of a barplot, data values are encoded as Braille characters based on their relative magnitude within the plot. Low values are denoted by Braille characters that have dots only along the bottom, while high values are indicated by characters that have dots along the top. Given the four height levels of Braille, the encoding is as follows:</p>
+<p>In the braille representation of a bar plot, data values are encoded as braille characters based on their relative magnitude within the plot. Low values are denoted by braille characters that have dots only along the bottom, while high values are indicated by characters that have dots along the top. Given the four height levels of braille, the encoding is as follows:</p>
 <ul>
 <li>⣀ represents values 0 to 25%</li>
 <li>⠤ represents the 25% to 50%</li>
 <li>⠒ represents the 50% to 75%</li>
 <li>⠉ represents the 75% to 100%</li>
 </ul>
-<p>This tactile encoding allows users to easily differentiate between the various value ranges in the barplot, facilitating their understanding of the data distribution and its underlying trends.</p>
+<p>This tactile encoding allows users to easily differentiate between the various value ranges in the bar plot, facilitating their understanding of the data distribution and its underlying trends.</p>
 </section>
 <section id="histogram" class="level3">
 <h3 class="anchored" data-anchor-id="histogram">Histogram</h3>
-<p>The braille representation of a histogram is the same as that of a barplot.</p>
+<p>The braille representation of a histogram is the same as that of a bar plot.</p>
 </section>
 <section id="line-plot" class="level3">
 <h3 class="anchored" data-anchor-id="line-plot">Line Plot</h3>
-<p>In the Braille representation of a lineplot, braille is nearly identical to the above barplot: data values are encoded as Braille characters based on their relative magnitude within the plot. Low values are denoted by Braille characters that have dots only along the bottom, while high values are indicated by characters that have dots higher up.</p>
+<p>In the braille representation of a line plot, braille is nearly identical to the above bar plot: data values are encoded as braille characters based on their relative magnitude within the plot. Low values are denoted by braille characters that have dots only along the bottom, while high values are indicated by characters that have dots higher up.</p>
 </section>
 <section id="heatmap" class="level3">
 <h3 class="anchored" data-anchor-id="heatmap">Heatmap</h3>
-<p>In the Braille representation of a heatmap, values are depicted based on their relative magnitude within the plot, much like the approach used for barplots and scatterplots. Low values are denoted by Braille characters with dots only along the bottom, high values are represented by characters filled with dots, and blank or null values are indicated by empty spaces. With three height levels of Braille, the encoding is as follows:</p>
+<p>In the braille representation of a heatmap, values are depicted based on their relative magnitude within the plot, much like the approach used for bar plots and scatter plots. Low values are denoted by braille characters with dots only along the bottom, high values are represented by characters filled with dots, and blank or null values are indicated by empty spaces. With three height levels of braille, the encoding is as follows:</p>
 <ul>
 <li>⠤ represents values from 0% to 33%</li>
 <li>⠒ represents values from 33% to 66%</li>
@@ -1771,7 +1827,7 @@ Table&nbsp;1: Keyboard Shortcuts
 </section>
 <section id="box-plot" class="level3">
 <h3 class="anchored" data-anchor-id="box-plot">Box Plot</h3>
-<p>The Braille representation of a boxplot employs Braille characters that visually resemble the corresponding sections of the boxplot. An example of such braille may look like ⠂ ⠒⠒⠒⠒⠒⠒⠿⠸⠿⠒ . The size of each section is denoted by the number of Braille characters used. The sections are encoded as follows:</p>
+<p>The braille representation of a box plot employs braille characters that visually resemble the corresponding sections of the box plot. An example of such braille may look like ⠂ ⠒⠒⠒⠒⠒⠒⠿⠸⠿⠒ . The size of each section is denoted by the number of braille characters used. The sections are encoded as follows:</p>
 <ul>
 <li>⠂ represents lower outlier and upper outlier(s)</li>
 <li>⠒ represents the left or right whiskers</li>
@@ -1785,7 +1841,7 @@ Table&nbsp;1: Keyboard Shortcuts
 <li>Differences or equalities in whiskers and quartiles must be upheld. That is, if the min and max whisker are of equal length, they must have the same number of braille characters, or if they’re different, the number of characters must be different.</li>
 <li>Zero length sections, such as outliers and the median, are always represented by a set character. ⠂ in the case of outliers, ⠸⠇ in the case of the median.</li>
 </ol>
-<p>This tactile encoding enables users to discern the various components of the boxplot, allowing them to comprehend the data distribution, detect outliers, and identify central tendencies and dispersion within the dataset.</p>
+<p>This tactile encoding enables users to discern the various components of the box plot, allowing them to comprehend the data distribution, detect outliers, and identify central tendencies and dispersion within the dataset.</p>
 <p>To generate the braille, we use an algorithm that generates a distribution of characters based on a given proportional distribution and a specified total number of characters in the user’s braille display. This can be described mathematically as follows:</p>
 <p><span class="math display">\[
 c_i = \text{round}(n \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
@@ -1802,12 +1858,12 @@ c_i = \text{round}((n - C) \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
 </ul>
 <p>The process is as follows in the code:</p>
 <ol type="1">
-<li>We first convert our data set for a particular boxplot to an array of lengths.</li>
+<li>We first convert our dataset for a particular box plot to an array of lengths.</li>
 <li>We then assign the single required character to each section.</li>
 <li>We also note connected sections, such as min and max.</li>
 <li>We then normalize and allocate all remaining characters according to their proportional distribution, making sure to add extra characters where needed to keep differences or equalities.</li>
 </ol>
-<p>As an example, consider a boxplot with the following distribution: [10, 0, 20, 40, 30, 0, 30, 60, 50, 30, 0, 10, 0], with types [blank space, outlier, larger blank space, large min whisker, moderate sized lower quartile, the median, moderate sized upper quartile, another larger max whisker, a large blank space, an outlier, a small blank space, then another outlier], and a braille display length of 33. We would produce braille that looks like so:</p>
+<p>As an example, consider a box plot with the following distribution: [10, 0, 20, 40, 30, 0, 30, 60, 50, 30, 0, 10, 0], with types [blank space, outlier, larger blank space, large min whisker, moderate-sized lower quartile, the median, moderate-sized upper quartile, another larger max whisker, a large blank space, an outlier, a small blank space, then another outlier], and a braille display length of 33. We would produce braille that looks like so:</p>
 <p>⠂ ⠒⠒⠒⠒⠿⠿⠿⠸⠇⠿⠿⠿⠒⠒⠒⠒⠒⠒ ⠂ ⠂</p>
 </section>
 <section id="scatter-plot" class="level3">
@@ -1815,7 +1871,7 @@ c_i = \text{round}((n - C) \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
 <ul>
 <li>Note: The line layer in py-maidr has not been implemented yet. The following is a placeholder for the future implementation.</li>
 </ul>
-<p>In the Braille representation of a scatterplot, the encoding is performed only for the line layer (layer 2). The method is similar to that used for barplots, wherein data values are represented as Braille characters based on their relative magnitude within the plot. Low values are denoted by dots along the bottom, while high values are indicated by dots along the top. With four height levels of Braille, the encoding is as follows:</p>
+<p>In the braille representation of a scatter plot, the encoding is performed only for the line layer (layer 2). The method is similar to that used for bar plots, wherein data values are represented as braille characters based on their relative magnitude within the plot. Low values are denoted by dots along the bottom, while high values are indicated by dots along the top. With four height levels of braille, the encoding is as follows:</p>
 <ul>
 <li>⣀ represents values from 0% to 25%</li>
 <li>⠤ represents values from 25% to 50%</li>
@@ -1831,81 +1887,49 @@ c_i = \text{round}((n - C) \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
 <p>Stacked bar, dodged bar, and normalized stacked bar all share the same system:</p>
 <p>In the braille representation of segmented bar plots, braille depends on where you are. There are typically multiple levels to a segmented bar plot, and as you move (Up and Down arrow keys) between levels, the braille changes to represent your current level. At the top, there is also a Summary pseudo level of all levels added together, and a Combined pseudo level of each level separately.</p>
 <ul>
-<li>Regular level: Braille appears similar to a bar plot, with braille values corresponding to the magnitude of the level’s value for this point.</li>
+<li>Regular level: the braille appears similar to a bar plot, with braille values corresponding to the magnitude of the level’s value for this point.</li>
 <li>Summary level: Same as regular level, but values now reflect the combined magnitude of all levels’ values for this point.</li>
 <li>Combined level: Similar to heatmap, where there are groups of magnitudes for each point separated by a ⢳ character. The first group has braille characters for each level for the first point, then a separator, then the second group has braille characters for each level in the second point, then a separator, and so on.</li>
 </ul>
 </section>
 </section>
-<section id="getting-refreshable-braille-display-loaner" class="level2">
-<h2 class="anchored" data-anchor-id="getting-refreshable-braille-display-loaner">Getting Refreshable Braille Display Loaner</h2>
-<p>If you are a blind user and do not have a refreshable Braille display, you can request a loaner from the National Library Service (NLS) for the Blind and Print Disabled. Please follow our instruction on <a href="https://xabilitylab.ischool.illinois.edu/braille-display">how to request an NLS eReader Braille Display</a>.</p>
+<section id="getting-a-refreshable-braille-display-loaner" class="level2">
+<h2 class="anchored" data-anchor-id="getting-a-refreshable-braille-display-loaner">Getting a Refreshable Braille Display Loaner</h2>
+<p>If you are a blind user and do not have a refreshable braille display, you can request a loaner from the National Library Service (NLS) for the Blind and Print Disabled. Please follow our instructions on <a href="https://xabilitylab.ischool.illinois.edu/braille-display">how to request an NLS eReader Braille Display</a>.</p>
 </section>
-<section id="instruction-on-how-to-verify-and-use-the-ai-feature-in-py-maidr" class="level2">
-<h2 class="anchored" data-anchor-id="instruction-on-how-to-verify-and-use-the-ai-feature-in-py-maidr">Instruction on How to Verify and Use the AI Feature in py-maidr</h2>
-<p>We provide AI API keys only to alpha testers who have shared their email addresses through our survey form. If you are not an alpha tester, you can still use the AI feature by manually providing your own AI API keys in the Help menu.</p>
-<section id="for-alpha-testers" class="level3">
-<h3 class="anchored" data-anchor-id="for-alpha-testers">For Alpha Testers</h3>
+<section id="sec-ai-chat" class="level2">
+<h2 class="anchored" data-anchor-id="sec-ai-chat">Using the AI Chat</h2>
+<p>Press <code>?</code> from the plot to open a conversation about the chart you are reading (see <a href="#tbl-shortcuts" class="quarto-xref">Table&nbsp;1</a>). The chat answers from the same data maidr sonifies and brailles, so you can ask about trends, outliers or a specific point without leaving the keyboard. <strong>Esc</strong> closes it and returns focus to the plot.</p>
+<p>The chat runs against a provider you supply, so it needs to be configured once before the first question:</p>
 <ol type="1">
-<li><p>Activate the maidr plot by pressing the <strong>Tab</strong> key or clicking on the plot area.</p></li>
-<li><p>In the interactive plot area, press <strong>H</strong> to open the Help menu.</p></li>
-<li><p>Locate the text field labeled <strong>“Enter your email address”</strong>.</p></li>
-<li><p>Type your email address in the text field. <em>Note: The email address must match the one you provided in the survey form.</em></p></li>
-<li><p>Press <strong>Enter</strong> to submit your email address.</p></li>
-<li><p>Wait for the confirmation message to appear on the screen.</p></li>
-<li><p>Press <strong>Enter</strong> to close the confirmation message.</p></li>
-<li><p>Select up to two AI models from the checkboxes. Supported models include:</p>
-<ul>
-<li>OpenAI GPT-4o</li>
-<li>Google Gemini 2.0 Flash Experimental</li>
-<li>Anthropic Claude 3.5 Sonnet</li>
-</ul></li>
+<li>Activate the plot by pressing <strong>Tab</strong> or clicking on the plot area.</li>
+<li>Open <strong>Settings</strong> (<code>Ctrl + ,</code>, <code>CMD + ,</code> on Mac) and go to the <strong>AI</strong> tab.</li>
+<li>Enable one or more providers and enter each one’s API key. maidr supports <strong>OpenAI</strong>, <strong>Anthropic Claude</strong> and <strong>Google Gemini</strong>, and it can also talk to a local <a href="https://ollama.com/">Ollama</a> server, which takes a server URL in place of a key and keeps the conversation on your own machine.</li>
+<li>Choose a model for each enabled provider. The dropdown is filled from that provider’s own models API using the key you entered, so it offers whatever is available to your account today — including models released after this page was written. maidr ships a small curated list as a fallback for when a provider cannot be reached; it is not a limit on what you can pick.</li>
+<li>Close the dialog and press <code>?</code> to start chatting.</li>
 </ol>
-<ul>
-<li><strong>Note</strong>: All provided models are the latest versions.</li>
-</ul>
-<ol start="9" type="1">
-<li><p>Click the <strong>Save and Close</strong> button.</p></li>
-<li><p>Check your email inbox for a verification email from <code>maidr.ai</code>.</p></li>
-<li><p>Open the verification email and click on the verification link.</p></li>
-<li><p>Once verified, return to the interactive plot area and press <strong>Ctrl+Shift+/</strong> (forward slash) or <strong>Alt+Shift+/</strong> (on Mac) to open the AI modal. You can now chat with the selected AI models about your plot.</p></li>
-</ol>
-<ul>
-<li><strong>Note</strong>: The AI Chat modal is togglable. Use the same key combination to switch between the plot and the AI Chat modal.</li>
-</ul>
-</section>
-<section id="for-all-other-users" class="level3">
-<h3 class="anchored" data-anchor-id="for-all-other-users">For All Other Users</h3>
-<p>You can manually provide your own AI API keys in the Help menu. These keys are not saved and are only used for the current session. This means you will need to re-enter your API keys each time you open the app.</p>
-<ol type="1">
-<li><p>Activate the maidr plot by pressing the <strong>Tab</strong> key or clicking on the plot area.</p></li>
-<li><p>In the interactive plot area, press <strong>H</strong> to open the Help menu.</p></li>
-<li><p>Select up to two AI models from the checkboxes. Supported models include:</p>
-<ul>
-<li>OpenAI GPT-4o</li>
-<li>Google Gemini 2.0 Flash Experimental</li>
-<li>Anthropic Claude 3.5 Sonnet</li>
-</ul></li>
-</ol>
-<ul>
-<li><strong>Note</strong>: All provided models are the latest versions.</li>
-</ul>
-<ol start="4" type="1">
-<li><p>Enter your API keys in the respective text fields.</p></li>
-<li><p>Click the <strong>Save and Close</strong> button.</p></li>
-<li><p>Return to the interactive plot area and press <strong>Ctrl+Shift+/</strong> (forward slash) or <strong>Alt+Shift+/</strong> (on Mac) to open the AI modal. You can now chat with the selected AI models about your plot.</p></li>
-</ol>
-<ul>
-<li><strong>Note</strong>: The AI Chat modal is togglable. Use the same key combination to switch between the plot and the AI Chat modal.</li>
-</ul>
-</section>
+<p>Enabling more than one provider is supported: a question goes to all of them at once, and you can compare the answers.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Your API keys are stored in your browser
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>maidr saves its settings, API keys included, in the browser’s <code>localStorage</code> under the origin serving the page, and calls the provider directly from the browser with the key you entered. Nothing you type into the settings dialog reaches your Python process, and no key is written into the file <code>maidr.save_html()</code> produces.</p>
+<p>Because <code>localStorage</code> persists, a key stays in that browser between visits. On a shared or public machine, use <strong>Reset</strong> in the settings dialog when you are done.</p>
+</div>
+</div>
 </section>
 <section id="related-projects" class="level2">
 <h2 class="anchored" data-anchor-id="related-projects">Related projects</h2>
 <p>py-maidr is one of three packages that share the MAIDR engine. Each is maintained by the (x)Ability Design Lab and documented on its own site:</p>
 <ul>
 <li><a href="https://maidr.ai/">MAIDR JavaScript core</a>: the TypeScript engine that provides the keyboard model, sonification, braille, text and AI chat, published on npm as <code>maidr</code>. py-maidr bundles it and loads it from the CDN.</li>
-<li><a href="https://py.maidr.ai/">py-maidr for Python</a>: this package, for matplotlib, seaborn, Plotly and Altair (PyPI package <code>maidr</code>, source on <a href="https://github.com/xability/py-maidr">GitHub</a>).</li>
+<li><a href="https://py.maidr.ai/">py-maidr for Python</a>: this package, for matplotlib, seaborn, Plotly, and Altair (PyPI package <code>maidr</code>, source on <a href="https://github.com/xability/py-maidr">GitHub</a>).</li>
 <li><a href="https://r.maidr.ai/">maidr for R</a>: the R package for ggplot2 and base graphics, published on CRAN as <code>maidr</code>.</li>
 </ul>
 </section>
@@ -1916,7 +1940,7 @@ c_i = \text{round}((n - C) \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
 <p>For the teaching context in which MAIDR was developed, cite:</p>
 <p>Seo, J., O’Modhrain, S., Xia, Y., Kamath, S., Lee, B., &amp; Coughlan, J. M. (2024). Designing Born-Accessible Courses in Data Science and Visualization: Challenges and Opportunities of a Remote Curriculum Taught by Blind Instructors to Blind Students. In EuroVis 2024 - Education Papers. The Eurographics Association. <a href="https://doi.org/10.2312/eved.20241053">https://doi.org/10.2312/eved.20241053</a></p>
 <div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -1925,7 +1949,7 @@ c_i = \text{round}((n - C) \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" data-code-line-numbers=""><pre class="sourceCode bibtex code-with-copy"><code class="sourceCode bibtex"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="va">@inproceedings</span>{<span class="ot">seo2024maidr</span>,</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>     = {MAIDR: Making Statistical Visualizations Accessible with Multimodal Data Representation},</span>
