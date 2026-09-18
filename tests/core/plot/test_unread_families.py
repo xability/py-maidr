@@ -27,6 +27,28 @@ outlines a level's own curve would be right for about half its vertices.
 That is the rule xability/r-maidr's `Ggplot2ContourLayerProcessor` already
 states for `geom_contour_filled()`, and the two bindings agreeing is worth
 keeping.
+
+``ax.fill`` is the decline that *could* be overturned, which is why its
+reasoning is written down here rather than left to the parametrize list
+(#685). Unlike a mesh or a vector field, a polygon is representable: ``fill``
+returns ``Polygon`` patches carrying a closed ring of vertices, an ordered
+sequence of positions, and a prototype reading each ring as its own LINE
+layer worked end to end. It stays declined because a polygon states no
+series. ``ax.plot`` is asked for as a sequence; ``ax.fill`` is asked for as
+a shape, and announcing "line chart, four points" for a shaded region
+describes the geometry rather than the chart -- ``line`` is the wrong name
+for a filled mark, and ``area`` is worse, since that is a band against a
+baseline and ``ax.fill([0, 1, 1, 0], [0, 0, 1, 1])`` is a square. The decline
+also costs its neighbours nothing: a ``fill`` beside a scatter or a plot
+leaves their reading exactly as it was, so the only figure that loses
+anything holds a ``fill`` and nothing else, and that falls back to a picture
+-- the designed answer for a chart maidr has no reading for.
+
+The sweep at the bottom is the other half of the same promise. It walks every
+matplotlib entry point that draws marks and pins what each one is read as
+today, so that "nothing is unaccounted for" is a test rather than a claim in
+an issue: a call that starts registering nothing, or a decline that starts
+registering something, fails here by name.
 """
 
 from __future__ import annotations
@@ -198,3 +220,117 @@ def test_a_mesh_labeled_like_a_fit_is_still_declined(triangulation, label):
     ax.triplot(x, y, label=label)
 
     assert _layers(fig) == []
+
+
+@pytest.mark.parametrize(
+    ("order", "expected"),
+    [
+        (("scatter", "fill"), ["point"]),
+        (("plot", "fill"), ["line"]),
+        (("fill", "plot"), ["line"]),
+    ],
+)
+def test_a_fill_beside_a_chart_that_reads_costs_it_nothing(order, expected):
+    # What makes the `fill` decline a maintainer's call rather than a defect
+    # (#685): a shaded region drawn next to a chart leaves the chart's reading
+    # exactly as it was, whichever was drawn first.
+    fig, ax = plt.subplots()
+    for draw in order:
+        if draw == "scatter":
+            ax.scatter([1, 2, 3], [3, 1, 2])
+        elif draw == "plot":
+            ax.plot([1, 2, 3], [3, 1, 2])
+        else:
+            ax.fill([0, 1, 2, 0], [0, 2, 0, 0])
+
+    assert _layers(fig) == expected
+
+
+# Every matplotlib `Axes` method that draws marks, and what a figure holding
+# just that call is read as. `[]` is a deliberate decline: the figure falls
+# back to a picture. Grouped the way the readings group, not alphabetically.
+SWEEP = {
+    # a grid of values, addressed by row and column
+    "imshow": ["heat"],
+    "matshow": ["heat"],
+    "spy": ["heat"],
+    "specgram": ["heat"],
+    # a value at a position, drawn as a stalk
+    "stem": ["lollipop"],
+    "acorr": ["lollipop"],
+    "xcorr": ["lollipop"],
+    # a spectrum is a series over frequency
+    "psd": ["line"],
+    "angle_spectrum": ["line"],
+    # level curves, one path per level
+    "tricontour": ["contour"],
+    # a vector at a place carries a speed *and* a direction; no trace holds both
+    "quiver": [],
+    "barbs": [],
+    "streamplot": [],
+    # a mesh states which points were joined, not an order to walk
+    "triplot": [],
+    # a filled band spans two levels; a heat grid is addressed by row and column
+    "tripcolor": [],
+    "contourf": [],
+    "tricontourf": [],
+    # a closed polygon states no series (see the module docstring)
+    "fill": [],
+}
+
+
+def _draw(ax, call: str, field, triangulation) -> None:
+    grid, x, y, z = field
+    tx, ty, tz = triangulation
+    signal = np.sin(np.linspace(0, 20, 256))
+    if call in ("imshow", "matshow"):
+        getattr(ax, call)(z)
+    elif call == "spy":
+        ax.spy(np.eye(5))
+    elif call == "specgram":
+        ax.specgram(signal, Fs=10)
+    elif call == "stem":
+        ax.stem([1, 2, 3], [3, 1, 2])
+    elif call == "acorr":
+        ax.acorr(signal[:64])
+    elif call == "xcorr":
+        ax.xcorr(signal[:64], signal[:64])
+    elif call in ("psd", "angle_spectrum"):
+        getattr(ax, call)(signal, Fs=10)
+    elif call in ("tricontour", "tricontourf", "tripcolor"):
+        getattr(ax, call)(tx, ty, tz)
+    elif call in ("quiver", "barbs"):
+        getattr(ax, call)([0, 1], [0, 1], [1, 1], [1, 1])
+    elif call == "streamplot":
+        ax.streamplot(grid, grid, np.ones_like(x), np.ones_like(y))
+    elif call == "triplot":
+        ax.triplot(tx, ty)
+    elif call == "contourf":
+        ax.contourf(x, y, z)
+    elif call == "fill":
+        ax.fill([0, 1, 2, 0], [0, 2, 0, 0])
+    else:  # pragma: no cover - a new row needs a way to draw it
+        raise AssertionError(f"no way to draw {call!r}")
+
+
+@pytest.mark.parametrize("call", list(SWEEP))
+def test_every_call_that_draws_is_accounted_for(field, triangulation, call):
+    fig, ax = plt.subplots()
+    _draw(ax, call, field, triangulation)
+
+    assert _layers(fig) == SWEEP[call]
+    assert len(maidr.render(fig)._repr_html_()) > 0
+
+
+def test_a_table_is_not_a_chart_and_the_message_says_so():
+    # `ax.table` draws, but not marks: the figure is reported as empty, which
+    # is accurate, rather than as a chart maidr cannot read, which would send
+    # a user looking for a plot type that was never there.
+    fig, ax = plt.subplots()
+    ax.table(cellText=[["a", "b"], ["c", "d"]], loc="center")
+
+    with pytest.raises(UnsupportedPlotError) as raised:
+        FigureManager.get_maidr(fig)
+    assert raised.value.is_empty
+    assert "no plots on it yet" in str(raised.value)
+    assert len(maidr.render(fig)._repr_html_()) > 0
