@@ -17,11 +17,22 @@ class PiePlot(MaidrPlot):
     """
     A MAIDR layer for a matplotlib pie chart.
 
-    A pie is one flat row of slices: N labels paired with N magnitudes, in the
-    order ``Axes.pie`` drew them. The percentage a slice covers is derived from
-    those magnitudes by the renderer, so it is deliberately absent here — a
-    percentage emitted alongside the values it is supposedly derived from is a
-    second source of truth that can disagree with the first.
+    A pie is one flat row of slices: N labels paired with N magnitudes, in
+    the order a reader walks them around the circle. The percentage a slice
+    covers is derived from those magnitudes by the renderer, so it is
+    deliberately absent here — a percentage emitted alongside the values it
+    is supposedly derived from is a second source of truth that can disagree
+    with the first.
+
+    The walk is clockwise. MAIDR steps Right through the slices of a pie in
+    data order and takes that order to run clockwise round the dial — its
+    audio pans and its clock-position announcements are both laid out that
+    way. ``Axes.pie`` draws counterclockwise unless told otherwise, so the
+    order it drew is the order a reader would walk *backwards*: Right moved
+    the highlight counterclockwise, and the sound panned to the side the slice
+    was not on. A counterclockwise pie is therefore emitted in reverse — the
+    same wedges, walked the other way round — and a ``counterclock=False``
+    pie, already clockwise, is emitted as drawn.
 
     Parameters
     ----------
@@ -31,14 +42,35 @@ class PiePlot(MaidrPlot):
         ``values`` and ``labels``, as the patch on ``Axes.pie`` read them off
         the original call, and ``wedges``, the slices that call drew. All
         three are optional; see the ``_extract_*`` methods for what happens
-        without them.
+        without them. ``counterclock`` is the call's own drawing direction,
+        ``True`` when it was not given because that is matplotlib's default;
+        a counterclockwise pie is walked in reverse, see the class note.
     """
 
     def __init__(self, ax: Axes, **kwargs) -> None:
         self._values = kwargs.pop("values", None)
         self._labels = kwargs.pop("labels", None)
         self._wedges = kwargs.pop("wedges", None)
+        self._counterclock = bool(kwargs.pop("counterclock", True))
         super().__init__(ax, PlotType.PIE)
+
+    @property
+    def orders_svg_by_elements(self) -> bool:
+        """
+        Whether the SVG has to list this layer's wedges in walking order.
+
+        The selector is positional — element k of what it resolves to is
+        slice k of the data — and it resolves in document order, which is
+        the order matplotlib drew. A reversed pie walks the wedges the other
+        way round from how they were drawn, so the document has to be put in
+        walking order for the highlight to land on the slice being read.
+
+        Returns
+        -------
+        bool
+            True when the slices are emitted in reverse of the draw order.
+        """
+        return self._counterclock
 
     def _extract_axes_data(self) -> dict:
         """
@@ -96,7 +128,8 @@ class PiePlot(MaidrPlot):
         Returns
         -------
         list of dict
-            One ``{"x": label, "y": value}`` point per slice, in slice order.
+            One ``{"x": label, "y": value}`` point per slice, in the order
+            the slices are walked: clockwise round the dial.
 
         Raises
         ------
@@ -110,8 +143,18 @@ class PiePlot(MaidrPlot):
                 raise ExtractionError(self.type, self.ax)
             return []
 
+        # Read in draw order, which is what the call's own `values` and
+        # `labels` are indexed by, and only then turned round as one: the
+        # three lists stay aligned whichever way they are walked.
         values = self._extract_values(wedges)
         labels = self._extract_labels(wedges)
+
+        if self._counterclock:
+            # Drawn counterclockwise, walked clockwise: the last wedge drawn is
+            # the first one clockwise from where the pie started.
+            wedges = wedges[::-1]
+            values = values[::-1]
+            labels = labels[::-1]
 
         self._elements.extend(wedges)
 
@@ -138,7 +181,7 @@ class PiePlot(MaidrPlot):
         Returns
         -------
         list of Wedge
-            One wedge per slice, in slice order.
+            One wedge per slice, in draw order.
         """
         patches = self.ax.patches if self._wedges is None else self._wedges
         return [patch for patch in patches if isinstance(patch, Wedge)]

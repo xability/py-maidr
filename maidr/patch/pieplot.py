@@ -62,11 +62,24 @@ def pie(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> tuple:
     values = _resolve(_argument("x", wrapped, args, kwargs), data)
     labels = _resolve(_argument("labels", wrapped, args, kwargs), data)
 
+    # Which way round the wedges were laid out. MAIDR walks a pie clockwise,
+    # and matplotlib draws one counterclockwise unless told otherwise, so the
+    # layer needs the call's own answer to know whether to turn the slices
+    # round; `None` here is a caller who left it at the default.
+    counterclock = _argument("counterclock", wrapped, args, kwargs)
+    if counterclock is None:
+        counterclock = True
+
     # `plot[0]` is the wedge list in both return shapes. Handing it over keeps
     # a nested pie's two rings apart: each layer then describes the slices its
     # own call drew rather than every wedge sitting on the axes.
     FigureManager.create_maidr(
-        instance, PlotType.PIE, values=values, labels=labels, wedges=plot[0]
+        instance,
+        PlotType.PIE,
+        values=values,
+        labels=labels,
+        wedges=plot[0],
+        counterclock=counterclock,
     )
 
     return plot
