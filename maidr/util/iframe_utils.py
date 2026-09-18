@@ -31,10 +31,13 @@ _UNTITLED_NAME = "Accessible chart"
 # same-origin frame satisfies, so this attribute changes nothing for one.  A
 # feature named here without its own allowlist takes the *attribute's*
 # default, ``'src'``: the origin the frame was loaded from.  They coincide
-# only because these wrappers use ``srcdoc``, whose document inherits the
-# embedder's origin, which is why ``test_the_frame_still_carries_its_own_document``
-# guards that choice.  What the attribute buys is the cross-origin case, where
-# the fallback would deny both.
+# only because the frame stays same-origin: these wrappers use ``srcdoc``,
+# whose document inherits the embedder's origin, which is why
+# ``test_the_frame_still_carries_its_own_document`` guards that choice; the
+# Shiny renderer then swaps the ``srcdoc`` for a relative ``src`` on the
+# app's own origin (#534), which ``test_the_frame_stays_on_the_hosts_origin``
+# in ``tests/widget/test_shiny.py`` guards in turn.  What the attribute buys
+# is the cross-origin case, where the fallback would deny both.
 #
 # This delegates capabilities, it does not create them: a frame cannot receive
 # a feature the embedding page lacks, and the browser still requires a user
