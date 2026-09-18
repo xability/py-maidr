@@ -69,6 +69,10 @@ def pie(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> tuple:
     # explicit `None` draws clockwise exactly as `False` does, and only a
     # caller who did not pass it gets matplotlib's default of `True`.
     counterclock = bool(_argument("counterclock", wrapped, args, kwargs, default=True))
+    # Where the first wedge's edge sits, in matplotlib's own terms: degrees
+    # counterclockwise from 3 o'clock, `0` when not given. The layer turns
+    # it into the renderer's.
+    startangle = _argument("startangle", wrapped, args, kwargs, default=0)
 
     # `plot[0]` is the wedge list in both return shapes. Handing it over keeps
     # a nested pie's two rings apart: each layer then describes the slices its
@@ -80,6 +84,7 @@ def pie(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> tuple:
         labels=labels,
         wedges=plot[0],
         counterclock=counterclock,
+        startangle=startangle,
     )
 
     return plot

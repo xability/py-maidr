@@ -152,6 +152,18 @@ order of the `values` array is not the order of the slices. maidr reproduces
 that ordering, because the slice a user hears has to be the slice that
 highlights. Pass `sort=False` to keep the authored order in both.
 
+Plotly also lays the wedges out *counterclockwise* unless `direction` says
+otherwise, while maidr walks a pie clockwise: Right steps to the next slice
+the way a clock hand goes, the audio pans each slice to where it sits, and
+`p` names its clock position. The layer therefore declares the drawn
+direction, and the renderer walks the slices in reverse so that Right still
+moves clockwise with the highlight on the slice being read. It also says
+where the ring begins, which for a counterclockwise pie is not `rotation`
+alone: plotly ends the first wedge at `rotation` and draws it clockwise of
+there, so a default pie's largest slice sits to the right of 12 o'clock and
+the ring starts where that slice ends. A renderer older than the one that
+reads these values ignores them and walks the slices as drawn.
+
 ```{python}
 #| warning: false
 #| fig-alt: Pie chart showing the share of tips recorded on each day of the week

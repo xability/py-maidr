@@ -106,4 +106,9 @@ class PlotlyFunnelareaPlot(PlotlyPiePlot):
         """
         schema = super().render()
         schema[MaidrKey.ORIENTATION] = "vert"
+        # A funnelarea is stages down a page, not slices round a dial: the
+        # start angle and direction the pie base declares describe nothing
+        # it draws, and a funnel layer does not read them.
+        schema.pop(MaidrKey.START_ANGLE, None)
+        schema.pop(MaidrKey.DIRECTION, None)
         return schema
