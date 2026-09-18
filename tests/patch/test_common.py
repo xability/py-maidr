@@ -70,3 +70,29 @@ def test_an_argument_the_caller_left_out_is_none() -> None:
     Plotter().bar([0, 1], [2, 3])
 
     assert seen["value"] is None
+
+
+def test_an_argument_the_caller_left_out_reads_as_the_default_asked_for() -> None:
+    # `None` cannot stand for "not passed" once the wrapped function tests
+    # the argument for truth, which is why the default is the caller's to
+    # name.
+    seen = {}
+
+    class Plotter:
+        def pie(self, x, counterclock=True):
+            return x, counterclock
+
+    def patch(wrapped, instance, args, kwargs):
+        seen["value"] = _argument("counterclock", wrapped, args, kwargs, default=True)
+        return wrapped(*args, **kwargs)
+
+    wrapt.wrap_function_wrapper(Plotter, "pie", patch)
+
+    Plotter().pie([1, 2])
+    assert seen["value"] is True
+
+    Plotter().pie([1, 2], counterclock=None)
+    assert seen["value"] is None
+
+    Plotter().pie([1, 2], False)
+    assert seen["value"] is False

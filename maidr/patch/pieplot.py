@@ -65,10 +65,10 @@ def pie(wrapped: Callable, instance: Axes, args: tuple, kwargs: dict) -> tuple:
     # Which way round the wedges were laid out. MAIDR walks a pie clockwise,
     # and matplotlib draws one counterclockwise unless told otherwise, so the
     # layer needs the call's own answer to know whether to turn the slices
-    # round; `None` here is a caller who left it at the default.
-    counterclock = _argument("counterclock", wrapped, args, kwargs)
-    if counterclock is None:
-        counterclock = True
+    # round. Read the way `Axes.pie` reads it: `if counterclock:`, so an
+    # explicit `None` draws clockwise exactly as `False` does, and only a
+    # caller who did not pass it gets matplotlib's default of `True`.
+    counterclock = bool(_argument("counterclock", wrapped, args, kwargs, default=True))
 
     # `plot[0]` is the wedge list in both return shapes. Handing it over keeps
     # a nested pie's two rings apart: each layer then describes the slices its

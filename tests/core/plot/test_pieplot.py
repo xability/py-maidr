@@ -301,12 +301,38 @@ class TestSliceOrder:
     def test_counterclock_is_read_off_the_call_by_position(self):
         # `counterclock` is the eleventh positional parameter of `Axes.pie`;
         # a caller who passes it that way must be read the same as one who
-        # names it.
+        # names it. Matplotlib 3.10 deprecates passing the parameters before
+        # it positionally and means to refuse them in 3.12; once it does, no
+        # caller can reach this path and there is nothing left to pin.
         fig, ax = plt.subplots()
         try:
-            ax.pie(UNITS, None, FRUIT, None, None, 0.6, False, 1.1, 0, 1, False)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                try:
+                    ax.pie(UNITS, None, FRUIT, None, None, 0.6, False, 1.1, 0, 1, False)
+                except TypeError:
+                    pytest.skip(
+                        "this matplotlib no longer takes counterclock by position"
+                    )
             schema = _only_layer(fig)
 
+            assert [point["x"] for point in schema["data"]] == FRUIT
+        finally:
+            plt.close(fig)
+
+    def test_an_explicit_none_is_drawn_clockwise_and_read_that_way(self):
+        # `Axes.pie` tests `counterclock` for truth, so `None` draws clockwise
+        # exactly as `False` does. Reading it as "not passed" would turn a
+        # clockwise pie round and walk it backwards -- the very fault the
+        # reversal exists to fix.
+        fig, ax = plt.subplots()
+        try:
+            wedges, _ = ax.pie(UNITS, labels=FRUIT, counterclock=None)
+            schema = _only_layer(fig)
+
+            # Drawn clockwise: each wedge ends where the next begins, going
+            # down through the angles.
+            assert wedges[1].theta2 == pytest.approx(wedges[0].theta1)
             assert [point["x"] for point in schema["data"]] == FRUIT
         finally:
             plt.close(fig)
