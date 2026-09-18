@@ -456,6 +456,29 @@ class MaidrPlot(ABC, FormatExtractorMixin):
             self._schema = self.render()
         return self._elements
 
+    @property
+    def orders_svg_by_elements(self) -> bool:
+        """
+        Whether the rendered SVG must list this layer's tagged elements in
+        the order of :attr:`elements` rather than in the order matplotlib
+        drew them.
+
+        The frontend pairs data index k with the k-th element a positional
+        selector resolves to, and a selector resolves in document order —
+        which is draw order. For every layer the two orders agree, so the
+        SVG is left as drawn: moving elements about would change which of
+        two overlapping artists paints on top. A layer that walks its
+        artists in a different order from the one they were drawn in says so
+        here, and :meth:`maidr.core.maidr.Maidr._get_svg` puts its tagged
+        groups in walking order.
+
+        Returns
+        -------
+        bool
+            False unless a subclass overrides it.
+        """
+        return False
+
     def set_id(self, maidr_id: str) -> None:
         """Set the unique identifier for the plot within the MAIDR schema."""
         if not self._schema:

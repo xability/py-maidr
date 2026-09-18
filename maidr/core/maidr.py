@@ -70,6 +70,59 @@ _AXES_WIDE_BAR_PLOTS = (BarPlot, GroupedBarPlot)
 _SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 
 
+def _order_tagged_groups(tree, selector_id: str, elements: list) -> None:
+    """Put one layer's tagged ``<g>`` groups into the order of its elements.
+
+    The frontend resolves a positional selector in document order and pairs
+    element k with data index k, while matplotlib writes each artist's group
+    where its draw order falls. Where the two disagree the groups are moved,
+    each into the slot another of them occupied, so the document lists them
+    in ``elements`` order and nothing else about it changes -- the slots
+    were the layer's own, so no other artist moves and no group changes
+    parent.
+
+    The groups are matched to the artists by gid, which is what matplotlib
+    wrote as the group's ``id``. When that match is not one to one -- a
+    user's own gid shared between artists (#753), an artist the layer lists
+    that was not drawn -- the document is left as drawn: a selector that
+    cannot be put in order is better left in the order it was in than
+    scrambled on a guess.
+
+    Parameters
+    ----------
+    tree : lxml.etree._Element
+        The rendered SVG, modified in place.
+    selector_id : str
+        The value of the ``maidr`` attribute the layer's groups carry.
+    elements : list
+        The layer's artists, in the order its data walks them.
+    """
+    groups = tree.xpath("//*[local-name()='g'][@maidr=$id]", id=selector_id)
+    wanted = [element.get_gid() for element in elements]
+    if len(groups) != len(wanted):
+        return
+
+    by_gid = {group.get("id"): group for group in groups}
+    if len(by_gid) != len(groups) or set(by_gid) != set(wanted):
+        return
+
+    if [group.get("id") for group in groups] == wanted:
+        return
+
+    # Mark every slot before moving anything: a group's index shifts as
+    # soon as a sibling ahead of it moves, but a placeholder stays put.
+    slots = []
+    for group in groups:
+        slot = etree.Comment("maidr slot")
+        group.addprevious(slot)
+        slots.append(slot)
+
+    for slot, gid in zip(slots, wanted):
+        # `replace` moves a group that is already in the tree rather than
+        # copying it, so each one leaves its old place as it takes the new.
+        slot.getparent().replace(slot, by_gid[gid])
+
+
 class Maidr:
     """
     A class to handle the rendering and interaction
@@ -971,6 +1024,14 @@ class Maidr:
 
         etree.register_namespace("svg", "http://www.w3.org/2000/svg")
         tree_svg = etree.fromstring(str_svg.encode(), parser=None)
+
+        # Matplotlib wrote the tagged groups in draw order. A layer that walks
+        # its artists in another order needs the document to follow it, or
+        # the positional selector lands every highlight on the wrong mark.
+        for plot, selector_id in zip(self._plots, self.selector_ids):
+            if plot.orders_svg_by_elements:
+                _order_tagged_groups(tree_svg, selector_id, plot.elements)
+
         root_svg = None
         # Find the `svg` tag and optionally embed MAIDR data.
         for element in tree_svg.iter(tag="{http://www.w3.org/2000/svg}svg"):

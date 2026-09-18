@@ -96,7 +96,9 @@ MAX_INTERVAL_VERTICES = 8
 _FILTER_LOCK = threading.RLock()
 
 
-def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
+def _argument(
+    name: str, wrapped: Callable, args: tuple, kwargs: dict, default: Any = None
+) -> Any:
     """
     Read one argument of a patched call, whether it was passed by name or by
     position.
@@ -121,11 +123,20 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
     kwargs : dict
         Keyword arguments the caller passed.
 
+    default : Any, optional
+        What to answer when the caller did not pass the argument. ``None``
+        unless given, which reads the same as a caller who passed ``None``
+        -- fine for an argument that means nothing when it is ``None``, and
+        not for one the wrapped function tests for truth: ``Axes.pie`` draws
+        ``counterclock=None`` clockwise, exactly as it draws ``False``, so
+        the pie patch has to tell "not passed" from "passed as ``None``" and
+        asks for matplotlib's own default here instead.
+
     Returns
     -------
     Any
-        The argument's value, or None when the caller did not pass it or the
-        installed matplotlib has no such parameter.
+        The argument's value, or ``default`` when the caller did not pass it
+        or the installed matplotlib has no such parameter.
     """
     if name in kwargs:
         return kwargs[name]
@@ -133,7 +144,7 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
     try:
         parameters = inspect.signature(wrapped).parameters
     except (TypeError, ValueError):
-        return None
+        return default
 
     # Declared order is the binding order: matplotlib's `vert` and
     # `orientation` are declared keyword-only, yet the deprecation shim they
@@ -158,10 +169,10 @@ def _argument(name: str, wrapped: Callable, args: tuple, kwargs: dict) -> Any:
         positional.pop(0)
 
     if name not in positional:
-        return None
+        return default
 
     index = positional.index(name)
-    return args[index] if index < len(args) else None
+    return args[index] if index < len(args) else default
 
 
 def _resolve(value: Any, data: Any) -> Any:
