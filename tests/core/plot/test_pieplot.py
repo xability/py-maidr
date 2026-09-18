@@ -443,6 +443,101 @@ class TestSliceOrder:
             plt.close(fig)
 
 
+class TestStartAngle:
+    """The layer says where on the dial the walk begins.
+
+    The renderer measures clockwise from 12 o'clock; matplotlib measures
+    ``startangle`` counterclockwise from 3 o'clock. The same edge serves
+    whichever way the pie was drawn: a counterclockwise ring ends where it
+    began, so its reversed, clockwise walk sets off from ``startangle`` too.
+    """
+
+    def test_matplotlibs_default_is_three_oclock(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT)
+            schema = _only_layer(fig)
+
+            assert schema["startAngle"] == 90
+        finally:
+            plt.close(fig)
+
+    def test_a_pie_begun_at_the_top_says_nothing(self):
+        # 12 o'clock is the renderer's default, so there is nothing to add.
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, startangle=90)
+            schema = _only_layer(fig)
+
+            assert "startAngle" not in schema
+        finally:
+            plt.close(fig)
+
+    @pytest.mark.parametrize(
+        ("startangle", "expected"),
+        [(180, 270), (-90, 180), (450, 0), (45, 45)],
+        ids=["nine-oclock", "six-oclock", "wrapped-top", "half-past-one"],
+    )
+    def test_the_angle_is_turned_into_the_renderers(self, startangle, expected):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, startangle=startangle)
+            schema = _only_layer(fig)
+
+            assert schema.get("startAngle", 0) == expected
+        finally:
+            plt.close(fig)
+
+    def test_the_same_edge_serves_a_clockwise_pie(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, startangle=180, counterclock=False)
+            schema = _only_layer(fig)
+
+            assert schema["startAngle"] == 270
+        finally:
+            plt.close(fig)
+
+    def test_startangle_is_read_off_the_call_by_position(self):
+        # `startangle` is the ninth positional parameter of `Axes.pie`.
+        fig, ax = plt.subplots()
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                try:
+                    ax.pie(UNITS, None, FRUIT, None, None, 0.6, False, 1.1, 180)
+                except TypeError:
+                    pytest.skip(
+                        "this matplotlib no longer takes startangle by position"
+                    )
+            schema = _only_layer(fig)
+
+            assert schema["startAngle"] == 270
+        finally:
+            plt.close(fig)
+
+    def test_a_numpy_angle_stays_json_serializable(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, startangle=np.float64(180))
+            schema = _only_layer(fig)
+
+            assert schema["startAngle"] == 270
+            json.dumps(schema)
+        finally:
+            plt.close(fig)
+
+    def test_a_layer_built_directly_assumes_matplotlibs_default(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT)
+            schema = _stringify(PiePlot(ax).schema)
+
+            assert schema["startAngle"] == 90
+        finally:
+            plt.close(fig)
+
+
 class TestNestedPie:
     """Two calls on one axes are two layers, each holding its own ring."""
 

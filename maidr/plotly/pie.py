@@ -8,6 +8,32 @@ from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list, domain_interval
 
 
+def _as_degrees(value: Any) -> float:
+    """
+    Coerce a trace's ``rotation`` to a plain number of degrees.
+
+    Plotly validates it as a number in ``[-360, 360]``; anything else, or a
+    trace that does not set it, is plotly's own default of ``0``.
+
+    Parameters
+    ----------
+    value : Any
+        The trace's ``rotation`` attribute, or None.
+
+    Returns
+    -------
+    float
+        The rotation in degrees, ``0.0`` when it cannot be read as a number.
+    """
+    if value is None or isinstance(value, bool):
+        return 0.0
+    try:
+        degrees = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return degrees if math.isfinite(degrees) else 0.0
+
+
 class PlotlyPiePlot(PlotlyPlot):
     """
     Extract data from a Plotly pie trace.
@@ -109,9 +135,54 @@ class PlotlyPiePlot(PlotlyPlot):
     def _extract_plot_data(self) -> list[dict]:
         """Return one flat ``{x: label, y: value}`` point per drawn wedge."""
         return [
-            {MaidrKey.X: label, MaidrKey.Y: value}
-            for label, value in self._slices()
+            {MaidrKey.X: label, MaidrKey.Y: value} for label, value in self._slices()
         ]
+
+    def render(self) -> dict:
+        """
+        Build the layer, saying which way round the wedges were drawn and
+        where the ring begins.
+
+        The renderer walks a pie clockwise: Right steps to the next slice
+        the way a clock hand goes, the audio pans each slice to where it
+        sits, and ``p`` names its clock position, all from where the layer
+        says the ring begins. Plotly's default ``direction`` is
+        ``counterclockwise``, so the drawn order is declared as such and the
+        renderer turns the walk round; ``data`` and the selector stay in
+        drawn order.
+
+        Where the ring begins is not ``rotation`` alone. ``rotation`` is
+        degrees clockwise from 12 o'clock, the renderer's own convention,
+        but a counterclockwise plotly pie does not start there: plotly puts
+        the *first* wedge's end at ``rotation`` and the wedge clockwise of
+        it, then lays the rest out counterclockwise from ``rotation``
+        (``pie/plot.js``, ``setCoords``) -- which is how the largest slice of
+        a default pie sits to the right of 12 o'clock while its neighbours
+        go round to the left. So the ring starts at ``rotation`` plus the
+        first drawn wedge's sweep, and the walk, clockwise from there, ends
+        on that first wedge. A clockwise pie starts at ``rotation`` itself.
+
+        Returns
+        -------
+        dict
+            The base schema with ``direction`` added, and ``startAngle``
+            when the ring does not begin at 12 o'clock.
+        """
+        schema = super().render()
+        clockwise = self._trace.get("direction") == "clockwise"
+        schema[MaidrKey.DIRECTION] = "clockwise" if clockwise else "counterclockwise"
+
+        rotation = _as_degrees(self._trace.get("rotation"))
+        first_sweep = 0.0
+        if not clockwise:
+            slices = self._slices()
+            total = sum(max(value, 0.0) for _, value in slices)
+            if slices and total > 0:
+                first_sweep = max(slices[0][1], 0.0) / total * 360
+        start_angle = (rotation + first_sweep) % 360
+        if start_angle:
+            schema[MaidrKey.START_ANGLE] = start_angle
+        return schema
 
     def _slices(self) -> list[tuple[str, float]]:
         """

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 from matplotlib.axes import Axes
@@ -11,6 +12,33 @@ from maidr.core.plot import MaidrPlot
 from maidr.exception import ExtractionError
 
 _logger = logging.getLogger(__name__)
+
+
+def _as_degrees(value: Any) -> float:
+    """
+    Coerce a ``startangle`` to a plain number of degrees.
+
+    ``Axes.pie`` does arithmetic on it, so anything it accepted is numeric;
+    a numpy scalar is unwrapped for the JSON encoder and anything else falls
+    back to matplotlib's own default of ``0``.
+
+    Parameters
+    ----------
+    value : Any
+        The ``startangle`` argument of the original call.
+
+    Returns
+    -------
+    float
+        The angle in degrees, ``0.0`` when it cannot be read as a number.
+    """
+    if value is None or isinstance(value, bool):
+        return 0.0
+    try:
+        degrees = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return degrees if math.isfinite(degrees) else 0.0
 
 
 class PiePlot(MaidrPlot):
@@ -45,6 +73,10 @@ class PiePlot(MaidrPlot):
         without them. ``counterclock`` is the call's own drawing direction,
         ``True`` when it was not given because that is matplotlib's default;
         a counterclockwise pie is walked in reverse, see the class note.
+        ``startangle`` is where the call put the first wedge's edge, in
+        matplotlib's terms -- degrees counterclockwise from 3 o'clock, ``0``
+        when not given -- and is emitted in the renderer's, see
+        :meth:`render`.
     """
 
     def __init__(self, ax: Axes, **kwargs) -> None:
@@ -52,7 +84,37 @@ class PiePlot(MaidrPlot):
         self._labels = kwargs.pop("labels", None)
         self._wedges = kwargs.pop("wedges", None)
         self._counterclock = bool(kwargs.pop("counterclock", True))
+        self._startangle = _as_degrees(kwargs.pop("startangle", 0))
         super().__init__(ax, PlotType.PIE)
+
+    def render(self) -> dict:
+        """
+        Build the layer, saying where on the dial the walk begins.
+
+        The renderer pans each slice to where it sits and names its clock
+        position on ``p``, both measured clockwise from 12 o'clock and both
+        from where the layer says the first slice begins. matplotlib measures
+        the other way -- ``startangle`` is degrees *counterclockwise* from
+        *3 o'clock* -- so its ``0`` is the renderer's ``90`` and its ``90`` is
+        the renderer's ``0``.
+
+        The same edge serves whichever way the pie was drawn. A clockwise pie
+        starts at ``startangle`` and goes round from there. A counterclockwise
+        one starts there too and goes the other way, so it ends where it began
+        -- and the reversed walk, clockwise, therefore also sets off from
+        ``startangle``, on the wedge drawn last.
+
+        Returns
+        -------
+        dict
+            The base schema with ``startAngle`` added when the walk does not
+            begin at 12 o'clock, which is the renderer's default.
+        """
+        schema = super().render()
+        start_angle = (90 - self._startangle) % 360
+        if start_angle:
+            schema[MaidrKey.START_ANGLE] = start_angle
+        return schema
 
     @property
     def orders_svg_by_elements(self) -> bool:

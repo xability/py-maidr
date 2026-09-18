@@ -118,11 +118,18 @@ def test_a_pie_beside_it_still_sorts() -> None:
 @pytest.mark.parametrize(
     ("trace", "expected"),
     [
-        (go.Funnelarea(labels=["a", "b", "a"], values=[10, 5, 7]), [("a", 17), ("b", 5)]),
-        (go.Funnelarea(labels=["a", "b", "c"], values=[10, 0, 5]),
-         [("a", 10), ("b", 0), ("c", 5)]),
-        (go.Funnelarea(labels=["a", "b", "c"], values=[10, -5, 5]),
-         [("a", 10), ("c", 5)]),
+        (
+            go.Funnelarea(labels=["a", "b", "a"], values=[10, 5, 7]),
+            [("a", 17), ("b", 5)],
+        ),
+        (
+            go.Funnelarea(labels=["a", "b", "c"], values=[10, 0, 5]),
+            [("a", 10), ("b", 0), ("c", 5)],
+        ),
+        (
+            go.Funnelarea(labels=["a", "b", "c"], values=[10, -5, 5]),
+            [("a", 10), ("c", 5)],
+        ),
         (go.Funnelarea(labels=["a", "b", "c"]), [("a", 1), ("b", 1), ("c", 1)]),
         (go.Funnelarea(values=[10, 5, 2]), [("0", 10), ("1", 5), ("2", 2)]),
         (go.Funnelarea(labels=["", "b"], values=[10, 5]), [("0", 10), ("b", 5)]),
@@ -181,7 +188,9 @@ def test_two_funnelareas_address_their_own_slices() -> None:
         go.Figure(
             [
                 go.Funnelarea(labels=STAGES, values=COUNTS, domain={"x": [0, 0.45]}),
-                go.Funnelarea(labels=["m", "n"], values=[9, 4], domain={"x": [0.55, 1]}),
+                go.Funnelarea(
+                    labels=["m", "n"], values=[9, 4], domain={"x": [0.55, 1]}
+                ),
             ]
         )
     )
@@ -244,3 +253,15 @@ def test_a_funnelarea_says_which_field_holds_the_stage() -> None:
     (layer,) = _layers(go.Figure([go.Funnelarea(labels=STAGES, values=COUNTS)]))
 
     assert layer["orientation"] == "vert"
+
+
+def test_a_funnelarea_carries_no_dial_geometry() -> None:
+    """Stages down a page, not slices round a dial.
+
+    The start angle and the direction the pie base declares describe nothing
+    a funnelarea draws, and a funnel layer does not read them.
+    """
+    (layer,) = _layers(go.Figure([go.Funnelarea(labels=STAGES, values=COUNTS)]))
+
+    assert "startAngle" not in layer
+    assert "direction" not in layer

@@ -106,6 +106,15 @@ as drawn. Options that only move the wedges around (`startangle`, `explode`,
 `shadow`) do not change the direction and so leave the reading alone. Every
 slice's highlight, value and share stay on the wedge they describe either
 way.
+
+**Where the dial starts is passed along too.** maidr pans each slice to
+where it sits and, on `p`, names its clock position — both measured from
+where the first slice begins. `startangle` is emitted for that, converted
+from matplotlib's degrees counterclockwise from 3 o'clock to the renderer's
+degrees clockwise from 12: the chart above sets `startangle=90`, so its
+walk begins at the top, and a pie left at matplotlib's default begins at 3
+o'clock. A renderer older than the one that reads the value ignores it and
+places every pie from the top.
 :::
 
 ## Word Cloud
