@@ -12,6 +12,7 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.roc import DRAWN_CURVES, RocCurve, RocPlot
 from maidr.exception import UnsupportedPlotError
+from maidr.patch.common import _draw_quietly
 
 #: Held across the whole "is there a ROC layer already, and if not make one"
 #: decision, for the reason ``maidr/patch/gantt.py`` gives: two threads
@@ -59,10 +60,10 @@ def roc(wrapped, instance, args, kwargs) -> Any:
         Whatever ``plot`` returned -- the display itself.
     """
     if ContextManager.is_internal_context():
-        return wrapped(*args, **kwargs)
+        return _draw_quietly(wrapped, args, kwargs)
 
     with ContextManager.set_internal_context():
-        display = wrapped(*args, **kwargs)
+        display = _draw_quietly(wrapped, args, kwargs)
 
     curves = _curves_of(display, kwargs.get("name"))
     if not curves:
