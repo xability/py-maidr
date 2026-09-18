@@ -261,7 +261,11 @@ SWEEP = {
     "xcorr": ["lollipop"],
     # a spectrum is a series over frequency
     "psd": ["line"],
+    "csd": ["line"],
+    "cohere": ["line"],
+    "magnitude_spectrum": ["line"],
     "angle_spectrum": ["line"],
+    "phase_spectrum": ["line"],
     # level curves, one path per level
     "tricontour": ["contour"],
     # a vector at a place carries a speed *and* a direction; no trace holds both
@@ -288,15 +292,17 @@ def _draw(ax, call: str, field, triangulation) -> None:
     elif call == "spy":
         ax.spy(np.eye(5))
     elif call == "specgram":
-        ax.specgram(signal, Fs=10)
+        ax.specgram(signal, Fs=10, NFFT=64, noverlap=32)
     elif call == "stem":
         ax.stem([1, 2, 3], [3, 1, 2])
     elif call == "acorr":
         ax.acorr(signal[:64])
     elif call == "xcorr":
         ax.xcorr(signal[:64], signal[:64])
-    elif call in ("psd", "angle_spectrum"):
+    elif call in ("psd", "magnitude_spectrum", "angle_spectrum", "phase_spectrum"):
         getattr(ax, call)(signal, Fs=10)
+    elif call in ("csd", "cohere"):
+        getattr(ax, call)(signal, np.roll(signal, 8), Fs=10, NFFT=64)
     elif call in ("tricontour", "tricontourf", "tripcolor"):
         getattr(ax, call)(tx, ty, tz)
     elif call in ("quiver", "barbs"):

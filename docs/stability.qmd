@@ -116,7 +116,8 @@ as empty, which is accurate.
 
 Every other `Axes` method that draws marks is read as one of the types above:
 `imshow`, `matshow`, `spy` and `specgram` as `heat`; `stem`, `acorr` and `xcorr`
-as `lollipop`; `psd` and `angle_spectrum` as `line`; `tricontour` as `contour`.
+as `lollipop`; the spectra (`psd`, `csd`, `cohere`, `magnitude_spectrum`,
+`angle_spectrum`, `phase_spectrum`) as `line`; `tricontour` as `contour`.
 `tests/core/plot/test_unread_families.py` pins the whole sweep, so a call that
 starts registering nothing, or a decline that starts registering something,
 fails by name. The reasoning behind the `ax.fill` decline, the one that could be
