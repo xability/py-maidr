@@ -48,7 +48,7 @@ def _rerender(page, bars: int) -> None:
 def test_the_chart_loads_from_a_session_route_and_the_flush_stays_small(
     browser, focus_app_url
 ):
-    """The frame's document comes from ``dynamic_route``; the socket carries a reference.
+    """The document comes from ``dynamic_route``; the socket carries a reference.
 
     Frames are recorded from before navigation, since the socket opens
     with the page. Sizes are taken over everything Shiny sends after the
@@ -80,19 +80,25 @@ def test_the_chart_loads_from_a_session_route_and_the_flush_stays_small(
 
     before = len(received)
     _rerender(page, 5)
+
+    # The re-render happened: a new version at the same route, and the
+    # served document is the new chart. Established before the socket is
+    # measured, so a slider that silently failed to move cannot pass the
+    # size check on an unrelated small message.
+    frame = _chart_frame(page)
+    assert frame is not None
+    assert frame.url != first_url, "the frame still points at the first render"
+    assert frame.url.split("&v=")[0] == first_url.split("&v=")[0], frame.url
+    assert frame.locator(CHART).count() == 1
+    assert (
+        "&quot;e&quot;" in page.request.get(frame.url).text()
+    ), "the served document is not the five-bar chart"
+
     after_flush = received[before:]
     assert after_flush, "the re-render sent nothing over the socket"
     assert max(after_flush) < _FRAME_LIMIT, (
         f"a websocket frame of {max(after_flush)} bytes followed the flush; "
         "the chart is riding the socket again"
     )
-
-    # And the reader got the new chart: a new version at the same route,
-    # not the first one replayed from cache.
-    frame = _chart_frame(page)
-    assert frame is not None
-    assert frame.url != first_url, "the frame still points at the first render"
-    assert frame.url.split("&v=")[0] == first_url.split("&v=")[0], frame.url
-    assert frame.locator(CHART).count() == 1
 
     page.close()

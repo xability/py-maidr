@@ -210,13 +210,16 @@ class Maidr:
             .. note::
                The ``"auto"`` fallback resolves **outside** an iframe, and
                in a notebook. It does not resolve in a Shiny or Flask
-               render, where the chart is served inside a ``srcdoc``
-               iframe: that document has no base URL for the relative
-               ``lib/`` path, and the ``HTMLDependency`` that would have
-               served the file is dropped when the wrapper serializes the
-               tag. On an air-gapped deployment use ``use_cdn=False``,
-               which inlines the bundle. The browser console says so if
-               the fallback is ever reached (#455).
+               render, where the chart is served inside an iframe: the
+               ``HTMLDependency`` that would have served the file is
+               dropped when the wrapper serializes the tag, and the
+               relative ``lib/`` path has nowhere to resolve -- a Flask
+               ``srcdoc`` document has no base URL, and a Shiny document,
+               served from a session route (#534), resolves it to a URL
+               under that route that nothing serves. On an air-gapped
+               deployment use ``use_cdn=False``, which inlines the
+               bundle. The browser console says so if the fallback is
+               ever reached (#455).
         """
         return self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
 

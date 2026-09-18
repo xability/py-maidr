@@ -69,10 +69,13 @@ def bars():
 ```
 
 `use_cdn=False` is the setting for an air-gapped deployment. The chart is
-rendered in an iframe, and an iframe's `srcdoc` cannot reach assets the app
-serves, so the bundled `maidr.js` travels inline in the document -- correct
-offline, but roughly 2 MB per chart. The default (`"auto"`) loads from the
-CDN and stays around 30 KB.
+rendered in an iframe whose document has no way to load the bundle the app
+serves -- the dependency that would place it is dropped when the document is
+serialized -- so the bundled `maidr.js` travels inline in the document:
+correct offline, but roughly 2 MB per chart. The default (`"auto"`) loads
+from the CDN and stays around 50 KB. Either way the document is fetched from
+a session URL rather than pushed over the websocket, so the weight is paid
+out of band; see the Shiny note under [Offline Use and the JavaScript Bundle](../index.qmd#offline-use-and-the-javascript-bundle).
 
 A reactive flush replaces the whole output, so a reader who was navigating the
 chart when some input changed would be dropped to the top of the page without

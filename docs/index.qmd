@@ -568,7 +568,9 @@ One thing this does not do. Renders of the **same figure** are serialized, becau
 | `use_cdn=True` / `"auto"` | 28 KB | **10 KB** | 51 KB |
 | `use_cdn=False` | 2.2 MB | **10 KB** | 2.1 MB |
 
-Every render gets a new version in the URL, so a flush that changed the chart is fetched fresh, and the version it serves is marked immutable, so a frame that is merely re-attached — an `insertUI`, a tab — comes from cache. The document itself is no smaller: with `use_cdn=False` it still carries the bundle, fetched again per render rather than once per page, which is [#455](https://github.com/xability/py-maidr/issues/455). Each output holds its latest document in memory for the life of its session, ~25 KB or ~2 MB accordingly.
+Read the table across, not only down: on the CDN settings the bytes per flush go *up* — a smaller payload plus a separate fetch of the document — and only with the bundle inlined do they fall. What falls in every case is what the websocket carries, which is the channel every input and output on the page waits on.
+
+Every render gets a new version in the URL and the document is served `no-store`, so nothing between the reader and the app hands back an earlier chart, and a chart that may carry one reader's data is never written to the browser's disk cache. The URL is guarded by the session id in its path, as Shiny's own downloads are, and by nothing more. The document itself is no smaller: with `use_cdn=False` it still carries the bundle, fetched again per render rather than once per page, which is [#455](https://github.com/xability/py-maidr/issues/455). Each output holds its latest document in memory per session, tens of KB or ~2 MB accordingly, until the session ends.
 
 **What the lock cannot do is stop your app.** It serializes renders against each other; it does not stop a render function drawing into a figure another session is in the middle of rendering. That produces a chart whose SVG and announced data disagree — visible to a sighted reader, invisible to a screen-reader one — so maidr says so, naming the figure:
 

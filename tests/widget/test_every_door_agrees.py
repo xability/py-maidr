@@ -109,7 +109,10 @@ def _through_shiny(figure, session) -> str:
     """
     from starlette.requests import Request
 
-    payload = asyncio.run(render_maidr(lambda: figure).render())
+    def chart():
+        return figure
+
+    payload = asyncio.run(render_maidr(chart).render())
     # Percent-encoded in the URL, decoded by the server before lookup.
     name = unquote(html_module.unescape(_ROUTE.search(payload["html"]).group(1)))
     request = Request(

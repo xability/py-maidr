@@ -1,11 +1,11 @@
 """Shared fixtures for the framework-integration tests.
 
 The Shiny tests drive a renderer the way Shiny drives it -- inside a
-session context -- without starting a server.  Only the four pieces of
+session context -- without starting a server.  Only the five pieces of
 :class:`shiny.session.Session` that a renderer touches are stubbed:
 ``ns`` (namespacing), ``output`` (auto-registration), ``_process_ui``
-(dependency resolution) and ``dynamic_route`` (serving the chart out of
-band).
+(dependency resolution), and ``dynamic_route`` with ``on_ended`` (serving
+the chart out of band for the life of the session).
 
 Shiny is imported inside the fixture, not here.  ``pytest.importorskip``
 raises ``Skipped``, and a ``Skipped`` escaping a conftest is not "skip
@@ -51,12 +51,13 @@ def _fake_session_class() -> type:
 
         ns = module.ResolvedId("")
 
-        #: What ``AppSession.dynamic_route`` puts in the URL it returns.
-        id = "fake-session"
-
-        def __init__(self) -> None:
+        def __init__(self, id: str = "fake-session") -> None:  # noqa: A002
+            #: What ``AppSession.dynamic_route`` puts in the URL it returns.
+            self.id = id
             self.app = FakeApp()
             self.outputs: list[Any] = []
+            #: Callbacks registered with ``on_ended``; ``end()`` runs them.
+            self.ended: list[Any] = []
             #: The routes ``dynamic_route`` registers, name to handler, as
             #: ``AppSession`` keeps them.  A test fetches a served chart by
             #: calling the handler here, the way Shiny's request handler
@@ -83,6 +84,16 @@ def _fake_session_class() -> type:
         # session returns, so the tests see the ``nonce`` query the
         # version has to join.
         dynamic_route = AppSession.dynamic_route
+
+        def on_ended(self, fn: Any) -> Any:
+            """Stand in for ``Session.on_ended``; see :meth:`end`."""
+            self.ended.append(fn)
+            return lambda: None
+
+        def end(self) -> None:
+            """Run what was registered with ``on_ended``, as the session would."""
+            for fn in self.ended:
+                fn()
 
     return FakeSession
 

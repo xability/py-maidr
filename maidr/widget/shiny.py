@@ -19,7 +19,7 @@ try:
     from htmltools import Tag, TagList, tags
     from shiny import ui as _shiny_ui
     from shiny.render.renderer import Jsonifiable, Renderer, ValueFn
-    from shiny.session import require_active_session
+    from shiny.session import Session, require_active_session
     from starlette.requests import Request
     from starlette.responses import HTMLResponse
 except ImportError as error:
@@ -207,6 +207,61 @@ def _close_new_figures(before: set) -> None:
         )
 
 
+class _ServedChart:
+    """One output's chart in one session, served from a route (#534).
+
+    Attributes
+    ----------
+    route : str
+        The session-scoped URL :meth:`shiny.Session.dynamic_route` gave
+        the chart, nonce included.
+    version : int
+        How many renders this session has had of this output; the URL
+        carries it so each render is a new address.
+    document : str or None
+        The latest rendered chart document, or ``None`` when there is
+        nothing to serve -- before the first render, or after a render
+        that returned ``None`` blanked the output.  A render replaces the
+        last document rather than adding to it, so an output holds one
+        chart per session: tens of KB, or ~2 MB with ``use_cdn=False``.
+    """
+
+    __slots__ = ("route", "version", "document")
+
+    def __init__(self) -> None:
+        self.route = ""
+        self.version = 0
+        self.document: Optional[str] = None
+
+    def serve(self, request: Request) -> HTMLResponse:
+        """Answer the browser's fetch of the chart document.
+
+        Serves the latest document whatever version is asked for: a
+        request naming an older one can only come from a frame a newer
+        flush is already replacing, and it gets the current chart rather
+        than an error page in front of a reader.
+
+        Parameters
+        ----------
+        request : starlette.requests.Request
+            The request. Its ``v`` query parameter is not consulted; it
+            exists so every render has a URL of its own.
+
+        Returns
+        -------
+        starlette.responses.HTMLResponse
+            The chart document, ``no-store``; or 404 when there is none.
+        """
+        headers = {"Cache-Control": "no-store"}
+        if self.document is None:
+            return HTMLResponse(
+                "<!DOCTYPE html><title>No chart</title>",
+                status_code=404,
+                headers=headers,
+            )
+        return HTMLResponse(self.document, headers=headers)
+
+
 class render_maidr(Renderer[Any]):
     """
     Render a plot as an accessible MAIDR chart in a Shiny app.
@@ -276,16 +331,12 @@ class render_maidr(Renderer[Any]):
         self.width = width
         self.height = height
         self.use_cdn = use_cdn
-        # The chart document most recently rendered for this output, and
-        # the version number it was given, held for :meth:`_serve_chart`.
-        # One document per output: a render replaces the last one, so an
-        # output holds at most one chart's worth of memory -- ~25 KB, or
-        # the bundle's ~2 MB with ``use_cdn=False`` -- for the life of its
-        # session.
-        self._chart: Optional[tuple[int, str]] = None
-        #: The session-scoped URL the chart is fetched from; registered on
-        #: the first render, see :meth:`_serve_out_of_band`.
-        self._route: Optional[str] = None
+        # The chart this output is serving, per session it has rendered in;
+        # see :meth:`_serve_out_of_band`.  Keyed by session because Shiny
+        # does not stop an app from attaching one renderer instance to
+        # several sessions, and state kept on the instance alone would
+        # then hand one reader another's chart.
+        self._served: dict[str, _ServedChart] = {}
         super().__init__(_fn)
 
     def auto_output_ui(self, **kwargs: Any) -> Tag:
@@ -374,7 +425,7 @@ class render_maidr(Renderer[Any]):
         """
         return maidr.render(value, use_cdn=self.use_cdn)
 
-    def _serve_out_of_band(self, rendered: Any, session: Any) -> Any:
+    def _serve_out_of_band(self, rendered: Any, session: Session) -> Any:
         """Take the chart document out of the frame and serve it by URL.
 
         ``maidr.render`` hands back an ``<iframe>`` carrying the whole
@@ -390,17 +441,29 @@ class render_maidr(Renderer[Any]):
         which the browser fetches out of band. The payload is then the
         frame and its resize script, whatever the chart weighs, and the
         document travels over HTTP where the websocket is not waiting on
-        it. Every render bumps a version in the URL, so the browser fetches
-        the new chart rather than replaying a cached one; the served
-        version is marked immutable, so re-attaching the same frame -- an
-        ``insertUI``, a tab -- comes from cache.
+        it. Total bytes per flush go *up* on the CDN settings -- the
+        frame plus a separate fetch of the document -- and down by two
+        orders of magnitude with the bundle inlined; what falls in every
+        case is what the websocket carries.
 
-        The route is per output and registered once, on the first render;
-        the session drops it, and the document with it, when it ends. A
-        renderer belongs to exactly one session -- Shiny registers it
-        with the session that was current when it was constructed -- so
-        per-instance state is per-session state. Under a module the
-        session is a proxy that namespaces the route name itself.
+        The route is per output and per session, registered on the first
+        render in that session and dropped, document and all, when the
+        session ends. Under a module the session is a proxy that
+        namespaces the route name itself.
+
+        Every render bumps a version in the URL and the document is served
+        ``no-store``, so nothing between the reader and the app -- the
+        browser's cache included -- ever hands back an earlier chart, and
+        a chart that may carry one reader's data is never written to disk
+        where the next user of that browser could read it. ``srcdoc``
+        content was never cached either.
+
+        What a URL changes is who can fetch it. The websocket is the
+        session's own; the route is guarded by the session id in its path,
+        the same way Shiny's own downloads are, and by nothing more. A
+        chart is therefore reachable by anyone who learns the URL for as
+        long as the session lives, which is the trade every
+        ``dynamic_route`` makes.
 
         A ``src`` on the same origin keeps everything ``srcdoc`` gave the
         frame: the parent page still reaches into it to size it, and the
@@ -424,50 +487,30 @@ class render_maidr(Renderer[Any]):
         Returns
         -------
         Any
-            The frame, referencing its document by URL.
+            The frame, referencing its document by URL; or the frame as
+            it came, document inside, when the session registers no
+            route -- a stub session returns an empty URL.
         """
         if not isinstance(rendered, Tag) or "srcdoc" not in rendered.attrs:
             return rendered
 
-        if self._route is None:
-            self._route = session.dynamic_route(
-                f"maidr-{self.output_id}", self._serve_chart
+        served = self._served.get(session.id)
+        if served is None:
+            served = _ServedChart()
+            served.route = session.dynamic_route(
+                f"maidr-{self.output_id}", served.serve
             )
+            if not served.route:
+                return rendered
+            self._served[session.id] = served
+            session.on_ended(lambda: self._served.pop(session.id, None))
 
-        version = self._chart[0] + 1 if self._chart is not None else 1
-        self._chart = (version, rendered.attrs.pop("srcdoc"))
+        served.version += 1
+        served.document = rendered.attrs.pop("srcdoc")
         # ``dynamic_route`` returns the path with a ``nonce`` query already
         # on it, so the version joins with ``&``.
-        rendered.attrs["src"] = f"{self._route}&v={version}"
+        rendered.attrs["src"] = f"{served.route}&v={served.version}"
         return rendered
-
-    def _serve_chart(self, request: Request) -> HTMLResponse:
-        """Answer the browser's fetch of this output's chart document.
-
-        Serves the latest document whatever version is asked for. A
-        request for an older one can only come from a frame that a newer
-        flush is already replacing, so it is answered with the current
-        chart -- never an error page in front of a reader -- but marked
-        ``no-store``, so a stale URL never caches the wrong document.
-
-        Parameters
-        ----------
-        request : starlette.requests.Request
-            The request, whose ``v`` query parameter names the version
-            the frame was given.
-
-        Returns
-        -------
-        starlette.responses.HTMLResponse
-            The chart document, or 404 when nothing has rendered yet.
-        """
-        if self._chart is None:
-            return HTMLResponse("", status_code=404)
-
-        version, document = self._chart
-        current = request.query_params.get("v") == str(version)
-        cache = "private, max-age=31536000, immutable" if current else "no-store"
-        return HTMLResponse(document, headers={"Cache-Control": cache})
 
     async def render(self) -> Optional[Jsonifiable]:
         """
@@ -493,6 +536,11 @@ class render_maidr(Renderer[Any]):
         try:
             value = await self.fn()
             if value is None:
+                # The output is blank now, so the frame that would fetch
+                # the last chart is gone; do not keep holding it.
+                served = self._served.get(session.id)
+                if served is not None:
+                    served.document = None
                 return None
 
             _check_supported(value, self.__name__)
