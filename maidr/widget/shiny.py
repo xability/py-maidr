@@ -20,6 +20,8 @@ try:
     from shiny import ui as _shiny_ui
     from shiny.render.renderer import Jsonifiable, Renderer, ValueFn
     from shiny.session import require_active_session
+    from starlette.requests import Request
+    from starlette.responses import HTMLResponse
 except ImportError as error:
     from maidr.widget._extras import missing_extra_error
 
@@ -274,6 +276,16 @@ class render_maidr(Renderer[Any]):
         self.width = width
         self.height = height
         self.use_cdn = use_cdn
+        # The chart document most recently rendered for this output, and
+        # the version number it was given, held for :meth:`_serve_chart`.
+        # One document per output: a render replaces the last one, so an
+        # output holds at most one chart's worth of memory -- ~25 KB, or
+        # the bundle's ~2 MB with ``use_cdn=False`` -- for the life of its
+        # session.
+        self._chart: Optional[tuple[int, str]] = None
+        #: The session-scoped URL the chart is fetched from; registered on
+        #: the first render, see :meth:`_serve_out_of_band`.
+        self._route: Optional[str] = None
         super().__init__(_fn)
 
     def auto_output_ui(self, **kwargs: Any) -> Tag:
@@ -362,6 +374,101 @@ class render_maidr(Renderer[Any]):
         """
         return maidr.render(value, use_cdn=self.use_cdn)
 
+    def _serve_out_of_band(self, rendered: Any, session: Any) -> Any:
+        """Take the chart document out of the frame and serve it by URL.
+
+        ``maidr.render`` hands back an ``<iframe>`` carrying the whole
+        chart document in its ``srcdoc``. Returned as it is, that document
+        rides the output payload over the websocket on every reactive
+        flush: about 25 KB on the default ``use_cdn``, and ~2 MB with
+        ``use_cdn=False``, where the bundle is inlined into it. A reader
+        moving a slider pays that again per tick, for every chart on the
+        page, on the one channel every input and output shares (#534).
+
+        So the document stays here and the frame is pointed at a
+        session-scoped URL instead, from :meth:`shiny.Session.dynamic_route`,
+        which the browser fetches out of band. The payload is then the
+        frame and its resize script, whatever the chart weighs, and the
+        document travels over HTTP where the websocket is not waiting on
+        it. Every render bumps a version in the URL, so the browser fetches
+        the new chart rather than replaying a cached one; the served
+        version is marked immutable, so re-attaching the same frame -- an
+        ``insertUI``, a tab -- comes from cache.
+
+        The route is per output and registered once, on the first render;
+        the session drops it, and the document with it, when it ends. A
+        renderer belongs to exactly one session -- Shiny registers it
+        with the session that was current when it was constructed -- so
+        per-instance state is per-session state. Under a module the
+        session is a proxy that namespaces the route name itself.
+
+        A ``src`` on the same origin keeps everything ``srcdoc`` gave the
+        frame: the parent page still reaches into it to size it, and the
+        device permissions its ``allow`` attribute delegates still apply,
+        since a feature named there without an allowlist is granted to
+        the origin the frame loads from (:mod:`maidr.util.iframe_utils`).
+
+        What this does not do is make the document smaller: with
+        ``use_cdn=False`` the bundle is still in it, fetched again per
+        render. Serving the bundle once per page is #455.
+
+        Parameters
+        ----------
+        rendered : Any
+            What :func:`maidr.render` returned. Anything but a frame
+            carrying a ``srcdoc`` -- a fallback tag, a chart rendered
+            without an iframe -- is returned untouched.
+        session : shiny.Session
+            The active session, which owns the route.
+
+        Returns
+        -------
+        Any
+            The frame, referencing its document by URL.
+        """
+        if not isinstance(rendered, Tag) or "srcdoc" not in rendered.attrs:
+            return rendered
+
+        if self._route is None:
+            self._route = session.dynamic_route(
+                f"maidr-{self.output_id}", self._serve_chart
+            )
+
+        version = self._chart[0] + 1 if self._chart is not None else 1
+        self._chart = (version, rendered.attrs.pop("srcdoc"))
+        # ``dynamic_route`` returns the path with a ``nonce`` query already
+        # on it, so the version joins with ``&``.
+        rendered.attrs["src"] = f"{self._route}&v={version}"
+        return rendered
+
+    def _serve_chart(self, request: Request) -> HTMLResponse:
+        """Answer the browser's fetch of this output's chart document.
+
+        Serves the latest document whatever version is asked for. A
+        request for an older one can only come from a frame that a newer
+        flush is already replacing, so it is answered with the current
+        chart -- never an error page in front of a reader -- but marked
+        ``no-store``, so a stale URL never caches the wrong document.
+
+        Parameters
+        ----------
+        request : starlette.requests.Request
+            The request, whose ``v`` query parameter names the version
+            the frame was given.
+
+        Returns
+        -------
+        starlette.responses.HTMLResponse
+            The chart document, or 404 when nothing has rendered yet.
+        """
+        if self._chart is None:
+            return HTMLResponse("", status_code=404)
+
+        version, document = self._chart
+        current = request.query_params.get("v") == str(version)
+        cache = "private, max-age=31536000, immutable" if current else "no-store"
+        return HTMLResponse(document, headers={"Cache-Control": cache})
+
     async def render(self) -> Optional[Jsonifiable]:
         """
         Run the decorated function and return its chart as Shiny UI.
@@ -392,6 +499,8 @@ class render_maidr(Renderer[Any]):
             rendered = await asyncio.to_thread(self._render_off_loop, value)
         finally:
             _close_new_figures(open_before)
+
+        rendered = self._serve_out_of_band(rendered, session)
 
         # The script rides with the chart rather than with the container:
         # ``output_maidr`` is not always what places the output -- Express

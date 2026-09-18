@@ -1,10 +1,11 @@
 """Shared fixtures for the framework-integration tests.
 
 The Shiny tests drive a renderer the way Shiny drives it -- inside a
-session context -- without starting a server.  Only the three pieces of
+session context -- without starting a server.  Only the four pieces of
 :class:`shiny.session.Session` that a renderer touches are stubbed:
-``ns`` (namespacing), ``output`` (auto-registration) and ``_process_ui``
-(dependency resolution).
+``ns`` (namespacing), ``output`` (auto-registration), ``_process_ui``
+(dependency resolution) and ``dynamic_route`` (serving the chart out of
+band).
 
 Shiny is imported inside the fixture, not here.  ``pytest.importorskip``
 raises ``Skipped``, and a ``Skipped`` escaping a conftest is not "skip
@@ -50,9 +51,17 @@ def _fake_session_class() -> type:
 
         ns = module.ResolvedId("")
 
+        #: What ``AppSession.dynamic_route`` puts in the URL it returns.
+        id = "fake-session"
+
         def __init__(self) -> None:
             self.app = FakeApp()
             self.outputs: list[Any] = []
+            #: The routes ``dynamic_route`` registers, name to handler, as
+            #: ``AppSession`` keeps them.  A test fetches a served chart by
+            #: calling the handler here, the way Shiny's request handler
+            #: does.
+            self._dynamic_routes: dict[str, Any] = {}
 
         def output(self, renderer: Any) -> Any:
             """Stand in for auto-registration via ``Renderer._auto_register``."""
@@ -68,6 +77,12 @@ def _fake_session_class() -> type:
         # so it runs unmodified -- and an incompatible upstream change
         # fails here loudly.
         _process_ui = AppSession._process_ui
+
+        # Same argument.  Touches only ``self._dynamic_routes`` and
+        # ``self.id``, both above, and returns the URL shape the real
+        # session returns, so the tests see the ``nonce`` query the
+        # version has to join.
+        dynamic_route = AppSession.dynamic_route
 
     return FakeSession
 
