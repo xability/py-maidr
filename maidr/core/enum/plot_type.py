@@ -56,6 +56,14 @@ class PlotType(str, Enum):
     #: rather than of the chart.
     NORMALIZED_AREA = "stacked_normalized_area"
     PIE = "pie"
+    #: A classifier's true positive rate against its false positive rate, one
+    #: point per decision threshold, one curve per classifier. Drawn by
+    #: `ax.plot` inside `RocCurveDisplay.plot`, and read as a line it answers
+    #: the wrong questions: the min and max are 0 and 1 on every one, each
+    #: curve's pitch is scaled to its own range so two classifiers sound
+    #: alike, and the area the chart is quoted by is in the legend text and
+    #: nowhere a reader is told. See `docs/stability.qmd` -- experimental.
+    ROC = "roc"
     SCATTER = "point"
     STACKED = "stacked_bar"
     NORMALIZED = "stacked_normalized_bar"
@@ -157,6 +165,7 @@ _DISPLAY_NAMES = {
     PlotType.NORMALIZED_AREA: "100% stacked area",
     PlotType.PARALLEL: "parallel coordinates",
     PlotType.POLAR_AREA: "polar area",
+    PlotType.ROC: "ROC curve",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",
     PlotType.WORD_CLOUD: "word cloud",

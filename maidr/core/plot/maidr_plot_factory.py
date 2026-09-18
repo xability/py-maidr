@@ -30,6 +30,7 @@ from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
+from maidr.core.plot.roc import RocPlot
 from maidr.core.plot.rugplot import DRAWN_RUG, RugPlot
 from maidr.core.plot.spanplot import DRAWN_SPANS, SpanPlot
 from maidr.core.plot.stairs import StairsPlot
@@ -203,6 +204,8 @@ class MaidrPlotFactory:
             return ViolinKdePlot(single_ax, **kwargs)
         elif PlotType.VIOLIN_BOX == plot_type:
             return ViolinBoxPlot(single_ax, **kwargs)
+        elif PlotType.ROC == plot_type:
+            return RocPlot(single_ax, **kwargs)
         elif PlotType.WORD_CLOUD == plot_type:
             return WordCloudPlot(single_ax, **kwargs)
         else:
