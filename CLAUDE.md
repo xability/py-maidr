@@ -91,3 +91,9 @@ Every emitted schema's `axes` object follows the canonical per-axis form:
 ## Testing
 
 Tests live in `tests/` using pytest + pytest-mock. Test fixtures in `tests/fixture/` use a factory pattern (`MatplotlibFactory`, `SeabornFactory`) to create test plots. Tests are parametrized across library/plot-type combinations.
+
+`tests/docs/test_gallery_examples.py` executes every `{python}` chunk of the
+gallery pages (`docs/examples/*.qmd`, `docs/examples-plotly.qmd`,
+`docs/examples-altair.qmd`) and pins the layer types each section emits, plus
+the measured claims the prose makes. Adding or changing a gallery example means
+updating its `EXPECTED_LAYERS` entry there.

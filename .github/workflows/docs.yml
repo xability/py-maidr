@@ -60,6 +60,14 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
+      # The render below executes every gallery chunk, so it catches an
+      # example that raises. It does not catch one that still runs and now
+      # reads as a different chart, or a new section nobody has pinned. The
+      # CI workflow skips the unit suite for a pull request that only touches
+      # `docs/`, so this is where a gallery edit meets that check (#692).
+      - name: Check the gallery pages say what the library does
+        run: uv run pytest tests/docs/test_gallery_examples.py -vv
+
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
