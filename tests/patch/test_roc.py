@@ -38,6 +38,18 @@ def _close_figures():
     plt.close("all")
 
 
+def display_named(name, **kwargs):
+    """A hand-built display named ``name``, on any scikit-learn.
+
+    The constructor's parameter is ``name`` from scikit-learn 1.7 and
+    ``estimator_name`` before that; the reading honours both.
+    """
+    try:
+        return RocCurveDisplay(name=name, **kwargs)
+    except TypeError:
+        return RocCurveDisplay(estimator_name=name, **kwargs)
+
+
 def layers(fig):
     """The layer schemas of a figure, in registration order."""
     return [plot.schema for plot in FigureManager.get_maidr(fig).plots]
@@ -89,14 +101,23 @@ def test_the_name_is_the_one_the_caller_gave_not_the_legend_label():
 
 def test_a_name_passed_to_plot_wins_over_the_display_name():
     fig, ax = plt.subplots()
-    display = RocCurveDisplay(
-        fpr=np.array([0, 0.2, 1]), tpr=np.array([0, 0.8, 1]), roc_auc=0.8, name="a"
+    display = display_named(
+        "a", fpr=np.array([0, 0.2, 1]), tpr=np.array([0, 0.8, 1]), roc_auc=0.8
     )
     display.plot(ax=ax, name="b")
 
     (curve,) = layers(fig)[0][MaidrKey.DATA]
 
     assert curve[0][MaidrKey.Z] == "b"
+
+
+def test_the_display_name_names_the_curve_when_plot_is_given_none():
+    fig, ax = plt.subplots()
+    display_named("a", fpr=np.array([0, 0.2, 1]), tpr=np.array([0, 0.8, 1])).plot(ax=ax)
+
+    (curve,) = layers(fig)[0][MaidrKey.DATA]
+
+    assert curve[0][MaidrKey.Z] == "a"
 
 
 def test_an_unnamed_curve_carries_no_name_and_a_display_without_an_area_no_area():
