@@ -135,6 +135,24 @@ def test_an_unnamed_curve_carries_no_name_and_a_display_without_an_area_no_area(
     ]
 
 
+def test_a_curve_of_no_finite_rate_is_left_out_of_points_and_selectors_alike():
+    # `roc_curve` on a sample holding one class returns nothing but NaN, and
+    # a curve dropped from the points but not from the selectors would
+    # desync the two lists the core reads index-aligned.
+    fig, ax = plt.subplots()
+    with pytest.warns(UserWarning):
+        RocCurveDisplay.from_predictions(
+            np.array([1, 1, 1, 1]), np.array([0.1, 0.4, 0.6, 0.9]), ax=ax, name="one"
+        )
+    RocCurveDisplay(fpr=np.array([0, 0.5, 1]), tpr=np.array([0, 0.5, 1])).plot(ax=ax)
+
+    schema = layers(fig)[0]
+
+    assert len(schema[MaidrKey.DATA]) == 1
+    assert len(schema[MaidrKey.SELECTOR]) == 1
+    assert [p[MaidrKey.X] for p in schema[MaidrKey.DATA][0]] == [0, 0.5, 1]
+
+
 def test_the_chance_diagonal_is_not_a_curve():
     fig, ax = plt.subplots()
     RocCurveDisplay.from_predictions(Y_TRUE, Y_SCORE, ax=ax, plot_chance_level=True)

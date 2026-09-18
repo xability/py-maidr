@@ -118,8 +118,22 @@ class RocPlot(MaidrPlot):
         self._schema = {}
 
     def _drawn(self) -> list[RocCurve]:
-        """The curves that have at least one operating point to announce."""
-        return [curve for curve in self._curves if curve.fpr.size and curve.tpr.size]
+        """
+        The curves that have at least one operating point to announce.
+
+        One filter for the points and the selectors both, because the two
+        lists are read index-aligned and the core drops the whole layer's
+        highlight when their lengths disagree. A rate that is not a number
+        is not an operating point, and ``roc_curve`` returns a curve of
+        nothing but ``NaN`` when the sample it scored holds one class --
+        an ordinary small or imbalanced fold -- so that curve is left out
+        here, before either list is built, rather than from one of them.
+        """
+        return [
+            curve
+            for curve in self._curves
+            if curve.fpr.size and curve.tpr.size and bool(np.isfinite(curve.fpr).any())
+        ]
 
     def _extract_plot_data(self) -> list[list[dict]]:
         """
@@ -163,8 +177,6 @@ class RocPlot(MaidrPlot):
                     point[MaidrKey.Z] = curve.name
                 points.append(point)
 
-            if not points:
-                continue
             if curve.roc_auc is not None:
                 points[0][MaidrKey.AUC] = float(curve.roc_auc)
             data.append(points)
