@@ -110,12 +110,13 @@ that does read keeps that chart's reading untouched.
 | `ax.triplot` | a mesh states which points were joined, not an order to walk |
 | `ax.contourf`, `ax.tricontourf`, `ax.tripcolor` | a filled band spans two levels, so calling it one level's curve is right for half its vertices |
 | `ax.fill` | a closed polygon states no series; it is asked for as a shape, not a sequence |
+| `ax.axhline`, `ax.axvline`, `ax.axline`, `ax.axhspan`, `ax.axvspan` | a reference mark at a fixed position annotates a chart rather than being one |
 
 `ax.table` draws no marks at all, so a figure holding only a table is reported
 as empty, which is accurate.
 
 Every other `Axes` method that draws marks is read as one of the types above:
-`imshow`, `matshow`, `spy` and `specgram` as `heat`; `stem`, `acorr` and `xcorr`
+`imshow`, `matshow`, `spy`, `specgram` and `hist2d` as `heat`; `stem`, `acorr` and `xcorr`
 as `lollipop`; the spectra (`psd`, `csd`, `cohere`, `magnitude_spectrum`,
 `angle_spectrum`, `phase_spectrum`) as `line`; `tricontour` as `contour`.
 `tests/core/plot/test_unread_families.py` pins the whole sweep, so a call that

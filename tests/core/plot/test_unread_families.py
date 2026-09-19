@@ -48,7 +48,12 @@ The sweep at the bottom is the other half of the same promise. It walks every
 matplotlib entry point that draws marks and pins what each one is read as
 today, so that "nothing is unaccounted for" is a test rather than a claim in
 an issue: a call that starts registering nothing, or a decline that starts
-registering something, fails here by name.
+registering something, fails here by name. ``hlines`` and ``vlines`` are
+not in it because their reading is conditional -- stems when anchored to a
+baseline, a schedule when the segments are one -- and ``test_spanplot.py``
+pins each case; the reference marks (``axhline`` and its family) are, as
+declines, because a line or band at a fixed position annotates a chart
+rather than being one.
 """
 
 from __future__ import annotations
@@ -255,6 +260,7 @@ SWEEP = {
     "matshow": ["heat"],
     "spy": ["heat"],
     "specgram": ["heat"],
+    "hist2d": ["heat"],
     # a value at a position, drawn as a stalk
     "stem": ["lollipop"],
     "acorr": ["lollipop"],
@@ -280,6 +286,12 @@ SWEEP = {
     "tricontourf": [],
     # a closed polygon states no series (see the module docstring)
     "fill": [],
+    # a reference mark at a position annotates a chart rather than being one
+    "axhline": [],
+    "axvline": [],
+    "axline": [],
+    "axhspan": [],
+    "axvspan": [],
 }
 
 
@@ -293,6 +305,8 @@ def _draw(ax, call: str, field, triangulation) -> None:
         ax.spy(np.eye(5))
     elif call == "specgram":
         ax.specgram(signal, Fs=10, NFFT=64, noverlap=32)
+    elif call == "hist2d":
+        ax.hist2d(signal, np.roll(signal, 8), bins=5)
     elif call == "stem":
         ax.stem([1, 2, 3], [3, 1, 2])
     elif call == "acorr":
@@ -315,6 +329,12 @@ def _draw(ax, call: str, field, triangulation) -> None:
         ax.contourf(x, y, z)
     elif call == "fill":
         ax.fill([0, 1, 2, 0], [0, 2, 0, 0])
+    elif call in ("axhline", "axvline"):
+        getattr(ax, call)(0.5)
+    elif call == "axline":
+        ax.axline((0, 0), (1, 1))
+    elif call in ("axhspan", "axvspan"):
+        getattr(ax, call)(0.2, 0.6)
     else:  # pragma: no cover - a new row needs a way to draw it
         raise AssertionError(f"no way to draw {call!r}")
 
