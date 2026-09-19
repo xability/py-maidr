@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-09-16">
+<meta name="DC.date" content="2026-09-18">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -363,6 +363,7 @@ cookieconsent.run({
   <li><a href="#two-sets-two-different-promises" id="toc-two-sets-two-different-promises" class="nav-link active" data-scroll-target="#two-sets-two-different-promises">Two sets, two different promises</a></li>
   <li><a href="#stable" id="toc-stable" class="nav-link" data-scroll-target="#stable">Stable</a></li>
   <li><a href="#experimental" id="toc-experimental" class="nav-link" data-scroll-target="#experimental">Experimental</a></li>
+  <li><a href="#drawn-but-not-read" id="toc-drawn-but-not-read" class="nav-link" data-scroll-target="#drawn-but-not-read">Drawn but not read</a></li>
   <li><a href="#how-the-split-is-derived" id="toc-how-the-split-is-derived" class="nav-link" data-scroll-target="#how-the-split-is-derived">How the split is derived</a></li>
   <li><a href="#the-same-split-upstream" id="toc-the-same-split-upstream" class="nav-link" data-scroll-target="#the-same-split-upstream">The same split upstream</a></li>
   </ul>
@@ -615,6 +616,46 @@ cookieconsent.run({
 <li><strong>Not a support commitment.</strong> A bug in one of these is worth reporting, and reporting it is not a promise that the current behavior will be kept.</li>
 </ul>
 <p>If you are building something that has to keep working, build it on the stable set. If you are exploring what a chart could sound like, the experimental set is exactly what it is for — and feedback on it is the thing that would move a type out of this list.</p>
+</section>
+<section id="drawn-but-not-read" class="level2">
+<h2 class="anchored" data-anchor-id="drawn-but-not-read">Drawn but not read</h2>
+<p>A few matplotlib calls draw marks that no <code>PlotType</code> reads, and that is deliberate rather than a gap. Each registers nothing, so a figure holding only that call falls back to a static picture, and a figure holding it beside a chart that does read keeps that chart’s reading untouched.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>call</th>
+<th>why it is declined</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ax.quiver</code>, <code>ax.barbs</code>, <code>ax.streamplot</code></td>
+<td>a vector at a place carries a speed <em>and</em> a direction, and no trace holds both</td>
+</tr>
+<tr class="even">
+<td><code>ax.triplot</code></td>
+<td>a mesh states which points were joined, not an order to walk</td>
+</tr>
+<tr class="odd">
+<td><code>ax.contourf</code>, <code>ax.tricontourf</code>, <code>ax.tripcolor</code></td>
+<td>a filled band spans two levels, so calling it one level’s curve is right for half its vertices</td>
+</tr>
+<tr class="even">
+<td><code>ax.fill</code></td>
+<td>a closed polygon states no series; it is asked for as a shape, not a sequence</td>
+</tr>
+<tr class="odd">
+<td><code>ax.axhline</code>, <code>ax.axvline</code>, <code>ax.axline</code>, <code>ax.axhspan</code>, <code>ax.axvspan</code></td>
+<td>a reference mark at a fixed position annotates a chart rather than being one</td>
+</tr>
+</tbody>
+</table>
+<p><code>ax.table</code> draws no marks at all, so a figure holding only a table is reported as empty, which is accurate.</p>
+<p>Every other <code>Axes</code> method that draws marks is read as one of the types above: <code>imshow</code>, <code>matshow</code>, <code>spy</code>, <code>specgram</code> and <code>hist2d</code> as <code>heat</code>; <code>stem</code>, <code>acorr</code> and <code>xcorr</code> as <code>lollipop</code>; the spectra (<code>psd</code>, <code>csd</code>, <code>cohere</code>, <code>magnitude_spectrum</code>, <code>angle_spectrum</code>, <code>phase_spectrum</code>) as <code>line</code>; <code>tricontour</code> as <code>contour</code>. <code>tests/core/plot/test_unread_families.py</code> pins the whole sweep, so a call that starts registering nothing, or a decline that starts registering something, fails by name. The reasoning behind the <code>ax.fill</code> decline, the one that could be overturned, is recorded there and in <a href="https://github.com/xability/py-maidr/issues/685">#685</a>.</p>
 </section>
 <section id="how-the-split-is-derived" class="level2">
 <h2 class="anchored" data-anchor-id="how-the-split-is-derived">How the split is derived</h2>
