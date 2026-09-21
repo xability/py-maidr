@@ -68,6 +68,20 @@ def _schemas(fig) -> list:
     return [plot.schema for plot in FigureManager.get_maidr(fig).plots]
 
 
+def _selector_list(selectors):
+    """
+    The selectors a point layer names, one per entry.
+
+    The payload carries a point layer's selectors as ONE string -- the
+    per-point selectors joined with ``", "``, since the frontend's scatter
+    model reads a string and nothing else (#316 in r-maidr, the same bundle
+    contract) -- so the list is recovered from it for the assertions below.
+    """
+    if isinstance(selectors, str):
+        return selectors.split(", ")
+    return list(selectors)
+
+
 def test_a_rug_registers_the_observations_it_marks(frame):
     fig, ax = plt.subplots()
     sns.rugplot(frame, x="value", ax=ax)
@@ -361,7 +375,7 @@ def test_each_group_addresses_only_its_own_ticks(frame):
     fig, ax = plt.subplots()
     sns.rugplot(frame, x="value", hue="sex", ax=ax)
 
-    selectors = [schema["selectors"] for schema in _schemas(fig)]
+    selectors = [_selector_list(schema["selectors"]) for schema in _schemas(fig)]
     assert [len(group) for group in selectors] == [2, 2]
     # Four distinct ticks addressed, none of them twice.
     assert len({selector for group in selectors for selector in group}) == 4

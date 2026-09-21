@@ -206,6 +206,11 @@ def test_every_split_layer_can_be_highlighted():
     assert len(plots) == 2
     for plot in plots:
         selectors = plot.schema["selectors"]
+        # Rendering joins a point layer's selectors into the one string the
+        # frontend's scatter model reads (xability/r-maidr#316 names the
+        # bundle contract); the per-point entries are recovered from it.
+        if isinstance(selectors, str):
+            selectors = selectors.split(", ")
         assert len(selectors) == len(plot.schema["data"])
         for selector in selectors:
             for identifier in re.findall(r"'([^']+)'", str(selector)):

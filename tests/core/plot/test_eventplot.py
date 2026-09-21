@@ -76,6 +76,20 @@ def _layers(fig) -> list[dict]:
     return [layer for row in grid for cell in row for layer in cell["layers"]]
 
 
+def _selector_list(selectors):
+    """
+    The selectors a point layer names, one per entry.
+
+    The payload carries a point layer's selectors as ONE string -- the
+    per-point selectors joined with ``", "``, since the frontend's scatter
+    model reads a string and nothing else (#316 in r-maidr, the same bundle
+    contract) -- so the list is recovered from it for the assertions below.
+    """
+    if isinstance(selectors, str):
+        return selectors.split(", ")
+    return list(selectors)
+
+
 def _points(layer: dict) -> list[tuple[float, float]]:
     """
     One layer's coordinates.
@@ -265,7 +279,7 @@ def test_every_selector_names_an_element_of_its_own_row():
 
     groups = set()
     for layer in _layers(fig):
-        selectors = layer[MaidrKey.SELECTOR]
+        selectors = _selector_list(layer[MaidrKey.SELECTOR])
         assert len(selectors) == len(layer[MaidrKey.DATA])
 
         for selector in selectors:
@@ -273,9 +287,9 @@ def test_every_selector_names_an_element_of_its_own_row():
             groups.add(gid)
             wanted = int(re.search(r"nth-of-type\((\d+)\)", selector).group(1))
             available = _paths_in(html, gid)
-            assert available >= wanted, (
-                f"selector asks for path {wanted} of a group holding {available}"
-            )
+            assert (
+                available >= wanted
+            ), f"selector asks for path {wanted} of a group holding {available}"
 
     # Two rows, two groups: a single shared group would mean both layers were
     # addressing the same elements while announcing different events.
@@ -364,7 +378,7 @@ def test_a_missing_value_leaves_an_element_the_reader_is_never_sent_to():
     html = str(maidr.render(fig).get_html_string())
 
     layer = _layers(fig)[0]
-    selectors = layer[MaidrKey.SELECTOR]
+    selectors = _selector_list(layer[MaidrKey.SELECTOR])
 
     assert [point[MaidrKey.X] for point in layer[MaidrKey.DATA]] == [2.0, 5.0]
     assert len(selectors) == 2
@@ -625,4 +639,4 @@ def test_the_bounds_change_nothing_the_layer_already_said():
     ]
     assert _points(first) == [(1.0, 0.0), (4.0, 0.0), (7.0, 0.0)]
     assert _points(second) == [(2.0, 1.0), (5.0, 1.0)]
-    assert len(first[MaidrKey.SELECTOR]) == 3
+    assert len(_selector_list(first[MaidrKey.SELECTOR])) == 3
