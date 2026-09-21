@@ -117,6 +117,12 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Pie Chart": [["pie"]],
         "Word Cloud": [["word_cloud"]],
     },
+    "examples/roc.qmd": {
+        # Two classifiers on one axes are two curves of one layer, and the
+        # chance diagonal `plot_chance_level=True` draws is not a curve.
+        "One classifier": [["roc"]],
+        "Comparing classifiers": [["roc"]],
+    },
     "examples/scatter-regression.qmd": {
         # `hue="species"`: one point layer per species.
         "Scatter Plot": [["point + point + point"]],
