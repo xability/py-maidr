@@ -159,10 +159,16 @@ def test_rates_handed_over_as_columns_are_read_off_each_line():
     # lines from here, and each curve is read off its own line rather than
     # being handed the whole array.
     fig, ax = plt.subplots()
-    RocCurveDisplay(
+    display = RocCurveDisplay(
         fpr=np.array([[0, 0], [0.3, 0.5], [1, 1]]),
         tpr=np.array([[0, 0], [0.8, 0.6], [1, 1]]),
-    ).plot(ax=ax)
+    )
+    try:
+        display.plot(ax=ax)
+    except ValueError:
+        # Before scikit-learn 1.7 `plot()` unpacks exactly one line, so the
+        # display cannot be drawn at all and there is nothing to read.
+        pytest.skip("this scikit-learn draws one line per display")
 
     schema = layers(fig)[0]
 
