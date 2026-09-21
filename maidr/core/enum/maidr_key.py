@@ -77,6 +77,11 @@ class MaidrKey(str, Enum):
     END = "end"
     LANES = "lanes"
 
+    # ROC keys. A curve's area is carried on its first operating point, the
+    # way a series name is, so a chart of several classifiers reads each
+    # area beside the curve it belongs to.
+    AUC = "auc"
+
     # Flow keys. One link states the two nodes it joins and how much moves.
     # Only the source needs a key of its own: the amount reuses `VALUE` and
     # the far node reuses `TARGET`, both below. `TARGET` carrying two

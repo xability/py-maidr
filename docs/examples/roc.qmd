@@ -1,0 +1,117 @@
+---
+title: "Accessible ROC Curves in scikit-learn with py-maidr"
+pagetitle: "Accessible ROC Curves in scikit-learn"
+description: "Make scikit-learn RocCurveDisplay charts accessible with py-maidr: false and true positive rates read by keyboard, with the area under each curve and the best operating point."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+A ROC curve is a classifier's true positive rate against its false positive
+rate, one point per decision threshold. scikit-learn draws one with
+`RocCurveDisplay`, and every way of building that display -- `from_estimator`,
+`from_predictions`, `from_cv_results`, or a display built by hand -- ends in
+its `plot()`, which is what maidr reads.
+
+Read as a plain line, a ROC curve answers the wrong questions: its minimum and
+maximum are 0 and 1 on every curve, each curve's pitch is scaled to its own
+range so two classifiers sound alike, and the area under the curve sits in the
+legend text where a screen reader user is never told it. maidr reads the
+display instead: the pitch is the true positive rate on the unit interval, the
+stereo pan follows the false positive rate, each point announces how far it
+sits above the chance diagonal, and the description gives the area under each
+curve and the best operating point.
+
+`ROC` is **experimental** and may change without a deprecation period: see
+[Plot Type Stability](../stability.qmd).
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
+
+## Setup
+
+The examples on this page need scikit-learn, which is an optional extra:
+`pip install maidr[sklearn]`. Nothing in maidr imports it; the reading is
+wired up when your own code imports `sklearn.metrics`.
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+```
+
+## One classifier
+
+```{python}
+#| warning: false
+#| fig-alt: ROC curve of a logistic regression classifier, with the chance diagonal
+
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_classification
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import RocCurveDisplay
+from sklearn.model_selection import train_test_split
+
+import maidr  #<<
+
+X, y = make_classification(n_samples=400, n_informative=4, random_state=0)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+model = LogisticRegression(max_iter=500).fit(X_train, y_train)
+
+fig, ax = plt.subplots()
+# The display's own plot() is what maidr reads. The chance diagonal it draws
+# is a reference, not a curve, and is left out of the reading.
+RocCurveDisplay.from_estimator(model, X_test, y_test, ax=ax, plot_chance_level=True)  #<<
+ax.set_title("ROC curve of a logistic regression")
+
+plt.show()  #<<
+```
+
+The curve is one series: Left and Right move along the operating points, and
+each stop announces the false positive rate, the true positive rate and how far
+the point sits above chance. The description (`d`) gives the area under the
+curve, which is the number the display computed, and the operating point
+furthest above the diagonal.
+
+## Comparing classifiers
+
+Two displays plotted on one axes are two curves of one chart, so Up and Down
+switch between classifiers at the same position along the curve.
+
+```{python}
+#| warning: false
+#| fig-alt: ROC curves of a logistic regression and a random forest on one axes
+
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_classification
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import RocCurveDisplay
+from sklearn.model_selection import train_test_split
+
+import maidr  #<<
+
+X, y = make_classification(n_samples=400, n_informative=4, random_state=0)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+
+fig, ax = plt.subplots()
+for model in (LogisticRegression(max_iter=500), RandomForestClassifier(random_state=0)):
+    model.fit(X_train, y_train)
+    RocCurveDisplay.from_estimator(model, X_test, y_test, ax=ax)  #<<
+ax.set_title("ROC curves of two classifiers")
+
+plt.show()  #<<
+```
+
+Each curve is named the way the caller named it -- the estimator's class here,
+or the `name=` passed to the display -- rather than by the legend entry, which
+wraps the area around the name. The description lists the area under every
+curve and names the highest, which is the question a chart of several curves
+is drawn to answer.
