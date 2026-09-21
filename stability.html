@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-09-18">
+<meta name="DC.date" content="2026-09-21">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -313,6 +313,10 @@ cookieconsent.run({
         <li>
     <a class="dropdown-item" href="./examples/candlestick-gantt.html">
  <span class="dropdown-text">Candlestick and Gantt Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/roc.html">
+ <span class="dropdown-text">ROC Curves</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./examples/dashboards.html">
@@ -398,8 +402,8 @@ cookieconsent.run({
 
 <section id="two-sets-two-different-promises" class="level2">
 <h2 class="anchored" data-anchor-id="two-sets-two-different-promises">Two sets, two different promises</h2>
-<p><code>PlotType</code> in <code>maidr/core/enum/plot_type.py</code> names <strong>38</strong> plot types. They do not all carry the same promise, and nothing in the enum says so — which is what this page is for.</p>
-<p>Fifteen of them predate the plot coverage roadmap (<a href="https://github.com/xability/py-maidr/issues/345">#345</a>). The other twenty-three were added by it, most inside about two weeks, and <strong>none of the twenty-three has been through a user study</strong>.</p>
+<p><code>PlotType</code> in <code>maidr/core/enum/plot_type.py</code> names <strong>39</strong> plot types. They do not all carry the same promise, and nothing in the enum says so — which is what this page is for.</p>
+<p>Fifteen of them predate the plot coverage roadmap (<a href="https://github.com/xability/py-maidr/issues/345">#345</a>). Twenty-three were added by it, most inside about two weeks, and <code>ROC</code> after it. <strong>None of the twenty-four has been through a user study</strong>.</p>
 </section>
 <section id="stable" class="level2">
 <h2 class="anchored" data-anchor-id="stable">Stable</h2>
@@ -583,26 +587,30 @@ cookieconsent.run({
 <td><code>radar</code></td>
 </tr>
 <tr class="even">
+<td><code>ROC</code></td>
+<td><code>roc</code></td>
+</tr>
+<tr class="odd">
 <td><code>SANKEY</code></td>
 <td><code>sankey</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>STACKED_AREA</code></td>
 <td><code>stacked_area</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SUNBURST</code></td>
 <td><code>sunburst</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TREEMAP</code></td>
 <td><code>treemap</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>WATERFALL</code></td>
 <td><code>waterfall</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>WORD_CLOUD</code></td>
 <td><code>word_cloud</code></td>
 </tr>
