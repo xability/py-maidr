@@ -153,6 +153,28 @@ def test_a_curve_of_no_finite_rate_is_left_out_of_points_and_selectors_alike():
     assert [p[MaidrKey.X] for p in schema[MaidrKey.DATA][0]] == [0, 0.5, 1]
 
 
+def test_rates_handed_over_as_columns_are_read_off_each_line():
+    # `ax.plot` draws a two-column array as one line per column, so a display
+    # built from one reads as two curves; the array cannot be paired with the
+    # lines from here, and each curve is read off its own line rather than
+    # being handed the whole array.
+    fig, ax = plt.subplots()
+    RocCurveDisplay(
+        fpr=np.array([[0, 0], [0.3, 0.5], [1, 1]]),
+        tpr=np.array([[0, 0], [0.8, 0.6], [1, 1]]),
+    ).plot(ax=ax)
+
+    schema = layers(fig)[0]
+
+    assert [
+        [(p[MaidrKey.X], p[MaidrKey.Y]) for p in c] for c in schema[MaidrKey.DATA]
+    ] == [
+        [(0, 0), (0.3, 0.8), (1, 1)],
+        [(0, 0), (0.5, 0.6), (1, 1)],
+    ]
+    assert len(schema[MaidrKey.SELECTOR]) == 2
+
+
 def test_the_chance_diagonal_is_not_a_curve():
     fig, ax = plt.subplots()
     RocCurveDisplay.from_predictions(Y_TRUE, Y_SCORE, ax=ax, plot_chance_level=True)

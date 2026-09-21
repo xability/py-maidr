@@ -99,6 +99,23 @@ def _as_list(value: Any, count: int) -> list:
     return [value] * count
 
 
+def _rates(value: Any, count: int) -> list:
+    """
+    Spread a display's rates over its curves, one array per curve or none.
+
+    A name or an area is one value a curve can share with the others, so
+    :func:`_as_list` broadcasts it. Rates are not: an array handed to a
+    display that drew several lines -- a two-column array, which
+    ``ax.plot`` draws as one line per column -- holds every curve's rates
+    at once, and broadcasting it would put the whole array on each curve.
+    Nothing here can pair its columns with the lines, so each curve is read
+    off its own line instead.
+    """
+    if count > 1 and not isinstance(value, (list, tuple)):
+        return [None] * count
+    return _as_list(value, count)
+
+
 def _curves_of(display: Any, name: Any) -> list[RocCurve]:
     """
     The curves a display drew, as the layer reads them.
@@ -127,8 +144,8 @@ def _curves_of(display: Any, name: Any) -> list[RocCurve]:
         return []
 
     count = len(lines)
-    fprs = _as_list(getattr(display, "fpr", None), count)
-    tprs = _as_list(getattr(display, "tpr", None), count)
+    fprs = _rates(getattr(display, "fpr", None), count)
+    tprs = _rates(getattr(display, "tpr", None), count)
     areas = _as_list(getattr(display, "roc_auc", None), count)
     # `name` is the display's field since scikit-learn 1.7 and
     # `estimator_name` before it; the caller's `name=` wins over both, the
