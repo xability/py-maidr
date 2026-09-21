@@ -199,7 +199,7 @@ cookieconsent.run({
       "programmingLanguage": "Python",
       "runtimePlatform": "Python",
       "softwareRequirements": ["Python >= 3.9", "matplotlib"],
-      "softwareVersion": "1.23.0",
+      "softwareVersion": "1.24.0",
       "operatingSystem": "Cross-platform",
       "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
       "sameAs": [
@@ -550,7 +550,7 @@ cookieconsent.run({
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
 <p>The examples on this page need scikit-learn, which is an optional extra: <code>pip install maidr[sklearn]</code>. Nothing in maidr imports it; the reading is wired up when your own code imports <code>sklearn.metrics</code>.</p>
-<div id="032264b1" class="cell" data-execution_count="1">
+<div id="97c65f31" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="3,4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Just import maidr package: plt.show() now renders accessible output </span></span>
@@ -562,7 +562,7 @@ cookieconsent.run({
 </section>
 <section id="one-classifier" class="level2">
 <h2 class="anchored" data-anchor-id="one-classifier">One classifier</h2>
-<div id="4e07c40b" class="cell" data-execution_count="2">
+<div id="ba2016d5" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" data-source-line-numbers="nil" data-code-line-numbers="7,16,19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.datasets <span class="im">import</span> make_classification</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> LogisticRegression</span>
@@ -583,7 +583,7 @@ cookieconsent.run({
 <span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>plt.show()  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_e0e3f26c-3406-4bff-8e07-e828d42bb1e6" title="ROC curve of a logistic regression, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+<iframe id="iframe_90e66ad7-251c-43f0-9aea-2c1a8c85c7af" title="ROC curve of a logistic regression, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.9.0/dist/maidr.js&quot;]');
@@ -601,12 +601,12 @@ cookieconsent.run({
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;c356cfb9-7a46-4bb1-a897-58994e594e27&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;c356cfb9-7a46-4bb1-a897-58994e594e27&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;054d9c5b-cb9e-416e-943d-bb21df50d9a1&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;a6038a63-44ab-4458-af37-808d30b410fb&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;roc&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;ROC curve of a logistic regression&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;False Positive Rate (Positive label: 1)&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;True Positive Rate (Positive label: 1)&amp;quot;}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;, &amp;quot;auc&amp;quot;: 0.8331293349653203}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.5116279069767442, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.5116279069767442, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.14035087719298245, &amp;quot;y&amp;quot;: 0.627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.14035087719298245, &amp;quot;y&amp;quot;: 0.6744186046511628, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.6744186046511628, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.7906976744186046, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.7906976744186046, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3333333333333333, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3333333333333333, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.47368421052631576, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.47368421052631576, &amp;quot;y&amp;quot;: 0.9069767441860465, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5263157894736842, &amp;quot;y&amp;quot;: 0.9069767441860465, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5263157894736842, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7017543859649122, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7017543859649122, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-d912418f-da90-40c9-b817-5c28516de2bf'] path&amp;quot;]}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;bd3c2aef-fb1d-49fc-a2d5-7071e01cb830&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;bd3c2aef-fb1d-49fc-a2d5-7071e01cb830&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;66cb7400-e882-42b4-a16e-d6467c461d96&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;07cf4711-0bbc-436c-9b19-f12a85ef3d03&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;roc&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;ROC curve of a logistic regression&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;False Positive Rate (Positive label: 1)&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;True Positive Rate (Positive label: 1)&amp;quot;}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;, &amp;quot;auc&amp;quot;: 0.8331293349653203}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.5116279069767442, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.5116279069767442, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.14035087719298245, &amp;quot;y&amp;quot;: 0.627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.14035087719298245, &amp;quot;y&amp;quot;: 0.6744186046511628, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.6744186046511628, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.7906976744186046, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.7906976744186046, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3333333333333333, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3333333333333333, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.47368421052631576, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.47368421052631576, &amp;quot;y&amp;quot;: 0.9069767441860465, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5263157894736842, &amp;quot;y&amp;quot;: 0.9069767441860465, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5263157894736842, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7017543859649122, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7017543859649122, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-0ff12b65-0f24-4c5b-8a0b-852b1790f62d'] path&amp;quot;]}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-09-21T16:04:17.809750</dc:date>
+    <dc:date>2026-09-21T16:30:13.049580</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -620,21 +620,21 @@ cookieconsent.run({
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-7ea3b8e5-e78f-4446-b22a-680a23079dd0&quot;>
+  <g id=&quot;maidr-c94f1610-d18b-4573-a981-0329d513105a&quot;>
    <path d=&quot;M 0 360  L 504 360  L 504 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-6b669913-7864-4727-bf72-84bf103a88d8&quot;>
+   <g id=&quot;maidr-0448b5b9-efbf-42bd-a0cc-736bb7cd83f8&quot;>
     <path d=&quot;M 119.7 320.4  L 396.9 320.4  L 396.9 43.2  L 119.7 43.2  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-1731a4bf-63fb-4913-baf2-c73d720c4315&quot;>
+     <g id=&quot;maidr-12d00874-a295-450b-ac83-54fd7bdc4707&quot;>
       <defs>
-       <path id=&quot;m80bc0da356&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m51c7b44f7c&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m80bc0da356&quot; x=&quot;122.417647&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m51c7b44f7c&quot; x=&quot;122.417647&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -651,9 +651,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-55a84c33-696d-4077-a8ce-a2734b36b103&quot;>
+     <g id=&quot;maidr-802f8e3b-8d29-4c09-b66a-3d048fcca260&quot;>
       <g>
-       <use xlink:href=&quot;#m80bc0da356&quot; x=&quot;176.770588&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m51c7b44f7c&quot; x=&quot;176.770588&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -669,9 +669,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-5d024988-e93f-4119-8747-e0a377265a69&quot;>
+     <g id=&quot;maidr-57bd695a-1c75-4345-8ccb-e89666ac5a0b&quot;>
       <g>
-       <use xlink:href=&quot;#m80bc0da356&quot; x=&quot;231.123529&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m51c7b44f7c&quot; x=&quot;231.123529&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -687,9 +687,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_4&quot;>
-     <g id=&quot;maidr-33b0e51c-8d21-4287-b533-257dcf2bdfee&quot;>
+     <g id=&quot;maidr-467a8466-4111-4646-89b0-f81e868894b5&quot;>
       <g>
-       <use xlink:href=&quot;#m80bc0da356&quot; x=&quot;285.476471&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m51c7b44f7c&quot; x=&quot;285.476471&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_4&quot;>
@@ -705,9 +705,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_5&quot;>
-     <g id=&quot;maidr-d42536b3-b6a8-4521-bdf0-e4d25cef04e9&quot;>
+     <g id=&quot;maidr-7cd1f772-7343-4ac3-9bcc-63fefcd19995&quot;>
       <g>
-       <use xlink:href=&quot;#m80bc0da356&quot; x=&quot;339.829412&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m51c7b44f7c&quot; x=&quot;339.829412&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -723,9 +723,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_6&quot;>
-     <g id=&quot;maidr-8b8bb222-fa74-4b41-b009-db6aa0350d96&quot;>
+     <g id=&quot;maidr-28fb0285-245c-489b-ad55-cf7e7aaa6eb4&quot;>
       <g>
-       <use xlink:href=&quot;#m80bc0da356&quot; x=&quot;394.182353&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m51c7b44f7c&quot; x=&quot;394.182353&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -805,12 +805,12 @@ cookieconsent.run({
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-495fbf64-3e1a-4547-aa99-71bbdec78292&quot;>
+     <g id=&quot;maidr-243461c3-e731-4bf2-a54a-5c4e01246618&quot;>
       <defs>
-       <path id=&quot;mc4c22b8968&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;ma8d5abd76e&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#mc4c22b8968&quot; x=&quot;119.7&quot; y=&quot;317.682353&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#ma8d5abd76e&quot; x=&quot;119.7&quot; y=&quot;317.682353&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -823,9 +823,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-e8dfe1c1-5f0a-45a0-b4eb-c13363acd5a5&quot;>
+     <g id=&quot;maidr-74a55634-e1be-4f07-b708-149080c5933b&quot;>
       <g>
-       <use xlink:href=&quot;#mc4c22b8968&quot; x=&quot;119.7&quot; y=&quot;263.329412&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#ma8d5abd76e&quot; x=&quot;119.7&quot; y=&quot;263.329412&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -838,9 +838,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-dc14b638-1da3-4ffc-b892-55302aa288b1&quot;>
+     <g id=&quot;maidr-0a454ad6-6268-4d93-bb01-9d9854c59d86&quot;>
       <g>
-       <use xlink:href=&quot;#mc4c22b8968&quot; x=&quot;119.7&quot; y=&quot;208.976471&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#ma8d5abd76e&quot; x=&quot;119.7&quot; y=&quot;208.976471&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -853,9 +853,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-10f33de0-4600-4eab-a14e-4eec9f0a66e1&quot;>
+     <g id=&quot;maidr-bb34331b-7879-4eba-a5b8-49dce33aaf57&quot;>
       <g>
-       <use xlink:href=&quot;#mc4c22b8968&quot; x=&quot;119.7&quot; y=&quot;154.623529&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#ma8d5abd76e&quot; x=&quot;119.7&quot; y=&quot;154.623529&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_11&quot;>
@@ -868,9 +868,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-1f22650b-d442-4f8b-99f9-5ad4cd5f5245&quot;>
+     <g id=&quot;maidr-86328e7f-fb30-40e4-bf5e-3eee7566943f&quot;>
       <g>
-       <use xlink:href=&quot;#mc4c22b8968&quot; x=&quot;119.7&quot; y=&quot;100.270588&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#ma8d5abd76e&quot; x=&quot;119.7&quot; y=&quot;100.270588&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_12&quot;>
@@ -883,9 +883,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-1ab96bb7-44ec-4c0e-82c8-d639fdd655e1&quot;>
+     <g id=&quot;maidr-c1c5d436-9f1f-4aba-b165-97a6822f6c53&quot;>
       <g>
-       <use xlink:href=&quot;#mc4c22b8968&quot; x=&quot;119.7&quot; y=&quot;45.917647&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#ma8d5abd76e&quot; x=&quot;119.7&quot; y=&quot;45.917647&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_13&quot;>
@@ -946,22 +946,22 @@ cookieconsent.run({
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-d912418f-da90-40c9-b817-5c28516de2bf&quot; maidr=&quot;e6b75022-07b3-4d5c-8300-68ed762ffd22&quot;>
-    <path d=&quot;M 122.417647 317.682353  L 122.417647 311.362244  L 131.953251 311.362244  L 131.953251 286.081806  L 136.721053 286.081806  L 136.721053 222.880711  L 141.488854 222.880711  L 141.488854 178.639945  L 155.79226 178.639945  L 155.79226 147.039398  L 160.560062 147.039398  L 160.560062 134.399179  L 170.095666 134.399179  L 170.095666 102.798632  L 179.631269 102.798632  L 179.631269 96.478523  L 213.005882 96.478523  L 213.005882 83.838304  L 251.148297 83.838304  L 251.148297 71.198085  L 265.451703 71.198085  L 265.451703 64.877975  L 274.987307 64.877975  L 274.987307 58.557866  L 294.058514 58.557866  L 294.058514 52.237756  L 313.129721 52.237756  L 313.129721 45.917647  L 394.182353 45.917647  &quot; clip-path=&quot;url(#p73b9fbd0a7)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-0ff12b65-0f24-4c5b-8a0b-852b1790f62d&quot; maidr=&quot;1d239d9c-3d63-4498-bc18-e71c375275b3&quot;>
+    <path d=&quot;M 122.417647 317.682353  L 122.417647 311.362244  L 131.953251 311.362244  L 131.953251 286.081806  L 136.721053 286.081806  L 136.721053 222.880711  L 141.488854 222.880711  L 141.488854 178.639945  L 155.79226 178.639945  L 155.79226 147.039398  L 160.560062 147.039398  L 160.560062 134.399179  L 170.095666 134.399179  L 170.095666 102.798632  L 179.631269 102.798632  L 179.631269 96.478523  L 213.005882 96.478523  L 213.005882 83.838304  L 251.148297 83.838304  L 251.148297 71.198085  L 265.451703 71.198085  L 265.451703 64.877975  L 274.987307 64.877975  L 274.987307 58.557866  L 294.058514 58.557866  L 294.058514 52.237756  L 313.129721 52.237756  L 313.129721 45.917647  L 394.182353 45.917647  &quot; clip-path=&quot;url(#p558d8358ba)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-53321cea-896b-4afb-b1cf-d06e736494ac&quot;>
-    <path d=&quot;M 122.417647 317.682353  L 394.182353 45.917647  &quot; clip-path=&quot;url(#p73b9fbd0a7)&quot; style=&quot;fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #000000; stroke-width: 1.5&quot;/>
+   <g id=&quot;maidr-0eb5f089-ec24-42af-ae1b-c8c3d5f81179&quot;>
+    <path d=&quot;M 122.417647 317.682353  L 394.182353 45.917647  &quot; clip-path=&quot;url(#p558d8358ba)&quot; style=&quot;fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #000000; stroke-width: 1.5&quot;/>
    </g>
-   <g id=&quot;maidr-0c2f0ea3-ef90-400b-9076-86959e15750e&quot;>
+   <g id=&quot;maidr-7d44adfc-076c-4f47-9874-1eb65a1472b1&quot;>
     <path d=&quot;M 119.7 320.4  L 119.7 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-cbeedb02-2e61-4416-8dc2-c5408a548050&quot;>
+   <g id=&quot;maidr-8291722f-d8a9-4ac0-8778-8db020d96a1a&quot;>
     <path d=&quot;M 396.9 320.4  L 396.9 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-620b90f2-a176-4757-b2bf-80302e43109b&quot;>
+   <g id=&quot;maidr-bf10d205-02ec-4fac-8b1b-e036b5b08e4a&quot;>
     <path d=&quot;M 119.7 320.4  L 396.9 320.4  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-3527a041-b3af-45d3-b59d-4fc4e07e235e&quot;>
+   <g id=&quot;maidr-bf98c8dd-dbc8-465e-bc52-88ba5abaf568&quot;>
     <path d=&quot;M 119.7 43.2  L 396.9 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_15&quot;>
@@ -1012,10 +1012,10 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;legend_1&quot;>
-    <g id=&quot;maidr-bc1b8a95-4e59-421c-9075-3fd1d1da542c&quot;>
+    <g id=&quot;maidr-d395288e-3b52-4dde-b2a9-0f35ebe19f01&quot;>
      <path d=&quot;M 196.034375 315.4  L 389.9 315.4  Q 391.9 315.4 391.9 313.4  L 391.9 285.04375  Q 391.9 283.04375 389.9 283.04375  L 196.034375 283.04375  Q 194.034375 283.04375 194.034375 285.04375  L 194.034375 313.4  Q 194.034375 315.4 196.034375 315.4  z &quot; style=&quot;fill: #ffffff; opacity: 0.8; stroke: #cccccc; stroke-linejoin: miter&quot;/>
     </g>
-    <g id=&quot;maidr-42494df0-0c8b-4631-aba7-e1f247fd0b62&quot;>
+    <g id=&quot;maidr-377ba657-c411-4a7b-80ac-058294f21868&quot;>
      <path d=&quot;M 198.034375 291.142187  L 208.034375 291.142187  L 218.034375 291.142187  &quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
     </g>
     <g id=&quot;text_16&quot;>
@@ -1061,7 +1061,7 @@ cookieconsent.run({
       <use xlink:href=&quot;#DejaVuSans-29&quot; transform=&quot;translate(1579.634766 0)&quot;/>
      </g>
     </g>
-    <g id=&quot;maidr-570f0fd8-3051-499e-b040-fc2a9edaae73&quot;>
+    <g id=&quot;maidr-9793dfa7-2909-4067-93b3-38fcc9b3ed35&quot;>
      <path d=&quot;M 198.034375 305.820312  L 208.034375 305.820312  L 218.034375 305.820312  &quot; style=&quot;fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #000000; stroke-width: 1.5&quot;/>
     </g>
     <g id=&quot;text_17&quot;>
@@ -1101,7 +1101,7 @@ cookieconsent.run({
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;p73b9fbd0a7&quot;>
+  <clipPath id=&quot;p558d8358ba&quot;>
    <rect x=&quot;119.7&quot; y=&quot;43.2&quot; width=&quot;277.2&quot; height=&quot;277.2&quot;/>
   </clipPath>
  </defs>
@@ -1109,7 +1109,7 @@ cookieconsent.run({
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_e0e3f26c-3406-4bff-8e07-e828d42bb1e6');
+            let iframe = document.getElementById('iframe_90e66ad7-251c-43f0-9aea-2c1a8c85c7af');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1173,7 +1173,7 @@ cookieconsent.run({
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_e0e3f26c-3406-4bff-8e07-e828d42bb1e6');
+        let iframe = document.getElementById('iframe_90e66ad7-251c-43f0-9aea-2c1a8c85c7af');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();
@@ -1236,7 +1236,7 @@ cookieconsent.run({
 <section id="comparing-classifiers" class="level2">
 <h2 class="anchored" data-anchor-id="comparing-classifiers">Comparing classifiers</h2>
 <p>Two displays plotted on one axes are two curves of one chart, so Up and Down switch between classifiers at the same position along the curve.</p>
-<div id="f7a88932" class="cell" data-execution_count="3">
+<div id="052242a3" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="8,16,19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.datasets <span class="im">import</span> make_classification</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.ensemble <span class="im">import</span> RandomForestClassifier</span>
@@ -1257,7 +1257,7 @@ cookieconsent.run({
 <span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>plt.show()  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_ebfeb684-aa47-46da-b970-48802b6c6f7a" title="ROC curves of two classifiers, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+<iframe id="iframe_0c4d12de-54e1-4a84-888a-df04faf00755" title="ROC curves of two classifiers, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.9.0/dist/maidr.js&quot;]');
@@ -1275,12 +1275,12 @@ cookieconsent.run({
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;5c3d8d31-1eed-4d78-8acf-c62cc6f3e4c7&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;5c3d8d31-1eed-4d78-8acf-c62cc6f3e4c7&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;eadbe238-18b7-4c7c-97ba-e51d3e6eddb8&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;de802829-1429-4550-9516-8da8d699a5fa&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;roc&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;ROC curves of two classifiers&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;False Positive Rate (Positive label: 1)&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;True Positive Rate (Positive label: 1)&amp;quot;}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;, &amp;quot;auc&amp;quot;: 0.8331293349653203}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.5116279069767442, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.5116279069767442, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.14035087719298245, &amp;quot;y&amp;quot;: 0.627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.14035087719298245, &amp;quot;y&amp;quot;: 0.6744186046511628, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.6744186046511628, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.7906976744186046, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.7906976744186046, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3333333333333333, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3333333333333333, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.47368421052631576, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.47368421052631576, &amp;quot;y&amp;quot;: 0.9069767441860465, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5263157894736842, &amp;quot;y&amp;quot;: 0.9069767441860465, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5263157894736842, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7017543859649122, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7017543859649122, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}], [{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;, &amp;quot;auc&amp;quot;: 0.9261525907792738}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.16279069767441862, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.18604651162790697, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.23255813953488372, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.32558139534883723, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.3953488372093023, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.017543859649122806, &amp;quot;y&amp;quot;: 0.3953488372093023, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.017543859649122806, &amp;quot;y&amp;quot;: 0.46511627906976744, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.4883720930232558, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.5348837209302325, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.5813953488372093, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.6046511627906976, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.6976744186046512, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.7209302325581395, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.7674418604651163, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.08771929824561403, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.08771929824561403, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.22807017543859648, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.2631578947368421, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3157894736842105, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3508771929824561, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3684210526315789, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.40350877192982454, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.45614035087719296, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.49122807017543857, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5789473684210527, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7192982456140351, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7894736842105263, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.9298245614035088, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.9473684210526315, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.9824561403508771, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-0ea2c70c-a4f3-4ecc-af9a-d20913e2accf'] path&amp;quot;, &amp;quot;g[id='maidr-0570c2a8-5fdd-45ad-ae43-0f1eea974cd6'] path&amp;quot;]}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;26620b88-dc27-4c31-bb36-c1d595c836ca&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;26620b88-dc27-4c31-bb36-c1d595c836ca&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;0f4ef6cf-4492-4b03-8b7c-71a267615c77&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;6fd695b4-0609-422f-a6df-051e4f63070f&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;roc&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;ROC curves of two classifiers&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;False Positive Rate (Positive label: 1)&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;True Positive Rate (Positive label: 1)&amp;quot;}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;, &amp;quot;auc&amp;quot;: 0.8331293349653203}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.5116279069767442, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.5116279069767442, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.14035087719298245, &amp;quot;y&amp;quot;: 0.627906976744186, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.14035087719298245, &amp;quot;y&amp;quot;: 0.6744186046511628, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.6744186046511628, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.7906976744186046, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.7906976744186046, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3333333333333333, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3333333333333333, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.47368421052631576, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.47368421052631576, &amp;quot;y&amp;quot;: 0.9069767441860465, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5263157894736842, &amp;quot;y&amp;quot;: 0.9069767441860465, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5263157894736842, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7017543859649122, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7017543859649122, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;LogisticRegression&amp;quot;}], [{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;, &amp;quot;auc&amp;quot;: 0.9261525907792738}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.023255813953488372, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.11627906976744186, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.16279069767441862, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.18604651162790697, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.23255813953488372, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.32558139534883723, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.3488372093023256, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 0.3953488372093023, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.017543859649122806, &amp;quot;y&amp;quot;: 0.3953488372093023, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.017543859649122806, &amp;quot;y&amp;quot;: 0.46511627906976744, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.4883720930232558, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.5348837209302325, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.5813953488372093, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.6046511627906976, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.03508771929824561, &amp;quot;y&amp;quot;: 0.6976744186046512, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.05263157894736842, &amp;quot;y&amp;quot;: 0.7209302325581395, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.7674418604651163, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.07017543859649122, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.08771929824561403, &amp;quot;y&amp;quot;: 0.813953488372093, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.08771929824561403, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.12280701754385964, &amp;quot;y&amp;quot;: 0.8604651162790697, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.17543859649122806, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.21052631578947367, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.22807017543859648, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.2631578947368421, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3157894736842105, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3508771929824561, &amp;quot;y&amp;quot;: 0.8837209302325582, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.3684210526315789, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.40350877192982454, &amp;quot;y&amp;quot;: 0.9302325581395349, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.45614035087719296, &amp;quot;y&amp;quot;: 0.9534883720930233, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.49122807017543857, &amp;quot;y&amp;quot;: 0.9767441860465116, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5614035087719298, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5789473684210527, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.631578947368421, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7192982456140351, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.7894736842105263, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.9298245614035088, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.9473684210526315, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 0.9824561403508771, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;RandomForestClassifier&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-160629fd-84d8-401d-9132-c28f1bddbaaa'] path&amp;quot;, &amp;quot;g[id='maidr-805db946-e69a-49de-ad2e-de2710f77dbd'] path&amp;quot;]}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-09-21T16:04:18.257251</dc:date>
+    <dc:date>2026-09-21T16:30:13.476106</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -1294,21 +1294,21 @@ cookieconsent.run({
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-43d08f5c-1e80-4d7c-b62e-a1cc3e74ac83&quot;>
+  <g id=&quot;maidr-1e154087-0b73-48a1-8565-b70a1e5e423f&quot;>
    <path d=&quot;M 0 360  L 504 360  L 504 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-fd3ea471-bfac-45a4-913d-aaeb9e152c88&quot;>
+   <g id=&quot;maidr-6d0dbdd2-4a60-45fa-a764-7d1c3205c6d8&quot;>
     <path d=&quot;M 119.7 320.4  L 396.9 320.4  L 396.9 43.2  L 119.7 43.2  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-356f0c5b-60a4-4a69-adbf-6ae588b4a3be&quot;>
+     <g id=&quot;maidr-d0d15807-eada-41a9-b51b-8856052a9c08&quot;>
       <defs>
-       <path id=&quot;mdb62d535fc&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m25de249ede&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#mdb62d535fc&quot; x=&quot;122.417647&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m25de249ede&quot; x=&quot;122.417647&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -1325,9 +1325,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-fd71ecfd-566b-4ee4-8c1a-9535cf780731&quot;>
+     <g id=&quot;maidr-a3f9a889-4f34-40eb-8ae7-ce21e02a058f&quot;>
       <g>
-       <use xlink:href=&quot;#mdb62d535fc&quot; x=&quot;176.770588&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m25de249ede&quot; x=&quot;176.770588&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -1343,9 +1343,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-c4e7774a-3ead-4a55-adbf-b009b5488fe9&quot;>
+     <g id=&quot;maidr-cf6f1e7f-05c6-4294-962a-4fc948b077ea&quot;>
       <g>
-       <use xlink:href=&quot;#mdb62d535fc&quot; x=&quot;231.123529&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m25de249ede&quot; x=&quot;231.123529&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -1361,9 +1361,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_4&quot;>
-     <g id=&quot;maidr-3e699737-095c-42cc-b1fb-fc37faea8d8e&quot;>
+     <g id=&quot;maidr-40059aaa-eb61-4708-be59-328402e2976f&quot;>
       <g>
-       <use xlink:href=&quot;#mdb62d535fc&quot; x=&quot;285.476471&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m25de249ede&quot; x=&quot;285.476471&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_4&quot;>
@@ -1379,9 +1379,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_5&quot;>
-     <g id=&quot;maidr-b9e05b53-ca20-4879-aa63-ab1eed9d1d88&quot;>
+     <g id=&quot;maidr-bbe3e468-9107-4dbf-a77a-a3f89fc2ad02&quot;>
       <g>
-       <use xlink:href=&quot;#mdb62d535fc&quot; x=&quot;339.829412&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m25de249ede&quot; x=&quot;339.829412&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -1397,9 +1397,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_6&quot;>
-     <g id=&quot;maidr-1ba02891-b9c9-43d6-844b-63ae1981d6e2&quot;>
+     <g id=&quot;maidr-2e61ddbb-7701-40f3-84c1-25cafa7fdf17&quot;>
       <g>
-       <use xlink:href=&quot;#mdb62d535fc&quot; x=&quot;394.182353&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m25de249ede&quot; x=&quot;394.182353&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -1479,12 +1479,12 @@ cookieconsent.run({
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-9d09ecc2-f96e-4a19-9330-061654c1eafd&quot;>
+     <g id=&quot;maidr-35171252-08c7-4322-b0e8-1a96c88b4d45&quot;>
       <defs>
-       <path id=&quot;mb1c3b57714&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m9a3693e5a8&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#mb1c3b57714&quot; x=&quot;119.7&quot; y=&quot;317.682353&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m9a3693e5a8&quot; x=&quot;119.7&quot; y=&quot;317.682353&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -1497,9 +1497,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-48b7a499-e8c7-465f-a1f9-eb9835d365ae&quot;>
+     <g id=&quot;maidr-7f164b50-6ed0-4d5a-bcbb-ab9f53877fb0&quot;>
       <g>
-       <use xlink:href=&quot;#mb1c3b57714&quot; x=&quot;119.7&quot; y=&quot;263.329412&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m9a3693e5a8&quot; x=&quot;119.7&quot; y=&quot;263.329412&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -1512,9 +1512,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-9a75946f-5e97-4bcd-8c86-d3123893a90a&quot;>
+     <g id=&quot;maidr-6dc48447-4311-41ce-a92f-32099779c067&quot;>
       <g>
-       <use xlink:href=&quot;#mb1c3b57714&quot; x=&quot;119.7&quot; y=&quot;208.976471&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m9a3693e5a8&quot; x=&quot;119.7&quot; y=&quot;208.976471&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -1527,9 +1527,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-eb76ffb3-9f41-4edf-8dac-a092852bdc6e&quot;>
+     <g id=&quot;maidr-449b1068-7860-44ab-9095-12c571d60522&quot;>
       <g>
-       <use xlink:href=&quot;#mb1c3b57714&quot; x=&quot;119.7&quot; y=&quot;154.623529&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m9a3693e5a8&quot; x=&quot;119.7&quot; y=&quot;154.623529&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_11&quot;>
@@ -1542,9 +1542,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-08099fd3-5134-449b-9ad8-15d4f7cf6c45&quot;>
+     <g id=&quot;maidr-c65134ef-93ad-4a37-a988-a96b82bd6909&quot;>
       <g>
-       <use xlink:href=&quot;#mb1c3b57714&quot; x=&quot;119.7&quot; y=&quot;100.270588&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m9a3693e5a8&quot; x=&quot;119.7&quot; y=&quot;100.270588&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_12&quot;>
@@ -1557,9 +1557,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-b4bec4a1-e182-4b8b-ab25-95df83b6b330&quot;>
+     <g id=&quot;maidr-4071682e-4088-49ca-9409-f4188130c596&quot;>
       <g>
-       <use xlink:href=&quot;#mb1c3b57714&quot; x=&quot;119.7&quot; y=&quot;45.917647&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m9a3693e5a8&quot; x=&quot;119.7&quot; y=&quot;45.917647&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_13&quot;>
@@ -1620,22 +1620,22 @@ cookieconsent.run({
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-0ea2c70c-a4f3-4ecc-af9a-d20913e2accf&quot; maidr=&quot;2f5c041f-c954-45fc-9868-bc432fe4dcd9&quot;>
-    <path d=&quot;M 122.417647 317.682353  L 122.417647 311.362244  L 131.953251 311.362244  L 131.953251 286.081806  L 136.721053 286.081806  L 136.721053 222.880711  L 141.488854 222.880711  L 141.488854 178.639945  L 155.79226 178.639945  L 155.79226 147.039398  L 160.560062 147.039398  L 160.560062 134.399179  L 170.095666 134.399179  L 170.095666 102.798632  L 179.631269 102.798632  L 179.631269 96.478523  L 213.005882 96.478523  L 213.005882 83.838304  L 251.148297 83.838304  L 251.148297 71.198085  L 265.451703 71.198085  L 265.451703 64.877975  L 274.987307 64.877975  L 274.987307 58.557866  L 294.058514 58.557866  L 294.058514 52.237756  L 313.129721 52.237756  L 313.129721 45.917647  L 394.182353 45.917647  &quot; clip-path=&quot;url(#p95a90a12cc)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-160629fd-84d8-401d-9132-c28f1bddbaaa&quot; maidr=&quot;19e6ea44-762f-4ba7-80d7-516802402a00&quot;>
+    <path d=&quot;M 122.417647 317.682353  L 122.417647 311.362244  L 131.953251 311.362244  L 131.953251 286.081806  L 136.721053 286.081806  L 136.721053 222.880711  L 141.488854 222.880711  L 141.488854 178.639945  L 155.79226 178.639945  L 155.79226 147.039398  L 160.560062 147.039398  L 160.560062 134.399179  L 170.095666 134.399179  L 170.095666 102.798632  L 179.631269 102.798632  L 179.631269 96.478523  L 213.005882 96.478523  L 213.005882 83.838304  L 251.148297 83.838304  L 251.148297 71.198085  L 265.451703 71.198085  L 265.451703 64.877975  L 274.987307 64.877975  L 274.987307 58.557866  L 294.058514 58.557866  L 294.058514 52.237756  L 313.129721 52.237756  L 313.129721 45.917647  L 394.182353 45.917647  &quot; clip-path=&quot;url(#p03809d4735)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-0570c2a8-5fdd-45ad-ae43-0f1eea974cd6&quot; maidr=&quot;2f5c041f-c954-45fc-9868-bc432fe4dcd9&quot;>
-    <path d=&quot;M 122.417647 317.682353  L 122.417647 311.362244  L 122.417647 286.081806  L 122.417647 273.441587  L 122.417647 267.121477  L 122.417647 254.481259  L 122.417647 229.200821  L 122.417647 222.880711  L 122.417647 210.240492  L 127.185449 210.240492  L 127.185449 191.280164  L 131.953251 184.960055  L 131.953251 172.319836  L 131.953251 159.679617  L 131.953251 153.359508  L 131.953251 128.07907  L 136.721053 121.75896  L 141.488854 109.118741  L 141.488854 96.478523  L 146.256656 96.478523  L 146.256656 83.838304  L 155.79226 83.838304  L 170.095666 77.518194  L 179.631269 77.518194  L 184.399071 77.518194  L 193.934675 77.518194  L 208.23808 77.518194  L 217.773684 77.518194  L 222.541486 64.877975  L 232.07709 64.877975  L 246.380495 58.557866  L 255.916099 52.237756  L 274.987307 45.917647  L 279.755108 45.917647  L 294.058514 45.917647  L 317.897523 45.917647  L 336.968731 45.917647  L 375.111146 45.917647  L 379.878947 45.917647  L 389.414551 45.917647  L 394.182353 45.917647  &quot; clip-path=&quot;url(#p95a90a12cc)&quot; style=&quot;fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-805db946-e69a-49de-ad2e-de2710f77dbd&quot; maidr=&quot;19e6ea44-762f-4ba7-80d7-516802402a00&quot;>
+    <path d=&quot;M 122.417647 317.682353  L 122.417647 311.362244  L 122.417647 286.081806  L 122.417647 273.441587  L 122.417647 267.121477  L 122.417647 254.481259  L 122.417647 229.200821  L 122.417647 222.880711  L 122.417647 210.240492  L 127.185449 210.240492  L 127.185449 191.280164  L 131.953251 184.960055  L 131.953251 172.319836  L 131.953251 159.679617  L 131.953251 153.359508  L 131.953251 128.07907  L 136.721053 121.75896  L 141.488854 109.118741  L 141.488854 96.478523  L 146.256656 96.478523  L 146.256656 83.838304  L 155.79226 83.838304  L 170.095666 77.518194  L 179.631269 77.518194  L 184.399071 77.518194  L 193.934675 77.518194  L 208.23808 77.518194  L 217.773684 77.518194  L 222.541486 64.877975  L 232.07709 64.877975  L 246.380495 58.557866  L 255.916099 52.237756  L 274.987307 45.917647  L 279.755108 45.917647  L 294.058514 45.917647  L 317.897523 45.917647  L 336.968731 45.917647  L 375.111146 45.917647  L 379.878947 45.917647  L 389.414551 45.917647  L 394.182353 45.917647  &quot; clip-path=&quot;url(#p03809d4735)&quot; style=&quot;fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-6f5fb338-9634-44ba-b2ec-397478f514a9&quot;>
+   <g id=&quot;maidr-8b5e1449-bf33-4fd9-94f0-2490d672a60d&quot;>
     <path d=&quot;M 119.7 320.4  L 119.7 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-1f779124-6fd1-4de9-8563-f32b553ad89f&quot;>
+   <g id=&quot;maidr-fd80fed6-eb26-4dc4-98af-f70ce73cac89&quot;>
     <path d=&quot;M 396.9 320.4  L 396.9 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-65b779e5-2f5e-4f17-a594-9f86f0bfab6c&quot;>
+   <g id=&quot;maidr-3a096615-2d77-42ee-b231-5a4a751eb8e1&quot;>
     <path d=&quot;M 119.7 320.4  L 396.9 320.4  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-2c6279ce-d970-43c6-b657-2a99a9e9df6d&quot;>
+   <g id=&quot;maidr-42d28d7a-1651-4774-9480-073087e0da16&quot;>
     <path d=&quot;M 119.7 43.2  L 396.9 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_15&quot;>
@@ -1680,10 +1680,10 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;legend_1&quot;>
-    <g id=&quot;maidr-e8db1abd-e5b9-4fc8-b283-e64e11f9c66e&quot;>
+    <g id=&quot;maidr-30b4dc92-1ae6-4a86-b2b1-11df7d8c8452&quot;>
      <path d=&quot;M 171.053125 315.4  L 389.9 315.4  Q 391.9 315.4 391.9 313.4  L 391.9 285.04375  Q 391.9 283.04375 389.9 283.04375  L 171.053125 283.04375  Q 169.053125 283.04375 169.053125 285.04375  L 169.053125 313.4  Q 169.053125 315.4 171.053125 315.4  z &quot; style=&quot;fill: #ffffff; opacity: 0.8; stroke: #cccccc; stroke-linejoin: miter&quot;/>
     </g>
-    <g id=&quot;maidr-0c3e9616-d3df-431f-9a25-b0ae39a12e22&quot;>
+    <g id=&quot;maidr-4038dedf-d1b1-4e74-91a6-815b6cdb90fb&quot;>
      <path d=&quot;M 173.053125 291.142187  L 183.053125 291.142187  L 193.053125 291.142187  &quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
     </g>
     <g id=&quot;text_16&quot;>
@@ -1731,7 +1731,7 @@ cookieconsent.run({
       <use xlink:href=&quot;#DejaVuSans-29&quot; transform=&quot;translate(1579.634766 0)&quot;/>
      </g>
     </g>
-    <g id=&quot;maidr-c632fbf7-4d42-4b70-ba35-3cdec1980267&quot;>
+    <g id=&quot;maidr-fb14422c-aaea-48ac-aa60-6a73e660aaf3&quot;>
      <path d=&quot;M 173.053125 305.820312  L 183.053125 305.820312  L 193.053125 305.820312  &quot; style=&quot;fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square&quot;/>
     </g>
     <g id=&quot;text_17&quot;>
@@ -1783,7 +1783,7 @@ cookieconsent.run({
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;p95a90a12cc&quot;>
+  <clipPath id=&quot;p03809d4735&quot;>
    <rect x=&quot;119.7&quot; y=&quot;43.2&quot; width=&quot;277.2&quot; height=&quot;277.2&quot;/>
   </clipPath>
  </defs>
@@ -1791,7 +1791,7 @@ cookieconsent.run({
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_ebfeb684-aa47-46da-b970-48802b6c6f7a');
+            let iframe = document.getElementById('iframe_0c4d12de-54e1-4a84-888a-df04faf00755');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1855,7 +1855,7 @@ cookieconsent.run({
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_ebfeb684-aa47-46da-b970-48802b6c6f7a');
+        let iframe = document.getElementById('iframe_0c4d12de-54e1-4a84-888a-df04faf00755');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();
