@@ -13,6 +13,7 @@ import threading
 import time
 import warnings
 from html import unescape
+from urllib.parse import unquote
 
 import matplotlib
 import pytest
@@ -30,6 +31,8 @@ from shiny.render.renderer import Renderer  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.dependencies import read_bundled_js  # noqa: E402
 from maidr.widget.shiny import output_maidr, render_maidr  # noqa: E402
+
+from .conftest import _fake_session_class  # noqa: E402
 
 #: A slice of the real bundle, so "is the bundle inlined?" is answered by
 #: looking for the bundle rather than by a size threshold that a large
@@ -55,10 +58,39 @@ def _render(renderer):
     return asyncio.run(renderer.render())
 
 
-def _iframe_document(html: str) -> str:
-    """Return the srcdoc of an iframe payload, or the payload itself."""
-    match = re.search(r'srcdoc="(.*?)"\s+width', html, re.S)
-    return unescape(match.group(1)) if match else html
+#: The frame's ``src``: a session route, its nonce, and the render's version.
+_FRAME_SRC = re.compile(r'src="session/[^/]+/dynamic_route/([^?"]+)\?([^"]*)"')
+
+
+def _fetch(session, html: str, *, version: str | None = None):
+    """Fetch the chart document a payload's frame points at, as the browser does.
+
+    The frame names a session route; the handler Shiny registered there is
+    called with a request for that URL -- the same call Shiny's request
+    handler makes -- and its response is returned whole, so a test can
+    read the headers as well as the body. ``version`` substitutes another
+    ``v`` for the one the frame carries.
+    """
+    from starlette.requests import Request
+
+    match = _FRAME_SRC.search(html)
+    assert match, "the frame does not point at a session route"
+    # The name is percent-encoded in the URL and decoded by the server
+    # before the lookup, so the same happens here.
+    name, query = unquote(unescape(match.group(1))), unescape(match.group(2))
+    if version is not None:
+        query = re.sub(r"v=\d+", f"v={version}", query)
+    request = Request(
+        {"type": "http", "method": "GET", "headers": [], "query_string": query.encode()}
+    )
+    return session._dynamic_routes[name](request)
+
+
+def _iframe_document(session, html: str) -> str:
+    """Return the chart document a payload's frame is served, or the payload itself."""
+    if not _FRAME_SRC.search(html):
+        return html
+    return _fetch(session, html).body.decode()
 
 
 @pytest.fixture(autouse=True)
@@ -285,8 +317,12 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     to travel inline.
 
     ``"auto"`` is expected NOT to inline: it loads from the CDN, and its
-    client-side offline fallback cannot resolve inside a ``srcdoc``
-    iframe. ``use_cdn=False`` is the setting for an air-gapped app.
+    client-side offline fallback is the notebook's stashed copy, which a
+    Shiny page never has. ``use_cdn=False`` is the setting for an
+    air-gapped app.
+
+    Read from the document the route serves, since that -- not the
+    payload -- is what the frame loads (#534).
     """
 
     @render_maidr(use_cdn=use_cdn)
@@ -294,7 +330,7 @@ def test_each_cdn_mode_ships_the_source_it_promises(
         return _bar_axes()
 
     payload = _render(chart)
-    document = _iframe_document(payload["html"])
+    document = _iframe_document(fake_session, payload["html"])
 
     assert payload["deps"] == [], "an iframed render cannot carry dependencies"
     # The maidr loader URL rather than the bare host: the inlined bundle
@@ -302,6 +338,312 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     # (#771), so the host alone is in every offline document too.
     assert ("cdn.jsdelivr.net/npm/maidr" in document) is expect_cdn
     assert (_BUNDLE_HEAD in document) is expect_inline_bundle
+
+
+# ---------------------------------------------------------------------------
+# The chart travels out of band (#534)
+# ---------------------------------------------------------------------------
+
+
+def _bars(n: int):
+    """The axes of a chart with ``n`` bars, so two renders can be told apart."""
+    _, ax = plt.subplots()
+    ax.bar([chr(97 + i) for i in range(n)], range(1, n + 1))
+    return ax
+
+
+def _src_of(html: str) -> str:
+    return re.search(r'src="([^"]*)"', html).group(1)
+
+
+def test_the_payload_references_the_chart_rather_than_carrying_it(fake_session):
+    """The document leaves the websocket: the frame points at a session route.
+
+    Before this, every reactive flush pushed the whole chart through the
+    output payload -- ~25 KB on the default ``use_cdn``, ~2 MB with the
+    bundle inlined -- on the one channel every input and output shares.
+    The payload is now the frame and its scripts, whatever the chart
+    weighs.
+    """
+
+    @render_maidr(use_cdn=False)
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+
+    assert "srcdoc" not in html
+    assert _FRAME_SRC.search(html), html[:300]
+    assert _BUNDLE_HEAD not in html, "the bundle still rides the websocket"
+    assert len(html) < 16_000, f"{len(html)} bytes per flush is not out of band"
+
+
+def test_the_served_document_is_the_one_maidr_rendered(fake_session, monkeypatch):
+    """Every door still ships the same chart: the route serves the srcdoc.
+
+    The document the browser fetches has to be exactly what ``maidr.render``
+    put in the frame -- not a re-render, not a trimmed copy. Captured off
+    the frame before the renderer detaches it, since detaching is what
+    is under test.
+    """
+    import maidr.widget.shiny as shiny_module
+
+    captured: list[str] = []
+    real_render = shiny_module.maidr.render
+
+    def spy(value, **kwargs):
+        rendered = real_render(value, **kwargs)
+        captured.append(rendered.attrs["srcdoc"])
+        return rendered
+
+    monkeypatch.setattr(shiny_module.maidr, "render", spy)
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    served = _iframe_document(fake_session, _render(chart)["html"])
+
+    assert captured, "the render never ran"
+    assert served == captured[0]
+    assert "maidr=" in served, "no MAIDR schema in the served document"
+
+
+def test_the_frame_stays_on_the_hosts_origin(fake_session):
+    """A relative ``src``, so the frame is same-origin with its page.
+
+    ``srcdoc`` kept the frame same-origin, and two things depend on that:
+    the resize script reaches into the frame's document, and the ``allow``
+    attribute grants a device to the origin the frame loads from. A
+    ``data:`` or cross-origin URL would silently lose both.
+    """
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+
+    assert _src_of(html).startswith("session/"), _src_of(html)
+    assert "allow=" in html
+    assert "onload=" in html
+
+
+def test_one_route_per_output_and_a_new_version_per_render(fake_session):
+    """Renders share a route, and the URL changes with every one.
+
+    A route per render would leave every past handler registered for the
+    life of the session. The version is what makes each render a new
+    address, so nothing between the reader and the app can answer a
+    flush with the chart before it.
+    """
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    srcs = [_src_of(_render(chart)["html"]) for _ in range(3)]
+
+    assert len(fake_session._dynamic_routes) == 1
+    routes = {src.split("?")[0] for src in srcs}
+    assert len(routes) == 1, routes
+    versions = [re.search(r"v=(\d+)", src).group(1) for src in srcs]
+    assert versions == ["1", "2", "3"], versions
+
+
+def test_the_route_is_named_for_the_output(fake_session):
+    """Two outputs in one session must not serve each other's chart."""
+
+    @render_maidr
+    def first():
+        return _bar_axes()
+
+    @render_maidr
+    def second():
+        return _bar_axes()
+
+    _render(first)
+    _render(second)
+
+    assert set(fake_session._dynamic_routes) == {"maidr-first", "maidr-second"}
+
+
+def test_the_route_serves_the_latest_render_and_holds_no_other(fake_session):
+    """A render replaces the document, and it is the new chart that is served.
+
+    Two visibly different charts, so this cannot pass on a route that kept
+    the first document forever. Holding one document per output is also
+    the memory bound: with ``use_cdn=False`` every document carries the
+    bundle, so keeping each one would grow a session by ~2 MB per flush.
+    """
+    n = [2]
+
+    @render_maidr
+    def chart():
+        return _bars(n[0])
+
+    first = _iframe_document(fake_session, _render(chart)["html"])
+    n[0] = 5
+    second = _iframe_document(fake_session, _render(chart)["html"])
+
+    assert first != second
+    assert (
+        "&quot;e&quot;" not in first and "&quot;e&quot;" in second
+    ), "the second render did not serve the five-bar chart"
+
+    served = chart._served[fake_session.id]
+    assert served.version == 2
+    assert served.document == second
+
+
+def test_every_response_is_no_store(fake_session):
+    """Nothing caches the chart: not the browser's disk, not a proxy.
+
+    ``srcdoc`` content was never cached anywhere, and a chart may carry
+    one reader's data; a long-lived cache entry would leave it on disk
+    for the next user of that browser. So the current version and a
+    stale one alike are served ``no-store`` -- the stale one gets the
+    current chart, since the only frame that can ask for it is one a
+    newer flush is already replacing.
+    """
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+    _render(chart)  # version 2 replaces the document the frame above named
+
+    stale = _fetch(fake_session, html)
+    current = _fetch(fake_session, html, version="2")
+
+    for response in (stale, current):
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+    assert current.body == stale.body
+
+
+def test_a_fetch_with_nothing_rendered_is_a_404(fake_session):
+    """The route tolerates a request the output has nothing for."""
+    from starlette.requests import Request
+
+    from maidr.widget.shiny import _ServedChart
+
+    response = _ServedChart().serve(
+        Request({"type": "http", "method": "GET", "headers": [], "query_string": b""})
+    )
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_a_blank_render_drops_the_document(fake_session):
+    """Returning ``None`` empties the output, so the chart is let go too.
+
+    The frame that would have fetched it is gone with the output; holding
+    ~2 MB for a chart nobody can reach is the leak this avoids.
+    """
+    value = [_bar_axes()]
+
+    @render_maidr
+    def chart():
+        return value[0]
+
+    html = _render(chart)["html"]
+    value[0] = None
+    assert _render(chart) is None
+
+    assert chart._served[fake_session.id].document is None
+    assert _fetch(fake_session, html).status_code == 404
+
+
+def test_state_is_per_session_so_one_reader_never_gets_anothers_chart():
+    """One renderer instance in two sessions serves two charts, not one.
+
+    Shiny does not stop an app from attaching a renderer built at module
+    scope to every session with ``@output``. State kept on the instance
+    alone would then point session B's frame at session A's route -- and
+    serve B whatever A last rendered.
+    """
+    from shiny.session import session_context
+
+    FakeSession = _fake_session_class()
+    a, b = FakeSession("session-a"), FakeSession("session-b")
+
+    n = [2]
+
+    @render_maidr
+    def chart():
+        return _bars(n[0])
+
+    with session_context(a):
+        html_a = _render(chart)["html"]
+    n[0] = 5
+    with session_context(b):
+        html_b = _render(chart)["html"]
+
+    assert "session-a" in _src_of(html_a) and "session-b" in _src_of(html_b)
+    doc_a = _iframe_document(a, html_a)
+    doc_b = _iframe_document(b, html_b)
+    assert "&quot;e&quot;" not in doc_a, "session A was served session B's chart"
+    assert "&quot;e&quot;" in doc_b
+
+
+def test_the_document_is_let_go_when_the_session_ends(fake_session):
+    """The session ending is what bounds the memory an output holds."""
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    _render(chart)
+    assert fake_session.id in chart._served
+
+    fake_session.end()
+
+    assert chart._served == {}
+
+
+def test_a_session_that_registers_no_route_keeps_the_document_in_the_frame(
+    fake_session,
+):
+    """An empty URL from ``dynamic_route`` leaves the chart where it was.
+
+    Shiny's stub session returns ``""`` from ``dynamic_route``. Pointing a
+    frame at that would be a chart that silently loads nothing, and the
+    document would already have been popped off the frame, so it is
+    better to fall back to ``srcdoc`` than to detach.
+    """
+    fake_session.dynamic_route = lambda name, handler: ""
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+
+    assert "srcdoc=" in html
+    assert not _FRAME_SRC.search(html)
+    assert chart._served == {}
+
+
+def test_a_render_that_is_not_a_frame_is_passed_through(fake_session, monkeypatch):
+    """Nothing to detach: a fallback tag or a bare chart goes out as it is."""
+    from htmltools import tags
+
+    import maidr.widget.shiny as shiny_module
+
+    monkeypatch.setattr(
+        shiny_module.maidr, "render", lambda value, **kw: tags.div("a chart")
+    )
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+
+    assert "<div>a chart</div>" in html
+    assert not fake_session._dynamic_routes
 
 
 # ---------------------------------------------------------------------------
@@ -442,7 +784,9 @@ def test_a_figure_built_lazily_and_cached_stays_accessible(fake_session):
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        documents = [_iframe_document(_render(chart)["html"]) for _ in range(3)]
+        documents = [
+            _iframe_document(fake_session, _render(chart)["html"]) for _ in range(3)
+        ]
 
     assert not [w for w in caught if "not yet supported" in str(w.message)]
     for index, document in enumerate(documents):

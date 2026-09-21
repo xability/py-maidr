@@ -11,6 +11,12 @@ The rest covers what the wire format asks of a pie layer — a flat row of
 ``{x, y}`` points, a per-slice selector in slice order, and an ``axes``
 payload naming the two dimensions of a slice rather than positions on a
 scale it does not have.
+
+Slice order is walking order, not draw order. MAIDR steps Right through a
+pie clockwise, and ``Axes.pie`` draws counterclockwise unless ``counterclock``
+is False, so a pie drawn with the defaults is emitted in reverse: the
+``CLOCKWISE_*`` constants below are ``FRUIT`` and ``UNITS`` as such a pie
+reads them.
 """
 
 from __future__ import annotations
@@ -41,6 +47,11 @@ from maidr.patch.pieplot import _resolve  # noqa: E402
 #: A pie whose sizes sum far above 1, so matplotlib normalizes them away.
 FRUIT = ["Apples", "Bananas", "Cherries"]
 UNITS = [30, 50, 20]
+
+#: The same slices as a pie drawn with matplotlib's defaults reads them:
+#: drawn counterclockwise, walked clockwise, so the last drawn is the first read.
+CLOCKWISE_FRUIT = list(reversed(FRUIT))
+CLOCKWISE_UNITS = list(reversed(UNITS))
 
 
 def _stringify(value):
@@ -98,7 +109,7 @@ class TestValuesSurviveNormalization:
             ax.pie(UNITS, labels=FRUIT)
             schema = _only_layer(fig)
 
-            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+            assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
         finally:
             plt.close(fig)
 
@@ -108,7 +119,7 @@ class TestValuesSurviveNormalization:
             ax.pie(np.array(UNITS), labels=FRUIT)
             schema = _only_layer(fig)
 
-            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+            assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
         finally:
             plt.close(fig)
 
@@ -118,7 +129,7 @@ class TestValuesSurviveNormalization:
             ax.pie(pd.Series(UNITS), labels=FRUIT)
             schema = _only_layer(fig)
 
-            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+            assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
         finally:
             plt.close(fig)
 
@@ -132,9 +143,9 @@ class TestValuesSurviveNormalization:
             schema = _only_layer(fig)
 
             assert schema["data"] == [
-                {"x": "Apples", "y": 30},
-                {"x": "Bananas", "y": 50},
                 {"x": "Cherries", "y": 20},
+                {"x": "Bananas", "y": 50},
+                {"x": "Apples", "y": 30},
             ]
         finally:
             plt.close(fig)
@@ -146,7 +157,7 @@ class TestValuesSurviveNormalization:
             ax.pie([0.25, 0.75], labels=["Half", "Rest"])
             schema = _only_layer(fig)
 
-            assert [point["y"] for point in schema["data"]] == [0.25, 0.75]
+            assert [point["y"] for point in schema["data"]] == [0.75, 0.25]
         finally:
             plt.close(fig)
 
@@ -158,7 +169,7 @@ class TestValuesSurviveNormalization:
             ax.pie([0.2, 0.3], labels=["Done", "Started"], normalize=False)
             schema = _only_layer(fig)
 
-            assert [point["y"] for point in schema["data"]] == [0.2, 0.3]
+            assert [point["y"] for point in schema["data"]] == [0.3, 0.2]
         finally:
             plt.close(fig)
 
@@ -182,7 +193,7 @@ class TestReturnShapes:
             schema = _only_layer(fig)
 
             assert len(returned) == 2
-            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+            assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
         finally:
             plt.close(fig)
 
@@ -195,8 +206,8 @@ class TestReturnShapes:
             assert len(returned) == 3
             # The percentage labels matplotlib drew are not slices, so the
             # layer must still describe three of them.
-            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
-            assert [point["x"] for point in schema["data"]] == FRUIT
+            assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
+            assert [point["x"] for point in schema["data"]] == CLOCKWISE_FRUIT
         finally:
             plt.close(fig)
 
@@ -220,7 +231,7 @@ class TestLabels:
             ax.pie(UNITS, labels=FRUIT)
             schema = _only_layer(fig)
 
-            assert [point["x"] for point in schema["data"]] == FRUIT
+            assert [point["x"] for point in schema["data"]] == CLOCKWISE_FRUIT
         finally:
             plt.close(fig)
 
@@ -231,7 +242,7 @@ class TestLabels:
             ax.pie(UNITS)
             schema = _only_layer(fig)
 
-            assert [point["x"] for point in schema["data"]] == ["0", "1", "2"]
+            assert [point["x"] for point in schema["data"]] == ["2", "1", "0"]
         finally:
             plt.close(fig)
 
@@ -244,33 +255,110 @@ class TestLabels:
             ax.pie(frame["units"], labels=frame["year"])
             schema = _only_layer(fig)
 
-            assert [point["x"] for point in schema["data"]] == [2021, 2022, 2023]
+            assert [point["x"] for point in schema["data"]] == [2023, 2022, 2021]
             json.dumps(schema)
         finally:
             plt.close(fig)
 
 
 class TestSliceOrder:
-    """Data index k and drawn wedge k describe the same slice."""
+    """Data index k and element k describe the same slice, walked clockwise.
+
+    MAIDR walks a pie clockwise: Right steps to the next slice round the
+    dial, the audio pans to where the slice sits, and ``p`` names its clock
+    position, all on the assumption that data order runs clockwise from the
+    start. ``Axes.pie`` draws counterclockwise by default, so the order it drew
+    is the order a reader would walk backwards -- the slices are turned
+    round, and the document is put in the same order so the selector still
+    lands on the slice being read.
+    """
+
+    def test_a_default_pie_is_walked_against_its_draw_order(self):
+        # Drawn counterclockwise from 3 o'clock: Apples, then Bananas above it,
+        # then Cherries. Clockwise from the same point that is Cherries,
+        # Bananas, Apples.
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT)
+            schema = _only_layer(fig)
+
+            assert [point["x"] for point in schema["data"]] == CLOCKWISE_FRUIT
+            assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
+        finally:
+            plt.close(fig)
+
+    def test_a_clockwise_pie_is_walked_as_drawn(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, counterclock=False)
+            schema = _only_layer(fig)
+
+            assert [point["x"] for point in schema["data"]] == FRUIT
+            assert [point["y"] for point in schema["data"]] == UNITS
+        finally:
+            plt.close(fig)
+
+    def test_counterclock_is_read_off_the_call_by_position(self):
+        # `counterclock` is the eleventh positional parameter of `Axes.pie`;
+        # a caller who passes it that way must be read the same as one who
+        # names it. Matplotlib 3.10 deprecates passing the parameters before
+        # it positionally and means to refuse them in 3.12; once it does, no
+        # caller can reach this path and there is nothing left to pin.
+        fig, ax = plt.subplots()
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                try:
+                    ax.pie(UNITS, None, FRUIT, None, None, 0.6, False, 1.1, 0, 1, False)
+                except TypeError:
+                    pytest.skip(
+                        "this matplotlib no longer takes counterclock by position"
+                    )
+            schema = _only_layer(fig)
+
+            assert [point["x"] for point in schema["data"]] == FRUIT
+        finally:
+            plt.close(fig)
+
+    def test_an_explicit_none_is_drawn_clockwise_and_read_that_way(self):
+        # `Axes.pie` tests `counterclock` for truth, so `None` draws clockwise
+        # exactly as `False` does. Reading it as "not passed" would turn a
+        # clockwise pie round and walk it backwards -- the very fault the
+        # reversal exists to fix.
+        fig, ax = plt.subplots()
+        try:
+            wedges, _ = ax.pie(UNITS, labels=FRUIT, counterclock=None)
+            schema = _only_layer(fig)
+
+            # Drawn clockwise: each wedge ends where the next begins, going
+            # down through the angles.
+            assert wedges[1].theta2 == pytest.approx(wedges[0].theta1)
+            assert [point["x"] for point in schema["data"]] == FRUIT
+        finally:
+            plt.close(fig)
 
     @pytest.mark.parametrize(
         "kwargs",
         [
             {},
             {"startangle": 90},
-            {"counterclock": False},
             {"explode": (0.1, 0, 0)},
+            {"shadow": True},
+            {"counterclock": False},
         ],
-        ids=["plain", "startangle", "clockwise", "exploded"],
+        ids=["plain", "startangle", "exploded", "shadowed", "clockwise"],
     )
-    def test_drawing_options_do_not_reorder_the_data(self, kwargs):
+    def test_drawing_options_leave_the_walk_alone(self, kwargs):
+        # Where the pie starts and how the wedges are dressed up does not
+        # change which way round they were laid out, so the walk is decided
+        # by the drawing direction alone.
         fig, ax = plt.subplots()
         try:
             ax.pie(UNITS, labels=FRUIT, **kwargs)
             schema = _only_layer(fig)
 
-            assert [point["x"] for point in schema["data"]] == FRUIT
-            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+            expected = FRUIT if kwargs.get("counterclock") is False else CLOCKWISE_FRUIT
+            assert [point["x"] for point in schema["data"]] == expected
         finally:
             plt.close(fig)
 
@@ -285,16 +373,24 @@ class TestSliceOrder:
         finally:
             plt.close(fig)
 
-    def test_the_elements_are_in_slice_order(self):
+    @pytest.mark.parametrize(
+        "kwargs",
+        [{}, {"shadow": True}, {"counterclock": False}],
+        ids=["reversed", "reversed-with-shadows", "as-drawn"],
+    )
+    def test_the_elements_are_in_walking_order(self, kwargs):
         # The wedge colors come from the property cycle, so matching them
         # against the drawn wedges pins the order without depending on
-        # geometry.
+        # geometry. The document order has to be the data order: element k
+        # is what the frontend highlights for slice k.
         from matplotlib.colors import to_hex
 
         fig, ax = plt.subplots()
         try:
-            wedges, _ = ax.pie(UNITS, labels=FRUIT)
-            expected = [to_hex(wedge.get_facecolor()) for wedge in wedges]
+            wedges, _ = ax.pie(UNITS, labels=FRUIT, **kwargs)
+            schema = _only_layer(fig)
+            color_of = dict(zip(FRUIT, (to_hex(w.get_facecolor()) for w in wedges)))
+            expected = [color_of[point["x"]] for point in schema["data"]]
             groups = _highlight_groups(fig)
 
             drawn = [
@@ -302,6 +398,33 @@ class TestSliceOrder:
                 for paths in groups
             ]
             assert drawn == expected
+        finally:
+            plt.close(fig)
+
+    def test_reordering_leaves_the_rest_of_the_document_alone(self):
+        # The wedge groups swap places among themselves; nothing else in the
+        # SVG moves, and no placeholder is left behind.
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT)
+            maidr_obj = FigureManager.get_maidr(fig)
+            html = str(maidr_obj._create_html_tag().get_html_string())
+            svg = re.search(r"<svg.*</svg>", html, re.S).group(0)
+            root = etree.fromstring(svg.encode())
+
+            groups = root.xpath('//*[local-name()="g"][@maidr]')
+            parents = {group.getparent() for group in groups}
+            assert len(parents) == 1
+            assert "maidr slot" not in svg
+            # Three wedges and three labels, drawn on the one axes.
+            axes_group = parents.pop()
+            texts = axes_group.xpath('./*[local-name()="g"][starts-with(@id, "text")]')
+            assert len(texts) == 3
+            # Wedges are drawn before the text; the reorder keeps them there.
+            children = list(axes_group)
+            assert max(children.index(g) for g in groups) < min(
+                children.index(t) for t in texts
+            )
         finally:
             plt.close(fig)
 
@@ -320,6 +443,101 @@ class TestSliceOrder:
             plt.close(fig)
 
 
+class TestStartAngle:
+    """The layer says where on the dial the walk begins.
+
+    The renderer measures clockwise from 12 o'clock; matplotlib measures
+    ``startangle`` counterclockwise from 3 o'clock. The same edge serves
+    whichever way the pie was drawn: a counterclockwise ring ends where it
+    began, so its reversed, clockwise walk sets off from ``startangle`` too.
+    """
+
+    def test_matplotlibs_default_is_three_oclock(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT)
+            schema = _only_layer(fig)
+
+            assert schema["startAngle"] == 90
+        finally:
+            plt.close(fig)
+
+    def test_a_pie_begun_at_the_top_says_nothing(self):
+        # 12 o'clock is the renderer's default, so there is nothing to add.
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, startangle=90)
+            schema = _only_layer(fig)
+
+            assert "startAngle" not in schema
+        finally:
+            plt.close(fig)
+
+    @pytest.mark.parametrize(
+        ("startangle", "expected"),
+        [(180, 270), (-90, 180), (450, 0), (45, 45)],
+        ids=["nine-oclock", "six-oclock", "wrapped-top", "half-past-one"],
+    )
+    def test_the_angle_is_turned_into_the_renderers(self, startangle, expected):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, startangle=startangle)
+            schema = _only_layer(fig)
+
+            assert schema.get("startAngle", 0) == expected
+        finally:
+            plt.close(fig)
+
+    def test_the_same_edge_serves_a_clockwise_pie(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, startangle=180, counterclock=False)
+            schema = _only_layer(fig)
+
+            assert schema["startAngle"] == 270
+        finally:
+            plt.close(fig)
+
+    def test_startangle_is_read_off_the_call_by_position(self):
+        # `startangle` is the ninth positional parameter of `Axes.pie`.
+        fig, ax = plt.subplots()
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                try:
+                    ax.pie(UNITS, None, FRUIT, None, None, 0.6, False, 1.1, 180)
+                except TypeError:
+                    pytest.skip(
+                        "this matplotlib no longer takes startangle by position"
+                    )
+            schema = _only_layer(fig)
+
+            assert schema["startAngle"] == 270
+        finally:
+            plt.close(fig)
+
+    def test_a_numpy_angle_stays_json_serializable(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT, startangle=np.float64(180))
+            schema = _only_layer(fig)
+
+            assert schema["startAngle"] == 270
+            json.dumps(schema)
+        finally:
+            plt.close(fig)
+
+    def test_a_layer_built_directly_assumes_matplotlibs_default(self):
+        fig, ax = plt.subplots()
+        try:
+            ax.pie(UNITS, labels=FRUIT)
+            schema = _stringify(PiePlot(ax).schema)
+
+            assert schema["startAngle"] == 90
+        finally:
+            plt.close(fig)
+
+
 class TestNestedPie:
     """Two calls on one axes are two layers, each holding its own ring."""
 
@@ -330,8 +548,8 @@ class TestNestedPie:
             ax.pie([10, 20, 30, 40], radius=0.7)
             outer, inner = _layers(fig)
 
-            assert [point["y"] for point in outer["data"]] == [30, 50, 20]
-            assert [point["y"] for point in inner["data"]] == [10, 20, 30, 40]
+            assert [point["y"] for point in outer["data"]] == CLOCKWISE_UNITS
+            assert [point["y"] for point in inner["data"]] == [40, 30, 20, 10]
         finally:
             plt.close(fig)
 
@@ -366,7 +584,7 @@ class TestMixedFigure:
 
             assert bar["type"] == "bar"
             assert pie["type"] == "pie"
-            assert [point["y"] for point in pie["data"]] == [30, 50, 20]
+            assert [point["y"] for point in pie["data"]] == CLOCKWISE_UNITS
         finally:
             plt.close(fig)
 
@@ -446,8 +664,8 @@ class TestPiePlotDirectly:
             assert plot.type == PlotType.PIE
             # Without the call's own numbers, a slice's share of the whole is
             # all that is left to report.
-            assert [point["y"] for point in data] == pytest.approx([0.3, 0.5, 0.2])
-            assert [point["x"] for point in data] == FRUIT
+            assert [point["y"] for point in data] == pytest.approx([0.2, 0.5, 0.3])
+            assert [point["x"] for point in data] == CLOCKWISE_FRUIT
         finally:
             plt.close(fig)
 
@@ -544,8 +762,8 @@ class TestDonut:
             ax.pie(UNITS, labels=FRUIT, wedgeprops={"width": 0.4})
             schema = _only_layer(fig)
 
-            assert [point["x"] for point in schema["data"]] == FRUIT
-            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+            assert [point["x"] for point in schema["data"]] == CLOCKWISE_FRUIT
+            assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
         finally:
             plt.close(fig)
 
@@ -578,8 +796,8 @@ class TestZeroValuedSlice:
             schema = _only_layer(fig)
 
             assert len(wedges) == 3
-            assert [point["y"] for point in schema["data"]] == [0, 5, 5]
-            assert [point["x"] for point in schema["data"]] == FRUIT
+            assert [point["y"] for point in schema["data"]] == [5, 5, 0]
+            assert [point["x"] for point in schema["data"]] == CLOCKWISE_FRUIT
         finally:
             plt.close(fig)
 
@@ -609,8 +827,8 @@ class TestDataColumnNames:
             ax.pie("units", labels="fruit", data=frame)
             schema = _only_layer(fig)
 
-            assert [point["x"] for point in schema["data"]] == FRUIT
-            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+            assert [point["x"] for point in schema["data"]] == CLOCKWISE_FRUIT
+            assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
         finally:
             plt.close(fig)
 
@@ -647,8 +865,8 @@ class TestDataColumnNames:
             ax.pie("units", labels="abc", data=frame)
             schema = _only_layer(fig)
 
-            assert [point["x"] for point in schema["data"]] == ["a", "b", "c"]
-            assert [point["y"] for point in schema["data"]] == [30, 50, 20]
+            assert [point["x"] for point in schema["data"]] == ["c", "b", "a"]
+            assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
         finally:
             plt.close(fig)
 
@@ -674,7 +892,7 @@ class TestMismatchDiagnostic:
 
             assert "2 values for 3 wedges" in caplog.text
             # The fallback still happened: shares of the whole, not 30/50/20.
-            assert [point["y"] for point in data] == pytest.approx([0.3, 0.5, 0.2])
+            assert [point["y"] for point in data] == pytest.approx([0.2, 0.5, 0.3])
         finally:
             plt.close(fig)
 

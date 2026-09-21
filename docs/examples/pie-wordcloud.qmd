@@ -13,7 +13,8 @@ for a screen reader: their data is drawn as angle or as glyph size and written
 down nowhere on the page. py-maidr reads both as a flat row of labeled
 values, so the Left and Right arrows walk the slices or terms and each stop is
 announced by its label, its value and, for a pie, the share of the whole it
-works out to.
+works out to. On a pie, Right walks clockwise round the dial and Left walks
+back.
 
 `PIE` is in the **stable** set. `WORD_CLOUD` is **experimental** and may
 change without a deprecation period: see
@@ -35,10 +36,12 @@ import maidr  #<<
 ## Pie Chart
 
 A pie is one flat row of slices, so navigation runs left and right across them
-and there is no second dimension to move through. Each slice is announced by
-its label, its value, and the share of the whole that value works out to. The
-percentage is derived from the values at render time rather than authored, so
-it can never disagree with the numbers it is derived from.
+and there is no second dimension to move through. Right steps to the next
+slice clockwise and Left to the previous one, so the highlight travels round
+the dial the way a clock hand does. Each slice is announced by its label, its
+value, and the share of the whole that value works out to. The percentage is
+derived from the values at render time rather than authored, so it can never
+disagree with the numbers it is derived from.
 
 `ax.pie()` normalizes what it is given — it draws `x / sum(x)`, and each wedge
 keeps only its angles — so the counts below survive as counts because maidr
@@ -88,10 +91,30 @@ and "Value", which at least read as English where "X" and "Y" would not.
 
 Negative sizes are rejected — matplotlib refuses to draw a wedge with no area,
 so `ax.pie()` raises before maidr sees the call at all; maidr repeats the check
-for anyone building a `PiePlot` directly. Drawing options that only move the
-wedges around
-(`startangle`, `counterclock`, `explode`, `shadow`) leave the slice order
-alone, so the data stays index-aligned with what is on screen.
+for anyone building a `PiePlot` directly.
+
+**The slices are walked clockwise, whichever way matplotlib drew them.**
+`ax.pie()` lays its wedges out *counterclockwise* unless `counterclock=False`,
+so in the chart above the first slice, Sat, runs from 12 o'clock down the
+left-hand side and Sun sits below it. Walking that draw order with Right
+would send the highlight the wrong way round the dial — and the audio, which
+pans each slice to where it sits, would put Sat on the right. maidr therefore
+reads a counterclockwise pie in reverse: Fri, then Thur, Sun and Sat, which is
+the clockwise order from 12 o'clock and the one the description's data table
+lists. A pie drawn with `counterclock=False` is already clockwise and is read
+as drawn. Options that only move the wedges around (`startangle`, `explode`,
+`shadow`) do not change the direction and so leave the reading alone. Every
+slice's highlight, value and share stay on the wedge they describe either
+way.
+
+**Where the dial starts is passed along too.** maidr pans each slice to
+where it sits and, on `p`, names its clock position — both measured from
+where the first slice begins. `startangle` is emitted for that, converted
+from matplotlib's degrees counterclockwise from 3 o'clock to the renderer's
+degrees clockwise from 12: the chart above sets `startangle=90`, so its
+walk begins at the top, and a pie left at matplotlib's default begins at 3
+o'clock. A renderer older than the one that reads the value ignores it and
+places every pie from the top.
 :::
 
 ## Word Cloud

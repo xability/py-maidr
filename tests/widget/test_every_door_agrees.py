@@ -3,10 +3,16 @@
 Under Shiny -- and anywhere else `Environment` reports a live host -- the
 chart is nested inside an iframe's `srcdoc`, which escapes the schema a
 second time on top of the escaping lxml already applied to the `<svg>`.
-That is the form a Shiny or Flask reader actually receives, and until this
-file nothing asserted the grid still reads correctly in it: every existing
-grid test builds the schema through `_flatten_maidr` directly, where no
-wrapping happens.
+That is the form a Flask reader actually receives, and until this file
+nothing asserted the grid still reads correctly in it: every existing grid
+test builds the schema through `_flatten_maidr` directly, where no wrapping
+happens.
+
+The Shiny door starts from that same frame and then takes the document back
+out of it, to serve it from a session URL rather than over the websocket
+(#534). A Shiny reader therefore receives the document itself, escaped
+once, which is why that door is read here through the route it registers
+rather than off the payload.
 
 The three entry points are checked together, but not because they branch:
 the wrapping decision is environmental rather than per-door, so
@@ -17,7 +23,9 @@ still worth pinning: **no door may grow post-processing of its own.** #443
 is why. `plt.show()` degraded gracefully for an unregistered figure while
 `render`/`show`/`save_html` raised, because a behavior had been wired into
 one door and not the others, and nothing failed until a user went through
-the wrong one.
+the wrong one. The Shiny door's detaching is post-processing of the
+*frame*, deliberately, and the schema test below is what keeps it from
+ever becoming post-processing of the chart.
 
 The figures are the shapes whose grid coordinates #512, #517 and #519
 corrected -- an authored gap, a proportions gridspec, and panels
@@ -26,9 +34,11 @@ re-parented by their colorbars.
 
 from __future__ import annotations
 
+import asyncio
 import html as html_module
 import json
 import re
+from urllib.parse import unquote
 
 import matplotlib
 
@@ -54,6 +64,9 @@ from maidr.widget.streamlit import maidr_html  # noqa: E402
 
 #: The chart document a hosted render nests inside an iframe.
 _SRCDOC = re.compile(r'srcdoc="([^"]*)"')
+
+#: The session route a Shiny frame fetches its document from (#534).
+_ROUTE = re.compile(r'dynamic_route/([^?"]+)\?')
 
 #: The schema as it sits on the ``<svg>`` element of that document.
 _SCHEMA_IN_SVG = re.compile(r'maidr="([^"]*)"')
@@ -85,6 +98,27 @@ def _grid_of(rendered: object) -> list[list[int]]:
         [len(cell.get("layers", [])) for cell in row]
         for row in json.loads(html_module.unescape(match.group(1)))["subplots"]
     ]
+
+
+def _through_shiny(figure, session) -> str:
+    """What a Shiny reader receives: the document the frame's route serves.
+
+    Driven through ``render()`` rather than ``_render_off_loop`` because the
+    detaching happens in ``render()``, and the served document is the form
+    that has to agree with the other doors.
+    """
+    from starlette.requests import Request
+
+    def chart():
+        return figure
+
+    payload = asyncio.run(render_maidr(chart).render())
+    # Percent-encoded in the URL, decoded by the server before lookup.
+    name = unquote(html_module.unescape(_ROUTE.search(payload["html"]).group(1)))
+    request = Request(
+        {"type": "http", "method": "GET", "headers": [], "query_string": b""}
+    )
+    return session._dynamic_routes[name](request).body.decode()
 
 
 def _gapped():
@@ -119,7 +153,12 @@ IDS = ["gapped", "jointplot", "two_heatmaps"]
 
 @pytest.mark.parametrize("build,expected", FIGURES, ids=IDS)
 def test_the_grid_survives_being_wrapped_in_an_iframe(build, expected, fake_session):
-    """The form a Shiny reader receives, schema escaped twice."""
+    """The form a Flask reader receives, schema escaped twice.
+
+    Under Shiny this is what the render produces before the door detaches
+    the document; ``test_no_door_post_processes_the_schema`` covers what
+    the reader is then served.
+    """
     rendered = str(render_maidr(lambda: None)._render_off_loop(build()))
 
     assert "srcdoc=" in rendered, (
@@ -152,9 +191,7 @@ def test_no_door_post_processes_the_schema(build, expected, fake_session):
 
     doors = {
         "maidr.render": _grid_of(maidr.render(figure)),
-        "shiny.render_maidr": _grid_of(
-            render_maidr(lambda: None)._render_off_loop(figure)
-        ),
+        "shiny.render_maidr": _grid_of(_through_shiny(figure, fake_session)),
         "streamlit.maidr_html": _grid_of(maidr_html(figure)),
     }
 

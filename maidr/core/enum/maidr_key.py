@@ -63,6 +63,13 @@ class MaidrKey(str, Enum):
     # Step plot keys. The per-point ordinal level name reuses LABEL above.
     STEP_DIRECTION = "stepDirection"
 
+    # Pie keys. Where the first slice begins, in degrees clockwise from
+    # 12 o'clock, and which way round the dial the slices follow one another
+    # from there. The renderer walks a pie clockwise whichever way it was
+    # drawn, and places each slice on the dial from these.
+    START_ANGLE = "startAngle"
+    DIRECTION = "direction"
+
     # Gantt keys. An interval carries the two ends of its span; its lane is
     # `X`, and the lane names live in `LANES` so that a lane holding nothing
     # still has somewhere to carry one.

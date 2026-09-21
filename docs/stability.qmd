@@ -98,6 +98,34 @@ set. If you are exploring what a chart could sound like, the experimental set is
 exactly what it is for — and feedback on it is the thing that would move a type
 out of this list.
 
+## Drawn but not read
+
+A few matplotlib calls draw marks that no `PlotType` reads, and that is
+deliberate rather than a gap. Each registers nothing, so a figure holding only
+that call falls back to a static picture, and a figure holding it beside a chart
+that does read keeps that chart's reading untouched.
+
+| call | why it is declined |
+|---|---|
+| `ax.quiver`, `ax.barbs`, `ax.streamplot` | a vector at a place carries a speed *and* a direction, and no trace holds both |
+| `ax.triplot` | a mesh states which points were joined, not an order to walk |
+| `ax.contourf`, `ax.tricontourf`, `ax.tripcolor` | a filled band spans two levels, so calling it one level's curve is right for half its vertices |
+| `ax.fill` | a closed polygon states no series; it is asked for as a shape, not a sequence |
+| `ax.axhline`, `ax.axvline`, `ax.axline`, `ax.axhspan`, `ax.axvspan` | a reference mark at a fixed position annotates a chart rather than being one |
+
+`ax.table` draws no marks at all, so a figure holding only a table is reported
+as empty, which is accurate.
+
+Every other `Axes` method that draws marks is read as one of the types above:
+`imshow`, `matshow`, `spy`, `specgram` and `hist2d` as `heat`; `stem`, `acorr` and `xcorr`
+as `lollipop`; the spectra (`psd`, `csd`, `cohere`, `magnitude_spectrum`,
+`angle_spectrum`, `phase_spectrum`) as `line`; `tricontour` as `contour`.
+`tests/core/plot/test_unread_families.py` pins the whole sweep, so a call that
+starts registering nothing, or a decline that starts registering something,
+fails by name. The reasoning behind the `ax.fill` decline, the one that could be
+overturned, is recorded there and in
+[#685](https://github.com/xability/py-maidr/issues/685).
+
 ## How the split is derived
 
 It is the diff of `PlotType` against `d9f7aee`, the last commit on `main` before

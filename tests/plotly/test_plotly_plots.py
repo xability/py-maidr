@@ -990,6 +990,83 @@ class TestPlotlyPiePlot:
 
         assert plot._slices() == [("A", 30.0), ("B", 50.0), ("C", 20.0)]
 
+    def test_the_drawn_direction_is_declared(self):
+        # Plotly lays the wedges out counterclockwise unless told otherwise;
+        # the renderer walks clockwise, so the layer has to say which way it
+        # was drawn or Right steps the wrong way round the dial.
+        trace = {"type": "pie", "labels": ["A", "B"], "values": [1, 3]}
+        assert PlotlyPiePlot(trace, {}).schema[MaidrKey.DIRECTION] == "counterclockwise"
+
+        clockwise = {**trace, "direction": "clockwise"}
+        assert PlotlyPiePlot(clockwise, {}).schema[MaidrKey.DIRECTION] == "clockwise"
+
+    def test_a_counterclockwise_ring_starts_where_its_first_wedge_ends(self):
+        # Plotly ends the first wedge at `rotation` and draws it clockwise of
+        # there, then lays the rest out counterclockwise: sorted largest
+        # first, the 50 of 100 spans 12 to 6 o'clock and the ring starts at 6.
+        trace = {"type": "pie", "labels": ["A", "B", "C"], "values": [30, 50, 20]}
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot.schema[MaidrKey.START_ANGLE] == 180
+
+    def test_rotation_moves_the_whole_ring(self):
+        trace = {
+            "type": "pie",
+            "labels": ["A", "B", "C"],
+            "values": [30, 50, 20],
+            "rotation": 90,
+        }
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot.schema[MaidrKey.START_ANGLE] == 270
+
+    def test_a_clockwise_ring_starts_at_its_rotation(self):
+        trace = {
+            "type": "pie",
+            "labels": ["A", "B", "C"],
+            "values": [30, 50, 20],
+            "direction": "clockwise",
+            "rotation": 45,
+        }
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot.schema[MaidrKey.START_ANGLE] == 45
+
+    def test_a_ring_that_starts_at_the_top_says_nothing(self):
+        # 12 o'clock is the renderer's default, so there is nothing to add: a
+        # clockwise pie left at plotly's default rotation, or a
+        # counterclockwise one whose first wedge is the whole dial.
+        clockwise = {
+            "type": "pie",
+            "labels": ["A", "B"],
+            "values": [1, 3],
+            "direction": "clockwise",
+        }
+        assert MaidrKey.START_ANGLE not in PlotlyPiePlot(clockwise, {}).schema
+
+        whole = {"type": "pie", "labels": ["A"], "values": [5]}
+        assert MaidrKey.START_ANGLE not in PlotlyPiePlot(whole, {}).schema
+
+    def test_an_empty_ring_has_no_start(self):
+        trace = {"type": "pie", "labels": ["A", "B"], "values": [0, 0]}
+        schema = PlotlyPiePlot(trace, {}).schema
+
+        assert MaidrKey.START_ANGLE not in schema
+        assert schema[MaidrKey.DIRECTION] == "counterclockwise"
+
+    def test_the_first_sweep_is_the_first_drawn_wedges(self):
+        # `sort=False` keeps the authored order, so the first drawn wedge is
+        # the first written one: 30 of 100 spans 12 to about 3:36.
+        trace = {
+            "type": "pie",
+            "labels": ["A", "B", "C"],
+            "values": [30, 50, 20],
+            "sort": False,
+        }
+        plot = PlotlyPiePlot(trace, {})
+
+        assert plot.schema[MaidrKey.START_ANGLE] == pytest.approx(108)
+
     def test_selector_is_scoped_to_the_pie_layer(self):
         # Pies are drawn into a figure-level `pielayer`, never into a
         # `.subplot.xy` group, so a subplot-prefixed selector would match
@@ -1031,8 +1108,20 @@ class TestPlotlyPiePlot:
 class TestPlotlyMultiLinePlot:
     def test_merges_traces_into_list_of_lists(self):
         traces = [
-            {"type": "scatter", "mode": "lines", "x": [1, 2], "y": [10, 20], "name": "A"},
-            {"type": "scatter", "mode": "lines", "x": [1, 2], "y": [5, 15], "name": "B"},
+            {
+                "type": "scatter",
+                "mode": "lines",
+                "x": [1, 2],
+                "y": [10, 20],
+                "name": "A",
+            },
+            {
+                "type": "scatter",
+                "mode": "lines",
+                "x": [1, 2],
+                "y": [5, 15],
+                "name": "B",
+            },
         ]
         plot = PlotlyMultiLinePlot(traces, {}, scatter_positions=[0, 1])
         data = plot._extract_plot_data()
