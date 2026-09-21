@@ -2,8 +2,18 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import http.server
 import importlib
+import io
+import json
+import os
 import re
+import shutil
+import subprocess
+import tarfile
+import threading
 import warnings
 from pathlib import Path
 
@@ -1018,3 +1028,159 @@ def test_inline_bundle_tags_survive_a_corrupted_bundle(monkeypatch):
         assert dependencies.inline_bundle_tags() is None
     finally:
         dependencies._inline_bundle_sources.cache_clear()
+
+
+def _script_tools_available() -> bool:
+    """Whether ``fetch-maidr-bundle.sh``'s own dependencies are installed."""
+    return all(shutil.which(tool) for tool in ("bash", "curl", "jq", "openssl", "tar"))
+
+
+def _npm_tarball() -> tuple[bytes, str]:
+    """A minimal npm tarball of the assets the script extracts, and its SRI.
+
+    Returns
+    -------
+    tuple of bytes and str
+        The gzipped tarball and its ``sha512-...`` integrity string, as the
+        registry publishes it.
+    """
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
+        for name, body in (
+            ("maidr.js", b"console.log('maidr');\n"),
+            ("maidr.css", b"/* maidr */\n"),
+            ("maidr-math.css", b"/* katex */\n"),
+        ):
+            info = tarfile.TarInfo(f"package/dist/{name}")
+            info.size = len(body)
+            tar.addfile(info, io.BytesIO(body))
+    data = buffer.getvalue()
+    digest = base64.b64encode(hashlib.sha512(data).digest()).decode("ascii")
+    return data, f"sha512-{digest}"
+
+
+class _LaggingRegistry(threading.Thread):
+    """A registry whose per-version document appears after a few requests.
+
+    ``npm publish`` returns before ``registry.npmjs.org/maidr/<version>``
+    knows the version; maidr 4.9.0 answered 404 for about ten minutes after
+    it was published. This server answers 404 to the first ``lag`` requests
+    for the version document and serves it, and the tarball, afterwards.
+    """
+
+    def __init__(self, version: str, lag: int) -> None:
+        super().__init__(daemon=True)
+        tarball, integrity = _npm_tarball()
+        self.requests: list[str] = []
+        registry = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_args: object) -> None:
+                pass
+
+            def do_GET(self) -> None:  # noqa: N802 -- http.server's spelling
+                registry.requests.append(self.path)
+                if self.path == f"/maidr/{version}":
+                    seen = registry.requests.count(self.path)
+                    if seen <= lag:
+                        self.send_error(404, "Not Found")
+                        return
+                    body = json.dumps(
+                        {
+                            "version": version,
+                            "dist": {
+                                "tarball": f"http://127.0.0.1:{registry.port}/tarball.tgz",
+                                "integrity": integrity,
+                            },
+                        }
+                    ).encode("utf-8")
+                    self._reply(body, "application/json")
+                elif self.path == "/tarball.tgz":
+                    self._reply(tarball, "application/octet-stream")
+                else:
+                    self.send_error(404, "Not Found")
+
+            def _reply(self, body: bytes, content_type: str) -> None:
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        self.server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        self.port = self.server.server_address[1]
+
+    def run(self) -> None:
+        self.server.serve_forever()
+
+    def stop(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def _run_fetch_script(
+    registry: _LaggingRegistry, version: str, dest: Path, attempts: int
+) -> subprocess.CompletedProcess:
+    script = (
+        Path(__file__).resolve().parents[2]
+        / ".github"
+        / "scripts"
+        / "fetch-maidr-bundle.sh"
+    )
+    return subprocess.run(
+        ["bash", str(script), version, str(dest)],
+        env={
+            **os.environ,
+            "MAIDR_NPM_REGISTRY": f"http://127.0.0.1:{registry.port}/maidr",
+            "MAIDR_FETCH_MAX_ATTEMPTS": str(attempts),
+            "MAIDR_FETCH_RETRY_DELAY": "0",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.mark.skipif(
+    not _script_tools_available(), reason="needs bash, curl, jq, openssl, tar"
+)
+def test_fetch_script_waits_out_the_registry_publish_lag(tmp_path):
+    """A version the registry does not know *yet* is retried, then bundled.
+
+    The refresh that maidr's release dispatches runs seconds after
+    ``npm publish``, inside the window where the registry still answers 404
+    for the new version, and one failed ``curl`` there left ``main`` on the
+    previous bundle until somebody re-ran the workflow by hand.
+    """
+    registry = _LaggingRegistry("4.9.0", lag=2)
+    registry.start()
+    try:
+        result = _run_fetch_script(registry, "4.9.0", tmp_path / "static", attempts=5)
+    finally:
+        registry.stop()
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "4.9.0"
+    assert registry.requests.count("/maidr/4.9.0") == 3
+    assert "not on the registry yet (attempt 1 of 5)" in result.stderr
+    assert (tmp_path / "static" / "VERSION").read_text(encoding="utf-8") == "4.9.0\n"
+    assert (tmp_path / "static" / "maidr.js").read_bytes() == b"console.log('maidr');\n"
+    assert (tmp_path / "static" / "maidr-math.css").exists()
+
+
+@pytest.mark.skipif(
+    not _script_tools_available(), reason="needs bash, curl, jq, openssl, tar"
+)
+def test_fetch_script_gives_up_on_a_version_that_never_appears(tmp_path):
+    """The retries are bounded, and the failure names how long it waited."""
+    registry = _LaggingRegistry("4.9.0", lag=10**6)
+    registry.start()
+    try:
+        result = _run_fetch_script(registry, "4.9.0", tmp_path / "static", attempts=3)
+    finally:
+        registry.stop()
+
+    assert result.returncode == 1
+    assert registry.requests.count("/maidr/4.9.0") == 3
+    assert "not on the registry after 3 attempts; giving up" in result.stderr
+    assert not (tmp_path / "static").exists()

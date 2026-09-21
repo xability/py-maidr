@@ -31,7 +31,22 @@ set -euo pipefail
 VERSION="${1:-}"
 DEST_DIR="${2:-maidr/static}"
 
-REGISTRY="https://registry.npmjs.org/maidr"
+# Overridable so a test can stand in for the registry; nothing in CI sets it.
+REGISTRY="${MAIDR_NPM_REGISTRY:-https://registry.npmjs.org/maidr}"
+
+# How long to wait for a version that was just published to show up.
+#
+# The registry's per-version document lags ``npm publish`` by minutes: maidr
+# 4.9.0 was published at 15:16 UTC and ``maidr/4.9.0`` still answered 404 at
+# 15:16:18, when the dispatch that publish sent had already started this
+# script; the document appeared around 15:26. So a requested version that
+# the registry does not know yet is retried, at ``RETRY_DELAY`` seconds
+# apart for up to ``MAX_ATTEMPTS`` attempts -- fifteen minutes by default,
+# comfortably past the lag seen -- rather than failing the refresh and
+# leaving ``main`` on the previous bundle until somebody re-runs it.
+# Both overridable so a test can exercise the loop without waiting.
+MAX_ATTEMPTS="${MAIDR_FETCH_MAX_ATTEMPTS:-30}"
+RETRY_DELAY="${MAIDR_FETCH_RETRY_DELAY:-30}"
 
 if [ -z "$VERSION" ]; then
   VERSION=$(curl -sSfL "$REGISTRY/latest" | jq -r '.version')
@@ -79,8 +94,22 @@ fi
 echo "Fetching bundled maidr.js v${VERSION} into ${DEST_DIR}" >&2
 
 # Fetch the registry metadata for this exact version to get the tarball URL
-# and its published integrity hash.
-META=$(curl -sSfL "$REGISTRY/$VERSION")
+# and its published integrity hash, waiting out the publish lag described
+# at ``MAX_ATTEMPTS``.  Every failure is retried, not only a 404: the same
+# window has answered with a 5xx from a replica that has not caught up, and
+# a version that genuinely does not exist costs the same fifteen minutes
+# either way, which is cheaper than a refresh missed for a day.
+attempt=0
+while ! META=$(curl -sSfL "$REGISTRY/$VERSION"); do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge "$MAX_ATTEMPTS" ]; then
+    echo "maidr@$VERSION is not on the registry after $attempt attempts; giving up" >&2
+    exit 1
+  fi
+  echo "maidr@$VERSION is not on the registry yet (attempt $attempt of $MAX_ATTEMPTS);" \
+    "retrying in ${RETRY_DELAY}s" >&2
+  sleep "$RETRY_DELAY"
+done
 TARBALL=$(printf '%s' "$META" | jq -r '.dist.tarball // empty')
 INTEGRITY=$(printf '%s' "$META" | jq -r '.dist.integrity // empty')
 SHASUM=$(printf '%s' "$META" | jq -r '.dist.shasum // empty')
