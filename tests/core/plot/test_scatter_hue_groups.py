@@ -107,6 +107,20 @@ def _points(fig) -> list[dict]:
     return [layer for layer in _layers(fig) if layer[MaidrKey.TYPE] == PlotType.SCATTER]
 
 
+def _selector_list(selectors):
+    """
+    The selectors a point layer names, one per entry.
+
+    The payload carries a point layer's selectors as ONE string -- the
+    per-point selectors joined with ``", "``, since the frontend's scatter
+    model reads a string and nothing else (#316 in r-maidr, the same bundle
+    contract) -- so the list is recovered from it for the assertions below.
+    """
+    if isinstance(selectors, str):
+        return selectors.split(", ")
+    return list(selectors)
+
+
 def _marker_fills(html: str, gid: str) -> list[str]:
     """
     The fill of each drawn marker, in document order.
@@ -256,7 +270,7 @@ def test_every_selector_lands_on_a_marker_of_its_own_group():
 
     for layer in _points(ax.figure):
         name = layer[MaidrKey.NAME]
-        selectors = layer[MaidrKey.SELECTOR]
+        selectors = _selector_list(layer[MaidrKey.SELECTOR])
 
         assert len(selectors) == len(layer[MaidrKey.DATA]), (
             "the frontend withdraws highlighting unless the resolved element "
@@ -284,13 +298,15 @@ def test_an_ungrouped_scatter_is_untouched():
     assert MaidrKey.NAME not in layers[0]
     assert len(layers[0][MaidrKey.DATA]) == len(FRAME)
 
-    # One selector for the whole collection, not a list of positions. The
+    # One selector for the whole collection, not a list of positions, and
+    # carried as the one string the frontend's scatter model reads. The
     # `maidr` attribute is rewritten to this render's own id on the way out,
     # so the shape is what is asserted rather than the literal string.
     selectors = layers[0][MaidrKey.SELECTOR]
-    assert len(selectors) == 1
-    assert selectors[0].endswith("> g > use")
-    assert "nth-of-type" not in selectors[0]
+    assert isinstance(selectors, str)
+    assert selectors.endswith("> g > use")
+    assert "nth-of-type" not in selectors
+    assert ", " not in selectors
 
 
 def test_a_scatter_with_no_legend_is_read_as_one_layer():
@@ -381,9 +397,7 @@ def test_a_joint_panel_and_its_marginals_agree_about_the_groups():
     grid = sns.jointplot(data=FRAME, x="x", y="y", hue="g")
 
     layers = _layers(grid.figure)
-    scatters = [
-        layer for layer in layers if layer[MaidrKey.TYPE] == PlotType.SCATTER
-    ]
+    scatters = [layer for layer in layers if layer[MaidrKey.TYPE] == PlotType.SCATTER]
     smooths = [layer for layer in layers if layer[MaidrKey.TYPE] == PlotType.SMOOTH]
 
     assert [layer[MaidrKey.NAME] for layer in scatters] == ["a", "b", "c"]

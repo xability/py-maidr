@@ -77,6 +77,20 @@ def layers(figure) -> list[dict]:
     return [plot.schema for plot in FigureManager.get_maidr(figure)._plots]
 
 
+def _selector_list(selectors):
+    """
+    The selectors a point layer names, one per entry.
+
+    The payload carries a point layer's selectors as ONE string -- the
+    per-point selectors joined with ``", "``, since the frontend's scatter
+    model reads a string and nothing else (#316 in r-maidr, the same bundle
+    contract) -- so the list is recovered from it for the assertions below.
+    """
+    if isinstance(selectors, str):
+        return selectors.split(", ")
+    return list(selectors)
+
+
 def names(figure) -> list:
     return [layer.get("name") for layer in layers(figure)]
 
@@ -95,9 +109,7 @@ def drawn(ax) -> set[tuple[float, float]]:
 
 def announced(figure) -> list[tuple[float, float]]:
     return [
-        (round(x, 9), round(y, 9))
-        for layer in layers(figure)
-        for x, y in points(layer)
+        (round(x, 9), round(y, 9)) for layer in layers(figure) for x, y in points(layer)
     ]
 
 
@@ -255,13 +267,15 @@ class TestTheCategoryEachLayerHolds:
         # safeguard. It is an unlovely chart, and it is unlovely on the page
         # too: the ticks read "0.0", "0.2", "0.6000000000000001".
         figure, ax = plt.subplots()
-        sns.stripplot(data=frame().assign(num=[0.0, 0.5, 1.0] * 6), x="num", y="val",
-                      ax=ax)
+        sns.stripplot(
+            data=frame().assign(num=[0.0, 0.5, 1.0] * 6), x="num", y="val", ax=ax
+        )
 
         drawn_ticks = [tick.get_text() for tick in ax.get_xticklabels()]
         assert names(figure) == drawn_ticks
-        assert [point["xLabel"] for layer in layers(figure)
-                for point in layer["data"][:1]] == drawn_ticks
+        assert [
+            point["xLabel"] for layer in layers(figure) for point in layer["data"][:1]
+        ] == drawn_ticks
 
     def test_a_faceted_panel_names_what_it_holds(self):
         # A `catplot` panel gets its layers the same way, and the panels here
@@ -279,8 +293,11 @@ class TestTheCategoryEachLayerHolds:
         emitted = names(grid.figure)
         assert [name for name in emitted if name is not None] == ["a", "b", "b", "c"]
         assert emitted.count(None) == 2
-        assert [len(layer["data"]) for layer in layers(grid.figure)
-                if layer.get("name") is None] == [0, 0]
+        assert [
+            len(layer["data"])
+            for layer in layers(grid.figure)
+            if layer.get("name") is None
+        ] == [0, 0]
 
     def test_a_collection_spanning_categories_is_not_named_after_one(self):
         # Asked of the reader directly, because no chart reaching this branch
@@ -337,12 +354,13 @@ class TestWhatIsDeclined:
         assert names(figure) == CATEGORIES
         assert [len(layer["data"]) for layer in layers(figure)] == [6, 6, 6]
 
-
     @pytest.mark.parametrize(
         "palette",
         [
-            pytest.param({"x": (0.0, 0.0, 1.0, 0.3), "y": (0.0, 0.0, 1.0, 0.9)},
-                         id="same-hue-different-opacity"),
+            pytest.param(
+                {"x": (0.0, 0.0, 1.0, 0.3), "y": (0.0, 0.0, 1.0, 0.9)},
+                id="same-hue-different-opacity",
+            ),
             pytest.param({"x": "blue", "y": "blue"}, id="the-same-color-twice"),
         ],
     )
@@ -417,7 +435,9 @@ class TestTheFacetedAndFigureLevelInterfaces:
         grid = sns.catplot(
             data=frame(), x="cat", y="val", hue="hue", col="col", kind="strip"
         )
-        found = [(layer.get("name"), len(layer["data"])) for layer in layers(grid.figure)]
+        found = [
+            (layer.get("name"), len(layer["data"])) for layer in layers(grid.figure)
+        ]
 
         # Panel "p": six x rows (a and b), three y rows (a).
         # Panel "q": three x rows (c), six y rows (b and c).
@@ -579,7 +599,7 @@ class TestHighlighting:
 
         matched = []
         for layer in layers(figure):
-            selectors = layer["selectors"]
+            selectors = _selector_list(layer["selectors"])
             assert len(selectors) == len(layer["data"])
             for selector in selectors:
                 found = CSSSelector(selector)(root)

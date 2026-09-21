@@ -69,6 +69,52 @@ _AXES_WIDE_BAR_PLOTS = (BarPlot, GroupedBarPlot)
 #: the layer to keep when one axes holds more than one of the family.
 _SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 
+#: Plot types whose frontend model reads ``selectors`` as ONE string for every
+#: mark. maidr.js 4.x hands a string to ``querySelectorAll()`` and pairs the
+#: matches with the points by their drawn coordinates (``scatter.ts``,
+#: ``layer.selectors as string``); an *array* is not a selector to it at all
+#: -- ``Svg.isUsableSelector`` accepts strings only -- so a layer that emits a
+#: list, one selector per point or a one-element list, loses its highlight
+#: while navigation and speech keep working. Measured in headless Chromium
+#: against the bundled 4.9.0: ``plt.scatter``, ``sns.scatterplot`` (plain and
+#: ``hue=``), ``sns.stripplot``, ``sns.swarmplot``, ``ax.eventplot`` and a
+#: ``hue=`` rug all announced every point and outlined nothing. The bar
+#: family is deliberately NOT here: ``bar.ts`` reads an array as one selector
+#: per point, which is the shape ``BarsHistPlot``, ``LollipopPlot`` and the
+#: plotly bar emit on purpose when document order is not data order.
+_SINGLE_SELECTOR_TYPES = frozenset({PlotType.SCATTER})
+
+
+def _join_selector_list(selectors: Any) -> Any:
+    """
+    One string from a flat list of selectors, or the input untouched.
+
+    The per-point selectors a grouped point layer names are kept, joined with
+    ``", "``: ``querySelectorAll()`` resolves the list in document order, and
+    the scatter model pairs each match with its point by where it was drawn,
+    so the order the entries were written in does not matter. Anything that
+    is not a flat list of non-empty strings -- a grid, a ``BoxSelector``
+    object, an empty list, which stands for "no highlight" -- is returned as
+    given.
+
+    Parameters
+    ----------
+    selectors : Any
+        A layer's ``selectors`` entry.
+
+    Returns
+    -------
+    Any
+        The joined string, or ``selectors`` unchanged.
+    """
+    if (
+        isinstance(selectors, list)
+        and selectors
+        and all(isinstance(entry, str) and entry for entry in selectors)
+    ):
+        return ", ".join(selectors)
+    return selectors
+
 
 def _order_tagged_groups(tree, selector_id: str, elements: list) -> None:
     """Put one layer's tagged ``<g>`` groups into the order of its elements.
@@ -952,6 +998,14 @@ class Maidr:
                         schema[MaidrKey.SELECTOR][j] = schema[MaidrKey.SELECTOR][
                             j
                         ].replace("maidr='true'", f"maidr='{self.selector_ids[i]}'")
+                # Decided here, where every layer passes through, against the
+                # bundle actually shipped: the processors keep naming what
+                # they drew, and the shape the frontend reads is one place to
+                # look after the next bundle bump (see _SINGLE_SELECTOR_TYPES).
+                if plot.type in _SINGLE_SELECTOR_TYPES:
+                    schema[MaidrKey.SELECTOR] = _join_selector_list(
+                        schema[MaidrKey.SELECTOR]
+                    )
 
             plot_schemas.append(
                 {
