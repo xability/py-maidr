@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-09-21">
+<meta name="DC.date" content="2026-09-22">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -368,6 +368,7 @@ cookieconsent.run({
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
   <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
   </ul>
@@ -423,7 +424,7 @@ cookieconsent.run({
 <tr class="even">
 <td>tab_index</td>
 <td><a href="https://docs.python.org/3/builtins/functions.html#int">int</a> or None</td>
-<td>Tab order of the <em>frame</em>, passed through to Streamlit. <code>None</code> is the browser default and is deliberate: an iframe’s contents already take part in sequential focus navigation, and maidr gives the chart inside its own tab stop, so a keyboard user tabs straight onto the chart. Passing <code>0</code> makes the frame itself a stop as well, which is one extra Tab before the chart – and Streamlit hardcodes the frame’s accessible name as <code>st.iframe</code>, so that stop announces the same on every chart on the page. It is exposed for layouts that want a deterministic landing point, not because the chart needs it to be reachable.</td>
+<td>Tab order of the <em>frame</em>, passed through to Streamlit. <code>None</code> is the browser default and is deliberate: an iframe’s contents already take part in sequential focus navigation, and maidr gives the chart inside its own tab stop, so a keyboard user tabs straight onto the chart. Passing <code>0</code> makes the frame itself a stop as well, which is one extra Tab before the chart – and on a Streamlit whose <code>st.iframe</code> does not take <code>alt</code>, that stop announces as “st.iframe” on every chart on the page. It is exposed for layouts that want a deterministic landing point, not because the chart needs it to be reachable.</td>
 <td><code>None</code></td>
 </tr>
 <tr class="odd">
@@ -458,6 +459,10 @@ cookieconsent.run({
 </tr>
 </tbody>
 </table>
+</section>
+<section id="notes" class="level2 doc-section doc-section-notes">
+<h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
+<p>The frame is named after the chart – <code>"&lt;title&gt;, accessible chart"</code>, or <code>"Accessible chart"</code> for an untitled one, as py-maidr names its own frames – on a Streamlit whose <code>st.iframe</code> takes <code>alt</code>. Older releases name every frame <code>st.iframe</code>, which cannot be overridden.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>

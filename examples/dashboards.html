@@ -243,7 +243,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-09-18">
+<meta name="DC.date" content="2026-09-22">
 </head>
 
 <body class="nav-sidebar docked nav-fixed quarto-light">
@@ -590,8 +590,9 @@ cookieconsent.run({
 <p>The defaults are chosen for accessibility rather than for layout:</p>
 <ul>
 <li><code>height="content"</code> lets Streamlit measure the chart, so maidr’s braille and text panels stay visible when they open. A fixed height crops them.</li>
-<li><code>tab_index=None</code> leaves the frame’s tab order to the browser. The chart is still reached by tabbing: an iframe’s contents take part in sequential focus navigation, and maidr gives the chart inside its own tab stop. Passing <code>0</code> makes the frame a stop as well, which is one extra Tab before the chart, and Streamlit hardcodes the frame’s accessible name as <code>st.iframe</code>, so that stop announces identically on every chart on the page.</li>
+<li><code>tab_index=None</code> leaves the frame’s tab order to the browser. The chart is still reached by tabbing: an iframe’s contents take part in sequential focus navigation, and maidr gives the chart inside its own tab stop. Passing <code>0</code> makes the frame a stop as well, which is one extra Tab before the chart.</li>
 </ul>
+<p>The frame is named after the chart it holds – <code>"Tips on Fri, accessible chart"</code> here, or <code>"Accessible chart"</code> when the chart has no title – the same name maidr gives its own frames in a notebook, so a screen-reader user moving through a dashboard can tell one chart from the next. That needs a Streamlit whose <code>st.iframe</code> takes <code>alt</code> (<a href="https://github.com/streamlit/streamlit/pull/17040">streamlit#17040</a>); older releases name every frame <code>st.iframe</code>, and <code>render_maidr()</code> leaves them to it.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -609,7 +610,13 @@ cookieconsent.run({
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> chart_html(_fig, key):     <span class="co"># `_fig` is not hashed; `key` is the cache key</span></span>
 <span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> maidr_html(_fig)</span>
 <span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>st.iframe(chart_html(fig, key<span class="op">=</span>day), height<span class="op">=</span><span class="st">"content"</span>, width<span class="op">=</span><span class="st">"stretch"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>st.iframe(</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    chart_html(fig, key<span class="op">=</span>day),</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    height<span class="op">=</span><span class="st">"content"</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="st">"stretch"</span>,</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    alt<span class="op">=</span><span class="ss">f"Tips on </span><span class="sc">{</span>day<span class="sc">}</span><span class="ss">, accessible chart"</span>,  <span class="co"># the frame's accessible name</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Calling <code>st.iframe</code> yourself means naming the frame yourself: <code>alt</code> is what a screen reader announces for it, and without one every chart is “st.iframe”. Drop the argument on a Streamlit that predates it.</p>
 <p><code>st.iframe</code> arrived in Streamlit 1.56. On older versions place the same cached string with <code>st.components.v1.html(chart_html(fig, key=day), height=600, scrolling=True)</code> — it cannot size itself, so give it a height. <code>render_maidr()</code> handles that difference for you, which is why it is the better default when you are not caching.</p>
 <p>Both arguments matter. The leading underscore tells Streamlit not to hash the figure, which a matplotlib <code>Figure</code> does not support – which leaves <code>key</code> as the only thing it <em>can</em> hash. Drop it and every argument is skipped, the cache key is constant, and the first chart is handed back for the rest of the session: a chart that quietly stops matching its own controls.</p>
 </div>
