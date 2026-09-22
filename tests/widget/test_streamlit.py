@@ -158,6 +158,88 @@ def test_render_maidr_prefers_st_iframe(bar_axes, monkeypatch):
     assert kwargs == {"width": "stretch", "height": "content", "tab_index": None}
 
 
+def _stub_iframe_with_alt(monkeypatch):
+    """Install a streamlit whose ``st.iframe`` takes ``alt`` (Streamlit #17040)."""
+    st, _v1 = _stub_streamlit(monkeypatch, with_iframe=True)
+    calls: list = []
+
+    def iframe(src, *, width="stretch", height="content", tab_index=None, alt=None):
+        calls.append({"alt": alt, "tab_index": tab_index})
+
+    st.iframe = iframe
+    return calls
+
+
+def test_the_frame_is_named_after_its_chart(bar_axes, monkeypatch):
+    """Where ``st.iframe`` takes ``alt``, the frame is named for the chart.
+
+    Without it every chart on the page is announced as "st.iframe", so a
+    screen-reader user tabbing a dashboard cannot tell them apart (#461).
+    The name is the one py-maidr gives its own frames.
+    """
+    calls = _stub_iframe_with_alt(monkeypatch)
+    bar_axes.set_title("Sales by region")
+
+    render_maidr(bar_axes, use_cdn=True)
+
+    assert calls[0]["alt"] == "Sales by region, accessible chart"
+
+
+def test_an_untitled_chart_still_gets_a_name(bar_axes, monkeypatch):
+    """No title still beats "st.iframe": it says the frame holds a chart."""
+    calls = _stub_iframe_with_alt(monkeypatch)
+
+    render_maidr(bar_axes, use_cdn=True)
+
+    assert calls[0]["alt"] == "Accessible chart"
+
+
+def test_plotly_and_altair_charts_are_named_too(monkeypatch):
+    """Every renderer hands its title over, not only matplotlib's."""
+    go = pytest.importorskip("plotly.graph_objects")
+    alt = pytest.importorskip("altair")
+    import pandas as pd
+
+    calls = _stub_iframe_with_alt(monkeypatch)
+    fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+    fig.update_layout(title="Plotly title")
+    chart = (
+        alt.Chart(pd.DataFrame({"x": ["a", "b"], "y": [1, 2]}))
+        .mark_bar()
+        .encode(x="x", y="y")
+        .properties(title="Altair title")
+    )
+
+    render_maidr(fig, use_cdn=True)
+    render_maidr(chart)
+
+    assert [c["alt"] for c in calls] == [
+        "Plotly title, accessible chart",
+        "Altair title, accessible chart",
+    ]
+
+
+def test_alt_is_not_passed_to_a_streamlit_without_it(bar_axes, monkeypatch):
+    """Streamlit before #17040 would reject the keyword outright."""
+    st, _v1 = _stub_streamlit(monkeypatch, with_iframe=True)
+    calls: list = []
+
+    def iframe(src, *, width="stretch", height="content", tab_index=None):
+        calls.append(tab_index)
+
+    st.iframe = iframe
+
+    render_maidr(bar_axes, use_cdn=True)
+
+    assert calls == [None]
+
+
+def test_maidr_html_is_unchanged_by_the_title(bar_axes):
+    """The title rides on the Python object, never in the markup."""
+    bar_axes.set_title("Sales by region")
+    assert "_maidr_chart_title" not in maidr_html(bar_axes, use_cdn=True)
+
+
 def test_render_maidr_falls_back_to_components_html(bar_axes, monkeypatch):
     """Older Streamlit still works, and still gets a usable height."""
     _st, v1 = _stub_streamlit(monkeypatch, with_iframe=False)
@@ -485,11 +567,11 @@ def test_tab_index_support_is_detected_on_the_real_streamlit():
     pytest.importorskip("streamlit")
     import streamlit.components.v1 as components
 
-    from maidr.widget.streamlit import _accepts_tab_index
+    from maidr.widget.streamlit import _accepts
 
     # Whatever the answer, it must be the true one for this install.
     expected = "tab_index" in inspect.signature(components.html).parameters
-    assert _accepts_tab_index(components.html) is expected
+    assert _accepts(components.html, "tab_index") is expected
     assert hasattr(
         components.html, "__wrapped__"
     ), "streamlit stopped wrapping components.html; re-check the probe"

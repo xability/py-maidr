@@ -131,9 +131,15 @@ The defaults are chosen for accessibility rather than for layout:
 - `tab_index=None` leaves the frame's tab order to the browser. The chart is
   still reached by tabbing: an iframe's contents take part in sequential focus
   navigation, and maidr gives the chart inside its own tab stop. Passing `0`
-  makes the frame a stop as well, which is one extra Tab before the chart, and
-  Streamlit hardcodes the frame's accessible name as `st.iframe`, so that stop
-  announces identically on every chart on the page.
+  makes the frame a stop as well, which is one extra Tab before the chart.
+
+The frame is named after the chart it holds -- `"Tips on Fri, accessible
+chart"` here, or `"Accessible chart"` when the chart has no title -- the same
+name maidr gives its own frames in a notebook, so a screen-reader user moving
+through a dashboard can tell one chart from the next. That needs a Streamlit
+whose `st.iframe` takes `alt`
+([streamlit#17040](https://github.com/streamlit/streamlit/pull/17040)); older
+releases name every frame `st.iframe`, and `render_maidr()` leaves them to it.
 
 ::: {.callout-note}
 ## Streamlit reruns the whole script on every interaction
@@ -149,8 +155,17 @@ from maidr.widget.streamlit import maidr_html
 def chart_html(_fig, key):     # `_fig` is not hashed; `key` is the cache key
     return maidr_html(_fig)
 
-st.iframe(chart_html(fig, key=day), height="content", width="stretch")
+st.iframe(
+    chart_html(fig, key=day),
+    height="content",
+    width="stretch",
+    alt=f"Tips on {day}, accessible chart",  # the frame's accessible name
+)
 ```
+
+Calling `st.iframe` yourself means naming the frame yourself: `alt` is what a
+screen reader announces for it, and without one every chart is "st.iframe".
+Drop the argument on a Streamlit that predates it.
 
 `st.iframe` arrived in Streamlit 1.56. On older versions place the same
 cached string with `st.components.v1.html(chart_html(fig, key=day),

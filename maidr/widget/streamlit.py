@@ -41,6 +41,7 @@ from htmltools import tags
 
 import maidr
 from maidr.util.dependencies import inline_bundle_tags, read_bundled_js
+from maidr.util.iframe_utils import chart_title_on, iframe_title
 
 #: Accepted by ``use_cdn``; ``None`` defers to :func:`maidr.get_use_cdn`.
 UseCdn = Optional[Union[bool, Literal["auto"]]]
@@ -107,7 +108,32 @@ def maidr_html(
     drops :class:`htmltools.HTMLDependency` children on the way, so a
     reference to the bundle would not survive; the source itself has to.
     """
-    stacklevel = _stacklevel
+    html, _title = _render(plot, use_cdn, _stacklevel + 1)
+    return html
+
+
+def _render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
+    """
+    Render a chart to HTML, and report the title it is known by.
+
+    :func:`maidr_html` returns only the first; :func:`render_maidr` needs
+    both, because Streamlit builds the chart's frame itself and the title is
+    what names it.
+
+    Parameters
+    ----------
+    plot : Any
+        As for :func:`maidr_html`.
+    use_cdn : bool, {"auto"}, or None
+        As for :func:`maidr_html`.
+    stacklevel : int
+        As ``_stacklevel`` on :func:`maidr_html`, counted from here.
+
+    Returns
+    -------
+    tuple of (str, str)
+        The HTML, and the chart's title -- ``""`` when it has none.
+    """
     if plot is None:
         # ``maidr.render(None)`` falls back to ``plt.gcf()``, which is the
         # right default for a script or a notebook and is why it is kept
@@ -165,7 +191,7 @@ def maidr_html(
                 html = str(tags.div(*inline_tags, rendered).get_html_string())
 
     _warn_if_no_runtime(html, resolved, stacklevel=stacklevel)
-    return html
+    return html, chart_title_on(rendered)
 
 
 #: Matches a quoted URL naming the ``maidr`` npm package and a ``.js`` file.
@@ -290,9 +316,9 @@ def render_maidr(
         already take part in sequential focus navigation, and maidr gives
         the chart inside its own tab stop, so a keyboard user tabs
         straight onto the chart.  Passing ``0`` makes the frame itself a
-        stop as well, which is one extra Tab before the chart -- and
-        Streamlit hardcodes the frame's accessible name as ``st.iframe``,
-        so that stop announces the same on every chart on the page.  It is
+        stop as well, which is one extra Tab before the chart -- and on a
+        Streamlit whose ``st.iframe`` does not take ``alt``, that stop
+        announces as "st.iframe" on every chart on the page.  It is
         exposed for layouts that want a deterministic landing point, not
         because the chart needs it to be reachable.
     use_cdn : bool, {"auto"}, or None, default None
@@ -308,6 +334,13 @@ def render_maidr(
         Nothing is returned.  The embed sends no data back, and handing
         back a Streamlit object would suggest an interactivity this does
         not have.
+
+    Notes
+    -----
+    The frame is named after the chart -- ``"<title>, accessible chart"``,
+    or ``"Accessible chart"`` for an untitled one, as py-maidr names its own
+    frames -- on a Streamlit whose ``st.iframe`` takes ``alt``.  Older
+    releases name every frame ``st.iframe``, which cannot be overridden.
 
     Examples
     --------
@@ -325,7 +358,9 @@ def render_maidr(
 
         raise missing_extra_error(error, "streamlit", "streamlit") from error
 
-    html = maidr_html(plot, use_cdn=use_cdn, _stacklevel=4)
+    # Called at the depth ``maidr_html`` sits at, so it takes the number
+    # ``render_maidr`` used to pass that: one past the default.
+    html, chart_title = _render(plot, use_cdn, stacklevel=4)
 
     # Streamlit builds this frame itself, so maidr cannot put an ``allow``
     # attribute on it the way the notebook wrappers do (see
@@ -348,7 +383,22 @@ def render_maidr(
     # checked one.  If a Streamlit release tightens that sandbox, tactile
     # displays stop working under it with nothing here to say so.
     if hasattr(st, "iframe"):
-        st.iframe(html, width=width, height=height, tab_index=tab_index)
+        kwargs: dict[str, Any] = {
+            "width": width,
+            "height": height,
+            "tab_index": tab_index,
+        }
+        # ``alt`` names the frame: Streamlit puts it on the ``title`` a
+        # screen reader announces, where otherwise every chart on the page
+        # is called "st.iframe" alike (#461).  It is the name py-maidr gives
+        # its own frames, so a chart is called the same thing in Streamlit
+        # as in a notebook.  Asked of the installed function rather than a
+        # version, like ``tab_index`` below; a Streamlit without it keeps
+        # its fixed name, and there is nothing to warn the caller about --
+        # they passed nothing that was dropped.
+        if _accepts(st.iframe, "alt"):
+            kwargs["alt"] = iframe_title(chart_title)
+        st.iframe(html, **kwargs)
         return
 
     # Streamlit older than the one that introduced ``st.iframe``.
@@ -366,7 +416,7 @@ def render_maidr(
     # releases before ``st.iframe`` existed, so "no st.iframe" does not mean
     # "no tab_index" -- taking it to mean that would discard a value the
     # caller passed, on every version in between, with nothing said.
-    if _accepts_tab_index(components.html):
+    if _accepts(components.html, "tab_index"):
         kwargs["tab_index"] = tab_index
     elif tab_index is not None:
         warnings.warn(
@@ -379,16 +429,28 @@ def render_maidr(
     components.html(html, **kwargs)
 
 
-def _accepts_tab_index(fn: Any) -> bool:
-    """Report whether a Streamlit embed function takes ``tab_index``.
+def _accepts(fn: Any, parameter: str) -> bool:
+    """Report whether a Streamlit embed function takes ``parameter``.
 
     Asked of the installed function rather than inferred from a version,
     so the answer stays right across the range the extra allows.
+
+    Parameters
+    ----------
+    fn : Any
+        The Streamlit function.
+    parameter : str
+        The keyword to look for.
+
+    Returns
+    -------
+    bool
+        True if ``fn`` has a parameter of that name.
     """
     import inspect
 
     try:
-        return "tab_index" in inspect.signature(fn).parameters
+        return parameter in inspect.signature(fn).parameters
     except (TypeError, ValueError):
         return False
 

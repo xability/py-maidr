@@ -49,7 +49,7 @@ from maidr.util.cdn import (
     cdn_url,
 )
 from maidr.util.environment import Environment
-from maidr.util.iframe_utils import wrap_in_iframe_plotly
+from maidr.util.iframe_utils import with_chart_title, wrap_in_iframe_plotly
 
 
 # ---------------------------------------------------------------------------
@@ -174,13 +174,16 @@ class AltairMaidr:
         """Build the HTML tree for an embedded Vega-Lite spec."""
         base_html = self._build_inner_html()
 
+        # Recorded for Streamlit, which builds the frame itself; see
+        # :func:`maidr.util.iframe_utils.with_chart_title`.
+        title = self._spec_title()
         if use_iframe and (
             Environment.is_flask()
             or Environment.is_notebook()
             or Environment.is_shiny()
         ):
-            return self._wrap_in_iframe(base_html)
-        return base_html
+            return with_chart_title(self._wrap_in_iframe(base_html), title)
+        return with_chart_title(base_html, title)
 
     def _create_html_doc(self, use_iframe: bool = True) -> HTMLDocument:
         return HTMLDocument(self._create_html_tag(use_iframe), lang="en")

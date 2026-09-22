@@ -134,6 +134,55 @@ def chart_title_of(schema: dict) -> str:
     return titles.pop() if len(titles) == 1 else ""
 
 
+# Where a rendered tag keeps the title its chart is known by, for a host that
+# builds the chart's frame itself and so needs the name handed to it.
+_CHART_TITLE_ATTR = "_maidr_chart_title"
+
+
+def with_chart_title(tag: Tag, chart_title: str) -> Tag:
+    """
+    Record on a rendered tag the title its chart is known by.
+
+    Streamlit builds the chart's frame itself, so the name the wrappers
+    below put on their own frames has to be handed to it instead. The
+    renderer is the one place that has the title in hand -- recovering it
+    afterwards would mean building the schema a second time -- so it leaves
+    it here. A Python attribute rather than an HTML one, so the markup every
+    other host receives is unchanged.
+
+    Parameters
+    ----------
+    tag : htmltools.Tag
+        The rendered chart.
+    chart_title : str
+        The title, or ``""`` when the chart has none.
+
+    Returns
+    -------
+    htmltools.Tag
+        ``tag`` itself, for chaining.
+    """
+    setattr(tag, _CHART_TITLE_ATTR, chart_title)
+    return tag
+
+
+def chart_title_on(tag: object) -> str:
+    """
+    The title :func:`with_chart_title` recorded, or ``""`` when none was.
+
+    Parameters
+    ----------
+    tag : object
+        A rendered chart.
+
+    Returns
+    -------
+    str
+        The title.
+    """
+    return str(getattr(tag, _CHART_TITLE_ATTR, "") or "")
+
+
 def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) -> Tag:
     """Wrap matplotlib HTML in an auto-resizing iframe for notebooks.
 
