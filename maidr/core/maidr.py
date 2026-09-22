@@ -46,7 +46,11 @@ from maidr.util.cdn import (
 from maidr.util.dotpad import dotpad_config_child, local_dotpad_sdk_dependency
 from maidr.util.grid_position import topmost_subplotspec
 from maidr.util.environment import Environment
-from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_matplotlib
+from maidr.util.iframe_utils import (
+    chart_title_of,
+    with_chart_title,
+    wrap_in_iframe_matplotlib,
+)
 
 #: Layer classes a segmented bar layer on the same axes can supersede.
 #:
@@ -651,8 +655,12 @@ class Maidr:
             maidr = f"\nvar maidr = {json.dumps(schema)}\n"
 
         # Inject plot's svg and MAIDR structure into html tag.
-        return Maidr._inject_plot(
-            svg, maidr, self.maidr_id, use_iframe, use_cdn, chart_title_of(schema)
+        chart_title = chart_title_of(schema)
+        return with_chart_title(
+            Maidr._inject_plot(
+                svg, maidr, self.maidr_id, use_iframe, use_cdn, chart_title
+            ),
+            chart_title,
         )
 
     def _create_html_doc(

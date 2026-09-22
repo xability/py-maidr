@@ -62,7 +62,11 @@ from maidr.util.cdn import (
 )
 from maidr.util.dotpad import dotpad_config_child, local_dotpad_sdk_dependency
 from maidr.util.environment import Environment
-from maidr.util.iframe_utils import chart_title_of, wrap_in_iframe_plotly
+from maidr.util.iframe_utils import (
+    chart_title_of,
+    with_chart_title,
+    wrap_in_iframe_plotly,
+)
 
 
 #: The layout keys that hold a subplot *block* -- a rectangle plotly writes
@@ -2002,10 +2006,11 @@ class PlotlyMaidr:
         # Same condition as ``will_iframe`` above, reused so the branch
         # that picks a source for ``maidr.js`` and the branch that wraps
         # the result cannot disagree about whether there is an iframe.
+        chart_title = chart_title_of(schema)
         if will_iframe:
-            base_html = wrap_in_iframe_plotly(base_html, chart_title_of(schema))
+            base_html = wrap_in_iframe_plotly(base_html, chart_title)
 
-        return base_html
+        return with_chart_title(base_html, chart_title)
 
     def _create_html_doc(
         self,
