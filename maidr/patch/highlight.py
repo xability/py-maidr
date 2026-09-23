@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any, Callable
 
 import wrapt
 from matplotlib.backends.backend_svg import XMLWriter
 from matplotlib.collections import (
+    Collection,
     LineCollection,
     PathCollection,
     PolyQuadMesh,
@@ -45,11 +47,53 @@ def tag_elements(wrapped, instance, args, kwargs):
         return wrapped(*args, **kwargs)
 
 
+def tag_path_collections(
+    wrapped: Callable, instance: Collection, args: tuple, kwargs: dict
+) -> Any:
+    """Tag a ``PathCollection`` from ``Collection.draw``, and nothing else.
+
+    A scatter's markers used to be tagged by wrapping ``PathCollection.draw``.
+    That is the entry point only for a collection that keeps its class's
+    ``draw``. ``sns.swarmplot`` does not: it packs the points at draw time,
+    so ``plot_swarms`` binds a ``draw`` of its own onto each collection, which
+    runs the packing and then calls ``super(PathCollection, points).draw``.
+    Both routes skip the class attribute, so a swarm's markers were drawn
+    untagged -- no ``maidr`` attribute on their group -- and the selector
+    every one of its layers carries resolved to nothing: each point was
+    announced and none was outlined.
+
+    ``Collection.draw`` is where every one of those routes ends, and where
+    the group is opened with the collection's gid, so the tag goes there.
+    The type test keeps it to the collection this used to cover: a
+    ``PolyCollection`` or ``LineCollection`` reaches this method too, and
+    those are tagged, or deliberately left alone, by their own wrappers.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        ``Collection.draw``, bound to ``instance``.
+    instance : Collection
+        The collection being drawn.
+    args : tuple
+        Positional arguments to the draw -- the renderer.
+    kwargs : dict
+        Keyword arguments to the draw.
+
+    Returns
+    -------
+    Any
+        Whatever the draw returns.
+    """
+    if not isinstance(instance, PathCollection):
+        return wrapped(*args, **kwargs)
+    return tag_elements(wrapped, instance, args, kwargs)
+
+
 wrapt.wrap_function_wrapper(Patch, "draw", tag_elements)
 wrapt.wrap_function_wrapper(QuadMesh, "draw", tag_elements)
 wrapt.wrap_function_wrapper(Line2D, "draw", tag_elements)
 wrapt.wrap_function_wrapper(LineCollection, "draw", tag_elements)
-wrapt.wrap_function_wrapper(PathCollection, "draw", tag_elements)
+wrapt.wrap_function_wrapper(Collection, "draw", tag_path_collections)
 
 # `Axes.pcolor` renders a PolyQuadMesh rather than the QuadMesh `pcolormesh`
 # gives, so a pcolor heatmap read but carried no visual highlight.
