@@ -1,6 +1,25 @@
 # CHANGELOG
 
 
+## v1.25.0 (2026-09-23)
+
+### Bug Fixes
+
+- Restore the highlight on plotly lines without the CDN and on seaborn swarm plots
+  ([#809](https://github.com/xability/py-maidr/pull/809),
+  [`34a856f`](https://github.com/xability/py-maidr/commit/34a856f91e3b37b6d816c9ef266c1972fc12a345))
+
+- **scatter**: Emit a point layer's selectors as the one string maidr.js 4.x reads
+  ([#807](https://github.com/xability/py-maidr/pull/807),
+  [`4840865`](https://github.com/xability/py-maidr/commit/48408652d6e725613b4e5a811f6a6df83be1912d))
+
+### Features
+
+- **streamlit**: Name each chart's frame through st.iframe's new alt
+  ([#808](https://github.com/xability/py-maidr/pull/808),
+  [`3e9a2da`](https://github.com/xability/py-maidr/commit/3e9a2dabb6cf9e089a45b7b61d9a64b99df6a643))
+
+
 ## v1.24.0 (2026-09-21)
 
 ### Bug Fixes
