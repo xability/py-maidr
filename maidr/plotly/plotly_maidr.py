@@ -69,6 +69,20 @@ from maidr.util.iframe_utils import (
 )
 
 
+#: Set on the graph div, and dispatched on it as an event, once the promise
+#: ``Plotly.newPlot`` returns has resolved -- plotly's own word that every
+#: trace is drawn. The attribute answers an init script that runs after the
+#: fact; the event wakes one that is already waiting.
+_PLOTLY_DRAWN_ATTRIBUTE = "data-maidr-drawn"
+_PLOTLY_DRAWN_EVENT = "maidr:drawn"
+
+#: How long the init script waits for :data:`_PLOTLY_DRAWN_EVENT` before it
+#: attaches the payload anyway. ``newPlot`` rejects when a draw fails, and
+#: then nothing resolves; a chart whose marks the core may not find still
+#: beats one with no keyboard access at all.
+_ATTACH_FALLBACK_MS = 5000
+
+
 #: The layout keys that hold a subplot *block* -- a rectangle plotly writes
 #: for a subplot that has no cartesian axis pair, and that a trace addresses
 #: by name. ``polar``/``polar2`` for the two polar traces, ``geo``/``geo2``
@@ -1632,16 +1646,42 @@ class PlotlyMaidr:
             "subplots": subplot_grid,
         }
 
-    def _get_plotly_html(self) -> str:
+    def _get_plotly_html(self, div_id: str) -> str:
         """Get Plotly's interactive HTML div.
 
         Returns the chart as an interactive HTML fragment that includes
         plotly.js from CDN.  This preserves all native Plotly features
         (hover, zoom, pan, click events, etc.).
+
+        The fragment also marks the graph div once ``Plotly.newPlot`` has
+        drawn it, for the init script to wait on; see
+        :meth:`_build_init_script`. ``post_script`` is chained onto the
+        promise ``newPlot`` returns, which resolves after the traces are in
+        the DOM and after ``plotly_afterplot`` has fired.
+
+        Parameters
+        ----------
+        div_id : str
+            The id plotly gives the graph div, so the init script can find
+            this chart's own div rather than the first one on the page.
+
+        Returns
+        -------
+        str
+            The HTML fragment.
         """
+        mark_drawn = (
+            "var gd = document.getElementById('{plot_id}');"
+            " if (gd) {"
+            f" gd.setAttribute('{_PLOTLY_DRAWN_ATTRIBUTE}', '');"
+            f" gd.dispatchEvent(new Event('{_PLOTLY_DRAWN_EVENT}'));"
+            " }"
+        )
         return self._fig.to_html(
             full_html=False,
             include_plotlyjs="cdn",
+            div_id=div_id,
+            post_script=mark_drawn,
         )
 
     def _build_init_script(
@@ -1649,10 +1689,13 @@ class PlotlyMaidr:
         schema: dict,
         use_cdn: bool | Literal["auto"] = "auto",
         iframe_in_notebook: bool = False,
+        plot_div_id: str | None = None,
     ) -> str:
         """Build JS that bridges Plotly's SVG with MAIDR.
 
-        After Plotly renders its chart into the DOM as an SVG, this
+        After Plotly has drawn its traces into the DOM -- the promise
+        ``Plotly.newPlot`` returns has resolved, which the fragment from
+        :meth:`_get_plotly_html` records on the graph div -- this
         script injects the MAIDR schema into the SVG element and, when
         CDN mode is requested, dynamically loads the MAIDR JS library.
         When ``use_cdn=False`` outside an iframe the bundle is already
@@ -1679,19 +1722,51 @@ class PlotlyMaidr:
             ``True`` when the emitted HTML will be wrapped in a
             notebook/Shiny srcdoc iframe.  Switches the loader to use
             the parent-window source strings instead of relative paths.
+        plot_div_id : str or None, default=None
+            The id of the graph div ``Plotly.newPlot`` draws into. With it
+            the script waits for that chart's draw and binds that chart's
+            svg; without it, or when no element has the id, it falls back
+            to the first ``svg.main-svg`` on the page once the document
+            has parsed.
+
+        Returns
+        -------
+        str
+            The script, as an immediately invoked function.
         """
         # The browser re-serializes this with JSON.stringify before it
         # reaches the DOM, so indentation would never be seen -- and passing
         # `indent` switches json to its pure-Python encoder, which is 5-6x
         # slower and ~2.8x the bytes at 50k points. Default separators are
         # kept on purpose: the literal stays greppable (`"type": "pie"`).
+        #
+        # When the payload lands matters, and on which svg. plotly draws a
+        # second ``svg.main-svg`` -- the overlay holding the hover and zoom
+        # layers, with no trace in it -- and ``maidr.js``, when it runs
+        # before the payload exists (``use_cdn=False``, or the inline bundle
+        # of a Shiny or Flask frame), adopts the plotly chart on its own and
+        # moves the drawn svg out of the document while it mounts. A
+        # document-wide lookup made then found the overlay, and the payload
+        # went there: the reader drove ``maidr.js``'s own reading of the
+        # chart instead, and a line or step curve, which reads its path once
+        # when built, found none and outlined nothing.
+        #
+        # So the payload waits for ``newPlot`` to resolve (the mark
+        # ``_get_plotly_html`` sets), takes the svg from this chart's graph
+        # div, and the div is claimed from ``maidr.js``'s auto-detection
+        # with the attribute that path marks its own charts with (which also
+        # keeps the overflow styling it scopes to that attribute). In the
+        # usual case plotly has drawn synchronously and the payload is in
+        # place before ``DOMContentLoaded``, so ``maidr.js`` finds it on its
+        # first scan; a late draw is picked up by its attribute observer.
         dom_wiring = f"""
             var maidrSchema = {json.dumps(schema)};
+            var gd = document.getElementById({json.dumps(plot_div_id or "")});
 
             var _maidrDone = false;
             function initMaidr() {{
                 if (_maidrDone) return;
-                var svg = document.querySelector('svg.main-svg');
+                var svg = (gd || document).querySelector('svg.main-svg');
                 if (!svg) {{
                     requestAnimationFrame(initMaidr);
                     return;
@@ -1703,10 +1778,20 @@ class PlotlyMaidr:
             __LOADER__
             }}
 
-            if (document.readyState === 'loading') {{
-                document.addEventListener('DOMContentLoaded', initMaidr);
+            if (!gd) {{
+                if (document.readyState === 'loading') {{
+                    document.addEventListener('DOMContentLoaded', initMaidr);
+                }} else {{
+                    requestAnimationFrame(initMaidr);
+                }}
             }} else {{
-                requestAnimationFrame(initMaidr);
+                gd.setAttribute('data-maidr-auto', '1');
+                if (gd.hasAttribute('{_PLOTLY_DRAWN_ATTRIBUTE}')) {{
+                    initMaidr();
+                }} else {{
+                    gd.addEventListener('{_PLOTLY_DRAWN_EVENT}', initMaidr);
+                    setTimeout(initMaidr, {_ATTACH_FALLBACK_MS});
+                }}
             }}
         """
 
@@ -1947,9 +2032,15 @@ class PlotlyMaidr:
                 schema_trace_types(schema), bundle_is_primary=use_cdn is False
             )
 
-        plotly_div = self._get_plotly_html()
+        # Fresh per render, so the same figure rendered twice into one page
+        # still gives each init script a div of its own to wait on.
+        plot_div_id = str(uuid.uuid4())
+        plotly_div = self._get_plotly_html(plot_div_id)
         init_script = self._build_init_script(
-            schema, use_cdn=use_cdn, iframe_in_notebook=iframe_in_notebook
+            schema,
+            use_cdn=use_cdn,
+            iframe_in_notebook=iframe_in_notebook,
+            plot_div_id=plot_div_id,
         )
 
         children: list[Any] = []
