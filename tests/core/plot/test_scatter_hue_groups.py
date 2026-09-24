@@ -115,9 +115,13 @@ def _selector_list(selectors):
     per-point selectors joined with ``", "``, since the frontend's scatter
     model reads a string and nothing else (#316 in r-maidr, the same bundle
     contract) -- so the list is recovered from it for the assertions below.
+
+    Each point's own selector is itself a two-entry list -- its ``<use>`` in
+    matplotlib's optimized output, its inline ``<path>`` otherwise -- so the
+    string is split only where the next point's ``<use>`` alternative begins.
     """
     if isinstance(selectors, str):
-        return selectors.split(", ")
+        return re.split(r", (?=g\[[^\]]*\] > g:nth-of-type)", selectors)
     return list(selectors)
 
 
@@ -304,9 +308,12 @@ def test_an_ungrouped_scatter_is_untouched():
     # so the shape is what is asserted rather than the literal string.
     selectors = layers[0][MaidrKey.SELECTOR]
     assert isinstance(selectors, str)
-    assert selectors.endswith("> g > use")
+    # The `<use>` form matplotlib writes for a shared marker, or the inline
+    # `<path>` form it writes when each point has a marker of its own.
+    use, path = selectors.split(", ")
+    assert use.endswith("] > g > use")
+    assert path.endswith("] > path")
     assert "nth-of-type" not in selectors
-    assert ", " not in selectors
 
 
 def test_a_scatter_with_no_legend_is_read_as_one_layer():
