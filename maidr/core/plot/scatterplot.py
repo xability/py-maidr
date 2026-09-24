@@ -12,6 +12,7 @@ from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.core.plot.maidr_plot import group_name_of
 from maidr.exception import ExtractionError
+from maidr.util.artist_label import series_name
 from maidr.util.grid_axes import tick_step
 from maidr.util.hue_groups import grouped_by_name
 from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
@@ -361,6 +362,15 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # is per class, and `render` for the callable form a `FacetGrid`
         # needs.
         self._group_name = group[0] if group else group_name_of(kwargs)
+        # And where neither said, the collection's own label -- the name
+        # matplotlib's legend shows for it. Two `ax.scatter(label=...)` calls
+        # are two layers no hue split or patch names, so without this a
+        # reader got two identical unnamed `point` layers for a chart whose
+        # legend tells them apart. Read the way the line layer reads a
+        # line's: `series_name` answers "" for the `_child0` / `_nolegend_`
+        # labels matplotlib made up, so an unlabeled scatter stays unnamed.
+        if not self._group_name and len(self._own_points) == 1:
+            self._group_name = series_name(self._own_points[0]) or None
         self._group_label = str(kwargs.get(GROUP_LABEL, "") or "")
         self._group_members = [set(members) for members in group[1]] if group else None
 
