@@ -208,9 +208,11 @@ def test_every_split_layer_can_be_highlighted():
         selectors = plot.schema["selectors"]
         # Rendering joins a point layer's selectors into the one string the
         # frontend's scatter model reads (xability/r-maidr#316 names the
-        # bundle contract); the per-point entries are recovered from it.
+        # bundle contract); the per-point entries are recovered from it. Each
+        # point names two forms of its marker -- `<use>` or inline `<path>` --
+        # so the string splits where the next point's `<use>` begins.
         if isinstance(selectors, str):
-            selectors = selectors.split(", ")
+            selectors = re.split(r", (?=g\[[^\]]*\] > g:nth-of-type)", selectors)
         assert len(selectors) == len(plot.schema["data"])
         for selector in selectors:
             for identifier in re.findall(r"'([^']+)'", str(selector)):

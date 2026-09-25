@@ -12,6 +12,7 @@ from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.core.plot.maidr_plot import group_name_of
 from maidr.exception import ExtractionError
+from maidr.util.artist_label import series_name
 from maidr.util.grid_axes import tick_step
 from maidr.util.hue_groups import grouped_by_name
 from maidr.util.mixin import CollectionExtractorMixin, LineExtractorMixin
@@ -361,6 +362,15 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # is per class, and `render` for the callable form a `FacetGrid`
         # needs.
         self._group_name = group[0] if group else group_name_of(kwargs)
+        # And where neither said, the collection's own label -- the name
+        # matplotlib's legend shows for it. Two `ax.scatter(label=...)` calls
+        # are two layers no hue split or patch names, so without this a
+        # reader got two identical unnamed `point` layers for a chart whose
+        # legend tells them apart. Read the way the line layer reads a
+        # line's: `series_name` answers "" for the `_child0` / `_nolegend_`
+        # labels matplotlib made up, so an unlabeled scatter stays unnamed.
+        if not self._group_name and len(self._own_points) == 1:
+            self._group_name = series_name(self._own_points[0]) or None
         self._group_label = str(kwargs.get(GROUP_LABEL, "") or "")
         self._group_members = [set(members) for members in group[1]] if group else None
 
@@ -436,9 +446,23 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         :class:`~maidr.core.plot.hexbinplot.HexbinPlot` gives: the shared
         marker is written into a ``<defs>`` sibling ahead of the point groups,
         and counting that would shift every point by one.
+
+        Each selector also names the second form matplotlib writes a
+        collection in. Its SVG backend only hoists a marker into ``<defs>``
+        and places it with ``<use>`` when the marker is reused often enough
+        to pay for it (``RendererSVG.draw_path_collection``). A marker that
+        varies per point -- seaborn's ``style=`` gives each point its own
+        path, ``size=`` and ``Axes.scatter(s=array)`` each point its own
+        transform -- is used once, so every point is written as an inline
+        ``<path>`` directly under the collection's ``<g>``, with no ``<defs>``
+        and no per-point ``<g>``. The ``<use>`` form alone matched nothing
+        there: every value announced, nothing outlined. Only one form occurs
+        in a given collection, and the optimized form has no ``<path>``
+        child (its ``<defs>`` path is a grandchild), so ``path:nth-of-type``
+        counts the points and nothing else.
         """
         if self._group_members is None:
-            return ["g[maidr='true'] > g > use"]
+            return ["g[maidr='true'] > g > use, g[maidr='true'] > path"]
 
         parts = self._own_points or self._swept()
         selectors: list[str] = []
@@ -446,7 +470,10 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
             gid = parts[part].get_gid() if part < len(parts) else None
             if gid is None:
                 return []
-            selectors.append(f"g[id='{gid}'] > g:nth-of-type({position + 1}) > use")
+            selectors.append(
+                f"g[id='{gid}'] > g:nth-of-type({position + 1}) > use, "
+                f"g[id='{gid}'] > path:nth-of-type({position + 1})"
+            )
         return selectors
 
     def _extract_axes_data(self) -> dict:

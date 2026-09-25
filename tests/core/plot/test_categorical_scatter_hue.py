@@ -85,9 +85,13 @@ def _selector_list(selectors):
     per-point selectors joined with ``", "``, since the frontend's scatter
     model reads a string and nothing else (#316 in r-maidr, the same bundle
     contract) -- so the list is recovered from it for the assertions below.
+
+    Each point's own selector is itself a two-entry list -- its ``<use>`` in
+    matplotlib's optimized output, its inline ``<path>`` otherwise -- so the
+    string is split only where the next point's ``<use>`` alternative begins.
     """
     if isinstance(selectors, str):
-        return selectors.split(", ")
+        return re.split(r", (?=g\[[^\]]*\] > g:nth-of-type)", selectors)
     return list(selectors)
 
 

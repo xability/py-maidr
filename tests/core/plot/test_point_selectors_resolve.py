@@ -89,7 +89,43 @@ CHARTS = {
     "sns.swarmplot dodge": lambda ax: sns.swarmplot(
         data=frame(), x="g", y="y", hue="h", dodge=True, ax=ax
     ),
+    # Markers that vary per point, which matplotlib writes as inline
+    # `<path>` elements rather than `<use>` references to one shared marker.
+    "sns.scatterplot hue style": lambda ax: sns.scatterplot(
+        data=frame(), x="y", y="y", hue="h", style="h", ax=ax
+    ),
+    "sns.scatterplot hue, orthogonal style": lambda ax: sns.scatterplot(
+        data=frame(), x="y", y="y", hue="h", style="g", ax=ax
+    ),
+    "sns.scatterplot hue size": lambda ax: sns.scatterplot(
+        data=frame(), x="y", y="y", hue="h", size="y", ax=ax
+    ),
+    "sns.scatterplot hue style, four rows": lambda ax: sns.scatterplot(
+        data=pd.DataFrame(
+            {"x": [1, 2, 3, 4], "y": [4, 3, 2, 1], "group": ["A", "B", "A", "B"]}
+        ),
+        x="x",
+        y="y",
+        hue="group",
+        style="group",
+        ax=ax,
+    ),
+    "ax.scatter s=array": lambda ax: ax.scatter(
+        np.arange(20), np.arange(20) % 7, s=np.arange(20) * 5 + 10
+    ),
+    "ax.scatter c=array": lambda ax: ax.scatter(
+        np.arange(20), np.arange(20) % 7, c=np.arange(20)
+    ),
 }
+
+#: Charts whose markers matplotlib writes inline, keyed as in ``CHARTS``.
+INLINE = [
+    "sns.scatterplot hue style",
+    "sns.scatterplot hue, orthogonal style",
+    "sns.scatterplot hue size",
+    "sns.scatterplot hue style, four rows",
+    "ax.scatter s=array",
+]
 
 
 def _render(draw):
@@ -178,3 +214,35 @@ def test_a_swarm_resolves_to_the_markers_seaborn_packed(chart, value_axis):
     for layer in layers:
         found = CSSSelector(layer["selectors"])(root)
         assert len({use.get(across) for use in found}) > 1
+
+
+@pytest.mark.parametrize("chart", INLINE)
+def test_inline_markers_resolve_to_the_points_they_draw(chart):
+    # matplotlib's SVG backend writes a marker used once per point -- a
+    # per-point shape (`style=`) or size (`size=`, `s=array`) -- as an
+    # inline `<path>` under the collection's `<g>`, with no `<defs>` and no
+    # `<use>`. Before the selectors named that form they matched nothing
+    # here, at every size: announced, never outlined. Checked by position as
+    # well as by count, so the match is each layer's own points and not some
+    # other layer's that happen to be as many.
+    figure, ax, layers, root = _render(CHARTS[chart])
+    scale = 72 / figure.dpi
+    height = figure.get_figheight() * 72
+
+    for layer in layers:
+        found = CSSSelector(layer["selectors"])(root)
+        assert found and all(element.tag == "path" for element in found)
+
+        centres = []
+        for element in found:
+            numbers = [
+                float(n) for n in re.findall(r"-?\d+(?:\.\d+)?", element.get("d"))
+            ]
+            xs, ys = numbers[0::2], numbers[1::2]
+            centres.append(((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2))
+
+        points = [(point["x"], point["y"]) for point in layer["data"]]
+        want = ax.transData.transform(points) * scale
+        want[:, 1] = height - want[:, 1]
+        for x, y in want:
+            assert any(abs(x - cx) < 1 and abs(y - cy) < 1 for cx, cy in centres)

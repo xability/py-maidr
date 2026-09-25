@@ -292,3 +292,93 @@ def test_a_vertical_swarm_outlines_the_point_it_announces(browser, tmp_path):
         assert not errors, errors
     finally:
         page.close()
+
+
+def _inline(tmp_path, draw, name: str):
+    """Save a chart whose markers matplotlib writes as inline ``<path>``s.
+
+    Returns the page and a map from a data point to the SVG coordinate of
+    its marker's centre, in the points the SVG is written in.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    import maidr
+
+    fig, ax = plt.subplots()
+    draw(ax)
+    path = tmp_path / f"{name}.html"
+    try:
+        maidr.save_html(fig, file=str(path), use_cdn=False)
+        scale = 72 / fig.dpi
+        height = fig.get_figheight() * 72
+
+        def at(x: float, y: float) -> tuple[float, float]:
+            px, py = ax.transData.transform((x, y))
+            return float(px * scale), float(height - py * scale)
+
+    finally:
+        plt.close("all")
+    return path, at
+
+
+#: The centre of each visible outline the core draws, by its bounding box.
+_HIGHLIGHTED_CENTRES = """() => [...document.querySelectorAll("svg [data-maidr-owned]")]
+  .filter((e) => getComputedStyle(e).visibility !== "hidden")
+  .map((e) => { const b = e.getBBox(); return [b.x + b.width / 2, b.y + b.height / 2]; })"""
+
+
+def _hue_style(ax):
+    import pandas as pd
+    import seaborn as sns
+
+    frame = pd.DataFrame(
+        {
+            "x": [1, 2, 3, 4, 5, 6],
+            "y": [6, 1, 5, 2, 4, 3],
+            "g": ["a", "b", "a", "b", "a", "b"],
+        }
+    )
+    sns.scatterplot(data=frame, x="x", y="y", hue="g", style="g", ax=ax)
+
+
+def _sized(ax):
+    ax.scatter([1, 2, 3, 4, 5], [5, 1, 4, 2, 3], s=[20, 60, 100, 140, 180])
+
+
+@pytest.mark.parametrize(
+    ("draw", "first_layer"),
+    [
+        (_hue_style, [(1, 6), (3, 5), (5, 4)]),
+        (_sized, [(1, 5), (2, 1), (3, 4), (4, 2), (5, 3)]),
+    ],
+    ids=["seaborn hue style", "ax.scatter s=array"],
+)
+def test_inline_markers_outline_the_point_announced(
+    browser, tmp_path, draw, first_layer
+):
+    # A marker that varies per point is written as an inline `<path>`, not a
+    # `<use>` of one shared marker; the selectors named only the latter, so
+    # these announced every point and outlined none.
+    chart, at = _inline(tmp_path, draw, draw.__name__.strip("_"))
+    page = browser.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
+    try:
+        _enter(page, chart)
+        for x, y in first_layer:
+            spoken = _step(page, "ArrowRight")
+            assert str(x) in spoken and str(y) in spoken, spoken
+            outlined = page.evaluate(_HIGHLIGHTED_CENTRES)
+            assert len(outlined) == 1, (
+                f"{spoken!r} is announced but {len(outlined)} markers are "
+                "outlined: the inline markers are not named by the selectors"
+            )
+            want = at(x, y)
+            assert abs(outlined[0][0] - want[0]) < 1, (spoken, outlined, want)
+            assert abs(outlined[0][1] - want[1]) < 1, (spoken, outlined, want)
+        assert not errors, errors
+    finally:
+        page.close()
