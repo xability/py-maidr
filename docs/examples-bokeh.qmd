@@ -28,18 +28,20 @@ deprecation period, whichever plot type is drawn: see
 canvas, so what you hear is the data you plotted. As you move through a chart
 the mark being read is highlighted in the Bokeh plot itself: a bar, bin, cell
 or point is selected, dimming the rest, and a line, step or area shows a ring
-on the current point.
+on the current point. A bar, bin, cell or point whose data source another mark
+also draws from, such as markers on a line built from one `ColumnDataSource`,
+gets the ring too, so the other mark is never faded.
 
 | Bokeh | read as |
 |---|---|
 | `vbar`, `hbar` | bar |
 | `vbar_stack`, `hbar_stack` | stacked bar |
-| `vbar` with `dodge()`, or on a nested `FactorRange` | dodged bar |
+| `vbar` with `dodge()` or an offset such as `("a", -0.2)`, or on a nested `FactorRange` | dodged bar |
 | `quad` | histogram |
 | `line`, `multi_line` | line, one series per renderer or path |
 | `step` | step |
 | `scatter`, `circle` | point |
-| `rect` coloured through a colour mapper | heatmap |
+| `rect` coloured through a continuous colour mapper (`linear_cmap`, `log_cmap`) | heatmap |
 | `varea`, `varea_stack` | area [experimental], stacked area [experimental] |
 
 Any other glyph is left out with a warning naming it, and a figure with nothing
@@ -433,7 +435,8 @@ maidr.show(gridplot([[left, right]]))  #<<
 
 Each figure of a `gridplot`, `row` or `column` is a subplot. Press
 <kbd>Enter</kbd> to go into one, <kbd>Escape</kbd> to come back out, and the
-arrow keys between them.
+arrow keys between them, in the directions they are laid out on the page. A
+figure with nothing **maidr** can read is left out of the grid.
 
 ## Saving and embedding
 
