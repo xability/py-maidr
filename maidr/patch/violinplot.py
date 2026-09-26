@@ -39,7 +39,6 @@ from maidr.patch.common import (
 )
 from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
 
-
 # ======================================================================
 # Seaborn
 # ======================================================================
@@ -86,10 +85,6 @@ def patch_violinplot(
         Whatever seaborn returned.
     """
     return _draw_quietly(wrapped, args, kwargs)
-
-
-# Patch seaborn function.
-wrap_seaborn("violinplot", patch_violinplot)
 
 
 def _levels(declared: Any, column: pd.Series) -> list:
@@ -338,14 +333,21 @@ def sns_categorical_violins(
     return drawn
 
 
-# And the plotter method beneath `seaborn.violinplot`, which is the only thing
-# `catplot` drives. Wrapped by module path rather than by importing the private
-# class, matching how `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
-wrapt.wrap_function_wrapper(
-    "seaborn.categorical",
-    "_CategoricalPlotter.plot_violins",
-    sns_categorical_violins,
-)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn function.
+    wrap_seaborn("violinplot", patch_violinplot)
+
+    # And the plotter method beneath `seaborn.violinplot`, which is the only
+    # thing `catplot` drives. Wrapped by module path rather than by importing
+    # the private class, matching how `maidr/patch/boxplot.py` reaches
+    # `_CategoricalPlotter`.
+    wrapt.wrap_function_wrapper(
+        "seaborn.categorical",
+        "_CategoricalPlotter.plot_violins",
+        sns_categorical_violins,
+    )
 
 
 # ======================================================================

@@ -15,6 +15,12 @@ declares ``seaborn>=0.13``, so a resolver will not choose 0.12 on its own
 old lockfile all still land there, which is exactly the case #441 was
 filed about.
 
+The patches are applied from ``wrapt.when_imported("seaborn")`` hooks, and
+this check is registered as the first of them (``maidr/patch/__init__.py``).
+So the error below comes out of ``import maidr`` when seaborn was imported
+first, and out of ``import seaborn`` when maidr was -- in both cases before
+any patch is attempted.
+
 This check does not make an old seaborn work.  It replaces an error that
 says nothing with one that says which version is installed, which is
 needed, and that the two do not match.

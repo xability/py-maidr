@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Callable
+from typing import Any, Callable
 
 import wrapt
 
@@ -236,5 +236,9 @@ wrapt.wrap_function_wrapper(Axes, "pcolor", heat)
 # be one this call never drew. Declined for the reason `triplot` is (#572).
 wrapt.wrap_function_wrapper(Axes, "pcolorfast", heat)
 
-# Patch seaborn function.
-wrap_seaborn("heatmap", heat)
+
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn function.
+    wrap_seaborn("heatmap", heat)

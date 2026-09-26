@@ -826,4 +826,7 @@ def _wrap() -> None:
     wrapt.wrap_function_wrapper(Plot, "plot", _register)
 
 
-_wrap()
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    _wrap()

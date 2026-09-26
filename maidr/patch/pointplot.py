@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
@@ -381,10 +383,6 @@ def _pairs_up(estimates: list[Line2D], intervals: list[Line2D]) -> bool:
     )
 
 
-# Patch seaborn function.
-wrap_seaborn("pointplot", point)
-
-
 def sns_categorical_points(wrapped, instance, args, kwargs):
     """
     Register every point-plot panel seaborn draws, whichever interface drew it.
@@ -422,11 +420,18 @@ def sns_categorical_points(wrapped, instance, args, kwargs):
     return drawn
 
 
-# And the plotter method beneath `seaborn.pointplot`, which is the only thing
-# `catplot` drives. Wrapped by module path rather than by importing the private
-# class, matching how `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
-wrapt.wrap_function_wrapper(
-    "seaborn.categorical",
-    "_CategoricalPlotter.plot_points",
-    sns_categorical_points,
-)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn function.
+    wrap_seaborn("pointplot", point)
+
+    # And the plotter method beneath `seaborn.pointplot`, which is the only
+    # thing `catplot` drives. Wrapped by module path rather than by importing
+    # the private class, matching how `maidr/patch/boxplot.py` reaches
+    # `_CategoricalPlotter`.
+    wrapt.wrap_function_wrapper(
+        "seaborn.categorical",
+        "_CategoricalPlotter.plot_points",
+        sns_categorical_points,
+    )

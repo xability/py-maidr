@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
@@ -138,5 +140,9 @@ def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
 # Patch matplotlib function.
 wrapt.wrap_function_wrapper(Axes, "scatter", scatter)
 
-# Patch seaborn function.
-wrap_seaborn("scatterplot", scatter)
+
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn function.
+    wrap_seaborn("scatterplot", scatter)

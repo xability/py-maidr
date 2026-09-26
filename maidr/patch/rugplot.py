@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextvars
+from typing import Any
 
 import numpy as np
 import wrapt
@@ -322,14 +323,17 @@ def _register(ax: Axes | None, drawn, before: list):
     return drawn
 
 
-wrap_seaborn("rugplot", rug)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    wrap_seaborn("rugplot", rug)
 
-# And the plotter method beneath it, read for the one thing the drawn
-# colors cannot say; see `_note_hue_map`. Wrapped by module path rather than
-# by importing the private class, matching how `maidr/patch/boxplot.py`
-# reaches `_CategoricalPlotter`.
-wrapt.wrap_function_wrapper(
-    "seaborn.distributions",
-    "_DistributionPlotter.plot_rug",
-    _note_hue_map,
-)
+    # And the plotter method beneath it, read for the one thing the drawn
+    # colors cannot say; see `_note_hue_map`. Wrapped by module path rather
+    # than by importing the private class, matching how
+    # `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
+    wrapt.wrap_function_wrapper(
+        "seaborn.distributions",
+        "_DistributionPlotter.plot_rug",
+        _note_hue_map,
+    )

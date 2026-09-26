@@ -389,13 +389,16 @@ def sns_categorical_points(
 # `sns.catplot(kind="strip"/"swarm")` all drive. Wrapped by module path rather
 # than by importing the private class, matching how `maidr/patch/barplot.py`
 # reaches `_CategoricalPlotter`.
-wrapt.wrap_function_wrapper(
-    "seaborn.categorical",
-    "_CategoricalPlotter.plot_strips",
-    sns_categorical_points,
-)
-wrapt.wrap_function_wrapper(
-    "seaborn.categorical",
-    "_CategoricalPlotter.plot_swarms",
-    sns_categorical_points,
-)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    wrapt.wrap_function_wrapper(
+        "seaborn.categorical",
+        "_CategoricalPlotter.plot_strips",
+        sns_categorical_points,
+    )
+    wrapt.wrap_function_wrapper(
+        "seaborn.categorical",
+        "_CategoricalPlotter.plot_swarms",
+        sns_categorical_points,
+    )

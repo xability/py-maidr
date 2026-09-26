@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 import uuid
+from typing import Any
+
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
@@ -402,7 +404,12 @@ def patched_plot(wrapped, instance, args, kwargs):
     return lines
 
 
-# Patch seaborn function.
-wrap_seaborn("regplot", regplot)
 # Patch matplotlib Axes.plot for smooth line detection/registration
 wrapt.wrap_function_wrapper(Axes, "plot", patched_plot)
+
+
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn function.
+    wrap_seaborn("regplot", regplot)
