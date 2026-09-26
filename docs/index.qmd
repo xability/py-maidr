@@ -151,7 +151,10 @@ Our core philosophy is to make data science accessible to everyone, regardless o
 
 ## Supported Data Visualization Libraries
 
-We currently support the following data visualization libraries in Python, and we are working on adding support for more libraries in the future:
+We currently support the following data visualization libraries in Python, and we are working on adding support for more libraries in the future. A plot
+type marked **[experimental]** below is a prototype that may change without a
+deprecation period; a type with no mark is stable (see
+[Plot Type Stability](stability.qmd)).
 
 ### Matplotlib
 
@@ -181,9 +184,9 @@ We currently support the following data visualization libraries in Python, and w
 
 * Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
 
-* Hexbin plot (`ax.hexbin()`) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon's count by default, the reduction of `C` when one is given, or the count's interval when `bins` is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its center rather than by a column index.
+* Hexbin plot [experimental] (`ax.hexbin()`) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon's count by default, the reduction of `C` when one is given, or the count's interval when `bins` is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its center rather than by a column index.
 
-* Filled area plot (`ax.stackplot()`, `ax.fill_between()`, `ax.fill_betweenx()`) having one x (numerical) and one y (numerical) axis. A band drawn from the baseline to a curve reads as an area; several stacked bands read as a stacked area, with each band's own value announced alongside the running total. A band drawn *between two curves* is not read as an area, since its content is the gap rather than either edge.
+* Filled area plot [experimental] (`ax.stackplot()`, `ax.fill_between()`, `ax.fill_betweenx()`) having one x (numerical) and one y (numerical) axis. A band drawn from the baseline to a curve reads as an area; several stacked bands read as a stacked area [experimental], with each band's own value announced alongside the running total. A band drawn *between two curves* is not read as an area, since its content is the gap rather than either edge.
 
 * Scatter plot having one x (numerical) and one y (numerical) axis.
 
@@ -236,7 +239,7 @@ same entry point, since both produce the same figure object.
 
 * Dodged (grouped) bar plot — several bar traces under `barmode="group"`.
 
-* Stacked bar plot — several bar traces under `barmode="stack"` or `"relative"`. `relative` is Plotly's default, and what `px.bar(color=...)` leaves behind, so a stack is the ordinary way one arrives. Setting `barnorm="percent"` or `"fraction"` makes it the normalized variant, where each segment is announced as its share of the position rather than as a count.
+* Stacked bar plot — several bar traces under `barmode="stack"` or `"relative"`. `relative` is Plotly's default, and what `px.bar(color=...)` leaves behind, so a stack is the ordinary way one arrives. Setting `barnorm="percent"` or `"fraction"` makes it the normalized variant [experimental], where each segment is announced as its share of the position rather than as a count.
 
 * Count plot: a bar plot over category frequencies, or `px.histogram` over a categorical column.
 
@@ -248,7 +251,7 @@ same entry point, since both produce the same figure object.
 
 * Step plot, recognized from Plotly's `line_shape` (`"hv"`, `"vh"`, `"hvh"`, `"vhv"`), with named y tick labels announced as level names.
 
-* Filled area and stacked area plots — a scatter trace carrying `stackgroup`, which is what `px.area` produces. `stackgroup` is the whole signal: `fill="tozeroy"` on its own is read as a line, not an area. `groupnorm="percent"` or `"fraction"` makes it the normalized variant.
+* Filled area [experimental] and stacked area [experimental] plots — a scatter trace carrying `stackgroup`, which is what `px.area` produces. `stackgroup` is the whole signal: `fill="tozeroy"` on its own is read as a line, not an area. `groupnorm="percent"` or `"fraction"` makes it the normalized variant [experimental].
 
 * Scatter plot (`go.Scatter` with `mode="markers"`, `px.scatter`) having one x (numerical) and one y (numerical) axis.
 
@@ -260,38 +263,39 @@ same entry point, since both produce the same figure object.
 
 * Heatmap (`go.Heatmap`) having one x (categorical) and one y (categorical) and z (numerical) axis.
 
-* Two-dimensional histogram (`go.Histogram2d`) and its contour form (`go.Histogram2dContour`), read as a lattice of binned cells.
+* Two-dimensional histogram (`go.Histogram2d`) read as a lattice of binned cells, and its contour form [experimental] (`go.Histogram2dContour`), read one level curve at a time like a contour plot.
 
-* Contour plot (`go.Contour`), read one level curve at a time.
+* Contour plot [experimental] (`go.Contour`), read one level curve at a time.
 
 * Pie chart (`go.Pie`, `px.pie`), read wedge by wedge.
 
 * Candlestick and OHLC charts (`go.Candlestick`, `go.Ohlc`) having one x (time/date) and four y (numerical) axes.
 
-* Funnel chart (`go.Funnel`, `px.funnel`), its area form (`go.Funnelarea`), and waterfall chart (`go.Waterfall`).
+* Funnel chart [experimental] (`go.Funnel`, `px.funnel`), its area form (`go.Funnelarea`), and waterfall chart [experimental] (`go.Waterfall`).
 
-* Gauge (`go.Indicator` drawing a dial) announced as a value against its range.
+* Gauge [experimental] (`go.Indicator` drawing a dial) announced as a value against its range.
 
-* Radar chart (`go.Scatterpolar`) and polar area chart (`go.Barpolar`).
+* Radar chart [experimental] (`go.Scatterpolar`) and polar area chart [experimental] (`go.Barpolar`).
 
-* Hierarchy charts — treemap, sunburst and icicle (`go.Treemap`, `go.Sunburst`, `go.Icicle`) — navigated a level at a time.
+* Hierarchy charts — treemap [experimental], sunburst [experimental] and icicle [experimental] (`go.Treemap`, `go.Sunburst`, `go.Icicle`) — navigated a level at a time.
 
-* Sankey / alluvial diagram (`go.Sankey`), read link by link.
+* Sankey / alluvial diagram [experimental] (`go.Sankey`), read link by link.
 
-* Parallel coordinates (`go.Parcoords`) and parallel categories (`go.Parcats`).
+* Parallel coordinates [experimental] (`go.Parcoords`) and parallel categories [experimental] (`go.Parcats`).
 
 * Scatter plot matrix (`go.Splom`), navigated one panel at a time.
 
-* Choropleth map (`go.Choropleth`, `px.choropleth`) and geographic scatter and density maps (`go.Scattergeo`, `go.Scattermap`, `go.Densitymap`).
+* Choropleth map [experimental] (`go.Choropleth`, `px.choropleth`) and geographic scatter and density maps (`go.Scattergeo`, `go.Scattermap`, `go.Densitymap`).
 
 * Multi-panel plots (`make_subplots`) and facet plots, with independent axes per panel.
 
 ::: {.callout-note}
-Most Plotly chart types above are **experimental**: they were added by the plot
-coverage roadmap and have not yet been validated with a blind reader, so their
-announcements may change without a deprecation period. See
-[Stability](stability.qmd) for which plot types carry which promise, and the
-[Plotly gallery](examples-plotly.qmd#sec-plotly-examples) for runnable examples.
+A chart type marked **[experimental]** was added by the plot coverage roadmap
+and has not yet been validated with a blind reader, so its announcements may
+change without a deprecation period; a type with no mark is stable. See
+[Plot Type Stability](stability.qmd) for which plot types carry which promise,
+and the [Plotly gallery](examples-plotly.qmd#sec-plotly-examples) for runnable
+examples.
 :::
 
 ### Altair

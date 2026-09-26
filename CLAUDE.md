@@ -59,6 +59,12 @@ ALLUVIAL, AREA, BOXEN, CHOROPLETH, CONTOUR, ERRORBAR, FUNNEL, GANTT, GAUGE,
 HEXBIN, ICICLE, LOLLIPOP, NORMALIZED, NORMALIZED_AREA, PARALLEL, POLAR_AREA,
 RADAR, ROC, SANKEY, STACKED_AREA, SUNBURST, TREEMAP, WATERFALL, WORD_CLOUD
 
+Docs convention: wherever user docs name a plot type as a heading, nav/sidebar
+label, list item or table row (outside the `docs/stability.qmd` tables), an
+experimental type gets the suffix ` [experimental]` right after its name and a
+stable type gets nothing. A gallery heading keeps its old anchor with an
+explicit `{#id}`; `tests/docs/test_experimental_marks.py` checks the headings.
+
 Note that `maidr/plotly/` builds its MAIDR schema in Python and therefore needs its own
 handling per plot type, whereas `maidr/altair/` delegates entirely to the upstream
 Vega-Lite JS adapter -- an Altair-only plot type is implemented there, not here.

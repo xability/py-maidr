@@ -38,7 +38,7 @@ import maidr  #<<
 penguins = sns.load_dataset("penguins")
 ```
 
-## Area Plot
+## Area Plot [experimental] {#area-plot}
 
 ::: {.callout-warning title="Prototype"}
 This is one of the experimental plot types. It has not been through a user
@@ -116,7 +116,7 @@ than the height of either, so announcing it as an area would report the upper
 edge as a magnitude and drop the lower one. Those charts render as a static
 image for now; see [issue #339](https://github.com/xability/py-maidr/issues/339).
 
-## Error Bar Plot
+## Error Bar Plot [experimental] {#error-bar-plot}
 
 ::: {.callout-warning title="Prototype"}
 This is one of the experimental plot types. It has not been through a user
@@ -162,7 +162,14 @@ ax.set_ylabel("Response")
 plt.show() #<<
 ```
 
-## Point Plot
+## Point Plot [experimental] {#point-plot}
+
+::: {.callout-warning title="Prototype"}
+A point plot is read through the error bar layer, which is one of the
+experimental plot types. It has not been through a user study, and it may
+change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
 
 `sns.pointplot()` is the same reading from the other direction: it estimates a
 group mean from raw observations and draws the interval around it for you. It
@@ -197,7 +204,7 @@ ax.set_ylabel("Body Mass (g)")
 plt.show() #<<
 ```
 
-## Lollipop Plot
+## Lollipop Plot [experimental] {#lollipop-plot}
 
 ::: {.callout-warning title="Prototype"}
 This is one of the experimental plot types. It has not been through a user
