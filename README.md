@@ -58,7 +58,7 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 |---|---|
 | **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit |
-| **Plot types** | 39 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-four are experimental; the docs mark each experimental type **[experimental]** after its name |
+| **Plot types** | 40 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-five are experimental; the docs mark each experimental type **[experimental]** after its name |
 
 Plot types not yet supported fall back to a static image with a warning, so a
 plot is never lost.

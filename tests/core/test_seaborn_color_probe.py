@@ -155,8 +155,8 @@ def test_a_rug_over_a_scatter_renders() -> None:
     rather than just its own layer. A scatter that would have read perfectly
     well produced nothing at all.
 
-    Two layers rather than one since #250: the rug now reads as a scatter of
-    the observations it marks. The probe is still what this pins, and the
+    Two layers rather than one since #250: the rug now reads as the
+    observations it marks, a type of its own since xability/maidr#1132. The probe is still what this pins, and the
     count is what pins it -- a third layer here would be the phantom back.
     """
     frame = _frame()
@@ -165,7 +165,7 @@ def test_a_rug_over_a_scatter_renders() -> None:
     sns.scatterplot(data=frame, x="value", y="value", ax=ax)
     sns.rugplot(data=frame, x="value", ax=ax)
 
-    assert _layers(fig) == [PlotType.SCATTER, PlotType.SCATTER]
+    assert _layers(fig) == [PlotType.SCATTER, PlotType.RUG]
 
     # The render itself, because the layer list alone would not have caught
     # it: extraction is where the old failure happened.

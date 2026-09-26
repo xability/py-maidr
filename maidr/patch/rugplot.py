@@ -308,7 +308,7 @@ def _register(ax: Axes | None, drawn, before: list):
         shared = {DRAWN_RUG: collection, RUG_LABEL: _name_for(ax, read[1])}
         groups = _hue_groups(ax, collection, len(read[0]))
         if groups is None:
-            FigureManager.create_maidr(ax, PlotType.SCATTER, **shared)
+            FigureManager.create_maidr(ax, PlotType.RUG, **shared)
             continue
 
         # One layer per level, each reading its own ticks. Split here rather
@@ -317,7 +317,7 @@ def _register(ax: Axes | None, drawn, before: list):
         # a hue-grouped scatter in its patch (#544, #597).
         for group in groups:
             FigureManager.create_maidr(
-                ax, PlotType.SCATTER, **dict(shared, **{RUG_GROUP: group})
+                ax, PlotType.RUG, **dict(shared, **{RUG_GROUP: group})
             )
 
     return drawn

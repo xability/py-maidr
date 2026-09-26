@@ -104,11 +104,18 @@ class RugPlot(MaidrPlot):
     A seaborn rug plot, read as the observations it marks.
 
     A rug draws one short tick per observation against the frame, showing
-    where the raw data actually fell. Read as a **scatter**, for the reason
+    where the raw data actually fell. Every tick is the same length --
+    ``height`` is one number for the whole call -- so the height is decoration
+    and only the position is data, the reason
     :class:`~maidr.core.plot.eventplot.EventPlot` gives about an event plot's
-    ticks: every tick is the same length -- ``height`` is one number for the
-    whole call -- so the height is decoration and only the position is data.
-    What the reader navigates is a series of positions, which is a scatter.
+    ticks.
+
+    Emitted as ``rug`` rather than as a scatter. Both readings carry the same
+    points, ``{x, 0}`` for a rug along x; what differs is what the frontend
+    maps pitch to. A scatter pitches ``y``, which across a rug's ticks is the
+    constant, so every tick played the bottom note (xability/maidr#1132). The
+    rug trace pitches the position on the marked axis, pans with it, and
+    renders the observation count per bin as braille.
 
     Where it differs from an event plot is the coordinate across the tick.
     An event plot's rows sit at ``lineoffsets``, which is a real place on a
@@ -130,7 +137,7 @@ class RugPlot(MaidrPlot):
     """
 
     def __init__(self, ax: Axes, **kwargs) -> None:
-        super().__init__(ax, PlotType.SCATTER)
+        super().__init__(ax, PlotType.RUG)
 
         collection = kwargs.get(DRAWN_RUG, None)
         self._collection = (
@@ -178,13 +185,17 @@ class RugPlot(MaidrPlot):
 
     def render(self) -> dict:
         """
-        The base schema, plus the name the rug is announced under.
+        The base schema, plus its orientation and the name it is announced under.
 
         ``MaidrLayer.name`` is what xability/maidr#828 added so two layers of
         a kind can be told apart, which is exactly where a reader stands with
         a rug drawn beside a scatter of the same variable.
         """
         schema = super().render()
+        # Which axis the observations lie along: the frontend reads a vertical
+        # rug's positions off `x` and a horizontal one's off `y`, and ignores
+        # the other field.
+        schema[MaidrKey.ORIENTATION] = "vert" if self._along_x else "horz"
         name = self._group_name or self._label
         if name:
             schema[MaidrKey.NAME] = name
@@ -222,20 +233,18 @@ class RugPlot(MaidrPlot):
         axes_data = super()._extract_axes_data()
         along = MaidrKey.X if self._along_x else MaidrKey.Y
         across = MaidrKey.Y if self._along_x else MaidrKey.X
-        # Bounds on both axes, which is what makes the layer reachable in
-        # grid mode -- and grid mode is the only mode where a point layer
-        # renders braille at all. Measured against maidr's `ScatterTrace`:
-        # with the labels alone the braille state comes back `empty`, and a
-        # rug is then the one chart with no braille surface available by any
-        # keystroke. With them, four observations at 1, 2, 3 and 9 over a 0-10
-        # axis give `values [[2, 1, 0, 1]]` -- the observation count per cell,
-        # which is the clustering a rug is drawn to show and the one thing its
-        # audio cannot carry, since every tick sits at the same place on the
-        # axis pitch is mapped from (xability/maidr#1132).
+        # Bounds on the marked axis are what the frontend's rug trace reads
+        # its pitch range and its braille bins off: `min`/`max` scale the
+        # pitch when they cover the data, and `tickStep` sets the bin width,
+        # so the braille strip -- the observation count per bin, four
+        # observations at 1, 2, 3 and 9 over a 0-10 axis giving `2 1 0 1` --
+        # lines up with the ticks the chart draws. Without them the trace
+        # falls back to the data's span and `ceil(sqrt(n))` equal bins
+        # (xability/maidr#1132, #1264).
         #
-        # Additive only: grid mode is entered deliberately, and walking the
-        # ticks with and without these gives byte-identical audio, panning and
-        # text at every step.
+        # The strip across the ticks keeps its one-row bounds from when the
+        # layer was read as a scatter's grid. The rug trace does not read
+        # that axis, so they change nothing it announces.
         bounds = bounds_along(self.ax, self._along_x)
         if bounds is not None:
             low, high, step = bounds
