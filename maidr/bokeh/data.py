@@ -313,7 +313,19 @@ def _filter_mask(view_filter: Any, data: dict, n: int) -> np.ndarray:
 
 
 def is_missing(value: Any) -> bool:
-    """Whether a value is one BokehJS leaves a gap for: None, NaN or NaT."""
+    """
+    Whether a value is one BokehJS leaves a gap for: None, NaN or NaT.
+
+    Parameters
+    ----------
+    value : Any
+        One value read from a source column.
+
+    Returns
+    -------
+    bool
+        True for ``None``, a NaN, ``NaT`` or pandas' ``NA``.
+    """
     if value is None or type(value).__name__ in ("NaTType", "NAType"):
         # pandas' ``NaT`` and ``NA``, named rather than imported.
         return True
@@ -326,7 +338,19 @@ def is_missing(value: Any) -> bool:
 
 
 def is_temporal(values: Sequence[Any]) -> bool:
-    """Whether a column holds dates rather than numbers or factors."""
+    """
+    Whether a column holds dates rather than numbers or factors.
+
+    Parameters
+    ----------
+    values : sequence
+        The column's values.
+
+    Returns
+    -------
+    bool
+        True when any present value is a ``datetime64`` or a date.
+    """
     return any(
         isinstance(v, (np.datetime64, date)) for v in values if not is_missing(v)
     )
@@ -457,6 +481,16 @@ def factor_label(value: Any) -> str:
 
     A nested factor ``("Apples", "2015")`` is joined the way Bokeh's own
     axis stacks its levels, outermost first.
+
+    Parameters
+    ----------
+    value : Any
+        A factor, nested or not.
+
+    Returns
+    -------
+    str
+        The label.
     """
     if isinstance(value, (list, tuple)):
         return ", ".join(str(v) for v in value)

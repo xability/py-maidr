@@ -411,6 +411,7 @@ class BokehMaidr:
             by_id = {r.id: r for r in layer.renderers}
 
             def anchor(cell: list | None) -> list | None:
+                """Where the cursor goes for one ``[renderer id, row]`` cell."""
                 return None if cell is None else mark_anchor(by_id[cell[0]], cell[1])
 
             if layer.highlight["kind"] == "points":
@@ -660,6 +661,19 @@ def _panel_id(cell: dict) -> str:
 
 
 def _cursor_key(layer: BokehLayer) -> tuple:
+    """
+    Which cursor a layer's highlight uses: one per plot and pair of ranges.
+
+    Parameters
+    ----------
+    layer : BokehLayer
+        A layer highlighted with a cursor.
+
+    Returns
+    -------
+    tuple
+        ``(plot id, x range name, y range name)``.
+    """
     return (layer.plot.id, layer.x_range_name, layer.y_range_name)
 
 

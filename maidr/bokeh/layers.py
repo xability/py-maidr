@@ -173,6 +173,7 @@ class PlotReader:
         return _announced(values, self._x_dates)
 
     def _y_native(self, values: list) -> list:
+        """y values as announced: dates spelled ISO on a datetime axis."""
         return _announced(values, self._y_dates)
 
     # ------------------------------------------------------------------ #
@@ -348,6 +349,19 @@ class PlotReader:
         return _announced([position], dates)[0]
 
     def _bar(self, renderers: list) -> BokehLayer | None:
+        """
+        One ``vbar`` or ``hbar`` renderer, read as a bar layer.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The renderers grouped into this layer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The layer, or ``None`` when nothing is drawn.
+        """
         renderer = renderers[0]
         horizontal, bars = self._bar_values(renderer)
         if not bars:
@@ -408,6 +422,19 @@ class PlotReader:
         return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
 
     def _stacked(self, renderers: list) -> BokehLayer | None:
+        """
+        The segments of a ``vbar_stack`` or ``hbar_stack``, as a stacked bar.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The renderers grouped into this layer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The layer, or ``None`` when nothing is drawn.
+        """
         return self._segmented(renderers, PlotType.STACKED)
 
     def _dodged(self, renderers: list) -> BokehLayer | None:
@@ -577,6 +604,19 @@ class PlotReader:
         return rows, grid
 
     def _line(self, renderers: list) -> BokehLayer | None:
+        """
+        Every ``line``/``multi_line`` on a pair of ranges, one row per series.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The renderers grouped into this layer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The layer, or ``None`` when nothing is drawn.
+        """
         rows, grid = self._line_like(renderers)
         if not rows:
             return None
@@ -584,6 +624,19 @@ class PlotReader:
         return BokehLayer(schema, self._plot, {"kind": "cursor", "grid": grid})
 
     def _step(self, renderers: list) -> BokehLayer | None:
+        """
+        Every ``step`` of one mode on a pair of ranges, one row per series.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The renderers grouped into this layer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The layer, or ``None`` when nothing is drawn.
+        """
         rows, grid = self._line_like(renderers)
         if not rows:
             return None
@@ -626,6 +679,19 @@ class PlotReader:
         return rows, grid
 
     def _area(self, renderers: list) -> BokehLayer | None:
+        """
+        One ``varea``, read as an area layer.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The renderers grouped into this layer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The layer, or ``None`` when nothing is drawn.
+        """
         rows, grid = self._bands(renderers)
         if not rows:
             return None
@@ -633,6 +699,19 @@ class PlotReader:
         return BokehLayer(schema, self._plot, {"kind": "cursor", "grid": grid})
 
     def _stacked_area(self, renderers: list) -> BokehLayer | None:
+        """
+        The bands of a ``varea_stack``, as a stacked area.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The renderers grouped into this layer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The layer, or ``None`` when nothing is drawn.
+        """
         rows, grid = self._bands(renderers)
         if not rows:
             return None
@@ -645,6 +724,19 @@ class PlotReader:
     # ------------------------------------------------------------------ #
 
     def _scatter(self, renderers: list) -> BokehLayer | None:
+        """
+        One marker renderer, read as a point cloud.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The renderers grouped into this layer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The layer, or ``None`` when nothing is drawn.
+        """
         renderer = renderers[0]
         glyph = renderer.glyph
         data = renderer.data_source.data
@@ -722,7 +814,21 @@ class PlotReader:
 
 
 def resolve_column(data: dict, name: str | None) -> list | None:
-    """A named source column as a list, or ``None`` when there is none."""
+    """
+    A named source column as a list, or ``None`` when there is none.
+
+    Parameters
+    ----------
+    data : dict
+        A ``ColumnDataSource.data`` mapping.
+    name : str or None
+        The column's name.
+
+    Returns
+    -------
+    list or None
+        The column's values, or ``None`` for no name or a missing column.
+    """
     if not name or name not in data:
         return None
     column = data[name]
@@ -756,6 +862,7 @@ def mark_anchor(renderer: Any, index: int) -> list | None:
     name = type(glyph).__name__
 
     def at(prop: str) -> Any:
+        """The mark's value of one glyph property."""
         return resolve(glyph, prop, data)[index]
 
     if name in ("VBar", "HBar"):
@@ -826,6 +933,7 @@ def _middle(low: Any, high: Any) -> float | None:
 
 
 def _is_axis(model: Any) -> bool:
+    """Whether a model beside the plot is an axis, not a legend or colour bar."""
     from bokeh.models import Axis
 
     return isinstance(model, Axis)
@@ -840,6 +948,7 @@ def _axis_label(axis: Any, fallback: str) -> str:
 
 
 def _label(value: Any) -> str | None:
+    """A series name as announced, or ``None`` for a missing or blank one."""
     if value is None or is_missing(value):
         return None
     text = str(to_native(value)).strip()

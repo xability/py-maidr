@@ -16,6 +16,24 @@ __all__ = ["BokehMaidr", "is_bokeh_model"]
 
 
 def __getattr__(name: str) -> Any:
+    """
+    Import :class:`BokehMaidr` on first use, so ``maidr.bokeh`` stays light.
+
+    Parameters
+    ----------
+    name : str
+        The attribute asked for.
+
+    Returns
+    -------
+    Any
+        The ``BokehMaidr`` class.
+
+    Raises
+    ------
+    AttributeError
+        For any other name.
+    """
     if name == "BokehMaidr":
         from maidr.bokeh.bokeh_maidr import BokehMaidr
 
