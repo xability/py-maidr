@@ -69,19 +69,21 @@ def _save(model, path: Path) -> Path:
     return path
 
 
+def _local_bokeh(route) -> None:
+    """Serve a BokehJS bundle from the installed package."""
+    name = _BOKEH_CDN.match(route.request.url).group(1)
+    route.fulfill(
+        path=str(_BOKEH_JS / f"{name}.min.js"),
+        content_type="application/javascript",
+    )
+
+
 def _open(browser, page_path: Path):
     page = browser.new_page()
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
 
-    def local_bokeh(route):
-        name = _BOKEH_CDN.match(route.request.url).group(1)
-        route.fulfill(
-            path=str(_BOKEH_JS / f"{name}.min.js"),
-            content_type="application/javascript",
-        )
-
-    page.route(_BOKEH_CDN, local_bokeh)
+    page.route(_BOKEH_CDN, _local_bokeh)
     page.goto(page_path.as_uri(), wait_until="load")
     page.wait_for_function(_BUNDLE_READY, timeout=_PARSE_TIMEOUT_MS)
     page.wait_for_selector('article[id^="maidr-article"]', timeout=_PARSE_TIMEOUT_MS)
@@ -239,6 +241,61 @@ def test_leaving_a_subplot_clears_the_highlight(browser, tmp_path):
         assert _step(page, "Enter").startswith("Entered subplot 2 of 2, right")
         assert _step(page, "ArrowRight") == "X is 1, Y is 3"
         assert page.evaluate(_CURSOR) == [1, 3]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+#: ``maidr.js`` as jsDelivr would serve it; the shipped bundle stands in.
+_MAIDR_CDN = re.compile(r"^https://cdn\.jsdelivr\.net/npm/maidr@[^/]+/dist/maidr\.js$")
+_BUNDLE = Path(__file__).parents[2] / "maidr" / "static" / "maidr.js"
+
+
+@pytest.mark.parametrize("use_cdn", [True, "auto"])
+def test_a_chart_beside_a_matplotlib_chart_is_bound(browser, tmp_path, use_cdn):
+    # maidr.js reads ``maidr-data`` on its first scan only when the page has
+    # no ``[maidr]`` chart; beside a matplotlib one it skipped the Bokeh
+    # chart, which was then drawn with no keyboard access at all.
+    import matplotlib.pyplot as plt
+    from bokeh.plotting import figure
+    from htmltools import HTMLDocument
+
+    import maidr
+
+    p = figure(x_range=["a", "b"], x_axis_label="Store", y_axis_label="Units")
+    renderer = p.vbar(x=["a", "b"], top=[7, 3], width=0.9)
+    fig, ax = plt.subplots()
+    ax.bar(["x", "y"], [1, 2])
+    path = tmp_path / "mixed.html"
+    HTMLDocument(
+        maidr.render(p, use_cdn=use_cdn), maidr.render(ax, use_cdn=use_cdn), lang="en"
+    ).save_html(str(path), libdir="lib")
+    plt.close(fig)
+
+    page = browser.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
+    page.route(_BOKEH_CDN, _local_bokeh)
+    page.route(
+        _MAIDR_CDN,
+        lambda route: route.fulfill(
+            path=str(_BUNDLE), content_type="application/javascript"
+        ),
+    )
+    try:
+        page.goto(path.as_uri(), wait_until="load")
+        page.wait_for_function(
+            f"() => ({_INSTANCES})() === 2", timeout=_PARSE_TIMEOUT_MS
+        )
+        page.wait_for_timeout(500)
+        page.evaluate(
+            """() => document.querySelector('[maidr-data]')
+                .closest('article').querySelector('[tabindex="0"]').focus()"""
+        )
+        page.wait_for_timeout(400)
+
+        assert _step(page, "ArrowRight") == "Store is a, Units is 7"
+        assert page.evaluate(_SELECTED, renderer.id) == [0]
         assert not errors, errors
     finally:
         page.close()

@@ -425,14 +425,16 @@ class BokehMaidr:
         Build the JS that embeds the plot, then binds MAIDR to it.
 
         The payload lands only after ``embed_item`` resolves, and only
-        after the document has parsed: ``maidr.js`` scans the page for
-        ``maidr-data`` once, at ``DOMContentLoaded``, and waiting for that
-        scan to have happened is what lets the script tell the two cases
-        apart. A runtime already on the page is told about the chart with
-        the ``maidr:bindchart`` event; one not yet loaded is loaded now,
-        and finds the payload on its own first scan. Doing both would
-        mount the chart twice and drop the highlight callback with the
-        first mount.
+        after the document has parsed. A runtime already on the page is
+        told about the chart with the ``maidr:bindchart`` event. One not yet
+        loaded is loaded now, and scans the page as it starts -- but reads
+        ``maidr-data`` in that scan only when the page holds no ``[maidr]``
+        chart, so on a page shared with a matplotlib or Plotly chart it
+        skips this one. The script therefore waits for the runtime and
+        announces the chart only if the scan left it unmounted, which
+        ``maidr.js`` marks by setting ``data-maidr-value`` on every element
+        it mounts. Announcing it regardless would mount the chart twice and
+        drop the highlight callback with the first mount.
 
         Parameters
         ----------
@@ -710,14 +712,30 @@ _INIT_TEMPLATE = """(function() {
         });
     }
 
+    function announce() {
+        wrapper.dispatchEvent(new CustomEvent('maidr:bindchart', { bubbles: true }));
+    }
+
     function bind() {
         if (!schema || !wrapper) return;
         wrapper.setAttribute('maidr-data', JSON.stringify(schema));
         if (window.maidrLive) {
-            wrapper.dispatchEvent(new CustomEvent('maidr:bindchart', { bubbles: true }));
-        } else {
-__LOADER__
+            announce();
+            registerHighlight(bokehDocument());
+            return;
         }
+__LOADER__
+        // maidr.js reads maidr-data on its first scan only when the page
+        // holds no [maidr] chart, so beside a matplotlib or Plotly chart it
+        // passes this one by. Once it has run, a chart it did not mount --
+        // which it marks with data-maidr-value -- is announced to it.
+        (function whenRuntime() {
+            if (window.maidrLive) {
+                if (!wrapper.hasAttribute('data-maidr-value')) announce();
+            } else if (Date.now() - started < 2 * __WAIT_MS__) {
+                setTimeout(whenRuntime, 50);
+            }
+        })();
         registerHighlight(bokehDocument());
     }
 
