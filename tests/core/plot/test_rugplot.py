@@ -552,16 +552,14 @@ def test_a_hue_on_one_level_is_read_as_one_ungrouped_layer():
     assert len(schemas[0]["data"]) == 4
 
 
-# --- The bounds that make the layer reachable in grid mode (maidr#1132) ------
+# --- The axis bounds the rug trace reads (maidr#1132) -----------------------
 #
-# A point layer renders braille only in grid mode, and grid mode is built from
-# `axes.{x,y}.{min,max,tickStep}`. With the labels alone, maidr's `ScatterTrace`
-# returns an empty braille state, and a rug is then the one chart with no
-# braille surface reachable by any keystroke. Measured there, four observations
-# at 1, 2, 3 and 9 over a 0-10 axis give `values [[2, 1, 0, 1]]` -- the count
-# per cell, which is the clustering a rug is drawn to show and the one thing
-# its audio cannot carry, every tick sitting at the same place on the axis
-# pitch is mapped from.
+# maidr's rug trace takes its pitch range from the marked axis' `min`/`max`
+# and its braille bins from its `tickStep`, so four observations at 1, 2, 3
+# and 9 over a 0-10 axis in steps of 2.5 give the strip `2 1 0 1` -- the count
+# per bin, which is the clustering a rug is drawn to show. The bounds were
+# first emitted when a rug was still a point layer, whose braille existed only
+# in grid mode; the one-row strip across the ticks is kept from then.
 
 
 def _axis(schema, key) -> dict:

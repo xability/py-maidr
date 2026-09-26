@@ -155,9 +155,10 @@ def test_a_rug_over_a_scatter_renders() -> None:
     rather than just its own layer. A scatter that would have read perfectly
     well produced nothing at all.
 
-    Two layers rather than one since #250: the rug now reads as the
-    observations it marks, a type of its own since xability/maidr#1132. The probe is still what this pins, and the
-    count is what pins it -- a third layer here would be the phantom back.
+    Two layers rather than one since #250, when the rug began to read as the
+    observations it marks; it has been a type of its own since
+    xability/maidr#1132. What this pins is still the probe, through the count:
+    a third layer here would be the phantom back.
     """
     frame = _frame()
     fig, ax = plt.subplots()
