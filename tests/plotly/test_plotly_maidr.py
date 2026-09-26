@@ -779,6 +779,45 @@ class TestPlotlyEmbeddedSchema:
         assert embedded == json.loads(json.dumps(handed[0]))
         assert "\n" not in html_str[start : start + consumed]
 
+    def test_a_title_cannot_close_the_script_it_is_embedded_in(self):
+        """A chart's own text stays data inside the init ``<script>``.
+
+        The schema was written with a plain ``json.dumps``, which leaves
+        ``</script>`` as it is, so a title reading that ended the script
+        early and the rest ran as markup.
+        """
+        import json
+
+        title = "</script><img src=x onerror=alert(1)><!--<script>"
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(title=title)
+        html_str = str(PlotlyMaidr(fig)._create_html_tag(use_iframe=False))
+
+        marker = "var maidrSchema = "
+        start = html_str.index(marker) + len(marker)
+        embedded, consumed = json.JSONDecoder().raw_decode(html_str[start:])
+
+        literal = html_str[start : start + consumed]
+        assert "<" not in literal and ">" not in literal
+        assert embedded["title"] == title
+
+    @pytest.mark.parametrize("use_cdn", [True, False, "auto"])
+    def test_a_title_naming_the_loader_placeholder_stays_a_title(self, use_cdn):
+        """The loader was spliced in with ``replace``, which also hit the title."""
+        import json
+
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(title="__LOADER__")
+        html_str = str(
+            PlotlyMaidr(fig)._create_html_tag(use_iframe=False, use_cdn=use_cdn)
+        )
+
+        marker = "var maidrSchema = "
+        start = html_str.index(marker) + len(marker)
+        embedded, _ = json.JSONDecoder().raw_decode(html_str[start:])
+
+        assert embedded["title"] == "__LOADER__"
+
 
 class TestPlotlyShow:
     """``show()`` builds the page exactly once, whichever way it is shown."""

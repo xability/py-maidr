@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "maidr"
 version = "1.25.0"
-description = "Make matplotlib, seaborn, Plotly, and Altair charts accessible through sonification, braille, and screen reader support"
+description = "Make matplotlib, seaborn, Plotly, Bokeh, and Altair charts accessible through sonification, braille, and screen reader support"
 authors = [
     { name = "JooYoung Seo", email = "jseo1005@illinois.edu" },
     { name = "Saairam Venkatesh", email = "saairam2@illinois.edu" },
@@ -31,6 +31,7 @@ keywords = [
     "matplotlib",
     "seaborn",
     "plotly",
+    "bokeh",
     "altair",
     "jupyter",
     "quarto",
@@ -129,6 +130,14 @@ plotly = [
     # exists to stop treating as a promise.
     "contourpy>=1.0.1",
 ]
+# Read by duck typing until a figure is handed over: `maidr.bokeh` asks
+# `sys.modules` whether Bokeh is loaded before importing any of it, so a user
+# without it pays nothing. 3.1 is the oldest release whose `json_item`,
+# `GridPlot` and `bundle_for_objs_and_resources` the adapter relies on; the
+# resolver keeps Python 3.9 on the 3.4 series, the last to support it.
+bokeh = [
+    "bokeh>=3.1",
+]
 shiny = [
     "shiny>=1.0",
 ]
@@ -160,6 +169,7 @@ test = [
     "cssselect>=1.2",
     "flask>=3.0.0",
     "plotly>=5.0",
+    "bokeh>=3.1",
     "shiny>=1.0",
 ]
 

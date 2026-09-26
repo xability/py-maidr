@@ -106,6 +106,18 @@ set. If you are exploring what a chart could sound like, the experimental set is
 exactly what it is for — and feedback on it is the thing that would move a type
 out of this list.
 
+## Bokeh support
+
+Bokeh figures (`maidr.show(p)` on a `figure`, `gridplot`, `row` or `column`)
+are read by an adapter that is itself **experimental**, whatever plot type it
+emits: a Bokeh bar chart emits the stable `bar` type, but which glyphs are read
+as what, the highlight drawn inside the Bokeh plot, and what is skipped may
+change without a deprecation period, including in a patch release. The tables
+above describe the *types*; this is about the *reader of Bokeh documents*, which
+has not been through a user study either. See the
+[Bokeh gallery](examples-bokeh.qmd) for what it reads today
+([#813](https://github.com/xability/py-maidr/issues/813)).
+
 ## Drawn but not read
 
 A few matplotlib calls draw marks that no `PlotType` reads, and that is

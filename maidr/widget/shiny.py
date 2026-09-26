@@ -90,10 +90,11 @@ def output_maidr(
 def _is_foreign_figure(value: Any) -> bool:
     """Report whether a value belongs to a non-matplotlib plotting library.
 
-    :func:`maidr.render` accepts Plotly figures and Altair charts as well as
-    matplotlib artists, but only matplotlib artists resolve through
-    :meth:`FigureManager.get_axes`.  Checked by module name so that neither
-    optional library has to be imported to answer the question.
+    :func:`maidr.render` accepts Plotly figures, Bokeh figures and layouts
+    and Altair charts as well as matplotlib artists, but only matplotlib
+    artists resolve through :meth:`FigureManager.get_axes`.  Checked by
+    module name so that no optional library has to be imported to answer
+    the question.
 
     Parameters
     ----------
@@ -103,10 +104,10 @@ def _is_foreign_figure(value: Any) -> bool:
     Returns
     -------
     bool
-        True if the value comes from Plotly or Altair.
+        True if the value comes from Plotly, Bokeh or Altair.
     """
     root = type(value).__module__.split(".", 1)[0]
-    return root in {"plotly", "altair"}
+    return root in {"plotly", "bokeh", "altair"}
 
 
 def _check_supported(value: Any, fn_name: str) -> None:
@@ -145,7 +146,7 @@ def _check_supported(value: Any, fn_name: str) -> None:
     raise TypeError(
         f"@render_maidr function {fn_name!r} returned "
         f"{type(value).__name__}; expected a matplotlib or seaborn artist, "
-        "a Plotly Figure, or an Altair chart"
+        "a Plotly Figure, a Bokeh figure or layout, or an Altair chart"
     )
 
 
@@ -294,8 +295,9 @@ class render_maidr(Renderer[Any]):
     Notes
     -----
     The decorated function may return a matplotlib or seaborn artist, a
-    Plotly ``Figure``, or an Altair chart.  Returning ``None`` renders
-    nothing, which is the documented way to leave an output blank.
+    Plotly ``Figure``, a Bokeh figure or layout, or an Altair chart.
+    Returning ``None`` renders nothing, which is the documented way to leave
+    an output blank.
 
     Any pyplot figure the function opens is closed once the chart has been
     rendered; see :func:`_close_new_figures`.

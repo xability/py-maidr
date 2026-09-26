@@ -66,10 +66,11 @@ def maidr_html(
     ----------
     plot : Any, optional
         The plot to render -- a matplotlib or seaborn artist, a Plotly
-        ``Figure``, or an Altair chart.  ``None`` uses the current
-        matplotlib figure, and warns: that figure is process-global, and
-        Streamlit runs sessions on separate threads, so by the time it is
-        rendered it may be another session's.  Pass the plot explicitly.
+        ``Figure``, a Bokeh figure or layout, or an Altair chart.  ``None``
+        uses the current matplotlib figure, and warns: that figure is
+        process-global, and Streamlit runs sessions on separate threads, so
+        by the time it is rendered it may be another session's.  Pass the
+        plot explicitly.
     use_cdn : bool, {"auto"}, or None, default None
         Where the chart loads ``maidr.js`` from; see :func:`maidr.render`.
         ``None`` defers to the process-wide default.
@@ -300,10 +301,11 @@ def render_maidr(
     ----------
     plot : Any, optional
         The plot to render -- a matplotlib or seaborn artist, a Plotly
-        ``Figure``, or an Altair chart.  ``None`` uses the current
-        matplotlib figure, and warns: that figure is process-global, and
-        Streamlit runs sessions on separate threads, so by the time it is
-        rendered it may be another session's.  Pass the plot explicitly.
+        ``Figure``, a Bokeh figure or layout, or an Altair chart.  ``None``
+        uses the current matplotlib figure, and warns: that figure is
+        process-global, and Streamlit runs sessions on separate threads, so
+        by the time it is rendered it may be another session's.  Pass the
+        plot explicitly.
     height : int, {"content", "stretch"}, default "content"
         Height of the embed.  ``"content"`` lets Streamlit measure the
         chart, which is what keeps maidr's braille and text panels visible

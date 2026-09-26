@@ -1,0 +1,447 @@
+---
+title: "Bokeh Accessible Plot Examples"
+description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps and gridplot layouts accessible with py-maidr."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+## Bokeh Examples {#sec-bokeh-examples}
+
+**maidr** also supports **Bokeh** figures and layouts. Pass a `figure`, a
+`gridplot`, or a `row`/`column` of figures to `maidr.show()`, `maidr.render()`
+or `maidr.save_html()`, and **maidr** produces a page where the interactive
+Bokeh plot keeps its pan, zoom and hover tools and can also be read from the
+keyboard, as sound, as text and in braille. For the other libraries, see the
+[Matplotlib / Seaborn](examples.qmd), [Plotly](examples-plotly.qmd) and
+[Altair](examples-altair.qmd) pages.
+
+::: {.callout-warning title="Experimental"}
+Bokeh support is **experimental**. What it reads, and how, may change without a
+deprecation period, whichever plot type is drawn: see
+[Plot Type Stability](stability.qmd#bokeh-support). Install it with
+`pip install "maidr[bokeh]"`.
+:::
+
+**maidr** reads the figure's own renderers and data sources, not the drawn
+canvas, so what you hear is the data you plotted. As you move through a chart
+the mark being read is highlighted in the Bokeh plot itself: a bar, bin, cell
+or point is selected, dimming the rest, and a line, step or area shows a ring
+on the current point. A bar, bin, cell or point whose data source another mark
+also draws from, such as markers on a line built from one `ColumnDataSource`,
+gets the ring too, so the other mark is never faded.
+
+| Bokeh | read as |
+|---|---|
+| `vbar`, `hbar` | bar |
+| `vbar_stack`, `hbar_stack` | stacked bar |
+| `vbar` with `dodge()` or an offset such as `("a", -0.2)`, or on a nested `FactorRange` | dodged bar |
+| `quad` | histogram |
+| `line`, `multi_line` | line, one series per renderer or path |
+| `step` | step |
+| `scatter`, `circle` | point |
+| `rect` coloured through a continuous colour mapper (`linear_cmap`, `log_cmap`) | heatmap |
+| `varea`, `varea_stack` | area [experimental], stacked area [experimental] |
+
+Any other glyph is left out with a warning naming it, and a figure with nothing
+**maidr** can read is still drawn. A `Tabs` layout is read one panel at a time:
+the active one.
+
+### Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Bar chart showing average body mass of penguins by species
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins")
+avg_mass = penguins.groupby("species")["body_mass_g"].mean()
+species = avg_mass.index.tolist()
+
+p = figure(
+    x_range=species,
+    title="Average Body Mass of Penguins by Species",
+    x_axis_label="Species",
+    y_axis_label="Body Mass (g)",
+    height=350,
+)
+p.vbar(x=species, top=avg_mass.round(1).tolist(), width=0.8, color="#4c72b0")
+
+maidr.show(p)  #<<
+```
+
+### Horizontal Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Horizontal bar chart of the number of penguins on each island
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins")
+counts = penguins["island"].value_counts().sort_values()
+
+p = figure(
+    y_range=counts.index.tolist(),
+    title="Penguins Counted on Each Island",
+    x_axis_label="Penguins",
+    y_axis_label="Island",
+    height=300,
+)
+p.hbar(y=counts.index.tolist(), right=counts.tolist(), height=0.7, color="#55a868")
+
+maidr.show(p)  #<<
+```
+
+### Stacked Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Stacked bar chart of total restaurant bills by day, split by sex
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+tips = sns.load_dataset("tips")
+totals = tips.pivot_table(
+    index="day", columns="sex", values="total_bill", aggfunc="sum", observed=True
+)
+days = [str(day) for day in totals.index]
+source = {"day": days, "Male": totals["Male"].round(2), "Female": totals["Female"].round(2)}
+
+p = figure(
+    x_range=days,
+    title="Total Bill by Day and Sex",
+    x_axis_label="Day",
+    y_axis_label="Total Bill ($)",
+    height=350,
+)
+p.vbar_stack(
+    ["Male", "Female"],
+    x="day",
+    width=0.8,
+    source=source,
+    color=["#4c72b0", "#dd8452"],
+    legend_label=["Male", "Female"],
+)
+p.legend.title = "Sex"
+
+maidr.show(p)  #<<
+```
+
+### Dodged (Grouped) Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Grouped bar chart comparing average body mass by species and sex
+
+import seaborn as sns
+from bokeh.models import ColumnDataSource
+from bokeh.plotting import figure
+from bokeh.transform import dodge
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins").dropna()
+by_sex = penguins.pivot_table(
+    index="species", columns="sex", values="body_mass_g", aggfunc="mean"
+).round(1)
+species = by_sex.index.tolist()
+source = ColumnDataSource(
+    {"species": species, "Male": by_sex["Male"], "Female": by_sex["Female"]}
+)
+
+p = figure(
+    x_range=species,
+    title="Average Body Mass by Species and Sex",
+    x_axis_label="Species",
+    y_axis_label="Body Mass (g)",
+    height=350,
+)
+p.vbar(
+    x=dodge("species", -0.2, range=p.x_range), top="Male", width=0.35,
+    source=source, color="#4c72b0", legend_label="Male",
+)
+p.vbar(
+    x=dodge("species", 0.2, range=p.x_range), top="Female", width=0.35,
+    source=source, color="#dd8452", legend_label="Female",
+)
+p.legend.title = "Sex"
+
+maidr.show(p)  #<<
+```
+
+A `vbar` on a nested `FactorRange` -- `x=[("Adelie", "Male"), ("Adelie",
+"Female"), ...]` -- is read the same way: the inner factor names the group,
+and the outer one the category.
+
+### Histogram
+
+```{python}
+#| warning: false
+#| fig-alt: Histogram of penguin flipper lengths
+
+import numpy as np
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins").dropna()
+counts, edges = np.histogram(penguins["flipper_length_mm"], bins=12)
+
+p = figure(
+    title="Distribution of Penguin Flipper Length",
+    x_axis_label="Flipper Length (mm)",
+    y_axis_label="Count",
+    height=350,
+)
+p.quad(
+    top=counts, bottom=0, left=edges[:-1], right=edges[1:],
+    fill_color="#8172b3", line_color="white",
+)
+
+maidr.show(p)  #<<
+```
+
+### Line Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of total airline passengers per year
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+flights = sns.load_dataset("flights")
+per_year = flights.groupby("year")["passengers"].sum()
+
+p = figure(
+    title="Airline Passengers per Year",
+    x_axis_label="Year",
+    y_axis_label="Passengers",
+    height=350,
+)
+p.line(per_year.index.tolist(), per_year.tolist(), line_width=2)
+
+maidr.show(p)  #<<
+```
+
+### Multi-Line Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Three lines comparing monthly passengers in 1949, 1954 and 1960
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+flights = sns.load_dataset("flights")
+
+p = figure(
+    title="Monthly Passengers in Three Years",
+    x_axis_label="Month",
+    y_axis_label="Passengers",
+    height=350,
+)
+for year, color in [(1949, "#4c72b0"), (1954, "#55a868"), (1960, "#c44e52")]:
+    rows = flights[flights["year"] == year]
+    p.line(
+        list(range(1, 13)), rows["passengers"].tolist(),
+        line_width=2, color=color, legend_label=str(year),
+    )
+p.legend.title = "Year"
+p.legend.location = "top_left"
+
+maidr.show(p)  #<<
+```
+
+Every `line` on a figure becomes one series of one line layer, named by its
+legend label; press the up and down arrows to move between them.
+
+### Step Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Step chart of the largest single bill seen so far by table
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+tips = sns.load_dataset("tips").head(20)
+running_max = tips["total_bill"].cummax()
+
+p = figure(
+    title="Largest Bill So Far",
+    x_axis_label="Table",
+    y_axis_label="Total Bill ($)",
+    height=350,
+)
+p.step(list(range(1, 21)), running_max.tolist(), mode="after", line_width=2)
+
+maidr.show(p)  #<<
+```
+
+### Scatter Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Scatter plot of penguin bill length against bill depth
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins").dropna()
+
+p = figure(
+    title="Bill Length vs Bill Depth",
+    x_axis_label="Bill Length (mm)",
+    y_axis_label="Bill Depth (mm)",
+    height=350,
+)
+p.scatter(
+    penguins["bill_length_mm"].tolist(), penguins["bill_depth_mm"].tolist(),
+    size=6, alpha=0.7,
+)
+
+maidr.show(p)  #<<
+```
+
+### Heatmap
+
+```{python}
+#| warning: false
+#| fig-alt: Heatmap of airline passengers by month and year
+
+import seaborn as sns
+from bokeh.plotting import figure
+from bokeh.transform import linear_cmap
+
+import maidr  #<<
+
+flights = sns.load_dataset("flights")
+flights["year"] = flights["year"].astype(str)
+flights["month"] = flights["month"].astype(str)
+years = sorted(flights["year"].unique())
+months = flights["month"].unique().tolist()[::-1]
+
+p = figure(
+    x_range=years,
+    y_range=months,
+    title="Airline Passengers by Month and Year",
+    x_axis_label="Year",
+    y_axis_label="Month",
+    height=450,
+)
+cells = p.rect(
+    x="year", y="month", width=1, height=1, source=flights, line_color=None,
+    fill_color=linear_cmap(
+        "passengers", "Viridis256",
+        flights["passengers"].min(), flights["passengers"].max(),
+    ),
+)
+p.add_layout(cells.construct_color_bar(title="Passengers"), "right")
+
+maidr.show(p)  #<<
+```
+
+### Stacked Area Plot [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Stacked area chart of monthly passengers in 1958, 1959 and 1960
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+flights = sns.load_dataset("flights")
+wide = flights.pivot(index="month", columns="year", values="passengers")
+source = {
+    "month": list(range(1, 13)),
+    "1958": wide[1958].tolist(),
+    "1959": wide[1959].tolist(),
+    "1960": wide[1960].tolist(),
+}
+
+p = figure(
+    title="Monthly Passengers, 1958 to 1960",
+    x_axis_label="Month",
+    y_axis_label="Passengers",
+    height=350,
+)
+p.varea_stack(
+    ["1958", "1959", "1960"],
+    x="month",
+    source=source,
+    color=["#4c72b0", "#55a868", "#c44e52"],
+    legend_label=["1958", "1959", "1960"],
+)
+p.legend.location = "top_left"
+
+maidr.show(p)  #<<
+```
+
+### Multi-Panel Layout (gridplot)
+
+```{python}
+#| warning: false
+#| fig-alt: Two panels side by side, a bar chart of penguins per species and a line of passengers per year
+
+import seaborn as sns
+from bokeh.layouts import gridplot
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins")
+flights = sns.load_dataset("flights")
+counts = penguins["species"].value_counts().sort_index()
+per_year = flights.groupby("year")["passengers"].sum()
+
+left = figure(
+    x_range=counts.index.tolist(), title="Penguins per Species",
+    x_axis_label="Species", y_axis_label="Penguins", width=350, height=300,
+)
+left.vbar(x=counts.index.tolist(), top=counts.tolist(), width=0.8)
+
+right = figure(
+    title="Passengers per Year", x_axis_label="Year",
+    y_axis_label="Passengers", width=350, height=300,
+)
+right.line(per_year.index.tolist(), per_year.tolist(), line_width=2)
+
+maidr.show(gridplot([[left, right]]))  #<<
+```
+
+Each figure of a `gridplot`, `row` or `column` is a subplot. Press
+<kbd>Enter</kbd> to go into one, <kbd>Escape</kbd> to come back out, and the
+arrow keys between them, in the directions they are laid out on the page. A
+figure with nothing **maidr** can read is left out of the grid.
+
+## Saving and embedding
+
+`maidr.save_html(p, "chart.html")` writes the same page to a file.
+`use_cdn` decides where `maidr.js` comes from, exactly as for matplotlib and
+Plotly; BokehJS itself is always loaded from Bokeh's CDN at the version you
+have installed, as plotly.js is from Plotly's, so opening the page needs a
+network connection either way.

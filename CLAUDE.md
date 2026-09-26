@@ -68,6 +68,12 @@ explicit `{#id}`; `tests/docs/test_experimental_marks.py` checks the headings.
 Note that `maidr/plotly/` builds its MAIDR schema in Python and therefore needs its own
 handling per plot type, whereas `maidr/altair/` delegates entirely to the upstream
 Vega-Lite JS adapter -- an Altair-only plot type is implemented there, not here.
+`maidr/bokeh/` (experimental, `docs/stability.qmd#bokeh-support`) also builds its
+schema in Python, from the Bokeh document model (`layers.py` maps glyphs to layer
+types, `layout.py` places plots on the subplot grid). Bokeh draws to a canvas, so
+its highlight is an `onNavigate` callback handed to `maidr.js` through
+`window.maidrLive.setData` rather than CSS selectors; see `bokeh_maidr.py`. The
+`maidr.js` loader both it and Plotly use lives in `maidr/util/bundle_loader.py`.
 
 ### Canonical `axes` Payload
 
@@ -100,6 +106,6 @@ Tests live in `tests/` using pytest + pytest-mock. Test fixtures in `tests/fixtu
 
 `tests/docs/test_gallery_examples.py` executes every `{python}` chunk of the
 gallery pages (`docs/examples/*.qmd`, `docs/examples-plotly.qmd`,
-`docs/examples-altair.qmd`) and pins the layer types each section emits, plus
-the measured claims the prose makes. Adding or changing a gallery example means
+`docs/examples-bokeh.qmd`, `docs/examples-altair.qmd`) and pins the layer types
+each section emits, plus the measured claims the prose makes. Adding or changing a gallery example means
 updating its `EXPECTED_LAYERS` entry there.

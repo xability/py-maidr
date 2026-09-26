@@ -9,7 +9,7 @@ open-graph:
   title: "py-maidr: Accessible Data Visualization for Python"
 twitter-card:
   title: "py-maidr: Accessible Data Visualization for Python"
-description: "Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR."
+description: "Make matplotlib, seaborn, Plotly, Bokeh, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR."
 jupyter: python3
 # aliases:
   # - ../index.html
@@ -127,7 +127,7 @@ include-in-header:
 _maidr: Data Insight for All_
 </div>
 
-**py-maidr** (PyPI package `maidr`, pronounced "mader") is a Python library that makes **matplotlib**, **seaborn**, **Plotly**, and **Altair** charts accessible to blind and low-vision users. After `import maidr`, `plt.show()` renders an interactive chart that can be explored by keyboard and read as _touchable_ (braille), _readable_ (text), _audible_ (sonification), and _conversational_ (AI chat) representations; `maidr.save_html()` exports the same chart as a standalone HTML file. py-maidr is the Python binding of [MAIDR](https://maidr.ai/), the Multimodal Access and Interactive Data Representation engine developed by the [(x)Ability Design Lab](https://xabilitylab.ischool.illinois.edu/) at the University of Illinois Urbana-Champaign; a sibling package, [maidr for R](https://r.maidr.ai/), brings the same accessibility layer to ggplot2 and base R graphics.
+**py-maidr** (PyPI package `maidr`, pronounced "mader") is a Python library that makes **matplotlib**, **seaborn**, **Plotly**, **Bokeh**, and **Altair** charts accessible to blind and low-vision users. After `import maidr`, `plt.show()` renders an interactive chart that can be explored by keyboard and read as _touchable_ (braille), _readable_ (text), _audible_ (sonification), and _conversational_ (AI chat) representations; `maidr.save_html()` exports the same chart as a standalone HTML file. py-maidr is the Python binding of [MAIDR](https://maidr.ai/), the Multimodal Access and Interactive Data Representation engine developed by the [(x)Ability Design Lab](https://xabilitylab.ischool.illinois.edu/) at the University of Illinois Urbana-Champaign; a sibling package, [maidr for R](https://r.maidr.ai/), brings the same accessibility layer to ggplot2 and base R graphics.
 
 The following summarizes the key features and design principles of py-maidr:
 
@@ -297,6 +297,42 @@ change without a deprecation period; a type with no mark is stable. See
 and the [Plotly gallery](examples-plotly.qmd#sec-plotly-examples) for runnable
 examples.
 :::
+
+### Bokeh [experimental]
+
+py-maidr ships a [Bokeh](https://bokeh.org/) adapter that, like the Plotly
+one, builds a MAIDR schema in Python from the figure's own renderers and data
+sources. Use `maidr.show(p)` (or `maidr.render(p)`, `maidr.save_html(p, ...)`)
+with a `figure`, a `gridplot`, or a `row`/`column` of figures; install it with
+`pip install "maidr[bokeh]"`. Bokeh support as a whole is **experimental**,
+whichever plot type is drawn: see [Plot Type Stability](stability.qmd#bokeh-support).
+
+* One-factor bar plot (`vbar`, `hbar`), read in the order its `FactorRange` draws the bars.
+
+* Stacked bar plot (`vbar_stack`, `hbar_stack`), each segment announced as its own value.
+
+* Dodged (grouped) bar plot — `vbar` renderers placed with `dodge()`, or one `vbar` on a nested `FactorRange`.
+
+* Histogram (`quad`), vertical or sideways.
+
+* Single line plot and multi-line plot (`line`, `multi_line`): every line on a figure is one series of one layer, named by its legend label.
+
+* Step plot (`step`), with `mode` announced as the step direction.
+
+* Scatter plot (`scatter`, `circle`).
+
+* Heatmap (`rect` coloured through a colour mapper) having one x (categorical) and one y (categorical) and z (numerical) axis, named by its colour bar's title.
+
+* Area [experimental] and stacked area [experimental] plots (`varea`, `varea_stack`).
+
+* Multi-panel layouts (`gridplot`, `row`, `column`, `GridBox`); a `Tabs` layout is read one panel at a time, the active one.
+
+Bokeh draws to a canvas, so the mark being read is highlighted inside the Bokeh
+plot itself: a bar, bin, cell or point is selected, and a line, step or area
+shows a ring on the current point. Other glyphs are left out with a warning
+naming them. BokehJS is always loaded from Bokeh's CDN, as plotly.js is from
+Plotly's; `use_cdn` decides where `maidr.js` comes from. See the
+[Bokeh gallery](examples-bokeh.qmd#sec-bokeh-examples) for runnable examples.
 
 ### Altair
 
@@ -942,7 +978,7 @@ are done.
 py-maidr is one of three packages that share the MAIDR engine. Each is maintained by the (x)Ability Design Lab and documented on its own site:
 
 - [MAIDR JavaScript core](https://maidr.ai/): the TypeScript engine that provides the keyboard model, sonification, braille, text and AI chat, published on npm as `maidr`. py-maidr bundles it and loads it from the CDN.
-- [py-maidr for Python](https://py.maidr.ai/): this package, for matplotlib, seaborn, Plotly, and Altair (PyPI package `maidr`, source on [GitHub](https://github.com/xability/py-maidr)).
+- [py-maidr for Python](https://py.maidr.ai/): this package, for matplotlib, seaborn, Plotly, Bokeh, and Altair (PyPI package `maidr`, source on [GitHub](https://github.com/xability/py-maidr)).
 - [maidr for R](https://r.maidr.ai/): the R package for ggplot2 and base graphics, published on CRAN as `maidr`.
 
 ## Cite py-maidr
