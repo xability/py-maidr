@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import matplotlib.pyplot as plt
 import wrapt
 from matplotlib.axes import Axes
@@ -236,5 +238,9 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
 # Patch matplotlib function.
 wrapt.wrap_function_wrapper(Axes, "plot", line)
 
-# Patch seaborn function.
-wrap_seaborn("lineplot", line)
+
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn function.
+    wrap_seaborn("lineplot", line)

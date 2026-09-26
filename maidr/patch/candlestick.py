@@ -1,7 +1,6 @@
 import wrapt
 from typing import Any, Callable, Dict, Tuple
 from matplotlib.patches import Rectangle
-from mplfinance import original_flavor
 import numpy as np
 
 from maidr.core.context_manager import ContextManager
@@ -81,4 +80,9 @@ def candlestick(
     return plot
 
 
-wrapt.wrap_function_wrapper(original_flavor, "_candlestick", candlestick)
+# Applied once `mplfinance.original_flavor` is imported rather than importing it
+# here, which would load pandas on every `import maidr`; see
+# `maidr/patch/mplfinance.py`.
+@wrapt.when_imported("mplfinance.original_flavor")
+def _patch_original_flavor(original_flavor: Any) -> None:
+    wrapt.wrap_function_wrapper(original_flavor, "_candlestick", candlestick)

@@ -84,8 +84,8 @@ def _patch_default_color() -> None:
     The identity check is what makes the sweep safe: a name that no longer
     resolves to the same object is left alone rather than wrapped by guess.
 
-    The sweep is a snapshot of ``sys.modules`` taken once, at ``import
-    maidr``, and it assumes ``seaborn/__init__.py`` has already pulled in
+    The sweep is a snapshot of ``sys.modules`` taken once, when seaborn is
+    imported (or at ``import maidr``, if seaborn already was), and it assumes ``seaborn/__init__.py`` has already pulled in
     every module that binds the probe -- which it has, since it does
     ``from .categorical import *`` and the same for the other two. A seaborn
     that imported its submodules lazily would leave a binding unwrapped and
@@ -116,4 +116,7 @@ def _patch_default_color() -> None:
             )
 
 
-_patch_default_color()
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    _patch_default_color()

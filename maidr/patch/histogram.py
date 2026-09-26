@@ -977,14 +977,18 @@ def sns_distribution_hist(wrapped, instance, args, kwargs) -> Any:
     return drawn
 
 
-# Patch seaborn function at both names it answers to; see `wrap_seaborn`.
-wrap_seaborn("histplot", sns_hist)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn function at both names it answers to; see `wrap_seaborn`.
+    wrap_seaborn("histplot", sns_hist)
 
-# And the plotter class beneath them, which is the only thing `displot`
-# drives. Wrapped by module path rather than by importing the private class,
-# matching how `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
-wrapt.wrap_function_wrapper(
-    "seaborn.distributions",
-    "_DistributionPlotter.plot_univariate_histogram",
-    sns_distribution_hist,
-)
+    # And the plotter class beneath them, which is the only thing `displot`
+    # drives. Wrapped by module path rather than by importing the private
+    # class, matching how `maidr/patch/boxplot.py` reaches
+    # `_CategoricalPlotter`.
+    wrapt.wrap_function_wrapper(
+        "seaborn.distributions",
+        "_DistributionPlotter.plot_univariate_histogram",
+        sns_distribution_hist,
+    )

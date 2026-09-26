@@ -541,15 +541,19 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
 wrapt.wrap_function_wrapper(Axes, "bar", bar)
 wrapt.wrap_function_wrapper(Axes, "barh", bar)
 
-# Patch seaborn functions.
-wrap_seaborn("barplot", sns_bar)
-wrap_seaborn("countplot", sns_bar)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn functions.
+    wrap_seaborn("barplot", sns_bar)
+    wrap_seaborn("countplot", sns_bar)
 
-# And the plotter method beneath both of them, which is the only thing
-# `catplot` drives. Wrapped by module path rather than by importing the private
-# class, matching how `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
-wrapt.wrap_function_wrapper(
-    "seaborn.categorical",
-    "_CategoricalPlotter.plot_bars",
-    sns_categorical_bars,
-)
+    # And the plotter method beneath both of them, which is the only thing
+    # `catplot` drives. Wrapped by module path rather than by importing the
+    # private class, matching how `maidr/patch/boxplot.py` reaches
+    # `_CategoricalPlotter`.
+    wrapt.wrap_function_wrapper(
+        "seaborn.categorical",
+        "_CategoricalPlotter.plot_bars",
+        sns_categorical_bars,
+    )

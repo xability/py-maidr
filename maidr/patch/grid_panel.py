@@ -171,12 +171,15 @@ def _after(name: Callable[[Any], None]) -> Callable:
     return wrapper
 
 
-wrapt.wrap_function_wrapper(
-    "seaborn.axisgrid", "PairGrid.__init__", _after(_name_pair_cells)
-)
-wrapt.wrap_function_wrapper(
-    "seaborn.axisgrid", "PairGrid.map_diag", _after(_name_diagonal)
-)
-wrapt.wrap_function_wrapper(
-    "seaborn.axisgrid", "JointGrid.__init__", _after(_name_joint_panels)
-)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    wrapt.wrap_function_wrapper(
+        "seaborn.axisgrid", "PairGrid.__init__", _after(_name_pair_cells)
+    )
+    wrapt.wrap_function_wrapper(
+        "seaborn.axisgrid", "PairGrid.map_diag", _after(_name_diagonal)
+    )
+    wrapt.wrap_function_wrapper(
+        "seaborn.axisgrid", "JointGrid.__init__", _after(_name_joint_panels)
+    )

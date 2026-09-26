@@ -6,7 +6,6 @@ from collections import defaultdict
 
 import numpy as np
 from matplotlib.axes import Axes
-from scipy import interpolate
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
@@ -252,6 +251,10 @@ class ViolinKdePlot(MaidrPlot):
         x_label: str | None,
         is_horz: bool = False,
     ) -> list[dict]:
+        # Imported here rather than at module level: `scipy.interpolate` is
+        # ~0.3 s, and this module is loaded by every `import maidr`.
+        from scipy import interpolate
+
         left_x, left_y = np.array([p[0] for p in left]), np.array([p[1] for p in left])
         right_x, right_y = (
             np.array([p[0] for p in right]),

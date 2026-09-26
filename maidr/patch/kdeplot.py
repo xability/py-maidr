@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import numpy as np
 import wrapt
@@ -403,13 +404,16 @@ def sns_distribution_density(wrapped, instance, args, kwargs):
     return drawn
 
 
-# Patch seaborn kdeplot
-wrap_seaborn("kdeplot", kde)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn kdeplot
+    wrap_seaborn("kdeplot", kde)
 
-# And the plotter method beneath it, which is the only thing `displot`
-# drives; see `sns_distribution_density`.
-wrapt.wrap_function_wrapper(
-    "seaborn.distributions",
-    "_DistributionPlotter.plot_univariate_density",
-    sns_distribution_density,
-)
+    # And the plotter method beneath it, which is the only thing `displot`
+    # drives; see `sns_distribution_density`.
+    wrapt.wrap_function_wrapper(
+        "seaborn.distributions",
+        "_DistributionPlotter.plot_univariate_density",
+        sns_distribution_density,
+    )

@@ -15,10 +15,9 @@ rather than how the caller happened to spell it; see
 from __future__ import annotations
 
 import uuid
-from typing import Any, Callable, Collection
+from typing import TYPE_CHECKING, Any, Callable, Collection
 
 import numpy as np
-import pandas as pd
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.collections import PolyCollection
@@ -38,6 +37,9 @@ from maidr.patch.common import (
     wrap_seaborn,
 )
 from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 # ======================================================================
@@ -88,10 +90,6 @@ def patch_violinplot(
     return _draw_quietly(wrapped, args, kwargs)
 
 
-# Patch seaborn function.
-wrap_seaborn("violinplot", patch_violinplot)
-
-
 def _levels(declared: Any, column: pd.Series) -> list:
     """
     The categories of one variable, in the order seaborn drew them.
@@ -119,6 +117,11 @@ def _levels(declared: Any, column: pd.Series) -> list:
     """
     if declared is not None and len(declared):
         return list(declared)
+
+    # Imported here rather than at module level, so that `import maidr` does
+    # not load pandas; only seaborn reaches this, and seaborn has loaded it.
+    import pandas as pd
+
     return list(pd.unique(column.dropna()))
 
 
@@ -338,14 +341,21 @@ def sns_categorical_violins(
     return drawn
 
 
-# And the plotter method beneath `seaborn.violinplot`, which is the only thing
-# `catplot` drives. Wrapped by module path rather than by importing the private
-# class, matching how `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
-wrapt.wrap_function_wrapper(
-    "seaborn.categorical",
-    "_CategoricalPlotter.plot_violins",
-    sns_categorical_violins,
-)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn function.
+    wrap_seaborn("violinplot", patch_violinplot)
+
+    # And the plotter method beneath `seaborn.violinplot`, which is the only
+    # thing `catplot` drives. Wrapped by module path rather than by importing
+    # the private class, matching how `maidr/patch/boxplot.py` reaches
+    # `_CategoricalPlotter`.
+    wrapt.wrap_function_wrapper(
+        "seaborn.categorical",
+        "_CategoricalPlotter.plot_violins",
+        sns_categorical_violins,
+    )
 
 
 # ======================================================================

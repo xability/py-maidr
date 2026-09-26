@@ -1,7 +1,11 @@
-import pandas as pd
+from __future__ import annotations
+
 import numpy as np
-from typing import Optional, Dict, Any, List, Tuple
+from typing import TYPE_CHECKING, Optional, Dict, Any, List, Tuple
 from datetime import datetime
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class DatetimeConverter:
@@ -82,6 +86,10 @@ class DatetimeConverter:
         The converter automatically detects the time period of the data based on
         average time differences between consecutive data points.
         """
+        # Imported here rather than at module level, so that `import maidr`
+        # does not load pandas; mplfinance has loaded it by now anyway.
+        import pandas as pd
+
         self.data = data
         self.datetime_format = datetime_format
 
@@ -373,6 +381,8 @@ class DatetimeConverter:
         # ``errors="coerce"`` turns a value that is not a number into NaN, and
         # ``isfinite`` drops NaN and infinity alike: ``json.dumps`` would write
         # either as a bare token that ``JSON.parse`` rejects.
+        import pandas as pd
+
         volumes = pd.to_numeric(self.data["Volume"], errors="coerce").to_numpy(
             dtype=float
         )

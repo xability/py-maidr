@@ -68,9 +68,6 @@ def boxen(
     return _draw_quietly(wrapped, args, kwargs)
 
 
-wrap_seaborn("boxenplot", boxen)
-
-
 def sns_categorical_boxens(
     wrapped: Callable, instance: Any, args: tuple, kwargs: dict
 ) -> Any:
@@ -143,11 +140,17 @@ def sns_categorical_boxens(
     return drawn
 
 
-# And the plotter method beneath `seaborn.boxenplot`, which is the only thing
-# `catplot` drives. Wrapped by module path rather than by importing the private
-# class, matching how `maidr/patch/boxplot.py` reaches `_CategoricalPlotter`.
-wrapt.wrap_function_wrapper(
-    "seaborn.categorical",
-    "_CategoricalPlotter.plot_boxens",
-    sns_categorical_boxens,
-)
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    wrap_seaborn("boxenplot", boxen)
+
+    # And the plotter method beneath `seaborn.boxenplot`, which is the only
+    # thing `catplot` drives. Wrapped by module path rather than by importing
+    # the private class, matching how `maidr/patch/boxplot.py` reaches
+    # `_CategoricalPlotter`.
+    wrapt.wrap_function_wrapper(
+        "seaborn.categorical",
+        "_CategoricalPlotter.plot_boxens",
+        sns_categorical_boxens,
+    )

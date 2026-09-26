@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable
 
 import wrapt
 from matplotlib.axes import Axes
@@ -112,10 +112,6 @@ def sns_box(wrapped, _, args, kwargs) -> Axes:
     return plot
 
 
-# Patch seaborn function.
-wrap_seaborn("boxplot", sns_box)
-
-
 def sns_infer_new_orient(wrapped, instance, args, kwargs) -> str:
     if BoxplotContextManager.is_internal_context():
         orientation = instance.orient
@@ -154,4 +150,9 @@ def patch_seaborn():
     )
 
 
-patch_seaborn()
+@wrapt.when_imported("seaborn")
+def _patch_seaborn(_seaborn: Any) -> None:
+    """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
+    # Patch seaborn function.
+    wrap_seaborn("boxplot", sns_box)
+    patch_seaborn()
