@@ -204,6 +204,54 @@ class TestSegmentedBars:
             {"x": "Pears", "z": "2015", "y": 1},
         ]
 
+    def test_dodged_stacks_are_one_stacked_layer_each(self):
+        # Two ``vbar_stack`` calls dodged side by side draw two stacks per
+        # category; read as one, the core would announce a total of all four
+        # segments that no bar is drawn at.
+        source = ColumnDataSource(
+            {"fruits": self.FRUITS, "a": [1, 2], "b": [4, 5], "c": [7, 8], "d": [1, 1]}
+        )
+        p = figure(x_range=self.FRUITS)
+        p.vbar_stack(
+            ["c", "d"], x=dodge("fruits", 0.2, range=p.x_range), width=0.3,
+            source=source, legend_label=["c", "d"],
+        )
+        p.vbar_stack(
+            ["a", "b"], x=dodge("fruits", -0.2, range=p.x_range), width=0.3,
+            source=source, legend_label=["a", "b"],
+        )
+
+        layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["stacked_bar"] * 2
+        assert [[row_[0]["z"] for row_ in layer["data"]] for layer in layers] == [
+            ["c", "d"],
+            ["a", "b"],
+        ]
+        assert layers[1]["data"][1] == [
+            {"x": "Apples", "z": "b", "y": 4.0},
+            {"x": "Pears", "z": "b", "y": 5.0},
+        ]
+
+    def test_categorical_offsets_are_a_dodged_bar_not_nested_factors(self):
+        # ``("a", -0.2)`` is the factor ``a`` drawn 0.2 to its left: a
+        # hand-dodged group, whose offset is placement and not a name.
+        p = figure(x_range=["a", "b"])
+        p.vbar(
+            x=[("a", 0.2), ("b", 0.2)], top=[3, 4], width=0.3, legend_label="2016"
+        )
+        p.vbar(
+            x=[("a", -0.2), ("b", -0.2)], top=[1, 2], width=0.3, legend_label="2015"
+        )
+
+        layer = _only(p)
+
+        assert layer["type"] == "dodged_bar"
+        assert layer["data"] == [
+            [{"x": "a", "z": "2015", "y": 1}, {"x": "b", "z": "2015", "y": 2}],
+            [{"x": "a", "z": "2016", "y": 3}, {"x": "b", "z": "2016", "y": 4}],
+        ]
+
     def test_nested_factors_are_a_dodged_bar(self):
         factors = [(f, y) for f in self.FRUITS for y in ["2015", "2016"]]
         p = figure(x_range=FactorRange(*factors))

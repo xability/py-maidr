@@ -244,7 +244,7 @@ class PlotReader:
 
     def _group_key(self, renderer: Any) -> tuple | None:
         """Which layer a renderer belongs to, or ``None`` if unsupported."""
-        from bokeh.models import CumSum, Dodge, Stack
+        from bokeh.models import CumSum, Stack
 
         glyph = renderer.glyph
         name = type(glyph).__name__
@@ -252,16 +252,21 @@ class PlotReader:
             value_prop, position_prop = (
                 ("top", "x") if name == "VBar" else ("right", "y")
             )
+            ranges = (renderer.x_range_name, renderer.y_range_name)
+            offset = _offset(renderer, position_prop)
             if isinstance(spec_expression(glyph, value_prop), (Stack, CumSum)):
-                return ("stacked", name, renderer.x_range_name, renderer.y_range_name)
-            if isinstance(spec_transform(glyph, position_prop), Dodge):
-                return ("dodged", name, renderer.x_range_name, renderer.y_range_name)
+                # Each ``vbar_stack`` call is one stack; two of them dodged
+                # side by side are two stacks, and read as one they would be
+                # announced a total no bar is drawn at.
+                return ("stacked", name, *ranges, offset)
+            if offset is not None:
+                return ("dodged", name, *ranges)
             data = renderer.data_source.data
             try:
                 positions = resolve(glyph, position_prop, data)
             except UnreadableSpec:
                 positions = []
-            if any(isinstance(p, (list, tuple)) and len(p) > 1 for p in positions):
+            if any(_is_nested(_split_offset(p)[0]) for p in positions):
                 return ("nested", renderer.id)
             return ("bar", renderer.id)
         if name == "Quad":
@@ -310,7 +315,7 @@ class PlotReader:
         lows = resolve(glyph, low_prop, data)
         bars = []
         for index in visible_indices(renderer, source_length(data)):
-            position = positions[index]
+            position = _split_offset(positions[index])[0]
             if is_missing(position):
                 continue
             bars.append((position, _extent(lows[index], highs[index]), index))
@@ -399,12 +404,25 @@ class PlotReader:
         return self._segmented(renderers, PlotType.STACKED)
 
     def _dodged(self, renderers: list) -> BokehLayer | None:
-        # Left to right, the way the groups are drawn: ``dodge()`` offsets
-        # are what place them, whatever order the renderers were added in.
+        """
+        Bars placed side by side by an offset, read as a dodged group.
+
+        Left to right, the way the groups are drawn: the offsets -- given by
+        ``dodge()`` or spelled into the coordinates as ``("a", -0.2)`` --
+        are what place them, whatever order the renderers were added in.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The offset ``vbar`` or ``hbar`` renderers of one plot.
+
+        Returns
+        -------
+        BokehLayer or None
+            The ``dodged_bar`` layer, or ``None`` when nothing is drawn.
+        """
         prop = "y" if type(renderers[0].glyph).__name__ == "HBar" else "x"
-        ordered = sorted(
-            renderers, key=lambda r: getattr(spec_transform(r.glyph, prop), "value", 0)
-        )
+        ordered = sorted(renderers, key=lambda r: _offset(r, prop) or 0.0)
         return self._segmented(ordered, PlotType.DODGED)
 
     def _nested(self, renderers: list) -> BokehLayer | None:
@@ -844,6 +862,82 @@ def _color_mapper(glyph: Any) -> Any:
 
     transform = spec_transform(glyph, "fill_color")
     return transform if isinstance(transform, ColorMapper) else None
+
+
+def _split_offset(position: Any) -> tuple[Any, float | None]:
+    """
+    A bar's category, apart from the numeric offset Bokeh lets it carry.
+
+    Bokeh places a mark off a factor's centre when its coordinate ends in a
+    number: ``("a", -0.2)`` is ``a`` shifted left, and ``("a", "x", 0.1)``
+    the nested factor ``("a", "x")`` shifted right. That offset is how the
+    mark is placed, not part of what it is.
+
+    Parameters
+    ----------
+    position : Any
+        One coordinate read from the source.
+
+    Returns
+    -------
+    tuple of (Any, float or None)
+        The factor, and the offset, or ``None`` when there is none.
+    """
+    if isinstance(position, (list, tuple)) and len(position) > 1:
+        last = position[-1]
+        if isinstance(last, Number) and not isinstance(last, bool):
+            rest = tuple(position[:-1])
+            return (rest[0] if len(rest) == 1 else rest), float(last)
+    return position, None
+
+
+def _is_nested(position: Any) -> bool:
+    """
+    Whether a coordinate is a nested factor such as ``("Apples", "2015")``.
+
+    Parameters
+    ----------
+    position : Any
+        One coordinate, its offset already removed.
+
+    Returns
+    -------
+    bool
+        True for a tuple or list of more than one level.
+    """
+    return isinstance(position, (list, tuple)) and len(position) > 1
+
+
+def _offset(renderer: Any, prop: str) -> float | None:
+    """
+    How far a bar renderer is shifted off its categories, if at all.
+
+    Parameters
+    ----------
+    renderer : bokeh.models.GlyphRenderer
+        A ``vbar`` or ``hbar`` renderer.
+    prop : str
+        Its category property, ``"x"`` or ``"y"``.
+
+    Returns
+    -------
+    float or None
+        The ``dodge()`` value, else the offset its first drawn coordinate
+        carries, else ``None``.
+    """
+    from bokeh.models import Dodge
+
+    transform = spec_transform(renderer.glyph, prop)
+    if isinstance(transform, Dodge):
+        return float(transform.value)
+    try:
+        positions = resolve(renderer.glyph, prop, renderer.data_source.data)
+    except UnreadableSpec:
+        return None
+    for position in positions:
+        if not is_missing(position):
+            return _split_offset(position)[1]
+    return None
 
 
 def _color_bar_title(plot: Any, mapper: Any) -> str | None:
