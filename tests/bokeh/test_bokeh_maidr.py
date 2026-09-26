@@ -140,6 +140,30 @@ class TestPage:
 
         assert "</script><b>" not in html
 
+    def test_a_title_cannot_open_a_comment_that_swallows_the_end_tag(self):
+        # ``<!--<script>`` puts the tokenizer in a state where the real
+        # ``</script>`` no longer ends the element.
+        p = figure(x_range=["a"], title="<!--<script>")
+        p.vbar(x=["a"], top=[1], width=0.5)
+
+        html = _html(p)
+
+        assert "<!--" not in html
+        assert _script_value(html, "schema")["subplots"][0][0]["layers"][0][
+            "title"
+        ] == "<!--<script>"
+
+    @pytest.mark.parametrize("title", ["Sales __LOADER__", "Wait __WAIT_MS__"])
+    def test_a_title_naming_a_placeholder_is_left_as_written(self, title):
+        p = figure(x_range=["a"], title=title)
+        p.vbar(x=["a"], top=[1], width=0.5)
+
+        html = _html(p, use_cdn=True)
+
+        layer = _script_value(html, "schema")["subplots"][0][0]["layers"][0]
+        assert layer["title"] == title
+        assert title in json.dumps(_script_value(html, "item"))
+
     def test_a_notebook_render_is_an_iframe_reading_the_parent_stash(self, bar):
         with mock.patch.object(Environment, "is_notebook", return_value=True):
             tag = BokehMaidr(bar)._create_html_tag(use_iframe=True, use_cdn=False)

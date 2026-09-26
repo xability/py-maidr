@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 import uuid
 import webbrowser
@@ -92,15 +93,30 @@ def _script_json(value: Any) -> str:
     """
     Serialize ``value`` for a JS literal inside an HTML ``<script>``.
 
-    ``</`` is escaped so a title reading ``</script>`` cannot end the
-    element, and U+2028/U+2029 because JSON allows them where a JS string
-    literal did not until ES2019.
+    ``<``, ``>`` and ``&`` are written as JSON ``\\u`` escapes, as Jinja's
+    ``htmlsafe_json_dumps`` writes them, so no text the caller supplies -- a
+    title reading ``</script>``, or ``<!--<script>``, which would otherwise
+    put the HTML parser in a state where the real end tag no longer closes
+    the element -- can be read as markup. U+2028/U+2029 are escaped because
+    JSON allows them where a JS string literal did not until ES2019.
+
+    Parameters
+    ----------
+    value : Any
+        A JSON-serializable value.
+
+    Returns
+    -------
+    str
+        The JSON, with no character the HTML tokenizer acts on.
     """
     return (
         json.dumps(value, ensure_ascii=False)
-        .replace("</", "<\\/")
-        .replace(" ", "\\u2028")
-        .replace(" ", "\\u2029")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
     )
 
 
@@ -440,16 +456,19 @@ class BokehMaidr:
         str
             The script, as an immediately invoked function.
         """
-        loader = maidr_loader_js(use_cdn, iframe_in_notebook=iframe_in_notebook)
-        return (
-            _INIT_TEMPLATE.replace("__ITEM__", _script_json(item))
-            .replace("__SCHEMA__", _script_json(schema))
-            .replace("__HIGHLIGHT__", _script_json(highlight))
-            .replace("__WRAPPER__", _script_json(wrapper_id))
-            .replace("__TARGET__", _script_json(target_id))
-            .replace("__WAIT_MS__", str(_WAIT_MS))
-            .replace("__LOADER__", loader)
-        )
+        values = {
+            "ITEM": _script_json(item),
+            "SCHEMA": _script_json(schema),
+            "HIGHLIGHT": _script_json(highlight),
+            "WRAPPER": _script_json(wrapper_id),
+            "TARGET": _script_json(target_id),
+            "WAIT_MS": str(_WAIT_MS),
+            "LOADER": maidr_loader_js(use_cdn, iframe_in_notebook=iframe_in_notebook),
+        }
+        # One pass, so a value is never scanned for placeholders itself: the
+        # item and schema carry the caller's text, and a title reading
+        # ``__LOADER__`` must stay a title.
+        return _PLACEHOLDER.sub(lambda match: values[match.group(1)], _INIT_TEMPLATE)
 
     def _create_html_tag(
         self,
@@ -556,6 +575,9 @@ def _document_left_as_found(model: Any) -> Iterator[None]:
         if owner is None and model.document is not None:
             model.document.remove_root(model)
 
+
+#: The placeholders :data:`_INIT_TEMPLATE` is filled in at.
+_PLACEHOLDER = re.compile(r"__(ITEM|SCHEMA|HIGHLIGHT|WRAPPER|TARGET|WAIT_MS|LOADER)__")
 
 #: The page script. Built by placeholder replacement rather than as an
 #: f-string, for the reason ``maidr.util.bundle_loader._parent_source``
