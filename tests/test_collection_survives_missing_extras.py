@@ -111,6 +111,11 @@ def _skipped_modules(output: str) -> set[str]:
             {"test_plotly_maidr.py", "test_plotly_plots.py"},
             "tests/core/test_figure_manager.py::",
         ),
+        (
+            "bokeh",
+            {"test_bokeh_maidr.py", "test_bokeh_schema.py"},
+            "tests/core/test_bokeh_probe_is_lazy.py::",
+        ),
     ],
 )
 def test_collection_survives_a_missing_extra(

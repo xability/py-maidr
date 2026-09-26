@@ -39,6 +39,45 @@ def _is_altair_chart(plot: Any) -> bool:
         return False
 
 
+def _is_bokeh_model(plot: Any) -> bool:
+    """Check if the plot is a Bokeh figure or layout, without importing Bokeh.
+
+    Parameters
+    ----------
+    plot : Any
+        The object to check.
+
+    Returns
+    -------
+    bool
+        ``True`` for a Bokeh ``LayoutDOM`` -- a ``figure``, ``gridplot``,
+        ``row``/``column``, ``GridBox`` or ``Tabs`` -- and ``False``
+        otherwise, including when Bokeh is not installed or not loaded.
+    """
+    from maidr.bokeh.utils import is_bokeh_model
+
+    return is_bokeh_model(plot)
+
+
+def _get_bokeh_maidr(model: Any) -> Any:
+    """
+    Create a BokehMaidr instance from a Bokeh plot or layout.
+
+    Parameters
+    ----------
+    model : bokeh.models.LayoutDOM
+        The Bokeh figure or layout.
+
+    Returns
+    -------
+    BokehMaidr
+        The BokehMaidr instance for the given model.
+    """
+    from maidr.bokeh.bokeh_maidr import BokehMaidr
+
+    return BokehMaidr(model)
+
+
 # ---------------------------------------------------------------------------
 # Module-level default for ``use_cdn``
 # ---------------------------------------------------------------------------
@@ -543,8 +582,8 @@ def render(
     ----------
     plot : Any or None, optional
         The plot object to render. Supports matplotlib/seaborn artists,
-        Plotly figures, and Altair chart objects. If None, uses the
-        current matplotlib figure.
+        Plotly figures, Bokeh figures and layouts, and Altair chart
+        objects. If None, uses the current matplotlib figure.
     use_cdn : bool, {"auto"}, or None, default=None
         * ``True``: load ``maidr.js`` from the public jsDelivr CDN only
           (no offline fallback).
@@ -580,6 +619,8 @@ def render(
     use_cdn = _resolve_use_cdn(use_cdn)
     if plot is not None and _is_plotly_figure(plot):
         return _get_plotly_maidr(plot).render(use_cdn=use_cdn)
+    if plot is not None and _is_bokeh_model(plot):
+        return _get_bokeh_maidr(plot).render(use_cdn=use_cdn)
 
     fig = _figure_or_raise(_get_plot_or_current(plot))
     try:
@@ -603,8 +644,8 @@ def show(
     ----------
     plot : Any or None, optional
         The plot object to display. Supports matplotlib/seaborn artists,
-        Plotly figures, and Altair chart objects. If None, uses the
-        current matplotlib figure.
+        Plotly figures, Bokeh figures and layouts, and Altair chart
+        objects. If None, uses the current matplotlib figure.
     renderer : {"auto", "ipython", "browser"}, default "auto"
         The renderer to use for display.
     clear_fig : bool, default True
@@ -634,6 +675,8 @@ def show(
     use_cdn = _resolve_use_cdn(use_cdn)
     if plot is not None and _is_plotly_figure(plot):
         return _get_plotly_maidr(plot).show(renderer, use_cdn=use_cdn)
+    if plot is not None and _is_bokeh_model(plot):
+        return _get_bokeh_maidr(plot).show(renderer, use_cdn=use_cdn)
 
     fig = _figure_or_raise(_get_plot_or_current(plot))
     try:
@@ -660,8 +703,8 @@ def save_html(
     ----------
     plot : Any or None, optional
         The plot object to save. Supports matplotlib/seaborn artists,
-        Plotly figures, and Altair chart objects. If None, uses the
-        current matplotlib figure.
+        Plotly figures, Bokeh figures and layouts, and Altair chart
+        objects. If None, uses the current matplotlib figure.
     file : str
         The file path where to save the HTML. Required; may be passed
         positionally, as in ``maidr.save_html(plot, "output.html")``, the
@@ -731,6 +774,13 @@ def save_html(
             include_version=include_version,
             use_cdn=use_cdn,
         )
+    if plot is not None and _is_bokeh_model(plot):
+        return _get_bokeh_maidr(plot).save_html(
+            file,
+            lib_dir=lib_dir,
+            include_version=include_version,
+            use_cdn=use_cdn,
+        )
 
     # Resolved to the figure once. The Figure form -- which includes the
     # default, `plt.gcf()` -- used to walk `fig.axes` and build a whole
@@ -771,8 +821,9 @@ def close(plot: Any | None = None) -> None:
         artist, or a seaborn Grid. If None, uses the current matplotlib
         figure.
     """
-    if plot is not None and _is_plotly_figure(plot):
-        # For Plotly figures, no FigureManager cleanup needed
+    if plot is not None and (_is_plotly_figure(plot) or _is_bokeh_model(plot)):
+        # Plotly and Bokeh figures are never registered with FigureManager,
+        # so there is nothing to clean up.
         return
 
     # Nothing resolved is nothing to close: `destroy` already treats an
