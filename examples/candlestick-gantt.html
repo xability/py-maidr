@@ -183,7 +183,7 @@ cookieconsent.run({
       "@id": "https://py.maidr.ai/#software",
       "name": "py-maidr",
       "alternateName": ["maidr (PyPI)"],
-      "description": "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "description": "Python library that makes matplotlib, seaborn, Plotly, Bokeh and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
       "url": "https://py.maidr.ai/",
       "codeRepository": "https://github.com/xability/py-maidr",
       "downloadUrl": "https://pypi.org/project/maidr/",
@@ -201,7 +201,7 @@ cookieconsent.run({
       "softwareRequirements": ["Python >= 3.9", "matplotlib"],
       "softwareVersion": "1.25.0",
       "operatingSystem": "Cross-platform",
-      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "bokeh", "altair"],
       "sameAs": [
         "https://github.com/xability/py-maidr",
         "https://pypi.org/project/maidr/"
@@ -331,6 +331,10 @@ cookieconsent.run({
         <li>
     <a class="dropdown-item" href="../examples-plotly.html">
  <span class="dropdown-text">Plotly</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-bokeh.html">
+ <span class="dropdown-text">Bokeh [experimental]</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../examples-altair.html">
@@ -482,6 +486,12 @@ cookieconsent.run({
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../examples-bokeh.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Bokeh [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../examples-altair.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Altair Accessible Plot Examples</span></a>
   </div>
@@ -536,7 +546,7 @@ cookieconsent.run({
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
 <p>Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.</p>
-<div id="b23fa0b5" class="cell" data-execution_count="1">
+<div id="e2561d18" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="3,4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Just import maidr package: plt.show() now renders accessible output </span></span>
@@ -548,7 +558,7 @@ cookieconsent.run({
 </section>
 <section id="candlestick-chart" class="level2">
 <h2 class="anchored" data-anchor-id="candlestick-chart">Candlestick Chart</h2>
-<div id="8fecfa30" class="cell" data-execution_count="2">
+<div id="8c8cb253" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" data-source-line-numbers="nil" data-code-line-numbers="5,21,34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mplfinance <span class="im">as</span> mpf</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.dates <span class="im">as</span> mdates</span>
@@ -584,7 +594,7 @@ cookieconsent.run({
 <span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Display with maidr</span></span>
 <span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>plt.show() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_1bb0a478-9e3b-469d-b335-3bc984731b41" title="Stock Price with Volume, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+<iframe id="iframe_3e3aa316-76fa-4e67-b178-ee61f12908bb" title="Stock Price with Volume, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.10.0/dist/maidr.js&quot;]');
@@ -602,12 +612,12 @@ cookieconsent.run({
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;576pt&quot; height=&quot;414pt&quot; viewBox=&quot;0 0 576 414&quot; version=&quot;1.1&quot; id=&quot;9b864f17-8afd-4318-b2cf-3a7a38f7d028&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;9b864f17-8afd-4318-b2cf-3a7a38f7d028&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Stock Price with Volume&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;659961e4-3643-4719-8f1c-000ae9ce791b&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;cfaad0e0-88e9-45dd-a403-9a2c3b2e8059&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;candlestick&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Candlestick Chart&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Date&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;var n=Number(value);if(!isFinite(n))return String(value);var d=new Date(Math.round(0+n*86400000));var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Price&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}}, &amp;quot;data&amp;quot;: [{&amp;quot;value&amp;quot;: &amp;quot;2019-11-01 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3050.72, &amp;quot;high&amp;quot;: 3066.95, &amp;quot;low&amp;quot;: 3050.72, &amp;quot;close&amp;quot;: 3066.91, &amp;quot;volume&amp;quot;: 510301237.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-04 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3078.96, &amp;quot;high&amp;quot;: 3085.2, &amp;quot;low&amp;quot;: 3074.87, &amp;quot;close&amp;quot;: 3078.27, &amp;quot;volume&amp;quot;: 524848878.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-05 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3080.8, &amp;quot;high&amp;quot;: 3083.95, &amp;quot;low&amp;quot;: 3072.15, &amp;quot;close&amp;quot;: 3074.62, &amp;quot;volume&amp;quot;: 585634570.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-06 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3075.1, &amp;quot;high&amp;quot;: 3078.34, &amp;quot;low&amp;quot;: 3065.89, &amp;quot;close&amp;quot;: 3076.78, &amp;quot;volume&amp;quot;: 544288522.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-07 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3087.02, &amp;quot;high&amp;quot;: 3097.77, &amp;quot;low&amp;quot;: 3080.23, &amp;quot;close&amp;quot;: 3085.18, &amp;quot;volume&amp;quot;: 566117910.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3081.25, &amp;quot;high&amp;quot;: 3093.09, &amp;quot;low&amp;quot;: 3073.58, &amp;quot;close&amp;quot;: 3093.08, &amp;quot;volume&amp;quot;: 460757054.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3080.33, &amp;quot;high&amp;quot;: 3088.33, &amp;quot;low&amp;quot;: 3075.82, &amp;quot;close&amp;quot;: 3087.01, &amp;quot;volume&amp;quot;: 366044400.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3089.28, &amp;quot;high&amp;quot;: 3102.61, &amp;quot;low&amp;quot;: 3084.73, &amp;quot;close&amp;quot;: 3091.84, &amp;quot;volume&amp;quot;: 434953689.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3084.18, &amp;quot;high&amp;quot;: 3098.06, &amp;quot;low&amp;quot;: 3078.8, &amp;quot;close&amp;quot;: 3094.04, &amp;quot;volume&amp;quot;: 454607412.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3090.75, &amp;quot;high&amp;quot;: 3098.2, &amp;quot;low&amp;quot;: 3083.26, &amp;quot;close&amp;quot;: 3096.63, &amp;quot;volume&amp;quot;: 408390424.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3107.92, &amp;quot;high&amp;quot;: 3120.46, &amp;quot;low&amp;quot;: 3104.6, &amp;quot;close&amp;quot;: 3120.46, &amp;quot;volume&amp;quot;: 579104868.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3117.91, &amp;quot;high&amp;quot;: 3124.17, &amp;quot;low&amp;quot;: 3112.06, &amp;quot;close&amp;quot;: 3122.03, &amp;quot;volume&amp;quot;: 521730492.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3127.45, &amp;quot;high&amp;quot;: 3127.64, &amp;quot;low&amp;quot;: 3113.47, &amp;quot;close&amp;quot;: 3120.18, &amp;quot;volume&amp;quot;: 513153035.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3114.66, &amp;quot;high&amp;quot;: 3118.97, &amp;quot;low&amp;quot;: 3091.41, &amp;quot;close&amp;quot;: 3108.46, &amp;quot;volume&amp;quot;: 756408988.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3108.49, &amp;quot;high&amp;quot;: 3110.11, &amp;quot;low&amp;quot;: 3094.55, &amp;quot;close&amp;quot;: 3103.54, &amp;quot;volume&amp;quot;: 476836171.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3111.41, &amp;quot;high&amp;quot;: 3112.87, &amp;quot;low&amp;quot;: 3099.26, &amp;quot;close&amp;quot;: 3110.29, &amp;quot;volume&amp;quot;: 418027927.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3117.44, &amp;quot;high&amp;quot;: 3133.83, &amp;quot;low&amp;quot;: 3117.44, &amp;quot;close&amp;quot;: 3133.64, &amp;quot;volume&amp;quot;: 513728761.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3134.85, &amp;quot;high&amp;quot;: 3142.69, &amp;quot;low&amp;quot;: 3131.0, &amp;quot;close&amp;quot;: 3140.52, &amp;quot;volume&amp;quot;: 986041660.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3145.49, &amp;quot;high&amp;quot;: 3154.26, &amp;quot;low&amp;quot;: 3143.41, &amp;quot;close&amp;quot;: 3153.63, &amp;quot;volume&amp;quot;: 421853938.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3147.18, &amp;quot;high&amp;quot;: 3150.3, &amp;quot;low&amp;quot;: 3139.34, &amp;quot;close&amp;quot;: 3140.98, &amp;quot;volume&amp;quot;: 286602291.0}], &amp;quot;selectors&amp;quot;: {&amp;quot;body&amp;quot;: &amp;quot;g[id='maidr-fe12fb95-640d-41c2-853a-dd12283820e3'] &amp;gt; path&amp;quot;, &amp;quot;wickLow&amp;quot;: &amp;quot;g[id='maidr-c6edbc12-f4cc-4f6c-966a-5d587e425a5e'] &amp;gt; path:nth-child(-n+20)&amp;quot;, &amp;quot;wickHigh&amp;quot;: &amp;quot;g[id='maidr-c6edbc12-f4cc-4f6c-966a-5d587e425a5e'] &amp;gt; path:nth-child(n+21)&amp;quot;}}, {&amp;quot;id&amp;quot;: &amp;quot;267f8149-56d9-4809-9736-f8a5abe5a031&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Volume Bar Plot&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Date&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;var n=Number(value);if(!isFinite(n))return String(value);var d=new Date(Math.round(0+n*86400000));var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Volume&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;number&amp;quot;, &amp;quot;decimals&amp;quot;: 0}}}, &amp;quot;data&amp;quot;: [{&amp;quot;x&amp;quot;: &amp;quot;2019-11-01 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 510301237.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-04 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 524848878.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-05 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 585634570.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-06 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 544288522.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-07 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 566117910.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 460757054.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 366044400.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 434953689.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 454607412.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 408390424.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 579104868.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 521730492.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 513153035.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 756408988.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 476836171.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 418027927.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 513728761.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 986041660.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 421853938.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 286602291.0}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='e8f23767-1a76-4e14-88a8-a7492521887b'] &amp;gt; path&amp;quot;}, {&amp;quot;id&amp;quot;: &amp;quot;5a99c0de-f993-4c30-96d5-3136d898188a&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;line&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Moving Average Line Plot&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Date&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;var n=Number(value);if(!isFinite(n))return String(value);var d=new Date(Math.round(0+n*86400000));var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Price&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: &amp;quot;2019-11-05 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3073.2666666666664, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-06 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3076.556666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-07 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3078.86, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3085.013333333334, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3088.4233333333336, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3090.6433333333334, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3090.963333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3094.17, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3103.7099999999996, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3113.0400000000004, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3120.89, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3116.89, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3110.726666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3107.43, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3115.8233333333337, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3128.1499999999996, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3142.596666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3145.0433333333335, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}], [{&amp;quot;x&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3079.14, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3082.49, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3084.7516666666666, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3087.9883333333332, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3091.2966666666666, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3097.1766666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3102.001666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3107.53, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3110.2999999999997, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3111.883333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3114.16, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3116.3566666666666, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3119.4383333333335, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3125.013333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3130.433333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}], [{&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3083.081111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3086.383333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3091.071111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3096.3388888888894, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3101.161111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3103.747777777778, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3104.91, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3107.496666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3112.141111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3117.3055555555557, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3123.6388888888887, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3125.918888888889, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-c832fbd2-8753-4fa1-bef9-091d7953833b'] path&amp;quot;, &amp;quot;g[id='maidr-d6df3324-14cb-46b6-a0fc-f38c930a22d0'] path&amp;quot;, &amp;quot;g[id='maidr-06150bce-f1d4-4457-8af2-1e0652acfff9'] path&amp;quot;]}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;576pt&quot; height=&quot;414pt&quot; viewBox=&quot;0 0 576 414&quot; version=&quot;1.1&quot; id=&quot;04c5fc66-2b6e-48d9-ba4a-7b0ae0434c89&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;04c5fc66-2b6e-48d9-ba4a-7b0ae0434c89&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Stock Price with Volume&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;e297f259-55ab-4015-a248-a89917f1fde0&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;aa554a5f-73b0-4bfe-a6ab-c1cf6672e8bd&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;candlestick&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Candlestick Chart&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Date&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;var n=Number(value);if(!isFinite(n))return String(value);var d=new Date(Math.round(0+n*86400000));var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Price&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}}, &amp;quot;data&amp;quot;: [{&amp;quot;value&amp;quot;: &amp;quot;2019-11-01 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3050.72, &amp;quot;high&amp;quot;: 3066.95, &amp;quot;low&amp;quot;: 3050.72, &amp;quot;close&amp;quot;: 3066.91, &amp;quot;volume&amp;quot;: 510301237.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-04 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3078.96, &amp;quot;high&amp;quot;: 3085.2, &amp;quot;low&amp;quot;: 3074.87, &amp;quot;close&amp;quot;: 3078.27, &amp;quot;volume&amp;quot;: 524848878.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-05 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3080.8, &amp;quot;high&amp;quot;: 3083.95, &amp;quot;low&amp;quot;: 3072.15, &amp;quot;close&amp;quot;: 3074.62, &amp;quot;volume&amp;quot;: 585634570.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-06 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3075.1, &amp;quot;high&amp;quot;: 3078.34, &amp;quot;low&amp;quot;: 3065.89, &amp;quot;close&amp;quot;: 3076.78, &amp;quot;volume&amp;quot;: 544288522.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-07 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3087.02, &amp;quot;high&amp;quot;: 3097.77, &amp;quot;low&amp;quot;: 3080.23, &amp;quot;close&amp;quot;: 3085.18, &amp;quot;volume&amp;quot;: 566117910.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3081.25, &amp;quot;high&amp;quot;: 3093.09, &amp;quot;low&amp;quot;: 3073.58, &amp;quot;close&amp;quot;: 3093.08, &amp;quot;volume&amp;quot;: 460757054.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3080.33, &amp;quot;high&amp;quot;: 3088.33, &amp;quot;low&amp;quot;: 3075.82, &amp;quot;close&amp;quot;: 3087.01, &amp;quot;volume&amp;quot;: 366044400.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3089.28, &amp;quot;high&amp;quot;: 3102.61, &amp;quot;low&amp;quot;: 3084.73, &amp;quot;close&amp;quot;: 3091.84, &amp;quot;volume&amp;quot;: 434953689.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3084.18, &amp;quot;high&amp;quot;: 3098.06, &amp;quot;low&amp;quot;: 3078.8, &amp;quot;close&amp;quot;: 3094.04, &amp;quot;volume&amp;quot;: 454607412.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3090.75, &amp;quot;high&amp;quot;: 3098.2, &amp;quot;low&amp;quot;: 3083.26, &amp;quot;close&amp;quot;: 3096.63, &amp;quot;volume&amp;quot;: 408390424.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3107.92, &amp;quot;high&amp;quot;: 3120.46, &amp;quot;low&amp;quot;: 3104.6, &amp;quot;close&amp;quot;: 3120.46, &amp;quot;volume&amp;quot;: 579104868.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3117.91, &amp;quot;high&amp;quot;: 3124.17, &amp;quot;low&amp;quot;: 3112.06, &amp;quot;close&amp;quot;: 3122.03, &amp;quot;volume&amp;quot;: 521730492.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3127.45, &amp;quot;high&amp;quot;: 3127.64, &amp;quot;low&amp;quot;: 3113.47, &amp;quot;close&amp;quot;: 3120.18, &amp;quot;volume&amp;quot;: 513153035.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3114.66, &amp;quot;high&amp;quot;: 3118.97, &amp;quot;low&amp;quot;: 3091.41, &amp;quot;close&amp;quot;: 3108.46, &amp;quot;volume&amp;quot;: 756408988.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3108.49, &amp;quot;high&amp;quot;: 3110.11, &amp;quot;low&amp;quot;: 3094.55, &amp;quot;close&amp;quot;: 3103.54, &amp;quot;volume&amp;quot;: 476836171.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3111.41, &amp;quot;high&amp;quot;: 3112.87, &amp;quot;low&amp;quot;: 3099.26, &amp;quot;close&amp;quot;: 3110.29, &amp;quot;volume&amp;quot;: 418027927.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3117.44, &amp;quot;high&amp;quot;: 3133.83, &amp;quot;low&amp;quot;: 3117.44, &amp;quot;close&amp;quot;: 3133.64, &amp;quot;volume&amp;quot;: 513728761.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3134.85, &amp;quot;high&amp;quot;: 3142.69, &amp;quot;low&amp;quot;: 3131.0, &amp;quot;close&amp;quot;: 3140.52, &amp;quot;volume&amp;quot;: 986041660.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3145.49, &amp;quot;high&amp;quot;: 3154.26, &amp;quot;low&amp;quot;: 3143.41, &amp;quot;close&amp;quot;: 3153.63, &amp;quot;volume&amp;quot;: 421853938.0}, {&amp;quot;value&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;open&amp;quot;: 3147.18, &amp;quot;high&amp;quot;: 3150.3, &amp;quot;low&amp;quot;: 3139.34, &amp;quot;close&amp;quot;: 3140.98, &amp;quot;volume&amp;quot;: 286602291.0}], &amp;quot;selectors&amp;quot;: {&amp;quot;body&amp;quot;: &amp;quot;g[id='maidr-798f012e-6937-45bc-9b2b-4006b30f6052'] &amp;gt; path&amp;quot;, &amp;quot;wickLow&amp;quot;: &amp;quot;g[id='maidr-f95db006-f612-4689-9d25-e8a4e01a74ea'] &amp;gt; path:nth-child(-n+20)&amp;quot;, &amp;quot;wickHigh&amp;quot;: &amp;quot;g[id='maidr-f95db006-f612-4689-9d25-e8a4e01a74ea'] &amp;gt; path:nth-child(n+21)&amp;quot;}}, {&amp;quot;id&amp;quot;: &amp;quot;a2ea87c2-e9b1-4a56-96c1-d29f5845809a&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Volume Bar Plot&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Date&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;var n=Number(value);if(!isFinite(n))return String(value);var d=new Date(Math.round(0+n*86400000));var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Volume&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;number&amp;quot;, &amp;quot;decimals&amp;quot;: 0}}}, &amp;quot;data&amp;quot;: [{&amp;quot;x&amp;quot;: &amp;quot;2019-11-01 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 510301237.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-04 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 524848878.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-05 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 585634570.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-06 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 544288522.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-07 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 566117910.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 460757054.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 366044400.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 434953689.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 454607412.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 408390424.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 579104868.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 521730492.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 513153035.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 756408988.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 476836171.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 418027927.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 513728761.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 986041660.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 421853938.0}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 286602291.0}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='e1a2f76b-a01c-4542-a131-cfc2c80398b5'] &amp;gt; path&amp;quot;}, {&amp;quot;id&amp;quot;: &amp;quot;ac1d1114-54ed-4553-b000-e0c6be19ede3&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;line&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Moving Average Line Plot&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Date&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;var n=Number(value);if(!isFinite(n))return String(value);var d=new Date(Math.round(0+n*86400000));var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[d.getUTCMonth()]+' '+d.getUTCDate()+', '+d.getUTCFullYear()&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Price&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: &amp;quot;2019-11-05 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3073.2666666666664, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-06 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3076.556666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-07 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3078.86, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3085.013333333334, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3088.4233333333336, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3090.6433333333334, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3090.963333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3094.17, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3103.7099999999996, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3113.0400000000004, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3120.89, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3116.89, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3110.726666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3107.43, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3115.8233333333337, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3128.1499999999996, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3142.596666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3145.0433333333335, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 3 days&amp;quot;}], [{&amp;quot;x&amp;quot;: &amp;quot;2019-11-08 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3079.14, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-11 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3082.49, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-12 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3084.7516666666666, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3087.9883333333332, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3091.2966666666666, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3097.1766666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3102.001666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3107.53, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3110.2999999999997, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3111.883333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3114.16, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3116.3566666666666, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3119.4383333333335, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3125.013333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3130.433333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 6 days&amp;quot;}], [{&amp;quot;x&amp;quot;: &amp;quot;2019-11-13 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3083.081111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-14 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3086.383333333333, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-15 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3091.071111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-18 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3096.3388888888894, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-19 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3101.161111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-20 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3103.747777777778, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-21 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3104.91, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-22 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3107.496666666667, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-25 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3112.141111111111, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-26 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3117.3055555555557, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-27 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3123.6388888888887, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}, {&amp;quot;x&amp;quot;: &amp;quot;2019-11-29 00:00:00&amp;quot;, &amp;quot;y&amp;quot;: 3125.918888888889, &amp;quot;z&amp;quot;: &amp;quot;Moving Average 9 days&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-b3435cca-e17c-4e01-bc8f-bdad65c3015d'] path&amp;quot;, &amp;quot;g[id='maidr-559e3bb5-99e8-4e35-9af9-92001f94fa28'] path&amp;quot;, &amp;quot;g[id='maidr-d5764a57-45a0-4157-a197-fb5d687b93a3'] path&amp;quot;]}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-09-26T13:25:28.175375</dc:date>
+    <dc:date>2026-09-26T15:44:48.770455</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -621,51 +631,51 @@ cookieconsent.run({
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-035562e9-fb89-4cd2-aa3a-de3401074262&quot;>
+  <g id=&quot;maidr-7d961263-705b-40f5-ba72-b543e26f04d6&quot;>
    <path d=&quot;M 0 414  L 576 414  L 576 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-2edeab6e-3f43-4968-b284-b684958614f5&quot;>
+   <g id=&quot;maidr-bd0d5ccb-7a2f-4e34-9610-3d5621427afa&quot;>
     <path d=&quot;M 103.68 256.68  L 518.4 256.68  L 518.4 49.68  L 103.68 49.68  z &quot; style=&quot;fill: #dce3ef&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-ffd5d7c3-83e3-49f7-81e4-ff215d327df3&quot;>
-      <path d=&quot;M 139.668099 256.68  L 139.668099 49.68  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-ddddce1a-05d9-4e68-b39e-a0e41b183de8&quot;>
+      <path d=&quot;M 139.668099 256.68  L 139.668099 49.68  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-17015bf8-c617-4616-b3fa-2d4bc13f24f7&quot;/>
+     <g id=&quot;maidr-8c05efa6-6eaa-4616-b9f8-2a68130806d5&quot;/>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-ea490cf1-c334-47f3-9dc2-01dd178efee6&quot;>
-      <path d=&quot;M 229.863836 256.68  L 229.863836 49.68  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-90c25dfb-806e-48f5-9c3b-44e2b9ce7fb5&quot;>
+      <path d=&quot;M 229.863836 256.68  L 229.863836 49.68  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-59c1b507-8b2c-40a2-a04c-5a328a38fb8d&quot;/>
+     <g id=&quot;maidr-388465ba-e2fa-4305-8820-7ae95b3a59ed&quot;/>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-90300a73-733d-4136-a34c-50d37f5668a0&quot;>
-      <path d=&quot;M 320.059574 256.68  L 320.059574 49.68  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-6f8d5e59-629a-4dc5-a134-ca93ae47e6ac&quot;>
+      <path d=&quot;M 320.059574 256.68  L 320.059574 49.68  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-509ecedc-6620-4d84-9240-a945bb5d1cf7&quot;/>
+     <g id=&quot;maidr-7b6433b4-1142-4450-8643-64d14e059451&quot;/>
     </g>
     <g id=&quot;xtick_4&quot;>
-     <g id=&quot;maidr-6cd724fc-e3b9-4d5c-97fc-e75209db68f9&quot;>
-      <path d=&quot;M 410.255311 256.68  L 410.255311 49.68  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-c0ce0ba9-9abe-4564-95ae-5ecee256ca20&quot;>
+      <path d=&quot;M 410.255311 256.68  L 410.255311 49.68  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-416c8bc0-41d4-499d-a890-bc84f7994751&quot;/>
+     <g id=&quot;maidr-909b40ed-774c-4872-bb6f-70e92836521e&quot;/>
     </g>
     <g id=&quot;xtick_5&quot;>
-     <g id=&quot;maidr-748d95eb-eb2e-462f-a40c-304ef483d14a&quot;>
-      <path d=&quot;M 500.451048 256.68  L 500.451048 49.68  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-3d621100-4852-468f-a909-ee934d16b68a&quot;>
+      <path d=&quot;M 500.451048 256.68  L 500.451048 49.68  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-d10aa6d9-7eb3-450a-9237-52817fef4a6d&quot;/>
+     <g id=&quot;maidr-a2d37ef1-3424-4f22-b0b6-ba945af6ba4a&quot;/>
     </g>
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-6b937c27-0ccc-412b-8fd3-9ad3e00ffa5f&quot;>
-      <path d=&quot;M 103.68 230.4047  L 518.4 230.4047  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-38586e1f-fa5c-49f7-b833-63ca818a3d56&quot;>
+      <path d=&quot;M 103.68 230.4047  L 518.4 230.4047  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-a2aac657-86af-4914-8da6-49b3a176958e&quot;/>
+     <g id=&quot;maidr-76973d53-7eec-48d5-8ac8-c7b1230500b0&quot;/>
      <g id=&quot;text_1&quot;>
       <!-- $3,060.00 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 234.752825) scale(0.12 -0.12)&quot;>
@@ -690,10 +700,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-b44e2a7a-9370-4214-9441-236b1684d377&quot;>
-      <path d=&quot;M 103.68 194.055112  L 518.4 194.055112  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-b97e9033-6ed2-48f8-a83c-ec9908cec639&quot;>
+      <path d=&quot;M 103.68 194.055112  L 518.4 194.055112  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-177e7e07-96d0-4fac-ab2a-2cfa624cd630&quot;/>
+     <g id=&quot;maidr-0d0bcc04-9c4f-4296-8200-adcd7a567442&quot;/>
      <g id=&quot;text_2&quot;>
       <!-- $3,080.00 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 198.403237) scale(0.12 -0.12)&quot;>
@@ -713,10 +723,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-2a342909-efbf-4e28-ab6e-866ba1d76274&quot;>
-      <path d=&quot;M 103.68 157.705524  L 518.4 157.705524  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-4de4b6b6-5980-47f2-830f-b7955304396d&quot;>
+      <path d=&quot;M 103.68 157.705524  L 518.4 157.705524  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-7e07bb39-7bfd-4ef5-bcbc-b166b1ca8a51&quot;/>
+     <g id=&quot;maidr-7f860661-55c5-42ff-afbb-e63fbe6aa6be&quot;/>
      <g id=&quot;text_3&quot;>
       <!-- $3,100.00 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 162.053649) scale(0.12 -0.12)&quot;>
@@ -736,10 +746,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-95eded9b-9cca-4309-81a1-170ab6bb9953&quot;>
-      <path d=&quot;M 103.68 121.355936  L 518.4 121.355936  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-04bc4ff3-dd08-4481-9356-12d1a4141663&quot;>
+      <path d=&quot;M 103.68 121.355936  L 518.4 121.355936  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-56d89eff-d61a-42ad-b944-2d8638b4707f&quot;/>
+     <g id=&quot;maidr-7d1f0450-6727-4623-a704-2aa6cd3337d9&quot;/>
      <g id=&quot;text_4&quot;>
       <!-- $3,120.00 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 125.704061) scale(0.12 -0.12)&quot;>
@@ -759,10 +769,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-662b845a-d446-4a3b-b42f-6f7d73bd72ce&quot;>
-      <path d=&quot;M 103.68 85.006347  L 518.4 85.006347  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-c6216a43-719b-47be-9fb9-9a0069223dcb&quot;>
+      <path d=&quot;M 103.68 85.006347  L 518.4 85.006347  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-235c3e52-d0fe-4a6b-a375-c14dfbe1733d&quot;/>
+     <g id=&quot;maidr-383a770c-3073-43ea-8a18-47ea196b5bef&quot;/>
      <g id=&quot;text_5&quot;>
       <!-- $3,140.00 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(46.800625 89.354472) scale(0.12 -0.12)&quot;>
@@ -799,102 +809,102 @@ cookieconsent.run({
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-fe12fb95-640d-41c2-853a-dd12283820e3&quot;>
-    <path d=&quot;M 133.805376 247.270909  L 133.805376 217.845917  L 145.530822 217.845917  L 145.530822 247.270909  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 151.844524 195.945291  L 151.844524 197.199351  L 163.56997 197.199351  L 163.56997 195.945291  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 169.883671 192.601128  L 169.883671 203.833151  L 181.609117 203.833151  L 181.609117 192.601128  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 187.922819 202.960761  L 187.922819 199.907396  L 199.648264 199.907396  L 199.648264 202.960761  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 205.961966 181.296406  L 205.961966 184.640569  L 217.687412 184.640569  L 217.687412 181.296406  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 224.001114 191.783263  L 224.001114 170.282481  L 235.726559 170.282481  L 235.726559 191.783263  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 242.040261 193.455344  L 242.040261 181.314581  L 253.765707 181.314581  L 253.765707 193.455344  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 260.079408 177.188903  L 260.079408 172.536156  L 271.804854 172.536156  L 271.804854 177.188903  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 278.118556 186.458048  L 278.118556 168.537701  L 289.844002 168.537701  L 289.844002 186.458048  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 296.157703 174.517208  L 296.157703 163.830429  L 307.883149 163.830429  L 307.883149 174.517208  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 314.196851 143.311087  L 314.196851 120.519895  L 325.922297 120.519895  L 325.922297 143.311087  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 332.235998 125.154467  L 332.235998 117.666452  L 343.961444 117.666452  L 343.961444 125.154467  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 350.275146 107.815714  L 350.275146 121.028789  L 362.000592 121.028789  L 362.000592 107.815714  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 368.314293 131.061276  L 368.314293 142.329648  L 380.039739 142.329648  L 380.039739 131.061276  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 386.353441 142.275124  L 386.353441 151.271647  L 398.078886 151.271647  L 398.078886 142.275124  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 404.392588 136.968084  L 404.392588 139.003661  L 416.118034 139.003661  L 416.118034 136.968084  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 422.431736 126.008683  L 422.431736 96.565516  L 434.157181 96.565516  L 434.157181 126.008683  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 440.470883 94.366366  L 440.470883 84.061258  L 452.196329 84.061258  L 452.196329 94.366366  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 458.51003 75.028385  L 458.51003 60.234103  L 470.235476 60.234103  L 470.235476 75.028385  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
-    <path d=&quot;M 476.549178 71.956845  L 476.549178 83.225217  L 488.274624 83.225217  L 488.274624 71.956845  z &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+   <g id=&quot;maidr-798f012e-6937-45bc-9b2b-4006b30f6052&quot;>
+    <path d=&quot;M 133.805376 247.270909  L 133.805376 217.845917  L 145.530822 217.845917  L 145.530822 247.270909  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 151.844524 195.945291  L 151.844524 197.199351  L 163.56997 197.199351  L 163.56997 195.945291  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 169.883671 192.601128  L 169.883671 203.833151  L 181.609117 203.833151  L 181.609117 192.601128  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 187.922819 202.960761  L 187.922819 199.907396  L 199.648264 199.907396  L 199.648264 202.960761  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 205.961966 181.296406  L 205.961966 184.640569  L 217.687412 184.640569  L 217.687412 181.296406  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 224.001114 191.783263  L 224.001114 170.282481  L 235.726559 170.282481  L 235.726559 191.783263  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 242.040261 193.455344  L 242.040261 181.314581  L 253.765707 181.314581  L 253.765707 193.455344  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 260.079408 177.188903  L 260.079408 172.536156  L 271.804854 172.536156  L 271.804854 177.188903  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 278.118556 186.458048  L 278.118556 168.537701  L 289.844002 168.537701  L 289.844002 186.458048  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 296.157703 174.517208  L 296.157703 163.830429  L 307.883149 163.830429  L 307.883149 174.517208  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 314.196851 143.311087  L 314.196851 120.519895  L 325.922297 120.519895  L 325.922297 143.311087  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 332.235998 125.154467  L 332.235998 117.666452  L 343.961444 117.666452  L 343.961444 125.154467  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 350.275146 107.815714  L 350.275146 121.028789  L 362.000592 121.028789  L 362.000592 107.815714  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 368.314293 131.061276  L 368.314293 142.329648  L 380.039739 142.329648  L 380.039739 131.061276  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 386.353441 142.275124  L 386.353441 151.271647  L 398.078886 151.271647  L 398.078886 142.275124  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 404.392588 136.968084  L 404.392588 139.003661  L 416.118034 139.003661  L 416.118034 136.968084  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 422.431736 126.008683  L 422.431736 96.565516  L 434.157181 96.565516  L 434.157181 126.008683  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 440.470883 94.366366  L 440.470883 84.061258  L 452.196329 84.061258  L 452.196329 94.366366  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 458.51003 75.028385  L 458.51003 60.234103  L 470.235476 60.234103  L 470.235476 75.028385  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: #ffffff; fill-opacity: 0.9; stroke: #000000&quot;/>
+    <path d=&quot;M 476.549178 71.956845  L 476.549178 83.225217  L 488.274624 83.225217  L 488.274624 71.956845  z &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill-opacity: 0.9; stroke: #000000&quot;/>
    </g>
-   <g id=&quot;maidr-c6edbc12-f4cc-4f6c-966a-5d587e425a5e&quot; maidr=&quot;f18db44b-5c72-408f-b6cf-7f0b1b5cf81c&quot;>
-    <path d=&quot;M 139.668099 247.270909  L 139.668099 247.270909  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 157.707247 203.378781  L 157.707247 197.199351  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 175.746394 208.322325  L 175.746394 203.833151  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 193.785542 219.699746  L 193.785542 202.960761  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 211.824689 193.637092  L 211.824689 184.640569  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 229.863836 205.72333  L 229.863836 191.783263  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 247.902984 201.652176  L 247.902984 193.455344  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 265.942131 185.458434  L 265.942131 177.188903  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 283.981279 196.236087  L 283.981279 186.458048  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 302.020426 188.130129  L 302.020426 174.517208  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 320.059574 149.345118  L 320.059574 143.311087  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 338.098721 135.786722  L 338.098721 125.154467  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 356.137869 133.224076  L 356.137869 121.028789  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 374.177016 173.317672  L 374.177016 142.329648  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 392.216164 167.610787  L 392.216164 151.271647  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 410.255311 159.050458  L 410.255311 139.003661  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 428.294458 126.008683  L 428.294458 126.008683  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 446.333606 101.363662  L 446.333606 94.366366  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 464.372753 78.808743  L 464.372753 75.028385  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 482.411901 86.205884  L 482.411901 83.225217  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 139.668099 217.773218  L 139.668099 217.845917  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 157.707247 184.604219  L 157.707247 195.945291  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 175.746394 186.876068  L 175.746394 192.601128  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 193.785542 197.072128  L 193.785542 199.907396  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 211.824689 161.758503  L 211.824689 181.296406  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 229.863836 170.264306  L 229.863836 170.282481  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 247.902984 178.915508  L 247.902984 181.314581  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 265.942131 152.961902  L 265.942131 172.536156  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 283.981279 161.231434  L 283.981279 168.537701  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 302.020426 160.976987  L 302.020426 163.830429  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 320.059574 120.519895  L 320.059574 120.519895  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 338.098721 113.777046  L 338.098721 117.666452  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 356.137869 107.470393  L 356.137869 107.815714  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 374.177016 123.227939  L 374.177016 131.061276  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 392.216164 139.330807  L 392.216164 142.275124  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 410.255311 134.314564  L 410.255311 136.968084  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 428.294458 96.220195  L 428.294458 96.565516  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 446.333606 80.117328  L 446.333606 84.061258  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 464.372753 59.089091  L 464.372753 60.234103  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
-    <path d=&quot;M 482.411901 66.286309  L 482.411901 71.956845  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+   <g id=&quot;maidr-f95db006-f612-4689-9d25-e8a4e01a74ea&quot; maidr=&quot;a357fc07-9ff2-437c-a273-bd94b8c3917f&quot;>
+    <path d=&quot;M 139.668099 247.270909  L 139.668099 247.270909  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 157.707247 203.378781  L 157.707247 197.199351  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 175.746394 208.322325  L 175.746394 203.833151  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 193.785542 219.699746  L 193.785542 202.960761  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 211.824689 193.637092  L 211.824689 184.640569  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 229.863836 205.72333  L 229.863836 191.783263  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 247.902984 201.652176  L 247.902984 193.455344  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 265.942131 185.458434  L 265.942131 177.188903  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 283.981279 196.236087  L 283.981279 186.458048  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 302.020426 188.130129  L 302.020426 174.517208  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 320.059574 149.345118  L 320.059574 143.311087  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 338.098721 135.786722  L 338.098721 125.154467  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 356.137869 133.224076  L 356.137869 121.028789  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 374.177016 173.317672  L 374.177016 142.329648  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 392.216164 167.610787  L 392.216164 151.271647  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 410.255311 159.050458  L 410.255311 139.003661  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 428.294458 126.008683  L 428.294458 126.008683  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 446.333606 101.363662  L 446.333606 94.366366  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 464.372753 78.808743  L 464.372753 75.028385  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 482.411901 86.205884  L 482.411901 83.225217  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 139.668099 217.773218  L 139.668099 217.845917  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 157.707247 184.604219  L 157.707247 195.945291  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 175.746394 186.876068  L 175.746394 192.601128  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 193.785542 197.072128  L 193.785542 199.907396  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 211.824689 161.758503  L 211.824689 181.296406  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 229.863836 170.264306  L 229.863836 170.282481  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 247.902984 178.915508  L 247.902984 181.314581  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 265.942131 152.961902  L 265.942131 172.536156  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 283.981279 161.231434  L 283.981279 168.537701  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 302.020426 160.976987  L 302.020426 163.830429  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 320.059574 120.519895  L 320.059574 120.519895  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 338.098721 113.777046  L 338.098721 117.666452  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 356.137869 107.470393  L 356.137869 107.815714  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 374.177016 123.227939  L 374.177016 131.061276  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 392.216164 139.330807  L 392.216164 142.275124  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 410.255311 134.314564  L 410.255311 136.968084  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 428.294458 96.220195  L 428.294458 96.565516  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 446.333606 80.117328  L 446.333606 84.061258  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 464.372753 59.089091  L 464.372753 60.234103  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
+    <path d=&quot;M 482.411901 66.286309  L 482.411901 71.956845  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #000000&quot;/>
    </g>
-   <g id=&quot;maidr-c832fbd2-8753-4fa1-bef9-091d7953833b&quot; maidr=&quot;76c6c241-0207-40b9-87b0-fb080637792c&quot;>
-    <path d=&quot;M 175.746394 206.292807  L 193.785542 200.313299  L 211.824689 196.127038  L 229.863836 184.943482  L 247.902984 178.745877  L 265.942131 174.711073  L 283.981279 174.129479  L 302.020426 168.301429  L 320.059574 150.962675  L 338.098721 134.005592  L 356.137869 119.738379  L 374.177016 127.008296  L 392.216164 138.210028  L 410.255311 144.201652  L 428.294458 128.946941  L 446.333606 106.543478  L 464.372753 80.286959  L 482.411901 75.840193  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #40e0d0; stroke-width: 2.25; stroke-linecap: round&quot;/>
+   <g id=&quot;maidr-b3435cca-e17c-4e01-bc8f-bdad65c3015d&quot; maidr=&quot;2ba07cf3-5990-4b51-b219-bb9566807fb7&quot;>
+    <path d=&quot;M 175.746394 206.292807  L 193.785542 200.313299  L 211.824689 196.127038  L 229.863836 184.943482  L 247.902984 178.745877  L 265.942131 174.711073  L 283.981279 174.129479  L 302.020426 168.301429  L 320.059574 150.962675  L 338.098721 134.005592  L 356.137869 119.738379  L 374.177016 127.008296  L 392.216164 138.210028  L 410.255311 144.201652  L 428.294458 128.946941  L 446.333606 106.543478  L 464.372753 80.286959  L 482.411901 75.840193  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #40e0d0; stroke-width: 2.25; stroke-linecap: round&quot;/>
    </g>
-   <g id=&quot;maidr-d6df3324-14cb-46b6-a0fc-f38c930a22d0&quot; maidr=&quot;76c6c241-0207-40b9-87b0-fb080637792c&quot;>
-    <path d=&quot;M 229.863836 195.618144  L 247.902984 189.529588  L 265.942131 185.419056  L 283.981279 179.536481  L 302.020426 173.523653  L 320.059574 162.836874  L 338.098721 154.067536  L 356.137869 144.019904  L 374.177016 138.985486  L 392.216164 136.10781  L 410.255311 131.970015  L 428.294458 127.977619  L 446.333606 122.376753  L 464.372753 112.244305  L 482.411901 102.393567  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ff00ff; stroke-width: 2.25; stroke-linecap: round&quot;/>
+   <g id=&quot;maidr-559e3bb5-99e8-4e35-9af9-92001f94fa28&quot; maidr=&quot;2ba07cf3-5990-4b51-b219-bb9566807fb7&quot;>
+    <path d=&quot;M 229.863836 195.618144  L 247.902984 189.529588  L 265.942131 185.419056  L 283.981279 179.536481  L 302.020426 173.523653  L 320.059574 162.836874  L 338.098721 154.067536  L 356.137869 144.019904  L 374.177016 138.985486  L 392.216164 136.10781  L 410.255311 131.970015  L 428.294458 127.977619  L 446.333606 122.376753  L 464.372753 112.244305  L 482.411901 102.393567  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ff00ff; stroke-width: 2.25; stroke-linecap: round&quot;/>
    </g>
-   <g id=&quot;maidr-06150bce-f1d4-4457-8af2-1e0652acfff9&quot; maidr=&quot;76c6c241-0207-40b9-87b0-fb080637792c&quot;>
-    <path d=&quot;M 283.981279 188.455256  L 302.020426 182.453535  L 320.059574 173.933595  L 338.098721 164.359518  L 356.137869 155.595228  L 374.177016 150.894015  L 392.216164 148.7817  L 410.255311 144.080486  L 428.294458 135.639304  L 446.333606 126.253033  L 464.372753 114.74233  L 482.411901 110.598477  &quot; clip-path=&quot;url(#p12a637ad2d)&quot; style=&quot;fill: none; stroke: #ffd700; stroke-width: 2.25; stroke-linecap: round&quot;/>
+   <g id=&quot;maidr-d5764a57-45a0-4157-a197-fb5d687b93a3&quot; maidr=&quot;2ba07cf3-5990-4b51-b219-bb9566807fb7&quot;>
+    <path d=&quot;M 283.981279 188.455256  L 302.020426 182.453535  L 320.059574 173.933595  L 338.098721 164.359518  L 356.137869 155.595228  L 374.177016 150.894015  L 392.216164 148.7817  L 410.255311 144.080486  L 428.294458 135.639304  L 446.333606 126.253033  L 464.372753 114.74233  L 482.411901 110.598477  &quot; clip-path=&quot;url(#p763ed94ce6)&quot; style=&quot;fill: none; stroke: #ffd700; stroke-width: 2.25; stroke-linecap: round&quot;/>
    </g>
-   <g id=&quot;maidr-02bf1a3e-5c4b-46a1-8b0a-0bbb60e35db4&quot;>
+   <g id=&quot;maidr-7aa50112-c74f-4996-b106-53dd2b350d5b&quot;>
     <path d=&quot;M 103.68 256.68  L 103.68 49.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-c0cf5854-3cfa-4ca4-91a6-f002852de46e&quot;>
+   <g id=&quot;maidr-32fc590c-464e-4afb-b094-15861b517dc3&quot;>
     <path d=&quot;M 518.4 256.68  L 518.4 49.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-df4ee0bd-15e1-4bde-bd51-0e76714c73be&quot;>
+   <g id=&quot;maidr-1c64cab8-2b30-43cd-8358-277e41949e87&quot;>
     <path d=&quot;M 103.68 256.68  L 518.4 256.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-5102fd56-8238-4e88-ba54-cad565c1c705&quot;>
+   <g id=&quot;maidr-d3d8abd0-489c-4740-ba73-d499781e1650&quot;>
     <path d=&quot;M 103.68 49.68  L 518.4 49.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
   </g>
   <g id=&quot;axes_2&quot;>
-   <g id=&quot;maidr-ea235737-ae93-4475-befd-5aa4bd5ca050&quot;>
+   <g id=&quot;maidr-f2151184-c4e1-4614-ad8f-ff91cf59bcc1&quot;>
     <path d=&quot;M 103.68 339.48  L 518.4 339.48  L 518.4 256.68  L 103.68 256.68  z &quot; style=&quot;fill: #dce3ef&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_3&quot;>
     <g id=&quot;xtick_6&quot;>
-     <g id=&quot;maidr-a8f8839d-23f1-464c-b70f-2e6bc2d6c6ec&quot;>
-      <path d=&quot;M 139.668099 339.48  L 139.668099 256.68  &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-89819b37-2d8b-4d0f-9afc-fd64c7a1d384&quot;>
+      <path d=&quot;M 139.668099 339.48  L 139.668099 256.68  &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-51d3ab78-7cf0-4944-9b3d-d59bea8ac1d1&quot;/>
+     <g id=&quot;maidr-bbd34f20-32c2-4dd3-9f6e-e3b0b8f47cf4&quot;/>
      <g id=&quot;text_7&quot;>
       <!-- Jan 01, 1970 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(117.330596 398.192665) rotate(-45) scale(0.12 -0.12)&quot;>
@@ -922,10 +932,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_7&quot;>
-     <g id=&quot;maidr-bb613262-e660-4de6-9f86-d3ae9f83c986&quot;>
-      <path d=&quot;M 229.863836 339.48  L 229.863836 256.68  &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-4464f73b-229f-4ed3-ab34-3b78aadc5213&quot;>
+      <path d=&quot;M 229.863836 339.48  L 229.863836 256.68  &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-00787a5c-a85d-4301-b170-7ad91bcceb57&quot;/>
+     <g id=&quot;maidr-d5b917c1-f99a-4060-9560-0415d0de73ed&quot;/>
      <g id=&quot;text_8&quot;>
       <!-- Jan 06, 1970 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(207.526333 398.192665) rotate(-45) scale(0.12 -0.12)&quot;>
@@ -945,10 +955,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_8&quot;>
-     <g id=&quot;maidr-93f756ce-7b1d-49e9-8c2b-d7623f62cf20&quot;>
-      <path d=&quot;M 320.059574 339.48  L 320.059574 256.68  &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-3626a1a7-b422-42bf-b078-19f190529c6b&quot;>
+      <path d=&quot;M 320.059574 339.48  L 320.059574 256.68  &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-419f7c48-9e8c-41ed-99a3-6c832524f502&quot;/>
+     <g id=&quot;maidr-e618213a-7960-4419-8ecb-da8d037d59dc&quot;/>
      <g id=&quot;text_9&quot;>
       <!-- Jan 11, 1970 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(298.034965 397.566876) rotate(-45) scale(0.12 -0.12)&quot;>
@@ -968,10 +978,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_9&quot;>
-     <g id=&quot;maidr-7f52e089-1b56-4c47-8876-a98e992b8a9a&quot;>
-      <path d=&quot;M 410.255311 339.48  L 410.255311 256.68  &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-b72b5e67-bba8-4543-b38c-00cab34d828c&quot;>
+      <path d=&quot;M 410.255311 339.48  L 410.255311 256.68  &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-4415c65f-90e9-49fd-9fab-83339faae9a7&quot;/>
+     <g id=&quot;maidr-9e2aea06-b59e-40a0-992e-bc1b1938c5f1&quot;/>
      <g id=&quot;text_10&quot;>
       <!-- Jan 16, 1970 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(387.917808 398.192665) rotate(-45) scale(0.12 -0.12)&quot;>
@@ -991,10 +1001,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_10&quot;>
-     <g id=&quot;maidr-5bbf3f02-4d63-460d-a8ac-1a0f06ca0c4a&quot;>
-      <path d=&quot;M 500.451048 339.48  L 500.451048 256.68  &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-f8685734-e095-4377-be48-15ec305f1de8&quot;>
+      <path d=&quot;M 500.451048 339.48  L 500.451048 256.68  &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-6ed58dfd-1540-4816-9ff1-ae7025853251&quot;/>
+     <g id=&quot;maidr-56d6c03c-122b-44a2-a606-753245c5ff8a&quot;/>
      <g id=&quot;text_11&quot;>
       <!-- Jan 21, 1970 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(478.113545 398.192665) rotate(-45) scale(0.12 -0.12)&quot;>
@@ -1030,10 +1040,10 @@ cookieconsent.run({
    </g>
    <g id=&quot;matplotlib.axis_4&quot;>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-b3722c9c-f769-47b8-b71b-175243f95c01&quot;>
-      <path d=&quot;M 103.68 305.15338  L 518.4 305.15338  &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-0b005294-c97d-4b05-8f10-77815b0d4163&quot;>
+      <path d=&quot;M 103.68 305.15338  L 518.4 305.15338  &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-2c6998e2-01d3-498e-b0b2-7318817c087c&quot;/>
+     <g id=&quot;maidr-301ab0ac-82d6-4028-b57e-c1a7a6f9aaf5&quot;/>
      <g id=&quot;text_13&quot;>
       <!-- 500,000,000 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(33.454375 309.501505) scale(0.12 -0.12)&quot;>
@@ -1055,10 +1065,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_7&quot;>
-     <g id=&quot;maidr-31a1fc14-8b0a-48fd-8b56-afdabcb0854e&quot;>
-      <path d=&quot;M 103.68 263.698043  L 518.4 263.698043  &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-08e10db8-5162-4c3c-84da-73862720235c&quot;>
+      <path d=&quot;M 103.68 263.698043  L 518.4 263.698043  &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-ad82aa7d-be0d-4d44-9f94-8b4db3c82355&quot;/>
+     <g id=&quot;maidr-702babd4-a4d1-4d36-ae25-0d32e419caea&quot;/>
      <g id=&quot;text_14&quot;>
       <!-- 1,000,000,000 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(23.4475 268.046168) scale(0.12 -0.12)&quot;>
@@ -1111,76 +1121,76 @@ cookieconsent.run({
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-e4ae1cc9-dc96-4ba1-adb8-26514b1f287d&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 130.828917 346.608717  L 148.507281 346.608717  L 148.507281 304.299297  L 130.828917 304.299297  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-ce7087c0-e0df-4e21-950c-3f82b2176c23&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 130.828917 346.608717  L 148.507281 346.608717  L 148.507281 304.299297  L 130.828917 304.299297  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-7e4d9e6a-bd3a-48fd-97a1-537854710f93&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 148.868064 346.608717  L 166.546429 346.608717  L 166.546429 303.093142  L 148.868064 303.093142  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-e229afd9-c84c-496d-8c26-3982d2ad5bcf&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 148.868064 346.608717  L 166.546429 346.608717  L 166.546429 303.093142  L 148.868064 303.093142  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-3e1f4c92-a3a1-4c56-a34d-6bef4817c151&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 166.907212 346.608717  L 184.585576 346.608717  L 184.585576 298.05336  L 166.907212 298.05336  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-6c0da3b6-0938-407a-8643-cdbf96691cc0&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 166.907212 346.608717  L 184.585576 346.608717  L 184.585576 298.05336  L 166.907212 298.05336  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-8319b547-691b-495a-97a3-5b31b9ca0c3a&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 184.946359 346.608717  L 202.624724 346.608717  L 202.624724 301.481388  L 184.946359 301.481388  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-febd79d1-8764-4de9-927d-920b22a47015&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 184.946359 346.608717  L 202.624724 346.608717  L 202.624724 301.481388  L 184.946359 301.481388  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-040894ef-b6f3-4b06-aba4-43c630bfa834&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 202.985507 346.608717  L 220.663871 346.608717  L 220.663871 299.671499  L 202.985507 299.671499  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-e09314f2-ad02-414c-a6ac-29428e1a3465&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 202.985507 346.608717  L 220.663871 346.608717  L 220.663871 299.671499  L 202.985507 299.671499  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-e2f424fe-ba6a-4853-9514-70c33a6871c3&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 221.024654 346.608717  L 238.703019 346.608717  L 238.703019 308.407039  L 221.024654 308.407039  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-bcf53da3-0c8d-4059-847b-65b566840257&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 221.024654 346.608717  L 238.703019 346.608717  L 238.703019 308.407039  L 221.024654 308.407039  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-d955396d-eac3-460f-9fd3-5d6e6532c942&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 239.063802 346.608717  L 256.742166 346.608717  L 256.742166 316.259729  L 239.063802 316.259729  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-7a757169-d0bc-4143-b3cd-cc6b7119d572&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 239.063802 346.608717  L 256.742166 346.608717  L 256.742166 316.259729  L 239.063802 316.259729  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-27660b2b-e6c5-4635-abe1-5a8bcc4a3c81&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 257.102949 346.608717  L 274.781314 346.608717  L 274.781314 310.546413  L 257.102949 310.546413  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-0b746cf0-5afb-442b-924b-fea0acca8696&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 257.102949 346.608717  L 274.781314 346.608717  L 274.781314 310.546413  L 257.102949 310.546413  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-09e369d8-c8c4-4776-881d-596183c99a4e&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 275.142097 346.608717  L 292.820461 346.608717  L 292.820461 308.91691  L 275.142097 308.91691  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-88b07e90-595d-4bd4-a955-bdf6cdafacda&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 275.142097 346.608717  L 292.820461 346.608717  L 292.820461 308.91691  L 275.142097 308.91691  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-9943761b-30e0-408f-8c1b-9237be71a481&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 293.181244 346.608717  L 310.859609 346.608717  L 310.859609 312.748791  L 293.181244 312.748791  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-7ca22b5f-c681-4d12-9db9-69f03b04a50b&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 293.181244 346.608717  L 310.859609 346.608717  L 310.859609 312.748791  L 293.181244 312.748791  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-81a65c7b-82c7-4a27-b483-da4271db305d&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 311.220391 346.608717  L 328.898756 346.608717  L 328.898756 298.594742  L 311.220391 298.594742  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-b9794c21-ea83-45e2-adbb-530c830b39ce&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 311.220391 346.608717  L 328.898756 346.608717  L 328.898756 298.594742  L 311.220391 298.594742  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-463d9b0c-43b1-4ad5-9eed-0f5c23e9e4b7&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 329.259539 346.608717  L 346.937903 346.608717  L 346.937903 303.35169  L 329.259539 303.35169  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-1ac3781b-70ba-45c8-aa16-3c55c9c0bf0c&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 329.259539 346.608717  L 346.937903 346.608717  L 346.937903 303.35169  L 329.259539 303.35169  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-1cfc2ac0-a379-4112-8482-ee4deaf78ba7&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 347.298686 346.608717  L 364.977051 346.608717  L 364.977051 304.062853  L 347.298686 304.062853  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-73ab515e-9216-4ed0-bc2d-d1de0248f5fc&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 347.298686 346.608717  L 364.977051 346.608717  L 364.977051 304.062853  L 347.298686 304.062853  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-49e895ac-1e36-4266-9425-18e3acd7ad39&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 365.337834 346.608717  L 383.016198 346.608717  L 383.016198 283.894338  L 365.337834 283.894338  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-6b4cc397-5511-484f-b0f6-2f26748aa497&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 365.337834 346.608717  L 383.016198 346.608717  L 383.016198 283.894338  L 365.337834 283.894338  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-c68bdfd5-2973-47d7-b680-100bc6e7b029&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 383.376981 346.608717  L 401.055346 346.608717  L 401.055346 307.073908  L 383.376981 307.073908  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-332e5702-b660-4069-91cc-e0c9d8e7b770&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 383.376981 346.608717  L 401.055346 346.608717  L 401.055346 307.073908  L 383.376981 307.073908  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-3dde00d2-c2a2-4c61-958b-7cc2855c9c1a&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 401.416129 346.608717  L 419.094493 346.608717  L 419.094493 311.949739  L 401.416129 311.949739  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-6a9727b5-c68c-4076-a4f0-31e370b47ded&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 401.416129 346.608717  L 419.094493 346.608717  L 419.094493 311.949739  L 401.416129 311.949739  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-058f0c85-3274-46b4-9529-85bac3fd09b1&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 419.455276 346.608717  L 437.133641 346.608717  L 437.133641 304.015119  L 419.455276 304.015119  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-c27edbbc-c44d-46ce-93ce-1743e6da0c76&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 419.455276 346.608717  L 437.133641 346.608717  L 437.133641 304.015119  L 419.455276 304.015119  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-635490c3-092f-4277-a488-549fd33518ee&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 437.494424 346.608717  L 455.172788 346.608717  L 455.172788 264.855338  L 437.494424 264.855338  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-a8f35610-67c5-48f7-a536-990b11ab6a2b&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 437.494424 346.608717  L 455.172788 346.608717  L 455.172788 264.855338  L 437.494424 264.855338  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-5193bc55-1fd2-4e2a-889f-f22bab6615ce&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 455.533571 346.608717  L 473.211936 346.608717  L 473.211936 311.632522  L 455.533571 311.632522  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-34c087fc-d0f4-4004-b851-f26c80293e2a&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 455.533571 346.608717  L 473.211936 346.608717  L 473.211936 311.632522  L 455.533571 311.632522  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-fb9a574d-334a-4c64-857a-7c1c4c97c8f2&quot; maidr=&quot;e8f23767-1a76-4e14-88a8-a7492521887b&quot;>
-    <path d=&quot;M 473.572719 346.608717  L 491.251083 346.608717  L 491.251083 322.846328  L 473.572719 322.846328  z &quot; clip-path=&quot;url(#pb38df723b5)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
+   <g id=&quot;maidr-aa53a40a-9c6e-4f8e-872b-edd34b81c932&quot; maidr=&quot;e1a2f76b-a01c-4542-a131-cfc2c80398b5&quot;>
+    <path d=&quot;M 473.572719 346.608717  L 491.251083 346.608717  L 491.251083 322.846328  L 473.572719 322.846328  z &quot; clip-path=&quot;url(#p80d5d24d8b)&quot; style=&quot;fill: #1f77b4; stroke: #1c6ba2; stroke-width: 0.65; stroke-linejoin: miter&quot;/>
    </g>
-   <g id=&quot;maidr-11604f71-e04d-45f8-9bae-30a0913090d9&quot;>
+   <g id=&quot;maidr-3095b07a-f29e-4292-bec5-727a13e89c14&quot;>
     <path d=&quot;M 103.68 339.48  L 103.68 256.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-29ffba2e-af91-47b8-8a02-61db2a7ba706&quot;>
+   <g id=&quot;maidr-5232f97c-f12a-4254-bf8f-c39cbcfd7cd9&quot;>
     <path d=&quot;M 518.4 339.48  L 518.4 256.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-45b6d963-0e3e-44bd-9a9f-023a88c1df8f&quot;>
+   <g id=&quot;maidr-aa1cc7bd-bef5-4e79-b977-9472bf4a8584&quot;>
     <path d=&quot;M 103.68 339.48  L 518.4 339.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-7b547ebd-3dcf-41d1-8d18-558b27c8437c&quot;>
+   <g id=&quot;maidr-013d3b03-6f8e-4d9d-a037-4b8883d55ccf&quot;>
     <path d=&quot;M 103.68 256.68  L 518.4 256.68  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
   </g>
@@ -1220,10 +1230,10 @@ cookieconsent.run({
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;p12a637ad2d&quot;>
+  <clipPath id=&quot;p763ed94ce6&quot;>
    <rect x=&quot;103.68&quot; y=&quot;49.68&quot; width=&quot;414.72&quot; height=&quot;207&quot;/>
   </clipPath>
-  <clipPath id=&quot;pb38df723b5&quot;>
+  <clipPath id=&quot;p80d5d24d8b&quot;>
    <rect x=&quot;103.68&quot; y=&quot;256.68&quot; width=&quot;414.72&quot; height=&quot;82.8&quot;/>
   </clipPath>
  </defs>
@@ -1231,7 +1241,7 @@ cookieconsent.run({
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_1bb0a478-9e3b-469d-b335-3bc984731b41');
+            let iframe = document.getElementById('iframe_3e3aa316-76fa-4e67-b178-ee61f12908bb');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1295,7 +1305,7 @@ cookieconsent.run({
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_1bb0a478-9e3b-469d-b335-3bc984731b41');
+        let iframe = document.getElementById('iframe_3e3aa316-76fa-4e67-b178-ee61f12908bb');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();
@@ -1371,7 +1381,7 @@ cookieconsent.run({
 </div>
 <p><code>ax.broken_barh()</code> draws horizontal bars that start and stop along an axis, which is what a schedule looks like. maidr reads it as a gantt: every bar is a <strong>span</strong>, carrying both its start and its end rather than a single position, so a reader hears when a task begins, when it finishes, and therefore how long it runs.</p>
 <p>The whole chart is one layer, organized into <strong>lanes</strong>. Each <code>broken_barh()</code> call contributes one lane, and the spans passed in that call are the spans of that lane — so a phase that stops and restarts is two spans on one lane, not two separate rows.</p>
-<div id="3c8795c1" class="cell" data-execution_count="3">
+<div id="33f987de" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="3,9,10,11,19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr </span>
@@ -1392,7 +1402,7 @@ cookieconsent.run({
 <span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>plt.show() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_917ba0a2-d6b8-4cde-9020-8c1a5e3c7345" title="Project schedule, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+<iframe id="iframe_5a65c188-ad0e-4669-a9df-27e814adf2dc" title="Project schedule, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.10.0/dist/maidr.js&quot;]');
@@ -1410,12 +1420,12 @@ cookieconsent.run({
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;576pt&quot; height=&quot;288pt&quot; viewBox=&quot;0 0 576 288&quot; version=&quot;1.1&quot; id=&quot;c2e58168-f309-4ca8-8ca8-7d1ed8896410&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;c2e58168-f309-4ca8-8ca8-7d1ed8896410&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;a9b28c2b-aefb-422b-9c5f-6bb63179c9d8&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;4555986f-1437-4320-abb2-69b8ea2ecd50&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;gantt&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Project schedule&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Week&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Phase&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;return String(value)&amp;quot;}}}, &amp;quot;data&amp;quot;: {&amp;quot;points&amp;quot;: [[{&amp;quot;x&amp;quot;: &amp;quot;Design&amp;quot;, &amp;quot;start&amp;quot;: 0.0, &amp;quot;end&amp;quot;: 3.0}], [{&amp;quot;x&amp;quot;: &amp;quot;Build&amp;quot;, &amp;quot;start&amp;quot;: 3.0, &amp;quot;end&amp;quot;: 7.0}, {&amp;quot;x&amp;quot;: &amp;quot;Build&amp;quot;, &amp;quot;start&amp;quot;: 8.0, &amp;quot;end&amp;quot;: 11.0}], [{&amp;quot;x&amp;quot;: &amp;quot;Launch&amp;quot;, &amp;quot;start&amp;quot;: 11.0, &amp;quot;end&amp;quot;: 13.0}]], &amp;quot;lanes&amp;quot;: [&amp;quot;Design&amp;quot;, &amp;quot;Build&amp;quot;, &amp;quot;Launch&amp;quot;]}, &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-af1aba08-e8e1-43a7-b6cc-9214e2ed27a2'] &amp;gt; path&amp;quot;, &amp;quot;g[id='maidr-e951347e-480a-4029-af93-480647530fee'] &amp;gt; path&amp;quot;, &amp;quot;g[id='maidr-fe910cc0-19da-4954-9f84-c3e0f79cf7ce'] &amp;gt; path&amp;quot;]}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;576pt&quot; height=&quot;288pt&quot; viewBox=&quot;0 0 576 288&quot; version=&quot;1.1&quot; id=&quot;e77225b2-a041-49db-98e1-a7a31d762bfb&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;e77225b2-a041-49db-98e1-a7a31d762bfb&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;c2ee651a-ce31-4ef3-96dd-296948a6715a&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;b300eb37-795f-4934-9e3f-d79ead7c2b35&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;gantt&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Project schedule&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Week&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Phase&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;return String(value)&amp;quot;}}}, &amp;quot;data&amp;quot;: {&amp;quot;points&amp;quot;: [[{&amp;quot;x&amp;quot;: &amp;quot;Design&amp;quot;, &amp;quot;start&amp;quot;: 0.0, &amp;quot;end&amp;quot;: 3.0}], [{&amp;quot;x&amp;quot;: &amp;quot;Build&amp;quot;, &amp;quot;start&amp;quot;: 3.0, &amp;quot;end&amp;quot;: 7.0}, {&amp;quot;x&amp;quot;: &amp;quot;Build&amp;quot;, &amp;quot;start&amp;quot;: 8.0, &amp;quot;end&amp;quot;: 11.0}], [{&amp;quot;x&amp;quot;: &amp;quot;Launch&amp;quot;, &amp;quot;start&amp;quot;: 11.0, &amp;quot;end&amp;quot;: 13.0}]], &amp;quot;lanes&amp;quot;: [&amp;quot;Design&amp;quot;, &amp;quot;Build&amp;quot;, &amp;quot;Launch&amp;quot;]}, &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-7c880173-a2cd-44cd-842a-0f6259500547'] &amp;gt; path&amp;quot;, &amp;quot;g[id='maidr-d98b2724-2d1c-44ca-885d-b780970bff6a'] &amp;gt; path&amp;quot;, &amp;quot;g[id='maidr-380db57f-2d21-447e-a380-a6833396599f'] &amp;gt; path&amp;quot;]}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-09-26T13:25:28.248458</dc:date>
+    <dc:date>2026-09-26T15:44:48.830026</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -1429,19 +1439,19 @@ cookieconsent.run({
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-107d148f-5407-4f35-8135-e8eed9390b84&quot;>
+  <g id=&quot;maidr-d06722fb-dbd7-4531-a5bd-7e23d4dde0fd&quot;>
    <path d=&quot;M 0 288  L 576 288  L 576 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-a5c9d63b-decf-46ed-a488-684fb37c7e4c&quot;>
+   <g id=&quot;maidr-62041dda-a74a-475a-9e7a-1b1924743f1d&quot;>
     <path d=&quot;M 72 256.32  L 518.4 256.32  L 518.4 34.56  L 72 34.56  z &quot; style=&quot;fill: #dce3ef&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-02e25999-fd0d-4402-a95a-af6e8e29a812&quot;>
-      <path d=&quot;M 92.290909 256.32  L 92.290909 34.56  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-3a987f0d-3039-4e37-8969-ce522a77f1a4&quot;>
+      <path d=&quot;M 92.290909 256.32  L 92.290909 34.56  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-785a0b64-42ab-470c-8868-9e3ffdb7d728&quot;/>
+     <g id=&quot;maidr-d4ef46ef-f29a-4a1b-b0cb-0538c62e6512&quot;/>
      <g id=&quot;text_1&quot;>
       <!-- 0 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(88.954347 268.51625) scale(0.12 -0.12)&quot;>
@@ -1453,10 +1463,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-24587a49-c653-42a5-b5e3-0b1c7933cf45&quot;>
-      <path d=&quot;M 154.724476 256.32  L 154.724476 34.56  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-bf558e24-550c-4bf3-9397-636c2a0c0579&quot;>
+      <path d=&quot;M 154.724476 256.32  L 154.724476 34.56  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-2c695175-fd3e-42f4-8658-b16c66b4c0df&quot;/>
+     <g id=&quot;maidr-c9e25a91-9648-40a5-b58a-7d251ea56002&quot;/>
      <g id=&quot;text_2&quot;>
       <!-- 2 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(151.387913 268.51625) scale(0.12 -0.12)&quot;>
@@ -1468,10 +1478,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-e6b3936b-360c-46f4-82c6-b5a2259b9c5b&quot;>
-      <path d=&quot;M 217.158042 256.32  L 217.158042 34.56  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-a7f5b3c8-2439-40c7-9609-81efea63567e&quot;>
+      <path d=&quot;M 217.158042 256.32  L 217.158042 34.56  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-4ee669a3-d9de-4a44-865f-4b814968d164&quot;/>
+     <g id=&quot;maidr-e47875bb-9bf3-4f65-acca-68b81467b226&quot;/>
      <g id=&quot;text_3&quot;>
       <!-- 4 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(213.821479 268.51625) scale(0.12 -0.12)&quot;>
@@ -1483,10 +1493,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_4&quot;>
-     <g id=&quot;maidr-643b8552-4314-457d-8b08-18bee439fe95&quot;>
-      <path d=&quot;M 279.591608 256.32  L 279.591608 34.56  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-0bd5758e-ca17-4ada-b4d8-c63dcea603b4&quot;>
+      <path d=&quot;M 279.591608 256.32  L 279.591608 34.56  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-3c35a657-4b85-4942-bfe1-080cbe64112c&quot;/>
+     <g id=&quot;maidr-4172ea9e-6c34-4b8b-925b-9a1fa03beeac&quot;/>
      <g id=&quot;text_4&quot;>
       <!-- 6 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(276.255046 268.51625) scale(0.12 -0.12)&quot;>
@@ -1498,10 +1508,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_5&quot;>
-     <g id=&quot;maidr-6a89ec81-ee2d-44d2-91de-72c3b14b1318&quot;>
-      <path d=&quot;M 342.025175 256.32  L 342.025175 34.56  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-885ea950-2d02-4094-90bf-b46f851a6151&quot;>
+      <path d=&quot;M 342.025175 256.32  L 342.025175 34.56  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-28880310-de5f-44c8-92fb-246d394c491a&quot;/>
+     <g id=&quot;maidr-99647fc4-3183-4aab-b975-263a60f8296a&quot;/>
      <g id=&quot;text_5&quot;>
       <!-- 8 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(338.688612 268.51625) scale(0.12 -0.12)&quot;>
@@ -1513,10 +1523,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_6&quot;>
-     <g id=&quot;maidr-bd526b41-312f-415b-9515-b48e95640a94&quot;>
-      <path d=&quot;M 404.458741 256.32  L 404.458741 34.56  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-01b9beee-6657-4d11-bd32-92f865897a24&quot;>
+      <path d=&quot;M 404.458741 256.32  L 404.458741 34.56  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-b58249dd-8333-4b99-ae9a-4f5f1e8fb7b3&quot;/>
+     <g id=&quot;maidr-ec1fc34d-d423-44cf-9d9c-d522b5c6a6f8&quot;/>
      <g id=&quot;text_6&quot;>
       <!-- 10 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(397.785616 268.51625) scale(0.12 -0.12)&quot;>
@@ -1529,10 +1539,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_7&quot;>
-     <g id=&quot;maidr-7c507c06-fb84-4000-be0a-cdaa9441efd2&quot;>
-      <path d=&quot;M 466.892308 256.32  L 466.892308 34.56  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-23aeb7dd-4a86-43ff-9d95-ed1f06f4f0db&quot;>
+      <path d=&quot;M 466.892308 256.32  L 466.892308 34.56  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-87308f82-cd99-4447-ad6a-cf95a2c9cf95&quot;/>
+     <g id=&quot;maidr-7f962dad-e430-4742-9c32-a76e0673442e&quot;/>
      <g id=&quot;text_7&quot;>
       <!-- 12 -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(460.219183 268.51625) scale(0.12 -0.12)&quot;>
@@ -1558,10 +1568,10 @@ cookieconsent.run({
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-827f10c7-9f76-4e44-a3ae-3f113df86988&quot;>
-      <path d=&quot;M 72 222.978462  L 518.4 222.978462  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-c5f94c4b-ea1d-4455-8e6f-f75fb6b13a9b&quot;>
+      <path d=&quot;M 72 222.978462  L 518.4 222.978462  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-596ca632-46d6-4435-8336-5ff94e2d9af9&quot;/>
+     <g id=&quot;maidr-c09c5921-c829-41e7-9603-7a4eec6f70c2&quot;/>
      <g id=&quot;text_9&quot;>
       <!-- Design -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(31.148125 227.326587) scale(0.12 -0.12)&quot;>
@@ -1583,10 +1593,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-35291511-bcee-4848-8a17-e57cc4d510fb&quot;>
-      <path d=&quot;M 72 145.44  L 518.4 145.44  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-7474f3a1-7755-4a39-a89e-9c2a46ede4f9&quot;>
+      <path d=&quot;M 72 145.44  L 518.4 145.44  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-35fdd4b1-81cc-4b54-aec9-53c5ffaba908&quot;/>
+     <g id=&quot;maidr-da40ceaf-80a6-4f53-885f-c411c59f4fe1&quot;/>
      <g id=&quot;text_10&quot;>
       <!-- Build -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(41.816875 149.788125) scale(0.12 -0.12)&quot;>
@@ -1605,10 +1615,10 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-2cb31097-60ae-4b9a-82b1-f50bf6fee4dc&quot;>
-      <path d=&quot;M 72 67.901538  L 518.4 67.901538  &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
+     <g id=&quot;maidr-641f8d68-105c-402c-b152-28185f5ab1db&quot;>
+      <path d=&quot;M 72 67.901538  L 518.4 67.901538  &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: none; stroke: #ffffff; stroke-width: 0.8; stroke-linecap: round&quot;/>
      </g>
-     <g id=&quot;maidr-c17502fa-4ded-4266-8ba4-b7a94a6a9322&quot;/>
+     <g id=&quot;maidr-694820ca-1f87-4c53-ae79-d7f454922872&quot;/>
      <g id=&quot;text_11&quot;>
       <!-- Launch -->
       <g style=&quot;fill: #262626&quot; transform=&quot;translate(29.134375 72.249663) scale(0.12 -0.12)&quot;>
@@ -1644,26 +1654,26 @@ cookieconsent.run({
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-af1aba08-e8e1-43a7-b6cc-9214e2ed27a2&quot;>
-    <path d=&quot;M 92.290909 246.24  L 92.290909 199.716923  L 185.941259 199.716923  L 185.941259 246.24  z &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: #1f77b4&quot;/>
+   <g id=&quot;maidr-7c880173-a2cd-44cd-842a-0f6259500547&quot;>
+    <path d=&quot;M 92.290909 246.24  L 92.290909 199.716923  L 185.941259 199.716923  L 185.941259 246.24  z &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: #1f77b4&quot;/>
    </g>
-   <g id=&quot;maidr-e951347e-480a-4029-af93-480647530fee&quot;>
-    <path d=&quot;M 185.941259 168.701538  L 185.941259 122.178462  L 310.808392 122.178462  L 310.808392 168.701538  z &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: #1f77b4&quot;/>
-    <path d=&quot;M 342.025175 168.701538  L 342.025175 122.178462  L 435.675524 122.178462  L 435.675524 168.701538  z &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: #1f77b4&quot;/>
+   <g id=&quot;maidr-d98b2724-2d1c-44ca-885d-b780970bff6a&quot;>
+    <path d=&quot;M 185.941259 168.701538  L 185.941259 122.178462  L 310.808392 122.178462  L 310.808392 168.701538  z &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: #1f77b4&quot;/>
+    <path d=&quot;M 342.025175 168.701538  L 342.025175 122.178462  L 435.675524 122.178462  L 435.675524 168.701538  z &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: #1f77b4&quot;/>
    </g>
-   <g id=&quot;maidr-fe910cc0-19da-4954-9f84-c3e0f79cf7ce&quot;>
-    <path d=&quot;M 435.675524 91.163077  L 435.675524 44.64  L 498.109091 44.64  L 498.109091 91.163077  z &quot; clip-path=&quot;url(#p48ad6d6aa2)&quot; style=&quot;fill: #1f77b4&quot;/>
+   <g id=&quot;maidr-380db57f-2d21-447e-a380-a6833396599f&quot;>
+    <path d=&quot;M 435.675524 91.163077  L 435.675524 44.64  L 498.109091 44.64  L 498.109091 91.163077  z &quot; clip-path=&quot;url(#p0921ab7620)&quot; style=&quot;fill: #1f77b4&quot;/>
    </g>
-   <g id=&quot;maidr-1d152281-5c8e-496f-834c-d8f3b065839f&quot;>
+   <g id=&quot;maidr-0509725f-8c84-48c1-b20d-528a42722cc1&quot;>
     <path d=&quot;M 72 256.32  L 72 34.56  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-28989447-95be-413b-94ed-4ce898cb2a0a&quot;>
+   <g id=&quot;maidr-f577f2fa-fcbc-403d-82ae-8b341ee23ad6&quot;>
     <path d=&quot;M 518.4 256.32  L 518.4 34.56  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-ab8fcb89-ba4f-4e50-bfce-39643578325a&quot;>
+   <g id=&quot;maidr-600bfe95-801f-4514-86b2-996bcb45fd3e&quot;>
     <path d=&quot;M 72 256.32  L 518.4 256.32  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-c4890cce-a984-423f-ae20-0a0c00435dad&quot;>
+   <g id=&quot;maidr-18b1c186-8648-4bd4-81f8-57594f668756&quot;>
     <path d=&quot;M 72 34.56  L 518.4 34.56  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_13&quot;>
@@ -1698,7 +1708,7 @@ cookieconsent.run({
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;p48ad6d6aa2&quot;>
+  <clipPath id=&quot;p0921ab7620&quot;>
    <rect x=&quot;72&quot; y=&quot;34.56&quot; width=&quot;446.4&quot; height=&quot;221.76&quot;/>
   </clipPath>
  </defs>
@@ -1706,7 +1716,7 @@ cookieconsent.run({
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_917ba0a2-d6b8-4cde-9020-8c1a5e3c7345');
+            let iframe = document.getElementById('iframe_5a65c188-ad0e-4669-a9df-27e814adf2dc');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1770,7 +1780,7 @@ cookieconsent.run({
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_917ba0a2-d6b8-4cde-9020-8c1a5e3c7345');
+        let iframe = document.getElementById('iframe_5a65c188-ad0e-4669-a9df-27e814adf2dc');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();

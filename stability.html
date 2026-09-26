@@ -178,7 +178,7 @@ cookieconsent.run({
       "@id": "https://py.maidr.ai/#software",
       "name": "py-maidr",
       "alternateName": ["maidr (PyPI)"],
-      "description": "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "description": "Python library that makes matplotlib, seaborn, Plotly, Bokeh and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
       "url": "https://py.maidr.ai/",
       "codeRepository": "https://github.com/xability/py-maidr",
       "downloadUrl": "https://pypi.org/project/maidr/",
@@ -196,7 +196,7 @@ cookieconsent.run({
       "softwareRequirements": ["Python >= 3.9", "matplotlib"],
       "softwareVersion": "1.25.0",
       "operatingSystem": "Cross-platform",
-      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "bokeh", "altair"],
       "sameAs": [
         "https://github.com/xability/py-maidr",
         "https://pypi.org/project/maidr/"
@@ -328,6 +328,10 @@ cookieconsent.run({
  <span class="dropdown-text">Plotly</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples-bokeh.html">
+ <span class="dropdown-text">Bokeh <a href="#experimental">experimental</a></span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples-altair.html">
  <span class="dropdown-text">Altair</span></a>
   </li>  
@@ -367,6 +371,7 @@ cookieconsent.run({
   <li><a href="#two-sets-two-different-promises" id="toc-two-sets-two-different-promises" class="nav-link active" data-scroll-target="#two-sets-two-different-promises">Two sets, two different promises</a></li>
   <li><a href="#stable" id="toc-stable" class="nav-link" data-scroll-target="#stable">Stable</a></li>
   <li><a href="#experimental" id="toc-experimental" class="nav-link" data-scroll-target="#experimental">Experimental</a></li>
+  <li><a href="#bokeh-support" id="toc-bokeh-support" class="nav-link" data-scroll-target="#bokeh-support">Bokeh support</a></li>
   <li><a href="#drawn-but-not-read" id="toc-drawn-but-not-read" class="nav-link" data-scroll-target="#drawn-but-not-read">Drawn but not read</a></li>
   <li><a href="#how-the-split-is-derived" id="toc-how-the-split-is-derived" class="nav-link" data-scroll-target="#how-the-split-is-derived">How the split is derived</a></li>
   <li><a href="#the-same-split-upstream" id="toc-the-same-split-upstream" class="nav-link" data-scroll-target="#the-same-split-upstream">The same split upstream</a></li>
@@ -629,6 +634,10 @@ cookieconsent.run({
 <li><strong>Not a support commitment.</strong> A bug in one of these is worth reporting, and reporting it is not a promise that the current behavior will be kept.</li>
 </ul>
 <p>If you are building something that has to keep working, build it on the stable set. If you are exploring what a chart could sound like, the experimental set is exactly what it is for — and feedback on it is the thing that would move a type out of this list.</p>
+</section>
+<section id="bokeh-support" class="level2">
+<h2 class="anchored" data-anchor-id="bokeh-support">Bokeh support</h2>
+<p>Bokeh figures (<code>maidr.show(p)</code> on a <code>figure</code>, <code>gridplot</code>, <code>row</code> or <code>column</code>) are read by an adapter that is itself <strong>experimental</strong>, whatever plot type it emits: a Bokeh bar chart emits the stable <code>bar</code> type, but which glyphs are read as what, the highlight drawn inside the Bokeh plot, and what is skipped may change without a deprecation period, including in a patch release. The tables above describe the <em>types</em>; this is about the <em>reader of Bokeh documents</em>, which has not been through a user study either. See the <a href="./examples-bokeh.html">Bokeh gallery</a> for what it reads today (<a href="https://github.com/xability/py-maidr/issues/813">#813</a>).</p>
 </section>
 <section id="drawn-but-not-read" class="level2">
 <h2 class="anchored" data-anchor-id="drawn-but-not-read">Drawn but not read</h2>

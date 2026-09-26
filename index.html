@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
+<meta name="description" content="Make matplotlib, seaborn, Plotly, Bokeh, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
 
 <title>Accessible Data Visualization for Python – py-maidr</title>
 <style>
@@ -181,7 +181,7 @@ cookieconsent.run({
       "@id": "https://py.maidr.ai/#software",
       "name": "py-maidr",
       "alternateName": ["maidr (PyPI)"],
-      "description": "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "description": "Python library that makes matplotlib, seaborn, Plotly, Bokeh and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
       "url": "https://py.maidr.ai/",
       "codeRepository": "https://github.com/xability/py-maidr",
       "downloadUrl": "https://pypi.org/project/maidr/",
@@ -199,7 +199,7 @@ cookieconsent.run({
       "softwareRequirements": ["Python >= 3.9", "matplotlib"],
       "softwareVersion": "1.25.0",
       "operatingSystem": "Cross-platform",
-      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "bokeh", "altair"],
       "sameAs": [
         "https://github.com/xability/py-maidr",
         "https://pypi.org/project/maidr/"
@@ -345,13 +345,13 @@ window.Quarto = {
 
 <link rel="stylesheet" href="styles.css">
 <meta property="og:title" content="py-maidr: Accessible Data Visualization for Python">
-<meta property="og:description" content="Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
+<meta property="og:description" content="Make matplotlib, seaborn, Plotly, Bokeh, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
 <meta name="twitter:title" content="py-maidr: Accessible Data Visualization for Python">
-<meta name="twitter:description" content="Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
+<meta name="twitter:description" content="Make matplotlib, seaborn, Plotly, Bokeh, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
@@ -360,7 +360,7 @@ window.Quarto = {
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
+<meta name="DC.description" content="Make matplotlib, seaborn, Plotly, Bokeh, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.">
 <meta name="DC.identifier" content="https://py.maidr.ai/">
 <meta name="DC.type" content="Software">
 <meta name="DC.format" content="text/html">
@@ -453,6 +453,10 @@ window.Quarto = {
  <span class="dropdown-text">Plotly</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples-bokeh.html">
+ <span class="dropdown-text">Bokeh [experimental]</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples-altair.html">
  <span class="dropdown-text">Altair</span></a>
   </li>  
@@ -494,6 +498,7 @@ window.Quarto = {
   <li><a href="#matplotlib" id="toc-matplotlib" class="nav-link" data-scroll-target="#matplotlib">Matplotlib</a></li>
   <li><a href="#seaborn" id="toc-seaborn" class="nav-link" data-scroll-target="#seaborn">Seaborn</a></li>
   <li><a href="#plotly" id="toc-plotly" class="nav-link" data-scroll-target="#plotly">Plotly</a></li>
+  <li><a href="#bokeh-experimental" id="toc-bokeh-experimental" class="nav-link" data-scroll-target="#bokeh-experimental">Bokeh [experimental]</a></li>
   <li><a href="#altair" id="toc-altair" class="nav-link" data-scroll-target="#altair">Altair</a></li>
   <li><a href="#additional-libraries" id="toc-additional-libraries" class="nav-link" data-scroll-target="#additional-libraries">Additional Libraries</a></li>
   </ul></li>
@@ -542,7 +547,7 @@ window.Quarto = {
 
 <div>
   <div class="description">
-    Make matplotlib, seaborn, Plotly, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.
+    Make matplotlib, seaborn, Plotly, Bokeh, and Altair plots accessible to blind and low-vision users via sonification, braille, text, and AI chat. Python binding of MAIDR.
   </div>
 </div>
 
@@ -565,7 +570,7 @@ window.Quarto = {
 <p><br></p>
 <p><em>maidr: Data Insight for All</em></p>
 </div>
-<p><strong>py-maidr</strong> (PyPI package <code>maidr</code>, pronounced “mader”) is a Python library that makes <strong>matplotlib</strong>, <strong>seaborn</strong>, <strong>Plotly</strong>, and <strong>Altair</strong> charts accessible to blind and low-vision users. After <code>import maidr</code>, <code>plt.show()</code> renders an interactive chart that can be explored by keyboard and read as <em>touchable</em> (braille), <em>readable</em> (text), <em>audible</em> (sonification), and <em>conversational</em> (AI chat) representations; <code>maidr.save_html()</code> exports the same chart as a standalone HTML file. py-maidr is the Python binding of <a href="https://maidr.ai/">MAIDR</a>, the Multimodal Access and Interactive Data Representation engine developed by the <a href="https://xabilitylab.ischool.illinois.edu/">(x)Ability Design Lab</a> at the University of Illinois Urbana-Champaign; a sibling package, <a href="https://r.maidr.ai/">maidr for R</a>, brings the same accessibility layer to ggplot2 and base R graphics.</p>
+<p><strong>py-maidr</strong> (PyPI package <code>maidr</code>, pronounced “mader”) is a Python library that makes <strong>matplotlib</strong>, <strong>seaborn</strong>, <strong>Plotly</strong>, <strong>Bokeh</strong>, and <strong>Altair</strong> charts accessible to blind and low-vision users. After <code>import maidr</code>, <code>plt.show()</code> renders an interactive chart that can be explored by keyboard and read as <em>touchable</em> (braille), <em>readable</em> (text), <em>audible</em> (sonification), and <em>conversational</em> (AI chat) representations; <code>maidr.save_html()</code> exports the same chart as a standalone HTML file. py-maidr is the Python binding of <a href="https://maidr.ai/">MAIDR</a>, the Multimodal Access and Interactive Data Representation engine developed by the <a href="https://xabilitylab.ischool.illinois.edu/">(x)Ability Design Lab</a> at the University of Illinois Urbana-Champaign; a sibling package, <a href="https://r.maidr.ai/">maidr for R</a>, brings the same accessibility layer to ggplot2 and base R graphics.</p>
 <p>The following summarizes the key features and design principles of py-maidr:</p>
 <ol type="1">
 <li><p>Accessibility: maidr is designed to be accessible to both blind and sighted users from the ground up. Beyond the passive consumption level, blind users can also independently create, modify, and share data visualizations with others.</p></li>
@@ -674,6 +679,23 @@ Note
 </div>
 </div>
 </section>
+<section id="bokeh-experimental" class="level3">
+<h3 class="anchored" data-anchor-id="bokeh-experimental">Bokeh [experimental]</h3>
+<p>py-maidr ships a <a href="https://bokeh.org/">Bokeh</a> adapter that, like the Plotly one, builds a MAIDR schema in Python from the figure’s own renderers and data sources. Use <code>maidr.show(p)</code> (or <code>maidr.render(p)</code>, <code>maidr.save_html(p, ...)</code>) with a <code>figure</code>, a <code>gridplot</code>, or a <code>row</code>/<code>column</code> of figures; install it with <code>pip install "maidr[bokeh]"</code>. Bokeh support as a whole is <strong>experimental</strong>, whichever plot type is drawn: see <a href="./stability.html#bokeh-support">Plot Type Stability</a>.</p>
+<ul>
+<li><p>One-factor bar plot (<code>vbar</code>, <code>hbar</code>), read in the order its <code>FactorRange</code> draws the bars.</p></li>
+<li><p>Stacked bar plot (<code>vbar_stack</code>, <code>hbar_stack</code>), each segment announced as its own value.</p></li>
+<li><p>Dodged (grouped) bar plot — <code>vbar</code> renderers placed with <code>dodge()</code>, or one <code>vbar</code> on a nested <code>FactorRange</code>.</p></li>
+<li><p>Histogram (<code>quad</code>), vertical or sideways.</p></li>
+<li><p>Single line plot and multi-line plot (<code>line</code>, <code>multi_line</code>): every line on a figure is one series of one layer, named by its legend label.</p></li>
+<li><p>Step plot (<code>step</code>), with <code>mode</code> announced as the step direction.</p></li>
+<li><p>Scatter plot (<code>scatter</code>, <code>circle</code>).</p></li>
+<li><p>Heatmap (<code>rect</code> coloured through a colour mapper) having one x (categorical) and one y (categorical) and z (numerical) axis, named by its colour bar’s title.</p></li>
+<li><p>Area [experimental] and stacked area [experimental] plots (<code>varea</code>, <code>varea_stack</code>).</p></li>
+<li><p>Multi-panel layouts (<code>gridplot</code>, <code>row</code>, <code>column</code>, <code>GridBox</code>); a <code>Tabs</code> layout is read one panel at a time, the active one.</p></li>
+</ul>
+<p>Bokeh draws to a canvas, so the mark being read is highlighted inside the Bokeh plot itself: a bar, bin, cell or point is selected, and a line, step or area shows a ring on the current point. Other glyphs are left out with a warning naming them. BokehJS is always loaded from Bokeh’s CDN, as plotly.js is from Plotly’s; <code>use_cdn</code> decides where <code>maidr.js</code> comes from. See the <a href="./examples-bokeh.html#sec-bokeh-examples">Bokeh gallery</a> for runnable examples.</p>
+</section>
 <section id="altair" class="level3">
 <h3 class="anchored" data-anchor-id="altair">Altair</h3>
 <p>py-maidr ships an <a href="https://altair-viz.github.io/">Altair</a> adapter that compiles single-view (<code>alt.Chart</code>) and layered (<code>alt.LayerChart</code> / <code>c1 + c2</code>) specs to MAIDR-instrumented Vega-Lite output. Use <code>maidr.show(chart)</code> (or <code>maidr.save_html(chart, ...)</code>) to render an accessible version of any supported Altair chart.</p>
@@ -727,7 +749,7 @@ Note
 <p>Check more examples in the <a href="./examples.html#sec-examples">galleries</a>.</p>
 <section id="sample-bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="sample-bar-plot">Sample Bar Plot</h3>
-<div id="c6fec36c" class="cell" data-execution_count="1">
+<div id="025227e4" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,5,22,23,26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -758,7 +780,7 @@ Note
 <script src="https://cdn.jsdelivr.net/npm/maidr@4.10.0/dist/maidr.js"></script>
 </div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_88d0435b-752a-4e7f-846d-b021ba02237e" title="Average Body Mass of Penguins by Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+<iframe id="iframe_018386ce-de09-4d29-ad59-838e45bd30d3" title="Average Body Mass of Penguins by Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.10.0/dist/maidr.js&quot;]');
@@ -776,12 +798,12 @@ Note
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;4ef52f65-23f4-4398-9be1-e209a737ffe8&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;4ef52f65-23f4-4398-9be1-e209a737ffe8&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;af7e58c3-c234-4478-a5b0-79fb21263dc8&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;175268d1-4d7a-4023-8958-e354f91b8175&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Species&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;, &amp;quot;y&amp;quot;: 3700.662251655629}, {&amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;, &amp;quot;y&amp;quot;: 3733.0882352941176}, {&amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;, &amp;quot;y&amp;quot;: 5076.016260162602}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='e727be54-e00e-4ab2-9fb7-7460bd4ff499'] &amp;gt; path&amp;quot;, &amp;quot;orientation&amp;quot;: &amp;quot;vert&amp;quot;}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;323976fb-ae34-4bb8-9418-4c5dc268c130&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;323976fb-ae34-4bb8-9418-4c5dc268c130&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;1f38596a-6e12-42c4-a617-a499e22553c4&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;1fbab6fd-8b5a-4ebc-8f45-1228ea80f13b&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Species&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;, &amp;quot;y&amp;quot;: 3700.662251655629}, {&amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;, &amp;quot;y&amp;quot;: 3733.0882352941176}, {&amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;, &amp;quot;y&amp;quot;: 5076.016260162602}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='39de3c3d-b677-4866-a1fa-4065a2386933'] &amp;gt; path&amp;quot;, &amp;quot;orientation&amp;quot;: &amp;quot;vert&amp;quot;}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-09-26T13:26:42.605585</dc:date>
+    <dc:date>2026-09-26T15:45:50.983624</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -795,30 +817,30 @@ Note
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-deb7b010-3670-4fa5-9e5f-4f131079a6df&quot;>
+  <g id=&quot;maidr-d696025e-a6d5-44ad-ab0c-d84393f09372&quot;>
    <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-fff1759b-03bd-4595-8ec7-1a945444c80e&quot;>
+   <g id=&quot;maidr-6755dffa-915c-4aba-9de0-3f089b3fc566&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  L 388.8 51.84  L 54 51.84  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
-   <g id=&quot;maidr-699ba6d4-42a3-41fd-9c56-21c7bebf8802&quot; maidr=&quot;e727be54-e00e-4ab2-9fb7-7460bd4ff499&quot;>
-    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#pd855e10f13)&quot; style=&quot;fill: #7da9c7&quot;/>
+   <g id=&quot;maidr-bf60f9ea-6e2c-40dd-af56-fb0bc740e597&quot; maidr=&quot;39de3c3d-b677-4866-a1fa-4065a2386933&quot;>
+    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#p52522a71df)&quot; style=&quot;fill: #7da9c7&quot;/>
    </g>
-   <g id=&quot;maidr-c78a1bb9-9b7d-4753-8ada-8f4adc33b727&quot; maidr=&quot;e727be54-e00e-4ab2-9fb7-7460bd4ff499&quot;>
-    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#pd855e10f13)&quot; style=&quot;fill: #4884af&quot;/>
+   <g id=&quot;maidr-5bec80a2-fb36-4f2c-a64b-af829b7fb167&quot; maidr=&quot;39de3c3d-b677-4866-a1fa-4065a2386933&quot;>
+    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#p52522a71df)&quot; style=&quot;fill: #4884af&quot;/>
    </g>
-   <g id=&quot;maidr-5f5f3fe7-6bbb-41d1-b71f-0df31e056579&quot; maidr=&quot;e727be54-e00e-4ab2-9fb7-7460bd4ff499&quot;>
-    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#pd855e10f13)&quot; style=&quot;fill: #3d5b70&quot;/>
+   <g id=&quot;maidr-95ce7606-68a4-48cf-a996-b91c255b4955&quot; maidr=&quot;39de3c3d-b677-4866-a1fa-4065a2386933&quot;>
+    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#p52522a71df)&quot; style=&quot;fill: #3d5b70&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-f877e90a-1193-4a21-a40b-aa2f5febe150&quot;>
+     <g id=&quot;maidr-52820f7b-89bd-4a24-9845-7aaf726d8ad3&quot;>
       <defs>
-       <path id=&quot;m8dad5f2b6e&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m1d8e1ef5c0&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m8dad5f2b6e&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m1d8e1ef5c0&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -841,9 +863,9 @@ Note
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-4f1cdd63-ea5d-4544-acdc-bc97ab35fba4&quot;>
+     <g id=&quot;maidr-573b5366-5bb9-471a-8daf-2f36f5841560&quot;>
       <g>
-       <use xlink:href=&quot;#m8dad5f2b6e&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m1d8e1ef5c0&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -872,9 +894,9 @@ Note
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-b26e3d6a-d7de-4d10-8890-9a2dd19bdddf&quot;>
+     <g id=&quot;maidr-431e0009-fe0b-4627-9f9f-06c3a631d96a&quot;>
       <g>
-       <use xlink:href=&quot;#m8dad5f2b6e&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m1d8e1ef5c0&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -912,12 +934,12 @@ Note
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-63ca129a-a72d-41f6-adea-027a3888de75&quot;>
+     <g id=&quot;maidr-76ed9d97-925c-47f3-8ea6-fe809acb638f&quot;>
       <defs>
-       <path id=&quot;me3554b659e&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;mbdf8b7488e&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#me3554b659e&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mbdf8b7488e&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -931,9 +953,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-3d5107e6-9385-42d3-9c2a-db679023b9a2&quot;>
+     <g id=&quot;maidr-c9b915ca-b485-458e-8644-307cb80d12bc&quot;>
       <g>
-       <use xlink:href=&quot;#me3554b659e&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mbdf8b7488e&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -950,9 +972,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-d275aefe-16de-4747-9eed-564f84a4ab77&quot;>
+     <g id=&quot;maidr-ca4bee92-a83f-4022-bc6d-6cff5af42899&quot;>
       <g>
-       <use xlink:href=&quot;#me3554b659e&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mbdf8b7488e&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -969,9 +991,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-0653b7e5-defe-4ede-9263-38690a106a57&quot;>
+     <g id=&quot;maidr-f13d4c4c-81d5-4e4d-9fcb-dd1b5c81239a&quot;>
       <g>
-       <use xlink:href=&quot;#me3554b659e&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mbdf8b7488e&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -988,9 +1010,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-4234962e-5900-4b3f-bebe-7448da002486&quot;>
+     <g id=&quot;maidr-ac4f2f98-992e-46ed-b6ef-b66760743d52&quot;>
       <g>
-       <use xlink:href=&quot;#me3554b659e&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mbdf8b7488e&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -1007,9 +1029,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-bc0f3a49-7513-406e-95e8-63cd15e963ce&quot;>
+     <g id=&quot;maidr-47e76267-8015-4d54-8597-5be975b76355&quot;>
       <g>
-       <use xlink:href=&quot;#me3554b659e&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mbdf8b7488e&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -1053,25 +1075,25 @@ Note
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-b7556fc5-2439-4b37-9ef5-be0caabb7f1c&quot;>
-    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#pd855e10f13)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-d58256fc-60f4-4a7f-8271-4b79f0f90bd5&quot;>
+    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#p52522a71df)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-0edb7e8e-7971-44d3-b27a-dd4448ef1a34&quot;>
-    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#pd855e10f13)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-5e330603-8daa-4b6d-8640-bcd917062a07&quot;>
+    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#p52522a71df)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-ebc449b8-9aa5-45d4-816c-c19c81e230c9&quot;>
-    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#pd855e10f13)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-1acef7ee-874b-4550-a6d9-b4b0fba7760b&quot;>
+    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#p52522a71df)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-6bfd57dc-ce8d-448e-b311-e9d0068bb283&quot;>
+   <g id=&quot;maidr-f1611dd4-52ed-446d-bd13-04107efce719&quot;>
     <path d=&quot;M 54 384.48  L 54 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-7cd46bfc-e3ae-4054-87bf-b52564590c42&quot;>
+   <g id=&quot;maidr-b018e5bf-faa6-4365-b700-bfd86ade246c&quot;>
     <path d=&quot;M 388.8 384.48  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-95cf10fb-cb4b-43b9-ad03-55e10cb8c454&quot;>
+   <g id=&quot;maidr-ed3c46e4-b5d8-47fc-a5b4-65e8c150831e&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-4b988ced-0442-4605-8a3a-9d1d820cd647&quot;>
+   <g id=&quot;maidr-e9358b76-eeff-4b2e-b950-d22fa3481377&quot;>
     <path d=&quot;M 54 51.84  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_12&quot;>
@@ -1129,7 +1151,7 @@ Note
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;pd855e10f13&quot;>
+  <clipPath id=&quot;p52522a71df&quot;>
    <rect x=&quot;54&quot; y=&quot;51.84&quot; width=&quot;334.8&quot; height=&quot;332.64&quot;/>
   </clipPath>
  </defs>
@@ -1137,7 +1159,7 @@ Note
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_88d0435b-752a-4e7f-846d-b021ba02237e');
+            let iframe = document.getElementById('iframe_018386ce-de09-4d29-ad59-838e45bd30d3');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1201,7 +1223,7 @@ Note
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_88d0435b-752a-4e7f-846d-b021ba02237e');
+        let iframe = document.getElementById('iframe_018386ce-de09-4d29-ad59-838e45bd30d3');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();
@@ -1966,7 +1988,7 @@ c_i = \text{round}((n - C) \cdot p_i), \text{ for } i = 1, 2, 3, \ldots, k
 <p>py-maidr is one of three packages that share the MAIDR engine. Each is maintained by the (x)Ability Design Lab and documented on its own site:</p>
 <ul>
 <li><a href="https://maidr.ai/">MAIDR JavaScript core</a>: the TypeScript engine that provides the keyboard model, sonification, braille, text and AI chat, published on npm as <code>maidr</code>. py-maidr bundles it and loads it from the CDN.</li>
-<li><a href="https://py.maidr.ai/">py-maidr for Python</a>: this package, for matplotlib, seaborn, Plotly, and Altair (PyPI package <code>maidr</code>, source on <a href="https://github.com/xability/py-maidr">GitHub</a>).</li>
+<li><a href="https://py.maidr.ai/">py-maidr for Python</a>: this package, for matplotlib, seaborn, Plotly, Bokeh, and Altair (PyPI package <code>maidr</code>, source on <a href="https://github.com/xability/py-maidr">GitHub</a>).</li>
 <li><a href="https://r.maidr.ai/">maidr for R</a>: the R package for ggplot2 and base graphics, published on CRAN as <code>maidr</code>.</li>
 </ul>
 </section>

@@ -178,7 +178,7 @@ cookieconsent.run({
       "@id": "https://py.maidr.ai/#software",
       "name": "py-maidr",
       "alternateName": ["maidr (PyPI)"],
-      "description": "Python library that makes matplotlib, seaborn, Plotly and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "description": "Python library that makes matplotlib, seaborn, Plotly, Bokeh and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
       "url": "https://py.maidr.ai/",
       "codeRepository": "https://github.com/xability/py-maidr",
       "downloadUrl": "https://pypi.org/project/maidr/",
@@ -196,7 +196,7 @@ cookieconsent.run({
       "softwareRequirements": ["Python >= 3.9", "matplotlib"],
       "softwareVersion": "1.25.0",
       "operatingSystem": "Cross-platform",
-      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "altair"],
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "bokeh", "altair"],
       "sameAs": [
         "https://github.com/xability/py-maidr",
         "https://pypi.org/project/maidr/"
@@ -328,6 +328,10 @@ cookieconsent.run({
  <span class="dropdown-text">Plotly</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples-bokeh.html">
+ <span class="dropdown-text">Bokeh [experimental]</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples-altair.html">
  <span class="dropdown-text">Altair</span></a>
   </li>  
@@ -457,7 +461,7 @@ cookieconsent.run({
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>The decorated function may return a matplotlib or seaborn artist, a Plotly <code>Figure</code>, or an Altair chart. Returning <code>None</code> renders nothing, which is the documented way to leave an output blank.</p>
+<p>The decorated function may return a matplotlib or seaborn artist, a Plotly <code>Figure</code>, a Bokeh figure or layout, or an Altair chart. Returning <code>None</code> renders nothing, which is the documented way to leave an output blank.</p>
 <p>Any pyplot figure the function opens is closed once the chart has been rendered; see :func:<code>_close_new_figures</code>.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
