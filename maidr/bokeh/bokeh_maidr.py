@@ -50,7 +50,6 @@ Limitations
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import tempfile
@@ -80,6 +79,7 @@ from maidr.util.iframe_utils import (
     with_chart_title,
     wrap_in_iframe_plotly,
 )
+from maidr.util.script_json import script_json
 
 #: The cursor a line, step or area is highlighted with: a ring in MAIDR's
 #: own default highlight colour, drawn over everything else on the plot.
@@ -90,37 +90,6 @@ _CURSOR_LINE_WIDTH = 3
 #: How long the page waits for BokehJS, and then for ``maidr.js`` to mount
 #: the chart, before giving up on the step it is waiting for.
 _WAIT_MS = 30000
-
-
-def _script_json(value: Any) -> str:
-    """
-    Serialize ``value`` for a JS literal inside an HTML ``<script>``.
-
-    ``<``, ``>`` and ``&`` are written as JSON ``\\u`` escapes, as Jinja's
-    ``htmlsafe_json_dumps`` writes them, so no text the caller supplies -- a
-    title reading ``</script>``, or ``<!--<script>``, which would otherwise
-    put the HTML parser in a state where the real end tag no longer closes
-    the element -- can be read as markup. U+2028/U+2029 are escaped because
-    JSON allows them where a JS string literal did not until ES2019.
-
-    Parameters
-    ----------
-    value : Any
-        A JSON-serializable value.
-
-    Returns
-    -------
-    str
-        The JSON, with no character the HTML tokenizer acts on.
-    """
-    return (
-        json.dumps(value, ensure_ascii=False)
-        .replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
-        .replace("\u2028", "\\u2028")
-        .replace("\u2029", "\\u2029")
-    )
 
 
 class BokehMaidr:
@@ -547,12 +516,12 @@ class BokehMaidr:
             The script, as an immediately invoked function.
         """
         values = {
-            "ITEM": _script_json(item),
-            "SCHEMA": _script_json(schema),
-            "HIGHLIGHT": _script_json(highlight),
-            "PANELS": _script_json(self._panels(schema)),
-            "WRAPPER": _script_json(wrapper_id),
-            "TARGET": _script_json(target_id),
+            "ITEM": script_json(item),
+            "SCHEMA": script_json(schema),
+            "HIGHLIGHT": script_json(highlight),
+            "PANELS": script_json(self._panels(schema)),
+            "WRAPPER": script_json(wrapper_id),
+            "TARGET": script_json(target_id),
             "WAIT_MS": str(_WAIT_MS),
             "LOADER": maidr_loader_js(use_cdn, iframe_in_notebook=iframe_in_notebook),
         }

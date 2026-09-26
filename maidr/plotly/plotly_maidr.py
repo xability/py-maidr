@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import uuid
@@ -59,6 +58,7 @@ from maidr.util.iframe_utils import (
     with_chart_title,
     wrap_in_iframe_plotly,
 )
+from maidr.util.script_json import script_json
 
 
 #: Set on the graph div, and dispatched on it as an event, once the promise
@@ -1752,8 +1752,8 @@ class PlotlyMaidr:
         # place before ``DOMContentLoaded``, so ``maidr.js`` finds it on its
         # first scan; a late draw is picked up by its attribute observer.
         dom_wiring = f"""
-            var maidrSchema = {json.dumps(schema)};
-            var gd = document.getElementById({json.dumps(plot_div_id or "")});
+            var maidrSchema = {script_json(schema)};
+            var gd = document.getElementById({script_json(plot_div_id or "")});
 
             var _maidrDone = false;
             function initMaidr() {{
