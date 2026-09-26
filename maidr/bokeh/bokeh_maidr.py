@@ -31,9 +31,12 @@ wired (``useMaidrController.ts``, ``Controller.registerNavigateCallback``).
 The callback then selects the data-source row of a bar, bin, cell or point
 (Bokeh's default ``nonselection_glyph`` dims the rest), and moves a small
 cursor glyph onto a line, step or area, which have one path and no row to
-select. That cursor is added to the plot only while the document is being
-serialized and removed again in a ``finally``, so the caller's figure is
-left exactly as it was.
+select. A bar, bin, cell or point whose data source another drawn mark also
+reads -- markers on a line drawn from one source -- gets the cursor too,
+since selecting the row would fade that other mark (see
+``BokehMaidr._retarget_shared_highlights``). The cursor is added to the plot
+only while the document is being serialized and removed again in a
+``finally``, so the caller's figure is left exactly as it was.
 
 Limitations
 -----------
@@ -58,7 +61,7 @@ from typing import Any, Iterator, Literal, cast
 
 from htmltools import HTML, HTMLDocument, Tag, tags
 
-from maidr.bokeh.layers import BokehLayer, PlotReader
+from maidr.bokeh.layers import BokehLayer, PlotReader, mark_anchor
 from maidr.bokeh.layout import place_plots
 from maidr.bokeh.utils import warn
 from maidr.util.bundle_capability import (
@@ -143,6 +146,7 @@ class BokehMaidr:
                 "maidr found nothing it can read in this Bokeh figure; it is "
                 "drawn without keyboard, sound or braille access."
             )
+        self._retarget_shared_highlights()
 
     # ------------------------------------------------------------------ #
     #  Public API, mirroring PlotlyMaidr                                   #
@@ -332,6 +336,49 @@ class BokehMaidr:
                 entry["cursor"] = cursor
             out[str(layer.schema["id"])] = entry
         return out
+
+    def _retarget_shared_highlights(self) -> None:
+        """
+        Highlight with a cursor any layer whose source another mark reads.
+
+        Selecting a row selects it for every renderer on that data source,
+        and BokehJS then draws each of them with its ``nonselection_glyph``
+        -- so a line drawn from the same source as the markers on it, the
+        commonest way to put markers on a line in Bokeh, fades to nothing
+        while a reader is on a point. A layer whose source is shared with a
+        drawn renderer that is not itself highlighted by selection is
+        pointed at with a cursor instead, as a line is, and leaves every
+        other mark as the author drew it. Renderers highlighted by selection
+        may share a source among themselves -- the segments of a stack, a
+        linked scatter -- and are then highlighted together.
+        """
+        from bokeh.models import GlyphRenderer
+
+        selecting = [
+            layer
+            for layer in self.layers
+            if layer.highlight and layer.highlight["kind"] in ("select", "points")
+        ]
+        selected = {r.id for layer in selecting for r in layer.renderers}
+        shared = {
+            renderer.data_source.id
+            for renderer in self._model.select({"type": GlyphRenderer})
+            if renderer.visible and renderer.id not in selected
+        }
+        for layer in selecting:
+            if not any(r.data_source.id in shared for r in layer.renderers):
+                continue
+            by_id = {r.id: r for r in layer.renderers}
+
+            def anchor(cell: list | None) -> list | None:
+                return None if cell is None else mark_anchor(by_id[cell[0]], cell[1])
+
+            if layer.highlight["kind"] == "points":
+                points = [anchor(cell) for cell in layer.highlight["points"]]
+                layer.highlight = {"kind": "cursor", "points": points}
+            else:
+                grid = [[anchor(c) for c in row] for row in layer.highlight["grid"]]
+                layer.highlight = {"kind": "cursor", "grid": grid}
 
     @contextmanager
     def _cursors(self) -> Iterator[dict[tuple, str]]:
@@ -647,33 +694,43 @@ _INIT_TEMPLATE = """(function() {
                 }
             });
         }
+        // The marks MAIDR is on: a point cloud reports indices into its
+        // data, every other layer a row and column.
+        function cellsAt(entry, info) {
+            if (entry.points) {
+                return (info.pointIndices || []).map(function(i) {
+                    return entry.points[i];
+                }).filter(Boolean);
+            }
+            var row = entry.grid[info.row];
+            var cell = row && row[info.col];
+            return cell ? [cell] : [];
+        }
         function onNavigate(info) {
             clear();
             if (!info) return;
             var entry = highlight[info.layerId];
             if (!entry) return;
-            if (entry.kind === 'points') {
-                var byRenderer = {};
-                (info.pointIndices || []).forEach(function(i) {
-                    var cell = entry.points[i];
-                    if (cell) (byRenderer[cell[0]] = byRenderer[cell[0]] || []).push(cell[1]);
-                });
-                Object.keys(byRenderer).forEach(function(id) {
-                    var r = model(id);
-                    if (r) r.data_source.selected.indices = byRenderer[id];
-                });
+            var cells = cellsAt(entry, info);
+            if (!cells.length) return;
+            if (entry.kind === 'cursor') {
+                var cursor = model(entry.cursor);
+                if (cursor) {
+                    cursor.data_source.data = {
+                        x: cells.map(function(c) { return c[0]; }),
+                        y: cells.map(function(c) { return c[1]; })
+                    };
+                }
                 return;
             }
-            var row = entry.grid[info.row];
-            var cell = row && row[info.col];
-            if (!cell) return;
-            if (entry.kind === 'select') {
-                var r = model(cell[0]);
-                if (r) r.data_source.selected.indices = [cell[1]];
-            } else if (entry.kind === 'cursor') {
-                var cursor = model(entry.cursor);
-                if (cursor) cursor.data_source.data = { x: [cell[0]], y: [cell[1]] };
-            }
+            var byRenderer = {};
+            cells.forEach(function(cell) {
+                (byRenderer[cell[0]] = byRenderer[cell[0]] || []).push(cell[1]);
+            });
+            Object.keys(byRenderer).forEach(function(id) {
+                var r = model(id);
+                if (r) r.data_source.selected.indices = byRenderer[id];
+            });
         }
         return { onNavigate: onNavigate, clear: clear };
     }

@@ -215,6 +215,52 @@ def test_a_stacked_bar_selects_the_segment_it_announces(browser, tmp_path):
         page.close()
 
 
+#: How many pure-red pixels the page's canvases hold, shadow roots included.
+_RED_PIXELS = """() => {
+  let count = 0;
+  const walk = (root) => root.querySelectorAll('*').forEach((el) => {
+    if (el.shadowRoot) walk(el.shadowRoot);
+    if (el.tagName !== 'CANVAS' || !el.width || !el.height) return;
+    const px = el.getContext('2d').getImageData(0, 0, el.width, el.height).data;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i] > 200 && px[i + 1] < 60 && px[i + 2] < 60 && px[i + 3] > 200) count++;
+    }
+  });
+  walk(document);
+  return count;
+}"""
+
+
+def test_markers_on_a_line_leave_the_line_drawn(browser, tmp_path):
+    # One source for both, the usual way to mark a line's points in Bokeh.
+    # Selecting its row would repaint the line with its nonselection glyph
+    # and erase it from the chart while the reader is on a marker.
+    from bokeh.models import ColumnDataSource
+    from bokeh.plotting import figure
+
+    source = ColumnDataSource({"x": [1, 2, 3, 4], "y": [1, 3, 2, 4]})
+    p = figure(width=500, height=400)
+    markers = p.scatter("x", "y", source=source, size=10, color="blue")
+    p.line("x", "y", source=source, line_width=4, color="red")
+    page, errors = _open(browser, _save(p, tmp_path / "shared.html"))
+    try:
+        drawn = page.evaluate(_RED_PIXELS)
+        assert drawn > 500
+
+        # The first layer is the scatter: its markers are the first renderer.
+        assert _step(page, "ArrowRight") == "X is 1, Y is 1"
+        assert page.evaluate(_CURSOR) == [1, 1]
+        assert page.evaluate(_SELECTED, markers.id) == []
+        # The ring may cover a little of the line; the line is still there.
+        assert page.evaluate(_RED_PIXELS) > 0.8 * drawn
+
+        assert _step(page, "ArrowRight") == "X is 2, Y is 3"
+        assert page.evaluate(_CURSOR) == [2, 3]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
 def test_leaving_a_subplot_clears_the_highlight(browser, tmp_path):
     from bokeh.layouts import gridplot
     from bokeh.plotting import figure

@@ -13,7 +13,7 @@ bokeh = pytest.importorskip("bokeh")
 from bokeh.layouts import gridplot  # noqa: E402
 from bokeh.models import ColumnDataSource  # noqa: E402
 from bokeh.plotting import figure  # noqa: E402
-from bokeh.transform import linear_cmap  # noqa: E402
+from bokeh.transform import dodge, linear_cmap  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.api import _is_bokeh_model  # noqa: E402
@@ -265,6 +265,76 @@ class TestHighlightMap:
             [[rs[0].id, 0], [rs[0].id, 1]],
             [[rs[1].id, 0], [rs[1].id, 1]],
         ]
+
+
+    def test_markers_on_a_line_from_one_source_get_a_cursor(self):
+        # Selecting the row would draw the line with its nonselection glyph,
+        # which fades it away; the markers are pointed at instead.
+        source = ColumnDataSource({"x": [1, 2, 3], "y": [4, 6, 5]})
+        p = figure()
+        p.line("x", "y", source=source)
+        p.scatter("x", "y", source=source)
+        schema, highlight = self._highlight(p)
+        by_type = {
+            layer["type"]: highlight[layer["id"]]
+            for layer in schema["subplots"][0][0]["layers"]
+        }
+
+        assert by_type["point"]["kind"] == "cursor"
+        assert by_type["point"]["points"] == [[1, 4], [2, 6], [3, 5]]
+        # One cursor serves the plot, whichever layer is being read.
+        assert by_type["point"]["cursor"] == by_type["line"]["cursor"]
+
+    def test_bars_sharing_a_source_with_another_mark_point_at_the_bar_end(self):
+        source = ColumnDataSource({"c": ["A", "B"], "v": [3, 5], "w": [1, 2]})
+        p = figure(y_range=["A", "B"])
+        for column, offset in (("v", 0.2), ("w", -0.2)):
+            p.hbar(
+                y=dodge("c", offset, range=p.y_range), right=column, height=0.3,
+                source=source,
+            )
+        p.text(x="v", y="c", text="c", source=source)
+        with pytest.warns(UserWarning, match="Text"):
+            schema, highlight = self._highlight(p)
+        entry = highlight[schema["subplots"][0][0]["layers"][0]["id"]]
+
+        # Left-hand group first, each cursor at the bar's end, the category
+        # carrying the offset it is drawn at.
+        assert entry["kind"] == "cursor"
+        assert entry["grid"] == [
+            [[1, ["A", -0.2]], [2, ["B", -0.2]]],
+            [[3, ["A", 0.2]], [5, ["B", 0.2]]],
+        ]
+
+    def test_bins_and_cells_get_a_cursor_at_their_centre(self):
+        source = ColumnDataSource(
+            {"left": [0, 1], "right": [1, 2], "top": [4, 2], "n": [4, 2]}
+        )
+        p = figure()
+        p.quad(left="left", right="right", top="top", bottom=0, source=source)
+        p.line(x="left", y="top", source=source)
+        schema, highlight = self._highlight(p)
+        entry = next(
+            highlight[layer["id"]]
+            for layer in schema["subplots"][0][0]["layers"]
+            if layer["type"] == "hist"
+        )
+
+        assert entry == {
+            "kind": "cursor",
+            "grid": [[[0.5, 2.0], [1.5, 1.0]]],
+            "cursor": entry["cursor"],
+        }
+
+    def test_a_hidden_mark_on_the_source_does_not_count(self):
+        source = ColumnDataSource({"x": [1, 2], "y": [4, 6]})
+        p = figure()
+        p.scatter("x", "y", source=source)
+        p.line("x", "y", source=source, visible=False)
+        schema, highlight = self._highlight(p)
+        layer = schema["subplots"][0][0]["layers"][0]
+
+        assert highlight[layer["id"]]["kind"] == "points"
 
 
 class TestFigureIsNotMutated:

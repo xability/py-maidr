@@ -32,7 +32,7 @@ row and column of the emitted ``data``.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from numbers import Number
 from typing import Any, Callable
 
@@ -82,10 +82,13 @@ class BokehLayer:
     highlight : dict or None
         How the page highlights the current mark: ``{"kind": "select",
         "grid": ...}`` or ``{"kind": "points", "points": ...}`` naming
-        ``[renderer id, source row]`` pairs, or ``{"kind": "cursor", "grid":
-        ...}`` naming ``[x, y]`` data coordinates for a cursor glyph.
+        ``[renderer id, source row]`` pairs, or ``{"kind": "cursor"}`` with
+        a ``grid`` or ``points`` naming ``[x, y]`` data coordinates for a
+        cursor glyph instead.
     x_range_name, y_range_name : str
         The ranges a cursor for this layer must be placed on.
+    renderers : list of bokeh.models.GlyphRenderer
+        The renderers the layer was read from.
     """
 
     schema: dict
@@ -93,6 +96,7 @@ class BokehLayer:
     highlight: dict | None = None
     x_range_name: str = "default"
     y_range_name: str = "default"
+    renderers: list = field(default_factory=list)
 
 
 class PlotReader:
@@ -239,6 +243,7 @@ class PlotReader:
             if layer is not None:
                 layer.x_range_name = renderers[0].x_range_name
                 layer.y_range_name = renderers[0].y_range_name
+                layer.renderers = list(renderers)
                 layers.append(layer)
         return layers
 
@@ -722,6 +727,102 @@ def resolve_column(data: dict, name: str | None) -> list | None:
         return None
     column = data[name]
     return list(column.to_numpy()) if hasattr(column, "to_numpy") else list(column)
+
+
+def mark_anchor(renderer: Any, index: int) -> list | None:
+    """
+    Where to put a cursor on one mark a selection highlight would pick out.
+
+    Used when a layer's marks cannot be highlighted by selecting their
+    source row; see ``BokehMaidr._retarget_shared_highlights``. A bar's
+    cursor sits at the end of the bar, a bin's and a cell's at its centre,
+    a point's on the point -- each in the axis's own units, a dodged bar's
+    category carrying its offset the way Bokeh places it.
+
+    Parameters
+    ----------
+    renderer : bokeh.models.GlyphRenderer
+        A ``vbar``, ``hbar``, ``quad``, ``rect`` or point renderer.
+    index : int
+        The source row of the mark.
+
+    Returns
+    -------
+    list or None
+        ``[x, y]``, or ``None`` when the mark has no position to point at.
+    """
+    glyph = renderer.glyph
+    data = renderer.data_source.data
+    name = type(glyph).__name__
+
+    def at(prop: str) -> Any:
+        return resolve(glyph, prop, data)[index]
+
+    if name in ("VBar", "HBar"):
+        category_prop, end_prop = ("x", "top") if name == "VBar" else ("y", "right")
+        category = _dodged(at(category_prop), spec_transform(glyph, category_prop))
+        coords = [to_coordinate(category), to_coordinate(at(end_prop))]
+        if name == "HBar":
+            coords.reverse()
+    elif name == "Quad":
+        coords = [
+            _middle(to_coordinate(at("left")), to_coordinate(at("right"))),
+            _middle(to_coordinate(at("bottom")), to_coordinate(at("top"))),
+        ]
+    else:
+        coords = [to_coordinate(at("x")), to_coordinate(at("y"))]
+    return None if any(c is None for c in coords) else coords
+
+
+def _dodged(position: Any, transform: Any) -> Any:
+    """
+    A category shifted by a ``dodge()`` transform, as BokehJS places it.
+
+    Parameters
+    ----------
+    position : Any
+        The coordinate read from the source.
+    transform : Any
+        The property's transform, if any.
+
+    Returns
+    -------
+    Any
+        A factor as ``[factor, offset]`` (nested levels first), a number
+        moved by the offset, or ``position`` when there is no ``Dodge``.
+    """
+    from bokeh.models import Dodge
+
+    if not isinstance(transform, Dodge) or is_missing(position):
+        return position
+    if isinstance(position, str):
+        return [position, transform.value]
+    if isinstance(position, (list, tuple)):
+        return [*position, transform.value]
+    try:
+        return position + transform.value
+    except TypeError:
+        return position
+
+
+def _middle(low: Any, high: Any) -> float | None:
+    """
+    Halfway between two coordinates, or ``None`` when either is missing.
+
+    Parameters
+    ----------
+    low, high : Any
+        Two coordinates, already in the axis's units (see
+        :func:`~maidr.bokeh.data.to_coordinate`).
+
+    Returns
+    -------
+    float or None
+        Their mean.
+    """
+    if is_missing(low) or is_missing(high):
+        return None
+    return (float(low) + float(high)) / 2.0
 
 
 def _is_axis(model: Any) -> bool:
