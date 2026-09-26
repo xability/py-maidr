@@ -5,7 +5,6 @@ from typing import Any
 
 import wrapt
 import matplotlib.pyplot as plt
-import mplfinance as mpf
 import numpy as np
 from matplotlib.collections import LineCollection, PolyCollection
 from matplotlib.figure import Figure
@@ -312,5 +311,10 @@ def _finish_as_mplfinance_would(
         plt.close(fig)
 
 
-# Apply the patch to mplfinance.plot
-wrapt.wrap_function_wrapper(mpf, "plot", mplfinance_plot_patch)
+# Apply the patch to mplfinance.plot once mplfinance is imported, rather than
+# importing it here: mplfinance loads pandas, ~0.3 s of every `import maidr`
+# for a process that never draws a candlestick. The hook fires immediately
+# when mplfinance is already loaded, so the import order does not matter.
+@wrapt.when_imported("mplfinance")
+def _patch_mplfinance(mpf: Any) -> None:
+    wrapt.wrap_function_wrapper(mpf, "plot", mplfinance_plot_patch)

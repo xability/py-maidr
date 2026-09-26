@@ -1,7 +1,8 @@
-"""The seaborn patches wait for seaborn to be imported.
+"""The seaborn and mplfinance patches wait for their library to be imported.
 
-``import maidr`` used to import seaborn (~0.8 s) just to wrap it, so a script
-that only ever draws with matplotlib paid for it. The patches are now applied
+``import maidr`` used to import seaborn (~0.8 s) just to wrap it, and
+mplfinance -- which brings pandas -- for the same reason, so a script that
+only ever draws with matplotlib paid for both. The patches are now applied
 from ``wrapt.when_imported`` hooks, which fire at once when the library is
 already loaded and at the end of its import otherwise.
 
@@ -40,19 +41,15 @@ def _run(code: str, *, extra_path: str | None = None) -> subprocess.CompletedPro
     )
 
 
-def test_importing_maidr_alone_loads_neither_seaborn_nor_scipy():
-    """The whole point: a matplotlib-only process does not pay for them.
-
-    scipy is only needed to extract a violin's density curve, so it is
-    imported there rather than by ``import maidr``.
-    """
+def test_importing_maidr_alone_loads_none_of_the_heavy_optional_libraries():
+    """The whole point: a matplotlib-only process does not pay for them."""
     result = _run(
         """
         import json, sys
         import maidr
         print(json.dumps({
             name: name in sys.modules
-            for name in ("seaborn", "scipy")
+            for name in ("seaborn", "mplfinance", "pandas", "scipy")
         }))
         """
     )
@@ -60,6 +57,8 @@ def test_importing_maidr_alone_loads_neither_seaborn_nor_scipy():
     loaded = json.loads(result.stdout.strip().splitlines()[-1])
     assert loaded == {
         "seaborn": False,
+        "mplfinance": False,
+        "pandas": False,
         "scipy": False,
     }
 
@@ -162,6 +161,31 @@ def test_a_seaborn_call_registers_as_seaborn_whichever_is_imported_first(
 
 def test_both_orders_read_the_same(seaborn_first, maidr_first):
     assert seaborn_first == maidr_first
+
+
+@pytest.mark.parametrize(
+    "imports",
+    [
+        pytest.param("import mplfinance, maidr", id="mplfinance_first"),
+        pytest.param("import maidr, mplfinance", id="maidr_first"),
+    ],
+)
+def test_the_mplfinance_patches_apply_whichever_is_imported_first(imports):
+    result = _run(
+        f"""
+        import json
+        {imports}
+        import wrapt
+        import mplfinance
+        from mplfinance import original_flavor
+        print(json.dumps([
+            isinstance(mplfinance.plot, wrapt.ObjectProxy),
+            isinstance(original_flavor._candlestick, wrapt.ObjectProxy),
+        ]))
+        """
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout.strip().splitlines()[-1]) == [True, True]
 
 
 @pytest.mark.parametrize(
