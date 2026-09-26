@@ -655,3 +655,74 @@ class TestUnsupported:
             BokehMaidr(p)
 
         assert all(w.filename == __file__ for w in record)
+
+
+class TestMalformedInput:
+    """What a figure maidr cannot fully read costs: one layer, never the chart."""
+
+    def test_a_flat_factor_among_nested_ones_is_not_split_into_letters(self):
+        # A FactorRange refuses the mix, so this only arises from the source;
+        # it must read as plain bars rather than "Apple" / "s".
+        p = figure()
+        p.vbar(x=[("Pears", "2015"), ("Pears", "2016"), "Apples"], top=[1, 2, 3])
+
+        layer = _only(p)
+
+        assert layer["type"] == "bar"
+        assert "Apples" in [point["x"] for point in layer["data"]]
+
+    def test_a_bar_spanning_dates_is_left_out_with_a_warning(self):
+        day = pd.Timestamp
+        p = figure(y_range=["task"], x_axis_type="datetime")
+        p.hbar(
+            y=["task"], left=[day("2024-01-01")], right=[day("2024-01-05")], height=0.5
+        )
+
+        with pytest.warns(UserWarning, match="spanning dates"):
+            schema = BokehMaidr(p)._flatten_maidr()
+
+        assert schema is None
+
+    def test_columns_of_different_lengths_cost_only_their_glyph(self):
+        p = figure()
+        p.line([1, 2], [1, 2])
+        with warnings.catch_warnings():
+            # Bokeh warns about the malformed source itself.
+            warnings.simplefilter("ignore")
+            source = ColumnDataSource({"x": [1, 2, 3], "y": [1, 2]})
+        p.scatter("x", "y", source=source)
+
+        with pytest.warns(UserWarning, match="different lengths"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
+    def test_a_failure_while_grouping_costs_only_that_renderer(self, monkeypatch):
+        from maidr.bokeh.layers import PlotReader
+
+        real = PlotReader._group_key
+
+        def group_key(self, renderer):
+            if type(renderer.glyph).__name__ == "Scatter":
+                raise ValueError("operands could not be broadcast together")
+            return real(self, renderer)
+
+        monkeypatch.setattr(PlotReader, "_group_key", group_key)
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.scatter([1, 2], [3, 4])
+
+        with pytest.warns(UserWarning, match="Scatter.*ValueError"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
+    def test_a_series_with_two_bars_at_one_category_warns_rather_than_drops(self):
+        p = figure(x_range=["a", "b"])
+        first = ColumnDataSource({"x": ["a", "a", "b"], "y": [1, 2, 3]})
+        second = ColumnDataSource({"x": ["a", "b"], "y": [4, 5]})
+        p.vbar(x=dodge("x", -0.2, range=p.x_range), top="y", width=0.2, source=first)
+        p.vbar(x=dodge("x", 0.2, range=p.x_range), top="y", width=0.2, source=second)
+
+        with pytest.warns(UserWarning, match="more than one bar at 'a'"):
+            BokehMaidr(p)

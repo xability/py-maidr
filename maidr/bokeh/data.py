@@ -46,14 +46,25 @@ def source_length(data: dict) -> int:
     Returns
     -------
     int
-        The length of its first column, or 0 for an empty source.
+        The length its columns share, or 0 for an empty source.
+
+    Raises
+    ------
+    UnreadableSpec
+        When the columns differ in length, which Bokeh itself only warns
+        about: no row count would say which values belong together.
     """
+    lengths = set()
     for column in data.values():
         try:
-            return len(column)
+            lengths.add(len(column))
         except TypeError:
             continue
-    return 0
+    if len(lengths) > 1:
+        raise UnreadableSpec(
+            f"its data source has columns of different lengths {sorted(lengths)}"
+        )
+    return lengths.pop() if lengths else 0
 
 
 def _spec_parts(spec: Any) -> tuple[str, Any, Any]:

@@ -208,7 +208,18 @@ class PlotReader:
                     f"{type(renderer.glyph).__name__} glyph using it is left out."
                 )
                 continue
-            key = self._group_key(renderer)
+            try:
+                key = self._group_key(renderer)
+            except Exception as reason:
+                # Grouping reads the glyph's columns too, so it needs the same
+                # boundary the builders below have: one renderer maidr cannot
+                # read costs that renderer, never the whole chart.
+                warn(
+                    f"maidr cannot read the Bokeh {type(renderer.glyph).__name__} "
+                    f"glyph ({_reason(reason)}); it is left out of the "
+                    "accessible chart."
+                )
+                continue
             if key is None:
                 warn(
                     f"maidr does not support Bokeh {type(renderer.glyph).__name__} "
@@ -239,14 +250,9 @@ class PlotReader:
                 # misreads must cost that layer, never the whole chart --
                 # the rest still reads, and the figure still draws.
                 names = sorted({type(r.glyph).__name__ for r in renderers})
-                detail = (
-                    reason
-                    if isinstance(reason, UnreadableSpec)
-                    else f"{type(reason).__name__}: {reason}"
-                )
                 warn(
                     f"maidr cannot read the Bokeh {', '.join(names)} glyph "
-                    f"({detail}); it is left out of the accessible chart."
+                    f"({_reason(reason)}); it is left out of the accessible chart."
                 )
                 continue
             if layer is not None:
@@ -403,7 +409,14 @@ class PlotReader:
             by_category: dict = {}
             for position, value, index in bars:
                 key = _factor_key(position)
-                by_category.setdefault(key, (position, value, index))
+                if key in by_category:
+                    # One row per category is what makes a series; a second
+                    # bar there would be dropped without a word.
+                    label = factor_label(position)
+                    raise UnreadableSpec(
+                        f"one series draws more than one bar at {label!r}"
+                    )
+                by_category[key] = (position, value, index)
                 categories.setdefault(key, (position, None, 0))
             series.append((renderer, by_category))
         category_range = self._plot.y_range if horizontal else self._plot.x_range
@@ -895,7 +908,9 @@ def resolve_column(data: dict, name: str | None) -> list | None:
     return list(column.to_numpy()) if hasattr(column, "to_numpy") else list(column)
 
 
-def mark_anchor(renderer: Any, index: int) -> list | None:
+def mark_anchor(
+    renderer: Any, index: int, columns: dict | None = None
+) -> list | None:
     """
     Where to put a cursor on one mark a selection highlight would pick out.
 
@@ -911,6 +926,10 @@ def mark_anchor(renderer: Any, index: int) -> list | None:
         A ``vbar``, ``hbar``, ``quad``, ``rect`` or point renderer.
     index : int
         The source row of the mark.
+    columns : dict, optional
+        Resolved columns kept between calls, keyed by renderer id and
+        property. A caller anchoring every mark of a layer passes one, so
+        each column is resolved once rather than once per mark.
 
     Returns
     -------
@@ -920,10 +939,14 @@ def mark_anchor(renderer: Any, index: int) -> list | None:
     glyph = renderer.glyph
     data = renderer.data_source.data
     name = type(glyph).__name__
+    cache = {} if columns is None else columns
 
     def at(prop: str) -> Any:
         """The mark's value of one glyph property."""
-        return resolve(glyph, prop, data)[index]
+        key = (renderer.id, prop)
+        if key not in cache:
+            cache[key] = resolve(glyph, prop, data)
+        return cache[key][index]
 
     if name in ("VBar", "HBar"):
         category_prop, end_prop = ("x", "top") if name == "VBar" else ("y", "right")
@@ -1053,10 +1076,22 @@ def _legend(plot: Any) -> tuple[dict, dict, dict, str | None]:
     return labels, rows, fields, title
 
 
+def _reason(error: Exception) -> str:
+    """Why a glyph was left out, as the warning names it."""
+    if isinstance(error, UnreadableSpec):
+        return str(error)
+    return f"{type(error).__name__}: {error}"
+
+
 def _extent(low: Any, high: Any) -> Any:
     """``high - low``, or ``high`` alone when ``low`` is not a number."""
     if is_missing(high):
         return None
+    if not is_missing(low) and is_temporal([low, high]):
+        # A bar spanning two dates is a duration (a Gantt bar), which no bar
+        # point can carry; announcing its end date as its size would be
+        # wrong without saying so.
+        raise UnreadableSpec("a bar spanning dates is not read yet")
     high = to_native(high)
     low = None if is_missing(low) else to_native(low)
     if not low:
