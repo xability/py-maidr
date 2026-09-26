@@ -16,6 +16,9 @@ def is_bokeh_model(obj: Any) -> bool:
     reason: ``maidr.render`` asks this of every figure, and importing Bokeh
     to answer "no" for a matplotlib one would cost every user the import.
     ``.get() is None`` also covers an import blocked with a ``None`` entry.
+    ``bokeh.models`` as well as ``bokeh``: a session that ran only
+    ``import bokeh`` holds no model either, and asking the top-level package
+    would import the models on every ``maidr.render`` to learn that.
 
     Parameters
     ----------
@@ -28,7 +31,7 @@ def is_bokeh_model(obj: Any) -> bool:
         True for a ``LayoutDOM`` -- a ``figure``/``Plot``, ``gridplot``,
         ``row``/``column``, ``GridBox`` or ``Tabs``.
     """
-    if sys.modules.get("bokeh") is None:
+    if sys.modules.get("bokeh") is None or sys.modules.get("bokeh.models") is None:
         return False
     try:
         from bokeh.models import LayoutDOM
