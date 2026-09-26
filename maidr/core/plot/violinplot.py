@@ -13,7 +13,6 @@ from __future__ import annotations
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
-import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.collections import PolyCollection
 from matplotlib.patches import PathPatch, Rectangle
@@ -67,6 +66,10 @@ class ViolinDataExtractor:
             ``(groups, values)`` where *groups* is a list of group names
             and *values* is a list of numpy arrays for each group.
         """
+        # Imported here rather than at module level: pandas is ~0.3 s, and
+        # this module is loaded by every `import maidr`.
+        import pandas as pd
+
         df = kwargs.get("data", None)
         x = kwargs.get("x", None)
         y = kwargs.get("y", None)

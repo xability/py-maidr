@@ -15,10 +15,9 @@ rather than how the caller happened to spell it; see
 from __future__ import annotations
 
 import uuid
-from typing import Any, Callable, Collection
+from typing import TYPE_CHECKING, Any, Callable, Collection
 
 import numpy as np
-import pandas as pd
 import wrapt
 from matplotlib.axes import Axes
 from matplotlib.collections import PolyCollection
@@ -38,6 +37,10 @@ from maidr.patch.common import (
     wrap_seaborn,
 )
 from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
+
+if TYPE_CHECKING:
+    import pandas as pd
+
 
 # ======================================================================
 # Seaborn
@@ -114,6 +117,11 @@ def _levels(declared: Any, column: pd.Series) -> list:
     """
     if declared is not None and len(declared):
         return list(declared)
+
+    # Imported here rather than at module level, so that `import maidr` does
+    # not load pandas; only seaborn reaches this, and seaborn has loaded it.
+    import pandas as pd
+
     return list(pd.unique(column.dropna()))
 
 

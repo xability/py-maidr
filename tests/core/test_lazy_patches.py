@@ -40,15 +40,19 @@ def _run(code: str, *, extra_path: str | None = None) -> subprocess.CompletedPro
     )
 
 
-def test_importing_maidr_alone_does_not_load_seaborn():
-    """The whole point: a matplotlib-only process does not pay for it."""
+def test_importing_maidr_alone_loads_neither_seaborn_nor_scipy():
+    """The whole point: a matplotlib-only process does not pay for them.
+
+    scipy is only needed to extract a violin's density curve, so it is
+    imported there rather than by ``import maidr``.
+    """
     result = _run(
         """
         import json, sys
         import maidr
         print(json.dumps({
             name: name in sys.modules
-            for name in ("seaborn",)
+            for name in ("seaborn", "scipy")
         }))
         """
     )
@@ -56,6 +60,7 @@ def test_importing_maidr_alone_does_not_load_seaborn():
     loaded = json.loads(result.stdout.strip().splitlines()[-1])
     assert loaded == {
         "seaborn": False,
+        "scipy": False,
     }
 
 

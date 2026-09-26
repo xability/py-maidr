@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 from matplotlib.axes import Axes
-import pandas as pd
 
 from maidr.core.enum import PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.exception import ExtractionError
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class CandlestickPlot(MaidrPlot):
@@ -86,6 +88,10 @@ class CandlestickPlot(MaidrPlot):
             # cleared rather than becoming a different one.
             self._elements.extend([body_collection, wick_collection])
 
+            # Imported here rather than at module level, so that `import maidr`
+            # does not load pandas; mplfinance has loaded it by now anyway.
+            import pandas as pd
+
             # Extract data directly from DataFrame
             if self._maidr_original_data is not None and isinstance(
                 self._maidr_original_data, pd.DataFrame
@@ -125,6 +131,8 @@ class CandlestickPlot(MaidrPlot):
         paths for the gap row, so the position of every row that *was* emitted
         is kept on ``_drawn_rows`` for `_get_selector` to name its paths by.
         """
+        import pandas as pd
+
         self._drawn_rows = []
         try:
             columns = [
