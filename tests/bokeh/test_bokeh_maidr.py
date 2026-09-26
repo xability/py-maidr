@@ -337,6 +337,35 @@ class TestHighlightMap:
         assert highlight[layer["id"]]["kind"] == "points"
 
 
+class TestSubplotPanels:
+    """What lets MAIDR measure which way a layout's rows run on the page."""
+
+    def _plot(self, title):
+        p = figure(title=title)
+        p.line([1, 2], [1, 2])
+        return p
+
+    def test_each_subplot_names_a_panel_and_a_gap_has_no_plot(self):
+        from bokeh.layouts import column, row
+
+        top, right, under = self._plot("a"), self._plot("b"), self._plot("c")
+        html = _html(row(top, column(right, under)))
+        schema = _script_value(html, "schema")
+        panels = _script_value(html, "panels")
+
+        cells = [cell for row_ in schema["subplots"] for cell in row_]
+        assert [cell["selector"] for cell in cells] == [
+            f'div[id="{panel_id}"]' for panel_id, _ in panels
+        ]
+        assert [plot_id for _, plot_id in panels] == [top.id, right.id, None, under.id]
+
+    def test_a_single_plot_has_none(self, bar):
+        html = _html(bar)
+
+        assert "selector" not in _script_value(html, "schema")["subplots"][0][0]
+        assert _script_value(html, "panels") == []
+
+
 class TestFigureIsNotMutated:
     def test_rendering_leaves_the_renderers_as_they_were(self, lines):
         before = list(lines.renderers)

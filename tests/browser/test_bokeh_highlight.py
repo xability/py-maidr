@@ -345,3 +345,31 @@ def test_a_chart_beside_a_matplotlib_chart_is_bound(browser, tmp_path, use_cdn):
         assert not errors, errors
     finally:
         page.close()
+
+
+def test_up_and_down_between_subplots_follow_the_page(browser, tmp_path):
+    # A Bokeh plot is drawn where no selector reaches, and with nothing to
+    # measure MAIDR takes row 0 for the bottom row: from the top plot,
+    # ArrowDown said there was nothing below and ArrowUp went down.
+    from bokeh.layouts import column, row
+    from bokeh.plotting import figure
+
+    def plot(title):
+        p = figure(title=title, width=300, height=200)
+        p.line([1, 2, 3], [1, 3, 2])
+        return p
+
+    layout = column(row(plot("top left"), plot("top right")), plot("bottom left"))
+    page, errors = _open(browser, _save(layout, tmp_path / "column.html"))
+    try:
+        assert _step(page, "ArrowRight").startswith("Subplot 1 of 4, top left")
+        assert _step(page, "ArrowDown").startswith("Subplot 3 of 4, bottom left")
+        assert _step(page, "ArrowDown") == "No more subplots to display"
+        assert _step(page, "ArrowUp").startswith("Subplot 1 of 4, top left")
+        assert _step(page, "ArrowUp") == "No more subplots to display"
+        assert _step(page, "ArrowRight").startswith("Subplot 2 of 4, top right")
+        # The gap under ``top right`` is a subplot with nothing in it.
+        assert _step(page, "ArrowDown").startswith("Subplot 4 of 4 is empty")
+        assert not errors, errors
+    finally:
+        page.close()

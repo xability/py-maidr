@@ -267,7 +267,47 @@ class BokehMaidr:
         ]
         for row, col, layers in self._compacted_cells():
             grid[row][col]["layers"].extend(layer.schema for layer in layers)
+        if len(grid) * len(grid[0]) > 1:
+            # See ``_panels``: what lets MAIDR tell which way is up.
+            for cell in (cell for row_ in grid for cell in row_):
+                cell["selector"] = f'div[id="{_panel_id(cell)}"]'
         return {"id": self.maidr_id, "subplots": grid}
+
+    def _panels(self, schema: dict | None) -> list[list]:
+        """
+        The stand-ins the page places over each subplot for MAIDR to measure.
+
+        MAIDR works out which way the subplot grid runs on screen -- whether
+        ArrowUp means the row above or the row below -- by measuring where
+        each subplot's ``selector`` lands (``resolveSubplotLayout`` in
+        ``maidr/src/util/subplotLayout.ts``). A Bokeh plot is drawn inside a
+        shadow root no selector can reach, and with nothing to measure MAIDR
+        takes row 0 for the bottom one: from the top plot of a ``column``,
+        ArrowDown said there was nothing below and ArrowUp moved down.
+
+        So the page lays an invisible, ``aria-hidden`` element over each
+        plot, which is what each subplot's selector names. A gap in the
+        layout gets one too, at its row's top and its column's left, since
+        MAIDR trusts the geometry only when every subplot has some.
+
+        Parameters
+        ----------
+        schema : dict or None
+            The schema from :meth:`_flatten_maidr`.
+
+        Returns
+        -------
+        list of list
+            ``[element id, plot id or None]`` per subplot, row by row; empty
+            for a single subplot, whose direction nothing depends on.
+        """
+        if schema is None or "selector" not in schema["subplots"][0][0]:
+            return []
+        return [
+            [_panel_id(cell), None if plot is None else plot.id]
+            for cells, plots in zip(schema["subplots"], self._grid())
+            for cell, plot in zip(cells, plots)
+        ]
 
     def _compacted_cells(self) -> list[tuple[int, int, list[BokehLayer]]]:
         """
@@ -509,6 +549,7 @@ class BokehMaidr:
             "ITEM": _script_json(item),
             "SCHEMA": _script_json(schema),
             "HIGHLIGHT": _script_json(highlight),
+            "PANELS": _script_json(self._panels(schema)),
             "WRAPPER": _script_json(wrapper_id),
             "TARGET": _script_json(target_id),
             "WAIT_MS": str(_WAIT_MS),
@@ -601,6 +642,23 @@ class BokehMaidr:
         webbrowser.open(f"file://{html_file_path}")
 
 
+def _panel_id(cell: dict) -> str:
+    """
+    The id of the element the page places over one subplot.
+
+    Parameters
+    ----------
+    cell : dict
+        A subplot of the schema.
+
+    Returns
+    -------
+    str
+        An id derived from the subplot's own, so it is unique on the page.
+    """
+    return f"maidr-bokeh-panel-{cell['id']}"
+
+
 def _cursor_key(layer: BokehLayer) -> tuple:
     return (layer.plot.id, layer.x_range_name, layer.y_range_name)
 
@@ -626,7 +684,9 @@ def _document_left_as_found(model: Any) -> Iterator[None]:
 
 
 #: The placeholders :data:`_INIT_TEMPLATE` is filled in at.
-_PLACEHOLDER = re.compile(r"__(ITEM|SCHEMA|HIGHLIGHT|WRAPPER|TARGET|WAIT_MS|LOADER)__")
+_PLACEHOLDER = re.compile(
+    r"__(ITEM|SCHEMA|HIGHLIGHT|PANELS|WRAPPER|TARGET|WAIT_MS|LOADER)__"
+)
 
 #: The page script. Built by placeholder replacement rather than as an
 #: f-string, for the reason ``maidr.util.bundle_loader._parent_source``
@@ -635,6 +695,7 @@ _INIT_TEMPLATE = """(function() {
     var item = __ITEM__;
     var schema = __SCHEMA__;
     var highlight = __HIGHLIGHT__;
+    var panels = __PANELS__;
     var wrapper = document.getElementById(__WRAPPER__);
     var targetId = __TARGET__;
     var started = Date.now();
@@ -769,12 +830,69 @@ _INIT_TEMPLATE = """(function() {
         });
     }
 
+    // --- Subplot geometry: see BokehMaidr._panels. ---
+    function placePanels(views) {
+        if (!panels.length || !views || typeof views.find_one_by_id !== 'function') {
+            return;
+        }
+        function measure() {
+            var boxes = panels.map(function(panel) {
+                var view = panel[1] && views.find_one_by_id(panel[1]);
+                return view && view.el ? view.el.getBoundingClientRect() : null;
+            });
+            var width = Math.max.apply(null, schema.subplots.map(function(row) {
+                return row.length;
+            }));
+            function near(i, sameRow) {
+                for (var j = 0; j < boxes.length; j++) {
+                    var alike = sameRow
+                        ? Math.floor(j / width) === Math.floor(i / width)
+                        : j % width === i % width;
+                    if (boxes[j] && alike) return boxes[j];
+                }
+                return null;
+            }
+            var origin = wrapper.getBoundingClientRect();
+            panels.forEach(function(panel, i) {
+                var rowBox = boxes[i] || near(i, true);
+                var colBox = boxes[i] || near(i, false);
+                if (!rowBox || !colBox) return;
+                var el = document.getElementById(panel[0]);
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = panel[0];
+                    el.setAttribute('aria-hidden', 'true');
+                    wrapper.appendChild(el);
+                }
+                el.style.cssText = 'position:absolute;pointer-events:none;'
+                    + 'visibility:hidden;'
+                    + 'left:' + (colBox.left - origin.left - wrapper.clientLeft) + 'px;'
+                    + 'top:' + (rowBox.top - origin.top - wrapper.clientTop) + 'px;'
+                    + 'width:' + colBox.width + 'px;height:' + rowBox.height + 'px;';
+            });
+        }
+        if (getComputedStyle(wrapper).position === 'static') {
+            wrapper.style.position = 'relative';
+        }
+        measure();
+        // Kept current as the layout reflows; MAIDR measures on focus-in.
+        if (window.ResizeObserver) new ResizeObserver(measure).observe(wrapper);
+        document.addEventListener('focusin', measure, true);
+    }
+
     function announce() {
         wrapper.dispatchEvent(new CustomEvent('maidr:bindchart', { bubbles: true }));
     }
 
-    function bind() {
+    function bind(views) {
         if (!schema || !wrapper) return;
+        try {
+            placePanels(views);
+        } catch (error) {
+            if (window.console) {
+                console.warn('[maidr] could not measure the subplots:', error);
+            }
+        }
         wrapper.setAttribute('maidr-data', JSON.stringify(schema));
         if (window.maidrLive) {
             announce();
