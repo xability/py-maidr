@@ -304,6 +304,28 @@ class TestHistogram:
             "x": 4, "y": 0.5, "yMin": 0.0, "yMax": 1.0, "xMin": 0, "xMax": 4,
         }
 
+    def test_quads_on_a_date_axis_are_bars_named_by_their_start_date(self):
+        # Used to raise TypeError out of `float(datetime)` and take the
+        # whole render down with it.
+        day = pd.Timestamp
+        p = figure(x_axis_type="datetime")
+        p.quad(
+            top=[1, 3, 2],
+            bottom=0,
+            left=[day("2020-01-03"), day("2020-01-01"), day("2020-01-02")],
+            right=[day("2020-01-04"), day("2020-01-02"), day("2020-01-03")],
+        )
+
+        layer = _only(p)
+
+        assert layer["type"] == "bar"
+        assert layer["orientation"] == "vert"
+        assert layer["data"] == [
+            {"x": "2020-01-01", "y": 3},
+            {"x": "2020-01-02", "y": 2},
+            {"x": "2020-01-03", "y": 1},
+        ]
+
 
 class TestLines:
     def test_lines_are_one_layer_with_a_row_per_series(self):
@@ -593,6 +615,22 @@ class TestUnsupported:
         p.wedge(x=[1], y=[1], radius=1, start_angle=0, end_angle=1)
 
         with pytest.warns(UserWarning, match="Wedge"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
+    def test_a_glyph_that_fails_to_read_costs_only_its_own_layer(self, monkeypatch):
+        from maidr.bokeh.layers import PlotReader
+
+        def broken(self, renderers):
+            raise TypeError("unexpected column")
+
+        monkeypatch.setattr(PlotReader, "_hist", broken)
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.quad(top=[1], bottom=0, left=[0], right=[1])
+
+        with pytest.warns(UserWarning, match="Quad.*TypeError: unexpected column"):
             layers = _layers(p)
 
         assert [layer["type"] for layer in layers] == ["line"]

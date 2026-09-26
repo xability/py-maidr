@@ -234,11 +234,19 @@ class PlotReader:
         for key, renderers in groups.items():
             try:
                 layer = builders[key[0]](renderers)
-            except UnreadableSpec as reason:
+            except Exception as reason:
+                # Any failure, not only an `UnreadableSpec`: one glyph maidr
+                # misreads must cost that layer, never the whole chart --
+                # the rest still reads, and the figure still draws.
                 names = sorted({type(r.glyph).__name__ for r in renderers})
+                detail = (
+                    reason
+                    if isinstance(reason, UnreadableSpec)
+                    else f"{type(reason).__name__}: {reason}"
+                )
                 warn(
                     f"maidr cannot read the Bokeh {', '.join(names)} glyph "
-                    f"({reason}); it is left out of the accessible chart."
+                    f"({detail}); it is left out of the accessible chart."
                 )
                 continue
             if layer is not None:
@@ -525,10 +533,12 @@ class PlotReader:
         horizontal = len({to_native(left[i]) for i in rows}) == 1 and len(
             {to_native(bottom[i]) for i in rows}
         ) > 1
+        start, end = (bottom, top) if horizontal else (left, right)
+        low, high = (left, right) if horizontal else (bottom, top)
+        if is_temporal([start[i] for i in rows]):
+            return self._date_bins(renderer, horizontal, start, low, high, rows)
         bins = []
         for index in rows:
-            start, end = (bottom, top) if horizontal else (left, right)
-            low, high = (left, right) if horizontal else (bottom, top)
             if is_missing(start[index]) or is_missing(end[index]):
                 continue
             edge = float(min(start[index], end[index]))
@@ -550,8 +560,58 @@ class PlotReader:
         grid = [[[renderer.id, index] for *_, index in bins]]
         return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
 
+    def _date_bins(
+        self,
+        renderer: Any,
+        horizontal: bool,
+        start: list,
+        low: list,
+        high: list,
+        rows: list[int],
+    ) -> BokehLayer | None:
+        """
+        ``quad`` bins on a date axis, read as bars named by their start date.
+
+        A histogram point carries its edges as numbers (``xMin``/``xMax``),
+        and a date has none the reader would recognise, so each bin is
+        announced as a bar at the date it starts on instead -- "2020-01-01,
+        3" rather than an epoch.
+
+        Parameters
+        ----------
+        renderer : bokeh.models.GlyphRenderer
+            The ``quad`` renderer.
+        horizontal : bool
+            Whether the bins run up the y axis.
+        start, low, high : list
+            The column each bin starts at, and the two that bound its count.
+        rows : list of int
+            The source rows the renderer draws.
+
+        Returns
+        -------
+        BokehLayer or None
+            The layer, or ``None`` when no bin has a start date.
+        """
+        bins = [
+            (start[i], _extent(low[i], high[i]), i)
+            for i in rows
+            if not is_missing(start[i])
+        ]
+        if not bins:
+            return None
+        bins.sort(key=lambda b: to_native(b[0]))
+        data = [self._bar_point(horizontal, date, count) for date, count, _ in bins]
+        schema = self._schema(PlotType.BAR, data)
+        schema[MaidrKey.ORIENTATION] = "horz" if horizontal else "vert"
+        name = self._series_label(renderer)
+        if name:
+            schema[MaidrKey.NAME] = name
+        grid = [[[renderer.id, index] for *_, index in bins]]
+        return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
+
     # ------------------------------------------------------------------ #
-    #  Lines, steps and areas                                              #
+    #  Lines, steps and areas                                             #
     # ------------------------------------------------------------------ #
 
     def _series(self, renderer: Any) -> list[tuple[list, list, str | None]]:
