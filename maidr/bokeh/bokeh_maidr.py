@@ -241,15 +241,52 @@ class BokehMaidr:
         """
         if not self.layers:
             return None
-        rows = 1 + max(row for row, _, _ in self._cells)
-        cols = 1 + max(col for _, col, _ in self._cells)
         grid: list[list[dict]] = [
-            [{"id": str(uuid.uuid4()), "layers": []} for _ in range(cols)]
-            for _ in range(rows)
+            [{"id": str(uuid.uuid4()), "layers": []} for _ in row_]
+            for row_ in self._grid()
         ]
-        for row, col, layers in self._cells:
+        for row, col, layers in self._compacted_cells():
             grid[row][col]["layers"].extend(layer.schema for layer in layers)
         return {"id": self.maidr_id, "subplots": grid}
+
+    def _compacted_cells(self) -> list[tuple[int, int, list[BokehLayer]]]:
+        """
+        The plots maidr can read, on a grid with no row or column left empty.
+
+        A plot that yields no layer -- only unsupported glyphs, say -- takes
+        no cell: the grid describes what a reader can reach, and an empty
+        cell would be one more stop on the way to the readable plot beside
+        it. The Plotly path drops such cells for the same reason (#702).
+
+        Returns
+        -------
+        list of tuple of (int, int, list of BokehLayer)
+            ``(row, col, layers)`` for each plot with layers, renumbered so
+            every row and every column holds at least one.
+        """
+        kept = [cell for cell in self._cells if cell[2]]
+        rows = {row: i for i, row in enumerate(sorted({r for r, _, _ in kept}))}
+        cols = {col: i for i, col in enumerate(sorted({c for _, c, _ in kept}))}
+        return [(rows[r], cols[c], layers) for r, c, layers in kept]
+
+    def _grid(self) -> list[list[Any]]:
+        """
+        The plot drawn in each cell of the subplot grid, ``None`` for a hole.
+
+        Returns
+        -------
+        list of list
+            Rows top first, each as wide as the widest row; the plot at each
+            cell a reader can reach, or ``None`` where the layout leaves a
+            gap (``row(a, column(b, c))`` has nothing under ``a``).
+        """
+        cells = self._compacted_cells()
+        rows = 1 + max((row for row, _, _ in cells), default=-1)
+        cols = 1 + max((col for _, col, _ in cells), default=-1)
+        grid: list[list[Any]] = [[None] * cols for _ in range(rows)]
+        for row, col, layers in cells:
+            grid[row][col] = layers[0].plot
+        return grid
 
     def _highlight_map(self, cursors: dict[tuple, str]) -> dict[str, dict]:
         """

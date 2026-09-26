@@ -554,6 +554,18 @@ class TestLayouts:
 
         assert self._grid_titles(layout) == [[["a"], ["b"]], [["c"], []]]
 
+    def test_a_plot_with_nothing_readable_takes_no_cell(self):
+        # An empty first column would be one more stop before the line.
+        pie = figure(title="pie")
+        pie.wedge(x=0, y=0, radius=1, start_angle=0, end_angle=1)
+        line = figure(title="line")
+        line.line([1, 2], [3, 4])
+
+        with pytest.warns(UserWarning, match="Wedge"):
+            titles = self._grid_titles(gridplot([[pie, line], [None, self._bar("c")]]))
+
+        assert titles == [[["line"]], [["c"]]]
+
     def test_widgets_take_no_cell(self):
         layout = column(Div(text="Heading"), self._bar("a"))
 
