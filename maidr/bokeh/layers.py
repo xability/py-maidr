@@ -277,7 +277,9 @@ class PlotReader:
             return ("step", glyph.mode, renderer.x_range_name, renderer.y_range_name)
         if name in _SCATTER_GLYPHS:
             return ("scatter", renderer.id)
-        if name == "Rect" and _color_mapper(glyph) is not None:
+        if name == "Rect" and _is_continuous(_color_mapper(glyph)):
+            # A categorical mapper colours cells by a label, which is not a
+            # value a heatmap can announce or sonify.
             return ("heat", renderer.id)
         if name == "VArea":
             if isinstance(spec_expression(glyph, "y2"), (Stack, CumSum)):
@@ -821,7 +823,25 @@ def _factor_key(value: Any) -> Any:
 
 
 def _factors(factor_range: Any, seen: list) -> list:
-    """The factors of a categorical range, else those seen, in first-seen order."""
+    """
+    The rows or columns of a heatmap, in the order they are drawn.
+
+    On a ``FactorRange`` that is the range's own factor order. On a numeric
+    or datetime axis it is ascending coordinate -- bottom to top, left to
+    right -- whatever order the source lists the cells in.
+
+    Parameters
+    ----------
+    factor_range : bokeh.models.Range
+        The plot's range along this axis.
+    seen : list
+        The coordinates the cells are drawn at, one per drawn row.
+
+    Returns
+    -------
+    list
+        Each distinct coordinate once, in drawn order.
+    """
     from bokeh.models import FactorRange
 
     if isinstance(factor_range, FactorRange) and factor_range.factors:
@@ -830,9 +850,14 @@ def _factors(factor_range: Any, seen: list) -> list:
     keys: set = set()
     for value in seen:
         key = _factor_key(value)
-        if key not in keys:
+        if key is not None and key not in keys:
             keys.add(key)
             ordered.append(value)
+    try:
+        ordered.sort(key=to_coordinate)
+    except TypeError:
+        # Mixed kinds have no drawn order to recover; keep the source's.
+        pass
     return ordered
 
 
@@ -862,6 +887,26 @@ def _color_mapper(glyph: Any) -> Any:
 
     transform = spec_transform(glyph, "fill_color")
     return transform if isinstance(transform, ColorMapper) else None
+
+
+def _is_continuous(mapper: Any) -> bool:
+    """
+    Whether a colour mapper maps numbers, so its field is a heatmap's value.
+
+    Parameters
+    ----------
+    mapper : bokeh.models.ColorMapper or None
+        The mapper, from :func:`_color_mapper`.
+
+    Returns
+    -------
+    bool
+        True for a ``LinearColorMapper``, ``LogColorMapper`` or any other
+        ``ContinuousColorMapper``; False for a categorical one or none.
+    """
+    from bokeh.models import ContinuousColorMapper
+
+    return isinstance(mapper, ContinuousColorMapper)
 
 
 def _split_offset(position: Any) -> tuple[Any, float | None]:

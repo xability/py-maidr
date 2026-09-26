@@ -29,7 +29,7 @@ from bokeh.models import (  # noqa: E402
     Tabs,
 )
 from bokeh.plotting import figure  # noqa: E402
-from bokeh.transform import dodge, linear_cmap  # noqa: E402
+from bokeh.transform import dodge, factor_cmap, linear_cmap  # noqa: E402
 
 from maidr.bokeh.bokeh_maidr import BokehMaidr  # noqa: E402
 
@@ -482,6 +482,42 @@ class TestHeatmap:
             "points": [[3.0, 4.0], [1.0, 2.0]],
         }
         _assert_canonical_axes(layer["axes"])
+
+    def test_numeric_cells_are_read_in_drawn_order(self):
+        # Source rows listed top row first and right column first; the grid
+        # must still be the one drawn, or ArrowUp would move down.
+        source = ColumnDataSource(
+            {"x": [1, 0, 1, 0], "y": [1, 1, 0, 0], "v": [10, 20, 30, 40]}
+        )
+        p = figure()
+        p.rect(
+            x="x", y="y", width=1, height=1, source=source,
+            fill_color=linear_cmap("v", "Viridis256", 0, 40),
+        )
+
+        layer = _only(p)
+
+        assert layer["data"] == {
+            "x": ["0", "1"],
+            "y": ["1", "0"],
+            "points": [[20, 10], [40, 30]],
+        }
+
+    def test_a_categorical_colour_mapper_is_not_a_heatmap(self):
+        # The mapped field is a label, which a heatmap cannot announce.
+        source = ColumnDataSource(
+            {"x": ["1", "2"], "y": ["a", "a"], "kind": ["metal", "gas"]}
+        )
+        p = figure(x_range=["1", "2"], y_range=["a"])
+        p.rect(
+            "x", "y", 0.9, 0.9, source=source,
+            fill_color=factor_cmap("kind", ["red", "blue"], ["metal", "gas"]),
+        )
+
+        with pytest.warns(UserWarning, match="Rect"):
+            schema = BokehMaidr(p)._flatten_maidr()
+
+        assert schema is None
 
     def test_without_a_color_bar_the_field_names_z(self):
         assert _only(self._heat(color_bar_title=None))["axes"]["z"] == {"label": "rate"}
