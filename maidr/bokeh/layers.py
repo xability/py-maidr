@@ -548,7 +548,11 @@ class PlotReader:
         ) > 1
         start, end = (bottom, top) if horizontal else (left, right)
         low, high = (left, right) if horizontal else (bottom, top)
-        if is_temporal([start[i] for i in rows]):
+        dates = self._y_dates if horizontal else self._x_dates
+        if dates or is_temporal([start[i] for i in rows]):
+            # On a ``DatetimeAxis`` plain numbers are epoch milliseconds --
+            # the usual way to bin dates with ``np.histogram`` -- and are
+            # announced as the dates they are.
             return self._date_bins(renderer, horizontal, start, low, high, rows)
         bins = []
         for index in rows:

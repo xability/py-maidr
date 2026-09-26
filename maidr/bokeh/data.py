@@ -181,8 +181,9 @@ def resolve(glyph: Any, prop: str, data: dict) -> list:
 
     Transforms that only move a mark on screen -- ``Dodge``, ``Jitter`` --
     are ignored, because the value a reader wants is the one the author
-    plotted, not the offset it is drawn at. A colour mapper is ignored for
-    the same reason: the mapped *field* is the data. ``Stack`` and
+    plotted, not the offset it is drawn at. A mapper (colour, marker,
+    hatch) is ignored for the same reason: the mapped *field* is the data.
+    Any other transform changes the value in the browser and is refused. ``Stack`` and
     ``CumSum`` expressions are evaluated, since they are the only place a
     stacked bar's extent exists.
 
@@ -205,10 +206,16 @@ def resolve(glyph: Any, prop: str, data: dict) -> list:
     UnreadableSpec
         When the values exist only in the browser.
     """
-    from bokeh.models import CumSum, Stack
+    from bokeh.models import CumSum, Dodge, Jitter, Stack
+    from bokeh.models.mappers import Mapper
 
     n = source_length(data)
-    kind, payload, _ = _spec_parts(getattr(glyph, prop, None))
+    kind, payload, transform = _spec_parts(getattr(glyph, prop, None))
+    if transform is not None and not isinstance(transform, (Dodge, Jitter, Mapper)):
+        # Any other transform -- a ``CustomJSTransform``, an interpolator --
+        # changes the value drawn, and only the browser computes it; reading
+        # the raw column would announce numbers the chart does not show.
+        raise UnreadableSpec(f"{type(transform).__name__} is evaluated in the browser")
 
     if kind == "field":
         if payload not in data:

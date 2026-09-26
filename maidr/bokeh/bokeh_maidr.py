@@ -440,8 +440,16 @@ class BokehMaidr:
                 ids[key] = cursor.id
             yield ids
         finally:
+            # Every cursor comes out even if one removal fails, so the figure
+            # is never left carrying the rest; the first failure is re-raised.
+            failure: BaseException | None = None
             for plot, cursor in reversed(added):
-                plot.renderers.remove(cursor)
+                try:
+                    plot.renderers.remove(cursor)
+                except Exception as error:
+                    failure = failure or error
+            if failure is not None:
+                raise failure
 
     # ------------------------------------------------------------------ #
     #  HTML                                                                #

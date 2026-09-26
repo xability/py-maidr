@@ -726,3 +726,37 @@ class TestMalformedInput:
 
         with pytest.warns(UserWarning, match="more than one bar at 'a'"):
             BokehMaidr(p)
+
+    def test_a_customjs_transform_is_refused_rather_than_read_raw(self):
+        from bokeh.models import CustomJSTransform
+        from bokeh.transform import transform
+
+        p = figure()
+        p.line([1, 2], [1, 2])
+        source = ColumnDataSource({"x": [1, 2], "y": [3, 4]})
+        doubled = CustomJSTransform(v_func="return xs.map(x => 2 * x)")
+        p.scatter("x", transform("y", doubled), source=source)
+
+        with pytest.warns(UserWarning, match="CustomJSTransform"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
+
+def test_an_epoch_ms_histogram_on_a_date_axis_announces_dates():
+    """``np.histogram`` needs numbers, so date bins arrive as epoch ms."""
+    day = 86_400_000
+    start = 1_577_836_800_000  # 2020-01-01
+    p = figure(x_axis_type="datetime")
+    p.quad(
+        top=[3, 1],
+        bottom=0,
+        left=[start, start + day],
+        right=[start + day, start + 2 * day],
+    )
+
+    layer = _only(p)
+
+    assert layer["type"] == "bar"
+    assert [point["x"] for point in layer["data"]] == ["2020-01-01", "2020-01-02"]
+    assert [point["y"] for point in layer["data"]] == [3, 1]
