@@ -68,10 +68,10 @@ Figure = list[str]
 
 EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
     "examples/area-errorbar-point-lollipop.qmd": {
-        "Area Plot": [["stacked_area"], ["area"]],
-        "Error Bar Plot": [["error_bar"]],
-        "Point Plot": [["error_bar"]],
-        "Lollipop Plot": [["lollipop"]],
+        "Area Plot [experimental]": [["stacked_area"], ["area"]],
+        "Error Bar Plot [experimental]": [["error_bar"]],
+        "Point Plot [experimental]": [["error_bar"]],
+        "Lollipop Plot [experimental]": [["lollipop"]],
     },
     "examples/bar.qmd": {
         "Bar Plot": [["bar"]],
@@ -81,7 +81,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
     },
     "examples/box-boxen-violin.qmd": {
         "Box Plot": [["box"]],
-        "Boxen Plot (Letter-Value Plot)": [["boxen"]],
+        "Boxen Plot (Letter-Value Plot) [experimental]": [["boxen"]],
         "Seaborn Violin Plot (Horizontal)": [["violin_box + violin_kde"]],
         "Matplotlib Violin Plot": [["violin_box + violin_kde"]],
     },
@@ -92,12 +92,12 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         # and every layer reports position (0, 0). The page's "volume panel
         # available as its own subplot" is not what the reader gets today.
         "Candlestick Chart": [["candlestick + bar + line"]],
-        "Gantt Chart": [["gantt"]],
+        "Gantt Chart [experimental]": [["gantt"]],
     },
     "examples/heatmap-hexbin-contour.qmd": {
         "Heat Map": [["heat"]],
-        "Hexbin Plot": [["hexbin"]],
-        "Contour Plot": [["contour"]],
+        "Hexbin Plot [experimental]": [["hexbin"]],
+        "Contour Plot [experimental]": [["contour"]],
     },
     "examples/histogram-kde.qmd": {
         "Histogram": [["hist + smooth"]],
@@ -115,7 +115,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
     },
     "examples/pie-wordcloud.qmd": {
         "Pie Chart": [["pie"]],
-        "Word Cloud": [["word_cloud"]],
+        "Word Cloud [experimental]": [["word_cloud"]],
     },
     "examples/roc.qmd": {
         # Two classifiers on one axes are two curves of one layer, and the
@@ -432,9 +432,9 @@ def test_gantt_lanes_are_named_by_the_fixed_ticks(gallery: _Gallery) -> None:
     and ``set_yticklabels()``, as the example does" -- and "a phase that
     stops and restarts is two spans on one lane, not two separate rows".
     """
-    data = gallery.shown("examples/candlestick-gantt.qmd", "Gantt Chart").layer(
-        PlotType.GANTT
-    )[MaidrKey.DATA]
+    data = gallery.shown(
+        "examples/candlestick-gantt.qmd", "Gantt Chart [experimental]"
+    ).layer(PlotType.GANTT)[MaidrKey.DATA]
 
     assert data[MaidrKey.LANES] == ["Design", "Build", "Launch"]
     assert [len(lane) for lane in data[MaidrKey.POINTS]] == [1, 2, 1]
@@ -444,9 +444,9 @@ def test_contour_reads_six_curves_for_six_levels(gallery: _Gallery) -> None:
     """heatmap-hexbin-contour.qmd: "On a single-peaked surface like this
     one the two coincide -- six levels, six curves."
     """
-    curves = gallery.shown("examples/heatmap-hexbin-contour.qmd", "Contour Plot").layer(
-        PlotType.CONTOUR
-    )[MaidrKey.DATA]
+    curves = gallery.shown(
+        "examples/heatmap-hexbin-contour.qmd", "Contour Plot [experimental]"
+    ).layer(PlotType.CONTOUR)[MaidrKey.DATA]
 
     assert len(curves) == 6
     assert len({point[MaidrKey.LEVEL] for curve in curves for point in curve}) == 6
@@ -457,7 +457,7 @@ def test_stackplot_labels_name_each_band(gallery: _Gallery) -> None:
     announced by name."
     """
     stacked, _plain = gallery[DOCS / "examples/area-errorbar-point-lollipop.qmd"][
-        "Area Plot"
+        "Area Plot [experimental]"
     ]
     bands = stacked.layer(PlotType.STACKED_AREA)[MaidrKey.DATA]
 

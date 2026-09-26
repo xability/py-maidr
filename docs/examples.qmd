@@ -46,20 +46,21 @@ For plot types not yet supported by maidr (e.g. 3D plots; see [Plot Type Stabili
 
 Each family has its own page so the code, the rendered accessible chart and the
 notes on how py-maidr reads that chart stay together. Every page starts with
-`import maidr` and ends with `plt.show()`; the plot types marked experimental
-on [Plot Type Stability](stability.qmd) are flagged on their pages.
+`import maidr` and ends with `plt.show()`. An experimental plot type is
+marked **[experimental]** after its name, here and on its page; a type with no
+mark is stable. See [Plot Type Stability](stability.qmd).
 
 - [Bar, count, stacked and dodged bar charts](examples/bar.qmd): one tone per bar, Up and Down between series in a stacked or dodged chart.
-- [Pie charts and word clouds](examples/pie-wordcloud.qmd): a flat row of labeled values, with each slice's share of the whole computed at render time.
+- [Pie charts and word clouds [experimental]](examples/pie-wordcloud.qmd): a flat row of labeled values, with each slice's share of the whole computed at render time.
 - [Histograms and KDE plots](examples/histogram-kde.qmd): bins read as ranges with counts, densities read as a smooth curve.
 - [Line, multi-line and step plots](examples/line-step.qmd): pitch follows the value along x; step plots report which side of a sample the value is held on.
-- [Heatmaps, hexbin and contour plots](examples/heatmap-hexbin-contour.qmd): grids navigated with all four arrows, hexagonal bins by center, contours one level curve at a time.
-- [Box, boxen and violin plots](examples/box-boxen-violin.qmd): five-number summaries, letter-value ladders and density curves paired with box statistics.
-- [Area, error bar, point and lollipop plots](examples/area-errorbar-point-lollipop.qmd): running totals for stacked areas and a lower bound, estimate, upper bound grid for intervals.
+- [Heatmaps, hexbin [experimental] and contour plots [experimental]](examples/heatmap-hexbin-contour.qmd): grids navigated with all four arrows, hexagonal bins by center, contours one level curve at a time.
+- [Box, boxen [experimental] and violin plots](examples/box-boxen-violin.qmd): five-number summaries, letter-value ladders and density curves paired with box statistics.
+- [Area [experimental], error bar [experimental], point [experimental] and lollipop plots [experimental]](examples/area-errorbar-point-lollipop.qmd): running totals for stacked areas and a lower bound, estimate, upper bound grid for intervals.
 - [Scatter and regression plots](examples/scatter-regression.qmd): points in x order, with the fitted line as a separate layer.
 - [Multi-layer, multi-panel and facet plots](examples/multi-layer-panel-facet.qmd): Page Up and Page Down between layers, a subplot list for panels.
-- [Candlestick and Gantt charts](examples/candlestick-gantt.qmd): open, high, low and close per day; start and end per task span.
-- [ROC curves](examples/roc.qmd): a scikit-learn `RocCurveDisplay` read as rates on the unit interval, with the area under each curve and the best operating point in the description.
+- [Candlestick and Gantt charts [experimental]](examples/candlestick-gantt.qmd): open, high, low and close per day; start and end per task span.
+- [ROC curves [experimental]](examples/roc.qmd): a scikit-learn `RocCurveDisplay` read as rates on the unit interval, with the area under each curve and the best operating point in the description.
 - [Shiny and Streamlit dashboards](examples/dashboards.qmd): reactive apps, HTML caching and air-gapped deployments (no executed plots).
 
 ## Interactive Computing (Jupyter Notebooks, Jupyter Labs, Google Colab)
