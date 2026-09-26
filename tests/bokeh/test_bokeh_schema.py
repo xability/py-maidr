@@ -18,6 +18,7 @@ pytest.importorskip("bokeh")
 
 from bokeh.layouts import column, gridplot, row  # noqa: E402
 from bokeh.models import (  # noqa: E402
+    BooleanFilter,
     CDSView,
     ColumnDataSource,
     Div,
@@ -128,6 +129,19 @@ class TestBars:
         )
 
         assert _only(p)["data"] == [{"x": "a", "y": 1}, {"x": "c", "y": 3}]
+
+
+    @pytest.mark.parametrize("view_filter", [IndexFilter(), BooleanFilter()])
+    def test_a_filter_left_at_its_default_keeps_every_row(self, view_filter):
+        # BokehJS reads ``indices=None`` / ``booleans=None`` as "all rows".
+        source = ColumnDataSource({"x": ["a", "b"], "top": [1, 2]})
+        p = figure(x_range=["a", "b"])
+        p.vbar(
+            x="x", top="top", width=0.5, source=source,
+            view=CDSView(filter=view_filter),
+        )
+
+        assert _only(p)["data"] == [{"x": "a", "y": 1}, {"x": "b", "y": 2}]
 
 
 class TestSegmentedBars:

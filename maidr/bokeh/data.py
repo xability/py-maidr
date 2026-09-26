@@ -276,14 +276,20 @@ def _filter_mask(view_filter: Any, data: dict, n: int) -> np.ndarray:
     name = type(view_filter).__name__
     if name == "AllIndices":
         return np.ones(n, dtype=bool)
+    # An ``IndexFilter`` or ``BooleanFilter`` left at its default ``None``
+    # keeps every row, as BokehJS evaluates it; only a given list narrows.
     if isinstance(view_filter, bm.IndexFilter):
+        if view_filter.indices is None:
+            return np.ones(n, dtype=bool)
         mask = np.zeros(n, dtype=bool)
-        for index in view_filter.indices or []:
+        for index in view_filter.indices:
             if 0 <= int(index) < n:
                 mask[int(index)] = True
         return mask
     if isinstance(view_filter, bm.BooleanFilter):
-        flags = list(view_filter.booleans or [])
+        if view_filter.booleans is None:
+            return np.ones(n, dtype=bool)
+        flags = list(view_filter.booleans)
         return np.array([bool(flags[i]) if i < len(flags) else False for i in range(n)])
     if isinstance(view_filter, bm.GroupFilter):
         column = _column(data.get(view_filter.column_name, [None] * n))
