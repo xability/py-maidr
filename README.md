@@ -16,7 +16,7 @@
 
 # py-maidr
 
-Make matplotlib, seaborn, Plotly, and Altair charts accessible — MAIDR
+Make matplotlib, seaborn, Plotly, Bokeh, and Altair charts accessible — MAIDR
 (Multimodal Access and Interactive Data Representation) for Python.
 
 ## Overview
@@ -29,7 +29,8 @@ of one.
 
 Nothing about how you plot changes. py-maidr patches matplotlib and seaborn at
 import time, so `plt.show()` produces accessible HTML instead of a static image;
-Plotly and Altair figures go through the same `maidr.show()` entry point. It
+Plotly, Bokeh and Altair figures go through the same `maidr.show()` entry point
+(Bokeh support is experimental; install it with `pip install "maidr[bokeh]"`). It
 works in a plain script, a Jupyter notebook, Quarto, Shiny, and Streamlit.
 
 ## Quickstart
@@ -56,7 +57,7 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 
 | | |
 |---|---|
-| **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
+| **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Bokeh [experimental], Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit |
 | **Plot types** | 39 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-four are experimental; the docs mark each experimental type **[experimental]** after its name |
 
@@ -136,7 +137,7 @@ Streamlit support requires `pip install "maidr[streamlit]"`, which provides
 
 If an AI coding agent (Claude Code, Codex, Cursor, GitHub Copilot, and others) writes your plotting code, install the
 [maidr skill](https://github.com/xability/maidr-skill) with `npx skills add xability/maidr-skill`. The agent then
-routes every matplotlib, seaborn, Plotly, or Altair chart through py-maidr, verifies the output, and hands back an
+routes every matplotlib, seaborn, Plotly, Bokeh, or Altair chart through py-maidr, verifies the output, and hands back an
 accessible HTML file or chat artifact instead of a static image.
 
 ## Contributing

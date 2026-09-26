@@ -51,8 +51,8 @@ from maidr.core.figure_manager import FigureManager
 
 DOCS = Path(__file__).parents[2] / "docs"
 
-#: The gallery: the matplotlib/seaborn family pages plus the one-page Plotly
-#: and Altair galleries. Discovered rather than listed, so a new page is run
+#: The gallery: the matplotlib/seaborn family pages plus the one-page Plotly,
+#: Bokeh and Altair galleries. Discovered rather than listed, so a new page is run
 #: as soon as it exists -- and fails below until its sections are listed.
 PAGES = sorted(DOCS.glob("examples*.qmd")) + sorted((DOCS / "examples").glob("*.qmd"))
 
@@ -149,6 +149,20 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Facet Combined Plot (Line + Bar)": [
             ["point", "bar", "point", "bar", "point", "bar"]
         ],
+    },
+    "examples-bokeh.qmd": {
+        "Bar Plot": [["bar"]],
+        "Horizontal Bar Plot": [["bar"]],
+        "Stacked Bar Plot": [["stacked_bar"]],
+        "Dodged (Grouped) Bar Plot": [["dodged_bar"]],
+        "Histogram": [["hist"]],
+        "Line Plot": [["line"]],
+        "Multi-Line Plot": [["line"]],
+        "Step Plot": [["step"]],
+        "Scatter Plot": [["point"]],
+        "Heatmap": [["heat"]],
+        "Stacked Area Plot [experimental]": [["stacked_area"]],
+        "Multi-Panel Layout (gridplot)": [["bar", "line"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
@@ -311,11 +325,13 @@ class _Capture:
             Gcf.destroy(manager.num)
 
     def maidr_show(self, plot: Any = None, *args: Any, **kwargs: Any) -> None:
-        """``maidr.show(plot)``: an Altair chart, a Plotly figure, or pyplot."""
+        """``maidr.show(plot)``: Altair, Plotly or Bokeh, or pyplot."""
         if api._is_altair_chart(plot):
             self._record(_from_altair(plot))
         elif plot is not None and api._is_plotly_figure(plot):
             self._record(_from_schema(api._get_plotly_maidr(plot)._flatten_maidr()))
+        elif plot is not None and api._is_bokeh_model(plot):
+            self._record(_from_schema(api._get_bokeh_maidr(plot)._flatten_maidr()))
         else:
             self.pyplot_show()
 
@@ -490,3 +506,30 @@ def test_step_points_carry_the_stage_names(gallery: _Gallery) -> None:
     assert {point[MaidrKey.LABEL] for point in points if point[MaidrKey.Y] == 3} == {
         "REM"
     }
+
+
+def test_bokeh_lines_are_series_named_by_their_legend(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "Every ``line`` on a figure becomes one series of
+    one line layer, named by its legend label."
+    """
+    series = gallery.shown("examples-bokeh.qmd", "Multi-Line Plot").layer(
+        PlotType.LINE
+    )[MaidrKey.DATA]
+
+    assert [{point[MaidrKey.Z] for point in line} for line in series] == [
+        {"1949"},
+        {"1954"},
+        {"1960"},
+    ]
+
+
+def test_bokeh_grid_is_one_subplot_per_figure(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "Each figure of a ``gridplot``, ``row`` or
+    ``column`` is a subplot."
+    """
+    shown = gallery.shown("examples-bokeh.qmd", "Multi-Panel Layout (gridplot)")
+
+    assert [[layer[MaidrKey.TITLE] for layer in cell] for cell in shown.layers] == [
+        ["Penguins per Species"],
+        ["Passengers per Year"],
+    ]
