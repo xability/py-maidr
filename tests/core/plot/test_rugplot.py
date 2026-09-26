@@ -70,12 +70,12 @@ def _schemas(fig) -> list:
 
 def _selector_list(selectors):
     """
-    The selectors a point layer names, one per entry.
+    The selectors a rug layer names, one per entry.
 
-    The payload carries a point layer's selectors as ONE string -- the
-    per-point selectors joined with ``", "``, since the frontend's scatter
-    model reads a string and nothing else (#316 in r-maidr, the same bundle
-    contract) -- so the list is recovered from it for the assertions below.
+    An ungrouped rug names its ticks with one string and a grouped one with a
+    list, one selector per tick; the frontend's rug trace reads either. The
+    string is split on ``", "`` in case a layer ever arrives joined, so the
+    assertions below do not depend on which shape it takes.
     """
     if isinstance(selectors, str):
         return selectors.split(", ")
@@ -87,7 +87,8 @@ def test_a_rug_registers_the_observations_it_marks(frame):
     sns.rugplot(frame, x="value", ax=ax)
 
     (schema,) = _schemas(fig)
-    assert schema["type"] == "point"
+    assert schema["type"] == "rug"
+    assert schema["orientation"] == "vert"
     assert [point["x"] for point in schema["data"]] == [1.0, 2.5, 3.0, 7.25]
 
 
@@ -133,6 +134,9 @@ def test_a_rug_on_y_names_the_other_axis(frame):
     assert schema["axes"]["x"]["label"] == RUG_AXIS_LABEL
     assert schema["axes"]["y"]["label"] == "other"
     assert [point["y"] for point in schema["data"]] == [4.0, 5.5, 9.0, 2.0]
+    # The frontend's rug trace reads a horizontal rug's positions off `y`,
+    # and only when told the rug is horizontal.
+    assert schema["orientation"] == "horz"
 
 
 def test_one_call_marking_both_margins_reads_as_two_layers(frame):
@@ -220,7 +224,7 @@ def test_a_rug_no_longer_costs_the_figure_its_reading(frame):
     fig, ax = plt.subplots()
     sns.rugplot(frame, x="value", ax=ax)
 
-    assert _layers(fig) == ["point"]
+    assert _layers(fig) == ["rug"]
     assert len(maidr.render(fig)._repr_html_()) > 0
 
 
@@ -269,13 +273,13 @@ def test_a_rug_under_a_hue_split_density_reads_beside_it(frame):
     assert [schema["type"] for schema in schemas] == [
         "smooth",
         "smooth",
-        "point",
-        "point",
+        "rug",
+        "rug",
     ]
     marked = [
         point["x"]
         for schema in schemas
-        if schema["type"] == "point"
+        if schema["type"] == "rug"
         for point in schema["data"]
     ]
     assert sorted(marked) == [1.0, 2.5, 3.0, 7.25]
@@ -548,16 +552,14 @@ def test_a_hue_on_one_level_is_read_as_one_ungrouped_layer():
     assert len(schemas[0]["data"]) == 4
 
 
-# --- The bounds that make the layer reachable in grid mode (maidr#1132) ------
+# --- The axis bounds the rug trace reads (maidr#1132) -----------------------
 #
-# A point layer renders braille only in grid mode, and grid mode is built from
-# `axes.{x,y}.{min,max,tickStep}`. With the labels alone, maidr's `ScatterTrace`
-# returns an empty braille state, and a rug is then the one chart with no
-# braille surface reachable by any keystroke. Measured there, four observations
-# at 1, 2, 3 and 9 over a 0-10 axis give `values [[2, 1, 0, 1]]` -- the count
-# per cell, which is the clustering a rug is drawn to show and the one thing
-# its audio cannot carry, every tick sitting at the same place on the axis
-# pitch is mapped from.
+# maidr's rug trace takes its pitch range from the marked axis' `min`/`max`
+# and its braille bins from its `tickStep`, so four observations at 1, 2, 3
+# and 9 over a 0-10 axis in steps of 2.5 give the strip `2 1 0 1` -- the count
+# per bin, which is the clustering a rug is drawn to show. The bounds were
+# first emitted when a rug was still a point layer, whose braille existed only
+# in grid mode; the one-row strip across the ticks is kept from then.
 
 
 def _axis(schema, key) -> dict:

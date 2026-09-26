@@ -82,7 +82,10 @@ _SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 #: while navigation and speech keep working. Measured in headless Chromium
 #: against the bundled 4.9.0: ``plt.scatter``, ``sns.scatterplot`` (plain and
 #: ``hue=``), ``sns.stripplot``, ``sns.swarmplot``, ``ax.eventplot`` and a
-#: ``hue=`` rug all announced every point and outlined nothing. The bar
+#: ``hue=`` rug all announced every point and outlined nothing. A rug has
+#: since become :attr:`PlotType.RUG`, whose frontend trace reads a list as one
+#: selector per tick, so it is not here
+#: (``tests/browser/test_rug_highlight.py``). The bar
 #: family is deliberately NOT here: ``bar.ts`` reads an array as one selector
 #: per point, which is the shape ``BarsHistPlot``, ``LollipopPlot`` and the
 #: plotly bar emit on purpose when document order is not data order.

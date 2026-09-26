@@ -64,6 +64,14 @@ class PlotType(str, Enum):
     #: alike, and the area the chart is quoted by is in the legend text and
     #: nowhere a reader is told. See `docs/stability.qmd` -- experimental.
     ROC = "roc"
+    #: One tick per observation along one axis: where the raw data fell.
+    #: Emitted as a scatter until maidr.js gained a trace of its own for it
+    #: (xability/maidr#1264), and a distinct type for the reason
+    #: xability/maidr#1132 measured -- read as a scatter the pitch axis is the
+    #: constant one, so every tick played the same note and the clustering the
+    #: chart is drawn to show reached the audio not at all. See
+    #: `docs/stability.qmd` -- experimental.
+    RUG = "rug"
     SCATTER = "point"
     STACKED = "stacked_bar"
     NORMALIZED = "stacked_normalized_bar"

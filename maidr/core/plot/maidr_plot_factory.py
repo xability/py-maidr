@@ -31,7 +31,7 @@ from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
 from maidr.core.plot.regplot import SmoothPlot
 from maidr.core.plot.roc import RocPlot
-from maidr.core.plot.rugplot import DRAWN_RUG, RugPlot
+from maidr.core.plot.rugplot import RugPlot
 from maidr.core.plot.spanplot import DRAWN_SPANS, SpanPlot
 from maidr.core.plot.stairs import StairsPlot
 from maidr.core.plot.stepped_histogram import SteppedHistPlot
@@ -165,6 +165,12 @@ class MaidrPlotFactory:
             return StepPlot(single_ax, **kwargs)
         elif PlotType.PIE == plot_type:
             return PiePlot(single_ax, **kwargs)
+        elif PlotType.RUG == plot_type:
+            # A rug's ticks arrive as a plain `LineCollection` -- not an
+            # `EventCollection`, so `EventPlot` cannot read one (#250) -- and
+            # read as a type of their own, whose pitch is the position rather
+            # than the constant axis across the ticks (xability/maidr#1132).
+            return RugPlot(single_ax, **kwargs)
         elif PlotType.SCATTER == plot_type:
             # An event plot's row is a scatter of positions, but it arrives as
             # an `EventCollection` rather than a `PathCollection` and keeps its
@@ -172,11 +178,6 @@ class MaidrPlotFactory:
             # through a class of its own under the same type (#548).
             if kwargs.get(DRAWN_EVENTS) is not None:
                 return EventPlot(single_ax, **kwargs)
-            # A rug's ticks are a scatter of positions for the same reason,
-            # and arrive as a plain `LineCollection` -- not an
-            # `EventCollection`, so `EventPlot` cannot read one (#250).
-            if kwargs.get(DRAWN_RUG) is not None:
-                return RugPlot(single_ax, **kwargs)
             # `so.Dash()` draws a horizontal tick per observation instead of a
             # marker, so it too arrives as a plain `LineCollection` and keeps
             # its values in the segments rather than in offsets (#670).
