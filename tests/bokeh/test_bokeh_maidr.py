@@ -407,3 +407,23 @@ class TestFigureIsNotMutated:
 
         assert lines.document is doc
         assert {m.id for m in doc.models} == models_before
+
+
+def test_anchoring_a_shared_source_resolves_each_column_once():
+    """One resolve per column, not per mark: the anchors are O(n), not O(n^2)."""
+    from maidr.bokeh import layers as layers_module
+
+    source = ColumnDataSource({"x": list(range(50)), "y": list(range(50))})
+    p = figure()
+    p.line("x", "y", source=source)
+    p.scatter("x", "y", source=source)
+
+    with mock.patch.object(
+        layers_module, "resolve", wraps=layers_module.resolve
+    ) as resolve:
+        BokehMaidr(p)._retarget_shared_highlights()
+
+    # Reading the layer resolves each column too; the anchors add one more
+    # per column rather than one per point (which would be 50 each).
+    resolved = [c.args[1] for c in resolve.call_args_list if c.args]
+    assert resolved.count("x") <= 3 and resolved.count("y") <= 3

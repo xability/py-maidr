@@ -378,10 +378,13 @@ class BokehMaidr:
             if not any(r.data_source.id in shared for r in layer.renderers):
                 continue
             by_id = {r.id: r for r in layer.renderers}
+            columns: dict = {}
 
             def anchor(cell: list | None) -> list | None:
                 """Where the cursor goes for one ``[renderer id, row]`` cell."""
-                return None if cell is None else mark_anchor(by_id[cell[0]], cell[1])
+                if cell is None:
+                    return None
+                return mark_anchor(by_id[cell[0]], cell[1], columns)
 
             if layer.highlight["kind"] == "points":
                 points = [anchor(cell) for cell in layer.highlight["points"]]
