@@ -801,6 +801,23 @@ class TestPlotlyEmbeddedSchema:
         assert "<" not in literal and ">" not in literal
         assert embedded["title"] == title
 
+    @pytest.mark.parametrize("use_cdn", [True, False, "auto"])
+    def test_a_title_naming_the_loader_placeholder_stays_a_title(self, use_cdn):
+        """The loader was spliced in with ``replace``, which also hit the title."""
+        import json
+
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(title="__LOADER__")
+        html_str = str(
+            PlotlyMaidr(fig)._create_html_tag(use_iframe=False, use_cdn=use_cdn)
+        )
+
+        marker = "var maidrSchema = "
+        start = html_str.index(marker) + len(marker)
+        embedded, _ = json.JSONDecoder().raw_decode(html_str[start:])
+
+        assert embedded["title"] == "__LOADER__"
+
 
 class TestPlotlyShow:
     """``show()`` builds the page exactly once, whichever way it is shown."""

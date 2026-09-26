@@ -1751,7 +1751,11 @@ class PlotlyMaidr:
         # usual case plotly has drawn synchronously and the payload is in
         # place before ``DOMContentLoaded``, so ``maidr.js`` finds it on its
         # first scan; a late draw is picked up by its attribute observer.
-        dom_wiring = f"""
+        # The loader goes in as an interpolated value, never through a
+        # ``replace`` on the finished text: that would also rewrite any
+        # ``__LOADER__`` in the chart's own title or labels.
+        loader = maidr_loader_js(use_cdn, iframe_in_notebook=iframe_in_notebook)
+        body = f"""
             var maidrSchema = {script_json(schema)};
             var gd = document.getElementById({script_json(plot_div_id or "")});
 
@@ -1767,7 +1771,7 @@ class PlotlyMaidr:
 
                 svg.setAttribute('id', maidrSchema.id);
                 svg.setAttribute('maidr', JSON.stringify(maidrSchema));
-            __LOADER__
+            {loader}
             }}
 
             if (!gd) {{
@@ -1786,10 +1790,6 @@ class PlotlyMaidr:
                 }}
             }}
         """
-
-        loader = maidr_loader_js(use_cdn, iframe_in_notebook=iframe_in_notebook)
-
-        body = dom_wiring.replace("__LOADER__", loader)
         return f"(function() {{{body}}})();"
 
     def _create_html_tag(
