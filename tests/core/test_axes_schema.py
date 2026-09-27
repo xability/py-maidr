@@ -20,6 +20,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
@@ -495,3 +496,128 @@ class TestFigureLevelCanonicalShape:
             assert schema["axes"]["y"]["label"] == "Revenue"
         finally:
             plt.close(fig)
+
+
+def _bokeh_figures() -> dict:
+    """One Bokeh figure per layer type the Bokeh path emits, by type."""
+    from math import pi
+
+    from bokeh.models import ColumnDataSource
+    from bokeh.plotting import figure
+    from bokeh.transform import cumsum, dodge, linear_cmap
+
+    def build(draw, **kwargs):
+        p = figure(x_axis_label="Across", y_axis_label="Up", **kwargs)
+        draw(p)
+        return p
+
+    days = pd.date_range("2024-01-01", periods=3)
+    grid = pd.DataFrame(
+        {"x": ["a", "b", "a", "b"], "y": ["u", "u", "v", "v"], "v": [1, 2, 3, 4]}
+    )
+    shares = ColumnDataSource(
+        {"k": ["p", "q"], "n": [1, 3], "a": [pi / 2, 3 * pi / 2]}
+    )
+    wide = {"c": ["a", "b"], "s1": [1, 2], "s2": [3, 4]}
+    return {
+        "bar": build(lambda p: p.vbar(x=["a", "b"], top=[1, 2]), x_range=["a", "b"]),
+        "stacked_bar": build(
+            lambda p: p.vbar_stack(["s1", "s2"], x="c", source=wide),
+            x_range=["a", "b"],
+        ),
+        "dodged_bar": build(
+            lambda p: [
+                p.vbar(x=dodge("c", offset, range=p.x_range), top=col, source=wide,
+                       width=0.3)
+                for offset, col in ((-0.2, "s1"), (0.2, "s2"))
+            ],
+            x_range=["a", "b"],
+        ),
+        "hist": build(
+            lambda p: p.quad(top=[1, 2], bottom=0, left=[0, 1], right=[1, 2])
+        ),
+        "line": build(lambda p: p.line([1, 2], [3, 4])),
+        "step": build(lambda p: p.step([1, 2], [3, 4])),
+        "point": build(lambda p: p.scatter([1, 2], [3, 4])),
+        "heat": build(
+            lambda p: p.rect(
+                x="x", y="y", width=1, height=1, source=grid,
+                fill_color=linear_cmap("v", "Viridis256", 1, 4),
+            ),
+            x_range=["a", "b"], y_range=["u", "v"],
+        ),
+        "area": build(lambda p: p.harea(y=[1, 2], x1=0, x2=[3, 4])),
+        "stacked_area": build(
+            lambda p: p.varea_stack(["s1", "s2"], x="x",
+                                    source={"x": [1, 2], "s1": [1, 2], "s2": [3, 4]})
+        ),
+        "pie": build(
+            lambda p: p.wedge(
+                x=0, y=0, radius=1, source=shares, legend_field="k",
+                start_angle=cumsum("a", include_zero=True), end_angle=cumsum("a"),
+            )
+        ),
+        "candlestick": build(
+            lambda p: (
+                p.segment(days, [3, 4, 5], days, [1, 2, 3]),
+                p.vbar(days, 4e7, [2, 3.5, 3], [2.5, 3, 4.5]),
+            ),
+            x_axis_type="datetime",
+        ),
+        "gantt": build(
+            lambda p: p.hbar(y=["t"], left=[days[0]], right=[days[2]]),
+            y_range=["t"], x_axis_type="datetime",
+        ),
+        "hexbin": build(
+            lambda p: p.hexbin(np.array([0.0, 1, 2]), np.array([0.0, 1, 0]), 0.5)
+        ),
+    }
+
+
+class TestBokehCanonicalShape:
+    """The Bokeh path builds its schema in Python, like Plotly; every layer
+    type it emits is held to the same canonical ``axes`` contract."""
+
+    @pytest.fixture(scope="class")
+    def bokeh_layers(self) -> dict:
+        pytest.importorskip("bokeh")
+        from maidr.bokeh.bokeh_maidr import BokehMaidr
+
+        layers = {}
+        for plot_type, p in _bokeh_figures().items():
+            schema = _stringify_keys(BokehMaidr(p)._flatten_maidr())
+            (layer,) = [
+                layer
+                for row in schema["subplots"]
+                for cell in row
+                for layer in cell["layers"]
+            ]
+            assert layer["type"] == plot_type
+            layers[plot_type] = layer
+        return layers
+
+    @pytest.mark.parametrize(
+        "plot_type",
+        [
+            "bar", "stacked_bar", "dodged_bar", "hist", "line", "step", "point",
+            "heat", "area", "stacked_area", "pie", "candlestick", "gantt", "hexbin",
+        ],
+    )
+    def test_every_layer_type(self, bokeh_layers, plot_type):
+        axes = bokeh_layers[plot_type]["axes"]
+
+        _assert_canonical_axes(axes)
+        assert set(axes) >= {"x", "y"}
+
+    def test_labels_come_from_the_figure(self, bokeh_layers):
+        assert bokeh_layers["bar"]["axes"]["x"]["label"] == "Across"
+        assert bokeh_layers["bar"]["axes"]["y"]["label"] == "Up"
+
+    def test_a_gantt_date_format_is_nested_in_its_axis(self, bokeh_layers):
+        axes = bokeh_layers["gantt"]["axes"]
+
+        assert "format" in axes["x"]
+        assert "format" not in axes
+
+    def test_a_colour_scale_is_a_z_axis_config(self, bokeh_layers):
+        assert bokeh_layers["heat"]["axes"]["z"] == {"label": "v"}
