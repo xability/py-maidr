@@ -158,6 +158,8 @@ deprecation period; a type with no mark is stable (see
 
 ### Matplotlib
 
+#### Stable {#matplotlib-stable}
+
 * One-factor bar plot having one x (categorical) and one y (numerical/count) axis.
 
 * Stacked bar plot having one x (categorical) and one y (numerical/count) axis with multiple data series stacked vertically.
@@ -184,10 +186,6 @@ deprecation period; a type with no mark is stable (see
 
 * Heatmap having one x (categorical) and one y (categorical) and z (numerical) axis.
 
-* Hexbin plot [experimental] (`ax.hexbin()`) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon's count by default, the reduction of `C` when one is given, or the count's interval when `bins` is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its center rather than by a column index.
-
-* Filled area plot [experimental] (`ax.stackplot()`, `ax.fill_between()`, `ax.fill_betweenx()`) having one x (numerical) and one y (numerical) axis. A band drawn from the baseline to a curve reads as an area; several stacked bands read as a stacked area [experimental], with each band's own value announced alongside the running total. A band drawn *between two curves* is not read as an area, since its content is the gap rather than either edge.
-
 * Scatter plot having one x (numerical) and one y (numerical) axis.
 
 * Regression plot having one x (numerical) and one y (numerical) axis with scatter points and fitted regression line.
@@ -199,6 +197,14 @@ deprecation period; a type with no mark is stable (see
 * Multi-panel plots (subplots) with multiple charts in a grid layout having independent axes.
 
 * Facet plots showing the same chart type across different data subsets with shared axis scales.
+
+#### Experimental {#matplotlib-experimental}
+
+These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
+
+* Hexbin plot [experimental] (`ax.hexbin()`) having one x (numerical) and one y (numerical) axis and a z axis carrying what the fill encodes — each hexagon's count by default, the reduction of `C` when one is given, or the count's interval when `bins` is a number. Read as a lattice of counted cells, one row at a time; because hexagons tessellate by offsetting alternate rows, each bin is announced by its center rather than by a column index.
+
+* Filled area plot [experimental] (`ax.stackplot()`, `ax.fill_between()`, `ax.fill_betweenx()`) having one x (numerical) and one y (numerical) axis. A band drawn from the baseline to a curve reads as an area; several stacked bands read as a stacked area [experimental], with each band's own value announced alongside the running total. A band drawn *between two curves* is not read as an area, since its content is the gap rather than either edge.
 
 
 ### Seaborn
@@ -235,6 +241,8 @@ MAIDR schema from a figure's traces. Use `maidr.show(fig)` (or
 Plotly figure; `plotly.express` and `plotly.graph_objects` both go through the
 same entry point, since both produce the same figure object.
 
+#### Stable {#plotly-stable}
+
 * One-factor bar plot (`go.Bar`, `px.bar`) having one x (categorical) and one y (numerical/count) axis.
 
 * Dodged (grouped) bar plot — several bar traces under `barmode="group"`.
@@ -251,8 +259,6 @@ same entry point, since both produce the same figure object.
 
 * Step plot, recognized from Plotly's `line_shape` (`"hv"`, `"vh"`, `"hvh"`, `"vhv"`), with named y tick labels announced as level names.
 
-* Filled area [experimental] and stacked area [experimental] plots — a scatter trace carrying `stackgroup`, which is what `px.area` produces. `stackgroup` is the whole signal: `fill="tozeroy"` on its own is read as a line, not an area. `groupnorm="percent"` or `"fraction"` makes it the normalized variant [experimental].
-
 * Scatter plot (`go.Scatter` with `mode="markers"`, `px.scatter`) having one x (numerical) and one y (numerical) axis.
 
 * Regression plot — a scatter trace overlaid with a fitted trend line, including `px.scatter(..., trendline=...)`.
@@ -265,11 +271,23 @@ same entry point, since both produce the same figure object.
 
 * Two-dimensional histogram (`go.Histogram2d`) read as a lattice of binned cells, and its contour form [experimental] (`go.Histogram2dContour`), read one level curve at a time like a contour plot.
 
-* Contour plot [experimental] (`go.Contour`), read one level curve at a time.
-
 * Pie chart (`go.Pie`, `px.pie`), read wedge by wedge.
 
 * Candlestick and OHLC charts (`go.Candlestick`, `go.Ohlc`) having one x (time/date) and four y (numerical) axes.
+
+* Scatter plot matrix (`go.Splom`), navigated one panel at a time.
+
+* Choropleth map [experimental] (`go.Choropleth`, `px.choropleth`) and geographic scatter and density maps (`go.Scattergeo`, `go.Scattermap`, `go.Densitymap`).
+
+* Multi-panel plots (`make_subplots`) and facet plots, with independent axes per panel.
+
+#### Experimental {#plotly-experimental}
+
+These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
+
+* Filled area [experimental] and stacked area [experimental] plots — a scatter trace carrying `stackgroup`, which is what `px.area` produces. `stackgroup` is the whole signal: `fill="tozeroy"` on its own is read as a line, not an area. `groupnorm="percent"` or `"fraction"` makes it the normalized variant [experimental].
+
+* Contour plot [experimental] (`go.Contour`), read one level curve at a time.
 
 * Funnel chart [experimental] (`go.Funnel`, `px.funnel`), its area form (`go.Funnelarea`), and waterfall chart [experimental] (`go.Waterfall`).
 
@@ -282,12 +300,6 @@ same entry point, since both produce the same figure object.
 * Sankey / alluvial diagram [experimental] (`go.Sankey`), read link by link.
 
 * Parallel coordinates [experimental] (`go.Parcoords`) and parallel categories [experimental] (`go.Parcats`).
-
-* Scatter plot matrix (`go.Splom`), navigated one panel at a time.
-
-* Choropleth map [experimental] (`go.Choropleth`, `px.choropleth`) and geographic scatter and density maps (`go.Scattergeo`, `go.Scattermap`, `go.Densitymap`).
-
-* Multi-panel plots (`make_subplots`) and facet plots, with independent axes per panel.
 
 ::: {.callout-note}
 A chart type marked **[experimental]** was added by the plot coverage roadmap
@@ -307,6 +319,8 @@ with a `figure`, a `gridplot`, or a `row`/`column` of figures; install it with
 `pip install "maidr[bokeh]"`. Bokeh support as a whole is **experimental**,
 whichever plot type is drawn: see [Plot Type Stability](stability.qmd#bokeh-support).
 
+#### Stable {#bokeh-stable}
+
 * One-factor bar plot (`vbar`, `hbar`), read in the order its `FactorRange` draws the bars.
 
 * Stacked bar plot (`vbar_stack`, `hbar_stack`), each segment announced as its own value.
@@ -323,9 +337,13 @@ whichever plot type is drawn: see [Plot Type Stability](stability.qmd#bokeh-supp
 
 * Heatmap (`rect` coloured through a colour mapper) having one x (categorical) and one y (categorical) and z (numerical) axis, named by its colour bar's title.
 
-* Area [experimental] and stacked area [experimental] plots (`varea`, `varea_stack`).
-
 * Multi-panel layouts (`gridplot`, `row`, `column`, `GridBox`); a `Tabs` layout is read one panel at a time, the active one.
+
+#### Experimental {#bokeh-experimental}
+
+These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
+
+* Area [experimental] and stacked area [experimental] plots (`varea`, `varea_stack`).
 
 Bokeh draws to a canvas, so the mark being read is highlighted inside the Bokeh
 plot itself: a bar, bin, cell or point is selected, and a line, step or area

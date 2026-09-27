@@ -65,6 +65,16 @@ experimental type gets the suffix ` [experimental]` right after its name and a
 stable type gets nothing. A gallery heading keeps its old anchor with an
 explicit `{#id}`; `tests/docs/test_experimental_marks.py` checks the headings.
 
+Order follows the split too: stable first, then experimental. A list of plot
+types (the per-library lists in `docs/index.qmd`, the family list in
+`docs/examples.qmd`, `docs/llms.txt`) is split into a Stable part and then an
+Experimental part, each under its own sub-heading (a bold lead-in in
+`llms.txt`), with a link to `stability.qmd` under Experimental; an item
+mixing both tiers stays in Stable. In `docs/_quarto.yml` the pages about
+experimental types only come after the stable ones, in their own group. On a
+gallery page the experimental `##` sections come after every stable one.
+`tests/docs/test_stable_before_experimental.py` checks the ordering.
+
 Note that `maidr/plotly/` builds its MAIDR schema in Python and therefore needs its own
 handling per plot type, whereas `maidr/altair/` delegates entirely to the upstream
 Vega-Lite JS adapter -- an Altair-only plot type is implemented there, not here.
