@@ -543,6 +543,8 @@ class PlotReader:
         left, right = resolve(glyph, "left", data), resolve(glyph, "right", data)
         bottom, top = resolve(glyph, "bottom", data), resolve(glyph, "top", data)
         rows = visible_indices(renderer, source_length(data))
+        if not rows:
+            return None
         horizontal = len({to_native(left[i]) for i in rows}) == 1 and len(
             {to_native(bottom[i]) for i in rows}
         ) > 1

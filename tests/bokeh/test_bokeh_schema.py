@@ -293,6 +293,19 @@ class TestHistogram:
             "y": 3, "x": 1.5, "xMin": 1.0, "xMax": 2.0, "yMin": 0, "yMax": 3,
         }
 
+    def test_quads_a_view_hides_entirely_are_no_layer(self):
+        source = ColumnDataSource(
+            {"top": [1, 2], "left": [0, 1], "right": [1, 2]}
+        )
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.quad(
+            top="top", bottom=0, left="left", right="right", source=source,
+            view=CDSView(filter=IndexFilter([])),
+        )
+
+        assert [layer["type"] for layer in _layers(p)] == ["line"]
+
     def test_quads_sharing_a_left_edge_are_a_sideways_histogram(self):
         p = figure()
         p.quad(left=0, right=[4, 6], bottom=[0, 1], top=[1, 2])

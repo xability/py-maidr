@@ -369,6 +369,8 @@ class BokehMaidr:
             if layer.highlight and layer.highlight["kind"] in ("select", "points")
         ]
         selected = {r.id for layer in selecting for r in layer.renderers}
+        # Over the whole layout, not this plot alone: one source can feed
+        # renderers in several subplots, and selecting it fades them all.
         shared = {
             renderer.data_source.id
             for renderer in self._model.select({"type": GlyphRenderer})
