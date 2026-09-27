@@ -535,3 +535,23 @@ def test_a_hexbin_selects_the_tile_it_announces(browser, tmp_path):
         assert not errors, errors
     finally:
         page.close()
+
+
+def test_an_image_cursor_rings_the_cell_it_announces(browser, tmp_path):
+    import numpy as np
+    from bokeh.plotting import figure
+
+    p = figure()
+    p.image(image=[np.array([[1, 2], [3, 4]])], x=0, y=0, dw=2, dh=2,
+            palette="Viridis256")
+    page, errors = _open(browser, _save(p, tmp_path / "image.html"))
+    try:
+        # Array row 0 is the bottom row, where the reader starts.
+        assert _step(page, "ArrowRight") == "X is 0.5, Y is 0.5, Value is 1"
+        assert page.evaluate(_CURSOR) == [0.5, 0.5]
+
+        assert _step(page, "ArrowUp") == "X is 0.5, Y is 1.5, Value is 3"
+        assert page.evaluate(_CURSOR) == [0.5, 1.5]
+        assert not errors, errors
+    finally:
+        page.close()

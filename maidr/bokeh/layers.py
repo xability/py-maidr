@@ -20,6 +20,7 @@ Bokeh                                       MAIDR layer
 ``segment`` + ``vbar`` on a date axis (OHLC)  ``candlestick``
 ``hbar`` spanning dates (``left``/``right``)  ``gantt``
 ``hex_tile`` coloured through a mapper      ``hexbin``
+``image`` (a 2-D array and a colour mapper)  ``heat``
 ==========================================  ==================
 
 Anything else is skipped with a warning naming the glyph.
@@ -80,6 +81,15 @@ _DATE_FORMATS = {
         " return t.slice(0, 10) + ' ' + t.slice(11, 16);"
     ),
 }
+
+#: The most cells of an ``image`` read as a heatmap. Past it, a picture is
+#: one no reader can walk cell by cell, and the payload would outweigh it.
+_IMAGE_CELL_LIMIT = 10_000
+
+#: Where an ``Image`` ``anchor`` puts the ``x``/``y`` it is placed at, as
+#: fractions of its width from the left and of its height from the bottom.
+_ANCHOR_X = {"left": 0.0, "right": 1.0}
+_ANCHOR_Y = {"bottom": 0.0, "top": 1.0}
 
 #: The glyphs read as the slices of a pie: ``annular_wedge`` is a donut's.
 _WEDGE_GLYPHS = frozenset({"Wedge", "AnnularWedge"})
@@ -302,6 +312,7 @@ class PlotReader:
             "candlestick": self._candlestick,
             "gantt": self._gantt,
             "hexbin": self._hexbin,
+            "image": self._image,
         }
         layers: list[BokehLayer] = []
         for key, renderers in groups.items():
@@ -369,6 +380,8 @@ class PlotReader:
             return ("heat", renderer.id)
         if name == "HexTile":
             return ("hexbin", renderer.id)
+        if name == "Image":
+            return ("image", renderer.id)
         if name in ("VArea", "HArea"):
             edge = "y2" if name == "VArea" else "x2"
             if isinstance(spec_expression(glyph, edge), (Stack, CumSum)):
@@ -1536,6 +1549,86 @@ class PlotReader:
         )
         schema = self._schema(PlotType.HEXBIN, data_rows, z_label)
         return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
+
+    def _image(self, renderers: list) -> BokehLayer | None:
+        """
+        An ``image`` -- a 2-D array through a colour mapper -- as a heatmap.
+
+        The array's cells are the heatmap's, placed as Bokeh places them:
+        the image spans ``dw`` by ``dh`` from ``x``/``y`` read through its
+        ``anchor``, and ``origin`` says which corner array row 0, column 0
+        is drawn in (the bottom left by default, so row 0 is the *bottom*
+        row). Rows are emitted top first, as every heat layer is; columns
+        and rows are named by the centre coordinate of the cells in them.
+
+        An image is a cursor highlight: its cells are no source rows to
+        select, so the ring goes to the centre of the cell being read.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The ``image`` renderer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The ``heat`` layer, or ``None`` when no image is drawn.
+
+        Raises
+        ------
+        UnreadableSpec
+            For more than one image in the renderer, an array that is not
+            2-D and numeric, or one of more than ``_IMAGE_CELL_LIMIT`` cells.
+        """
+        renderer = renderers[0]
+        glyph = renderer.glyph
+        data = renderer.data_source.data
+        rows = visible_indices(renderer, source_length(data))
+        if not rows:
+            return None
+        if len(rows) > 1:
+            raise UnreadableSpec("it draws more than one image, which is not read yet")
+        index = rows[0]
+        array = np.asarray(resolve(glyph, "image", data)[index])
+        if array.ndim != 2 or not np.issubdtype(array.dtype, np.number):
+            raise UnreadableSpec("its image is not a 2-D array of numbers")
+        height, width = array.shape
+        if height * width > _IMAGE_CELL_LIMIT:
+            raise UnreadableSpec(
+                f"its image has {height * width} cells, more than the "
+                f"{_IMAGE_CELL_LIMIT} maidr reads"
+            )
+        x, y, dw, dh = (
+            to_coordinate(resolve(glyph, prop, data)[index])
+            for prop in ("x", "y", "dw", "dh")
+        )
+        if not all(isinstance(v, (int, float)) for v in (x, y, dw, dh)):
+            raise UnreadableSpec("its position or size is not a number")
+        anchor = str(getattr(glyph, "anchor", "bottom_left"))
+        origin = str(getattr(glyph, "origin", "bottom_left"))
+        left = x - dw * next((f for k, f in _ANCHOR_X.items() if k in anchor), 0.5)
+        bottom = y - dh * next((f for k, f in _ANCHOR_Y.items() if k in anchor), 0.5)
+        cell_w, cell_h = dw / width, dh / height
+        # Drawn row r (0 at the bottom) and column c (0 at the left) hold
+        # array[row_at(r), col_at(c)], whichever corner ``origin`` names.
+        row_at = (lambda r: height - 1 - r) if "top" in origin else (lambda r: r)
+        col_at = (lambda c: width - 1 - c) if "right" in origin else (lambda c: c)
+
+        centres_x = [_clean(left + (c + 0.5) * cell_w) for c in range(width)]
+        centres_y = [_clean(bottom + (r + 0.5) * cell_h) for r in range(height)]
+        bottom_up = [
+            [to_native(array[row_at(r), col_at(c)]) for c in range(width)]
+            for r in range(height)
+        ]
+        grid = [[[cx, cy] for cx in centres_x] for cy in centres_y]
+        heat = {
+            MaidrKey.X: [str(v) for v in centres_x],
+            MaidrKey.Y: [str(v) for v in reversed(centres_y)],
+            MaidrKey.POINTS: list(reversed(bottom_up)),
+        }
+        z_label = _color_bar_title(self._plot, glyph.color_mapper) or "Value"
+        schema = self._schema(PlotType.HEAT, heat, z_label)
+        return BokehLayer(schema, self._plot, {"kind": "cursor", "grid": grid})
 
     def _heat(self, renderers: list) -> BokehLayer | None:
         """

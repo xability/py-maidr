@@ -965,6 +965,75 @@ class TestHexbin:
         assert [layer["type"] for layer in layers] == ["line"]
 
 
+class TestImage:
+    """``image``: a 2-D array through a colour mapper, read as a heatmap."""
+
+    def test_an_image_is_a_heatmap_top_row_first(self):
+        p = figure(x_axis_label="Lon", y_axis_label="Lat")
+        image = np.array([[1, 2, 3], [4, 5, np.nan]])
+        p.image(image=[image], x=0, y=10, dw=3, dh=2, palette="Viridis256")
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "heat"
+        # Array row 0 is drawn at the bottom, so it is the last row emitted.
+        assert layer["data"] == {
+            "x": ["0.5", "1.5", "2.5"],
+            "y": ["11.5", "10.5"],
+            "points": [[4.0, 5.0, None], [1.0, 2.0, 3.0]],
+        }
+        assert layer["axes"] == {
+            "x": {"label": "Lon"}, "y": {"label": "Lat"}, "z": {"label": "Value"},
+        }
+        # A ring on the cell's centre, keyed bottom row first like a rect heat.
+        assert maidr_.layers[0].highlight["kind"] == "cursor"
+        assert maidr_.layers[0].highlight["grid"] == [
+            [[0.5, 10.5], [1.5, 10.5], [2.5, 10.5]],
+            [[0.5, 11.5], [1.5, 11.5], [2.5, 11.5]],
+        ]
+
+    def test_origin_and_anchor_place_the_cells_as_bokeh_does(self):
+        p = figure()
+        glyph = p.image(
+            image=[np.array([[1, 2], [3, 4]])], x=0, y=0, dw=2, dh=2,
+            palette="Viridis256", origin="top_right", anchor="center",
+        )
+        p.add_layout(glyph.construct_color_bar(title="Depth"), "right")
+
+        layer = _only(p)
+
+        # Centred on 0; array [0, 0] is drawn top right.
+        assert layer["data"] == {
+            "x": ["-0.5", "0.5"],
+            "y": ["0.5", "-0.5"],
+            "points": [[2, 1], [4, 3]],
+        }
+        assert layer["axes"]["z"] == {"label": "Depth"}
+
+    def test_an_image_past_the_cap_is_left_out_with_a_reason(self):
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.image(image=[np.zeros((101, 100))], x=0, y=0, dw=1, dh=1,
+                palette="Viridis256")
+
+        with pytest.warns(UserWarning, match="10100 cells, more than the 10000"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
+    def test_several_images_in_one_renderer_are_left_out(self):
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.image(image=[np.zeros((2, 2)), np.ones((2, 2))], x=[0, 3], y=0, dw=2,
+                dh=2, palette="Viridis256")
+
+        with pytest.warns(UserWarning, match="more than one image"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
+
 class TestScatter:
     def test_scatter_is_a_point_layer(self):
         p = figure()

@@ -161,6 +161,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Step Plot": [["step"]],
         "Scatter Plot": [["point"]],
         "Heatmap": [["heat"]],
+        "Image Heatmap": [["heat"]],
         "Pie Chart": [["pie"]],
         "Candlestick Chart": [["candlestick"]],
         "Multi-Panel Layout (gridplot)": [["bar", "line"]],
@@ -618,3 +619,20 @@ def test_bokeh_hexbin_counts_every_penguin(gallery: _Gallery) -> None:
     bins = [cell for row in layer[MaidrKey.DATA] for cell in row]
     assert sum(cell[MaidrKey.COUNT] for cell in bins) == 333
     assert layer[MaidrKey.AXES][MaidrKey.Z][MaidrKey.LABEL] == "Penguins"
+
+
+def test_bokeh_image_is_the_arrays_cells(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "An ``image`` is read as a heatmap whose cells are
+    the array's, bottom row first as Bokeh draws it, each row and column named
+    by the centre of its cells."
+    """
+    heat = gallery.shown("examples-bokeh.qmd", "Image Heatmap").layer(
+        PlotType.HEAT
+    )[MaidrKey.DATA]
+
+    assert len(heat[MaidrKey.POINTS]) == 12
+    assert all(len(row) == 12 for row in heat[MaidrKey.POINTS])
+    assert heat[MaidrKey.X][0] == "0.125"
+    # Emitted top row first: the last row is array row 0, cos(0) = 1.
+    assert heat[MaidrKey.Y][-1] == "0.125"
+    assert heat[MaidrKey.POINTS][-1][0] == 0.0
