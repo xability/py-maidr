@@ -167,6 +167,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Stacked Area Plot [experimental]": [["stacked_area"]],
         "Horizontal Area Plot [experimental]": [["area"]],
         "Gantt Chart [experimental]": [["gantt"]],
+        "Hexbin Plot [experimental]": [["hexbin"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
@@ -604,3 +605,16 @@ def test_bokeh_gantt_is_a_lane_per_task_in_days(gallery: _Gallery) -> None:
     assert data["unit"] == "days"
     research = data[MaidrKey.POINTS][-1][0]
     assert research[MaidrKey.END] - research[MaidrKey.START] == 9
+
+
+def test_bokeh_hexbin_counts_every_penguin(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "Each hexagon is a bin announced by its centre and
+    how many penguins fell in it."
+    """
+    layer = gallery.shown(
+        "examples-bokeh.qmd", "Hexbin Plot [experimental]"
+    ).layer(PlotType.HEXBIN)
+
+    bins = [cell for row in layer[MaidrKey.DATA] for cell in row]
+    assert sum(cell[MaidrKey.COUNT] for cell in bins) == 333
+    assert layer[MaidrKey.AXES][MaidrKey.Z][MaidrKey.LABEL] == "Penguins"

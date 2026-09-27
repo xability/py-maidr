@@ -1,6 +1,6 @@
 ---
 title: "Bokeh Accessible Plot Examples"
-description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps, pie charts, candlestick charts, Gantt charts and gridplot layouts accessible with py-maidr."
+description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps, pie charts, candlestick charts, Gantt charts, hexbin plots and gridplot layouts accessible with py-maidr."
 jupyter: python3
 html-table-processing: none
 filters:
@@ -46,6 +46,7 @@ gets the ring too, so the other mark is never faded.
 | `segment` wicks with `vbar` bodies on a datetime axis (Bokeh's OHLC recipe) | candlestick |
 | `varea`, `varea_stack`, `harea`, `harea_stack` | area [experimental], stacked area [experimental] |
 | `hbar` from one date to another (`left=start`, `right=end` on a datetime axis) | gantt [experimental] |
+| `hex_tile` coloured through a colour mapper, as `p.hexbin` draws it | hexbin [experimental] |
 
 Any other glyph is left out with a warning naming it, and a figure with nothing
 **maidr** can read is still drawn. A `Tabs` layout is read one panel at a time:
@@ -616,6 +617,38 @@ An `hbar` running from one date to another is read as a Gantt chart: each
 task is a lane, the up and down arrows move between lanes as they are drawn,
 and every bar is announced with its start and end dates and its length in
 days.
+
+### Hexbin Plot [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Hexbin plot of penguin flipper length against body mass
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins").dropna()
+flipper = (penguins["flipper_length_mm"] - 200) / 10
+mass = (penguins["body_mass_g"] - 4200) / 800
+
+p = figure(
+    title="Flipper Length vs Body Mass (standardised)",
+    x_axis_label="Flipper Length (x10 mm from 200)",
+    y_axis_label="Body Mass (x800 g from 4200)",
+    match_aspect=True,
+    height=400,
+)
+tiles, bins = p.hexbin(flipper.to_numpy(), mass.to_numpy(), size=0.3)
+p.add_layout(tiles.construct_color_bar(title="Penguins"), "right")
+
+maidr.show(p)  #<<
+```
+
+Each hexagon is a bin announced by its centre and how many penguins fell in
+it; the up and down arrows move to the nearest bin of the staggered row above
+or below.
 
 ## Saving and embedding
 

@@ -895,6 +895,76 @@ class TestGantt:
         assert layer["data"] == [{"x": 3, "y": "a"}]
 
 
+class TestHexbin:
+    """``hex_tile`` coloured by a count: rows of bins with their centres."""
+
+    def test_p_hexbin_is_a_hexbin_bottom_row_first(self):
+        p = figure(x_axis_label="Weight", y_axis_label="Height")
+        renderer, bins = p.hexbin(
+            np.array([0, 0.1, 1, 2, 2.1, 2.2, -1]),
+            np.array([0, 0.1, 1, 0, 0.1, 0, 1]),
+            size=0.5,
+        )
+        assert list(bins.q) == [0, 2, 2, 3, -1] and list(bins.r) == [0, 0, -1, 0, -1]
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "hexbin"
+        # Pointy-top centres: x = size * sqrt(3) * (q + r / 2), y = -1.5 * size * r.
+        assert layer["data"] == [
+            [
+                {"x": 0, "y": 0, "count": 2},
+                {"x": 1.732050808, "y": 0, "count": 2},
+                {"x": 2.598076211, "y": 0, "count": 1},
+            ],
+            [
+                {"x": -1.299038106, "y": 0.75, "count": 1},
+                {"x": 1.299038106, "y": 0.75, "count": 1},
+            ],
+        ]
+        assert layer["axes"] == {
+            "x": {"label": "Weight"},
+            "y": {"label": "Height"},
+            "z": {"label": "count"},
+        }
+        assert maidr_.layers[0].highlight == {
+            "kind": "select",
+            "grid": [
+                [[renderer.id, 0], [renderer.id, 1], [renderer.id, 3]],
+                [[renderer.id, 4], [renderer.id, 2]],
+            ],
+        }
+
+    def test_flat_top_tiles_and_a_colour_bar_title(self):
+        source = ColumnDataSource({"q": [0, 1], "r": [0, 0], "hits": [5, 7]})
+        p = figure()
+        tiles = p.hex_tile(
+            q="q", r="r", size=2, orientation="flattop", source=source,
+            fill_color=linear_cmap("hits", "Viridis256", 0, 10),
+        )
+        p.add_layout(tiles.construct_color_bar(title="Hits"), "right")
+
+        layer = _only(p)
+
+        # Flat-top: x = 1.5 * size * q, y = -sqrt(3) * size * (r + q / 2).
+        assert layer["data"] == [
+            [{"x": 3, "y": -1.732050808, "count": 7}],
+            [{"x": 0, "y": 0, "count": 5}],
+        ]
+        assert layer["axes"]["z"] == {"label": "Hits"}
+
+    def test_tiles_with_no_count_are_left_out_with_a_warning(self):
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.hex_tile(q=[0, 1], r=[0, 0], size=1, fill_color="red")
+
+        with pytest.warns(UserWarning, match="HexTile.*count column"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
+
 class TestScatter:
     def test_scatter_is_a_point_layer(self):
         p = figure()

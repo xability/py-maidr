@@ -509,3 +509,29 @@ def test_a_gantt_selects_the_task_it_announces(browser, tmp_path):
         assert not errors, errors
     finally:
         page.close()
+
+
+def test_a_hexbin_selects_the_tile_it_announces(browser, tmp_path):
+    import numpy as np
+    from bokeh.plotting import figure
+
+    p = figure(match_aspect=True)
+    renderer, _ = p.hexbin(
+        np.array([0, 0.1, 1, 2, 2.1, 2.2, -1]),
+        np.array([0, 0.1, 1, 0, 0.1, 0, 1]),
+        size=0.5,
+    )
+    page, errors = _open(browser, _save(p, tmp_path / "hexbin.html"))
+    try:
+        assert _step(page, "ArrowRight") == "X is 0, Y is 0, count is 2"
+        assert page.evaluate(_SELECTED, renderer.id) == [0]
+
+        assert _step(page, "ArrowRight") == "X is 1.73, Y is 0, count is 2"
+        assert page.evaluate(_SELECTED, renderer.id) == [1]
+
+        # Up lands on the nearest tile of the staggered row above.
+        assert _step(page, "ArrowUp") == "X is 1.3, Y is 0.75, count is 1"
+        assert page.evaluate(_SELECTED, renderer.id) == [2]
+        assert not errors, errors
+    finally:
+        page.close()

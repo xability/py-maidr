@@ -19,6 +19,7 @@ Bokeh                                       MAIDR layer
 ``wedge`` / ``annular_wedge``               ``pie``
 ``segment`` + ``vbar`` on a date axis (OHLC)  ``candlestick``
 ``hbar`` spanning dates (``left``/``right``)  ``gantt``
+``hex_tile`` coloured through a mapper      ``hexbin``
 ==========================================  ==================
 
 Anything else is skipped with a warning naming the glyph.
@@ -300,6 +301,7 @@ class PlotReader:
             "pie": self._pie,
             "candlestick": self._candlestick,
             "gantt": self._gantt,
+            "hexbin": self._hexbin,
         }
         layers: list[BokehLayer] = []
         for key, renderers in groups.items():
@@ -365,6 +367,8 @@ class PlotReader:
             # A categorical mapper colours cells by a label, which is not a
             # value a heatmap can announce or sonify.
             return ("heat", renderer.id)
+        if name == "HexTile":
+            return ("hexbin", renderer.id)
         if name in ("VArea", "HArea"):
             edge = "y2" if name == "VArea" else "x2"
             if isinstance(spec_expression(glyph, edge), (Stack, CumSum)):
@@ -1456,6 +1460,82 @@ class PlotReader:
         # not as a row and column; see ``NavigateCallback`` in grammar.ts.
         highlight = {"kind": "points", "points": [[renderer.id, i] for i in rows]}
         return BokehLayer(schema, self._plot, highlight)
+
+    def _hexbin(self, renderers: list) -> BokehLayer | None:
+        """
+        A ``hex_tile`` lattice, its tiles coloured by count, read as a hexbin.
+
+        The shape the matplotlib hexbin path emits: rows of ``{x, y,
+        count}`` bins, bottom row first and left to right within a row,
+        each bin carrying its own centre because a hex lattice staggers
+        alternate rows. The centre is where Bokeh draws the tile, from its
+        axial ``q``/``r`` through the glyph's ``size``, ``orientation`` and
+        ``aspect_scale`` (:func:`bokeh.util.hex.axial_to_cartesian`, the
+        inverse of the binning ``p.hexbin`` does). The count is the column
+        the fill colour is mapped from -- ``counts`` for ``p.hexbin``.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The ``hex_tile`` renderer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The ``hexbin`` layer, or ``None`` when no tile is drawn.
+
+        Raises
+        ------
+        UnreadableSpec
+            When no column gives the tiles a count.
+        """
+        from bokeh.util.hex import axial_to_cartesian
+
+        renderer = renderers[0]
+        glyph = renderer.glyph
+        data = renderer.data_source.data
+        mapper = _color_mapper(glyph)
+        field = spec_field(glyph, "fill_color") if _is_continuous(mapper) else None
+        counts = resolve_column(data, field)
+        if counts is None:
+            raise UnreadableSpec(
+                "its tiles are not coloured through a colour mapper from a "
+                "count column"
+            )
+        qs, rs = resolve(glyph, "q", data), resolve(glyph, "r", data)
+        rows: dict = {}
+        for index in visible_indices(renderer, source_length(data)):
+            if is_missing(qs[index]) or is_missing(rs[index]):
+                continue
+            x, y = axial_to_cartesian(
+                float(qs[index]), float(rs[index]),
+                glyph.size, glyph.orientation, glyph.aspect_scale,
+            )
+            rows.setdefault(_clean(y), []).append((_clean(x), index))
+        if not rows:
+            return None
+
+        data_rows, grid = [], []
+        for y in sorted(rows):
+            bins = sorted(rows[y])
+            data_rows.append(
+                [
+                    {
+                        MaidrKey.X: x,
+                        MaidrKey.Y: y,
+                        MaidrKey.COUNT: to_native(counts[index]),
+                    }
+                    for x, index in bins
+                ]
+            )
+            grid.append([[renderer.id, index] for _, index in bins])
+        # ``p.hexbin`` counts into a column it calls ``c``; that is the
+        # matplotlib path's "count", not a name the author chose.
+        z_label = _color_bar_title(self._plot, mapper) or (
+            "count" if field == "c" else field
+        )
+        schema = self._schema(PlotType.HEXBIN, data_rows, z_label)
+        return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
 
     def _heat(self, renderers: list) -> BokehLayer | None:
         """
