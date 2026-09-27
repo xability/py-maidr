@@ -43,7 +43,7 @@ gets the ring too, so the other mark is never faded.
 | `scatter`, `circle` | point |
 | `rect` coloured through a continuous colour mapper (`linear_cmap`, `log_cmap`) | heatmap |
 | `wedge`, `annular_wedge` | pie, one slice per row |
-| `varea`, `varea_stack` | area [experimental], stacked area [experimental] |
+| `varea`, `varea_stack`, `harea`, `harea_stack` | area [experimental], stacked area [experimental] |
 
 Any other glyph is left out with a warning naming it, and a figure with nothing
 **maidr** can read is still drawn. A `Tabs` layout is read one panel at a time:
@@ -482,6 +482,37 @@ p.legend.location = "top_left"
 
 maidr.show(p)  #<<
 ```
+
+### Horizontal Area Plot [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Sideways area chart of airline passengers by month in 1960, the months running down the page
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+flights = sns.load_dataset("flights")
+months = flights[flights["year"] == 1960]
+
+p = figure(
+    title="Passengers by Month, 1960",
+    x_axis_label="Passengers",
+    y_axis_label="Month",
+    height=400,
+)
+p.harea(
+    y=list(range(1, 13)), x1=0, x2=months["passengers"].tolist(),
+    fill_color="#8172b3", fill_alpha=0.7,
+)
+
+maidr.show(p)  #<<
+```
+
+An `harea` is read as the same area on its side: the arrow keys step through
+the months, and the passengers are what you hear.
 
 ## Saving and embedding
 

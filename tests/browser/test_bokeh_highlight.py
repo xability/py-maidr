@@ -409,3 +409,20 @@ def test_a_pie_selects_the_slice_it_announces_walking_clockwise(browser, tmp_pat
         assert not errors, errors
     finally:
         page.close()
+
+
+def test_an_harea_cursor_sits_on_the_bands_right_edge(browser, tmp_path):
+    from bokeh.plotting import figure
+
+    p = figure(x_axis_label="Depth", y_axis_label="Level")
+    p.harea(y=[1, 2, 3], x1=0, x2=[2, 4, 3])
+    page, errors = _open(browser, _save(p, tmp_path / "harea.html"))
+    try:
+        assert _step(page, "ArrowRight").startswith("Level is 1, Depth is 2")
+        assert page.evaluate(_CURSOR) == [2, 1]
+
+        assert _step(page, "ArrowRight").startswith("Level is 2, Depth is 4")
+        assert page.evaluate(_CURSOR) == [4, 2]
+        assert not errors, errors
+    finally:
+        page.close()

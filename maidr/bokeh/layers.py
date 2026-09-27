@@ -15,6 +15,7 @@ Bokeh                                       MAIDR layer
 ``scatter`` / ``circle``                    ``point``
 ``rect`` coloured through a colour mapper   ``heat``
 ``varea`` / ``varea_stack``                 ``area`` / ``stacked_area``
+``harea`` / ``harea_stack``                 ``area`` / ``stacked_area``
 ``wedge`` / ``annular_wedge``               ``pie``
 ==========================================  ==================
 
@@ -309,9 +310,11 @@ class PlotReader:
             # A categorical mapper colours cells by a label, which is not a
             # value a heatmap can announce or sonify.
             return ("heat", renderer.id)
-        if name == "VArea":
-            if isinstance(spec_expression(glyph, "y2"), (Stack, CumSum)):
-                return ("stacked_area", renderer.x_range_name, renderer.y_range_name)
+        if name in ("VArea", "HArea"):
+            edge = "y2" if name == "VArea" else "x2"
+            if isinstance(spec_expression(glyph, edge), (Stack, CumSum)):
+                ranges = (renderer.x_range_name, renderer.y_range_name)
+                return ("stacked_area", name, *ranges)
             return ("area", renderer.id)
         if name in _WEDGE_GLYPHS:
             # Wedges drawn round one centre are one pie, however many calls
@@ -748,33 +751,81 @@ class PlotReader:
         above it, so ``y2 - y1`` is the series' own value -- what the core's
         area trace expects, since it does the stacking itself. The cursor
         sits on the top edge, where the band is drawn.
+
+        An ``harea`` is the same band on its side -- ``x1``/``x2`` at each
+        ``y`` -- and is read into the same fields, its positions in ``x``
+        and its thicknesses in ``y``: the core steps along an area's ``x``
+        and sonifies its ``y``, and ``orientation`` is not read for an area.
+        :meth:`_area_schema` swaps the axis titles to match, as the
+        matplotlib path does for ``fill_betweenx``. The cursor sits on the
+        band's right edge.
         """
         rows, grid = [], []
         for renderer in renderers:
             glyph = renderer.glyph
             data = renderer.data_source.data
-            xs = resolve(glyph, "x", data)
-            lows, highs = resolve(glyph, "y1", data), resolve(glyph, "y2", data)
+            sideways = type(glyph).__name__ == "HArea"
+            position, low_prop, high_prop = (
+                ("y", "x1", "x2") if sideways else ("x", "y1", "y2")
+            )
+            positions = resolve(glyph, position, data)
+            lows = resolve(glyph, low_prop, data)
+            highs = resolve(glyph, high_prop, data)
             label = self._series_label(renderer)
-            announced_x = self._x_native(xs)
+            announced = (
+                self._y_native(positions) if sideways else self._x_native(positions)
+            )
             row, coords = [], []
-            for x, ax, low, high in zip(xs, announced_x, lows, highs):
-                if is_missing(x):
+            for at, spoken, low, high in zip(positions, announced, lows, highs):
+                if is_missing(at):
                     continue
-                point = {MaidrKey.X: ax, MaidrKey.Y: to_native(_extent(low, high))}
+                point = {MaidrKey.X: spoken, MaidrKey.Y: to_native(_extent(low, high))}
                 if label:
                     point[MaidrKey.Z] = label
                 row.append(point)
-                top = None if is_missing(high) else to_coordinate(high)
-                coords.append(None if top is None else [to_coordinate(x), top])
+                edge = None if is_missing(high) else to_coordinate(high)
+                if edge is None:
+                    coords.append(None)
+                elif sideways:
+                    coords.append([edge, to_coordinate(at)])
+                else:
+                    coords.append([to_coordinate(at), edge])
             if row:
                 rows.append(row)
                 grid.append(coords)
         return rows, grid
 
+    def _area_schema(
+        self, renderers: list, plot_type: PlotType, rows: list, z_label: str | None
+    ) -> dict:
+        """
+        An area layer's schema, its axis titles swapped for an ``harea``.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The band renderers.
+        plot_type : PlotType
+            ``AREA`` or ``STACKED_AREA``.
+        rows : list of list of dict
+            The bands, from :meth:`_bands`.
+        z_label : str or None
+            The legend title, for a stacked area.
+
+        Returns
+        -------
+        dict
+            The layer schema; see :meth:`_bands` for the swap.
+        """
+        schema = self._schema(plot_type, rows, z_label)
+        if type(renderers[0].glyph).__name__ == "HArea":
+            axes = schema[MaidrKey.AXES]
+            axes[MaidrKey.X], axes[MaidrKey.Y] = axes[MaidrKey.Y], axes[MaidrKey.X]
+        return schema
+
     def _area(self, renderers: list) -> BokehLayer | None:
         """
-        One ``varea``, read as an area layer.
+        One ``varea`` or ``harea``, read as an area layer.
 
         Parameters
         ----------
@@ -789,12 +840,12 @@ class PlotReader:
         rows, grid = self._bands(renderers)
         if not rows:
             return None
-        schema = self._schema(PlotType.AREA, rows)
+        schema = self._area_schema(renderers, PlotType.AREA, rows, None)
         return BokehLayer(schema, self._plot, {"kind": "cursor", "grid": grid})
 
     def _stacked_area(self, renderers: list) -> BokehLayer | None:
         """
-        The bands of a ``varea_stack``, as a stacked area.
+        The bands of a ``varea_stack`` or ``harea_stack``, as a stacked area.
 
         Parameters
         ----------
@@ -810,7 +861,7 @@ class PlotReader:
         if not rows:
             return None
         plot_type = PlotType.STACKED_AREA if len(rows) > 1 else PlotType.AREA
-        schema = self._schema(plot_type, rows, self._legend_title)
+        schema = self._area_schema(renderers, plot_type, rows, self._legend_title)
         return BokehLayer(schema, self._plot, {"kind": "cursor", "grid": grid})
 
     # ------------------------------------------------------------------ #

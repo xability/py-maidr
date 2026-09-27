@@ -164,6 +164,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Pie Chart": [["pie"]],
         "Multi-Panel Layout (gridplot)": [["bar", "line"]],
         "Stacked Area Plot [experimental]": [["stacked_area"]],
+        "Horizontal Area Plot [experimental]": [["area"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
@@ -550,3 +551,18 @@ def test_bokeh_pie_reads_the_values_clockwise(gallery: _Gallery) -> None:
         "Adelie",
     ]
     assert [point[MaidrKey.Y] for point in layer[MaidrKey.DATA]] == [124, 68, 152]
+
+
+def test_bokeh_harea_steps_through_the_months(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "the arrow keys step through the months, and the
+    passengers are what you hear."
+    """
+    layer = gallery.shown(
+        "examples-bokeh.qmd", "Horizontal Area Plot [experimental]"
+    ).layer(PlotType.AREA)
+
+    (band,) = layer[MaidrKey.DATA]
+    assert [point[MaidrKey.X] for point in band] == list(range(1, 13))
+    assert band[0][MaidrKey.Y] == 417
+    assert layer[MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL] == "Month"
+    assert layer[MaidrKey.AXES][MaidrKey.Y][MaidrKey.LABEL] == "Passengers"

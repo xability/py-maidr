@@ -455,6 +455,48 @@ class TestAreas:
             [{"x": 1, "y": 3.0, "z": "s2"}, {"x": 2, "y": 4.0, "z": "s2"}],
         ]
 
+    def test_harea_is_an_area_with_its_axis_titles_swapped(self):
+        p = figure(x_axis_label="Depth", y_axis_label="Level")
+        renderer = p.harea(y=[1, 2, 3], x1=[0, 1, 0], x2=[2, 4, 3])
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "area"
+        # Positions in ``x`` and thicknesses in ``y``, as ``fill_betweenx``.
+        assert layer["data"] == [[{"x": 1, "y": 2}, {"x": 2, "y": 3}, {"x": 3, "y": 3}]]
+        assert layer["axes"] == {"x": {"label": "Level"}, "y": {"label": "Depth"}}
+        # The cursor sits on the right edge, in plot coordinates.
+        assert maidr_.layers[0].highlight["grid"] == [[[2, 1], [4, 2], [3, 3]]]
+        assert maidr_.layers[0].renderers == [renderer]
+
+    def test_harea_stack_is_a_stacked_area_of_each_band_own_values(self):
+        p = figure()
+        p.harea_stack(
+            ["s1", "s2"], y="y", source={"y": [1, 2], "s1": [1, 2], "s2": [3, 4]},
+            legend_label=["s1", "s2"],
+        )
+        p.legend.title = "Series"
+
+        layer = _only(p)
+
+        assert layer["type"] == "stacked_area"
+        assert layer["data"] == [
+            [{"x": 1, "y": 1.0, "z": "s1"}, {"x": 2, "y": 2.0, "z": "s1"}],
+            [{"x": 1, "y": 3.0, "z": "s2"}, {"x": 2, "y": 4.0, "z": "s2"}],
+        ]
+        assert layer["axes"]["z"] == {"label": "Series"}
+
+    def test_a_varea_and_harea_stack_on_one_plot_are_two_layers(self):
+        p = figure()
+        p.varea_stack(["a", "b"], x="x", source={"x": [1, 2], "a": [1, 1], "b": [2, 2]})
+        p.harea_stack(["a", "b"], y="y", source={"y": [1, 2], "a": [1, 1], "b": [2, 2]})
+
+        assert [layer["type"] for layer in _layers(p)] == [
+            "stacked_area",
+            "stacked_area",
+        ]
+
 
 class TestPie:
     """``wedge``/``annular_wedge``: one slice per row, walked clockwise."""
