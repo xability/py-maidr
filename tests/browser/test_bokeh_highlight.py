@@ -469,3 +469,43 @@ def test_a_candlestick_selects_the_wick_and_body_it_announces(browser, tmp_path)
         assert not errors, errors
     finally:
         page.close()
+
+
+def test_a_gantt_selects_the_task_it_announces(browser, tmp_path):
+    import pandas as pd
+    from bokeh.plotting import figure
+
+    day = pd.Timestamp
+    p = figure(
+        y_range=["Test", "Build", "Design"], x_axis_type="datetime",
+        x_axis_label="Date", y_axis_label="Task",
+    )
+    # Source rows top lane first; the lanes run bottom to top on screen.
+    renderer = p.hbar(
+        y=["Design", "Build", "Build", "Test"],
+        left=[day("2024-01-01"), day("2024-01-05"), day("2024-01-10"),
+              day("2024-01-12")],
+        right=[day("2024-01-05"), day("2024-01-08"), day("2024-01-12"),
+               day("2024-01-15")],
+        height=0.5,
+    )
+    page, errors = _open(browser, _save(p, tmp_path / "gantt.html"))
+    try:
+        # The bottom lane first, its ends spelled back as dates.
+        assert _step(page, "ArrowRight") == (
+            "Task is Test, Date is 2024-01-12 through 2024-01-15, Length is 3 days"
+        )
+        assert page.evaluate(_SELECTED, renderer.id) == [3]
+
+        assert _step(page, "ArrowUp") == (
+            "Task is Build, Date is 2024-01-05 through 2024-01-08, Length is 3 days"
+        )
+        assert page.evaluate(_SELECTED, renderer.id) == [1]
+
+        assert _step(page, "ArrowRight") == (
+            "Task is Build, Date is 2024-01-10 through 2024-01-12, Length is 2 days"
+        )
+        assert page.evaluate(_SELECTED, renderer.id) == [2]
+        assert not errors, errors
+    finally:
+        page.close()

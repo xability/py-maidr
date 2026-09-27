@@ -18,6 +18,7 @@ Bokeh                                       MAIDR layer
 ``harea`` / ``harea_stack``                 ``area`` / ``stacked_area``
 ``wedge`` / ``annular_wedge``               ``pie``
 ``segment`` + ``vbar`` on a date axis (OHLC)  ``candlestick``
+``hbar`` spanning dates (``left``/``right``)  ``gantt``
 ==========================================  ==================
 
 Anything else is skipped with a warning naming the glyph.
@@ -67,6 +68,17 @@ from maidr.core.plot.histogram import HistPlot
 #: holds each value until the next sample, as matplotlib's ``steps-post``
 #: does; ``before`` jumps first, as ``steps-pre`` does.
 _STEP_DIRECTIONS = {"after": "hv", "before": "vh", "center": "mid"}
+
+#: How a Gantt layer's x axis spells a position -- days or hours since the
+#: epoch, see ``PlotReader._gantt`` -- back as the date it stands for. A
+#: ``format.function`` body, which the core compiles with ``new Function``.
+_DATE_FORMATS = {
+    "days": "return new Date(value * 864e5).toISOString().slice(0, 10);",
+    "hours": (
+        "var t = new Date(value * 36e5).toISOString();"
+        " return t.slice(0, 10) + ' ' + t.slice(11, 16);"
+    ),
+}
 
 #: The glyphs read as the slices of a pie: ``annular_wedge`` is a donut's.
 _WEDGE_GLYPHS = frozenset({"Wedge", "AnnularWedge"})
@@ -287,6 +299,7 @@ class PlotReader:
             "stacked_area": self._stacked_area,
             "pie": self._pie,
             "candlestick": self._candlestick,
+            "gantt": self._gantt,
         }
         layers: list[BokehLayer] = []
         for key, renderers in groups.items():
@@ -330,6 +343,8 @@ class PlotReader:
                 return ("stacked", name, *ranges, offset)
             if offset is not None:
                 return ("dodged", name, *ranges)
+            if name == "HBar" and self._spans_dates(renderer):
+                return ("gantt", *ranges)
             data = renderer.data_source.data
             try:
                 positions = resolve(glyph, position_prop, data)
@@ -1279,6 +1294,127 @@ class PlotReader:
         return BokehLayer(schema, self._plot, highlight)
 
     # ------------------------------------------------------------------ #
+    #  Gantt                                                               #
+    # ------------------------------------------------------------------ #
+
+    def _spans_dates(self, renderer: Any) -> bool:
+        """
+        Whether an ``hbar`` runs from one date to another: a Gantt bar.
+
+        Parameters
+        ----------
+        renderer : bokeh.models.GlyphRenderer
+            An ``hbar`` renderer.
+
+        Returns
+        -------
+        bool
+            True when ``left`` and ``right`` both hold dates, or both read a
+            column of epoch milliseconds on a datetime x axis.
+        """
+        glyph = renderer.glyph
+        data = renderer.data_source.data
+        if self._x_dates and spec_field(glyph, "left") and spec_field(glyph, "right"):
+            return True
+        try:
+            lefts = resolve(glyph, "left", data)
+            rights = resolve(glyph, "right", data)
+        except UnreadableSpec:
+            return False
+        return is_temporal(lefts) and is_temporal(rights)
+
+    def _gantt(self, renderers: list) -> BokehLayer | None:
+        """
+        ``hbar`` s spanning dates, read as a Gantt chart of lanes.
+
+        The shape the matplotlib ``broken_barh`` path emits: ``points``
+        nested by lane, each interval ``{x: lane, start, end}``, with
+        ``lanes`` naming every lane -- a ``FactorRange`` factor no bar sits
+        in is an empty lane, which is what the nesting is for. Lanes run
+        bottom to top as the range draws them, since the core's Up arrow
+        moves to the next lane; intervals within one run left to right.
+        Every ``hbar`` on the pair of ranges is one chart: a Gantt chart
+        is often drawn one renderer per resource or colour.
+
+        The ends are dates, and a Gantt point's ``start``/``end`` are
+        numbers the core subtracts to announce a length. They are emitted
+        as days since the epoch -- hours when some end is not at midnight
+        -- with ``unit`` saying so, and the x axis carries a ``format``
+        that spells a position back as the date it is.
+
+        A bar's ``label`` is what the legend calls it, when the legend
+        names something other than the lane.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The date-spanning ``hbar`` renderers on one pair of ranges.
+
+        Returns
+        -------
+        BokehLayer or None
+            The ``gantt`` layer, or ``None`` when no bar is drawn.
+        """
+        spans: list[tuple] = []
+        for renderer in renderers:
+            glyph = renderer.glyph
+            data = renderer.data_source.data
+            lanes = resolve(glyph, "y", data)
+            lefts = resolve(glyph, "left", data)
+            rights = resolve(glyph, "right", data)
+            names = resolve_column(data, self._legend_fields.get(renderer.id))
+            fixed = self._series_label(renderer)
+            for index in visible_indices(renderer, source_length(data)):
+                lane = _split_offset(lanes[index])[0]
+                if any(is_missing(v) for v in (lane, lefts[index], rights[index])):
+                    continue
+                ends = sorted(
+                    float(to_coordinate(end)) for end in (lefts[index], rights[index])
+                )
+                label = self._legend_rows.get((renderer.id, index))
+                if label is None:
+                    label = names[index] if names else fixed
+                spans.append((lane, *ends, _label(label), renderer.id, index))
+        if not spans:
+            return None
+
+        order = _factors(self._plot.y_range, [span[0] for span in spans])
+        row_of = {_factor_key(lane): row for row, lane in enumerate(order)}
+        day = 86_400_000.0
+        whole_days = all(end % day == 0 for span in spans for end in span[1:3])
+        unit, scale = ("days", day) if whole_days else ("hours", day / 24)
+
+        points: list[list[dict]] = [[] for _ in order]
+        grid: list[list] = [[] for _ in order]
+        for lane, start, end, label, rid, index in sorted(spans, key=lambda s: s[1]):
+            row = row_of.get(_factor_key(lane))
+            if row is None:
+                continue
+            name = _lane_name(lane)
+            point = {
+                MaidrKey.X: name,
+                MaidrKey.START: _clean(start / scale),
+                MaidrKey.END: _clean(end / scale),
+            }
+            if label and label != str(name):
+                point[MaidrKey.LABEL] = label
+            points[row].append(point)
+            grid[row].append([rid, index])
+
+        gantt = {
+            MaidrKey.POINTS: points,
+            MaidrKey.LANES: [_lane_name(lane) for lane in order],
+            # The GanttData field; ``MaidrKey`` has no member for it.
+            "unit": unit,
+        }
+        schema = self._schema(PlotType.GANTT, gantt)
+        schema[MaidrKey.ORIENTATION] = "horz"
+        schema[MaidrKey.AXES][MaidrKey.X][MaidrKey.FORMAT] = {
+            "function": _DATE_FORMATS[unit]
+        }
+        return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
+
+    # ------------------------------------------------------------------ #
     #  Scatter and heatmap                                                 #
     # ------------------------------------------------------------------ #
 
@@ -1609,10 +1745,11 @@ def _extent(low: Any, high: Any) -> Any:
     if is_missing(high):
         return None
     if not is_missing(low) and is_temporal([low, high]):
-        # A bar spanning two dates is a duration (a Gantt bar), which no bar
-        # point can carry; announcing its end date as its size would be
-        # wrong without saying so.
-        raise UnreadableSpec("a bar spanning dates is not read yet")
+        # A bar spanning two dates is a duration, which no bar point can
+        # carry; announcing its end date as its size would be wrong without
+        # saying so. An ``hbar`` doing it is a Gantt bar, and grouped as one
+        # before it gets here; a ``vbar`` is not read.
+        raise UnreadableSpec("a vertical bar spanning dates is not read yet")
     high = to_native(high)
     low = None if is_missing(low) else to_native(low)
     if not low:
@@ -1822,6 +1959,26 @@ def _color_bar_title(plot: Any, mapper: Any) -> str | None:
                 if title:
                     return title
     return None
+
+
+def _lane_name(lane: Any) -> str | int | float:
+    """
+    What a Gantt lane is called: its factor, or its position.
+
+    Parameters
+    ----------
+    lane : Any
+        The lane's coordinate on the y axis.
+
+    Returns
+    -------
+    str or int or float
+        The factor's label, or the number a numeric lane sits at.
+    """
+    if isinstance(lane, (str, list, tuple)):
+        return factor_label(lane)
+    value = to_native(lane)
+    return value if isinstance(value, (int, float)) else str(value)
 
 
 def _constant_centre(renderer: Any) -> tuple | None:

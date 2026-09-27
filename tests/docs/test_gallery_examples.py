@@ -166,6 +166,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Multi-Panel Layout (gridplot)": [["bar", "line"]],
         "Stacked Area Plot [experimental]": [["stacked_area"]],
         "Horizontal Area Plot [experimental]": [["area"]],
+        "Gantt Chart [experimental]": [["gantt"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
@@ -586,3 +587,20 @@ def test_bokeh_candlestick_is_a_candle_per_date(gallery: _Gallery) -> None:
         and candle["high"] >= max(candle["open"], candle["close"])
         for candle in candles
     )
+
+
+def test_bokeh_gantt_is_a_lane_per_task_in_days(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "each task is a lane, the up and down arrows move
+    between lanes as they are drawn, and every bar is announced with ... its
+    length in days."
+    """
+    layer = gallery.shown(
+        "examples-bokeh.qmd", "Gantt Chart [experimental]"
+    ).layer(PlotType.GANTT)
+
+    data = layer[MaidrKey.DATA]
+    # Bottom to top, as the reversed range draws them.
+    assert data[MaidrKey.LANES] == ["Launch", "Test", "Build", "Design", "Research"]
+    assert data["unit"] == "days"
+    research = data[MaidrKey.POINTS][-1][0]
+    assert research[MaidrKey.END] - research[MaidrKey.START] == 9

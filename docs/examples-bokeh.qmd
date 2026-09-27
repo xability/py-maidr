@@ -1,6 +1,6 @@
 ---
 title: "Bokeh Accessible Plot Examples"
-description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps, pie charts, candlestick charts and gridplot layouts accessible with py-maidr."
+description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps, pie charts, candlestick charts, Gantt charts and gridplot layouts accessible with py-maidr."
 jupyter: python3
 html-table-processing: none
 filters:
@@ -45,6 +45,7 @@ gets the ring too, so the other mark is never faded.
 | `wedge`, `annular_wedge` | pie, one slice per row |
 | `segment` wicks with `vbar` bodies on a datetime axis (Bokeh's OHLC recipe) | candlestick |
 | `varea`, `varea_stack`, `harea`, `harea_stack` | area [experimental], stacked area [experimental] |
+| `hbar` from one date to another (`left=start`, `right=end` on a datetime axis) | gantt [experimental] |
 
 Any other glyph is left out with a warning naming it, and a figure with nothing
 **maidr** can read is still drawn. A `Tabs` layout is read one panel at a time:
@@ -570,6 +571,51 @@ maidr.show(p)  #<<
 
 An `harea` is read as the same area on its side: the arrow keys step through
 the months, and the passengers are what you hear.
+
+### Gantt Chart [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Gantt chart of a five-task project plan across January 2024
+
+import pandas as pd
+from bokeh.models import ColumnDataSource
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+plan = pd.DataFrame(
+    {
+        "task": ["Research", "Design", "Build", "Test", "Launch"],
+        "start": pd.to_datetime(
+            ["2024-01-01", "2024-01-08", "2024-01-15", "2024-01-24", "2024-01-30"]
+        ),
+        "end": pd.to_datetime(
+            ["2024-01-10", "2024-01-17", "2024-01-26", "2024-01-31", "2024-02-02"]
+        ),
+    }
+)
+
+p = figure(
+    y_range=plan["task"].tolist()[::-1],
+    x_axis_type="datetime",
+    title="Project Plan, January 2024",
+    x_axis_label="Date",
+    y_axis_label="Task",
+    height=300,
+)
+p.hbar(
+    y="task", left="start", right="end", height=0.6,
+    source=ColumnDataSource(plan), color="#4c72b0",
+)
+
+maidr.show(p)  #<<
+```
+
+An `hbar` running from one date to another is read as a Gantt chart: each
+task is a lane, the up and down arrows move between lanes as they are drawn,
+and every bar is announced with its start and end dates and its length in
+days.
 
 ## Saving and embedding
 

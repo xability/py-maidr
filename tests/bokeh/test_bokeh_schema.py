@@ -773,6 +773,128 @@ class TestCandlestick:
         ]
 
 
+class TestGantt:
+    """``hbar(left=start, right=end)`` over dates: one lane per y factor."""
+
+    DAY = staticmethod(pd.Timestamp)
+
+    def test_a_date_span_hbar_is_a_gantt_of_lanes_bottom_first(self):
+        day = self.DAY
+        p = figure(
+            y_range=["Test", "Build", "Design"], x_axis_type="datetime",
+            x_axis_label="Date", y_axis_label="Task", title="Plan",
+        )
+        renderer = p.hbar(
+            y=["Design", "Build", "Build", "Test"],
+            left=[day("2024-01-01"), day("2024-01-05"), day("2024-01-10"),
+                  day("2024-01-12")],
+            right=[day("2024-01-05"), day("2024-01-08"), day("2024-01-12"),
+                   day("2024-01-15")],
+            height=0.5,
+        )
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "gantt"
+        assert layer["orientation"] == "horz"
+        # Days since the epoch: 2024-01-01 is day 19723.
+        assert layer["data"] == {
+            "points": [
+                [{"x": "Test", "start": 19734, "end": 19737}],
+                [
+                    {"x": "Build", "start": 19727, "end": 19730},
+                    {"x": "Build", "start": 19732, "end": 19734},
+                ],
+                [{"x": "Design", "start": 19723, "end": 19727}],
+            ],
+            "lanes": ["Test", "Build", "Design"],
+            "unit": "days",
+        }
+        assert layer["axes"] == {
+            "x": {
+                "label": "Date",
+                "format": {
+                    "function": "return new Date(value * 864e5)"
+                    ".toISOString().slice(0, 10);"
+                },
+            },
+            "y": {"label": "Task"},
+        }
+        assert maidr_.layers[0].highlight == {
+            "kind": "select",
+            "grid": [
+                [[renderer.id, 3]],
+                [[renderer.id, 1], [renderer.id, 2]],
+                [[renderer.id, 0]],
+            ],
+        }
+
+    def test_a_factor_with_no_bar_is_an_empty_lane(self):
+        day = self.DAY
+        p = figure(y_range=["Idle", "Busy"], x_axis_type="datetime")
+        p.hbar(y=["Busy"], left=[day("2024-01-01")], right=[day("2024-01-02")])
+
+        data = _only(p)["data"]
+
+        assert data["points"] == [[], [{"x": "Busy", "start": 19723, "end": 19724}]]
+        assert data["lanes"] == ["Idle", "Busy"]
+
+    def test_times_of_day_are_counted_in_hours(self):
+        day = self.DAY
+        p = figure(y_range=["Shift"], x_axis_type="datetime")
+        p.hbar(
+            y=["Shift"], left=[day("2024-01-01 09:00")], right=[day("2024-01-01 17:30")]
+        )
+
+        layer = _only(p)
+
+        (point,) = layer["data"]["points"][0]
+        assert point["end"] - point["start"] == 8.5
+        assert point["start"] == 19723 * 24 + 9
+        assert layer["data"]["unit"] == "hours"
+        assert "' ' + t.slice(11, 16)" in layer["axes"]["x"]["format"]["function"]
+
+    def test_one_renderer_per_resource_is_one_chart_labelled_by_the_legend(self):
+        day = self.DAY
+        p = figure(y_range=["Review", "Write"], x_axis_type="datetime")
+        p.hbar(y=["Write"], left=[day("2024-01-01")], right=[day("2024-01-03")],
+               legend_label="Ana")
+        p.hbar(y=["Write", "Review"], left=[day("2024-01-03"), day("2024-01-04")],
+               right=[day("2024-01-04"), day("2024-01-06")], legend_label="Ben")
+
+        layer = _only(p)
+
+        assert layer["data"]["points"] == [
+            [{"x": "Review", "start": 19726, "end": 19728, "label": "Ben"}],
+            [
+                {"x": "Write", "start": 19723, "end": 19725, "label": "Ana"},
+                {"x": "Write", "start": 19725, "end": 19726, "label": "Ben"},
+            ],
+        ]
+
+    def test_epoch_milliseconds_on_a_datetime_axis_are_a_gantt(self):
+        day = 86_400_000
+        source = ColumnDataSource(
+            {"task": ["a"], "start": [19723 * day], "end": [19725 * day]}
+        )
+        p = figure(y_range=["a"], x_axis_type="datetime")
+        p.hbar(y="task", left="start", right="end", source=source)
+
+        assert _only(p)["data"]["points"] == [
+            [{"x": "a", "start": 19723, "end": 19725}]
+        ]
+
+    def test_a_numeric_span_is_still_a_floating_bar(self):
+        p = figure(y_range=["a"])
+        p.hbar(y=["a"], left=[2], right=[5])
+
+        layer = _only(p)
+
+        assert layer["type"] == "bar"
+        assert layer["data"] == [{"x": 3, "y": "a"}]
+
+
 class TestScatter:
     def test_scatter_is_a_point_layer(self):
         p = figure()
@@ -1001,14 +1123,15 @@ class TestMalformedInput:
         assert layer["type"] == "bar"
         assert "Apples" in [point["x"] for point in layer["data"]]
 
-    def test_a_bar_spanning_dates_is_left_out_with_a_warning(self):
+    def test_a_vertical_bar_spanning_dates_is_left_out_with_a_warning(self):
+        # An ``hbar`` doing this is a Gantt bar; a ``vbar`` is not read.
         day = pd.Timestamp
-        p = figure(y_range=["task"], x_axis_type="datetime")
-        p.hbar(
-            y=["task"], left=[day("2024-01-01")], right=[day("2024-01-05")], height=0.5
+        p = figure(x_range=["task"], y_axis_type="datetime")
+        p.vbar(
+            x=["task"], bottom=[day("2024-01-01")], top=[day("2024-01-05")], width=0.5
         )
 
-        with pytest.warns(UserWarning, match="spanning dates"):
+        with pytest.warns(UserWarning, match="vertical bar spanning dates"):
             schema = BokehMaidr(p)._flatten_maidr()
 
         assert schema is None
