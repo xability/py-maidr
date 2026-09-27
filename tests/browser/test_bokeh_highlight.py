@@ -593,3 +593,51 @@ def test_a_page_saved_without_the_cdn_works_with_no_network(browser, tmp_path):
         assert not errors, errors
     finally:
         page.close()
+
+
+#: Focuses the chart the moment maidr.js mounts it, before the page has
+#: handed over its highlight callback -- a reader tabbing in at once.
+_FOCUS_ON_MOUNT = """(() => {
+  const grab = () => {
+    const plot = document.querySelector(
+      'article[id^="maidr-article"] [tabindex="0"]');
+    if (!plot) return false;
+    plot.focus();
+    window.__maidrFocusedAt = performance.now();
+    return true;
+  };
+  new MutationObserver((_, observer) => {
+    if (grab()) observer.disconnect();
+  }).observe(document, { childList: true, subtree: true });
+})();"""
+
+
+def test_a_reader_who_focuses_at_once_still_gets_the_highlight(browser, tmp_path):
+    # The callback reaches maidr.js through ``maidrLive.setData`` a couple of
+    # frames after the chart mounts, and maidr.js only builds it into the
+    # controller on a focus-in. Focused before then, the reader heard the
+    # chart with nothing highlighted until they left it and came back.
+    from bokeh.plotting import figure
+
+    p = figure(x_range=["a", "b"], x_axis_label="Store", y_axis_label="Units")
+    renderer = p.vbar(x=["a", "b"], top=[7, 3], width=0.9)
+    path = _save(p, tmp_path / "early.html")
+
+    page = browser.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
+    page.add_init_script(_FOCUS_ON_MOUNT)
+    try:
+        page.goto(path.as_uri(), wait_until="load")
+        page.wait_for_function(
+            "() => window.__maidrFocusedAt !== undefined", timeout=_PARSE_TIMEOUT_MS
+        )
+        page.wait_for_timeout(800)
+
+        assert _step(page, "ArrowRight") == "Store is a, Units is 7"
+        assert page.evaluate(_SELECTED, renderer.id) == [0]
+        assert _step(page, "ArrowRight") == "Store is b, Units is 3"
+        assert page.evaluate(_SELECTED, renderer.id) == [1]
+        assert not errors, errors
+    finally:
+        page.close()

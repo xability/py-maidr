@@ -135,6 +135,15 @@ class TestPage:
         assert ".embed_item(item, targetId).then(bind" in html
         assert "wrapper.setAttribute('maidr-data'" in html
 
+    def test_a_reader_already_inside_gets_the_callback_as_a_live_update(self, bar):
+        html = _html(bar)
+
+        # Only when focus is already in the chart, and then back to static.
+        guard = html.index("el.contains(document.activeElement)")
+        live = html.index("Object.assign({}, full, { live: true })")
+        restore = html.index("window.maidrLive.setData(full);", live)
+        assert guard < live < restore
+
     def test_a_late_runtime_is_told_through_bindchart(self, bar):
         html = _html(bar)
 

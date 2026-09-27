@@ -28,6 +28,9 @@ which is JSON. It is registered instead through
 mounted: ``maidr.js`` stores that object as the chart's data and builds its
 controller from it on the next focus-in, which is when the callback is
 wired (``useMaidrController.ts``, ``Controller.registerNavigateCallback``).
+A reader already inside the chart by then -- it takes a couple of frames --
+has a controller built without it, so the page also sends the data once as
+a ``live`` update, which ``maidr.js`` swaps into a running controller.
 
 The callback then selects the data-source rows of a bar, bin, cell, slice,
 candle or point (Bokeh's default ``nonselection_glyph`` dims the rest), and
@@ -846,7 +849,23 @@ _INIT_TEMPLATE = """(function() {
             // itself for live data, in an effect.
             requestAnimationFrame(function() {
                 requestAnimationFrame(function() {
-                    if (!window.maidrLive.setData(full)) setTimeout(attempt, 100);
+                    if (!window.maidrLive.setData(full)) {
+                        setTimeout(attempt, 100);
+                        return;
+                    }
+                    // A reader who focused the chart before now has a
+                    // controller built without the callback, and maidr.js
+                    // builds another only on the next focus-in. A live
+                    // update is the one thing it swaps into a running
+                    // controller -- silently, keeping the reader's place --
+                    // so the data goes once more as one, then back as the
+                    // static chart it is for every later focus-in.
+                    var el = document.getElementById(article);
+                    if (el && el.contains(document.activeElement)) {
+                        window.maidrLive.setData(
+                            Object.assign({}, full, { live: true }));
+                        window.maidrLive.setData(full);
+                    }
                 });
             });
         }
