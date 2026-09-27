@@ -29,7 +29,7 @@ from bokeh.models import (  # noqa: E402
     Tabs,
 )
 from bokeh.plotting import figure  # noqa: E402
-from bokeh.transform import dodge, factor_cmap, linear_cmap  # noqa: E402
+from bokeh.transform import cumsum, dodge, factor_cmap, linear_cmap  # noqa: E402
 
 from maidr.bokeh.bokeh_maidr import BokehMaidr  # noqa: E402
 
@@ -456,6 +456,125 @@ class TestAreas:
         ]
 
 
+class TestPie:
+    """``wedge``/``annular_wedge``: one slice per row, walked clockwise."""
+
+    @staticmethod
+    def _bokeh_pie(p, direction="anticlock"):
+        # Bokeh's own pie example: the value, its angle, and a colour column.
+        source = ColumnDataSource(
+            {
+                "country": ["United States", "United Kingdom", "Japan"],
+                "value": [157, 93, 89],
+                "angle": [v / 339 * 2 * np.pi for v in (157, 93, 89)],
+                "color": ["#3182bd", "#6baed6", "#9ecae1"],
+            }
+        )
+        return p.wedge(
+            x=0, y=1, radius=0.4, source=source, direction=direction,
+            start_angle=cumsum("angle", include_zero=True),
+            end_angle=cumsum("angle"),
+            fill_color="color", legend_field="country",
+        )
+
+    def test_a_cumsum_pie_is_read_clockwise_with_the_authors_values(self):
+        p = figure(title="Visits")
+        renderer = self._bokeh_pie(p)
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "pie"
+        # Drawn counterclockwise from 3 o'clock, so clockwise from there the
+        # last row comes first -- as the matplotlib path reverses its pie.
+        assert layer["data"] == [
+            {"x": "Japan", "y": 89},
+            {"x": "United Kingdom", "y": 93},
+            {"x": "United States", "y": 157},
+        ]
+        assert layer["startAngle"] == 90
+        assert "direction" not in layer
+        assert layer["axes"] == {"x": {"label": "country"}, "y": {"label": "value"}}
+        assert maidr_.layers[0].highlight == {
+            "kind": "select",
+            "grid": [[[renderer.id, 2], [renderer.id, 1], [renderer.id, 0]]],
+        }
+
+    def test_a_clockwise_pie_is_emitted_as_drawn(self):
+        p = figure()
+        source = ColumnDataSource(
+            {"part": ["a", "b", "c"], "start": [90, 0, -90], "end": [0, -90, -270]}
+        )
+        p.wedge(
+            x=0, y=0, radius=1, source=source, direction="clock",
+            start_angle="start", end_angle="end",
+            start_angle_units="deg", end_angle_units="deg",
+        )
+
+        layer = _only(p)
+
+        # From 12 o'clock clockwise: a quarter, a quarter, then a half.
+        assert layer["data"] == [
+            {"x": "a", "y": 90},
+            {"x": "b", "y": 90},
+            {"x": "c", "y": 180},
+        ]
+        assert "startAngle" not in layer
+        assert layer["axes"]["y"] == {"label": "Angle (degrees)"}
+
+    def test_one_wedge_per_call_is_one_pie_named_by_its_legend(self):
+        p = figure()
+        p.wedge(x=0, y=0, radius=1, start_angle=0, end_angle=np.pi / 2,
+                legend_label="North")
+        p.wedge(x=0, y=0, radius=1, start_angle=np.pi / 2, end_angle=2 * np.pi,
+                legend_label="South")
+
+        layer = _only(p)
+
+        assert layer["data"] == [
+            {"x": "South", "y": 270},
+            {"x": "North", "y": 90},
+        ]
+        assert layer["startAngle"] == 90
+
+    def test_without_a_proportional_column_the_cumsum_field_is_the_value(self):
+        p = figure()
+        p.wedge(
+            x=0, y=0, radius=1,
+            source=ColumnDataSource({"share": [1.0, 3.0], "name": ["a", "b"]}),
+            start_angle=cumsum("share", include_zero=True),
+            end_angle=cumsum("share"),
+        )
+
+        layer = _only(p)
+
+        # A single numeric column: it is what the angles are summed from.
+        assert layer["data"] == [{"x": "b", "y": 3.0}, {"x": "a", "y": 1.0}]
+        assert layer["axes"] == {"x": {"label": "name"}, "y": {"label": "share"}}
+
+    def test_an_annular_wedge_is_a_donut_read_as_a_pie(self):
+        p = figure()
+        p.annular_wedge(
+            x=0, y=0, inner_radius=0.5, outer_radius=1,
+            start_angle=[0, np.pi], end_angle=[np.pi, 2 * np.pi],
+        )
+
+        layer = _only(p)
+
+        assert layer["type"] == "pie"
+        assert layer["data"] == [
+            {"x": "Slice 1", "y": 180},
+            {"x": "Slice 2", "y": 180},
+        ]
+
+    def test_pies_round_two_centres_are_two_layers(self):
+        p = figure()
+        p.wedge(x=0, y=0, radius=1, start_angle=[0, 1], end_angle=[1, 2 * np.pi])
+        p.wedge(x=3, y=0, radius=1, start_angle=[0, 2], end_angle=[2, 2 * np.pi])
+
+        assert [layer["type"] for layer in _layers(p)] == ["pie", "pie"]
+
+
 class TestScatter:
     def test_scatter_is_a_point_layer(self):
         p = figure()
@@ -591,13 +710,13 @@ class TestLayouts:
 
     def test_a_plot_with_nothing_readable_takes_no_cell(self):
         # An empty first column would be one more stop before the line.
-        pie = figure(title="pie")
-        pie.wedge(x=0, y=0, radius=1, start_angle=0, end_angle=1)
+        ring = figure(title="ring")
+        ring.annulus(x=0, y=0, inner_radius=0.5, outer_radius=1)
         line = figure(title="line")
         line.line([1, 2], [3, 4])
 
-        with pytest.warns(UserWarning, match="Wedge"):
-            titles = self._grid_titles(gridplot([[pie, line], [None, self._bar("c")]]))
+        with pytest.warns(UserWarning, match="Annulus"):
+            titles = self._grid_titles(gridplot([[ring, line], [None, self._bar("c")]]))
 
         assert titles == [[["line"]], [["c"]]]
 
@@ -625,9 +744,9 @@ class TestUnsupported:
     def test_an_unsupported_glyph_is_skipped_with_a_warning(self):
         p = figure()
         p.line([1, 2], [1, 2])
-        p.wedge(x=[1], y=[1], radius=1, start_angle=0, end_angle=1)
+        p.annulus(x=[1], y=[1], inner_radius=0.5, outer_radius=1)
 
-        with pytest.warns(UserWarning, match="Wedge"):
+        with pytest.warns(UserWarning, match="Annulus"):
             layers = _layers(p)
 
         assert [layer["type"] for layer in layers] == ["line"]
@@ -650,7 +769,7 @@ class TestUnsupported:
 
     def test_nothing_supported_still_renders_the_plot(self):
         p = figure()
-        p.wedge(x=[1], y=[1], radius=1, start_angle=0, end_angle=1)
+        p.annulus(x=[1], y=[1], inner_radius=0.5, outer_radius=1)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -662,7 +781,7 @@ class TestUnsupported:
 
     def test_the_warning_names_the_callers_line(self):
         p = figure()
-        p.wedge(x=[1], y=[1], radius=1, start_angle=0, end_angle=1)
+        p.annulus(x=[1], y=[1], inner_radius=0.5, outer_radius=1)
 
         with pytest.warns(UserWarning) as record:
             BokehMaidr(p)

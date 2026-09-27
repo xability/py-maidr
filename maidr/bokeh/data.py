@@ -46,7 +46,10 @@ def source_length(data: dict) -> int:
     Returns
     -------
     int
-        The length its columns share, or 0 for an empty source.
+        The length its columns share. A source with no columns at all is
+        one row, as BokehJS counts it (``get_length() ?? 1``): a glyph
+        given only scalars -- ``p.wedge(x=0, y=0, radius=1, ...)`` -- is
+        drawn once.
 
     Raises
     ------
@@ -64,7 +67,7 @@ def source_length(data: dict) -> int:
         raise UnreadableSpec(
             f"its data source has columns of different lengths {sorted(lengths)}"
         )
-    return lengths.pop() if lengths else 0
+    return lengths.pop() if lengths else 1
 
 
 def _spec_parts(spec: Any) -> tuple[str, Any, Any]:

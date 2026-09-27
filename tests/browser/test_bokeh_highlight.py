@@ -373,3 +373,39 @@ def test_up_and_down_between_subplots_follow_the_page(browser, tmp_path):
         assert not errors, errors
     finally:
         page.close()
+
+
+def test_a_pie_selects_the_slice_it_announces_walking_clockwise(browser, tmp_path):
+    # Bokeh draws the usual ``cumsum`` pie counterclockwise from 3 o'clock,
+    # so Right, which walks clockwise, starts on the row drawn last.
+    import math
+
+    from bokeh.models import ColumnDataSource
+    from bokeh.plotting import figure
+    from bokeh.transform import cumsum
+
+    source = ColumnDataSource(
+        {
+            "fruit": ["Apples", "Pears", "Plums"],
+            "count": [5, 3, 2],
+            "angle": [c / 10 * 2 * math.pi for c in (5, 3, 2)],
+        }
+    )
+    p = figure()
+    renderer = p.wedge(
+        x=0, y=0, radius=1, source=source, legend_field="fruit",
+        start_angle=cumsum("angle", include_zero=True), end_angle=cumsum("angle"),
+    )
+    page, errors = _open(browser, _save(p, tmp_path / "pie.html"))
+    try:
+        assert _step(page, "ArrowRight").startswith("fruit is Plums, count is 2")
+        assert page.evaluate(_SELECTED, renderer.id) == [2]
+
+        assert _step(page, "ArrowRight").startswith("fruit is Pears, count is 3")
+        assert page.evaluate(_SELECTED, renderer.id) == [1]
+
+        assert _step(page, "ArrowRight").startswith("fruit is Apples, count is 5")
+        assert page.evaluate(_SELECTED, renderer.id) == [0]
+        assert not errors, errors
+    finally:
+        page.close()

@@ -15,6 +15,7 @@ Bokeh                                       MAIDR layer
 ``scatter`` / ``circle``                    ``point``
 ``rect`` coloured through a colour mapper   ``heat``
 ``varea`` / ``varea_stack``                 ``area`` / ``stacked_area``
+``wedge`` / ``annular_wedge``               ``pie``
 ==========================================  ==================
 
 Anything else is skipped with a warning naming the glyph.
@@ -31,10 +32,13 @@ row and column of the emitted ``data``.
 
 from __future__ import annotations
 
+import math
 import uuid
 from dataclasses import dataclass, field
 from numbers import Number
 from typing import Any, Callable
+
+import numpy as np
 
 from maidr.bokeh.data import (
     UnreadableSpec,
@@ -61,6 +65,9 @@ from maidr.core.plot.histogram import HistPlot
 #: holds each value until the next sample, as matplotlib's ``steps-post``
 #: does; ``before`` jumps first, as ``steps-pre`` does.
 _STEP_DIRECTIONS = {"after": "hv", "before": "vh", "center": "mid"}
+
+#: The glyphs read as the slices of a pie: ``annular_wedge`` is a donut's.
+_WEDGE_GLYPHS = frozenset({"Wedge", "AnnularWedge"})
 
 #: The glyphs read as a point cloud. Bokeh 3.4 folded the per-marker glyph
 #: classes (``Asterisk``, ``Diamond``, ...) into ``Scatter``; ``Circle``
@@ -240,6 +247,7 @@ class PlotReader:
             "heat": self._heat,
             "area": self._area,
             "stacked_area": self._stacked_area,
+            "pie": self._pie,
         }
         layers: list[BokehLayer] = []
         for key, renderers in groups.items():
@@ -305,6 +313,13 @@ class PlotReader:
             if isinstance(spec_expression(glyph, "y2"), (Stack, CumSum)):
                 return ("stacked_area", renderer.x_range_name, renderer.y_range_name)
             return ("area", renderer.id)
+        if name in _WEDGE_GLYPHS:
+            # Wedges drawn round one centre are one pie, however many calls
+            # drew them -- one ``wedge`` per slice is a common spelling.
+            centre = _constant_centre(renderer)
+            if centre is None:
+                return ("pie", renderer.id)
+            return ("pie", renderer.x_range_name, renderer.y_range_name, centre)
         return None
 
     # ------------------------------------------------------------------ #
@@ -799,6 +814,198 @@ class PlotReader:
         return BokehLayer(schema, self._plot, {"kind": "cursor", "grid": grid})
 
     # ------------------------------------------------------------------ #
+    #  Pie                                                                 #
+    # ------------------------------------------------------------------ #
+
+    def _pie(self, renderers: list) -> BokehLayer | None:
+        """
+        Wedges round one centre, read as a pie walked clockwise.
+
+        MAIDR walks a pie clockwise from ``startAngle``, measured clockwise
+        from 12 o'clock. Bokeh measures angles the other way --
+        counterclockwise from 3 o'clock -- and draws ``anticlock`` by
+        default, so the usual ``cumsum("angle", include_zero=True)`` pie
+        runs counterclockwise from 3 o'clock. The slices are therefore
+        emitted in the order they sit clockwise round the dial, starting
+        where the first drawn slice starts, as the matplotlib path emits a
+        ``counterclock`` pie: reversed, with ``startAngle`` on that edge.
+        No ``direction`` is declared, so ``data`` is already the walk and
+        the highlight grid is keyed the same way.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The ``wedge``/``annular_wedge`` renderers grouped into this pie.
+
+        Returns
+        -------
+        BokehLayer or None
+            The ``pie`` layer, or ``None`` when no slice is drawn.
+        """
+        slices: list[tuple[float, Any, Any, int, int]] = []
+        ring_start: float | None = None
+        label_names: list[str] = []
+        value_names: list[str] = []
+        for renderer in renderers:
+            glyph = renderer.glyph
+            data = renderer.data_source.data
+            rows = visible_indices(renderer, source_length(data))
+            starts = _radians(glyph, "start_angle", data)
+            ends = _radians(glyph, "end_angle", data)
+            clockwise = glyph.direction == "clock"
+            values, value_name = self._slice_values(
+                renderer, rows, starts, ends, clockwise
+            )
+            labels, label_name = self._slice_labels(renderer, rows)
+            if value_name:
+                value_names.append(value_name)
+            if label_name:
+                label_names.append(label_name)
+            for index in rows:
+                if is_missing(starts[index]) or is_missing(ends[index]):
+                    continue
+                if is_missing(values[index]):
+                    continue
+                first_edge = _dial(starts[index])
+                if ring_start is None:
+                    ring_start = first_edge
+                # Where the slice begins going clockwise: its drawn start
+                # when Bokeh draws it clockwise, its drawn end otherwise.
+                begins = first_edge if clockwise else _dial(ends[index])
+                slices.append(
+                    (begins, labels[index], values[index], renderer.id, index)
+                )
+        if not slices or ring_start is None:
+            return None
+        start = ring_start
+        slices.sort(key=lambda s: round((s[0] - start) % 360, 6) % 360)
+
+        data = []
+        for number, (_, label, value, _, _) in enumerate(slices):
+            name = _label(label) or f"Slice {number + 1}"
+            data.append({MaidrKey.X: name, MaidrKey.Y: to_native(value)})
+        schema = self._schema(PlotType.PIE, data)
+        schema[MaidrKey.AXES] = {
+            MaidrKey.X: {
+                MaidrKey.LABEL: _axis_label(
+                    self._x_axis, _only_name(label_names) or "Category"
+                )
+            },
+            MaidrKey.Y: {
+                MaidrKey.LABEL: _axis_label(
+                    self._y_axis, _only_name(value_names) or "Value"
+                )
+            },
+        }
+        start_angle = _clean(start % 360)
+        if start_angle:
+            schema[MaidrKey.START_ANGLE] = start_angle
+        grid = [[[rid, index] for *_, rid, index in slices]]
+        return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
+
+    def _slice_values(
+        self,
+        renderer: Any,
+        rows: list[int],
+        starts: list,
+        ends: list,
+        clockwise: bool,
+    ) -> tuple[list, str | None]:
+        """
+        What each slice of one wedge renderer stands for, and its name.
+
+        The angles are rarely what the author supplied: Bokeh's own pie
+        example computes ``angle = value / value.sum() * 2 * pi`` and draws
+        ``cumsum("angle")``. So a numeric source column the sweeps are
+        proportional to -- the first in source order, among those no glyph
+        property reads -- is taken as the value. Failing that, the column a
+        ``cumsum`` reads, and failing that the sweep in degrees. With a
+        single slice every positive column is "proportional", so the search
+        needs two.
+
+        Returns
+        -------
+        tuple of (list, str or None)
+            One value per source row (``None`` where undrawable), and the
+            name of the column they came from, if any.
+        """
+        glyph = renderer.glyph
+        data = renderer.data_source.data
+        n = source_length(data)
+        sweeps: list = [None] * n
+        for index in rows:
+            if is_missing(starts[index]) or is_missing(ends[index]):
+                continue
+            sweeps[index] = _sweep(starts[index], ends[index], clockwise)
+
+        drawn = [i for i in rows if sweeps[i] is not None]
+        if len(drawn) > 1:
+            read = {spec_field(glyph, prop) for prop in glyph.dataspecs()}
+            for prop in ("start_angle", "end_angle"):
+                expression = spec_expression(glyph, prop)
+                read.add(getattr(expression, "field", None))
+            target = np.array([sweeps[i] for i in drawn], dtype=float)
+            for name in data:
+                if name in read:
+                    continue
+                raw = resolve_column(data, name) or []
+                column = _numeric_column(raw)
+                if column is None:
+                    continue
+                if _proportional(column[drawn], target):
+                    return [to_native(v) for v in raw], str(name)
+
+        fields = {
+            getattr(spec_expression(glyph, prop), "field", None)
+            for prop in ("start_angle", "end_angle")
+        }
+        if len(fields) == 1 and None not in fields:
+            (field_name,) = fields
+            column = resolve_column(data, field_name)
+            if column is not None:
+                return [to_native(v) for v in column], str(field_name)
+        degrees = [None if s is None else _clean(math.degrees(s)) for s in sweeps]
+        return degrees, "Angle (degrees)"
+
+    def _slice_labels(self, renderer: Any, rows: list[int]) -> tuple[list, str | None]:
+        """
+        What each slice of one wedge renderer is called, and by which column.
+
+        The legend names a slice the way a sighted reader matches it: by a
+        ``legend_field`` column, a ``legend_group`` row, or a
+        ``legend_label`` on a renderer drawing one slice. Without a legend
+        the first column of text no glyph property reads -- a colour column
+        is read by ``fill_color`` -- names them.
+
+        Returns
+        -------
+        tuple of (list, str or None)
+            One label per source row, ``None`` where there is none, and the
+            column they came from, if any.
+        """
+        glyph = renderer.glyph
+        data = renderer.data_source.data
+        n = source_length(data)
+        column_name = self._legend_fields.get(renderer.id)
+        column = resolve_column(data, column_name)
+        if column is not None:
+            return column, column_name
+        fixed = self._legend_labels.get(renderer.id)
+        labels: list = [
+            self._legend_rows.get((renderer.id, i), fixed) for i in range(n)
+        ]
+        if any(label is not None for label in labels):
+            return labels, None
+        read = {spec_field(glyph, prop) for prop in glyph.dataspecs()}
+        for name in data:
+            if name in read:
+                continue
+            values = resolve_column(data, name) or []
+            if values and all(isinstance(values[i], str) for i in rows):
+                return values, str(name)
+        return [None] * n, None
+
+    # ------------------------------------------------------------------ #
     #  Scatter and heatmap                                                 #
     # ------------------------------------------------------------------ #
 
@@ -929,7 +1136,7 @@ def mark_anchor(
     Parameters
     ----------
     renderer : bokeh.models.GlyphRenderer
-        A ``vbar``, ``hbar``, ``quad``, ``rect`` or point renderer.
+        A ``vbar``, ``hbar``, ``quad``, ``rect``, wedge or point renderer.
     index : int
         The source row of the mark.
     columns : dict, optional
@@ -965,9 +1172,44 @@ def mark_anchor(
             _middle(to_coordinate(at("left")), to_coordinate(at("right"))),
             _middle(to_coordinate(at("bottom")), to_coordinate(at("top"))),
         ]
+    elif name in _WEDGE_GLYPHS:
+        coords = _wedge_anchor(glyph, at)
     else:
         coords = [to_coordinate(at("x")), to_coordinate(at("y"))]
     return None if any(c is None for c in coords) else coords
+
+
+def _wedge_anchor(glyph: Any, at: Callable[[str], Any]) -> list:
+    """
+    A point inside one wedge: part way out along its middle angle.
+
+    Parameters
+    ----------
+    glyph : bokeh.models.Wedge or bokeh.models.AnnularWedge
+        The wedge glyph.
+    at : callable
+        Reads the mark's value of one glyph property.
+
+    Returns
+    -------
+    list
+        ``[x, y]`` in data units; the centre when the radius is in screen
+        units, which have no data coordinate.
+    """
+    x, y = to_coordinate(at("x")), to_coordinate(at("y"))
+    prop = "radius" if type(glyph).__name__ == "Wedge" else "outer_radius"
+    radius, start, end = at(prop), at("start_angle"), at("end_angle")
+    if getattr(glyph, f"{prop}_units", "data") != "data" or any(
+        is_missing(v) for v in (x, y, radius, start, end)
+    ):
+        return [x, y]
+    if getattr(glyph, "start_angle_units", "rad") == "deg":
+        start, end = math.radians(start), math.radians(end)
+    clockwise = glyph.direction == "clock"
+    sweep = _sweep(float(start), float(end), clockwise)
+    middle = float(start) + (-sweep if clockwise else sweep) / 2
+    reach = 0.6 * float(radius)
+    return [x + reach * math.cos(middle), y + reach * math.sin(middle)]
 
 
 def _dodged(position: Any, transform: Any) -> Any:
@@ -1307,3 +1549,186 @@ def _color_bar_title(plot: Any, mapper: Any) -> str | None:
                 if title:
                     return title
     return None
+
+
+def _constant_centre(renderer: Any) -> tuple | None:
+    """
+    The one centre every wedge of a renderer is drawn round, if they share one.
+
+    Parameters
+    ----------
+    renderer : bokeh.models.GlyphRenderer
+        A ``wedge`` or ``annular_wedge`` renderer.
+
+    Returns
+    -------
+    tuple or None
+        ``(x, y)`` as plain values, or ``None`` when the rows are centred
+        in more than one place or the centre cannot be read.
+    """
+    data = renderer.data_source.data
+    try:
+        xs = resolve(renderer.glyph, "x", data)
+        ys = resolve(renderer.glyph, "y", data)
+    except UnreadableSpec:
+        return None
+    centres = {
+        (_factor_key(xs[i]), _factor_key(ys[i]))
+        for i in visible_indices(renderer, source_length(data))
+    }
+    return centres.pop() if len(centres) == 1 else None
+
+
+def _radians(glyph: Any, prop: str, data: dict) -> list:
+    """
+    An angle property's values in radians, whichever units it was given in.
+
+    Parameters
+    ----------
+    glyph : bokeh.models.Glyph
+        A wedge glyph.
+    prop : str
+        ``"start_angle"`` or ``"end_angle"``.
+    data : dict
+        The renderer's ``ColumnDataSource.data``.
+
+    Returns
+    -------
+    list
+        One angle per source row, ``None`` where it is missing.
+    """
+    values = resolve(glyph, prop, data)
+    degrees = getattr(glyph, f"{prop}_units", "rad") == "deg"
+    out = []
+    for value in values:
+        if is_missing(value):
+            out.append(None)
+            continue
+        number = float(value)
+        out.append(math.radians(number) if degrees else number)
+    return out
+
+
+def _sweep(start: float, end: float, clockwise: bool) -> float:
+    """
+    How far round a wedge reaches, in radians, the way Bokeh draws it.
+
+    Parameters
+    ----------
+    start, end : float
+        The wedge's angles, in radians.
+    clockwise : bool
+        Whether Bokeh draws it from ``start`` clockwise to ``end``.
+
+    Returns
+    -------
+    float
+        The sweep, in ``[0, 2 pi]``; a whole turn is kept as one.
+    """
+    turn = 2 * math.pi
+    span = (start - end) if clockwise else (end - start)
+    if abs(span) >= turn - 1e-12:
+        return turn
+    return span % turn
+
+
+def _dial(angle: float) -> float:
+    """
+    A Bokeh angle as MAIDR's ``startAngle`` measures one.
+
+    Bokeh measures radians counterclockwise from 3 o'clock; MAIDR degrees
+    clockwise from 12 o'clock.
+
+    Parameters
+    ----------
+    angle : float
+        Radians, counterclockwise from the positive x axis.
+
+    Returns
+    -------
+    float
+        Degrees clockwise from 12 o'clock, in ``[0, 360)``.
+    """
+    return _clean((90.0 - math.degrees(angle)) % 360.0) % 360.0
+
+
+def _clean(value: float) -> float | int:
+    """
+    A float with the noise of a radian round trip taken off.
+
+    Parameters
+    ----------
+    value : float
+        A computed number.
+
+    Returns
+    -------
+    float or int
+        The number to 10 significant digits, as an ``int`` when whole.
+    """
+    rounded = float(f"{value:.10g}")
+    return int(rounded) if rounded.is_integer() else rounded
+
+
+def _numeric_column(column: list) -> np.ndarray | None:
+    """
+    A source column as floats, or ``None`` when it is not all numbers.
+
+    Parameters
+    ----------
+    column : list
+        One column of a ``ColumnDataSource``, from :func:`resolve_column`.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        The column, or ``None`` for text, dates, booleans or nested values.
+    """
+    if not column or not all(
+        isinstance(v, (int, float, np.integer, np.floating))
+        and not isinstance(v, (bool, np.bool_))
+        for v in column
+    ):
+        return None
+    return np.array(column, dtype=float)
+
+
+def _proportional(values: np.ndarray, target: np.ndarray) -> bool:
+    """
+    Whether ``target`` is ``values`` scaled by one positive factor.
+
+    Parameters
+    ----------
+    values, target : numpy.ndarray
+        Two columns over the same rows.
+
+    Returns
+    -------
+    bool
+        True when every value is finite and non-negative, their total is
+        positive, and scaling them to ``target``'s total reproduces it.
+    """
+    if not np.all(np.isfinite(values)) or np.any(values < 0):
+        return False
+    total, wanted = values.sum(), target.sum()
+    if total <= 0 or wanted <= 0:
+        return False
+    return bool(np.allclose(values / total * wanted, target, rtol=1e-6, atol=1e-9))
+
+
+def _only_name(names: list[str]) -> str | None:
+    """
+    The one column name every renderer of a layer agrees on, or ``None``.
+
+    Parameters
+    ----------
+    names : list of str
+        The name each renderer read its values from.
+
+    Returns
+    -------
+    str or None
+        The name, when there is exactly one distinct one.
+    """
+    distinct = set(names)
+    return distinct.pop() if len(distinct) == 1 else None

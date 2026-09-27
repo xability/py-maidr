@@ -1,6 +1,6 @@
 ---
 title: "Bokeh Accessible Plot Examples"
-description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps and gridplot layouts accessible with py-maidr."
+description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps, pie charts and gridplot layouts accessible with py-maidr."
 jupyter: python3
 html-table-processing: none
 filters:
@@ -26,8 +26,8 @@ deprecation period, whichever plot type is drawn: see
 
 **maidr** reads the figure's own renderers and data sources, not the drawn
 canvas, so what you hear is the data you plotted. As you move through a chart
-the mark being read is highlighted in the Bokeh plot itself: a bar, bin, cell
-or point is selected, dimming the rest, and a line, step or area shows a ring
+the mark being read is highlighted in the Bokeh plot itself: a bar, bin, cell,
+slice or point is selected, dimming the rest, and a line, step or area shows a ring
 on the current point. A bar, bin, cell or point whose data source another mark
 also draws from, such as markers on a line built from one `ColumnDataSource`,
 gets the ring too, so the other mark is never faded.
@@ -42,6 +42,7 @@ gets the ring too, so the other mark is never faded.
 | `step` | step |
 | `scatter`, `circle` | point |
 | `rect` coloured through a continuous colour mapper (`linear_cmap`, `log_cmap`) | heatmap |
+| `wedge`, `annular_wedge` | pie, one slice per row |
 | `varea`, `varea_stack` | area [experimental], stacked area [experimental] |
 
 Any other glyph is left out with a warning naming it, and a figure with nothing
@@ -362,6 +363,50 @@ p.add_layout(cells.construct_color_bar(title="Passengers"), "right")
 
 maidr.show(p)  #<<
 ```
+
+### Pie Chart
+
+```{python}
+#| warning: false
+#| fig-alt: Pie chart of the number of penguins of each species
+
+from math import pi
+
+import seaborn as sns
+from bokeh.models import ColumnDataSource
+from bokeh.plotting import figure
+from bokeh.transform import cumsum
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins")
+counts = penguins["species"].value_counts().sort_index()
+source = ColumnDataSource(
+    {
+        "species": counts.index.tolist(),
+        "penguins": counts.tolist(),
+        "angle": (counts / counts.sum() * 2 * pi).tolist(),
+        "color": ["#4c72b0", "#dd8452", "#55a868"],
+    }
+)
+
+p = figure(title="Penguins by Species", height=350, toolbar_location=None)
+p.wedge(
+    x=0, y=1, radius=0.4, source=source,
+    start_angle=cumsum("angle", include_zero=True), end_angle=cumsum("angle"),
+    line_color="white", fill_color="color", legend_field="species",
+)
+p.axis.visible = False
+p.grid.visible = False
+
+maidr.show(p)  #<<
+```
+
+Each slice is announced with the value it was computed from -- here the
+`penguins` column, which the angles are proportional to -- and named by the
+legend. The right arrow walks the pie clockwise, as for every pie in
+**maidr**, so on a pie Bokeh drew counterclockwise from 3 o'clock it starts on
+the slice drawn last.
 
 ### Multi-Panel Layout (gridplot)
 

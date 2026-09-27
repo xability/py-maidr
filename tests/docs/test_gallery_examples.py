@@ -161,6 +161,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Step Plot": [["step"]],
         "Scatter Plot": [["point"]],
         "Heatmap": [["heat"]],
+        "Pie Chart": [["pie"]],
         "Multi-Panel Layout (gridplot)": [["bar", "line"]],
         "Stacked Area Plot [experimental]": [["stacked_area"]],
     },
@@ -533,3 +534,19 @@ def test_bokeh_grid_is_one_subplot_per_figure(gallery: _Gallery) -> None:
         ["Penguins per Species"],
         ["Passengers per Year"],
     ]
+
+
+def test_bokeh_pie_reads_the_values_clockwise(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "Each slice is announced with the value it was
+    computed from -- here the ``penguins`` column ... on a pie Bokeh drew
+    counterclockwise from 3 o'clock it starts on the slice drawn last."
+    """
+    layer = gallery.shown("examples-bokeh.qmd", "Pie Chart").layer(PlotType.PIE)
+
+    assert layer[MaidrKey.AXES][MaidrKey.Y][MaidrKey.LABEL] == "penguins"
+    assert [point[MaidrKey.X] for point in layer[MaidrKey.DATA]] == [
+        "Gentoo",
+        "Chinstrap",
+        "Adelie",
+    ]
+    assert [point[MaidrKey.Y] for point in layer[MaidrKey.DATA]] == [124, 68, 152]

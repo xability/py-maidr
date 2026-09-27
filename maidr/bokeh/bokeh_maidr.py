@@ -28,7 +28,7 @@ mounted: ``maidr.js`` stores that object as the chart's data and builds its
 controller from it on the next focus-in, which is when the callback is
 wired (``useMaidrController.ts``, ``Controller.registerNavigateCallback``).
 
-The callback then selects the data-source row of a bar, bin, cell or point
+The callback then selects the data-source row of a bar, bin, cell, slice or point
 (Bokeh's default ``nonselection_glyph`` dims the rest), and moves a small
 cursor glyph onto a line, step or area, which have one path and no row to
 select. A bar, bin, cell or point whose data source another drawn mark also
