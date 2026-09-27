@@ -28,10 +28,10 @@ mounted: ``maidr.js`` stores that object as the chart's data and builds its
 controller from it on the next focus-in, which is when the callback is
 wired (``useMaidrController.ts``, ``Controller.registerNavigateCallback``).
 
-The callback then selects the data-source row of a bar, bin, cell, slice or point
-(Bokeh's default ``nonselection_glyph`` dims the rest), and moves a small
-cursor glyph onto a line, step or area, which have one path and no row to
-select. A bar, bin, cell or point whose data source another drawn mark also
+The callback then selects the data-source rows of a bar, bin, cell, slice,
+candle or point (Bokeh's default ``nonselection_glyph`` dims the rest), and
+moves a small cursor glyph onto a line, step or area, which have one path and
+no row to select. A bar, bin, cell or point whose data source another drawn mark also
 reads -- markers on a line drawn from one source -- gets the cursor too,
 since selecting the row would fade that other mark (see
 ``BokehMaidr._retarget_shared_highlights``). The cursor is added to the plot
@@ -391,6 +391,14 @@ class BokehMaidr:
             if layer.highlight["kind"] == "points":
                 points = [anchor(cell) for cell in layer.highlight["points"]]
                 layer.highlight = {"kind": "cursor", "points": points}
+            elif "columns" in layer.highlight:
+                # A candle is a wick and a body; the ring goes where the one
+                # with an anchor -- the body -- ends.
+                columns = [
+                    [at for at in map(anchor, cells) if at is not None][:1]
+                    for cells in layer.highlight["columns"]
+                ]
+                layer.highlight = {"kind": "cursor", "columns": columns}
             else:
                 grid = [[anchor(c) for c in row] for row in layer.highlight["grid"]]
                 layer.highlight = {"kind": "cursor", "grid": grid}
@@ -730,7 +738,8 @@ _INIT_TEMPLATE = """(function() {
             Object.keys(highlight).forEach(function(layerId) {
                 var entry = highlight[layerId];
                 var cells = entry.kind === 'points' ? entry.points
-                    : entry.kind === 'select' ? [].concat.apply([], entry.grid) : [];
+                    : entry.kind === 'select'
+                        ? [].concat.apply([], entry.grid || entry.columns) : [];
                 cells.forEach(function(cell) {
                     var r = cell && model(cell[0]);
                     if (r && out.indexOf(r.data_source) < 0) out.push(r.data_source);
@@ -752,12 +761,16 @@ _INIT_TEMPLATE = """(function() {
             });
         }
         // The marks MAIDR is on: a point cloud reports indices into its
-        // data, every other layer a row and column.
+        // data, every other layer a row and column -- of which a candlestick's
+        // row is only the price being read, so its marks are keyed by column.
         function cellsAt(entry, info) {
             if (entry.points) {
                 return (info.pointIndices || []).map(function(i) {
                     return entry.points[i];
                 }).filter(Boolean);
+            }
+            if (entry.columns) {
+                return (entry.columns[info.col] || []).filter(Boolean);
             }
             var row = entry.grid[info.row];
             var cell = row && row[info.col];

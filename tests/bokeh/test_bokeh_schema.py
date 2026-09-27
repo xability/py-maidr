@@ -617,6 +617,162 @@ class TestPie:
         assert [layer["type"] for layer in _layers(p)] == ["pie", "pie"]
 
 
+class TestCandlestick:
+    """Bokeh's OHLC recipe: a ``segment`` per wick, ``vbar`` s for bodies."""
+
+    DAYS = pd.date_range("2024-01-01", periods=4)
+    FRAME = pd.DataFrame(
+        {
+            "date": DAYS,
+            "open": [10.0, 12.0, 11.0, 13.5],
+            "close": [12.0, 11.0, 13.0, 12.5],
+            "high": [13.0, 13.0, 14.0, 14.0],
+            "low": [9.0, 10.0, 10.0, 12.0],
+            "volume": [100, 200, 300, 400],
+        }
+    )
+    CANDLES = [
+        {"value": "2024-01-01", "open": 10.0, "high": 13.0, "low": 9.0, "close": 12.0},
+        {"value": "2024-01-02", "open": 12.0, "high": 13.0, "low": 10.0, "close": 11.0},
+        {"value": "2024-01-03", "open": 11.0, "high": 14.0, "low": 10.0, "close": 13.0},
+        {"value": "2024-01-04", "open": 13.5, "high": 14.0, "low": 12.0, "close": 12.5},
+    ]
+
+    def test_bokehs_own_recipe_is_a_candlestick(self):
+        # As Bokeh's gallery draws it: the prices passed straight through,
+        # so a rising day's body has ``top`` (open) below ``bottom`` (close).
+        df = self.FRAME
+        inc, dec = df.close > df.open, df.open > df.close
+        p = figure(x_axis_type="datetime", title="MSFT", y_axis_label="Price")
+        wick = p.segment(df.date, df.high, df.date, df.low, color="black")
+        falling = p.vbar(df.date[dec], 43200000, df.open[dec], df.close[dec])
+        rising = p.vbar(df.date[inc], 43200000, df.open[inc], df.close[inc])
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"]
+
+        assert len(layer) == 1
+        assert layer[0]["type"] == "candlestick"
+        assert layer[0]["title"] == "MSFT"
+        assert layer[0]["axes"] == {"x": {"label": "X"}, "y": {"label": "Price"}}
+        assert layer[0]["data"] == self.CANDLES
+        # Keyed by candle: the wick's row and the body's, selected together.
+        assert maidr_.layers[0].highlight == {
+            "kind": "select",
+            "columns": [
+                [[wick.id, 0], [rising.id, 0]],
+                [[wick.id, 1], [falling.id, 0]],
+                [[wick.id, 2], [rising.id, 1]],
+                [[wick.id, 3], [falling.id, 1]],
+            ],
+        }
+
+    def test_open_and_close_columns_decide_bodies_drawn_upright(self):
+        # One source, rising and falling days split by views, every body
+        # drawn ``top >= bottom``: only the price columns say which is open.
+        df = self.FRAME.assign(
+            top=self.FRAME[["open", "close"]].max(axis=1),
+            bottom=self.FRAME[["open", "close"]].min(axis=1),
+        )
+        source = ColumnDataSource(df)
+        rising = list(df.close > df.open)
+        p = figure(x_axis_type="datetime")
+        p.segment("date", "high", "date", "low", source=source)
+        for keep in (rising, [not r for r in rising]):
+            p.vbar(
+                "date", 43200000, "top", "bottom", source=source,
+                view=CDSView(filter=BooleanFilter(keep)),
+            )
+
+        layer = _only(p)
+
+        assert layer["type"] == "candlestick"
+        assert layer["data"] == [
+            {**candle, "volume": float(volume)}
+            for candle, volume in zip(self.CANDLES, [100, 200, 300, 400])
+        ]
+
+    def test_a_line_on_the_same_source_turns_the_highlight_into_a_ring(self):
+        # A moving average drawn from the candles' own source would fade
+        # while a candle is selected, so the ring marks the body instead.
+        source = ColumnDataSource(self.FRAME)
+        p = figure(x_axis_type="datetime")
+        p.segment("date", "high", "date", "low", source=source)
+        p.vbar("date", 43200000, "open", "close", source=source)
+        p.line("date", "close", source=source)
+
+        maidr_ = BokehMaidr(p)
+
+        candles = maidr_.layers[0]
+        day = 86400000.0
+        start = pd.Timestamp("2024-01-01").value / 1e6
+        assert candles.highlight == {
+            "kind": "cursor",
+            "columns": [
+                [[start, 10.0]],
+                [[start + day, 12.0]],
+                [[start + 2 * day, 11.0]],
+                [[start + 3 * day, 13.5]],
+            ],
+        }
+
+    def test_upright_bodies_with_no_prices_are_not_guessed_at(self):
+        df = self.FRAME
+        top = df[["open", "close"]].max(axis=1)
+        bottom = df[["open", "close"]].min(axis=1)
+        p = figure(x_axis_type="datetime")
+        p.segment(df.date, df.high, df.date, df.low)
+        p.vbar(df.date, 43200000, top, bottom)
+
+        with pytest.warns(UserWarning, match="Segment"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["bar"]
+
+    def test_wicks_off_a_date_axis_are_not_a_candlestick(self):
+        p = figure()
+        p.segment([1, 2], [5, 6], [1, 2], [1, 2])
+        p.vbar([1, 2], 0.5, [2, 3], [4, 2])
+
+        with pytest.warns(UserWarning, match="Segment"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["bar"]
+
+    def test_a_bar_off_the_wicks_dates_stops_the_reading(self):
+        df = self.FRAME
+        p = figure(x_axis_type="datetime")
+        p.segment(df.date, df.high, df.date, df.low)
+        p.vbar(
+            [*df.date, pd.Timestamp("2024-02-01")], 43200000,
+            [*df.open, 1.0], [*df.close, 2.0],
+        )
+
+        with pytest.warns(UserWarning, match="Segment"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["bar"]
+
+    def test_a_wick_with_no_body_is_left_out_with_a_warning(self):
+        # The recipe's inc/dec split draws no body for a day that closed
+        # where it opened; its open and close are nowhere in the figure.
+        df = self.FRAME.assign(close=[12.0, 11.0, 11.0, 12.5])
+        inc, dec = df.close > df.open, df.open > df.close
+        p = figure(x_axis_type="datetime")
+        p.segment(df.date, df.high, df.date, df.low)
+        p.vbar(df.date[dec], 43200000, df.open[dec], df.close[dec])
+        p.vbar(df.date[inc], 43200000, df.open[inc], df.close[inc])
+
+        with pytest.warns(UserWarning, match="1 candlestick wick has no body"):
+            layer = _only(p)
+
+        assert [candle["value"] for candle in layer["data"]] == [
+            "2024-01-01",
+            "2024-01-02",
+            "2024-01-04",
+        ]
+
+
 class TestScatter:
     def test_scatter_is_a_point_layer(self):
         p = figure()

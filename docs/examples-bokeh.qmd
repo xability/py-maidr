@@ -1,6 +1,6 @@
 ---
 title: "Bokeh Accessible Plot Examples"
-description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps, pie charts and gridplot layouts accessible with py-maidr."
+description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps, pie charts, candlestick charts and gridplot layouts accessible with py-maidr."
 jupyter: python3
 html-table-processing: none
 filters:
@@ -27,7 +27,7 @@ deprecation period, whichever plot type is drawn: see
 **maidr** reads the figure's own renderers and data sources, not the drawn
 canvas, so what you hear is the data you plotted. As you move through a chart
 the mark being read is highlighted in the Bokeh plot itself: a bar, bin, cell,
-slice or point is selected, dimming the rest, and a line, step or area shows a ring
+slice, candle or point is selected, dimming the rest, and a line, step or area shows a ring
 on the current point. A bar, bin, cell or point whose data source another mark
 also draws from, such as markers on a line built from one `ColumnDataSource`,
 gets the ring too, so the other mark is never faded.
@@ -43,6 +43,7 @@ gets the ring too, so the other mark is never faded.
 | `scatter`, `circle` | point |
 | `rect` coloured through a continuous colour mapper (`linear_cmap`, `log_cmap`) | heatmap |
 | `wedge`, `annular_wedge` | pie, one slice per row |
+| `segment` wicks with `vbar` bodies on a datetime axis (Bokeh's OHLC recipe) | candlestick |
 | `varea`, `varea_stack`, `harea`, `harea_stack` | area [experimental], stacked area [experimental] |
 
 Any other glyph is left out with a warning naming it, and a figure with nothing
@@ -407,6 +408,62 @@ Each slice is announced with the value it was computed from -- here the
 legend. The right arrow walks the pie clockwise, as for every pie in
 **maidr**, so on a pie Bokeh drew counterclockwise from 3 o'clock it starts on
 the slice drawn last.
+
+### Candlestick Chart
+
+```{python}
+#| warning: false
+#| fig-alt: Candlestick chart of fifteen trading days of a simulated stock price
+
+import numpy as np
+import pandas as pd
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+rng = np.random.default_rng(4)
+dates = pd.bdate_range("2024-03-01", periods=15)
+close = (100 + rng.normal(0, 1.5, len(dates)).cumsum()).round(2)
+open_ = np.r_[100.0, close[:-1]]
+df = pd.DataFrame(
+    {
+        "date": dates,
+        "open": open_,
+        "close": close,
+        "high": (np.maximum(open_, close) + rng.uniform(0.2, 1.5, len(dates))).round(2),
+        "low": (np.minimum(open_, close) - rng.uniform(0.2, 1.5, len(dates))).round(2),
+    }
+)
+inc = df.close > df.open
+dec = df.open > df.close
+w = 12 * 60 * 60 * 1000  # half a day, in ms
+
+p = figure(
+    x_axis_type="datetime",
+    title="Simulated Stock, March 2024",
+    x_axis_label="Date",
+    y_axis_label="Price ($)",
+    height=350,
+)
+p.segment(df.date, df.high, df.date, df.low, color="black")
+p.vbar(df.date[dec], w, df.open[dec], df.close[dec], color="#c44e52")
+p.vbar(df.date[inc], w, df.open[inc], df.close[inc], fill_color="white",
+       line_color="#55a868", line_width=2)
+
+maidr.show(p)  #<<
+```
+
+This is Bokeh's own candlestick recipe: a `segment` from each day's high to
+its low and a `vbar` between its open and close, one renderer for rising days
+and one for falling. **maidr** reads them together as one candlestick, a
+candle per date. A body is drawn between two prices whichever is larger, so
+**maidr** needs to be told which one is the open: here the prices are passed
+straight through (`top=open`, `bottom=close`), which draws a rising day's body
+upside down and says so; a source with `open` and `close` columns says so
+too. Bodies drawn the right way up with neither are not guessed at, and are
+read as bars. A day that closes exactly where it opened gets no body from this
+recipe, so its open and close are not in the figure: **maidr** leaves that
+day out, with a warning.
 
 ### Multi-Panel Layout (gridplot)
 

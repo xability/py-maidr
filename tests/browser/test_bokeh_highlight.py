@@ -426,3 +426,46 @@ def test_an_harea_cursor_sits_on_the_bands_right_edge(browser, tmp_path):
         assert not errors, errors
     finally:
         page.close()
+
+
+def test_a_candlestick_selects_the_wick_and_body_it_announces(browser, tmp_path):
+    import pandas as pd
+    from bokeh.plotting import figure
+
+    df = pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=3),
+            "open": [10.0, 12.0, 11.0],
+            "close": [12.0, 11.0, 13.0],
+            "high": [13.0, 13.5, 14.0],
+            "low": [9.0, 10.0, 10.5],
+        }
+    )
+    inc, dec = df.close > df.open, df.open > df.close
+    p = figure(x_axis_type="datetime", x_axis_label="Day", y_axis_label="Price")
+    wick = p.segment(df.date, df.high, df.date, df.low, color="black")
+    falling = p.vbar(df.date[dec], 43200000, df.open[dec], df.close[dec])
+    rising = p.vbar(df.date[inc], 43200000, df.open[inc], df.close[inc])
+    page, errors = _open(browser, _save(p, tmp_path / "candles.html"))
+    try:
+        assert _step(page, "ArrowRight") == (
+            "Day is 2024-01-01, close Price is 12, trend is bull"
+        )
+        assert page.evaluate(_SELECTED, wick.id) == [0]
+        assert page.evaluate(_SELECTED, rising.id) == [0]
+        assert page.evaluate(_SELECTED, falling.id) == []
+
+        assert _step(page, "ArrowRight").startswith(
+            "Day is 2024-01-02, close Price is 11, trend is bear"
+        )
+        assert page.evaluate(_SELECTED, wick.id) == [1]
+        assert page.evaluate(_SELECTED, falling.id) == [0]
+        assert page.evaluate(_SELECTED, rising.id) == []
+
+        # Moving between prices of one candle keeps it highlighted.
+        assert _step(page, "ArrowUp").startswith("Day is 2024-01-02, open Price is 12")
+        assert page.evaluate(_SELECTED, wick.id) == [1]
+        assert page.evaluate(_SELECTED, falling.id) == [0]
+        assert not errors, errors
+    finally:
+        page.close()

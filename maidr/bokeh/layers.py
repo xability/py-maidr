@@ -17,6 +17,7 @@ Bokeh                                       MAIDR layer
 ``varea`` / ``varea_stack``                 ``area`` / ``stacked_area``
 ``harea`` / ``harea_stack``                 ``area`` / ``stacked_area``
 ``wedge`` / ``annular_wedge``               ``pie``
+``segment`` + ``vbar`` on a date axis (OHLC)  ``candlestick``
 ==========================================  ==================
 
 Anything else is skipped with a warning naming the glyph.
@@ -92,7 +93,9 @@ class BokehLayer:
         "grid": ...}`` or ``{"kind": "points", "points": ...}`` naming
         ``[renderer id, source row]`` pairs, or ``{"kind": "cursor"}`` with
         a ``grid`` or ``points`` naming ``[x, y]`` data coordinates for a
-        cursor glyph instead.
+        cursor glyph instead. A layer the core reports by column alone --
+        a candlestick -- has ``columns`` in place of ``grid``: per column,
+        the list of cells to highlight together.
     x_range_name, y_range_name : str
         The ranges a cursor for this layer must be placed on.
     renderers : list of bokeh.models.GlyphRenderer
@@ -105,6 +108,29 @@ class BokehLayer:
     x_range_name: str = "default"
     y_range_name: str = "default"
     renderers: list = field(default_factory=list)
+
+
+@dataclass
+class _Candles:
+    """
+    A candlestick recognised across renderers, read once.
+
+    Attributes
+    ----------
+    candles : list of dict
+        One ``{value, open, high, low, close[, volume]}`` per candle, by date.
+    cells : list of list
+        Per candle, the ``[renderer id, source row]`` of its wick and body.
+    bodies : list of bokeh.models.GlyphRenderer
+        The ``vbar`` renderers the bodies came from.
+    bodiless : int
+        How many wicks had no body and were left out.
+    """
+
+    candles: list
+    cells: list
+    bodies: list
+    bodiless: int = 0
 
 
 class PlotReader:
@@ -130,6 +156,10 @@ class PlotReader:
         legend = _legend(plot)
         self._legend_labels, self._legend_rows, self._legend_fields = legend[:3]
         self._legend_title = legend[3]
+        #: Renderer id to the candlestick it is part of, and what each
+        #: candlestick read as; see :meth:`_find_candlesticks`.
+        self._candle_keys: dict[str, tuple] = {}
+        self._candle_reads: dict[tuple, _Candles] = {}
 
     # ------------------------------------------------------------------ #
     #  Plot-level reading                                                  #
@@ -199,7 +229,7 @@ class PlotReader:
         """
         from bokeh.models import ColumnDataSource, GlyphRenderer
 
-        groups: dict[tuple, list] = {}
+        readable = []
         for renderer in self._plot.renderers:
             if not getattr(renderer, "visible", True):
                 continue
@@ -216,6 +246,13 @@ class PlotReader:
                     f"{type(renderer.glyph).__name__} glyph using it is left out."
                 )
                 continue
+            readable.append(renderer)
+
+        # A candlestick is several renderers that only mean OHLC together,
+        # so it is recognised across the plot before anything is grouped.
+        self._find_candlesticks(readable)
+        groups: dict[tuple, list] = {}
+        for renderer in readable:
             try:
                 key = self._group_key(renderer)
             except Exception as reason:
@@ -249,6 +286,7 @@ class PlotReader:
             "area": self._area,
             "stacked_area": self._stacked_area,
             "pie": self._pie,
+            "candlestick": self._candlestick,
         }
         layers: list[BokehLayer] = []
         for key, renderers in groups.items():
@@ -275,6 +313,8 @@ class PlotReader:
         """Which layer a renderer belongs to, or ``None`` if unsupported."""
         from bokeh.models import CumSum, Stack
 
+        if renderer.id in self._candle_keys:
+            return self._candle_keys[renderer.id]
         glyph = renderer.glyph
         name = type(glyph).__name__
         if name in ("VBar", "HBar"):
@@ -1057,6 +1097,188 @@ class PlotReader:
         return [None] * n, None
 
     # ------------------------------------------------------------------ #
+    #  Candlestick                                                         #
+    # ------------------------------------------------------------------ #
+
+    def _find_candlesticks(self, renderers: list) -> None:
+        """
+        Recognise the renderers Bokeh's OHLC recipe draws a candlestick with.
+
+        Bokeh has no candlestick glyph. Its documented recipe draws one
+        ``segment`` from each day's high to its low -- the wicks -- and one
+        or two ``vbar`` renderers between open and close -- the bodies,
+        usually one renderer for rising days and one for falling. A wick
+        renderer and the bodies standing on its dates are read together as
+        one ``candlestick`` layer, and only when that reading is certain
+        (see :meth:`_read_candles`); anything less leaves every renderer to
+        be read on its own -- the bodies as bars, the segment warned about
+        -- as before.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The plot's readable renderers.
+        """
+        wicks = [r for r in renderers if type(r.glyph).__name__ == "Segment"]
+        bodies = [r for r in renderers if type(r.glyph).__name__ == "VBar"]
+        for wick in wicks:
+            ranges = (wick.x_range_name, wick.y_range_name)
+            free = [
+                body
+                for body in bodies
+                if body.id not in self._candle_keys
+                and (body.x_range_name, body.y_range_name) == ranges
+            ]
+            try:
+                read = self._read_candles(wick, free)
+            except Exception:
+                # Not read as a candlestick is not a failure: the renderers
+                # are read one by one, and warned about there if need be.
+                read = None
+            if read is None:
+                continue
+            key = ("candlestick", wick.id)
+            self._candle_reads[key] = read
+            for renderer in (wick, *read.bodies):
+                self._candle_keys[renderer.id] = key
+
+    def _read_candles(self, wick: Any, bodies: list) -> _Candles | None:
+        """
+        Read one wick renderer and the bodies on its dates as candles.
+
+        The wicks must be vertical segments, one per date, on a datetime
+        axis; every body a candidate ``vbar`` draws must stand on one of
+        those dates, and no date may have two. High and low are the wick's
+        ends. Open and close are the body's, which way round decided by
+        :func:`_open_close`. A wick with no body -- the recipe's
+        ``inc``/``dec`` split leaves a day that closed where it opened with
+        none -- has no open or close to read, and is left out.
+
+        Parameters
+        ----------
+        wick : bokeh.models.GlyphRenderer
+            A ``segment`` renderer.
+        bodies : list of bokeh.models.GlyphRenderer
+            The ``vbar`` renderers on the same ranges not yet claimed.
+
+        Returns
+        -------
+        _Candles or None
+            The candles, or ``None`` when this is not certainly OHLC.
+        """
+        from bokeh.models import CumSum, Stack
+
+        glyph = wick.glyph
+        data = wick.data_source.data
+        x0, x1 = resolve(glyph, "x0", data), resolve(glyph, "x1", data)
+        y0, y1 = resolve(glyph, "y0", data), resolve(glyph, "y1", data)
+        rows = visible_indices(wick, source_length(data))
+        if not (self._x_dates or is_temporal([x0[i] for i in rows])):
+            return None
+        stems: dict = {}
+        for index in rows:
+            if any(is_missing(v[index]) for v in (x0, x1, y0, y1)):
+                continue
+            at = to_coordinate(x0[index])
+            if at != to_coordinate(x1[index]) or at in stems:
+                return None
+            stems[at] = index
+        if not stems:
+            return None
+
+        on: dict = {}
+        used = []
+        for body in bodies:
+            body_glyph = body.glyph
+            if spec_transform(body_glyph, "x") is not None or any(
+                isinstance(spec_expression(body_glyph, prop), (Stack, CumSum))
+                for prop in ("top", "bottom")
+            ):
+                continue
+            body_data = body.data_source.data
+            xs = resolve(body_glyph, "x", body_data)
+            drawn = [
+                (to_coordinate(xs[i]), i)
+                for i in visible_indices(body, source_length(body_data))
+                if not is_missing(xs[i])
+            ]
+            inside = [(at, i) for at, i in drawn if at in stems]
+            if not inside:
+                continue
+            if len(inside) != len(drawn):
+                # Bars off the wicks' dates are something else drawn with
+                # them -- volume on a twin axis, say -- not bodies.
+                return None
+            for at, index in inside:
+                if at in on:
+                    return None
+                on[at] = (body, index)
+            used.append(body)
+        if not used:
+            return None
+        prices = _open_close(used)
+        if prices is None:
+            return None
+
+        candles, cells = [], []
+        dates = sorted(on)
+        spoken = self._x_native([x0[stems[at]] for at in dates])
+        for at, value in zip(dates, spoken):
+            body, index = on[at]
+            stem = stems[at]
+            opened, closed = prices[body.id][index]
+            ends = (float(y0[stem]), float(y1[stem]))
+            candle = {
+                "value": str(value),
+                "open": opened,
+                "high": max(ends),
+                "low": min(ends),
+                "close": closed,
+            }
+            volume = _volume(body, index)
+            if volume is None:
+                volume = _volume(wick, stem)
+            if volume is not None:
+                candle["volume"] = volume
+            candles.append(candle)
+            cells.append([[wick.id, stem], [body.id, index]])
+        return _Candles(candles, cells, used, len(stems) - len(on))
+
+    def _candlestick(self, renderers: list) -> BokehLayer | None:
+        """
+        A wick ``segment`` and its body ``vbar`` s, read as a candlestick.
+
+        The data is the shape the matplotlib and Plotly candlestick paths
+        emit -- ``value``, ``open``, ``high``, ``low``, ``close`` per candle,
+        ``volume`` only when the source has a volume column -- with no
+        ``trend`` or ``volatility``, which the core derives itself.
+
+        The core reports a candle by its column alone -- its row is which
+        of open, high, low and close is being read -- so the highlight is
+        keyed by ``columns``: selecting the candle's wick and body rows.
+
+        Parameters
+        ----------
+        renderers : list of bokeh.models.GlyphRenderer
+            The wick and body renderers grouped into this layer.
+
+        Returns
+        -------
+        BokehLayer or None
+            The ``candlestick`` layer.
+        """
+        read = self._candle_reads[self._candle_keys[renderers[0].id]]
+        if read.bodiless:
+            wicks = "wick has" if read.bodiless == 1 else "wicks have"
+            warn(
+                f"{read.bodiless} candlestick {wicks} no body, so the open and "
+                "close are not in the figure; left out of the accessible chart."
+            )
+        schema = self._schema(PlotType.CANDLESTICK, read.candles)
+        highlight = {"kind": "select", "columns": read.cells}
+        return BokehLayer(schema, self._plot, highlight)
+
+    # ------------------------------------------------------------------ #
     #  Scatter and heatmap                                                 #
     # ------------------------------------------------------------------ #
 
@@ -1783,3 +2005,117 @@ def _only_name(names: list[str]) -> str | None:
     """
     distinct = set(names)
     return distinct.pop() if len(distinct) == 1 else None
+
+
+def _open_close(bodies: list) -> dict | None:
+    """
+    Each body's open and close, when which end is which is certain.
+
+    A ``vbar`` body is drawn between ``top`` and ``bottom`` whichever is
+    larger, so its ends alone do not say which is the open. Two readings
+    are certain enough to announce:
+
+    * every body's source has ``open`` and ``close`` columns (any case)
+      and they are the ends the body is drawn between -- a figure built on
+      one ``ColumnDataSource(df)`` with views for rising and falling days;
+    * some body is drawn upside down, ``top`` below ``bottom``, which only
+      happens when the author passed the prices straight through, as
+      Bokeh's own recipe does (``vbar(date, w, df.open[inc],
+      df.close[inc])``): then ``top`` is the open and ``bottom`` the close
+      for every body.
+
+    Bodies drawn ``top >= bottom`` throughout with no price columns could be
+    either way up, and are not guessed at -- fill colours are not read.
+
+    Parameters
+    ----------
+    bodies : list of bokeh.models.GlyphRenderer
+        The ``vbar`` renderers drawing the bodies.
+
+    Returns
+    -------
+    dict or None
+        Renderer id to ``{source row: (open, close)}``, or ``None``.
+    """
+    ends = {}
+    for body in bodies:
+        data = body.data_source.data
+        rows = visible_indices(body, source_length(data))
+        tops = resolve(body.glyph, "top", data)
+        bottoms = resolve(body.glyph, "bottom", data)
+        ends[body.id] = {
+            i: (float(tops[i]), float(bottoms[i]))
+            for i in rows
+            if not is_missing(tops[i]) and not is_missing(bottoms[i])
+        }
+
+    columns = {}
+    for body in bodies:
+        data = body.data_source.data
+        opens = resolve_column(data, _named(data, "open"))
+        closes = resolve_column(data, _named(data, "close"))
+        if opens is None or closes is None:
+            break
+        columns[body.id] = (opens, closes)
+    if len(columns) == len(bodies):
+        prices: dict = {}
+        for body_id, rows in ends.items():
+            opens, closes = columns[body_id]
+            prices[body_id] = {}
+            for i, (top, bottom) in rows.items():
+                if is_missing(opens[i]) or is_missing(closes[i]):
+                    return None
+                pair = (float(opens[i]), float(closes[i]))
+                if not np.allclose(sorted(pair), sorted((top, bottom))):
+                    return None
+                prices[body_id][i] = pair
+        return prices
+
+    if any(top < bottom for rows in ends.values() for top, bottom in rows.values()):
+        return {body_id: dict(rows) for body_id, rows in ends.items()}
+    return None
+
+
+def _named(data: dict, word: str) -> str | None:
+    """
+    The source column called ``word``, in any case.
+
+    Parameters
+    ----------
+    data : dict
+        A ``ColumnDataSource.data`` mapping.
+    word : str
+        The lower-case name.
+
+    Returns
+    -------
+    str or None
+        The column's own name, or ``None`` when there is none.
+    """
+    return next((name for name in data if str(name).lower() == word), None)
+
+
+def _volume(renderer: Any, index: int) -> float | None:
+    """
+    A candle's volume, from a ``volume`` column of its source, if any.
+
+    Parameters
+    ----------
+    renderer : bokeh.models.GlyphRenderer
+        A wick or body renderer.
+    index : int
+        The candle's source row.
+
+    Returns
+    -------
+    float or None
+        The volume, or ``None`` when the source has no volume for it.
+    """
+    data = renderer.data_source.data
+    column = resolve_column(data, _named(data, "volume"))
+    if column is None or is_missing(column[index]):
+        return None
+    try:
+        return float(column[index])
+    except (TypeError, ValueError):
+        return None

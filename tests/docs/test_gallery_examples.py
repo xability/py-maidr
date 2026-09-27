@@ -162,6 +162,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Scatter Plot": [["point"]],
         "Heatmap": [["heat"]],
         "Pie Chart": [["pie"]],
+        "Candlestick Chart": [["candlestick"]],
         "Multi-Panel Layout (gridplot)": [["bar", "line"]],
         "Stacked Area Plot [experimental]": [["stacked_area"]],
         "Horizontal Area Plot [experimental]": [["area"]],
@@ -566,3 +567,22 @@ def test_bokeh_harea_steps_through_the_months(gallery: _Gallery) -> None:
     assert band[0][MaidrKey.Y] == 417
     assert layer[MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL] == "Month"
     assert layer[MaidrKey.AXES][MaidrKey.Y][MaidrKey.LABEL] == "Passengers"
+
+
+def test_bokeh_candlestick_is_a_candle_per_date(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "**maidr** reads them together as one candlestick,
+    a candle per date."
+    """
+    layer = gallery.shown("examples-bokeh.qmd", "Candlestick Chart").layer(
+        PlotType.CANDLESTICK
+    )
+
+    candles = layer[MaidrKey.DATA]
+    assert len(candles) == 15
+    assert candles[0]["value"] == "2024-03-01"
+    assert candles[0]["open"] == 100.0
+    assert all(
+        candle["low"] <= min(candle["open"], candle["close"])
+        and candle["high"] >= max(candle["open"], candle["close"])
+        for candle in candles
+    )
