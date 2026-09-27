@@ -6,8 +6,9 @@ announced row of the renderer's data source, or by moving a cursor glyph
 onto a line. These drive the shipped bundle over saved pages and read both
 halves back: what MAIDR announces, and what the Bokeh document now shows.
 
-BokehJS is linked from ``cdn.bokeh.org``; the page is handed the copy the
-installed ``bokeh`` package ships instead -- the same build, since the page
+Pages are saved with ``use_cdn=False``, which inlines BokehJS from the
+installed package. A page that links ``cdn.bokeh.org`` instead is handed the
+copy the installed ``bokeh`` package ships -- the same build, since the page
 links the installed version -- so nothing here needs a network.
 """
 
@@ -552,6 +553,43 @@ def test_an_image_cursor_rings_the_cell_it_announces(browser, tmp_path):
 
         assert _step(page, "ArrowUp") == "X is 0.5, Y is 1.5, Value is 3"
         assert page.evaluate(_CURSOR) == [0.5, 1.5]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_a_page_saved_without_the_cdn_works_with_no_network(browser, tmp_path):
+    # ``use_cdn=False`` is the offline page: BokehJS and maidr.js both come
+    # with it, so a reader with no connection still gets the chart.
+    from bokeh.plotting import figure
+
+    p = figure(x_range=["a", "b"], x_axis_label="Store", y_axis_label="Units")
+    renderer = p.vbar(x=["a", "b"], top=[7, 3], width=0.9)
+    path = _save(p, tmp_path / "offline.html")
+
+    page = browser.new_page()
+    errors: list[str] = []
+    fetched: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
+
+    def offline(route) -> None:
+        fetched.append(route.request.url)
+        route.abort()
+
+    page.route(re.compile(r"^https?://"), offline)
+    try:
+        page.goto(path.as_uri(), wait_until="load")
+        page.wait_for_function(_BUNDLE_READY, timeout=_PARSE_TIMEOUT_MS)
+        page.wait_for_selector(
+            'article[id^="maidr-article"]', timeout=_PARSE_TIMEOUT_MS
+        )
+        page.wait_for_timeout(500)
+        page.keyboard.press("Tab")
+        page.wait_for_timeout(400)
+
+        assert _step(page, "ArrowRight") == "Store is a, Units is 7"
+        assert page.evaluate(_SELECTED, renderer.id) == [0]
+        assert not [url for url in fetched if "bokeh" in url], fetched
         assert not errors, errors
     finally:
         page.close()

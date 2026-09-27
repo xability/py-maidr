@@ -119,7 +119,9 @@ change without a deprecation period, including in a patch release. The tables
 above describe the *types*; this is about the *reader of Bokeh documents*, which
 has not been through a user study either. See the
 [Bokeh gallery](examples-bokeh.qmd) for what it reads today
-([#813](https://github.com/xability/py-maidr/issues/813)).
+([#813](https://github.com/xability/py-maidr/issues/813)). That includes how
+the page gets BokehJS: from Bokeh's CDN, or inlined from the installed package
+with `use_cdn=False` so a saved page works offline.
 
 ## Drawn but not read
 

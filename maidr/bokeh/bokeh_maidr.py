@@ -7,7 +7,8 @@ here in Python, from the Bokeh *document model* -- the renderers, glyphs and
 data sources the author created (see :mod:`maidr.bokeh.layers`) -- rather
 than from anything BokehJS draws. The page then:
 
-1. loads BokehJS from Bokeh's CDN, at the version installed here;
+1. loads BokehJS at the version installed here: from Bokeh's CDN, or
+   inlined from the installed package when ``use_cdn=False``;
 2. embeds the plot with ``Bokeh.embed.embed_item`` and waits for the
    promise it returns, BokehJS's own word that the views are built;
 3. puts the schema on a wrapper element around the plot as ``maidr-data``
@@ -40,9 +41,12 @@ only while the document is being serialized and removed again in a
 
 Limitations
 -----------
-* BokehJS always comes from ``cdn.bokeh.org``, whatever ``use_cdn`` says,
-  exactly as plotly.js always comes from ``cdn.plot.ly`` on the Plotly
-  path; ``use_cdn`` governs ``maidr.js`` alone.
+* ``use_cdn="auto"`` loads BokehJS from ``cdn.bokeh.org`` with no local
+  fallback, as ``True`` does. A fallback would have to ship the whole of
+  BokehJS (over a megabyte) with every page anyway -- inlined, since
+  ``render()`` has no library folder to put it in -- which is what
+  ``False`` already does; so ``"auto"`` needs a network for BokehJS, and
+  ``False`` is the offline page.
 * Selection is per data source, so renderers sharing one -- the segments of
   a ``vbar_stack``, the groups of a ``dodge()`` chart -- are highlighted
   together at the current category.
@@ -132,7 +136,9 @@ class BokehMaidr:
             * ``"auto"`` (default): attempt the CDN first and fall back
               to the bundled copy client-side if the CDN request fails.
 
-            BokehJS itself is always loaded from Bokeh's CDN.
+            BokehJS is inlined from the installed ``bokeh`` package when
+            ``use_cdn`` is ``False``, so the page works offline; otherwise
+            it is loaded from Bokeh's CDN at the installed version.
         """
         return self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
 
@@ -465,25 +471,41 @@ class BokehMaidr:
     #  HTML                                                                #
     # ------------------------------------------------------------------ #
 
-    def _bokeh_scripts(self) -> list[Tag]:
+    def _bokeh_scripts(self, use_cdn: bool | Literal["auto"] = "auto") -> list[Tag]:
         """
-        The BokehJS ``<script>`` tags this model needs, from Bokeh's CDN.
+        The BokehJS ``<script>`` tags this model needs.
 
         Asks Bokeh which of its bundles the model uses -- widgets and
         tables are separate files -- the way ``bokeh.embed.file_html``
-        does, falling back to the full CDN set if that helper moves.
-        """
-        from bokeh.resources import CDN
+        does, falling back to the full set if that helper moves. With
+        ``use_cdn=False`` the bundles are Bokeh's ``INLINE`` resources, the
+        code of the installed package itself, so a saved page needs no
+        network; otherwise they are ``cdn.bokeh.org`` URLs at the installed
+        version.
 
+        Parameters
+        ----------
+        use_cdn : bool or {"auto"}, default="auto"
+            See :meth:`render`.
+
+        Returns
+        -------
+        list of htmltools.Tag
+            ``<script src>`` tags for the CDN, then inline ``<script>`` s.
+        """
+        from bokeh.resources import CDN, INLINE
+
+        resources = INLINE if use_cdn is False else CDN
         raw: list[str] = []
         try:
             from bokeh.embed.bundle import bundle_for_objs_and_resources
 
-            bundle = bundle_for_objs_and_resources([self._model], CDN)
+            bundle = bundle_for_objs_and_resources([self._model], resources)
             urls = [str(getattr(u, "url", u)) for u in bundle.js_files]
             raw = list(bundle.js_raw)
         except Exception:
-            urls = list(CDN.js_files)
+            urls = list(resources.js_files)
+            raw = list(resources.js_raw)
         return [tags.script(src=url) for url in urls] + [
             tags.script(HTML(code)) for code in raw
         ]
@@ -596,7 +618,7 @@ class BokehMaidr:
             iframe_in_notebook=iframe_in_notebook,
             iframe_inline_bundle=iframe_inline_bundle,
         )
-        children.extend(self._bokeh_scripts())
+        children.extend(self._bokeh_scripts(use_cdn))
         children.append(tags.div(tags.div(id=target_id), id=wrapper_id))
         children.append(tags.script(HTML(init_script), type="text/javascript"))
 

@@ -348,8 +348,9 @@ These may change without a deprecation period; see [Plot Type Stability](stabili
 Bokeh draws to a canvas, so the mark being read is highlighted inside the Bokeh
 plot itself: a bar, bin, cell or point is selected, and a line, step or area
 shows a ring on the current point. Other glyphs are left out with a warning
-naming them. BokehJS is always loaded from Bokeh's CDN, as plotly.js is from
-Plotly's; `use_cdn` decides where `maidr.js` comes from. See the
+naming them. BokehJS is loaded from Bokeh's CDN, or inlined from your
+installed `bokeh` with `use_cdn=False` for a page that works offline; `use_cdn`
+decides where `maidr.js` comes from too. See the
 [Bokeh gallery](examples-bokeh.qmd#sec-bokeh-examples) for runnable examples.
 
 ### Altair

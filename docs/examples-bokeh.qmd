@@ -689,6 +689,13 @@ or below.
 
 `maidr.save_html(p, "chart.html")` writes the same page to a file.
 `use_cdn` decides where `maidr.js` comes from, exactly as for matplotlib and
-Plotly; BokehJS itself is always loaded from Bokeh's CDN at the version you
-have installed, as plotly.js is from Plotly's, so opening the page needs a
-network connection either way.
+Plotly, and where BokehJS comes from too:
+
+* `use_cdn=False` inlines BokehJS from your installed `bokeh` package and
+  ships the bundled `maidr.js`, so the saved page works with no network
+  connection. BokehJS is over a megabyte, so the page is that much larger.
+* `use_cdn=True` and the default `"auto"` load BokehJS from Bokeh's CDN, at the
+  version you have installed, so opening the page needs a network connection.
+  `"auto"` falls back to the bundled copy for `maidr.js` only; a local
+  fallback for BokehJS would have to carry the whole of it in every page,
+  which is what `False` is for.
