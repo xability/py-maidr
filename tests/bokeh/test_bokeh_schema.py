@@ -905,7 +905,10 @@ class TestHexbin:
             np.array([0, 0.1, 1, 0, 0.1, 0, 1]),
             size=0.5,
         )
-        assert list(bins.q) == [0, 2, 2, 3, -1] and list(bins.r) == [0, 0, -1, 0, -1]
+        # Bokeh's own bin order differs between versions (3.4 on Python 3.9
+        # lists them differently from 3.9), so rows are found by (q, r).
+        row_of = {(q, r): i for i, (q, r) in enumerate(zip(bins.q, bins.r))}
+        assert set(row_of) == {(0, 0), (2, 0), (2, -1), (3, 0), (-1, -1)}
 
         maidr_ = BokehMaidr(p)
         layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
@@ -931,8 +934,9 @@ class TestHexbin:
         assert maidr_.layers[0].highlight == {
             "kind": "select",
             "grid": [
-                [[renderer.id, 0], [renderer.id, 1], [renderer.id, 3]],
-                [[renderer.id, 4], [renderer.id, 2]],
+                [[renderer.id, row_of[(0, 0)]], [renderer.id, row_of[(2, 0)]],
+                 [renderer.id, row_of[(3, 0)]]],
+                [[renderer.id, row_of[(-1, -1)]], [renderer.id, row_of[(2, -1)]]],
             ],
         }
 
