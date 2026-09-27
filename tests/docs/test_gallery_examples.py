@@ -81,9 +81,9 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
     },
     "examples/box-boxen-violin.qmd": {
         "Box Plot": [["box"]],
-        "Boxen Plot (Letter-Value Plot) [experimental]": [["boxen"]],
         "Seaborn Violin Plot (Horizontal)": [["violin_box + violin_kde"]],
         "Matplotlib Violin Plot": [["violin_box + violin_kde"]],
+        "Boxen Plot (Letter-Value Plot) [experimental]": [["boxen"]],
     },
     "examples/candlestick-gantt.qmd": {
         # The candles, the three moving averages as one line layer, and the
@@ -161,8 +161,8 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Step Plot": [["step"]],
         "Scatter Plot": [["point"]],
         "Heatmap": [["heat"]],
-        "Stacked Area Plot [experimental]": [["stacked_area"]],
         "Multi-Panel Layout (gridplot)": [["bar", "line"]],
+        "Stacked Area Plot [experimental]": [["stacked_area"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],

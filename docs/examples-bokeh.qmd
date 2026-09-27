@@ -363,6 +363,43 @@ p.add_layout(cells.construct_color_bar(title="Passengers"), "right")
 maidr.show(p)  #<<
 ```
 
+### Multi-Panel Layout (gridplot)
+
+```{python}
+#| warning: false
+#| fig-alt: Two panels side by side, a bar chart of penguins per species and a line of passengers per year
+
+import seaborn as sns
+from bokeh.layouts import gridplot
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins")
+flights = sns.load_dataset("flights")
+counts = penguins["species"].value_counts().sort_index()
+per_year = flights.groupby("year")["passengers"].sum()
+
+left = figure(
+    x_range=counts.index.tolist(), title="Penguins per Species",
+    x_axis_label="Species", y_axis_label="Penguins", width=350, height=300,
+)
+left.vbar(x=counts.index.tolist(), top=counts.tolist(), width=0.8)
+
+right = figure(
+    title="Passengers per Year", x_axis_label="Year",
+    y_axis_label="Passengers", width=350, height=300,
+)
+right.line(per_year.index.tolist(), per_year.tolist(), line_width=2)
+
+maidr.show(gridplot([[left, right]]))  #<<
+```
+
+Each figure of a `gridplot`, `row` or `column` is a subplot. Press
+<kbd>Enter</kbd> to go into one, <kbd>Escape</kbd> to come back out, and the
+arrow keys between them, in the directions they are laid out on the page. A
+figure with nothing **maidr** can read is left out of the grid.
+
 ### Stacked Area Plot [experimental]
 
 ```{python}
@@ -400,43 +437,6 @@ p.legend.location = "top_left"
 
 maidr.show(p)  #<<
 ```
-
-### Multi-Panel Layout (gridplot)
-
-```{python}
-#| warning: false
-#| fig-alt: Two panels side by side, a bar chart of penguins per species and a line of passengers per year
-
-import seaborn as sns
-from bokeh.layouts import gridplot
-from bokeh.plotting import figure
-
-import maidr  #<<
-
-penguins = sns.load_dataset("penguins")
-flights = sns.load_dataset("flights")
-counts = penguins["species"].value_counts().sort_index()
-per_year = flights.groupby("year")["passengers"].sum()
-
-left = figure(
-    x_range=counts.index.tolist(), title="Penguins per Species",
-    x_axis_label="Species", y_axis_label="Penguins", width=350, height=300,
-)
-left.vbar(x=counts.index.tolist(), top=counts.tolist(), width=0.8)
-
-right = figure(
-    title="Passengers per Year", x_axis_label="Year",
-    y_axis_label="Passengers", width=350, height=300,
-)
-right.line(per_year.index.tolist(), per_year.tolist(), line_width=2)
-
-maidr.show(gridplot([[left, right]]))  #<<
-```
-
-Each figure of a `gridplot`, `row` or `column` is a subplot. Press
-<kbd>Enter</kbd> to go into one, <kbd>Escape</kbd> to come back out, and the
-arrow keys between them, in the directions they are laid out on the page. A
-figure with nothing **maidr** can read is left out of the grid.
 
 ## Saving and embedding
 
