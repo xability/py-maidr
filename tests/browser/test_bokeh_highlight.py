@@ -6,8 +6,9 @@ announced row of the renderer's data source, or by moving a cursor glyph
 onto a line. These drive the shipped bundle over saved pages and read both
 halves back: what MAIDR announces, and what the Bokeh document now shows.
 
-BokehJS is linked from ``cdn.bokeh.org``; the page is handed the copy the
-installed ``bokeh`` package ships instead -- the same build, since the page
+Pages are saved with ``use_cdn=False``, which inlines BokehJS from the
+installed package. A page that links ``cdn.bokeh.org`` instead is handed the
+copy the installed ``bokeh`` package ships -- the same build, since the page
 links the installed version -- so nothing here needs a network.
 """
 
@@ -370,6 +371,273 @@ def test_up_and_down_between_subplots_follow_the_page(browser, tmp_path):
         assert _step(page, "ArrowRight").startswith("Subplot 2 of 4, top right")
         # The gap under ``top right`` is a subplot with nothing in it.
         assert _step(page, "ArrowDown").startswith("Subplot 4 of 4 is empty")
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_a_pie_selects_the_slice_it_announces_walking_clockwise(browser, tmp_path):
+    # Bokeh draws the usual ``cumsum`` pie counterclockwise from 3 o'clock,
+    # so Right, which walks clockwise, starts on the row drawn last.
+    import math
+
+    from bokeh.models import ColumnDataSource
+    from bokeh.plotting import figure
+    from bokeh.transform import cumsum
+
+    source = ColumnDataSource(
+        {
+            "fruit": ["Apples", "Pears", "Plums"],
+            "count": [5, 3, 2],
+            "angle": [c / 10 * 2 * math.pi for c in (5, 3, 2)],
+        }
+    )
+    p = figure()
+    renderer = p.wedge(
+        x=0, y=0, radius=1, source=source, legend_field="fruit",
+        start_angle=cumsum("angle", include_zero=True), end_angle=cumsum("angle"),
+    )
+    page, errors = _open(browser, _save(p, tmp_path / "pie.html"))
+    try:
+        assert _step(page, "ArrowRight").startswith("fruit is Plums, count is 2")
+        assert page.evaluate(_SELECTED, renderer.id) == [2]
+
+        assert _step(page, "ArrowRight").startswith("fruit is Pears, count is 3")
+        assert page.evaluate(_SELECTED, renderer.id) == [1]
+
+        assert _step(page, "ArrowRight").startswith("fruit is Apples, count is 5")
+        assert page.evaluate(_SELECTED, renderer.id) == [0]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_an_harea_cursor_sits_on_the_bands_right_edge(browser, tmp_path):
+    from bokeh.plotting import figure
+
+    p = figure(x_axis_label="Depth", y_axis_label="Level")
+    p.harea(y=[1, 2, 3], x1=0, x2=[2, 4, 3])
+    page, errors = _open(browser, _save(p, tmp_path / "harea.html"))
+    try:
+        assert _step(page, "ArrowRight").startswith("Level is 1, Depth is 2")
+        assert page.evaluate(_CURSOR) == [2, 1]
+
+        assert _step(page, "ArrowRight").startswith("Level is 2, Depth is 4")
+        assert page.evaluate(_CURSOR) == [4, 2]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_a_candlestick_selects_the_wick_and_body_it_announces(browser, tmp_path):
+    import pandas as pd
+    from bokeh.plotting import figure
+
+    df = pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=3),
+            "open": [10.0, 12.0, 11.0],
+            "close": [12.0, 11.0, 13.0],
+            "high": [13.0, 13.5, 14.0],
+            "low": [9.0, 10.0, 10.5],
+        }
+    )
+    inc, dec = df.close > df.open, df.open > df.close
+    p = figure(x_axis_type="datetime", x_axis_label="Day", y_axis_label="Price")
+    wick = p.segment(df.date, df.high, df.date, df.low, color="black")
+    falling = p.vbar(df.date[dec], 43200000, df.open[dec], df.close[dec])
+    rising = p.vbar(df.date[inc], 43200000, df.open[inc], df.close[inc])
+    page, errors = _open(browser, _save(p, tmp_path / "candles.html"))
+    try:
+        assert _step(page, "ArrowRight") == (
+            "Day is 2024-01-01, close Price is 12, trend is bull"
+        )
+        assert page.evaluate(_SELECTED, wick.id) == [0]
+        assert page.evaluate(_SELECTED, rising.id) == [0]
+        assert page.evaluate(_SELECTED, falling.id) == []
+
+        assert _step(page, "ArrowRight").startswith(
+            "Day is 2024-01-02, close Price is 11, trend is bear"
+        )
+        assert page.evaluate(_SELECTED, wick.id) == [1]
+        assert page.evaluate(_SELECTED, falling.id) == [0]
+        assert page.evaluate(_SELECTED, rising.id) == []
+
+        # Moving between prices of one candle keeps it highlighted.
+        assert _step(page, "ArrowUp").startswith("Day is 2024-01-02, open Price is 12")
+        assert page.evaluate(_SELECTED, wick.id) == [1]
+        assert page.evaluate(_SELECTED, falling.id) == [0]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_a_gantt_selects_the_task_it_announces(browser, tmp_path):
+    import pandas as pd
+    from bokeh.plotting import figure
+
+    day = pd.Timestamp
+    p = figure(
+        y_range=["Test", "Build", "Design"], x_axis_type="datetime",
+        x_axis_label="Date", y_axis_label="Task",
+    )
+    # Source rows top lane first; the lanes run bottom to top on screen.
+    renderer = p.hbar(
+        y=["Design", "Build", "Build", "Test"],
+        left=[day("2024-01-01"), day("2024-01-05"), day("2024-01-10"),
+              day("2024-01-12")],
+        right=[day("2024-01-05"), day("2024-01-08"), day("2024-01-12"),
+               day("2024-01-15")],
+        height=0.5,
+    )
+    page, errors = _open(browser, _save(p, tmp_path / "gantt.html"))
+    try:
+        # The bottom lane first, its ends spelled back as dates.
+        assert _step(page, "ArrowRight") == (
+            "Task is Test, Date is 2024-01-12 through 2024-01-15, Length is 3 days"
+        )
+        assert page.evaluate(_SELECTED, renderer.id) == [3]
+
+        assert _step(page, "ArrowUp") == (
+            "Task is Build, Date is 2024-01-05 through 2024-01-08, Length is 3 days"
+        )
+        assert page.evaluate(_SELECTED, renderer.id) == [1]
+
+        assert _step(page, "ArrowRight") == (
+            "Task is Build, Date is 2024-01-10 through 2024-01-12, Length is 2 days"
+        )
+        assert page.evaluate(_SELECTED, renderer.id) == [2]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_a_hexbin_selects_the_tile_it_announces(browser, tmp_path):
+    import numpy as np
+    from bokeh.plotting import figure
+
+    p = figure(match_aspect=True)
+    renderer, _ = p.hexbin(
+        np.array([0, 0.1, 1, 2, 2.1, 2.2, -1]),
+        np.array([0, 0.1, 1, 0, 0.1, 0, 1]),
+        size=0.5,
+    )
+    page, errors = _open(browser, _save(p, tmp_path / "hexbin.html"))
+    try:
+        assert _step(page, "ArrowRight") == "X is 0, Y is 0, count is 2"
+        assert page.evaluate(_SELECTED, renderer.id) == [0]
+
+        assert _step(page, "ArrowRight") == "X is 1.73, Y is 0, count is 2"
+        assert page.evaluate(_SELECTED, renderer.id) == [1]
+
+        # Up lands on the nearest tile of the staggered row above.
+        assert _step(page, "ArrowUp") == "X is 1.3, Y is 0.75, count is 1"
+        assert page.evaluate(_SELECTED, renderer.id) == [2]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_an_image_cursor_rings_the_cell_it_announces(browser, tmp_path):
+    import numpy as np
+    from bokeh.plotting import figure
+
+    p = figure()
+    p.image(image=[np.array([[1, 2], [3, 4]])], x=0, y=0, dw=2, dh=2,
+            palette="Viridis256")
+    page, errors = _open(browser, _save(p, tmp_path / "image.html"))
+    try:
+        # Array row 0 is the bottom row, where the reader starts.
+        assert _step(page, "ArrowRight") == "X is 0.5, Y is 0.5, Value is 1"
+        assert page.evaluate(_CURSOR) == [0.5, 0.5]
+
+        assert _step(page, "ArrowUp") == "X is 0.5, Y is 1.5, Value is 3"
+        assert page.evaluate(_CURSOR) == [0.5, 1.5]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_a_page_saved_without_the_cdn_works_with_no_network(browser, tmp_path):
+    # ``use_cdn=False`` is the offline page: BokehJS and maidr.js both come
+    # with it, so a reader with no connection still gets the chart.
+    from bokeh.plotting import figure
+
+    p = figure(x_range=["a", "b"], x_axis_label="Store", y_axis_label="Units")
+    renderer = p.vbar(x=["a", "b"], top=[7, 3], width=0.9)
+    path = _save(p, tmp_path / "offline.html")
+
+    page = browser.new_page()
+    errors: list[str] = []
+    fetched: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
+
+    def offline(route) -> None:
+        fetched.append(route.request.url)
+        route.abort()
+
+    page.route(re.compile(r"^https?://"), offline)
+    try:
+        page.goto(path.as_uri(), wait_until="load")
+        page.wait_for_function(_BUNDLE_READY, timeout=_PARSE_TIMEOUT_MS)
+        page.wait_for_selector(
+            'article[id^="maidr-article"]', timeout=_PARSE_TIMEOUT_MS
+        )
+        page.wait_for_timeout(500)
+        page.keyboard.press("Tab")
+        page.wait_for_timeout(400)
+
+        assert _step(page, "ArrowRight") == "Store is a, Units is 7"
+        assert page.evaluate(_SELECTED, renderer.id) == [0]
+        assert not [url for url in fetched if "bokeh" in url], fetched
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+#: Focuses the chart the moment maidr.js mounts it, before the page has
+#: handed over its highlight callback -- a reader tabbing in at once.
+_FOCUS_ON_MOUNT = """(() => {
+  const grab = () => {
+    const plot = document.querySelector(
+      'article[id^="maidr-article"] [tabindex="0"]');
+    if (!plot) return false;
+    plot.focus();
+    window.__maidrFocusedAt = performance.now();
+    return true;
+  };
+  new MutationObserver((_, observer) => {
+    if (grab()) observer.disconnect();
+  }).observe(document, { childList: true, subtree: true });
+})();"""
+
+
+def test_a_reader_who_focuses_at_once_still_gets_the_highlight(browser, tmp_path):
+    # The callback reaches maidr.js through ``maidrLive.setData`` a couple of
+    # frames after the chart mounts, and maidr.js only builds it into the
+    # controller on a focus-in. Focused before then, the reader heard the
+    # chart with nothing highlighted until they left it and came back.
+    from bokeh.plotting import figure
+
+    p = figure(x_range=["a", "b"], x_axis_label="Store", y_axis_label="Units")
+    renderer = p.vbar(x=["a", "b"], top=[7, 3], width=0.9)
+    path = _save(p, tmp_path / "early.html")
+
+    page = browser.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
+    page.add_init_script(_FOCUS_ON_MOUNT)
+    try:
+        page.goto(path.as_uri(), wait_until="load")
+        page.wait_for_function(
+            "() => window.__maidrFocusedAt !== undefined", timeout=_PARSE_TIMEOUT_MS
+        )
+        page.wait_for_timeout(800)
+
+        assert _step(page, "ArrowRight") == "Store is a, Units is 7"
+        assert page.evaluate(_SELECTED, renderer.id) == [0]
+        assert _step(page, "ArrowRight") == "Store is b, Units is 3"
+        assert page.evaluate(_SELECTED, renderer.id) == [1]
         assert not errors, errors
     finally:
         page.close()

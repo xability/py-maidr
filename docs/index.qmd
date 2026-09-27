@@ -335,7 +335,11 @@ whichever plot type is drawn: see [Plot Type Stability](stability.qmd#bokeh-supp
 
 * Scatter plot (`scatter`, `circle`).
 
-* Heatmap (`rect` coloured through a colour mapper) having one x (categorical) and one y (categorical) and z (numerical) axis, named by its colour bar's title.
+* Heatmap (`rect` coloured through a colour mapper) having one x (categorical) and one y (categorical) and z (numerical) axis, named by its colour bar's title; or an `image` of up to 10,000 cells.
+
+* Pie chart (`wedge`, `annular_wedge`), walked clockwise and announced with the values the angles were computed from.
+
+* Candlestick chart, drawn as Bokeh's OHLC recipe draws it: `segment` wicks with `vbar` bodies on a datetime axis.
 
 * Multi-panel layouts (`gridplot`, `row`, `column`, `GridBox`); a `Tabs` layout is read one panel at a time, the active one.
 
@@ -343,13 +347,18 @@ whichever plot type is drawn: see [Plot Type Stability](stability.qmd#bokeh-supp
 
 These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
 
-* Area [experimental] and stacked area [experimental] plots (`varea`, `varea_stack`).
+* Area [experimental] and stacked area [experimental] plots (`varea`, `varea_stack`, `harea`, `harea_stack`).
+
+* Gantt chart [experimental] (`hbar` running from one date to another).
+
+* Hexbin plot [experimental] (`hex_tile`, as `p.hexbin` draws it).
 
 Bokeh draws to a canvas, so the mark being read is highlighted inside the Bokeh
-plot itself: a bar, bin, cell or point is selected, and a line, step or area
+plot itself: a bar, bin, cell, slice, candle or point is selected, and a line, step or area
 shows a ring on the current point. Other glyphs are left out with a warning
-naming them. BokehJS is always loaded from Bokeh's CDN, as plotly.js is from
-Plotly's; `use_cdn` decides where `maidr.js` comes from. See the
+naming them. BokehJS is loaded from Bokeh's CDN, or inlined from your
+installed `bokeh` with `use_cdn=False` for a page that works offline; `use_cdn`
+decides where `maidr.js` comes from too. See the
 [Bokeh gallery](examples-bokeh.qmd#sec-bokeh-examples) for runnable examples.
 
 ### Altair

@@ -7,7 +7,8 @@ here in Python, from the Bokeh *document model* -- the renderers, glyphs and
 data sources the author created (see :mod:`maidr.bokeh.layers`) -- rather
 than from anything BokehJS draws. The page then:
 
-1. loads BokehJS from Bokeh's CDN, at the version installed here;
+1. loads BokehJS at the version installed here: from Bokeh's CDN, or
+   inlined from the installed package when ``use_cdn=False``;
 2. embeds the plot with ``Bokeh.embed.embed_item`` and waits for the
    promise it returns, BokehJS's own word that the views are built;
 3. puts the schema on a wrapper element around the plot as ``maidr-data``
@@ -27,11 +28,14 @@ which is JSON. It is registered instead through
 mounted: ``maidr.js`` stores that object as the chart's data and builds its
 controller from it on the next focus-in, which is when the callback is
 wired (``useMaidrController.ts``, ``Controller.registerNavigateCallback``).
+A reader already inside the chart by then -- it takes a couple of frames --
+has a controller built without it, so the page also sends the data once as
+a ``live`` update, which ``maidr.js`` swaps into a running controller.
 
-The callback then selects the data-source row of a bar, bin, cell or point
-(Bokeh's default ``nonselection_glyph`` dims the rest), and moves a small
-cursor glyph onto a line, step or area, which have one path and no row to
-select. A bar, bin, cell or point whose data source another drawn mark also
+The callback then selects the data-source rows of a bar, bin, cell, slice,
+candle or point (Bokeh's default ``nonselection_glyph`` dims the rest), and
+moves a small cursor glyph onto a line, step or area, which have one path and
+no row to select. A bar, bin, cell or point whose data source another drawn mark also
 reads -- markers on a line drawn from one source -- gets the cursor too,
 since selecting the row would fade that other mark (see
 ``BokehMaidr._retarget_shared_highlights``). The cursor is added to the plot
@@ -40,9 +44,12 @@ only while the document is being serialized and removed again in a
 
 Limitations
 -----------
-* BokehJS always comes from ``cdn.bokeh.org``, whatever ``use_cdn`` says,
-  exactly as plotly.js always comes from ``cdn.plot.ly`` on the Plotly
-  path; ``use_cdn`` governs ``maidr.js`` alone.
+* ``use_cdn="auto"`` loads BokehJS from ``cdn.bokeh.org`` with no local
+  fallback, as ``True`` does. A fallback would have to ship the whole of
+  BokehJS (over a megabyte) with every page anyway -- inlined, since
+  ``render()`` has no library folder to put it in -- which is what
+  ``False`` already does; so ``"auto"`` needs a network for BokehJS, and
+  ``False`` is the offline page.
 * Selection is per data source, so renderers sharing one -- the segments of
   a ``vbar_stack``, the groups of a ``dodge()`` chart -- are highlighted
   together at the current category.
@@ -132,7 +139,9 @@ class BokehMaidr:
             * ``"auto"`` (default): attempt the CDN first and fall back
               to the bundled copy client-side if the CDN request fails.
 
-            BokehJS itself is always loaded from Bokeh's CDN.
+            BokehJS is inlined from the installed ``bokeh`` package when
+            ``use_cdn`` is ``False``, so the page works offline; otherwise
+            it is loaded from Bokeh's CDN at the installed version.
         """
         return self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
 
@@ -369,6 +378,8 @@ class BokehMaidr:
             if layer.highlight and layer.highlight["kind"] in ("select", "points")
         ]
         selected = {r.id for layer in selecting for r in layer.renderers}
+        # Over the whole layout, not this plot alone: one source can feed
+        # renderers in several subplots, and selecting it fades them all.
         shared = {
             renderer.data_source.id
             for renderer in self._model.select({"type": GlyphRenderer})
@@ -389,6 +400,14 @@ class BokehMaidr:
             if layer.highlight["kind"] == "points":
                 points = [anchor(cell) for cell in layer.highlight["points"]]
                 layer.highlight = {"kind": "cursor", "points": points}
+            elif "columns" in layer.highlight:
+                # A candle is a wick and a body; the ring goes where the one
+                # with an anchor -- the body -- ends.
+                columns = [
+                    [at for at in map(anchor, cells) if at is not None][:1]
+                    for cells in layer.highlight["columns"]
+                ]
+                layer.highlight = {"kind": "cursor", "columns": columns}
             else:
                 grid = [[anchor(c) for c in row] for row in layer.highlight["grid"]]
                 layer.highlight = {"kind": "cursor", "grid": grid}
@@ -455,25 +474,41 @@ class BokehMaidr:
     #  HTML                                                                #
     # ------------------------------------------------------------------ #
 
-    def _bokeh_scripts(self) -> list[Tag]:
+    def _bokeh_scripts(self, use_cdn: bool | Literal["auto"] = "auto") -> list[Tag]:
         """
-        The BokehJS ``<script>`` tags this model needs, from Bokeh's CDN.
+        The BokehJS ``<script>`` tags this model needs.
 
         Asks Bokeh which of its bundles the model uses -- widgets and
         tables are separate files -- the way ``bokeh.embed.file_html``
-        does, falling back to the full CDN set if that helper moves.
-        """
-        from bokeh.resources import CDN
+        does, falling back to the full set if that helper moves. With
+        ``use_cdn=False`` the bundles are Bokeh's ``INLINE`` resources, the
+        code of the installed package itself, so a saved page needs no
+        network; otherwise they are ``cdn.bokeh.org`` URLs at the installed
+        version.
 
+        Parameters
+        ----------
+        use_cdn : bool or {"auto"}, default="auto"
+            See :meth:`render`.
+
+        Returns
+        -------
+        list of htmltools.Tag
+            ``<script src>`` tags for the CDN, then inline ``<script>`` s.
+        """
+        from bokeh.resources import CDN, INLINE
+
+        resources = INLINE if use_cdn is False else CDN
         raw: list[str] = []
         try:
             from bokeh.embed.bundle import bundle_for_objs_and_resources
 
-            bundle = bundle_for_objs_and_resources([self._model], CDN)
+            bundle = bundle_for_objs_and_resources([self._model], resources)
             urls = [str(getattr(u, "url", u)) for u in bundle.js_files]
             raw = list(bundle.js_raw)
         except Exception:
-            urls = list(CDN.js_files)
+            urls = list(resources.js_files)
+            raw = list(resources.js_raw)
         return [tags.script(src=url) for url in urls] + [
             tags.script(HTML(code)) for code in raw
         ]
@@ -586,7 +621,7 @@ class BokehMaidr:
             iframe_in_notebook=iframe_in_notebook,
             iframe_inline_bundle=iframe_inline_bundle,
         )
-        children.extend(self._bokeh_scripts())
+        children.extend(self._bokeh_scripts(use_cdn))
         children.append(tags.div(tags.div(id=target_id), id=wrapper_id))
         children.append(tags.script(HTML(init_script), type="text/javascript"))
 
@@ -728,7 +763,8 @@ _INIT_TEMPLATE = """(function() {
             Object.keys(highlight).forEach(function(layerId) {
                 var entry = highlight[layerId];
                 var cells = entry.kind === 'points' ? entry.points
-                    : entry.kind === 'select' ? [].concat.apply([], entry.grid) : [];
+                    : entry.kind === 'select'
+                        ? [].concat.apply([], entry.grid || entry.columns) : [];
                 cells.forEach(function(cell) {
                     var r = cell && model(cell[0]);
                     if (r && out.indexOf(r.data_source) < 0) out.push(r.data_source);
@@ -750,12 +786,16 @@ _INIT_TEMPLATE = """(function() {
             });
         }
         // The marks MAIDR is on: a point cloud reports indices into its
-        // data, every other layer a row and column.
+        // data, every other layer a row and column -- of which a candlestick's
+        // row is only the price being read, so its marks are keyed by column.
         function cellsAt(entry, info) {
             if (entry.points) {
                 return (info.pointIndices || []).map(function(i) {
                     return entry.points[i];
                 }).filter(Boolean);
+            }
+            if (entry.columns) {
+                return (entry.columns[info.col] || []).filter(Boolean);
             }
             var row = entry.grid[info.row];
             var cell = row && row[info.col];
@@ -809,7 +849,23 @@ _INIT_TEMPLATE = """(function() {
             // itself for live data, in an effect.
             requestAnimationFrame(function() {
                 requestAnimationFrame(function() {
-                    if (!window.maidrLive.setData(full)) setTimeout(attempt, 100);
+                    if (!window.maidrLive.setData(full)) {
+                        setTimeout(attempt, 100);
+                        return;
+                    }
+                    // A reader who focused the chart before now has a
+                    // controller built without the callback, and maidr.js
+                    // builds another only on the next focus-in. A live
+                    // update is the one thing it swaps into a running
+                    // controller -- silently, keeping the reader's place --
+                    // so the data goes once more as one, then back as the
+                    // static chart it is for every later focus-in.
+                    var el = document.getElementById(article);
+                    if (el && el.contains(document.activeElement)) {
+                        window.maidrLive.setData(
+                            Object.assign({}, full, { live: true }));
+                        window.maidrLive.setData(full);
+                    }
                 });
             });
         }

@@ -29,7 +29,7 @@ from bokeh.models import (  # noqa: E402
     Tabs,
 )
 from bokeh.plotting import figure  # noqa: E402
-from bokeh.transform import dodge, factor_cmap, linear_cmap  # noqa: E402
+from bokeh.transform import cumsum, dodge, factor_cmap, linear_cmap  # noqa: E402
 
 from maidr.bokeh.bokeh_maidr import BokehMaidr  # noqa: E402
 
@@ -293,6 +293,19 @@ class TestHistogram:
             "y": 3, "x": 1.5, "xMin": 1.0, "xMax": 2.0, "yMin": 0, "yMax": 3,
         }
 
+    def test_quads_a_view_hides_entirely_are_no_layer(self):
+        source = ColumnDataSource(
+            {"top": [1, 2], "left": [0, 1], "right": [1, 2]}
+        )
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.quad(
+            top="top", bottom=0, left="left", right="right", source=source,
+            view=CDSView(filter=IndexFilter([])),
+        )
+
+        assert [layer["type"] for layer in _layers(p)] == ["line"]
+
     def test_quads_sharing_a_left_edge_are_a_sideways_histogram(self):
         p = figure()
         p.quad(left=0, right=[4, 6], bottom=[0, 1], top=[1, 2])
@@ -442,6 +455,588 @@ class TestAreas:
             [{"x": 1, "y": 3.0, "z": "s2"}, {"x": 2, "y": 4.0, "z": "s2"}],
         ]
 
+    def test_harea_is_an_area_with_its_axis_titles_swapped(self):
+        p = figure(x_axis_label="Depth", y_axis_label="Level")
+        renderer = p.harea(y=[1, 2, 3], x1=[0, 1, 0], x2=[2, 4, 3])
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "area"
+        # Positions in ``x`` and thicknesses in ``y``, as ``fill_betweenx``.
+        assert layer["data"] == [[{"x": 1, "y": 2}, {"x": 2, "y": 3}, {"x": 3, "y": 3}]]
+        assert layer["axes"] == {"x": {"label": "Level"}, "y": {"label": "Depth"}}
+        # The cursor sits on the right edge, in plot coordinates.
+        assert maidr_.layers[0].highlight["grid"] == [[[2, 1], [4, 2], [3, 3]]]
+        assert maidr_.layers[0].renderers == [renderer]
+
+    def test_harea_stack_is_a_stacked_area_of_each_band_own_values(self):
+        p = figure()
+        p.harea_stack(
+            ["s1", "s2"], y="y", source={"y": [1, 2], "s1": [1, 2], "s2": [3, 4]},
+            legend_label=["s1", "s2"],
+        )
+        p.legend.title = "Series"
+
+        layer = _only(p)
+
+        assert layer["type"] == "stacked_area"
+        assert layer["data"] == [
+            [{"x": 1, "y": 1.0, "z": "s1"}, {"x": 2, "y": 2.0, "z": "s1"}],
+            [{"x": 1, "y": 3.0, "z": "s2"}, {"x": 2, "y": 4.0, "z": "s2"}],
+        ]
+        assert layer["axes"]["z"] == {"label": "Series"}
+
+    def test_a_varea_and_harea_stack_on_one_plot_are_two_layers(self):
+        p = figure()
+        p.varea_stack(["a", "b"], x="x", source={"x": [1, 2], "a": [1, 1], "b": [2, 2]})
+        p.harea_stack(["a", "b"], y="y", source={"y": [1, 2], "a": [1, 1], "b": [2, 2]})
+
+        assert [layer["type"] for layer in _layers(p)] == [
+            "stacked_area",
+            "stacked_area",
+        ]
+
+
+class TestPie:
+    """``wedge``/``annular_wedge``: one slice per row, walked clockwise."""
+
+    @staticmethod
+    def _bokeh_pie(p, direction="anticlock"):
+        # Bokeh's own pie example: the value, its angle, and a colour column.
+        source = ColumnDataSource(
+            {
+                "country": ["United States", "United Kingdom", "Japan"],
+                "value": [157, 93, 89],
+                "angle": [v / 339 * 2 * np.pi for v in (157, 93, 89)],
+                "color": ["#3182bd", "#6baed6", "#9ecae1"],
+            }
+        )
+        return p.wedge(
+            x=0, y=1, radius=0.4, source=source, direction=direction,
+            start_angle=cumsum("angle", include_zero=True),
+            end_angle=cumsum("angle"),
+            fill_color="color", legend_field="country",
+        )
+
+    def test_a_cumsum_pie_is_read_clockwise_with_the_authors_values(self):
+        p = figure(title="Visits")
+        renderer = self._bokeh_pie(p)
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "pie"
+        # Drawn counterclockwise from 3 o'clock, so clockwise from there the
+        # last row comes first -- as the matplotlib path reverses its pie.
+        assert layer["data"] == [
+            {"x": "Japan", "y": 89},
+            {"x": "United Kingdom", "y": 93},
+            {"x": "United States", "y": 157},
+        ]
+        assert layer["startAngle"] == 90
+        assert "direction" not in layer
+        assert layer["axes"] == {"x": {"label": "country"}, "y": {"label": "value"}}
+        assert maidr_.layers[0].highlight == {
+            "kind": "select",
+            "grid": [[[renderer.id, 2], [renderer.id, 1], [renderer.id, 0]]],
+        }
+
+    def test_a_clockwise_pie_is_emitted_as_drawn(self):
+        p = figure()
+        source = ColumnDataSource(
+            {"part": ["a", "b", "c"], "start": [90, 0, -90], "end": [0, -90, -270]}
+        )
+        p.wedge(
+            x=0, y=0, radius=1, source=source, direction="clock",
+            start_angle="start", end_angle="end",
+            start_angle_units="deg", end_angle_units="deg",
+        )
+
+        layer = _only(p)
+
+        # From 12 o'clock clockwise: a quarter, a quarter, then a half.
+        assert layer["data"] == [
+            {"x": "a", "y": 90},
+            {"x": "b", "y": 90},
+            {"x": "c", "y": 180},
+        ]
+        assert "startAngle" not in layer
+        assert layer["axes"]["y"] == {"label": "Angle (degrees)"}
+
+    def test_one_wedge_per_call_is_one_pie_named_by_its_legend(self):
+        p = figure()
+        p.wedge(x=0, y=0, radius=1, start_angle=0, end_angle=np.pi / 2,
+                legend_label="North")
+        p.wedge(x=0, y=0, radius=1, start_angle=np.pi / 2, end_angle=2 * np.pi,
+                legend_label="South")
+
+        layer = _only(p)
+
+        assert layer["data"] == [
+            {"x": "South", "y": 270},
+            {"x": "North", "y": 90},
+        ]
+        assert layer["startAngle"] == 90
+
+    def test_without_a_proportional_column_the_cumsum_field_is_the_value(self):
+        p = figure()
+        p.wedge(
+            x=0, y=0, radius=1,
+            source=ColumnDataSource({"share": [1.0, 3.0], "name": ["a", "b"]}),
+            start_angle=cumsum("share", include_zero=True),
+            end_angle=cumsum("share"),
+        )
+
+        layer = _only(p)
+
+        # A single numeric column: it is what the angles are summed from.
+        assert layer["data"] == [{"x": "b", "y": 3.0}, {"x": "a", "y": 1.0}]
+        assert layer["axes"] == {"x": {"label": "name"}, "y": {"label": "share"}}
+
+    def test_an_annular_wedge_is_a_donut_read_as_a_pie(self):
+        p = figure()
+        p.annular_wedge(
+            x=0, y=0, inner_radius=0.5, outer_radius=1,
+            start_angle=[0, np.pi], end_angle=[np.pi, 2 * np.pi],
+        )
+
+        layer = _only(p)
+
+        assert layer["type"] == "pie"
+        assert layer["data"] == [
+            {"x": "Slice 1", "y": 180},
+            {"x": "Slice 2", "y": 180},
+        ]
+
+    def test_pies_round_two_centres_are_two_layers(self):
+        p = figure()
+        p.wedge(x=0, y=0, radius=1, start_angle=[0, 1], end_angle=[1, 2 * np.pi])
+        p.wedge(x=3, y=0, radius=1, start_angle=[0, 2], end_angle=[2, 2 * np.pi])
+
+        assert [layer["type"] for layer in _layers(p)] == ["pie", "pie"]
+
+
+class TestCandlestick:
+    """Bokeh's OHLC recipe: a ``segment`` per wick, ``vbar`` s for bodies."""
+
+    DAYS = pd.date_range("2024-01-01", periods=4)
+    FRAME = pd.DataFrame(
+        {
+            "date": DAYS,
+            "open": [10.0, 12.0, 11.0, 13.5],
+            "close": [12.0, 11.0, 13.0, 12.5],
+            "high": [13.0, 13.0, 14.0, 14.0],
+            "low": [9.0, 10.0, 10.0, 12.0],
+            "volume": [100, 200, 300, 400],
+        }
+    )
+    CANDLES = [
+        {"value": "2024-01-01", "open": 10.0, "high": 13.0, "low": 9.0, "close": 12.0},
+        {"value": "2024-01-02", "open": 12.0, "high": 13.0, "low": 10.0, "close": 11.0},
+        {"value": "2024-01-03", "open": 11.0, "high": 14.0, "low": 10.0, "close": 13.0},
+        {"value": "2024-01-04", "open": 13.5, "high": 14.0, "low": 12.0, "close": 12.5},
+    ]
+
+    def test_bokehs_own_recipe_is_a_candlestick(self):
+        # As Bokeh's gallery draws it: the prices passed straight through,
+        # so a rising day's body has ``top`` (open) below ``bottom`` (close).
+        df = self.FRAME
+        inc, dec = df.close > df.open, df.open > df.close
+        p = figure(x_axis_type="datetime", title="MSFT", y_axis_label="Price")
+        wick = p.segment(df.date, df.high, df.date, df.low, color="black")
+        falling = p.vbar(df.date[dec], 43200000, df.open[dec], df.close[dec])
+        rising = p.vbar(df.date[inc], 43200000, df.open[inc], df.close[inc])
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"]
+
+        assert len(layer) == 1
+        assert layer[0]["type"] == "candlestick"
+        assert layer[0]["title"] == "MSFT"
+        assert layer[0]["axes"] == {"x": {"label": "X"}, "y": {"label": "Price"}}
+        assert layer[0]["data"] == self.CANDLES
+        # Keyed by candle: the wick's row and the body's, selected together.
+        assert maidr_.layers[0].highlight == {
+            "kind": "select",
+            "columns": [
+                [[wick.id, 0], [rising.id, 0]],
+                [[wick.id, 1], [falling.id, 0]],
+                [[wick.id, 2], [rising.id, 1]],
+                [[wick.id, 3], [falling.id, 1]],
+            ],
+        }
+
+    def test_open_and_close_columns_decide_bodies_drawn_upright(self):
+        # One source, rising and falling days split by views, every body
+        # drawn ``top >= bottom``: only the price columns say which is open.
+        df = self.FRAME.assign(
+            top=self.FRAME[["open", "close"]].max(axis=1),
+            bottom=self.FRAME[["open", "close"]].min(axis=1),
+        )
+        source = ColumnDataSource(df)
+        rising = list(df.close > df.open)
+        p = figure(x_axis_type="datetime")
+        p.segment("date", "high", "date", "low", source=source)
+        for keep in (rising, [not r for r in rising]):
+            p.vbar(
+                "date", 43200000, "top", "bottom", source=source,
+                view=CDSView(filter=BooleanFilter(keep)),
+            )
+
+        layer = _only(p)
+
+        assert layer["type"] == "candlestick"
+        assert layer["data"] == [
+            {**candle, "volume": float(volume)}
+            for candle, volume in zip(self.CANDLES, [100, 200, 300, 400])
+        ]
+
+    def test_a_line_on_the_same_source_turns_the_highlight_into_a_ring(self):
+        # A moving average drawn from the candles' own source would fade
+        # while a candle is selected, so the ring marks the body instead.
+        source = ColumnDataSource(self.FRAME)
+        p = figure(x_axis_type="datetime")
+        p.segment("date", "high", "date", "low", source=source)
+        p.vbar("date", 43200000, "open", "close", source=source)
+        p.line("date", "close", source=source)
+
+        maidr_ = BokehMaidr(p)
+
+        candles = maidr_.layers[0]
+        day = 86400000.0
+        start = pd.Timestamp("2024-01-01").value / 1e6
+        assert candles.highlight == {
+            "kind": "cursor",
+            "columns": [
+                [[start, 10.0]],
+                [[start + day, 12.0]],
+                [[start + 2 * day, 11.0]],
+                [[start + 3 * day, 13.5]],
+            ],
+        }
+
+    def test_upright_bodies_with_no_prices_are_not_guessed_at(self):
+        df = self.FRAME
+        top = df[["open", "close"]].max(axis=1)
+        bottom = df[["open", "close"]].min(axis=1)
+        p = figure(x_axis_type="datetime")
+        p.segment(df.date, df.high, df.date, df.low)
+        p.vbar(df.date, 43200000, top, bottom)
+
+        with pytest.warns(UserWarning, match="Segment"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["bar"]
+
+    def test_wicks_off_a_date_axis_are_not_a_candlestick(self):
+        p = figure()
+        p.segment([1, 2], [5, 6], [1, 2], [1, 2])
+        p.vbar([1, 2], 0.5, [2, 3], [4, 2])
+
+        with pytest.warns(UserWarning, match="Segment"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["bar"]
+
+    def test_a_bar_off_the_wicks_dates_stops_the_reading(self):
+        df = self.FRAME
+        p = figure(x_axis_type="datetime")
+        p.segment(df.date, df.high, df.date, df.low)
+        p.vbar(
+            [*df.date, pd.Timestamp("2024-02-01")], 43200000,
+            [*df.open, 1.0], [*df.close, 2.0],
+        )
+
+        with pytest.warns(UserWarning, match="Segment"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["bar"]
+
+    def test_a_wick_with_no_body_is_left_out_with_a_warning(self):
+        # The recipe's inc/dec split draws no body for a day that closed
+        # where it opened; its open and close are nowhere in the figure.
+        df = self.FRAME.assign(close=[12.0, 11.0, 11.0, 12.5])
+        inc, dec = df.close > df.open, df.open > df.close
+        p = figure(x_axis_type="datetime")
+        p.segment(df.date, df.high, df.date, df.low)
+        p.vbar(df.date[dec], 43200000, df.open[dec], df.close[dec])
+        p.vbar(df.date[inc], 43200000, df.open[inc], df.close[inc])
+
+        with pytest.warns(UserWarning, match="1 candlestick wick has no body"):
+            layer = _only(p)
+
+        assert [candle["value"] for candle in layer["data"]] == [
+            "2024-01-01",
+            "2024-01-02",
+            "2024-01-04",
+        ]
+
+
+class TestGantt:
+    """``hbar(left=start, right=end)`` over dates: one lane per y factor."""
+
+    DAY = staticmethod(pd.Timestamp)
+
+    def test_a_date_span_hbar_is_a_gantt_of_lanes_bottom_first(self):
+        day = self.DAY
+        p = figure(
+            y_range=["Test", "Build", "Design"], x_axis_type="datetime",
+            x_axis_label="Date", y_axis_label="Task", title="Plan",
+        )
+        renderer = p.hbar(
+            y=["Design", "Build", "Build", "Test"],
+            left=[day("2024-01-01"), day("2024-01-05"), day("2024-01-10"),
+                  day("2024-01-12")],
+            right=[day("2024-01-05"), day("2024-01-08"), day("2024-01-12"),
+                   day("2024-01-15")],
+            height=0.5,
+        )
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "gantt"
+        assert layer["orientation"] == "horz"
+        # Days since the epoch: 2024-01-01 is day 19723.
+        assert layer["data"] == {
+            "points": [
+                [{"x": "Test", "start": 19734, "end": 19737}],
+                [
+                    {"x": "Build", "start": 19727, "end": 19730},
+                    {"x": "Build", "start": 19732, "end": 19734},
+                ],
+                [{"x": "Design", "start": 19723, "end": 19727}],
+            ],
+            "lanes": ["Test", "Build", "Design"],
+            "unit": "days",
+        }
+        assert layer["axes"] == {
+            "x": {
+                "label": "Date",
+                "format": {
+                    "function": "return new Date(value * 864e5)"
+                    ".toISOString().slice(0, 10);"
+                },
+            },
+            "y": {"label": "Task"},
+        }
+        assert maidr_.layers[0].highlight == {
+            "kind": "select",
+            "grid": [
+                [[renderer.id, 3]],
+                [[renderer.id, 1], [renderer.id, 2]],
+                [[renderer.id, 0]],
+            ],
+        }
+
+    def test_a_factor_with_no_bar_is_an_empty_lane(self):
+        day = self.DAY
+        p = figure(y_range=["Idle", "Busy"], x_axis_type="datetime")
+        p.hbar(y=["Busy"], left=[day("2024-01-01")], right=[day("2024-01-02")])
+
+        data = _only(p)["data"]
+
+        assert data["points"] == [[], [{"x": "Busy", "start": 19723, "end": 19724}]]
+        assert data["lanes"] == ["Idle", "Busy"]
+
+    def test_times_of_day_are_counted_in_hours(self):
+        day = self.DAY
+        p = figure(y_range=["Shift"], x_axis_type="datetime")
+        p.hbar(
+            y=["Shift"], left=[day("2024-01-01 09:00")], right=[day("2024-01-01 17:30")]
+        )
+
+        layer = _only(p)
+
+        (point,) = layer["data"]["points"][0]
+        assert point["end"] - point["start"] == 8.5
+        assert point["start"] == 19723 * 24 + 9
+        assert layer["data"]["unit"] == "hours"
+        assert "' ' + t.slice(11, 16)" in layer["axes"]["x"]["format"]["function"]
+
+    def test_one_renderer_per_resource_is_one_chart_labelled_by_the_legend(self):
+        day = self.DAY
+        p = figure(y_range=["Review", "Write"], x_axis_type="datetime")
+        p.hbar(y=["Write"], left=[day("2024-01-01")], right=[day("2024-01-03")],
+               legend_label="Ana")
+        p.hbar(y=["Write", "Review"], left=[day("2024-01-03"), day("2024-01-04")],
+               right=[day("2024-01-04"), day("2024-01-06")], legend_label="Ben")
+
+        layer = _only(p)
+
+        assert layer["data"]["points"] == [
+            [{"x": "Review", "start": 19726, "end": 19728, "label": "Ben"}],
+            [
+                {"x": "Write", "start": 19723, "end": 19725, "label": "Ana"},
+                {"x": "Write", "start": 19725, "end": 19726, "label": "Ben"},
+            ],
+        ]
+
+    def test_epoch_milliseconds_on_a_datetime_axis_are_a_gantt(self):
+        day = 86_400_000
+        source = ColumnDataSource(
+            {"task": ["a"], "start": [19723 * day], "end": [19725 * day]}
+        )
+        p = figure(y_range=["a"], x_axis_type="datetime")
+        p.hbar(y="task", left="start", right="end", source=source)
+
+        assert _only(p)["data"]["points"] == [
+            [{"x": "a", "start": 19723, "end": 19725}]
+        ]
+
+    def test_a_numeric_span_is_still_a_floating_bar(self):
+        p = figure(y_range=["a"])
+        p.hbar(y=["a"], left=[2], right=[5])
+
+        layer = _only(p)
+
+        assert layer["type"] == "bar"
+        assert layer["data"] == [{"x": 3, "y": "a"}]
+
+
+class TestHexbin:
+    """``hex_tile`` coloured by a count: rows of bins with their centres."""
+
+    def test_p_hexbin_is_a_hexbin_bottom_row_first(self):
+        p = figure(x_axis_label="Weight", y_axis_label="Height")
+        renderer, bins = p.hexbin(
+            np.array([0, 0.1, 1, 2, 2.1, 2.2, -1]),
+            np.array([0, 0.1, 1, 0, 0.1, 0, 1]),
+            size=0.5,
+        )
+        # Bokeh's own bin order differs between versions (3.4 on Python 3.9
+        # lists them differently from 3.9), so rows are found by (q, r).
+        row_of = {(q, r): i for i, (q, r) in enumerate(zip(bins.q, bins.r))}
+        assert set(row_of) == {(0, 0), (2, 0), (2, -1), (3, 0), (-1, -1)}
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "hexbin"
+        # Pointy-top centres: x = size * sqrt(3) * (q + r / 2), y = -1.5 * size * r.
+        assert layer["data"] == [
+            [
+                {"x": 0, "y": 0, "count": 2},
+                {"x": 1.732050808, "y": 0, "count": 2},
+                {"x": 2.598076211, "y": 0, "count": 1},
+            ],
+            [
+                {"x": -1.299038106, "y": 0.75, "count": 1},
+                {"x": 1.299038106, "y": 0.75, "count": 1},
+            ],
+        ]
+        assert layer["axes"] == {
+            "x": {"label": "Weight"},
+            "y": {"label": "Height"},
+            "z": {"label": "count"},
+        }
+        assert maidr_.layers[0].highlight == {
+            "kind": "select",
+            "grid": [
+                [[renderer.id, row_of[(0, 0)]], [renderer.id, row_of[(2, 0)]],
+                 [renderer.id, row_of[(3, 0)]]],
+                [[renderer.id, row_of[(-1, -1)]], [renderer.id, row_of[(2, -1)]]],
+            ],
+        }
+
+    def test_flat_top_tiles_and_a_colour_bar_title(self):
+        source = ColumnDataSource({"q": [0, 1], "r": [0, 0], "hits": [5, 7]})
+        p = figure()
+        tiles = p.hex_tile(
+            q="q", r="r", size=2, orientation="flattop", source=source,
+            fill_color=linear_cmap("hits", "Viridis256", 0, 10),
+        )
+        p.add_layout(tiles.construct_color_bar(title="Hits"), "right")
+
+        layer = _only(p)
+
+        # Flat-top: x = 1.5 * size * q, y = -sqrt(3) * size * (r + q / 2).
+        assert layer["data"] == [
+            [{"x": 3, "y": -1.732050808, "count": 7}],
+            [{"x": 0, "y": 0, "count": 5}],
+        ]
+        assert layer["axes"]["z"] == {"label": "Hits"}
+
+    def test_tiles_with_no_count_are_left_out_with_a_warning(self):
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.hex_tile(q=[0, 1], r=[0, 0], size=1, fill_color="red")
+
+        with pytest.warns(UserWarning, match="HexTile.*count column"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
+
+class TestImage:
+    """``image``: a 2-D array through a colour mapper, read as a heatmap."""
+
+    def test_an_image_is_a_heatmap_top_row_first(self):
+        p = figure(x_axis_label="Lon", y_axis_label="Lat")
+        image = np.array([[1, 2, 3], [4, 5, np.nan]])
+        p.image(image=[image], x=0, y=10, dw=3, dh=2, palette="Viridis256")
+
+        maidr_ = BokehMaidr(p)
+        layer = _plain(maidr_._flatten_maidr())["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "heat"
+        # Array row 0 is drawn at the bottom, so it is the last row emitted.
+        assert layer["data"] == {
+            "x": ["0.5", "1.5", "2.5"],
+            "y": ["11.5", "10.5"],
+            "points": [[4.0, 5.0, None], [1.0, 2.0, 3.0]],
+        }
+        assert layer["axes"] == {
+            "x": {"label": "Lon"}, "y": {"label": "Lat"}, "z": {"label": "Value"},
+        }
+        # A ring on the cell's centre, keyed bottom row first like a rect heat.
+        assert maidr_.layers[0].highlight["kind"] == "cursor"
+        assert maidr_.layers[0].highlight["grid"] == [
+            [[0.5, 10.5], [1.5, 10.5], [2.5, 10.5]],
+            [[0.5, 11.5], [1.5, 11.5], [2.5, 11.5]],
+        ]
+
+    def test_origin_and_anchor_place_the_cells_as_bokeh_does(self):
+        p = figure()
+        glyph = p.image(
+            image=[np.array([[1, 2], [3, 4]])], x=0, y=0, dw=2, dh=2,
+            palette="Viridis256", origin="top_right", anchor="center",
+        )
+        p.add_layout(glyph.construct_color_bar(title="Depth"), "right")
+
+        layer = _only(p)
+
+        # Centred on 0; array [0, 0] is drawn top right.
+        assert layer["data"] == {
+            "x": ["-0.5", "0.5"],
+            "y": ["0.5", "-0.5"],
+            "points": [[2, 1], [4, 3]],
+        }
+        assert layer["axes"]["z"] == {"label": "Depth"}
+
+    def test_an_image_past_the_cap_is_left_out_with_a_reason(self):
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.image(image=[np.zeros((101, 100))], x=0, y=0, dw=1, dh=1,
+                palette="Viridis256")
+
+        with pytest.warns(UserWarning, match="10100 cells, more than the 10000"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
+    def test_several_images_in_one_renderer_are_left_out(self):
+        p = figure()
+        p.line([1, 2], [1, 2])
+        p.image(image=[np.zeros((2, 2)), np.ones((2, 2))], x=[0, 3], y=0, dw=2,
+                dh=2, palette="Viridis256")
+
+        with pytest.warns(UserWarning, match="more than one image"):
+            layers = _layers(p)
+
+        assert [layer["type"] for layer in layers] == ["line"]
+
 
 class TestScatter:
     def test_scatter_is_a_point_layer(self):
@@ -578,13 +1173,13 @@ class TestLayouts:
 
     def test_a_plot_with_nothing_readable_takes_no_cell(self):
         # An empty first column would be one more stop before the line.
-        pie = figure(title="pie")
-        pie.wedge(x=0, y=0, radius=1, start_angle=0, end_angle=1)
+        ring = figure(title="ring")
+        ring.annulus(x=0, y=0, inner_radius=0.5, outer_radius=1)
         line = figure(title="line")
         line.line([1, 2], [3, 4])
 
-        with pytest.warns(UserWarning, match="Wedge"):
-            titles = self._grid_titles(gridplot([[pie, line], [None, self._bar("c")]]))
+        with pytest.warns(UserWarning, match="Annulus"):
+            titles = self._grid_titles(gridplot([[ring, line], [None, self._bar("c")]]))
 
         assert titles == [[["line"]], [["c"]]]
 
@@ -612,9 +1207,9 @@ class TestUnsupported:
     def test_an_unsupported_glyph_is_skipped_with_a_warning(self):
         p = figure()
         p.line([1, 2], [1, 2])
-        p.wedge(x=[1], y=[1], radius=1, start_angle=0, end_angle=1)
+        p.annulus(x=[1], y=[1], inner_radius=0.5, outer_radius=1)
 
-        with pytest.warns(UserWarning, match="Wedge"):
+        with pytest.warns(UserWarning, match="Annulus"):
             layers = _layers(p)
 
         assert [layer["type"] for layer in layers] == ["line"]
@@ -637,7 +1232,7 @@ class TestUnsupported:
 
     def test_nothing_supported_still_renders_the_plot(self):
         p = figure()
-        p.wedge(x=[1], y=[1], radius=1, start_angle=0, end_angle=1)
+        p.annulus(x=[1], y=[1], inner_radius=0.5, outer_radius=1)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -649,7 +1244,7 @@ class TestUnsupported:
 
     def test_the_warning_names_the_callers_line(self):
         p = figure()
-        p.wedge(x=[1], y=[1], radius=1, start_angle=0, end_angle=1)
+        p.annulus(x=[1], y=[1], inner_radius=0.5, outer_radius=1)
 
         with pytest.warns(UserWarning) as record:
             BokehMaidr(p)
@@ -671,14 +1266,15 @@ class TestMalformedInput:
         assert layer["type"] == "bar"
         assert "Apples" in [point["x"] for point in layer["data"]]
 
-    def test_a_bar_spanning_dates_is_left_out_with_a_warning(self):
+    def test_a_vertical_bar_spanning_dates_is_left_out_with_a_warning(self):
+        # An ``hbar`` doing this is a Gantt bar; a ``vbar`` is not read.
         day = pd.Timestamp
-        p = figure(y_range=["task"], x_axis_type="datetime")
-        p.hbar(
-            y=["task"], left=[day("2024-01-01")], right=[day("2024-01-05")], height=0.5
+        p = figure(x_range=["task"], y_axis_type="datetime")
+        p.vbar(
+            x=["task"], bottom=[day("2024-01-01")], top=[day("2024-01-05")], width=0.5
         )
 
-        with pytest.warns(UserWarning, match="spanning dates"):
+        with pytest.warns(UserWarning, match="vertical bar spanning dates"):
             schema = BokehMaidr(p)._flatten_maidr()
 
         assert schema is None

@@ -1,6 +1,6 @@
 ---
 title: "Bokeh Accessible Plot Examples"
-description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps and gridplot layouts accessible with py-maidr."
+description: "Code examples showing how to make Bokeh bar charts, stacked and grouped bars, histograms, line, step and scatter plots, heatmaps, pie charts, candlestick charts, Gantt charts, hexbin plots and gridplot layouts accessible with py-maidr."
 jupyter: python3
 html-table-processing: none
 filters:
@@ -26,8 +26,8 @@ deprecation period, whichever plot type is drawn: see
 
 **maidr** reads the figure's own renderers and data sources, not the drawn
 canvas, so what you hear is the data you plotted. As you move through a chart
-the mark being read is highlighted in the Bokeh plot itself: a bar, bin, cell
-or point is selected, dimming the rest, and a line, step or area shows a ring
+the mark being read is highlighted in the Bokeh plot itself: a bar, bin, cell,
+slice, candle or point is selected, dimming the rest, and a line, step or area shows a ring
 on the current point. A bar, bin, cell or point whose data source another mark
 also draws from, such as markers on a line built from one `ColumnDataSource`,
 gets the ring too, so the other mark is never faded.
@@ -42,7 +42,12 @@ gets the ring too, so the other mark is never faded.
 | `step` | step |
 | `scatter`, `circle` | point |
 | `rect` coloured through a continuous colour mapper (`linear_cmap`, `log_cmap`) | heatmap |
-| `varea`, `varea_stack` | area [experimental], stacked area [experimental] |
+| `image` of up to 10,000 cells | heatmap |
+| `wedge`, `annular_wedge` | pie, one slice per row |
+| `segment` wicks with `vbar` bodies on a datetime axis (Bokeh's OHLC recipe) | candlestick |
+| `varea`, `varea_stack`, `harea`, `harea_stack` | area [experimental], stacked area [experimental] |
+| `hbar` from one date to another (`left=start`, `right=end` on a datetime axis) | gantt [experimental] |
+| `hex_tile` coloured through a colour mapper, as `p.hexbin` draws it | hexbin [experimental] |
 
 Any other glyph is left out with a warning naming it, and a figure with nothing
 **maidr** can read is still drawn. A `Tabs` layout is read one panel at a time:
@@ -363,6 +368,140 @@ p.add_layout(cells.construct_color_bar(title="Passengers"), "right")
 maidr.show(p)  #<<
 ```
 
+### Image Heatmap
+
+```{python}
+#| warning: false
+#| fig-alt: Image heatmap of a smooth two-dimensional function on a 12 by 12 grid
+
+import numpy as np
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+xs = np.linspace(0, 3, 12)
+ys = np.linspace(0, 3, 12)
+field = np.round(np.sin(xs)[None, :] * np.cos(ys)[:, None], 2)
+
+p = figure(
+    title="sin(x) cos(y)",
+    x_axis_label="x",
+    y_axis_label="y",
+    x_range=(0, 3),
+    y_range=(0, 3),
+    height=400,
+)
+img = p.image(image=[field], x=0, y=0, dw=3, dh=3, palette="Viridis256")
+p.add_layout(img.construct_color_bar(title="Value"), "right")
+
+maidr.show(p)  #<<
+```
+
+An `image` is read as a heatmap whose cells are the array's, bottom row first
+as Bokeh draws it, each row and column named by the centre of its cells. An
+image of more than 10,000 cells is left out with a warning, since no one walks
+a photograph cell by cell.
+
+### Pie Chart
+
+```{python}
+#| warning: false
+#| fig-alt: Pie chart of the number of penguins of each species
+
+from math import pi
+
+import seaborn as sns
+from bokeh.models import ColumnDataSource
+from bokeh.plotting import figure
+from bokeh.transform import cumsum
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins")
+counts = penguins["species"].value_counts().sort_index()
+source = ColumnDataSource(
+    {
+        "species": counts.index.tolist(),
+        "penguins": counts.tolist(),
+        "angle": (counts / counts.sum() * 2 * pi).tolist(),
+        "color": ["#4c72b0", "#dd8452", "#55a868"],
+    }
+)
+
+p = figure(title="Penguins by Species", height=350, toolbar_location=None)
+p.wedge(
+    x=0, y=1, radius=0.4, source=source,
+    start_angle=cumsum("angle", include_zero=True), end_angle=cumsum("angle"),
+    line_color="white", fill_color="color", legend_field="species",
+)
+p.axis.visible = False
+p.grid.visible = False
+
+maidr.show(p)  #<<
+```
+
+Each slice is announced with the value it was computed from -- here the
+`penguins` column, which the angles are proportional to -- and named by the
+legend. The right arrow walks the pie clockwise, as for every pie in
+**maidr**, so on a pie Bokeh drew counterclockwise from 3 o'clock it starts on
+the slice drawn last.
+
+### Candlestick Chart
+
+```{python}
+#| warning: false
+#| fig-alt: Candlestick chart of fifteen trading days of a simulated stock price
+
+import numpy as np
+import pandas as pd
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+rng = np.random.default_rng(4)
+dates = pd.bdate_range("2024-03-01", periods=15)
+close = (100 + rng.normal(0, 1.5, len(dates)).cumsum()).round(2)
+open_ = np.r_[100.0, close[:-1]]
+df = pd.DataFrame(
+    {
+        "date": dates,
+        "open": open_,
+        "close": close,
+        "high": (np.maximum(open_, close) + rng.uniform(0.2, 1.5, len(dates))).round(2),
+        "low": (np.minimum(open_, close) - rng.uniform(0.2, 1.5, len(dates))).round(2),
+    }
+)
+inc = df.close > df.open
+dec = df.open > df.close
+w = 12 * 60 * 60 * 1000  # half a day, in ms
+
+p = figure(
+    x_axis_type="datetime",
+    title="Simulated Stock, March 2024",
+    x_axis_label="Date",
+    y_axis_label="Price ($)",
+    height=350,
+)
+p.segment(df.date, df.high, df.date, df.low, color="black")
+p.vbar(df.date[dec], w, df.open[dec], df.close[dec], color="#c44e52")
+p.vbar(df.date[inc], w, df.open[inc], df.close[inc], fill_color="white",
+       line_color="#55a868", line_width=2)
+
+maidr.show(p)  #<<
+```
+
+This is Bokeh's own candlestick recipe: a `segment` from each day's high to
+its low and a `vbar` between its open and close, one renderer for rising days
+and one for falling. **maidr** reads them together as one candlestick, a
+candle per date. A body is drawn between two prices whichever is larger, so
+**maidr** needs to be told which one is the open: here the prices are passed
+straight through (`top=open`, `bottom=close`), which draws a rising day's body
+upside down and says so; a source with `open` and `close` columns says so
+too. Bodies drawn the right way up with neither are not guessed at, and are
+read as bars. A day that closes exactly where it opened gets no body from this
+recipe, so its open and close are not in the figure: **maidr** leaves that
+day out, with a warning.
+
 ### Multi-Panel Layout (gridplot)
 
 ```{python}
@@ -438,10 +577,125 @@ p.legend.location = "top_left"
 maidr.show(p)  #<<
 ```
 
+### Horizontal Area Plot [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Sideways area chart of airline passengers by month in 1960, the months running down the page
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+flights = sns.load_dataset("flights")
+months = flights[flights["year"] == 1960]
+
+p = figure(
+    title="Passengers by Month, 1960",
+    x_axis_label="Passengers",
+    y_axis_label="Month",
+    height=400,
+)
+p.harea(
+    y=list(range(1, 13)), x1=0, x2=months["passengers"].tolist(),
+    fill_color="#8172b3", fill_alpha=0.7,
+)
+
+maidr.show(p)  #<<
+```
+
+An `harea` is read as the same area on its side: the arrow keys step through
+the months, and the passengers are what you hear.
+
+### Gantt Chart [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Gantt chart of a five-task project plan across January 2024
+
+import pandas as pd
+from bokeh.models import ColumnDataSource
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+plan = pd.DataFrame(
+    {
+        "task": ["Research", "Design", "Build", "Test", "Launch"],
+        "start": pd.to_datetime(
+            ["2024-01-01", "2024-01-08", "2024-01-15", "2024-01-24", "2024-01-30"]
+        ),
+        "end": pd.to_datetime(
+            ["2024-01-10", "2024-01-17", "2024-01-26", "2024-01-31", "2024-02-02"]
+        ),
+    }
+)
+
+p = figure(
+    y_range=plan["task"].tolist()[::-1],
+    x_axis_type="datetime",
+    title="Project Plan, January 2024",
+    x_axis_label="Date",
+    y_axis_label="Task",
+    height=300,
+)
+p.hbar(
+    y="task", left="start", right="end", height=0.6,
+    source=ColumnDataSource(plan), color="#4c72b0",
+)
+
+maidr.show(p)  #<<
+```
+
+An `hbar` running from one date to another is read as a Gantt chart: each
+task is a lane, the up and down arrows move between lanes as they are drawn,
+and every bar is announced with its start and end dates and its length in
+days.
+
+### Hexbin Plot [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Hexbin plot of penguin flipper length against body mass
+
+import seaborn as sns
+from bokeh.plotting import figure
+
+import maidr  #<<
+
+penguins = sns.load_dataset("penguins").dropna()
+flipper = (penguins["flipper_length_mm"] - 200) / 10
+mass = (penguins["body_mass_g"] - 4200) / 800
+
+p = figure(
+    title="Flipper Length vs Body Mass (standardised)",
+    x_axis_label="Flipper Length (x10 mm from 200)",
+    y_axis_label="Body Mass (x800 g from 4200)",
+    match_aspect=True,
+    height=400,
+)
+tiles, bins = p.hexbin(flipper.to_numpy(), mass.to_numpy(), size=0.3)
+p.add_layout(tiles.construct_color_bar(title="Penguins"), "right")
+
+maidr.show(p)  #<<
+```
+
+Each hexagon is a bin announced by its centre and how many penguins fell in
+it; the up and down arrows move to the nearest bin of the staggered row above
+or below.
+
 ## Saving and embedding
 
 `maidr.save_html(p, "chart.html")` writes the same page to a file.
 `use_cdn` decides where `maidr.js` comes from, exactly as for matplotlib and
-Plotly; BokehJS itself is always loaded from Bokeh's CDN at the version you
-have installed, as plotly.js is from Plotly's, so opening the page needs a
-network connection either way.
+Plotly, and where BokehJS comes from too:
+
+* `use_cdn=False` inlines BokehJS from your installed `bokeh` package and
+  ships the bundled `maidr.js`, so the saved page works with no network
+  connection. BokehJS is over a megabyte, so the page is that much larger.
+* `use_cdn=True` and the default `"auto"` load BokehJS from Bokeh's CDN, at the
+  version you have installed, so opening the page needs a network connection.
+  `"auto"` falls back to the bundled copy for `maidr.js` only; a local
+  fallback for BokehJS would have to carry the whole of it in every page,
+  which is what `False` is for.

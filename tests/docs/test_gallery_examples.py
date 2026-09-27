@@ -161,8 +161,14 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Step Plot": [["step"]],
         "Scatter Plot": [["point"]],
         "Heatmap": [["heat"]],
+        "Image Heatmap": [["heat"]],
+        "Pie Chart": [["pie"]],
+        "Candlestick Chart": [["candlestick"]],
         "Multi-Panel Layout (gridplot)": [["bar", "line"]],
         "Stacked Area Plot [experimental]": [["stacked_area"]],
+        "Horizontal Area Plot [experimental]": [["area"]],
+        "Gantt Chart [experimental]": [["gantt"]],
+        "Hexbin Plot [experimental]": [["hexbin"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
@@ -533,3 +539,100 @@ def test_bokeh_grid_is_one_subplot_per_figure(gallery: _Gallery) -> None:
         ["Penguins per Species"],
         ["Passengers per Year"],
     ]
+
+
+def test_bokeh_pie_reads_the_values_clockwise(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "Each slice is announced with the value it was
+    computed from -- here the ``penguins`` column ... on a pie Bokeh drew
+    counterclockwise from 3 o'clock it starts on the slice drawn last."
+    """
+    layer = gallery.shown("examples-bokeh.qmd", "Pie Chart").layer(PlotType.PIE)
+
+    assert layer[MaidrKey.AXES][MaidrKey.Y][MaidrKey.LABEL] == "penguins"
+    assert [point[MaidrKey.X] for point in layer[MaidrKey.DATA]] == [
+        "Gentoo",
+        "Chinstrap",
+        "Adelie",
+    ]
+    assert [point[MaidrKey.Y] for point in layer[MaidrKey.DATA]] == [124, 68, 152]
+
+
+def test_bokeh_harea_steps_through_the_months(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "the arrow keys step through the months, and the
+    passengers are what you hear."
+    """
+    layer = gallery.shown(
+        "examples-bokeh.qmd", "Horizontal Area Plot [experimental]"
+    ).layer(PlotType.AREA)
+
+    (band,) = layer[MaidrKey.DATA]
+    assert [point[MaidrKey.X] for point in band] == list(range(1, 13))
+    assert band[0][MaidrKey.Y] == 417
+    assert layer[MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL] == "Month"
+    assert layer[MaidrKey.AXES][MaidrKey.Y][MaidrKey.LABEL] == "Passengers"
+
+
+def test_bokeh_candlestick_is_a_candle_per_date(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "**maidr** reads them together as one candlestick,
+    a candle per date."
+    """
+    layer = gallery.shown("examples-bokeh.qmd", "Candlestick Chart").layer(
+        PlotType.CANDLESTICK
+    )
+
+    candles = layer[MaidrKey.DATA]
+    assert len(candles) == 15
+    assert candles[0]["value"] == "2024-03-01"
+    assert candles[0]["open"] == 100.0
+    assert all(
+        candle["low"] <= min(candle["open"], candle["close"])
+        and candle["high"] >= max(candle["open"], candle["close"])
+        for candle in candles
+    )
+
+
+def test_bokeh_gantt_is_a_lane_per_task_in_days(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "each task is a lane, the up and down arrows move
+    between lanes as they are drawn, and every bar is announced with ... its
+    length in days."
+    """
+    layer = gallery.shown(
+        "examples-bokeh.qmd", "Gantt Chart [experimental]"
+    ).layer(PlotType.GANTT)
+
+    data = layer[MaidrKey.DATA]
+    # Bottom to top, as the reversed range draws them.
+    assert data[MaidrKey.LANES] == ["Launch", "Test", "Build", "Design", "Research"]
+    assert data["unit"] == "days"
+    research = data[MaidrKey.POINTS][-1][0]
+    assert research[MaidrKey.END] - research[MaidrKey.START] == 9
+
+
+def test_bokeh_hexbin_counts_every_penguin(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "Each hexagon is a bin announced by its centre and
+    how many penguins fell in it."
+    """
+    layer = gallery.shown(
+        "examples-bokeh.qmd", "Hexbin Plot [experimental]"
+    ).layer(PlotType.HEXBIN)
+
+    bins = [cell for row in layer[MaidrKey.DATA] for cell in row]
+    assert sum(cell[MaidrKey.COUNT] for cell in bins) == 333
+    assert layer[MaidrKey.AXES][MaidrKey.Z][MaidrKey.LABEL] == "Penguins"
+
+
+def test_bokeh_image_is_the_arrays_cells(gallery: _Gallery) -> None:
+    """examples-bokeh.qmd: "An ``image`` is read as a heatmap whose cells are
+    the array's, bottom row first as Bokeh draws it, each row and column named
+    by the centre of its cells."
+    """
+    heat = gallery.shown("examples-bokeh.qmd", "Image Heatmap").layer(
+        PlotType.HEAT
+    )[MaidrKey.DATA]
+
+    assert len(heat[MaidrKey.POINTS]) == 12
+    assert all(len(row) == 12 for row in heat[MaidrKey.POINTS])
+    assert heat[MaidrKey.X][0] == "0.125"
+    # Emitted top row first: the last row is array row 0, cos(0) = 1.
+    assert heat[MaidrKey.Y][-1] == "0.125"
+    assert heat[MaidrKey.POINTS][-1][0] == 0.0

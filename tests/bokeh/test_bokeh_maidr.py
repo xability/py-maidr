@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -88,11 +89,37 @@ class TestDispatch:
 
 
 class TestPage:
-    def test_bokehjs_comes_from_the_installed_version(self, bar):
-        html = _html(bar)
+    @pytest.mark.parametrize("use_cdn", [True, "auto"])
+    def test_bokehjs_comes_from_the_cdn_at_the_installed_version(self, bar, use_cdn):
+        html = _html(bar, use_cdn=use_cdn)
 
         release = "https://cdn.bokeh.org/bokeh/release"
         assert f"{release}/bokeh-{bokeh.__version__}.min.js" in html
+        assert "/* BEGIN bokeh.min.js */" not in html
+
+    def test_use_cdn_false_inlines_bokehjs_so_the_page_works_offline(
+        self, bar, tmp_path
+    ):
+        out = tmp_path / "offline.html"
+        maidr.save_html(bar, str(out), use_cdn=False)
+        text = out.read_text(encoding="utf-8")
+
+        assert "cdn.bokeh.org" not in text
+        assert "/* BEGIN bokeh.min.js */" in text
+        # The installed package's own build, not some other copy.
+        shipped = Path(bokeh.__file__).parent / "server" / "static" / "js"
+        code = (shipped / "bokeh.min.js").read_text(encoding="utf-8")
+        assert code.strip()[-2000:] in text
+
+    def test_inlined_bokehjs_carries_only_the_bundles_the_model_uses(self, bar):
+        from bokeh.layouts import column
+        from bokeh.models import Select
+
+        plain = _html(bar)
+        with_widget = _html(column(bar, Select(options=["a"])))
+
+        assert "/* BEGIN bokeh-widgets.min.js */" not in plain
+        assert "/* BEGIN bokeh-widgets.min.js */" in with_widget
 
     def test_the_plot_is_serialized_by_json_item(self, bar):
         item = _script_value(_html(bar), "item")
@@ -107,6 +134,15 @@ class TestPage:
         # promise `embed_item` returns -- never before BokehJS has drawn.
         assert ".embed_item(item, targetId).then(bind" in html
         assert "wrapper.setAttribute('maidr-data'" in html
+
+    def test_a_reader_already_inside_gets_the_callback_as_a_live_update(self, bar):
+        html = _html(bar)
+
+        # Only when focus is already in the chart, and then back to static.
+        guard = html.index("el.contains(document.activeElement)")
+        live = html.index("Object.assign({}, full, { live: true })")
+        restore = html.index("window.maidrLive.setData(full);", live)
+        assert guard < live < restore
 
     def test_a_late_runtime_is_told_through_bindchart(self, bar):
         html = _html(bar)
