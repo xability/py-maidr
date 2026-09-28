@@ -1,6 +1,45 @@
 # CHANGELOG
 
 
+## v1.26.0 (2026-09-28)
+
+### Bug Fixes
+
+- Highlight inline-path scatter markers and name labelled scatter layers
+  ([#810](https://github.com/xability/py-maidr/pull/810),
+  [`b025790`](https://github.com/xability/py-maidr/commit/b0257908f5726ec95fdd9e8ea63a7f42cb6a0340))
+
+### Documentation
+
+- List stable plot types before experimental ones in their own sections
+  ([#817](https://github.com/xability/py-maidr/pull/817),
+  [`48787e8`](https://github.com/xability/py-maidr/commit/48787e80a53ac1461a93a14a78e0ed6774841b3d))
+
+- Mark experimental plot types wherever a type is named
+  ([#811](https://github.com/xability/py-maidr/pull/811),
+  [`01d29ac`](https://github.com/xability/py-maidr/commit/01d29ac215f7bf8d688a68cb116a8c530ca1e7a9))
+
+### Features
+
+- **bokeh**: Make Bokeh figures and layouts accessible
+  ([#816](https://github.com/xability/py-maidr/pull/816),
+  [`bd4d3fa`](https://github.com/xability/py-maidr/commit/bd4d3fa49989ac6e3509b4bbaddbf8f5f43b0c7d))
+
+- **bokeh**: Read pies, candlesticks, Gantt bars, hexbins, images and harea; inline BokehJS offline
+  ([#818](https://github.com/xability/py-maidr/pull/818),
+  [`c12aa1e`](https://github.com/xability/py-maidr/commit/c12aa1ee1b2e836d4ca1a860e6b6aedf06651793))
+
+- **rug**: Emit a rug as maidr's rug trace, so the pitch carries the position
+  ([#815](https://github.com/xability/py-maidr/pull/815),
+  [`78f5aec`](https://github.com/xability/py-maidr/commit/78f5aec9a3be81245c204f271832953378ce25b9))
+
+### Performance Improvements
+
+- Defer seaborn, mplfinance, pandas and scipy until they are used
+  ([#812](https://github.com/xability/py-maidr/pull/812),
+  [`b52ecdd`](https://github.com/xability/py-maidr/commit/b52ecdd34a219ee4a387c11193b32fdb5a9b5663))
+
+
 ## v1.25.0 (2026-09-23)
 
 ### Bug Fixes
