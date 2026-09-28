@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta name="description" content="Set where documents running the bundled maidr.js find locale packs.">
 
-<title>API Reference – py-maidr</title>
+<title>maidr.set_locale_base_url API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -27,6 +27,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -184,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="API Reference">
-<meta property="og:description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta property="og:title" content="maidr.set_locale_base_url API reference">
+<meta property="og:description" content="Set where documents running the bundled maidr.js find locale packs.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="API Reference">
-<meta name="twitter:description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta name="twitter:title" content="maidr.set_locale_base_url API reference">
+<meta name="twitter:description" content="Set where documents running the bundled maidr.js find locale packs.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/">
-<meta name="DC.title" content="API Reference">
+<link rel="canonical" href="https://py.maidr.ai/api/set_locale_base_url.html">
+<meta name="DC.title" content="maidr.set_locale_base_url API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/">
+<meta name="DC.description" content="Set where documents running the bundled maidr.js find locale packs.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/set_locale_base_url.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -336,15 +371,11 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#api-reference" id="toc-api-reference" class="nav-link active" data-scroll-target="#api-reference">API Reference</a>
+  <li><a href="#maidr.set_locale_base_url" id="toc-maidr.set_locale_base_url" class="nav-link active" data-scroll-target="#maidr.set_locale_base_url">set_locale_base_url</a>
   <ul class="collapse">
-  <li><a href="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats" id="toc-displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="nav-link" data-scroll-target="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</a></li>
-  <li><a href="#saving-a-maidr-plot-as-an-html-file" id="toc-saving-a-maidr-plot-as-an-html-file" class="nav-link" data-scroll-target="#saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</a></li>
-  <li><a href="#registering-and-releasing-figures" id="toc-registering-and-releasing-figures" class="nav-link" data-scroll-target="#registering-and-releasing-figures">Registering and releasing figures</a></li>
-  <li><a href="#switching-the-matplotlib-backend" id="toc-switching-the-matplotlib-backend" class="nav-link" data-scroll-target="#switching-the-matplotlib-backend">Switching the matplotlib backend</a></li>
-  <li><a href="#where-the-maidr.js-runtime-comes-from" id="toc-where-the-maidr.js-runtime-comes-from" class="nav-link" data-scroll-target="#where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</a></li>
-  <li><a href="#shiny-for-python" id="toc-shiny-for-python" class="nav-link" data-scroll-target="#shiny-for-python">Shiny for Python</a></li>
-  <li><a href="#streamlit" id="toc-streamlit" class="nav-link" data-scroll-target="#streamlit">Streamlit</a></li>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -355,131 +386,59 @@ cookieconsent.run({
 
 
 
-<section id="api-reference" class="level1 doc doc-index">
-<h1 class="doc doc-index">API Reference</h1>
-<section id="displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="level2">
-<h2 class="anchored" data-anchor-id="displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</h2>
-<p>Plots generated by <strong>matplotlib</strong>, <strong>seaborn</strong>, <strong>Plotly</strong>, <strong>Bokeh</strong> or <strong>Altair</strong> can be displayed in MAIDR format. Pass the plot object to <code>maidr.show()</code>, or call <code>plt.show()</code> after <code>import maidr</code> and let the custom backend do it.</p>
+<section id="maidr.set_locale_base_url" class="level1">
+<h1>set_locale_base_url</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>set_locale_base_url(value)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Set where documents running the bundled <code>maidr.js</code> find locale packs.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 1%">
+<col style="width: 4%">
+<col style="width: 92%">
+<col style="width: 2%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
 <tbody>
 <tr class="odd">
-<td><a href="../api/show.html#maidr.show">show</a></td>
-<td>Display a MAIDR plot.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/render.html#maidr.render">render</a></td>
-<td>Render a MAIDR plot to HTML.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/Maidr.show.html#maidr.Maidr.show">Maidr.show</a></td>
-<td>Preview the HTML content using the specified renderer.</td>
+<td>value</td>
+<td>str, False, or None</td>
+<td>* A URL: the directory holding <code>locale-&lt;code&gt;.js</code>. It is declared in every document py-maidr produces, including those that load <code>maidr.js</code> from the CDN, so a self-hosted copy of the packs serves them all. * <code>""</code> or <code>False</code>: declare nothing. A document running the bundled copy then makes no request for a language and stays in English. * <code>None</code> (default state): defer to <code>MAIDR_LOCALE_BASE_URL</code>, and then to the packs of the bundled version on jsDelivr.</td>
+<td><em>required</em></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="saving-a-maidr-plot-as-an-html-file" class="level2">
-<h2 class="anchored" data-anchor-id="saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</h2>
-<p>Save a plot as a standalone HTML file with <code>maidr.save_html()</code>.</p>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
 <table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
 <tbody>
 <tr class="odd">
-<td><a href="../api/save_html.html#maidr.save_html">save_html</a></td>
-<td>Save a MAIDR plot as HTML file.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/Maidr.save_html.html#maidr.Maidr.save_html">Maidr.save_html</a></td>
-<td>Save the HTML representation of the figure with MAIDR to a file.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="registering-and-releasing-figures" class="level2">
-<h2 class="anchored" data-anchor-id="registering-and-releasing-figures">Registering and releasing figures</h2>
-<p>Mark a bar container as a stacked bar plot with <code>maidr.stacked()</code>, and release the figures maidr tracks with <code>maidr.close()</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/stacked.html#maidr.stacked">stacked</a></td>
 <td></td>
-</tr>
-<tr class="even">
-<td><a href="../api/close.html#maidr.close">close</a></td>
-<td>Close a MAIDR plot and clean up resources.</td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#TypeError">TypeError</a></td>
+<td>If <code>value</code> is none of the above.</td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="switching-the-matplotlib-backend" class="level2">
-<h2 class="anchored" data-anchor-id="switching-the-matplotlib-backend">Switching the matplotlib backend</h2>
-<p>Control whether <code>plt.show()</code> uses the maidr accessible backend or the platform default with <code>maidr.set_backend()</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/set_backend.html#maidr.set_backend">set_backend</a></td>
-<td>Switch the matplotlib backend between maidr and the platform default.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="where-the-maidr.js-runtime-comes-from" class="level2">
-<h2 class="anchored" data-anchor-id="where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</h2>
-<p>Choose between the jsDelivr CDN and the copy bundled in the wheel with <code>maidr.set_use_cdn()</code>, name where the bundled copy finds its non-English locale packs with <code>maidr.set_locale_base_url()</code>, and emit the notebook loader by hand with <code>maidr.init_notebook()</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/set_use_cdn.html#maidr.set_use_cdn">set_use_cdn</a></td>
-<td>Set the process-wide default for <code>use_cdn</code>.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/get_use_cdn.html#maidr.get_use_cdn">get_use_cdn</a></td>
-<td>Return the current default for <code>use_cdn</code>.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/set_locale_base_url.html#maidr.set_locale_base_url">set_locale_base_url</a></td>
-<td>Set where documents running the bundled <code>maidr.js</code> find locale packs.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/get_locale_base_url.html#maidr.get_locale_base_url">get_locale_base_url</a></td>
-<td>Return where a document running the bundled <code>maidr.js</code> finds packs.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/init_notebook.html#maidr.init_notebook">init_notebook</a></td>
-<td>Inject the bundled <code>maidr.js</code> / <code>maidr-math.css</code> into the notebook DOM.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="shiny-for-python" class="level2">
-<h2 class="anchored" data-anchor-id="shiny-for-python">Shiny for Python</h2>
-<p>Pair <code>output_maidr()</code> in the UI with <code>@render_maidr</code> in the server. Requires the <code>shiny</code> extra: <code>pip install "maidr[shiny]"</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/shiny.output_maidr.html#maidr.widget.shiny.output_maidr">shiny.output_maidr</a></td>
-<td>Create a container for a :class:<code>render_maidr</code> output.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/shiny.render_maidr.html#maidr.widget.shiny.render_maidr">shiny.render_maidr</a></td>
-<td>Render a plot as an accessible MAIDR chart in a Shiny app.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="streamlit" class="level2">
-<h2 class="anchored" data-anchor-id="streamlit">Streamlit</h2>
-<p>Place an accessible chart in a Streamlit app with <code>render_maidr()</code>, or get the HTML string to cache with <code>maidr_html()</code>. Requires the <code>streamlit</code> extra: <code>pip install "maidr[streamlit]"</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/streamlit.render_maidr.html#maidr.widget.streamlit.render_maidr">streamlit.render_maidr</a></td>
-<td>Draw an accessible MAIDR chart in a Streamlit app.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/streamlit.maidr_html.html#maidr.widget.streamlit.maidr_html">streamlit.maidr_html</a></td>
-<td>Return an accessible chart as a self-contained HTML string.</td>
-</tr>
-</tbody>
-</table>
+<section id="notes" class="level2 doc-section doc-section-notes">
+<h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
+<p>Process-wide state, like :func:<code>maidr.set_use_cdn</code>: in a server handling several sessions, set it once at startup.</p>
 
 
 </section>
