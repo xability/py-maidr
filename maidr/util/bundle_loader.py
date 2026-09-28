@@ -27,6 +27,7 @@ from maidr.util.dependencies import (
     maidr_html_dependency,
 )
 from maidr.util.environment import Environment
+from maidr.util.locale_pack import locale_config_child, locale_fallback_js
 
 
 def iframe_mode(use_iframe: bool) -> tuple[bool, bool, bool]:
@@ -72,7 +73,8 @@ def maidr_bundle_children(
 
     Also where the bundled copy's age is reported, since each branch here is
     the point at which the bundle is known to be the primary source or the
-    fallback.
+    fallback. Leads with where the bundled copy finds its locale packs, when
+    it is the one that runs (see :mod:`maidr.util.locale_pack`).
 
     Parameters
     ----------
@@ -89,6 +91,13 @@ def maidr_bundle_children(
         Tags and dependencies to place ahead of the chart.
     """
     children: list[Any] = []
+    # In the window the bundle runs in, ahead of it: inside a notebook
+    # frame that is the frame, before the loader evaluates the stash.
+    locale_child = locale_config_child(
+        use_cdn, inline=iframe_in_notebook or iframe_inline_bundle
+    )
+    if locale_child is not None:
+        children.append(locale_child)
     if use_cdn is False:
         # Bundled copy is the only source; surface it if it has aged.
         warn_if_bundle_is_stale()
@@ -267,6 +276,10 @@ def maidr_loader_js(
     # must never touch the network.
     js_cdn_url = maidr_js_cdn_url()
     if use_cdn == "auto":
+        # Declared only in the fallback, once the bundled copy is what runs:
+        # ``maidr.js`` prefers the global to its own URL, so declaring it up
+        # front would hand the CDN copy the bundled version's packs.
+        locale_fallback = locale_fallback_js()
         if iframe_in_notebook:
             # Iframe path: try the CDN first, fall back to the
             # parent-window source on ``onerror``.  Relative
@@ -288,7 +301,8 @@ def maidr_loader_js(
                     if (!existing) {{
                         var s = document.createElement('script');
                         s.src = '{js_cdn_url}';
-                        s.onerror = function() {{{auto_parent_source}}};
+                        s.onerror = function() {{
+                            {locale_fallback}{auto_parent_source}}};
                         document.head.appendChild(s);
                     }}
                 """
@@ -303,6 +317,7 @@ def maidr_loader_js(
                         var s = document.createElement('script');
                         s.src = '{js_cdn_url}';
                         s.onerror = function() {{
+                            {locale_fallback}
                             var fb = document.createElement('script');
                             fb.src = '{bundled_js_rel}';
                             // The relative path resolves wherever the host

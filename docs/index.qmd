@@ -543,6 +543,42 @@ In sandboxed or egress-blocked environments (CI, air-gapped machines), `MAIDR_CD
 
 One exception is worth knowing about: **Altair** charts always load `maidr.js` from the CDN. That adapter has no bundled/offline path — `use_cdn` and `MAIDR_USE_CDN` are not plumbed through it — so `MAIDR_USE_CDN=false` will not make an Altair chart self-contained. `MAIDR_CDN_VERSION=bundled` does still remove the version lookup for Altair, which is why it is the better setting when any part of your work is air-gapped.
 
+### Languages other than English
+
+`maidr.js` speaks English on its own and every other language from a locale
+pack, `locale-<code>.js`, which it fetches when a reader's language is chosen
+or detected from the browser. The CDN copy finds the packs beside itself. The
+copy bundled in py-maidr does not carry them, so a document that runs it —
+`use_cdn=False`, and the fallback of `"auto"` — tells it where the packs of the
+bundled version are on jsDelivr, as `window.maidrLocaleBaseUrl`, in the page
+or frame it runs in and ahead of it. A page that already sets that global
+keeps its own value.
+
+English needs nothing from the network. A reader whose language is Korean,
+say, fetches `locale-ko.js` (about 100 KB) the first time it is needed when
+they are online, and hears English, as before, when they are not.
+
+To make that one request impossible as well — strictly no network, English
+only — turn it off:
+
+```python
+import maidr
+maidr.set_locale_base_url(False)   # or: MAIDR_LOCALE_BASE_URL=""
+```
+
+To serve the packs yourself — copy `dist/locale-*.js` of the matching
+`maidr` npm release to a host your readers can reach — name that directory
+instead, and every document py-maidr produces declares it, the CDN ones
+included:
+
+```python
+maidr.set_locale_base_url("https://intranet.example/maidr/")
+maidr.set_locale_base_url(None)   # back to the default
+```
+
+`maidr.get_locale_base_url()` returns the directory a document running the
+bundled copy is told, or `None` when it is told nothing.
+
 ### A tactile display, offline
 
 One thing an offline document still fetches: the SDK that drives a [DotPad
@@ -730,6 +766,7 @@ The resolved version is looked up once per process, and the staleness warning fi
 | `MAIDR_CDN_VERSION` | Pin the CDN version — `bundled` is the recommended setting for restricted networks (does not affect `bundle_status()`, which always resolves unless passed `resolve=False`): a version such as `3.74.0`, `bundled`, or `latest` to skip resolution. If `bundled` is set but the installed `VERSION` file is missing or unreadable, py-maidr warns and falls back to `latest` without making a network request. |
 | `MAIDR_CDN_TIMEOUT` | Seconds allowed for the version lookup, shared across attempts (default `3`). Values of `0` or less fall back to the default, and anything above `30` is clamped to it with a warning — the units are seconds, so a value like `3000` is treated as a mistake rather than a request to wait fifty minutes. |
 | `MAIDR_BUNDLE_STALE_WARNING` | Set to `0` to silence the stale-bundle warning. |
+| `MAIDR_LOCALE_BASE_URL` | Directory the bundled `maidr.js` fetches its non-English locale packs from (default: the bundled version's on jsDelivr), declared in every document when set; empty or `false` declares nothing, so every reader of a bundled copy gets English. `maidr.set_locale_base_url()` is the same setting from Python. |
 | `MAIDR_DOTPAD_SDK_URL` | URL of a copy of the DotPad SDK module every document should load instead of the vendor's on jsDelivr; `maidr.set_dotpad_sdk()` is the same setting from Python. |
 | `MAIDR_DOTPAD_ASSET_BASE_URL` | URL of the directory holding that SDK's braille engine, when it is not the `lib/` folder beside the module. |
 | `MAIDR_DOTPAD_SDK_DIR` | Where `maidr.download_dotpad_sdk()` writes the SDK and where `save_html(use_cdn=False)` looks for it; defaults to a per-user cache. |

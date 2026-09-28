@@ -28,6 +28,15 @@ from maidr.util import cdn
 from maidr.util import dependencies
 
 
+def _locale_packs() -> str:
+    """Where a document running the bundled copy is told its packs are (#819).
+
+    The one jsDelivr URL a ``use_cdn=False`` document carries on purpose;
+    the tests below that promise no CDN reference mean every other one.
+    """
+    return maidr.get_locale_base_url()
+
+
 # ---------------------------------------------------------------------------
 # Bundled assets
 # ---------------------------------------------------------------------------
@@ -214,7 +223,8 @@ def test_save_html_use_cdn_false_html_references_relative_path(bar_plot, tmp_pat
     out = tmp_path / "plot.html"
     maidr.save_html(bar_plot, file=str(out), use_cdn=False)
 
-    contents = out.read_text(encoding="utf-8")
+    # Apart from where the bundled copy finds its locale packs (#819).
+    contents = out.read_text(encoding="utf-8").replace(_locale_packs(), "")
     assert (
         "cdn.jsdelivr.net/npm/maidr" not in contents
     ), "use_cdn=False output must not reference the CDN"
@@ -385,7 +395,7 @@ def test_set_use_cdn_changes_save_html_default(bar_plot, tmp_path):
     out = tmp_path / "plot.html"
     maidr.save_html(bar_plot, file=str(out))
 
-    contents = out.read_text(encoding="utf-8")
+    contents = out.read_text(encoding="utf-8").replace(_locale_packs(), "")
     assert "cdn.jsdelivr.net/npm/maidr" not in contents
 
 
@@ -630,7 +640,7 @@ def test_render_in_notebook_uses_parent_source_bootstrap(
     assert "__maidrJsSource" in rendered
     # The 1.7 MB bundle must NOT be inlined in the srcdoc — that's the
     # whole point of the load-once pattern.
-    assert "cdn.jsdelivr.net" not in rendered
+    assert "cdn.jsdelivr.net" not in rendered.replace(_locale_packs(), "")
 
 
 def test_render_in_notebook_auto_uses_parent_source_fallback(

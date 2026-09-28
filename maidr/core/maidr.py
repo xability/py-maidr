@@ -44,6 +44,7 @@ from maidr.util.cdn import (
     maidr_js_cdn_url,
 )
 from maidr.util.dotpad import dotpad_config_child, local_dotpad_sdk_dependency
+from maidr.util.locale_pack import locale_config_child, locale_fallback_js
 from maidr.util.grid_position import topmost_subplotspec
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import (
@@ -1320,6 +1321,11 @@ class Maidr:
             # Resolved lazily and only on the CDN paths: ``use_cdn=False``
             # must never touch the network.
             js_cdn_url = maidr_js_cdn_url()
+            # Where the bundled copy finds its locale packs, declared only
+            # once it is what runs: ``maidr.js`` prefers the global to its
+            # own URL, so declaring it up front would hand the CDN copy the
+            # bundled version's packs. See ``maidr.util.locale_pack``.
+            locale_fallback = locale_fallback_js()
             # Resolution above has established the published version, so
             # the bundled fallback's age is now known for free.  It is a
             # fallback here, not the primary source, so report quietly.
@@ -1340,6 +1346,7 @@ class Maidr:
                         }}
 {OFFLINE_FALLBACK_REPORT}
                         function fallbackFromParent() {{
+                            {locale_fallback}
                             try {{
                                 var jsSrc = window.parent && window.parent.__maidrJsSource;
                                 // See the use_cdn=False path: an inline
@@ -1404,6 +1411,7 @@ class Maidr:
                         s.src = '{js_cdn_url}';
                         s.onload = bootstrap;
                         s.onerror = function() {{
+                            {locale_fallback}
                             var fb = document.createElement('script');
                             fb.src = '{bundled_js_rel}';
                             fb.onload = bootstrap;
@@ -1455,6 +1463,13 @@ class Maidr:
         dotpad_child = dotpad_config_child(inline=will_iframe)
         if dotpad_child is not None:
             children.insert(0, dotpad_child)
+
+        # Where the bundled ``maidr.js`` finds its locale packs, declared in
+        # the window it runs in and ahead of it; inside a notebook frame
+        # that is the frame, before the stashed source is evaluated.
+        locale_child = locale_config_child(use_cdn, inline=will_iframe)
+        if locale_child is not None:
+            children.insert(0, locale_child)
 
         base_html = tags.div(*children)
 

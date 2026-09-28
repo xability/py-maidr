@@ -303,11 +303,14 @@ quartodoc:
     - title: Where the maidr.js runtime comes from
       desc: >
         Choose between the jsDelivr CDN and the copy bundled in the wheel with
-        `maidr.set_use_cdn()`, and emit the notebook loader by hand with
-        `maidr.init_notebook()`.
+        `maidr.set_use_cdn()`, name where the bundled copy finds its
+        non-English locale packs with `maidr.set_locale_base_url()`, and emit
+        the notebook loader by hand with `maidr.init_notebook()`.
       contents:
         - set_use_cdn
         - get_use_cdn
+        - set_locale_base_url
+        - get_locale_base_url
         - init_notebook
     - title: Shiny for Python
       desc: >
