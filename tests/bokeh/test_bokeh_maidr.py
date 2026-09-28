@@ -155,6 +155,8 @@ class TestPage:
         text = out.read_text(encoding="utf-8")
 
         assert re.search(r'<script src="lib/maidr-[^"]+/maidr\.js"', text)
+        # Apart from where the bundled copy finds its locale packs (#819).
+        text = text.replace(maidr.get_locale_base_url(), "")
         assert "cdn.jsdelivr.net/npm/maidr@" not in text
 
     def test_use_cdn_true_loads_maidr_from_jsdelivr(self, bar):

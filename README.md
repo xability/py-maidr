@@ -121,6 +121,15 @@ maidr.download_dotpad_sdk()   # once; ~14 MB into a per-user cache
 maidr.save_html(fig, "chart.html", use_cdn=False)
 ```
 
+The bundled `maidr.js` does not carry its non-English locale packs. A document that
+runs it points it at the packs of the same version on jsDelivr, so a reader whose
+browser asks for, say, Korean fetches that one pack when online and hears English
+when not. For strictly no network, and English only, turn that off:
+
+```sh
+export MAIDR_LOCALE_BASE_URL=""   # or maidr.set_locale_base_url(False)
+```
+
 See [Offline Use and the JavaScript Bundle](https://py.maidr.ai/#offline-use-and-the-javascript-bundle) for the full set of options.
 
 

@@ -246,6 +246,11 @@ from .util.dependencies import (  # noqa: E402
     read_bundled_js,
     read_bundled_math_css,
 )
+from .util.locale_pack import (  # noqa: E402
+    LOCALE_BASE_URL_ENV_VAR,
+    get_locale_base_url,
+    set_locale_base_url,
+)
 from .util.warn import BUNDLE_WARNING_ENV_VAR  # noqa: E402
 
 # Second call: reclaim the backend after maidr's own imports.
@@ -277,6 +282,7 @@ __all__ = [
     "DOTPAD_SDK_VERSION",
     "DotPadSdkConfig",
     "LATEST_TAG",
+    "LOCALE_BASE_URL_ENV_VAR",
     "MaidrBundleStaleWarning",
     "MaidrBundleTraceWarning",
     "MaidrRenderRaceWarning",
@@ -292,6 +298,7 @@ __all__ = [
     "download_dotpad_sdk",
     "get_cdn_version",
     "get_dotpad_sdk",
+    "get_locale_base_url",
     "get_use_cdn",
     "init_notebook",
     "maidr_js_version",
@@ -303,6 +310,7 @@ __all__ = [
     "set_backend",
     "set_cdn_version",
     "set_dotpad_sdk",
+    "set_locale_base_url",
     "set_use_cdn",
     "show",
     "stacked",

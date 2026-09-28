@@ -30,6 +30,7 @@ from shiny.render.renderer import Renderer  # noqa: E402
 
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.dependencies import read_bundled_js  # noqa: E402
+from maidr.util.locale_pack import get_locale_base_url  # noqa: E402
 from maidr.widget.shiny import output_maidr, render_maidr  # noqa: E402
 
 from .conftest import _fake_session_class  # noqa: E402
@@ -335,8 +336,10 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     assert payload["deps"] == [], "an iframed render cannot carry dependencies"
     # The maidr loader URL rather than the bare host: the inlined bundle
     # names jsDelivr itself, for the DotPad SDK it fetches on first connect
-    # (#771), so the host alone is in every offline document too.
-    assert ("cdn.jsdelivr.net/npm/maidr" in document) is expect_cdn
+    # (#771), so the host alone is in every offline document too. And an
+    # offline document names where its locale packs are there (#819).
+    loader = document.replace(get_locale_base_url(), "")
+    assert ("cdn.jsdelivr.net/npm/maidr" in loader) is expect_cdn
     assert (_BUNDLE_HEAD in document) is expect_inline_bundle
 
 
