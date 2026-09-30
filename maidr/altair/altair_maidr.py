@@ -162,7 +162,7 @@ class AltairMaidr:
         else:
             _renderer = renderer
 
-        if Environment.is_pyodide_page() and not Environment.is_notebook():
+        if Environment.is_pyodide_page():
             return show_in_page(html)
 
         if _renderer == "browser" and not Environment.is_notebook():

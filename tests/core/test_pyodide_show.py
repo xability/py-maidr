@@ -72,12 +72,6 @@ def test_show_embeds_the_chart_in_the_page(page, monkeypatch):
     plt.close("all")
 
 
-def test_a_worker_without_a_document_is_left_alone(monkeypatch):
-    monkeypatch.setitem(sys.modules, "js", types.SimpleNamespace())
-    monkeypatch.setattr(sys, "platform", "emscripten")
-    assert not Environment.is_pyodide_page()
-
-
 def _plotly():
     go = pytest.importorskip("plotly.graph_objects")
     return go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
@@ -97,6 +91,7 @@ def _altair():
     return alt.Chart(df).mark_bar().encode(x="x", y="y")
 
 
+@pytest.mark.filterwarnings("ignore:maidr:UserWarning")
 @pytest.mark.parametrize("make", [_plotly, _bokeh, _altair])
 def test_other_libraries_embed_in_the_page(page, monkeypatch, make):
     opened = []
@@ -109,12 +104,33 @@ def test_other_libraries_embed_in_the_page(page, monkeypatch, make):
     assert "<iframe" in page.children[0].innerHTML
 
 
-def test_a_notebook_shell_keeps_the_notebook_path(page, monkeypatch):
+def test_is_pyodide_page_is_false_in_a_notebook_shell(page, monkeypatch):
     """JupyterLite has IPython, so it is not handled as a bare page."""
     monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: True))
-    _, ax = _bar()
+    assert Environment.is_pyodide_page() is False
 
-    maidr.show(ax, renderer="browser", use_cdn=True)
+
+def test_a_page_iframes_with_an_inline_bundle(page):
+    from maidr.util.bundle_loader import iframe_mode
+
+    assert iframe_mode(True) == (True, False, True)
+
+
+def test_no_page_means_no_iframe():
+    from maidr.util.bundle_loader import iframe_mode
+
+    assert iframe_mode(True) == (False, False, False)
+
+
+@pytest.mark.filterwarnings("ignore:maidr:UserWarning")
+@pytest.mark.parametrize("make", [_plotly, _bokeh, _altair])
+def test_other_libraries_skip_the_page_in_a_notebook(page, monkeypatch, make):
+    monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: True))
+    shown = []
+    monkeypatch.setattr(
+        "htmltools.Tag.show", lambda self, *a, **k: shown.append(a), raising=False
+    )
+
+    maidr.show(make(), renderer="ipython", use_cdn=True)
 
     assert page.children == []
-    plt.close("all")

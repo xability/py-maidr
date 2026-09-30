@@ -1488,13 +1488,14 @@ class PlotlyMaidr:
         else:
             _renderer = renderer
 
+        # A Pyodide page has no browser to open; the chart goes in the page.
+        if Environment.is_pyodide_page():
+            return show_in_page(self._create_html_tag(use_iframe=True, use_cdn=use_cdn))
+
         # The browser path renders through `save_html`, which builds the
         # whole document itself, so the Tag must not be built ahead of
         # this decision: that would serialize the figure and the schema
         # twice and throw the first copy away.
-        if Environment.is_pyodide_page() and not Environment.is_notebook():
-            return show_in_page(self._create_html_tag(use_iframe=True, use_cdn=use_cdn))
-
         if _renderer == "browser" and not Environment.is_notebook():
             return self._open_plot_in_browser(use_cdn=use_cdn)
 

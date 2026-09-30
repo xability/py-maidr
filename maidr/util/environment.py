@@ -100,27 +100,28 @@ class Environment:
     @staticmethod
     def is_pyodide_page() -> bool:
         """
-        Return True when running in Pyodide on a page's main thread.
+        Return True when running in Pyodide on a page's main thread, with no shell.
 
         ``micropip.install("maidr")`` in a plain Pyodide page has no IPython
         and no filesystem a browser can open, so ``webbrowser.open`` does
         nothing there.  What it does have is the host page's ``document``,
         which is where a chart can be put instead.  A web worker is
         Pyodide too but has no ``document``, so it answers False.  JupyterLite
-        answers False as well: it has a shell, and is handled as a notebook.
+        answers False as well: it has an IPython shell, and is handled as a
+        notebook.
 
         Returns
         -------
         bool
             True if the ``js`` module exposes a ``document``, else False.
         """
-        if sys.platform != "emscripten":
+        if sys.platform != "emscripten" or Environment.is_notebook():
             return False
         try:
             import js  # type: ignore[import-not-found]
 
             return getattr(js, "document", None) is not None
-        except Exception:
+        except ImportError:
             return False
 
     @staticmethod
