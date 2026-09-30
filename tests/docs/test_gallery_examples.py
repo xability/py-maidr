@@ -462,6 +462,31 @@ def test_gantt_lanes_are_named_by_the_fixed_ticks(gallery: _Gallery) -> None:
     assert [len(lane) for lane in data[MaidrKey.POINTS]] == [1, 2, 1]
 
 
+def test_candlestick_dates_read_as_the_axis_draws_them(gallery: _Gallery) -> None:
+    """candlestick-gantt.qmd: "Pass ``datetime_format=`` to ``mpf.plot()``,
+    as above, and the dates are announced the way the x axis draws them:
+    every candle, volume bar and moving average reads as its tick label does,
+    ``Nov 01, 2019`` here".
+    """
+    shown = gallery.shown("examples/candlestick-gantt.qmd", "Candlestick Chart")
+
+    candles = [
+        candle["value"] for candle in shown.layer(PlotType.CANDLESTICK)[MaidrKey.DATA]
+    ]
+    volume = [bar[MaidrKey.X] for bar in shown.layer(PlotType.BAR)[MaidrKey.DATA]]
+    averages = shown.layer(PlotType.LINE)[MaidrKey.DATA]
+
+    assert candles[0] == "Nov 01, 2019"
+    assert volume == candles
+    # Each moving average starts once its window is full, on a later candle.
+    assert [line[0][MaidrKey.X] for line in averages] == [
+        candles[2],
+        candles[5],
+        candles[8],
+    ]
+    assert {point[MaidrKey.X] for line in averages for point in line} <= set(candles)
+
+
 def test_contour_reads_six_curves_for_six_levels(gallery: _Gallery) -> None:
     """heatmap-hexbin-contour.qmd: "On a single-peaked surface like this
     one the two coincide -- six levels, six curves."

@@ -21,7 +21,6 @@ legacy_candlestick_example.py
 
 import mplfinance as mpf
 import pandas as pd
-import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import maidr  # noqa: F401
 
@@ -38,6 +37,9 @@ fig, axlist = mpf.plot(
     xlabel="Date",
     figsize=(12, 8),
     title="Stock Price with Volume",
+    # Date axis - Short date format (e.g., "Nov 15"). MAIDR announces each
+    # candle, volume bar and moving average in the same format.
+    datetime_format="%b %d",
 )
 
 # Add axis formatters for better accessibility and screen reader output
@@ -46,11 +48,6 @@ fig, axlist = mpf.plot(
 
 # Price axis (axlist[0]) - Currency format with dollar sign
 axlist[0].yaxis.set_major_formatter("${x:,.2f}")
-
-# Date axis - Short date format (e.g., "Nov 15")
-# Note: For mplfinance, DateFormatter on x-axis affects visual display only.
-# MAIDR extracts dates directly from the DataFrame for accurate data.
-axlist[0].xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
 
 # Volume axis (axlist[2]) - Number format with thousands separator
 axlist[2].yaxis.set_major_formatter("{x:,.0f}")

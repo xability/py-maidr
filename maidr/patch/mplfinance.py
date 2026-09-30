@@ -101,10 +101,16 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
             except Exception:
                 pass
 
-        # Create datetime converter for DatetimeIndex data
+        # Create datetime converter for DatetimeIndex data. It labels the
+        # dates in the ``datetime_format`` the x axis was drawn with, when the
+        # caller gave one, so a reader hears a date as the ticks spell it
+        # (#233). Without one, mplfinance picks a tick format by the span of
+        # the data, and the labels stay the full ``str()`` of each stamp.
         if hasattr(data, "index") and hasattr(data.index, "dtype"):
             if "datetime" in str(data.index.dtype).lower():
-                datetime_converter = create_datetime_converter(data)
+                datetime_converter = create_datetime_converter(
+                    data, kwargs.get("datetime_format")
+                )
 
                 # Use enhanced converter's date_nums for mplfinance compatibility
                 if date_nums is None and hasattr(datetime_converter, "date_nums"):
