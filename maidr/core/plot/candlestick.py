@@ -12,13 +12,16 @@ from maidr.exception import ExtractionError
 if TYPE_CHECKING:
     import pandas as pd
 
+    from maidr.util.datetime_conversion import DatetimeConverter
+
 
 class CandlestickPlot(MaidrPlot):
     """
     Specialized candlestick plot class for mplfinance OHLC data.
 
-    This class extracts candlestick data directly from the original DataFrame
-    without any formatting or transformation.
+    This class extracts candlestick data directly from the original DataFrame,
+    with no transformation of the prices. Each date is labeled in the chart's
+    ``datetime_format`` when it was drawn with one.
     """
 
     def __init__(self, axes: list[Axes], **kwargs) -> None:
@@ -42,6 +45,11 @@ class CandlestickPlot(MaidrPlot):
         self._maidr_wick_collection = kwargs.get("_maidr_wick_collection", None)
         self._maidr_body_collection = kwargs.get("_maidr_body_collection", None)
         self._maidr_original_data = kwargs.get("_maidr_original_data", None)
+        # The converter the mplfinance patch labels the volume bars and moving
+        # averages with, handed over so the candles are labeled by it too.
+        self._maidr_datetime_converter: Optional[DatetimeConverter] = kwargs.get(
+            "_maidr_datetime_converter", None
+        )
 
         # Positions in the frame of the rows whose candles were emitted, set by
         # `_extract_from_dataframe` and read by `_get_selector` (#749).
@@ -67,7 +75,7 @@ class CandlestickPlot(MaidrPlot):
         -------
         list[dict]
             List of dictionaries containing candlestick data with keys:
-            - 'value': Date string (raw from DataFrame index)
+            - 'value': Date label (see `_extract_from_dataframe`)
             - 'open': Opening price (float)
             - 'high': High price (float)
             - 'low': Low price (float)
@@ -102,7 +110,7 @@ class CandlestickPlot(MaidrPlot):
 
     def _extract_from_dataframe(self, df: pd.DataFrame) -> list[dict]:
         """
-        Extract candlestick data directly from DataFrame without any formatting.
+        Extract candlestick data directly from the DataFrame.
 
         Parameters
         ----------
@@ -112,9 +120,12 @@ class CandlestickPlot(MaidrPlot):
         Returns
         -------
         list[dict]
-            List of candlestick data dictionaries with raw values. A row whose
-            open, high, low or close is not finite or not a number is left out;
-            a missing, non-finite or non-numeric volume is reported as ``0.0``.
+            List of candlestick data dictionaries with raw prices, and the date
+            labeled by the converter the mplfinance patch handed over -- in the
+            chart's ``datetime_format`` if it has one -- or else as
+            ``str(df.index[i])``. A row whose open, high, low or close is not
+            finite or not a number is left out; a missing, non-finite or
+            non-numeric volume is reported as ``0.0``.
 
         Notes
         -----
@@ -148,8 +159,14 @@ class CandlestickPlot(MaidrPlot):
             if "Volume" in df.columns
             else None
         )
-        # Raw representation of the index, exactly as ``str(df.index[i])``.
-        dates = [str(date) for date in df.index]
+        # The label of each row: the index as the converter formats it, which
+        # is the chart's ``datetime_format`` when it was drawn with one (#233),
+        # so a candle reads the same date as its volume bar and moving
+        # averages. Without a format, or without a converter, it is the raw
+        # ``str(df.index[i])``.
+        converter = self._maidr_datetime_converter
+        format_date = converter.format_datetime if converter is not None else str
+        dates = [format_date(date) for date in df.index]
 
         candles = []
         for i, date_value in enumerate(dates):

@@ -21,14 +21,15 @@ class DatetimeConverter:
     data : pd.DataFrame
         DataFrame with DatetimeIndex containing financial data.
     datetime_format : str, optional
-        Custom datetime format string. If None, automatic format detection is used.
+        ``strftime`` format the dates are labeled in: the chart's own
+        ``datetime_format``. If None, each date is labeled ``str(date)``.
 
     Attributes
     ----------
     data : pd.DataFrame
         The input DataFrame with DatetimeIndex.
     datetime_format : str or None
-        Custom datetime format string if provided.
+        The ``strftime`` format dates are labeled in, if one was given.
     date_mapping : Dict[int, datetime]
         Mapping from integer index to datetime objects.
     time_period : str
@@ -74,7 +75,8 @@ class DatetimeConverter:
         data : pd.DataFrame
             DataFrame with DatetimeIndex containing financial data.
         datetime_format : str, optional
-            Custom datetime format string. If None, automatic format detection is used.
+            ``strftime`` format the dates are labeled in. If None, each date
+            is labeled ``str(date)``.
 
         Raises
         ------
@@ -172,9 +174,7 @@ class DatetimeConverter:
 
     def get_formatted_datetime(self, index: int) -> Optional[str]:
         """
-        Get formatted datetime string for given index using consistent formatting.
-
-        Always includes year for screen reader accessibility.
+        Get the label of the date at the given row, as `format_datetime` gives it.
 
         Parameters
         ----------
@@ -184,7 +184,7 @@ class DatetimeConverter:
         Returns
         -------
         str or None
-            Formatted datetime string or None if index is invalid.
+            The date's label, or None if the index is invalid.
 
         Examples
         --------
@@ -196,28 +196,42 @@ class DatetimeConverter:
             return None
 
         dt = self.date_mapping[index]
-        return self._format_datetime_custom(dt)
+        return self.format_datetime(dt)
 
-    def _format_datetime_custom(self, dt: datetime) -> str:
+    def format_datetime(self, dt: datetime) -> str:
         """
-        Return plain datetime string representation.
+        Return the label a date is announced by.
 
         Parameters
         ----------
         dt : datetime
-            Datetime object to format.
+            A stamp of the frame's index.
 
         Returns
         -------
         str
-            Plain string representation of datetime (ISO format).
+            ``dt.strftime(datetime_format)`` when a format was given, else the
+            raw ``str(dt)``.
 
         Notes
         -----
-        Returns the raw string representation of the datetime object,
-        allowing the frontend to handle formatting as needed.
+        The format is the ``datetime_format`` the chart was drawn with, so a
+        reader hears each date the way the tick labels spell it (#233). The
+        stamp is formatted as the index holds it: mplfinance drops a tz-aware
+        index's zone before drawing (its default ``tz_localize=True``), which
+        leaves the same wall-clock time this reads.
+
+        Without a format the label is ``str(dt)``, as it has always been,
+        leaving the frontend to handle the presentation. A ``NaT`` has no
+        ``strftime`` and keeps its ``"NaT"`` either way.
         """
-        return str(dt)
+        # Imported here rather than at module level, so that `import maidr`
+        # does not load pandas; mplfinance has loaded it by now anyway.
+        import pandas as pd
+
+        if self.datetime_format is None or dt is pd.NaT:
+            return str(dt)
+        return dt.strftime(self.datetime_format)
 
     @property
     def date_nums(self) -> List[float]:
@@ -404,7 +418,8 @@ def create_datetime_converter(
     data : pd.DataFrame
         DataFrame with DatetimeIndex containing financial data.
     datetime_format : str, optional
-        Custom datetime format string. If None, automatic format detection is used.
+        ``strftime`` format the dates are labeled in: the chart's own
+        ``datetime_format``. If None, each date is labeled ``str(date)``.
 
     Returns
     -------

@@ -40,7 +40,6 @@ import maidr  #<<
 
 import mplfinance as mpf
 import pandas as pd
-import matplotlib.dates as mdates
 
 import maidr #<<
 
@@ -58,13 +57,13 @@ fig, axlist = mpf.plot(
     ylabel_lower="Volume",
     xlabel="Date",
     title="Stock Price with Volume",
+    # Dates drawn, and announced, like "Nov 01, 2019"
+    datetime_format="%b %d, %Y", #<<
 )  #<<
 
 # Add formatters for better screen reader output
 # Price axis - Currency format
 axlist[0].yaxis.set_major_formatter("${x:,.2f}")
-# Date axis - Custom date format like "Nov 18, 2016"
-axlist[0].xaxis.set_major_formatter(mdates.DateFormatter("%b %d, %Y"))
 # Volume axis - Integer with thousands separator
 axlist[2].yaxis.set_major_formatter("{x:,.0f}")
 
@@ -73,6 +72,19 @@ fig.tight_layout()
 # Display with maidr
 plt.show() #<<
 ```
+
+Pass `datetime_format=` to `mpf.plot()`, as above, and the dates are
+announced the way the x axis draws them: every candle, volume bar and moving
+average reads as its tick label does, `Nov 01, 2019` here, or `09:30` for
+minute bars drawn with `"%H:%M"`. Any `strftime()` pattern works, so
+`"%a %d %b"` leaves the year out. Without it, each date is announced in full
+as the frame holds it, `2019-11-01 00:00:00`, whatever format mplfinance
+picked for the ticks.
+
+Set the format there rather than with a `DateFormatter` on the axis
+afterwards. mplfinance places candles by row number, not by date, so a
+`DateFormatter` reads those row numbers as days since 1970 and labels the
+axis with dates around `Jan 01, 1970`.
 
 ## Gantt Chart [experimental] {#gantt-chart}
 
