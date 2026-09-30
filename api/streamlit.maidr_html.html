@@ -437,14 +437,14 @@ cookieconsent.run({
 <tr class="odd">
 <td></td>
 <td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
-<td>A complete HTML fragment, safe to embed in an iframe.</td>
+<td>A complete HTML fragment for one iframe. An unchanged matplotlib, seaborn or Altair chart is the same string on every call, which is what lets Streamlit keep its frame across a rerun (the module notes say what that keeps, and why Plotly and Bokeh are not included). Its ids are derived from the chart, so they are unique within the string but not between two calls for the same chart: give each its own frame.</td>
 </tr>
 </tbody>
 </table>
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>Exists as its own entry point so the <em>string</em> can be cached, which is the useful lever against Streamlit rerunning the whole script on every widget interaction::</p>
+<p>Exists as its own entry point so the <em>string</em> can be cached, which spares rendering the chart again when Streamlit reruns the whole script on every widget interaction. For a matplotlib, seaborn or Altair chart the frame no longer depends on it – an unchanged chart’s frame is kept either way – so there this is about what the render costs, not about the reader::</p>
 <pre data-code-line-numbers=""><code>@st.cache_data
 def chart_html(_fig, key):
     return maidr_html(_fig)
