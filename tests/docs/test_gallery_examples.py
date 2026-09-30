@@ -700,15 +700,44 @@ def test_plotnine_heatmap_leaves_an_unrecorded_cell_empty(gallery: _Gallery) -> 
 
 def test_plotnine_facets_are_subplots_titled_by_their_facet(gallery: _Gallery) -> None:
     """examples-plotnine.qmd: "Each panel is a subplot, titled by its facet as
-    ``species = Adelie``."
+    ``cyl = 4``."
     """
     shown = gallery.shown("examples-plotnine.qmd", "Faceted Plot")
 
     assert [cell[0][MaidrKey.TITLE] for cell in shown.layers] == [
-        "species = Adelie",
-        "species = Chinstrap",
-        "species = Gentoo",
+        "cyl = 4",
+        "cyl = 6",
+        "cyl = 8",
     ]
+
+
+def test_plotnine_heatmap_colour_bar_stays_light(gallery: _Gallery) -> None:
+    """examples-plotnine.qmd: "the rectangles look the same and weigh a few
+    tens of kilobytes" -- against the close to 2 MB of plotnine's default
+    gradient, which put the page over the 1.9 MB budget of
+    ``docs/_scripts/check-page-sizes.sh`` (#825).
+    """
+    # Through the gallery first, which skips where plotnine is not installed.
+    assert gallery.shown("examples-plotnine.qmd", "Heatmap").layer(PlotType.HEAT)
+
+    import io
+
+    import pandas as pd
+    from plotnine import aes, geom_tile, ggplot, guide_colorbar, guides
+
+    frame = pd.DataFrame({"a": ["x", "y"], "b": ["u", "u"], "z": [1.0, 2.0]})
+
+    def svg_bytes(plot) -> int:
+        buffer = io.StringIO()
+        figure = plot.draw()
+        figure.savefig(buffer, format="svg")
+        plt.close(figure)
+        return len(buffer.getvalue())
+
+    base = ggplot(frame, aes("a", "b", fill="z")) + geom_tile()
+    light = base + guides(fill=guide_colorbar(display="rectangles"))
+
+    assert svg_bytes(light) < 100_000 < 1_000_000 < svg_bytes(base)
 
 
 def test_plotnine_normalized_segments_add_up_to_one(gallery: _Gallery) -> None:
