@@ -14,12 +14,16 @@ it, an auto-refresh calling ``st.rerun()`` -- both of which were measured
 by hand to behave the same, and is quicker and steadier than waiting on a
 timer. A reader who *leaves* the chart to use the checkbox themselves is a
 different case, and not one this can fix: maidr.js releases a chart's
-state whenever focus leaves it, rerun or not.
+state whenever focus leaves it, rerun or not (xability/maidr#1338).
+
+Run once with matplotlib and once with Plotly, whose schema ids travel as
+raw JSON in a script rather than in the SVG, and are found another way.
 """
 
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -84,10 +88,23 @@ def _rerun_by_clicking(page, label: str) -> None:
     page.wait_for_timeout(3000)
 
 
-@pytest.fixture
-def streamlit_page(browser, streamlit_rerun_app_url):
+@pytest.fixture(params=["matplotlib", "plotly"])
+def streamlit_page(request, browser, streamlit_rerun_app_url):
+    """The app's page, drawing its chart with the library under test."""
     pg = browser.new_page()
-    pg.goto(streamlit_rerun_app_url, wait_until="networkidle")
+    if request.param == "plotly":
+        # plotly.js is linked from its CDN; hand the frame the copy the
+        # installed package ships, as the Plotly browser tests do, so
+        # nothing here needs a network.
+        plotly = pytest.importorskip("plotly")
+        bundled = Path(plotly.__file__).parent / "package_data" / "plotly.min.js"
+        pg.route(
+            re.compile(r"^https://cdn\.plot\.ly/"),
+            lambda route: route.fulfill(
+                path=str(bundled), content_type="application/javascript"
+            ),
+        )
+    pg.goto(f"{streamlit_rerun_app_url}/?lib={request.param}", wait_until="networkidle")
     yield pg
     pg.close()
 

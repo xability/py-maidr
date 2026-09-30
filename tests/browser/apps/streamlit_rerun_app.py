@@ -6,7 +6,8 @@ rerun is decided by what ``render_maidr`` hands Streamlit and nothing else.
 
 ``Unrelated`` reruns the script without touching the chart; ``More data``
 changes the chart, which has to reach the reader rather than be kept as
-the chart they were already reading.
+the chart they were already reading. ``?lib=plotly`` draws the same bars
+with Plotly, whose schema ids travel as raw JSON rather than in the SVG.
 """
 
 import matplotlib
@@ -24,9 +25,18 @@ st.checkbox("Unrelated")
 more = st.checkbox("More data")
 
 labels = ["a", "b", "c", "d"] if more else ["a", "b", "c"]
-fig, ax = plt.subplots()
-ax.bar(labels, range(1, len(labels) + 1))
-ax.set_title("Sales by region")
-# Inlined so the runtime loads without network, as elsewhere in this suite.
-render_maidr(ax, use_cdn=False)
-plt.close(fig)
+heights = list(range(1, len(labels) + 1))
+
+# Inlined so maidr.js loads without network, as elsewhere in this suite.
+if st.query_params.get("lib") == "plotly":
+    import plotly.graph_objects as go
+
+    fig = go.Figure(go.Bar(x=labels, y=heights))
+    fig.update_layout(title="Sales by region")
+    render_maidr(fig, use_cdn=False)
+else:
+    fig, ax = plt.subplots()
+    ax.bar(labels, heights)
+    ax.set_title("Sales by region")
+    render_maidr(ax, use_cdn=False)
+    plt.close(fig)
