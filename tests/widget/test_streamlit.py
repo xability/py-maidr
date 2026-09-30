@@ -861,10 +861,19 @@ def _violin(ax):
     sns.violinplot(x=[1, 2, 2, 3, 5], ax=ax)
 
 
+def _hatched_bar(ax):
+    ax.bar(["a", "b"], [1, 2], hatch="//")
+
+
+def _imshow(ax):
+    ax.imshow([[1, 2, 3], [4, 5, 6]])
+
+
 #: Between them, every kind of id a render mints: gids and selector ids,
-#: schema ids in the SVG's attribute, and matplotlib's clip paths, markers
-#: and path collections.
-_CHARTS = [_bar, _line_and_scatter, _box, _heat, _violin]
+#: schema ids in the SVG's attribute, and matplotlib's clip paths, markers,
+#: path collections, hatches and images -- so a matplotlib release that
+#: changes one of those prefixes fails here rather than in a reader's frame.
+_CHARTS = [_bar, _line_and_scatter, _box, _heat, _violin, _hatched_bar, _imshow]
 
 
 def _html_of(draw, use_cdn=True, **kwargs) -> str:
@@ -932,6 +941,39 @@ def test_a_changed_chart_is_a_different_string_with_different_ids():
     assert not set(_UUID.findall(before)) & set(_UUID.findall(after))
 
 
+#: Every id a render mints: py-maidr's uuids, and matplotlib's clip paths,
+#: markers, hatches, path collections and images.
+_MINTED_IDS = re.compile(
+    rf"{_UUID.pattern}"
+    r"|\b(?:[hpm]|(?:Im_)?image|C[0-9a-f]+_[0-9a-f]+_)[0-9a-f]{10}\b"
+)
+
+
+def _shape(html: str) -> str:
+    """The document with each id replaced by the order it first appears in."""
+    seen: dict = {}
+    html = re.sub(r"\s*<dc:date>[^<]*</dc:date>", "", html)
+    return _MINTED_IDS.sub(
+        lambda m: f"<{seen.setdefault(m.group(0), len(seen))}>", html
+    )
+
+
+def _raw_and_stable(plot) -> tuple[str, str]:
+    """One render as ``maidr.render`` gives it, and as this module passes it on."""
+    import maidr
+    from maidr.widget.streamlit import _stable_ids
+
+    raw = str(maidr.render(plot, use_cdn=True).get_html_string())
+    return raw, _stable_ids(raw)
+
+
+def _assert_renamed_one_for_one(raw: str, stable: str) -> None:
+    """Every minted id renamed, each everywhere it occurs, no two into one."""
+    assert _shape(stable) == _shape(raw)
+    assert len(set(_MINTED_IDS.findall(stable))) == len(set(_MINTED_IDS.findall(raw)))
+    assert not set(_MINTED_IDS.findall(stable)) & set(_MINTED_IDS.findall(raw))
+
+
 @pytest.mark.parametrize("draw", _CHARTS, ids=lambda draw: draw.__name__[1:])
 def test_ids_are_renamed_one_for_one(draw):
     """Ids distinct in the document stay distinct, and keep their references.
@@ -942,32 +984,14 @@ def test_ids_are_renamed_one_for_one(draw):
     would leave a reference to an id that no longer exists -- a highlight
     that silently lands nowhere.
     """
-    import maidr
-    from maidr.widget.streamlit import _stable_ids
-
     fig, ax = plt.subplots()
     try:
         draw(ax)
-        raw = str(maidr.render(ax, use_cdn=True).get_html_string())
+        raw, stable = _raw_and_stable(ax)
     finally:
         plt.close(fig)
-    stable = _stable_ids(raw)
 
-    # matplotlib's: clip paths, markers, hatches, path collections, images.
-    ids = re.compile(
-        rf"{_UUID.pattern}"
-        r"|\b(?:[hpm]|(?:Im_)?image|C[0-9a-f]+_[0-9a-f]+_)[0-9a-f]{10}\b"
-    )
-
-    def shape(html: str) -> str:
-        """The document with each id replaced by the order it first appears in."""
-        seen: dict = {}
-        html = re.sub(r"\s*<dc:date>[^<]*</dc:date>", "", html)
-        return ids.sub(lambda m: f"<{seen.setdefault(m.group(0), len(seen))}>", html)
-
-    assert shape(stable) == shape(raw)
-    assert len(set(ids.findall(stable))) == len(set(ids.findall(raw)))
-    assert not set(ids.findall(stable)) & set(ids.findall(raw))
+    _assert_renamed_one_for_one(raw, stable)
 
 
 def test_a_uuid_in_the_charts_own_data_is_left_alone():
@@ -1005,3 +1029,116 @@ def test_an_altair_chart_renders_to_the_same_string():
         return maidr_html(alt.Chart(data).mark_bar().encode(x="a", y="b"), use_cdn=True)
 
     assert chart() == chart()
+
+
+def test_an_altair_datasets_id_column_is_left_alone():
+    """Why an ``id`` key in raw JSON is never taken as minted by its shape.
+
+    Altair inlines the whole DataFrame, so a column named ``id`` of uuids
+    lands in the page as uuids under an ``id`` key -- where a Plotly
+    schema's ids sit too. Only the schema py-maidr wrote is read for those.
+    """
+    alt = pytest.importorskip("altair")
+    pd = pytest.importorskip("pandas")
+    order_ids = [
+        "123e4567-e89b-42d3-a456-426614174000",
+        "9b2f4c1e-7d3a-4e8b-a1c2-3d4e5f607182",
+    ]
+
+    def chart():
+        data = pd.DataFrame({"id": order_ids, "b": [1, 2]})
+        return alt.Chart(data).mark_bar().encode(x="id", y="b")
+
+    raw, stable = _raw_and_stable(chart())
+
+    assert maidr_html(chart(), use_cdn=True) == maidr_html(chart(), use_cdn=True)
+    for order_id in order_ids:
+        assert stable.count(order_id) == raw.count(order_id) >= 1
+
+
+def _plotly_bar(heights=(1, 2)):
+    go = pytest.importorskip("plotly.graph_objects")
+    fig = go.Figure(go.Bar(x=["a", "b"], y=list(heights)))
+    fig.update_layout(title="Sales by region")
+    return fig
+
+
+def _plotly_grid():
+    """Two subplots of a 2x2 grid: each names its ``axes_<uuid>``, two are gaps."""
+    go = pytest.importorskip("plotly.graph_objects")
+    subplots = pytest.importorskip("plotly.subplots")
+    fig = subplots.make_subplots(rows=2, cols=2)
+    fig.add_trace(go.Bar(x=["a", "b"], y=[1, 2]), row=1, col=1)
+    fig.add_trace(go.Scatter(x=[1, 2, 3], y=[3, 1, 2]), row=2, col=2)
+    return fig
+
+
+_PLOTLY_CHARTS = [_plotly_bar, _plotly_grid]
+
+
+@pytest.mark.parametrize("build", _PLOTLY_CHARTS, ids=["bar", "grid"])
+@pytest.mark.parametrize("use_cdn", [True, False], ids=["cdn", "offline"])
+def test_an_unchanged_plotly_chart_renders_to_the_same_string(build, use_cdn):
+    """Plotly's schema ids are raw JSON, found by parsing the schema itself."""
+    assert maidr_html(build(), use_cdn=use_cdn) == maidr_html(build(), use_cdn=use_cdn)
+
+
+@pytest.mark.parametrize("build", _PLOTLY_CHARTS, ids=["bar", "grid"])
+def test_plotly_ids_are_renamed_one_for_one(build):
+    """The chart's div, and every figure, subplot, layer and ``axes_`` id."""
+    raw, stable = _raw_and_stable(build())
+    _assert_renamed_one_for_one(raw, stable)
+
+
+def test_a_changed_plotly_chart_is_a_different_string_with_different_ids():
+    """A new chart must still reach the reader, under ids of its own."""
+    before = maidr_html(_plotly_bar((1, 2)), use_cdn=True)
+    after = maidr_html(_plotly_bar((1, 3)), use_cdn=True)
+
+    assert before != after
+    assert not set(_UUID.findall(before)) & set(_UUID.findall(after))
+
+
+def test_a_uuid_in_a_plotly_figures_own_json_is_left_alone():
+    """The figure's ``meta`` has an ``id`` key too; it is the user's, not ours.
+
+    It sits in raw JSON a few lines from the schema's, which is why the
+    schema is parsed rather than matched.
+    """
+    order_id = "123e4567-e89b-42d3-a456-426614174000"
+
+    def chart():
+        fig = _plotly_bar()
+        fig.update_layout(title=order_id, meta={"id": order_id})
+        fig.update_traces(x=[order_id, "other"])
+        return fig
+
+    raw, stable = _raw_and_stable(chart())
+
+    assert maidr_html(chart(), use_cdn=True) == maidr_html(chart(), use_cdn=True)
+    assert re.search(rf'"meta":\s*\{{"id":\s*"{order_id}"\}}', stable)
+    # Wherever it was -- the figure's category, title and ``meta``, and the
+    # schema's category and title -- it still is.
+    assert stable.count(order_id) == raw.count(order_id) >= 5
+
+
+def test_a_bokeh_chart_is_renamed_consistently_if_not_stably():
+    """Bokeh is not made stable, but what is renamed must not break it.
+
+    Its model ids come from a process-wide counter and are referenced from
+    Bokeh's document and from the highlight map in several shapes, beside
+    data that can hold the same strings, so they are left alone and the
+    chart is rebuilt on a rerun as before. Its wrapper's id is minted by
+    py-maidr with a ``maidr-`` prefix and is renamed, and every reference
+    to it has to follow.
+    """
+    plotting = pytest.importorskip("bokeh.plotting")
+    plot = plotting.figure(title="t")
+    plot.line([1, 2, 3], [1, 3, 2])
+
+    raw, stable = _raw_and_stable(plot)
+    wrapper = re.search(rf"maidr-bokeh-({_UUID.pattern})", raw)
+
+    assert wrapper is not None, "the Bokeh wrapper's id changed shape"
+    assert wrapper.group(1) not in stable
+    assert _shape(stable) == _shape(raw)

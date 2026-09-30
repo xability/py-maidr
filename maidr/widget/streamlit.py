@@ -49,15 +49,23 @@ and the chart uncached:
   all, tabbing out and back in, because maidr.js releases a chart's state
   whenever focus leaves it.  The frame surviving is what would let that
   state survive too, but keeping it is maidr.js's to change, not this
-  module's.
+  module's (xability/maidr#1338).
 
-A Plotly or Bokeh chart still differs between renders, for the reasons at
-``_MINTED``, and is rebuilt on every rerun as before.
+That holds for matplotlib, seaborn, Altair and Plotly charts.  A Bokeh
+chart (experimental) still differs between renders and is rebuilt on every
+rerun, as before: its model ids come from a process-wide counter, some are
+made during the render itself, and they are referenced from Bokeh's
+document and from the highlight map in several shapes, beside data that
+can hold the very same strings.  Renaming them safely would mean knowing
+every place a reference can sit, and one missed would leave a highlight
+pointing nowhere.  Caching its HTML (see :func:`maidr_html`) keeps its
+frame all the same.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import uuid
 import warnings
@@ -110,10 +118,10 @@ def maidr_html(
     Returns
     -------
     str
-        A complete HTML fragment for one iframe.  An unchanged matplotlib,
-        seaborn or Altair chart is the same string on every call, which is
-        what lets Streamlit keep its frame across a rerun (the module notes
-        say what that keeps, and why Plotly and Bokeh are not included).
+        A complete HTML fragment for one iframe.  An unchanged chart is the
+        same string on every call, which is what lets Streamlit keep its
+        frame across a rerun (the module notes say what that keeps, and why
+        a Bokeh chart is the exception).
         Its ids are derived from the chart, so they are unique within the
         string but not between two calls for the same chart: give each its
         own frame.
@@ -122,10 +130,9 @@ def maidr_html(
     -----
     Exists as its own entry point so the *string* can be cached, which
     spares rendering the chart again when Streamlit reruns the whole script
-    on every widget interaction.  For a matplotlib, seaborn or Altair chart
-    the frame no longer depends on it -- an unchanged chart's frame is kept
-    either way -- so there this is about what the render costs, not about
-    the reader::
+    on every widget interaction.  Except for a Bokeh chart, the frame no
+    longer depends on it -- an unchanged chart's frame is kept either way --
+    so this is about what the render costs, not about the reader::
 
         @st.cache_data
         def chart_html(_fig, key):
@@ -253,12 +260,10 @@ _MPL_ID = r"(?:[hpm]|(?:Im_)?image|C[0-9a-f]+_[0-9a-f]+_)[0-9a-f]{10}"
 #: attribute, and matplotlib's own ``<defs>``.  An id found in one of these
 #: is then renamed everywhere it occurs, including where it is referenced.
 #:
-#: A schema ``id`` in *raw* JSON is deliberately not one of them: that is
-#: how Plotly and Bokeh carry theirs, and raw JSON is also where an Altair
-#: dataset keeps a user's column named ``id``.  So a Plotly chart still
-#: differs between renders, and so does a Bokeh one, which also numbers its
-#: models from a process-wide counter.  Both are rebuilt on a rerun as
-#: before; nothing about them changes.
+#: A schema ``id`` in *raw* JSON is deliberately not one of them: raw JSON
+#: is also where an Altair dataset keeps a user's column named ``id``, and
+#: where a Plotly figure keeps its ``meta``.  Plotly's schema is found by
+#: parsing it instead; see :func:`_plotly_schema_ids`.
 #:
 #: Every branch opens with a literal, and :data:`_TOKEN` with a character
 #: class, rather than with ``\b`` or a lookbehind: that is what lets the
@@ -276,9 +281,14 @@ _MINTED = re.compile(
 
 #: Either shape as a whole token -- the character before it is captured
 #: rather than looked behind at, for the reason above -- so a match is
-#: never a slice of a longer word.  Which matches are renamed is decided by
-#: :data:`_MINTED`.
-_TOKEN = re.compile(rf"([^0-9A-Za-z_])({_UUID}|{_MPL_ID})(?![0-9A-Za-z_])")
+#: never a slice of a longer word.  An underscore may come before one, as
+#: in the ``axes_<uuid>`` a Plotly subplot's selector names.  Which matches
+#: are renamed is decided by :data:`_MINTED` and :func:`_plotly_schema_ids`.
+_TOKEN = re.compile(rf"([^0-9A-Za-z])({_UUID}|{_MPL_ID})(?![0-9A-Za-z_])")
+
+#: Where the Plotly path assigns its schema, as raw JSON, in the init script
+#: ``maidr/plotly/plotly_maidr.py`` writes.
+_PLOTLY_SCHEMA = re.compile(r"var maidrSchema = ")
 
 #: When matplotlib wrote the SVG, to the microsecond, and the line it is on.
 _SVG_DATE = re.compile(r"\n[ \t]*<dc:date>[^<]*</dc:date>")
@@ -326,6 +336,7 @@ def _stable_ids(html: str) -> str:
     html = _SVG_DATE.sub("", html)
     minted = {token for match in _MINTED.finditer(html) for token in match.groups()}
     minted.discard(None)
+    minted |= _plotly_schema_ids(html)
     # The blanks below are NUL-delimited, which no serialized chart holds --
     # XML forbids the character -- but one that somehow did is left as it
     # was, rather than have its own text read back as a blank.
@@ -360,6 +371,43 @@ def _stable_ids(html: str) -> str:
     # blanks are cheap to find, where ``_TOKEN`` has to consider every
     # character of the chart a second time.
     return _BLANK.sub(lambda match: renamed[int(match.group(1))], skeleton)
+
+
+def _plotly_schema_ids(html: str) -> set[str]:
+    """Report the ids py-maidr minted into a Plotly chart's schema.
+
+    Plotly's schema travels as raw JSON in the init script, where a
+    pattern cannot tell its ``id`` keys from the figure's own JSON beside
+    it.  So it is parsed, and only the fields py-maidr fills with a fresh
+    uuid are read: the figure's ``id``, each subplot's ``id`` and the
+    ``axes_<uuid>`` its ``selector`` names, and each layer's ``id``.  The
+    div the chart is drawn into has a minted id too, but as an ``id``
+    attribute, which :data:`_MINTED` already finds.
+
+    Parameters
+    ----------
+    html : str
+        One serialized chart.
+
+    Returns
+    -------
+    set of str
+        The minted ids; empty for a chart that is not Plotly, or whose
+        schema does not have the shape this reads -- which leaves those ids
+        as they were rather than guessing at them.
+    """
+    ids: set[str] = set()
+    for match in _PLOTLY_SCHEMA.finditer(html):
+        try:
+            schema, _end = json.JSONDecoder().raw_decode(html, match.end())
+            ids.add(schema["id"])
+            for cell in (cell for row in schema["subplots"] for cell in row):
+                ids.add(cell["id"])
+                ids.update(re.findall(_UUID, cell.get("selector", "")))
+                ids.update(layer["id"] for layer in cell["layers"])
+        except (ValueError, TypeError, KeyError, AttributeError):
+            continue
+    return {id_ for id_ in ids if isinstance(id_, str) and re.fullmatch(_UUID, id_)}
 
 
 #: Matches a quoted URL naming the ``maidr`` npm package and a ``.js`` file.
@@ -511,10 +559,10 @@ def render_maidr(
     frames -- on a Streamlit whose ``st.iframe`` takes ``alt``.  Older
     releases name every frame ``st.iframe``, which cannot be overridden.
 
-    An unchanged matplotlib, seaborn or Altair chart reaches Streamlit as
-    the same string on every rerun, so its frame is kept rather than
-    reloaded, and a reader still in the chart keeps their place; the
-    module notes have the measurement, and what it does not cover.
+    An unchanged chart reaches Streamlit as the same string on every rerun,
+    so its frame is kept rather than reloaded, and a reader still in the
+    chart keeps their place; the module notes have the measurement, what it
+    does not cover, and why a Bokeh chart is the exception.
 
     Examples
     --------
