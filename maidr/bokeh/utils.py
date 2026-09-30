@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import os
 import sys
-import warnings
 from typing import Any
+
+# Re-exported under the name the Bokeh modules import it by; the walk out of
+# the package is shared with the plotnine adapter.
+from maidr.util.caller_warning import warn_at_caller as warn  # noqa: F401
 
 
 def is_bokeh_model(obj: Any) -> bool:
@@ -38,32 +40,3 @@ def is_bokeh_model(obj: Any) -> bool:
     except ImportError:
         return False
     return isinstance(obj, LayoutDOM)
-
-
-def warn(message: str) -> None:
-    """
-    Raise a ``UserWarning`` attributed to the caller's own code.
-
-    The Bokeh path reaches its warnings several frames inside maidr, and a
-    fixed ``stacklevel`` would point the reader at one of those frames. This
-    walks out of the package instead, so the warning names the line that
-    called ``maidr.show`` or ``maidr.save_html``.
-
-    Parameters
-    ----------
-    message : str
-        The warning text.
-    """
-    import maidr
-
-    package = os.path.dirname(os.path.abspath(maidr.__file__))
-    # `stacklevel=2` is the frame calling this function; count outwards from
-    # there until the frame is no longer maidr's.
-    level = 2
-    frame = sys._getframe(1)
-    while frame is not None and os.path.abspath(frame.f_code.co_filename).startswith(
-        package
-    ):
-        frame = frame.f_back
-        level += 1
-    warnings.warn(message, UserWarning, stacklevel=level)

@@ -1007,6 +1007,12 @@ class Maidr:
                     )
                 if isinstance(schema[MaidrKey.SELECTOR], list):
                     for j in range(len(schema[MaidrKey.SELECTOR])):
+                        # A string names the layer's own group. A row of a
+                        # per-cell grid -- the shape a heatmap or a segmented
+                        # bar may emit -- names its elements outright, and is
+                        # left as it is.
+                        if not isinstance(schema[MaidrKey.SELECTOR][j], str):
+                            continue
                         schema[MaidrKey.SELECTOR][j] = schema[MaidrKey.SELECTOR][
                             j
                         ].replace("maidr='true'", f"maidr='{self.selector_ids[i]}'")
