@@ -104,8 +104,9 @@ class TestEveryAutoPathCanReport:
 
     def test_the_iframe_fallback_script_reports_on_error(self, monkeypatch) -> None:
         # The relative `lib/` path cannot resolve inside a srcdoc iframe, so
-        # this is the path an air-gapped Shiny deployment actually takes --
-        # and it had no `onerror` at all.
+        # this is the path an air-gapped Flask deployment actually takes --
+        # and it had no `onerror` at all. (A Shiny app serves the copy the
+        # fallback names since #457; it reaches this only if that fails too.)
         rendered = _rendered(monkeypatch, notebook=False)
 
         assert "fb.onerror" in rendered

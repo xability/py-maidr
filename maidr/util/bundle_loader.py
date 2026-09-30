@@ -21,13 +21,13 @@ from maidr.util.cdn import bundled_cdn_url, maidr_js_cdn_url
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
     OFFLINE_FALLBACK_REPORT,
-    inline_bundle_tags,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
     maidr_html_dependency,
 )
 from maidr.util.environment import Environment
 from maidr.util.locale_pack import locale_config_child, locale_fallback_js
+from maidr.util.served_bundle import frame_bundle_tags, served_bundle_url
 
 
 def iframe_mode(use_iframe: bool) -> tuple[bool, bool, bool]:
@@ -40,8 +40,9 @@ def iframe_mode(use_iframe: bool) -> tuple[bool, bool, bool]:
     evaluates the JS source :func:`maidr.api.init_notebook` stashed on the
     parent ``window``; the stash only exists there, because
     ``init_notebook()`` returns early everywhere else, so any other iframed
-    render -- Shiny, Flask -- carries the bundle inline instead. Mirrors the
-    matplotlib ``_inject_plot`` logic.
+    render -- Shiny, Flask -- brings the bundle itself: by URL where the
+    host serves a copy (:mod:`maidr.util.served_bundle`), inline otherwise.
+    Mirrors the matplotlib ``_inject_plot`` logic.
 
     Parameters
     ----------
@@ -53,7 +54,8 @@ def iframe_mode(use_iframe: bool) -> tuple[bool, bool, bool]:
     tuple of (bool, bool, bool)
         ``(will_iframe, iframe_in_notebook, iframe_inline_bundle)``: whether
         the output is wrapped in a frame at all, whether that frame reads
-        the parent-window stash, and whether it carries the bundle inline.
+        the parent-window stash, and whether it brings the bundle itself --
+        inline, or by URL when the host serves a copy.
     """
     in_notebook = Environment.is_notebook()
     will_iframe = use_iframe and (
@@ -110,18 +112,21 @@ def maidr_bundle_children(
         elif iframe_inline_bundle:
             # An iframe outside a notebook: the dependency below would
             # be dropped by ``get_html_string()`` and there is no
-            # parent stash to read, so the bundle travels inline.
-            # These tags precede the init script, so ``maidr.js`` is
-            # in the document by the time the loader would have run --
-            # which is why the loader for this case is empty, exactly
-            # as it is for the non-iframe dependency path.
-            inline_tags = inline_bundle_tags()
-            if inline_tags is None:
+            # parent stash to read, so the frame brings the bundle
+            # itself -- a ``<script src>`` naming the copy the host
+            # serves (Shiny, #457), or the bundle inline where nobody
+            # serves one. Either precedes the init script and blocks the
+            # parser, so ``maidr.js`` is in the document by the time the
+            # loader would have run -- which is why the loader for this
+            # case is empty, exactly as it is for the non-iframe
+            # dependency path.
+            bundle_tags = frame_bundle_tags()
+            if bundle_tags is None:
                 # Bundle unreadable; already warned.  A CDN tag is the
                 # only remaining source, and a chart that needs the
                 # network beats one that cannot be read at all.
-                inline_tags = [tags.script(src=bundled_cdn_url(MAIDR_JS_FILENAME))]
-            children.extend(inline_tags)
+                bundle_tags = [tags.script(src=bundled_cdn_url(MAIDR_JS_FILENAME))]
+            children.extend(bundle_tags)
         else:
             # The dependency copies the whole bundle, so ``maidr.js``
             # finds ``maidr-math.css`` beside itself; no ``<link>``
@@ -238,7 +243,10 @@ def maidr_loader_js(
     When ``use_cdn=False`` outside an iframe the bundle is already loaded by
     an :class:`htmltools.HTMLDependency` (see :func:`maidr_bundle_children`)
     so no loader is emitted. In ``"auto"`` mode the loader attempts the CDN
-    first and falls back to the bundled copy on ``onerror``.
+    first and falls back to the bundled copy on ``onerror``: the copy the
+    host serves, when it serves one for this frame
+    (:func:`maidr.util.served_bundle.served_bundle_url`), or else the
+    relative ``lib/maidr-<version>/`` path ``save_html`` copies it to.
 
     When ``iframe_in_notebook=True`` the loader instead pulls the bundled
     source strings from ``window.parent.__maidrJsSource`` /
@@ -306,8 +314,11 @@ def maidr_loader_js(
                         document.head.appendChild(s);
                     }}
                 """
-        rel_dir = maidr_bundled_relative_dir()
-        bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
+        # The copy a host serves, when it serves one for this frame (Shiny,
+        # #457); otherwise where ``save_html`` copies the bundle.
+        bundled_js_rel = served_bundle_url() or (
+            f"{maidr_bundled_relative_dir()}/{MAIDR_JS_FILENAME}"
+        )
         return f"""
 {OFFLINE_FALLBACK_REPORT}
                     var existing = document.querySelector(
@@ -320,8 +331,8 @@ def maidr_loader_js(
                             {locale_fallback}
                             var fb = document.createElement('script');
                             fb.src = '{bundled_js_rel}';
-                            // The relative path resolves wherever the host
-                            // serves the copied bundle -- save_html -- and
+                            // The path resolves wherever the host serves the
+                            // copied bundle -- save_html, a Shiny app -- and
                             // cannot inside a srcdoc iframe nobody serves
                             // those files for. Without this the chart is an
                             // image with no runtime and nothing said.

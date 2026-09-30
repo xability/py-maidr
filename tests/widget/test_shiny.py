@@ -29,8 +29,9 @@ from shiny.render import ui as render_ui  # noqa: E402
 from shiny.render.renderer import Renderer  # noqa: E402
 
 from maidr.core.figure_manager import FigureManager  # noqa: E402
-from maidr.util.dependencies import read_bundled_js  # noqa: E402
+from maidr.util.dependencies import maidr_js_version, read_bundled_js  # noqa: E402
 from maidr.util.locale_pack import get_locale_base_url  # noqa: E402
+from maidr.util.served_bundle import SERVED_BUNDLE_NAME  # noqa: E402
 from maidr.widget.shiny import output_maidr, render_maidr  # noqa: E402
 
 from .conftest import _fake_session_class  # noqa: E402
@@ -39,6 +40,12 @@ from .conftest import _fake_session_class  # noqa: E402
 #: looking for the bundle rather than by a size threshold that a large
 #: enough chart could cross on its own.
 _BUNDLE_HEAD = read_bundled_js()[:200]
+
+#: The tail of the URL a chart document names the served bundle by (#457),
+#: from the app root. What precedes it is the climb from the document's
+#: route back to that root, which ``test_the_served_bundle_resolves_...``
+#: checks separately.
+_SERVED_JS = f"lib/maidr-bundle-{maidr_js_version()}/maidr.js"
 
 
 def _bar_axes():
@@ -297,11 +304,11 @@ def test_the_focus_script_only_installs_once_per_page(fake_session):
 
 
 @pytest.mark.parametrize(
-    ("use_cdn", "expect_cdn", "expect_inline_bundle"),
-    [(True, True, False), ("auto", True, False), (False, False, True)],
+    ("use_cdn", "expect_cdn", "expect_served"),
+    [(True, True, False), ("auto", True, True), (False, False, True)],
 )
 def test_each_cdn_mode_ships_the_source_it_promises(
-    fake_session, use_cdn, expect_cdn, expect_inline_bundle
+    fake_session, use_cdn, expect_cdn, expect_served
 ):
     """Every mode must put a real source for maidr.js in the document.
 
@@ -311,16 +318,14 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     no keyboard navigation -- and no error to say so.
 
     Each mode is asserted exactly rather than as a disjunction. A single
-    "some source is present" check would pass on the wrong source, and it
-    would hide that ``payload["deps"]`` is always empty here -- the iframe
-    wrapper serializes with ``Tag.get_html_string()``, which drops
-    ``HTMLDependency`` children, which is the whole reason the bundle has
-    to travel inline.
+    "some source is present" check would pass on the wrong source.
 
-    ``"auto"`` is expected NOT to inline: it loads from the CDN, and its
-    client-side offline fallback is the notebook's stashed copy, which a
-    Shiny page never has. ``use_cdn=False`` is the setting for an
-    air-gapped app.
+    The bundled copy is never inline any more (#457): the document names
+    the copy the app serves, and the payload carries the dependency that
+    makes the app serve it. ``use_cdn=False`` loads it; ``"auto"`` loads
+    the CDN and falls back to it, which is what gives ``"auto"`` an
+    offline fallback under Shiny at all; ``True`` names neither and
+    registers nothing.
 
     Read from the document the route serves, since that -- not the
     payload -- is what the frame loads (#534).
@@ -333,14 +338,17 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     payload = _render(chart)
     document = _iframe_document(fake_session, payload["html"])
 
-    assert payload["deps"] == [], "an iframed render cannot carry dependencies"
-    # The maidr loader URL rather than the bare host: the inlined bundle
-    # names jsDelivr itself, for the DotPad SDK it fetches on first connect
+    # The maidr loader URL rather than the bare host: the bundle names
+    # jsDelivr itself, for the DotPad SDK it fetches on first connect
     # (#771), so the host alone is in every offline document too. And an
     # offline document names where its locale packs are there (#819).
     loader = document.replace(get_locale_base_url(), "")
     assert ("cdn.jsdelivr.net/npm/maidr" in loader) is expect_cdn
-    assert (_BUNDLE_HEAD in document) is expect_inline_bundle
+    assert _BUNDLE_HEAD not in document, "the bundle is still inlined"
+    assert (_SERVED_JS in document) is expect_served
+    names = [dep["name"] for dep in payload["deps"]]
+    assert names == ([SERVED_BUNDLE_NAME] if expect_served else []), names
+    assert [dep.name for dep in fake_session.app.registered] == names
 
 
 # ---------------------------------------------------------------------------
@@ -476,8 +484,9 @@ def test_the_route_serves_the_latest_render_and_holds_no_other(fake_session):
 
     Two visibly different charts, so this cannot pass on a route that kept
     the first document forever. Holding one document per output is also
-    the memory bound: with ``use_cdn=False`` every document carries the
-    bundle, so keeping each one would grow a session by ~2 MB per flush.
+    the memory bound: keeping each one would grow a session by a chart
+    per flush -- and by ~2 MB per flush wherever the bundle still has to
+    travel inside the document (#457).
     """
     n = [2]
 
@@ -543,7 +552,7 @@ def test_a_blank_render_drops_the_document(fake_session):
     """Returning ``None`` empties the output, so the chart is let go too.
 
     The frame that would have fetched it is gone with the output; holding
-    ~2 MB for a chart nobody can reach is the leak this avoids.
+    a document nobody can reach is the leak this avoids.
     """
     value = [_bar_axes()]
 
@@ -615,22 +624,36 @@ def test_a_session_that_registers_no_route_keeps_the_document_in_the_frame(
     frame at that would be a chart that silently loads nothing, and the
     document would already have been popped off the frame, so it is
     better to fall back to ``srcdoc`` than to detach.
+
+    With no route there is also nothing to name the served bundle
+    relative to (#457), so a ``srcdoc`` document carries it inline, as it
+    always has, and nothing is registered.
     """
     fake_session.dynamic_route = lambda name, handler: ""
 
-    @render_maidr
+    @render_maidr(use_cdn=False)
     def chart():
         return _bar_axes()
 
-    html = _render(chart)["html"]
+    payload = _render(chart)
+    html = payload["html"]
 
     assert "srcdoc=" in html
     assert not _FRAME_SRC.search(html)
     assert chart._served == {}
+    assert _BUNDLE_HEAD[:40] in unescape(html)
+    assert _SERVED_JS not in html
+    assert payload["deps"] == []
 
 
 def test_a_render_that_is_not_a_frame_is_passed_through(fake_session, monkeypatch):
-    """Nothing to detach: a fallback tag or a bare chart goes out as it is."""
+    """Nothing to detach: a fallback tag or a bare chart goes out as it is.
+
+    The route is registered before the render, since the render needs its
+    URL to name the served bundle (#457); with no document behind it, it
+    answers 404 exactly as it does after a blank render, and nothing asks
+    the app to serve the bundle.
+    """
     from htmltools import tags
 
     import maidr.widget.shiny as shiny_module
@@ -643,10 +666,221 @@ def test_a_render_that_is_not_a_frame_is_passed_through(fake_session, monkeypatc
     def chart():
         return _bar_axes()
 
-    html = _render(chart)["html"]
+    payload = _render(chart)
 
-    assert "<div>a chart</div>" in html
-    assert not fake_session._dynamic_routes
+    assert "<div>a chart</div>" in payload["html"]
+    assert not _FRAME_SRC.search(payload["html"])
+    assert chart._served[fake_session.id].document is None
+    assert payload["deps"] == []
+    assert fake_session.app.registered == []
+
+
+# ---------------------------------------------------------------------------
+# The bundle is served once per app, not carried by every chart (#457)
+# ---------------------------------------------------------------------------
+
+#: The ``<script src>`` a chart document loads the served bundle with.
+_SERVED_SCRIPT = re.compile(r'<script src="([^"]*/maidr\.js)"')
+
+
+def test_an_offline_document_loads_the_bundle_by_url_instead_of_carrying_it(
+    fake_session,
+):
+    """``use_cdn=False`` no longer puts ~2.2 MB into every chart document.
+
+    The bundle and the KaTeX stylesheet that travelled with it were most
+    of every offline document -- fetched again for every chart on the
+    page, on every render. Loaded by URL, the runtime finds
+    ``maidr-math.css`` beside itself when it needs it, so neither the
+    stylesheet nor the marker that stood in for its ``<link>`` is left.
+    """
+
+    @render_maidr(use_cdn=False)
+    def chart():
+        return _bar_axes()
+
+    document = _iframe_document(fake_session, _render(chart)["html"])
+
+    assert _BUNDLE_HEAD not in document
+    assert "data-maidr-math" not in document, "KaTeX is still inlined"
+    assert _SERVED_SCRIPT.search(document), "the document loads no maidr.js"
+    assert len(document) < 64 * 1024, f"{len(document)} bytes is not a chart"
+
+
+@pytest.mark.parametrize("lib_prefix", ["lib", "lib/"])
+@pytest.mark.parametrize(
+    "page", ["http://host/", "http://host/deep/prefix/"], ids=["root", "mounted"]
+)
+def test_the_served_bundle_resolves_to_what_the_app_serves(
+    fake_session, lib_prefix, page
+):
+    """The frame's URL for ``maidr.js`` is the one Shiny mounts, under any prefix.
+
+    An app is often served under a prefix it never sees -- Posit Connect,
+    shinyapps.io, a proxy -- so the document cannot name the bundle by an
+    absolute path. It names it relative to its own URL, a session route
+    three levels below the page, and has to climb back to exactly where
+    Shiny serves the dependency: the page's URL plus the dependency's
+    ``href``. Resolved here the way a browser resolves it, from a page at
+    the root and from one under a prefix, and for both spellings of
+    Shiny's ``lib_prefix``.
+    """
+    from urllib.parse import urljoin
+
+    fake_session.app.lib_prefix = lib_prefix
+
+    @render_maidr(use_cdn=False)
+    def chart():
+        return _bar_axes()
+
+    payload = _render(chart)
+    frame_url = urljoin(page, unescape(_src_of(payload["html"])))
+    document = _iframe_document(fake_session, payload["html"])
+    loaded = urljoin(frame_url, _SERVED_SCRIPT.search(document).group(1))
+
+    [dep] = fake_session.app.registered
+    href = dep.source_path_map(lib_prefix=lib_prefix)["href"]
+    assert loaded == urljoin(page, f"{href}/maidr.js"), (loaded, frame_url)
+    assert loaded.startswith(page), "the URL climbed out of the app's prefix"
+
+
+def test_the_app_serves_what_the_runtime_asks_for_and_loads_nothing(fake_session):
+    """The served directory is the whole bundle; the page itself gets no script.
+
+    ``maidr.js`` fetches ``maidr-math.css`` from beside itself, so the
+    directory has to hold both. The dependency places no ``<script>`` and
+    no ``<link>`` in the page it arrives on -- the frames load the
+    runtime, and a copy running in the host page would find the charts'
+    containers there. Versioned by the bundle, which is what puts the
+    version in the URL a browser caches.
+    """
+    from pathlib import Path
+
+    @render_maidr(use_cdn=False)
+    def chart():
+        return _bar_axes()
+
+    payload = _render(chart)
+
+    [dep] = fake_session.app.registered
+    source = Path(dep.source_path_map()["source"])
+    assert (source / "maidr.js").is_file()
+    assert (source / "maidr-math.css").is_file()
+    assert dep.all_files
+    assert str(dep.version) == maidr_js_version()
+
+    [sent] = payload["deps"]
+    assert (sent["script"], sent["stylesheet"]) == ([], [])
+
+
+def test_a_missing_bundle_is_not_named(fake_session, monkeypatch):
+    """A broken install renders as it always did rather than naming a 404.
+
+    With no ``maidr.js`` in the package the app would serve nothing at the
+    URL, and the chart would load no runtime and say nothing. Offering no
+    served copy leaves the render its old path, which warns that the
+    bundle is unreadable and falls back to the CDN.
+    """
+    import maidr.widget.shiny as shiny_module
+
+    def missing():
+        raise FileNotFoundError("maidr.js")
+
+    monkeypatch.setattr(shiny_module, "bundled_js_path", missing)
+
+    @render_maidr(use_cdn=False)
+    def chart():
+        return _bar_axes()
+
+    payload = _render(chart)
+    document = _iframe_document(fake_session, payload["html"])
+
+    assert _SERVED_JS not in document
+    assert payload["deps"] == []
+
+
+@pytest.mark.parametrize("use_cdn", [False, "auto"])
+def test_plotly_and_bokeh_charts_name_the_served_bundle_too(fake_session, use_cdn):
+    """Every renderer asks the same question, so none keeps inlining.
+
+    Plotly and Bokeh load ``maidr.js`` through
+    :mod:`maidr.util.bundle_loader` rather than the matplotlib path, so a
+    change that reached only one of them would leave the other shipping
+    ~2 MB per chart -- or, under ``"auto"``, still falling back to a path
+    nothing serves.
+    """
+    go = pytest.importorskip("plotly.graph_objects")
+    bokeh_plotting = pytest.importorskip("bokeh.plotting")
+
+    plotly_fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+    bokeh_fig = bokeh_plotting.figure(x_range=["a", "b"], title="Sales")
+    bokeh_fig.vbar(x=["a", "b"], top=[1, 2], width=0.5)
+
+    def renderer(value):
+        @render_maidr(use_cdn=use_cdn)
+        def chart():
+            return value
+
+        return chart
+
+    for value in (plotly_fig, bokeh_fig):
+        payload = _render(renderer(value))
+        document = _iframe_document(fake_session, payload["html"])
+
+        name = type(value).__module__
+        assert _BUNDLE_HEAD not in document, f"{name} still inlines the bundle"
+        assert _SERVED_JS in document, f"{name} does not name the served bundle"
+        assert [d["name"] for d in payload["deps"]] == [SERVED_BUNDLE_NAME]
+
+
+def test_an_altair_chart_registers_nothing(fake_session):
+    """Altair loads from the CDN whatever ``use_cdn`` says (#521).
+
+    So it never names the served bundle, and nothing asks the app to serve
+    one. Pinned so that a later change to that adapter decides this
+    deliberately rather than by accident.
+    """
+    alt = pytest.importorskip("altair")
+    import pandas as pd
+
+    @render_maidr
+    def chart():
+        return (
+            alt.Chart(pd.DataFrame({"x": ["a", "b"], "y": [1, 2]}))
+            .mark_bar()
+            .encode(x="x", y="y")
+        )
+
+    payload = _render(chart)
+    document = _iframe_document(fake_session, payload["html"])
+
+    assert "maidrVegaLite" in document
+    assert _SERVED_JS not in document
+    assert payload["deps"] == []
+
+
+def test_the_served_bundle_is_scoped_to_the_render(fake_session):
+    """Only ``render_maidr``'s own render names it; every other door is as it was.
+
+    ``maidr.render`` called directly under a live session -- a
+    ``@render.ui`` of the app's own, say -- has no route to name the
+    bundle relative to, so it still carries the bundle inline. Asserted
+    after a ``render_maidr`` render, so a served copy that leaked out of
+    that render's context would show up here.
+    """
+    import maidr
+    from maidr.util.served_bundle import served_bundle_url
+
+    @render_maidr(use_cdn=False)
+    def chart():
+        return _bar_axes()
+
+    _render(chart)
+
+    assert served_bundle_url() is None
+    direct = unescape(str(maidr.render(_bar_axes(), use_cdn=False)))
+    assert _BUNDLE_HEAD[:40] in direct
+    assert _SERVED_JS not in direct
 
 
 # ---------------------------------------------------------------------------

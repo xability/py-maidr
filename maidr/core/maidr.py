@@ -34,11 +34,11 @@ from maidr.util.bundle_freshness import warn_if_bundle_is_stale
 from maidr.util.dependencies import (
     MAIDR_JS_FILENAME,
     OFFLINE_FALLBACK_REPORT,
-    inline_bundle_tags,
     maidr_bundled_files_dependency,
     maidr_bundled_relative_dir,
     maidr_html_dependency,
 )
+from maidr.util.served_bundle import frame_bundle_tags, served_bundle_url
 from maidr.util.cdn import (
     bundled_cdn_url,
     maidr_js_cdn_url,
@@ -262,15 +262,15 @@ class Maidr:
               handler.
 
             .. note::
-               The ``"auto"`` fallback resolves **outside** an iframe, and
-               in a notebook. It does not resolve in a Shiny or Flask
-               render, where the chart is served inside an iframe: the
-               ``HTMLDependency`` that would have served the file is
-               dropped when the wrapper serializes the tag, and the
-               relative ``lib/`` path has nowhere to resolve -- a Flask
-               ``srcdoc`` document has no base URL, and a Shiny document,
-               served from a session route (#534), resolves it to a URL
-               under that route that nothing serves. On an air-gapped
+               The ``"auto"`` fallback resolves **outside** an iframe, in
+               a notebook, and under
+               :class:`maidr.widget.shiny.render_maidr`, which serves the
+               bundled copy from the app and tells the frame where
+               (#457). It does not resolve in a Flask render, where the
+               chart is served inside an iframe: the ``HTMLDependency``
+               that would have served the file is dropped when the
+               wrapper serializes the tag, and nothing serves the
+               relative ``lib/`` path it names. On an air-gapped Flask
                deployment use ``use_cdn=False``, which inlines the
                bundle. The browser console says so if the fallback is
                ever reached (#455).
@@ -1271,10 +1271,11 @@ class Maidr:
                 # An iframe outside a notebook: the ``HTMLDependency`` below
                 # would be dropped by ``Tag.get_html_string()`` and there is
                 # no ``window.parent.__maidrJsSource`` to fall back to, so
-                # the bundle travels inline.  Without this the plot renders
-                # as a picture with no MAIDR runtime attached to it -- no
-                # sonification, no braille, no keyboard navigation, and no
-                # error to say so.
+                # the frame has to bring the bundle itself -- by URL when
+                # the host serves a copy (Shiny, #457), inline otherwise.
+                # Without either the plot renders as a picture with no
+                # MAIDR runtime attached to it -- no sonification, no
+                # braille, no keyboard navigation, and no error to say so.
                 bootstrap_script = """
                     (function() {
                         function run() { if (window.main) window.main(); }
@@ -1285,14 +1286,14 @@ class Maidr:
                         }
                     })();
                 """
-                inline_tags = inline_bundle_tags()
-                if inline_tags is None:
+                bundle_tags = frame_bundle_tags()
+                if bundle_tags is None:
                     # Bundle unreadable; ``inline_bundle_tags`` has already
                     # warned.  A CDN tag is the only remaining source, and
                     # a chart that needs the network beats one that cannot
                     # be read at all.  Same trade ``init_notebook`` makes.
-                    inline_tags = [tags.script(src=bundled_cdn_url(MAIDR_JS_FILENAME))]
-                children = list(inline_tags)
+                    bundle_tags = [tags.script(src=bundled_cdn_url(MAIDR_JS_FILENAME))]
+                children = list(bundle_tags)
                 if maidr is not None:
                     children.append(tags.script(maidr, type="text/javascript"))
                 children.append(tags.script(bootstrap_script, type="text/javascript"))
@@ -1393,9 +1394,13 @@ class Maidr:
                 # the HTML and emit a CDN loader with an ``onerror``
                 # fallback to the relative bundled path.  The browser
                 # decides which source to use based on network reachability.
+                # An iframe outside a notebook takes this branch too; its
+                # fallback resolves only where the host serves a copy and
+                # says where (Shiny, #457), and the dependency is dropped.
                 files_dep = maidr_bundled_files_dependency()
-                rel_dir = maidr_bundled_relative_dir()
-                bundled_js_rel = f"{rel_dir}/{MAIDR_JS_FILENAME}"
+                bundled_js_rel = served_bundle_url() or (
+                    f"{maidr_bundled_relative_dir()}/{MAIDR_JS_FILENAME}"
+                )
                 fallback_script = f"""
                     (function() {{{OFFLINE_FALLBACK_REPORT}
                         function bootstrap() {{
