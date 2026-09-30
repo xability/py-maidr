@@ -25,6 +25,7 @@ from maidr.core.plot import MaidrPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.util.figure_lock import figure_lock
+from maidr.util.pyodide_display import show_in_page
 from maidr.util.render_census import artist_census, warn_if_figure_changed
 from maidr.util.bundle_capability import (
     schema_trace_types,
@@ -403,6 +404,14 @@ class Maidr:
         else:
             _renderer = renderer
 
+        # A bare Pyodide page has no browser to open and no file to open in
+        # it, so the chart is placed in the page itself.
+        if renderer in ("auto", "browser") and self._in_pyodide_page():
+            html = self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
+            if clear_fig:
+                plt.close(self._fig)
+            return show_in_page(html)
+
         # Only try browser opening if explicitly requested as browser and not
         # in notebook. That path renders through `save_html`, which builds
         # the whole document itself, so the Tag must not be built ahead of
@@ -423,6 +432,10 @@ class Maidr:
             # pyplot never tracked, as before.
             plt.close(self._fig)
         return html.show(_renderer)
+
+    @staticmethod
+    def _in_pyodide_page() -> bool:
+        return Environment.is_pyodide_page() and not Environment.is_notebook()
 
     def clear(self):
         """Forget every layer on this figure.
@@ -1198,7 +1211,10 @@ class Maidr:
         # inlined into the ``srcdoc`` itself; see ``iframe_inline_bundle``.
         in_notebook = Environment.is_notebook()
         will_iframe = use_iframe and (
-            Environment.is_flask() or in_notebook or Environment.is_shiny()
+            Environment.is_flask()
+            or in_notebook
+            or Environment.is_shiny()
+            or Environment.is_pyodide_page()
         )
         iframe_in_notebook = will_iframe and in_notebook
         iframe_inline_bundle = will_iframe and not in_notebook

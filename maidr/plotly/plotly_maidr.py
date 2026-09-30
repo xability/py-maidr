@@ -53,6 +53,7 @@ from maidr.util.bundle_loader import (
 )
 from maidr.util.dotpad import dotpad_config_child, local_dotpad_sdk_dependency
 from maidr.util.environment import Environment
+from maidr.util.pyodide_display import show_in_page
 from maidr.util.iframe_utils import (
     chart_title_of,
     with_chart_title,
@@ -1491,6 +1492,9 @@ class PlotlyMaidr:
         # whole document itself, so the Tag must not be built ahead of
         # this decision: that would serialize the figure and the schema
         # twice and throw the first copy away.
+        if Environment.is_pyodide_page() and not Environment.is_notebook():
+            return show_in_page(self._create_html_tag(use_iframe=True, use_cdn=use_cdn))
+
         if _renderer == "browser" and not Environment.is_notebook():
             return self._open_plot_in_browser(use_cdn=use_cdn)
 

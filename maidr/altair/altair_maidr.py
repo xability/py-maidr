@@ -49,6 +49,7 @@ from maidr.util.cdn import (
     cdn_url,
 )
 from maidr.util.environment import Environment
+from maidr.util.pyodide_display import show_in_page
 from maidr.util.iframe_utils import with_chart_title, wrap_in_iframe_plotly
 
 
@@ -161,6 +162,9 @@ class AltairMaidr:
         else:
             _renderer = renderer
 
+        if Environment.is_pyodide_page() and not Environment.is_notebook():
+            return show_in_page(html)
+
         if _renderer == "browser" and not Environment.is_notebook():
             return self._open_in_browser()
 
@@ -181,6 +185,7 @@ class AltairMaidr:
             Environment.is_flask()
             or Environment.is_notebook()
             or Environment.is_shiny()
+            or Environment.is_pyodide_page()
         ):
             return with_chart_title(self._wrap_in_iframe(base_html), title)
         return with_chart_title(base_html, title)

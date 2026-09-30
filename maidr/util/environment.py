@@ -98,6 +98,32 @@ class Environment:
             return False
 
     @staticmethod
+    def is_pyodide_page() -> bool:
+        """
+        Return True when running in Pyodide on a page's main thread.
+
+        ``micropip.install("maidr")`` in a plain Pyodide page has no IPython
+        and no filesystem a browser can open, so ``webbrowser.open`` does
+        nothing there.  What it does have is the host page's ``document``,
+        which is where a chart can be put instead.  A web worker is
+        Pyodide too but has no ``document``, so it answers False.  JupyterLite
+        answers False as well: it has a shell, and is handled as a notebook.
+
+        Returns
+        -------
+        bool
+            True if the ``js`` module exposes a ``document``, else False.
+        """
+        if sys.platform != "emscripten":
+            return False
+        try:
+            import js  # type: ignore[import-not-found]
+
+            return getattr(js, "document", None) is not None
+        except Exception:
+            return False
+
+    @staticmethod
     def is_shiny() -> bool:
         """
         Check if the current code is running inside an active Shiny session.
