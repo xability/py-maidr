@@ -86,6 +86,7 @@ from maidr.util.iframe_utils import (
     with_chart_title,
     wrap_in_iframe_plotly,
 )
+from maidr.util.pyodide_display import show_in_page
 from maidr.util.script_json import script_json
 
 #: The cursor a line, step or area is highlighted with: a ring in MAIDR's
@@ -173,6 +174,9 @@ class BokehMaidr:
             _renderer = cast(Literal["ipython", "browser"], Environment.get_renderer())
         else:
             _renderer = renderer
+
+        if Environment.is_pyodide_page():
+            return show_in_page(self._create_html_tag(use_iframe=True, use_cdn=use_cdn))
 
         if _renderer == "browser" and not Environment.is_notebook():
             return self._open_plot_in_browser(use_cdn=use_cdn)

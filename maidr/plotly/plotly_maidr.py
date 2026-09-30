@@ -58,6 +58,7 @@ from maidr.util.iframe_utils import (
     with_chart_title,
     wrap_in_iframe_plotly,
 )
+from maidr.util.pyodide_display import show_in_page
 from maidr.util.script_json import script_json
 
 
@@ -1486,6 +1487,10 @@ class PlotlyMaidr:
             _renderer = cast(Literal["ipython", "browser"], Environment.get_renderer())
         else:
             _renderer = renderer
+
+        # A Pyodide page has no browser to open; the chart goes in the page.
+        if Environment.is_pyodide_page():
+            return show_in_page(self._create_html_tag(use_iframe=True, use_cdn=use_cdn))
 
         # The browser path renders through `save_html`, which builds the
         # whole document itself, so the Tag must not be built ahead of

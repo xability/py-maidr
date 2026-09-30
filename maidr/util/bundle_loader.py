@@ -59,7 +59,10 @@ def iframe_mode(use_iframe: bool) -> tuple[bool, bool, bool]:
     """
     in_notebook = Environment.is_notebook()
     will_iframe = use_iframe and (
-        Environment.is_flask() or in_notebook or Environment.is_shiny()
+        Environment.is_flask()
+        or in_notebook
+        or Environment.is_shiny()
+        or Environment.is_pyodide_page()
     )
     return will_iframe, will_iframe and in_notebook, will_iframe and not in_notebook
 
