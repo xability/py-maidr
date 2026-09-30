@@ -470,7 +470,7 @@ cookieconsent.run({
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
 <p>The frame is named after the chart – <code>"&lt;title&gt;, accessible chart"</code>, or <code>"Accessible chart"</code> for an untitled one, as py-maidr names its own frames – on a Streamlit whose <code>st.iframe</code> takes <code>alt</code>. Older releases name every frame <code>st.iframe</code>, which cannot be overridden.</p>
-<p>An unchanged matplotlib, seaborn or Altair chart reaches Streamlit as the same string on every rerun, so its frame is kept rather than reloaded, and a reader still in the chart keeps their place; the module notes have the measurement, and what it does not cover.</p>
+<p>An unchanged chart reaches Streamlit as the same string on every rerun, so its frame is kept rather than reloaded, and a reader still in the chart keeps their place; the module notes have the measurement, what it does not cover, and why a Bokeh chart is the exception.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
