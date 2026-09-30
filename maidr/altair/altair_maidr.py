@@ -49,8 +49,8 @@ from maidr.util.cdn import (
     cdn_url,
 )
 from maidr.util.environment import Environment
-from maidr.util.pyodide_display import show_in_page
 from maidr.util.iframe_utils import with_chart_title, wrap_in_iframe_plotly
+from maidr.util.pyodide_display import show_in_page
 
 
 # ---------------------------------------------------------------------------

@@ -76,3 +76,45 @@ def test_a_worker_without_a_document_is_left_alone(monkeypatch):
     monkeypatch.setitem(sys.modules, "js", types.SimpleNamespace())
     monkeypatch.setattr(sys, "platform", "emscripten")
     assert not Environment.is_pyodide_page()
+
+
+def _plotly():
+    go = pytest.importorskip("plotly.graph_objects")
+    return go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+
+
+def _bokeh():
+    figure = pytest.importorskip("bokeh.plotting").figure
+    p = figure(x_range=["a", "b"])
+    p.vbar(x=["a", "b"], top=[1, 2], width=0.5)
+    return p
+
+
+def _altair():
+    alt = pytest.importorskip("altair")
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"x": ["a", "b"], "y": [1, 2]})
+    return alt.Chart(df).mark_bar().encode(x="x", y="y")
+
+
+@pytest.mark.parametrize("make", [_plotly, _bokeh, _altair])
+def test_other_libraries_embed_in_the_page(page, monkeypatch, make):
+    opened = []
+    monkeypatch.setattr("webbrowser.open", lambda *a, **k: opened.append(a))
+
+    maidr.show(make(), use_cdn=False)
+
+    assert opened == []
+    assert len(page.children) == 1
+    assert "<iframe" in page.children[0].innerHTML
+
+
+def test_a_notebook_shell_keeps_the_notebook_path(page, monkeypatch):
+    """JupyterLite has IPython, so it is not handled as a bare page."""
+    monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: True))
+    _, ax = _bar()
+
+    maidr.show(ax, renderer="browser", use_cdn=True)
+
+    assert page.children == []
+    plt.close("all")

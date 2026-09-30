@@ -406,7 +406,7 @@ class Maidr:
 
         # A bare Pyodide page has no browser to open and no file to open in
         # it, so the chart is placed in the page itself.
-        if renderer in ("auto", "browser") and self._in_pyodide_page():
+        if self._in_pyodide_page():
             html = self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
             if clear_fig:
                 plt.close(self._fig)
@@ -435,6 +435,14 @@ class Maidr:
 
     @staticmethod
     def _in_pyodide_page() -> bool:
+        """Whether ``show`` should put the chart in the host page.
+
+        Returns
+        -------
+        bool
+            True on a Pyodide page outside a notebook shell, where there is
+            neither IPython to display into nor a browser to launch.
+        """
         return Environment.is_pyodide_page() and not Environment.is_notebook()
 
     def clear(self):

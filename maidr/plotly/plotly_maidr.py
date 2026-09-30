@@ -53,12 +53,12 @@ from maidr.util.bundle_loader import (
 )
 from maidr.util.dotpad import dotpad_config_child, local_dotpad_sdk_dependency
 from maidr.util.environment import Environment
-from maidr.util.pyodide_display import show_in_page
 from maidr.util.iframe_utils import (
     chart_title_of,
     with_chart_title,
     wrap_in_iframe_plotly,
 )
+from maidr.util.pyodide_display import show_in_page
 from maidr.util.script_json import script_json
 
 
