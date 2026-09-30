@@ -28,16 +28,43 @@ version of it also named ``c`` and ``esc``, neither of which produced an
 observable rerun.  That is not proof they are unbound -- they may drive
 something else that collides just as badly -- but it was more than the
 evidence supported.
+
+Streamlit reruns the whole script on every widget interaction and hands
+the frame whatever this module returned.  A different string makes the
+browser reload the frame, and maidr starts over inside it; an identical
+one leaves the frame alone.  So an unchanged chart renders to the same
+string on every run (``_stable_ids``), and what a rerun costs the reader
+depends on where they are when it happens.  Measured on the same
+Streamlit and Chromium, with the reader on the second bar and braille on,
+and the chart uncached:
+
+- A rerun that reaches the app while the reader stays in the chart -- a
+  ``st.fragment(run_every=...)`` around it, or an auto-refresh calling
+  ``st.rerun()`` on a timer.  Before, the frame reloaded, focus fell to its
+  ``<body>``, the braille panel closed and the next arrow key did nothing,
+  with nothing announced.  Now the frame, focus, braille and position all
+  survive, and the next arrow key reads the third bar.
+- A reader who leaves the chart to use a widget, and comes back.  They
+  start over, before and after this -- and just the same with no rerun at
+  all, tabbing out and back in, because maidr.js releases a chart's state
+  whenever focus leaves it.  The frame surviving is what would let that
+  state survive too, but keeping it is maidr.js's to change, not this
+  module's.
+
+A Plotly or Bokeh chart still differs between renders, for the reasons at
+``_MINTED``, and is rebuilt on every rerun as before.
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
+import uuid
 import warnings
 from functools import lru_cache
 from typing import Any, Literal, Optional, Union
 
-from htmltools import tags
+from htmltools import HTML, tags
 
 import maidr
 from maidr.util.dependencies import inline_bundle_tags, read_bundled_js
@@ -83,13 +110,22 @@ def maidr_html(
     Returns
     -------
     str
-        A complete HTML fragment, safe to embed in an iframe.
+        A complete HTML fragment for one iframe.  An unchanged matplotlib,
+        seaborn or Altair chart is the same string on every call, which is
+        what lets Streamlit keep its frame across a rerun (the module notes
+        say what that keeps, and why Plotly and Bokeh are not included).
+        Its ids are derived from the chart, so they are unique within the
+        string but not between two calls for the same chart: give each its
+        own frame.
 
     Notes
     -----
-    Exists as its own entry point so the *string* can be cached, which is
-    the useful lever against Streamlit rerunning the whole script on every
-    widget interaction::
+    Exists as its own entry point so the *string* can be cached, which
+    spares rendering the chart again when Streamlit reruns the whole script
+    on every widget interaction.  For a matplotlib, seaborn or Altair chart
+    the frame no longer depends on it -- an unchanged chart's frame is kept
+    either way -- so there this is about what the render costs, not about
+    the reader::
 
         @st.cache_data
         def chart_html(_fig, key):
@@ -164,7 +200,9 @@ def _render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
     # while the chart was built from another.
     resolved = maidr.get_use_cdn() if use_cdn is None else use_cdn
     rendered = maidr.render(plot, use_cdn=resolved)
-    html = str(rendered.get_html_string())
+    # Before the bundle is inlined, so the pass reads the chart and not the
+    # ~1.9 MB of runtime beside it; see ``_stable_ids`` for why at all.
+    html = _stable_ids(str(rendered.get_html_string()))
 
     if resolved is False:
         if _references_maidr_runtime(html):
@@ -189,10 +227,139 @@ def _render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
             if inline_tags is not None:
                 # Ahead of the rendered tag, so ``maidr.js`` is defined by
                 # the time the bootstrap inside it calls ``window.main()``.
-                html = str(tags.div(*inline_tags, rendered).get_html_string())
+                # The chart goes in as the string already made stable, not
+                # as ``rendered``, which would serialize the random ids back.
+                html = str(tags.div(*inline_tags, HTML(html)).get_html_string())
 
     _warn_if_no_runtime(html, resolved, stacklevel=stacklevel)
     return html, chart_title_on(rendered)
+
+
+#: The shape of every id py-maidr mints, ``str(uuid.uuid4())``.
+_UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+
+#: The ids matplotlib's SVG backend mints for clip paths, markers, hatches,
+#: path collections and images: a type prefix, then ten hex digits of a hash
+#: salted with a fresh uuid unless ``svg.hashsalt`` is set.
+_MPL_ID = r"(?:[hpm]|(?:Im_)?image|C[0-9a-f]+_[0-9a-f]+_)[0-9a-f]{10}"
+
+#: The places a *minted* id is written, as opposed to a string that merely
+#: has the shape of one.  A chart's own data can be a uuid -- an order id on
+#: a category axis -- and renaming it would change what the reader hears.
+#: Each form here is written by py-maidr or matplotlib and never carries
+#: data: an id with a ``maidr-`` prefix (a gid, or the Bokeh and Altair
+#: wrappers), the value of an ``id`` or ``maidr`` attribute or attribute
+#: selector, a schema ``id`` inside the escaped JSON of the SVG's ``maidr``
+#: attribute, and matplotlib's own ``<defs>``.  An id found in one of these
+#: is then renamed everywhere it occurs, including where it is referenced.
+#:
+#: A schema ``id`` in *raw* JSON is deliberately not one of them: that is
+#: how Plotly and Bokeh carry theirs, and raw JSON is also where an Altair
+#: dataset keeps a user's column named ``id``.  So a Plotly chart still
+#: differs between renders, and so does a Bokeh one, which also numbers its
+#: models from a process-wide counter.  Both are rebuilt on a rerun as
+#: before; nothing about them changes.
+#:
+#: Every branch opens with a literal, and :data:`_TOKEN` with a character
+#: class, rather than with ``\b`` or a lookbehind: that is what lets the
+#: regex engine skip to the next candidate instead of trying every
+#: position, and a large chart is megabytes of numbers.  Written with
+#: lookarounds, the pass took longer than the render it followed on a
+#: 20,000-point scatter.
+_MINTED = re.compile(
+    rf"maidr-(?:[a-z]+-)?({_UUID})"
+    rf"|id=[\"']({_UUID})"
+    rf"|maidr=[\"']({_UUID})"
+    rf"|&quot;id&quot;: &quot;({_UUID})"
+    rf"|id=\"({_MPL_ID})\""
+)
+
+#: Either shape as a whole token -- the character before it is captured
+#: rather than looked behind at, for the reason above -- so a match is
+#: never a slice of a longer word.  Which matches are renamed is decided by
+#: :data:`_MINTED`.
+_TOKEN = re.compile(rf"([^0-9A-Za-z_])({_UUID}|{_MPL_ID})(?![0-9A-Za-z_])")
+
+#: When matplotlib wrote the SVG, to the microsecond, and the line it is on.
+_SVG_DATE = re.compile(r"\n[ \t]*<dc:date>[^<]*</dc:date>")
+
+#: A minted id's place in :func:`_stable_ids`' skeleton, by its position.
+_BLANK = re.compile("\x00([0-9]+)\x00")
+
+#: The namespace ``uuid5`` needs for the ids :func:`_stable_ids` derives.
+_STABLE_ID_NAMESPACE = uuid.uuid5(
+    uuid.NAMESPACE_URL, "https://github.com/xability/py-maidr"
+)
+
+
+def _stable_ids(html: str) -> str:
+    """Make two renders of an unchanged chart the same string.
+
+    Streamlit reruns the whole script on every widget interaction, and hands
+    the frame whatever this module returned.  When that string differs from
+    the last one the browser reloads the frame, and maidr starts over
+    inside it; when it is identical, the frame is left alone.  A chart
+    differed on every render only in ids nobody reads -- fresh uuids from
+    py-maidr, a random hash salt from matplotlib -- and in the time the SVG
+    was written, so every rerun reloaded every chart on the page.  What
+    that cost a reader, measured, is in the module notes.
+
+    Each minted id is replaced by one derived from the chart with every
+    such id blanked out, and from its place in the document.  So an
+    unchanged chart gets the same ids on every render, a changed one gets
+    different ids, and ids that were distinct in the document stay
+    distinct.  Uniqueness is only per document, which is what a Streamlit
+    embed is: one chart to a frame.  The notebook, Shiny, Flask and
+    ``save_html`` paths never come through here, and can place several
+    charts in one document, so they keep their random ids.
+
+    Parameters
+    ----------
+    html : str
+        One serialized chart, without the inlined bundle.
+
+    Returns
+    -------
+    str
+        The same chart, its minted ids replaced and its timestamp removed.
+    """
+    html = _SVG_DATE.sub("", html)
+    minted = {token for match in _MINTED.finditer(html) for token in match.groups()}
+    minted.discard(None)
+    # The blanks below are NUL-delimited, which no serialized chart holds --
+    # XML forbids the character -- but one that somehow did is left as it
+    # was, rather than have its own text read back as a blank.
+    if not minted or "\x00" in html:
+        return html
+
+    # First, the chart with each minted id replaced by the order in which
+    # it first appears: what stays the same between two renders of it.
+    order: dict[str, int] = {}
+
+    def blank(match: re.Match) -> str:
+        before, token = match.groups()
+        if token not in minted:
+            return match.group(0)
+        return f"{before}\x00{order.setdefault(token, len(order))}\x00"
+
+    skeleton = _TOKEN.sub(blank, html)
+    digest = hashlib.sha256(skeleton.encode("utf-8")).hexdigest()
+
+    # Then each id derived from that and its position, in its own shape: a
+    # uuid stays a uuid, and a matplotlib id keeps its type prefix.
+    renamed: list[str] = []
+    for token, position in order.items():
+        name = f"{digest}:{position}"
+        if re.fullmatch(_UUID, token):
+            renamed.append(str(uuid.uuid5(_STABLE_ID_NAMESPACE, name)))
+        else:
+            suffix = hashlib.sha256(name.encode("utf-8")).hexdigest()[:10]
+            renamed.append(token[:-10] + suffix)
+
+    # Filled into the skeleton rather than found again in ``html``: the
+    # blanks are cheap to find, where ``_TOKEN`` has to consider every
+    # character of the chart a second time.
+    return _BLANK.sub(lambda match: renamed[int(match.group(1))], skeleton)
 
 
 #: Matches a quoted URL naming the ``maidr`` npm package and a ``.js`` file.
@@ -343,6 +510,11 @@ def render_maidr(
     or ``"Accessible chart"`` for an untitled one, as py-maidr names its own
     frames -- on a Streamlit whose ``st.iframe`` takes ``alt``.  Older
     releases name every frame ``st.iframe``, which cannot be overridden.
+
+    An unchanged matplotlib, seaborn or Altair chart reaches Streamlit as
+    the same string on every rerun, so its frame is kept rather than
+    reloaded, and a reader still in the chart keeps their place; the
+    module notes have the measurement, and what it does not cover.
 
     Examples
     --------

@@ -144,9 +144,23 @@ releases name every frame `st.iframe`, and `render_maidr()` leaves them to it.
 ::: {.callout-note}
 ## Streamlit reruns the whole script on every interaction
 
-Each rerun rebuilds the chart from scratch, so maidr loses its position, any
-open panel, and the audio state. Caching the *HTML* rather than the render
-call is the lever that helps:
+Streamlit reloads the chart's frame when the HTML it is handed changes. For a
+matplotlib, seaborn or Altair chart that happens only when the chart itself
+changes: an unchanged chart renders to the same HTML on every rerun, and
+Streamlit keeps its frame. A reader who is inside the chart when the script
+reruns -- an `st.fragment(run_every=...)` around it, or an auto-refresh --
+stays where they were, keeping their place and everything else maidr holds
+for them, with nothing announced because nothing changed.
+
+Two things still start a reader over. A chart that did change is a new chart,
+and loads fresh. And a reader who leaves the chart to use a control and then
+comes back begins again at the start -- not because of the rerun: maidr lets
+go of its place whenever focus leaves a chart, on any page.
+
+Plotly and Bokeh charts still render differently every time, so their frame is
+reloaded on every rerun. Caching the *HTML* rather than the render call keeps
+it, since the cached string is the same each run -- and for any chart, it
+saves rendering the chart again:
 
 ```python
 from maidr.widget.streamlit import maidr_html

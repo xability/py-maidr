@@ -825,3 +825,183 @@ def test_an_explicit_plot_does_not_warn(bar_axes):
         warnings.simplefilter("always")
         maidr_html(bar_axes, use_cdn=True)
     assert not [w for w in caught if "current figure" in str(w.message)]
+
+
+# ---------------------------------------------------------------------------
+# The same chart is the same string on every rerun (#460)
+# ---------------------------------------------------------------------------
+
+#: A uuid, the shape of the ids py-maidr mints.
+_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def _bar(ax):
+    ax.bar(["a", "b"], [1, 2])
+    ax.set_title("Sales by region")
+
+
+def _line_and_scatter(ax):
+    ax.plot([1, 2, 3], [1, 3, 2])
+    ax.scatter([1, 2, 3], [3, 1, 2])
+
+
+def _box(ax):
+    ax.boxplot([[1, 2, 3, 9], [4, 5, 6]])
+
+
+def _heat(ax):
+    import seaborn as sns
+
+    sns.heatmap([[1, 2, 3], [4, 5, 6]], ax=ax)
+
+
+def _violin(ax):
+    import seaborn as sns
+
+    sns.violinplot(x=[1, 2, 2, 3, 5], ax=ax)
+
+
+#: Between them, every kind of id a render mints: gids and selector ids,
+#: schema ids in the SVG's attribute, and matplotlib's clip paths, markers
+#: and path collections.
+_CHARTS = [_bar, _line_and_scatter, _box, _heat, _violin]
+
+
+def _html_of(draw, use_cdn=True, **kwargs) -> str:
+    """Build the chart ``draw`` describes on a new figure, as a rerun does."""
+    fig, ax = plt.subplots()
+    try:
+        draw(ax, **kwargs)
+        return maidr_html(ax, use_cdn=use_cdn)
+    finally:
+        plt.close(fig)
+
+
+@pytest.mark.parametrize("draw", _CHARTS, ids=lambda draw: draw.__name__[1:])
+def test_an_unchanged_chart_renders_to_the_same_string(draw):
+    """What keeps Streamlit from reloading the frame on an unrelated rerun.
+
+    Streamlit reruns the script on every widget interaction and gives the
+    frame whatever this returned; a different string reloads it, and a
+    reader inside is dropped with nothing said. Every render used to differ
+    -- fresh uuids, a random matplotlib hash salt, a timestamp -- so every
+    rerun did that. ``tests/browser/test_streamlit_rerun.py`` drives the
+    consequence in a browser.
+
+    Built on a new figure each time, as a rerun builds it, rather than one
+    figure rendered twice, which would share the gids its first render set.
+    """
+    assert _html_of(draw) == _html_of(draw)
+
+
+def test_the_offline_embed_is_the_same_string_too():
+    """The bundle is inlined after the ids are settled, not serialized over them."""
+    first = _html_of(_bar, use_cdn=False)
+    assert _BUNDLE_HEAD in first
+    assert first == _html_of(_bar, use_cdn=False)
+
+
+def test_render_maidr_hands_streamlit_the_same_string_twice(monkeypatch):
+    """The entry point most apps call, not only the string one."""
+    st, _v1 = _stub_streamlit(monkeypatch, with_iframe=True)
+
+    for _ in range(2):
+        fig, ax = plt.subplots()
+        _bar(ax)
+        render_maidr(ax, use_cdn=True)
+        plt.close(fig)
+
+    (first, _), (second, _) = st.iframe.calls
+    assert first == second
+
+
+def test_a_changed_chart_is_a_different_string_with_different_ids():
+    """The frame must still be rebuilt when the chart itself changed.
+
+    And its ids change with it: they are derived from the chart, so two
+    different charts do not share one.
+    """
+
+    def bars(ax, heights):
+        ax.bar(["a", "b"], heights)
+
+    before = _html_of(bars, heights=[1, 2])
+    after = _html_of(bars, heights=[1, 3])
+
+    assert before != after
+    assert not set(_UUID.findall(before)) & set(_UUID.findall(after))
+
+
+@pytest.mark.parametrize("draw", _CHARTS, ids=lambda draw: draw.__name__[1:])
+def test_ids_are_renamed_one_for_one(draw):
+    """Ids distinct in the document stay distinct, and keep their references.
+
+    A selector names its layer's elements by id, and a ``url(#...)`` points
+    at a clip path: renaming is only safe if every occurrence of an id
+    becomes the same new id and no two ids become one. An occurrence missed
+    would leave a reference to an id that no longer exists -- a highlight
+    that silently lands nowhere.
+    """
+    import maidr
+    from maidr.widget.streamlit import _stable_ids
+
+    fig, ax = plt.subplots()
+    try:
+        draw(ax)
+        raw = str(maidr.render(ax, use_cdn=True).get_html_string())
+    finally:
+        plt.close(fig)
+    stable = _stable_ids(raw)
+
+    # matplotlib's: clip paths, markers, hatches, path collections, images.
+    ids = re.compile(
+        rf"{_UUID.pattern}"
+        r"|\b(?:[hpm]|(?:Im_)?image|C[0-9a-f]+_[0-9a-f]+_)[0-9a-f]{10}\b"
+    )
+
+    def shape(html: str) -> str:
+        """The document with each id replaced by the order it first appears in."""
+        seen: dict = {}
+        html = re.sub(r"\s*<dc:date>[^<]*</dc:date>", "", html)
+        return ids.sub(lambda m: f"<{seen.setdefault(m.group(0), len(seen))}>", html)
+
+    assert shape(stable) == shape(raw)
+    assert len(set(ids.findall(stable))) == len(set(ids.findall(raw)))
+    assert not set(ids.findall(stable)) & set(ids.findall(raw))
+
+
+def test_a_uuid_in_the_charts_own_data_is_left_alone():
+    """Only ids a render minted are renamed, never a value shaped like one.
+
+    An order id on a category axis is data: renaming it would have the
+    reader hear a different id from the one drawn.
+    """
+    order_id = "123e4567-e89b-42d3-a456-426614174000"
+
+    def orders(ax):
+        ax.bar([order_id, "other"], [1, 2])
+        ax.set_title(order_id)
+
+    html = _html_of(orders)
+
+    assert html == _html_of(orders)
+    # The category and the title in the schema, and the drawn title and
+    # tick label in the SVG's comments.
+    assert html.count(order_id) >= 3
+
+
+def test_the_svg_timestamp_is_not_emitted():
+    """matplotlib stamps the time it wrote the SVG, to the microsecond."""
+    assert "<dc:date>" not in _html_of(_bar)
+
+
+def test_an_altair_chart_renders_to_the_same_string():
+    """Its one minted id carries a ``maidr-`` prefix, so it is renamed too."""
+    alt = pytest.importorskip("altair")
+    pd = pytest.importorskip("pandas")
+
+    def chart() -> str:
+        data = pd.DataFrame({"a": ["x", "y"], "b": [1, 2]})
+        return maidr_html(alt.Chart(data).mark_bar().encode(x="a", y="b"), use_cdn=True)
+
+    assert chart() == chart()

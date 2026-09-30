@@ -168,6 +168,12 @@ def streamlit_keys_app_url():
     yield from _serve("streamlit_keys_app.py", runner="streamlit")
 
 
+@pytest.fixture(scope="session")
+def streamlit_rerun_app_url():
+    """An uncached Streamlit chart beside two checkboxes, for the rerun test."""
+    yield from _serve("streamlit_rerun_app.py", runner="streamlit")
+
+
 @pytest.fixture
 def page(browser, focus_app_url):
     """A page with the chart loaded and its runtime up."""
