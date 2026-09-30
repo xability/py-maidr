@@ -16,7 +16,7 @@
 
 # py-maidr
 
-Make matplotlib, seaborn, Plotly, Bokeh, and Altair charts accessible — MAIDR
+Make matplotlib, seaborn, Plotly, Bokeh, plotnine, and Altair charts accessible — MAIDR
 (Multimodal Access and Interactive Data Representation) for Python.
 
 ## Overview
@@ -29,9 +29,10 @@ of one.
 
 Nothing about how you plot changes. py-maidr patches matplotlib and seaborn at
 import time, so `plt.show()` produces accessible HTML instead of a static image;
-Plotly, Bokeh and Altair figures go through the same `maidr.show()` entry point
-(Bokeh support is experimental; install it with `pip install "maidr[bokeh]"`). It
-works in a plain script, a Jupyter notebook, Quarto, Shiny, and Streamlit.
+Plotly, Bokeh, plotnine and Altair figures go through the same `maidr.show()`
+entry point (Bokeh and plotnine support are experimental; install them with
+`pip install "maidr[bokeh]"` and `pip install "maidr[plotnine]"`). It works in a
+plain script, a Jupyter notebook, Quarto, Shiny, and Streamlit.
 
 ## Quickstart
 
@@ -57,7 +58,7 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 
 | | |
 |---|---|
-| **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Bokeh [experimental], Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
+| **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Bokeh [experimental], plotnine [experimental], Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit |
 | **Plot types** | 40 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-five are experimental; the docs mark each experimental type **[experimental]** after its name |
 

@@ -123,6 +123,20 @@ has not been through a user study either. See the
 the page gets BokehJS: from Bokeh's CDN, or inlined from the installed package
 with `use_cdn=False` so a saved page works offline.
 
+## plotnine support
+
+plotnine charts (`maidr.show(p)` on a `ggplot`) are read by an adapter that is
+itself **experimental**, whatever plot type it emits: a plotnine bar chart emits
+the stable `bar` type, but which geoms, stats and positions are read as what,
+how a facet panel is titled, and what is skipped may change without a
+deprecation period, including in a patch release. It reads each layer's data as
+plotnine computed it rather than the shapes it drew, and each facet panel
+becomes a subplot; a geom, a position such as a jitter, or a coordinate system
+it does not read is left out with a warning naming it. See the
+[plotnine gallery](examples-plotnine.qmd) for what it reads today
+([#814](https://github.com/xability/py-maidr/issues/814)). Install it with
+`pip install "maidr[plotnine]"`.
+
 ## Drawn but not read
 
 A few matplotlib calls draw marks that no `PlotType` reads, and that is

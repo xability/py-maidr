@@ -1,0 +1,341 @@
+---
+title: "plotnine Accessible Plot Examples"
+description: "Code examples showing how to make plotnine (ggplot2 grammar) bar charts, stacked and dodged bars, histograms, scatter, line, smooth and box plots, heatmaps and faceted plots accessible with py-maidr."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+## plotnine Examples {#sec-plotnine-examples}
+
+**maidr** also supports [plotnine](https://plotnine.org/), the Python
+implementation of ggplot2's grammar of graphics. Pass a `ggplot` to
+`maidr.show()`, `maidr.render()` or `maidr.save_html()`, and **maidr** produces
+a page where the chart can be read from the keyboard, as sound, as text and in
+braille -- what [maidr for R](https://r.maidr.ai/) does for ggplot2 itself. For
+the other libraries, see the
+[Matplotlib / Seaborn](examples.qmd), [Plotly](examples-plotly.qmd),
+[Bokeh](examples-bokeh.qmd) and [Altair](examples-altair.qmd) pages.
+
+::: {.callout-warning title="Experimental"}
+plotnine support is **experimental**. What it reads, and how, may change without
+a deprecation period, whichever plot type is drawn: see
+[Plot Type Stability](stability.qmd#plotnine-support). Install it with
+`pip install "maidr[plotnine]"`.
+:::
+
+**maidr** reads each layer's own data as plotnine computed it -- after the
+stat, the position adjustment and the scales -- rather than the shapes it drew,
+so a count is the count `stat_count` made, a stacked segment is announced with
+its own value, and a box with the five numbers `stat_boxplot` computed. Each
+facet panel is a subplot. As you move through a chart, the mark being read is
+outlined on the plotnine drawing itself.
+
+| plotnine | read as |
+|---|---|
+| `geom_bar`, `geom_col`, one bar per category | bar |
+| `geom_bar`, `geom_col` with `position="stack"` (the default) | stacked bar |
+| `geom_bar`, `geom_col` with `position="dodge"` | dodged bar |
+| `geom_histogram` | histogram |
+| `geom_point` | point |
+| `geom_line` | line, one series per group |
+| `geom_smooth` | smooth, with its confidence band |
+| `geom_boxplot` | box |
+| `geom_tile` with a numeric `fill` | heatmap |
+| `facet_wrap`, `facet_grid` | one subplot per panel |
+| `geom_bar`, `geom_col` with `position="fill"` | normalized stacked bar [experimental] |
+
+Any other geom, a jittered point, or a chart on a coordinate system other than
+`coord_cartesian` is left out with a warning naming it, and a chart with
+nothing **maidr** can read is shown as a static image. Use `maidr.show(p)`
+rather than plotnine's own `p.show()` or a notebook's display of `p`: those draw
+the chart as an ordinary matplotlib figure, which **maidr** cannot read beyond
+its points.
+
+### Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Bar chart of the number of penguins of each species
+
+from plotnine import aes, geom_bar, ggplot, labs
+from plotnine.data import penguins
+
+import maidr  #<<
+
+p = (
+    ggplot(penguins, aes("species"))
+    + geom_bar()
+    + labs(title="Penguins per Species", x="Species", y="Penguins")
+)
+
+maidr.show(p)  #<<
+```
+
+### Stacked Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Stacked bar chart of penguins per species, split by island
+
+from plotnine import aes, geom_bar, ggplot, labs
+from plotnine.data import penguins
+
+import maidr  #<<
+
+p = (
+    ggplot(penguins, aes("species", fill="island"))
+    + geom_bar()
+    + labs(title="Penguins per Species and Island", x="Species", y="Penguins")
+)
+
+maidr.show(p)  #<<
+```
+
+Each segment is announced with its own count, not the height of the stack it
+sits on, and a species with no penguins on an island is announced as missing
+rather than as zero. The series run from the bottom of the stack up.
+
+### Dodged (Grouped) Bar Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Grouped bar chart of penguins per species, one bar for each sex
+
+from plotnine import aes, geom_bar, ggplot, labs
+from plotnine.data import penguins
+
+import maidr  #<<
+
+p = (
+    ggplot(penguins.dropna(subset=["sex"]), aes("species", fill="sex"))
+    + geom_bar(position="dodge")
+    + labs(title="Penguins per Species and Sex", x="Species", y="Penguins")
+)
+
+maidr.show(p)  #<<
+```
+
+### Histogram
+
+```{python}
+#| warning: false
+#| fig-alt: Histogram of penguin body mass in twenty bins
+
+from plotnine import aes, geom_histogram, ggplot, labs
+from plotnine.data import penguins
+
+import maidr  #<<
+
+p = (
+    ggplot(penguins.dropna(subset=["body_mass_g"]), aes("body_mass_g"))
+    + geom_histogram(bins=20)
+    + labs(title="Penguin Body Mass", x="Body Mass (g)", y="Penguins")
+)
+
+maidr.show(p)  #<<
+```
+
+### Scatter Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Scatter plot of fuel economy against horsepower for 32 cars
+
+from plotnine import aes, geom_point, ggplot, labs
+from plotnine.data import mtcars
+
+import maidr  #<<
+
+p = (
+    ggplot(mtcars, aes("hp", "mpg"))
+    + geom_point()
+    + labs(title="Fuel Economy and Power", x="Horsepower", y="Miles per Gallon")
+)
+
+maidr.show(p)  #<<
+```
+
+### Line Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of monthly US unemployment from 2000 to 2015
+
+from plotnine import aes, geom_line, ggplot, labs
+from plotnine.data import economics
+
+import maidr  #<<
+
+recent = economics[economics["date"].dt.year >= 2000]
+p = (
+    ggplot(recent, aes("date", "unemploy"))
+    + geom_line()
+    + labs(title="US Unemployment", x="Month", y="Unemployed (thousands)")
+)
+
+maidr.show(p)  #<<
+```
+
+### Multi-Line Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Two lines, the personal savings rate and the median weeks of unemployment
+
+from plotnine import aes, geom_line, ggplot, labs
+from plotnine.data import economics_long
+
+import maidr  #<<
+
+two = economics_long[
+    economics_long["variable"].isin(["psavert", "uempmed"])
+    & (economics_long["date"].dt.year >= 2000)
+]
+p = (
+    ggplot(two, aes("date", "value", color="variable"))
+    + geom_line()
+    + labs(title="Savings Rate and Unemployment Duration", x="Month", y="Value")
+)
+
+maidr.show(p)  #<<
+```
+
+Each colour is one series, named by its value of the variable `color` maps.
+
+### Box Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Box plots of penguin body mass for each species
+
+from plotnine import aes, geom_boxplot, ggplot, labs
+from plotnine.data import penguins
+
+import maidr  #<<
+
+p = (
+    ggplot(penguins.dropna(subset=["body_mass_g"]), aes("species", "body_mass_g"))
+    + geom_boxplot()
+    + labs(title="Body Mass by Species", x="Species", y="Body Mass (g)")
+)
+
+maidr.show(p)  #<<
+```
+
+### Heatmap
+
+```{python}
+#| warning: false
+#| fig-alt: Heatmap of mean penguin body mass for each species on each island
+
+from plotnine import aes, geom_tile, ggplot, guide_colorbar, guides, labs
+from plotnine.data import penguins
+
+import maidr  #<<
+
+means = (
+    penguins.groupby(["species", "island"], observed=True)["body_mass_g"]
+    .mean()
+    .round()
+    .reset_index()
+)
+p = (
+    ggplot(means, aes("island", "species", fill="body_mass_g"))
+    + geom_tile()
+    + guides(fill=guide_colorbar(display="rectangles"))
+    + labs(title="Mean Body Mass (g)", x="Island", y="Species", fill="Body Mass (g)")
+)
+
+maidr.show(p)  #<<
+```
+
+Each cell is announced with the value `fill` maps, not its colour. A species
+never recorded on an island has no tile, and is announced as missing.
+
+`guide_colorbar(display="rectangles")` draws the colour bar as a stack of
+rectangles. plotnine's default gradient is written to SVG as thousands of
+shaded triangles, which makes this one chart close to 2 MB; the rectangles look
+the same and weigh a few tens of kilobytes.
+
+### Scatter Plot with a Smooth
+
+```{python}
+#| warning: false
+#| fig-alt: Scatter plot of fuel economy against weight for 32 cars with a fitted line and its confidence band
+
+from plotnine import aes, geom_point, geom_smooth, ggplot, labs
+from plotnine.data import mtcars
+
+import maidr  #<<
+
+p = (
+    ggplot(mtcars, aes("wt", "mpg"))
+    + geom_point()
+    + geom_smooth(method="lm")
+    + labs(title="Fuel Economy and Weight", x="Weight (1000 lb)",
+           y="Miles per Gallon")
+)
+
+maidr.show(p)  #<<
+```
+
+The points and the fitted line are two layers of one subplot; the line carries
+the bounds of its confidence band at every point.
+
+### Faceted Plot
+
+```{python}
+#| warning: false
+#| fig-alt: Three scatter plots side by side, fuel economy against weight for 4-, 6- and 8-cylinder cars
+
+from plotnine import aes, facet_wrap, geom_point, ggplot, labs
+from plotnine.data import mtcars
+
+import maidr  #<<
+
+p = (
+    ggplot(mtcars, aes("wt", "mpg"))
+    + geom_point()
+    + facet_wrap("cyl")
+    + labs(title="Fuel Economy by Cylinders", x="Weight (1000 lb)",
+           y="Miles per Gallon")
+)
+
+maidr.show(p)  #<<
+```
+
+Each panel is a subplot, titled by its facet as `cyl = 4`. Press
+<kbd>Enter</kbd> to go into one, <kbd>Escape</kbd> to come back out, and the
+arrow keys between them, in the directions they are laid out on the page.
+
+### Normalized Stacked Bar Plot [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Stacked bar chart of the share of each species on each island
+
+from plotnine import aes, geom_bar, ggplot, labs
+from plotnine.data import penguins
+
+import maidr  #<<
+
+p = (
+    ggplot(penguins, aes("island", fill="species"))
+    + geom_bar(position="fill")
+    + labs(title="Species Share on Each Island", x="Island", y="Share")
+)
+
+maidr.show(p)  #<<
+```
+
+Each segment is announced as its share of the bar, so the segments of one bar
+add up to 1.
+
+## Saving and embedding
+
+`maidr.save_html(p, "chart.html")` writes the same page to a file, and
+`maidr.render(p)` returns it as HTML for a Shiny or Streamlit app. plotnine
+draws through matplotlib, so `use_cdn` behaves exactly as it does for a
+matplotlib figure, and `use_cdn=False` gives a page that works offline.

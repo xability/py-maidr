@@ -621,3 +621,84 @@ class TestBokehCanonicalShape:
 
     def test_a_colour_scale_is_a_z_axis_config(self, bokeh_layers):
         assert bokeh_layers["heat"]["axes"]["z"] == {"label": "v"}
+
+
+def _plotnine_plots() -> dict:
+    """One ``ggplot`` per layer type the plotnine path emits, by type."""
+    from plotnine import (
+        aes,
+        geom_bar,
+        geom_boxplot,
+        geom_col,
+        geom_histogram,
+        geom_line,
+        geom_point,
+        geom_smooth,
+        geom_tile,
+        ggplot,
+        labs,
+    )
+
+    split = pd.DataFrame(
+        {"c": ["a", "a", "b", "b"], "g": ["p", "q", "p", "q"], "v": [1.0, 2, 3, 4]}
+    )
+    xy = pd.DataFrame({"x": [1.0, 2, 3, 4], "y": [2.0, 1, 4, 3]})
+    tiles = pd.DataFrame({"a": ["x", "x", "y"], "b": ["u", "v", "u"], "z": [1, 2, 3]})
+    by_fill = aes("c", "v", fill="g")
+    return {
+        "bar": ggplot(split, aes("c")) + geom_bar() + labs(x="Across", y="Up"),
+        "stacked_bar": ggplot(split, by_fill) + geom_col(),
+        "dodged_bar": ggplot(split, by_fill) + geom_col(position="dodge"),
+        "stacked_normalized_bar": ggplot(split, by_fill) + geom_col(position="fill"),
+        "hist": ggplot(xy, aes("y")) + geom_histogram(bins=2),
+        "point": ggplot(xy, aes("x", "y")) + geom_point(),
+        "line": ggplot(xy, aes("x", "y")) + geom_line(),
+        "smooth": ggplot(xy, aes("x", "y")) + geom_smooth(method="lm"),
+        "box": ggplot(split, aes("g", "v")) + geom_boxplot(),
+        "heat": ggplot(tiles, aes("a", "b", fill="z")) + geom_tile(),
+    }
+
+
+class TestPlotnineCanonicalShape:
+    """The plotnine path builds its schema from plotnine's layer data rather
+    than from the axes; every layer type it emits is held to the same
+    canonical ``axes`` contract."""
+
+    @pytest.fixture(scope="class")
+    def plotnine_layers(self) -> dict:
+        pytest.importorskip("plotnine")
+        from maidr.plotnine.plotnine_maidr import PlotnineMaidr
+
+        layers = {}
+        for plot_type, p in _plotnine_plots().items():
+            schema = _stringify_keys(PlotnineMaidr(p)._flatten_maidr())
+            (layer,) = [
+                layer
+                for row in schema["subplots"]
+                for cell in row
+                for layer in cell["layers"]
+            ]
+            assert layer["type"] == plot_type
+            layers[plot_type] = layer
+        return layers
+
+    @pytest.mark.parametrize(
+        "plot_type",
+        [
+            "bar", "stacked_bar", "dodged_bar", "stacked_normalized_bar", "hist",
+            "point", "line", "smooth", "box", "heat",
+        ],
+    )
+    def test_every_layer_type(self, plotnine_layers, plot_type):
+        axes = plotnine_layers[plot_type]["axes"]
+
+        _assert_canonical_axes(axes)
+        assert set(axes) >= {"x", "y"}
+
+    def test_labels_come_from_the_plots_labs(self, plotnine_layers):
+        assert plotnine_layers["bar"]["axes"]["x"]["label"] == "Across"
+        assert plotnine_layers["bar"]["axes"]["y"]["label"] == "Up"
+
+    def test_a_fill_is_a_z_axis_config(self, plotnine_layers):
+        assert plotnine_layers["heat"]["axes"]["z"] == {"label": "z"}
+        assert plotnine_layers["stacked_bar"]["axes"]["z"] == {"label": "g"}

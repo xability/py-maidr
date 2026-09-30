@@ -52,9 +52,15 @@ from maidr.core.figure_manager import FigureManager
 DOCS = Path(__file__).parents[2] / "docs"
 
 #: The gallery: the matplotlib/seaborn family pages plus the one-page Plotly,
-#: Bokeh and Altair galleries. Discovered rather than listed, so a new page is run
-#: as soon as it exists -- and fails below until its sections are listed.
+#: Bokeh, plotnine and Altair galleries. Discovered rather than listed, so a new
+#: page is run as soon as it exists -- and fails below until its sections are
+#: listed.
 PAGES = sorted(DOCS.glob("examples*.qmd")) + sorted((DOCS / "examples").glob("*.qmd"))
+
+#: Pages whose library is an optional extra that nothing else in the suite
+#: requires, so an environment without it -- ``uv sync --dev`` with no extras --
+#: skips the page rather than failing it.
+REQUIRES = {"examples-plotnine.qmd": "plotnine"}
 
 #: A figure as a reader receives it: one entry per subplot cell, each the
 #: emitted layer types joined with `` + ``. A section lists one such figure
@@ -169,6 +175,20 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Horizontal Area Plot [experimental]": [["area"]],
         "Gantt Chart [experimental]": [["gantt"]],
         "Hexbin Plot [experimental]": [["hexbin"]],
+    },
+    "examples-plotnine.qmd": {
+        "Bar Plot": [["bar"]],
+        "Stacked Bar Plot": [["stacked_bar"]],
+        "Dodged (Grouped) Bar Plot": [["dodged_bar"]],
+        "Histogram": [["hist"]],
+        "Scatter Plot": [["point"]],
+        "Line Plot": [["line"]],
+        "Multi-Line Plot": [["line"]],
+        "Box Plot": [["box"]],
+        "Heatmap": [["heat"]],
+        "Scatter Plot with a Smooth": [["point + smooth"]],
+        "Faceted Plot": [["point", "point", "point"]],
+        "Normalized Stacked Bar Plot [experimental]": [["stacked_normalized_bar"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
@@ -331,13 +351,16 @@ class _Capture:
             Gcf.destroy(manager.num)
 
     def maidr_show(self, plot: Any = None, *args: Any, **kwargs: Any) -> None:
-        """``maidr.show(plot)``: Altair, Plotly or Bokeh, or pyplot."""
+        """``maidr.show(plot)``: Altair, Plotly, Bokeh or plotnine, or pyplot."""
         if api._is_altair_chart(plot):
             self._record(_from_altair(plot))
         elif plot is not None and api._is_plotly_figure(plot):
             self._record(_from_schema(api._get_plotly_maidr(plot)._flatten_maidr()))
         elif plot is not None and api._is_bokeh_model(plot):
             self._record(_from_schema(api._get_bokeh_maidr(plot)._flatten_maidr()))
+        elif plot is not None and api._is_plotnine_plot(plot):
+            reader = api._get_plotnine_maidr(plot)
+            self._record(_from_schema(reader._flatten_maidr()))
         else:
             self.pyplot_show()
 
@@ -385,6 +408,9 @@ class _Gallery:
         self._runs: dict[Path, Any] = {}
 
     def __getitem__(self, page: Path) -> dict[str, list[Shown]]:
+        required = REQUIRES.get(_page_id(page))
+        if required is not None:
+            pytest.importorskip(required)
         if page not in self._runs:
             try:
                 self._runs[page] = _run(page)
@@ -661,3 +687,89 @@ def test_bokeh_image_is_the_arrays_cells(gallery: _Gallery) -> None:
     # Emitted top row first: the last row is array row 0, cos(0) = 1.
     assert heat[MaidrKey.Y][-1] == "0.125"
     assert heat[MaidrKey.POINTS][-1][0] == 0.0
+
+
+def test_plotnine_stack_reads_each_segments_own_count(gallery: _Gallery) -> None:
+    """examples-plotnine.qmd: "Each segment is announced with its own count,
+    not the height of the stack it sits on, and a species with no penguins on
+    an island is announced as missing rather than as zero."
+    """
+    from plotnine.data import penguins
+
+    layer = gallery.shown("examples-plotnine.qmd", "Stacked Bar Plot").layer(
+        PlotType.STACKED
+    )
+    counts = penguins.groupby(["species", "island"], observed=True).size()
+    cells = [cell for row in layer[MaidrKey.DATA] for cell in row]
+
+    for cell in cells:
+        key = (cell[MaidrKey.X], cell[MaidrKey.Z])
+        expected = float(counts[key]) if key in counts.index else None
+        assert cell[MaidrKey.Y] == expected, key
+    assert any(cell[MaidrKey.Y] is None for cell in cells)
+
+
+def test_plotnine_heatmap_leaves_an_unrecorded_cell_empty(gallery: _Gallery) -> None:
+    """examples-plotnine.qmd: "A species never recorded on an island has no
+    tile, and is announced as missing."
+    """
+    heat = gallery.shown("examples-plotnine.qmd", "Heatmap").layer(PlotType.HEAT)[
+        MaidrKey.DATA
+    ]
+    row = heat[MaidrKey.Y].index("Chinstrap")
+    column = heat[MaidrKey.X].index("Biscoe")
+
+    assert heat[MaidrKey.POINTS][row][column] is None
+    assert heat[MaidrKey.POINTS][row][heat[MaidrKey.X].index("Dream")] is not None
+
+
+def test_plotnine_facets_are_subplots_titled_by_their_facet(gallery: _Gallery) -> None:
+    """examples-plotnine.qmd: "Each panel is a subplot, titled by its facet as
+    ``cyl = 4``."
+    """
+    shown = gallery.shown("examples-plotnine.qmd", "Faceted Plot")
+
+    assert [cell[0][MaidrKey.TITLE] for cell in shown.layers] == [
+        "cyl = 4",
+        "cyl = 6",
+        "cyl = 8",
+    ]
+
+
+def test_plotnine_heatmap_colour_bar_stays_light(gallery: _Gallery) -> None:
+    """examples-plotnine.qmd: "the rectangles look the same and weigh a few
+    tens of kilobytes" -- against the close to 2 MB of plotnine's default
+    gradient, which put the page over the 1.9 MB budget of
+    ``docs/_scripts/check-page-sizes.sh`` (#825).
+    """
+    # Through the gallery first, which skips where plotnine is not installed.
+    assert gallery.shown("examples-plotnine.qmd", "Heatmap").layer(PlotType.HEAT)
+
+    import io
+
+    import pandas as pd
+    from plotnine import aes, geom_tile, ggplot, guide_colorbar, guides
+
+    frame = pd.DataFrame({"a": ["x", "y"], "b": ["u", "u"], "z": [1.0, 2.0]})
+
+    def svg_bytes(plot) -> int:
+        buffer = io.StringIO()
+        figure = plot.draw()
+        figure.savefig(buffer, format="svg")
+        plt.close(figure)
+        return len(buffer.getvalue())
+
+    base = ggplot(frame, aes("a", "b", fill="z")) + geom_tile()
+    light = base + guides(fill=guide_colorbar(display="rectangles"))
+
+    assert svg_bytes(light) < 100_000 < 1_000_000 < svg_bytes(base)
+
+
+def test_plotnine_normalized_segments_add_up_to_one(gallery: _Gallery) -> None:
+    """examples-plotnine.qmd: "the segments of one bar add up to 1."."""
+    layer = gallery.shown(
+        "examples-plotnine.qmd", "Normalized Stacked Bar Plot [experimental]"
+    ).layer(PlotType.NORMALIZED)
+    columns = zip(*[[c[MaidrKey.Y] or 0.0 for c in row] for row in layer[MaidrKey.DATA]])
+
+    assert [pytest.approx(sum(column)) for column in columns] == [1.0, 1.0, 1.0]
