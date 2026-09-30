@@ -7,8 +7,10 @@ over the wire on a flush, which is the whole point: the document had to
 leave the channel every input and output shares. Both are observable only
 here, from the websocket a real page opens.
 
-The app inlines the bundle (``use_cdn=False``), which is the heaviest
-case -- every flush used to push ~2 MB through the socket.
+The app uses the bundled copy (``use_cdn=False``), which was the heaviest
+case -- every flush used to push ~2 MB through the socket, when the
+bundle was inlined into the chart. Since #457 the document names the copy
+the app serves instead; ``test_served_bundle.py`` covers that.
 """
 
 from __future__ import annotations
@@ -19,9 +21,11 @@ pytestmark = pytest.mark.browser
 
 CHART = "[role=img], [role=application]"
 
-#: A flush that carried the chart would be at least the bundle's ~1.5 MB;
-#: one that carries only the frame is under 10 KB. The bound is between,
-#: well clear of both.
+#: A flush that carries only the frame is under 10 KB. One that carried the
+#: document was ~2 MB while the bundle was inlined into it, but is only
+#: ~30 KB for this chart now that it is not (#457) -- under this bound, so
+#: the size alone no longer tells the two apart, and the test also looks
+#: for the ``srcdoc`` a document on the socket would have to ride in.
 _FRAME_LIMIT = 64 * 1024
 
 
@@ -56,10 +60,10 @@ def test_the_chart_loads_from_a_session_route_and_the_flush_stays_small(
     on any flush would show up whichever message it rode.
     """
     page = browser.new_page()
-    received: list[int] = []
+    received: list[str | bytes] = []
 
     def on_socket(ws):
-        ws.on("framereceived", lambda payload: received.append(len(payload)))
+        ws.on("framereceived", lambda payload: received.append(payload))
 
     page.on("websocket", on_socket)
     page.goto(focus_app_url, wait_until="networkidle")
@@ -70,13 +74,12 @@ def test_the_chart_loads_from_a_session_route_and_the_flush_stays_small(
     assert "/dynamic_route/maidr-bars?" in frame.url, frame.url
     first_url = frame.url
 
-    # The document at that URL is the whole chart, bundle included -- the
-    # weight that used to ride the socket.
+    # The document at that URL is the whole chart -- the weight that used
+    # to ride the socket.
     served = page.request.get(frame.url)
     assert served.ok
     body = served.text()
     assert "maidr=" in body, "the served document carries no MAIDR schema"
-    assert len(body) > 1_000_000, f"{len(body)} bytes; the bundle is not inlined"
 
     before = len(received)
     _rerender(page, 5)
@@ -96,9 +99,14 @@ def test_the_chart_loads_from_a_session_route_and_the_flush_stays_small(
 
     after_flush = received[before:]
     assert after_flush, "the re-render sent nothing over the socket"
-    assert max(after_flush) < _FRAME_LIMIT, (
-        f"a websocket frame of {max(after_flush)} bytes followed the flush; "
+    largest = max(len(payload) for payload in after_flush)
+    assert largest < _FRAME_LIMIT, (
+        f"a websocket frame of {largest} bytes followed the flush; "
         "the chart is riding the socket again"
+    )
+    assert not [p for p in after_flush if "srcdoc" in str(p)], (
+        "a websocket frame after the flush carries a srcdoc; the chart "
+        "document is riding the socket again"
     )
 
     page.close()

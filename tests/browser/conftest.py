@@ -25,8 +25,8 @@ import pytest
 
 APPS = Path(__file__).parent / "apps"
 
-#: How long to wait for uvicorn to bind, and for the ~1.5 MB inlined
-#: bundle to parse in the frame. Generous on purpose: a CI runner is
+#: How long to wait for uvicorn to bind, and for the ~1.9 MB bundle to
+#: load and parse in the frame. Generous on purpose: a CI runner is
 #: slower than a laptop, and a flaky browser test is worse than none.
 _BOOT_TIMEOUT = 90.0
 _SETTLE_MS = 12_000
@@ -86,7 +86,7 @@ def _serve(app: str, *, runner: str = "shiny"):
     env = {
         **os.environ,
         # Building a CDN URL would resolve the published version over the
-        # network; these tests inline the bundle and must not need one.
+        # network; these tests use the bundled copy and must not need one.
         "MAIDR_CDN_VERSION": "latest",
         "MPLBACKEND": "Agg",
     }
@@ -160,6 +160,23 @@ def offline_app_url():
 def two_charts_app_url():
     """Two charts, both re-rendering, for the isolation test."""
     yield from _serve("two_charts_app.py")
+
+
+#: Where ``apps/served_bundle_app.py`` mounts its Shiny app; kept in step
+#: with the ``PREFIX`` there.
+SERVED_BUNDLE_PREFIX = "/deep/prefix"
+
+
+@pytest.fixture(scope="session")
+def served_bundle_app_url():
+    """Two offline charts mounted under a prefix, for the served-bundle tests.
+
+    Yields the page's own URL, prefix and trailing slash included: Shiny
+    resolves its routes and dependencies against it, so the slash is part
+    of the address rather than decoration.
+    """
+    for url in _serve("served_bundle_app.py"):
+        yield f"{url}{SERVED_BUNDLE_PREFIX}/"
 
 
 @pytest.fixture(scope="session")

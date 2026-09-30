@@ -1,8 +1,9 @@
 """A Shiny app for the focus-restore browser tests.
 
-Kept as a file so Shiny runs it the way it runs a real app. The bundle is
-inlined (``use_cdn=False``) so the runtime loads with no network, which is
-what lets these tests run on an isolated CI runner.
+Kept as a file so Shiny runs it the way it runs a real app. It uses the
+bundled copy (``use_cdn=False``), which the app serves itself (#457), so the
+runtime loads with no network, which is what lets these tests run on an
+isolated CI runner.
 """
 
 import matplotlib

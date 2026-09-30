@@ -29,6 +29,12 @@ except ImportError as error:
 
 import maidr
 from maidr.core.figure_manager import FigureManager
+from maidr.util.dependencies import bundled_js_path
+from maidr.util.served_bundle import (
+    ServedBundle,
+    served_bundle_dependency,
+    serving_bundle,
+)
 from maidr.widget._focus import FOCUS_RESTORE_JS
 
 
@@ -71,12 +77,14 @@ def output_maidr(
     Notes
     -----
     No :class:`htmltools.HTMLDependency` is attached here, which is the one
-    place this deviates from Shiny's packaged-component recipe.  Which copy
-    of ``maidr.js`` a chart needs is a per-render decision -- ``use_cdn``
-    chooses between the CDN and the bundled copy -- so the dependency rides
-    on the rendered value, where Shiny's ``_process_ui`` picks it up.
-    Attaching it to the container instead would ship the bundle to every
-    page even when every chart on it loads from the CDN.
+    place this deviates from Shiny's packaged-component recipe.  Whether a
+    chart needs the bundled ``maidr.js`` is a per-render decision --
+    ``use_cdn`` chooses between the CDN and the bundled copy -- so the
+    dependency that serves it rides on the rendered value, where Shiny's
+    ``_process_ui`` registers it, and only when the chart names it (see
+    :meth:`render_maidr._bundle_for`).  Attaching it to the container
+    instead would register the bundle with every app even when every
+    chart on it loads from the CDN.
 
     Examples
     --------
@@ -224,7 +232,9 @@ class _ServedChart:
         nothing to serve -- before the first render, or after a render
         that returned ``None`` blanked the output.  A render replaces the
         last document rather than adding to it, so an output holds one
-        chart per session: tens of KB, or ~2 MB with ``use_cdn=False``.
+        chart per session: tens of KB whatever ``use_cdn`` is, since the
+        bundle is served beside the documents rather than inside them
+        (#457).
     """
 
     __slots__ = ("route", "version", "document")
@@ -285,7 +295,10 @@ class render_maidr(Renderer[Any]):
         ``None`` defers to the process-wide default.  Prefer this argument
         over :func:`maidr.set_use_cdn` in a Shiny app: the setter is
         process-wide state shared by every concurrent session, while this
-        is scoped to one output.
+        is scoped to one output.  The bundled copy -- what ``False`` loads,
+        and what ``"auto"`` falls back to offline -- is served by the app
+        itself, once per app and version, rather than carried inside
+        every chart.
 
     Returns
     -------
@@ -368,7 +381,9 @@ class render_maidr(Renderer[Any]):
         kwargs.setdefault("height", self.height)
         return output_maidr(self.output_id, **kwargs)
 
-    def _render_off_loop(self, value: Any) -> Any:
+    def _render_off_loop(
+        self, value: Any, bundle: Optional[ServedBundle] = None
+    ) -> Any:
         """Render ``value`` on a worker thread, one render per figure at a time.
 
         ``maidr.render`` never awaits, so on the event loop it holds it for
@@ -419,23 +434,124 @@ class render_maidr(Renderer[Any]):
         ----------
         value : Any
             Whatever the decorated function returned.
+        bundle : ServedBundle or None, optional
+            Where the chart document can load the bundled ``maidr.js``
+            from, from :meth:`_bundle_for`; ``None`` leaves the document
+            to carry it, as a render outside a session route does.
 
         Returns
         -------
         Any
             The rendered chart, as :func:`maidr.render` returns it.
         """
-        return maidr.render(value, use_cdn=self.use_cdn)
+        # Entered here, on the worker thread, rather than around the
+        # ``to_thread`` call: the value is then set in the context the
+        # render actually runs in, whatever the executor does with contexts.
+        with serving_bundle(bundle):
+            return maidr.render(value, use_cdn=self.use_cdn)
 
-    def _serve_out_of_band(self, rendered: Any, session: Session) -> Any:
+    def _route(self, session: Session) -> Optional[_ServedChart]:
+        """Return this output's route in ``session``, registering it once.
+
+        Registered before the first render rather than after it, because
+        the render needs to know the URL its document will be served from:
+        the bundle is named relative to it (:meth:`_bundle_for`). A render
+        that turns out not to be a frame leaves the route serving 404,
+        exactly as a blank render does.
+
+        The route is per output and per session, dropped, document and all,
+        when the session ends. Under a module the session is a proxy that
+        namespaces the route name itself.
+
+        Parameters
+        ----------
+        session : shiny.Session
+            The active session, which owns the route.
+
+        Returns
+        -------
+        _ServedChart or None
+            The output's served chart; ``None`` when the session registers
+            no route -- a stub session returns an empty URL -- and the
+            document has to stay in the frame.
+        """
+        served = self._served.get(session.id)
+        if served is None:
+            served = _ServedChart()
+            served.route = session.dynamic_route(
+                f"maidr-{self.output_id}", served.serve
+            )
+            if not served.route:
+                return None
+            self._served[session.id] = served
+            session.on_ended(lambda: self._served.pop(session.id, None))
+        return served
+
+    @staticmethod
+    def _bundle_for(served: _ServedChart, session: Session) -> Optional[ServedBundle]:
+        """Say where the document at ``served.route`` can load ``maidr.js``.
+
+        With ``use_cdn=False`` every chart document used to carry the
+        ~1.9 MB bundle, plus ~370 KB of KaTeX, inline: fetched again for
+        every chart on the page and on every render, because a ``srcdoc``
+        had nowhere to load it from. The document is now fetched from the
+        app's own origin (#534), so it can load the bundle by URL instead,
+        and the app can serve that URL: the bundled files, registered as an
+        ordinary web dependency the first time a chart names them --
+        ``lib/maidr-bundle-<version>/``, the path Shiny serves every
+        dependency from, versioned so a browser keeps its copy until the
+        bundle changes (#457). The same copy is what ``"auto"`` falls back
+        to when the CDN is unreachable; before, its fallback named a
+        relative ``lib/`` path under the route that nothing served, and
+        the chart was left with no runtime (#455).
+
+        The URL is relative, because an app is often served under a prefix
+        the app itself never sees -- Posit Connect, shinyapps.io, a reverse
+        proxy -- and only the browser knows it. Shiny resolves both the
+        frame's route and its dependencies against the page's own URL, so
+        the bundle's directory is the route's depth in ``../`` followed by
+        the dependency's path: from ``session/<id>/dynamic_route/<name>``,
+        ``../../../lib/maidr-bundle-<version>``.
+
+        The frame is still what isolates the chart from the host page's
+        CSS (#457): a host rule such as ``*:focus { outline: none }`` would
+        otherwise strip the chart's focus ring. Only where its runtime
+        comes from changes.
+
+        Parameters
+        ----------
+        served : _ServedChart
+            The output's served chart, whose route the document comes from.
+        session : shiny.Session
+            The active session, whose app serves the dependency.
+
+        Returns
+        -------
+        ServedBundle or None
+            The served copy; ``None`` when the installed package has no
+            bundle to serve, leaving the render to say so and fall back
+            as it always has.
+        """
+        try:
+            bundled_js_path()
+        except FileNotFoundError:
+            return None
+        href = served_bundle_dependency().source_path_map(
+            lib_prefix=session.app.lib_prefix
+        )["href"]
+        depth = served.route.split("?", 1)[0].count("/")
+        return ServedBundle("../" * depth + href)
+
+    @staticmethod
+    def _serve_out_of_band(rendered: Any, served: Optional[_ServedChart]) -> Any:
         """Take the chart document out of the frame and serve it by URL.
 
         ``maidr.render`` hands back an ``<iframe>`` carrying the whole
         chart document in its ``srcdoc``. Returned as it is, that document
-        rides the output payload over the websocket on every reactive
+        rode the output payload over the websocket on every reactive
         flush: about 25 KB on the default ``use_cdn``, and ~2 MB with
-        ``use_cdn=False``, where the bundle is inlined into it. A reader
-        moving a slider pays that again per tick, for every chart on the
+        ``use_cdn=False``, when the bundle was inlined into it. A reader
+        moving a slider paid that again per tick, for every chart on the
         page, on the one channel every input and output shares (#534).
 
         So the document stays here and the frame is pointed at a
@@ -443,15 +559,12 @@ class render_maidr(Renderer[Any]):
         which the browser fetches out of band. The payload is then the
         frame and its resize script, whatever the chart weighs, and the
         document travels over HTTP where the websocket is not waiting on
-        it. Total bytes per flush go *up* on the CDN settings -- the
-        frame plus a separate fetch of the document -- and down by two
-        orders of magnitude with the bundle inlined; what falls in every
-        case is what the websocket carries.
+        it. Total bytes per flush go *up* -- the frame plus a separate
+        fetch of the document -- while what the websocket carries falls,
+        by two orders of magnitude when the document still carried the
+        bundle.
 
-        The route is per output and per session, registered on the first
-        render in that session and dropped, document and all, when the
-        session ends. Under a module the session is a proxy that
-        namespaces the route name itself.
+        The route is per output and per session; see :meth:`_route`.
 
         Every render bumps a version in the URL and the document is served
         ``no-store``, so nothing between the reader and the app -- the
@@ -473,9 +586,10 @@ class render_maidr(Renderer[Any]):
         since a feature named there without an allowlist is granted to
         the origin the frame loads from (:mod:`maidr.util.iframe_utils`).
 
-        What this does not do is make the document smaller: with
-        ``use_cdn=False`` the bundle is still in it, fetched again per
-        render. Serving the bundle once per page is #455.
+        Being served from the app's origin is also what makes the
+        document small: it loads the bundle by URL from the app rather
+        than carrying it, so it is tens of KB on every ``use_cdn``
+        setting (:meth:`_bundle_for`).
 
         Parameters
         ----------
@@ -483,29 +597,22 @@ class render_maidr(Renderer[Any]):
             What :func:`maidr.render` returned. Anything but a frame
             carrying a ``srcdoc`` -- a fallback tag, a chart rendered
             without an iframe -- is returned untouched.
-        session : shiny.Session
-            The active session, which owns the route.
+        served : _ServedChart or None
+            The output's route, from :meth:`_route`.
 
         Returns
         -------
         Any
             The frame, referencing its document by URL; or the frame as
-            it came, document inside, when the session registers no
-            route -- a stub session returns an empty URL.
+            it came, document inside, when there is no route to serve it
+            from.
         """
-        if not isinstance(rendered, Tag) or "srcdoc" not in rendered.attrs:
+        if (
+            served is None
+            or not isinstance(rendered, Tag)
+            or "srcdoc" not in rendered.attrs
+        ):
             return rendered
-
-        served = self._served.get(session.id)
-        if served is None:
-            served = _ServedChart()
-            served.route = session.dynamic_route(
-                f"maidr-{self.output_id}", served.serve
-            )
-            if not served.route:
-                return rendered
-            self._served[session.id] = served
-            session.on_ended(lambda: self._served.pop(session.id, None))
 
         served.version += 1
         served.document = rendered.attrs.pop("srcdoc")
@@ -546,11 +653,13 @@ class render_maidr(Renderer[Any]):
                 return None
 
             _check_supported(value, self.__name__)
-            rendered = await asyncio.to_thread(self._render_off_loop, value)
+            served = self._route(session)
+            bundle = None if served is None else self._bundle_for(served, session)
+            rendered = await asyncio.to_thread(self._render_off_loop, value, bundle)
         finally:
             _close_new_figures(open_before)
 
-        rendered = self._serve_out_of_band(rendered, session)
+        rendered = self._serve_out_of_band(rendered, served)
 
         # The script rides with the chart rather than with the container:
         # ``output_maidr`` is not always what places the output -- Express
@@ -559,6 +668,13 @@ class render_maidr(Renderer[Any]):
         # guards itself, so arriving once per render costs nothing after
         # the first.
         payload = TagList(rendered, tags.script(FOCUS_RESTORE_JS))
+
+        # Only when the document names the served copy: ``use_cdn=True``
+        # and an Altair chart load from the CDN and register nothing. It
+        # loads nothing into the page either -- it has no script -- and is
+        # registered once per app however often it arrives.
+        if bundle is not None and bundle.referenced:
+            payload.append(served_bundle_dependency())
 
         # The same call ``shiny.render.ui`` makes: it resolves any
         # ``HTMLDependency`` on the rendered tag, registers it with the

@@ -2,7 +2,8 @@
 
 Deliberately *not* ``use_cdn=False``: the point is what a reader sees when
 ``"auto"`` is left alone and the CDN cannot be reached, which is the
-air-gapped deployment that has no other way to find out.
+air-gapped deployment -- served the app's own copy since #457, and told why
+not when even that cannot load.
 """
 
 import matplotlib
