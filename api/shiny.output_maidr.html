@@ -450,7 +450,7 @@ cookieconsent.run({
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>No :class:<code>htmltools.HTMLDependency</code> is attached here, which is the one place this deviates from Shiny’s packaged-component recipe. Which copy of <code>maidr.js</code> a chart needs is a per-render decision – <code>use_cdn</code> chooses between the CDN and the bundled copy – so the dependency rides on the rendered value, where Shiny’s <code>_process_ui</code> picks it up. Attaching it to the container instead would ship the bundle to every page even when every chart on it loads from the CDN.</p>
+<p>No :class:<code>htmltools.HTMLDependency</code> is attached here, which is the one place this deviates from Shiny’s packaged-component recipe. Whether a chart needs the bundled <code>maidr.js</code> is a per-render decision – <code>use_cdn</code> chooses between the CDN and the bundled copy – so the dependency that serves it rides on the rendered value, where Shiny’s <code>_process_ui</code> registers it, and only when the chart names it (see :meth:<code>render_maidr._bundle_for</code>). Attaching it to the container instead would register the bundle with every app even when every chart on it loads from the CDN.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>

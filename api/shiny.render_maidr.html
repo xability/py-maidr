@@ -437,7 +437,7 @@ cookieconsent.run({
 <tr class="even">
 <td>use_cdn</td>
 <td>bool, {"auto"}, or None</td>
-<td>Where the chart loads <code>maidr.js</code> from – see :func:<code>maidr.render</code>. <code>None</code> defers to the process-wide default. Prefer this argument over :func:<code>maidr.set_use_cdn</code> in a Shiny app: the setter is process-wide state shared by every concurrent session, while this is scoped to one output.</td>
+<td>Where the chart loads <code>maidr.js</code> from – see :func:<code>maidr.render</code>. <code>None</code> defers to the process-wide default. Prefer this argument over :func:<code>maidr.set_use_cdn</code> in a Shiny app: the setter is process-wide state shared by every concurrent session, while this is scoped to one output. The bundled copy – what <code>False</code> loads, and what <code>"auto"</code> falls back to offline – is served by the app itself, once per app and version, rather than carried inside every chart.</td>
 <td><code>None</code></td>
 </tr>
 </tbody>
