@@ -242,7 +242,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-09-27">
+<meta name="DC.date" content="2026-09-30">
 </head>
 
 <body class="nav-sidebar docked nav-fixed quarto-light">
@@ -598,6 +598,19 @@ Note
 </div>
 <div class="callout-body-container callout-body">
 <p><code>maidr.show()</code> always renders accessible output regardless of the active backend. You only need <code>maidr.set_backend()</code> to control the behavior of <code>plt.show()</code>.</p>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>In Pyodide.</strong> With <code>micropip.install("maidr")</code> in a plain Pyodide page (no IPython), <code>maidr.show()</code> appends the chart to the page’s <code>&lt;body&gt;</code> as an iframe. A web worker has no page to append to.</p>
 </div>
 </div>
 </section>
