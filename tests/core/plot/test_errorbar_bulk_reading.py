@@ -18,6 +18,7 @@ from __future__ import annotations
 import itertools
 import json
 import uuid
+import warnings
 from typing import Any, Callable
 
 import matplotlib.pyplot as plt
@@ -170,7 +171,7 @@ CHARTS: dict[str, tuple[Draw, bool]] = {
     "negative-zero": (_negative_zero, True),
     "no-error": (_no_error, True),
     "float-noise": (_float_noise, True),
-    "float32": (_float32, True),
+    "float32": (_float32, False),
     "one-point": (_one_point, True),
     "lists": (_lists, True),
     "listed-arrays": (_listed_arrays, True),
@@ -326,6 +327,50 @@ def test_any_other_segment_is_bounded_sample_by_sample(segments: list) -> None:
 
 
 @pytest.mark.parametrize(
+    "segment",
+    [
+        pytest.param(
+            np.ma.masked_array([[0.0, 1.0], [0.0, 2.0]], mask=[[0, 0], [0, 1]]),
+            id="masked",
+        ),
+        pytest.param(np.array([[0.0, None], [0.0, 2.0]], dtype=object), id="objects"),
+        pytest.param(np.array([[0, 1], [0, 2]]), id="integers"),
+        pytest.param(
+            np.array([[0.0, 1.0], [0.0, 2.0]], dtype=np.float32), id="float32"
+        ),
+    ],
+)
+def test_a_segment_matplotlib_would_not_return_is_bounded_sample_by_sample(
+    segment: Any,
+) -> None:
+    """``get_segments`` returns ``float64`` arrays; anything else is read the
+    way ``_extract_bounds`` reads it, which converts only what it reads."""
+    segments = [np.array([[0.0, 1.0], [0.0, 2.0]]), segment]
+
+    assert errorbar._segment_bounds(segments, len(segments), 1) is None
+
+
+def test_a_narrow_float_column_is_read_as_quietly_as_the_loop_reads_it() -> None:
+    """Widening a ``float32`` signaling NaN raises numpy's invalid flag, which
+    the per-sample loop's scalar conversions never report."""
+    signaling = np.array([0x7FA00000], dtype=np.uint32).view(np.float32)[0]
+    fig, ax = plt.subplots()
+    ax.errorbar(
+        np.arange(4, dtype=np.float32),
+        np.array([1.0, signaling, 3.0, 4.0], dtype=np.float32),
+        yerr=np.float32(0.5),
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        with np.errstate(invalid="raise"):
+            (plot,) = FigureManager.get_maidr(fig).plots
+            data = plot._extract_plot_data()
+
+    assert [point["x"] for point in data] == [0.0, 2.0, 3.0]
+
+
+@pytest.mark.parametrize(
     "column",
     [
         pytest.param([1.0, 2.0], id="list"),
@@ -335,6 +380,8 @@ def test_any_other_segment_is_bounded_sample_by_sample(segments: list) -> None:
         pytest.param(np.array([1.0, np.float32(2.0)], dtype=object), id="float32"),
         pytest.param(np.ma.masked_array([1.0, 2.0], mask=[True, False]), id="masked"),
         pytest.param(np.array([True, False]), id="bools"),
+        pytest.param(np.array([1.0, 2.0], dtype=np.float32), id="float32-array"),
+        pytest.param(np.array([1.0, 2.0], dtype=np.float16), id="float16-array"),
         pytest.param(np.array(["a", "b"]), id="strings"),
         pytest.param(np.array([1.0, "a"], dtype=object), id="objects"),
         pytest.param(np.array(["2024-01-01"], dtype="datetime64[D]"), id="dates"),

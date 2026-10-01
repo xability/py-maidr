@@ -45,9 +45,15 @@ def _plain_array(column: Any) -> bool:
     Whether a column of centers is a plain 1-D array of floats or integers.
 
     Exactly ``np.ndarray``, never a subclass: a masked array iterates its
-    masked samples as ``np.ma.masked``, which the per-sample loop reads as
-    drawn, where ``astype`` would hand over the value under the mask.
-    Booleans and floats wider than 64 bits are left to the loop too.
+    masked samples as ``np.ma.masked``, which converts to NaN, so the
+    per-sample loop skips them as not drawn (and warns), where ``astype`` of
+    the plain data would hand over the value under the mask. Booleans and
+    integers wider than 64 bits are left to the loop too.
+
+    Floats only as ``float64``, which ``astype(float)`` copies as they are.
+    Widening a narrower float raises numpy's invalid flag on a signaling NaN
+    -- a warning, or an error under ``np.errstate(invalid="raise")`` -- where
+    the loop's conversions of the same samples report nothing.
 
     Centers passed as lists reach the data line as an object array, and are
     read in bulk only when every value is exactly a Python ``float`` or
@@ -59,11 +65,13 @@ def _plain_array(column: Any) -> bool:
     """
     if type(column) is not np.ndarray or column.ndim != 1:
         return False
+    if column.dtype == np.float64:
+        return True
     kind = column.dtype.kind
-    if kind in "fiu":
+    if kind in "iu":
         return column.dtype.itemsize <= 8
     if kind == "O":
-        return all(map(_is_plain_number_type, map(type, column.tolist())))
+        return all(map(_is_plain_number_type, map(type, column)))
     return False
 
 
@@ -78,10 +86,13 @@ def _segment_bounds(segments: list, count: int, component: int) -> list | None:
     before the float noise is taken off.
 
     Read for every segment at once when each one a sample has is a two-point
-    segment, which is what ``LineCollection.get_segments`` returns for a bar
-    with both ends drawn. ``min([a, b])`` keeps ``a`` unless ``b < a`` and
-    ``max([a, b])`` keeps ``a`` unless ``b > a``, so ``np.where`` picks the
-    same endpoint even between ``0.0`` and ``-0.0``.
+    ``float64`` array, which is what ``LineCollection.get_segments`` returns
+    for a bar with both ends drawn. ``min([a, b])`` keeps ``a`` unless
+    ``b < a`` and ``max([a, b])`` keeps ``a`` unless ``b > a``, so
+    ``np.where`` picks the same endpoint even between ``0.0`` and ``-0.0``.
+    A segment of anything else -- a masked array, objects, integers -- is
+    left to ``_extract_bounds``, which reads only the samples drawn, and
+    only their ``component``.
 
     Parameters
     ----------
@@ -97,14 +108,20 @@ def _segment_bounds(segments: list, count: int, component: int) -> list | None:
     list or None
         One ``(low, high)`` per sample that has a segment, ``None`` for one
         whose ends are not both finite; or ``None`` for the whole column when
-        a segment is anything but two points -- a bar NaN removed an end
-        from, say -- which reads every sample through ``_extract_bounds``.
+        a segment is anything but a two-point ``float64`` array -- a bar NaN
+        removed an end from, say -- which reads every sample through
+        ``_extract_bounds``.
     """
     bounded = min(count, len(segments))
     if not bounded:
         return []
+    head = segments[:bounded]
+    if not all(
+        type(segment) is np.ndarray and segment.dtype == np.float64 for segment in head
+    ):
+        return None
     try:
-        ends = np.asarray(segments[:bounded], dtype=float)
+        ends = np.asarray(head, dtype=float)
     except (TypeError, ValueError):
         return None
     if ends.shape != (bounded, 2, 2):
