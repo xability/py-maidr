@@ -186,7 +186,9 @@ def _hue_levels(
     )
 
 
-def _collection_category(ax: Axes, collection: PathCollection) -> str | None:
+def _collection_category(
+    ax: Axes, collection: PathCollection, ticks: dict | None = None
+) -> str | None:
     """
     The one category a collection's points all sit in, where there is one.
 
@@ -213,6 +215,12 @@ def _collection_category(ax: Axes, collection: PathCollection) -> str | None:
         The panel drawn on.
     collection : PathCollection
         The points.
+    ticks : dict, optional
+        Each axis's tick names, filled in as they are first read and shared
+        between the collections of one panel. A strip plot draws one
+        collection per category, so reading them afresh for each laid every
+        tick out once per category -- quadratic in the categories, and most
+        of a 300-category strip plot's drawing time.
 
     Returns
     -------
@@ -220,6 +228,8 @@ def _collection_category(ax: Axes, collection: PathCollection) -> str | None:
         The category, or ``None`` when the collection spans several or the
         axes name none.
     """
+    if ticks is None:
+        ticks = {}
     # An empty collection -- the one a faceted panel gets for a category it
     # holds none of -- comes back shaped (0, 2), measured, so the column
     # below is an empty array rather than an index error, and the set it
@@ -227,9 +237,10 @@ def _collection_category(ax: Axes, collection: PathCollection) -> str | None:
     offsets = np.asarray(collection.get_offsets())
 
     for axis, column in (("x", 0), ("y", 1)):
-        ticks = LineExtractorMixin._category_tick_labels(ax, axis)
+        if axis not in ticks:
+            ticks[axis] = LineExtractorMixin._category_tick_labels(ax, axis)
         names = {
-            LineExtractorMixin._named_coordinate(float(value), ticks)
+            LineExtractorMixin._named_coordinate(float(value), ticks[axis])
             for value in offsets[:, column]
         }
         if len(names) != 1:
@@ -352,13 +363,14 @@ def sns_categorical_points(
 
         levels = _hue_levels(instance, added)
         if levels is None:
+            ticks: dict = {}
             for collection in added:
                 # Named by the category it holds, which is on its own points.
                 # Without it a reader switching layers heard "point plot"
                 # three times, on a chart whose layers are the categories --
                 # while the same call with a `hue=` that changes nothing
                 # about the split named all three (#662).
-                category = _collection_category(ax, collection)
+                category = _collection_category(ax, collection, ticks)
                 extra = {GROUP_NAME: category} if category else {}
                 FigureManager.create_maidr(
                     ax, PlotType.SCATTER, **{DRAWN_POINTS: collection, **extra}

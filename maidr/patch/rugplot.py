@@ -16,9 +16,10 @@ from maidr.core.plot.rugplot import (
     RUG_AXIS_LABEL,
     RUG_GROUP,
     RUG_LABEL,
+    RUG_READ,
     read_rug,
 )
-from maidr.core.plot.scatterplot import _rgba
+from maidr.core.plot.scatterplot import rgba_rows
 from maidr.patch.common import _draw_quietly, prospective_axes, wrap_seaborn
 from maidr.util.hue_groups import grouped_by_name
 from maidr.util.legend_names import legend_of, names_for
@@ -120,7 +121,7 @@ def _hue_groups(ax: Axes, collection: LineCollection, ticks: int) -> list | None
     if _HUE_MAP_TYPE.get() != "categorical":
         return None
 
-    colors = [_rgba(row) for row in np.asarray(collection.get_colors())]
+    colors = rgba_rows(np.asarray(collection.get_colors()))
     if len(colors) != ticks or ticks < 2:
         return None
 
@@ -305,7 +306,12 @@ def _register(ax: Axes | None, drawn, before: list):
             # refuses while the schema is built takes the whole figure with
             # it, which is the defect #564 was about.
             continue
-        shared = {DRAWN_RUG: collection, RUG_LABEL: _name_for(ax, read[1])}
+        shared = {
+            DRAWN_RUG: collection,
+            RUG_LABEL: _name_for(ax, read[1]),
+            # Read once, here; every layer below would otherwise read it again.
+            RUG_READ: read,
+        }
         groups = _hue_groups(ax, collection, len(read[0]))
         if groups is None:
             FigureManager.create_maidr(ax, PlotType.RUG, **shared)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 import uuid
 
 import numpy as np
@@ -55,6 +56,18 @@ GROUP_LABEL = "_maidr_group_label"
 #: is there so a future round trip through a hex string or a float32 buffer
 #: does not silently turn one group into none.
 _COLOR_TOLERANCE = 6
+
+#: A point's keys as plain strings, for the points read in bulk.
+#:
+#: The JSON is the same whichever spelling a dict is keyed by: ``MaidrKey`` is
+#: a ``str`` enum, so a member hashes, compares and serializes exactly as its
+#: value does. What differs is the garbage collector. An enum member is an
+#: object the collector tracks, so a dict holding one as a key is tracked as
+#: well, and every point of a large scatter then sat in the heap each full
+#: collection walks for the rest of the render. A dict of plain strings and
+#: floats is not tracked at all. ``HistPlot`` keys its points the same way.
+_X = MaidrKey.X.value
+_Y = MaidrKey.Y.value
 
 
 def _rgba(color) -> tuple[float, ...] | None:
@@ -214,7 +227,49 @@ def hue_groups(
         collection offsets that belong to it, or ``None`` for a scatter that
         is not grouped.
     """
-    return groups_from_colors(ax, [_rgba(row) for row in drawn_colors(collection)])
+    return groups_from_colors(ax, rgba_rows(drawn_colors(collection)))
+
+
+def rgba_rows(rows) -> list:
+    """
+    :func:`_rgba` of every row, worked out once per distinct row.
+
+    A grouped chart draws thousands of marks in a handful of colors, and
+    :func:`_rgba` goes through ``to_rgba`` -- tens of microseconds a call, and
+    uncached for an array -- so converting row by row was nearly the whole
+    cost of drawing a 100k-point ``hue=`` scatter. The answer depends on the
+    row's values alone, so rows that are the same bytes share it; the strip
+    plot's ``_point_colors`` has read its colors this way since it was
+    written.
+
+    Bytes rather than values, so ``-0.0`` and ``0.0`` stay two rows and each
+    gets exactly the answer it got on its own. A row holding a NaN is read on
+    its own as well: a NaN never equals itself, so two such rows were two
+    colors, and one shared tuple would make them one.
+
+    Parameters
+    ----------
+    rows : array-like
+        One RGBA row per mark.
+
+    Returns
+    -------
+    list
+        ``[_rgba(row) for row in rows]``, in the same order.
+    """
+    rows = np.asarray(rows)
+    if (
+        rows.ndim != 2
+        or len(rows) < 2
+        or rows.dtype.kind != "f"
+        or not np.isfinite(rows).all()
+    ):
+        return [_rgba(row) for row in rows]
+    rows = np.ascontiguousarray(rows)
+    keys = rows.view(np.dtype((np.void, rows.dtype.itemsize * rows.shape[1])))
+    _, first, inverse = np.unique(keys.ravel(), return_index=True, return_inverse=True)
+    named = [_rgba(rows[index]) for index in first.tolist()]
+    return [named[index] for index in np.asarray(inverse).ravel().tolist()]
 
 
 def drawn_colors(collection: Collection) -> np.ndarray:
@@ -622,10 +677,18 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         if members is None:
             members = [None] * len(parts)
 
+        # Read once for the layer rather than once per collection: a strip
+        # plot's hue group spans one collection per category, and on a
+        # category axis every read lays every tick out again.
+        ticks = (
+            self._category_tick_labels(self.ax, "x"),
+            self._category_tick_labels(self.ax, "y"),
+        )
+
         samples: list[dict] = []
         positions: list[tuple[int, int]] = []
         for part, (plot, mine) in enumerate(zip(parts, members)):
-            read = self._extract_point_data(plot, mine)
+            read = self._extract_point_data(plot, mine, ticks)
             if read is None:
                 raise ExtractionError(self.type, plot)
             found, drawn = read
@@ -636,7 +699,10 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         return samples
 
     def _extract_point_data(
-        self, plot: PathCollection | None, members: set[int] | None
+        self,
+        plot: PathCollection | None,
+        members: set[int] | None,
+        ticks: tuple[dict[float, str], dict[float, str]] | None = None,
     ) -> tuple[list[dict], list[int]] | None:
         if plot is None or plot.get_offsets() is None:
             return None
@@ -662,8 +728,12 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         # height, while a marker at no coordinates has neither. Dropping is the
         # whole answer here rather than half of one. Masked entries arrive as
         # `NaN` through `getdata`, so they take the same path.
-        x_ticks = self._category_tick_labels(self.ax, "x")
-        y_ticks = self._category_tick_labels(self.ax, "y")
+        if ticks is None:
+            ticks = (
+                self._category_tick_labels(self.ax, "x"),
+                self._category_tick_labels(self.ax, "y"),
+            )
+        x_ticks, y_ticks = ticks
 
         # Two indices run here and they are not the same one. `index` is the
         # offset's place in the collection, which is what a hue group's
@@ -694,6 +764,12 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         offsets = np.asarray(ma.getdata(plot.get_offsets()), dtype=float)
         offsets = offsets.reshape(-1, 2)
         finite = np.isfinite(offsets).all(axis=1)
+
+        if not x_ticks and not y_ticks:
+            read = self._numeric_reading(offsets, finite, members)
+            if read is not None:
+                return read
+
         drawn_at = (np.cumsum(finite) - 1).tolist()
         xs = offsets[:, 0].tolist()
         ys = offsets[:, 1].tolist()
@@ -711,6 +787,46 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
             positions.append(drawn_at[index])
 
         return samples, positions
+
+    @staticmethod
+    def _numeric_reading(
+        offsets: np.ndarray, finite: np.ndarray, members: set[int] | None
+    ) -> tuple[list[dict], list[int]] | None:
+        """
+        The points on two numeric axes, read in bulk.
+
+        With no slots and no names, :meth:`_sample_on` makes ``{x, y}`` of a
+        point exactly as it was drawn, so the drawn points are read off the
+        offset columns at once rather than one call per point -- most of a
+        large scatter's extraction. Keyed by the plain strings for the
+        reason ``_X`` gives. The same points, in the same order, at the same
+        drawn positions as the per-point reading below them.
+
+        Parameters
+        ----------
+        offsets : np.ndarray, shape (N, 2)
+            The collection's offsets, as floats.
+        finite : np.ndarray, shape (N,)
+            Which offsets matplotlib drew.
+        members : set of int or None
+            The offsets that belong to this layer's group, or ``None`` for
+            every offset.
+
+        Returns
+        -------
+        tuple of (list of dict, list of int) or None
+            The samples and each one's place among the drawn points, as
+            :meth:`_extract_point_data` returns them.
+        """
+        index = np.flatnonzero(finite)
+        if members is not None:
+            index = np.asarray(
+                [at for at in index.tolist() if at in members], dtype=np.intp
+            )
+        drawn = (np.cumsum(finite) - 1)[index].tolist()
+        xs = offsets[index, 0].tolist()
+        ys = offsets[index, 1].tolist()
+        return [{_X: x, _Y: y} for x, y in zip(xs, ys)], drawn
 
     @classmethod
     def _sample(
@@ -859,4 +975,19 @@ class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):
         if not slots:
             return coordinate
 
-        return min(slots, key=lambda slot: abs(slot - coordinate))
+        # `min(slots, key=lambda slot: abs(slot - coordinate))`, found by
+        # bisection rather than by measuring every slot: a strip plot over
+        # hundreds of categories measured each point against all of them.
+        # The distance falls towards the coordinate and rises past it, so
+        # the nearest slot is one of the two either side; the walk keeps
+        # `min`'s answer when distances tie -- the first such slot.
+        right = bisect.bisect_left(slots, coordinate)
+        if right == 0:
+            return slots[0]
+        nearest = right - 1
+        best = abs(slots[nearest] - coordinate)
+        if right < len(slots) and abs(slots[right] - coordinate) < best:
+            return slots[right]
+        while nearest > 0 and abs(slots[nearest - 1] - coordinate) == best:
+            nearest -= 1
+        return slots[nearest]

@@ -30,6 +30,12 @@ RUG_LABEL = "_maidr_rug_label"
 #: carrying a color per tick, so one artist has to become several layers.
 RUG_GROUP = "_maidr_rug_group"
 
+#: Key the patch hands over what :func:`read_rug` made of :data:`DRAWN_RUG`,
+#: having read it to decide whether to register the layer at all. Reading
+#: segments is the slow half of drawing a large rug, and a hue split built a
+#: layer per level that read the same collection again each time.
+RUG_READ = "_maidr_rug_read"
+
 #: What the layer's constant axis is called when the chart does not say.
 #: A rug's ticks sit in a strip against the frame rather than at a measured
 #: height, so the coordinate across the tick names the strip, not a value.
@@ -69,15 +75,17 @@ def read_rug(collection) -> tuple[list, bool] | None:
     if not segments:
         return None
 
-    ends = []
-    for segment in segments:
-        pair = np.asarray(segment, dtype=float)
-        if pair.shape != (2, 2) or not np.all(np.isfinite(pair)):
-            return None
-        ends.append(pair)
+    # Every segment a finite pair of ends, or the whole rug is declined.
+    # Checked for shape first and then stacked, so the comparisons below run
+    # over arrays rather than tick by tick.
+    if any(np.shape(segment) != (2, 2) for segment in segments):
+        return None
+    ends = np.asarray(segments, dtype=float)
+    if not np.all(np.isfinite(ends)):
+        return None
 
-    level_x = all(pair[0][0] == pair[1][0] for pair in ends)
-    level_y = all(pair[0][1] == pair[1][1] for pair in ends)
+    level_x = bool(np.all(ends[:, 0, 0] == ends[:, 1, 0]))
+    level_y = bool(np.all(ends[:, 0, 1] == ends[:, 1, 1]))
 
     # Exactly one, not "x first": a tick of zero height is constant on both
     # and marks nothing, and a sloped segment is constant on neither.
@@ -96,7 +104,7 @@ def read_rug(collection) -> tuple[list, bool] | None:
         return None
 
     axis = 0 if level_x else 1
-    return [float(pair[0][axis]) for pair in ends], level_x
+    return ends[:, 0, axis].tolist(), level_x
 
 
 class RugPlot(MaidrPlot):
@@ -161,8 +169,12 @@ class RugPlot(MaidrPlot):
         # labeled "X". The second is that `render()` can run more than once
         # for a layer, and the collection cannot change underneath it, so
         # revalidating every segment each time buys nothing.
-        read = read_rug(self._collection)
-        self._positions, self._along_x = read if read is not None else ([], True)
+        read = kwargs.get(RUG_READ, None)
+        if read is None:
+            read = read_rug(self._collection)
+        self._positions, self._along_x = (
+            (list(read[0]), read[1]) if read is not None else ([], True)
+        )
 
         # Kept to the group's own ticks, and their places among the drawn
         # ones kept with them: the selector numbers by segment, so a layer
