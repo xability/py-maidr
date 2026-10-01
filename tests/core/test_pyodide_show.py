@@ -3,6 +3,10 @@
 There is no IPython and no browser to launch there, so the chart used to go
 to ``webbrowser.open`` and nothing appeared.  It is appended to the page's
 ``<body>`` instead.
+
+A web worker, or Node.js, has no page either, and there Pyodide's
+``webbrowser.open`` raises, because it reaches for ``js.window``.  So
+``plt.show()`` and ``maidr.show`` warn instead.
 """
 
 from __future__ import annotations
@@ -134,3 +138,79 @@ def test_other_libraries_skip_the_page_in_a_notebook(page, monkeypatch, make):
     maidr.show(make(), renderer="ipython", use_cdn=True)
 
     assert page.children == []
+
+
+_NO_PAGE = "no page to show this chart in"
+
+
+@pytest.fixture
+def worker(monkeypatch):
+    """A fake Pyodide web worker: ``sys.platform`` and a ``js`` with no page."""
+    monkeypatch.setitem(sys.modules, "js", types.SimpleNamespace())
+    monkeypatch.setattr(sys, "platform", "emscripten")
+
+
+def _no_page_warning_file(record) -> str:
+    """Where the no-page warning says it came from: the caller's own file."""
+    (warning,) = [w for w in record if _NO_PAGE in str(w.message)]
+    return warning.filename
+
+
+@pytest.fixture
+def browser_opens(monkeypatch):
+    """Every ``webbrowser.open`` call, which Pyodide's makes raise in a worker."""
+    opened = []
+    monkeypatch.setattr("webbrowser.open", lambda *a, **k: opened.append(a))
+    return opened
+
+
+def test_a_worker_is_pyodide_without_a_page(worker):
+    assert Environment.is_pyodide_without_page() is True
+
+
+def test_a_page_a_notebook_or_cpython_has_somewhere_to_show(page, monkeypatch):
+    assert Environment.is_pyodide_without_page() is False
+    monkeypatch.setitem(sys.modules, "js", types.SimpleNamespace())
+    monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: True))
+    assert Environment.is_pyodide_without_page() is False
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: False))
+    assert Environment.is_pyodide_without_page() is False
+
+
+def test_show_in_a_worker_warns_and_keeps_the_figure(worker, browser_opens):
+    _, ax = _bar()
+
+    with pytest.warns(UserWarning, match=_NO_PAGE) as record:
+        maidr.show(ax)
+
+    assert _no_page_warning_file(record) == __file__
+    assert browser_opens == []
+    # Nothing was closed, so the advice in the warning still works.
+    assert "<svg" in maidr.render(ax).get_html_string()
+
+
+@pytest.mark.filterwarnings("ignore:maidr:UserWarning")
+@pytest.mark.parametrize("make", [_plotly, _bokeh, _altair])
+def test_other_libraries_warn_in_a_worker(worker, browser_opens, make):
+    with pytest.warns(UserWarning, match=_NO_PAGE):
+        maidr.show(make(), use_cdn=False)
+
+    assert browser_opens == []
+
+
+def test_plt_show_in_a_worker_warns_and_keeps_the_figure(worker, browser_opens):
+    """The maidr backend still draws there; only showing has nowhere to go."""
+    previous = matplotlib.get_backend()
+    plt.switch_backend("module://maidr.backend")
+    try:
+        fig, ax = _bar()
+        with pytest.warns(UserWarning, match=_NO_PAGE) as record:
+            plt.show()
+        # This line, not matplotlib's `pyplot.show` that called the backend.
+        assert _no_page_warning_file(record) == __file__
+        assert browser_opens == []
+        assert plt.fignum_exists(fig.number)
+        assert "<svg" in maidr.render(ax).get_html_string()
+    finally:
+        plt.switch_backend(previous)

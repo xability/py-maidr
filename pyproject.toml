@@ -250,9 +250,16 @@ line-length = 88
 # `typing.Union[str, None]`, which runs perfectly well on 3.9 and accounts
 # for every other finding here.
 #
+# W605 catches an invalid escape sequence such as the `\ ` reST uses to join a
+# suffix to inline markup. Python keeps the backslash, so the string is
+# unchanged, but 3.12 and later say `SyntaxWarning: invalid escape sequence`
+# whenever the module is compiled from source. micropip in Pyodide installs no
+# bytecode, so there `import maidr` printed it. Write `\\ `, or make the
+# docstring raw.
+#
 # `extend-select` rather than `select`, which would replace ruff's defaults
 # (`E4`, `E7`, `E9`, `F`) rather than add to them.
-extend-select = ["FA102"]
+extend-select = ["FA102", "W605"]
 
 [tool.semantic_release]
 build_command = "pip install uv && uv lock && git add uv.lock"
