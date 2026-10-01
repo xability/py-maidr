@@ -14,7 +14,9 @@ from maidr.core import Maidr
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.exception.unsupported_plot_error import UnsupportedPlotError
+from maidr.util.environment import Environment
 from maidr.util.fallback import fallback_tag, warn_unsupported
+from maidr.util.pyodide_display import warn_no_page
 
 
 def _is_altair_chart(plot: Any) -> bool:
@@ -706,7 +708,21 @@ def show(
     -------
     object
         The display result.
+
+    Notes
+    -----
+    In Pyodide with no page -- a web worker, or Node.js -- there is nowhere
+    to show the chart, whatever ``renderer`` says. This warns instead and
+    leaves the figure open, so :func:`render` can still give its HTML to the
+    page.
     """
+    # A Pyodide web worker, or Node.js, has no page to put a chart in, and
+    # every renderer below would end in `webbrowser.open`, which raises
+    # there. Nothing is drawn or closed, so the figure is still there for
+    # the `maidr.render` the warning points to.
+    if Environment.is_pyodide_without_page():
+        return warn_no_page()
+
     if _is_altair_chart(plot):
         from maidr.altair import AltairMaidr
 

@@ -125,6 +125,27 @@ class Environment:
             return False
 
     @staticmethod
+    def is_pyodide_without_page() -> bool:
+        """
+        Return True when running in Pyodide with no page and no shell to show in.
+
+        A web worker -- where a host often runs Pyodide, to keep its page
+        responsive -- and Node.js have neither the ``document``
+        :meth:`is_pyodide_page` puts a chart in nor IPython's display.  Nor
+        can they open a browser: Pyodide's ``webbrowser.open`` reaches for
+        ``js.window`` and raises.  A chart reaches the reader there only as
+        HTML the host puts in its page.
+
+        Returns
+        -------
+        bool
+            True on Emscripten outside a notebook when there is no page.
+        """
+        if sys.platform != "emscripten" or Environment.is_notebook():
+            return False
+        return not Environment.is_pyodide_page()
+
+    @staticmethod
     def is_shiny() -> bool:
         """
         Check if the current code is running inside an active Shiny session.

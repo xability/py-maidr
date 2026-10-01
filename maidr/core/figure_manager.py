@@ -390,7 +390,7 @@ class FigureManager:
         element, because a list does not promise to hold artists.
         ``Axes.hist`` returns one for every multi-dataset call and fills it
         with whatever the ``histtype`` drew -- a ``BarContainer`` per dataset
-        for ``bar`` and ``barstacked``, a list of ``Polygon``\ s for ``step``
+        for ``bar`` and ``barstacked``, a list of ``Polygon``\\ s for ``step``
         and ``stepfilled``. Neither has ``.axes``, so all four raised from the
         caller's own ``ax.hist(...)`` line, naming matplotlib rather than the
         accessibility layer that actually failed (#553)::

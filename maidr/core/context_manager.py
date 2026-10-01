@@ -65,7 +65,7 @@ class BoxplotContextManager(ContextManager):
 class HighlightContextManager:
     """Carries a render's highlight wiring from extraction to the SVG writer.
 
-    Held in :class:`contextvars.ContextVar`\ s rather than as class
+    Held in :class:`contextvars.ContextVar`\\ s rather than as class
     attributes, matching :class:`ContextManager` above. That is not a style
     choice: the artist ``draw`` methods and ``XMLWriter.start`` are patched
     *class-wide*, so every render in the process reads this state while
