@@ -150,6 +150,12 @@ def worker(monkeypatch):
     monkeypatch.setattr(sys, "platform", "emscripten")
 
 
+def _no_page_warning_file(record) -> str:
+    """Where the no-page warning says it came from: the caller's own file."""
+    (warning,) = [w for w in record if _NO_PAGE in str(w.message)]
+    return warning.filename
+
+
 @pytest.fixture
 def browser_opens(monkeypatch):
     """Every ``webbrowser.open`` call, which Pyodide's makes raise in a worker."""
@@ -175,9 +181,10 @@ def test_a_page_a_notebook_or_cpython_has_somewhere_to_show(page, monkeypatch):
 def test_show_in_a_worker_warns_and_keeps_the_figure(worker, browser_opens):
     _, ax = _bar()
 
-    with pytest.warns(UserWarning, match=_NO_PAGE):
+    with pytest.warns(UserWarning, match=_NO_PAGE) as record:
         maidr.show(ax)
 
+    assert _no_page_warning_file(record) == __file__
     assert browser_opens == []
     # Nothing was closed, so the advice in the warning still works.
     assert "<svg" in maidr.render(ax).get_html_string()
@@ -198,8 +205,10 @@ def test_plt_show_in_a_worker_warns_and_keeps_the_figure(worker, browser_opens):
     plt.switch_backend("module://maidr.backend")
     try:
         fig, ax = _bar()
-        with pytest.warns(UserWarning, match=_NO_PAGE):
+        with pytest.warns(UserWarning, match=_NO_PAGE) as record:
             plt.show()
+        # This line, not matplotlib's `pyplot.show` that called the backend.
+        assert _no_page_warning_file(record) == __file__
         assert browser_opens == []
         assert plt.fignum_exists(fig.number)
         assert "<svg" in maidr.render(ax).get_html_string()

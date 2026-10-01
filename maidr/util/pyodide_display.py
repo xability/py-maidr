@@ -37,11 +37,14 @@ def warn_no_page() -> None:
     Said instead of showing in a web worker or Node.js (see
     :meth:`maidr.util.environment.Environment.is_pyodide_without_page`),
     where every renderer would end in ``webbrowser.open``, which raises
-    there.  The warning names what the host can do instead.
+    there.  The warning names what the host can do instead, and the line
+    that asked to show: matplotlib's frames are walked out of too, since
+    ``plt.show()`` reaches the backend through ``pyplot.show``.
     """
     warn_at_caller(
         "maidr: there is no page to show this chart in: Pyodide is running "
         "in a web worker or Node.js, with no document and no notebook "
         "display. Put the HTML of maidr.render(plot).get_html_string() in "
-        "the page instead, for example as an iframe's srcdoc."
+        "the page instead, for example as an iframe's srcdoc.",
+        through=("matplotlib",),
     )

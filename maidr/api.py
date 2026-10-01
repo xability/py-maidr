@@ -708,6 +708,13 @@ def show(
     -------
     object
         The display result.
+
+    Notes
+    -----
+    In Pyodide with no page -- a web worker, or Node.js -- there is nowhere
+    to show the chart, whatever ``renderer`` says. This warns instead and
+    leaves the figure open, so :func:`render` can still give its HTML to the
+    page.
     """
     # A Pyodide web worker, or Node.js, has no page to put a chart in, and
     # every renderer below would end in `webbrowser.open`, which raises
