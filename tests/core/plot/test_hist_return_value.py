@@ -66,7 +66,7 @@ def test_ax_hist_returns_what_matplotlib_returns(histtype, data, orientation):
     n, bins, patches = result
     assert np.array_equal(n, reference[0])
     assert np.array_equal(bins, reference[1])
-    assert type(patches) is type(reference[2])
+    assert isinstance(patches, type(reference[2]))
     assert len(patches) == len(reference[2])
 
 
@@ -134,3 +134,23 @@ def test_a_shiny_render_function_may_return_what_ax_hist_returned():
 
 def test_a_tuple_holding_no_artist_resolves_to_nothing():
     assert FigureManager.get_axes((np.arange(3.0), np.arange(4.0))) is None
+
+
+def test_a_list_holding_what_ax_hist_returned_resolves():
+    _, ax = plt.subplots()
+
+    assert FigureManager.get_axes([ax.hist(ONE, bins=2)]) is ax
+
+
+def test_a_tuple_passes_over_what_it_cannot_read():
+    # `subplot_mosaic` returns `(fig, axd)`, and the dict branch cannot read
+    # a dict of axes. A plain tuple never raised here before it was walked,
+    # and `maidr.close()` is not to raise about what it was handed.
+    fig, axd = plt.subplot_mosaic("AB")
+    axd["A"].bar(["a"], [1])
+    _, other = plt.subplots()
+
+    assert FigureManager.get_axes((fig, axd)) is None
+    assert FigureManager.get_axes([(fig, axd), other]) is other
+    maidr.close((fig, axd))
+    assert fig in FigureManager.figs

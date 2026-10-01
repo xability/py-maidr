@@ -412,6 +412,13 @@ class FigureManager:
         ``tuple``: ``ErrorbarContainer`` and ``StemContainer`` are tuples too,
         and resolve as they did.
 
+        Unlike a list, a tuple passes over an element it cannot read rather
+        than raising on it. A plain tuple used to reach none of these
+        branches and resolve to ``None``, so none ever raised here --
+        ``plt.subplot_mosaic()``'s ``(fig, axd)`` among them, whose dict of
+        axes the dict branch cannot read -- and ``maidr.close()`` is not to
+        raise about what it was handed.
+
         Accepted inputs, and what each resolves to: an ``Axes`` (itself); a
         ``BarContainer`` (the axes of its first child); any other ``Artist``
         (its ``.axes`` -- for a ``Figure`` that is the list of its axes); a
@@ -445,7 +452,7 @@ class FigureManager:
                 ),
                 None,
             )
-        elif isinstance(artist, list) or type(artist) is tuple:
+        elif isinstance(artist, list):
             return next(
                 (
                     resolved
@@ -456,6 +463,17 @@ class FigureManager:
                 ),
                 None,
             )
+        elif type(artist) is tuple:
+            # Walked like a list, but an element that cannot be read is passed
+            # over rather than raised on; see the docstring.
+            for entry in artist:
+                try:
+                    resolved = FigureManager.get_axes(entry)
+                except Exception:
+                    continue
+                if isinstance(resolved, Axes):
+                    return resolved
+            return None
         elif isinstance(getattr(artist, "figure", None), Figure):
             # seaborn's figure-level functions -- lmplot, catplot, displot,
             # jointplot, pairplot -- return a FacetGrid, JointGrid or
