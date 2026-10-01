@@ -125,6 +125,49 @@ def test_any_other_column_keeps_the_per_value_reading(values: list) -> None:
     assert layers._plain_numbers(values) is None
 
 
+class _PassesForFloat(type):
+    """A metaclass whose classes compare and hash as ``float`` does."""
+
+    def __eq__(cls, other: object) -> bool:
+        return other is float or cls is other
+
+    def __hash__(cls) -> int:
+        return hash(float)
+
+
+class _Scaled(float, metaclass=_PassesForFloat):
+    """A float that announces itself a hundred times larger."""
+
+    def item(self) -> float:
+        return float(self) * 100
+
+
+class _Unhashable(type):
+    """A metaclass whose classes cannot be hashed."""
+
+    def __eq__(cls, other: object) -> bool:
+        return cls is other
+
+    __hash__ = None  # type: ignore[assignment]
+
+
+class _Opaque(float, metaclass=_Unhashable):
+    """A float whose class cannot be put in a set."""
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        pytest.param([_Scaled(1.0), _Scaled(2.0)], id="lookalike"),
+        pytest.param([_Opaque(1.0), _Opaque(2.0)], id="unhashable-type"),
+        pytest.param([1.0, _Scaled(2.0)], id="lookalike-after-a-float"),
+    ],
+)
+def test_a_column_is_plain_only_by_the_identity_of_its_types(values: list) -> None:
+    """Never by hashing a type, or by asking it whether it equals ``float``."""
+    assert layers._plain_numbers(values) is None
+
+
 # --- whole figures ------------------------------------------------------------------
 
 
@@ -252,6 +295,53 @@ def test_a_datetime_axis_keeps_the_per_value_reading(
     assert "1970-01-01" in bulk
 
 
+def _shared_with_a_gap() -> Any:
+    """A point cloud on a line's source, its y column not plain numbers."""
+    source = ColumnDataSource(dict(x=[1.0, 2.0, 3.0], y=[10.0, None, 30.0]))
+    p = figure()
+    p.line("x", "y", source=source)
+    p.scatter("x", "y", source=source)
+    return p
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        pytest.param(_shared, id="plain"),
+        pytest.param(_shared_with_a_gap, id="not-plain"),
+        pytest.param(_line, id="line"),
+        pytest.param(_filtered_scatter, id="filtered-scatter"),
+    ],
+)
+def test_the_columns_are_resolved_as_often_and_in_the_order_they_were(
+    build: Build, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    The bulk reading resolves the same columns, as often, in the same order.
+
+    A source column is only read through :func:`resolve`, so this is what a
+    column that is not the same on every read -- or fails on a later one --
+    would see.
+    """
+    resolve = layers.resolve
+
+    def reads(per_value: bool) -> list[str]:
+        seen: list[str] = []
+
+        def counting(glyph: Any, prop: str, data: dict) -> list:
+            seen.append(prop)
+            return resolve(glyph, prop, data)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(layers, "resolve", counting)
+            if per_value:
+                patch.setattr(layers, "_plain_numbers", lambda values: None)
+            BokehMaidr(build())
+        return seen
+
+    assert reads(per_value=False) == reads(per_value=True)
+
+
 # --- the work itself --------------------------------------------------------------
 
 
@@ -277,6 +367,8 @@ def test_a_plain_line_is_not_announced_value_by_value(
 def test_a_point_cloud_on_a_shared_source_is_anchored_a_column_at_a_time(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Only the first point goes through ``mark_anchor``, which resolves the
+    columns; the other 49 are read off what it resolved."""
     calls = []
     anchor = layers.mark_anchor
 
@@ -293,4 +385,4 @@ def test_a_point_cloud_on_a_shared_source_is_anchored_a_column_at_a_time(
         layer for layer in maidr_.layers if layer.schema["type"] == PlotType.SCATTER
     )
     assert cloud.highlight["kind"] == "cursor"
-    assert calls == []
+    assert len(calls) == 1

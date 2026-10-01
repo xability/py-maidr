@@ -38,8 +38,10 @@ row and column of the emitted ``data``.
 from __future__ import annotations
 
 import math
+import operator
 import uuid
 from dataclasses import dataclass, field
+from itertools import repeat
 from numbers import Number
 from typing import Any, Callable
 
@@ -1844,6 +1846,12 @@ def point_anchors(renderer: Any, rows: list[int], columns: dict | None = None) -
     a point cloud on a source a line also reads asked it of every point.
     Any other glyph or column is anchored row by row, as before.
 
+    The first row is anchored by :func:`mark_anchor` itself. That resolves x
+    and then y into ``columns`` in the order it always did, so a column that
+    cannot be resolved, or a row it does not hold, fails exactly as it did,
+    and the rest of the rows read the very lists it resolved rather than
+    resolving the columns again.
+
     Parameters
     ----------
     renderer : bokeh.models.GlyphRenderer
@@ -1858,18 +1866,23 @@ def point_anchors(renderer: Any, rows: list[int], columns: dict | None = None) -
     list
         ``mark_anchor(renderer, row, columns)`` for each row.
     """
-    glyph = renderer.glyph
-    name = type(glyph).__name__
+    if not rows:
+        return []
+    cache = {} if columns is None else columns
+    anchors = [mark_anchor(renderer, rows[0], cache)]
+    name = type(renderer.glyph).__name__
     if name not in ("VBar", "HBar", "Quad") and name not in _WEDGE_GLYPHS:
-        data = renderer.data_source.data
-        x = _plain_numbers(resolve(glyph, "x", data))
-        y = _plain_numbers(resolve(glyph, "y", data))
+        x = _plain_numbers(cache[(renderer.id, "x")])
+        y = _plain_numbers(cache[(renderer.id, "y")])
         if x is not None and y is not None:
             xs, ys = x[1], y[1]
-            return [
-                None if xs[i] is None or ys[i] is None else [xs[i], ys[i]] for i in rows
-            ]
-    return [mark_anchor(renderer, i, columns) for i in rows]
+            anchors.extend(
+                None if xs[i] is None or ys[i] is None else [xs[i], ys[i]]
+                for i in rows[1:]
+            )
+            return anchors
+    anchors.extend(mark_anchor(renderer, i, cache) for i in rows[1:])
+    return anchors
 
 
 def _wedge_anchor(glyph: Any, at: Callable[[str], Any]) -> list:
@@ -2076,14 +2089,21 @@ def _plain_numbers(values: list) -> tuple[list[bool], list] | None:
         values]``, or ``None`` for any other column -- a ``bool``, a string,
         ``None``, a date, a mix of types, or nothing at all.
     """
-    kinds = set(map(type, values))
-    if kinds == {float} or kinds == {np.float64}:
+    if not values:
+        return None
+    # The kind is told by identity, never by hashing a type or comparing it
+    # with ``==``: a class can define both on its metaclass, to raise or to
+    # pass for ``float``, and the per-value reading never asks either.
+    kind = type(values[0])
+    if not all(map(operator.is_, map(type, values), repeat(kind))):
+        return None
+    if kind is float or kind is np.float64:
         array = np.array(values, dtype=float)
         announced = array.tolist()
         for index in np.flatnonzero(~np.isfinite(array)).tolist():
             announced[index] = None
         return np.isnan(array).tolist(), announced
-    if kinds == {int} or kinds == {np.int64}:
+    if kind is int or kind is np.int64:
         try:
             array = np.array(values)
         except OverflowError:
