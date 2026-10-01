@@ -266,9 +266,11 @@ class BoxenPlot(MaidrPlot):
         x0, x1, y0, y1 : float
             The ladder's extent.
         read : dict, optional
-            The points already read off ``clouds``, by position, filled in as
-            each cloud is first reached; ``False`` marks one with none. Pass
-            the same dict for every ladder of a chart.
+            The points already read off ``clouds``, keyed by position in it
+            and filled in as each cloud is first reached; ``False`` marks one
+            with none. Pass the same dict for every ladder of a chart, and
+            only with the same ``clouds``: a position means nothing in
+            another list.
 
         Returns
         -------

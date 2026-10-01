@@ -3,21 +3,24 @@
 A violin's KDE layer thins each outline to a handful of levels by bisecting
 for the smallest RDP tolerance that keeps at most ``target`` points. Every
 probe of that bisection used to run :func:`~maidr.util.rdp_utils.rdp` from
-scratch -- about 45 probes per violin, each walking the curve again -- and on
-a 100-category ``sns.violinplot`` that search was 0.93 s of a 1.64 s render.
+scratch -- about 45 probes per violin, each measuring the same segments
+again -- and on a 100-category ``sns.violinplot`` that search was 0.93 s of a
+1.64 s render.
 
 But ``rdp`` picks each segment's split point, the farthest one, before it
-compares that distance with the tolerance, so the tree of splits is the same
-for every tolerance; only how deep it is followed changes. Walking the tree
-once and recording, per point, the smallest distance on its path from the
-root answers every probe at once: a point is kept exactly when that
-threshold exceeds the tolerance.
+compares that distance with the tolerance, so a segment splits at the same
+point whatever the tolerance; only whether the walk goes on below it
+changes. So the probes share what they measure: each segment is measured
+the first time a probe reaches it and looked up after that.
 
-That claim is what these tests pin. The masks are compared with the old
-search, kept here as the reference, on the curves where a rewrite could
-quietly differ -- ties, NaN, collinear and closed curves, and targets at and
-around the edges -- and one test counts the walk itself, without timing
-anything on a shared machine.
+What is pinned here: the masks are the ones the old search found, compared
+on the curves where a rewrite could quietly differ -- ties, NaN, collinear
+and closed curves, and targets at and around the edges -- and no segment is
+measured twice. A straight line pins the other direction: measuring every
+segment up front, rather than as probes reach them, would be quadratic in
+its points, since every distance on it is zero and its splits peel one point
+off at a time. Both are counted rather than timed, so nothing depends on how
+busy the machine is.
 """
 
 from __future__ import annotations
@@ -128,45 +131,82 @@ def test_a_target_at_or_beyond_the_length_keeps_every_point(name: str) -> None:
 
 @pytest.mark.parametrize("name", ["violin", "walk", "zigzag", "closed", "nan"])
 def test_every_tolerance_keeps_what_rdp_keeps(name: str) -> None:
-    """``rdp(points, eps)`` and the thresholds agree on both sides of each one.
+    """Shared splits give ``rdp``'s mask whatever tolerances asked before.
 
     The comparison is strict -- a point is kept when its distance *exceeds*
-    the tolerance -- so the one place a threshold-based reading could part
-    from ``rdp`` is a tolerance equal to a threshold. Each is tried exactly,
-    and one representable step either side of it.
+    the tolerance -- so the places a shared walk could part from ``rdp`` are
+    the tolerances equal to a split's distance. Each is tried exactly and one
+    representable step either side of it, in a shuffled order, all through
+    one set of splits.
     """
     points = CURVES[name]
-    thresholds = rdp_utils._keep_thresholds(points)
+    measured: dict = {}
+    rdp_utils._kept(points, -np.inf, measured)
+    distances = np.unique(
+        [distance for _, distance in measured.values() if np.isfinite(distance)]
+    )
+    tolerances = [
+        eps
+        for value in distances
+        for eps in (np.nextafter(value, -np.inf), value, np.nextafter(value, np.inf))
+    ]
+    np.random.default_rng(0).shuffle(tolerances)
 
-    finite = thresholds[np.isfinite(thresholds)]
-    for value in np.unique(finite):
-        for eps in (np.nextafter(value, -np.inf), value, np.nextafter(value, np.inf)):
-            assert np.array_equal(
-                rdp_utils._kept(thresholds, eps), rdp(points, eps)
-            ), f"{name}: masks differ at eps={eps!r}"
+    shared: dict = {}
+    for eps in tolerances:
+        assert np.array_equal(
+            rdp_utils._kept(points, eps, shared), rdp(points, eps)
+        ), f"{name}: masks differ at eps={eps!r}"
 
 
-def test_the_split_tree_is_walked_once(monkeypatch) -> None:
-    """Each interior point is measured as a split point once, whatever the probes.
-
-    A bisection that runs ``rdp`` per probe measures the same segments again
-    on every probe -- on this 200-point curve, more than a thousand distance
-    passes. Walking the tree once takes at most one per interior point.
-    """
-    calls = 0
+def _measuring(monkeypatch) -> list:
+    """Record every segment ``_perpendicular_distance`` is asked to measure."""
+    asked: list = []
     measure = rdp_utils._perpendicular_distance
 
-    def counting(*args):
-        nonlocal calls
-        calls += 1
-        return measure(*args)
+    def recording(points, start, end):
+        asked.append((len(points), tuple(start), tuple(end)))
+        return measure(points, start, end)
 
-    monkeypatch.setattr(rdp_utils, "_perpendicular_distance", counting)
+    monkeypatch.setattr(rdp_utils, "_perpendicular_distance", recording)
+    return asked
+
+
+def test_no_segment_is_measured_twice(monkeypatch) -> None:
+    """Each segment is measured once, whatever the number of probes.
+
+    A bisection that runs ``rdp`` per probe measures the root segment, and
+    every segment near it, again on every probe: on this 200-point curve,
+    more than a thousand passes for well under two hundred segments.
+    """
+    asked = _measuring(monkeypatch)
     points = CURVES["walk"]
 
     simplify_curve(points, 15)
 
-    assert calls <= len(points) - 2, (
-        f"{calls} distance passes for {len(points)} points: the split tree is "
-        "being walked again for every probe of the search"
+    assert asked, "nothing was measured"
+    assert len(asked) == len(set(asked)), (
+        f"{len(asked) - len(set(asked))} of {len(asked)} measurements repeated "
+        "a segment already measured"
     )
+
+
+def test_a_straight_line_costs_one_pass_over_its_points(monkeypatch) -> None:
+    """Segments are measured as probes reach them, not all up front.
+
+    Every distance on a straight line is zero, so no tolerance the search
+    tries keeps anything but the ends, and nothing below the root is ever
+    reached. Measuring the whole split tree regardless would cost about
+    ``n**2 / 2`` -- 12.5 million points here -- because each split of a line
+    peels one point off; re-measuring the root on every probe cost about 50
+    passes. One is what it takes.
+    """
+    asked = _measuring(monkeypatch)
+    n = 5000
+    points = np.column_stack([np.arange(float(n)), 2.0 * np.arange(float(n)) + 1.0])
+
+    kept = simplify_curve(points, 15)
+
+    assert kept[0] and kept[-1] and kept.sum() == 2
+    measured = sum(length for length, _, _ in asked)
+    assert measured <= n, f"{measured} points measured for a {n}-point line"
