@@ -242,7 +242,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-09-30">
+<meta name="DC.date" content="2026-10-01">
 </head>
 
 <body class="nav-sidebar docked nav-fixed quarto-light">
@@ -610,7 +610,7 @@ Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><strong>In Pyodide.</strong> With <code>micropip.install("maidr")</code> in a plain Pyodide page (no IPython), <code>maidr.show()</code> appends the chart to the page’s <code>&lt;body&gt;</code> as an iframe. A web worker has no page to append to.</p>
+<p><strong>In Pyodide.</strong> With <code>micropip.install("maidr")</code> in a plain Pyodide page (no IPython), <code>maidr.show()</code> appends the chart to the page’s <code>&lt;body&gt;</code> as an iframe. A web worker, or Node.js, has no page to append to: there <code>plt.show()</code> and <code>maidr.show()</code> warn instead of showing, and leave the figure open. Put the HTML of <code>maidr.render(plot).get_html_string()</code> in the page yourself, for example as an iframe’s <code>srcdoc</code>.</p>
 </div>
 </div>
 </section>
