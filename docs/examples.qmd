@@ -39,7 +39,7 @@ maidr.set_backend(use_maidr=True)    # plt.show() renders accessible maidr outpu
 :::
 
 ::: {.callout-note}
-**In Pyodide.** With `micropip.install("maidr")` in a plain Pyodide page (no IPython), `maidr.show()` appends the chart to the page's `<body>` as an iframe. A web worker has no page to append to.
+**In Pyodide.** With `micropip.install("maidr")` in a plain Pyodide page (no IPython), `maidr.show()` appends the chart to the page's `<body>` as an iframe. A web worker, or Node.js, has no page to append to: there `plt.show()` and `maidr.show()` warn instead of showing, and leave the figure open. Put the HTML of `maidr.render(plot).get_html_string()` in the page yourself, for example as an iframe's `srcdoc`.
 :::
 
 #### Unsupported Plot Types
