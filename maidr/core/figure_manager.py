@@ -381,7 +381,7 @@ class FigureManager:
 
     @staticmethod
     def get_axes(
-        artist: Artist | Axes | BarContainer | dict | list | None,
+        artist: Artist | Axes | BarContainer | dict | list | tuple | None,
     ) -> Any:
         """
         Recursively extract Axes objects from the input artist or container.
@@ -403,12 +403,28 @@ class FigureManager:
         failure #388, #520 and #529 removed from the extractors for the same
         reason.
 
+        A plain ``tuple`` is walked the same way, because ``Axes.hist``
+        returns one, ``(n, bins, patches)``, and ``maidr.show(ax.hist(x))``
+        has to resolve. The patch used to return the bars alone, which
+        resolved through the ``BarContainer`` branch, until it was made to
+        return what matplotlib returns. The counts and the edges are arrays
+        and resolve to nothing, so the bars still answer. Only an exact
+        ``tuple``: ``ErrorbarContainer`` and ``StemContainer`` are tuples too,
+        and resolve as they did.
+
+        Unlike a list, a tuple passes over an element it cannot read rather
+        than raising on it. A plain tuple used to reach none of these
+        branches and resolve to ``None``, so none ever raised here --
+        ``plt.subplot_mosaic()``'s ``(fig, axd)`` among them, whose dict of
+        axes the dict branch cannot read -- and ``maidr.close()`` is not to
+        raise about what it was handed.
+
         Accepted inputs, and what each resolves to: an ``Axes`` (itself); a
         ``BarContainer`` (the axes of its first child); any other ``Artist``
         (its ``.axes`` -- for a ``Figure`` that is the list of its axes); a
-        dict of artist lists and a list (the first ``Axes`` found); and a
-        seaborn ``FacetGrid``, ``JointGrid`` or ``PairGrid`` (every axes of
-        its figure, as a list). ``None`` resolves to ``None``.
+        dict of artist lists, a list, and a plain tuple (the first ``Axes``
+        found); and a seaborn ``FacetGrid``, ``JointGrid`` or ``PairGrid``
+        (every axes of its figure, as a list). ``None`` resolves to ``None``.
         """
         if artist is None:
             return None
@@ -447,6 +463,17 @@ class FigureManager:
                 ),
                 None,
             )
+        elif type(artist) is tuple:
+            # Walked like a list, but an element that cannot be read is passed
+            # over rather than raised on; see the docstring.
+            for entry in artist:
+                try:
+                    resolved = FigureManager.get_axes(entry)
+                except Exception:
+                    continue
+                if isinstance(resolved, Axes):
+                    return resolved
+            return None
         elif isinstance(getattr(artist, "figure", None), Figure):
             # seaborn's figure-level functions -- lmplot, catplot, displot,
             # jointplot, pairplot -- return a FacetGrid, JointGrid or

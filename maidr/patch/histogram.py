@@ -76,7 +76,12 @@ def mpl_hist(
     if containers:
         for container in containers:
             FigureManager.create_maidr(ax, PlotType.HIST, **{DRAWN_BARS: container})
-        return plot
+        # All three values, as matplotlib returns them and as the step branch
+        # below does. This branch used to return the bars alone, so every
+        # caller that unpacks them -- `n, bins, patches = ax.hist(x)`, and
+        # pandas' `Series.plot.hist()` -- raised `ValueError`, and with three
+        # bins it unpacked three `Rectangle`s instead.
+        return n, bins, plot
 
     # No container to read means `histtype="step"` or `"stepfilled"`, which
     # draw a `Polygon` per dataset. Nothing has to be recovered from the
