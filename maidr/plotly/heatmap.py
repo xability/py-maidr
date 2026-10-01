@@ -90,7 +90,8 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         ``float(v)`` for a float or an int, so such a row is copied or
         converted in one pass rather than one call per cell -- a million
         calls for a 1000 x 1000 heatmap. Anything else -- a NumPy row, a
-        ``bool``, a string, ``None`` -- is converted cell by cell, as before.
+        ``bool``, a string, ``None``, or a row of a subclass that overrides
+        :meth:`_to_native` -- is converted cell by cell, as before.
 
         Parameters
         ----------
@@ -100,14 +101,18 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         Returns
         -------
         list
-            ``[self._to_native(v) for v in row]``.
+            ``[self._to_native(v) for v in row]``, as a new list.
         """
-        kinds = set(map(type, row))
-        if kinds <= {float}:
-            return list(row)
-        if kinds <= {float, int}:
-            return [float(v) for v in row]
-        return [self._to_native(v) for v in row]
+        # Read once: the type scan and the conversion both walk the row, and
+        # a row handed in as an iterator would be empty by the second.
+        cells = list(row)
+        if type(self)._to_native is PlotlyHeatmapPlot._to_native:
+            kinds = set(map(type, cells))
+            if kinds <= {float}:
+                return cells
+            if kinds <= {float, int}:
+                return [float(v) for v in cells]
+        return [self._to_native(v) for v in cells]
 
     def _extract_plot_data(self) -> dict:
         # ``z`` is the one two-dimensional array a trace carries, so it is

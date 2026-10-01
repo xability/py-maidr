@@ -114,6 +114,18 @@ def test_a_subclass_with_its_own_conversion_converts_every_value() -> None:
     assert [type(value) for value in plot._natives([1, 2])] == [float, float]
 
 
+def test_natives_reads_its_column_once_into_a_new_list() -> None:
+    """As the comprehension it replaced: an iterator, and a list of its own."""
+    plot = _Plain.__new__(_Plain)
+    column = [1.5, 2.0]
+
+    got = plot._natives(column)
+
+    assert got == column
+    assert got is not column
+    assert plot._natives(iter([1.5, 2.0])) == [1.5, 2.0]
+
+
 # --- scatter, line and multiline ------------------------------------------------
 
 
@@ -209,8 +221,45 @@ def test_a_float_column_is_not_converted_value_by_value(
     assert len(calls) < 50, f"{len(calls)} conversions for 2000 float values"
 
 
+def _marker_traces() -> list:
+    return [
+        go.Scatter(x=np.arange(20.0), y=_walk(20, index), mode="markers")
+        for index in range(5)
+    ]
+
+
+def _line_traces() -> list:
+    return [
+        go.Scatter(
+            x=np.arange(20.0), y=_walk(20, index), mode="lines", name=f"s{index}"
+        )
+        for index in range(5)
+    ]
+
+
+def _area_traces() -> list:
+    return [
+        go.Scatter(
+            x=np.arange(20.0),
+            y=np.abs(_walk(20, index)),
+            mode="lines",
+            stackgroup="one",
+            name=f"a{index}",
+        )
+        for index in range(5)
+    ]
+
+
+@pytest.mark.parametrize(
+    "traces",
+    [
+        pytest.param(_marker_traces, id="markers"),
+        pytest.param(_line_traces, id="lines"),
+        pytest.param(_area_traces, id="areas"),
+    ],
+)
 def test_each_scatter_trace_is_asked_whether_it_draws_marks_once(
-    monkeypatch: pytest.MonkeyPatch,
+    traces: Callable[[], list], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Each ask decodes both of a trace's arrays."""
     calls = []
@@ -221,11 +270,7 @@ def test_each_scatter_trace_is_asked_whether_it_draws_marks_once(
         return draws(trace)
 
     monkeypatch.setattr(plotly_maidr, "draws_marks", counting)
-    figure = go.Figure()
-    for index in range(5):
-        figure.add_trace(
-            go.Scatter(x=np.arange(20.0), y=_walk(20, index), mode="markers")
-        )
+    figure = go.Figure(traces())
 
     PlotlyMaidr(figure)._flatten_maidr()
 
@@ -256,6 +301,35 @@ def test_a_heatmap_row_reads_as_it_does_cell_by_cell(row: Any) -> None:
 
     assert repr(got) == repr(want)
     assert [type(value) for value in got] == [type(value) for value in want]
+
+
+def test_a_heatmap_row_given_as_an_iterator_is_read_once() -> None:
+    plot = PlotlyHeatmapPlot.__new__(PlotlyHeatmapPlot)
+
+    assert plot._native_row(iter([1, 2.5])) == [1.0, 2.5]
+
+
+class _Rounded(PlotlyHeatmapPlot):
+    """A heatmap layer with a conversion of its own."""
+
+    @staticmethod
+    def _to_native(val: Any) -> Any:
+        return round(float(val))
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        pytest.param([1.4, 2.6], id="floats"),
+        pytest.param([1, 2.6], id="ints-and-floats"),
+    ],
+)
+def test_a_heatmap_subclass_with_its_own_conversion_converts_every_cell(
+    row: list,
+) -> None:
+    plot = _Rounded.__new__(_Rounded)
+
+    assert plot._native_row(row) == [_Rounded._to_native(value) for value in row]
 
 
 # --- contour ------------------------------------------------------------------------

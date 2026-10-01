@@ -564,15 +564,25 @@ class PlotlyMaidr:
             # position together. Excluding them here means a lone one reaches
             # it too, rather than bypassing it through the single-trace
             # branches below.
-            area_traces = [
-                t for t in group_traces if is_area_trace(t) and draws_marks(t)
-            ]
+            #
+            # `draws_marks` decodes a trace's `x` and `y` to answer, and it is
+            # asked of the same trace up to four times in this group: by the
+            # area and line splits here, then by the drawn/undrawn numbering
+            # and the handled set below. Nothing in between changes the
+            # answer, so each trace is asked once. Every one of those
+            # questions is put to a scatter-family trace -- an area or a
+            # connected line is one by definition -- so that is the set asked,
+            # the same set as before.
+            marks = {
+                id(t): draws_marks(t)
+                for t in group_traces
+                if is_scatter_family_trace(t)
+            }
+            area_traces = [t for t in group_traces if is_area_trace(t) and marks[id(t)]]
             connected_traces = [
                 t
                 for t in group_traces
-                if is_connected_line_trace(t)
-                and not is_area_trace(t)
-                and draws_marks(t)
+                if is_connected_line_trace(t) and not is_area_trace(t) and marks[id(t)]
             ]
             box_traces = [t for t in group_traces if t.get("type") == "box"]
             pie_traces = [t for t in group_traces if t.get("type") == "pie"]
@@ -642,7 +652,6 @@ class PlotlyMaidr:
             # them from the end keeps every index unique and
             # correct-by-construction, which is what the gl numbering above
             # does for the same reason.
-            marks = {id(t): draws_marks(t) for t in scatter_family}
             position_of: dict[int, int] = {}
             for renderer in (svg_scatter, gl_scatter):
                 drawn = [t for t in renderer if marks[id(t)]]

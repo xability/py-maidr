@@ -125,16 +125,19 @@ class PlotlyPlot(ABC):
         Returns
         -------
         list
-            The column as :meth:`_to_native` would leave it; ``values``
-            itself when there is nothing to convert, so callers must not
-            mutate the result.
+            The column as :meth:`_to_native` would leave it, as a new list.
         """
+        # Read once, into a list of the caller's own: the type scan and the
+        # conversion both walk the column, an iterator would be empty by the
+        # second, and handing back the decoded column itself would let a
+        # caller that edits its result edit the trace's data.
+        column = list(values)
         if type(self)._to_native is PlotlyPlot._to_native and (
-            set(map(type, values)) <= _NATIVE_TYPES
+            set(map(type, column)) <= _NATIVE_TYPES
         ):
-            return values
+            return column
         to_native = self._to_native
-        return [to_native(v) for v in values]
+        return [to_native(v) for v in column]
 
     def render(self) -> dict:
         """Generate the MAIDR schema for this plot layer."""
