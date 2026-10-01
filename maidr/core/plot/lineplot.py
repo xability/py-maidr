@@ -205,6 +205,7 @@ def _numeric_points(xs: np.ndarray, ys: np.ndarray, name: object) -> List[dict]:
         return [{_X: x, _Y: y, _Z: name} for x, y in zip(xs.tolist(), values)]
     return [{_X: x, _Y: y} for x, y in zip(xs.tolist(), values)]
 
+
 class MultiLinePlot(MaidrPlot, LineExtractorMixin):
     """
     A class for extracting and processing data from line plots.
