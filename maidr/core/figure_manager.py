@@ -381,7 +381,7 @@ class FigureManager:
 
     @staticmethod
     def get_axes(
-        artist: Artist | Axes | BarContainer | dict | list | None,
+        artist: Artist | Axes | BarContainer | dict | list | tuple | None,
     ) -> Any:
         """
         Recursively extract Axes objects from the input artist or container.
@@ -403,12 +403,21 @@ class FigureManager:
         failure #388, #520 and #529 removed from the extractors for the same
         reason.
 
+        A plain ``tuple`` is walked the same way, because ``Axes.hist``
+        returns one, ``(n, bins, patches)``, and ``maidr.show(ax.hist(x))``
+        has to resolve. The patch used to return the bars alone, which
+        resolved through the ``BarContainer`` branch, until it was made to
+        return what matplotlib returns. The counts and the edges are arrays
+        and resolve to nothing, so the bars still answer. Only an exact
+        ``tuple``: ``ErrorbarContainer`` and ``StemContainer`` are tuples too,
+        and resolve as they did.
+
         Accepted inputs, and what each resolves to: an ``Axes`` (itself); a
         ``BarContainer`` (the axes of its first child); any other ``Artist``
         (its ``.axes`` -- for a ``Figure`` that is the list of its axes); a
-        dict of artist lists and a list (the first ``Axes`` found); and a
-        seaborn ``FacetGrid``, ``JointGrid`` or ``PairGrid`` (every axes of
-        its figure, as a list). ``None`` resolves to ``None``.
+        dict of artist lists, a list, and a plain tuple (the first ``Axes``
+        found); and a seaborn ``FacetGrid``, ``JointGrid`` or ``PairGrid``
+        (every axes of its figure, as a list). ``None`` resolves to ``None``.
         """
         if artist is None:
             return None
@@ -436,7 +445,7 @@ class FigureManager:
                 ),
                 None,
             )
-        elif isinstance(artist, list):
+        elif isinstance(artist, list) or type(artist) is tuple:
             return next(
                 (
                     resolved
