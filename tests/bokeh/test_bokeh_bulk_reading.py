@@ -1,11 +1,11 @@
 """Bokeh columns of plain numbers are read a column at a time.
 
-A line, a step or a point cloud on two numeric axes called
-:func:`is_missing`, :func:`to_native` and :func:`to_coordinate` on every
-sample, and a point cloud sharing its source with a line asked
-:func:`mark_anchor` for every point as well. For a column of plain numbers
-each of those answers is known for the whole column at once, so
-:func:`_plain_numbers` reads it in one pass.
+A line, a step, a point cloud or a ``varea``/``harea`` band on two numeric
+axes called :func:`is_missing`, :func:`to_native` and :func:`to_coordinate`
+on every sample -- a band :func:`_extent` as well -- and a point cloud
+sharing its source with a line asked :func:`mark_anchor` for every point.
+For a column of plain numbers each of those answers is known for the whole
+column at once, so :func:`_plain_numbers` reads it in one pass.
 
 Each path is pinned against the per-value reading it replaced, reached by
 switching the bulk reading off, and the work itself is counted rather than
@@ -168,6 +168,39 @@ def test_a_column_is_plain_only_by_the_identity_of_its_types(values: list) -> No
     assert layers._plain_numbers(values) is None
 
 
+#: Band edges of every plain kind, the awkward values among them.
+_FLOATS = [
+    float("nan"),
+    float("inf"),
+    float("-inf"),
+    0.0,
+    -0.0,
+    1.0,
+    2.5,
+    1e308,
+    -1e308,
+]
+_INTS = [0, 1, -1, 7, 2**62, -(2**62), 2**63 - 1, -(2**63)]
+_EDGES = {
+    "float": _FLOATS,
+    "float64": [np.float64(value) for value in _FLOATS],
+    "int": _INTS,
+    "int64": [np.int64(value) for value in _INTS],
+}
+
+
+@pytest.mark.parametrize("high_kind", list(_EDGES))
+@pytest.mark.parametrize("low_kind", list(_EDGES))
+def test_a_plain_extent_is_what_extent_announces(low_kind: str, high_kind: str) -> None:
+    for low, high in itertools.product(_EDGES[low_kind], _EDGES[high_kind]):
+        expected = to_native(layers._extent(low, high))
+
+        read = layers._plain_extent(to_native(low), to_native(high))
+
+        assert repr(read) == repr(expected), (low, high)
+        assert type(read) is type(expected), (low, high)
+
+
 # --- whole figures ------------------------------------------------------------------
 
 
@@ -249,6 +282,87 @@ def _dates() -> Any:
     return p
 
 
+def _varea() -> Any:
+    """A band from zero, with gaps and infinities in every column."""
+    p = figure()
+    x = np.arange(60.0)
+    x[[2, 3]] = np.nan
+    x[10] = -np.inf
+    top = _walk(60) + 20
+    top[[5, 6]] = np.nan
+    top[7] = np.inf
+    top[8] = -0.0
+    p.varea(x=x, y1=0, y2=top, legend_label="band")
+    return p
+
+
+def _varea_between() -> Any:
+    """A band between two float columns: zero, ``-0.0``, gaps and overflow."""
+    bottom = _walk(40, 1)
+    bottom[[0, 1]] = [0.0, -0.0]
+    bottom[2] = np.nan
+    bottom[3] = -np.inf
+    top = bottom + 5
+    top[[0, 1, 2, 3]] = [1.0, 2.0, 3.0, 4.0]
+    bottom[4], top[4] = -1e308, 1e308
+    source = ColumnDataSource(dict(x=np.arange(40.0), lo=bottom, hi=top))
+    p = figure()
+    p.varea(x="x", y1="lo", y2="hi", source=source)
+    return p
+
+
+def _varea_ints() -> Any:
+    """Integer columns, where the extent is exact and stays an integer."""
+    p = figure()
+    p.varea(
+        x=list(range(30)),
+        y1=[i % 3 for i in range(30)],
+        y2=[2**62 + i for i in range(30)],
+    )
+    return p
+
+
+def _varea_mixed() -> Any:
+    """Columns of different kinds: floats, ``int64`` and ``float64``."""
+    p = figure()
+    p.varea(
+        x=[float(i) for i in range(25)],
+        y1=list(np.arange(25) % 4),
+        y2=list(np.linspace(1.0, 9.0, 25)),
+    )
+    return p
+
+
+def _harea() -> Any:
+    """A band on its side, so its cursor is ``[edge, at]``."""
+    p = figure()
+    y = np.arange(50.0)
+    y[4] = np.nan
+    right = _walk(50) + 30
+    right[[9, 10]] = np.nan
+    right[11] = np.inf
+    p.harea(y=y, x1=1, x2=right, legend_label="sideways")
+    return p
+
+
+def _varea_stack() -> Any:
+    source = ColumnDataSource(
+        dict(x=np.arange(30.0), a=_walk(30) + 10, b=_walk(30, 2) + 10)
+    )
+    p = figure()
+    p.varea_stack(["a", "b"], x="x", source=source, legend_label=["a", "b"])
+    return p
+
+
+def _harea_stack() -> Any:
+    source = ColumnDataSource(
+        dict(y=np.arange(30.0), a=_walk(30) + 10, b=_walk(30, 2) + 10)
+    )
+    p = figure()
+    p.harea_stack(["a", "b"], y="y", source=source, legend_label=["a", "b"])
+    return p
+
+
 FIGURES: dict[str, Build] = {
     "line": _line,
     "labelled-lines": _labelled_lines,
@@ -257,6 +371,13 @@ FIGURES: dict[str, Build] = {
     "scatter": _scatter,
     "filtered-scatter": _filtered_scatter,
     "shared-source": _shared,
+    "varea": _varea,
+    "varea-between": _varea_between,
+    "varea-ints": _varea_ints,
+    "varea-mixed": _varea_mixed,
+    "harea": _harea,
+    "varea-stack": _varea_stack,
+    "harea-stack": _harea_stack,
 }
 
 
@@ -295,6 +416,24 @@ def test_a_datetime_axis_keeps_the_per_value_reading(
     assert "1970-01-01" in bulk
 
 
+def _dated_band() -> Any:
+    p = figure(x_axis_type="datetime")
+    p.varea(x=np.arange(20) * 86_400_000.0, y1=0, y2=_walk(20) + 10)
+    return p
+
+
+def test_a_band_on_a_datetime_axis_keeps_the_per_value_reading(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Its positions are epoch milliseconds, announced as dates."""
+    bulk = _read(_dated_band, monkeypatch)
+
+    monkeypatch.setattr(layers, "_plain_numbers", lambda values: None)
+
+    assert bulk == _read(_dated_band, monkeypatch)
+    assert "1970-01-01" in bulk
+
+
 def _shared_with_a_gap() -> Any:
     """A point cloud on a line's source, its y column not plain numbers."""
     source = ColumnDataSource(dict(x=[1.0, 2.0, 3.0], y=[10.0, None, 30.0]))
@@ -311,6 +450,8 @@ def _shared_with_a_gap() -> Any:
         pytest.param(_shared_with_a_gap, id="not-plain"),
         pytest.param(_line, id="line"),
         pytest.param(_filtered_scatter, id="filtered-scatter"),
+        pytest.param(_varea, id="varea"),
+        pytest.param(_harea_stack, id="harea-stack"),
     ],
 )
 def test_the_columns_are_resolved_as_often_and_in_the_order_they_were(
@@ -362,6 +503,25 @@ def test_a_plain_line_is_not_announced_value_by_value(
     BokehMaidr(p)._flatten_maidr()
 
     assert len(calls) < 50, f"{len(calls)} conversions for 2000 plain values"
+
+
+def test_a_plain_band_is_not_announced_value_by_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+    convert = layers.to_native
+
+    def counting(value: Any) -> Any:
+        calls.append(1)
+        return convert(value)
+
+    monkeypatch.setattr(layers, "to_native", counting)
+    p = figure()
+    p.varea(x=np.arange(1000.0), y1=0, y2=_walk(1000) + 50)
+
+    BokehMaidr(p)._flatten_maidr()
+
+    assert len(calls) < 50, f"{len(calls)} conversions for a 1000-row band"
 
 
 def test_a_point_cloud_on_a_shared_source_is_anchored_a_column_at_a_time(
