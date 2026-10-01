@@ -67,7 +67,7 @@ from typing import Any, Iterator, Literal, cast
 
 from htmltools import HTML, HTMLDocument, Tag, tags
 
-from maidr.bokeh.layers import BokehLayer, PlotReader, mark_anchor
+from maidr.bokeh.layers import BokehLayer, PlotReader, mark_anchor, point_anchors
 from maidr.bokeh.layout import place_plots
 from maidr.bokeh.utils import warn
 from maidr.util.bundle_capability import (
@@ -402,7 +402,17 @@ class BokehMaidr:
                 return mark_anchor(by_id[cell[0]], cell[1], columns)
 
             if layer.highlight["kind"] == "points":
-                points = [anchor(cell) for cell in layer.highlight["points"]]
+                # A point cloud is one renderer's rows (see
+                # ``PlotReader._scatter``), so its anchors are read for the
+                # whole column at once rather than one mark at a time.
+                cells = layer.highlight["points"]
+                owners = {cell[0] for cell in cells}
+                if len(owners) == 1:
+                    (owner,) = owners
+                    rows = [cell[1] for cell in cells]
+                    points = point_anchors(by_id[owner], rows, columns)
+                else:
+                    points = [anchor(cell) for cell in cells]
                 layer.highlight = {"kind": "cursor", "points": points}
             elif "columns" in layer.highlight:
                 # A candle is a wick and a body; the ring goes where the one

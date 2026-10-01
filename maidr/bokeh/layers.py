@@ -38,8 +38,10 @@ row and column of the emitted ``data``.
 from __future__ import annotations
 
 import math
+import operator
 import uuid
 from dataclasses import dataclass, field
+from itertools import repeat
 from numbers import Number
 from typing import Any, Callable
 
@@ -752,6 +754,13 @@ class PlotReader:
         rows, grid = [], []
         for renderer in renderers:
             for xs, ys, label in self._series(renderer):
+                read = self._numeric_series(xs, ys, label)
+                if read is not None:
+                    row, coords = read
+                    if row:
+                        rows.append(row)
+                        grid.append(coords)
+                    continue
                 row, coords = [], []
                 announced_x = self._x_native(xs)
                 announced_y = self._y_native(ys)
@@ -771,6 +780,60 @@ class PlotReader:
                     rows.append(row)
                     grid.append(coords)
         return rows, grid
+
+    def _numeric_series(
+        self, xs: list, ys: list, label: str | None
+    ) -> tuple[list[dict], list] | None:
+        """
+        One series of plain numbers on two numeric axes, read a column at a time.
+
+        The same points and cursor coordinates the per-sample loop in
+        :meth:`_line_like` makes, for the columns where every step of it is
+        known in advance: :func:`_plain_numbers` reads which values are
+        missing and how each is announced for a whole column at once, and
+        :func:`to_coordinate` places a plain number where :func:`to_native`
+        announces it. That loop called :func:`is_missing`,
+        :func:`to_native` and :func:`to_coordinate` on every sample, and on a
+        long series those calls were most of the render.
+
+        The points are keyed by the plain strings ``MaidrKey`` members stand
+        for. The JSON is the same, and a dict keyed by an enum member is one
+        the garbage collector has to track -- one per sample here.
+
+        Parameters
+        ----------
+        xs, ys : list
+            The series' columns, as :meth:`_series` reads them.
+        label : str or None
+            The series' name, carried on every point when it has one.
+
+        Returns
+        -------
+        tuple of (list of dict, list) or None
+            The series' points and the cursor coordinates for them, or
+            ``None`` when either axis is a ``DatetimeAxis`` or either
+            column is anything but plain numbers -- which keeps the
+            per-sample reading.
+        """
+        x = None if self._x_dates else _plain_numbers(xs)
+        y = None if self._y_dates else _plain_numbers(ys)
+        if x is None or y is None:
+            return None
+        (x_gaps, x_values), (y_gaps, y_values) = x, y
+        # A sample with no position is dropped, and one with no value is a
+        # gap the core keeps as ``null`` -- as the per-sample loop does.
+        samples = [
+            (ax, ay, y_gap)
+            for ax, ay, x_gap, y_gap in zip(x_values, y_values, x_gaps, y_gaps)
+            if not x_gap
+        ]
+        kx, ky, kz = MaidrKey.X.value, MaidrKey.Y.value, MaidrKey.Z.value
+        if label:
+            row = [{kx: ax, ky: ay, kz: label} for ax, ay, _ in samples]
+        else:
+            row = [{kx: ax, ky: ay} for ax, ay, _ in samples]
+        coords = [None if y_gap else [ax, ay] for ax, ay, y_gap in samples]
+        return row, coords
 
     def _line(self, renderers: list) -> BokehLayer | None:
         """
@@ -1453,16 +1516,26 @@ class PlotReader:
         glyph = renderer.glyph
         data = renderer.data_source.data
         xs, ys = resolve(glyph, "x", data), resolve(glyph, "y", data)
-        rows = [
-            i
-            for i in visible_indices(renderer, source_length(data))
-            if not is_missing(xs[i]) and not is_missing(ys[i])
-        ]
-        announced_x = self._x_native([xs[i] for i in rows])
-        announced_y = self._y_native([ys[i] for i in rows])
-        points = [
-            {MaidrKey.X: ax, MaidrKey.Y: ay} for ax, ay in zip(announced_x, announced_y)
-        ]
+        visible = visible_indices(renderer, source_length(data))
+        x = None if self._x_dates else _plain_numbers(xs)
+        y = None if self._y_dates else _plain_numbers(ys)
+        if x is not None and y is not None:
+            # Plain numbers on two numeric axes, read a column at a time
+            # rather than a value at a time; see :meth:`_numeric_series`.
+            (x_gaps, x_values), (y_gaps, y_values) = x, y
+            rows = [i for i in visible if not x_gaps[i] and not y_gaps[i]]
+            kx, ky = MaidrKey.X.value, MaidrKey.Y.value
+            points = [{kx: x_values[i], ky: y_values[i]} for i in rows]
+        else:
+            rows = [
+                i for i in visible if not is_missing(xs[i]) and not is_missing(ys[i])
+            ]
+            announced_x = self._x_native([xs[i] for i in rows])
+            announced_y = self._y_native([ys[i] for i in rows])
+            points = [
+                {MaidrKey.X: ax, MaidrKey.Y: ay}
+                for ax, ay in zip(announced_x, announced_y)
+            ]
         if not points:
             return None
         schema = self._schema(PlotType.SCATTER, points)
@@ -1761,6 +1834,57 @@ def mark_anchor(
     return None if any(c is None for c in coords) else coords
 
 
+def point_anchors(renderer: Any, rows: list[int], columns: dict | None = None) -> list:
+    """
+    :func:`mark_anchor` for many rows of one renderer.
+
+    A point's cursor sits on the point: ``[to_coordinate(x),
+    to_coordinate(y)]``, or ``None`` when either is ``None``. For columns of
+    plain numbers that is read once for the whole column
+    (:func:`_plain_numbers`), since :func:`to_coordinate` places a plain
+    number where :func:`to_native` announces it, rather than once per row --
+    a point cloud on a source a line also reads asked it of every point.
+    Any other glyph or column is anchored row by row, as before.
+
+    The first row is anchored by :func:`mark_anchor` itself. That resolves x
+    and then y into ``columns`` in the order it always did, so a column that
+    cannot be resolved, or a row it does not hold, fails exactly as it did,
+    and the rest of the rows read the very lists it resolved rather than
+    resolving the columns again.
+
+    Parameters
+    ----------
+    renderer : bokeh.models.GlyphRenderer
+        The renderer the rows belong to.
+    rows : list of int
+        The source rows of its marks.
+    columns : dict, optional
+        As for :func:`mark_anchor`.
+
+    Returns
+    -------
+    list
+        ``mark_anchor(renderer, row, columns)`` for each row.
+    """
+    if not rows:
+        return []
+    cache = {} if columns is None else columns
+    anchors = [mark_anchor(renderer, rows[0], cache)]
+    name = type(renderer.glyph).__name__
+    if name not in ("VBar", "HBar", "Quad") and name not in _WEDGE_GLYPHS:
+        x = _plain_numbers(cache[(renderer.id, "x")])
+        y = _plain_numbers(cache[(renderer.id, "y")])
+        if x is not None and y is not None:
+            xs, ys = x[1], y[1]
+            anchors.extend(
+                None if xs[i] is None or ys[i] is None else [xs[i], ys[i]]
+                for i in rows[1:]
+            )
+            return anchors
+    anchors.extend(mark_anchor(renderer, i, cache) for i in rows[1:])
+    return anchors
+
+
 def _wedge_anchor(glyph: Any, at: Callable[[str], Any]) -> list:
     """
     A point inside one wedge: part way out along its middle angle.
@@ -1933,6 +2057,61 @@ def _extent(low: Any, high: Any) -> Any:
         return high - low
     except TypeError:
         return high
+
+
+def _plain_numbers(values: list) -> tuple[list[bool], list] | None:
+    """
+    A column of plain numbers, read at once: which values are missing, and each
+    as :func:`to_native` announces it.
+
+    For a column whose values are all exactly ``float``, all ``np.float64``,
+    or all ``int`` or ``np.int64`` within ``int64``, every step of the
+    per-value reading is known in advance. :func:`is_missing` is a NaN test,
+    since none of them is ``None``, a date or ``NaT``; :func:`to_native` is
+    the value as a Python number, ``None`` for a NaN or an infinity; and
+    neither is a date, so :func:`_announced` would not spell the column as
+    one off a numeric axis. ``tolist()`` hands over the same Python numbers
+    ``.item()`` does, ``-0.0`` included.
+
+    An integer beyond ``int64`` is left to the per-value reading, so it fails
+    there exactly as it did: :func:`is_missing` cannot test one past the
+    float range.
+
+    Parameters
+    ----------
+    values : list
+        One column, as :func:`resolve` reads it.
+
+    Returns
+    -------
+    tuple of (list of bool, list) or None
+        ``[is_missing(v) for v in values]`` and ``[to_native(v) for v in
+        values]``, or ``None`` for any other column -- a ``bool``, a string,
+        ``None``, a date, a mix of types, or nothing at all.
+    """
+    if not values:
+        return None
+    # The kind is told by identity, never by hashing a type or comparing it
+    # with ``==``: a class can define both on its metaclass, to raise or to
+    # pass for ``float``, and the per-value reading never asks either.
+    kind = type(values[0])
+    if not all(map(operator.is_, map(type, values), repeat(kind))):
+        return None
+    if kind is float or kind is np.float64:
+        array = np.array(values, dtype=float)
+        announced = array.tolist()
+        for index in np.flatnonzero(~np.isfinite(array)).tolist():
+            announced[index] = None
+        return np.isnan(array).tolist(), announced
+    if kind is int or kind is np.int64:
+        try:
+            array = np.array(values)
+        except OverflowError:
+            return None
+        if array.dtype.kind != "i":
+            return None
+        return [False] * len(values), array.tolist()
+    return None
 
 
 def _announced(values: list, dates: bool) -> list:
