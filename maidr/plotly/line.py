@@ -69,14 +69,8 @@ class PlotlyLinePlot(PlotlyPlot):
         x, y = paired_axes(self._trace)
         name = self._trace.get("name", "")
 
-        line_data = []
-        for xv, yv in zip(x, y):
-            point: dict = {
-                MaidrKey.X: self._to_native(xv),
-                MaidrKey.Y: self._to_native(yv),
-            }
-            if name:
-                point[MaidrKey.Z] = name
-            line_data.append(point)
-
-        return [line_data]
+        kx, ky, kz = MaidrKey.X.value, MaidrKey.Y.value, MaidrKey.Z.value
+        xs, ys = self._natives(x), self._natives(y)
+        if name:
+            return [[{kx: xv, ky: yv, kz: name} for xv, yv in zip(xs, ys)]]
+        return [[{kx: xv, ky: yv} for xv, yv in zip(xs, ys)]]

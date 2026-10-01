@@ -27,6 +27,10 @@ _logger = logging.getLogger(__name__)
 #: checked separately -- see :meth:`PlotlyPlot._looks_like_date`.
 _ISO_DATE = re.compile(r"^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[ T].*)?$")
 
+#: The types :meth:`PlotlyPlot._to_native` hands back unchanged, so a column
+#: holding nothing else needs no call per value.
+_NATIVE_TYPES = frozenset({float, int, str, bool, type(None)})
+
 #: Date units coarsest first, the order :func:`_iso_dates` tries them in.
 #: No hour on its own: ``2024-01-01T12`` is ISO 8601 but reads as nothing to
 #: a listener, where ``2024-01-01T12:00`` is a time.
@@ -100,6 +104,40 @@ class PlotlyPlot(ABC):
         if hasattr(val, "item"):
             return val.item()
         return val
+
+    def _natives(self, values: list) -> list:
+        """
+        ``[self._to_native(v) for v in values]``, skipped where it changes nothing.
+
+        A decoded column is usually Python floats already -- ``as_list`` hands
+        a typed array back through ``tolist`` -- and :meth:`_to_native`
+        returns a ``float``, ``int``, ``str``, ``bool`` or ``None`` as it is.
+        Calling it once per value was most of a large scatter's extraction,
+        so a column holding only those exact types is returned untouched.
+        Anything else -- a NumPy scalar, a date, a subclass that overrides
+        :meth:`_to_native` -- is converted value by value, as before.
+
+        Parameters
+        ----------
+        values : list
+            One decoded column.
+
+        Returns
+        -------
+        list
+            The column as :meth:`_to_native` would leave it, as a new list.
+        """
+        # Read once, into a list of the caller's own: the type scan and the
+        # conversion both walk the column, an iterator would be empty by the
+        # second, and handing back the decoded column itself would let a
+        # caller that edits its result edit the trace's data.
+        column = list(values)
+        if type(self)._to_native is PlotlyPlot._to_native and (
+            set(map(type, column)) <= _NATIVE_TYPES
+        ):
+            return column
+        to_native = self._to_native
+        return [to_native(v) for v in column]
 
     def render(self) -> dict:
         """Generate the MAIDR schema for this plot layer."""
@@ -233,19 +271,16 @@ class PlotlyPlot(ABC):
         series_list: list[list[dict]] = []
         drawn_positions: list[int] = []
 
+        kx, ky, kz = MaidrKey.X.value, MaidrKey.Y.value, MaidrKey.Z.value
         for trace, position in zip(traces, positions):
             x_values, y_values = paired_axes(trace)
             name = trace.get("name", "")
+            xs, ys = self._natives(x_values), self._natives(y_values)
 
-            series: list[dict] = []
-            for x_value, y_value in zip(x_values, y_values):
-                point: dict = {
-                    MaidrKey.X: self._to_native(x_value),
-                    MaidrKey.Y: self._to_native(y_value),
-                }
-                if name:
-                    point[MaidrKey.Z] = name
-                series.append(point)
+            if name:
+                series = [{kx: xv, ky: yv, kz: name} for xv, yv in zip(xs, ys)]
+            else:
+                series = [{kx: xv, ky: yv} for xv, yv in zip(xs, ys)]
 
             if series:
                 series_list.append(series)

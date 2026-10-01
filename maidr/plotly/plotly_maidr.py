@@ -564,15 +564,25 @@ class PlotlyMaidr:
             # position together. Excluding them here means a lone one reaches
             # it too, rather than bypassing it through the single-trace
             # branches below.
-            area_traces = [
-                t for t in group_traces if is_area_trace(t) and draws_marks(t)
-            ]
+            #
+            # `draws_marks` decodes a trace's `x` and `y` to answer, and it is
+            # asked of the same trace up to four times in this group: by the
+            # area and line splits here, then by the drawn/undrawn numbering
+            # and the handled set below. Nothing in between changes the
+            # answer, so each trace is asked once. Every one of those
+            # questions is put to a scatter-family trace -- an area or a
+            # connected line is one by definition -- so that is the set asked,
+            # the same set as before.
+            marks = {
+                id(t): draws_marks(t)
+                for t in group_traces
+                if is_scatter_family_trace(t)
+            }
+            area_traces = [t for t in group_traces if is_area_trace(t) and marks[id(t)]]
             connected_traces = [
                 t
                 for t in group_traces
-                if is_connected_line_trace(t)
-                and not is_area_trace(t)
-                and draws_marks(t)
+                if is_connected_line_trace(t) and not is_area_trace(t) and marks[id(t)]
             ]
             box_traces = [t for t in group_traces if t.get("type") == "box"]
             pie_traces = [t for t in group_traces if t.get("type") == "pie"]
@@ -644,8 +654,8 @@ class PlotlyMaidr:
             # does for the same reason.
             position_of: dict[int, int] = {}
             for renderer in (svg_scatter, gl_scatter):
-                drawn = [t for t in renderer if draws_marks(t)]
-                undrawn = [t for t in renderer if not draws_marks(t)]
+                drawn = [t for t in renderer if marks[id(t)]]
+                undrawn = [t for t in renderer if not marks[id(t)]]
                 for index, t in enumerate(drawn):
                     position_of[id(t)] = index
                 for offset, t in enumerate(undrawn):
@@ -657,7 +667,7 @@ class PlotlyMaidr:
             # family because `draws_marks` reads `x`/`y`: a pie carries neither
             # and draws perfectly well, so asking it globally would drop every
             # pie in the figure.
-            merged: set[int] = {id(t) for t in scatter_family if not draws_marks(t)}
+            merged: set[int] = {id(t) for t in scatter_family if not marks[id(t)]}
 
             # `barnorm` only means anything for a stack: plotly scales each
             # category's segments to a common total, so the values are shares
