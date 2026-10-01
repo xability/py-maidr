@@ -907,6 +907,13 @@ class PlotReader:
             lows = resolve(glyph, low_prop, data)
             highs = resolve(glyph, high_prop, data)
             label = self._series_label(renderer)
+            read = self._numeric_band(positions, lows, highs, label, sideways)
+            if read is not None:
+                row, coords = read
+                if row:
+                    rows.append(row)
+                    grid.append(coords)
+                continue
             announced = (
                 self._y_native(positions) if sideways else self._x_native(positions)
             )
@@ -929,6 +936,87 @@ class PlotReader:
                 rows.append(row)
                 grid.append(coords)
         return rows, grid
+
+    def _numeric_band(
+        self,
+        positions: list,
+        lows: list,
+        highs: list,
+        label: str | None,
+        sideways: bool,
+    ) -> tuple[list[dict], list] | None:
+        """
+        One band of plain numbers on two numeric axes, read a column at a time.
+
+        The same points and cursor coordinates the per-row loop in
+        :meth:`_bands` makes, for the columns where every step of it is known
+        in advance, as :meth:`_numeric_series` does for a line.
+        :func:`_plain_numbers` reads which positions are missing and how each
+        value is announced, for all three columns at once; each row's value is
+        :func:`_extent` worked out by :func:`_plain_extent`; and
+        :func:`to_coordinate` places a plain number where :func:`to_native`
+        announces it. That loop called :func:`is_missing`, :func:`to_native`,
+        :func:`to_coordinate` and :func:`_extent` on every row, and on a long
+        band those calls were most of the render.
+
+        The points are keyed by the plain strings ``MaidrKey`` members stand
+        for, as :meth:`_numeric_series` keys them.
+
+        Parameters
+        ----------
+        positions, lows, highs : list
+            The band's columns, as :func:`resolve` reads them: ``x``, ``y1``
+            and ``y2`` for a ``varea``, ``y``, ``x1`` and ``x2`` for an
+            ``harea``.
+        label : str or None
+            The band's name, carried on every point when it has one.
+        sideways : bool
+            Whether the band is an ``harea``, whose cursor is ``[edge, at]``
+            rather than ``[at, edge]``.
+
+        Returns
+        -------
+        tuple of (list of dict, list) or None
+            The band's points and the cursor coordinates for them, or ``None``
+            when either axis is a ``DatetimeAxis`` or any column is anything
+            but plain numbers -- which keeps the per-row reading.
+        """
+        if self._x_dates or self._y_dates:
+            return None
+        at = _plain_numbers(positions)
+        if at is None:
+            return None
+        low = _plain_numbers(lows)
+        if low is None:
+            return None
+        high = _plain_numbers(highs)
+        if high is None:
+            return None
+        (at_gaps, at_values), (_, low_values), (_, high_values) = at, low, high
+        kx, ky, kz = MaidrKey.X.value, MaidrKey.Y.value, MaidrKey.Z.value
+        row, coords = [], []
+        for spoken, gap, bottom, top in zip(
+            at_values, at_gaps, low_values, high_values
+        ):
+            # A row with no position is dropped. An infinite one is not
+            # missing: it is kept, announced and placed as ``None``.
+            if gap:
+                continue
+            value = _plain_extent(bottom, top)
+            if label:
+                row.append({kx: spoken, ky: value, kz: label})
+            else:
+                row.append({kx: spoken, ky: value})
+            # ``top`` is ``None`` for a missing or an infinite edge, which is
+            # when :func:`to_coordinate` gives ``None`` and the loop sends the
+            # cursor nowhere.
+            if top is None:
+                coords.append(None)
+            elif sideways:
+                coords.append([top, spoken])
+            else:
+                coords.append([spoken, top])
+        return row, coords
 
     def _area_schema(
         self, renderers: list, plot_type: PlotType, rows: list, z_label: str | None
@@ -2057,6 +2145,40 @@ def _extent(low: Any, high: Any) -> Any:
         return high - low
     except TypeError:
         return high
+
+
+def _plain_extent(low: Any, high: Any) -> Any:
+    """
+    :func:`_extent` of two plain numbers, as :func:`to_native` announces it.
+
+    ``low`` and ``high`` are as :func:`_plain_numbers` announces them:
+    Python numbers, or ``None`` for a NaN or an infinity. That is what
+    :func:`_extent` turns them into before it subtracts, so every branch it
+    takes on two plain numbers reads off them:
+
+    * no top edge -- ``None`` for a NaN, and for an infinity, whose
+      ``None`` cannot be subtracted from -- is ``None``;
+    * a bottom that is missing, infinite or zero leaves the top edge as it
+      was written, so an integer count stays an integer;
+    * otherwise the value is ``high - low`` in Python's arithmetic, exact for
+      integers, and ``None`` if it overflows to an infinity.
+
+    Parameters
+    ----------
+    low, high : Any
+        The band's bottom and top edge at one position.
+
+    Returns
+    -------
+    Any
+        ``to_native(_extent(low, high))`` for the values they were read from.
+    """
+    if high is None or not low:
+        return high
+    value = high - low
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
 
 
 def _plain_numbers(values: list) -> tuple[list[bool], list] | None:
