@@ -18,11 +18,65 @@ from matplotlib.patches import Patch
 from maidr.core.context_manager import HighlightContextManager
 
 
-@wrapt.patch_function_wrapper(XMLWriter, "start")
-def inject_maidr_attribute(wrapped, instance, args, kwargs):
-    if HighlightContextManager.is_maidr_element(kwargs.get("id")):
-        kwargs["maidr"] = HighlightContextManager.get_selector_id(kwargs.get("id"))
-    return wrapped(*args, **kwargs)
+#: Matplotlib's own ``XMLWriter.start``, which :func:`inject_maidr_attribute`
+#: replaces and calls.
+_xml_start = XMLWriter.start
+
+#: What the per-render ``gid -> selector`` mapping reads as outside a render.
+#: Only ever read, never written.
+_NO_GIDS: dict = {}
+
+
+def inject_maidr_attribute(
+    self: XMLWriter, tag: str, attrib: dict = {}, **extra: Any
+) -> int:
+    """
+    ``XMLWriter.start``, with ``maidr="<selector>"`` added to a tagged group.
+
+    Matplotlib calls this once for every element of every SVG written in the
+    process -- a 50,000-point scatter is 50,000 ``<use>`` elements -- so it
+    replaces the method outright rather than going through a ``wrapt``
+    wrapper. The wrapper bound a proxy and re-packed the arguments on each
+    call, and made two classmethod calls each allocating a default dict: 0.7
+    to 0.85 us per element, 50 to 100 ms of the ``savefig`` in a render of
+    50k-100k marks, and the same tax on a plain ``savefig`` of any figure in a
+    process that imported maidr.
+
+    The rule is the one the wrapper applied. Only a keyword ``id`` can name a
+    tagged group -- ``RendererSVG.open_group`` passes the artist's gid that
+    way -- and it does while that artist's own draw has it mapped (see
+    ``HighlightContextManager.set_maidr_element``). A call with no keywords
+    has no ``id`` to look up, and the mapping is keyed by ``str(gid)``, so it
+    never holds the ``None`` the wrapper looked up for one: such a call goes
+    straight through. The attribute is added after the caller's own, as the
+    wrapper added it.
+
+    Parameters
+    ----------
+    self : XMLWriter
+        The writer.
+    tag : str
+        The element's tag.
+    attrib : dict, optional
+        Its attributes, as matplotlib passes them positionally.
+    **extra
+        Its keyword attributes; ``id`` is the one looked up.
+
+    Returns
+    -------
+    int
+        What ``XMLWriter.start`` returns: the element's depth.
+    """
+    if extra:
+        elements = HighlightContextManager._elements.get(_NO_GIDS)
+        gid = extra.get("id")
+        if gid in elements:
+            extra["maidr"] = elements[gid]
+    return _xml_start(self, tag, attrib, **extra)
+
+
+inject_maidr_attribute.__wrapped__ = _xml_start  # type: ignore[attr-defined]
+XMLWriter.start = inject_maidr_attribute  # type: ignore[method-assign]
 
 
 def tag_elements(wrapped, instance, args, kwargs):

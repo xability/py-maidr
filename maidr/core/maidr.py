@@ -663,9 +663,14 @@ class Maidr:
         # No `indent`: it would switch json to its pure-Python encoder
         # (~6x slower, twice the bytes at 100k points) for whitespace the
         # engine parses straight back out. Same in `_get_svg`.
+        #
+        # No circular-reference check either: the schema is built from fresh
+        # dicts and lists and is never cyclic, and the check costs the encoder
+        # an insert and a delete in a dict of ids for every container it
+        # writes -- every point -- for the same bytes. Same in `_get_svg`.
         maidr = None
         if not data_in_svg:
-            maidr = f"\nvar maidr = {json.dumps(schema)}\n"
+            maidr = f"\nvar maidr = {json.dumps(schema, check_circular=False)}\n"
 
         # Inject plot's svg and MAIDR structure into html tag.
         chart_title = chart_title_of(schema)
@@ -1126,8 +1131,11 @@ class Maidr:
             if embed_data:
                 # Compact on purpose: an attribute value is one line to a
                 # reader anyway (newlines become `&#10;`), and `indent`
-                # would cost the C encoder -- see `_create_html_tag`.
-                element.attrib["maidr"] = json.dumps(current_schema)
+                # would cost the C encoder -- see `_create_html_tag`, which
+                # also says why the circular-reference check is skipped.
+                element.attrib["maidr"] = json.dumps(
+                    current_schema, check_circular=False
+                )
             root_svg = element
             break
 
