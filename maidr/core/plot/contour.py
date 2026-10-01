@@ -87,6 +87,13 @@ class ContourPlot(MaidrPlot):
 
         self._series_levels = []
         data: list[list[dict]] = []
+        # Looked up once rather than per vertex: an enum's `.value` is a
+        # descriptor call, three of them for every point of every curve.
+        x_key, y_key, level_key = (
+            MaidrKey.X.value,
+            MaidrKey.Y.value,
+            MaidrKey.LEVEL.value,
+        )
         for index, path in enumerate(paths):
             if index >= len(levels):
                 break
@@ -94,15 +101,13 @@ class ContourPlot(MaidrPlot):
             if not math.isfinite(level):
                 continue
             for polyline in _polylines(path):
+                # `_polylines` hands back float arrays, so `tolist` gives the
+                # very floats `float(vertex[0])` did, without indexing a numpy
+                # row per vertex.
+                xs = polyline[:, 0].tolist()
+                ys = polyline[:, 1].tolist()
                 data.append(
-                    [
-                        {
-                            MaidrKey.X.value: float(vertex[0]),
-                            MaidrKey.Y.value: float(vertex[1]),
-                            MaidrKey.LEVEL.value: level,
-                        }
-                        for vertex in polyline
-                    ]
+                    [{x_key: x, y_key: y, level_key: level} for x, y in zip(xs, ys)]
                 )
                 self._series_levels.append(index)
 

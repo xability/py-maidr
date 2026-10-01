@@ -246,3 +246,122 @@ def test_the_artist_fill_between_returns_is_one_this_reads():
         f"fill_between returns {type(band).__name__}, which the outline "
         "reader does not recognize, so a stepped histogram reads as nothing"
     )
+
+
+def _scanned(along, across, bins):
+    """``_read_step`` as it was: every bin scans the whole return leg."""
+    from maidr.core.plot import stepped_histogram
+
+    edges = stepped_histogram._distinct(along[1 : 2 * bins + 1])
+    if len(edges) != bins + 1:
+        return None
+    walk = list(zip(along[2 * bins + 2 :][::-1], across[2 * bins + 2 :][::-1]))
+    if not walk:
+        return None
+    out = []
+    for index in range(bins):
+        low, high = edges[index], edges[index + 1]
+        middle = (low + high) / 2
+        held = [value for position, value in walk if position <= middle]
+        if not held:
+            return None
+        out.append((low, high, float(held[-1])))
+    return out
+
+
+def _outline(sample, horizontal: bool = False, **kwargs):
+    """The ring of a step histogram, split into its two coordinates."""
+    _, ax = plt.subplots()
+    if horizontal:
+        sns.histplot(y=sample, element="step", ax=ax, **kwargs)
+    else:
+        sns.histplot(x=sample, element="step", ax=ax, **kwargs)
+    vertices = np.asarray(ax.collections[0].get_paths()[0].vertices, dtype=float)
+    bins = (len(vertices) - 5) // 4
+    if horizontal:
+        return vertices[:, 1], vertices[:, 0], bins
+    return vertices[:, 0], vertices[:, 1], bins
+
+
+@pytest.mark.parametrize(
+    "sample, horizontal, kwargs",
+    [
+        pytest.param(SAMPLE, False, {"bins": 7}, id="seven"),
+        pytest.param(SAMPLE, False, {"bins": 200}, id="two-hundred"),
+        pytest.param(GAPPED, False, {"bins": 4}, id="gapped"),
+        pytest.param(UNEVEN, False, {"bins": [0, 1, 5, 10]}, id="uneven"),
+        pytest.param(SAMPLE, True, {"bins": 12}, id="horizontal"),
+    ],
+)
+def test_a_staircase_reads_as_the_per_bin_scan_read_it(sample, horizontal, kwargs):
+    from maidr.core.plot import stepped_histogram
+
+    along, across, bins = _outline(sample, horizontal, **kwargs)
+
+    read = stepped_histogram._read_step(along, across, bins)
+
+    assert read is not None
+    assert read == _scanned(along, across, bins)
+
+
+def test_the_return_leg_can_be_walked_in_any_order():
+    # The value at a midpoint is the one held by the *last* vertex of the walk
+    # at or before it, not the nearest one: shuffling the return leg changes
+    # which vertex that is, and the reading has to follow it exactly as the
+    # scan did.
+    from maidr.core.plot import stepped_histogram
+
+    along, across, bins = _outline(SAMPLE, bins=30)
+    rng = np.random.default_rng(11)
+    for _ in range(20):
+        order = np.concatenate(
+            [
+                np.arange(2 * bins + 2),
+                2 * bins + 2 + rng.permutation(len(along) - (2 * bins + 2)),
+            ]
+        )
+        assert stepped_histogram._read_step(
+            along[order], across[order], bins
+        ) == _scanned(along[order], across[order], bins)
+
+
+def test_reading_a_staircase_does_not_scan_the_walk_per_bin():
+    """A comparison count, so the reading is pinned without timing anything.
+
+    Every bin asked every vertex of the return leg whether it sat at or below
+    the bin's midpoint: ``bins`` times the walk, quadratic in the bins, and
+    paid twice -- once when the layer registers and once when it renders. At
+    2000 bins that was 0.26 s a reading.
+    """
+    from maidr.core.plot import stepped_histogram
+
+    class Counting(float):
+        comparisons = 0
+
+        def __lt__(self, other):
+            Counting.comparisons += 1
+            return float(self) < other
+
+        def __le__(self, other):
+            Counting.comparisons += 1
+            return float(self) <= other
+
+        def __gt__(self, other):
+            Counting.comparisons += 1
+            return float(self) > other
+
+        def __ge__(self, other):
+            Counting.comparisons += 1
+            return float(self) >= other
+
+    along, across, bins = _outline(SAMPLE, bins=200)
+    counted = np.array([Counting(value) for value in along], dtype=object)
+
+    read = stepped_histogram._read_step(counted, across, bins)
+
+    walk = len(along) - (2 * bins + 2)
+    assert read == stepped_histogram._read_step(along, across, bins)
+    assert Counting.comparisons < 20 * walk, (
+        f"{Counting.comparisons} comparisons for {bins} bins over a "
+        f"{walk}-vertex walk: the walk is being scanned once per bin"
+    )

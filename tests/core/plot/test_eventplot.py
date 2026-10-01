@@ -640,3 +640,38 @@ def test_the_bounds_change_nothing_the_layer_already_said():
     assert _points(first) == [(1.0, 0.0), (4.0, 0.0), (7.0, 0.0)]
     assert _points(second) == [(2.0, 1.0), (5.0, 1.0)]
     assert len(_selector_list(first[MaidrKey.SELECTOR])) == 3
+
+
+@pytest.mark.parametrize("orientation", ["horizontal", "vertical"])
+def test_a_row_of_finite_events_is_read_off_its_paths(orientation, monkeypatch):
+    """The common row is read without ``get_segments``, and reads the same.
+
+    ``LineCollection.get_segments`` rebuilds every segment through
+    ``Path.iter_segments``, a Python loop per event, and a row is read twice
+    -- once when it registers and once when it renders. For a row whose
+    every event is a finite two-vertex tick the segments are those vertices,
+    so they are read straight off the paths; a row holding a missing value
+    still goes through ``get_segments``, which is the reading
+    ``test_a_row_holding_a_missing_value_still_reads`` pins.
+    """
+    from matplotlib.collections import EventCollection
+
+    from maidr.core.plot.eventplot import events
+
+    _, ax = plt.subplots()
+    rows = ax.eventplot(ROWS, orientation=orientation)
+    along = 0 if orientation == "horizontal" else 1
+    want = [
+        [
+            (index, float(segment[0][along]))
+            for index, segment in enumerate(row.get_segments())
+        ]
+        for row in rows
+    ]
+
+    def rebuilt(self):
+        raise AssertionError("get_segments() was asked for a row of finite events")
+
+    monkeypatch.setattr(EventCollection, "get_segments", rebuilt)
+
+    assert [events(row) for row in rows] == want

@@ -88,6 +88,69 @@ def rdp(points: np.ndarray, epsilon: float) -> np.ndarray:
     return mask
 
 
+def _kept(points: np.ndarray, epsilon: float, splits: dict) -> np.ndarray:
+    """
+    The mask ``rdp(points, epsilon)`` returns, reusing the splits measured so far.
+
+    :func:`rdp` chooses each segment's split point -- the farthest one --
+    before it compares that distance with ``epsilon``, so a segment splits at
+    the same point whatever the tolerance; only whether the walk goes on
+    below it changes. The search in :func:`simplify_curve` asks that of the
+    same segments at every probe, so each one is measured the first time a
+    probe reaches it and looked up after that.
+
+    The walk is otherwise :func:`rdp`'s own, and that is what keeps it from
+    costing more than :func:`rdp` ever did: a segment is measured only once a
+    probe reaches it, so a curve that splits no further than its root -- a
+    straight line, whose every distance is zero -- costs one pass over its
+    points however many probes ask. Measuring every segment up front would be
+    quadratic in the points for such a curve, since its splits peel one point
+    off at a time.
+
+    Parameters
+    ----------
+    points : np.ndarray, shape (N, 2)
+        Ordered (x, y) points describing the curve.
+    epsilon : float
+        Maximum allowed perpendicular distance, as for :func:`rdp`.
+    splits : dict
+        ``(lo, hi)`` to ``(index, distance)`` for every segment measured so
+        far, added to as new ones are reached. Pass the same dict for every
+        tolerance asked of one curve.
+
+    Returns
+    -------
+    np.ndarray
+        Boolean mask of length N — ``True`` for points to keep.
+    """
+    n = len(points)
+    if n <= 2:
+        return np.ones(n, dtype=bool)
+
+    mask = np.zeros(n, dtype=bool)
+    mask[0] = True
+    mask[-1] = True
+
+    stack: list[tuple[int, int]] = [(0, n - 1)]
+    while stack:
+        lo, hi = stack.pop()
+        if hi - lo <= 1:
+            continue
+        split = splits.get((lo, hi))
+        if split is None:
+            segment = points[lo + 1 : hi]
+            dists = _perpendicular_distance(segment, points[lo], points[hi])
+            max_rel = int(np.argmax(dists))
+            split = splits[(lo, hi)] = (max_rel + lo + 1, dists[max_rel])
+        idx, distance = split
+        if distance > epsilon:
+            mask[idx] = True
+            stack.append((lo, idx))
+            stack.append((idx, hi))
+
+    return mask
+
+
 def simplify_curve(
     points: np.ndarray,
     target: int,
@@ -125,11 +188,16 @@ def simplify_curve(
     extent = np.ptp(points, axis=0)
     eps_hi = max(float(np.linalg.norm(extent)), 1e-10)
     eps_lo = min_epsilon
-    best_mask = rdp(points, eps_hi)
+
+    # Every probe of the search below walks the splits the probes before it
+    # walked, so each segment is measured once rather than once per probe:
+    # the masks are exactly the ones `rdp(points, eps)` returns.
+    splits: dict = {}
+    best_mask = _kept(points, eps_hi, splits)
 
     for _ in range(max_iterations):
         eps_mid = (eps_lo + eps_hi) / 2.0
-        mask = rdp(points, eps_mid)
+        mask = _kept(points, eps_mid, splits)
         count = int(np.sum(mask))
         if count <= target:
             best_mask = mask

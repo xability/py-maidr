@@ -67,6 +67,19 @@ def events(collection: EventCollection) -> list[tuple[int, float]]:
     """
     along = 0 if collection.get_orientation() == "horizontal" else 1
 
+    # The common row -- every event a finite two-vertex tick -- read straight
+    # off the paths. ``get_segments()`` rebuilds each segment through
+    # ``Path.iter_segments``, a Python loop per event that this is read
+    # through twice (once when the row registers, once when it renders), and
+    # for such a path it hands back exactly these vertices.
+    paths = collection.get_paths()
+    if paths and all(
+        path.codes is None and path.vertices.shape == (2, 2) for path in paths
+    ):
+        vertices = np.asarray([path.vertices for path in paths], dtype=float)
+        if np.isfinite(vertices).all():
+            return list(enumerate(vertices[:, 0, along].tolist()))
+
     drawn = []
     for index, segment in enumerate(collection.get_segments()):
         marks = np.asarray(segment)

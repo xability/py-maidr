@@ -219,6 +219,12 @@ class BoxenPlot(MaidrPlot):
         ladders = [c for c in collections if isinstance(c, PatchCollection)]
         clouds = [c for c in collections if isinstance(c, PathCollection)]
 
+        # Shared by every ladder's scan, so each cloud's points are read once
+        # for the chart rather than once per ladder that reaches it -- every
+        # ladder scans from the first cloud, which made the pairing quadratic
+        # in the number of boxens.
+        read: dict = {}
+
         pairs = []
         for ladder in ladders:
             bounds = self._box_bounds(ladder)
@@ -231,7 +237,7 @@ class BoxenPlot(MaidrPlot):
             y0 = min(bound[2] for bound in bounds)
             y1 = max(bound[3] for bound in bounds)
 
-            pairs.append((ladder, self._cloud_within(clouds, x0, x1, y0, y1)))
+            pairs.append((ladder, self._cloud_within(clouds, x0, x1, y0, y1, read)))
 
         return pairs
 
@@ -242,6 +248,7 @@ class BoxenPlot(MaidrPlot):
         x1: float,
         y0: float,
         y1: float,
+        read: dict | None = None,
     ) -> PathCollection | None:
         """
         The flier cloud drawn on one ladder's category slot.
@@ -258,18 +265,34 @@ class BoxenPlot(MaidrPlot):
             Every flier collection this call drew.
         x0, x1, y0, y1 : float
             The ladder's extent.
+        read : dict, optional
+            The points already read off ``clouds``, keyed by position in it
+            and filled in as each cloud is first reached; ``False`` marks one
+            with none. Pass the same dict for every ladder of a chart, and
+            only with the same ``clouds``: a position means nothing in
+            another list.
 
         Returns
         -------
         PathCollection or None
             The first cloud sitting within the ladder's slot, or None.
         """
-        for cloud in clouds:
-            offsets = cloud.get_offsets()
-            if offsets is None or not len(offsets):
+        for index, cloud in enumerate(clouds):
+            points = None if read is None else read.get(index)
+            if points is None:
+                offsets = cloud.get_offsets()
+                if offsets is None or not len(offsets):
+                    points = False
+                else:
+                    points = (
+                        [float(offset[0]) for offset in offsets],
+                        [float(offset[1]) for offset in offsets],
+                    )
+                if read is not None:
+                    read[index] = points
+            if not points:
                 continue
-            xs = [float(offset[0]) for offset in offsets]
-            ys = [float(offset[1]) for offset in offsets]
+            xs, ys = points
             if all(x0 <= x <= x1 for x in xs) or all(y0 <= y <= y1 for y in ys):
                 return cloud
 

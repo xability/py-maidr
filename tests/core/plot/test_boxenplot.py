@@ -605,3 +605,65 @@ class TestThePayloadLoads:
         schema = FigureManager.get_maidr(ax.get_figure())._flatten_maidr()
 
         json.loads(json.dumps(schema), parse_constant=reject)
+
+
+class TestPairingReadsEachCloudOnce:
+    """A ladder's fliers are found without re-reading every cloud before them.
+
+    Each ladder looks for its fliers by scanning the clouds from the first,
+    and the scan read each cloud's points into Python floats as it passed. So
+    every ladder re-read every cloud ahead of its own: quadratic in the number
+    of categories, 1.1 s of a 1.5 s render at 100 of them. The points of a
+    cloud cannot change between two ladders of one chart, so each is now read
+    the first time a scan reaches it and kept for the rest.
+    """
+
+    def test_each_cloud_is_read_once(self, monkeypatch):
+        from matplotlib.collections import PathCollection
+
+        rng = np.random.default_rng(5)
+        categories = [f"c{index:02d}" for index in range(12)]
+        df = pd.DataFrame(
+            {"g": np.repeat(categories, 300), "v": rng.normal(size=12 * 300)}
+        )
+        ax = sns.boxenplot(df, x="g", y="v")
+        layer = layers(ax)[0]
+
+        reads: dict = {}
+        offsets = PathCollection.get_offsets
+
+        def counting(self):
+            reads[id(self)] = reads.get(id(self), 0) + 1
+            return offsets(self)
+
+        monkeypatch.setattr(PathCollection, "get_offsets", counting)
+
+        pairs = layer._ladders()
+
+        assert len(pairs) == len(categories)
+        assert reads, "no flier cloud was read at all"
+        assert max(reads.values()) == 1, (
+            f"a cloud was read {max(reads.values())} times for "
+            f"{len(categories)} ladders"
+        )
+
+    def test_the_pairing_is_the_one_a_fresh_scan_finds(self):
+        # Reusing what an earlier ladder read must not hand a later ladder a
+        # different cloud: every pair is checked against a scan that reads
+        # each cloud afresh, which is how the pairing was found before.
+        from matplotlib.collections import PathCollection
+
+        from maidr.core.plot.boxenplot import BoxenPlot
+
+        _, ax = plt.subplots()
+        sns.boxenplot(three_level_frame(), x="g", y="v", hue="h", ax=ax)
+        layer = layers(ax)[0]
+        clouds = [c for c in layer._own_collections if isinstance(c, PathCollection)]
+
+        for ladder, cloud in layer._ladders():
+            bounds = layer._box_bounds(ladder)
+            x0 = min(bound[0] for bound in bounds)
+            x1 = max(bound[1] for bound in bounds)
+            y0 = min(bound[2] for bound in bounds)
+            y1 = max(bound[3] for bound in bounds)
+            assert cloud is BoxenPlot._cloud_within(clouds, x0, x1, y0, y1)
