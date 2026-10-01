@@ -295,9 +295,14 @@ class ViolinKdePlot(MaidrPlot):
         xr_vals: list[float] = []
         widths: list[float] = []
 
-        for y_val in y_common:
-            xl = float(f_left(y_val))
-            xr = float(f_right(y_val))
+        # One call per side for the whole grid rather than one per level:
+        # `interp1d` evaluates element by element, so the array call hands
+        # back the very floats the per-level calls did, without a scipy call
+        # -- argument validation, reshaping and all -- per level.
+        xl_grid = np.asarray(f_left(y_common), dtype=float).tolist()
+        xr_grid = np.asarray(f_right(y_common), dtype=float).tolist()
+
+        for y_val, xl, xr in zip(y_common, xl_grid, xr_grid):
             if np.isnan(xl) or np.isnan(xr) or np.isnan(y_val):
                 continue
             width = abs(xr - xl)

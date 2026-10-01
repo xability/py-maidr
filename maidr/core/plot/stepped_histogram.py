@@ -236,18 +236,27 @@ def _read_step(along: np.ndarray, across: np.ndarray, bins: int) -> list | None:
     # function whose value over a bin is that bin's count. Sampling it at the
     # midpoint asks the one question that has a single answer, whatever the
     # ring repeats at the corners.
-    walk = list(zip(along[2 * bins + 2 :][::-1], across[2 * bins + 2 :][::-1]))
-    if not walk:
+    positions = along[2 * bins + 2 :][::-1]
+    values = across[2 * bins + 2 :][::-1]
+    if not len(positions):
         return None
+
+    # The value at a midpoint is the one held by the *last* vertex of the walk
+    # at or before it. Found by a binary search rather than a scan of the
+    # whole walk per bin, which made a reading quadratic in the bins: the
+    # smallest position from each vertex onward rises along the walk, and is
+    # at or below the midpoint exactly up to that last vertex -- whether or
+    # not the walk itself is in order.
+    onward = np.minimum.accumulate(positions[::-1])[::-1]
 
     out = []
     for index in range(bins):
         low, high = edges[index], edges[index + 1]
         middle = (low + high) / 2
-        held = [value for position, value in walk if position <= middle]
+        held = int(np.searchsorted(onward, middle, side="right"))
         if not held:
             return None
-        out.append((low, high, float(held[-1])))
+        out.append((low, high, float(values[held - 1])))
     return out
 
 

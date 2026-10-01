@@ -93,3 +93,35 @@ def test_the_lowest_level_of_every_violin_is_read(draw) -> None:
     for body, points in zip(bodies, violins):
         drawn_min = float(np.asarray(body.get_paths()[0].vertices)[:, 1].min())
         assert min(point["y"] for point in points) == drawn_min
+
+
+@pytest.mark.parametrize("draw", FIGURES)
+def test_each_side_is_interpolated_once_per_violin(draw, monkeypatch) -> None:
+    """The level grid is evaluated in one call per side, not one per level.
+
+    ``interp1d`` evaluates element by element, so calling it on the whole grid
+    hands back the floats the per-level calls did. Called once per level it
+    paid scipy's argument handling every time -- two calls for each of about
+    a hundred levels per violin, 0.3 s of a 1.6 s render at 100 violins.
+    """
+    from scipy import interpolate
+
+    calls = 0
+    evaluate = interpolate.interp1d.__call__
+
+    def counting(self, x):
+        nonlocal calls
+        calls += 1
+        return evaluate(self, x)
+
+    monkeypatch.setattr(interpolate.interp1d, "__call__", counting)
+
+    fig, _ = draw()
+    maidr.render(fig)
+    violins = _kde_layer(fig).schema["data"]
+
+    assert len(violins) == 3
+    assert calls <= 2 * len(violins), (
+        f"{calls} interpolations for {len(violins)} violins: each level is "
+        "being interpolated on its own"
+    )

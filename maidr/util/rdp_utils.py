@@ -88,6 +88,61 @@ def rdp(points: np.ndarray, epsilon: float) -> np.ndarray:
     return mask
 
 
+def _keep_thresholds(points: np.ndarray) -> np.ndarray:
+    """
+    For every point, the tolerance below which :func:`rdp` keeps it.
+
+    :func:`rdp` chooses each segment's split point -- the farthest one --
+    before it compares that distance with ``epsilon``, so the tree of splits
+    is the same for every tolerance and only how deep it is followed changes.
+    A point is kept exactly when its own distance and that of every split
+    above it exceed ``epsilon``, which is when the smallest of them does. So
+    ``rdp(points, eps)`` is ``_keep_thresholds(points) > eps`` with both ends
+    forced on, for every ``eps``, computed from one walk of the tree.
+
+    ``np.minimum`` carries a ``NaN`` down the tree, which is what :func:`rdp`
+    does with one: ``NaN > eps`` is false, so it stops splitting there.
+
+    Parameters
+    ----------
+    points : np.ndarray, shape (N, 2)
+        Ordered (x, y) points describing the curve.
+
+    Returns
+    -------
+    np.ndarray, shape (N,)
+        The threshold per point; ``inf`` for the two ends.
+    """
+    n = len(points)
+    thresholds = np.full(n, np.inf)
+    if n <= 2:
+        return thresholds
+
+    stack: list[tuple[int, int, float]] = [(0, n - 1, np.inf)]
+    while stack:
+        lo, hi, bound = stack.pop()
+        if hi - lo <= 1:
+            continue
+        dists = _perpendicular_distance(points[lo + 1 : hi], points[lo], points[hi])
+        max_rel = int(np.argmax(dists))
+        idx = max_rel + lo + 1
+        threshold = np.minimum(dists[max_rel], bound)
+        thresholds[idx] = threshold
+        stack.append((lo, idx, threshold))
+        stack.append((idx, hi, threshold))
+
+    return thresholds
+
+
+def _kept(thresholds: np.ndarray, epsilon: float) -> np.ndarray:
+    """The mask ``rdp(points, epsilon)`` returns, from ``_keep_thresholds``."""
+    mask = thresholds > epsilon
+    # Both ends are kept whatever the tolerance, a NaN one included.
+    mask[0] = True
+    mask[-1] = True
+    return mask
+
+
 def simplify_curve(
     points: np.ndarray,
     target: int,
@@ -125,11 +180,16 @@ def simplify_curve(
     extent = np.ptp(points, axis=0)
     eps_hi = max(float(np.linalg.norm(extent)), 1e-10)
     eps_lo = min_epsilon
-    best_mask = rdp(points, eps_hi)
+
+    # Every probe of the search below asks the same tree of splits a
+    # different question, so it is walked once rather than once per probe:
+    # the masks are exactly the ones `rdp(points, eps)` returns.
+    thresholds = _keep_thresholds(points)
+    best_mask = _kept(thresholds, eps_hi)
 
     for _ in range(max_iterations):
         eps_mid = (eps_lo + eps_hi) / 2.0
-        mask = rdp(points, eps_mid)
+        mask = _kept(thresholds, eps_mid)
         count = int(np.sum(mask))
         if count <= target:
             best_mask = mask
