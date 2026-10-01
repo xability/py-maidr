@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -121,6 +121,90 @@ def _drew_something(line: Line2D) -> bool:
     """
     xydata = line.get_xydata()
     return xydata is not None and bool(getattr(xydata, "size", 0))
+
+
+#: The plain strings a point's keys spell, for the per-point dicts built in
+#: bulk below.
+#:
+#: The JSON is the same whichever spelling a dict is keyed by: ``MaidrKey`` is
+#: a ``str`` enum, so a member hashes, compares and serializes exactly as its
+#: value does. What differs is the garbage collector. An enum member is an
+#: object the collector tracks, so a dict holding one as a key is tracked as
+#: well, and every point of a long line then sat in the heap each full
+#: collection walks for the rest of the render -- measured on a 200k-point
+#: ``ax.plot``, about a quarter of the whole render. A dict of plain strings
+#: and floats is not tracked at all. ``HistPlot`` keys its points the same way.
+_X = MaidrKey.X.value
+_Y = MaidrKey.Y.value
+_Z = MaidrKey.Z.value
+_Y_MIN = MaidrKey.Y_MIN.value
+_Y_MAX = MaidrKey.Y_MAX.value
+
+
+def _numeric_samples(line: Line2D) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """
+    A line's positioned samples as two float columns, read in bulk.
+
+    For a line on two numeric axes, which is every line but a categorical
+    one. :meth:`LineExtractorMixin._named_coordinate` then returns
+    ``float(coordinate)`` for every sample, which is the value
+    ``ndarray.tolist`` gives as well, bit for bit -- so the samples can be
+    read as arrays instead of one coordinate pair at a time.
+
+    Parameters
+    ----------
+    line : Line2D
+        A line that drew something.
+
+    Returns
+    -------
+    tuple of ndarray, or None
+        ``(x, y)`` for the samples :func:`_has_position` keeps, or ``None``
+        when the data is not a two-column float array -- which ``Line2D``
+        always hands back, but a stand-in need not -- and the per-sample
+        reading should run instead.
+    """
+    xy = np.asarray(line.get_xydata())
+    if xy.ndim != 2 or xy.shape[1] != 2 or xy.dtype != np.float64:
+        return None
+    xs, ys = xy[:, 0], xy[:, 1]
+    # `_has_position`, for a whole column at once.
+    placed = np.isfinite(xs)
+    if not placed.all():
+        xs, ys = xs[placed], ys[placed]
+    return xs, ys
+
+
+def _numeric_points(xs: np.ndarray, ys: np.ndarray, name: object) -> List[dict]:
+    """
+    One series' points from its float columns.
+
+    The same points, in the same key order, as the per-sample comprehension
+    in :meth:`MultiLinePlot._extract_line_data`: ``x`` and ``y`` as Python
+    floats, a non-finite ``y`` as ``None`` the way :func:`_reading` gives it,
+    and ``z`` only when the series has a name.
+
+    Parameters
+    ----------
+    xs, ys : ndarray
+        The samples, as :func:`_numeric_samples` returns them.
+    name : object
+        The series name, or anything false for none.
+
+    Returns
+    -------
+    list of dict
+        The series' points.
+    """
+    values = ys.tolist()
+    measured = np.isfinite(ys)
+    if not measured.all():
+        for index in np.flatnonzero(~measured).tolist():
+            values[index] = None
+    if name:
+        return [{_X: x, _Y: y, _Z: name} for x, y in zip(xs.tolist(), values)]
+    return [{_X: x, _Y: y} for x, y in zip(xs.tolist(), values)]
+
 
 class MultiLinePlot(MaidrPlot, LineExtractorMixin):
     """
@@ -387,6 +471,12 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         # Regions handed to an earlier series, so a band answers for one line.
         claimed: list = []
 
+        # Read once for the layer rather than once per line. Nothing reading
+        # the lines changes the ticks, and on a category axis every read lays
+        # every tick out again.
+        x_ticks = LineExtractorMixin._category_tick_labels(self.ax, "x")
+        y_ticks = LineExtractorMixin._category_tick_labels(self.ax, "y")
+
         for i, line in enumerate(all_lines):
             self._elements.append(line)
 
@@ -398,9 +488,20 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             # Try to get the series name from legend labels
             line_type = from_legend.get(i) or series_name(line)
 
+            # Two numeric axes name nothing, so the samples are read as
+            # arrays; see `_numeric_samples`. The per-sample reading below is
+            # the same reading, and is what a category axis still takes.
+            samples = None if x_ticks or y_ticks else _numeric_samples(line)
+            if samples is not None:
+                line_data = _numeric_points(*samples, line_type)
+                self._attach_band_to_samples(line_data, *samples, claimed)
+                if line_data:
+                    all_lines_data.append(line_data)
+                continue
+
             # Use the new method to extract data with categorical labels
             line_coords = LineExtractorMixin.extract_line_data_with_categorical_labels(
-                self.ax, line
+                self.ax, line, x_ticks, y_ticks
             )
             if line_coords is None:
                 continue
@@ -466,3 +567,36 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         for point, low, high in zip(line_data, lower, upper):
             point[MaidrKey.Y_MIN] = float(low)
             point[MaidrKey.Y_MAX] = float(high)
+
+    def _attach_band_to_samples(
+        self, line_data: list, xs: np.ndarray, ys: np.ndarray, claimed: list
+    ) -> None:
+        """
+        :meth:`_attach_band`, for a series read as float columns.
+
+        The same reading of the same band. The two reasons ``_attach_band``
+        declines are read off the arrays instead of off the points: fewer
+        than two samples, or a sample whose value is ``None`` -- which, for a
+        series read this way, is exactly a non-finite ``y``. Every position
+        is a float, so the type check it makes there cannot fail here.
+
+        Parameters
+        ----------
+        line_data : list
+            One series' points, modified in place.
+        xs, ys : ndarray
+            The same series as :func:`_numeric_samples` returned it.
+        claimed : list
+            Regions already given to an earlier series, appended to here.
+        """
+        if len(line_data) < 2 or not np.isfinite(ys).all():
+            return
+
+        lower, upper, region = band_edges_at(self.ax, xs, ys, tuple(claimed))
+        if region is None:
+            return
+
+        claimed.append(region)
+        for point, low, high in zip(line_data, lower.tolist(), upper.tolist()):
+            point[_Y_MIN] = low
+            point[_Y_MAX] = high

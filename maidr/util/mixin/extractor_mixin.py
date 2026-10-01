@@ -319,7 +319,10 @@ class LineExtractorMixin:
 
     @staticmethod
     def extract_line_data_with_categorical_labels(
-        ax: Axes, line: Line2D
+        ax: Axes,
+        line: Line2D,
+        x_ticks: Optional[Dict[float, str]] = None,
+        y_ticks: Optional[Dict[float, str]] = None,
     ) -> Optional[List[Tuple[Union[str, float], Union[str, float]]]]:
         """
         Extract line data, naming whichever axis carries the categories.
@@ -336,6 +339,11 @@ class LineExtractorMixin:
             The matplotlib axes object
         line : Line2D
             The line object to extract data from
+        x_ticks, y_ticks : Dict[float, str], optional
+            Each axis's tick names, from :meth:`_category_tick_labels`, for a
+            caller reading several lines of one axes: read once and handed
+            in, rather than laid out again for every line. Read here when
+            omitted.
 
         Returns
         -------
@@ -355,8 +363,10 @@ class LineExtractorMixin:
         if xy_array.size == 0:
             return None
 
-        x_ticks = LineExtractorMixin._category_tick_labels(ax, "x")
-        y_ticks = LineExtractorMixin._category_tick_labels(ax, "y")
+        if x_ticks is None:
+            x_ticks = LineExtractorMixin._category_tick_labels(ax, "x")
+        if y_ticks is None:
+            y_ticks = LineExtractorMixin._category_tick_labels(ax, "y")
 
         return [
             (

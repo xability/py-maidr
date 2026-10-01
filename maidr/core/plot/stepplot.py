@@ -97,6 +97,10 @@ class StepPlot(MultiLinePlot):
         if not levels or not data:
             return
 
+        # The plain string rather than the member, for the reason
+        # `lineplot._X` gives: an enum key would make every labeled point a
+        # dict the garbage collector has to walk.
+        label = MaidrKey.LABEL.value
         for series in data:
             for point in series:
                 y = point.get(MaidrKey.Y)
@@ -105,7 +109,7 @@ class StepPlot(MultiLinePlot):
                 except (TypeError, ValueError):
                     continue
                 if name:
-                    point[MaidrKey.LABEL] = name
+                    point[label] = name
 
     def _resolve_y_levels(self) -> Dict[float, str]:
         """

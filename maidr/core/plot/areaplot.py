@@ -8,7 +8,7 @@ from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
-from maidr.core.plot.lineplot import _has_position, _reading
+from maidr.core.plot.lineplot import _X, _Y, _Z, _has_position, _reading
 from maidr.exception import ExtractionError
 
 
@@ -124,6 +124,13 @@ class AreaPlot(MaidrPlot):
         # and the tagged elements have to stay one per series, in series order.
         self._elements.clear()
 
+        # Plain numbers, which is nearly every area chart, are read in bulk:
+        # the same points, keyed by the plain strings for the reason
+        # `lineplot._X` gives. The positions are shared by every series, so
+        # they are converted once here. Anything else takes the per-point
+        # reading below, unchanged.
+        xs, placed = self._numeric_positions(positions)
+
         data: list[list[dict]] = []
         for index, values in enumerate(self._series):
             magnitudes = np.atleast_1d(np.asarray(values))
@@ -131,6 +138,20 @@ class AreaPlot(MaidrPlot):
                 raise ExtractionError(self.type, self.ax)
 
             label = self._labels[index] if index < len(self._labels) else None
+
+            readings = (
+                self._numeric_readings(magnitudes, placed) if xs is not None else None
+            )
+            if readings is not None:
+                if label:
+                    name = str(label)
+                    points = [{_X: x, _Y: y, _Z: name} for x, y in zip(xs, readings)]
+                else:
+                    points = [{_X: x, _Y: y} for x, y in zip(xs, readings)]
+                data.append(points)
+                self._tag(index)
+                continue
+
             points = []
             for position, magnitude in zip(positions, magnitudes):
                 # The line layer's two rules, for the reason it gives: a
@@ -151,14 +172,7 @@ class AreaPlot(MaidrPlot):
                 points.append(point)
 
             data.append(points)
-            if index < len(self._collections):
-                collection = self._collections[index]
-                # Assigned here rather than relied upon: a gid is otherwise
-                # only stamped at draw time, and the schema is built first.
-                # `MultiLinePlot` does the same for the same reason.
-                if collection.get_gid() is None:
-                    collection.set_gid(f"maidr-{uuid.uuid4()}")
-                self._elements.append(collection)
+            self._tag(index)
 
         if len(self._elements) != len(data):
             # The consumer resolves the selector to one element per series and
@@ -169,6 +183,88 @@ class AreaPlot(MaidrPlot):
             self._support_highlighting = False
 
         return data
+
+    def _tag(self, index: int) -> None:
+        """
+        Tag the band drawn for one series, when the call handed it over.
+
+        Parameters
+        ----------
+        index : int
+            The series' place in drawing order.
+        """
+        if index < len(self._collections):
+            collection = self._collections[index]
+            # Assigned here rather than relied upon: a gid is otherwise
+            # only stamped at draw time, and the schema is built first.
+            # `MultiLinePlot` does the same for the same reason.
+            if collection.get_gid() is None:
+                collection.set_gid(f"maidr-{uuid.uuid4()}")
+            self._elements.append(collection)
+
+    @staticmethod
+    def _numeric_positions(
+        positions: np.ndarray,
+    ) -> tuple[list | None, np.ndarray | None]:
+        """
+        The positions as :meth:`_scalar` converts them, read in bulk.
+
+        Parameters
+        ----------
+        positions : ndarray
+            The shared positions, as the object array extraction holds them.
+
+        Returns
+        -------
+        tuple
+            ``(xs, placed)``: the positions :func:`_has_position` keeps, as
+            floats, and the mask that keeps them -- or ``(None, None)`` when
+            a position is anything but a plain ``float`` or ``int``, which
+            leaves them all to the per-point reading.
+        """
+        items = positions.tolist()
+        # Exactly these two types -- not `bool`, not a NumPy scalar, not a
+        # string that `float()` would parse -- so the conversion below is the
+        # one `_scalar` makes, and everything else keeps the per-point path.
+        if not set(map(type, items)) <= {float, int}:
+            return None, None
+        # `_scalar` of a float or an int is `float()` of it, and
+        # `_has_position` of a float is `isfinite`.
+        values = [float(item) for item in items]
+        placed = np.isfinite(np.asarray(values, dtype=float))
+        if placed.all():
+            return values, placed
+        return [value for value, kept in zip(values, placed.tolist()) if kept], placed
+
+    @staticmethod
+    def _numeric_readings(magnitudes: np.ndarray, placed: np.ndarray) -> list | None:
+        """
+        One series' values at the kept positions, read in bulk.
+
+        Parameters
+        ----------
+        magnitudes : ndarray
+            The series' values, one per position.
+        placed : ndarray
+            The kept positions, from :meth:`_numeric_positions`.
+
+        Returns
+        -------
+        list or None
+            What ``_reading(_scalar(value))`` gives each kept value -- the
+            float, or ``None`` for a non-finite one -- or ``None`` when the
+            values are not plain numbers.
+        """
+        if magnitudes.ndim != 1 or magnitudes.dtype.kind not in "fiu":
+            return None
+        # `float()` of a NumPy scalar is the same C conversion `astype` makes.
+        kept = magnitudes[placed].astype(float)
+        readings = kept.tolist()
+        measured = np.isfinite(kept)
+        if not measured.all():
+            for index in np.flatnonzero(~measured).tolist():
+                readings[index] = None
+        return readings
 
     def _get_selector(self) -> list[str]:
         """
