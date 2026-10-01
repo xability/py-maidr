@@ -73,15 +73,13 @@ def bounds_along(ax: Axes, along_x: bool) -> tuple[float, float, float] | None:
     Declined on three grounds, each of which would make the cells a reader
     feels not the cells the axis draws:
 
-    - **A non-linear scale.** Currently a guard rather than a live branch: on
-      a log axis the step check below already declines every chart measured,
-      by an accident of units -- ``get_xlim`` answers in **log space** while
-      ``get_xticks`` answers in **data space**, so ticks at 1, 2 and 3 give a
-      step of 1.0 against a span of 0.75. This is the check that states the
-      intent, and it holds if that accident ever stops.
-      ``tests/core/plot/test_rugplot.py`` pins the two spaces, so the
-      matplotlib release that ends it turns a test red rather than leaving
-      this silently dead.
+    - **A non-linear scale.** From matplotlib 3.11 this is the check that
+      declines a log axis whose ticks are evenly spaced. Before 3.11 the step
+      check below declined it as well, by an accident of units: matplotlib
+      computed a rug's limits on a log axis in **log space** while its ticks
+      stayed in **data space**, so ticks at 1, 2 and 3 gave a step of 1.0
+      against a span of about 0.5. ``tests/core/plot/test_rugplot.py`` pins
+      the chart that only this check declines.
     - **Ticks that are not evenly spaced**, which name no step at all.
     - **Bounds enclosing no whole cell**, which is a grid of nothing.
 

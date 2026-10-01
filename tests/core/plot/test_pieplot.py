@@ -35,6 +35,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import pytest  # noqa: E402
 from lxml import etree  # noqa: E402
+from packaging.version import Version  # noqa: E402
 
 import maidr  # noqa: E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
@@ -42,6 +43,10 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.core.plot.pieplot import PiePlot  # noqa: E402
 from maidr.exception import ExtractionError  # noqa: E402
 from maidr.patch.pieplot import _resolve  # noqa: E402
+
+#: Matplotlib 3.11 refuses an empty pie itself: ``ax.pie([])`` raises "All
+#: wedge sizes are zero" before maidr sees the call. Earlier releases draw it.
+MATPLOTLIB_REFUSES_AN_EMPTY_PIE = Version(matplotlib.__version__) >= Version("3.11")
 
 
 #: A pie whose sizes sum far above 1, so matplotlib normalizes them away.
@@ -184,7 +189,12 @@ class TestValuesSurviveNormalization:
 
 
 class TestReturnShapes:
-    """``Axes.pie`` returns two lists, or three when ``autopct`` is set."""
+    """``Axes.pie`` returns two lists, or three when ``autopct`` is set.
+
+    From matplotlib 3.11 they come in a ``PieContainer`` rather than a tuple,
+    and it unpacks to the same lists, so the count is taken of what a caller
+    unpacks.
+    """
 
     def test_wedges_and_texts(self):
         fig, ax = plt.subplots()
@@ -192,7 +202,7 @@ class TestReturnShapes:
             returned = ax.pie(UNITS, labels=FRUIT)
             schema = _only_layer(fig)
 
-            assert len(returned) == 2
+            assert len(tuple(returned)) == 2
             assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
         finally:
             plt.close(fig)
@@ -203,7 +213,7 @@ class TestReturnShapes:
             returned = ax.pie(UNITS, labels=FRUIT, autopct="%1.1f%%")
             schema = _only_layer(fig)
 
-            assert len(returned) == 3
+            assert len(tuple(returned)) == 3
             # The percentage labels matplotlib drew are not slices, so the
             # layer must still describe three of them.
             assert [point["y"] for point in schema["data"]] == CLOCKWISE_UNITS
@@ -696,8 +706,12 @@ class TestPiePlotDirectly:
             plt.close(fig)
 
 
+@pytest.mark.skipif(
+    MATPLOTLIB_REFUSES_AN_EMPTY_PIE,
+    reason="matplotlib 3.11 raises for ax.pie([]); TestEmptyPieRefused covers it",
+)
 class TestEmptyPie:
-    """``ax.pie([])`` is a legal call, and an empty layer on the wire.
+    """Before matplotlib 3.11, ``ax.pie([])`` is legal and an empty layer.
 
     The figure is registered by the time the schema is built, so raising on
     an empty pie takes the whole figure down with it -- including any working
@@ -745,6 +759,32 @@ class TestEmptyPie:
             assert [cell["layers"][0]["type"] for cell in cells] == ["bar", "pie"]
             assert "<svg" in str(html)
             json.dumps(schema)
+        finally:
+            plt.close(fig)
+
+
+@pytest.mark.skipif(
+    not MATPLOTLIB_REFUSES_AN_EMPTY_PIE,
+    reason="matplotlib before 3.11 draws an empty pie; TestEmptyPie covers it",
+)
+class TestEmptyPieRefused:
+    """From matplotlib 3.11, ``ax.pie([])`` raises before maidr sees the call.
+
+    The error is matplotlib's own, as it would be without maidr, and the call
+    leaves nothing registered: a plot drawn beside it still renders.
+    """
+
+    def test_a_bar_beside_a_refused_pie_still_renders(self):
+        fig, axs = plt.subplots(1, 2)
+        try:
+            axs[0].bar(["a", "b"], [1, 2])
+            with pytest.raises(ValueError, match="All wedge sizes are zero"):
+                axs[1].pie([])
+            (bar,) = _layers(fig)
+            html = maidr.render(fig)
+
+            assert [point["y"] for point in bar["data"]] == [1, 2]
+            assert "<svg" in str(html)
         finally:
             plt.close(fig)
 
