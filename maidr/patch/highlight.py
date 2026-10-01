@@ -4,7 +4,6 @@ import uuid
 from typing import Any, Callable
 
 import wrapt
-from matplotlib.backends.backend_svg import XMLWriter
 from matplotlib.collections import (
     Collection,
     LineCollection,
@@ -16,6 +15,16 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 from maidr.core.context_manager import HighlightContextManager
+
+# The class to patch is the one ``RendererSVG`` writes with. Matplotlib 3.11
+# moved it onto a private ``_XMLWriter`` and kept ``XMLWriter`` only as a
+# deprecated subclass that nothing instantiates, so patching ``XMLWriter`` there
+# tagged no group: every chart was written without its ``maidr`` attributes, and
+# every selector resolved to nothing.
+try:
+    from matplotlib.backends.backend_svg import _XMLWriter as XMLWriter
+except ImportError:  # matplotlib < 3.11
+    from matplotlib.backends.backend_svg import XMLWriter
 
 
 #: Matplotlib's own ``XMLWriter.start``, which :func:`inject_maidr_attribute`

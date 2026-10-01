@@ -16,6 +16,10 @@ the others, which is the scan that made a render quadratic.
 
 Two more pin #753: outside a render the class-wide ``draw`` patch touches no
 gid at all, and inside one a gid the user set is kept and keys its selector.
+
+And one pins where the ``maidr`` attribute is written: by the ``start`` of the
+writer class ``RendererSVG`` actually instantiates, which matplotlib 3.11
+changed.
 """
 
 from __future__ import annotations
@@ -29,12 +33,14 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 import pytest  # noqa: E402
+from matplotlib.backends.backend_svg import RendererSVG  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.context_manager import HighlightContextManager  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.patch import highlight  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -150,6 +156,20 @@ def test_a_rendered_bar_chart_carries_one_selector_per_bar():
         bar.get_gid() for bar in bars
     ], "every bar, in draw order, and nothing else"
     assert {selector for _, selector in tagged} == {selector_id}
+
+
+def test_the_svg_renderer_writes_through_the_patched_start():
+    """The patch is on the writer matplotlib saves an SVG with.
+
+    Matplotlib 3.11 moved ``RendererSVG`` onto a private ``_XMLWriter`` and
+    kept ``XMLWriter`` as a deprecated subclass that nothing instantiates. The
+    patch stayed on ``XMLWriter``, so no group was tagged and every selector
+    resolved to nothing, on every chart. Asked of the renderer itself, this
+    holds whatever the class is called.
+    """
+    renderer = RendererSVG(1, 1, io.StringIO())
+
+    assert type(renderer.writer).start is highlight.inject_maidr_attribute
 
 
 def test_a_plain_draw_mints_no_gid():
