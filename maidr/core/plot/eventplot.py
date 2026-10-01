@@ -203,11 +203,15 @@ class EventPlot(MaidrPlot):
         # highlight after the gap on its neighbour's tick (#429).
         self._marks = [index for index, _ in drawn]
 
+        # Keyed by the plain strings the members stand for: a dict holding a
+        # `MaidrKey` member is one the cyclic garbage collector tracks, since
+        # the member is a GC object, so one per event made every full
+        # collection in the render walk them all -- 50-180 ms at 50,000
+        # events. The JSON is the same either way.
+        x, y = MaidrKey.X.value, MaidrKey.Y.value
         if horizontal:
-            return [
-                {MaidrKey.X: position, MaidrKey.Y: offset} for _, position in drawn
-            ]
-        return [{MaidrKey.X: offset, MaidrKey.Y: position} for _, position in drawn]
+            return [{x: position, y: offset} for _, position in drawn]
+        return [{x: offset, y: position} for _, position in drawn]
 
     def _extract_axes_data(self) -> dict:
         """
