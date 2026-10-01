@@ -642,10 +642,11 @@ class PlotlyMaidr:
             # them from the end keeps every index unique and
             # correct-by-construction, which is what the gl numbering above
             # does for the same reason.
+            marks = {id(t): draws_marks(t) for t in scatter_family}
             position_of: dict[int, int] = {}
             for renderer in (svg_scatter, gl_scatter):
-                drawn = [t for t in renderer if draws_marks(t)]
-                undrawn = [t for t in renderer if not draws_marks(t)]
+                drawn = [t for t in renderer if marks[id(t)]]
+                undrawn = [t for t in renderer if not marks[id(t)]]
                 for index, t in enumerate(drawn):
                     position_of[id(t)] = index
                 for offset, t in enumerate(undrawn):
@@ -657,7 +658,7 @@ class PlotlyMaidr:
             # family because `draws_marks` reads `x`/`y`: a pie carries neither
             # and draws perfectly well, so asking it globally would drop every
             # pie in the figure.
-            merged: set[int] = {id(t) for t in scatter_family if not draws_marks(t)}
+            merged: set[int] = {id(t) for t in scatter_family if not marks[id(t)]}
 
             # `barnorm` only means anything for a stack: plotly scales each
             # category's segments to a common total, so the values are shares

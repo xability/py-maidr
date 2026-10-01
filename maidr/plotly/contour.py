@@ -188,19 +188,8 @@ class PlotlyContourPlot(PlotlyPlot):
         cell = _smallest_step(x, y)
         data: list[list[dict]] = []
         for index, curves in enumerate(traced):
-            for curve in curves:
-                if not _has_extent(curve, cell):
-                    continue
-                # `tolist()` hands over every coordinate as a plain float in
-                # one call, where indexing each vertex made an `np.float64`
-                # per coordinate to convert -- the same floats, and on a
-                # noisy field there are hundreds of thousands of them (#701).
-                data.append(
-                    [
-                        {MaidrKey.X: x, MaidrKey.Y: y, MaidrKey.LEVEL: levels[index]}
-                        for x, y in curve.tolist()
-                    ]
-                )
+            for series in _kept_curves(curves, cell, levels[index]):
+                data.append(series)
                 self._series_levels.append(index)
 
         return data
@@ -328,10 +317,12 @@ class PlotlyContourPlot(PlotlyPlot):
         if not draws_its_lines(self._trace):
             return []
 
-        return [
+        head = (
             f"{self._subplot_css_prefix()}.contourlayer > "
             f"g.contour:nth-of-type({self._layer_position + 1}) "
-            f"g.contourlevel:nth-of-type({level + 1}) path"
+        )
+        return [
+            f"{head}g.contourlevel:nth-of-type({level + 1}) path"
             for level in self._series_levels
         ]
 
@@ -609,6 +600,70 @@ def _grid(trace: dict) -> tuple[list[float], list[float], Any] | None:
         return None
 
     return x, y, whole
+
+
+def _kept_curves(curves: list, cell: float, level: Any) -> list[list[dict]]:
+    """
+    The points of every curve of one level that goes somewhere.
+
+    ``[[point, ...] for curve in curves if _has_extent(curve, cell)]``, read
+    in one pass rather than curve by curve. A noisy field traces tens of
+    thousands of curves per level, so every curve's extent comes from one
+    reduction over the level's concatenated vertices and every vertex's
+    point from one comprehension, sliced back into curves. ``tolist()``
+    hands over the same floats indexing each vertex would (#701).
+
+    Keyed by the plain strings ``MaidrKey`` members stand for: the JSON is
+    the same, and a dict keyed by an enum member is one the garbage
+    collector has to track -- hundreds of thousands of them on such a field.
+
+    Parameters
+    ----------
+    curves : list of ndarray
+        The level's curves, each ``(n, 2)``, as ``contourpy`` traced them.
+    cell : float
+        The grid's smallest step, which ``_has_extent`` measures against.
+    level : Any
+        The level's value, carried on every point.
+
+    Returns
+    -------
+    list of list of dict
+        One series per kept curve, in curve order.
+    """
+    kx, ky, kl = MaidrKey.X.value, MaidrKey.Y.value, MaidrKey.LEVEL.value
+    lengths = [len(curve) for curve in curves]
+    # `reduceat` cannot measure an empty curve -- it reports the next curve's
+    # first row instead -- so a level holding one is read curve by curve,
+    # exactly as before.
+    if not curves or min(lengths) == 0:
+        return [
+            [{kx: px, ky: py, kl: level} for px, py in curve.tolist()]
+            for curve in curves
+            if _has_extent(curve, cell)
+        ]
+
+    vertices = np.concatenate(curves).astype(float, copy=False)
+    starts = np.concatenate(([0], np.cumsum(lengths)[:-1]))
+    lo = np.minimum.reduceat(vertices, starts, axis=0)
+    hi = np.maximum.reduceat(vertices, starts, axis=0)
+    dx = hi[:, 0] - lo[:, 0]
+    dy = hi[:, 1] - lo[:, 1]
+    # `_has_extent`'s `max(dx, dy)`, NaN included: Python's `max` keeps the
+    # first unless the second is strictly greater.
+    keep = (np.where(dy > dx, dy, dx) > cell * _POINT_FRACTION).tolist()
+    points = [
+        {kx: px, ky: py, kl: level}
+        for px, py in zip(vertices[:, 0].tolist(), vertices[:, 1].tolist())
+    ]
+
+    series = []
+    start = 0
+    for length, kept in zip(lengths, keep):
+        if kept:
+            series.append(points[start : start + length])
+        start += length
+    return series
 
 
 def _has_extent(curve: Any, cell: float) -> bool:

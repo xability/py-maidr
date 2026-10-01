@@ -223,8 +223,7 @@ class PlotlyScatterPlot(PlotlyPlot):
 
     def _extract_plot_data(self) -> list[dict]:
         x, y = paired_axes(self._trace)
-
+        kx, ky = MaidrKey.X.value, MaidrKey.Y.value
         return [
-            {MaidrKey.X: self._to_native(xv), MaidrKey.Y: self._to_native(yv)}
-            for xv, yv in zip(x, y)
+            {kx: xv, ky: yv} for xv, yv in zip(self._natives(x), self._natives(y))
         ]

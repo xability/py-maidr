@@ -82,6 +82,33 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         except (TypeError, ValueError):
             return val
 
+    def _native_row(self, row: Any) -> list:
+        """
+        One ``z`` row as :meth:`_to_native` converts it, cell by cell.
+
+        A decoded row is Python floats, and :meth:`_to_native` gives
+        ``float(v)`` for a float or an int, so such a row is copied or
+        converted in one pass rather than one call per cell -- a million
+        calls for a 1000 x 1000 heatmap. Anything else -- a NumPy row, a
+        ``bool``, a string, ``None`` -- is converted cell by cell, as before.
+
+        Parameters
+        ----------
+        row : Any
+            One row of the decoded ``z``.
+
+        Returns
+        -------
+        list
+            ``[self._to_native(v) for v in row]``.
+        """
+        kinds = set(map(type, row))
+        if kinds <= {float}:
+            return list(row)
+        if kinds <= {float, int}:
+            return [float(v) for v in row]
+        return [self._to_native(v) for v in row]
+
     def _extract_plot_data(self) -> dict:
         # ``z`` is the one two-dimensional array a trace carries, so it is
         # also the one whose exported spec names a ``shape``; decoding it
@@ -91,9 +118,7 @@ class PlotlyHeatmapPlot(PlotlyPlot):
         y = self._trace.get("y", None)
 
         # Convert z matrix to list of lists of native floats
-        points = []
-        for row in z:
-            points.append([self._to_native(v) for v in row])
+        points = [self._native_row(row) for row in z]
 
         x_labels = [self._to_native(v) for v in as_list(x)] if x is not None else None
         y_labels = [self._to_native(v) for v in as_list(y)] if y is not None else None
