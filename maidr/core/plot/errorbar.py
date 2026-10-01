@@ -40,6 +40,83 @@ def _is_drawn(value: object) -> bool:
         return True
 
 
+def _plain_array(column: Any) -> bool:
+    """
+    Whether a column of centers is a plain 1-D array of floats or integers.
+
+    Exactly ``np.ndarray``, never a subclass: a masked array iterates its
+    masked samples as ``np.ma.masked``, which the per-sample loop reads as
+    drawn, where ``astype`` would hand over the value under the mask.
+    Booleans and floats wider than 64 bits are left to the loop too.
+
+    Centers passed as lists reach the data line as an object array, and are
+    read in bulk only when every value is exactly a Python ``float`` or
+    ``int``, or a ``np.float64`` or ``np.int64`` -- what ``list()`` of an
+    array holds. The type is told by identity, never by hashing it or
+    comparing it with ``==``, which a metaclass can answer as it likes: a
+    string, a date, a bool, ``None`` or a ``Decimal`` keeps the loop, where
+    :meth:`_scalar` reads it.
+    """
+    if type(column) is not np.ndarray or column.ndim != 1:
+        return False
+    kind = column.dtype.kind
+    if kind in "fiu":
+        return column.dtype.itemsize <= 8
+    if kind == "O":
+        return all(map(_is_plain_number_type, map(type, column.tolist())))
+    return False
+
+
+def _is_plain_number_type(kind: type) -> bool:
+    """Whether a value of this exact type is a number ``float()`` reads as is."""
+    return kind is float or kind is int or kind is np.float64 or kind is np.int64
+
+
+def _segment_bounds(segments: list, count: int, component: int) -> list | None:
+    """
+    Each sample's interval, as :meth:`ErrorBarPlot._extract_bounds` reads it,
+    before the float noise is taken off.
+
+    Read for every segment at once when each one a sample has is a two-point
+    segment, which is what ``LineCollection.get_segments`` returns for a bar
+    with both ends drawn. ``min([a, b])`` keeps ``a`` unless ``b < a`` and
+    ``max([a, b])`` keeps ``a`` unless ``b > a``, so ``np.where`` picks the
+    same endpoint even between ``0.0`` and ``-0.0``.
+
+    Parameters
+    ----------
+    segments : list
+        The drawn bar segments, one per sample.
+    count : int
+        How many samples there are.
+    component : int
+        0 to read x, 1 to read y.
+
+    Returns
+    -------
+    list or None
+        One ``(low, high)`` per sample that has a segment, ``None`` for one
+        whose ends are not both finite; or ``None`` for the whole column when
+        a segment is anything but two points -- a bar NaN removed an end
+        from, say -- which reads every sample through ``_extract_bounds``.
+    """
+    bounded = min(count, len(segments))
+    if not bounded:
+        return []
+    try:
+        ends = np.asarray(segments[:bounded], dtype=float)
+    except (TypeError, ValueError):
+        return None
+    if ends.shape != (bounded, 2, 2):
+        return None
+    first = ends[:, 0, component]
+    second = ends[:, 1, component]
+    finite = (np.isfinite(first) & np.isfinite(second)).tolist()
+    lows = np.where(second < first, second, first).tolist()
+    highs = np.where(second > first, second, first).tolist()
+    return [(low, high) if ok else None for ok, low, high in zip(finite, lows, highs)]
+
+
 class ErrorBarPlot(MaidrPlot, DictMergerMixin):
     """
     A plot that draws an estimate together with the interval around it.
@@ -182,6 +259,12 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
         categories, values = (xs, ys) if is_vertical else (ys, xs)
         component = 1 if is_vertical else 0
 
+        data = self._numeric_samples(categories, values, segments, component)
+        if data is not None:
+            if not data:
+                raise ExtractionError(self.type, container)
+            return data
+
         data = []
         for index, (category, value) in enumerate(zip(categories, values)):
             # Only the samples matplotlib drew. It renders neither a marker
@@ -216,6 +299,81 @@ class ErrorBarPlot(MaidrPlot, DictMergerMixin):
         if not data:
             raise ExtractionError(self.type, container)
 
+        return data
+
+    @staticmethod
+    def _numeric_samples(
+        categories: Any, values: Any, segments: list, component: int
+    ) -> list[dict] | None:
+        """
+        The points the per-sample loop makes, read a column at a time.
+
+        For centers that are plain arrays of floats or integers, every step of
+        that loop is known for the whole column at once: :func:`_is_drawn` is
+        ``np.isfinite``, and :meth:`_scalar` is the value as a Python float,
+        which is what ``astype(float).tolist()`` hands over. The loop asked
+        both of every sample, and :meth:`_extract_bounds` built a list and
+        called ``np.isfinite`` on each endpoint, which on a long series was
+        most of the extraction.
+
+        The bounds come from :func:`_segment_bounds`, which reads the drawn
+        segments the same way, or one sample at a time through
+        :meth:`_extract_bounds` when they are not all two-point segments.
+
+        The points are keyed by the plain strings ``MaidrKey`` members stand
+        for. The JSON is the same, and a dict keyed by an enum member is one
+        the garbage collector has to track -- one per sample here.
+
+        Parameters
+        ----------
+        categories, values : Any
+            The centers along the category and the value axis.
+        segments : list
+            The drawn bar segments, one per sample.
+        component : int
+            0 to read the bounds off x, 1 off y.
+
+        Returns
+        -------
+        list of dict or None
+            The points, or ``None`` when either column is anything but a plain
+            1-D array of floats or integers -- a masked array, dates, strings
+            or booleans -- or the two differ in length, which keeps the
+            per-sample loop.
+        """
+        if not (_plain_array(categories) and _plain_array(values)):
+            return None
+        count = len(categories)
+        if len(values) != count:
+            return None
+        try:
+            across = categories.astype(float)
+            along = values.astype(float)
+        except OverflowError:
+            # An integer beyond the float range. The loop raises on it, as
+            # it always has.
+            return None
+        drawn = (np.isfinite(across) & np.isfinite(along)).tolist()
+        across, along = across.tolist(), along.tolist()
+        bounds = _segment_bounds(segments, count, component)
+        kx, ky = MaidrKey.X.value, MaidrKey.Y.value
+        kmin, kmax = MaidrKey.Y_MIN.value, MaidrKey.Y_MAX.value
+        noise = ErrorBarPlot._without_float_noise
+        data = []
+        for index in range(count):
+            # Only the samples matplotlib drew, and `index` still counts every
+            # sample, as in the per-sample loop.
+            if not drawn[index]:
+                continue
+            point = {kx: across[index], ky: along[index]}
+            if bounds is None:
+                read = ErrorBarPlot._extract_bounds(segments, index, component)
+                if read is not None:
+                    point[kmin], point[kmax] = read
+            elif index < len(bounds) and bounds[index] is not None:
+                low, high = bounds[index]
+                point[kmin], point[kmax] = noise(low), noise(high)
+            data.append(point)
         return data
 
     def _resolve_container(self) -> ErrorbarContainer | None:
