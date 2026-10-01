@@ -34,12 +34,12 @@ import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 import wrapt  # noqa: E402
 from matplotlib.axes import Axes  # noqa: E402
-from matplotlib.backends.backend_svg import XMLWriter  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.core.context_manager import HighlightContextManager  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.patch import highlight  # noqa: E402
+from maidr.patch.highlight import XMLWriter  # noqa: E402
 
 #: A chart builder, drawing into the axes it is handed.
 Draw = Callable[[Axes], None]
