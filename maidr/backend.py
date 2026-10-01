@@ -62,9 +62,19 @@ def show(*args: Any, **kwargs: Any) -> None:
     """
     from maidr.api import _resolve_use_cdn
     from maidr.core.figure_manager import FigureManager as MaidrFigureManager
+    from maidr.util.environment import Environment
+    from maidr.util.pyodide_display import warn_no_page
 
     managers = Gcf.get_all_fig_managers()
     if not managers:
+        return
+
+    # A Pyodide web worker, or Node.js, has no page to put a chart in, and
+    # `webbrowser.open` raises there. Say so instead, and leave the figures
+    # open: the `maidr.render` the warning points to still has them, and so
+    # does a host that shows whatever is left open.
+    if Environment.is_pyodide_without_page():
+        warn_no_page()
         return
 
     # Prefer an explicit ``plt.show(use_cdn=...)`` over the module-level
