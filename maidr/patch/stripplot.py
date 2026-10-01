@@ -187,7 +187,9 @@ def _hue_levels(
 
 
 def _collection_category(
-    ax: Axes, collection: PathCollection, ticks: dict | None = None
+    ax: Axes,
+    collection: PathCollection,
+    ticks: dict[str, dict[float, str]] | None = None,
 ) -> str | None:
     """
     The one category a collection's points all sit in, where there is one.
@@ -363,7 +365,7 @@ def sns_categorical_points(
 
         levels = _hue_levels(instance, added)
         if levels is None:
-            ticks: dict = {}
+            ticks: dict[str, dict[float, str]] = {}
             for collection in added:
                 # Named by the category it holds, which is on its own points.
                 # Without it a reader switching layers heard "point plot"

@@ -8,6 +8,7 @@ import numpy.ma as ma
 from matplotlib.axes import Axes
 from matplotlib.collections import Collection, PathCollection
 from matplotlib.colors import to_rgba
+from numpy.typing import ArrayLike
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
@@ -230,7 +231,7 @@ def hue_groups(
     return groups_from_colors(ax, rgba_rows(drawn_colors(collection)))
 
 
-def rgba_rows(rows) -> list:
+def rgba_rows(rows: ArrayLike) -> list[tuple[float, ...] | None]:
     """
     :func:`_rgba` of every row, worked out once per distinct row.
 
@@ -254,7 +255,7 @@ def rgba_rows(rows) -> list:
 
     Returns
     -------
-    list
+    list of (tuple of float or None)
         ``[_rgba(row) for row in rows]``, in the same order.
     """
     rows = np.asarray(rows)

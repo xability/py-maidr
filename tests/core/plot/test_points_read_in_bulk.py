@@ -25,6 +25,7 @@ import itertools
 import json
 import uuid
 import warnings
+from typing import Any, Callable, Iterator
 
 import matplotlib
 
@@ -35,7 +36,9 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import pytest  # noqa: E402
 import seaborn as sns  # noqa: E402
+from matplotlib.axes import Axes  # noqa: E402
 from matplotlib.collections import LineCollection  # noqa: E402
+from matplotlib.figure import Figure  # noqa: E402
 
 import maidr  # noqa: F401,E402  # activates patches
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
@@ -44,22 +47,41 @@ from maidr.core.plot import rugplot, scatterplot  # noqa: E402
 from maidr.core.plot.scatterplot import ScatterPlot, rgba_rows  # noqa: E402
 from maidr.util.mixin.extractor_mixin import LineExtractorMixin  # noqa: E402
 
+#: A chart builder: draws one chart on the axes it is handed.
+Draw = Callable[[Axes], None]
+
 
 @pytest.fixture(autouse=True)
-def _close_figures():
+def _close_figures() -> Iterator[None]:
     """Close every figure a test opened, so state cannot leak between them."""
     yield
     plt.close("all")
 
 
 @pytest.fixture(autouse=True)
-def _quiet_seaborn():
+def _quiet_seaborn() -> Iterator[None]:
+    """Keep seaborn's deprecation notes out of the output."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         yield
 
 
-def _layers(fig, kind: PlotType) -> list:
+def _layers(fig: Figure, kind: PlotType) -> list:
+    """
+    The layers of one kind a figure registered.
+
+    Parameters
+    ----------
+    fig : Figure
+        The figure to read.
+    kind : PlotType
+        The layer type to keep.
+
+    Returns
+    -------
+    list
+        Those layers, in registration order.
+    """
     return [plot for plot in FigureManager.get_maidr(fig).plots if plot.type is kind]
 
 
@@ -87,7 +109,9 @@ def _layers(fig, kind: PlotType) -> list:
         pytest.param(np.array([0.3, 0.3, 0.3, 1.0]), id="one-dimensional"),
     ],
 )
-def test_colours_read_per_distinct_row_are_the_colours_read_per_row(rows):
+def test_colours_read_per_distinct_row_are_the_colours_read_per_row(
+    rows: np.ndarray,
+) -> None:
     got = rgba_rows(rows)
     want = [scatterplot._rgba(row) for row in rows]
 
@@ -99,12 +123,14 @@ def test_colours_read_per_distinct_row_are_the_colours_read_per_row(rows):
     assert len(set(got)) == len(set(want))
 
 
-def test_a_hue_scatter_converts_each_distinct_colour_once(monkeypatch):
+def test_a_hue_scatter_converts_each_distinct_colour_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """``to_rgba`` is tens of microseconds a call; a chart has few colours."""
     calls = []
     convert = scatterplot._rgba
 
-    def counting(color):
+    def counting(color: Any) -> Any:
         calls.append(1)
         return convert(color)
 
@@ -124,12 +150,14 @@ def test_a_hue_scatter_converts_each_distinct_colour_once(monkeypatch):
 # --- numeric scatter --------------------------------------------------------
 
 
-def _plain(ax):
+def _plain(ax: Axes) -> None:
+    """Plain floats."""
     rng = np.random.default_rng(1)
     ax.scatter(rng.normal(size=400), rng.normal(size=400))
 
 
-def _gaps(ax):
+def _gaps(ax: Axes) -> None:
+    """NaN and inf offsets, which are not drawn."""
     rng = np.random.default_rng(2)
     x, y = rng.normal(size=120), rng.normal(size=120)
     x[[3, 4]] = np.nan
@@ -137,21 +165,25 @@ def _gaps(ax):
     ax.scatter(x, y)
 
 
-def _masked(ax):
+def _masked(ax: Axes) -> None:
+    """A masked array, whose masked offsets arrive as NaN."""
     rng = np.random.default_rng(3)
     y = np.ma.masked_array(rng.normal(size=60), mask=np.arange(60) % 5 == 0)
     ax.scatter(np.arange(60.0), y)
 
 
-def _signed_zeros(ax):
+def _signed_zeros(ax: Axes) -> None:
+    """``-0.0`` on both axes, which has to survive as written."""
     ax.scatter([-0.0, 0.0, 1.0], [0.0, -0.0, 2.0])
 
 
-def _integers(ax):
+def _integers(ax: Axes) -> None:
+    """Integer offsets."""
     ax.scatter(np.arange(30), np.arange(30) % 7)
 
 
-def _hue(ax):
+def _hue(ax: Axes) -> None:
+    """``sns.scatterplot`` split by ``hue`` into one layer per group."""
     rng = np.random.default_rng(4)
     sns.scatterplot(
         x=rng.normal(size=300),
@@ -161,14 +193,15 @@ def _hue(ax):
     )
 
 
-def _two_labeled(ax):
+def _two_labeled(ax: Axes) -> None:
+    """Two labelled ``ax.scatter`` calls on one axes."""
     rng = np.random.default_rng(5)
     ax.scatter(rng.normal(size=50), rng.normal(size=50), label="p")
     ax.scatter(rng.normal(size=50), rng.normal(size=50), label="q")
     ax.legend()
 
 
-SCATTERS = {
+SCATTERS: dict[str, Draw] = {
     "plain": _plain,
     "gaps": _gaps,
     "masked": _masked,
@@ -179,12 +212,27 @@ SCATTERS = {
 }
 
 
-def _schemas(draw, kind: PlotType, monkeypatch) -> list[str]:
-    """Every layer of one kind, serialized whole, with ids minted in order.
+def _schemas(draw: Draw, kind: PlotType, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """
+    Every layer of one kind, serialized whole, with ids minted in order.
 
     The selectors name each drawn mark by its place among the drawn points
     and the gid minted for its collection, so they are compared too: a
     reading that kept the points and lost their places would fail here.
+
+    Parameters
+    ----------
+    draw : Draw
+        The chart builder.
+    kind : PlotType
+        The layer type to read.
+    monkeypatch : pytest.MonkeyPatch
+        Installs the counting ``uuid4``.
+
+    Returns
+    -------
+    list of str
+        Each such layer's schema, as JSON.
     """
     counter = itertools.count()
     monkeypatch.setattr(uuid, "uuid4", lambda: uuid.UUID(int=next(counter)))
@@ -196,8 +244,21 @@ def _schemas(draw, kind: PlotType, monkeypatch) -> list[str]:
 
 
 @pytest.mark.parametrize("name", list(SCATTERS))
-def test_a_scatter_reads_in_bulk_as_it_does_point_by_point(name, monkeypatch):
+def test_a_scatter_reads_in_bulk_as_it_does_point_by_point(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bulk_reads = []
+    read = ScatterPlot._numeric_reading
+
+    def counting(*args: Any) -> Any:
+        bulk_reads.append(1)
+        return read(*args)
+
+    monkeypatch.setattr(ScatterPlot, "_numeric_reading", staticmethod(counting))
     bulk = _schemas(SCATTERS[name], PlotType.SCATTER, monkeypatch)
+    # Without this the comparison below could pass with the bulk path never
+    # taken: both runs would then read point by point.
+    assert bulk_reads, "the bulk reading never ran, so nothing was compared"
 
     monkeypatch.setattr(
         ScatterPlot, "_numeric_reading", staticmethod(lambda *args: None)
@@ -217,7 +278,7 @@ def _nearest_by_min(coordinate: float, slots: list) -> float:
     return min(slots, key=lambda slot: abs(slot - coordinate))
 
 
-def test_snapping_finds_the_slot_min_found():
+def test_snapping_finds_the_slot_min_found() -> None:
     rng = np.random.default_rng(6)
     for _ in range(2000):
         slots = sorted(set(rng.integers(-20, 20, rng.integers(1, 12)).tolist()))
@@ -239,7 +300,7 @@ def test_snapping_finds_the_slot_min_found():
             )
 
 
-def test_snapping_far_from_zero_keeps_the_first_of_tied_slots():
+def test_snapping_far_from_zero_keeps_the_first_of_tied_slots() -> None:
     # Large magnitudes round two neighbouring distances to the same float;
     # `min` then keeps the earlier slot, and so must the bisection.
     slots = [1e16, 1e16 + 2.0, 1e16 + 4.0]
@@ -253,6 +314,7 @@ def test_snapping_far_from_zero_keeps_the_first_of_tied_slots():
 
 
 def _strip_frame(categories: int) -> pd.DataFrame:
+    """Twenty observations in each of ``categories`` named groups."""
     rng = np.random.default_rng(7)
     return pd.DataFrame(
         {
@@ -262,12 +324,14 @@ def _strip_frame(categories: int) -> pd.DataFrame:
     )
 
 
-def test_a_strip_plot_reads_its_ticks_once_per_axis_while_it_draws(monkeypatch):
+def test_a_strip_plot_reads_its_ticks_once_per_axis_while_it_draws(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """One collection per category used to mean one tick layout per category."""
     reads = []
     read = LineExtractorMixin._category_tick_labels
 
-    def counting(ax, axis):
+    def counting(ax: Axes, axis: str) -> dict:
         reads.append(axis)
         return read(ax, axis)
 
@@ -281,10 +345,10 @@ def test_a_strip_plot_reads_its_ticks_once_per_axis_while_it_draws(monkeypatch):
     assert len(reads) <= 2, f"{len(reads)} tick reads for 30 categories"
 
 
-def test_a_strip_plot_reads_as_it_did(monkeypatch):
+def test_a_strip_plot_reads_as_it_did(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ticks shared between a call's collections name every layer as before."""
 
-    def strip(ax):
+    def strip(ax: Axes) -> None:
         np.random.seed(0)
         sns.stripplot(_strip_frame(12), x="g", y="v", ax=ax)
 
@@ -305,7 +369,7 @@ def test_a_strip_plot_reads_as_it_did(monkeypatch):
 # --- rugs ---------------------------------------------------------------------
 
 
-def _read_rug_as_it_was(collection):
+def _read_rug_as_it_was(collection: Any) -> tuple[list[float], bool] | None:
     """``read_rug`` before it was vectorised, segment by segment."""
     if not isinstance(collection, LineCollection):
         return None
@@ -338,19 +402,21 @@ def _read_rug_as_it_was(collection):
         pytest.param([], id="empty"),
     ],
 )
-def test_a_rug_reads_as_it_did_tick_by_tick(segments):
+def test_a_rug_reads_as_it_did_tick_by_tick(segments: list) -> None:
     collection = LineCollection(segments)
 
     assert rugplot.read_rug(collection) == _read_rug_as_it_was(collection)
 
 
 @pytest.mark.parametrize("hue", [None, "g"], ids=["plain", "hue"])
-def test_a_rug_is_read_once_however_many_layers_it_makes(hue, monkeypatch):
+def test_a_rug_is_read_once_however_many_layers_it_makes(
+    hue: str | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The patch's reading is handed to every layer rather than redone."""
     reads = []
     read = rugplot.read_rug
 
-    def counting(collection):
+    def counting(collection: Any) -> Any:
         reads.append(1)
         return read(collection)
 
