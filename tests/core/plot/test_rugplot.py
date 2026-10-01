@@ -645,33 +645,25 @@ def test_a_log_axis_is_declined(frame):
     assert _axis(schema, "y") == {"label": "Rug"}
 
 
-def test_a_log_axis_answers_its_limits_and_its_ticks_in_different_spaces(frame):
-    """What makes the scale check a guard rather than a live branch.
+def test_a_log_axis_with_evenly_spaced_ticks_is_declined(frame):
+    """The chart that only the scale check declines, from matplotlib 3.11.
 
-    Dropping it leaves the whole suite green, and the reason is worth
-    recording rather than rediscovering: matplotlib answers `get_xlim` in
-    **log space** and `get_xticks` in **data space**, so a log chart's tick
-    step is measured against a span it does not belong to and the
-    `step > (high - low)` clause declines it anyway.
-
-    Pinned here because it is a fact about matplotlib, not about this layer.
-    If a release ever makes the two agree, this goes red and the scale check
-    stops being redundant -- which is the moment it starts earning its keep.
+    Ticks at 1, 2 and 3 are evenly spaced, so the tick check passes them,
+    and on matplotlib 3.11 a step of 1.0 fits the limits too: measured, 0.91
+    to 8.0. Matplotlib 3.10 computed a rug's limits on a log axis in log
+    space (0.38 to 0.89 here), so the step clause declined this chart as
+    well, by an accident of units. This test used to pin that accident, and
+    went red when 3.11 ended it, as it was written to. On 3.11 and later it
+    fails if the scale check is dropped.
     """
     fig, ax = plt.subplots()
     ax.set_xscale("log")
     ax.set_xticks([1.0, 2.0, 3.0])
     sns.rugplot(frame, x="value", ax=ax)
 
-    low, high = ax.get_xlim()
-    ticks = list(ax.get_xticks())
-
-    # The ticks are the data-space values that were asked for.
-    assert ticks == [1.0, 2.0, 3.0]
-    # The limits are not: they are the logs of the data-space bounds, and the
-    # whole span is narrower than one tick step.
-    assert high - low < 1.0
-    assert high < min(ticks)
+    schema = _schemas(fig)[0]
+    assert _axis(schema, "x") == {"label": "value"}
+    assert _axis(schema, "y") == {"label": "Rug"}
 
 
 def test_the_bounds_change_nothing_the_layer_already_said(frame):
