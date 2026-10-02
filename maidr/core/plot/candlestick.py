@@ -21,7 +21,8 @@ class CandlestickPlot(MaidrPlot):
 
     This class extracts candlestick data directly from the original DataFrame,
     with no transformation of the prices. Each date is labeled in the chart's
-    ``datetime_format`` when it was drawn with one.
+    ``datetime_format`` when it was drawn with one, and otherwise as the date
+    alone when the index records no time of day.
     """
 
     def __init__(self, axes: list[Axes], **kwargs) -> None:
@@ -80,7 +81,8 @@ class CandlestickPlot(MaidrPlot):
             - 'high': High price (float)
             - 'low': Low price (float)
             - 'close': Closing price (float)
-            - 'volume': Volume (float)
+            - 'volume': Volume (float), only on a candle whose volume the
+              frame records
         """
         body_collection = self._maidr_body_collection
         wick_collection = self._maidr_wick_collection
@@ -122,10 +124,13 @@ class CandlestickPlot(MaidrPlot):
         list[dict]
             List of candlestick data dictionaries with raw prices, and the date
             labeled by the converter the mplfinance patch handed over -- in the
-            chart's ``datetime_format`` if it has one -- or else as
-            ``str(df.index[i])``. A row whose open, high, low or close is not
-            finite or not a number is left out; a missing, non-finite or
-            non-numeric volume is reported as ``0.0``.
+            chart's ``datetime_format`` if it has one, and as an ISO date if
+            the index has no time of day -- or else as ``str(df.index[i])``.
+            A row whose open, high, low or close is not finite or not a number
+            is left out. ``volume`` is present only where the frame records
+            one: a frame with no ``Volume`` column gives no candle a
+            ``volume``, and a candle whose volume is missing, not finite or
+            not a number has none.
 
         Notes
         -----
@@ -141,6 +146,16 @@ class CandlestickPlot(MaidrPlot):
         loses its accessibility. The SVG still holds a body path and two wick
         paths for the gap row, so the position of every row that *was* emitted
         is kept on ``_drawn_rows`` for `_get_selector` to name its paths by.
+
+        A volume the frame does not record is left out, not reported as
+        ``0.0``. The core treats ``volume`` as optional and reads it only into
+        the data table, which gets a Volume column when some candle carries a
+        finite one and leaves the cell of a candle without one empty. A
+        ``0.0`` gave a chart drawn without volume a column of zeros nobody
+        measured -- and an agent reading the layer's data a volume of 0 on
+        every candle -- and said that a row whose volume is missing traded
+        nothing, where the volume bar layer drops that row's bar instead
+        (`DatetimeConverter.extract_volume_data`).
         """
         import pandas as pd
 
@@ -152,8 +167,8 @@ class CandlestickPlot(MaidrPlot):
         except KeyError:
             return []
         # A stray string in Volume is no reason to lose the candle: coerced to
-        # NaN here, it is reported as 0.0 below, exactly like a NaN in the
-        # frame, and the prices are read as usual.
+        # NaN here, it leaves that candle without a volume below, exactly like
+        # a NaN in the frame, and the prices are read as usual.
         volumes = (
             pd.to_numeric(df["Volume"], errors="coerce").to_numpy(dtype=float)
             if "Volume" in df.columns
@@ -162,8 +177,9 @@ class CandlestickPlot(MaidrPlot):
         # The label of each row: the index as the converter formats it, which
         # is the chart's ``datetime_format`` when it was drawn with one (#233),
         # so a candle reads the same date as its volume bar and moving
-        # averages. Without a format, or without a converter, it is the raw
-        # ``str(df.index[i])``.
+        # averages. Without a format it is the date alone for an index with
+        # no time of day, and the raw ``str(df.index[i])`` otherwise -- which
+        # is also the label without a converter.
         converter = self._maidr_datetime_converter
         format_date = converter.format_datetime if converter is not None else str
         dates = [format_date(date) for date in df.index]
@@ -182,22 +198,19 @@ class CandlestickPlot(MaidrPlot):
                 for price in (open_price, high_price, low_price, close_price)
             ):
                 continue
-            # Volume when available, otherwise 0
-            volume = float(volumes[i]) if volumes is not None else 0.0
-            if not math.isfinite(volume):
-                volume = 0.0
+            candle = {
+                "value": date_value,
+                "open": open_price,
+                "high": high_price,
+                "low": low_price,
+                "close": close_price,
+            }
+            # Only a volume the frame records; see the Notes above.
+            if volumes is not None and math.isfinite(volumes[i]):
+                candle["volume"] = float(volumes[i])
 
             self._drawn_rows.append(i)
-            candles.append(
-                {
-                    "value": date_value,
-                    "open": open_price,
-                    "high": high_price,
-                    "low": low_price,
-                    "close": close_price,
-                    "volume": volume,
-                }
-            )
+            candles.append(candle)
 
         return candles
 

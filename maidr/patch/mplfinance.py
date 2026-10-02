@@ -105,7 +105,8 @@ def mplfinance_plot_patch(wrapped, instance, args, kwargs):
         # dates in the ``datetime_format`` the x axis was drawn with, when the
         # caller gave one, so a reader hears a date as the ticks spell it
         # (#233). Without one, mplfinance picks a tick format by the span of
-        # the data, and the labels stay the full ``str()`` of each stamp.
+        # the data, and the labels are the ISO date of each stamp when the
+        # index has no time of day, and its full ``str()`` otherwise.
         if hasattr(data, "index") and hasattr(data.index, "dtype"):
             if "datetime" in str(data.index.dtype).lower():
                 datetime_converter = create_datetime_converter(
