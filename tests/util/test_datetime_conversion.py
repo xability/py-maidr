@@ -88,19 +88,17 @@ def _reference_candles(frame: pd.DataFrame) -> list[dict]:
         prices = [float(row[name]) for name in ("Open", "High", "Low", "Close")]
         if not all(math.isfinite(price) for price in prices):
             continue
-        volume = float(row["Volume"]) if "Volume" in frame.columns else 0.0
-        if not math.isfinite(volume):
-            volume = 0.0
-        out.append(
-            {
-                "value": str(frame.index[i]),
-                "open": prices[0],
-                "high": prices[1],
-                "low": prices[2],
-                "close": prices[3],
-                "volume": volume,
-            }
-        )
+        candle = {
+            "value": str(frame.index[i]),
+            "open": prices[0],
+            "high": prices[1],
+            "low": prices[2],
+            "close": prices[3],
+        }
+        # A volume the frame does not record is left out, not reported as 0.
+        if "Volume" in frame.columns and math.isfinite(float(row["Volume"])):
+            candle["volume"] = float(row["Volume"])
+        out.append(candle)
     return out
 
 
@@ -202,6 +200,9 @@ def test_the_candlestick_layer_matches_a_row_by_row_loop(frame, axes):
     candles = CandlestickPlot([axes])._extract_from_dataframe(frame)
     assert candles == _reference_candles(frame)
     assert len(candles) == ROWS - 1
+    # Row 17's NaN volume leaves that candle without one; row 42's 0 is kept.
+    assert "volume" not in candles[17]
+    assert candles[42]["volume"] == 0.0
 
 
 @pytest.mark.parametrize(
