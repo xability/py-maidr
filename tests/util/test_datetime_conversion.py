@@ -339,3 +339,19 @@ def test_a_clock_change_at_midnight_keeps_the_full_stamps(index):
     assert [converter.get_formatted_datetime(row) for row in range(12)] == [
         str(stamp) for stamp in index
     ]
+
+
+def test_extract_candlestick_data_leaves_out_a_volume_the_frame_lacks():
+    # The same rule as the candlestick layer: no ``volume`` for a NaN, a 0
+    # recorded as 0 kept, and none at all without a Volume column.
+    frame = _frame(INDEXES["daily"])
+    candles = create_datetime_converter(frame).extract_candlestick_data(None)
+
+    assert "volume" not in candles[17]
+    assert candles[42]["volume"] == 0.0
+    assert candles[0]["volume"] == frame["Volume"].iloc[0]
+
+    no_volume = frame.drop(columns="Volume")
+    candles = create_datetime_converter(no_volume).extract_candlestick_data(None)
+    assert len(candles) == ROWS
+    assert not any("volume" in candle for candle in candles)

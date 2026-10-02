@@ -325,7 +325,9 @@ class DatetimeConverter:
         -------
         List[Dict[str, Any]]
             List of dictionaries containing candlestick data with keys:
-            'value', 'open', 'high', 'low', 'close', 'volume'.
+            'value', 'open', 'high', 'low', 'close', and 'volume' only where
+            the frame records a finite one, as
+            `CandlestickPlot._extract_from_dataframe` emits it.
             Each 'value' contains formatted datetime string.
 
         Notes
@@ -342,13 +344,22 @@ class DatetimeConverter:
         ):
             return candles
 
+        import pandas as pd
+
+        # A stray string in Volume is coerced to NaN, so it leaves that
+        # candle without a volume rather than losing the candle.
+        volumes = (
+            pd.to_numeric(self.data["Volume"], errors="coerce").to_numpy(dtype=float)
+            if "Volume" in self.data.columns
+            else None
+        )
+
         for i in range(len(self.data)):
             try:
                 open_price = self.data.iloc[i]["Open"]
                 high_price = self.data.iloc[i]["High"]
                 low_price = self.data.iloc[i]["Low"]
                 close_price = self.data.iloc[i]["Close"]
-                volume = self.data.iloc[i].get("Volume", 0.0)
 
                 formatted_datetime = self.get_formatted_datetime(i)
 
@@ -358,8 +369,10 @@ class DatetimeConverter:
                     "high": float(high_price),
                     "low": float(low_price),
                     "close": float(close_price),
-                    "volume": float(volume),
                 }
+                # A volume the frame does not record is left out, not 0.0.
+                if volumes is not None and np.isfinite(volumes[i]):
+                    candle_data["volume"] = float(volumes[i])
                 candles.append(candle_data)
             except (KeyError, IndexError, ValueError):
                 continue
