@@ -143,6 +143,28 @@ def test_without_a_format_a_daily_chart_reads_the_date_alone(index):
     assert announced["moving average"] == dates[2:]
 
 
+@pytest.mark.parametrize(
+    "index",
+    [
+        pd.date_range(
+            "2018-11-03 20:00", periods=ROWS, freq="h", tz="America/Sao_Paulo"
+        ),
+        pd.date_range("2023-10-28 20:00", periods=ROWS, freq="h", tz="Atlantic/Azores"),
+    ],
+    ids=["nonexistent midnight", "ambiguous midnight"],
+)
+def test_a_clock_change_at_midnight_still_draws_and_reads(index):
+    # Hourly bars across a midnight the zone skips or repeats: checking the
+    # index for a time of day must not localize that midnight, which raises
+    # and took the caller's ``mpf.plot`` down with it.
+    _, announced = _read(_prices(index))
+
+    raw = [str(stamp) for stamp in index]
+    assert announced["candles"] == raw
+    assert announced["volume"] == raw
+    assert announced["moving average"] == raw[2:]
+
+
 def test_a_nat_keeps_its_label_under_a_format():
     # ``NaT.strftime`` raises; the stamp keeps the "NaT" it had without one.
     index = pd.DatetimeIndex(["2026-03-02", None, "2026-03-04"])

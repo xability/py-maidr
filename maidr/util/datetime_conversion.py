@@ -135,9 +135,17 @@ class DatetimeConverter:
         One comparison over the whole index rather than a check per stamp
         (#706). A tz-aware index is judged by its wall-clock time, which is
         what mplfinance draws: it drops the zone before plotting.
+
+        The zone is dropped here too, before ``normalize``. On a tz-aware
+        index ``normalize`` localizes each midnight back into the zone, and
+        raises where that midnight does not exist or occurs twice -- a day
+        whose clocks change at 00:00, as in America/Sao_Paulo until 2019 --
+        which would fail the caller's own ``mpf.plot``.
         """
         index = self.data.index
         stamps = index[index.notna()]
+        if stamps.tz is not None:
+            stamps = stamps.tz_localize(None)
         return bool((stamps == stamps.normalize()).all())
 
     def _detect_time_period(self) -> str:

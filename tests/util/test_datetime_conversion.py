@@ -312,3 +312,30 @@ def test_a_format_still_wins_over_the_date_alone():
     )
 
     assert converter.get_formatted_datetime(0) == "01 Jan 2024"
+
+
+# Hourly bars across a midnight the zone skips (clocks forward at 00:00) or
+# repeats (clocks back into 00:00). Localizing that midnight raises, so the
+# check for a time of day must not: the caller's own ``mpf.plot`` runs it.
+ACROSS_A_CHANGE_AT_MIDNIGHT = {
+    "nonexistent midnight": pd.date_range(
+        "2018-11-03 20:00", periods=12, freq="h", tz="America/Sao_Paulo"
+    ),
+    "ambiguous midnight": pd.date_range(
+        "2023-10-28 20:00", periods=12, freq="h", tz="Atlantic/Azores"
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "index",
+    list(ACROSS_A_CHANGE_AT_MIDNIGHT.values()),
+    ids=list(ACROSS_A_CHANGE_AT_MIDNIGHT),
+)
+def test_a_clock_change_at_midnight_keeps_the_full_stamps(index):
+    converter = create_datetime_converter(_prices(index))
+
+    assert not converter.dates_only
+    assert [converter.get_formatted_datetime(row) for row in range(12)] == [
+        str(stamp) for stamp in index
+    ]
