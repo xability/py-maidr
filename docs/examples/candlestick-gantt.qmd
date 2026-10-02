@@ -77,9 +77,10 @@ Pass `datetime_format=` to `mpf.plot()`, as above, and the dates are
 announced the way the x axis draws them: every candle, volume bar and moving
 average reads as its tick label does, `Nov 01, 2019` here, or `09:30` for
 minute bars drawn with `"%H:%M"`. Any `strftime()` pattern works, so
-`"%a %d %b"` leaves the year out. Without it, each date is announced in full
-as the frame holds it, `2019-11-01 00:00:00`, whatever format mplfinance
-picked for the ticks.
+`"%a %d %b"` leaves the year out. Without it, each date is announced as the
+frame holds it, whatever format mplfinance picked for the ticks: `2019-11-01`
+for daily data like this, whose index has no time of day, and the full stamp,
+`2026-03-02 09:30:00`, for intraday bars.
 
 Set the format there rather than with a `DateFormatter` on the axis
 afterwards. mplfinance places candles by row number, not by date, so a

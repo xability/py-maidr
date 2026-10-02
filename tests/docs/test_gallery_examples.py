@@ -513,6 +513,37 @@ def test_candlestick_dates_read_as_the_axis_draws_them(gallery: _Gallery) -> Non
     assert {point[MaidrKey.X] for line in averages for point in line} <= set(candles)
 
 
+def test_candlestick_dates_without_a_format_read_as_the_frame_holds_them() -> None:
+    """candlestick-gantt.qmd: "Without it, each date is announced as the
+    frame holds it [...]: ``2019-11-01`` for daily data like this, whose index
+    has no time of day".
+
+    The section draws with ``datetime_format``, so the page's own data is
+    drawn again here without it.
+    """
+    import pandas as pd
+
+    mpf = pytest.importorskip("mplfinance")
+    daily = pd.read_csv(
+        DOCS.parent / "example" / "candle_stick" / "volcandat.csv",
+        index_col=0,
+        parse_dates=True,
+    )
+    fig, _ = mpf.plot(daily, type="candle", volume=True, mav=3, returnfig=True)
+    try:
+        shown = _from_schema(FigureManager.get_maidr(fig)._flatten_maidr())
+    finally:
+        FigureManager.destroy(fig)
+        plt.close(fig)
+
+    candles = [
+        candle["value"] for candle in shown.layer(PlotType.CANDLESTICK)[MaidrKey.DATA]
+    ]
+    volume = [bar[MaidrKey.X] for bar in shown.layer(PlotType.BAR)[MaidrKey.DATA]]
+    assert candles[0] == "2019-11-01"
+    assert volume == candles
+
+
 def test_contour_reads_six_curves_for_six_levels(gallery: _Gallery) -> None:
     """heatmap-hexbin-contour.qmd: "On a single-peaked surface like this
     one the two coincide -- six levels, six curves."

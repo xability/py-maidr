@@ -108,7 +108,7 @@ def test_every_layer_announces_the_date_the_tick_draws(index, fmt):
 
 
 def test_without_a_format_the_labels_are_the_raw_stamps():
-    # The output charts drawn without ``datetime_format`` have always had:
+    # Intraday bars drawn without ``datetime_format`` keep the full stamp:
     # mplfinance chooses its tick format by the span of the data, and that
     # choice is not passed on.
     index = pd.date_range("2026-03-02 09:30", periods=ROWS, freq="min")
@@ -119,6 +119,28 @@ def test_without_a_format_the_labels_are_the_raw_stamps():
     assert announced["candles"] == raw
     assert announced["volume"] == raw
     assert announced["moving average"] == raw[2:]
+
+
+DATES_ONLY = {
+    "daily": pd.date_range("2026-03-02", periods=ROWS, freq="B"),
+    "tz-aware daily": pd.date_range(
+        "2026-03-02", periods=ROWS, freq="B", tz="US/Eastern"
+    ),
+}
+
+
+@pytest.mark.parametrize("index", list(DATES_ONLY.values()), ids=list(DATES_ONLY))
+def test_without_a_format_a_daily_chart_reads_the_date_alone(index):
+    # ``str()`` of a daily stamp is ``2026-03-02 00:00:00`` -- a midnight the
+    # data never recorded, which every candle, volume bar and moving average
+    # announced. An index with no time of day reads as the date it holds.
+    _, announced = _read(_prices(index))
+
+    dates = [stamp.strftime("%Y-%m-%d") for stamp in index]
+    assert dates[0] == "2026-03-02"
+    assert announced["candles"] == dates
+    assert announced["volume"] == dates
+    assert announced["moving average"] == dates[2:]
 
 
 def test_a_nat_keeps_its_label_under_a_format():

@@ -11,6 +11,7 @@ what the class promises, so any drift between the two would show here.
 from __future__ import annotations
 
 import math
+from datetime import time
 
 import matplotlib
 import matplotlib.dates as mdates
@@ -67,13 +68,22 @@ def frame(request) -> pd.DataFrame:
     return _frame(INDEXES[request.param])
 
 
+def _reference_labels(index: pd.DatetimeIndex) -> list[str]:
+    """The labels without a ``datetime_format``: the date alone when no stamp
+    has a time of day, and the full stamp when any does."""
+    if all(stamp.time() == time(0) for stamp in index):
+        return [stamp.date().isoformat() for stamp in index]
+    return [str(stamp) for stamp in index]
+
+
 def _reference_volume(frame: pd.DataFrame) -> list[tuple[str, float]]:
+    labels = _reference_labels(frame.index)
     out = []
     for i in range(len(frame)):
         volume = frame.iloc[i]["Volume"]
         if pd.isna(volume) or volume <= 0:
             continue
-        out.append((str(frame.index[i]), float(volume)))
+        out.append((labels[i], float(volume)))
     return out
 
 
@@ -117,7 +127,9 @@ def test_the_volume_label_is_still_the_formatted_datetime(frame):
     labels = [label for label, _ in converter.extract_volume_data(None)]
     assert labels[0] == converter.get_formatted_datetime(0)
     assert labels == [
-        str(stamp) for i, stamp in enumerate(frame.index) if i not in (17, 42)
+        label
+        for i, label in enumerate(_reference_labels(frame.index))
+        if i not in (17, 42)
     ]
 
 
@@ -217,6 +229,86 @@ def test_a_volume_that_is_not_a_finite_number_is_left_out(bad):
 
     labels = [label for label, _ in converter.extract_volume_data(None)]
 
-    assert str(frame.index[3]) not in labels
+    assert converter.get_formatted_datetime(3) not in labels
     assert len(labels) == ROWS - 3
     assert all(np.isfinite(v) for _, v in converter.extract_volume_data(None))
+
+
+# Without a ``datetime_format``, a daily chart was announced as
+# ``2024-01-02 00:00:00`` on every candle, volume bar and moving average: a
+# time of day the data never recorded. An index with no time of day is now
+# labeled by the date alone; one with any time keeps the full stamp.
+
+
+def _prices(index: pd.DatetimeIndex) -> pd.DataFrame:
+    return pd.DataFrame({"Close": np.arange(len(index), dtype=float)}, index=index)
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        pd.date_range("2024-01-01", periods=5, freq="D"),
+        pd.date_range("2024-01-01", periods=5, freq="B"),
+        pd.date_range("2024-01-07", periods=5, freq="W"),
+        pd.date_range("2024-01-01", periods=5, freq="MS"),
+        INDEXES["second resolution"][:5],
+    ],
+    ids=["daily", "business days", "weekly", "monthly", "second resolution"],
+)
+def test_an_index_of_dates_is_labeled_by_the_date_alone(index):
+    converter = create_datetime_converter(_prices(index))
+
+    assert converter.dates_only
+    assert [converter.get_formatted_datetime(row) for row in range(5)] == [
+        stamp.strftime("%Y-%m-%d") for stamp in index
+    ]
+
+
+def test_a_tz_aware_index_of_dates_drops_the_offset_with_the_time():
+    # mplfinance draws the index's own wall clock, so the date is the one in
+    # its zone -- not the UTC date, and with no ``-05:00`` left dangling.
+    index = pd.date_range("2024-01-01", periods=5, freq="D", tz="US/Eastern")
+    converter = create_datetime_converter(_prices(index))
+
+    assert converter.get_formatted_datetime(0) == "2024-01-01"
+    assert str(index[0]) == "2024-01-01 00:00:00-05:00"
+
+
+def test_an_index_with_a_time_of_day_keeps_every_full_stamp():
+    # Hourly bars across midnight: the midnight bar keeps its time too, so it
+    # reads like its neighbours rather than as a bare date among times.
+    index = pd.date_range("2024-01-01 22:00", periods=5, freq="h")
+    converter = create_datetime_converter(_prices(index))
+
+    assert not converter.dates_only
+    labels = [converter.get_formatted_datetime(row) for row in range(5)]
+    assert labels == [str(stamp) for stamp in index]
+    assert labels[2] == "2024-01-02 00:00:00"
+
+
+def test_one_stamp_with_a_time_keeps_the_full_stamps():
+    index = pd.DatetimeIndex(["2024-01-01", "2024-01-02", "2024-01-03 12:00"])
+    converter = create_datetime_converter(_prices(index))
+
+    assert converter.get_formatted_datetime(0) == "2024-01-01 00:00:00"
+
+
+def test_a_nat_does_not_stop_the_date_alone():
+    index = _with_a_nat(pd.date_range("2024-01-01", periods=5, freq="D"), at=2)
+    converter = create_datetime_converter(_prices(index))
+
+    assert [converter.get_formatted_datetime(row) for row in range(5)] == [
+        "2024-01-01",
+        "2024-01-02",
+        "NaT",
+        "2024-01-04",
+        "2024-01-05",
+    ]
+
+
+def test_a_format_still_wins_over_the_date_alone():
+    converter = create_datetime_converter(
+        _prices(pd.date_range("2024-01-01", periods=5)), datetime_format="%d %b %Y"
+    )
+
+    assert converter.get_formatted_datetime(0) == "01 Jan 2024"

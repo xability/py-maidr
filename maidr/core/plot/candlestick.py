@@ -21,7 +21,8 @@ class CandlestickPlot(MaidrPlot):
 
     This class extracts candlestick data directly from the original DataFrame,
     with no transformation of the prices. Each date is labeled in the chart's
-    ``datetime_format`` when it was drawn with one.
+    ``datetime_format`` when it was drawn with one, and otherwise as the date
+    alone when the index records no time of day.
     """
 
     def __init__(self, axes: list[Axes], **kwargs) -> None:
@@ -123,12 +124,13 @@ class CandlestickPlot(MaidrPlot):
         list[dict]
             List of candlestick data dictionaries with raw prices, and the date
             labeled by the converter the mplfinance patch handed over -- in the
-            chart's ``datetime_format`` if it has one -- or else as
-            ``str(df.index[i])``. A row whose open, high, low or close is not
-            finite or not a number is left out. ``volume`` is present only
-            where the frame records one: a frame with no ``Volume`` column
-            gives no candle a ``volume``, and a candle whose volume is
-            missing, not finite or not a number has none.
+            chart's ``datetime_format`` if it has one, and as an ISO date if
+            the index has no time of day -- or else as ``str(df.index[i])``.
+            A row whose open, high, low or close is not finite or not a number
+            is left out. ``volume`` is present only where the frame records
+            one: a frame with no ``Volume`` column gives no candle a
+            ``volume``, and a candle whose volume is missing, not finite or
+            not a number has none.
 
         Notes
         -----
@@ -175,8 +177,9 @@ class CandlestickPlot(MaidrPlot):
         # The label of each row: the index as the converter formats it, which
         # is the chart's ``datetime_format`` when it was drawn with one (#233),
         # so a candle reads the same date as its volume bar and moving
-        # averages. Without a format, or without a converter, it is the raw
-        # ``str(df.index[i])``.
+        # averages. Without a format it is the date alone for an index with
+        # no time of day, and the raw ``str(df.index[i])`` otherwise -- which
+        # is also the label without a converter.
         converter = self._maidr_datetime_converter
         format_date = converter.format_datetime if converter is not None else str
         dates = [format_date(date) for date in df.index]

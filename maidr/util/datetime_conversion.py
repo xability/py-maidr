@@ -22,7 +22,9 @@ class DatetimeConverter:
         DataFrame with DatetimeIndex containing financial data.
     datetime_format : str, optional
         ``strftime`` format the dates are labeled in: the chart's own
-        ``datetime_format``. If None, each date is labeled ``str(date)``.
+        ``datetime_format``. If None, each date is labeled as an ISO date
+        (``YYYY-MM-DD``) when the index has no time of day, and as
+        ``str(date)`` otherwise.
 
     Attributes
     ----------
@@ -30,6 +32,9 @@ class DatetimeConverter:
         The input DataFrame with DatetimeIndex.
     datetime_format : str or None
         The ``strftime`` format dates are labeled in, if one was given.
+    dates_only : bool
+        Whether every stamp of the index falls at midnight, so the index
+        records dates and no times of day.
     date_mapping : Dict[int, datetime]
         Mapping from integer index to datetime objects.
     time_period : str
@@ -54,7 +59,7 @@ class DatetimeConverter:
     >>>
     >>> # Get formatted datetime
     >>> formatted = converter.get_formatted_datetime(0)
-    >>> print(formatted)  # Output: "2024-01-15 00:00:00"
+    >>> print(formatted)  # Output: "2024-01-15"
     >>>
     >>> # For time-based data
     >>> hourly_dates = pd.date_range('2024-01-15 09:00:00', periods=3, freq='H')
@@ -75,8 +80,8 @@ class DatetimeConverter:
         data : pd.DataFrame
             DataFrame with DatetimeIndex containing financial data.
         datetime_format : str, optional
-            ``strftime`` format the dates are labeled in. If None, each date
-            is labeled ``str(date)``.
+            ``strftime`` format the dates are labeled in. If None, see
+            `format_datetime`.
 
         Raises
         ------
@@ -100,6 +105,7 @@ class DatetimeConverter:
 
         self.date_mapping = self._create_date_mapping()
         self.time_period = self._detect_time_period()
+        self.dates_only = self._has_no_time_of_day()
 
     def _create_date_mapping(self) -> Dict[int, datetime]:
         """
@@ -112,6 +118,27 @@ class DatetimeConverter:
             from the DataFrame index.
         """
         return {i: date for i, date in enumerate(self.data.index)}
+
+    def _has_no_time_of_day(self) -> bool:
+        """
+        Whether every stamp of the index falls at midnight.
+
+        Returns
+        -------
+        bool
+            True when each stamp that is not ``NaT`` is at midnight in the
+            index's own zone -- daily, weekly or monthly bars, which record a
+            date and no time of day.
+
+        Notes
+        -----
+        One comparison over the whole index rather than a check per stamp
+        (#706). A tz-aware index is judged by its wall-clock time, which is
+        what mplfinance draws: it drops the zone before plotting.
+        """
+        index = self.data.index
+        stamps = index[index.notna()]
+        return bool((stamps == stamps.normalize()).all())
 
     def _detect_time_period(self) -> str:
         """
@@ -190,7 +217,7 @@ class DatetimeConverter:
         --------
         >>> converter = create_datetime_converter(df)
         >>> formatted = converter.get_formatted_datetime(0)
-        >>> print(formatted)  # "2024-01-15 00:00:00" (plain datetime string)
+        >>> print(formatted)  # "2024-01-15" (the index has no time of day)
         """
         if index not in self.date_mapping:
             return None
@@ -210,8 +237,9 @@ class DatetimeConverter:
         Returns
         -------
         str
-            ``dt.strftime(datetime_format)`` when a format was given, else the
-            raw ``str(dt)``.
+            ``dt.strftime(datetime_format)`` when a format was given. Without
+            one, the ISO date (``YYYY-MM-DD``) when the index has no time of
+            day (`dates_only`), and the raw ``str(dt)`` otherwise.
 
         Notes
         -----
@@ -221,17 +249,26 @@ class DatetimeConverter:
         index's zone before drawing (its default ``tz_localize=True``), which
         leaves the same wall-clock time this reads.
 
-        Without a format the label is ``str(dt)``, as it has always been,
-        leaving the frontend to handle the presentation. A ``NaT`` has no
-        ``strftime`` and keeps its ``"NaT"`` either way.
+        Without a format, ``str(dt)`` of a daily bar is ``2024-01-02
+        00:00:00`` -- a time of day the data never recorded, announced on
+        every candle, volume bar and moving average. So an index whose every
+        stamp is at midnight is labeled by the date alone; a tz-aware one
+        loses the offset ``str()`` would append, which the drawn ticks do not
+        show either. An index with any other time keeps ``str(dt)`` for every
+        stamp, midnight included, so an intraday chart's labels stay alike.
+        A ``NaT`` keeps its ``"NaT"`` either way.
         """
         # Imported here rather than at module level, so that `import maidr`
         # does not load pandas; mplfinance has loaded it by now anyway.
         import pandas as pd
 
-        if self.datetime_format is None or dt is pd.NaT:
+        if dt is pd.NaT:
             return str(dt)
-        return dt.strftime(self.datetime_format)
+        if self.datetime_format is not None:
+            return dt.strftime(self.datetime_format)
+        if self.dates_only:
+            return dt.date().isoformat()
+        return str(dt)
 
     @property
     def date_nums(self) -> List[float]:
@@ -419,7 +456,8 @@ def create_datetime_converter(
         DataFrame with DatetimeIndex containing financial data.
     datetime_format : str, optional
         ``strftime`` format the dates are labeled in: the chart's own
-        ``datetime_format``. If None, each date is labeled ``str(date)``.
+        ``datetime_format``. If None, each date is labeled as an ISO date
+        when the index has no time of day, and as ``str(date)`` otherwise.
 
     Returns
     -------
