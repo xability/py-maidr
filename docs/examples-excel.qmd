@@ -1,6 +1,6 @@
 ---
 title: "Excel Accessible Chart Examples"
-description: "Code examples showing how to make the charts in an Excel workbook (.xlsx) accessible with py-maidr: column, line, pie, combo and area charts read from the file, without Excel."
+description: "Code examples showing how to make the charts in an Excel workbook (.xlsx) accessible with py-maidr: every Excel chart type, from column, line and pie charts to stock charts, histograms, box and whisker charts, waterfalls and treemaps, read from the file without Excel."
 jupyter: python3
 html-table-processing: none
 resources:
@@ -34,6 +34,8 @@ own colors and with its own titles, and the mark being read is outlined on that
 drawing. The drawing is not Excel's picture of the chart: fonts and effects
 differ.
 
+Every chart type Excel draws is read:
+
 | Excel chart | read as |
 |---|---|
 | Column or bar, one series | bar |
@@ -41,14 +43,27 @@ differ.
 | Stacked and 100% stacked column or bar | stacked bar; 100% stacked reads each segment's share |
 | Line, with or without markers | line, one series per line |
 | Pie and doughnut | pie, clockwise from the top |
+| Pie-of-pie and bar-of-pie | a pie with the gathered slice, *Other*, and beside it a pie or a stacked column of what it gathers |
 | Scatter | point; with lines, line |
+| Bubble | point, with each bubble's size as its z |
+| Stock: high-low-close and open-high-low-close, with or without volume | candlestick |
+| Surface, as its contour view | heat, a row per series |
+| Histogram | histogram, binned as Excel bins it; by category, bar |
+| Pareto | bar, largest first, and the running share as a line on a second axis |
+| Box and whisker | box, with Excel's quartiles |
 | Combo, including a second value axis | one layer per chart type in one chart |
 | Area, stacked and 100% stacked area | area [experimental], stacked area [experimental] |
+| Stacked and 100% stacked line | stacked area [experimental] |
+| Radar, with markers and filled | radar [experimental] |
+| Waterfall | waterfall [experimental] |
+| Funnel | funnel [experimental] |
+| Treemap | treemap [experimental] |
+| Sunburst | sunburst [experimental] |
+| Map | choropleth [experimental], a list of the regions |
 
-Stacked line, radar, bubble, stock, surface and pie-of-pie charts, and the chart
-types Excel 2016 added (histogram, Pareto, box and whisker, waterfall, funnel,
-treemap, sunburst and map), are left out with a warning naming the chart and its
-sheet.
+3-D charts read as their flat counterparts. A map is read as the list of its
+regions and their values and drawn as bars: **maidr** does not draw the
+shapes of the regions.
 
 An axis Excel draws no title on is named after the header cell above its
 categories, such as *Quarter*: you hear it, and the drawing leaves it off as
@@ -56,8 +71,9 @@ Excel does. A value axis keeps its number format, so a percentage reads as one.
 Dates read the way the cells show them. A category with no label reads
 *(blank)*, and a blank value is a gap, never a zero.
 
-The examples read [sales.xlsx](sales.xlsx), a workbook with one sheet of
-quarterly sales and five charts.
+The examples read [sales.xlsx](sales.xlsx), a workbook with a sheet of
+quarterly sales and its charts, and sheets of share prices, test scores, a
+budget and product sales, each with a chart of its own.
 
 ### Reading a Workbook
 
@@ -123,10 +139,79 @@ The margin is read as a percentage, because its cells are formatted as one.
 maidr.show(charts[3])
 ```
 
+### Stock Chart
+
+An open-high-low-close chart with Excel's up and down bars reads as candles:
+left and right move between days, and up and down between the open, high, low
+and close of a day.
+
+```{python}
+#| warning: false
+#| fig-alt: Stock chart of a share's open, high, low and close prices over five days
+maidr.show(charts[6])
+```
+
+### Histogram
+
+A histogram's file keeps the scores, not the bins, so **maidr** bins them as
+Excel does: here ten points wide, as the chart says, each bin including its
+right end.
+
+```{python}
+#| warning: false
+#| fig-alt: Histogram of test scores in bins ten points wide
+maidr.show(charts[7])
+```
+
+### Box and Whisker Chart
+
+One box per class. The quartiles are worked out as Excel works them out, and
+a whisker reaches the furthest score within one and a half interquartile
+ranges of its box.
+
+```{python}
+#| warning: false
+#| fig-alt: Box and whisker chart of test scores for two classes
+maidr.show(charts[8])
+```
+
 ### Stacked Area Chart [experimental]
 
 ```{python}
 #| warning: false
 #| fig-alt: Stacked area chart of revenue by quarter for the North and South regions
 maidr.show(charts[4])
+```
+
+### Radar Chart [experimental]
+
+Each quarter is a spoke, clockwise from the top, and each region a series:
+left and right move around the spokes, and up and down between the regions.
+
+```{python}
+#| warning: false
+#| fig-alt: Radar chart of revenue by quarter for the North and South regions
+maidr.show(charts[5])
+```
+
+### Waterfall Chart [experimental]
+
+The opening and closing balances are set as totals in Excel, so each is read
+from zero; every step between them is read from the running total.
+
+```{python}
+#| warning: false
+#| fig-alt: Waterfall chart of a cash flow from the opening to the closing balance
+maidr.show(charts[9])
+```
+
+### Treemap [experimental]
+
+Each category is a branch and each product a leaf: up and down move between a
+branch and its products, and left and right between the nodes of a level.
+
+```{python}
+#| warning: false
+#| fig-alt: Treemap of sales by product, grouped by category
+maidr.show(charts[10])
 ```

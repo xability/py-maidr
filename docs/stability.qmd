@@ -147,8 +147,11 @@ format is written, and what is skipped may change without a deprecation
 period, including in a patch release. Each chart is read from the copy of its
 values Excel keeps in the file and drawn again with matplotlib, and the reader
 follows that drawing, which keeps the workbook's colors and titles but is not
-Excel's own picture. A chart type it does not read is left out with a warning
-naming it. See the [Excel gallery](examples-excel.qmd) for what it reads today.
+Excel's own picture. Every chart type Excel draws is read; a histogram's bins
+and a box's quartiles are worked out as Excel works them out, and a map is read
+as the list of its regions, without their shapes. A chart part it cannot read
+is left out with a warning naming it. See the
+[Excel gallery](examples-excel.qmd) for what it reads today.
 
 ## Drawn but not read
 
