@@ -216,6 +216,11 @@ def read_tensorboard_scalars(
     finite, such as a loss that became ``NaN``, is a gap in the line and is
     left out of the average, as TensorBoard leaves it out.
 
+    A damaged event file is read up to the damage, with a warning, wherever
+    the damage reaches a record's length. Damage inside a record's data is
+    not detected, since checking it would mean a checksum over every image
+    and histogram the log directory holds, and reads as the damaged value.
+
     Examples
     --------
     >>> import maidr

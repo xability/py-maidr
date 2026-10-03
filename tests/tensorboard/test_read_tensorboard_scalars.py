@@ -213,6 +213,17 @@ def test_a_record_cut_off_while_being_written_is_left_quietly(tmp_path):
     assert series.values.tolist() == [1.0, 0.5]
 
 
+def test_a_length_past_the_end_of_the_file_is_never_read(tmp_path):
+    writer = _Writer(tmp_path / "run").scalars("loss", [(0, 1.0)])
+    length = struct.pack("<Q", 1 << 62)
+    writer.raw(length + struct.pack("<I", _masked_crc32c(length)) + b"\0" * 16)
+    writer.close()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        (series,) = load_scalars(tmp_path)["loss"].values()
+    assert series.values.tolist() == [1.0]
+
+
 # -- Restarted runs -----------------------------------------------------------
 
 

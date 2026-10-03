@@ -141,9 +141,12 @@ def _records(path: str) -> Iterator[bytes]:
     rather than being misread; the data's is not, which would cost a pass of
     pure-Python CRC over every image and histogram a log directory holds. A
     record cut off at the end is a file still being written, and ends it
-    silently.
+    silently. A length running past the end of the file is read as such a
+    record, before anything is read, so that a length a file only claims is
+    never allocated.
     """
     with open(path, "rb") as stream:
+        size = os.fstat(stream.fileno()).st_size
         while True:
             header = stream.read(12)
             if len(header) < 12:
@@ -155,6 +158,8 @@ def _records(path: str) -> Iterator[bytes]:
                     f"maidr stopped reading {path} at byte {stream.tell() - 12}: "
                     "the file is damaged there."
                 )
+                return
+            if length + 4 > size - stream.tell():
                 return
             data = stream.read(length)
             if len(data) < length or len(stream.read(4)) < 4:
