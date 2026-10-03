@@ -20,7 +20,6 @@ from typing import Iterable
 import numpy as np
 from matplotlib import colormaps
 from matplotlib.figure import Figure
-from scipy.signal import lfilter
 
 from maidr.core.figure_manager import FigureManager
 from maidr.tensorboard.events import SCALARS_PLUGIN, find_runs, read_run
@@ -278,7 +277,10 @@ def smooth(values: np.ndarray, weight: float) -> np.ndarray:
     if weight == 0 or not finite.any():
         return smoothed
     # The average over the finite values alone, as one linear filter rather
-    # than a Python loop: a run can log millions of steps.
+    # than a Python loop: a run can log millions of steps. Imported here, as
+    # `import maidr` loads no scipy (tests/core/test_lazy_patches.py).
+    from scipy.signal import lfilter
+
     average = lfilter([1 - weight], [1, -weight], values[finite])
     count = np.arange(1, len(average) + 1)
     smoothed[finite] = average / (1 - weight**count)
