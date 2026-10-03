@@ -122,6 +122,14 @@ def test_smoothing_is_tensorboards_debiased_moving_average():
     assert smooth(np.full(5, 4.0), 0.9) == pytest.approx(np.full(5, 4.0))
 
 
+def test_smoothing_steps_over_a_value_that_is_not_finite():
+    values = np.array([1.0, np.nan, 2.0, np.inf, 3.0])
+    smoothed = smooth(values, 0.5)
+    assert np.isnan(smoothed[1]) and np.isinf(smoothed[3])
+    expected = smooth(np.array([1.0, 2.0, 3.0]), 0.5)
+    assert smoothed[[0, 2, 4]] == pytest.approx(expected)
+
+
 def test_smoothing_draws_each_run_twice_and_zero_draws_it_once():
     (smoothed,) = _read(FIXTURES / "keras", tags=["epoch_loss"])
     assert list(_series(smoothed)) == [
@@ -149,6 +157,12 @@ def test_smoothing_is_computed_over_every_value_before_thinning(tmp_path):
 def test_the_order_of_tags_asked_for_is_kept():
     charts = _read(FIXTURES / "keras", tags=["epoch_loss", "epoch_accuracy"])
     assert [chart.tag for chart in charts] == ["epoch_loss", "epoch_accuracy"]
+
+
+def test_a_warning_names_the_line_that_called_maidr():
+    with pytest.warns(UserWarning, match="no run") as caught:
+        read_tensorboard_scalars(FIXTURES / "keras", runs=["test"])
+    assert {Path(w.filename).name for w in caught} == {Path(__file__).name}
 
 
 def test_an_unknown_tag_or_run_is_warned_about_by_name():

@@ -13,13 +13,14 @@ py-maidr reads the drawing like any other matplotlib figure.
 
 from __future__ import annotations
 
-import math
 import os
 from dataclasses import dataclass, field
 from typing import Iterable
 
 import numpy as np
+from matplotlib import colormaps
 from matplotlib.figure import Figure
+from scipy.signal import lfilter
 
 from maidr.core.figure_manager import FigureManager
 from maidr.tensorboard.events import SCALARS_PLUGIN, find_runs, read_run
@@ -272,16 +273,15 @@ def smooth(values: np.ndarray, weight: float) -> np.ndarray:
         The smoothed values, as many as ``values``.
     """
     values = np.asarray(values, dtype=float)
-    smoothed = np.empty_like(values)
-    last = 0.0
-    count = 0
-    for i, value in enumerate(values):
-        if not math.isfinite(value):
-            smoothed[i] = value
-            continue
-        last = last * weight + (1 - weight) * value
-        count += 1
-        smoothed[i] = last / (1 - weight**count)
+    smoothed = values.copy()
+    finite = np.isfinite(values)
+    if weight == 0 or not finite.any():
+        return smoothed
+    # The average over the finite values alone, as one linear filter rather
+    # than a Python loop: a run can log millions of steps.
+    average = lfilter([1 - weight], [1, -weight], values[finite])
+    count = np.arange(1, len(average) + 1)
+    smoothed[finite] = average / (1 - weight**count)
     return smoothed
 
 
@@ -339,7 +339,6 @@ def _draw(
 
 
 def _colors(count: int) -> list:
-    """One color per run, from matplotlib's cycle, repeating after ten."""
-    cycle = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
-    cycle += ["#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
-    return [cycle[i % len(cycle)] for i in range(count)]
+    """One color per run, from matplotlib's tab10, repeating after ten."""
+    palette = colormaps["tab10"]
+    return [palette(i % palette.N) for i in range(count)]
