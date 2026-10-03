@@ -11,7 +11,7 @@ from matplotlib.figure import Figure
 
 from maidr.core import Maidr
 from maidr.core.enum import PlotType
-from maidr.core.plot import MaidrPlotFactory
+from maidr.core.plot import MaidrPlot, MaidrPlotFactory
 from maidr.exception.unsupported_plot_error import UnsupportedPlotError
 
 
@@ -272,7 +272,37 @@ class FigureManager:
         # Extraction stays *outside* the lock: it is the expensive part and
         # touches only the artists it was handed.
         plot = MaidrPlotFactory.create(axes, plot_type, **kwargs)
+        cls._append(maidr, plot)
+        return maidr
 
+    @classmethod
+    def add_plot(cls, plot: MaidrPlot) -> Maidr:
+        """
+        Add a layer built outside the factory to its figure's Maidr.
+
+        For a reader that knows its chart's data before matplotlib draws it,
+        such as the Excel reader, and so builds the layer itself rather than
+        reading one off the artists.
+
+        Parameters
+        ----------
+        plot : MaidrPlot
+            The layer, on the axes it describes.
+
+        Returns
+        -------
+        Maidr
+            The figure's Maidr, which now holds the layer.
+        """
+        figure = plot.ax.get_figure()
+        if figure is None:
+            raise ValueError(f"No figure found for axis: {plot.ax}.")
+        maidr = cls._get_maidr(figure, plot.type)
+        cls._append(maidr, plot)
+        return maidr
+
+    @classmethod
+    def _append(cls, maidr: Maidr, plot: MaidrPlot) -> None:
         # The two appends do not. `plots` and `selector_ids` are separate
         # lists held index-aligned -- `Maidr._flatten_maidr` and
         # `_create_html_tag` both zip them, and `_drop_superseded_layers`
@@ -289,7 +319,6 @@ class FigureManager:
         with cls._lock:
             maidr.plots.append(plot)
             maidr.selector_ids.append(Maidr._unique_id())
-        return maidr
 
     @classmethod
     def _get_maidr(cls, fig: Figure, plot_type: PlotType) -> Maidr:
