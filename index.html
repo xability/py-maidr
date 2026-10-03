@@ -366,7 +366,7 @@ window.Quarto = {
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-09-30">
+<meta name="DC.date" content="2026-10-03">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -467,6 +467,10 @@ window.Quarto = {
     <a class="dropdown-item" href="./examples-altair.html">
  <span class="dropdown-text">Altair</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-excel.html">
+ <span class="dropdown-text">Excel <a href="#matplotlib-experimental">experimental</a></span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -508,6 +512,7 @@ window.Quarto = {
   <li><a href="#bokeh-experimental" id="toc-bokeh-experimental" class="nav-link" data-scroll-target="#bokeh-experimental">Bokeh experimental</a></li>
   <li><a href="#plotnine-experimental" id="toc-plotnine-experimental" class="nav-link" data-scroll-target="#plotnine-experimental">plotnine experimental</a></li>
   <li><a href="#altair" id="toc-altair" class="nav-link" data-scroll-target="#altair">Altair</a></li>
+  <li><a href="#excel-experimental" id="toc-excel-experimental" class="nav-link" data-scroll-target="#excel-experimental">Excel experimental</a></li>
   <li><a href="#additional-libraries" id="toc-additional-libraries" class="nav-link" data-scroll-target="#additional-libraries">Additional Libraries</a></li>
   </ul></li>
   <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a></li>
@@ -793,6 +798,28 @@ Note
 </div>
 </div>
 </section>
+<section id="excel-experimental" class="level3">
+<h3 class="anchored" data-anchor-id="excel-experimental">Excel <a href="#matplotlib-experimental">experimental</a></h3>
+<p>py-maidr reads the charts of an Excel workbook, without Excel: <code>maidr.read_excel_charts("book.xlsx")</code> returns one chart per chart in the workbook, which <code>maidr.show()</code>, <code>maidr.render()</code> and <code>maidr.save_html()</code> take as they take a figure. Each chart is read from the copy of its values Excel keeps in the file, and drawn again with matplotlib in the workbook’s colors. Excel support as a whole is <strong>experimental</strong>, whichever chart type is read: see <a href="./stability.html#excel-support">Plot Type Stability</a>.</p>
+<section id="excel-stable" class="level4">
+<h4 class="anchored" data-anchor-id="excel-stable">Stable</h4>
+<ul>
+<li><p>Column and bar charts: one series reads as a bar plot, clustered as a dodged bar plot, and stacked or 100% stacked as a stacked bar plot, a 100% stacked segment announced as its share of the category.</p></li>
+<li><p>Line charts, one series per line.</p></li>
+<li><p>Pie and doughnut charts, walked clockwise from the top.</p></li>
+<li><p>Scatter charts; a scatter chart with lines reads as a line plot.</p></li>
+<li><p>Combo charts, one layer per chart type in one chart, including a second value axis.</p></li>
+</ul>
+</section>
+<section id="excel-experimental" class="level4">
+<h4 class="anchored" data-anchor-id="excel-experimental">Experimental</h4>
+<p>These may change without a deprecation period; see <a href="./stability.html">Plot Type Stability</a>.</p>
+<ul>
+<li>Area <a href="#matplotlib-experimental">experimental</a> and stacked area <a href="#matplotlib-experimental">experimental</a> charts, plain, stacked and 100% stacked.</li>
+</ul>
+<p>Stacked line, radar, bubble, stock, surface and pie-of-pie charts, and the chart types Excel 2016 added (histogram, Pareto, box and whisker, waterfall, funnel, treemap, sunburst and map), are left out with a warning naming them. See the <a href="./examples-excel.html#sec-excel-examples">Excel gallery</a> for runnable examples.</p>
+</section>
+</section>
 <section id="additional-libraries" class="level3">
 <h3 class="anchored" data-anchor-id="additional-libraries">Additional Libraries</h3>
 <ul>
@@ -815,7 +842,7 @@ Note
 <p>Check more examples in the <a href="./examples.html#sec-examples">galleries</a>.</p>
 <section id="sample-bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="sample-bar-plot">Sample Bar Plot</h3>
-<div id="6a7e6a8c" class="cell" data-execution_count="1">
+<div id="d70c754d" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,5,22,23,26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -843,16 +870,16 @@ Note
 <span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Uncomment the following line to save and share the accessible version of your plot with others!</span></span>
 <span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="co"># maidr.save_html(bar_plot, "output.html") </span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<script src="https://cdn.jsdelivr.net/npm/maidr@4.12.0/dist/maidr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js"></script>
 </div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_5840ea60-b662-44d9-913b-3bacc41ebce3" title="Average Body Mass of Penguins by Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+<iframe id="iframe_9f4b10d9-55e6-4be9-a996-8347b52d7fd5" title="Average Body Mass of Penguins by Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
-                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.12.0/dist/maidr.js&quot;]');
+                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js&quot;]');
                     if (!existing) {
                         var s = document.createElement('script');
-                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.12.0/dist/maidr.js';
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js';
                         s.onload = function() { if (window.main) window.main(); };
                         document.head.appendChild(s);
                     } else {
@@ -864,12 +891,12 @@ Note
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;7de7ec88-9640-4650-a70b-cff43912cd5a&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;7de7ec88-9640-4650-a70b-cff43912cd5a&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;e5a42d9d-6653-48ec-a0ae-8035d2066b8f&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;0782abc3-01a8-4561-bd0f-00dc4093550e&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Species&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;, &amp;quot;y&amp;quot;: 3700.662251655629}, {&amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;, &amp;quot;y&amp;quot;: 3733.0882352941176}, {&amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;, &amp;quot;y&amp;quot;: 5076.016260162602}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='dbd26b65-e08d-40d8-9e42-5a182a618815'] &amp;gt; path&amp;quot;, &amp;quot;orientation&amp;quot;: &amp;quot;vert&amp;quot;}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;99f766f3-b7ee-4782-8013-e3b6ace00793&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;99f766f3-b7ee-4782-8013-e3b6ace00793&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;8256cdee-8649-4f40-b3a2-89371ca8823f&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;a9f4ef3a-52ff-4a68-8f19-72262f3aec06&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Average Body Mass of Penguins by Species&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Species&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Body Mass (g)&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;x&amp;quot;: &amp;quot;Adelie&amp;quot;, &amp;quot;y&amp;quot;: 3700.662251655629}, {&amp;quot;x&amp;quot;: &amp;quot;Chinstrap&amp;quot;, &amp;quot;y&amp;quot;: 3733.0882352941176}, {&amp;quot;x&amp;quot;: &amp;quot;Gentoo&amp;quot;, &amp;quot;y&amp;quot;: 5076.016260162602}], &amp;quot;selectors&amp;quot;: &amp;quot;g[maidr='14afe04c-ecc8-465b-a23c-00eb868f254f'] &amp;gt; path&amp;quot;, &amp;quot;orientation&amp;quot;: &amp;quot;vert&amp;quot;}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-10-02T01:06:29.130086</dc:date>
+    <dc:date>2026-10-03T20:00:41.598141</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -883,30 +910,30 @@ Note
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-1cbcf453-2101-4e7e-b52e-47ac49271d63&quot;>
+  <g id=&quot;maidr-86338b6e-3ecb-4fdd-b54d-77ffb0ed4cf5&quot;>
    <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-1278aa67-e7fb-4632-8f09-19c1330a3d6a&quot;>
+   <g id=&quot;maidr-3929afe0-6fa1-4e1a-acfc-38c90c237a86&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  L 388.8 51.84  L 54 51.84  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
-   <g id=&quot;maidr-cd362b79-e8a2-498e-b306-9d277881d39a&quot; maidr=&quot;dbd26b65-e08d-40d8-9e42-5a182a618815&quot;>
-    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#pdebd9fdc65)&quot; style=&quot;fill: #7da9c7&quot;/>
+   <g id=&quot;maidr-2344ad4d-d0aa-4c69-9453-418887bcdff9&quot; maidr=&quot;14afe04c-ecc8-465b-a23c-00eb868f254f&quot;>
+    <path d=&quot;M 65.16 384.48  L 154.44 384.48  L 154.44 174.382874  L 65.16 174.382874  z &quot; clip-path=&quot;url(#p175c3cf9a5)&quot; style=&quot;fill: #7da9c7&quot;/>
    </g>
-   <g id=&quot;maidr-73b2b839-c25a-4836-93d7-b5d3c51dc267&quot; maidr=&quot;dbd26b65-e08d-40d8-9e42-5a182a618815&quot;>
-    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#pdebd9fdc65)&quot; style=&quot;fill: #4884af&quot;/>
+   <g id=&quot;maidr-384d843c-af60-4474-b857-a71e4a2cdf8a&quot; maidr=&quot;14afe04c-ecc8-465b-a23c-00eb868f254f&quot;>
+    <path d=&quot;M 176.76 384.48  L 266.04 384.48  L 266.04 172.541958  L 176.76 172.541958  z &quot; clip-path=&quot;url(#p175c3cf9a5)&quot; style=&quot;fill: #4884af&quot;/>
    </g>
-   <g id=&quot;maidr-3e85cd5d-04ce-4670-bc52-054eb7e617b5&quot; maidr=&quot;dbd26b65-e08d-40d8-9e42-5a182a618815&quot;>
-    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#pdebd9fdc65)&quot; style=&quot;fill: #3d5b70&quot;/>
+   <g id=&quot;maidr-bce67b41-58cc-470f-ace7-0fcb8afdc5b1&quot; maidr=&quot;14afe04c-ecc8-465b-a23c-00eb868f254f&quot;>
+    <path d=&quot;M 288.36 384.48  L 377.64 384.48  L 377.64 96.300113  L 288.36 96.300113  z &quot; clip-path=&quot;url(#p175c3cf9a5)&quot; style=&quot;fill: #3d5b70&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-516e2a1c-f976-4800-88ad-00888d3832e1&quot;>
+     <g id=&quot;maidr-1b2eb7f5-7e7f-4dd2-a4a4-d22ad3d11017&quot;>
       <defs>
-       <path id=&quot;mfb4e55b8a2&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;mb4e220a8ab&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#mfb4e55b8a2&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mb4e220a8ab&quot; x=&quot;109.8&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -929,9 +956,9 @@ Note
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-55a52425-91f0-4f4e-b732-17e16d2cf998&quot;>
+     <g id=&quot;maidr-97502e01-7030-4be5-9fb2-53d1608bfaa7&quot;>
       <g>
-       <use xlink:href=&quot;#mfb4e55b8a2&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mb4e220a8ab&quot; x=&quot;221.4&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -960,9 +987,9 @@ Note
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-0ddffc57-aa50-4c9d-93c4-f071f1610d39&quot;>
+     <g id=&quot;maidr-e8728bb4-a187-4b76-ab56-38ed346fbf93&quot;>
       <g>
-       <use xlink:href=&quot;#mfb4e55b8a2&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mb4e220a8ab&quot; x=&quot;333&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -1000,12 +1027,12 @@ Note
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-c32b6566-cbad-4534-89e1-da067cba6093&quot;>
+     <g id=&quot;maidr-c29033f1-d7ac-4ab1-88a9-d83c4e873c4c&quot;>
       <defs>
-       <path id=&quot;mb51245df23&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;mf2fe34b8d4&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#mb51245df23&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2fe34b8d4&quot; x=&quot;54&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -1019,9 +1046,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-4b192a57-75c3-44ed-9375-dfe121493dda&quot;>
+     <g id=&quot;maidr-6f8927c0-eaf1-4362-95b4-1f7ba2e72dce&quot;>
       <g>
-       <use xlink:href=&quot;#mb51245df23&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2fe34b8d4&quot; x=&quot;54&quot; y=&quot;327.707155&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -1038,9 +1065,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-e3a87755-0f8e-4f8f-b5d0-1eb711a75191&quot;>
+     <g id=&quot;maidr-4f377955-3019-464c-b6f7-e51be676ba3b&quot;>
       <g>
-       <use xlink:href=&quot;#mb51245df23&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2fe34b8d4&quot; x=&quot;54&quot; y=&quot;270.934309&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -1057,9 +1084,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-6fccb4ae-a9d2-40f5-9302-21b76ce42f18&quot;>
+     <g id=&quot;maidr-a47ec5b3-dc51-4406-ae03-e1a67fa094bb&quot;>
       <g>
-       <use xlink:href=&quot;#mb51245df23&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2fe34b8d4&quot; x=&quot;54&quot; y=&quot;214.161464&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -1076,9 +1103,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-1a8c7763-6e7f-4f8b-8024-7bafe91158c4&quot;>
+     <g id=&quot;maidr-9f7471f5-0211-4bde-a35c-71ab36710b6d&quot;>
       <g>
-       <use xlink:href=&quot;#mb51245df23&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2fe34b8d4&quot; x=&quot;54&quot; y=&quot;157.388618&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -1095,9 +1122,9 @@ Note
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-0aa8c709-14ff-4913-809c-ff4d33e9b2f2&quot;>
+     <g id=&quot;maidr-97a154e7-ec2e-4a88-b84f-219c4adead11&quot;>
       <g>
-       <use xlink:href=&quot;#mb51245df23&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2fe34b8d4&quot; x=&quot;54&quot; y=&quot;100.615773&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -1141,25 +1168,25 @@ Note
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-235e813a-c6e4-4112-b0e1-132b669b13f5&quot;>
-    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#pdebd9fdc65)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-78f4fc65-2ac2-48ec-9eba-a27bdc531fca&quot;>
+    <path d=&quot;M 109.8 200.416978  L 109.8 148.34877  &quot; clip-path=&quot;url(#p175c3cf9a5)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-ae4067d4-a719-488d-a1fb-ac92a5789562&quot;>
-    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#pdebd9fdc65)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-7102e774-43da-4dc9-a40e-50d491cccd5f&quot;>
+    <path d=&quot;M 221.4 194.361755  L 221.4 150.722162  &quot; clip-path=&quot;url(#p175c3cf9a5)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-11ad210d-8b96-45e0-9bb7-c9b0e4451b3b&quot;>
-    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#pdebd9fdc65)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-d3d89f56-52ce-4414-80ba-224075dcd16a&quot;>
+    <path d=&quot;M 333 124.920226  L 333 67.68  &quot; clip-path=&quot;url(#p175c3cf9a5)&quot; style=&quot;fill: none; stroke: #424242; stroke-width: 2.25; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-09ed996d-3acc-4834-a1dc-ceee650f3790&quot;>
+   <g id=&quot;maidr-218be58b-7098-49e5-a83c-bcadfabe73cb&quot;>
     <path d=&quot;M 54 384.48  L 54 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-5901e74a-adfd-43ef-be05-2210b803995c&quot;>
+   <g id=&quot;maidr-03758de8-3050-4fd6-9ec4-0100eccec52d&quot;>
     <path d=&quot;M 388.8 384.48  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-6b3ec82e-3d48-4366-aaca-22acde537894&quot;>
+   <g id=&quot;maidr-c0f37739-c077-417f-afbd-f2dcb80a01f8&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-1581dce0-8462-4348-9a30-8a6554677bc6&quot;>
+   <g id=&quot;maidr-324e6644-50ce-4dfd-a140-6ed2c7da1212&quot;>
     <path d=&quot;M 54 51.84  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_12&quot;>
@@ -1217,7 +1244,7 @@ Note
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;pdebd9fdc65&quot;>
+  <clipPath id=&quot;p175c3cf9a5&quot;>
    <rect x=&quot;54&quot; y=&quot;51.84&quot; width=&quot;334.8&quot; height=&quot;332.64&quot;/>
   </clipPath>
  </defs>
@@ -1225,7 +1252,7 @@ Note
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_5840ea60-b662-44d9-913b-3bacc41ebce3');
+            let iframe = document.getElementById('iframe_9f4b10d9-55e6-4be9-a996-8347b52d7fd5');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1289,7 +1316,7 @@ Note
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_5840ea60-b662-44d9-913b-3bacc41ebce3');
+        let iframe = document.getElementById('iframe_9f4b10d9-55e6-4be9-a996-8347b52d7fd5');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();

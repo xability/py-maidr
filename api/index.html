@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta name="description" content="Reference for the public py-maidr API: show, render, save_html, read_excel_charts, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
 
 <title>API Reference – py-maidr</title>
 <style>
@@ -185,13 +185,13 @@ cookieconsent.run({
 
 <link rel="stylesheet" href="../styles.css">
 <meta property="og:title" content="API Reference">
-<meta property="og:description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta property="og:description" content="Reference for the public py-maidr API: show, render, save_html, read_excel_charts, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
 <meta name="twitter:title" content="API Reference">
-<meta name="twitter:description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta name="twitter:description" content="Reference for the public py-maidr API: show, render, save_html, read_excel_charts, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
@@ -200,13 +200,13 @@ cookieconsent.run({
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Reference for the public py-maidr API: show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta name="DC.description" content="Reference for the public py-maidr API: show, render, save_html, read_excel_charts, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
 <meta name="DC.identifier" content="https://py.maidr.ai/api/">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-01">
+<meta name="DC.date" content="2026-10-03">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -307,6 +307,10 @@ cookieconsent.run({
     <a class="dropdown-item" href="../examples-altair.html">
  <span class="dropdown-text">Altair</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-excel.html">
+ <span class="dropdown-text">Excel [experimental]</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -344,6 +348,7 @@ cookieconsent.run({
   <ul class="collapse">
   <li><a href="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats" id="toc-displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="nav-link" data-scroll-target="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</a></li>
   <li><a href="#saving-a-maidr-plot-as-an-html-file" id="toc-saving-a-maidr-plot-as-an-html-file" class="nav-link" data-scroll-target="#saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</a></li>
+  <li><a href="#reading-the-charts-of-an-excel-workbook" id="toc-reading-the-charts-of-an-excel-workbook" class="nav-link" data-scroll-target="#reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</a></li>
   <li><a href="#registering-and-releasing-figures" id="toc-registering-and-releasing-figures" class="nav-link" data-scroll-target="#registering-and-releasing-figures">Registering and releasing figures</a></li>
   <li><a href="#switching-the-matplotlib-backend" id="toc-switching-the-matplotlib-backend" class="nav-link" data-scroll-target="#switching-the-matplotlib-backend">Switching the matplotlib backend</a></li>
   <li><a href="#where-the-maidr.js-runtime-comes-from" id="toc-where-the-maidr.js-runtime-comes-from" class="nav-link" data-scroll-target="#where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</a></li>
@@ -393,6 +398,22 @@ cookieconsent.run({
 <tr class="even">
 <td><a href="../api/Maidr.save_html.html#maidr.Maidr.save_html">Maidr.save_html</a></td>
 <td>Save the HTML representation of the figure with MAIDR to a file.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="reading-the-charts-of-an-excel-workbook" class="level2">
+<h2 class="anchored" data-anchor-id="reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</h2>
+<p>Read every chart of an <code>.xlsx</code> workbook with <code>maidr.read_excel_charts()</code>, and pass a chart it returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>. Experimental.</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../api/read_excel_charts.html#maidr.read_excel_charts">read_excel_charts</a></td>
+<td>Read every chart in an Excel workbook.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/excel.ExcelChart.html#maidr.excel.ExcelChart">excel.ExcelChart</a></td>
+<td>One chart of an Excel workbook, drawn and ready for maidr.</td>
 </tr>
 </tbody>
 </table>

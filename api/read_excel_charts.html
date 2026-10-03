@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Inject the bundled maidr.js / maidr-math.css into the notebook DOM.">
+<meta name="description" content="Read every chart in an Excel workbook. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>maidr.init_notebook API reference – py-maidr</title>
+<title>maidr.read_excel_charts API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.init_notebook API reference">
-<meta property="og:description" content="Inject the bundled maidr.js / maidr-math.css into the notebook DOM.">
+<meta property="og:title" content="maidr.read_excel_charts API reference">
+<meta property="og:description" content="Read every chart in an Excel workbook. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.init_notebook API reference">
-<meta name="twitter:description" content="Inject the bundled maidr.js / maidr-math.css into the notebook DOM.">
+<meta name="twitter:title" content="maidr.read_excel_charts API reference">
+<meta name="twitter:description" content="Read every chart in an Excel workbook. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/init_notebook.html">
-<meta name="DC.title" content="maidr.init_notebook API reference">
+<link rel="canonical" href="https://py.maidr.ai/api/read_excel_charts.html">
+<meta name="DC.title" content="maidr.read_excel_charts API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Inject the bundled maidr.js / maidr-math.css into the notebook DOM.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/init_notebook.html">
+<meta name="DC.description" content="Read every chart in an Excel workbook. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/read_excel_charts.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -379,10 +379,13 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.init_notebook" id="toc-maidr.init_notebook" class="nav-link active" data-scroll-target="#maidr.init_notebook">init_notebook</a>
+  <li><a href="#maidr.read_excel_charts" id="toc-maidr.read_excel_charts" class="nav-link active" data-scroll-target="#maidr.read_excel_charts">read_excel_charts</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
   <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -393,15 +396,19 @@ cookieconsent.run({
 
 
 
-<section id="maidr.init_notebook" class="level1">
-<h1>init_notebook</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>init_notebook(use_cdn<span class="op">=</span><span class="va">None</span>, force<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Inject the bundled <code>maidr.js</code> / <code>maidr-math.css</code> into the notebook DOM.</p>
-<p>Mirrors the <code>plotly.offline.init_notebook_mode</code> / <code>bokeh.io.output_notebook</code> pattern: load the library once at the top of the notebook instead of duplicating the ~1.7 MB bundle in every iframe <code>srcdoc</code>. The source strings are stashed on <code>window.__maidrJsSource</code> / <code>window.__maidrMathCssSource</code> in the parent document so that later iframe outputs can evaluate them in their own JS context without the bundle re-appearing in the notebook file.</p>
-<p>The stylesheet stashed alongside the script is <code>maidr-math.css</code>, the KaTeX rules that style LaTeX in AI chat responses. It travels as a source string for the same reason the script does: an iframe rendered from <code>srcdoc</code> has no base URL, so <code>maidr.js</code> cannot fetch the file for itself the way it does on a page that loaded it over HTTP.</p>
+<section id="maidr.read_excel_charts" class="level1">
+<h1>read_excel_charts</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>read_excel_charts(path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Read every chart in an Excel workbook.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 25%">
+<col style="width: 61%">
+<col style="width: 7%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -412,26 +419,73 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>use_cdn</td>
-<td>bool, {"auto"}, or None</td>
-<td>* <code>True</code>: inject a <code>&lt;script src="{CDN}"&gt;</code> tag so the notebook loads the CDN copy once. * <code>False</code>: read the bundled <code>maidr.js</code> / <code>maidr-math.css</code> from the installed package and embed them as strings on <code>window</code>. * <code>"auto"</code>: try the CDN first and fall back to the bundled source client-side. * <code>None</code> (default): defer to :func:<code>get_use_cdn</code>.</td>
-<td><code>None</code></td>
+<td>path</td>
+<td>str, os.PathLike or binary file object</td>
+<td>An <code>.xlsx</code> or <code>.xlsm</code> workbook, or an open binary stream of one, such as an uploaded file.</td>
+<td><em>required</em></td>
 </tr>
-<tr class="even">
-<td>force</td>
-<td><a href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></td>
-<td>Re-inject even if :data:<code>_NOTEBOOK_LOADED</code> is already <code>True</code>. Useful in Colab where each cell renders in isolation and the parent context is reset between cells.</td>
-<td><code>False</code></td>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 3%">
+<col style="width: 9%">
+<col style="width: 87%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>list of ExcelChart</td>
+<td>One per chart maidr can read, sheet by sheet in tab order and, within a sheet, top to bottom and left to right. Pass one to :func:<code>maidr.show</code>, :func:<code>maidr.render</code> or :func:<code>maidr.save_html</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 31%">
+<col style="width: 64%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>NotAWorkbookError</code></td>
+<td>If the file is not an <code>.xlsx</code> workbook: an older <code>.xls</code> file, a CSV file, or a Strict Open XML workbook. A <code>ValueError</code>.</td>
 </tr>
 </tbody>
 </table>
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>No-op outside notebook environments (<code>Environment.is_notebook()</code> returns <code>False</code>). Safe to call multiple times — the guard flag prevents re-injection unless <code>force=True</code>.</p>
-<p>Pins its tags to the <em>bundled</em> version rather than resolving one. <code>maidr/__init__.py</code> calls this at import, and resolving here would put a blocking network request inside <code>import maidr</code> — before the user has run anything, and before the documented opt-outs could be applied. A stalled DNS resolver is not reliably bounded by a socket timeout, so that wait has no dependable ceiling.</p>
-<p>The bundled version needs no request and is still immutable, so these tags are cache-safe: emitting <code>@latest</code> here would have left the parent document subject to the same seven-day cache lifetime this module exists to remove. Plots themselves render in iframes that inject their own <code>&lt;script&gt;</code> at the <em>resolved</em> version, so the first <code>render()</code> / <code>save_html()</code> is where a lookup happens.</p>
-<p>That split has a known, accepted cost: whenever the bundle is behind the published release — the very case :func:<code>maidr.bundle_status</code> exists to report — a notebook session fetches <em>two</em> different <code>maidr.js</code> builds, and this parent-document tag is a prefetch the plots do not end up using. It is still the right trade: the alternative is resolving at import time, which is the blocking request described above, and the duplicate cost falls away as soon as the bundle is refreshed at release time. Please do not “fix” this by resolving here.</p>
+<p>Read: column and bar charts (clustered, stacked and 100% stacked), line charts, pie and doughnut charts, scatter charts with or without lines, area charts (plain, stacked and 100% stacked), and combinations of them, including a second value axis. 3-D variants read as their flat counterparts.</p>
+<p>Not read yet: stacked line, radar, bubble, stock, surface, pie-of-pie, and the chart types Excel 2016 added – histogram, Pareto, box and whisker, waterfall, funnel, treemap, sunburst and map. Each such chart, or part of a combo chart, is left out with a <code>UserWarning</code> naming the chart, its sheet and its type, as are values a chart cannot show, such as the negative values of a pie.</p>
+<p>An axis with no title is named after the header cell above its category range, which the reader hears and the drawing leaves out, as Excel does. A category with no label reads <code>(blank)</code>, and a blank value is a gap, never a zero.</p>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> maidr</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> chart <span class="kw">in</span> maidr.read_excel_charts(<span class="st">"sales.xlsx"</span>):</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     maidr.save_html(chart, <span class="ss">f"</span><span class="sc">{</span>chart<span class="sc">.</span>name<span class="sc">}</span><span class="ss">.html"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>
