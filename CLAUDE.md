@@ -92,6 +92,13 @@ maps geoms to layer types; `plotnine_maidr.py` renders the drawn figure through 
 `Maidr` subclass whose subplot grid is the facet layout. Its selectors name each
 element by the gid it is given (`g[id='maidr-...']`). `import maidr` alone reads
 only a plotnine chart's points, through the `Axes.scatter` patch.
+`maidr/excel/` (experimental, `docs/stability.qmd#excel-support`) reads the
+charts of an `.xlsx` file for `maidr.read_excel_charts`: `package.py` walks the
+zip from sheet to drawing to chart part and streams the few cells it needs,
+`chartxml.py` reads a chart part from the values Excel cached in it, and
+`draw.py` redraws it through the patched `Axes` calls, so the layers come from
+the ordinary matplotlib readers. It reads with lxml, not openpyxl, which loads
+every cell of the workbook before it shows a chart.
 
 ### Canonical `axes` Payload
 
@@ -125,6 +132,6 @@ Tests live in `tests/` using pytest + pytest-mock. Test fixtures in `tests/fixtu
 `tests/docs/test_gallery_examples.py` executes every `{python}` chunk of the
 gallery pages (`docs/examples/*.qmd`, `docs/examples-plotly.qmd`,
 `docs/examples-bokeh.qmd`, `docs/examples-plotnine.qmd`,
-`docs/examples-altair.qmd`) and pins the layer types
+`docs/examples-altair.qmd`, `docs/examples-excel.qmd`) and pins the layer types
 each section emits, plus the measured claims the prose makes. Adding or changing a gallery example means
 updating its `EXPECTED_LAYERS` entry there.

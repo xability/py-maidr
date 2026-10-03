@@ -137,6 +137,19 @@ it does not read is left out with a warning naming it. See the
 ([#814](https://github.com/xability/py-maidr/issues/814)). Install it with
 `pip install "maidr[plotnine]"`.
 
+## Excel support
+
+Charts read out of an Excel workbook (`maidr.read_excel_charts("book.xlsx")`)
+come through a reader that is itself **experimental**, whatever plot type it
+emits: a column chart emits the stable `bar` type, but which Excel chart types
+are read as what, how an axis with no title is named, how a date or a number
+format is written, and what is skipped may change without a deprecation
+period, including in a patch release. Each chart is read from the copy of its
+values Excel keeps in the file and drawn again with matplotlib, and the reader
+follows that drawing, which keeps the workbook's colors and titles but is not
+Excel's own picture. A chart type it does not read is left out with a warning
+naming it. See the [Excel gallery](examples-excel.qmd) for what it reads today.
+
 ## Drawn but not read
 
 A few matplotlib calls draw marks that no `PlotType` reads, and that is
