@@ -100,6 +100,8 @@ website:
             href: examples-altair.qmd
           - text: "Excel [experimental]"
             href: examples-excel.qmd
+          - text: "TensorBoard [experimental]"
+            href: examples-tensorboard.qmd
       - file: stability.qmd
         text: "Plot Type Stability"
       - text: "API Reference"
@@ -154,6 +156,8 @@ website:
             - examples-altair.qmd
             - text: "Excel [experimental]"
               href: examples-excel.qmd
+            - text: "TensorBoard [experimental]"
+              href: examples-tensorboard.qmd
 
   page-footer:
     left: "© (x)Ability Design Lab, University of Illinois Urbana-Champaign"
@@ -303,6 +307,19 @@ quartodoc:
       contents:
         - read_excel_charts
         - excel.ExcelChart
+    - title: Reading the training curves of a TensorBoard log directory
+      desc: >
+        Read the scalars Keras, TensorFlow and PyTorch log with
+        `maidr.read_tensorboard_scalars()`, one chart per tag, and pass a
+        chart it returns to `maidr.show()`, `maidr.render()` or
+        `maidr.save_html()`; or read the values themselves with
+        `maidr.tensorboard.load_scalars()`. Experimental.
+      contents:
+        - read_tensorboard_scalars
+        - tensorboard.TensorBoardChart
+        - tensorboard.load_scalars
+        - tensorboard.ScalarSeries
+        - tensorboard.smooth
     - title: Registering and releasing figures
       desc: >
         Mark a bar container as a stacked bar plot with `maidr.stacked()`, and

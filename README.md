@@ -33,7 +33,9 @@ Plotly, Bokeh, plotnine and Altair figures go through the same `maidr.show()`
 entry point (Bokeh and plotnine support are experimental; install them with
 `pip install "maidr[bokeh]"` and `pip install "maidr[plotnine]"`), and so do the
 charts of an Excel workbook, read without Excel by
-`maidr.read_excel_charts("book.xlsx")` (experimental). It works in a plain
+`maidr.read_excel_charts("book.xlsx")` (experimental), and the training
+curves of a TensorBoard log directory, read without TensorFlow by
+`maidr.read_tensorboard_scalars("logs")` (experimental). It works in a plain
 script, a Jupyter notebook, Quarto, Shiny, and Streamlit.
 
 ## Quickstart
@@ -61,7 +63,7 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 | | |
 |---|---|
 | **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Bokeh [experimental], plotnine [experimental], Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
-| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental] |
+| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the training curves of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit |
 | **Plot types** | 40 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-five are experimental; the docs mark each experimental type **[experimental]** after its name |
 

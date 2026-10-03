@@ -1,0 +1,98 @@
+---
+title: "TensorBoard Accessible Chart Examples"
+description: "Code examples showing how to make TensorBoard's training curves accessible with py-maidr: the scalars Keras, TensorFlow and PyTorch log, read from the log directory without TensorFlow."
+jupyter: python3
+html-table-processing: none
+resources:
+  - tensorboard-logs/**
+filters:
+  - line-highlight
+---
+
+## TensorBoard Examples {#sec-tensorboard-examples}
+
+**maidr** reads the training curves of a TensorBoard log directory. Pass the
+directory you would start TensorBoard with to
+`maidr.read_tensorboard_scalars()`, and hand any chart it returns to
+`maidr.show()`, `maidr.render()` or `maidr.save_html()`: the curve can then be
+read from the keyboard, as sound, as text and in braille. Neither TensorFlow nor
+TensorBoard needs to be installed. For charts drawn in Python, see the
+[Matplotlib / Seaborn](examples.qmd) and other gallery pages.
+
+::: {.callout-warning title="Experimental"}
+TensorBoard support is **experimental**. What it reads, and how, may change
+without a deprecation period: see
+[Plot Type Stability](stability.qmd#tensorboard-support).
+:::
+
+Each scalar tag, such as `epoch_loss`, becomes one line chart, with the step
+along the x axis and one line per run, as on TensorBoard's Scalars dashboard. A
+run is a directory under the log directory holding event files: Keras's
+`TensorBoard` callback writes a `train` and a `validation` run, so the two
+curves of a model can be compared point by point.
+
+| Written by | read |
+|---|---|
+| Keras `keras.callbacks.TensorBoard` | yes |
+| `tf.summary.scalar`, TensorFlow 1 and 2 | yes |
+| PyTorch `torch.utils.tensorboard.SummaryWriter`, tensorboardX | yes |
+| Histograms, distributions, images, PR curves, graphs | not yet |
+
+The examples read `tensorboard-logs/`, the log directory of a small model trained for twelve epochs with the `TensorBoard` callback.
+
+### Reading a Log Directory
+
+`maidr.read_tensorboard_scalars()` returns one chart per tag, each with its tag
+and the runs drawn on it.
+
+```{python}
+#| warning: false
+import maidr
+
+charts = maidr.read_tensorboard_scalars("tensorboard-logs")
+for chart in charts:
+    print(chart.tag, chart.runs, sep=" | ")
+```
+
+Save every tag as its own page with a loop, or only the ones you name with
+`tags=`:
+
+```python
+for chart in maidr.read_tensorboard_scalars("logs/fit", tags=["epoch_loss"]):
+    maidr.save_html(chart, f"{chart.tag}.html")
+```
+
+To follow a run while it trains, read the directory again: each call reads the
+event files as they are at that moment.
+
+### Training and Validation Loss
+
+Smoothing is on by default, at TensorBoard's own weight of 0.6, and each run is
+drawn twice: as logged, and smoothed under its name followed by *(smoothed)*.
+The left and right arrow keys move along the epochs; up and down move to the
+line above or below at that epoch, whichever run it is. Where two lines meet,
+the point is announced as their intersection.
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of the loss at each epoch for the training and validation runs, logged and smoothed
+(loss,) = maidr.read_tensorboard_scalars("tensorboard-logs", tags=["epoch_loss"])
+maidr.show(loss)
+```
+
+### Accuracy Without Smoothing
+
+`smoothing=0` draws only the values as logged, one line per run.
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of the accuracy at each epoch for the training and validation runs
+(accuracy,) = maidr.read_tensorboard_scalars(
+    "tensorboard-logs", tags=["epoch_accuracy"], smoothing=0
+)
+maidr.show(accuracy)
+```
+
+A long run is thinned to 1,000 points per line, evenly spaced and keeping the
+first and last step, so it stays quick to walk; `max_points=None` keeps every
+point. A loss that became `NaN` is a gap in the line, never a zero.

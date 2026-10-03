@@ -471,6 +471,22 @@ types Excel 2016 added (histogram, Pareto, box and whisker, waterfall, funnel,
 treemap, sunburst and map), are left out with a warning naming them. See the
 [Excel gallery](examples-excel.qmd#sec-excel-examples) for runnable examples.
 
+### TensorBoard [experimental]
+
+py-maidr reads the training curves of a TensorBoard log directory, without
+TensorFlow or TensorBoard: `maidr.read_tensorboard_scalars("logs")` returns one
+chart per scalar tag, which `maidr.show()`, `maidr.render()` and
+`maidr.save_html()` take as they take a figure. TensorBoard support as a whole
+is **experimental**, though every chart it returns is a stable line plot: see
+[Plot Type Stability](stability.qmd#tensorboard-support).
+
+* Scalars, such as a loss or an accuracy, as a line plot with the step along the x axis and one line per run, such as Keras's `train` and `validation`; with smoothing, each run is drawn again smoothed, as TensorBoard draws it.
+
+The scalars written by Keras's `TensorBoard` callback, `tf.summary.scalar` and
+PyTorch's `SummaryWriter` are read. See the
+[TensorBoard gallery](examples-tensorboard.qmd#sec-tensorboard-examples) for
+runnable examples.
+
 ### Additional Libraries
 
 * **mplfinance**: Candlestick charts having one x (time/date) and four y (numerical) axes (open, high, low, close) for financial data with support for moving averages and volume data.
