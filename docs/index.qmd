@@ -438,6 +438,39 @@ py-maidr ships an [Altair](https://altair-viz.github.io/) adapter that compiles 
 Facet, repeat, and concat composite specs (`alt.FacetChart`, `alt.RepeatChart`, `alt.ConcatChart`, `alt.HConcatChart`, `alt.VConcatChart`) are **not** supported by the adapter; only `alt.Chart` and `alt.LayerChart` instances are accepted by `maidr.show()` / `maidr.save_html()`.
 :::
 
+### Excel [experimental]
+
+py-maidr reads the charts of an Excel workbook, without Excel:
+`maidr.read_excel_charts("book.xlsx")` returns one chart per chart in the
+workbook, which `maidr.show()`, `maidr.render()` and `maidr.save_html()` take
+as they take a figure. Each chart is read from the copy of its values Excel
+keeps in the file, and drawn again with matplotlib in the workbook's colors.
+Excel support as a whole is **experimental**, whichever chart type is read: see
+[Plot Type Stability](stability.qmd#excel-support).
+
+#### Stable {#excel-stable}
+
+* Column and bar charts: one series reads as a bar plot, clustered as a dodged bar plot, and stacked or 100% stacked as a stacked bar plot, a 100% stacked segment announced as its share of the category.
+
+* Line charts, one series per line.
+
+* Pie and doughnut charts, walked clockwise from the top.
+
+* Scatter charts; a scatter chart with lines reads as a line plot.
+
+* Combo charts, one layer per chart type in one chart, including a second value axis.
+
+#### Experimental {#excel-experimental}
+
+These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
+
+* Area [experimental] and stacked area [experimental] charts, plain, stacked and 100% stacked.
+
+Stacked line, radar, bubble, stock, surface and pie-of-pie charts, and the chart
+types Excel 2016 added (histogram, Pareto, box and whisker, waterfall, funnel,
+treemap, sunburst and map), are left out with a warning naming them. See the
+[Excel gallery](examples-excel.qmd#sec-excel-examples) for runnable examples.
+
 ### Additional Libraries
 
 * **mplfinance**: Candlestick charts having one x (time/date) and four y (numerical) axes (open, high, low, close) for financial data with support for moving averages and volume data.

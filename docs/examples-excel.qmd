@@ -1,0 +1,132 @@
+---
+title: "Excel Accessible Chart Examples"
+description: "Code examples showing how to make the charts in an Excel workbook (.xlsx) accessible with py-maidr: column, line, pie, combo and area charts read from the file, without Excel."
+jupyter: python3
+html-table-processing: none
+resources:
+  - sales.xlsx
+filters:
+  - line-highlight
+---
+
+## Excel Examples {#sec-excel-examples}
+
+**maidr** reads the charts of an Excel workbook. Pass an `.xlsx` or `.xlsm`
+file to `maidr.read_excel_charts()`, and hand any chart it returns to
+`maidr.show()`, `maidr.render()` or `maidr.save_html()`: the chart can then be
+read from the keyboard, as sound, as text and in braille. Excel does not need to
+be installed. For charts drawn in Python, see the
+[Matplotlib / Seaborn](examples.qmd), [Plotly](examples-plotly.qmd),
+[Bokeh](examples-bokeh.qmd), [plotnine](examples-plotnine.qmd) and
+[Altair](examples-altair.qmd) pages.
+
+::: {.callout-warning title="Experimental"}
+Excel support is **experimental**. What it reads, and how, may change without a
+deprecation period, whichever chart type is read: see
+[Plot Type Stability](stability.qmd#excel-support).
+:::
+
+Every chart Excel saves keeps a copy of the values it drew inside the file, and
+**maidr** reads that copy, so the reader hears the numbers the chart shows; the
+cells are read only where a file has no copy, as some programs other than Excel
+write them. Each chart is then drawn again with matplotlib, in the workbook's
+own colors and with its own titles, and the mark being read is outlined on that
+drawing. The drawing is not Excel's picture of the chart: fonts and effects
+differ.
+
+| Excel chart | read as |
+|---|---|
+| Column or bar, one series | bar |
+| Clustered column or bar | dodged bar |
+| Stacked and 100% stacked column or bar | stacked bar; 100% stacked reads each segment's share |
+| Line, with or without markers | line, one series per line |
+| Pie and doughnut | pie, clockwise from the top |
+| Scatter | point; with lines, line |
+| Combo, including a second value axis | one layer per chart type in one chart |
+| Area, stacked and 100% stacked area | area [experimental], stacked area [experimental] |
+
+Stacked line, radar, bubble, stock, surface and pie-of-pie charts, and the chart
+types Excel 2016 added (histogram, Pareto, box and whisker, waterfall, funnel,
+treemap, sunburst and map), are left out with a warning naming the chart and its
+sheet.
+
+An axis Excel draws no title on is named after the header cell above its
+categories, such as *Quarter*: you hear it, and the drawing leaves it off as
+Excel does. A value axis keeps its number format, so a percentage reads as one.
+Dates read the way the cells show them. A category with no label reads
+*(blank)*, and a blank value is a gap, never a zero.
+
+The examples read [sales.xlsx](sales.xlsx), a workbook with one sheet of
+quarterly sales and five charts.
+
+### Reading a Workbook
+
+`maidr.read_excel_charts()` returns the charts sheet by sheet and, on each
+sheet, top to bottom and left to right, each with the sheet it is on, its name
+and its title.
+
+```{python}
+#| warning: false
+import maidr
+
+charts = maidr.read_excel_charts("sales.xlsx")
+for chart in charts:
+    print(chart.sheet, chart.name, chart.title, sep=" | ")
+```
+
+Save every chart of a workbook as its own page with a loop:
+
+```python
+for chart in maidr.read_excel_charts("sales.xlsx"):
+    maidr.save_html(chart, f"{chart.name}.html")
+```
+
+`maidr.read_excel_charts()` also takes an open binary file, such as the one a
+Streamlit or Shiny upload control hands you.
+
+### Clustered Column Chart
+
+Each region is a series and each quarter a category: the left and right arrow
+keys move between quarters, and up and down between the regions.
+
+```{python}
+#| warning: false
+#| fig-alt: Clustered column chart of revenue by quarter for the North and South regions
+maidr.show(charts[0])
+```
+
+### Line Chart
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of revenue by quarter, one line per region
+maidr.show(charts[1])
+```
+
+### Pie Chart
+
+```{python}
+#| warning: false
+#| fig-alt: Pie chart of the North region's revenue by quarter
+maidr.show(charts[2])
+```
+
+### Combo Chart on Two Axes
+
+North's revenue is drawn as columns and its margin as a line on a second value
+axis. The two are layers of one chart: Page Up and Page Down move between them.
+The margin is read as a percentage, because its cells are formatted as one.
+
+```{python}
+#| warning: false
+#| fig-alt: Column chart of the North region's revenue with a line of its margin on a second axis
+maidr.show(charts[3])
+```
+
+### Stacked Area Chart [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Stacked area chart of revenue by quarter for the North and South regions
+maidr.show(charts[4])
+```

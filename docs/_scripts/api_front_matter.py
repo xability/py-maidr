@@ -31,9 +31,9 @@ SUFFIX = (
 # The index has no docstring to draw on, so its description is hand-written.
 INDEX_PAGETITLE = "API Reference"
 INDEX_DESCRIPTION = (
-    "Reference for the public py-maidr API: show, render, save_html, stacked, "
-    "close, set_backend, set_use_cdn, init_notebook and the Shiny and "
-    "Streamlit widgets."
+    "Reference for the public py-maidr API: show, render, save_html, "
+    "read_excel_charts, stacked, close, set_backend, set_use_cdn, init_notebook "
+    "and the Shiny and Streamlit widgets."
 )
 
 _HEADING = re.compile(r"^#\s+(?P<display>.+?)\s*\{\s*#(?P<anchor>[\w.]+)\s*\}\s*$")

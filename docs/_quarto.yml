@@ -98,6 +98,8 @@ website:
             href: examples-plotnine.qmd
           - text: "Altair"
             href: examples-altair.qmd
+          - text: "Excel [experimental]"
+            href: examples-excel.qmd
       - file: stability.qmd
         text: "Plot Type Stability"
       - text: "API Reference"
@@ -150,6 +152,8 @@ website:
             - text: "plotnine [experimental]"
               href: examples-plotnine.qmd
             - examples-altair.qmd
+            - text: "Excel [experimental]"
+              href: examples-excel.qmd
 
   page-footer:
     left: "© (x)Ability Design Lab, University of Illinois Urbana-Champaign"
@@ -291,6 +295,14 @@ quartodoc:
       contents:
         - save_html
         - Maidr.save_html
+    - title: Reading the charts of an Excel workbook
+      desc: >
+        Read every chart of an `.xlsx` workbook with
+        `maidr.read_excel_charts()`, and pass a chart it returns to
+        `maidr.show()`, `maidr.render()` or `maidr.save_html()`. Experimental.
+      contents:
+        - read_excel_charts
+        - excel.ExcelChart
     - title: Registering and releasing figures
       desc: >
         Mark a bar container as a stacked bar plot with `maidr.stacked()`, and

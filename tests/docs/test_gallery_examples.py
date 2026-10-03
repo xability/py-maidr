@@ -48,11 +48,12 @@ from maidr import api
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.excel import ExcelChart
 
 DOCS = Path(__file__).parents[2] / "docs"
 
 #: The gallery: the matplotlib/seaborn family pages plus the one-page Plotly,
-#: Bokeh, plotnine and Altair galleries. Discovered rather than listed, so a new
+#: Bokeh, plotnine, Altair and Excel galleries. Discovered rather than listed, so a new
 #: page is run as soon as it exists -- and fails below until its sections are
 #: listed.
 PAGES = sorted(DOCS.glob("examples*.qmd")) + sorted((DOCS / "examples").glob("*.qmd"))
@@ -189,6 +190,13 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Scatter Plot with a Smooth": [["point + smooth"]],
         "Faceted Plot": [["point", "point", "point"]],
         "Normalized Stacked Bar Plot [experimental]": [["stacked_normalized_bar"]],
+    },
+    "examples-excel.qmd": {
+        "Clustered Column Chart": [["dodged_bar"]],
+        "Line Chart": [["line"]],
+        "Pie Chart": [["pie"]],
+        "Combo Chart on Two Axes": [["bar + line"]],
+        "Stacked Area Chart [experimental]": [["stacked_area"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
@@ -351,8 +359,13 @@ class _Capture:
             Gcf.destroy(manager.num)
 
     def maidr_show(self, plot: Any = None, *args: Any, **kwargs: Any) -> None:
-        """``maidr.show(plot)``: Altair, Plotly, Bokeh or plotnine, or pyplot."""
-        if api._is_altair_chart(plot):
+        """``maidr.show(plot)``: Altair, Plotly, Bokeh, plotnine, an Excel
+        chart, or pyplot."""
+        if isinstance(plot, ExcelChart):
+            # Drawn outside pyplot, so not among the figures `plt.show()` sees.
+            self._record(_from_schema(FigureManager.get_maidr(plot.figure)._flatten_maidr()))
+            FigureManager.destroy(plot.figure)
+        elif api._is_altair_chart(plot):
             self._record(_from_altair(plot))
         elif plot is not None and api._is_plotly_figure(plot):
             self._record(_from_schema(api._get_plotly_maidr(plot)._flatten_maidr()))
@@ -804,3 +817,21 @@ def test_plotnine_normalized_segments_add_up_to_one(gallery: _Gallery) -> None:
     columns = zip(*[[c[MaidrKey.Y] or 0.0 for c in row] for row in layer[MaidrKey.DATA]])
 
     assert [pytest.approx(sum(column)) for column in columns] == [1.0, 1.0, 1.0]
+
+
+def test_excel_untitled_axis_is_named_after_its_header(gallery: _Gallery) -> None:
+    """examples-excel.qmd: "An axis Excel draws no title on is named after the
+    header cell above its categories, such as *Quarter*"."""
+    layer = gallery.shown("examples-excel.qmd", "Line Chart").layer(PlotType.LINE)
+
+    assert layer[MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL] == "Quarter"
+
+
+def test_excel_margin_reads_as_a_percentage(gallery: _Gallery) -> None:
+    """examples-excel.qmd: "The margin is read as a percentage, because its
+    cells are formatted as one"."""
+    shown = gallery.shown("examples-excel.qmd", "Combo Chart on Two Axes")
+    axis = shown.layer(PlotType.LINE)[MaidrKey.AXES][MaidrKey.Y]
+
+    assert axis[MaidrKey.LABEL] == "Margin"
+    assert axis["format"] == {"type": "percent", "decimals": 0}
