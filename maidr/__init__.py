@@ -195,6 +195,7 @@ from .api import (  # noqa: E402
 )
 from .core import Maidr  # noqa: E402, F401
 from .core.enum import PlotType  # noqa: E402, F401
+from .excel import read_excel_charts  # noqa: E402
 from .patch import (  # noqa: E402, F401
     barplot,
     boxplot,
@@ -304,6 +305,7 @@ __all__ = [
     "maidr_js_version",
     "read_bundled_js",
     "read_bundled_math_css",
+    "read_excel_charts",
     "render",
     "reset_cdn_version_cache",
     "save_html",
