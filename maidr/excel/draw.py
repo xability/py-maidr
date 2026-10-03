@@ -633,23 +633,6 @@ def _stock(ax: Axes, group: Group, volume: Group | None) -> None:
             candle["volume"] = float(volumes[i])
         candles.append(candle)
 
-    if volumes is not None:
-        shown = [i for i in range(len(labels)) if np.isfinite(volumes[i])]
-        twin = ax.twinx()
-        twin.add_collection(
-            PatchCollection(
-                [Rectangle((positions[i] - 0.3, 0), 0.6, volumes[i]) for i in shown],
-                facecolor=volume.series[0].color or "#A5A5A5",
-                edgecolor="none",
-                alpha=0.5,
-            )
-        )
-        twin.set_ylim(0, 4 * max((volumes[i] for i in shown), default=1.0))
-        twin.set_ylabel(volume.series[0].name or "Volume")
-        twin.spines["top"].set_visible(False)
-        ax.set_zorder(twin.get_zorder() + 1)
-        ax.patch.set_visible(False)
-
     n = len(rows)
     if group.style == "updown" and opens is not None:
         bodies = PatchCollection(
@@ -735,6 +718,24 @@ def _stock(ax: Axes, group: Group, volume: Group | None) -> None:
         selectors=selectors,
         formats={"y": "y"},
     )
+    if volumes is not None:
+        # The volume is a layer of its own, after the candles, drawn as the
+        # bars py-maidr reads: the candles list it only in their description,
+        # where a reader can neither walk nor hear it.
+        twin = ax.twinx()
+        twin.bar(
+            positions,
+            volumes,
+            0.6,
+            color=volume.series[0].color or "#A5A5A5",
+            alpha=0.5,
+        )
+        twin.set_ylim(0, 4 * max(np.nanmax(volumes, initial=0.0), 1.0))
+        _label(twin.yaxis, volume.series[0].name, "Volume", True)
+        _label(twin.xaxis, group.category_name, "Category", False)
+        twin.spines["top"].set_visible(False)
+        ax.set_zorder(twin.get_zorder() + 1)
+        ax.patch.set_visible(False)
 
 
 def _surface(fig: Figure, group: Group, spec: ChartSpec, where: str) -> Axes:

@@ -223,7 +223,7 @@ def test_a_high_low_close_chart_reads_as_candles_without_an_open(tmp_path):
     assert len(_svg_matches(chart, layer["selectors"]["close"])) == 3
 
 
-def test_a_stock_chart_reads_its_volume_with_each_candle(tmp_path):
+def test_a_stock_chart_reads_its_volume_as_a_layer_and_with_each_candle(tmp_path):
     path = _book(tmp_path, _stock((1, 2, 3, 4), bars=True), rows=PRICES, sheet="Prices")
 
     def volume(text: str) -> str:
@@ -244,10 +244,20 @@ def test_a_stock_chart_reads_its_volume_with_each_candle(tmp_path):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         (chart,) = read_excel_charts(_rewrite(path, "xl/charts/chart1.xml", volume))
-    (layer,) = _layers(chart)
+    candles, bars = _layers(chart)
 
-    assert layer["type"] == "candlestick"
-    assert [c["volume"] for c in layer["data"]] == [300, 450, 200]
+    assert candles["type"] == "candlestick"
+    assert [c["volume"] for c in candles["data"]] == [300, 450, 200]
+    # A layer of its own too: the candles list the volume only in their
+    # description, where it can be neither walked nor heard.
+    assert bars["type"] == "bar"
+    assert [(b["x"], b["y"]) for b in bars["data"]] == [
+        ("Mon", 300),
+        ("Tue", 450),
+        ("Wed", 200),
+    ]
+    assert bars["axes"]["x"]["label"] == "Day"
+    assert bars["axes"]["y"]["label"] == "Volume"
 
 
 def _surface(text: str) -> str:
