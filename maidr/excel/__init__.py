@@ -18,13 +18,12 @@ import zipfile
 from dataclasses import dataclass, field
 from typing import IO
 
-from lxml import etree
 from matplotlib.figure import Figure
 
 from maidr.core.figure_manager import FigureManager
 from maidr.excel.chartxml import read_chart, wanted_cells
 from maidr.excel.draw import draw
-from maidr.excel.package import NotAWorkbookError, Package
+from maidr.excel.package import Cell, DamagedPartError, NotAWorkbookError, Package
 from maidr.util.caller_warning import warn_at_caller
 
 __all__ = ["ExcelChart", "NotAWorkbookError", "read_excel_charts"]
@@ -142,20 +141,30 @@ def read_excel_charts(
                 continue
             try:
                 root = package.xml(placement.part)
-            except etree.XMLSyntaxError as reason:
+            except DamagedPartError as reason:
                 damaged[placement.part] = str(reason)
                 continue
             parts[placement.part] = root
             for sheet, row, column in wanted_cells(root):
                 wanted.setdefault(sheet, set()).add((row, column))
+        notes = list(package.problems)
         sheets = {sheet.name: sheet for sheet in package.sheets()}
         values = {}
         for name, positions in wanted.items():
-            if name in sheets:
-                for (row, column), value in package.read_cells(
-                    sheets[name], positions
-                ).items():
-                    values[(name, row, column)] = value
+            if name not in sheets:
+                continue
+            try:
+                found = package.read_cells(sheets[name], positions)
+            except DamagedPartError as reason:
+                # Each chart keeps its own copy of the values it drew, so a
+                # damaged sheet costs only the header names and formats.
+                notes.append(
+                    f"maidr cannot read the cells of sheet '{name}' ({reason}); "
+                    "the charts that refer to it are read without them."
+                )
+                continue
+            for (row, column), cell in found.items():
+                values[(name, row, column)] = cell
         kinds = {
             placement.part: _chartex_kind(package, placement.part)
             for placement in placements
@@ -164,9 +173,11 @@ def read_excel_charts(
         theme = package.theme_colors()
         date1904 = package.date1904
 
-    def cells(sheet: str, row: int, column: int) -> str | float | None:
+    def cells(sheet: str, row: int, column: int) -> Cell | None:
         return values.get((sheet, row, column))
 
+    for note in notes:
+        warn_at_caller(note)
     charts = []
     for placement in placements:
         where = f"'{placement.name}' on sheet '{placement.sheet.name}'"
@@ -214,7 +225,7 @@ def _chartex_kind(package: Package, part: str) -> str | None:
     """The type of an Excel 2016 chart, named the way Excel's menu names it."""
     try:
         root = package.xml(part)
-    except etree.XMLSyntaxError:
+    except DamagedPartError:
         return None
     series = root.find(f".//{{{NS_CX}}}series")
     if series is None:

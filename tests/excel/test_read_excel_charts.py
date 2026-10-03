@@ -793,3 +793,88 @@ def test_a_point_count_a_part_overstates_reads_only_the_points_it_holds(tmp_path
     layer = _only_layer(_rewrite(path, "xl/charts/chart1.xml", inflate))
 
     assert _values(layer["data"]) == [120, 150, 90, 175]
+
+
+# --------------------------------------------------------------------------
+# Damaged and hostile files
+# --------------------------------------------------------------------------
+
+
+def test_a_damaged_sheet_costs_its_cells_not_its_charts(tmp_path):
+    path = _rewrite(
+        _book(tmp_path, _chart("column", (1,))),
+        "xl/worksheets/sheet1.xml",
+        lambda text: text[:150],
+    )
+
+    with pytest.warns(UserWarning, match="cannot read the cells of sheet 'Sales'"):
+        (chart,) = read_excel_charts(path)
+    (layer,) = _layers(chart)
+
+    # The values come from the chart's own copy; only the header is lost.
+    assert _values(layer["data"]) == [120, 150, 90, 175]
+    assert layer["axes"]["x"]["label"] == "Category"
+
+
+def test_a_damaged_drawing_costs_the_charts_on_its_sheet(tmp_path):
+    def build(workbook, worksheet):
+        chart = workbook.add_chart({"type": "column"})
+        _add_series(chart, 1)
+        worksheet.insert_chart("E2", chart)
+        other = workbook.add_worksheet("Other")
+        chart = workbook.add_chart({"type": "line"})
+        _add_series(chart, 1)
+        other.insert_chart("A1", chart)
+
+    path = _rewrite(
+        _book(tmp_path, build), "xl/drawings/drawing1.xml", lambda text: text[:120]
+    )
+
+    with pytest.warns(UserWarning, match="cannot read the drawing of sheet 'Sales'"):
+        charts = read_excel_charts(path)
+
+    assert [(c.sheet, c.name) for c in charts] == [("Other", "Chart 1")]
+
+
+def test_a_truncated_workbook_says_it_is_not_one(tmp_path):
+    path = _book(tmp_path, _chart("column", (1,)))
+    cut = tmp_path / "cut.xlsx"
+    cut.write_bytes(path.read_bytes()[:2000])
+
+    with pytest.raises(NotAWorkbookError):
+        read_excel_charts(cut)
+
+
+def test_a_part_too_large_to_read_is_left_out(tmp_path, monkeypatch):
+    from maidr.excel import package
+
+    padding = "<!--" + "x" * 200_000 + "-->"
+    path = _rewrite(
+        _book(tmp_path, _chart("column", (1,))),
+        "xl/charts/chart1.xml",
+        lambda text: text.replace("<c:chart>", padding + "<c:chart>", 1),
+    )
+    monkeypatch.setattr(package, "_MAX_PART_BYTES", 100_000)
+
+    with pytest.warns(UserWarning, match="too large to read"):
+        assert read_excel_charts(path) == []
+
+
+def test_dates_in_an_east_asian_built_in_format_read_iso_style(tmp_path):
+    rows = [["Day", "Visits"]] + [[None, 10 * (i + 1)] for i in range(2)]
+
+    def build(workbook, worksheet):
+        # 31 is a built-in date format whose spelling depends on the locale:
+        # yyyy"년" mm"월" dd"일" in Korean, yyyy"年"m"月"d"日" in Chinese.
+        day = workbook.add_format({"num_format": 31})
+        for i in range(2):
+            worksheet.write_datetime(i + 1, 0, datetime.datetime(2024, 1, 5 + i), day)
+        chart = workbook.add_chart({"type": "column"})
+        chart.add_series(
+            {"categories": ["Sales", 1, 0, 2, 0], "values": ["Sales", 1, 1, 2, 1]}
+        )
+        worksheet.insert_chart("E2", chart)
+
+    layer = _only_layer(_book(tmp_path, build, rows=rows))
+
+    assert _values(layer["data"], "x") == ["2024-01-05", "2024-01-06"]

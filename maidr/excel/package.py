@@ -19,6 +19,7 @@ from __future__ import annotations
 import posixpath
 import re
 import zipfile
+import zlib
 from dataclasses import dataclass
 from typing import Any, Iterable, Iterator
 
@@ -43,6 +44,17 @@ _EMU_PER_PIXEL = 9525
 _DEFAULT_COLUMN_PX = 64
 _DEFAULT_ROW_PX = 20
 
+#: The largest part read whole, uncompressed. Relationship, drawing, chart and
+#: style parts run to kilobytes; one this large is damaged, or built to exhaust
+#: memory, and is not read.
+_MAX_PART_BYTES = 64 * 1024 * 1024
+#: The largest sheet streamed for cells. Streaming keeps memory flat, but a
+#: sheet this large would take minutes to walk.
+_MAX_SHEET_BYTES = 1024 * 1024 * 1024
+
+#: What reading a damaged zip member raises, besides malformed XML.
+_DAMAGED = (etree.XMLSyntaxError, zipfile.BadZipFile, zlib.error, EOFError)
+
 _PARSER = etree.XMLParser(resolve_entities=False, no_network=True, remove_comments=True)
 
 _CELL_REF = re.compile(r"^\$?([A-Za-z]{1,3})\$?(\d+)$")
@@ -50,6 +62,10 @@ _CELL_REF = re.compile(r"^\$?([A-Za-z]{1,3})\$?(\d+)$")
 
 class NotAWorkbookError(ValueError):
     """The file is not an Office Open XML workbook maidr can read."""
+
+
+class DamagedPartError(ValueError):
+    """A part of the workbook is malformed, cut short, or too large to read."""
 
 
 def column_index(letters: str) -> int:
@@ -123,6 +139,13 @@ _BUILTIN_FORMATS = {
     47: "mmss.0",
     48: "##0.0E+0",
     49: "@",
+    # The Chinese, Japanese and Korean built-ins differ by locale, which the
+    # workbook does not record. Every one is a date except 32 and 33, which
+    # are times in all three, so they read in a form common to all of them.
+    **{number: "yyyy-mm-dd" for number in (*range(27, 32), *range(34, 37))},
+    **{number: "yyyy-mm-dd" for number in range(50, 59)},
+    32: "h:mm",
+    33: "h:mm:ss",
 }
 
 
@@ -176,15 +199,20 @@ class Package:
     def __init__(self, archive: zipfile.ZipFile) -> None:
         self._zip = archive
         self._names = set(archive.namelist())
-        self.workbook = next(
-            (
-                target
-                for rel_type, target in self.rels("").values()
-                if rel_type == "officeDocument" and target in self._names
-            ),
-            "",
-        )
-        root = self.xml(self.workbook) if self.workbook else None
+        try:
+            self.workbook = next(
+                (
+                    target
+                    for rel_type, target in self.rels("").values()
+                    if rel_type == "officeDocument" and target in self._names
+                ),
+                "",
+            )
+            root = self.xml(self.workbook) if self.workbook else None
+        except DamagedPartError as error:
+            raise NotAWorkbookError(
+                f"maidr cannot read this workbook, which is damaged ({error})."
+            ) from error
         if root is not None and root.tag.startswith("{" + _STRICT_PREFIX):
             raise NotAWorkbookError(
                 "maidr reads Excel workbooks saved in the default .xlsx format; "
@@ -200,6 +228,9 @@ class Package:
         self.date1904 = pr is not None and pr.get("date1904") in ("1", "true")
         self._shared_strings: dict[int, str] = {}
         self._formats: list[str | None] | None = None
+        #: What could not be read while finding the charts, said once each by
+        #: the caller.
+        self.problems: list[str] = []
 
     def has(self, part: str) -> bool:
         """Whether the package holds ``part``."""
@@ -218,8 +249,19 @@ class Package:
         -------
         lxml.etree._Element
             The part's root element.
+
+        Raises
+        ------
+        DamagedPartError
+            If the part is malformed, cut short, or too large to read.
         """
-        return etree.fromstring(self._zip.read(part), _PARSER)
+        try:
+            size = self._zip.getinfo(part).file_size
+            if size > _MAX_PART_BYTES:
+                raise DamagedPartError(f"{part} is {size:,} bytes, too large to read")
+            return etree.fromstring(self._zip.read(part), _PARSER)
+        except _DAMAGED as error:
+            raise DamagedPartError(f"{part}: {error}") from error
 
     def rels(self, part: str) -> dict[str, tuple[str, str]]:
         """
@@ -265,9 +307,15 @@ class Package:
             Worksheets and chart sheets; dialog and macro sheets hold no
             charts and are left out.
         """
-        rels = self.rels(self.workbook)
+        try:
+            rels = self.rels(self.workbook)
+            listed = self.xml(self.workbook).iter(f"{{{NS_MAIN}}}sheet")
+        except DamagedPartError as error:
+            raise NotAWorkbookError(
+                f"maidr cannot read this workbook, which is damaged ({error})."
+            ) from error
         out = []
-        for sheet in self.xml(self.workbook).iter(f"{{{NS_MAIN}}}sheet"):
+        for sheet in listed:
             rel = rels.get(sheet.get(f"{{{NS_REL}}}id", ""))
             if rel is None or rel[0] not in ("worksheet", "chartsheet"):
                 continue
@@ -290,9 +338,17 @@ class Package:
             if not self.has(sheet.part):
                 continue
             placements = []
-            for rel_type, drawing in self.rels(sheet.part).values():
-                if rel_type == "drawing" and self.has(drawing):
-                    placements.extend(self._drawing_charts(sheet, drawing))
+            try:
+                for rel_type, drawing in self.rels(sheet.part).values():
+                    if rel_type == "drawing" and self.has(drawing):
+                        placements.extend(self._drawing_charts(sheet, drawing))
+            except ValueError as error:
+                # A damaged part, or an anchor whose numbers are not numbers.
+                self.problems.append(
+                    f"maidr cannot read the drawing of sheet '{sheet.name}' "
+                    f"({error}); the charts on it are left out."
+                )
+                continue
             placements.sort(key=lambda p: (p.row, p.column))
             out.extend(placements)
         return out
@@ -335,11 +391,15 @@ class Package:
             with the aliases charts use (``"tx1"`` for ``"dk1"``, ``"bg1"``
             for ``"lt1"``, and so on). Empty when the workbook has no theme.
         """
-        for rel_type, part in self.rels(self.workbook).values():
-            if rel_type == "theme" and self.has(part):
-                scheme = self.xml(part).find(f".//{{{NS_A}}}clrScheme")
-                break
-        else:
+        try:
+            for rel_type, part in self.rels(self.workbook).values():
+                if rel_type == "theme" and self.has(part):
+                    scheme = self.xml(part).find(f".//{{{NS_A}}}clrScheme")
+                    break
+            else:
+                return {}
+        except DamagedPartError:
+            # Colors are not read out; the charts are drawn in matplotlib's.
             return {}
         if scheme is None:
             return {}
@@ -384,32 +444,46 @@ class Package:
         dict
             Position to :class:`Cell`. A cell the sheet does not store, an
             empty one, is absent.
+
+        Raises
+        ------
+        DamagedPartError
+            If the sheet or its string table is malformed, cut short, or too
+            large to read.
         """
         wanted = set(cells)
         if not wanted or sheet.is_chartsheet or not self.has(sheet.part):
             return {}
+        size = self._zip.getinfo(sheet.part).file_size
+        if size > _MAX_SHEET_BYTES:
+            raise DamagedPartError(f"{sheet.part} is {size:,} bytes, too large to read")
         last_row = max(row for row, _ in wanted)
         raw: dict[tuple[int, int], tuple[str, str, str | None]] = {}
         row_index = -1
-        with self._zip.open(sheet.part) as stream:
-            for _, row in etree.iterparse(
-                stream, tag=f"{{{NS_MAIN}}}row", resolve_entities=False
-            ):
-                row_index = int(row.get("r", row_index + 2)) - 1
-                if row_index > last_row:
-                    break
-                column = -1
-                for cell in row.iterchildren(f"{{{NS_MAIN}}}c"):
-                    position = parse_cell(cell.get("r", ""))
-                    column = position[1] if position else column + 1
-                    if (row_index, column) in wanted:
-                        raw[(row_index, column)] = _cell_text(cell)
-                row.clear()
-                while row.getprevious() is not None:
-                    del row.getparent()[0]
-        strings = self._strings(
-            int(text) for kind, text, _ in raw.values() if kind == "s" and text
-        )
+        try:
+            with self._zip.open(sheet.part) as stream:
+                for _, row in etree.iterparse(
+                    stream, tag=f"{{{NS_MAIN}}}row", resolve_entities=False
+                ):
+                    row_index = int(row.get("r", row_index + 2)) - 1
+                    if row_index > last_row:
+                        break
+                    column = -1
+                    for cell in row.iterchildren(f"{{{NS_MAIN}}}c"):
+                        position = parse_cell(cell.get("r", ""))
+                        column = position[1] if position else column + 1
+                        if (row_index, column) in wanted:
+                            raw[(row_index, column)] = _cell_text(cell)
+                    row.clear()
+                    while row.getprevious() is not None:
+                        del row.getparent()[0]
+            strings = self._strings(
+                int(text) for kind, text, _ in raw.values() if kind == "s" and text
+            )
+        except (*_DAMAGED, ValueError) as error:
+            if isinstance(error, DamagedPartError):
+                raise
+            raise DamagedPartError(f"{sheet.part}: {error}") from error
         formats = self._cell_formats() if raw else []
         out: dict[tuple[int, int], Cell] = {}
         for position, (kind, text, style) in raw.items():
@@ -421,7 +495,6 @@ class Package:
     def _cell_formats(self) -> list[str | None]:
         """The number format of each cell style, by style index."""
         if self._formats is None:
-            self._formats = []
             part = next(
                 (
                     t
@@ -430,22 +503,14 @@ class Package:
                 ),
                 None,
             )
-            if part is not None and self.has(part):
-                root = self.xml(part)
-                listed = root.find(f"{{{NS_MAIN}}}numFmts")
-                custom = {
-                    int(f.get("numFmtId", "-1")): f.get("formatCode")
-                    for f in (listed if listed is not None else ())
-                    if isinstance(f.tag, str)
-                }
-                styles = root.find(f"{{{NS_MAIN}}}cellXfs")
-                for xf in styles if styles is not None else ():
-                    if not isinstance(xf.tag, str):
-                        continue
-                    number = int(xf.get("numFmtId", "0"))
-                    self._formats.append(
-                        custom.get(number) or _BUILTIN_FORMATS.get(number)
-                    )
+            try:
+                self._formats = (
+                    _number_formats(self.xml(part)) if part and self.has(part) else []
+                )
+            except ValueError:
+                # A damaged styles part: numbers read as plain numbers, as they
+                # do in a workbook with no styles at all.
+                self._formats = []
         return self._formats
 
     def _strings(self, indices: Iterable[int]) -> dict[int, str]:
@@ -461,6 +526,11 @@ class Package:
                 None,
             )
             if part is not None and self.has(part):
+                size = self._zip.getinfo(part).file_size
+                if size > _MAX_SHEET_BYTES:
+                    raise DamagedPartError(
+                        f"{part} is {size:,} bytes, too large to read"
+                    )
                 last = max(missing)
                 with self._zip.open(part) as stream:
                     for index, (_, item) in enumerate(
@@ -474,6 +544,23 @@ class Package:
                         if index >= last:
                             break
         return self._shared_strings
+
+
+def _number_formats(root: Any) -> list[str | None]:
+    """The number format of each cell style in a styles part, by style index."""
+    listed = root.find(f"{{{NS_MAIN}}}numFmts")
+    custom = {
+        int(f.get("numFmtId", "-1")): f.get("formatCode")
+        for f in (listed if listed is not None else ())
+        if isinstance(f.tag, str)
+    }
+    styles = root.find(f"{{{NS_MAIN}}}cellXfs")
+    out = []
+    for xf in styles if styles is not None else ():
+        if isinstance(xf.tag, str):
+            number = int(xf.get("numFmtId", "0"))
+            out.append(custom.get(number) or _BUILTIN_FORMATS.get(number))
+    return out
 
 
 def _cell_text(cell: Any) -> tuple[str, str, str | None]:
