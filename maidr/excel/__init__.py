@@ -21,26 +21,25 @@ from typing import IO
 from matplotlib.figure import Figure
 
 from maidr.core.figure_manager import FigureManager
+from maidr.excel import chartex
 from maidr.excel.chartxml import read_chart, wanted_cells
 from maidr.excel.draw import draw
+from maidr.excel.drawex import draw_ex
 from maidr.excel.package import Cell, DamagedPartError, NotAWorkbookError, Package
 from maidr.util.caller_warning import warn_at_caller
 
 __all__ = ["ExcelChart", "NotAWorkbookError", "read_excel_charts"]
 
-NS_CX = "http://schemas.microsoft.com/office/drawing/2014/chartex"
-
-#: The Excel 2016 chart types, by the layout their series name.
-_CHARTEX_KINDS = {
-    "clusteredColumn": "histogram",
-    "paretoLine": "Pareto",
-    "boxWhisker": "box and whisker",
-    "waterfall": "waterfall",
-    "funnel": "funnel",
-    "treemap": "treemap",
-    "sunburst": "sunburst",
-    "regionMap": "map",
-}
+#: What a chart part holding values it never should raises while it is read
+#: or drawn. Each costs that chart alone, never the workbook.
+_DAMAGED_CHART = (
+    ValueError,
+    TypeError,
+    IndexError,
+    KeyError,
+    ArithmeticError,
+    RecursionError,
+)
 
 
 @dataclass(frozen=True, eq=False)
@@ -98,23 +97,28 @@ def read_excel_charts(
 
     Notes
     -----
-    Read: column and bar charts (clustered, stacked and 100% stacked),
-    line charts, pie and doughnut charts, scatter charts with or without
-    lines, area charts (plain, stacked and 100% stacked), and combinations of
-    them, including a second value axis. 3-D variants read as their flat
-    counterparts.
+    Every chart type Excel draws is read. Column and bar charts (clustered,
+    stacked and 100% stacked), line charts (plain, stacked and 100% stacked),
+    pie, doughnut, pie-of-pie and bar-of-pie charts, scatter and bubble
+    charts, area charts, radar charts, stock charts, surface charts, and
+    combinations of them, including a second value axis; and the chart types
+    Excel 2016 added: histogram, Pareto, box and whisker, waterfall, funnel,
+    treemap, sunburst and map. 3-D variants read as their flat counterparts.
 
-    Not read yet: stacked line, radar, bubble, stock, surface, pie-of-pie,
-    and the chart types Excel 2016 added -- histogram, Pareto, box and
-    whisker, waterfall, funnel, treemap, sunburst and map. Each such chart,
-    or part of a combo chart, is left out with a ``UserWarning`` naming the
-    chart, its sheet and its type, as are values a chart cannot show, such
-    as the negative values of a pie.
+    Where matplotlib has a call for a chart it is drawn with it, and read as
+    that call is; where it has none -- a radar, a bubble chart's sizes, a
+    stock chart's candles, a waterfall, a funnel, a treemap, a sunburst and a
+    map -- maidr draws the marks itself and reads the chart's own values. A
+    histogram's bins and a box's quartiles are worked out as Excel works them
+    out, from the values the chart keeps. A map is read as the list of its
+    regions and drawn as bars, since the shapes of its regions are not read.
 
     An axis with no title is named after the header cell above its category
     range, which the reader hears and the drawing leaves out, as Excel does.
     A category with no label reads ``(blank)``, and a blank value is a gap,
-    never a zero.
+    never a zero. What a chart cannot show, such as the negative values of a
+    pie, and any chart part maidr cannot read, is left out with a
+    ``UserWarning`` naming the chart and its sheet.
 
     Examples
     --------
@@ -133,11 +137,12 @@ def read_excel_charts(
     with archive:
         package = Package(archive)
         placements = package.charts()
+        names = package.defined_names
         parts = {}
         damaged: dict[str, str] = {}
         wanted: dict[str, set[tuple[int, int]]] = {}
         for placement in placements:
-            if placement.is_chartex or not package.has(placement.part):
+            if not package.has(placement.part) or placement.part in parts:
                 continue
             try:
                 root = package.xml(placement.part)
@@ -145,7 +150,12 @@ def read_excel_charts(
                 damaged[placement.part] = str(reason)
                 continue
             parts[placement.part] = root
-            for sheet, row, column in wanted_cells(root):
+            found = (
+                chartex.wanted_cells(root, names)
+                if placement.is_chartex
+                else wanted_cells(root)
+            )
+            for sheet, row, column in found:
                 wanted.setdefault(sheet, set()).add((row, column))
         notes = list(package.problems)
         sheets = {sheet.name: sheet for sheet in package.sheets()}
@@ -154,7 +164,7 @@ def read_excel_charts(
             if name not in sheets:
                 continue
             try:
-                found = package.read_cells(sheets[name], positions)
+                found_cells = package.read_cells(sheets[name], positions)
             except DamagedPartError as reason:
                 # Each chart keeps its own copy of the values it drew, so a
                 # damaged sheet costs only the header names and formats.
@@ -163,13 +173,8 @@ def read_excel_charts(
                     "the charts that refer to it are read without them."
                 )
                 continue
-            for (row, column), cell in found.items():
+            for (row, column), cell in found_cells.items():
                 values[(name, row, column)] = cell
-        kinds = {
-            placement.part: _chartex_kind(package, placement.part)
-            for placement in placements
-            if placement.is_chartex and package.has(placement.part)
-        }
         theme = package.theme_colors()
         date1904 = package.date1904
 
@@ -181,34 +186,38 @@ def read_excel_charts(
     charts = []
     for placement in placements:
         where = f"'{placement.name}' on sheet '{placement.sheet.name}'"
-        if placement.is_chartex:
-            kind = kinds.get(placement.part) or "Excel 2016"
-            warn_at_caller(
-                f"maidr does not read {kind} charts yet; {where} is left out."
-            )
-            continue
         if placement.part in damaged:
             reason = damaged[placement.part]
             warn_at_caller(f"maidr cannot read {where} ({reason}); it is left out.")
             continue
         if placement.part not in parts:
             continue
+        root = parts[placement.part]
         try:
-            spec = read_chart(
-                parts[placement.part], cells=cells, theme=theme, date1904=date1904
-            )
-        except (ValueError, TypeError, IndexError) as reason:
+            if placement.is_chartex:
+                spec = chartex.read_chartex(
+                    root, cells=cells, theme=theme, date1904=date1904, names=names
+                )
+            else:
+                spec = read_chart(root, cells=cells, theme=theme, date1904=date1904)
+        except _DAMAGED_CHART as reason:
             # A damaged chart part costs that chart, never the whole workbook.
             warn_at_caller(f"maidr cannot read {where} ({reason}); it is left out.")
             continue
         for kind in spec.unread:
             what = "is left out" if not spec.groups else "is read without them"
-            warn_at_caller(f"maidr does not read {kind} charts yet; {where} {what}.")
+            warn_at_caller(f"maidr does not read {kind} charts; {where} {what}.")
         if not spec.groups:
             if not spec.unread:
                 warn_at_caller(f"{where} has no data maidr can read; it is left out.")
             continue
-        figure = draw(spec, aspect=placement.aspect, where=where)
+        render = draw_ex if placement.is_chartex else draw
+        try:
+            figure = render(spec, aspect=placement.aspect, where=where)
+        except _DAMAGED_CHART as reason:
+            # Values a chart part should never hold cost that chart alone.
+            warn_at_caller(f"maidr cannot draw {where} ({reason}); it is left out.")
+            continue
         try:
             FigureManager.get_maidr(figure)
         except KeyError:
@@ -219,15 +228,3 @@ def read_excel_charts(
             ExcelChart(placement.sheet.name, placement.name, spec.title, figure)
         )
     return charts
-
-
-def _chartex_kind(package: Package, part: str) -> str | None:
-    """The type of an Excel 2016 chart, named the way Excel's menu names it."""
-    try:
-        root = package.xml(part)
-    except DamagedPartError:
-        return None
-    series = root.find(f".//{{{NS_CX}}}series")
-    if series is None:
-        return None
-    return _CHARTEX_KINDS.get(series.get("layoutId", ""))

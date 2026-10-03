@@ -38,20 +38,23 @@ _KINDS = {
     "pieChart": "pie",
     "pie3DChart": "pie",
     "doughnutChart": "doughnut",
+    "ofPieChart": "ofpie",
     "scatterChart": "scatter",
+    "bubbleChart": "bubble",
     "areaChart": "area",
     "area3DChart": "area",
-}
-
-#: What the reader is told a group it cannot read is called.
-_UNREAD = {
-    "ofPieChart": "pie-of-pie and bar-of-pie",
     "radarChart": "radar",
-    "bubbleChart": "bubble",
     "stockChart": "stock",
     "surfaceChart": "surface",
     "surface3DChart": "surface",
 }
+
+#: The kinds whose x values are numbers, read from ``c:xVal``.
+_XY_KINDS = ("scatter", "bubble")
+
+#: How many points a pie-of-pie moves to its second plot when the part does
+#: not say: Excel's default, the last three.
+_SECOND_PLOT_POINTS = 3
 
 _REFERENCE = re.compile(
     r"^(?:'(?P<quoted>(?:[^']|'')+)'|(?P<plain>[^'!\[\]]+))!"
@@ -166,14 +169,14 @@ def wanted_cells(root: Any) -> Iterator[tuple[str, int, int]]:
         cell's own format says whether they are dates, percentages or money.
     """
     for ser in root.iter(f"{C}ser"):
-        for tag in ("tx", "cat", "val", "xVal", "yVal"):
+        for tag in ("tx", "cat", "val", "xVal", "yVal", "bubbleSize"):
             source = ser.find(f"{C}{tag}")
             if source is None:
                 continue
             area = parse_range(source.findtext(f".//{C}f"))
             if area is None:
                 continue
-            if tag == "cat":
+            if tag in ("cat", "xVal", "bubbleSize"):
                 header = area.header()
                 if header is not None:
                     yield (area.sheet, *header)
@@ -209,7 +212,7 @@ class Series:
     """One series: its name, its points and how it is drawn."""
 
     name: str | None
-    #: Category labels, or the x values of a scatter series.
+    #: Category labels, or the x values of a scatter or bubble series.
     categories: tuple[Any, ...]
     values: tuple[float | None, ...]
     color: str | None
@@ -217,14 +220,63 @@ class Series:
     point_colors: tuple[tuple[int, str], ...]
     line: bool
     marker: bool
+    #: The size of each bubble of a bubble series.
+    sizes: tuple[float | None, ...] = ()
+    #: Each point's category as the levels of a hierarchy, outermost first:
+    #: a treemap's or a sunburst's branches.
+    paths: tuple[tuple[str, ...], ...] = ()
+
+
+@dataclass(frozen=True)
+class Binning:
+    """How a histogram groups its values into bins, as Excel was told to."""
+
+    #: The width of a bin, or ``None`` to work it out.
+    size: float | None = None
+    #: How many bins, or ``None`` to work it out.
+    count: int | None = None
+    #: Values at or below this go to one bin of their own.
+    underflow: float | None = None
+    #: Values above this go to one bin of their own.
+    overflow: float | None = None
+    #: Which end of a bin it includes: ``"r"``, as ``(a, b]``, or ``"l"``.
+    closed: str = "r"
+    #: Whether each category is a bin of its own, its values summed.
+    by_category: bool = False
+
+
+def sums_categories(binning: Binning | None, series: Series) -> bool:
+    """
+    Whether a histogram or a Pareto chart makes each category a bin of its
+    own, its values summed.
+
+    Parameters
+    ----------
+    binning : Binning or None
+        What the chart says of its bins, or ``None`` when it says nothing.
+    series : Series
+        The series binned.
+
+    Returns
+    -------
+    bool
+        What the chart says, or, when it says nothing, whether it has
+        categories, as Excel decides for text ones.
+    """
+    if binning is not None:
+        return binning.by_category
+    return any(c is not None for c in series.categories)
 
 
 @dataclass(frozen=True)
 class Group:
     """One chart group: series of one chart type that share axes."""
 
-    #: ``"bar"``, ``"line"``, ``"pie"``, ``"doughnut"``, ``"scatter"`` or
-    #: ``"area"``.
+    #: ``"bar"``, ``"line"``, ``"pie"``, ``"doughnut"``, ``"ofpie"``,
+    #: ``"scatter"``, ``"bubble"``, ``"area"``, ``"radar"``, ``"stock"`` or
+    #: ``"surface"``; or one of the Excel 2016 types, ``"histogram"``,
+    #: ``"pareto"``, ``"box"``, ``"waterfall"``, ``"funnel"``, ``"treemap"``,
+    #: ``"sunburst"`` or ``"region"``.
     kind: str
     horizontal: bool
     #: ``"standard"``, ``"clustered"``, ``"stacked"`` or ``"percentStacked"``.
@@ -240,6 +292,27 @@ class Group:
     secondary: bool
     first_slice_angle: float
     hole_size: float | None
+    #: How a radar is drawn (``"standard"``, ``"marker"`` or ``"filled"``),
+    #: what a pie-of-pie's second plot is (``"pie"`` or ``"bar"``), and
+    #: whether a stock chart draws its open-to-close bodies (``"updown"``).
+    style: str | None = None
+    #: The points a pie-of-pie draws in its second plot, by index.
+    second_plot: tuple[int, ...] = ()
+    #: How large a bubble chart draws its bubbles, in percent of the default.
+    bubble_scale: float = 100.0
+    #: What the series of a surface are called: the title of its depth axis.
+    series_name: str | None = None
+    #: What a bubble chart's sizes are: the header above their range.
+    size_name: str | None = None
+    #: How a histogram or a Pareto chart bins its values.
+    binning: Binning | None = None
+    #: How a box and whisker chart finds its quartiles: ``"exclusive"`` or
+    #: ``"inclusive"`` of the median.
+    quartiles: str = "exclusive"
+    #: Whether a box and whisker chart marks each box's mean.
+    mean_marker: bool = True
+    #: The points of a waterfall that are totals rather than steps, by index.
+    totals: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -306,13 +379,10 @@ def read_chart(
         if not name.endswith("Chart"):
             continue
         kind = _KINDS.get(name)
-        grouping = _val(element, "grouping", "standard")
-        if kind == "line" and grouping != "standard":
-            unread.append("stacked line")
-            continue
         if kind is None:
-            unread.append(_UNREAD.get(name, name))
+            unread.append(name)
             continue
+        grouping = _val(element, "grouping", "standard")
         group = _read_group(
             element, kind, grouping, axes, cells, theme, date1904, blanks
         )
@@ -342,14 +412,17 @@ def _read_group(
 ) -> Group:
     horizontal = kind == "bar" and _val(element, "barDir", "col") == "bar"
     group_axes = [axes[a] for a in _vals(element, "axId") if a in axes]
-    if kind == "scatter":
+    if kind in _XY_KINDS:
         x_element = next(
             (a for a in group_axes if _val(a, "axPos") in ("b", "t")), None
         )
         y_element = next((a for a in group_axes if a is not x_element), None)
     else:
-        x_element = next((a for a in group_axes if a.tag != f"{C}valAx"), None)
+        x_element = next(
+            (a for a in group_axes if a.tag in (f"{C}catAx", f"{C}dateAx")), None
+        )
         y_element = next((a for a in group_axes if a.tag == f"{C}valAx"), None)
+    depth_element = next((a for a in group_axes if a.tag == f"{C}serAx"), None)
     dates = x_element is not None and x_element.tag == f"{C}dateAx"
 
     raw = sorted(
@@ -357,22 +430,23 @@ def _read_group(
         key=lambda ser: int(_val(ser, "order", _val(ser, "idx", "0"))),
     )
     scatter_style = _val(element, "scatterStyle", "lineMarker")
+    radar_style = _val(element, "radarStyle", "marker")
     group_markers = _val(element, "marker", "1") in ("1", "true")
     vary_colors = _val(element, "varyColors", "0") in ("1", "true")
     series = []
     for ser in raw:
         index = int(_val(ser, "idx", "0"))
         name = _series_name(ser, cells)
-        if kind == "scatter":
+        if kind in _XY_KINDS:
             x_source, y_source = ser.find(f"{C}xVal"), ser.find(f"{C}yVal")
         else:
             x_source, y_source = ser.find(f"{C}cat"), ser.find(f"{C}val")
         values = [_number(v) for v in _points(y_source, cells)]
-        if blanks == "zero" and kind in ("line", "scatter", "area"):
+        if blanks == "zero" and kind in ("line", "scatter", "area", "radar"):
             values = [0.0 if v is None else v for v in values]
         x_points = _points(x_source, cells)
         x_format = _explicit_format(x_element) or _format_code(x_source, cells)
-        if kind == "scatter":
+        if kind in _XY_KINDS:
             # Excel plots a scatter series against 1, 2, 3, ... when its x
             # values are missing or are text.
             numbers = [_number(v) for v in x_points]
@@ -385,18 +459,27 @@ def _read_group(
             categories = [
                 _category_label(v, x_format, dates, date1904) for v in x_points
             ] or [str(i + 1) for i in range(len(values))]
+        sizes = (
+            [_number(v) for v in _points(ser.find(f"{C}bubbleSize"), cells)]
+            if kind == "bubble"
+            else []
+        )
         count = max(len(categories), len(values))
         categories += [None] * (count - len(categories))
         values += [None] * (count - len(values))
-        line = kind in ("line", "scatter") and not _no_line(ser)
+        if sizes:
+            sizes += [None] * (count - len(sizes))
+        line = kind in ("line", "scatter", "radar") and not _no_line(ser)
         if kind == "scatter" and scatter_style in ("marker", "none"):
             line = False
         symbol = ser.find(f"{C}marker/{C}symbol")
-        marker = (symbol is None or symbol.get("val") != "none") and (
-            kind == "scatter" or group_markers
-        )
+        shown = symbol is None or symbol.get("val") != "none"
+        if kind == "radar":
+            marker = shown and radar_style == "marker"
+        else:
+            marker = shown and (kind == "scatter" or group_markers)
         point_colors = dict(_point_colors(ser, theme))
-        if kind in ("pie", "doughnut") and vary_colors:
+        if kind in ("pie", "doughnut", "ofpie") and vary_colors:
             # A pie's slices take the theme accents in turn, as series do.
             for point in range(count):
                 color = _default_color(point, theme)
@@ -411,15 +494,25 @@ def _read_group(
                 point_colors=tuple(sorted(point_colors.items())),
                 line=line,
                 marker=marker,
+                sizes=tuple(sizes),
             )
         )
 
-    header = _category_header(raw, cells) if kind != "scatter" else None
+    header = _header_text(raw, "xVal" if kind in _XY_KINDS else "cat", cells)
     x_axis = (
         _axis(x_element, raw, "x", header, cells) if x_element is not None else None
     )
     y_axis = _axis(y_element, raw, "y", None, cells) if y_element is not None else None
     position = y_axis.position if y_axis is not None else ""
+    style = None
+    if kind == "radar":
+        style = radar_style
+    elif kind == "ofpie":
+        style = _val(element, "ofPieType", "pie")
+    elif kind == "stock" and element.find(f"{C}upDownBars") is not None:
+        style = "updown"
+    elif kind == "bubble":
+        style = _val(element, "sizeRepresents", "area")
     return Group(
         kind=kind,
         horizontal=horizontal,
@@ -433,7 +526,52 @@ def _read_group(
         hole_size=float(_val(element, "holeSize", "50"))
         if kind == "doughnut"
         else None,
+        style=style,
+        second_plot=_second_plot(element, series[0].values)
+        if kind == "ofpie" and series
+        else (),
+        bubble_scale=_float(_val(element, "bubbleScale")) or 100.0,
+        series_name=_title_text(depth_element.find(f"{C}title"))
+        if depth_element is not None
+        else None,
+        size_name=_header_text(raw, "bubbleSize", cells) if kind == "bubble" else None,
     )
+
+
+def _second_plot(element: Any, values: tuple[float | None, ...]) -> tuple[int, ...]:
+    """
+    The points a pie-of-pie or bar-of-pie moves to its second plot.
+
+    By position, the last ones; by value or by percentage, those below the
+    split; by a custom split, those the part lists. A split that would leave
+    the first pie empty keeps its first point there.
+    """
+    split = _val(element, "splitType", "auto")
+    threshold = _float(_val(element, "splitPos"))
+    sized = [(i, v) for i, v in enumerate(values) if v is not None and v > 0]
+    if split == "cust":
+        custom = element.find(f"{C}custSplit")
+        listed = (
+            {int(v) for v in _vals(custom, "secondPiePt") if v.isdigit()}
+            if custom is not None
+            else set()
+        )
+        chosen = [i for i, _ in sized if i in listed]
+    elif split == "val":
+        chosen = [i for i, v in sized if threshold is not None and v < threshold]
+    elif split == "percent":
+        total = sum(v for _, v in sized)
+        chosen = [
+            i for i, v in sized if threshold is not None and 100 * v / total < threshold
+        ]
+    else:
+        # "pos", and "auto", which is Excel's default split: by position.
+        last = int(threshold) if threshold is not None else _SECOND_PLOT_POINTS
+        first = len(values) - max(0, last)
+        chosen = [i for i, _ in sized if i >= first]
+    if sized and len(chosen) == len(sized):
+        chosen = chosen[1:]
+    return tuple(chosen)
 
 
 def _axis(
@@ -465,11 +603,14 @@ def _axis(
     )
 
 
-def _category_header(series: list[Any], cells: Cells) -> str | None:
-    """The header cell above (or left of) the first series' category range."""
+def _header_text(series: list[Any], tag: str, cells: Cells) -> str | None:
+    """
+    The header cell above (or left of) the first series' range of ``tag``:
+    its categories, or a bubble chart's sizes.
+    """
     if not series:
         return None
-    area = parse_range(series[0].findtext(f"{C}cat//{C}f"))
+    area = parse_range(series[0].findtext(f"{C}{tag}//{C}f"))
     header = area.header() if area is not None else None
     if header is None:
         return None
@@ -825,10 +966,13 @@ def _series_color(ser: Any, kind: str, theme: dict[str, str]) -> str | None:
     shape = ser.find(f"{C}spPr")
     if shape is None:
         return None
-    if kind in ("line", "scatter"):
+    if kind in ("line", "scatter", "radar"):
         fill = shape.find(f"{A}ln/{A}solidFill")
         if fill is None:
             fill = ser.find(f"{C}marker/{C}spPr/{A}solidFill")
+        if fill is None and kind == "radar":
+            # A filled radar's color is its area's.
+            fill = shape.find(f"{A}solidFill")
     else:
         fill = shape.find(f"{A}solidFill")
     return _color(fill, theme)

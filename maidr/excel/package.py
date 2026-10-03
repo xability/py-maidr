@@ -226,6 +226,14 @@ class Package:
             )
         pr = root.find(f"{{{NS_MAIN}}}workbookPr")
         self.date1904 = pr is not None and pr.get("date1904") in ("1", "true")
+        #: The workbook's defined names, to the formula each stands for. An
+        #: Excel 2016 chart names its ranges through hidden ones,
+        #: ``_xlchart.v1.0`` and on.
+        self.defined_names = {
+            name.get("name", ""): (name.text or "").strip()
+            for name in root.iter(f"{{{NS_MAIN}}}definedName")
+            if name.get("localSheetId") is None
+        }
         self._shared_strings: dict[int, str] = {}
         self._formats: list[str | None] | None = None
         #: What could not be read while finding the charts, said once each by
