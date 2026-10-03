@@ -543,67 +543,38 @@ def test_series_are_drawn_in_the_theme_accents_unless_colored(tmp_path):
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    ("kind", "subtype", "name"),
-    [
-        ("radar", None, "radar"),
-        ("stock", None, "stock"),
-        ("line", "stacked", "stacked line"),
-    ],
-)
-def test_a_chart_maidr_does_not_read_is_left_out_with_a_warning(
-    tmp_path, kind, subtype, name
-):
-    options = {"type": kind, **({"subtype": subtype} if subtype else {})}
-
+def test_a_chart_type_maidr_does_not_know_is_left_out_with_a_warning(tmp_path):
     def build(workbook, worksheet):
-        chart = workbook.add_chart(options)
-        for column in (1, 2) if kind != "stock" else (1, 2, 2):
-            _add_series(chart, column)
+        chart = workbook.add_chart({"type": "line"})
+        _add_series(chart, 1)
         worksheet.insert_chart("E2", chart)
         readable = workbook.add_chart({"type": "column"})
         _add_series(readable, 1)
         worksheet.insert_chart("E20", readable)
 
-    with pytest.warns(UserWarning, match=f"does not read {name} charts yet; 'Chart 1'"):
-        charts = read_excel_charts(_book(tmp_path, build))
+    path = _rewrite(
+        _book(tmp_path, build),
+        "xl/charts/chart1.xml",
+        lambda text: text.replace("c:lineChart>", "c:futureChart>"),
+    )
+
+    with pytest.warns(UserWarning, match="does not read futureChart charts; 'Chart 1'"):
+        charts = read_excel_charts(path)
 
     assert [c.name for c in charts] == ["Chart 2"]
 
 
 def test_the_warning_names_the_line_that_read_the_workbook(tmp_path):
-    path = _book(tmp_path, _chart("radar"))
+    path = _rewrite(
+        _book(tmp_path, _chart("line")),
+        "xl/charts/chart1.xml",
+        lambda text: text.replace("c:lineChart>", "c:futureChart>"),
+    )
 
-    with pytest.warns(UserWarning, match="radar") as caught:
+    with pytest.warns(UserWarning, match="futureChart") as caught:
         read_excel_charts(path)
 
     assert Path(caught[0].filename).name == Path(__file__).name
-
-
-def test_an_excel_2016_chart_is_left_out_naming_its_type(tmp_path):
-    path = _book(tmp_path, _chart("column", (1,)))
-    rels = "xl/drawings/_rels/drawing1.xml.rels"
-    edited = _rewrite(
-        path,
-        rels,
-        lambda text: text.replace(
-            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart",
-            "http://schemas.microsoft.com/office/2014/relationships/chartEx",
-        ),
-    )
-    edited = _rewrite(
-        edited,
-        "xl/charts/chart1.xml",
-        lambda _: (
-            '<cx:chartSpace xmlns:cx="http://schemas.microsoft.com/office/drawing/'
-            '2014/chartex"><cx:chart><cx:plotArea><cx:plotAreaRegion>'
-            '<cx:series layoutId="waterfall"/></cx:plotAreaRegion></cx:plotArea>'
-            "</cx:chart></cx:chartSpace>"
-        ),
-    )
-
-    with pytest.warns(UserWarning, match="does not read waterfall charts yet"):
-        assert read_excel_charts(edited) == []
 
 
 def test_the_fallback_picture_of_a_newer_chart_is_not_read_as_a_second_chart(tmp_path):

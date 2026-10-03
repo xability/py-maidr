@@ -454,9 +454,17 @@ Excel support as a whole is **experimental**, whichever chart type is read: see
 
 * Line charts, one series per line.
 
-* Pie and doughnut charts, walked clockwise from the top.
+* Pie and doughnut charts, walked clockwise from the top; pie-of-pie and bar-of-pie charts as the first pie and, beside it, a pie or a stacked column of the slices it gathers.
 
-* Scatter charts; a scatter chart with lines reads as a line plot.
+* Scatter charts; a scatter chart with lines reads as a line plot. Bubble charts read as points, each bubble's size its z.
+
+* Stock charts, high-low-close and open-high-low-close, as candlesticks; a volume drawn with them is read as a bar layer of its own as well.
+
+* Surface charts, as a heatmap of the series by category.
+
+* Histograms, binned as Excel bins them, and Pareto charts, largest first with the running share as a line.
+
+* Box and whisker charts, with Excel's quartiles.
 
 * Combo charts, one layer per chart type in one chart, including a second value axis.
 
@@ -464,12 +472,18 @@ Excel support as a whole is **experimental**, whichever chart type is read: see
 
 These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
 
-* Area [experimental] and stacked area [experimental] charts, plain, stacked and 100% stacked.
+* Area [experimental] and stacked area [experimental] charts, plain, stacked and 100% stacked; stacked and 100% stacked line charts read as stacked areas.
 
-Stacked line, radar, bubble, stock, surface and pie-of-pie charts, and the chart
-types Excel 2016 added (histogram, Pareto, box and whisker, waterfall, funnel,
-treemap, sunburst and map), are left out with a warning naming them. See the
-[Excel gallery](examples-excel.qmd#sec-excel-examples) for runnable examples.
+* Radar charts [experimental], plain, with markers and filled.
+
+* Waterfall [experimental] and funnel [experimental] charts.
+
+* Treemap [experimental] and sunburst [experimental] charts.
+
+* Maps [experimental], as a list of their regions; the shapes are not drawn.
+
+See the [Excel gallery](examples-excel.qmd#sec-excel-examples) for runnable
+examples.
 
 ### Additional Libraries
 
