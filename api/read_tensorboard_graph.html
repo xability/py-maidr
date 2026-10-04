@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
+<meta name="description" content="Read the Keras model graphs of a TensorBoard log directory. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>maidr.tensorboard.TensorBoardChart API reference – py-maidr</title>
+<title>maidr.read_tensorboard_graph API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.tensorboard.TensorBoardChart API reference">
-<meta property="og:description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
+<meta property="og:title" content="maidr.read_tensorboard_graph API reference">
+<meta property="og:description" content="Read the Keras model graphs of a TensorBoard log directory. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.tensorboard.TensorBoardChart API reference">
-<meta name="twitter:description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
+<meta name="twitter:title" content="maidr.read_tensorboard_graph API reference">
+<meta name="twitter:description" content="Read the Keras model graphs of a TensorBoard log directory. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/tensorboard.TensorBoardChart.html">
-<meta name="DC.title" content="maidr.tensorboard.TensorBoardChart API reference">
+<link rel="canonical" href="https://py.maidr.ai/api/read_tensorboard_graph.html">
+<meta name="DC.title" content="maidr.read_tensorboard_graph API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/tensorboard.TensorBoardChart.html">
+<meta name="DC.description" content="Read the Keras model graphs of a TensorBoard log directory. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/read_tensorboard_graph.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -391,9 +391,13 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.tensorboard.TensorBoardChart" id="toc-maidr.tensorboard.TensorBoardChart" class="nav-link active" data-scroll-target="#maidr.tensorboard.TensorBoardChart">tensorboard.TensorBoardChart</a>
+  <li><a href="#maidr.read_tensorboard_graph" id="toc-maidr.read_tensorboard_graph" class="nav-link active" data-scroll-target="#maidr.read_tensorboard_graph">read_tensorboard_graph</a>
   <ul class="collapse">
-  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -404,13 +408,70 @@ cookieconsent.run({
 
 
 
-<section id="maidr.tensorboard.TensorBoardChart" class="level1">
-<h1>tensorboard.TensorBoardChart</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tensorboard.TensorBoardChart(<span class="va">self</span>, tag, runs, figure)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>One tag of a TensorBoard log directory, drawn and ready for maidr.</p>
-<p>Pass it to :func:<code>maidr.show</code>, :func:<code>maidr.render</code>, :func:<code>maidr.save_html</code> or :func:<code>maidr.close</code> as you would a matplotlib figure.</p>
-<section id="attributes" class="level2 doc-section doc-section-attributes">
-<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="maidr.read_tensorboard_graph" class="level1">
+<h1>read_tensorboard_graph</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>read_tensorboard_graph(logdir, <span class="op">*</span>, runs<span class="op">=</span><span class="va">None</span>, expand_nested<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Read the Keras model graphs of a TensorBoard log directory.</p>
+<p>One chart per run that logged a model, as TensorBoard’s Graphs dashboard draws it under the <em>Keras</em> tag: one box per layer, top to bottom from the inputs, with an arrow from each layer to the layers called on its output.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>logdir</td>
+<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a> or <a href="https://docs.python.org/3/library/os.html#module-os">os</a>.<a href="https://docs.python.org/3/library/os.html#os.PathLike">PathLike</a></td>
+<td>The directory TensorBoard would be started with (<code>--logdir</code>), such as the <code>log_dir</code> of Keras’s <code>TensorBoard</code> callback with <code>write_graph=True</code>, its default.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>runs</td>
+<td>iterable of str</td>
+<td>Only these runs. Keras logs the model in its <code>train</code> run.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>expand_nested</td>
+<td><a href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></td>
+<td>Whether a model used as a layer is drawn as its own layers, in a scope named for it, rather than as one box.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 17%">
+<col style="width: 76%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>list of TensorBoardChart</td>
+<td>One per run, tagged <code>keras</code>. Pass one to :func:<code>maidr.show</code>, :func:<code>maidr.render</code> or :func:<code>maidr.save_html</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -421,22 +482,22 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>tag</td>
-<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
-<td>The tag the values were logged under, such as <code>"epoch_loss"</code>.</td>
-</tr>
-<tr class="even">
-<td>runs</td>
-<td>tuple of str</td>
-<td>The runs drawn: for scalars, one line each (two with smoothing), in legend order; for histograms and graphs, the one run the chart is of.</td>
-</tr>
-<tr class="odd">
-<td>figure</td>
-<td><code>matplotlib</code>.<code>figure</code>.<code>Figure</code></td>
-<td>The chart drawn with matplotlib. It is not managed by pyplot, so <code>plt.show()</code> does not show it.</td>
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError">FileNotFoundError</a></td>
+<td>If <code>logdir</code> is not a directory.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="notes" class="level2 doc-section doc-section-notes">
+<h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
+<p>The chart is a <code>directed_graph</code>, an experimental type that needs a maidr.js release carrying it. A run that logged its model more than once is drawn from the last. A model logged as something other than a Keras config, such as a TensorFlow op graph, is not read.</p>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> maidr</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> (graph,) <span class="op">=</span> maidr.read_tensorboard_graph(<span class="st">"logs/fit"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> maidr.save_html(graph, <span class="st">"model.html"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

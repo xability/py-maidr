@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
+<meta name="description" content="Draw a Keras model’s layers as a directed graph. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>maidr.tensorboard.TensorBoardChart API reference – py-maidr</title>
+<title>maidr.keras.plot_model API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.tensorboard.TensorBoardChart API reference">
-<meta property="og:description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
+<meta property="og:title" content="maidr.keras.plot_model API reference">
+<meta property="og:description" content="Draw a Keras model’s layers as a directed graph. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.tensorboard.TensorBoardChart API reference">
-<meta name="twitter:description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
+<meta name="twitter:title" content="maidr.keras.plot_model API reference">
+<meta name="twitter:description" content="Draw a Keras model’s layers as a directed graph. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/tensorboard.TensorBoardChart.html">
-<meta name="DC.title" content="maidr.tensorboard.TensorBoardChart API reference">
+<link rel="canonical" href="https://py.maidr.ai/api/plot_model.html">
+<meta name="DC.title" content="maidr.keras.plot_model API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/tensorboard.TensorBoardChart.html">
+<meta name="DC.description" content="Draw a Keras model’s layers as a directed graph. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/plot_model.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -391,9 +391,13 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.tensorboard.TensorBoardChart" id="toc-maidr.tensorboard.TensorBoardChart" class="nav-link active" data-scroll-target="#maidr.tensorboard.TensorBoardChart">tensorboard.TensorBoardChart</a>
+  <li><a href="#maidr.keras.plot_model" id="toc-maidr.keras.plot_model" class="nav-link active" data-scroll-target="#maidr.keras.plot_model">plot_model</a>
   <ul class="collapse">
-  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -404,13 +408,70 @@ cookieconsent.run({
 
 
 
-<section id="maidr.tensorboard.TensorBoardChart" class="level1">
-<h1>tensorboard.TensorBoardChart</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tensorboard.TensorBoardChart(<span class="va">self</span>, tag, runs, figure)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>One tag of a TensorBoard log directory, drawn and ready for maidr.</p>
-<p>Pass it to :func:<code>maidr.show</code>, :func:<code>maidr.render</code>, :func:<code>maidr.save_html</code> or :func:<code>maidr.close</code> as you would a matplotlib figure.</p>
-<section id="attributes" class="level2 doc-section doc-section-attributes">
-<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="maidr.keras.plot_model" class="level1">
+<h1>plot_model</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>keras.plot_model(model, <span class="op">*</span>, title<span class="op">=</span><span class="va">None</span>, expand_nested<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Draw a Keras model’s layers as a directed graph.</p>
+<p>One box per layer, top to bottom from the inputs, with an arrow from each layer to the layers called on its output, as <code>keras.utils.plot_model</code> draws it. Left and Right walk the layers in the order data flows through them; the Inputs and Outputs rotor units follow the arrows, so a skip connection is heard as a second input. Each layer is announced with its type and, from a built model, its output shape and parameter count.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>model</td>
+<td>(<code>keras</code>.<code>Model</code>, <a href="https://docs.python.org/3/builtins/stdtypes.html#dict">dict</a> or <a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a>)</td>
+<td>A built <code>Sequential</code> or functional model, its <code>get_config()</code> dictionary, or the JSON <code>model.to_json()</code> returns. Only the config is read, so a model saved as JSON is drawn with no Keras installed.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>title</td>
+<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
+<td>The chart’s title. By default the model’s name.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>expand_nested</td>
+<td><a href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></td>
+<td>Whether a model used as a layer, such as a <code>Sequential</code> block, is drawn as its own layers in a frame named for it – a scope, opened with Down and closed with Up – rather than as one box.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 2%">
+<col style="width: 35%">
+<col style="width: 61%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>matplotlib</code>.<code>figure</code>.<code>Figure</code></td>
+<td>The graph, ready for :func:<code>maidr.show</code>, :func:<code>maidr.render</code> or :func:<code>maidr.save_html</code>. The figure is not managed by pyplot, so <code>plt.show()</code> does not show it.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -421,22 +482,28 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>tag</td>
-<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
-<td>The tag the values were logged under, such as <code>"epoch_loss"</code>.</td>
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#TypeError">TypeError</a></td>
+<td>If <code>model</code> is not a model, a config or a model’s JSON, or is a subclassed model whose config Keras cannot give.</td>
 </tr>
 <tr class="even">
-<td>runs</td>
-<td>tuple of str</td>
-<td>The runs drawn: for scalars, one line each (two with smoothing), in legend order; for histograms and graphs, the one run the chart is of.</td>
-</tr>
-<tr class="odd">
-<td>figure</td>
-<td><code>matplotlib</code>.<code>figure</code>.<code>Figure</code></td>
-<td>The chart drawn with matplotlib. It is not managed by pyplot, so <code>plt.show()</code> does not show it.</td>
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#ValueError">ValueError</a></td>
+<td>If <code>model</code> is JSON that does not parse, or a config with no layers.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="notes" class="level2 doc-section doc-section-notes">
+<h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
+<p>The chart is a <code>directed_graph</code>, an experimental type that needs a maidr.js release carrying it; an older one shows the drawing without reading it. The copy of maidr.js py-maidr bundles does not carry it yet, so until it does, the chart is read only from the CDN: online under the default <code>use_cdn="auto"</code>, or with <code>use_cdn=True</code>. With <code>use_cdn=False</code>, or offline, maidr warns and the chart is not read.</p>
+<p>Both config formats are read: Keras 3’s, and Keras 2’s (<code>tf.keras</code>). A layer called more than once is one box fed by everything it was called on. A layer’s attributes are its type and, where its config has them, its units, filters, kernel size, activation and rate; a built model adds its output shape and parameter count, which a config alone does not hold.</p>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> maidr</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> maidr.keras <span class="im">import</span> plot_model</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> maidr.save_html(plot_model(model, expand_nested<span class="op">=</span><span class="va">True</span>), <span class="st">"model.html"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

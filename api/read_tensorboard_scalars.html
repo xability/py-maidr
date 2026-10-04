@@ -515,7 +515,7 @@ cookieconsent.run({
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>Read: scalars written by Keras’s <code>TensorBoard</code> callback, <code>tf.summary.scalar</code> in TensorFlow 1 and 2, PyTorch’s <code>torch.utils.tensorboard.SummaryWriter</code> and tensorboardX. Histograms, distributions, images and the other dashboards are not read yet.</p>
+<p>Read: scalars written by Keras’s <code>TensorBoard</code> callback, <code>tf.summary.scalar</code> in TensorFlow 1 and 2, PyTorch’s <code>torch.utils.tensorboard.SummaryWriter</code> and tensorboardX. Histograms are read by :func:<code>read_tensorboard_histograms</code> and a Keras model’s graph by :func:<code>read_tensorboard_graph</code>; distributions, images and the other dashboards are not read yet.</p>
 <p>Smoothing is TensorBoard’s: an exponential moving average, corrected so the first values are not pulled toward zero. It is computed over every value logged, before <code>max_points</code> thins the line. A value that is not finite, such as a loss that became <code>NaN</code>, is a gap in the line and is left out of the average, as TensorBoard leaves it out.</p>
 <p>A damaged event file is read up to the damage, with a warning, wherever the damage reaches a record’s length. Damage inside a record’s data is not detected, since checking it would mean a checksum over every image and histogram the log directory holds, and reads as the damaged value.</p>
 </section>

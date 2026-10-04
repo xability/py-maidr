@@ -363,7 +363,7 @@ cookieconsent.run({
   <li><a href="#reading-the-charts-of-an-excel-workbook" id="toc-reading-the-charts-of-an-excel-workbook" class="nav-link" data-scroll-target="#reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</a></li>
   <li><a href="#reading-the-charts-of-a-powerpoint-presentation-or-a-word-document" id="toc-reading-the-charts-of-a-powerpoint-presentation-or-a-word-document" class="nav-link" data-scroll-target="#reading-the-charts-of-a-powerpoint-presentation-or-a-word-document">Reading the charts of a PowerPoint presentation or a Word document</a></li>
   <li><a href="#reading-the-charts-of-a-tensorboard-log-directory" id="toc-reading-the-charts-of-a-tensorboard-log-directory" class="nav-link" data-scroll-target="#reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</a></li>
-  <li><a href="#drawing-the-training-curves-of-a-keras-model" id="toc-drawing-the-training-curves-of-a-keras-model" class="nav-link" data-scroll-target="#drawing-the-training-curves-of-a-keras-model">Drawing the training curves of a Keras model</a></li>
+  <li><a href="#drawing-the-training-curves-and-graph-of-a-keras-model" id="toc-drawing-the-training-curves-and-graph-of-a-keras-model" class="nav-link" data-scroll-target="#drawing-the-training-curves-and-graph-of-a-keras-model">Drawing the training curves and graph of a Keras model</a></li>
   <li><a href="#registering-and-releasing-figures" id="toc-registering-and-releasing-figures" class="nav-link" data-scroll-target="#registering-and-releasing-figures">Registering and releasing figures</a></li>
   <li><a href="#switching-the-matplotlib-backend" id="toc-switching-the-matplotlib-backend" class="nav-link" data-scroll-target="#switching-the-matplotlib-backend">Switching the matplotlib backend</a></li>
   <li><a href="#where-the-maidr.js-runtime-comes-from" id="toc-where-the-maidr.js-runtime-comes-from" class="nav-link" data-scroll-target="#where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</a></li>
@@ -459,7 +459,7 @@ cookieconsent.run({
 </section>
 <section id="reading-the-charts-of-a-tensorboard-log-directory" class="level2">
 <h2 class="anchored" data-anchor-id="reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</h2>
-<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and their histograms with <code>maidr.read_tensorboard_distributions()</code> and <code>maidr.read_tensorboard_histograms()</code>, one chart per tag and run, a hyperparameter sweep with <code>maidr.read_tensorboard_hparams()</code>, and the Embedding Projector with <code>maidr.read_tensorboard_projector()</code>, PR curves with <code>maidr.read_tensorboard_pr_curves()</code>, a profile’s step-time graph and top operations with <code>maidr.read_tensorboard_profile()</code>, and pass a chart either returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code> and <code>maidr.tensorboard.load_histograms()</code>. Experimental.</p>
+<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and their histograms with <code>maidr.read_tensorboard_distributions()</code> and <code>maidr.read_tensorboard_histograms()</code>, one chart per tag and run, a hyperparameter sweep with <code>maidr.read_tensorboard_hparams()</code>, and the Embedding Projector with <code>maidr.read_tensorboard_projector()</code>, PR curves with <code>maidr.read_tensorboard_pr_curves()</code>, a profile’s step-time graph and top operations with <code>maidr.read_tensorboard_profile()</code>, the Keras model graph with <code>maidr.read_tensorboard_graph()</code>, and pass a chart any of them returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code> and <code>maidr.tensorboard.load_histograms()</code>. Experimental.</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
@@ -546,12 +546,16 @@ cookieconsent.run({
 <td><a href="../api/tensorboard.Embedding.html#maidr.tensorboard.Embedding">tensorboard.Embedding</a></td>
 <td>One embedding of a Projector log directory.</td>
 </tr>
+<tr class="even">
+<td><a href="../api/read_tensorboard_graph.html#maidr.read_tensorboard_graph">read_tensorboard_graph</a></td>
+<td>Read the Keras model graphs of a TensorBoard log directory.</td>
+</tr>
 </tbody>
 </table>
 </section>
-<section id="drawing-the-training-curves-of-a-keras-model" class="level2">
-<h2 class="anchored" data-anchor-id="drawing-the-training-curves-of-a-keras-model">Drawing the training curves of a Keras model</h2>
-<p>Draw what <code>model.fit</code> returns with <code>maidr.keras.plot_history()</code> and a classifier’s confusion matrix with <code>maidr.keras.plot_confusion_matrix()</code>, or keep an accessible page up to date while the model trains with <code>maidr.keras.MaidrCallback</code>. Import <code>maidr.keras</code> to use them. Experimental.</p>
+<section id="drawing-the-training-curves-and-graph-of-a-keras-model" class="level2">
+<h2 class="anchored" data-anchor-id="drawing-the-training-curves-and-graph-of-a-keras-model">Drawing the training curves and graph of a Keras model</h2>
+<p>Draw what <code>model.fit</code> returns with <code>maidr.keras.plot_history()</code> and a classifier’s confusion matrix with <code>maidr.keras.plot_confusion_matrix()</code>, its layers with <code>maidr.keras.plot_model()</code>, or keep an accessible page up to date while the model trains with <code>maidr.keras.MaidrCallback</code>. Import <code>maidr.keras</code> to use them. Experimental.</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
@@ -563,6 +567,10 @@ cookieconsent.run({
 <td>Draw a classifier’s confusion matrix as a heatmap.</td>
 </tr>
 <tr class="odd">
+<td><a href="../api/plot_model.html#maidr.keras.plot_model">plot_model</a></td>
+<td>Draw a Keras model’s layers as a directed graph.</td>
+</tr>
+<tr class="even">
 <td><a href="../api/MaidrCallback.html#maidr.keras.MaidrCallback">MaidrCallback</a></td>
 <td>Keep an accessible page of a model’s training curves while it trains.</td>
 </tr>
