@@ -1,0 +1,303 @@
+{
+ "class_name": "Functional",
+ "config": {
+  "name": "residual_model",
+  "trainable": true,
+  "layers": [
+   {
+    "module": "keras.layers",
+    "class_name": "InputLayer",
+    "config": {
+     "batch_input_shape": [
+      null,
+      8
+     ],
+     "dtype": "float32",
+     "sparse": false,
+     "ragged": false,
+     "name": "features",
+     "optional": false
+    },
+    "registered_name": null,
+    "name": "features",
+    "inbound_nodes": []
+   },
+   {
+    "module": "keras.layers",
+    "class_name": "Dense",
+    "config": {
+     "name": "dense_in",
+     "trainable": true,
+     "dtype": "float32",
+     "units": 16,
+     "activation": "relu",
+     "use_bias": true,
+     "kernel_initializer": {
+      "module": "keras.initializers",
+      "class_name": "GlorotUniform",
+      "config": {
+       "seed": null
+      },
+      "registered_name": null
+     },
+     "bias_initializer": {
+      "module": "keras.initializers",
+      "class_name": "Zeros",
+      "config": {},
+      "registered_name": null
+     },
+     "kernel_regularizer": null,
+     "bias_regularizer": null,
+     "activity_regularizer": null,
+     "kernel_constraint": null,
+     "bias_constraint": null
+    },
+    "registered_name": null,
+    "build_config": {
+     "input_shape": [
+      null,
+      8
+     ]
+    },
+    "name": "dense_in",
+    "inbound_nodes": [
+     [
+      [
+       "features",
+       0,
+       0,
+       {}
+      ]
+     ]
+    ]
+   },
+   {
+    "module": "keras",
+    "class_name": "Sequential",
+    "config": {
+     "name": "residual_block",
+     "layers": [
+      {
+       "module": "keras.layers",
+       "class_name": "InputLayer",
+       "config": {
+        "batch_input_shape": [
+         null,
+         16
+        ],
+        "dtype": "float32",
+        "sparse": false,
+        "ragged": false,
+        "name": "block_dense_1_input",
+        "optional": false
+       },
+       "registered_name": null
+      },
+      {
+       "module": "keras.layers",
+       "class_name": "Dense",
+       "config": {
+        "name": "block_dense_1",
+        "trainable": true,
+        "dtype": "float32",
+        "batch_input_shape": [
+         null,
+         16
+        ],
+        "units": 16,
+        "activation": "relu",
+        "use_bias": true,
+        "kernel_initializer": {
+         "module": "keras.initializers",
+         "class_name": "GlorotUniform",
+         "config": {
+          "seed": null
+         },
+         "registered_name": null
+        },
+        "bias_initializer": {
+         "module": "keras.initializers",
+         "class_name": "Zeros",
+         "config": {},
+         "registered_name": null
+        },
+        "kernel_regularizer": null,
+        "bias_regularizer": null,
+        "activity_regularizer": null,
+        "kernel_constraint": null,
+        "bias_constraint": null
+       },
+       "registered_name": null,
+       "build_config": {
+        "input_shape": [
+         null,
+         16
+        ]
+       }
+      },
+      {
+       "module": "keras.layers",
+       "class_name": "Dense",
+       "config": {
+        "name": "block_dense_2",
+        "trainable": true,
+        "dtype": "float32",
+        "units": 16,
+        "activation": "linear",
+        "use_bias": true,
+        "kernel_initializer": {
+         "module": "keras.initializers",
+         "class_name": "GlorotUniform",
+         "config": {
+          "seed": null
+         },
+         "registered_name": null
+        },
+        "bias_initializer": {
+         "module": "keras.initializers",
+         "class_name": "Zeros",
+         "config": {},
+         "registered_name": null
+        },
+        "kernel_regularizer": null,
+        "bias_regularizer": null,
+        "activity_regularizer": null,
+        "kernel_constraint": null,
+        "bias_constraint": null
+       },
+       "registered_name": null,
+       "build_config": {
+        "input_shape": [
+         null,
+         16
+        ]
+       }
+      }
+     ]
+    },
+    "registered_name": null,
+    "build_config": {
+     "input_shape": [
+      null,
+      16
+     ]
+    },
+    "name": "residual_block",
+    "inbound_nodes": [
+     [
+      [
+       "dense_in",
+       0,
+       0,
+       {}
+      ]
+     ]
+    ]
+   },
+   {
+    "module": "keras.layers",
+    "class_name": "Add",
+    "config": {
+     "name": "skip",
+     "trainable": true,
+     "dtype": "float32"
+    },
+    "registered_name": null,
+    "build_config": {
+     "input_shape": [
+      [
+       null,
+       16
+      ],
+      [
+       null,
+       16
+      ]
+     ]
+    },
+    "name": "skip",
+    "inbound_nodes": [
+     [
+      [
+       "dense_in",
+       0,
+       0,
+       {}
+      ],
+      [
+       "residual_block",
+       1,
+       0,
+       {}
+      ]
+     ]
+    ]
+   },
+   {
+    "module": "keras.layers",
+    "class_name": "Dense",
+    "config": {
+     "name": "output",
+     "trainable": true,
+     "dtype": "float32",
+     "units": 1,
+     "activation": "sigmoid",
+     "use_bias": true,
+     "kernel_initializer": {
+      "module": "keras.initializers",
+      "class_name": "GlorotUniform",
+      "config": {
+       "seed": null
+      },
+      "registered_name": null
+     },
+     "bias_initializer": {
+      "module": "keras.initializers",
+      "class_name": "Zeros",
+      "config": {},
+      "registered_name": null
+     },
+     "kernel_regularizer": null,
+     "bias_regularizer": null,
+     "activity_regularizer": null,
+     "kernel_constraint": null,
+     "bias_constraint": null
+    },
+    "registered_name": null,
+    "build_config": {
+     "input_shape": [
+      null,
+      16
+     ]
+    },
+    "name": "output",
+    "inbound_nodes": [
+     [
+      [
+       "skip",
+       0,
+       0,
+       {}
+      ]
+     ]
+    ]
+   }
+  ],
+  "input_layers": [
+   [
+    "features",
+    0,
+    0
+   ]
+  ],
+  "output_layers": [
+   [
+    "output",
+    0,
+    0
+   ]
+  ]
+ },
+ "keras_version": "2.21.0",
+ "backend": "tensorflow"
+}

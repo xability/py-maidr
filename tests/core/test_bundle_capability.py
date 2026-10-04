@@ -110,7 +110,7 @@ def test_the_bundle_names_the_types_it_can_build():
         for plot_type in PlotType
         # `count` is classified but never emitted -- a `countplot` travels as
         # `bar`, which is what the case below this one is about.
-        if plot_type is not PlotType.COUNT
+        if plot_type is not PlotType.COUNT and plot_type not in AWAITING_BUNDLE
     }
     missing = sorted(emitted - types)
 
@@ -124,6 +124,24 @@ def test_the_bundle_names_the_types_it_can_build():
     # case exists to rule out.
     for expected in ("bar", "box", "heat", "line", "pie", "point"):
         assert expected in types, expected
+
+
+#: Types emitted ahead of the maidr.js release that draws them: rendered
+#: through the CDN, which serves the newest release, while the bundled copy
+#: warns that it cannot. `directed_graph` (xability/py-maidr#854) waits on
+#: xability/maidr's directed graph trace.
+AWAITING_BUNDLE = {PlotType.DIRECTED_GRAPH}
+
+
+def test_a_type_awaiting_the_bundle_is_really_missing_from_it():
+    """
+    Once the bundle draws a type, it comes off the list above.
+
+    So the exception cannot outlive its reason: the bundle update that adds
+    the trace fails here until the type is checked like every other.
+    """
+    still_missing = {plot_type.value for plot_type in AWAITING_BUNDLE}
+    assert still_missing - bundle_trace_types() == still_missing
 
 
 def test_an_unreadable_bundle_reports_nothing_rather_than_everything():

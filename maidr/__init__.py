@@ -197,8 +197,24 @@ from .core import Maidr  # noqa: E402, F401
 from .core.enum import PlotType  # noqa: E402, F401
 from .excel import read_excel_charts  # noqa: E402
 from .office import read_powerpoint_charts, read_word_charts  # noqa: E402
+from .patch import (  # noqa: E402, F401
+    barplot,
+    boxplot,
+    candlestick,
+    clear,
+    heatmap,
+    highlight,
+    histogram,
+    kdeplot,
+    lineplot,
+    mplfinance,
+    regplot,
+    scatterplot,
+    violinplot,
+)
 from .tensorboard import (  # noqa: E402
     read_tensorboard_distributions,
+    read_tensorboard_graph,
     read_tensorboard_histograms,
     read_tensorboard_hparams,
     read_tensorboard_pr_curves,
@@ -206,23 +222,7 @@ from .tensorboard import (  # noqa: E402
     read_tensorboard_projector,
     read_tensorboard_scalars,
 )
-from .patch import (  # noqa: E402, F401
-    barplot,
-    boxplot,
-    clear,
-    heatmap,
-    highlight,
-    histogram,
-    lineplot,
-    scatterplot,
-    regplot,
-    kdeplot,
-    candlestick,
-    mplfinance,
-    violinplot,
-)
 from .util.bundle_capability import MaidrBundleTraceWarning  # noqa: E402
-from .util.render_census import MaidrRenderRaceWarning  # noqa: E402
 from .util.bundle_freshness import (  # noqa: E402
     STALE_MINOR_GAP,
     BundleStatus,
@@ -240,15 +240,6 @@ from .util.cdn import (  # noqa: E402
     reset_cdn_version_cache,
     set_cdn_version,
 )
-from .util.dotpad import (  # noqa: E402
-    DOTPAD_SDK_VERSION,
-    DotPadSdkConfig,
-    download_dotpad_sdk,
-    dotpad_sdk_dir,
-    dotpad_sdk_path,
-    get_dotpad_sdk,
-    set_dotpad_sdk,
-)
 from .util.dependencies import (  # noqa: E402
     bundled_css_path,
     bundled_js_path,
@@ -257,11 +248,21 @@ from .util.dependencies import (  # noqa: E402
     read_bundled_js,
     read_bundled_math_css,
 )
+from .util.dotpad import (  # noqa: E402
+    DOTPAD_SDK_VERSION,
+    DotPadSdkConfig,
+    dotpad_sdk_dir,
+    dotpad_sdk_path,
+    download_dotpad_sdk,
+    get_dotpad_sdk,
+    set_dotpad_sdk,
+)
 from .util.locale_pack import (  # noqa: E402
     LOCALE_BASE_URL_ENV_VAR,
     get_locale_base_url,
     set_locale_base_url,
 )
+from .util.render_census import MaidrRenderRaceWarning  # noqa: E402
 from .util.warn import BUNDLE_WARNING_ENV_VAR  # noqa: E402
 
 # Second call: reclaim the backend after maidr's own imports.
@@ -318,6 +319,7 @@ __all__ = [
     "read_excel_charts",
     "read_powerpoint_charts",
     "read_tensorboard_distributions",
+    "read_tensorboard_graph",
     "read_tensorboard_histograms",
     "read_tensorboard_hparams",
     "read_tensorboard_pr_curves",

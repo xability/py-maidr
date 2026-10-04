@@ -42,7 +42,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 ### Supported Plot Types
 
-Defined in `maidr/core/enum/plot_type.py`, which has **41** members. They do
+Defined in `maidr/core/enum/plot_type.py`, which has **42** members. They do
 not all carry the same promise -- see `docs/stability.qmd`, and keep that page
 in step when adding one (`tests/core/test_plot_type_stability.py` enforces it).
 
@@ -52,13 +52,13 @@ exercised by real readers:
 BAR, BOX, CANDLESTICK, COUNT, DODGED, HEAT, HIST, LINE, PIE, SCATTER,
 SMOOTH, STACKED, STEP, VIOLIN_BOX, VIOLIN_KDE
 
-**Experimental** (26) -- added by that roadmap or after it, none validated
+**Experimental** (27) -- added by that roadmap or after it, none validated
 with a reader, and subject to change without a deprecation period:
 
-ALLUVIAL, AREA, BOXEN, CHOROPLETH, CONTOUR, ERRORBAR, FUNNEL, GANTT, GAUGE,
-HEXBIN, ICICLE, LOLLIPOP, NORMALIZED, NORMALIZED_AREA, PARALLEL, POLAR_AREA,
-RADAR, RIDGELINE, ROC, RUG, SANKEY, STACKED_AREA, SUNBURST, TREEMAP, WATERFALL,
-WORD_CLOUD
+ALLUVIAL, AREA, BOXEN, CHOROPLETH, CONTOUR, DIRECTED_GRAPH, ERRORBAR, FUNNEL,
+GANTT, GAUGE, HEXBIN, ICICLE, LOLLIPOP, NORMALIZED, NORMALIZED_AREA, PARALLEL,
+POLAR_AREA, RADAR, RIDGELINE, ROC, RUG, SANKEY, STACKED_AREA, SUNBURST, TREEMAP,
+WATERFALL, WORD_CLOUD
 
 Docs convention: wherever user docs name a plot type as a heading, nav/sidebar
 label, list item or table row (outside the `docs/stability.qmd` tables), an
@@ -127,11 +127,12 @@ the slide's master or of the document. Its tests move charts XlsxWriter
 wrote into a presentation and a document laid out as PowerPoint and Word
 save them, and hold the reading to `read_excel_charts`' of the same workbook.
 `maidr/tensorboard/` (experimental, `docs/stability.qmd#tensorboard-support`)
-reads the scalars and histograms of a TensorBoard log directory for
-`maidr.read_tensorboard_scalars` and `maidr.read_tensorboard_histograms`:
+reads the scalars, histograms and Keras model graph of a TensorBoard log
+directory for `maidr.read_tensorboard_scalars`,
+`maidr.read_tensorboard_histograms` and `maidr.read_tensorboard_graph`:
 `events.py` decodes the TFRecord event files and the few protobuf fields a
-scalar or histogram needs by hand, so neither TensorFlow, TensorBoard nor
-protobuf is a dependency, converts a legacy histogram as TensorBoard's
+scalar, histogram or logged model needs by hand, so neither TensorFlow,
+TensorBoard nor protobuf is a dependency, converts a legacy histogram as TensorBoard's
 `data_compat` does, and follows TensorBoard's own rules for restarted runs;
 `logdir.py` finds runs and tags; `__init__.py` draws one chart per scalar tag
 through the patched `Axes.plot`; `distributions.py` reads each histogram at
@@ -152,20 +153,31 @@ precision and chance level, until maidr.js's PR trace is bundled;
 `profile.py` reads a profile's XPlane files through the profile plugin's
 converter (`xprof`, the one reader with a dependency, imported only when
 called) and draws its step-time graph as stacked bars and its top operation
-types as bars, both through the patched `bar`/`barh`. `plugin.py`
+types as bars, both through the patched `bar`/`barh`; `graphs.py` reads the
+model config Keras's callback logs (`write_graph=True`, plugin
+`graph_keras_model`) and draws it as `maidr.keras.plot_model` does, not the
+op-level `graph_def`. `plugin.py`
 is TensorBoard's **maidr** tab, registered by the `tensorboard_plugins` entry
 point and the `tensorboard` extra: the one module that imports TensorBoard,
 and one `import maidr` never loads. Its tests compare
 against what TensorBoard itself read from logs real writers wrote
 (`tests/tensorboard/fixtures/make_fixtures.py`).
 `maidr/keras.py` (experimental, `docs/stability.qmd#keras-support`) draws a
-Keras model's training curves and confusion matrix: `plot_history` from a
+Keras model's training curves, confusion matrix and graph: `plot_history` from a
 `History` or its dictionary, `plot_confusion_matrix` from the predictions
-through the patched `imshow`, and `MaidrCallback`, a
+through the patched `imshow`, `plot_model` from a model, its `get_config()` or
+its `to_json()`, and `MaidrCallback`, a
 `keras.callbacks.Callback` that rewrites an HTML page as the model trains. It imports Keras only for that base class, and
-`import maidr` does not import it. Keras is not a dev dependency: the callback
-tests stand in a bare `Callback`, and the one real `model.fit` test runs only
-where Keras is installed.
+`import maidr` does not import it. `plot_model` reads the layer graph from the
+config alone (`maidr/util/keras_config.py`, Keras 3's and Keras 2's formats; a
+nested model is a scope with `expand_nested=True`), and
+`maidr/util/graph_drawing.py` lays it out in rows by longest path from the
+inputs, draws a box per layer and an unregistered arrow per edge, and registers
+a `DirectedGraphPlot` (`maidr/core/plot/directed_graph.py`) whose selectors name
+each box's gid. Keras is not a dev dependency: the callback
+tests stand in a bare `Callback`, the graph tests read configs Keras wrote
+(`tests/tensorboard/fixtures/*.model.json`), and the real `model.fit` and
+built-model tests run only where Keras is installed.
 
 ### Canonical `axes` Payload
 
