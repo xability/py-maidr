@@ -33,6 +33,8 @@ from typing import Any, Iterator
 import numpy as np
 
 from maidr.util.caller_warning import warn_at_caller
+from maidr.util.protobuf import fields as _fields
+from maidr.util.protobuf import varint as _varint
 
 #: The plugin a TensorFlow 2 scalar summary names in its metadata.
 SCALARS_PLUGIN = "scalars"
@@ -427,60 +429,6 @@ def _shape(shape: bytes) -> list[int]:
                     size = _signed(length)
             sizes.append(max(size, 0))
     return sizes
-
-
-def _fields(data: bytes) -> Iterator[tuple[int, int, object]]:
-    """
-    The fields of a protocol buffer message, as ``(number, wire type, value)``.
-
-    A varint is an ``int``; a 64-bit, 32-bit or length-delimited field is its
-    raw ``bytes``. A message that ends mid-field stops there.
-    """
-    position = 0
-    end = len(data)
-    while position < end:
-        key, position = _varint(data, position)
-        if position < 0:
-            return
-        number, wire = key >> 3, key & 7
-        if wire == 0:
-            value, position = _varint(data, position)
-            if position < 0:
-                return
-            yield number, wire, value
-        elif wire == 1:
-            if position + 8 > end:
-                return
-            yield number, wire, data[position : position + 8]
-            position += 8
-        elif wire == 2:
-            length, position = _varint(data, position)
-            if position < 0 or position + length > end:
-                return
-            yield number, wire, data[position : position + length]
-            position += length
-        elif wire == 5:
-            if position + 4 > end:
-                return
-            yield number, wire, data[position : position + 4]
-            position += 4
-        else:
-            # Groups (3, 4) are not written by any summary writer.
-            return
-
-
-def _varint(data: bytes, position: int) -> tuple[int, int]:
-    """A varint and the position after it, or ``(0, -1)`` if it is cut off."""
-    result = 0
-    shift = 0
-    while position < len(data):
-        byte = data[position]
-        position += 1
-        result |= (byte & 0x7F) << shift
-        if not byte & 0x80:
-            return result, position
-        shift += 7
-    return 0, -1
 
 
 def _varints(value: object, wire: int) -> list[int]:

@@ -269,10 +269,17 @@ def unique_names(names: list[str], ids: list[str]) -> list[str]:
     -------
     list of str
         ``names``, with ``" (<id>)"`` added to every name that is not unique,
-        so two lines are never read out under one name.
+        so two lines are never read out under one name. The same run given
+        twice is numbered from its second time, ``" (<id>) 2"``.
     """
     shared = {name for name in names if names.count(name) > 1}
-    return [
+    labels = [
         f"{name} ({run_id})" if name in shared else name
         for name, run_id in zip(names, ids)
     ]
+    seen: dict[str, int] = {}
+    unique = []
+    for label in labels:
+        seen[label] = seen.get(label, 0) + 1
+        unique.append(label if seen[label] == 1 else f"{label} {seen[label]}")
+    return unique
