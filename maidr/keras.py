@@ -35,7 +35,13 @@ try:
 except ImportError:  # pragma: no cover - depends on the environment
     _Callback = None
 
-__all__ = ["MaidrCallback", "plot_confusion_matrix", "plot_history", "plot_model"]
+__all__ = [
+    "MaidrCallback",
+    "plot_confusion_matrix",
+    "plot_history",
+    "plot_model",
+    "plot_pr_curve",
+]
 
 #: What a metric's two curves are called, in the legend and when read.
 TRAINING = "training"
@@ -243,6 +249,96 @@ def plot_confusion_matrix(
             ax.text(column, row, text, ha="center", va="center", color=color)
     fig.tight_layout()
     return fig
+
+
+def plot_pr_curve(
+    y_true: Any,
+    y_pred: Any,
+    *,
+    title: str = "Precision-recall curve",
+) -> Figure:
+    """
+    Draw a binary classifier's precision-recall curve from its predictions.
+
+    Parameters
+    ----------
+    y_true : array_like
+        Whether each sample is positive: 1 or ``True`` for the positive
+        class, or one-hot rows of two classes.
+    y_pred : array_like or dict of str to array_like
+        What ``model.predict`` returns: one sigmoid output per sample, as a
+        column or flat, or two-class softmax rows, whose second column is the
+        positive class's score. Several models' predictions by name draw a
+        line each.
+    title : str, default "Precision-recall curve"
+        The chart's title.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The chart, ready for :func:`maidr.show`, :func:`maidr.render` or
+        :func:`maidr.save_html`. Not managed by pyplot.
+
+    Raises
+    ------
+    ValueError
+        If the labels are not 0 and 1 (or two-class one-hot rows) or hold
+        no positive sample, if there are no predictions, or if the
+        predictions are not a score per sample or two-class rows.
+
+    Notes
+    -----
+    Each line is named with its average precision and the precision a
+    classifier guessing at random reaches -- the share of positives -- which
+    is drawn as a dashed line, as :func:`maidr.read_tensorboard_pr_curves`
+    draws TensorBoard's PR curves.
+
+    Examples
+    --------
+    >>> import maidr
+    >>> from maidr.keras import plot_pr_curve
+    >>> maidr.show(plot_pr_curve(y_test, model.predict(x_test)))
+    """
+    from maidr.tensorboard.pr_curves import plot_pr_curves
+
+    truth = np.asarray(y_true)
+    if truth.ndim == 2 and truth.shape[1] == 2:
+        truth = truth[:, 1]
+    elif truth.ndim == 2 and truth.shape[1] != 1:
+        raise ValueError(
+            "A PR curve reads binary labels: 0 and 1, or two-class one-hot rows, "
+            f"not {truth.shape[1]} classes; for more classes, pass one class's "
+            "column as 0 and 1."
+        )
+    # Class indices of a multi-class model would read as "nonzero is
+    # positive" and draw a plausible, wrong curve; refuse them instead.
+    labels = set(np.unique(np.asarray(truth, dtype=float)).tolist())
+    if not labels <= {0.0, 1.0}:
+        raise ValueError(
+            "A PR curve reads binary labels, 0 and 1, and these hold "
+            f"{sorted(labels)}; for more classes, pass one class's column as "
+            "0 and 1."
+        )
+    if isinstance(y_pred, Mapping) and not y_pred:
+        raise ValueError("No predictions to draw: the dictionary is empty.")
+    if isinstance(y_pred, Mapping):
+        scores: Any = {str(name): _positive(v) for name, v in y_pred.items()}
+    else:
+        scores = _positive(y_pred)
+    return plot_pr_curves(truth, scores, title=title)
+
+
+def _positive(values: Any) -> np.ndarray:
+    """The positive class's score per sample, from a sigmoid or a 2-class softmax."""
+    array = np.asarray(values, dtype=float)
+    if array.ndim == 2 and array.shape[1] == 2:
+        return array[:, 1]
+    if array.ndim == 1 or (array.ndim == 2 and array.shape[1] == 1):
+        return array.reshape(-1)
+    raise ValueError(
+        "A PR curve reads one score per sample or two-class rows, not shape "
+        f"{array.shape}; for more classes, pass one class's column."
+    )
 
 
 def _classes(values: Any, name: str) -> tuple[np.ndarray, int]:

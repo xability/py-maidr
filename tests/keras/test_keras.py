@@ -411,3 +411,75 @@ def test_a_class_that_never_occurs_reads_zero_not_nan():
 def test_a_confusion_matrix_that_cannot_be_counted_raises(args, kwargs, match):
     with pytest.raises(ValueError, match=match):
         maidr.keras.plot_confusion_matrix(*args, **kwargs)
+
+
+def _pr_names(figure) -> list[str]:
+    (layer,) = _layers(figure)
+    assert layer["type"] == "line"
+    return [series[0]["z"] for series in layer["data"]]
+
+
+@pytest.mark.parametrize(
+    "y_pred",
+    [
+        np.array([0.9, 0.8, 0.3, 0.6, 0.2, 0.1]),
+        np.array([[0.9], [0.8], [0.3], [0.6], [0.2], [0.1]]),
+        np.array(
+            [[0.1, 0.9], [0.2, 0.8], [0.7, 0.3], [0.4, 0.6], [0.8, 0.2], [0.9, 0.1]]
+        ),
+    ],
+    ids=["sigmoid", "sigmoid-column", "softmax"],
+)
+def test_a_pr_curve_reads_what_model_predict_returns(y_pred):
+    y_true = [1, 1, 1, 0, 0, 0]
+    (name,) = _pr_names(maidr.keras.plot_pr_curve(y_true, y_pred))
+    assert name.startswith("classifier (AP ")
+    assert name.endswith("chance 0.50)")
+
+
+def test_several_models_are_a_pr_line_each_and_one_hot_labels_are_read():
+    y_true = np.eye(2)[[1, 1, 0, 0]]
+    figure = maidr.keras.plot_pr_curve(
+        y_true, {"a": [0.9, 0.7, 0.2, 0.1], "b": [0.4, 0.6, 0.5, 0.3]}
+    )
+    names = _pr_names(figure)
+    assert [name.split(" (")[0] for name in names] == ["a", "b"]
+    assert names[0].startswith("a (AP 1")
+
+
+def test_a_pr_curve_of_more_than_two_classes_raises():
+    with pytest.raises(ValueError, match="two-class rows"):
+        maidr.keras.plot_pr_curve([0, 1], np.ones((2, 3)) / 3)
+
+
+def test_one_hot_labels_of_more_than_two_classes_raise_a_clear_error():
+    with pytest.raises(ValueError, match="not 3 classes"):
+        maidr.keras.plot_pr_curve(np.eye(3)[[0, 1, 2, 1]], [0.9, 0.2, 0.4, 0.7])
+
+
+@pytest.mark.parametrize(
+    "y_true, match",
+    [
+        ([1, 0, 2], "these hold \\[0.0, 1.0, 2.0\\]"),
+        (np.array([[1], [0], [2]]), "these hold"),
+    ],
+    ids=["class-indices", "class-index-column"],
+)
+def test_class_indices_of_more_than_two_classes_are_refused(y_true, match):
+    with pytest.raises(ValueError, match=match):
+        maidr.keras.plot_pr_curve(y_true, [0.1, 0.2, 0.3])
+
+
+@pytest.mark.parametrize(
+    "y_true",
+    [[True, False, True], np.array([[1], [0], [1]])],
+    ids=["booleans", "label-column"],
+)
+def test_boolean_labels_and_a_label_column_are_read(y_true):
+    (name,) = _pr_names(maidr.keras.plot_pr_curve(y_true, [0.9, 0.2, 0.6]))
+    assert name.startswith("classifier (AP 1.00")
+
+
+def test_no_predictions_to_draw_raises():
+    with pytest.raises(ValueError, match="dictionary is empty"):
+        maidr.keras.plot_pr_curve([1, 0, 1], {})
