@@ -182,7 +182,8 @@ a histogram is binned, and what is skipped may change without a deprecation
 period, including in a patch release. Each tag's values are read from the
 event files, the values TensorBoard reads, and drawn again with matplotlib; the
 reader follows that drawing, not TensorBoard's own. Scalars and histograms are
-read today, PR curves, and distributions from the histograms and hyperparameter sweeps
+read today, PR curves, a profile's step-time graph and top operations
+(with `xprof` installed), and distributions from the histograms and hyperparameter sweeps
 from the HParams plugin's summaries, and the Embedding Projector's
 embeddings, and a **maidr** tab in TensorBoard shows them all
 (`pip install "maidr[tensorboard]"`): graphs are tracked

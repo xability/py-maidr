@@ -148,7 +148,11 @@ TensorFlow installed, a checkpoint variable) and draws the first two principal
 components through the patched `scatter`, a layer per label; `pr_curves.py`
 reads the `pr_curves` plugin's `(6, thresholds)` tensors and draws precision
 against recall through the patched `plot`, each line named with its average
-precision and chance level, until maidr.js's PR trace is bundled. `plugin.py`
+precision and chance level, until maidr.js's PR trace is bundled;
+`profile.py` reads a profile's XPlane files through the profile plugin's
+converter (`xprof`, the one reader with a dependency, imported only when
+called) and draws its step-time graph as stacked bars and its top operation
+types as bars, both through the patched `bar`/`barh`. `plugin.py`
 is TensorBoard's **maidr** tab, registered by the `tensorboard_plugins` entry
 point and the `tensorboard` extra: the one module that imports TensorBoard,
 and one `import maidr` never loads. Its tests compare

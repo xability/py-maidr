@@ -9,6 +9,7 @@ resources:
   - tensorboard-hparams/**
   - tensorboard-projector/**
   - tensorboard-pr-curves/**
+  - tensorboard-profile/**
 filters:
   - line-highlight
 ---
@@ -45,6 +46,7 @@ curves of a model can be compared point by point.
 | Hyperparameter sweeps (HParams), as a scatter matrix and as parallel coordinates [experimental] | yes |
 | Embedding Projector, as a 2D scatter of the principal components | yes |
 | PR curves | yes |
+| Profile: step-time graph and top operations (needs `xprof`) | yes |
 | Images, graphs | not yet |
 
 The examples read `tensorboard-logs/`, the log directory of a small model trained for twelve epochs with the `TensorBoard` callback.
@@ -60,8 +62,8 @@ tensorboard --logdir logs
 ```
 
 The tab lists every chart py-maidr reads from the log directory -- scalars,
-distributions, histograms, a hyperparameter sweep and the Embedding Projector
--- in one labelled picker, and shows the one picked, read by maidr. The
+distributions, histograms, PR curves, a hyperparameter sweep, the Embedding
+Projector and, with `xprof` installed, a profile -- in one labelled picker, and shows the one picked, read by maidr. The
 **Reload** button reads the log directory again, so a run that is still
 training can be followed; nothing reloads on its own, so your place in a chart
 is never taken from you. The page works without a network: maidr.js is served
@@ -159,6 +161,42 @@ written by PyTorch's `add_pr_curve` for a good and a poor classifier.
 #| fig-alt: Precision-recall curves of a good and a poor classifier, with their chance level dashed
 (positive,) = maidr.read_tensorboard_pr_curves("tensorboard-pr-curves")
 maidr.show(positive)
+```
+
+### Profile
+
+`maidr.read_tensorboard_profile()` reads the two charts TensorBoard's Profile
+dashboard leads with, from a profile captured with `tf.profiler` or the Keras
+`TensorBoard` callback's `profile_batch`: the **step-time graph**, one stacked
+bar per step split into where its time went -- host compute, device compute,
+input, compilation and the rest -- and the **top operations**, the kinds of
+operation that took the most self time, largest first. Profiles are stored as
+XPlane files that only the profile plugin's converter reads, so this one reader
+needs `pip install xprof`, as TensorBoard's own Profile tab does.
+
+```python
+step_time, top_operations = maidr.read_tensorboard_profile("logs/fit")
+maidr.show(step_time)
+```
+
+The converter's tables can also be drawn directly with
+`maidr.tensorboard.profile.profile_charts()`. The example draws
+`tensorboard-profile/`, the tables of a profile of eight training steps of a
+small Keras model.
+
+```{python}
+#| warning: false
+#| fig-alt: Stacked bars of the time each of eight training steps spent in host compute and elsewhere, then bars of the operation types with the most self time
+from pathlib import Path
+
+from maidr.tensorboard.profile import profile_charts
+
+step_time, top_operations = profile_charts(
+    Path("tensorboard-profile/input_pipeline_analyzer.json").read_text(),
+    Path("tensorboard-profile/framework_op_stats.json").read_text(),
+)
+maidr.show(step_time)
+maidr.show(top_operations)
 ```
 
 ### Hyperparameter Sweep as a Scatter Matrix

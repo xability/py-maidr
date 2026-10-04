@@ -30,6 +30,7 @@ from maidr.tensorboard.pr_curves import (
     plot_pr_curves,
     read_tensorboard_pr_curves,
 )
+from maidr.tensorboard.profile import read_tensorboard_profile
 from maidr.tensorboard.projector import (
     Embedding,
     load_embeddings,
@@ -61,6 +62,7 @@ __all__ = [
     "read_tensorboard_histograms",
     "read_tensorboard_hparams",
     "read_tensorboard_pr_curves",
+    "read_tensorboard_profile",
     "read_tensorboard_projector",
     "read_tensorboard_scalars",
     "smooth",
