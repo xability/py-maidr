@@ -133,7 +133,7 @@ def output_maidr(plot: Any = None, *, use_cdn: UseCdn = None, **kwargs: Any) -> 
     except ImportError as error:
         from maidr.widget._extras import missing_extra_error
 
-        raise missing_extra_error(error, "gradio", "gradio") from error
+        raise missing_extra_error(error, "gradio", "gradio", python=(3, 10)) from error
 
     value = None if plot is None else _markup(plot, use_cdn, stacklevel=5)
     return gr.HTML(value, **kwargs)

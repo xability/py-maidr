@@ -279,7 +279,9 @@ def _api(api: Any) -> Any:
     except ImportError as error:
         from maidr.widget._extras import missing_extra_error
 
-        raise missing_extra_error(error, "wandb", "wandb") from error
+        raise missing_extra_error(
+            error, "wandb", "wandb", name="Weights & Biases"
+        ) from error
     return wandb.Api()
 
 

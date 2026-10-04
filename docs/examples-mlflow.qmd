@@ -28,6 +28,10 @@ MLflow itself is needed, which `import maidr` does not load:
 pip install "maidr[mlflow]"
 ```
 
+The extra installs MLflow on Python 3.10 or newer. On Python 3.9 it installs
+nothing, so install MLflow itself with `pip install mlflow`: maidr uses only
+the client calls MLflow 2 already had.
+
 The values are read through MLflow's own `MlflowClient`, so any tracking
 server MLflow can reach is read: a local database, a file store, or a remote
 server named by `tracking_uri=` or `MLFLOW_TRACKING_URI`.

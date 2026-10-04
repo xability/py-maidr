@@ -288,7 +288,9 @@ def _mlflow() -> Any:
     except ImportError as error:
         from maidr.widget._extras import missing_extra_error
 
-        raise missing_extra_error(error, "mlflow", "mlflow") from error
+        raise missing_extra_error(
+            error, "mlflow", "mlflow", name="MLflow", python=(3, 10)
+        ) from error
     return mlflow
 
 
