@@ -357,7 +357,7 @@ cookieconsent.run({
   <li><a href="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats" id="toc-displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="nav-link" data-scroll-target="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</a></li>
   <li><a href="#saving-a-maidr-plot-as-an-html-file" id="toc-saving-a-maidr-plot-as-an-html-file" class="nav-link" data-scroll-target="#saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</a></li>
   <li><a href="#reading-the-charts-of-an-excel-workbook" id="toc-reading-the-charts-of-an-excel-workbook" class="nav-link" data-scroll-target="#reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</a></li>
-  <li><a href="#reading-the-training-curves-of-a-tensorboard-log-directory" id="toc-reading-the-training-curves-of-a-tensorboard-log-directory" class="nav-link" data-scroll-target="#reading-the-training-curves-of-a-tensorboard-log-directory">Reading the training curves of a TensorBoard log directory</a></li>
+  <li><a href="#reading-the-charts-of-a-tensorboard-log-directory" id="toc-reading-the-charts-of-a-tensorboard-log-directory" class="nav-link" data-scroll-target="#reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</a></li>
   <li><a href="#drawing-the-training-curves-of-a-keras-model" id="toc-drawing-the-training-curves-of-a-keras-model" class="nav-link" data-scroll-target="#drawing-the-training-curves-of-a-keras-model">Drawing the training curves of a Keras model</a></li>
   <li><a href="#registering-and-releasing-figures" id="toc-registering-and-releasing-figures" class="nav-link" data-scroll-target="#registering-and-releasing-figures">Registering and releasing figures</a></li>
   <li><a href="#switching-the-matplotlib-backend" id="toc-switching-the-matplotlib-backend" class="nav-link" data-scroll-target="#switching-the-matplotlib-backend">Switching the matplotlib backend</a></li>
@@ -428,9 +428,9 @@ cookieconsent.run({
 </tbody>
 </table>
 </section>
-<section id="reading-the-training-curves-of-a-tensorboard-log-directory" class="level2">
-<h2 class="anchored" data-anchor-id="reading-the-training-curves-of-a-tensorboard-log-directory">Reading the training curves of a TensorBoard log directory</h2>
-<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and pass a chart it returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code>. Experimental.</p>
+<section id="reading-the-charts-of-a-tensorboard-log-directory" class="level2">
+<h2 class="anchored" data-anchor-id="reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</h2>
+<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and their histograms with <code>maidr.read_tensorboard_histograms()</code>, one ridgeline per tag and run, and pass a chart either returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code> and <code>maidr.tensorboard.load_histograms()</code>. Experimental.</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
@@ -452,6 +452,18 @@ cookieconsent.run({
 <tr class="odd">
 <td><a href="../api/tensorboard.smooth.html#maidr.tensorboard.smooth">tensorboard.smooth</a></td>
 <td>Smooth values the way TensorBoard’s Scalars dashboard does.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/read_tensorboard_histograms.html#maidr.read_tensorboard_histograms">read_tensorboard_histograms</a></td>
+<td>Read the histogram charts of a TensorBoard log directory, as ridgelines.</td>
+</tr>
+<tr class="odd">
+<td><a href="../api/tensorboard.load_histograms.html#maidr.tensorboard.load_histograms">tensorboard.load_histograms</a></td>
+<td>Read the histograms of a TensorBoard log directory.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/tensorboard.HistogramSeries.html#maidr.tensorboard.HistogramSeries">tensorboard.HistogramSeries</a></td>
+<td>The histograms one run logged under one tag, in the order TensorBoard keeps.</td>
 </tr>
 </tbody>
 </table>

@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
+<meta name="description" content="The histograms one run logged under one tag, in the order TensorBoard keeps.">
 
-<title>maidr.tensorboard.TensorBoardChart API reference – py-maidr</title>
+<title>maidr.tensorboard.HistogramSeries API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.tensorboard.TensorBoardChart API reference">
-<meta property="og:description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
+<meta property="og:title" content="maidr.tensorboard.HistogramSeries API reference">
+<meta property="og:description" content="The histograms one run logged under one tag, in the order TensorBoard keeps.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.tensorboard.TensorBoardChart API reference">
-<meta name="twitter:description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
+<meta name="twitter:title" content="maidr.tensorboard.HistogramSeries API reference">
+<meta name="twitter:description" content="The histograms one run logged under one tag, in the order TensorBoard keeps.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/tensorboard.TensorBoardChart.html">
-<meta name="DC.title" content="maidr.tensorboard.TensorBoardChart API reference">
+<link rel="canonical" href="https://py.maidr.ai/api/tensorboard.HistogramSeries.html">
+<meta name="DC.title" content="maidr.tensorboard.HistogramSeries API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="One tag of a TensorBoard log directory, drawn and ready for maidr.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/tensorboard.TensorBoardChart.html">
+<meta name="DC.description" content="The histograms one run logged under one tag, in the order TensorBoard keeps.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/tensorboard.HistogramSeries.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -387,7 +387,7 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.tensorboard.TensorBoardChart" id="toc-maidr.tensorboard.TensorBoardChart" class="nav-link active" data-scroll-target="#maidr.tensorboard.TensorBoardChart">tensorboard.TensorBoardChart</a>
+  <li><a href="#maidr.tensorboard.HistogramSeries" id="toc-maidr.tensorboard.HistogramSeries" class="nav-link active" data-scroll-target="#maidr.tensorboard.HistogramSeries">tensorboard.HistogramSeries</a>
   <ul class="collapse">
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   </ul></li>
@@ -400,11 +400,10 @@ cookieconsent.run({
 
 
 
-<section id="maidr.tensorboard.TensorBoardChart" class="level1">
-<h1>tensorboard.TensorBoardChart</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tensorboard.TensorBoardChart(<span class="va">self</span>, tag, runs, figure)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>One tag of a TensorBoard log directory, drawn and ready for maidr.</p>
-<p>Pass it to :func:<code>maidr.show</code>, :func:<code>maidr.render</code>, :func:<code>maidr.save_html</code> or :func:<code>maidr.close</code> as you would a matplotlib figure.</p>
+<section id="maidr.tensorboard.HistogramSeries" class="level1">
+<h1>tensorboard.HistogramSeries</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tensorboard.HistogramSeries(<span class="va">self</span>, steps, wall_times, buckets)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The histograms one run logged under one tag, in the order TensorBoard keeps.</p>
 <section id="attributes" class="level2 doc-section doc-section-attributes">
 <h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
@@ -417,19 +416,19 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>tag</td>
-<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
-<td>The tag the values were logged under, such as <code>"epoch_loss"</code>.</td>
+<td>steps</td>
+<td><a href="https://numpy.org/doc/stable/reference/index.html#module-numpy">numpy</a>.<a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray">ndarray</a></td>
+<td>The step of each histogram, as integers.</td>
 </tr>
 <tr class="even">
-<td>runs</td>
-<td>tuple of str</td>
-<td>The runs drawn: for scalars, one line each (two with smoothing), in legend order; for histograms, the one run the chart is of.</td>
+<td>wall_times</td>
+<td><a href="https://numpy.org/doc/stable/reference/index.html#module-numpy">numpy</a>.<a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray">ndarray</a></td>
+<td>When each was logged, in seconds since the epoch.</td>
 </tr>
 <tr class="odd">
-<td>figure</td>
-<td><code>matplotlib</code>.<code>figure</code>.<code>Figure</code></td>
-<td>The chart drawn with matplotlib. It is not managed by pyplot, so <code>plt.show()</code> does not show it.</td>
+<td>buckets</td>
+<td>list of numpy.ndarray</td>
+<td>Each histogram’s buckets, shape <code>(k, 3)</code>: each row a bucket’s left edge, right edge and count, as TensorBoard reads them.</td>
 </tr>
 </tbody>
 </table>
