@@ -114,6 +114,16 @@ sklearn = [
     # the package the ROC tests need in order not to skip.
     "scikit-learn>=1.3",
 ]
+tensorboard = [
+    # Optional, and imported only by TensorBoard itself: the `maidr` tab is
+    # `maidr/tensorboard/plugin.py`, which TensorBoard loads through the
+    # `tensorboard_plugins` entry point below, and nothing in `import maidr`
+    # imports it. The readers in `maidr/tensorboard/` need none of this --
+    # they decode the event files themselves. Listed so
+    # `pip install maidr[tensorboard]` gets the tab, and so CI installs what
+    # the plugin's tests need in order not to skip.
+    "tensorboard>=2.12",
+]
 jupyter = [
     "jupyter>=1.0.0,<2",
     "ipykernel>=6.0.0",
@@ -189,6 +199,9 @@ test = [
 # For matplotlib 3.8.x, use ``matplotlib.use("module://maidr.backend")``.
 [project.entry-points."matplotlib.backend"]
 maidr = "maidr.backend"
+
+[project.entry-points."tensorboard_plugins"]
+maidr = "maidr.tensorboard.plugin:MaidrPlugin"
 
 [project.urls]
 Homepage = "https://py.maidr.ai/"

@@ -47,6 +47,24 @@ curves of a model can be compared point by point.
 
 The examples read `tensorboard-logs/`, the log directory of a small model trained for twelve epochs with the `TensorBoard` callback.
 
+### A maidr Tab in TensorBoard
+
+Install the `tensorboard` extra and TensorBoard shows a **maidr** tab beside its
+own dashboards:
+
+```bash
+pip install "maidr[tensorboard]"
+tensorboard --logdir logs
+```
+
+The tab lists every chart py-maidr reads from the log directory -- scalars,
+distributions, histograms, a hyperparameter sweep and the Embedding Projector
+-- in one labelled picker, and shows the one picked, read by maidr. The
+**Reload** button reads the log directory again, so a run that is still
+training can be followed; nothing reloads on its own, so your place in a chart
+is never taken from you. The page works without a network: maidr.js is served
+with it.
+
 ### Reading a Log Directory
 
 `maidr.read_tensorboard_scalars()` returns one chart per tag, each with its tag
