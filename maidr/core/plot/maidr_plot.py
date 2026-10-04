@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from matplotlib.axes import Axes
 
@@ -456,7 +457,7 @@ class MaidrPlot(ABC, FormatExtractorMixin):
             self._schema = self.render()
         return self._elements
 
-    def finish_svg(self, tree) -> None:
+    def finish_svg(self, tree: Any) -> None:
         """
         Change what matplotlib wrote for this layer, before the page gets it.
 

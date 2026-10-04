@@ -252,6 +252,30 @@ def test_a_term_that_did_not_fit_leaves_the_cloud_without_selectors():
     assert selectors(fig) is None
 
 
+def test_a_cloud_that_cannot_be_measured_is_read_without_selectors(monkeypatch):
+    # A `wordcloud` that lays out differently, or a font that has gone, must
+    # not cost the reading -- only the highlight, and not silently.
+    from PIL import ImageDraw
+
+    shown = cloud()
+
+    def unmeasurable(*_, **__):
+        raise OSError("cannot open resource")
+
+    # Only the measuring calls it once the cloud is laid out: drawing the
+    # cloud into the image does not, so `imshow` itself still succeeds.
+    monkeypatch.setattr(ImageDraw.ImageDraw, "textbbox", unmeasurable)
+    fig, ax = plt.subplots()
+
+    with pytest.warns(UserWarning, match="without a highlight"):
+        ax.imshow(shown)
+
+    assert selectors(fig) is None
+    terms = [point[MaidrKey.X] for point in layers(fig)[0][MaidrKey.DATA]]
+    assert terms == BY_WEIGHT
+    assert len(ax.patches) == 0
+
+
 def test_the_boxes_draw_nothing_outside_the_svg():
     # Undrawn in every backend: a cloud saved as a picture is the cloud alone.
     import io
