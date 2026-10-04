@@ -213,8 +213,9 @@ def draw_charts(
     """
     Draw each metric as a :class:`MetricChart`, in the order given.
 
-    A metric none of whose values is a number draws nothing maidr can read;
-    it is left out with a warning rather than handed over as a picture.
+    A metric none of whose values is a finite number -- a loss that was
+    ``NaN`` from the first step -- has no point a reader could land on; it is
+    left out with a warning rather than handed over as an empty chart.
 
     Parameters
     ----------
@@ -230,6 +231,11 @@ def draw_charts(
     """
     charts = []
     for metric, by_run in metrics.items():
+        if not any(np.isfinite(data.values).any() for data in by_run.values()):
+            warn_at_caller(
+                f"No value logged under '{metric}' is a number; it is left out."
+            )
+            continue
         figure = draw_lines(
             metric,
             {run: (data.steps, data.values) for run, data in by_run.items()},

@@ -205,6 +205,7 @@ from .tensorboard import (  # noqa: E402
     read_tensorboard_projector,
     read_tensorboard_scalars,
 )
+from .wandb import read_wandb_history  # noqa: E402
 from .patch import (  # noqa: E402, F401
     barplot,
     boxplot,
@@ -322,6 +323,7 @@ __all__ = [
     "read_tensorboard_profile",
     "read_tensorboard_projector",
     "read_tensorboard_scalars",
+    "read_wandb_history",
     "render",
     "reset_cdn_version_cache",
     "save_html",
