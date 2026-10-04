@@ -450,3 +450,8 @@ def test_several_models_are_a_pr_line_each_and_one_hot_labels_are_read():
 def test_a_pr_curve_of_more_than_two_classes_raises():
     with pytest.raises(ValueError, match="two-class rows"):
         maidr.keras.plot_pr_curve([0, 1], np.ones((2, 3)) / 3)
+
+
+def test_one_hot_labels_of_more_than_two_classes_raise_a_clear_error():
+    with pytest.raises(ValueError, match="not 3 classes"):
+        maidr.keras.plot_pr_curve(np.eye(3)[[0, 1, 2, 1]], [0.9, 0.2, 0.4, 0.7])
