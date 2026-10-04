@@ -95,10 +95,16 @@ only a plotnine chart's points, through the `Axes.scatter` patch.
 `maidr/excel/` (experimental, `docs/stability.qmd#excel-support`) reads the
 charts of an `.xlsx` file for `maidr.read_excel_charts`: `package.py` walks the
 zip from sheet to drawing to chart part and streams the few cells it needs,
-`chartxml.py` reads a chart part from the values Excel cached in it, and
-`draw.py` redraws it through the patched `Axes` calls, so the layers come from
-the ordinary matplotlib readers. It reads with lxml, not openpyxl, which loads
-every cell of the workbook before it shows a chart.
+`chartxml.py` reads a DrawingML chart part from the values Excel cached in it
+and `chartex.py` an Excel 2016 one (histogram to map), and `draw.py` and
+`drawex.py` redraw them. Where matplotlib has a call for the chart, it is drawn
+through the patched `Axes` call, so the layers come from the ordinary
+matplotlib readers; where it has none (radar, bubble sizes, candles,
+waterfall, funnel, treemap, sunburst, map) the marks are drawn from plain
+artists and `layers.py` registers an `ExcelLayer` built from the chart's own
+values through `FigureManager.add_plot`, its selectors naming each mark's gid.
+It reads with lxml, not openpyxl, which loads every cell of the workbook
+before it shows a chart.
 `maidr/tensorboard/` (experimental, `docs/stability.qmd#tensorboard-support`)
 reads the scalars of a TensorBoard log directory for
 `maidr.read_tensorboard_scalars`: `events.py` decodes the TFRecord event files

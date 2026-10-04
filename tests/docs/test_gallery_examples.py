@@ -197,7 +197,13 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Line Chart": [["line"]],
         "Pie Chart": [["pie"]],
         "Combo Chart on Two Axes": [["bar + line"]],
+        "Stock Chart": [["candlestick"]],
+        "Histogram": [["hist"]],
+        "Box and Whisker Chart": [["box"]],
         "Stacked Area Chart [experimental]": [["stacked_area"]],
+        "Radar Chart [experimental]": [["radar"]],
+        "Waterfall Chart [experimental]": [["waterfall"]],
+        "Treemap [experimental]": [["treemap"]],
     },
     "examples-tensorboard.qmd": {
         "Training and Validation Loss": [["line"]],
@@ -840,3 +846,26 @@ def test_excel_margin_reads_as_a_percentage(gallery: _Gallery) -> None:
 
     assert axis[MaidrKey.LABEL] == "Margin"
     assert axis["format"] == {"type": "percent", "decimals": 0}
+
+
+def test_excel_histogram_bins_are_ten_points_wide(gallery: _Gallery) -> None:
+    """examples-excel.qmd: "here ten points wide, as the chart says, each bin
+    including its right end"."""
+    layer = gallery.shown("examples-excel.qmd", "Histogram").layer(PlotType.HIST)
+    bins = [(b["xMin"], b["xMax"]) for b in layer[MaidrKey.DATA]]
+
+    assert all(high - low == 10 for low, high in bins)
+    # The lowest score, 45, starts the first bin; 55 itself falls in it.
+    assert bins[0] == (45, 55)
+    assert layer[MaidrKey.DATA][0]["y"] == 3
+
+
+def test_excel_waterfall_totals_are_read_from_zero(gallery: _Gallery) -> None:
+    """examples-excel.qmd: "The opening and closing balances are set as totals
+    in Excel, so each is read from zero"."""
+    shown = gallery.shown("examples-excel.qmd", "Waterfall Chart [experimental]")
+    steps = shown.layer(PlotType.WATERFALL)[MaidrKey.DATA]
+
+    for step in (steps[0], steps[-1]):
+        assert (step["kind"], step["start"]) == ("total", 0)
+    assert [s["end"] for s in (steps[0], steps[-1])] == [500, 430]
