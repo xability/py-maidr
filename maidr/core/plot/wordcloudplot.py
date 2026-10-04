@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import warnings
 from typing import Any
 
 from matplotlib.axes import Axes
@@ -146,9 +147,17 @@ def glyph_boxes(cloud: Any, image: AxesImage) -> list[tuple] | None:
                 )
             )
         return boxes
-    except Exception:
+    except Exception as error:
         # A cloud built by a version of `wordcloud` that lays out differently,
-        # or a font that is gone: the reading stands without a highlight.
+        # or a font that is gone: the reading stands without a highlight, and
+        # says so, or a broken highlight would pass for one never offered.
+        warnings.warn(
+            f"maidr: could not measure where the word cloud drew its words "
+            f"({type(error).__name__}: {error}); it is read without a "
+            f"highlight.",
+            UserWarning,
+            stacklevel=2,
+        )
         return None
 
 
@@ -248,13 +257,16 @@ class WordCloudPlot(MaidrPlot):
             rectangles.append(rectangle)
         return rectangles
 
-    def finish_svg(self, tree) -> None:
+    def finish_svg(self, tree: Any) -> None:
         """
         Style each term's box for maidr.js to outline, hidden until it does.
 
         See :data:`BOX_STYLE`. Matplotlib has no way to write either the
         ``visibility`` attribute or a style for an element nothing draws, so
         both are set on what it wrote.
+
+        Safe to run on every render: it sets the same two attributes to the
+        same values each time.
 
         Parameters
         ----------
