@@ -190,13 +190,16 @@ def test_charts_are_drawn_one_at_a_time(logdir, monkeypatch):
 def test_chart_page_closes_the_figures_it_drew(logdir):
     from maidr.core.figure_manager import FigureManager
 
-    before = len(FigureManager.figs)
+    # The manager enumerates figures weakly, so its size falls whenever the
+    # collector reclaims another test's figures; what this call must not do
+    # is leave a figure of its own registered, so the check is on the set.
+    before = set(FigureManager.figs)
     for index in ("0", "1"):
         chart_page(str(logdir), "hparams", index=index)
-    assert len(FigureManager.figs) == before
+    assert set(FigureManager.figs) - before == set()
     with pytest.raises(KeyError):
         chart_page(str(logdir), "hparams", index="2")
-    assert len(FigureManager.figs) == before
+    assert set(FigureManager.figs) - before == set()
 
 
 def test_importing_maidr_does_not_import_tensorboard():
