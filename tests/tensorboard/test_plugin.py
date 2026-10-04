@@ -109,6 +109,78 @@ def test_a_chart_that_is_not_there_is_a_404(logdir):
     assert client.get("/", query_string={"kind": "images"}).status_code == 404
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        {"kind": "scalars"},
+        {"kind": "histograms", "tag": "activations"},
+        {"kind": "projector"},
+    ],
+)
+def test_a_chart_missing_its_name_is_a_404_that_says_so(logdir, query):
+    response = _client(logdir, "/chart").get("/", query_string=query)
+    assert response.status_code == 404
+    text = response.get_data(as_text=True)
+    assert "is named by its" in text
+    assert str(logdir) not in text
+
+
+def test_a_list_that_cannot_be_read_is_an_error_the_tab_can_say(logdir, monkeypatch):
+    import maidr.tensorboard.plugin as plugin
+
+    def broken(_logdir):
+        raise OSError("the disk went away")
+
+    monkeypatch.setattr(plugin, "list_charts", broken)
+    response = _client(logdir, "/charts").get("/")
+    assert response.status_code == 500
+    assert json.loads(response.get_data(as_text=True)) == {
+        "error": "OSError: the disk went away"
+    }
+
+
+def test_the_tab_announces_a_list_it_could_not_read(logdir):
+    script = _client(logdir, "/index.js").get("/").get_data(as_text=True)
+    assert "response.ok" in script
+    assert "Could not read the log directory" in script
+
+
+def test_charts_are_drawn_one_at_a_time(logdir, monkeypatch):
+    import threading
+
+    import maidr.tensorboard.plugin as plugin
+
+    inside = []
+    original = plugin._chart_page
+
+    def watched(*args):
+        inside.append(threading.get_ident())
+        assert len(inside) == 1, "two charts were drawn at once"
+        try:
+            return original(*args)
+        finally:
+            inside.pop()
+
+    monkeypatch.setattr(plugin, "_chart_page", watched)
+    errors = []
+
+    def fetch():
+        try:
+            response = _client(logdir, "/chart").get(
+                "/", query_string={"kind": "scalars", "tag": "Loss/train"}
+            )
+            assert response.status_code == 200
+        except AssertionError as error:  # surfaced in the main thread
+            errors.append(error)
+
+    threads = [threading.Thread(target=fetch) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert errors == []
+
+
 def test_chart_page_closes_the_figures_it_drew(logdir):
     from maidr.core.figure_manager import FigureManager
 

@@ -14,8 +14,10 @@ of py-maidr that imports TensorBoard.
 
 from __future__ import annotations
 
+import html
 import json
 import os
+import threading
 import warnings
 from typing import Any, Callable
 
@@ -24,6 +26,17 @@ from werkzeug import wrappers
 
 #: The charts a log directory can offer, in the order the tab lists them.
 _KINDS = ("scalars", "distributions", "histograms", "hparams", "projector")
+
+#: What names a chart of each kind, beyond its kind.
+_REQUIRED = {
+    "scalars": ("tag",),
+    "distributions": ("tag", "run"),
+    "histograms": ("tag", "run"),
+    "projector": ("tag",),
+}
+
+#: One chart is drawn at a time; see :func:`chart_page`.
+_LOCK = threading.Lock()
 
 #: The tab's page: a labelled picker, a reload button and the chart's frame.
 _INDEX_JS = """
@@ -52,7 +65,15 @@ export async function render() {
   };
   const load = async () => {
     const kept = select.value;
-    const charts = await (await fetch("./charts")).json();
+    let charts;
+    try {
+      const response = await fetch("./charts");
+      charts = await response.json();
+      if (!response.ok) throw new Error(charts.error || response.statusText);
+    } catch (error) {
+      status.textContent = `Could not read the log directory: ${error.message}`;
+      return;
+    }
     select.replaceChildren(...charts.map(chart => {
       const option = document.createElement("option");
       option.value = new URLSearchParams(chart.query).toString();
@@ -111,9 +132,15 @@ class MaidrPlugin(base_plugin.TBPlugin):
 
     @wrappers.Request.application
     def _charts(self, request: Any) -> Any:
-        return wrappers.Response(
-            json.dumps(list_charts(self._logdir)), content_type="application/json"
-        )
+        try:
+            charts = list_charts(self._logdir)
+        except Exception as error:  # noqa: BLE001 - the tab says why, not a bare 500
+            return wrappers.Response(
+                json.dumps({"error": f"{type(error).__name__}: {error}"}),
+                status=500,
+                content_type="application/json",
+            )
+        return wrappers.Response(json.dumps(charts), content_type="application/json")
 
     @wrappers.Request.application
     def _chart(self, request: Any) -> Any:
@@ -216,6 +243,26 @@ def chart_page(
 
     if kind not in _KINDS:
         raise ValueError(f"no chart kind {kind!r}; the kinds are {', '.join(_KINDS)}")
+    given = {"tag": tag, "run": run}
+    for name in _REQUIRED.get(kind, ()):
+        if not given[name]:
+            raise KeyError(f"a {kind} chart is named by its {name}")
+    # pyplot and the figure manager are shared by every request a threaded
+    # server handles at once, so one chart is drawn and closed at a time.
+    with _LOCK:
+        return _chart_page(logdir, kind, tag, run, index, maidr, maidr_html)
+
+
+def _chart_page(
+    logdir: str,
+    kind: str,
+    tag: str | None,
+    run: str | None,
+    index: str | None,
+    maidr: Any,
+    maidr_html: Callable,
+) -> str:
+    """Draw, render and close the chart :func:`chart_page` names."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if kind == "scalars":
@@ -228,17 +275,20 @@ def chart_page(
             charts = maidr.read_tensorboard_histograms(logdir, tags=[tag], runs=[run])
         elif kind == "hparams":
             charts = maidr.read_tensorboard_hparams(logdir)
-            position = int(index or 0)
-            charts = charts[position : position + 1]
         else:
             charts = [
                 chart
                 for chart in maidr.read_tensorboard_projector(logdir)
                 if chart.tag == tag
             ]
-    if not charts:
-        raise KeyError(f"no {kind} chart {tag or index!r} in {logdir}")
-    chart = charts[0]
+    # Every chart drawn is closed, the one shown or not, so a long-running
+    # TensorBoard does not keep a figure per request.
+    position = int(index or 0) if kind == "hparams" else 0
+    if not 0 <= position < len(charts):
+        for every in charts:
+            maidr.close(every)
+        raise KeyError(f"no {kind} chart {tag or index!r} in this log directory")
+    chart = charts[position]
     try:
         body = maidr_html(chart.figure, use_cdn=False)
     finally:
@@ -247,9 +297,5 @@ def chart_page(
     title = chart.tag if kind != "hparams" else "Hyperparameters"
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
-        f"<title>{_escape(title)}</title></head><body>{body}</body></html>"
+        f"<title>{html.escape(title)}</title></head><body>{body}</body></html>"
     )
-
-
-def _escape(text: str) -> str:
-    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
