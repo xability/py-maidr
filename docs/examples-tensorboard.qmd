@@ -7,6 +7,7 @@ resources:
   - tensorboard-logs/**
   - tensorboard-histograms/**
   - tensorboard-hparams/**
+  - tensorboard-projector/**
 filters:
   - line-highlight
 ---
@@ -41,6 +42,7 @@ curves of a model can be compared point by point.
 | Distributions | yes |
 | Histograms, as ridgelines [experimental] | yes |
 | Hyperparameter sweeps (HParams), as a scatter matrix and as parallel coordinates [experimental] | yes |
+| Embedding Projector, as a 2D scatter of the principal components | yes |
 | Images, PR curves, graphs | not yet |
 
 The examples read `tensorboard-logs/`, the log directory of a small model trained for twelve epochs with the `TensorBoard` callback.
@@ -136,6 +138,28 @@ optimizer, units and dropout, measuring accuracy and validation loss.
 parallel, matrix = maidr.read_tensorboard_hparams("tensorboard-hparams")
 maidr.show(matrix)
 ```
+
+### Embedding Projector
+
+`maidr.read_tensorboard_projector()` reads the embeddings TensorBoard's
+Embedding Projector shows, from the log directory's `projector_config.pbtxt`,
+and draws each in two dimensions: its first two principal components, each axis
+named with the share of the variance it explains. Each label from the metadata
+is a layer of its own, so Page Up and Page Down move between classes and you can
+hear which sit apart and which overlap. Pass `coordinates=` to draw a t-SNE or
+UMAP projection computed elsewhere instead. The example reads
+`tensorboard-projector/`, written by PyTorch's `add_embedding`: three labelled
+clusters of eight-dimensional vectors.
+
+```{python}
+#| warning: false
+#| fig-alt: Scatter plot of sixty embedded points on their first two principal components, in three labelled clusters
+(animals,) = maidr.read_tensorboard_projector("tensorboard-projector")
+maidr.show(animals)
+```
+
+A checkpoint written by Keras or TensorFlow is read only with TensorFlow
+installed; PyTorch writes its vectors as text, which needs nothing.
 
 ### Histograms as Ridgelines [experimental]
 
