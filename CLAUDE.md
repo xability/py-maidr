@@ -130,7 +130,10 @@ from plain `Line2D`s, registering a `PrebuiltPlot`
 scatter matrix through the patched `scatter`; `projector.py` reads the
 Embedding Projector's `projector_config.pbtxt` and its TSV vectors (or, with
 TensorFlow installed, a checkpoint variable) and draws the first two principal
-components through the patched `scatter`, a layer per label. Its tests compare
+components through the patched `scatter`, a layer per label. `plugin.py`
+is TensorBoard's **maidr** tab, registered by the `tensorboard_plugins` entry
+point and the `tensorboard` extra: the one module that imports TensorBoard,
+and one `import maidr` never loads. Its tests compare
 against what TensorBoard itself read from logs real writers wrote
 (`tests/tensorboard/fixtures/make_fixtures.py`).
 `maidr/keras.py` (experimental, `docs/stability.qmd#keras-support`) draws a

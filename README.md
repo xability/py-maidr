@@ -39,7 +39,8 @@ by `maidr.read_tensorboard_scalars("logs")`,
 `maidr.read_tensorboard_distributions("logs")`,
 `maidr.read_tensorboard_histograms("logs")`,
 `maidr.read_tensorboard_hparams("logs")` and
-`maidr.read_tensorboard_projector("logs")` (experimental). A Keras model's
+`maidr.read_tensorboard_projector("logs")`, or in a **maidr** tab of
+TensorBoard itself with `pip install "maidr[tensorboard]"` (experimental). A Keras model's
 training curves are drawn by `maidr.keras.plot_history(history)`, or kept up
 to date while it trains by `maidr.keras.MaidrCallback` (experimental). It works in a plain
 script, a Jupyter notebook, Quarto, Shiny, and Streamlit.
