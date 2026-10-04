@@ -15,6 +15,7 @@ only to subclass its ``Callback``: :func:`plot_history` reads a plain
 
 from __future__ import annotations
 
+import contextlib
 import os
 from collections.abc import Mapping
 from typing import Any, Iterable
@@ -172,6 +173,7 @@ class MaidrCallback(_Callback if _Callback is not None else object):
         self.metrics = None if metrics is None else list(metrics)
         self.history: dict[str, list[tuple[int, float]]] = {}
         self._written_at: int | None = None
+        self._dropped: set[str] = set()
 
     def figure(self) -> Figure:
         """
@@ -205,6 +207,7 @@ class MaidrCallback(_Callback if _Callback is not None else object):
         """
         self.history = {}
         self._written_at = None
+        self._dropped = set()
 
     def on_epoch_end(self, epoch: int, logs: Mapping[str, Any] | None = None) -> None:
         """
@@ -216,12 +219,18 @@ class MaidrCallback(_Callback if _Callback is not None else object):
             The epoch that ended, counted from 0 as Keras passes it.
         logs : mapping, optional
             Each metric's value at this epoch. A value that is not a single
-            number is not recorded.
+            number is not recorded, with a warning the first time.
         """
         for key, value in (logs or {}).items():
             number = _number(value)
             if number is not None:
                 self.history.setdefault(key, []).append((epoch + 1, number))
+            elif key not in self._dropped:
+                self._dropped.add(key)
+                warn_at_caller(
+                    f"'{key}' is not a single number at epoch {epoch + 1}; "
+                    "it is not drawn."
+                )
         if self.path is not None and (epoch + 1) % self.every == 0:
             self._write(epoch + 1)
 
@@ -268,7 +277,8 @@ class MaidrCallback(_Callback if _Callback is not None else object):
             return
         finally:
             maidr.close(figure)
-            if os.path.exists(partial):
+            # A failed clean-up must not hide why the write failed.
+            with contextlib.suppress(OSError):
                 os.remove(partial)
         self._written_at = epoch
 

@@ -215,7 +215,11 @@ def test_a_value_numpy_cannot_read_is_skipped_and_training_goes_on(callback):
 
     cb = callback()
     cb.on_train_begin()
-    cb.on_epoch_end(0, {"loss": 1.0, "odd": GpuTensor()})
+    with pytest.warns(UserWarning, match="'odd' is not a single number at epoch 1"):
+        cb.on_epoch_end(0, {"loss": 1.0, "odd": GpuTensor()})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        cb.on_epoch_end(1, {"loss": 0.5, "odd": GpuTensor()})
     assert list(cb.history) == ["loss"]
 
 
