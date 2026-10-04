@@ -12,7 +12,9 @@ final value.
 
 from __future__ import annotations
 
+import math
 import os
+import re
 import struct
 import uuid
 from dataclasses import dataclass, field
@@ -105,7 +107,7 @@ def load_hparams(logdir: str | os.PathLike) -> list[Session]:
                 elif tag == _EXPERIMENT_TAG and declared is None:
                     order, declared = _experiment(content)
     sessions = []
-    for name in sorted(starts):
+    for name in sorted(starts, key=_natural):
         last: dict[str, float] = {}
         for run, paths in runs.items():
             if run != name and not run.startswith(f"{name}/"):
@@ -191,11 +193,21 @@ def read_tensorboard_hparams(logdir: str | os.PathLike) -> list[TensorBoardChart
 
 @dataclass
 class _Column:
-    """One axis: its name, each session's position on it, and its tick names."""
+    """
+    One axis: its name, each session's position on it, and its tick names.
+
+    ``short`` is the name alone, for a tick; ``name`` also lists the positions
+    of a categorical axis.
+    """
 
     name: str
     values: list[float | None]
     ticks: list[str] | None = None
+    short: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.short:
+            self.short = self.name
 
 
 def _column(name: str, raw: list[Any]) -> _Column:
@@ -210,7 +222,12 @@ def _column(name: str, raw: list[Any]) -> _Column:
         isinstance(value, (int, float)) and not isinstance(value, bool)
         for value in present
     ):
-        return _Column(name, [None if v is None else float(v) for v in raw])
+        # A diverged run's NaN or infinity has no place on an axis; it is
+        # left out, as a value that was never logged is.
+        return _Column(
+            name,
+            [None if v is None or not math.isfinite(v) else float(v) for v in raw],
+        )
     levels = sorted({str(value) for value in present})
     index = {level: position for position, level in enumerate(levels)}
     label = f"{name} ({', '.join(f'{i} {level}' for i, level in enumerate(levels))})"
@@ -218,6 +235,7 @@ def _column(name: str, raw: list[Any]) -> _Column:
         label,
         [None if v is None else float(index[str(v)]) for v in raw],
         ticks=levels,
+        short=name,
     )
 
 
@@ -258,7 +276,7 @@ def _parallel(names: tuple[str, ...], columns: list[_Column]) -> Figure:
         lines.append(line)
     ax.set_xlim(-0.3, count - 0.7)
     ax.set_ylim(-0.15, 1.15)
-    ax.set_xticks(range(count), [_short(column.name) for column in columns])
+    ax.set_xticks(range(count), [column.short for column in columns])
     ax.set_yticks([])
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
@@ -302,7 +320,7 @@ def _matrix(hparams: list[_Column], metrics: list[_Column]) -> Figure:
                 ax.scatter(xs, ys, color=_LINES, s=24)
             if hparam.ticks is not None:
                 ax.set_xticks(range(len(hparam.ticks)), hparam.ticks)
-            ax.set_xlabel(_short(hparam.name), fontsize=8)
+            ax.set_xlabel(hparam.short, fontsize=8)
             ax.set_ylabel(metric.name, fontsize=8)
             ax.tick_params(labelsize=7)
     fig.suptitle("Each hyperparameter against each metric")
@@ -311,14 +329,15 @@ def _matrix(hparams: list[_Column], metrics: list[_Column]) -> Figure:
 
 
 def _tick(column: _Column, value: float) -> str:
+    """A position on an axis as its tick reads: the category, or the number."""
     if column.ticks is not None:
         return column.ticks[int(round(value))]
     return f"{value:.4g}"
 
 
-def _short(name: str) -> str:
-    """An axis name without the positions a categorical one lists."""
-    return name.split(" (", 1)[0]
+def _natural(name: str) -> list[Any]:
+    """A sort key that puts ``session_2`` before ``session_10``."""
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", name)]
 
 
 def _session_start(content: bytes) -> dict[str, Any]:

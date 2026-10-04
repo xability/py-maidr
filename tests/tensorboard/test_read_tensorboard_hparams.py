@@ -110,3 +110,27 @@ def test_a_directory_with_no_sweep_warns_and_reads_nothing(tmp_path):
         assert read_tensorboard_hparams(tmp_path) == []
     with pytest.raises(FileNotFoundError):
         load_hparams(tmp_path / "nowhere")
+
+
+def test_a_metric_that_diverged_is_left_off_its_axis():
+    from maidr.tensorboard.hparams import _column
+
+    column = _column("loss", [0.5, float("nan"), float("inf"), None, 0.25])
+    assert column.values == [0.5, None, None, None, 0.25]
+    assert json.loads(json.dumps(column.values)) == column.values
+
+
+def test_sessions_are_in_the_order_they_are_numbered():
+    from maidr.tensorboard.hparams import _natural
+
+    names = ["session_10", "session_2", "session_1"]
+    assert sorted(names, key=_natural) == ["session_1", "session_2", "session_10"]
+
+
+def test_a_tick_keeps_a_numeric_name_that_has_brackets():
+    from maidr.tensorboard.hparams import _column
+
+    assert _column("lr (log)", [0.1, 0.01]).short == "lr (log)"
+    categorical = _column("optimizer", ["sgd", "adam"])
+    assert categorical.short == "optimizer"
+    assert categorical.name == "optimizer (0 adam, 1 sgd)"
