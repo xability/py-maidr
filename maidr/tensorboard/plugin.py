@@ -32,6 +32,7 @@ _KINDS = (
     "pr_curves",
     "hparams",
     "projector",
+    "profile",
 )
 
 #: What names a chart of each kind, beyond its kind.
@@ -214,6 +215,21 @@ def list_charts(logdir: str) -> list[dict]:
                         "query": {"kind": "hparams", "index": str(index)},
                     }
                 )
+        if _can_convert_profiles():
+            from maidr.tensorboard.profile import find_profiles
+
+            for session in find_profiles(logdir):
+                for index, name in enumerate(("step time", "top operations")):
+                    charts.append(
+                        {
+                            "title": f"Profile {session}: {name}",
+                            "query": {
+                                "kind": "profile",
+                                "tag": session,
+                                "index": str(index),
+                            },
+                        }
+                    )
         if os.path.isfile(os.path.join(logdir, _CONFIG)):
             for embedding in load_embeddings(logdir):
                 charts.append(
@@ -297,6 +313,8 @@ def _chart_page(
             charts = maidr.read_tensorboard_pr_curves(logdir, tags=[tag])
         elif kind == "hparams":
             charts = maidr.read_tensorboard_hparams(logdir)
+        elif kind == "profile":
+            charts = maidr.read_tensorboard_profile(logdir, session=tag)
         else:
             charts = [
                 chart
@@ -305,7 +323,7 @@ def _chart_page(
             ]
     # Every chart drawn is closed, the one shown or not, so a long-running
     # TensorBoard does not keep a figure per request.
-    position = int(index or 0) if kind == "hparams" else 0
+    position = int(index or 0) if kind in ("hparams", "profile") else 0
     if not 0 <= position < len(charts):
         for every in charts:
             maidr.close(every)
@@ -321,3 +339,17 @@ def _chart_page(
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         f"<title>{html.escape(title)}</title></head><body>{body}</body></html>"
     )
+
+
+def _can_convert_profiles() -> bool:
+    """Whether the profile plugin's converter is installed."""
+    import importlib.util
+
+    if importlib.util.find_spec("xprof") is not None:
+        return True
+    try:
+        return (
+            importlib.util.find_spec("tensorboard_plugin_profile.convert") is not None
+        )
+    except ModuleNotFoundError:
+        return False
