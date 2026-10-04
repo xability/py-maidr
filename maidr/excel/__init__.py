@@ -20,25 +20,13 @@ from typing import IO
 
 from matplotlib.figure import Figure
 
-from maidr.core.figure_manager import FigureManager
 from maidr.excel import chartex
-from maidr.excel.chartxml import read_chart, wanted_cells
-from maidr.excel.draw import draw_chart
+from maidr.excel.chartxml import wanted_cells
+from maidr.excel.figure import chart_figure
 from maidr.excel.package import Cell, DamagedPartError, NotAWorkbookError, Package
 from maidr.util.caller_warning import warn_at_caller
 
 __all__ = ["ExcelChart", "NotAWorkbookError", "read_excel_charts"]
-
-#: What a chart part holding values it never should raises while it is read
-#: or drawn. Each costs that chart alone, never the workbook.
-_DAMAGED_CHART = (
-    ValueError,
-    TypeError,
-    IndexError,
-    KeyError,
-    ArithmeticError,
-    RecursionError,
-)
 
 
 @dataclass(frozen=True, eq=False)
@@ -174,7 +162,7 @@ def read_excel_charts(
                 continue
             for (row, column), cell in found_cells.items():
                 values[(name, row, column)] = cell
-        theme = package.theme_colors()
+        theme = package.theme_colors(package.workbook)
         date1904 = package.date1904
 
     def cells(sheet: str, row: int, column: int) -> Cell | None:
@@ -191,38 +179,19 @@ def read_excel_charts(
             continue
         if placement.part not in parts:
             continue
-        root = parts[placement.part]
-        try:
-            if placement.is_chartex:
-                spec = chartex.read_chartex(
-                    root, cells=cells, theme=theme, date1904=date1904, names=names
-                )
-            else:
-                spec = read_chart(root, cells=cells, theme=theme, date1904=date1904)
-        except _DAMAGED_CHART as reason:
-            # A damaged chart part costs that chart, never the whole workbook.
-            warn_at_caller(f"maidr cannot read {where} ({reason}); it is left out.")
-            continue
-        for kind in spec.unread:
-            what = "is left out" if not spec.groups else "is read without them"
-            warn_at_caller(f"maidr does not read {kind} charts; {where} {what}.")
-        if not spec.groups:
-            if not spec.unread:
-                warn_at_caller(f"{where} has no data maidr can read; it is left out.")
-            continue
-        try:
-            figure = draw_chart(spec, aspect=placement.aspect, where=where)
-        except _DAMAGED_CHART as reason:
-            # Values a chart part should never hold cost that chart alone.
-            warn_at_caller(f"maidr cannot draw {where} ({reason}); it is left out.")
-            continue
-        try:
-            FigureManager.get_maidr(figure)
-        except KeyError:
-            # Every point was blank, or a pie had no slice with a size.
-            warn_at_caller(f"{where} has no data maidr can read; it is left out.")
-            continue
-        charts.append(
-            ExcelChart(placement.sheet.name, placement.name, spec.title, figure)
+        drawn = chart_figure(
+            parts[placement.part],
+            is_chartex=placement.is_chartex,
+            cells=cells,
+            theme=theme,
+            date1904=date1904,
+            names=names,
+            aspect=placement.aspect,
+            where=where,
         )
+        if drawn is not None:
+            title, figure = drawn
+            charts.append(
+                ExcelChart(placement.sheet.name, placement.name, title, figure)
+            )
     return charts

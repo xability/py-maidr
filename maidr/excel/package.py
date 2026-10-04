@@ -1,12 +1,13 @@
 """Where a workbook keeps its charts: the parts of an Office Open XML package.
 
-An ``.xlsx`` file is a zip of XML parts tied together by relationship files.
-A chart is reached in three steps: a sheet's relationships name its drawing,
-the drawing anchors each chart on the sheet, and the drawing's relationships
-name the chart part. This module walks that path, and reads the two other
-things a chart needs from the workbook: the theme, which holds the colors
-Excel draws series in, and sheet cells, for the header that names a range and
-for a chart part that carries no copy of its values.
+An ``.xlsx`` file is a zip of XML parts tied together by relationship files,
+as ``.pptx`` and ``.docx`` files are; :class:`OpcPackage` reads any of them.
+In a workbook, a chart is reached in three steps: a sheet's relationships name
+its drawing, the drawing anchors each chart on the sheet, and the drawing's
+relationships name the chart part. :class:`Package` walks that path, and reads
+the two other things a chart needs from the workbook: the theme, which holds
+the colors Excel draws series in, and sheet cells, for the header that names a
+range and for a chart part that carries no copy of its values.
 
 Everything is read with lxml, which ``maidr`` already depends on. openpyxl
 would read the same parts, but it loads charts only when it loads every cell
@@ -181,64 +182,38 @@ class ChartPlacement:
     aspect: float | None
 
 
-class Package:
+class OpcPackage:
     """
-    An open ``.xlsx`` package.
+    An open Office Open XML package: a workbook, a presentation or a document.
 
     Parameters
     ----------
     archive : zipfile.ZipFile
         The open zip archive.
-
-    Raises
-    ------
-    NotAWorkbookError
-        If the archive holds no workbook, or a Strict Open XML one.
     """
 
     def __init__(self, archive: zipfile.ZipFile) -> None:
         self._zip = archive
         self._names = set(archive.namelist())
-        try:
-            self.workbook = next(
-                (
-                    target
-                    for rel_type, target in self.rels("").values()
-                    if rel_type == "officeDocument" and target in self._names
-                ),
-                "",
-            )
-            root = self.xml(self.workbook) if self.workbook else None
-        except DamagedPartError as error:
-            raise NotAWorkbookError(
-                f"maidr cannot read this workbook, which is damaged ({error})."
-            ) from error
-        if root is not None and root.tag.startswith("{" + _STRICT_PREFIX):
-            raise NotAWorkbookError(
-                "maidr reads Excel workbooks saved in the default .xlsx format; "
-                "this one is Strict Open XML. Save it as 'Excel Workbook "
-                "(.xlsx)' and read that copy."
-            )
-        if root is None or root.tag != f"{{{NS_MAIN}}}workbook":
-            raise NotAWorkbookError(
-                "maidr found no Excel workbook in this file. It reads .xlsx and "
-                ".xlsm files; an older .xls workbook can be saved as .xlsx first."
-            )
-        pr = root.find(f"{{{NS_MAIN}}}workbookPr")
-        self.date1904 = pr is not None and pr.get("date1904") in ("1", "true")
-        #: The workbook's defined names, to the formula each stands for. An
-        #: Excel 2016 chart names its ranges through hidden ones,
-        #: ``_xlchart.v1.0`` and on.
-        self.defined_names = {
-            name.get("name", ""): (name.text or "").strip()
-            for name in root.iter(f"{{{NS_MAIN}}}definedName")
-            if name.get("localSheetId") is None
-        }
-        self._shared_strings: dict[int, str] = {}
-        self._formats: list[str | None] | None = None
-        #: What could not be read while finding the charts, said once each by
-        #: the caller.
-        self.problems: list[str] = []
+
+    def main_part(self) -> str:
+        """
+        The package's main part.
+
+        Returns
+        -------
+        str
+            The path of the workbook, presentation or document part, or ``""``
+            when the package names none it holds.
+        """
+        return next(
+            (
+                target
+                for rel_type, target in self.rels("").values()
+                if rel_type == "officeDocument" and target in self._names
+            ),
+            "",
+        )
 
     def has(self, part: str) -> bool:
         """Whether the package holds ``part``."""
@@ -305,6 +280,134 @@ class Package:
             out[rel.get("Id")] = (rel.get("Type", "").rsplit("/", 1)[-1], resolved)
         return out
 
+    def read(self, part: str) -> bytes:
+        """
+        The bytes of one part, such as a workbook embedded in a presentation.
+
+        Parameters
+        ----------
+        part : str
+            The part's path inside the package.
+
+        Returns
+        -------
+        bytes
+            The part, uncompressed.
+
+        Raises
+        ------
+        DamagedPartError
+            If the part is cut short, or too large to read.
+        """
+        try:
+            size = self._zip.getinfo(part).file_size
+            if size > _MAX_PART_BYTES:
+                raise DamagedPartError(f"{part} is {size:,} bytes, too large to read")
+            return self._zip.read(part)
+        except _DAMAGED as error:
+            raise DamagedPartError(f"{part}: {error}") from error
+
+    def theme_colors(self, owner: str) -> dict[str, str]:
+        """
+        The color scheme of the theme a part uses.
+
+        Parameters
+        ----------
+        owner : str
+            The part the theme belongs to: a workbook, a slide master or a
+            document.
+
+        Returns
+        -------
+        dict
+            Scheme name (``"accent1"``, ``"dk1"``, ...) to ``"#RRGGBB"``,
+            with the aliases charts use (``"tx1"`` for ``"dk1"``, ``"bg1"``
+            for ``"lt1"``, and so on). Empty when the part has no theme.
+        """
+        try:
+            for rel_type, part in self.rels(owner).values():
+                if rel_type == "theme" and self.has(part):
+                    scheme = self.xml(part).find(f".//{{{NS_A}}}clrScheme")
+                    break
+            else:
+                return {}
+        except DamagedPartError:
+            # Colors are not read out; the charts are drawn in matplotlib's.
+            return {}
+        if scheme is None:
+            return {}
+        out = {}
+        for entry in scheme:
+            if not isinstance(entry.tag, str):
+                continue
+            name = etree.QName(entry).localname
+            for color in entry:
+                value = color.get("val") if color.tag.endswith("srgbClr") else None
+                value = value or color.get("lastClr")
+                if value and len(value) == 6:
+                    out[name] = "#" + value.upper()
+        for alias, name in (
+            ("tx1", "dk1"),
+            ("bg1", "lt1"),
+            ("tx2", "dk2"),
+            ("bg2", "lt2"),
+        ):
+            if name in out:
+                out[alias] = out[name]
+        return out
+
+
+class Package(OpcPackage):
+    """
+    An open ``.xlsx`` package.
+
+    Parameters
+    ----------
+    archive : zipfile.ZipFile
+        The open zip archive.
+
+    Raises
+    ------
+    NotAWorkbookError
+        If the archive holds no workbook, or a Strict Open XML one.
+    """
+
+    def __init__(self, archive: zipfile.ZipFile) -> None:
+        super().__init__(archive)
+        try:
+            self.workbook = self.main_part()
+            root = self.xml(self.workbook) if self.workbook else None
+        except DamagedPartError as error:
+            raise NotAWorkbookError(
+                f"maidr cannot read this workbook, which is damaged ({error})."
+            ) from error
+        if root is not None and root.tag.startswith("{" + _STRICT_PREFIX):
+            raise NotAWorkbookError(
+                "maidr reads Excel workbooks saved in the default .xlsx format; "
+                "this one is Strict Open XML. Save it as 'Excel Workbook "
+                "(.xlsx)' and read that copy."
+            )
+        if root is None or root.tag != f"{{{NS_MAIN}}}workbook":
+            raise NotAWorkbookError(
+                "maidr found no Excel workbook in this file. It reads .xlsx and "
+                ".xlsm files; an older .xls workbook can be saved as .xlsx first."
+            )
+        pr = root.find(f"{{{NS_MAIN}}}workbookPr")
+        self.date1904 = pr is not None and pr.get("date1904") in ("1", "true")
+        #: The workbook's defined names, to the formula each stands for. An
+        #: Excel 2016 chart names its ranges through hidden ones,
+        #: ``_xlchart.v1.0`` and on.
+        self.defined_names = {
+            name.get("name", ""): (name.text or "").strip()
+            for name in root.iter(f"{{{NS_MAIN}}}definedName")
+            if name.get("localSheetId") is None
+        }
+        self._shared_strings: dict[int, str] = {}
+        self._formats: list[str | None] | None = None
+        #: What could not be read while finding the charts, said once each by
+        #: the caller.
+        self.problems: list[str] = []
+
     def sheets(self) -> list[Sheet]:
         """
         The workbook's sheets, in tab order.
@@ -368,7 +471,7 @@ class Package:
                 continue
             row, column, aspect = _anchor_geometry(anchor)
             for frame in anchor.iter(f"{{{NS_XDR}}}graphicFrame"):
-                if _in_fallback(frame, anchor):
+                if in_fallback(frame, anchor):
                     continue
                 props = frame.find(f"{{{NS_XDR}}}nvGraphicFramePr/{{{NS_XDR}}}cNvPr")
                 data = frame.find(f"{{{NS_A}}}graphic/{{{NS_A}}}graphicData")
@@ -387,49 +490,6 @@ class Package:
                         column=column,
                         aspect=aspect,
                     )
-
-    def theme_colors(self) -> dict[str, str]:
-        """
-        The theme's color scheme.
-
-        Returns
-        -------
-        dict
-            Scheme name (``"accent1"``, ``"dk1"``, ...) to ``"#RRGGBB"``,
-            with the aliases charts use (``"tx1"`` for ``"dk1"``, ``"bg1"``
-            for ``"lt1"``, and so on). Empty when the workbook has no theme.
-        """
-        try:
-            for rel_type, part in self.rels(self.workbook).values():
-                if rel_type == "theme" and self.has(part):
-                    scheme = self.xml(part).find(f".//{{{NS_A}}}clrScheme")
-                    break
-            else:
-                return {}
-        except DamagedPartError:
-            # Colors are not read out; the charts are drawn in matplotlib's.
-            return {}
-        if scheme is None:
-            return {}
-        out = {}
-        for entry in scheme:
-            if not isinstance(entry.tag, str):
-                continue
-            name = etree.QName(entry).localname
-            for color in entry:
-                value = color.get("val") if color.tag.endswith("srgbClr") else None
-                value = value or color.get("lastClr")
-                if value and len(value) == 6:
-                    out[name] = "#" + value.upper()
-        for alias, name in (
-            ("tx1", "dk1"),
-            ("bg1", "lt1"),
-            ("tx2", "dk2"),
-            ("bg2", "lt2"),
-        ):
-            if name in out:
-                out[alias] = out[name]
-        return out
 
     def read_cells(
         self, sheet: Sheet, cells: Iterable[tuple[int, int]]
@@ -605,7 +665,7 @@ def _rich_text(item: Any) -> str:
     )
 
 
-def _in_fallback(element: Any, stop: Any) -> bool:
+def in_fallback(element: Any, stop: Any) -> bool:
     """Whether ``element`` sits in the fallback half of an alternate content."""
     parent = element.getparent()
     while parent is not None and parent is not stop:
