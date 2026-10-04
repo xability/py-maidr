@@ -1,8 +1,10 @@
 ---
 title: "Keras Accessible Chart Examples"
-description: "Code examples showing how to make a Keras model's training curves accessible with py-maidr: the History model.fit returns, and a callback that keeps a page up to date while the model trains."
+description: "Code examples showing how to make a Keras model's training curves and graph accessible with py-maidr: the History model.fit returns, a callback that keeps a page up to date while the model trains, and the model's layers as a directed graph."
 jupyter: python3
 html-table-processing: none
+resources:
+  - keras-model.json
 filters:
   - line-highlight
 ---
@@ -13,8 +15,9 @@ filters:
 returns to `maidr.keras.plot_history()`, and hand the figure to `maidr.show()`,
 `maidr.render()` or `maidr.save_html()`: each metric can then be read from the
 keyboard, as sound, as text and in braille. To follow a model while it trains,
-pass `maidr.keras.MaidrCallback` to `model.fit`. For the curves TensorBoard
-logs, see the [TensorBoard](examples-tensorboard.qmd) page.
+pass `maidr.keras.MaidrCallback` to `model.fit`. To walk the model's layers
+themselves, pass the model to `maidr.keras.plot_model()`. For the curves
+TensorBoard logs, see the [TensorBoard](examples-tensorboard.qmd) page.
 
 ::: {.callout-warning title="Experimental"}
 Keras support is **experimental**. What it draws, and how, may change without a
@@ -22,8 +25,9 @@ deprecation period: see [Plot Type Stability](stability.qmd#keras-support).
 :::
 
 `import maidr` does not load Keras: import `maidr.keras` when you use it.
-`plot_history()` also reads the plain `history.history` dictionary, so it works
-on a history saved to disk, with no Keras installed.
+`plot_history()` also reads the plain `history.history` dictionary, and
+`plot_model()` a model's config or JSON, so both work on what was saved to
+disk, with no Keras installed.
 
 ### Training Curves from model.fit
 
@@ -101,3 +105,36 @@ model.fit(
 The callback records the epoch of every value, so validation run only every
 few epochs (`validation_freq=`) is placed on the epochs it was run on, which
 `plot_history()` cannot tell from a `History`.
+
+### Model Graph [experimental]
+
+`maidr.keras.plot_model()` draws a model's layers as a directed graph, top to
+bottom from the inputs, with an arrow from each layer to the layers called on
+its output, as `keras.utils.plot_model` draws it. Left and right walk the
+layers in the order data flows through them, and the Inputs and Outputs rotor
+units follow the arrows, so a skip connection is heard as a layer with two
+inputs. Each layer is announced with its type and, where its config has
+them, its units and activation; a built model adds its output shape and
+number of parameters.
+
+With `expand_nested=True`, a model used as a layer, here a `Sequential`
+residual block, is drawn as its own layers in a frame named for it: Down opens
+it and Up closes it again.
+
+```{python}
+#| warning: false
+#| fig-alt: Directed graph of a model's six layers, top to bottom, with a residual block framed in the middle and a skip connection around it into an Add layer
+from maidr.keras import plot_model
+
+# `model.to_json()` of a small functional model; pass the model itself just
+# the same.
+with open("keras-model.json") as f:
+    maidr.show(plot_model(f.read(), expand_nested=True))
+```
+
+The graph is read from the model's config alone, in Keras 3's format or Keras
+2's (`tf.keras`), so a model saved with `model.to_json()` is drawn with no
+Keras installed. A directed graph is an experimental plot type, and reading
+one needs a maidr.js release that carries the `directed_graph` trace. For the
+graph Keras's `TensorBoard` callback logs, see
+[`maidr.read_tensorboard_graph()`](examples-tensorboard.qmd#model-graph-experimental).

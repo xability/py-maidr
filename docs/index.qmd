@@ -485,12 +485,27 @@ These may change without a deprecation period; see [Plot Type Stability](stabili
 See the [Excel gallery](examples-excel.qmd#sec-excel-examples) for runnable
 examples.
 
+### PowerPoint and Word [experimental]
+
+py-maidr reads the charts of a PowerPoint presentation and of a Word document,
+without PowerPoint, Word or Excel: `maidr.read_powerpoint_charts("deck.pptx")`
+returns one chart per chart on the slides, in slide show order, and
+`maidr.read_word_charts("report.docx")` one per chart in the document, in
+reading order. A chart there is the chart Excel draws, kept with a workbook of
+its data, so every chart type listed under [Excel](#excel-stable) above
+is read, and read the same way. PowerPoint and Word support as a whole is
+**experimental**: see
+[Plot Type Stability](stability.qmd#powerpoint-and-word-support), and the
+[PowerPoint and Word gallery](examples-office.qmd#sec-office-examples) for
+runnable examples.
+
 ### TensorBoard [experimental]
 
 py-maidr reads the charts of a TensorBoard log directory, without TensorFlow
 or TensorBoard: `maidr.read_tensorboard_scalars("logs")` returns one chart per
-scalar tag, and `maidr.read_tensorboard_distributions("logs")` and
-`maidr.read_tensorboard_histograms("logs")` one per histogram tag and run, which `maidr.show()`, `maidr.render()` and `maidr.save_html()`
+scalar tag, `maidr.read_tensorboard_distributions("logs")` and
+`maidr.read_tensorboard_histograms("logs")` one per histogram tag and run,
+and `maidr.read_tensorboard_graph("logs")` one per logged Keras model, which `maidr.show()`, `maidr.render()` and `maidr.save_html()`
 take as they take a figure. TensorBoard support as a whole is
 **experimental**: see [Plot Type Stability](stability.qmd#tensorboard-support).
 
@@ -516,6 +531,8 @@ These may change without a deprecation period; see [Plot Type Stability](stabili
 
 * A hyperparameter sweep as parallel coordinates [experimental], one line per session across its hyperparameters and metrics.
 
+* The Keras model graph the `TensorBoard` callback logs, as a directed graph [experimental] with one node per layer.
+
 With `pip install "maidr[tensorboard]"`, TensorBoard itself shows a
 **maidr** tab listing every one of these charts.
 
@@ -529,13 +546,21 @@ runnable examples.
 py-maidr draws the training curves of a Keras model:
 `maidr.keras.plot_history(history)` takes what `model.fit` returns, and
 `maidr.keras.MaidrCallback` keeps an accessible page of the same charts up to
-date while the model trains. Keras support as a whole is **experimental**,
-though every chart it draws is a stable line plot: see
+date while the model trains; `maidr.keras.plot_model(model)` draws its layers.
+Keras support as a whole is **experimental**: see
 [Plot Type Stability](stability.qmd#keras-support).
+
+#### Stable {#keras-stable}
 
 * Each metric, such as the loss or the accuracy, as a line plot with the epoch along the x axis and a training and a validation line.
 
 * A classifier's confusion matrix, from its predictions, as a heatmap of the true class against the predicted class.
+
+#### Experimental {#keras-experimental}
+
+These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
+
+* The model's layers, from the model or its config, as a directed graph [experimental] with an arrow from each layer to the layers called on its output.
 
 See the [Keras gallery](examples-keras.qmd#sec-keras-examples) for runnable
 examples.

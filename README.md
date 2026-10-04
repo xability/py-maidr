@@ -33,18 +33,23 @@ Plotly, Bokeh, plotnine and Altair figures go through the same `maidr.show()`
 entry point (Bokeh and plotnine support are experimental; install them with
 `pip install "maidr[bokeh]"` and `pip install "maidr[plotnine]"`), and so do the
 charts of an Excel workbook, read without Excel by
-`maidr.read_excel_charts("book.xlsx")` (experimental), and the training
-curves and histograms of a TensorBoard log directory, read without TensorFlow
+`maidr.read_excel_charts("book.xlsx")` (experimental), the charts of a
+PowerPoint presentation or a Word document, read by
+`maidr.read_powerpoint_charts("deck.pptx")` and
+`maidr.read_word_charts("report.docx")` (experimental), and the training
+curves, histograms and Keras model graph of a TensorBoard log directory, read without TensorFlow
 by `maidr.read_tensorboard_scalars("logs")`,
 `maidr.read_tensorboard_distributions("logs")`,
 `maidr.read_tensorboard_histograms("logs")`,
 `maidr.read_tensorboard_hparams("logs")`,
 `maidr.read_tensorboard_pr_curves("logs")`,
-`maidr.read_tensorboard_profile("logs")` and
-`maidr.read_tensorboard_projector("logs")`, or in a **maidr** tab of
+`maidr.read_tensorboard_profile("logs")`,
+`maidr.read_tensorboard_projector("logs")` and
+`maidr.read_tensorboard_graph("logs")`, or in a **maidr** tab of
 TensorBoard itself with `pip install "maidr[tensorboard]"` (experimental). A Keras model's
 training curves are drawn by `maidr.keras.plot_history(history)`, or kept up
-to date while it trains by `maidr.keras.MaidrCallback` (experimental). The
+to date while it trains by `maidr.keras.MaidrCallback`, and its layers by
+`maidr.keras.plot_model(model)` (experimental). The
 training curves of Weights & Biases runs are read by
 `maidr.read_wandb_history("wandb")`, from the runs' own files with no account
 or network, and those of MLflow runs by `maidr.read_mlflow_metrics(runs)`,
@@ -77,10 +82,10 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 | | |
 |---|---|
 | **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Bokeh [experimental], plotnine [experimental], Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
-| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the training curves, histograms, PR curves, hyperparameter sweeps, embeddings and profiles of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
-| **Model training** | the training curves of a Keras model, from `model.fit` or live while it trains, and a classifier's confusion matrix [experimental]; the training curves of Weights & Biases runs, online or offline, and of MLflow runs, and an accessible chart stored in an MLflow run [experimental] |
+| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the charts of a PowerPoint presentation (`.pptx`) or a Word document (`.docx`) [experimental]; the training curves, histograms, PR curves, hyperparameter sweeps, embeddings, profiles and the Keras model graph of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
+| **Model training** | the training curves of a Keras model, from `model.fit` or live while it trains, a classifier's confusion matrix, and the model's layer graph [experimental]; the training curves of Weights & Biases runs, online or offline, and of MLflow runs, and an accessible chart stored in an MLflow run [experimental] |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit, Gradio |
-| **Plot types** | 41 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-six are experimental; the docs mark each experimental type **[experimental]** after its name |
+| **Plot types** | 42 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-seven are experimental; the docs mark each experimental type **[experimental]** after its name |
 
 Plot types not yet supported fall back to a static image with a warning, so a
 plot is never lost.

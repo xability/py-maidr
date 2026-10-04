@@ -50,13 +50,15 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.excel import ExcelChart
+from maidr.office import PowerPointChart, WordChart, read_powerpoint_charts
 from maidr.tensorboard import TensorBoardChart
 from maidr.util.metric_chart import MetricChart
 
 DOCS = Path(__file__).parents[2] / "docs"
 
 #: The gallery: the matplotlib/seaborn family pages plus the one-page Plotly,
-#: Bokeh, plotnine, Altair, Excel and TensorBoard galleries. Discovered rather than listed, so a new
+#: Bokeh, plotnine, Altair, Excel, PowerPoint and Word, and TensorBoard
+#: galleries. Discovered rather than listed, so a new
 #: page is run as soon as it exists -- and fails below until its sections are
 #: listed.
 PAGES = sorted(DOCS.glob("examples*.qmd")) + sorted((DOCS / "examples").glob("*.qmd"))
@@ -207,9 +209,17 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Waterfall Chart [experimental]": [["waterfall"]],
         "Treemap [experimental]": [["treemap"]],
     },
+    "examples-office.qmd": {
+        "Column Chart on a Slide": [["dodged_bar"]],
+        "Line Chart on a Slide": [["line"]],
+        "Pie Chart on a Hidden Slide": [["pie"]],
+        "Line Chart in a Document": [["line"]],
+        "Bar Chart in a Document": [["bar"]],
+    },
     "examples-keras.qmd": {
         "Training Curves from model.fit": [["line", "line"]],
         "Confusion Matrix": [["heat"]],
+        "Model Graph [experimental]": [["directed_graph"]],
     },
     "examples-wandb.qmd": {
         "Training Loss": [["line"]],
@@ -231,6 +241,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Hyperparameter Sweep as Parallel Coordinates [experimental]": [
             ["parallel_coordinates"]
         ],
+        "Model Graph [experimental]": [["directed_graph"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
@@ -394,9 +405,10 @@ class _Capture:
 
     def maidr_show(self, plot: Any = None, *args: Any, **kwargs: Any) -> None:
         """``maidr.show(plot)``: Altair, Plotly, Bokeh, plotnine, an Excel,
-        TensorBoard, W&B or MLflow chart, a figure drawn outside pyplot, or
-        pyplot."""
-        if isinstance(plot, (ExcelChart, MetricChart, TensorBoardChart)):
+        PowerPoint, Word, TensorBoard, W&B or MLflow chart, a figure drawn
+        outside pyplot, or pyplot."""
+        charts = (ExcelChart, MetricChart, PowerPointChart, WordChart, TensorBoardChart)
+        if isinstance(plot, charts):
             plot = plot.figure
         if isinstance(plot, MplFigure) and plot.canvas.manager is None:
             # Drawn outside pyplot, so not among the figures `plt.show()` sees.
@@ -897,6 +909,49 @@ def test_excel_waterfall_totals_are_read_from_zero(gallery: _Gallery) -> None:
     for step in (steps[0], steps[-1]):
         assert (step["kind"], step["start"]) == ("total", 0)
     assert [s["end"] for s in (steps[0], steps[-1])] == [500, 430]
+
+
+def test_office_untitled_axis_is_named_after_its_data_sheet(
+    gallery: _Gallery,
+) -> None:
+    """examples-office.qmd: "The category axis has no title on the slide, so it
+    is named after the header above the quarters in the chart's data sheet,
+    *Quarter*"."""
+    shown = gallery.shown("examples-office.qmd", "Column Chart on a Slide")
+    layer = shown.layer(PlotType.DODGED)
+
+    assert layer[MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL] == "Quarter"
+
+
+def test_office_margin_reads_as_a_percentage(gallery: _Gallery) -> None:
+    """examples-office.qmd: "The margin is read as a percentage, because its
+    data sheet formats it as one"."""
+    shown = gallery.shown("examples-office.qmd", "Line Chart on a Slide")
+    axis = shown.layer(PlotType.LINE)[MaidrKey.AXES][MaidrKey.Y]
+
+    assert axis["format"] == {"type": "percent", "decimals": 0}
+
+
+def test_office_teams_are_named_after_their_data_sheet(gallery: _Gallery) -> None:
+    """examples-office.qmd: "The teams are named after the header above them in
+    the chart's data sheet, *Team*"."""
+    shown = gallery.shown("examples-office.qmd", "Bar Chart in a Document")
+    layer = shown.layer(PlotType.BAR)
+
+    assert layer[MaidrKey.AXES][MaidrKey.Y][MaidrKey.LABEL] == "Team"
+
+
+def test_office_charts_of_a_hidden_slide_are_read_and_say_so() -> None:
+    """examples-office.qmd: "a chart on each of three slides, the last of them
+    hidden" and "The charts of hidden slides are read too"."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        charts = read_powerpoint_charts(DOCS / "slides.pptx")
+
+    slides = [(chart.slide, chart.hidden) for chart in charts]
+    assert slides == [(2, False), (3, False), (4, True)]
+    for chart in charts:
+        maidr.close(chart)
 
 
 def _final_losses(shown: Shown) -> dict[str, float]:

@@ -19,6 +19,14 @@ class PlotType(str, Enum):
     #: its magnitude only in a fill.
     CONTOUR = "contour"
     COUNT = "count"
+    #: Nodes joined by directed edges, each node naming the nodes that feed
+    #: it, and grouped in scopes -- a neural network's layers, say, with the
+    #: blocks they belong to. Stated as a node list rather than as positions,
+    #: because where a box is drawn is layout, not data: the core walks a
+    #: scope in topological order and follows edges between nodes.
+    #: Registered by the readers that draw one, such as
+    #: `maidr.keras.plot_model`. See `docs/stability.qmd` -- experimental.
+    DIRECTED_GRAPH = "directed_graph"
     DODGED = "dodged_bar"
     ERRORBAR = "error_bar"
     #: A schedule of intervals in lanes. `Axes.broken_barh` is matplotlib's
@@ -170,6 +178,7 @@ class PlotType(str, Enum):
 #: Both violin layers display as "violin" because they are two layers of one
 #: plot, and callers de-duplicate.
 _DISPLAY_NAMES = {
+    PlotType.DIRECTED_GRAPH: "directed graph",
     PlotType.DODGED: "dodged bar",
     PlotType.ERRORBAR: "error bar",
     PlotType.HEAT: "heatmap",

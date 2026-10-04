@@ -21,8 +21,16 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from maidr.core.figure_manager import FigureManager
-from maidr.tensorboard.events import SCALARS_PLUGIN
 from maidr.tensorboard.distributions import read_tensorboard_distributions
+from maidr.tensorboard.events import SCALARS_PLUGIN
+from maidr.tensorboard.graphs import read_tensorboard_graph
+from maidr.tensorboard.histograms import (
+    HistogramSeries,
+    load_histograms,
+    read_tensorboard_histograms,
+)
+from maidr.tensorboard.hparams import Session, load_hparams, read_tensorboard_hparams
+from maidr.tensorboard.logdir import TensorBoardChart, load
 from maidr.tensorboard.pr_curves import (
     PRCurveSeries,
     load_pr_curves,
@@ -35,13 +43,6 @@ from maidr.tensorboard.projector import (
     load_embeddings,
     read_tensorboard_projector,
 )
-from maidr.tensorboard.hparams import Session, load_hparams, read_tensorboard_hparams
-from maidr.tensorboard.histograms import (
-    HistogramSeries,
-    load_histograms,
-    read_tensorboard_histograms,
-)
-from maidr.tensorboard.logdir import TensorBoardChart, load
 from maidr.util.caller_warning import warn_at_caller
 from maidr.util.metric_chart import (
     DEFAULT_MAX_POINTS,
@@ -64,6 +65,7 @@ __all__ = [
     "load_scalars",
     "plot_pr_curves",
     "read_tensorboard_distributions",
+    "read_tensorboard_graph",
     "read_tensorboard_histograms",
     "read_tensorboard_hparams",
     "read_tensorboard_pr_curves",
@@ -196,8 +198,10 @@ def read_tensorboard_scalars(
     -----
     Read: scalars written by Keras's ``TensorBoard`` callback,
     ``tf.summary.scalar`` in TensorFlow 1 and 2, PyTorch's
-    ``torch.utils.tensorboard.SummaryWriter`` and tensorboardX. Histograms,
-    distributions, images and the other dashboards are not read yet.
+    ``torch.utils.tensorboard.SummaryWriter`` and tensorboardX. Histograms
+    are read by :func:`read_tensorboard_histograms` and a Keras model's graph
+    by :func:`read_tensorboard_graph`; distributions, images and the other
+    dashboards are not read yet.
 
     Smoothing is TensorBoard's: an exponential moving average, corrected so
     the first values are not pulled toward zero. It is computed over every

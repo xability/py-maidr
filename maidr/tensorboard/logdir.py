@@ -1,4 +1,4 @@
-"""What the scalar and histogram readers share: a log directory and its charts."""
+"""What the TensorBoard readers share: a log directory and its charts."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ class TensorBoardChart:
         The tag the values were logged under, such as ``"epoch_loss"``.
     runs : tuple of str
         The runs drawn: for scalars, one line each (two with smoothing), in
-        legend order; for histograms, the one run the chart is of.
+        legend order; for histograms and graphs, the one run the chart is of.
     figure : matplotlib.figure.Figure
         The chart drawn with matplotlib. It is not managed by pyplot, so
         ``plt.show()`` does not show it.
@@ -57,7 +57,7 @@ def load(
     logdir : str or os.PathLike
         The directory TensorBoard would be started with.
     plugin : str
-        ``"scalars"`` or ``"histograms"``.
+        ``"scalars"``, ``"histograms"`` or ``"graph_keras_model"``.
     tags : iterable of str or None
         Only these tags, in this order; one no run logged is warned about.
     runs : iterable of str or None
