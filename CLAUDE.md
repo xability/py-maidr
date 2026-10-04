@@ -113,6 +113,13 @@ TensorBoard nor protobuf is a dependency, and follows TensorBoard's own rules
 for restarted runs; `__init__.py` draws one chart per tag through the patched
 `Axes.plot`. Its tests compare against what TensorBoard itself read from logs
 real writers wrote (`tests/tensorboard/fixtures/make_fixtures.py`).
+`maidr/keras.py` (experimental, `docs/stability.qmd#keras-support`) draws a
+Keras model's training curves: `plot_history` from a `History` or its
+dictionary, and `MaidrCallback`, a `keras.callbacks.Callback` that rewrites an
+HTML page as the model trains. It imports Keras only for that base class, and
+`import maidr` does not import it. Keras is not a dev dependency: the callback
+tests stand in a bare `Callback`, and the one real `model.fit` test runs only
+where Keras is installed.
 
 ### Canonical `axes` Payload
 
@@ -147,6 +154,6 @@ Tests live in `tests/` using pytest + pytest-mock. Test fixtures in `tests/fixtu
 gallery pages (`docs/examples/*.qmd`, `docs/examples-plotly.qmd`,
 `docs/examples-bokeh.qmd`, `docs/examples-plotnine.qmd`,
 `docs/examples-altair.qmd`, `docs/examples-excel.qmd`,
-`docs/examples-tensorboard.qmd`) and pins the layer types
+`docs/examples-tensorboard.qmd`, `docs/examples-keras.qmd`) and pins the layer types
 each section emits, plus the measured claims the prose makes. Adding or changing a gallery example means
 updating its `EXPECTED_LAYERS` entry there.

@@ -167,6 +167,15 @@ distributions, PR curves, hyperparameters and graphs are tracked in
 [#846](https://github.com/xability/py-maidr/issues/846). See the
 [TensorBoard gallery](examples-tensorboard.qmd) for what it reads today.
 
+## Keras support
+
+The training curves drawn from a Keras model (`maidr.keras.plot_history()` and
+`maidr.keras.MaidrCallback`) are **experimental**, although every chart they
+draw is the stable `line` type: how metrics become charts and lines, what the
+lines are called, and when the callback writes its page may change without a
+deprecation period, including in a patch release. See the
+[Keras gallery](examples-keras.qmd) for what they draw today.
+
 ## Drawn but not read
 
 A few matplotlib calls draw marks that no `PlotType` reads, and that is

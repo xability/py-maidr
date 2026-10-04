@@ -1,0 +1,80 @@
+---
+title: "Keras Accessible Chart Examples"
+description: "Code examples showing how to make a Keras model's training curves accessible with py-maidr: the History model.fit returns, and a callback that keeps a page up to date while the model trains."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+## Keras Examples {#sec-keras-examples}
+
+**maidr** draws the training curves of a Keras model. Pass what `model.fit`
+returns to `maidr.keras.plot_history()`, and hand the figure to `maidr.show()`,
+`maidr.render()` or `maidr.save_html()`: each metric can then be read from the
+keyboard, as sound, as text and in braille. To follow a model while it trains,
+pass `maidr.keras.MaidrCallback` to `model.fit`. For the curves TensorBoard
+logs, see the [TensorBoard](examples-tensorboard.qmd) page.
+
+::: {.callout-warning title="Experimental"}
+Keras support is **experimental**. What it draws, and how, may change without a
+deprecation period: see [Plot Type Stability](stability.qmd#keras-support).
+:::
+
+`import maidr` does not load Keras: import `maidr.keras` when you use it.
+`plot_history()` also reads the plain `history.history` dictionary, so it works
+on a history saved to disk, with no Keras installed.
+
+### Training Curves from model.fit
+
+One chart per metric, the loss first, each with a *training* and a
+*validation* line along the epochs, counted from 1 as Keras counts them. The
+left and right arrow keys move along the epochs, up and down move to the other
+line, and Page Up and Page Down move between the charts. A metric logged
+without a validation value, such as the learning rate, is one line named for
+itself.
+
+```{python}
+#| warning: false
+#| fig-alt: Two line charts, the loss and the accuracy at each epoch, each with a training and a validation line
+import maidr
+from maidr.keras import plot_history
+
+# What `history = model.fit(..., validation_split=0.2)` holds in
+# `history.history`; pass `history` itself just the same.
+history = {
+    "loss": [0.69, 0.52, 0.41, 0.35, 0.31, 0.29, 0.27, 0.26],
+    "accuracy": [0.55, 0.74, 0.82, 0.86, 0.88, 0.89, 0.90, 0.91],
+    "val_loss": [0.62, 0.47, 0.40, 0.37, 0.36, 0.36, 0.37, 0.39],
+    "val_accuracy": [0.66, 0.79, 0.83, 0.85, 0.86, 0.86, 0.85, 0.85],
+}
+maidr.show(plot_history(history))
+```
+
+The validation loss stops falling after the fifth epoch and starts to rise
+while the training loss keeps falling: the model has begun to overfit.
+`metrics=` keeps only the metrics you name, in that order, such as
+`plot_history(history, metrics=["loss"])`.
+
+### Following a Model While It Trains
+
+`MaidrCallback` writes an accessible page of the same charts every `every`
+epochs, and a last time when training ends. Open the page while the model
+trains and reload it to hear how far it has come; the page is replaced in one
+step, so a reload never meets a half-written file. With no path, the charts
+are shown in the notebook when training ends.
+
+```python
+from maidr.keras import MaidrCallback
+
+model.fit(
+    x, y,
+    validation_split=0.2,
+    epochs=50,
+    callbacks=[MaidrCallback("training.html", every=5)],
+)
+```
+
+The callback records the epoch of every value, so validation run only every
+few epochs (`validation_freq=`) is placed on the epochs it was run on, which
+`plot_history()` cannot tell from a `History`.

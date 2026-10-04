@@ -1,0 +1,339 @@
+"""Read the training curves of a Keras model into maidr.
+
+>>> from maidr.keras import plot_history
+>>> history = model.fit(x, y, validation_split=0.2, epochs=20)
+>>> maidr.show(plot_history(history))
+
+:func:`plot_history` draws what ``model.fit`` returns, one chart per metric
+with its training and validation curves, and :class:`MaidrCallback` keeps an
+accessible page of the same charts up to date while the model trains.
+
+``import maidr`` does not import this module, and this module imports Keras
+only to subclass its ``Callback``: :func:`plot_history` reads a plain
+``History.history`` dictionary as well, with no Keras installed.
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from typing import Any, Iterable
+
+import numpy as np
+from matplotlib.figure import Figure
+from matplotlib.ticker import MaxNLocator
+
+from maidr.util.caller_warning import warn_at_caller
+
+try:
+    from keras.callbacks import Callback as _Callback
+except ImportError:  # pragma: no cover - depends on the environment
+    _Callback = None
+
+__all__ = ["MaidrCallback", "plot_history"]
+
+#: What a metric's two curves are called, in the legend and when read.
+TRAINING = "training"
+VALIDATION = "validation"
+
+_VALIDATION_PREFIX = "val_"
+_WIDTH = 7.0
+_PANEL_HEIGHT = 3.0
+
+#: One metric's curves: each curve's name, and its epochs and values.
+_Curves = dict[str, tuple[np.ndarray, np.ndarray]]
+
+
+def plot_history(
+    history: Any,
+    *,
+    metrics: Iterable[str] | None = None,
+) -> Figure:
+    """
+    Draw the training curves of a Keras model.
+
+    One chart per metric, stacked top to bottom, with the epoch along the x
+    axis and two lines, named ``training`` and ``validation``: the metric on
+    the training data, and on the validation data when ``model.fit`` was
+    given some. A metric with no validation values, such as the learning
+    rate, is one line named for the metric. The loss comes first.
+
+    Parameters
+    ----------
+    history : keras.callbacks.History or dict
+        What ``model.fit`` returns, or its ``.history`` dictionary, which
+        maps each metric, such as ``"loss"`` or ``"val_accuracy"``, to its
+        value at each epoch.
+    metrics : iterable of str, optional
+        Only these metrics, in this order, named without the ``val_`` prefix,
+        such as ``["loss", "accuracy"]``. A metric not in ``history`` is
+        warned about.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The charts, ready for :func:`maidr.show`, :func:`maidr.render` or
+        :func:`maidr.save_html`. The figure is not managed by pyplot, so
+        ``plt.show()`` does not show it.
+
+    Raises
+    ------
+    TypeError
+        If ``history`` is neither a ``History`` nor a dictionary.
+    ValueError
+        If ``history`` holds no metric that can be drawn.
+
+    Notes
+    -----
+    Epochs are counted from 1, as Keras counts them when it trains. A value
+    that is not finite, such as a loss that became ``NaN``, is a gap in the
+    line. A metric whose value is not a single number at each epoch, such
+    as a per-class score, is left out with a warning.
+
+    With ``validation_freq`` above 1, Keras records the validation values on
+    fewer epochs than the training ones without saying which, so
+    ``plot_history`` leaves them out with a warning. :class:`MaidrCallback`
+    records the epoch of every value and draws them.
+
+    Examples
+    --------
+    >>> import maidr
+    >>> from maidr.keras import plot_history
+    >>> history = {"loss": [0.9, 0.6, 0.5], "val_loss": [1.0, 0.7, 0.65]}
+    >>> maidr.save_html(plot_history(history), "training.html")
+    """
+    logs, epochs = _logs(history)
+    return _draw(_curves_from_logs(logs, epochs), metrics)
+
+
+class MaidrCallback(_Callback if _Callback is not None else object):
+    """
+    Keep an accessible page of a model's training curves while it trains.
+
+    Pass it to ``model.fit(callbacks=[...])``. At the end of every ``every``
+    epochs it writes ``path`` again with the charts :func:`plot_history`
+    draws, so a reader can open the page during a long run and reload it to
+    hear how far the model has come. When training ends, the page is written
+    a last time; with no ``path``, the charts are shown in the notebook
+    instead, if there is one.
+
+    Parameters
+    ----------
+    path : str or os.PathLike, optional
+        The HTML file to keep up to date. The page is replaced in one step,
+        so a reload never meets a half-written file.
+    every : int, default 1
+        Write the page every this many epochs.
+    metrics : iterable of str, optional
+        Only these metrics, in this order, as for :func:`plot_history`.
+
+    Attributes
+    ----------
+    history : dict of str to list of tuple
+        Each metric's values so far, as ``(epoch, value)`` pairs, epochs
+        counted from 1. Reset when a new ``model.fit`` begins.
+
+    Raises
+    ------
+    ImportError
+        If Keras is not installed.
+    ValueError
+        If ``every`` is below 1.
+
+    Examples
+    --------
+    >>> from maidr.keras import MaidrCallback
+    >>> model.fit(x, y, validation_split=0.2, epochs=50,
+    ...           callbacks=[MaidrCallback("training.html", every=5)])
+    """
+
+    def __init__(
+        self,
+        path: str | os.PathLike | None = None,
+        *,
+        every: int = 1,
+        metrics: Iterable[str] | None = None,
+    ) -> None:
+        if _Callback is None:
+            raise ImportError(
+                "MaidrCallback is a Keras callback, and Keras is not installed: "
+                "pip install keras"
+            )
+        if every < 1:
+            raise ValueError(f"every is a number of epochs, at least 1, not {every}")
+        super().__init__()
+        self.path = None if path is None else os.fspath(path)
+        self.every = every
+        self.metrics = None if metrics is None else list(metrics)
+        self.history: dict[str, list[tuple[int, float]]] = {}
+        self._written_at: int | None = None
+
+    def figure(self) -> Figure:
+        """
+        Draw the curves recorded so far.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            The charts :func:`plot_history` would draw for them.
+        """
+        curves: dict[str, _Curves] = {}
+        for key, points in self.history.items():
+            if not points:
+                continue
+            epochs, values = zip(*points)
+            name, curve = _split(key)
+            curves.setdefault(name, {})[curve] = (
+                np.asarray(epochs, dtype=int),
+                np.asarray(values, dtype=float),
+            )
+        return _draw(_ordered(curves), self.metrics)
+
+    def on_train_begin(self, logs: Mapping[str, Any] | None = None) -> None:
+        self.history = {}
+        self._written_at = None
+
+    def on_epoch_end(self, epoch: int, logs: Mapping[str, Any] | None = None) -> None:
+        for key, value in (logs or {}).items():
+            number = _number(value)
+            if number is not None:
+                self.history.setdefault(key, []).append((epoch + 1, number))
+        if self.path is not None and (epoch + 1) % self.every == 0:
+            self._write(epoch + 1)
+
+    def on_train_end(self, logs: Mapping[str, Any] | None = None) -> None:
+        if not any(self.history.values()):
+            return
+        last = max(epoch for points in self.history.values() for epoch, _ in points)
+        if self.path is not None:
+            if self._written_at != last:
+                self._write(last)
+            return
+        from maidr.util.environment import Environment
+
+        if Environment.is_notebook():
+            import maidr
+
+            maidr.show(self.figure())
+
+    def _write(self, epoch: int) -> None:
+        import maidr
+
+        figure = self.figure()
+        directory, name = os.path.split(os.path.abspath(self.path))
+        partial = os.path.join(directory, f".{name}.partial")
+        try:
+            maidr.save_html(figure, partial)
+            os.replace(partial, self.path)
+        finally:
+            maidr.close(figure)
+            if os.path.exists(partial):
+                os.remove(partial)
+        self._written_at = epoch
+
+
+def _logs(history: Any) -> tuple[Mapping[str, Any], list[int] | None]:
+    """The metrics of a ``History`` or its dictionary, and its epochs."""
+    if isinstance(history, Mapping):
+        return history, None
+    logs = getattr(history, "history", None)
+    if isinstance(logs, Mapping):
+        epochs = getattr(history, "epoch", None)
+        return logs, list(epochs) if epochs else None
+    raise TypeError(
+        "plot_history reads what model.fit returns, or its .history "
+        f"dictionary, not {type(history).__name__}"
+    )
+
+
+def _curves_from_logs(
+    logs: Mapping[str, Any], epochs: list[int] | None
+) -> dict[str, _Curves]:
+    lengths = [len(values) for values in logs.values() if _is_sequence(values)]
+    count = len(epochs) if epochs else max(lengths, default=0)
+    numbers = np.asarray(epochs, dtype=int) + 1 if epochs else np.arange(1, count + 1)
+    curves: dict[str, _Curves] = {}
+    for key, values in logs.items():
+        if not _is_sequence(values):
+            warn_at_caller(f"'{key}' is not a list of values per epoch; left out.")
+            continue
+        read = [_number(value) for value in values]
+        if any(value is None for value in read):
+            warn_at_caller(
+                f"'{key}' is not a single number at each epoch; it is left out."
+            )
+            continue
+        if len(read) != count:
+            warn_at_caller(
+                f"'{key}' has {len(read)} values for {count} epochs, as with "
+                "validation_freq above 1, and which epochs they belong to is "
+                "not recorded; it is left out. MaidrCallback records them."
+            )
+            continue
+        name, curve = _split(key)
+        curves.setdefault(name, {})[curve] = (numbers, np.asarray(read, dtype=float))
+    return _ordered(curves)
+
+
+def _split(key: str) -> tuple[str, str]:
+    """``"val_loss"`` is the validation curve of ``"loss"``."""
+    if key.startswith(_VALIDATION_PREFIX) and len(key) > len(_VALIDATION_PREFIX):
+        return key[len(_VALIDATION_PREFIX) :], VALIDATION
+    return key, TRAINING
+
+
+def _ordered(curves: dict[str, _Curves]) -> dict[str, _Curves]:
+    """The loss first, then the rest as Keras logged them; training first."""
+    names = sorted(curves, key=lambda name: name != "loss")
+    order = (TRAINING, VALIDATION)
+    return {
+        name: {curve: curves[name][curve] for curve in order if curve in curves[name]}
+        for name in names
+    }
+
+
+def _number(value: Any) -> float | None:
+    """A value logged at one epoch, as a float, or ``None`` if it is not one."""
+    try:
+        array = np.asarray(value, dtype=float)
+    except (TypeError, ValueError):
+        return None
+    if array.size != 1:
+        return None
+    return float(array.reshape(()))
+
+
+def _is_sequence(values: Any) -> bool:
+    return not isinstance(values, (str, bytes, Mapping)) and hasattr(values, "__len__")
+
+
+def _draw(curves: dict[str, _Curves], metrics: Iterable[str] | None) -> Figure:
+    if metrics is not None:
+        wanted = list(dict.fromkeys(metrics))
+        for name in wanted:
+            if name not in curves:
+                known = ", ".join(f"'{n}'" for n in curves) or "none"
+                warn_at_caller(
+                    f"No metric '{name}' was logged; the metrics are {known}."
+                )
+        curves = {name: curves[name] for name in wanted if name in curves}
+    if not curves:
+        raise ValueError("There is no metric to draw.")
+    fig = Figure(figsize=(_WIDTH, _PANEL_HEIGHT * len(curves) + 0.4))
+    axes = fig.subplots(len(curves), 1, squeeze=False)[:, 0]
+    for ax, (name, lines) in zip(axes, curves.items()):
+        # A metric with one curve, such as the learning rate, is named for
+        # itself: "training" would say it was measured on the training data.
+        for color, (curve, (epochs, values)) in zip(("C0", "C1"), lines.items()):
+            label = curve if len(lines) > 1 else name
+            ax.plot(epochs, values, color=color, marker="o", markersize=3, label=label)
+        ax.set_title(name)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel(name)
+        ax.grid(True, color="#E0E0E0", linewidth=0.8)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.legend(frameon=False)
+    fig.tight_layout()
+    return fig

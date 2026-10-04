@@ -501,6 +501,20 @@ PyTorch's `SummaryWriter` are read. See the
 [TensorBoard gallery](examples-tensorboard.qmd#sec-tensorboard-examples) for
 runnable examples.
 
+### Keras [experimental]
+
+py-maidr draws the training curves of a Keras model:
+`maidr.keras.plot_history(history)` takes what `model.fit` returns, and
+`maidr.keras.MaidrCallback` keeps an accessible page of the same charts up to
+date while the model trains. Keras support as a whole is **experimental**,
+though every chart it draws is a stable line plot: see
+[Plot Type Stability](stability.qmd#keras-support).
+
+* Each metric, such as the loss or the accuracy, as a line plot with the epoch along the x axis and a training and a validation line.
+
+See the [Keras gallery](examples-keras.qmd#sec-keras-examples) for runnable
+examples.
+
 ### Additional Libraries
 
 * **mplfinance**: Candlestick charts having one x (time/date) and four y (numerical) axes (open, high, low, close) for financial data with support for moving averages and volume data.
