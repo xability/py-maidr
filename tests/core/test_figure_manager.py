@@ -38,6 +38,33 @@ def test_create_maidr_with_none_plot_type(mocker):
     assert "No plot type found." == str(e.value)
 
 
+def test_add_plot_with_no_figure(mocker):
+    plot = mocker.Mock()
+    plot.ax.get_figure.return_value = None
+    with pytest.raises(ValueError, match="No figure found for axis"):
+        FigureManager.add_plot(plot)
+
+
+def test_add_plot_adds_each_layer_to_its_figure_s_one_maidr(mocker):
+    """A layer built outside the factory, as the Excel reader builds its own,
+    joins its figure's Maidr with a selector id of its own, as
+    ``create_maidr``'s layers do."""
+    fig, ax = plt.subplots()
+    bars = mocker.Mock(ax=ax, type=PlotType.BAR)
+    line = mocker.Mock(ax=ax, type=PlotType.LINE)
+    try:
+        maidr_obj = FigureManager.add_plot(bars)
+
+        assert FigureManager.add_plot(line) is maidr_obj
+        assert FigureManager.get_maidr(fig) is maidr_obj
+        assert maidr_obj.plots == [bars, line]
+        ids = maidr_obj.selector_ids
+        assert len(ids) == len(set(ids)) == 2
+    finally:
+        FigureManager.figs.pop(fig, None)
+        plt.close(fig)
+
+
 # Parametrize the test to run with different libraries and plot types.
 @pytest.mark.parametrize(
     "lib, plot_type",
