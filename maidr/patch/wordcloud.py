@@ -79,6 +79,6 @@ def wordcloud(wrapped, instance, args, kwargs):
         plot = wrapped(*args, **kwargs)
 
     ax = FigureManager.get_axes(plot)
-    FigureManager.create_maidr(ax, PlotType.WORD_CLOUD, cloud=cloud)
+    FigureManager.create_maidr(ax, PlotType.WORD_CLOUD, cloud=cloud, image=plot)
 
     return plot
