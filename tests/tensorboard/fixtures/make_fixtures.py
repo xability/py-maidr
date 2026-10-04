@@ -139,6 +139,58 @@ def torch_histograms(logdir: str) -> None:
     writer.close()
 
 
+#: The sessions ``hparams_sweep`` trains: each one's hyperparameters.
+HPARAM_SESSIONS = [
+    {"learning_rate": 0.1, "optimizer": "sgd", "units": 8, "dropout": True},
+    {"learning_rate": 0.01, "optimizer": "adam", "units": 16, "dropout": False},
+    {"learning_rate": 0.001, "optimizer": "adam", "units": 32, "dropout": True},
+    {"learning_rate": 0.01, "optimizer": "sgd", "units": 32, "dropout": False},
+]
+
+
+def hparams_sweep(logdir: str) -> None:
+    """The HParams plugin's own API: an experiment, then a run per session."""
+    import tensorflow as tf
+    from tensorboard.plugins.hparams import api as hp
+
+    learning_rate = hp.HParam("learning_rate", hp.RealInterval(0.0001, 0.5))
+    optimizer = hp.HParam("optimizer", hp.Discrete(["adam", "sgd"]))
+    units = hp.HParam("units", hp.Discrete([8, 16, 32]))
+    dropout = hp.HParam("dropout", hp.Discrete([False, True]))
+    with tf.summary.create_file_writer(logdir).as_default():
+        hp.hparams_config(
+            hparams=[learning_rate, optimizer, units, dropout],
+            metrics=[
+                hp.Metric("accuracy", display_name="Accuracy"),
+                hp.Metric("loss", group="validation", display_name="Validation loss"),
+            ],
+        )
+    for index, values in enumerate(HPARAM_SESSIONS):
+        session = os.path.join(logdir, f"session_{index}")
+        accuracy = 0.6 + 0.08 * index - 0.4 * values["learning_rate"]
+        with tf.summary.create_file_writer(session).as_default():
+            hp.hparams(values, trial_id=f"session_{index}")
+            for step in range(3):
+                tf.summary.scalar("accuracy", accuracy - 0.1 * (2 - step), step=step)
+        with tf.summary.create_file_writer(
+            os.path.join(session, "validation")
+        ).as_default():
+            for step in range(3):
+                tf.summary.scalar("loss", 1.0 - accuracy + 0.05 * (2 - step), step=step)
+
+
+def hparams_view(logdir: str) -> dict:
+    """What was written: each session's hyperparameters and final metrics."""
+    view = {}
+    for index, values in enumerate(HPARAM_SESSIONS):
+        accuracy = 0.6 + 0.08 * index - 0.4 * values["learning_rate"]
+        view[f"session_{index}"] = {
+            "hparams": values,
+            "metrics": {"accuracy": accuracy, "validation/loss": 1.0 - accuracy},
+        }
+    return view
+
+
 def tensorboard_view(logdir: str, plugin: str = "scalars") -> dict:
     """
     What TensorBoard reads: run -> tag -> [[step, wall_time, value], ...].
@@ -189,6 +241,7 @@ WRITERS = {
     "keras_histograms": (keras_histograms, "histograms"),
     "tf_histograms": (tf_histograms, "histograms"),
     "torch_histograms": (torch_histograms, "histograms"),
+    "hparams_sweep": (hparams_sweep, "hparams"),
 }
 
 
@@ -199,7 +252,10 @@ def main(names: list[str]) -> None:
         logdir = os.path.join(HERE, name)
         shutil.rmtree(logdir, ignore_errors=True)
         write(logdir)
-        expected = tensorboard_view(logdir, plugin)
+        if plugin == "hparams":
+            expected = hparams_view(logdir)
+        else:
+            expected = tensorboard_view(logdir, plugin)
         with open(os.path.join(HERE, f"{name}.expected.json"), "w") as out:
             # A histogram holds a few hundred numbers a step: one line each
             # would make a reviewable diff of every regeneration impossible.

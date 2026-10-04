@@ -123,7 +123,11 @@ through the patched `Axes.plot`; `distributions.py` reads each histogram at
 TensorBoard's nine basis points as one line layer of nine lines over
 unregistered band polygons; `histograms.py` draws one ridge polygon per
 step and registers a `RidgelinePlot` (`maidr/core/plot/ridgeline.py`) built
-from the binned counts through `FigureManager.add_plot`. Its tests compare
+from the binned counts through `FigureManager.add_plot`; `hparams.py` reads
+the HParams plugin's `HParamsPluginData` and draws the parallel coordinates
+from plain `Line2D`s, registering a `PrebuiltPlot`
+(`maidr/core/plot/prebuilt.py`) that carries the unscaled values, and the
+scatter matrix through the patched `scatter`. Its tests compare
 against what TensorBoard itself read from logs real writers wrote
 (`tests/tensorboard/fixtures/make_fixtures.py`).
 `maidr/keras.py` (experimental, `docs/stability.qmd#keras-support`) draws a

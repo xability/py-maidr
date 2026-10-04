@@ -500,11 +500,15 @@ take as they take a figure. TensorBoard support as a whole is
 
 * Distributions, from the same histograms, as a line plot of nine lines over the steps: the minimum, six percentiles, the median and the maximum.
 
+* A hyperparameter sweep logged with the HParams plugin as a scatter plot matrix, a row per metric and a column per hyperparameter.
+
 #### Experimental {#tensorboard-experimental}
 
 These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
 
 * Histograms, such as a layer's weights, as a ridgeline [experimental] with one ridge per step, the earliest at the bottom.
+
+* A hyperparameter sweep as parallel coordinates [experimental], one line per session across its hyperparameters and metrics.
 
 What Keras's `TensorBoard` callback, `tf.summary.scalar`,
 `tf.summary.histogram` and PyTorch's `SummaryWriter` write is read. See the

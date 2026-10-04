@@ -199,6 +199,7 @@ from .excel import read_excel_charts  # noqa: E402
 from .tensorboard import (  # noqa: E402
     read_tensorboard_distributions,
     read_tensorboard_histograms,
+    read_tensorboard_hparams,
     read_tensorboard_scalars,
 )
 from .patch import (  # noqa: E402, F401
@@ -313,6 +314,7 @@ __all__ = [
     "read_excel_charts",
     "read_tensorboard_distributions",
     "read_tensorboard_histograms",
+    "read_tensorboard_hparams",
     "read_tensorboard_scalars",
     "render",
     "reset_cdn_version_cache",

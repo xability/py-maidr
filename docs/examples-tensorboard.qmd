@@ -6,6 +6,7 @@ html-table-processing: none
 resources:
   - tensorboard-logs/**
   - tensorboard-histograms/**
+  - tensorboard-hparams/**
 filters:
   - line-highlight
 ---
@@ -39,6 +40,7 @@ curves of a model can be compared point by point.
 | PyTorch `torch.utils.tensorboard.SummaryWriter`, tensorboardX | yes |
 | Distributions | yes |
 | Histograms, as ridgelines [experimental] | yes |
+| Hyperparameter sweeps (HParams), as a scatter matrix and as parallel coordinates [experimental] | yes |
 | Images, PR curves, graphs | not yet |
 
 The examples read `tensorboard-logs/`, the log directory of a small model trained for twelve epochs with the `TensorBoard` callback.
@@ -118,6 +120,23 @@ follow one of them through training.
 maidr.show(activations)
 ```
 
+### Hyperparameter Sweep as a Scatter Matrix
+
+`maidr.read_tensorboard_hparams()` reads a sweep logged with the HParams
+plugin's `hp.hparams_config` and `hp.hparams`, as the HParams dashboard shows
+it, and returns two charts. The second is its scatter plot matrix: a row per
+metric and a column per hyperparameter, one point per training session.
+Page Up and Page Down move between the cells. The example reads
+`tensorboard-hparams/`, four sessions of a sweep over the learning rate,
+optimizer, units and dropout, measuring accuracy and validation loss.
+
+```{python}
+#| warning: false
+#| fig-alt: Scatter plot matrix of accuracy and validation loss against each of four hyperparameters
+parallel, matrix = maidr.read_tensorboard_hparams("tensorboard-hparams")
+maidr.show(matrix)
+```
+
 ### Histograms as Ridgelines [experimental]
 
 `maidr.read_tensorboard_histograms()` reads what TensorBoard's Histograms
@@ -140,4 +159,21 @@ every four steps, whose center drifts right and whose spread widens.
 #| fig-alt: Ridgeline chart of the activations histogram, one ridge per step from step 0 at the bottom to step 36 at the top
 (activations, constant) = maidr.read_tensorboard_histograms("tensorboard-histograms")
 maidr.show(activations)
+```
+
+### Hyperparameter Sweep as Parallel Coordinates [experimental]
+
+The first chart `maidr.read_tensorboard_hparams()` returns is the sweep's
+parallel coordinates: one line per session across an axis for each
+hyperparameter and then each metric. Right and left move along one session's
+axes, each value read in its own units; up and down move to another session.
+A hyperparameter that is a word or a yes-or-no is placed by its position among
+the values tried, and its axis says which is which, such as
+*optimizer (0 adam, 1 sgd)*. Parallel coordinates are an experimental plot
+type.
+
+```{python}
+#| warning: false
+#| fig-alt: Parallel coordinates of four sessions across the learning rate, optimizer, units, dropout, accuracy and validation loss
+maidr.show(parallel)
 ```
