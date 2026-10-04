@@ -201,6 +201,7 @@ from .tensorboard import (  # noqa: E402
     read_tensorboard_distributions,
     read_tensorboard_histograms,
     read_tensorboard_hparams,
+    read_tensorboard_pr_curves,
     read_tensorboard_projector,
     read_tensorboard_scalars,
 )
@@ -318,6 +319,7 @@ __all__ = [
     "read_tensorboard_distributions",
     "read_tensorboard_histograms",
     "read_tensorboard_hparams",
+    "read_tensorboard_pr_curves",
     "read_tensorboard_projector",
     "read_tensorboard_scalars",
     "read_word_charts",

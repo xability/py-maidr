@@ -25,13 +25,21 @@ from tensorboard.plugins import base_plugin
 from werkzeug import wrappers
 
 #: The charts a log directory can offer, in the order the tab lists them.
-_KINDS = ("scalars", "distributions", "histograms", "hparams", "projector")
+_KINDS = (
+    "scalars",
+    "distributions",
+    "histograms",
+    "pr_curves",
+    "hparams",
+    "projector",
+)
 
 #: What names a chart of each kind, beyond its kind.
 _REQUIRED = {
     "scalars": ("tag",),
     "distributions": ("tag", "run"),
     "histograms": ("tag", "run"),
+    "pr_curves": ("tag",),
     "projector": ("tag",),
 }
 
@@ -166,7 +174,12 @@ def list_charts(logdir: str) -> list[dict]:
     list of dict
         ``{"title": ..., "query": {"kind": ..., ...}}`` per chart.
     """
-    from maidr.tensorboard import load_hparams, load_histograms, load_scalars
+    from maidr.tensorboard import (
+        load_hparams,
+        load_histograms,
+        load_pr_curves,
+        load_scalars,
+    )
     from maidr.tensorboard.projector import _CONFIG, load_embeddings
 
     charts: list[dict] = []
@@ -186,6 +199,13 @@ def list_charts(logdir: str) -> list[dict]:
                             "query": {"kind": kind, "tag": tag, "run": run},
                         }
                     )
+        for tag in load_pr_curves(logdir):
+            charts.append(
+                {
+                    "title": f"PR curves: {tag}",
+                    "query": {"kind": "pr_curves", "tag": tag},
+                }
+            )
         if load_hparams(logdir):
             for index, name in enumerate(("parallel coordinates", "scatter matrix")):
                 charts.append(
@@ -273,6 +293,8 @@ def _chart_page(
             )
         elif kind == "histograms":
             charts = maidr.read_tensorboard_histograms(logdir, tags=[tag], runs=[run])
+        elif kind == "pr_curves":
+            charts = maidr.read_tensorboard_pr_curves(logdir, tags=[tag])
         elif kind == "hparams":
             charts = maidr.read_tensorboard_hparams(logdir)
         else:

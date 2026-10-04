@@ -38,6 +38,9 @@ from maidr.util.caller_warning import warn_at_caller
 SCALARS_PLUGIN = "scalars"
 #: The plugin a TensorFlow 2 histogram summary names in its metadata.
 HISTOGRAMS_PLUGIN = "histograms"
+#: The plugin a PR curve summary names: a ``(6, thresholds)`` tensor of true
+#: and false positives, true and false negatives, precision and recall.
+PR_CURVES_PLUGIN = "pr_curves"
 #: The plugin the HParams dashboard's summaries name; its value is the
 #: summary's ``plugin_data.content``, an ``HParamsPluginData`` message.
 HPARAMS_PLUGIN = "hparams"
@@ -287,6 +290,10 @@ def _read_value(record: bytes, step: int, wall_time: float, run: Run) -> None:
             value = _histogram(tensor)
     elif run.plugin == HPARAMS_PLUGIN:
         value = content
+    elif run.plugin == PR_CURVES_PLUGIN and tensor is not None:
+        curve = _tensor(tensor)
+        if curve is not None and curve.ndim == 2 and curve.shape[0] == 6:
+            value = curve
     if value is not None:
         run.add(tag, step, wall_time, value)
 
