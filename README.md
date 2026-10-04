@@ -35,7 +35,8 @@ entry point (Bokeh and plotnine support are experimental; install them with
 charts of an Excel workbook, read without Excel by
 `maidr.read_excel_charts("book.xlsx")` (experimental), and the training
 curves and histograms of a TensorBoard log directory, read without TensorFlow
-by `maidr.read_tensorboard_scalars("logs")` and
+by `maidr.read_tensorboard_scalars("logs")`,
+`maidr.read_tensorboard_distributions("logs")` and
 `maidr.read_tensorboard_histograms("logs")` (experimental). A Keras model's
 training curves are drawn by `maidr.keras.plot_history(history)`, or kept up
 to date while it trains by `maidr.keras.MaidrCallback` (experimental). It works in a plain

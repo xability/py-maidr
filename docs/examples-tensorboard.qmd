@@ -37,8 +37,9 @@ curves of a model can be compared point by point.
 | Keras `keras.callbacks.TensorBoard` | yes |
 | `tf.summary.scalar`, TensorFlow 1 and 2 | yes |
 | PyTorch `torch.utils.tensorboard.SummaryWriter`, tensorboardX | yes |
+| Distributions | yes |
 | Histograms, as ridgelines [experimental] | yes |
-| Distributions, images, PR curves, graphs | not yet |
+| Images, PR curves, graphs | not yet |
 
 The examples read `tensorboard-logs/`, the log directory of a small model trained for twelve epochs with the `TensorBoard` callback.
 
@@ -98,6 +99,24 @@ maidr.show(accuracy)
 A long run is thinned to 1,000 points per line, evenly spaced and keeping the
 first and last step, so it stays quick to walk; `max_points=None` keeps every
 point. A loss that became `NaN` is a gap in the line, never a zero.
+
+### Distributions
+
+`maidr.read_tensorboard_distributions()` reads what TensorBoard's
+Distributions dashboard shows: for each step, the minimum, the median, the
+maximum and the six points a normal distribution puts at one, two and three
+standard deviations from the middle. They are drawn as TensorBoard draws them,
+nested bands around the median, and read as nine lines named for the share of
+values below each, such as *84.1%*. At a step, up and down move through them
+in value order, which is how wide the distribution is there; left and right
+follow one of them through training.
+
+```{python}
+#| warning: false
+#| fig-alt: Distribution chart of the activations, nested bands around a median line rising and widening over the steps
+(activations, constant) = maidr.read_tensorboard_distributions("tensorboard-histograms")
+maidr.show(activations)
+```
 
 ### Histograms as Ridgelines [experimental]
 

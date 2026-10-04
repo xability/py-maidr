@@ -119,7 +119,9 @@ scalar or histogram needs by hand, so neither TensorFlow, TensorBoard nor
 protobuf is a dependency, converts a legacy histogram as TensorBoard's
 `data_compat` does, and follows TensorBoard's own rules for restarted runs;
 `logdir.py` finds runs and tags; `__init__.py` draws one chart per scalar tag
-through the patched `Axes.plot`; `histograms.py` draws one ridge polygon per
+through the patched `Axes.plot`; `distributions.py` reads each histogram at
+TensorBoard's nine basis points as one line layer of nine lines over
+unregistered band polygons; `histograms.py` draws one ridge polygon per
 step and registers a `RidgelinePlot` (`maidr/core/plot/ridgeline.py`) built
 from the binned counts through `FigureManager.add_plot`. Its tests compare
 against what TensorBoard itself read from logs real writers wrote
