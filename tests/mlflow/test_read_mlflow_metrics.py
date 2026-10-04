@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import warnings
@@ -206,7 +207,7 @@ def test_a_logged_chart_can_load_maidr_from_the_cdn_instead(store):
     )
     page = _artifact(store, store.baseline, "charts/cdn.html")
     assert read_bundled_js()[:200] not in page
-    assert "cdn.jsdelivr.net" in page
+    assert re.search(r'src="https://cdn\.jsdelivr\.net/npm/maidr@[^/"]+/dist/', page)
 
 
 def test_a_chart_is_logged_to_the_active_run(store, monkeypatch):
