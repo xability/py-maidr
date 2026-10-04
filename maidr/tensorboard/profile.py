@@ -229,6 +229,7 @@ def _convert(paths: list[str], tool: str) -> str:
 
 
 def _tables(data: str | list) -> list[dict]:
+    """A tool's JSON as a list of DataTables, whether text or parsed."""
     parsed = json.loads(data) if isinstance(data, str) else data
     return parsed if isinstance(parsed, list) else [parsed]
 
@@ -244,7 +245,13 @@ def _cells(table: dict) -> tuple[list[str], list[list[Any]]]:
 
 
 def _step_table(tables: list[dict]) -> tuple[list[str], dict[str, np.ndarray]] | None:
-    """Each step's name, and each component's milliseconds per step."""
+    """
+    Each step's name, and each component's milliseconds per step.
+
+    The step-time graph is the ``input_pipeline_analyzer`` table with a
+    ``stepnum`` column. A component that is zero at every step is left out,
+    so the legend lists only where the time went.
+    """
     for table in tables:
         columns, rows = _cells(table)
         if "stepnum" not in columns or not rows:
@@ -263,7 +270,14 @@ def _step_table(tables: list[dict]) -> tuple[list[str], dict[str, np.ndarray]] |
 
 
 def _op_types(tables: list[dict], top: int) -> list[tuple[str, float]]:
-    """The operation types with the most total self time, in milliseconds."""
+    """
+    The operation types with the most total self time, in milliseconds.
+
+    ``framework_op_stats`` gives the same operations twice, with and without
+    the ``IDLE`` row, for the dashboard's toggle; host and device operations
+    share each table. Only the first is read, so nothing is counted twice,
+    and ``IDLE`` is left out.
+    """
     totals: dict[str, float] = {}
     for table in tables:
         columns, rows = _cells(table)
@@ -285,6 +299,7 @@ def _op_types(tables: list[dict], top: int) -> list[tuple[str, float]]:
 def _draw_steps(
     names: list[str], components: dict[str, np.ndarray], session: str
 ) -> Figure:
+    """One stacked bar per step, a segment per component, in legend order."""
     fig = Figure(figsize=(max(6.0, 0.5 * len(names) + 3), 4.5))
     ax = fig.add_subplot()
     bottom = np.zeros(len(names))
@@ -302,6 +317,7 @@ def _draw_steps(
 
 
 def _draw_ops(ops: list[tuple[str, float]], session: str) -> Figure:
+    """One horizontal bar per operation type, the largest at the top."""
     fig = Figure(figsize=(7.0, 0.4 * len(ops) + 1.6))
     ax = fig.add_subplot()
     kinds = [kind for kind, _ in ops][::-1]

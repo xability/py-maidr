@@ -156,3 +156,48 @@ def test_the_latest_session_is_chosen_the_same_whatever_the_order(tmp_path):
     sessions = find_profiles(tmp_path)
     latest = max(sessions, key=lambda name: (name.rsplit("/", 1)[-1], name))
     assert latest == "b/2026_10_04_12_00_00"
+
+
+def test_the_converter_is_called_and_its_bytes_decoded(monkeypatch):
+    import types
+
+    calls = []
+
+    def xspace_to_tool_data(paths, tool, params):
+        calls.append((tuple(paths), tool, params))
+        return OP_STATS.encode("utf-8"), "application/json"
+
+    convert = types.ModuleType("raw_to_tool_data")
+    convert.xspace_to_tool_data = xspace_to_tool_data
+    package = types.ModuleType("xprof.convert")
+    package.raw_to_tool_data = convert
+    monkeypatch.setitem(sys.modules, "xprof", types.ModuleType("xprof"))
+    monkeypatch.setitem(sys.modules, "xprof.convert", package)
+    monkeypatch.setitem(sys.modules, "xprof.convert.raw_to_tool_data", convert)
+    assert profile_module._convert(["a.xplane.pb"], "framework_op_stats") == OP_STATS
+    assert calls == [(("a.xplane.pb",), "framework_op_stats", {})]
+
+
+def test_the_older_profile_plugin_is_used_without_xprof(monkeypatch):
+    import types
+
+    convert = types.ModuleType("raw_to_tool_data")
+    convert.xspace_to_tool_data = lambda paths, tool, params: (INPUT_PIPELINE, "")
+    package = types.ModuleType("tensorboard_plugin_profile.convert")
+    package.raw_to_tool_data = convert
+    monkeypatch.setitem(sys.modules, "xprof", None)
+    monkeypatch.setitem(sys.modules, "xprof.convert", None)
+    monkeypatch.setitem(
+        sys.modules, "tensorboard_plugin_profile", types.ModuleType("tbpp")
+    )
+    monkeypatch.setitem(sys.modules, "tensorboard_plugin_profile.convert", package)
+    monkeypatch.setitem(
+        sys.modules, "tensorboard_plugin_profile.convert.raw_to_tool_data", convert
+    )
+    assert profile_module._convert(["a"], "input_pipeline_analyzer") == INPUT_PIPELINE
+
+
+def test_the_gallery_draws_the_same_tables_the_tests_read():
+    docs = Path(__file__).parents[2] / "docs" / "tensorboard-profile"
+    assert (docs / "input_pipeline_analyzer.json").read_text() == INPUT_PIPELINE
+    assert (docs / "framework_op_stats.json").read_text() == OP_STATS
