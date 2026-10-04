@@ -4,9 +4,10 @@ Installed with ``pip install "maidr[tensorboard]"``, TensorBoard finds this
 plugin through its ``tensorboard_plugins`` entry point and shows a **maidr**
 tab beside its own dashboards. The tab lists the charts py-maidr reads from
 the log directory TensorBoard was started with -- scalars, distributions,
-histograms, a hyperparameter sweep and the Embedding Projector's embeddings
--- and shows the one picked, read by maidr: from the keyboard, as sound, as
-text and in braille.
+histograms, PR curves, a hyperparameter sweep, the Embedding Projector's
+embeddings, a profile and the Keras model graph -- and shows the one picked,
+read by maidr: from the keyboard, as sound, as text and in braille. A model
+graph needs a maidr.js release that carries the ``directed_graph`` trace.
 
 TensorBoard imports this module, not ``import maidr``; it is the one module
 of py-maidr that imports TensorBoard.
@@ -33,6 +34,7 @@ _KINDS = (
     "hparams",
     "projector",
     "profile",
+    "graph",
 )
 
 #: What names a chart of each kind, beyond its kind.
@@ -42,6 +44,7 @@ _REQUIRED = {
     "histograms": ("tag", "run"),
     "pr_curves": ("tag",),
     "projector": ("tag",),
+    "graph": ("run",),
 }
 
 #: One chart is drawn at a time; see :func:`chart_page`.
@@ -181,6 +184,8 @@ def list_charts(logdir: str) -> list[dict]:
         load_pr_curves,
         load_scalars,
     )
+    from maidr.tensorboard.events import KERAS_MODEL_PLUGIN
+    from maidr.tensorboard.logdir import load
     from maidr.tensorboard.projector import _CONFIG, load_embeddings
 
     charts: list[dict] = []
@@ -230,6 +235,11 @@ def list_charts(logdir: str) -> list[dict]:
                             },
                         }
                     )
+        for by_run in load(logdir, KERAS_MODEL_PLUGIN, tags=None, runs=None).values():
+            for run in by_run:
+                charts.append(
+                    {"title": f"Graph: {run}", "query": {"kind": "graph", "run": run}}
+                )
         if os.path.isfile(os.path.join(logdir, _CONFIG)):
             for embedding in load_embeddings(logdir):
                 charts.append(
@@ -256,8 +266,8 @@ def chart_page(
     logdir : str
         The log directory.
     kind : str
-        One of ``scalars``, ``distributions``, ``histograms``, ``hparams``
-        or ``projector``.
+        One of ``scalars``, ``distributions``, ``histograms``, ``pr_curves``,
+        ``hparams``, ``projector``, ``profile`` or ``graph``.
     tag, run, index : str, optional
         Which chart of that kind: its tag, its run, or for ``hparams`` its
         position (``0`` parallel coordinates, ``1`` scatter matrix).
@@ -320,6 +330,10 @@ def _chart_page(
 
             charts = maidr.read_tensorboard_profile(
                 logdir, session=tag, charts=[CHARTS[int(index or 0)]]
+            )
+        elif kind == "graph":
+            charts = maidr.read_tensorboard_graph(
+                logdir, runs=[run], expand_nested=True
             )
         else:
             charts = [

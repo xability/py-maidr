@@ -2,8 +2,8 @@
 
 Not run by the tests: the files it writes are checked in, so the tests need
 neither TensorFlow nor PyTorch. Run it again by hand, in an environment with
-``tensorflow``, ``torch`` and ``tensorboard`` installed, when a writer changes
-what it writes::
+``tensorflow``, ``tf_keras``, ``torch`` and ``tensorboard`` installed, when a
+writer changes what it writes::
 
     python tests/tensorboard/fixtures/make_fixtures.py [name ...]
 
@@ -13,7 +13,8 @@ Each log directory is written by the library a user would write it with, and
 ``expected.json`` beside it records what TensorBoard itself reads from it --
 through its own ``EventMultiplexer``, which is what its Scalars dashboard
 plots -- so the tests compare maidr's reader against TensorBoard rather than
-against a writer of maidr's own.
+against a writer of maidr's own. A Keras model graph's directory also has the
+model's own ``model.to_json()`` beside it, as ``<name>.model.json``.
 """
 
 from __future__ import annotations
@@ -235,6 +236,60 @@ def torch_pr_curves(logdir: str) -> None:
             )
             writer.add_pr_curve("positive", labels, scores, global_step=step)
         writer.close()
+def _residual_model(keras):
+    """A functional model with a nested ``Sequential`` block and a skip over it."""
+    keras.utils.set_random_seed(0)
+    inputs = keras.Input((8,), name="features")
+    x = keras.layers.Dense(16, activation="relu", name="dense_in")(inputs)
+    block = keras.Sequential(
+        [
+            keras.layers.Dense(
+                16, activation="relu", name="block_dense_1", input_shape=(16,)
+            ),
+            keras.layers.Dense(16, name="block_dense_2"),
+        ],
+        name="residual_block",
+    )
+    x = keras.layers.Add(name="skip")([x, block(x)])
+    outputs = keras.layers.Dense(1, activation="sigmoid", name="output")(x)
+    return keras.Model(inputs, outputs, name="residual_model")
+
+
+def _fit_with_graph(keras, logdir: str) -> None:
+    """One epoch with ``write_graph=True``; the model's JSON saved beside it."""
+    model = _residual_model(keras)
+    model.compile("adam", "binary_crossentropy")
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=(64, 8)).astype("float32")
+    y = (x[:, 0] > 0).astype("float32")
+    model.fit(
+        x,
+        y,
+        epochs=1,
+        verbose=0,
+        callbacks=[
+            keras.callbacks.TensorBoard(
+                logdir, histogram_freq=0, write_graph=True, update_freq="epoch"
+            )
+        ],
+    )
+    with open(f"{logdir}.model.json", "w") as out:
+        json.dump(json.loads(model.to_json()), out, indent=1)
+        out.write("\n")
+
+
+def keras_graph(logdir: str) -> None:
+    """Keras 3's ``TensorBoard`` callback logging the model it trains."""
+    import keras
+
+    _fit_with_graph(keras, logdir)
+
+
+def tf_keras_graph(logdir: str) -> None:
+    """The same with Keras 2 (``tf_keras``), whose config format differs."""
+    import tf_keras
+
+    _fit_with_graph(tf_keras, logdir)
 
 
 def tensorboard_view(logdir: str, plugin: str = "scalars") -> dict:
@@ -242,7 +297,7 @@ def tensorboard_view(logdir: str, plugin: str = "scalars") -> dict:
     What TensorBoard reads: run -> tag -> [[step, wall_time, value], ...].
 
     A scalar's value is a number, a histogram's its buckets as a list of
-    ``[left, right, count]``.
+    ``[left, right, count]``, a Keras model's its JSON.
     """
     from tensorboard.backend.event_processing import plugin_event_multiplexer
     from tensorboard.util import tensor_util
@@ -254,7 +309,7 @@ def tensorboard_view(logdir: str, plugin: str = "scalars") -> dict:
     for run, tags in sorted(mux.PluginRunToTagToContent(plugin).items()):
         for tag in sorted(tags):
             view.setdefault(run, {})[tag] = [
-                [e.step, e.wall_time, tensor_util.make_ndarray(e.tensor_proto).tolist()]
+                [e.step, e.wall_time, _plain(tensor_util.make_ndarray(e.tensor_proto))]
                 for e in mux.Tensors(run, tag)
             ]
     return view
@@ -290,6 +345,8 @@ WRITERS = {
     "hparams_sweep": (hparams_sweep, "hparams"),
     "torch_embedding": (torch_embedding, "projector"),
     "torch_pr_curves": (torch_pr_curves, "pr_curves"),
+    "keras_graph": (keras_graph, "graph_keras_model"),
+    "tf_keras_graph": (tf_keras_graph, "graph_keras_model"),
 }
 
 
@@ -317,6 +374,19 @@ def main(names: list[str]) -> None:
             with open(path, "w") as out:
                 json.dump(_finite(distributions_view(expected)), out, allow_nan=False)
                 out.write("\n")
+
+
+def _plain(array: np.ndarray):
+    """A tensor as JSON holds it: a string tensor's bytes as text."""
+
+    def text(value):
+        if isinstance(value, bytes):
+            return value.decode("utf-8")
+        if isinstance(value, list):
+            return [text(item) for item in value]
+        return value
+
+    return text(array.tolist())
 
 
 def _finite(value):

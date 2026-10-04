@@ -1,9 +1,9 @@
-"""Read the scalar and histogram summaries out of TensorBoard event files.
+"""Read the scalar, histogram and Keras model summaries out of event files.
 
 An event file is a sequence of TFRecords, each holding one ``Event`` protocol
-buffer. Only the few fields a scalar or a histogram needs are decoded here, by
-hand, so that reading a log directory needs neither TensorFlow nor TensorBoard
-nor protobuf:
+buffer. Only the few fields a scalar, a histogram or a model needs are decoded
+here, by hand, so that reading a log directory needs neither TensorFlow nor
+TensorBoard nor protobuf:
 
 * ``Event``: ``wall_time`` (1), ``step`` (2), ``file_version`` (3),
   ``summary`` (5) and ``session_log`` (7);
@@ -12,7 +12,7 @@ nor protobuf:
   ``tensor`` (8) and ``metadata`` (9), whose ``plugin_data.plugin_name`` says
   what a tensor holds;
 * ``TensorProto``: ``dtype`` (1), ``tensor_shape`` (2), ``tensor_content``
-  (4) and the typed value lists;
+  (4) and the typed value lists, ``string_val`` (8) among them;
 * ``HistogramProto``: ``min`` (1), ``max`` (2), ``bucket_limit`` (6) and
   ``bucket`` (7).
 
@@ -21,6 +21,10 @@ legacy ``simple_value`` and a histogram as the legacy ``histo``; TensorFlow 2
 and Keras write a ``tensor`` whose metadata names the ``scalars`` or
 ``histograms`` plugin, on the first value of a tag only. Both are read, as
 TensorBoard reads them.
+
+Keras's ``TensorBoard`` callback, with ``write_graph=True``, also writes the
+model's config: a string tensor tagged ``keras`` whose metadata names the
+``graph_keras_model`` plugin, holding the JSON ``model.to_json()`` returns.
 """
 
 from __future__ import annotations
@@ -44,6 +48,8 @@ PR_CURVES_PLUGIN = "pr_curves"
 #: The plugin the HParams dashboard's summaries name; its value is the
 #: summary's ``plugin_data.content``, an ``HParamsPluginData`` message.
 HPARAMS_PLUGIN = "hparams"
+#: The plugin Keras's ``TensorBoard`` callback names for the model's config.
+KERAS_MODEL_PLUGIN = "graph_keras_model"
 
 #: ``SessionLog.status`` of a run that started, or started again.
 _SESSION_START = 1
@@ -72,7 +78,7 @@ class Run:
     One run's summaries of one plugin, tag by tag, in TensorBoard's order.
 
     A scalar is a ``float``; a histogram is an array of shape ``(k, 3)``, each
-    row a bucket's left edge, right edge and count.
+    row a bucket's left edge, right edge and count; a Keras model is its JSON.
     """
 
     #: The plugin whose summaries are kept, such as ``"scalars"``.
@@ -149,7 +155,7 @@ def read_run(paths: list[str], plugin: str = SCALARS_PLUGIN) -> Run:
     paths : list of str
         The run's event files, in the order they are read.
     plugin : str, default "scalars"
-        ``"scalars"`` or ``"histograms"``.
+        ``"scalars"``, ``"histograms"`` or ``"graph_keras_model"``.
 
     Returns
     -------
@@ -294,6 +300,8 @@ def _read_value(record: bytes, step: int, wall_time: float, run: Run) -> None:
         curve = _tensor(tensor)
         if curve is not None and curve.ndim == 2 and curve.shape[0] == 6:
             value = curve
+    elif run.plugin == KERAS_MODEL_PLUGIN and tensor is not None:
+        value = _string(tensor)
     if value is not None:
         run.add(tag, step, wall_time, value)
 
@@ -325,6 +333,14 @@ def _histogram(tensor: bytes) -> np.ndarray | None:
     if array is None or array.ndim != 2 or array.shape[1] != 3:
         return None
     return array
+
+
+def _string(tensor: bytes) -> str | None:
+    """The first string a ``TensorProto`` of strings holds, or ``None``."""
+    for number, wire, value in _fields(tensor):
+        if number == 8 and wire == 2:
+            return value.decode("utf-8", "replace")  # type: ignore[union-attr]
+    return None
 
 
 def _legacy_histogram(histo: bytes) -> np.ndarray:

@@ -1,4 +1,4 @@
-"""Read the training curves of a Keras model into maidr.
+"""Read the training curves and the graph of a Keras model into maidr.
 
 >>> from maidr.keras import plot_history
 >>> history = model.fit(x, y, validation_split=0.2, epochs=20)
@@ -7,10 +7,12 @@
 :func:`plot_history` draws what ``model.fit`` returns, one chart per metric
 with its training and validation curves, and :class:`MaidrCallback` keeps an
 accessible page of the same charts up to date while the model trains.
+:func:`plot_model` draws the model's layers as a directed graph.
 
 ``import maidr`` does not import this module, and this module imports Keras
 only to subclass its ``Callback``: :func:`plot_history` reads a plain
-``History.history`` dictionary as well, with no Keras installed.
+``History.history`` dictionary as well, and :func:`plot_model` a model's
+config or JSON, with no Keras installed.
 """
 
 from __future__ import annotations
@@ -25,13 +27,15 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 
 from maidr.util.caller_warning import warn_at_caller
+from maidr.util.graph_drawing import draw_directed_graph
+from maidr.util.keras_config import keras_graph
 
 try:
     from keras.callbacks import Callback as _Callback
 except ImportError:  # pragma: no cover - depends on the environment
     _Callback = None
 
-__all__ = ["MaidrCallback", "plot_confusion_matrix", "plot_history"]
+__all__ = ["MaidrCallback", "plot_confusion_matrix", "plot_history", "plot_model"]
 
 #: What a metric's two curves are called, in the legend and when read.
 TRAINING = "training"
@@ -270,6 +274,80 @@ def _share(matrix: np.ndarray, totals: Any) -> np.ndarray:
     with np.errstate(invalid="ignore", divide="ignore"):
         shares = np.where(totals > 0, matrix / totals, 0.0)
     return np.round(shares, 4)
+
+
+def plot_model(
+    model: Any,
+    *,
+    title: str | None = None,
+    expand_nested: bool = False,
+) -> Figure:
+    """
+    Draw a Keras model's layers as a directed graph.
+
+    One box per layer, top to bottom from the inputs, with an arrow from each
+    layer to the layers called on its output, as ``keras.utils.plot_model``
+    draws it. Left and Right walk the layers in the order data flows through
+    them; the Inputs and Outputs rotor units follow the arrows, so a skip
+    connection is heard as a second input. Each layer is announced with its
+    type and, from a built model, its output shape and parameter count.
+
+    Parameters
+    ----------
+    model : keras.Model, dict or str
+        A built ``Sequential`` or functional model, its ``get_config()``
+        dictionary, or the JSON ``model.to_json()`` returns. Only the
+        config is read, so a model saved as JSON is drawn with no Keras
+        installed.
+    title : str, optional
+        The chart's title. By default the model's name.
+    expand_nested : bool, default False
+        Whether a model used as a layer, such as a ``Sequential`` block, is
+        drawn as its own layers in a frame named for it -- a scope, opened
+        with Down and closed with Up -- rather than as one box.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The graph, ready for :func:`maidr.show`, :func:`maidr.render` or
+        :func:`maidr.save_html`. The figure is not managed by pyplot, so
+        ``plt.show()`` does not show it.
+
+    Raises
+    ------
+    TypeError
+        If ``model`` is not a model, a config or a model's JSON, or is a
+        subclassed model whose config Keras cannot give.
+    ValueError
+        If ``model`` is JSON that does not parse, or a config with no layers.
+
+    Notes
+    -----
+    The chart is a ``directed_graph``, an experimental type that needs a
+    maidr.js release carrying it; an older one shows the drawing without
+    reading it.
+
+    Both config formats are read: Keras 3's, and Keras 2's (``tf.keras``).
+    A layer called more than once is one box fed by everything it was called
+    on. A layer's attributes are its type and, where its config has them, its
+    units, filters, kernel size, activation and rate; a built model adds its
+    output shape and parameter count, which a config alone does not hold.
+
+    Examples
+    --------
+    >>> import maidr
+    >>> from maidr.keras import plot_model
+    >>> maidr.save_html(plot_model(model, expand_nested=True), "model.html")
+    """
+    name, nodes = keras_graph(model, expand_nested=expand_nested)
+    if not nodes:
+        raise ValueError("maidr found no layers in this model's config.")
+    return draw_directed_graph(
+        nodes,
+        title=title if title is not None else name or "Model",
+        node_label="Layer",
+        caption="Layer type",
+    )
 
 
 class MaidrCallback(_Callback if _Callback is not None else object):

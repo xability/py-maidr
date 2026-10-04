@@ -23,7 +23,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 def logdir(tmp_path) -> Path:
     """Scalars, histograms, a sweep and an embedding under one log directory."""
     root = tmp_path / "logs"
-    for name in ("torch", "tf_histograms", "hparams_sweep"):
+    for name in ("torch", "tf_histograms", "hparams_sweep", "keras_graph"):
         shutil.copytree(FIXTURES / name, root / name)
     for path in (FIXTURES / "torch_embedding").iterdir():
         if path.name.startswith("events"):
@@ -77,6 +77,7 @@ def test_every_chart_the_directory_holds_is_listed(logdir):
     assert "HParams: parallel coordinates" in titles
     assert "HParams: scatter matrix" in titles
     assert "Projector: animals:00000" in titles
+    assert "Graph: keras_graph/train" in titles
     assert charts == list_charts(str(logdir))
 
 
@@ -90,6 +91,7 @@ def test_every_chart_the_directory_holds_is_listed(logdir):
         ),
         ({"kind": "hparams", "index": "0"}, '"type": "parallel_coordinates"'),
         ({"kind": "projector", "tag": "animals:00000"}, '"type": "point"'),
+        ({"kind": "graph", "run": "keras_graph/train"}, '"type": "directed_graph"'),
     ],
 )
 def test_a_chart_is_a_self_contained_maidr_page(logdir, query, layer):

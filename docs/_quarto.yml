@@ -320,7 +320,9 @@ quartodoc:
         a hyperparameter sweep with `maidr.read_tensorboard_hparams()`, and
         the Embedding Projector with `maidr.read_tensorboard_projector()`,
         PR curves with `maidr.read_tensorboard_pr_curves()`, a profile's
-        step-time graph and top operations with `maidr.read_tensorboard_profile()`, and pass a chart either returns to `maidr.show()`,
+        step-time graph and top operations with `maidr.read_tensorboard_profile()`,
+        the Keras model graph with `maidr.read_tensorboard_graph()`, and pass
+        a chart any of them returns to `maidr.show()`,
         `maidr.render()` or `maidr.save_html()`; or read the values
         themselves with `maidr.tensorboard.load_scalars()` and
         `maidr.tensorboard.load_histograms()`. Experimental.
@@ -346,11 +348,13 @@ quartodoc:
         - tensorboard.profile.profile_charts
         - tensorboard.load_embeddings
         - tensorboard.Embedding
-    - title: Drawing the training curves of a Keras model
+        - read_tensorboard_graph
+    - title: Drawing the training curves and graph of a Keras model
       desc: >
         Draw what `model.fit` returns with `maidr.keras.plot_history()` and a
         classifier's confusion matrix with
-        `maidr.keras.plot_confusion_matrix()`, or
+        `maidr.keras.plot_confusion_matrix()`, its layers with
+        `maidr.keras.plot_model()`, or
         keep an accessible page up to date while the model trains with
         `maidr.keras.MaidrCallback`. Import `maidr.keras` to use them.
         Experimental.
@@ -360,6 +364,7 @@ quartodoc:
       contents:
         - plot_history
         - plot_confusion_matrix
+        - plot_model
         - MaidrCallback
     - title: Registering and releasing figures
       desc: >

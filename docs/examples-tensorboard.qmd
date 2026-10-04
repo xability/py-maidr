@@ -1,6 +1,6 @@
 ---
 title: "TensorBoard Accessible Chart Examples"
-description: "Code examples showing how to make TensorBoard's charts accessible with py-maidr: the scalars and histograms Keras, TensorFlow and PyTorch log, read from the log directory without TensorFlow."
+description: "Code examples showing how to make TensorBoard's charts accessible with py-maidr: the scalars and histograms Keras, TensorFlow and PyTorch log, and the Keras model graph, read from the log directory without TensorFlow."
 jupyter: python3
 html-table-processing: none
 resources:
@@ -10,6 +10,7 @@ resources:
   - tensorboard-projector/**
   - tensorboard-pr-curves/**
   - tensorboard-profile/**
+  - tensorboard-graph/**
 filters:
   - line-highlight
 ---
@@ -47,7 +48,8 @@ curves of a model can be compared point by point.
 | Embedding Projector, as a 2D scatter of the principal components | yes |
 | PR curves | yes |
 | Profile: step-time graph and top operations (needs `xprof`) | yes |
-| Images, graphs | not yet |
+| The Keras model graph, as a directed graph [experimental] | yes |
+| Images, op-level graphs | not yet |
 
 The examples read `tensorboard-logs/`, the log directory of a small model trained for twelve epochs with the `TensorBoard` callback.
 
@@ -63,7 +65,8 @@ tensorboard --logdir logs
 
 The tab lists every chart py-maidr reads from the log directory -- scalars,
 distributions, histograms, PR curves, a hyperparameter sweep, the Embedding
-Projector and, with `xprof` installed, a profile -- in one labelled picker, and shows the one picked, read by maidr. The
+Projector, the Keras model graph and, with `xprof` installed, a profile -- in
+one labelled picker, and shows the one picked, read by maidr. The
 **Reload** button reads the log directory again, so a run that is still
 training can be followed; nothing reloads on its own, so your place in a chart
 is never taken from you. The page works without a network: maidr.js is served
@@ -278,3 +281,30 @@ type.
 #| fig-alt: Parallel coordinates of four sessions across the learning rate, optimizer, units, dropout, accuracy and validation loss
 maidr.show(parallel)
 ```
+
+### Model Graph [experimental]
+
+`maidr.read_tensorboard_graph()` reads what TensorBoard's Graphs dashboard
+shows under its *Keras* tag: the model Keras's `TensorBoard` callback logs
+with `write_graph=True`, its default. One chart per run that logged a model,
+drawn as [`maidr.keras.plot_model()`](examples-keras.qmd#model-graph-experimental)
+draws it: one box per layer, top to bottom from the inputs, with an arrow from
+each layer to the layers called on its output. Left and right walk the layers
+in the order data flows through them; the Inputs and Outputs rotor units
+follow the arrows. `expand_nested=True` opens a model used as a layer into a
+scope of its own layers. The example reads `tensorboard-graph/`, a small
+functional model with a residual block and a skip connection around it,
+trained for one epoch.
+
+```{python}
+#| warning: false
+#| fig-alt: Directed graph of a model's six layers, top to bottom, with a residual block framed in the middle and a skip connection around it into an Add layer
+(graph,) = maidr.read_tensorboard_graph("tensorboard-graph", expand_nested=True)
+maidr.show(graph)
+```
+
+Only Keras's own record of the model is read, not the op-level graph
+TensorFlow can log beside it, which lists every operation and runs to
+hundreds of nodes for a few layers. A directed graph is an experimental plot
+type, and reading one needs a maidr.js release that carries the
+`directed_graph` trace.
