@@ -205,9 +205,7 @@ class IntervalPlot(MaidrPlot, DictMergerMixin):
         found: list[tuple] = []
 
         polygons = [art for art in self._intervals if isinstance(art, Polygon)]
-        collections = [
-            art for art in self._intervals if isinstance(art, LineCollection)
-        ]
+        collections = [art for art in self._intervals if isinstance(art, LineCollection)]
 
         if polygons:
             named = names_for(self.ax, [_face_of(poly) for poly in polygons])
@@ -223,9 +221,7 @@ class IntervalPlot(MaidrPlot, DictMergerMixin):
             self._support_highlighting = False
 
         for collection in collections:
-            segments = [
-                np.asarray(seg, dtype=float) for seg in collection.get_segments()
-            ]
+            segments = [np.asarray(seg, dtype=float) for seg in collection.get_segments()]
             named = names_for(self.ax, _segment_colors(collection, len(segments)))
             for segment, name in zip(segments, named):
                 if len(segment) < 2:

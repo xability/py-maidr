@@ -133,8 +133,8 @@ class MplfinanceBarPlot(
             if isinstance(y_axis, dict):
                 y_label = y_axis.get(MaidrKey.LABEL)
                 if y_label:
-                    y_axis[MaidrKey.LABEL] = MplfinanceDataExtractor.clean_axis_label(
-                        y_label
+                    y_axis[MaidrKey.LABEL] = (
+                        MplfinanceDataExtractor.clean_axis_label(y_label)
                     )
 
         return ax_data
@@ -164,7 +164,8 @@ class MplfinanceBarPlot(
         # to a reader who was given no name for it, which is better than the
         # empty string the base render leaves for an untitled layer.
         base_schema[MaidrKey.TITLE] = (
-            str(base_schema.get(MaidrKey.TITLE, "") or "").strip() or "Volume Bar Plot"
+            str(base_schema.get(MaidrKey.TITLE, "") or "").strip()
+            or "Volume Bar Plot"
         )
 
         previous_axes = base_schema.get(MaidrKey.AXES, {}) or {}

@@ -67,7 +67,9 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
             return None
 
         cells, x_edges, y_edges = binned
-        z = np.array([[_traced(value) for value in row] for row in cells], dtype=float)
+        z = np.array(
+            [[_traced(value) for value in row] for row in cells], dtype=float
+        )
         if z.shape[0] < 2 or z.shape[1] < 2:
             return None
 
@@ -90,7 +92,10 @@ class PlotlyHistogram2dContourPlot(PlotlyContourPlot):
 
         cells, _, _ = binned
         return np.array(
-            [[np.nan if value is None else value for value in row] for row in cells],
+            [
+                [np.nan if value is None else value for value in row]
+                for row in cells
+            ],
             dtype=float,
         )
 
@@ -146,5 +151,6 @@ def _traced(value: Any) -> float:
 def _centers(edges: np.ndarray) -> list[float]:
     """The middle of each bin, which is where plotly puts the grid's points."""
     return [
-        float((edges[index] + edges[index + 1]) / 2) for index in range(len(edges) - 1)
+        float((edges[index] + edges[index + 1]) / 2)
+        for index in range(len(edges) - 1)
     ]

@@ -105,7 +105,11 @@ def scatter(wrapped, instance, args, kwargs) -> Axes | PathCollection:
     # seaborn one (#623).
     if drew_nothing(plot):
         return plot
-    if before is not None and counted is plot and len(plot.collections) == before:
+    if (
+        before is not None
+        and counted is plot
+        and len(plot.collections) == before
+    ):
         return plot
 
     ax = FigureManager.get_axes(plot)

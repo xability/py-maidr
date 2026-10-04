@@ -204,7 +204,6 @@ def _auto_shift_bins(
     data_max : float
         Maximum data value.
     """
-
     def near_edge(v: float | np.ndarray) -> bool | np.ndarray:
         return (1 + (v - bin_start) * 100 / dtick) % 100 < 2
 
@@ -238,7 +237,11 @@ def _auto_shift_bins(
 
     # Case 2: Few values land at midpoints — check edge clustering.
     if mid_count < n * 0.1:
-        if edge_count > n * 0.3 or near_edge(data_min) or near_edge(data_max):
+        if (
+            edge_count > n * 0.3
+            or near_edge(data_min)
+            or near_edge(data_max)
+        ):
             binshift = dtick / 2
             if bin_start + binshift < data_min:
                 return bin_start + binshift
@@ -676,7 +679,9 @@ class PlotlyHistogramPlot(PlotlyPlot):
         # while `searchsorted` sorts it past the last edge -- so it would
         # come back as a bin one past the end, and the counts below would
         # then be one longer than the grid they belong to.
-        outside = ~np.isfinite(arr) | (arr < bin_edges[0]) | (arr >= bin_edges[-1])
+        outside = (
+            ~np.isfinite(arr) | (arr < bin_edges[0]) | (arr >= bin_edges[-1])
+        )
         assignment[outside] = -1
         return assignment
 
@@ -690,7 +695,9 @@ class PlotlyHistogramPlot(PlotlyPlot):
         does not.
         """
         assignment = PlotlyHistogramPlot._bin_assignment(arr, bin_edges)
-        return np.bincount(assignment[assignment >= 0], minlength=len(bin_edges) - 1)
+        return np.bincount(
+            assignment[assignment >= 0], minlength=len(bin_edges) - 1
+        )
 
     def _extract_plot_data(self) -> list[dict]:
         values, _ = paired_arrays(self._trace, self._binned)

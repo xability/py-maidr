@@ -20,6 +20,7 @@ from maidr.util.svg_utils import (
 _DEFAULT_MAX_SMOOTH_POINTS = 30
 
 
+
 class SmoothPlot(MaidrPlot):
     """
     Extracts and represents a regression line as a smooth plot for MAIDR.

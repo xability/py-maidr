@@ -113,8 +113,7 @@ class LevelExtractorMixin:
             return None
 
         return [
-            float(position)
-            for position, _ in LevelExtractorMixin._ticks_in_view(ax, key)
+            float(position) for position, _ in LevelExtractorMixin._ticks_in_view(ax, key)
         ]
 
     @staticmethod
@@ -179,7 +178,9 @@ class LevelExtractorMixin:
                 and (position <= high or _within_tolerance_of(position, high))
             )
         ]
-        return [(ticks[index], labels[index]) for index in kept if index < len(labels)]
+        return [
+            (ticks[index], labels[index]) for index in kept if index < len(labels)
+        ]
 
     @staticmethod
     def extract_level(ax: Axes, key: MaidrKey = MaidrKey.X) -> Optional[List[str]]:

@@ -126,7 +126,9 @@ def _hue_colors(plotter: Any) -> dict | None:
     return named if len(named) == len(lookup) else None
 
 
-def _hue_levels(plotter: Any, drawn: list) -> list[tuple[str, list[list[int]]]] | None:
+def _hue_levels(
+    plotter: Any, drawn: list
+) -> list[tuple[str, list[list[int]]]] | None:
     """
     One ``(name, members)`` group per hue level present among these points.
 

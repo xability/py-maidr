@@ -97,9 +97,7 @@ def _overshoot(change: float) -> float:
 
 
 def _iterate(
-    grid: list[list[float]],
-    empties: list[tuple[int, int, float]],
-    overshoot: float = 0.0,
+    grid: list[list[float]], empties: list[tuple[int, int, float]], overshoot: float = 0.0
 ) -> float:
     """Move every hole to its neighbours' average, and report the largest move.
 

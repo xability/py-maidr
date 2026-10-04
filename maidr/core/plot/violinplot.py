@@ -110,11 +110,15 @@ class ViolinDataExtractor:
             else:
                 # When hue is the same column as the category, avoid
                 # duplicated labels like "Fair_Fair".
-                hue_is_cat = hue == cat_col
+                hue_is_cat = (hue == cat_col)
 
                 if x_order is not None or hue_order is not None:
-                    x_cats = x_order if x_order is not None else df[cat_col].unique()
-                    h_cats = hue_order if hue_order is not None else df[hue].unique()
+                    x_cats = (
+                        x_order if x_order is not None else df[cat_col].unique()
+                    )
+                    h_cats = (
+                        hue_order if hue_order is not None else df[hue].unique()
+                    )
                     for gx in x_cats:
                         for gh in h_cats:
                             gdf = df[(df[cat_col] == gx) & (df[hue] == gh)]
@@ -123,7 +127,9 @@ class ViolinDataExtractor:
                                 groups.append(label)
                                 values.append(gdf[val_col].dropna().values)
                 else:
-                    for (gx, gh), gdf in df.groupby([cat_col, hue], observed=False):
+                    for (gx, gh), gdf in df.groupby(
+                        [cat_col, hue], observed=False
+                    ):
                         label = str(gx) if hue_is_cat else f"{gx}_{gh}"
                         groups.append(label)
                         values.append(gdf[val_col].dropna().values)

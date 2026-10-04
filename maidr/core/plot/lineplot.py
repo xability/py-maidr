@@ -66,6 +66,7 @@ def _has_position(x: object) -> bool:
         return True
 
 
+
 def _reading(y: object) -> object:
     """
     A sample's value, or ``None`` where it was positioned but never measured.
@@ -101,6 +102,7 @@ def _reading(y: object) -> object:
         return y if math.isfinite(y) else None  # type: ignore[arg-type]
     except TypeError:
         return y
+
 
 
 def _drew_something(line: Line2D) -> bool:
@@ -447,9 +449,7 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             # swatch claims, a swatch naming two lines, or fewer than two
             # lines to tell apart. Position is the fallback for all of those,
             # so nothing that was named before stops being named.
-            by_color = names_for(
-                ax_legend_source, [_rgba(line.get_color()) for line in all_lines]
-            )
+            by_color = names_for(ax_legend_source, [_rgba(line.get_color()) for line in all_lines])
             if any(name is not None for name in by_color):
                 # A line no swatch claimed is recorded as `None` rather than
                 # filtered out, because the lookup below falls through to the
@@ -557,10 +557,8 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             return
 
         lower, upper, region = band_edges_at(
-            self.ax,
-            np.asarray(positions, dtype=float),
-            np.asarray(values, dtype=float),
-            tuple(claimed),
+            self.ax, np.asarray(positions, dtype=float),
+            np.asarray(values, dtype=float), tuple(claimed),
         )
         if region is None:
             return

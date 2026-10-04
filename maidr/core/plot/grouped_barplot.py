@@ -158,7 +158,9 @@ def shares_a_category(rows: list[list[Rectangle | None]]) -> bool:
     bool
         True when a category holds bars from at least two containers.
     """
-    return any(sum(patch is not None for patch in column) > 1 for column in zip(*rows))
+    return any(
+        sum(patch is not None for patch in column) > 1 for column in zip(*rows)
+    )
 
 
 def every_category_has_a_bar(rows: list[list[Rectangle | None]]) -> bool:

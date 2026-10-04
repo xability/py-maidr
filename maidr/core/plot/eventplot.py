@@ -296,5 +296,6 @@ class EventPlot(MaidrPlot):
             return []
 
         return [
-            f"g[id='{gid}'] > path:nth-of-type({index + 1})" for index in self._marks
+            f"g[id='{gid}'] > path:nth-of-type({index + 1})"
+            for index in self._marks
         ]

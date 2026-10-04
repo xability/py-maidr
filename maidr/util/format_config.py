@@ -539,9 +539,7 @@ class FormatConfigBuilder:
             date_format = formatter.fmt
 
         # Generate JS function body for date formatting
-        js_body = (
-            JSBodyConverter.date_format_to_js(date_format) if date_format else None
-        )
+        js_body = JSBodyConverter.date_format_to_js(date_format) if date_format else None
 
         if js_body:
             return FormatConfig(function=js_body)

@@ -99,7 +99,9 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
 
     def render(self) -> dict:
         schema = super().render()
-        schema[MaidrKey.ORIENTATION] = "horz" if self._is_horizontal() else "vert"
+        schema[MaidrKey.ORIENTATION] = (
+            "horz" if self._is_horizontal() else "vert"
+        )
         return schema
 
     def _extract_plot_data(self) -> list[dict]:

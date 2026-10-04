@@ -65,12 +65,16 @@ def _build_box_selector(
     base = f"{group_sel} > :nth-child({box} of g.points)"
 
     if lower_count > 0:
-        lower_sel = [f"{base} > :nth-child(-n+{lower_count} of path.point)"]
+        lower_sel = [
+            f"{base} > :nth-child(-n+{lower_count} of path.point)"
+        ]
     else:
         lower_sel = []
 
     if upper_count > 0:
-        upper_sel = [f"{base} > :nth-child(n+{lower_count + 1} of path.point)"]
+        upper_sel = [
+            f"{base} > :nth-child(n+{lower_count + 1} of path.point)"
+        ]
     else:
         upper_sel = []
 
@@ -370,7 +374,9 @@ class PlotlyBoxPlot(PlotlyPlot):
         group = self._layer_position + 1
         return [
             _build_box_selector(prefix, group, index + 1, lower, upper)
-            for index, (lower, upper) in enumerate(self._outlier_counts or [(0, 0)])
+            for index, (lower, upper) in enumerate(
+                self._outlier_counts or [(0, 0)]
+            )
         ]
 
     def _is_horizontal(self) -> bool:
@@ -379,7 +385,9 @@ class PlotlyBoxPlot(PlotlyPlot):
 
     def render(self) -> dict:
         schema = super().render()
-        schema[MaidrKey.ORIENTATION] = "horz" if self._is_horizontal() else "vert"
+        schema[MaidrKey.ORIENTATION] = (
+            "horz" if self._is_horizontal() else "vert"
+        )
         return schema
 
     def _extract_plot_data(self) -> list[dict]:

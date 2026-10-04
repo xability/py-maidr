@@ -161,7 +161,9 @@ class CandlestickPlot(MaidrPlot):
 
         self._drawn_rows = []
         try:
-            columns = [df[name].to_numpy() for name in ("Open", "High", "Low", "Close")]
+            columns = [
+                df[name].to_numpy() for name in ("Open", "High", "Low", "Close")
+            ]
         except KeyError:
             return []
         # A stray string in Volume is no reason to lose the candle: coerced to
@@ -298,7 +300,9 @@ class CandlestickPlot(MaidrPlot):
                 return {
                     "body": [f"{body}:nth-child({row + 1})" for row in drawn],
                     "wickLow": [f"{wick}:nth-child({row + 1})" for row in drawn],
-                    "wickHigh": [f"{wick}:nth-child({N + row + 1})" for row in drawn],
+                    "wickHigh": [
+                        f"{wick}:nth-child({N + row + 1})" for row in drawn
+                    ],
                 }
 
             selectors = {

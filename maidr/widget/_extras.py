@@ -39,10 +39,9 @@ def missing_extra_error(error: ImportError, package: str, extra: str) -> ImportE
     ... except ImportError as error:
     ...     raise missing_extra_error(error, "shiny", "shiny") from error
     """
-    absent = (
-        isinstance(error, ModuleNotFoundError)
-        and (error.name or "").partition(".")[0] == package
-    )
+    absent = isinstance(error, ModuleNotFoundError) and (
+        error.name or ""
+    ).partition(".")[0] == package
 
     if absent:
         return ImportError(

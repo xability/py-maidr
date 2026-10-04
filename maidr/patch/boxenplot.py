@@ -17,7 +17,9 @@ from maidr.patch.common import (
 )
 
 
-def boxen(wrapped: Callable, instance: Any, args: tuple, kwargs: dict) -> Axes:
+def boxen(
+    wrapped: Callable, instance: Any, args: tuple, kwargs: dict
+) -> Axes:
     """
     Draw ``seaborn.boxenplot`` quietly and leave the reading to the plotter.
 

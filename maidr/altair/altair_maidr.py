@@ -76,7 +76,8 @@ def _spec_to_safe_json(spec: dict) -> str:
     """
     payload = json.dumps(spec, ensure_ascii=False, separators=(",", ":"))
     return (
-        payload.replace("</", "<\\/")
+        payload
+        .replace("</", "<\\/")
         .replace("\u2028", "\\u2028")
         .replace("\u2029", "\\u2029")
     )
