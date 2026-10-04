@@ -18,7 +18,9 @@ from __future__ import annotations
 import numpy as np
 
 
-def _perpendicular_distance(points: np.ndarray, start: np.ndarray, end: np.ndarray) -> np.ndarray:
+def _perpendicular_distance(
+    points: np.ndarray, start: np.ndarray, end: np.ndarray
+) -> np.ndarray:
     """
     Compute perpendicular distances from *points* to the line defined by
     *start* → *end*.

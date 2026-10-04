@@ -212,7 +212,9 @@ def _span(values: np.ndarray) -> float:
     return float(values.max()) - float(values.min())
 
 
-def hist_groups(ax: Axes, collection: PatchCollection) -> list[tuple[str, list[int]]] | None:
+def hist_groups(
+    ax: Axes, collection: PatchCollection
+) -> list[tuple[str, list[int]]] | None:
     """
     The groups a color-split ``so.Bars`` layer was drawn with, or ``None``.
 

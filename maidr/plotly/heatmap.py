@@ -6,6 +6,7 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list, colorbar_title
 
+
 class PlotlyHeatmapPlot(PlotlyPlot):
     """Extract data from a Plotly heatmap trace."""
 

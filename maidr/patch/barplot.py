@@ -541,6 +541,7 @@ def _seaborn_bar_type(ax: Axes) -> PlotType:
 wrapt.wrap_function_wrapper(Axes, "bar", bar)
 wrapt.wrap_function_wrapper(Axes, "barh", bar)
 
+
 @wrapt.when_imported("seaborn")
 def _patch_seaborn(_seaborn: Any) -> None:
     """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""

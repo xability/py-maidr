@@ -194,9 +194,7 @@ def _collections(given) -> list[PathCollection]:
     return []
 
 
-def hue_groups(
-    ax: Axes, collection: Collection
-) -> list[tuple[str, list[int]]] | None:
+def hue_groups(ax: Axes, collection: Collection) -> list[tuple[str, list[int]]] | None:
     """
     The hue groups a scatter was drawn with, or ``None`` when it has none.
 
@@ -384,9 +382,7 @@ def groups_from_colors(ax: Axes, colors: list) -> list[tuple[str, list[int]]] | 
     # settled a grouped layer's layers on. The grouping itself, and the two
     # declines that go with it, are `grouped_by_name`'s -- shared with the rug
     # split, which reaches the same three decisions from a different artist.
-    return grouped_by_name(
-        [named.get(color) for color in colors], list(named.values())
-    )
+    return grouped_by_name([named.get(color) for color in colors], list(named.values()))
 
 
 class ScatterPlot(MaidrPlot, CollectionExtractorMixin, LineExtractorMixin):

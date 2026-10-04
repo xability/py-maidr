@@ -103,18 +103,6 @@ _UNKNOWN_VERSION = "0.0.0"
 MAIDR_VEGALITE_FILENAME = "vegalite.js"
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 # Same intent as the guard in ``.github/scripts/fetch-maidr-bundle.sh``:
 # only a well-formed semver is ever spliced into a URL, so neither a
 # hostile ``MAIDR_CDN_VERSION`` nor a compromised registry response can
@@ -194,60 +182,8 @@ def _is_valid_version(candidate: str) -> bool:
         ``True`` when it is safe to splice into a URL and to parse.
     """
     return (
-        len(candidate) <= _MAX_VERSION_LEN
-        and _VERSION_RE.match(candidate) is not None
+        len(candidate) <= _MAX_VERSION_LEN and _VERSION_RE.match(candidate) is not None
     )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # Same grammar as :data:`_VERSION_RE`, with the parts named so
@@ -260,8 +196,6 @@ _RELEASE_RE = re.compile(
     rf"(?P<prerelease>-{_PRERELEASE})?"
     rf"(?:\+{_BUILD})?\Z"
 )
-
-
 
 
 def _prerelease_key(prerelease: str) -> tuple[tuple[int, int, str], ...]:

@@ -455,8 +455,10 @@ def _bars(
             panel=panel,
             title=context.title(panel),
             axes=context.axes(),
-            data=[{MaidrKey.X: labels[b["position"]], MaidrKey.Y: b["value"]}
-                  for b in ordered],
+            data=[
+                {MaidrKey.X: labels[b["position"]], MaidrKey.Y: b["value"]}
+                for b in ordered
+            ],
             selectors=[b["selector"] for b in ordered],
             extra={MaidrKey.ORIENTATION: "vert"},
         )
@@ -498,8 +500,10 @@ def _bars(
             ]
         )
         grid.append(
-            [series[key][p]["selector"] if p in series[key] else None
-             for p in positions]
+            [
+                series[key][p]["selector"] if p in series[key] else None
+                for p in positions
+            ]
         )
     return PlotnineLayer(
         panel.ax,
@@ -853,9 +857,7 @@ def _collection_rows(
     rows = []
     for group in groups:
         collections = [a for a in group.artists if type(a) is kind]
-        if len(collections) != 1 or len(collections[0].get_paths()) != len(
-            group.data
-        ):
+        if len(collections) != 1 or len(collections[0].get_paths()) != len(group.data):
             raise Unreadable(f"the {what} were not drawn as maidr expects")
         gid = _gid(collections[0])
 
@@ -893,7 +895,7 @@ def _series_name(key: tuple) -> str:
 def _series_label(context: _Context, groups: list[DrawnGroup]) -> str | None:
     """The legend title(s) of the aesthetics that name the series."""
     columns = _raw_columns(groups[0].data) if groups else []
-    names = [context.label(column[len(RAW):]) for column in columns]
+    names = [context.label(column[len(RAW) :]) for column in columns]
     names = [name for name in names if name]
     return ", ".join(dict.fromkeys(names)) or None
 

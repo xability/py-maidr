@@ -455,8 +455,10 @@ def _normalized(
     scaled = scaled.reshape(held.shape)
 
     return [
-        [None if cells[row][column] is None else float(scaled[row][column])
-         for column in range(columns)]
+        [
+            None if cells[row][column] is None else float(scaled[row][column])
+            for column in range(columns)
+        ]
         for row in range(rows)
     ]
 
@@ -485,9 +487,7 @@ def _as_payload(
 
 def _bin_label(edges: np.ndarray, index: int) -> str:
     """Name one bin by the range it covers."""
-    return (
-        f"{_edge(edges[index])}{_RANGE_SEPARATOR}{_edge(edges[index + 1])}"
-    )
+    return f"{_edge(edges[index])}{_RANGE_SEPARATOR}{_edge(edges[index + 1])}"
 
 
 def _edge(value: Any) -> str:

@@ -232,9 +232,7 @@ class PointPlot(ErrorBarPlot):
         self._elements.clear()
 
         labels = self._category_labels(is_vertical)
-        data = self._points_of(
-            self._estimate, self._intervals, is_vertical, labels, ""
-        )
+        data = self._points_of(self._estimate, self._intervals, is_vertical, labels, "")
 
         if not data:
             raise ExtractionError(self.type, self.ax)

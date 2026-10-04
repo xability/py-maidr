@@ -217,9 +217,7 @@ def get_use_cdn() -> bool | Literal["auto"]:
     """
     global _use_cdn_default
     if _use_cdn_default is None:
-        _use_cdn_default = _coerce_use_cdn(
-            os.environ.get(_USE_CDN_ENV_VAR)
-        )
+        _use_cdn_default = _coerce_use_cdn(os.environ.get(_USE_CDN_ENV_VAR))
     return _use_cdn_default
 
 
@@ -455,10 +453,7 @@ def init_notebook(
             # bundle could not be read.
             if mode is False:
                 warn_bundle_unreadable()
-            html = (
-                f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
-                f"</script>"
-            )
+            html = f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">' f"</script>"
         else:
             # json.dumps produces a JS-safe string literal (escapes quotes,
             # backslashes, newlines, etc.).  ``ensure_ascii=True`` (the
@@ -472,8 +467,7 @@ def init_notebook(
             cdn_bootstrap = ""
             if mode == "auto":
                 cdn_bootstrap = (
-                    f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
-                    f"</script>"
+                    f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">' f"</script>"
                 )
             html = (
                 f"<script>"

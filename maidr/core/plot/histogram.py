@@ -15,7 +15,6 @@ from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
 DRAWN_BARS = "_maidr_bars"
 
 
-
 class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
     def __init__(self, ax: Axes, **kwargs) -> None:
         # The bars this layer's own call drew, when the patch could say.

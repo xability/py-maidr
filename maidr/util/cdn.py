@@ -115,8 +115,7 @@ _MIN_CDN_TIMEOUT = 0.1
 # documents, so the lookup costs one short round trip per process.
 _RESOLVER_ENDPOINTS: tuple[tuple[str, str], ...] = (
     (
-        "https://data.jsdelivr.com/v1/packages/npm/maidr/resolved"
-        "?specifier=latest",
+        "https://data.jsdelivr.com/v1/packages/npm/maidr/resolved" "?specifier=latest",
         "version",
     ),
     ("https://registry.npmjs.org/-/package/maidr/dist-tags", "latest"),
@@ -809,8 +808,6 @@ def maidr_js_cdn_url() -> str:
     return cdn_url(MAIDR_JS_FILENAME)
 
 
-
-
 def maidr_css_cdn_url() -> str:
     """Return the CDN URL for ``maidr.css`` at the resolved version.
 
@@ -1107,9 +1104,7 @@ def _resolve_latest_version() -> str | None:
         return result
 
 
-def _fetch_latest_version(
-    budget: float, generation: int | None = None
-) -> str | None:
+def _fetch_latest_version(budget: float, generation: int | None = None) -> str | None:
     """Query the resolver endpoints for the concrete ``latest`` version.
 
     Parameters
@@ -1180,23 +1175,23 @@ def _fetch_latest_version(
                 headers={"Accept": "application/json", "User-Agent": "py-maidr"},
             )
             with urlopen(request, timeout=timeout) as response:
-                payload = json.loads(
-                    response.read(_MAX_RESOLVER_BYTES).decode("utf-8")
-                )
+                payload = json.loads(response.read(_MAX_RESOLVER_BYTES).decode("utf-8"))
         except HTTPError:
             # The server answered; the status was one we cannot use. That
             # is the endpoint telling us something -- a moved path, a
             # removed package, a rate limit -- and it is a different fact
             # from not having reached it at all.
-            _logger.debug("maidr: CDN version lookup rejected at %s", url,
-                          exc_info=True)
+            _logger.debug(
+                "maidr: CDN version lookup rejected at %s", url, exc_info=True
+            )
             answered_badly.append(url)
             continue
         except (ValueError, UnicodeDecodeError):
             # Bytes arrived and would not become JSON, or would not decode.
             # Reached, and unusable.
-            _logger.debug("maidr: unparseable CDN version response from %s", url,
-                          exc_info=True)
+            _logger.debug(
+                "maidr: unparseable CDN version response from %s", url, exc_info=True
+            )
             answered_badly.append(url)
             continue
         except Exception:

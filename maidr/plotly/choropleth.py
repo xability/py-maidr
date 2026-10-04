@@ -221,9 +221,7 @@ class PlotlyChoroplethPlot(PlotlyPlot):
 #: ``choroplethmapbox`` spelling shade the same regions over a tiled base map.
 #: They carry the same ``locations`` and ``z`` and are read identically -- the
 #: base map is drawing, not data (#683).
-_CHOROPLETH_TYPES = frozenset(
-    {"choropleth", "choroplethmap", "choroplethmapbox"}
-)
+_CHOROPLETH_TYPES = frozenset({"choropleth", "choroplethmap", "choroplethmapbox"})
 
 
 def is_choropleth_trace(trace: dict) -> bool:

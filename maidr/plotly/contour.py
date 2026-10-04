@@ -710,10 +710,7 @@ def _smallest_step(x: list[float], y: list[float]) -> float:
     which is the failure that would be silent.
     """
     steps = [
-        abs(b - a)
-        for axis in (x, y)
-        for a, b in zip(axis, axis[1:])
-        if abs(b - a) > 0
+        abs(b - a) for axis in (x, y) for a, b in zip(axis, axis[1:]) if abs(b - a) > 0
     ]
     return min(steps) if steps else 1.0
 

@@ -296,8 +296,9 @@ def _read_poly(along: np.ndarray, across: np.ndarray, bins: int) -> list | None:
     width = float(widths[0])
     if width <= 0:
         return None
-    if any(abs(other - width) > _WIDTH_TOLERANCE * max(abs(width), 1.0)
-           for other in widths):
+    if any(
+        abs(other - width) > _WIDTH_TOLERANCE * max(abs(width), 1.0) for other in widths
+    ):
         return None
 
     half = width / 2

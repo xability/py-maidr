@@ -85,7 +85,6 @@ def marks(container: StemContainer) -> list[tuple[int, float, float]]:
     return drawn
 
 
-
 def finite(given: tuple) -> list[tuple[int, float, float]]:
     """
     The drawable pairs of a chart that handed over its numbers directly.
@@ -111,6 +110,7 @@ def finite(given: tuple) -> list[tuple[int, float, float]]:
         drawn.append((len(drawn), x, y))
 
     return drawn
+
 
 def is_horizontal(container: StemContainer) -> bool:
     """
@@ -254,6 +254,4 @@ class LollipopPlot(MaidrPlot):
                 for index in self._drawn
             ]
 
-        return [
-            f"g[id='{gid}'] use:nth-of-type({index + 1})" for index in self._drawn
-        ]
+        return [f"g[id='{gid}'] use:nth-of-type({index + 1})" for index in self._drawn]

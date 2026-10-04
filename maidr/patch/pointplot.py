@@ -135,9 +135,7 @@ def _register_point_layer(ax: Axes, existing: list[Line2D]) -> None:
     # A chart where only *some* groups have an interval takes the branch above,
     # not this one: the undrawable lines stay in the list to hold their
     # positions, and the layer omits the bound for those groups alone.
-    FigureManager.create_maidr(
-        ax, PlotType.LINE, lines=estimates if paired else drawn
-    )
+    FigureManager.create_maidr(ax, PlotType.LINE, lines=estimates if paired else drawn)
 
 
 def _group_labels(ax: Axes, estimates: list[Line2D]) -> list[str]:
@@ -378,8 +376,7 @@ def _pairs_up(estimates: list[Line2D], intervals: list[Line2D]) -> bool:
         return False
 
     return all(
-        len(interval.get_xydata()) <= MAX_INTERVAL_VERTICES
-        for interval in intervals
+        len(interval.get_xydata()) <= MAX_INTERVAL_VERTICES for interval in intervals
     )
 
 

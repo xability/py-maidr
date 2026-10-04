@@ -256,9 +256,7 @@ def _column(values: Any) -> list:
 
 def _numeric(values: Any) -> np.ndarray:
     """A column as floats, ``None`` read as NaN the way BokehJS reads it."""
-    return np.array(
-        [np.nan if v is None else v for v in _column(values)], dtype=float
-    )
+    return np.array([np.nan if v is None else v for v in _column(values)], dtype=float)
 
 
 def visible_indices(renderer: Any, n: int) -> list[int]:

@@ -105,9 +105,7 @@ def bins_to_points(orientation: str, values: Any, edges: Any) -> list[dict]:
         # rejects the whole schema and the chart never initializes (#427).
         if not (math.isfinite(low) and math.isfinite(high)):
             continue
-        data.append(
-            HistPlot._bin_point(orientation, low, high - low, _reading(value))
-        )
+        data.append(HistPlot._bin_point(orientation, low, high - low, _reading(value)))
 
     return data
 

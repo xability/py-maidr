@@ -114,8 +114,12 @@ _READINGS: dict[str, _Reading] = {
     # singular marks leave a `Line2D` each. `SegmentLinePlot` reads those
     # segments, so the collection is handed over singular -- a layer draws one,
     # and two would be two charts (#670).
-    "Lines": _Reading(PlotType.LINE, "collections", LineCollection, DRAWN_SEGMENTS, True),
-    "Paths": _Reading(PlotType.LINE, "collections", LineCollection, DRAWN_SEGMENTS, True),
+    "Lines": _Reading(
+        PlotType.LINE, "collections", LineCollection, DRAWN_SEGMENTS, True
+    ),
+    "Paths": _Reading(
+        PlotType.LINE, "collections", LineCollection, DRAWN_SEGMENTS, True
+    ),
     # One interval per position, drawn two ways. Measured, `so.Band()` leaves
     # a `Polygon` folded lower-forward-then-upper-backward and `so.Range()`
     # leaves a `LineCollection` of one segment per position -- the same
@@ -127,14 +131,18 @@ _READINGS: dict[str, _Reading] = {
     # the name says whether the fold is a series against a baseline or a pair
     # of bounds.
     "Band": _Reading(PlotType.ERRORBAR, "patches", Polygon, DRAWN_INTERVALS),
-    "Range": _Reading(PlotType.ERRORBAR, "collections", LineCollection, DRAWN_INTERVALS),
+    "Range": _Reading(
+        PlotType.ERRORBAR, "collections", LineCollection, DRAWN_INTERVALS
+    ),
     # The continuous-x bar, which is the one seaborn draws for a histogram.
     # `Bar` is the categorical one and leaves a `BarContainer`; measured,
     # `Bars` leaves one `PatchCollection` of rectangles instead, which is
     # neither a container nor the outline `element="step"` gives -- so all
     # three of `HistPlot`'s existing ways in miss it (#670).
     "Bars": _Reading(PlotType.HIST, "collections", PatchCollection, DRAWN_BINS, True),
-    "Dash": _Reading(PlotType.SCATTER, "collections", LineCollection, DRAWN_DASHES, True),
+    "Dash": _Reading(
+        PlotType.SCATTER, "collections", LineCollection, DRAWN_DASHES, True
+    ),
     "Text": _Reading(PlotType.SCATTER, "texts", Text, DRAWN_LABELS),
 }
 
@@ -394,7 +402,6 @@ def _grouped_type(move: list[Any] | None) -> PlotType | None:
     return None
 
 
-
 def _unfolded(polygon: Polygon) -> list[tuple[float, float]] | None:
     """
     The positions and magnitudes one area polygon was folded from.
@@ -578,8 +585,7 @@ def _handovers(
             return [
                 (
                     reading.plot_type,
-                    {reading.binding: own[0], DASH_MEMBERS: members,
-                     GROUP_NAME: name},
+                    {reading.binding: own[0], DASH_MEMBERS: members, GROUP_NAME: name},
                 )
                 for name, members in groups
             ]

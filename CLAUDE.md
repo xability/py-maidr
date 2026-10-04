@@ -42,7 +42,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 ### Supported Plot Types
 
-Defined in `maidr/core/enum/plot_type.py`, which has **40** members. They do
+Defined in `maidr/core/enum/plot_type.py`, which has **41** members. They do
 not all carry the same promise -- see `docs/stability.qmd`, and keep that page
 in step when adding one (`tests/core/test_plot_type_stability.py` enforces it).
 
@@ -52,12 +52,13 @@ exercised by real readers:
 BAR, BOX, CANDLESTICK, COUNT, DODGED, HEAT, HIST, LINE, PIE, SCATTER,
 SMOOTH, STACKED, STEP, VIOLIN_BOX, VIOLIN_KDE
 
-**Experimental** (25) -- added by that roadmap or after it, none validated
+**Experimental** (26) -- added by that roadmap or after it, none validated
 with a reader, and subject to change without a deprecation period:
 
 ALLUVIAL, AREA, BOXEN, CHOROPLETH, CONTOUR, ERRORBAR, FUNNEL, GANTT, GAUGE,
 HEXBIN, ICICLE, LOLLIPOP, NORMALIZED, NORMALIZED_AREA, PARALLEL, POLAR_AREA,
-RADAR, ROC, RUG, SANKEY, STACKED_AREA, SUNBURST, TREEMAP, WATERFALL, WORD_CLOUD
+RADAR, RIDGELINE, ROC, RUG, SANKEY, STACKED_AREA, SUNBURST, TREEMAP, WATERFALL,
+WORD_CLOUD
 
 Docs convention: wherever user docs name a plot type as a heading, nav/sidebar
 label, list item or table row (outside the `docs/stability.qmd` tables), an
@@ -111,13 +112,18 @@ values through `FigureManager.add_plot`, its selectors naming each mark's gid.
 It reads with lxml, not openpyxl, which loads every cell of the workbook
 before it shows a chart.
 `maidr/tensorboard/` (experimental, `docs/stability.qmd#tensorboard-support`)
-reads the scalars of a TensorBoard log directory for
-`maidr.read_tensorboard_scalars`: `events.py` decodes the TFRecord event files
-and the few protobuf fields a scalar needs by hand, so neither TensorFlow,
-TensorBoard nor protobuf is a dependency, and follows TensorBoard's own rules
-for restarted runs; `__init__.py` draws one chart per tag through the patched
-`Axes.plot`. Its tests compare against what TensorBoard itself read from logs
-real writers wrote (`tests/tensorboard/fixtures/make_fixtures.py`).
+reads the scalars and histograms of a TensorBoard log directory for
+`maidr.read_tensorboard_scalars` and `maidr.read_tensorboard_histograms`:
+`events.py` decodes the TFRecord event files and the few protobuf fields a
+scalar or histogram needs by hand, so neither TensorFlow, TensorBoard nor
+protobuf is a dependency, converts a legacy histogram as TensorBoard's
+`data_compat` does, and follows TensorBoard's own rules for restarted runs;
+`logdir.py` finds runs and tags; `__init__.py` draws one chart per scalar tag
+through the patched `Axes.plot`; `histograms.py` draws one ridge polygon per
+step and registers a `RidgelinePlot` (`maidr/core/plot/ridgeline.py`) built
+from the binned counts through `FigureManager.add_plot`. Its tests compare
+against what TensorBoard itself read from logs real writers wrote
+(`tests/tensorboard/fixtures/make_fixtures.py`).
 `maidr/keras.py` (experimental, `docs/stability.qmd#keras-support`) draws a
 Keras model's training curves: `plot_history` from a `History` or its
 dictionary, and `MaidrCallback`, a `keras.callbacks.Callback` that rewrites an

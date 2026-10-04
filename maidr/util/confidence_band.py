@@ -211,9 +211,7 @@ def edges_of(collection, x_data: np.ndarray, y_data: np.ndarray) -> tuple | None
     # `np.interp` clamps outside the region's own x range, so a region that
     # does not span the series would still return numbers -- the bracketing
     # test is what rejects it, not the interpolation.
-    if not np.all(
-        (lower <= y_data + _TOLERANCE) & (y_data - _TOLERANCE <= upper)
-    ):
+    if not np.all((lower <= y_data + _TOLERANCE) & (y_data - _TOLERANCE <= upper)):
         return None
 
     # Bracketing alone is not enough, measured: an **area** brackets the line

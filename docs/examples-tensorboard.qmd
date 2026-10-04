@@ -1,10 +1,11 @@
 ---
 title: "TensorBoard Accessible Chart Examples"
-description: "Code examples showing how to make TensorBoard's training curves accessible with py-maidr: the scalars Keras, TensorFlow and PyTorch log, read from the log directory without TensorFlow."
+description: "Code examples showing how to make TensorBoard's charts accessible with py-maidr: the scalars and histograms Keras, TensorFlow and PyTorch log, read from the log directory without TensorFlow."
 jupyter: python3
 html-table-processing: none
 resources:
   - tensorboard-logs/**
+  - tensorboard-histograms/**
 filters:
   - line-highlight
 ---
@@ -36,7 +37,8 @@ curves of a model can be compared point by point.
 | Keras `keras.callbacks.TensorBoard` | yes |
 | `tf.summary.scalar`, TensorFlow 1 and 2 | yes |
 | PyTorch `torch.utils.tensorboard.SummaryWriter`, tensorboardX | yes |
-| Histograms, distributions, images, PR curves, graphs | not yet |
+| Histograms, as ridgelines [experimental] | yes |
+| Distributions, images, PR curves, graphs | not yet |
 
 The examples read `tensorboard-logs/`, the log directory of a small model trained for twelve epochs with the `TensorBoard` callback.
 
@@ -96,3 +98,24 @@ maidr.show(accuracy)
 A long run is thinned to 1,000 points per line, evenly spaced and keeping the
 first and last step, so it stays quick to walk; `max_points=None` keeps every
 point. A loss that became `NaN` is a gap in the line, never a zero.
+
+### Histograms as Ridgelines [experimental]
+
+`maidr.read_tensorboard_histograms()` reads what TensorBoard's Histograms
+dashboard shows: one chart per tag and run, with a ridge for each logged step,
+the earliest at the bottom. Left and right move along one step's values; up
+moves to a later step and down to an earlier one, holding the value, so you
+hear how the count at that value changes over training. Every step is counted
+in the same 30 bins, and at most 51 steps are drawn, as TensorBoard draws at
+most 51; `bins=` and `max_steps=` change both.
+
+These ridgelines are an experimental plot type. The example reads
+`tensorboard-histograms/`, a distribution logged with `tf.summary.histogram`
+every four steps, whose center drifts right and whose spread widens.
+
+```{python}
+#| warning: false
+#| fig-alt: Ridgeline chart of the activations histogram, one ridge per step from step 0 at the bottom to step 36 at the top
+(activations, constant) = maidr.read_tensorboard_histograms("tensorboard-histograms")
+maidr.show(activations)
+```

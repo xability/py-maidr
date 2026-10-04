@@ -207,9 +207,8 @@ def _panel_groups(
         # spelling along. An unnamed variable is not the same variable as
         # another unnamed one, so `None` on either side answers False.
         hue_variable = variables.get("hue")
-        hue_is_category = (
-            hue_variable is not None
-            and hue_variable == variables.get(category_column)
+        hue_is_category = hue_variable is not None and hue_variable == variables.get(
+            category_column
         )
         # Hoisted rather than evaluated inside the comprehension, where it
         # would be recomputed -- `pd.unique` and all -- once per category.
@@ -225,9 +224,7 @@ def _panel_groups(
         measured = panel.loc[rows, value_column].dropna()
         if measured.empty:
             continue
-        groups.append(
-            str(name) if hue is None or hue_is_category else f"{name}_{hue}"
-        )
+        groups.append(str(name) if hue is None or hue_is_category else f"{name}_{hue}")
         values.append(measured.to_numpy())
     return groups, values
 

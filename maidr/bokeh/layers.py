@@ -403,9 +403,7 @@ class PlotReader:
     #  Bars                                                                #
     # ------------------------------------------------------------------ #
 
-    def _bar_values(
-        self, renderer: Any
-    ) -> tuple[bool, list[tuple[Any, Any, int]]]:
+    def _bar_values(self, renderer: Any) -> tuple[bool, list[tuple[Any, Any, int]]]:
         """
         One bar per drawn row: ``(position, magnitude, source row)``.
 
@@ -481,9 +479,7 @@ class PlotReader:
         grid = [[[renderer.id, index] for _, _, index in bars]]
         return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
 
-    def _segmented(
-        self, renderers: list, plot_type: PlotType
-    ) -> BokehLayer | None:
+    def _segmented(self, renderers: list, plot_type: PlotType) -> BokehLayer | None:
         """
         One row per renderer, aligned on the categories they share.
 
@@ -637,9 +633,10 @@ class PlotReader:
         rows = visible_indices(renderer, source_length(data))
         if not rows:
             return None
-        horizontal = len({to_native(left[i]) for i in rows}) == 1 and len(
-            {to_native(bottom[i]) for i in rows}
-        ) > 1
+        horizontal = (
+            len({to_native(left[i]) for i in rows}) == 1
+            and len({to_native(bottom[i]) for i in rows}) > 1
+        )
         start, end = (bottom, top) if horizontal else (left, right)
         low, high = (left, right) if horizontal else (bottom, top)
         dates = self._y_dates if horizontal else self._x_dates
@@ -1682,8 +1679,11 @@ class PlotReader:
             if is_missing(qs[index]) or is_missing(rs[index]):
                 continue
             x, y = axial_to_cartesian(
-                float(qs[index]), float(rs[index]),
-                glyph.size, glyph.orientation, glyph.aspect_scale,
+                float(qs[index]),
+                float(rs[index]),
+                glyph.size,
+                glyph.orientation,
+                glyph.aspect_scale,
             )
             rows.setdefault(_clean(y), []).append((_clean(x), index))
         if not rows:
@@ -1864,9 +1864,7 @@ def resolve_column(data: dict, name: str | None) -> list | None:
     return list(column.to_numpy()) if hasattr(column, "to_numpy") else list(column)
 
 
-def mark_anchor(
-    renderer: Any, index: int, columns: dict | None = None
-) -> list | None:
+def mark_anchor(renderer: Any, index: int, columns: dict | None = None) -> list | None:
     """
     Where to put a cursor on one mark a selection highlight would pick out.
 

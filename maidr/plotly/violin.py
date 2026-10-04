@@ -28,6 +28,7 @@ VIOLIN_TRACE_TYPE = "violin"
 #: What plotly calls a horizontal violin: values along x, categories up y.
 _HORIZONTAL = "h"
 
+
 def is_violin_trace(trace: dict) -> bool:
     """
     Return whether *trace* is a plotly violin.

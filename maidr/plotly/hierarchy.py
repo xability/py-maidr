@@ -132,7 +132,9 @@ class PlotlyHierarchyPlot(PlotlyPlot):
         node -- there is no declared magnitude to pass on, and
         `TreemapPoint.y` is optional precisely for that case.
         """
-        labels = [self._to_native(label) for label in as_list(self._trace.get("labels"))]
+        labels = [
+            self._to_native(label) for label in as_list(self._trace.get("labels"))
+        ]
         parents = [str(parent or "") for parent in as_list(self._trace.get("parents"))]
         raw_ids = as_list(self._trace.get("ids"))
         ids = (
