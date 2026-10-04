@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 from typing import Iterable
 
 import numpy as np
-from matplotlib import colormaps
 from matplotlib.figure import Figure
 
 from maidr.core.figure_manager import FigureManager
@@ -42,8 +41,14 @@ from maidr.tensorboard.histograms import (
     load_histograms,
     read_tensorboard_histograms,
 )
-from maidr.tensorboard.logdir import TensorBoardChart, load, thin
+from maidr.tensorboard.logdir import TensorBoardChart, load
 from maidr.util.caller_warning import warn_at_caller
+from maidr.util.metric_chart import (
+    DEFAULT_MAX_POINTS,
+    check_options,
+    draw_lines,
+    smooth,
+)
 
 __all__ = [
     "Embedding",
@@ -70,12 +75,6 @@ __all__ = [
 
 #: TensorBoard's default smoothing weight.
 DEFAULT_SMOOTHING = 0.6
-
-#: Points kept per line: as many as TensorBoard keeps for a scalar.
-DEFAULT_MAX_POINTS = 1000
-
-_WIDTH = 7.0
-_HEIGHT = 4.5
 
 
 @dataclass(frozen=True, eq=False)
@@ -217,12 +216,7 @@ def read_tensorboard_scalars(
     >>> charts = maidr.read_tensorboard_scalars("logs/fit", tags=["epoch_loss"])
     >>> maidr.save_html(charts[0], "loss.html")
     """
-    if not 0 <= smoothing < 1:
-        raise ValueError(
-            f"smoothing is a weight from 0 up to but not including 1, not {smoothing}"
-        )
-    if max_points is not None and max_points < 2:
-        raise ValueError(f"max_points keeps at least 2 points, not {max_points}")
+    check_options(smoothing, max_points)
     scalars = load_scalars(logdir, tags=tags, runs=runs)
     if not scalars and tags is None:
         warn_at_caller(f"maidr found no scalars in {os.fspath(logdir)}.")
@@ -240,77 +234,16 @@ def read_tensorboard_scalars(
     return charts
 
 
-def smooth(values: np.ndarray, weight: float) -> np.ndarray:
-    """
-    Smooth values the way TensorBoard's Scalars dashboard does.
-
-    An exponential moving average, divided by ``1 - weight ** n`` after the
-    ``n``-th finite value so that it starts at the first value rather than
-    near zero. A value that is not finite is kept where it is and left out of
-    the average.
-
-    Parameters
-    ----------
-    values : numpy.ndarray
-        The values, in step order.
-    weight : float
-        The smoothing weight, from 0 (none) up to but not including 1.
-
-    Returns
-    -------
-    numpy.ndarray
-        The smoothed values, as many as ``values``.
-    """
-    values = np.asarray(values, dtype=float)
-    smoothed = values.copy()
-    finite = np.isfinite(values)
-    if weight == 0 or not finite.any():
-        return smoothed
-    # The average over the finite values alone, as one linear filter rather
-    # than a Python loop: a run can log millions of steps. Imported here, as
-    # `import maidr` loads no scipy (tests/core/test_lazy_patches.py).
-    from scipy.signal import lfilter
-
-    average = lfilter([1 - weight], [1, -weight], values[finite])
-    count = np.arange(1, len(average) + 1)
-    smoothed[finite] = average / (1 - weight**count)
-    return smoothed
-
-
 def _draw(
     tag: str,
     series: dict[str, ScalarSeries],
     smoothing: float,
     max_points: int | None,
 ) -> Figure:
-    fig = Figure(figsize=(_WIDTH, _HEIGHT))
-    ax = fig.add_subplot()
-    colors = _colors(len(series))
-    for color, (run, data) in zip(colors, series.items()):
-        keep = thin(len(data), max_points)
-        steps = data.steps[keep]
-        if smoothing > 0:
-            ax.plot(steps, data.values[keep], color=color, alpha=0.35, label=run)
-            ax.plot(
-                steps,
-                smooth(data.values, smoothing)[keep],
-                color=color,
-                label=f"{run} (smoothed)",
-            )
-        else:
-            ax.plot(steps, data.values[keep], color=color, label=run)
-    ax.set_title(tag)
-    ax.set_xlabel("Step")
-    ax.set_ylabel(tag)
-    ax.grid(True, color="#E0E0E0", linewidth=0.8)
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
-    fig.tight_layout()
-    return fig
-
-
-def _colors(count: int) -> list:
-    """One color per run, from matplotlib's tab10, repeating after ten."""
-    palette = colormaps["tab10"]
-    return [palette(i % palette.N) for i in range(count)]
+    return draw_lines(
+        tag,
+        {run: (data.steps, data.values) for run, data in series.items()},
+        smoothing=smoothing,
+        max_points=max_points,
+        xlabel="Step",
+    )

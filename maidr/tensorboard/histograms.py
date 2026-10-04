@@ -20,7 +20,8 @@ from matplotlib.patches import Polygon
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.ridgeline import RidgelinePlot
 from maidr.tensorboard.events import HISTOGRAMS_PLUGIN
-from maidr.tensorboard.logdir import TensorBoardChart, load, thin
+from maidr.tensorboard.logdir import TensorBoardChart, load
+from maidr.util.metric_chart import thin
 from maidr.util.caller_warning import warn_at_caller
 
 __all__ = [
