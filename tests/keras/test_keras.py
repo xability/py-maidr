@@ -115,9 +115,19 @@ def test_validation_on_fewer_epochs_is_left_out_with_a_warning():
     assert list(_lines(layer)) == ["loss"]
 
 
-def test_nothing_to_draw_raises():
+@pytest.mark.parametrize("history", [{}, {"loss": []}])
+def test_nothing_to_draw_raises(history):
     with pytest.raises(ValueError, match="no metric"):
-        plot_history({})
+        plot_history(history)
+
+
+def test_validation_is_drawn_in_the_same_color_alone_or_paired():
+    figure = plot_history(
+        {"loss": [1.0, 0.5], "val_loss": [1.1, 0.6], "val_auc": [0.6, 0.7]}
+    )
+    loss, auc = figure.axes
+    assert loss.lines[1].get_color() == auc.lines[0].get_color()
+    assert loss.lines[0].get_color() != auc.lines[0].get_color()
 
 
 def test_something_other_than_a_history_raises():
@@ -192,7 +202,7 @@ def test_the_page_is_written_every_n_epochs_and_at_the_end(callback, tmp_path):
     assert "maidr" in page.read_text()
     (layer,) = _layers(cb.figure())
     assert [x for x, _ in _lines(layer)["loss"]] == [1, 2, 3, 4, 5]
-    assert not list(tmp_path.glob(".*partial"))
+    assert not list(tmp_path.glob(".*.partial"))
 
 
 def test_a_page_that_cannot_be_written_warns_and_training_goes_on(callback, tmp_path):

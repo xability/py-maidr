@@ -38,6 +38,8 @@ TRAINING = "training"
 VALIDATION = "validation"
 
 _VALIDATION_PREFIX = "val_"
+#: Each curve's color, the same in every chart.
+_COLORS = {TRAINING: "C0", VALIDATION: "C1"}
 _WIDTH = 7.0
 _PANEL_HEIGHT = 3.0
 
@@ -262,7 +264,7 @@ class MaidrCallback(_Callback if _Callback is not None else object):
         import maidr
 
         directory, name = os.path.split(os.path.abspath(self.path))
-        partial = os.path.join(directory, f".{name}.partial")
+        partial = os.path.join(directory, f".{name}.{os.getpid()}.partial")
         figure = None
         try:
             figure = self.figure()
@@ -323,6 +325,8 @@ def _curves_from_logs(
     count = len(epochs) if epochs else max(lengths, default=0)
     numbers = np.asarray(epochs, dtype=int) + 1 if epochs else np.arange(1, count + 1)
     curves: dict[str, _Curves] = {}
+    if count == 0:
+        return curves
     for key, values in logs.items():
         if not _is_sequence(values):
             warn_at_caller(f"'{key}' is not a list of values per epoch; left out.")
@@ -420,8 +424,9 @@ def _draw(curves: dict[str, _Curves], metrics: Iterable[str] | None) -> Figure:
         # is named for itself: "training" would say it was measured on the
         # training data. One with only its validation curve stays
         # "validation", which is what it was measured on.
-        for color, (curve, (epochs, values)) in zip(("C0", "C1"), lines.items()):
+        for curve, (epochs, values) in lines.items():
             label = name if lines.keys() == {TRAINING} else curve
+            color = _COLORS[curve]
             ax.plot(epochs, values, color=color, marker="o", markersize=3, label=label)
         ax.set_title(name)
         ax.set_xlabel("Epoch")
