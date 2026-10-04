@@ -430,7 +430,7 @@ cookieconsent.run({
 </section>
 <section id="reading-the-charts-of-a-tensorboard-log-directory" class="level2">
 <h2 class="anchored" data-anchor-id="reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</h2>
-<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and their histograms with <code>maidr.read_tensorboard_distributions()</code> and <code>maidr.read_tensorboard_histograms()</code>, one chart per tag and run, and a hyperparameter sweep with <code>maidr.read_tensorboard_hparams()</code>, and pass a chart either returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code> and <code>maidr.tensorboard.load_histograms()</code>. Experimental.</p>
+<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and their histograms with <code>maidr.read_tensorboard_distributions()</code> and <code>maidr.read_tensorboard_histograms()</code>, one chart per tag and run, a hyperparameter sweep with <code>maidr.read_tensorboard_hparams()</code>, and the Embedding Projector with <code>maidr.read_tensorboard_projector()</code>, and pass a chart either returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code> and <code>maidr.tensorboard.load_histograms()</code>. Experimental.</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
@@ -480,6 +480,18 @@ cookieconsent.run({
 <tr class="even">
 <td><a href="../api/tensorboard.Session.html#maidr.tensorboard.Session">tensorboard.Session</a></td>
 <td>One training session of a sweep.</td>
+</tr>
+<tr class="odd">
+<td><a href="../api/read_tensorboard_projector.html#maidr.read_tensorboard_projector">read_tensorboard_projector</a></td>
+<td>Read the embeddings of a Projector log directory as 2D scatter plots.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/tensorboard.load_embeddings.html#maidr.tensorboard.load_embeddings">tensorboard.load_embeddings</a></td>
+<td>Read the embeddings a Projector log directory configures.</td>
+</tr>
+<tr class="odd">
+<td><a href="../api/tensorboard.Embedding.html#maidr.tensorboard.Embedding">tensorboard.Embedding</a></td>
+<td>One embedding of a Projector log directory.</td>
 </tr>
 </tbody>
 </table>
