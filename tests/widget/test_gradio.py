@@ -72,9 +72,9 @@ def test_a_chart_a_reader_returned_renders(tmp_path):
 def test_a_warning_points_at_the_callers_line(monkeypatch, bar_axes):
     # Any warning the render raises -- here, the one for a chart that loads
     # maidr.js from nowhere -- should name this file, not maidr's.
-    import maidr.widget.streamlit as streamlit_module
+    import maidr.widget._document as document
 
-    monkeypatch.setattr(streamlit_module, "inline_bundle_tags", lambda: None)
+    monkeypatch.setattr(document, "inline_bundle_tags", lambda: None)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         render_maidr(bar_axes, use_cdn=False)

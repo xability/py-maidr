@@ -267,9 +267,9 @@ def log_mlflow_chart(
     # The frame's own document, rather than a fragment: the MLflow UI loads
     # the artifact as a page of its own, which a screen reader announces by
     # its <title>.
-    from maidr.widget.streamlit import _render
+    from maidr.widget._document import render as render_document
 
-    fragment, title = _render(plot, use_cdn, stacklevel=4)
+    fragment, title = render_document(plot, use_cdn, stacklevel=4)
     page = (
         '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         f"<title>{html.escape(title or 'Accessible chart')}</title>\n</head>\n"
