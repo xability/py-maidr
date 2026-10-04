@@ -312,7 +312,7 @@ cookieconsent.run({
   </li>  
         <li>
     <a class="dropdown-item" href="./examples/dashboards.html">
- <span class="dropdown-text">Shiny and Streamlit Dashboards</span></a>
+ <span class="dropdown-text">Shiny, Streamlit and Gradio Dashboards</span></a>
   </li>  
         <li><hr class="dropdown-divider"></li>
         <li class="dropdown-header">Experimental</li>
@@ -358,6 +358,14 @@ cookieconsent.run({
     <a class="dropdown-item" href="./examples-keras.html">
  <span class="dropdown-text">Keras <a href="#experimental">experimental</a></span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-wandb.html">
+ <span class="dropdown-text">Weights &amp; Biases <a href="#experimental">experimental</a></span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-mlflow.html">
+ <span class="dropdown-text">MLflow <a href="#experimental">experimental</a></span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -400,6 +408,8 @@ cookieconsent.run({
   <li><a href="#powerpoint-and-word-support" id="toc-powerpoint-and-word-support" class="nav-link" data-scroll-target="#powerpoint-and-word-support">PowerPoint and Word support</a></li>
   <li><a href="#tensorboard-support" id="toc-tensorboard-support" class="nav-link" data-scroll-target="#tensorboard-support">TensorBoard support</a></li>
   <li><a href="#keras-support" id="toc-keras-support" class="nav-link" data-scroll-target="#keras-support">Keras support</a></li>
+  <li><a href="#weights-biases-support" id="toc-weights-biases-support" class="nav-link" data-scroll-target="#weights-biases-support">Weights &amp; Biases support</a></li>
+  <li><a href="#mlflow-support" id="toc-mlflow-support" class="nav-link" data-scroll-target="#mlflow-support">MLflow support</a></li>
   <li><a href="#drawn-but-not-read" id="toc-drawn-but-not-read" class="nav-link" data-scroll-target="#drawn-but-not-read">Drawn but not read</a></li>
   <li><a href="#how-the-split-is-derived" id="toc-how-the-split-is-derived" class="nav-link" data-scroll-target="#how-the-split-is-derived">How the split is derived</a></li>
   <li><a href="#the-same-split-upstream" id="toc-the-same-split-upstream" class="nav-link" data-scroll-target="#the-same-split-upstream">The same split upstream</a></li>
@@ -694,6 +704,14 @@ cookieconsent.run({
 <section id="keras-support" class="level2">
 <h2 class="anchored" data-anchor-id="keras-support">Keras support</h2>
 <p>The training curves drawn from a Keras model (<code>maidr.keras.plot_history()</code> and <code>maidr.keras.MaidrCallback</code>), the confusion matrix (<code>maidr.keras.plot_confusion_matrix()</code>) and the PR curve (<code>maidr.keras.plot_pr_curve()</code>) are <strong>experimental</strong>, although every chart they draw is a stable type, <code>line</code> or <code>heat</code>: how metrics become charts and lines, what the lines are called, how predictions become classes, and when the callback writes its page may change without a deprecation period, including in a patch release. The model graph (<code>maidr.keras.plot_model()</code>) is experimental twice over: it emits the experimental <code>directed_graph</code> type, and which attributes a layer is announced with, how a nested model becomes a scope and how the graph is laid out may change the same way. It needs a maidr.js release that carries the <code>directed_graph</code> trace. See the <a href="./examples-keras.html">Keras gallery</a> for what they draw today.</p>
+</section>
+<section id="weights-biases-support" class="level2">
+<h2 class="anchored" data-anchor-id="weights-biases-support">Weights &amp; Biases support</h2>
+<p>The training curves read from Weights &amp; Biases runs (<code>maidr.read_wandb_history()</code>) come through a reader that is <strong>experimental</strong>, although every chart it draws is the stable <code>line</code> type: how runs and metrics become charts and lines, what a line is called, how a run file is read, which values count as numbers, and how a long run is thinned may change without a deprecation period, including in a patch release. A run’s file, <code>run-&lt;id&gt;.wandb</code>, is read by maidr itself, by the format the W&amp;B SDK writes today, which is W&amp;B’s to change; a run fetched from the server is read through <code>wandb.Api</code>. Numbers are read today: images, tables, histograms and W&amp;B’s custom charts are not. See the <a href="./examples-wandb.html">W&amp;B gallery</a> for what it reads today.</p>
+</section>
+<section id="mlflow-support" class="level2">
+<h2 class="anchored" data-anchor-id="mlflow-support">MLflow support</h2>
+<p>The training curves read from MLflow runs (<code>maidr.read_mlflow_metrics()</code>), and the charts stored in a run (<code>maidr.log_mlflow_chart()</code>), are <strong>experimental</strong>, although every chart drawn is the stable <code>line</code> type: how runs and metrics become charts and lines, what a line is called, which metrics are left out, and what the stored page holds may change without a deprecation period, including in a patch release. See the <a href="./examples-mlflow.html">MLflow gallery</a> for what it reads today.</p>
 </section>
 <section id="drawn-but-not-read" class="level2">
 <h2 class="anchored" data-anchor-id="drawn-but-not-read">Drawn but not read</h2>

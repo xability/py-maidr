@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
+<meta name="description" content="Code examples showing how to make the training curves of Weights &amp; Biases runs accessible with py-maidr: read from a run’s own file, offline, or fetched from the W&amp;B server.">
+
+<title>Weights &amp; Biases Accessible Chart Examples – py-maidr</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./examples-mlflow.html" rel="next">
+<link href="./examples-keras.html" rel="prev">
+<script src="site_libs/cookie-consent/cookie-consent.js"></script>
+<link href="site_libs/cookie-consent/cookie-consent.css" rel="stylesheet">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-d1b407a2afbd6680ea33db73888feb24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-TL8SVL5VRE"></script>
+
+<script type="text/plain" cookie-consent="tracking">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-TL8SVL5VRE', { 'anonymize_ip': true});
+</script>
+
+<script type="text/javascript" charset="UTF-8">
+document.addEventListener('DOMContentLoaded', function () {
+cookieconsent.run({
+  "notice_banner_type":"simple",
+  "consent_type":"express",
+  "palette":"light",
+  "language":"en",
+  "page_load_consent_levels":["strictly-necessary"],
+  "notice_banner_reject_button_hide":false,
+  "preferences_center_close_button_hide":false,
+  "website_name":""
+  ,
+"language":"en"
+  });
+});
+</script> 
+  
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script type="text/plain" cookie-consent="tracking">
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "vwqybbep0i");
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://maidr.ai/#organization",
+      "name": "(x)Ability Design Lab",
+      "url": "https://xabilitylab.ischool.illinois.edu/",
+      "sameAs": [
+        "https://github.com/xability",
+        "https://xability.github.io/"
+      ],
+      "parentOrganization": {
+        "@type": "CollegeOrUniversity",
+        "name": "University of Illinois Urbana-Champaign",
+        "url": "https://illinois.edu/"
+      }
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://maidr.ai/#software",
+      "name": "MAIDR",
+      "url": "https://maidr.ai/",
+      "sameAs": ["https://github.com/xability/maidr"]
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://py.maidr.ai/#software",
+      "name": "py-maidr",
+      "alternateName": ["maidr (PyPI)"],
+      "description": "Python library that makes matplotlib, seaborn, Plotly, Bokeh, plotnine and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "url": "https://py.maidr.ai/",
+      "codeRepository": "https://github.com/xability/py-maidr",
+      "downloadUrl": "https://pypi.org/project/maidr/",
+      "installUrl": "https://pypi.org/project/maidr/",
+      "applicationCategory": "DeveloperApplication",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "programmingLanguage": "Python",
+      "runtimePlatform": "Python",
+      "softwareRequirements": ["Python >= 3.9", "matplotlib"],
+      "softwareVersion": "1.26.0",
+      "operatingSystem": "Cross-platform",
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "bokeh", "plotnine", "altair"],
+      "sameAs": [
+        "https://github.com/xability/py-maidr",
+        "https://pypi.org/project/maidr/"
+      ],
+      "author": {"@id": "https://maidr.ai/#organization"},
+      "isBasedOn": {"@id": "https://maidr.ai/#software"}
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://py.maidr.ai/#website",
+      "name": "py-maidr",
+      "url": "https://py.maidr.ai/",
+      "inLanguage": "en",
+      "publisher": {"@id": "https://maidr.ai/#organization"},
+      "about": {"@id": "https://py.maidr.ai/#software"}
+    }
+  ]
+}
+</script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Weights &amp; Biases Accessible Chart Examples – py-maidr">
+<meta property="og:description" content="Code examples showing how to make the training curves of Weights &amp; Biases runs accessible with py-maidr: read from a run’s own file, offline, or fetched from the W&amp;B server.">
+<meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta property="og:site_name" content="py-maidr">
+<meta property="og:locale" content="en_US">
+<meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
+<meta name="twitter:title" content="Weights &amp; Biases Accessible Chart Examples – py-maidr">
+<meta name="twitter:description" content="Code examples showing how to make the training curves of Weights &amp; Biases runs accessible with py-maidr: read from a run’s own file, offline, or fetched from the W&amp;B server.">
+<meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
+<link rel="canonical" href="https://py.maidr.ai/examples-wandb.html">
+<meta name="DC.title" content="Weights &amp; Biases Accessible Chart Examples">
+<meta name="DC.creator" content="Seo, JooYoung">
+<meta name="DC.creator" content="Venkatesh, Saairam">
+<meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
+<meta name="DC.description" content="Code examples showing how to make the training curves of Weights &amp; Biases runs accessible with py-maidr: read from a run’s own file, offline, or fetched from the W&amp;B server.">
+<meta name="DC.identifier" content="https://py.maidr.ai/examples-wandb.html">
+<meta name="DC.type" content="Text">
+<meta name="DC.format" content="text/html">
+<meta name="DC.language" content="en">
+<meta name="DC.rights" content="GPL-3.0-or-later">
+<meta name="DC.date" content="2026-10-04">
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="https://py.maidr.ai/">
+    <span class="navbar-title">py-maidr</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html"> 
+<span class="menu-text">Welcome</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="./examples.html">
+ <span class="dropdown-text">Matplotlib / Seaborn (overview)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/bar.html">
+ <span class="dropdown-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/pie-wordcloud.html">
+ <span class="dropdown-text">Pie Charts and Word Clouds [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/histogram-kde.html">
+ <span class="dropdown-text">Histograms and KDE Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/line-step.html">
+ <span class="dropdown-text">Line and Step Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/heatmap-hexbin-contour.html">
+ <span class="dropdown-text">Heatmaps, Hexbin [experimental] and Contour Plots [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/box-boxen-violin.html">
+ <span class="dropdown-text">Box, Boxen [experimental] and Violin Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/scatter-regression.html">
+ <span class="dropdown-text">Scatter and Regression Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/multi-layer-panel-facet.html">
+ <span class="dropdown-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/candlestick-gantt.html">
+ <span class="dropdown-text">Candlestick and Gantt Charts [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/dashboards.html">
+ <span class="dropdown-text">Shiny, Streamlit and Gradio Dashboards</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Experimental</li>
+        <li>
+    <a class="dropdown-item" href="./examples/area-errorbar-point-lollipop.html">
+ <span class="dropdown-text">Area [experimental], Error Bar [experimental], Point [experimental] and Lollipop Plots [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/roc.html">
+ <span class="dropdown-text">ROC Curves [experimental]</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Other libraries</li>
+        <li>
+    <a class="dropdown-item" href="./examples-plotly.html">
+ <span class="dropdown-text">Plotly</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-bokeh.html">
+ <span class="dropdown-text">Bokeh [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-plotnine.html">
+ <span class="dropdown-text">plotnine [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-altair.html">
+ <span class="dropdown-text">Altair</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-excel.html">
+ <span class="dropdown-text">Excel [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-office.html">
+ <span class="dropdown-text">PowerPoint and Word [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-tensorboard.html">
+ <span class="dropdown-text">TensorBoard [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-keras.html">
+ <span class="dropdown-text">Keras [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-wandb.html">
+ <span class="dropdown-text">Weights &amp; Biases [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-mlflow.html">
+ <span class="dropdown-text">MLflow [experimental]</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="./stability.html"> 
+<span class="menu-text">Plot Type Stability</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./api/"> 
+<span class="menu-text">API Reference</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/xability/py-maidr"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./examples-plotly.html">Other libraries</a></li><li class="breadcrumb-item"><a href="./examples-wandb.html">Weights &amp; Biases [experimental]</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Plot families</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/bar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/pie-wordcloud.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Pie Charts and Word Clouds [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/histogram-kde.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Histograms and KDE Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/line-step.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Line and Step Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/heatmap-hexbin-contour.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heatmaps, Hexbin [experimental] and Contour Plots [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/box-boxen-violin.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Box, Boxen [experimental] and Violin Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/scatter-regression.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scatter and Regression Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/multi-layer-panel-facet.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/candlestick-gantt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Candlestick and Gantt Charts [experimental]</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Experimental plot families</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/area-errorbar-point-lollipop.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Area [experimental], Error Bar [experimental], Point [experimental] and Lollipop Plots [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/roc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROC Curves [experimental]</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/dashboards.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Other libraries</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-plotly.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Plotly Accessible Plot Examples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-bokeh.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Bokeh [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-plotnine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">plotnine [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-altair.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Altair Accessible Plot Examples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-excel.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Excel [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-office.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PowerPoint and Word [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-tensorboard.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TensorBoard [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-keras.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Keras [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-wandb.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Weights &amp; Biases [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples-mlflow.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MLflow [experimental]</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#sec-wandb-examples" id="toc-sec-wandb-examples" class="nav-link active" data-scroll-target="#sec-wandb-examples">Weights &amp; Biases Examples</a>
+  <ul class="collapse">
+  <li><a href="#reading-runs" id="toc-reading-runs" class="nav-link" data-scroll-target="#reading-runs">Reading Runs</a></li>
+  <li><a href="#training-loss" id="toc-training-loss" class="nav-link" data-scroll-target="#training-loss">Training Loss</a></li>
+  <li><a href="#evaluation-loss" id="toc-evaluation-loss" class="nav-link" data-scroll-target="#evaluation-loss">Evaluation Loss</a></li>
+  <li><a href="#fetching-runs-from-the-wb-server" id="toc-fetching-runs-from-the-wb-server" class="nav-link" data-scroll-target="#fetching-runs-from-the-wb-server">Fetching Runs from the W&amp;B Server</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./examples-plotly.html">Other libraries</a></li><li class="breadcrumb-item"><a href="./examples-wandb.html">Weights &amp; Biases [experimental]</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Weights &amp; Biases Accessible Chart Examples</h1>
+</div>
+
+<div>
+  <div class="description">
+    Code examples showing how to make the training curves of Weights &amp; Biases runs accessible with py-maidr: read from a run’s own file, offline, or fetched from the W&amp;B server.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="sec-wandb-examples" class="level2">
+<h2 class="anchored" data-anchor-id="sec-wandb-examples">Weights &amp; Biases Examples</h2>
+<p><strong>maidr</strong> reads the training curves of Weights &amp; Biases runs. Pass a run to <code>maidr.read_wandb_history()</code> and hand any chart it returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>: each metric can then be read from the keyboard, as sound, as text and in braille. For the curves TensorBoard logs, see the <a href="./examples-tensorboard.html">TensorBoard</a> page, and for MLflow’s, the <a href="./examples-mlflow.html">MLflow</a> page.</p>
+<div class="callout callout-style-default callout-warning callout-titled" title="Experimental">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Experimental
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Weights &amp; Biases support is <strong>experimental</strong>. What it reads, and how, may change without a deprecation period: see <a href="./stability.html#weights-biases-support">Plot Type Stability</a>.</p>
+</div>
+</div>
+<p>Each metric logged with <code>wandb.log</code>, such as <code>train/loss</code>, becomes one line chart, with the step along the x axis and one line per run, as in a W&amp;B workspace. A run can be read three ways:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>The run</th>
+<th>read with</th>
+<th>needs</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Its folder under <code>wandb/</code>, or the whole <code>wandb/</code> folder</td>
+<td><code>read_wandb_history("wandb")</code></td>
+<td>nothing: the run file is read directly</td>
+</tr>
+<tr class="even">
+<td>Its path on the W&amp;B server</td>
+<td><code>read_wandb_history("team/project/run_id")</code></td>
+<td><code>pip install "maidr[wandb]"</code> and an API key</td>
+</tr>
+<tr class="odd">
+<td>A run <code>wandb.Api()</code> returned</td>
+<td><code>read_wandb_history(api.runs("team/project"))</code></td>
+<td>the same</td>
+</tr>
+</tbody>
+</table>
+<p>Every run, online or offline, writes its history as it goes to a file in its folder, <code>wandb/run-&lt;date&gt;-&lt;id&gt;/run-&lt;id&gt;.wandb</code>, the file <code>wandb sync</code> uploads. maidr reads that file itself, so a run trained offline on a cluster with no network can be read where it ran, without the W&amp;B package and without an account.</p>
+<p>The examples read <code>wandb-runs/</code>, two short fine-tunes of a small language model, logged with the real W&amp;B SDK in offline mode.</p>
+<section id="reading-runs" class="level3">
+<h3 class="anchored" data-anchor-id="reading-runs">Reading Runs</h3>
+<p><code>maidr.read_wandb_history()</code> returns one chart per metric, each with its name and the runs drawn on it.</p>
+<div id="d387d5a7" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="nil"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>charts <span class="op">=</span> maidr.read_wandb_history(<span class="st">"wandb-runs"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> chart <span class="kw">in</span> charts:</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(chart.metric, chart.runs, sep<span class="op">=</span><span class="st">" | "</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<script src="https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js"></script>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre data-code-line-numbers=""><code>eval/loss | ('baseline', 'lora-r16')
+train/learning_rate | ('baseline', 'lora-r16')
+train/loss | ('baseline', 'lora-r16')</code></pre>
+</div>
+</div>
+<p>Save every metric as its own page with a loop, or only the ones you name with <code>keys=</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> chart <span class="kw">in</span> maidr.read_wandb_history(<span class="st">"wandb"</span>, keys<span class="op">=</span>[<span class="st">"train/loss"</span>]):</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    maidr.save_html(chart, chart.metric.replace(<span class="st">"/"</span>, <span class="st">"_"</span>) <span class="op">+</span> <span class="st">".html"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To follow a run while it trains, read it again: each call reads the run file as it is at that moment.</p>
+</section>
+<section id="training-loss" class="level3">
+<h3 class="anchored" data-anchor-id="training-loss">Training Loss</h3>
+<p>One line per run. The left and right arrow keys move along the steps; up and down move to the other run at the same step. <code>smoothing=</code> smooths the lines as TensorBoard does, and draws each run twice: as logged, and smoothed under its name followed by <em>(smoothed)</em>.</p>
+<div id="a78e8b2a" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" data-source-line-numbers="nil" data-code-line-numbers="nil"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>(loss,) <span class="op">=</span> maidr.read_wandb_history(<span class="st">"wandb-runs"</span>, keys<span class="op">=</span>[<span class="st">"train/loss"</span>])</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>maidr.show(loss)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<iframe id="iframe_03af7ad0-1aa5-4d12-9b5b-c8e577d96e6d" title="train/loss, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+  <script type=&quot;text/javascript&quot;>
+                (function() {
+                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js&quot;]');
+                    if (!existing) {
+                        var s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js';
+                        s.onload = function() { if (window.main) window.main(); };
+                        document.head.appendChild(s);
+                    } else {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function() { if (window.main) window.main(); });
+                        } else {
+                            if (window.main) window.main();
+                        }
+                    }
+                })();
+            </script>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;324pt&quot; viewBox=&quot;0 0 504 324&quot; version=&quot;1.1&quot; id=&quot;79756177-c679-4fce-8539-d5a991db8065&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;79756177-c679-4fce-8539-d5a991db8065&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;85084345-548b-4a68-9f5d-7f8dfdfe228c&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;fac36999-4157-420b-a1f3-556858d7b379&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;line&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;train/loss&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Step&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;train/loss&amp;quot;}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 4.3773, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 4.3194, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 4.1707, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 4.057, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 3.9753, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 3.9824, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 3.8606, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 3.7787, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 3.8216, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 9.0, &amp;quot;y&amp;quot;: 3.7638, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 10.0, &amp;quot;y&amp;quot;: 3.7363, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 11.0, &amp;quot;y&amp;quot;: 3.5979, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 12.0, &amp;quot;y&amp;quot;: 3.6037, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 13.0, &amp;quot;y&amp;quot;: 3.5515, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 14.0, &amp;quot;y&amp;quot;: 3.4184, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 15.0, &amp;quot;y&amp;quot;: 3.4957, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 16.0, &amp;quot;y&amp;quot;: 3.4387, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 17.0, &amp;quot;y&amp;quot;: 3.52, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 18.0, &amp;quot;y&amp;quot;: 3.3472, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 19.0, &amp;quot;y&amp;quot;: 3.2859, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 20.0, &amp;quot;y&amp;quot;: 3.3293, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 21.0, &amp;quot;y&amp;quot;: 3.2291, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 22.0, &amp;quot;y&amp;quot;: 3.2346, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 23.0, &amp;quot;y&amp;quot;: 3.1221, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 24.0, &amp;quot;y&amp;quot;: 3.122, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 25.0, &amp;quot;y&amp;quot;: 3.1364, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 26.0, &amp;quot;y&amp;quot;: 3.0836, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 27.0, &amp;quot;y&amp;quot;: 3.0174, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 28.0, &amp;quot;y&amp;quot;: 2.9135, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 29.0, &amp;quot;y&amp;quot;: 2.9747, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 30.0, &amp;quot;y&amp;quot;: 2.9231, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 31.0, &amp;quot;y&amp;quot;: 2.933, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 32.0, &amp;quot;y&amp;quot;: 2.8749, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 33.0, &amp;quot;y&amp;quot;: 2.9001, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 34.0, &amp;quot;y&amp;quot;: 2.8054, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 35.0, &amp;quot;y&amp;quot;: 2.795, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 36.0, &amp;quot;y&amp;quot;: 2.798, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 37.0, &amp;quot;y&amp;quot;: 2.6687, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 38.0, &amp;quot;y&amp;quot;: 2.6863, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 39.0, &amp;quot;y&amp;quot;: 2.6576, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 40.0, &amp;quot;y&amp;quot;: 2.7842, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 41.0, &amp;quot;y&amp;quot;: 2.6382, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 42.0, &amp;quot;y&amp;quot;: 2.662, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 43.0, &amp;quot;y&amp;quot;: 2.6397, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 44.0, &amp;quot;y&amp;quot;: 2.5659, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 45.0, &amp;quot;y&amp;quot;: 2.4704, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 46.0, &amp;quot;y&amp;quot;: 2.6027, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 47.0, &amp;quot;y&amp;quot;: 2.5022, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 48.0, &amp;quot;y&amp;quot;: 2.5521, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 49.0, &amp;quot;y&amp;quot;: 2.4135, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 50.0, &amp;quot;y&amp;quot;: 2.4489, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 51.0, &amp;quot;y&amp;quot;: 2.5344, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 52.0, &amp;quot;y&amp;quot;: 2.5291, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 53.0, &amp;quot;y&amp;quot;: 2.3498, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 54.0, &amp;quot;y&amp;quot;: 2.3331, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 55.0, &amp;quot;y&amp;quot;: 2.3959, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 56.0, &amp;quot;y&amp;quot;: 2.4282, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 57.0, &amp;quot;y&amp;quot;: 2.3805, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 58.0, &amp;quot;y&amp;quot;: 2.3759, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 59.0, &amp;quot;y&amp;quot;: 2.2854, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 60.0, &amp;quot;y&amp;quot;: 2.3674, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 61.0, &amp;quot;y&amp;quot;: 2.3871, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 62.0, &amp;quot;y&amp;quot;: 2.2821, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 63.0, &amp;quot;y&amp;quot;: 2.2107, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 64.0, &amp;quot;y&amp;quot;: 2.24, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 65.0, &amp;quot;y&amp;quot;: 2.3204, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 66.0, &amp;quot;y&amp;quot;: 2.1601, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 67.0, &amp;quot;y&amp;quot;: 2.2484, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 68.0, &amp;quot;y&amp;quot;: 2.1844, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 69.0, &amp;quot;y&amp;quot;: 2.2264, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 70.0, &amp;quot;y&amp;quot;: 2.2101, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 71.0, &amp;quot;y&amp;quot;: 2.2166, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 72.0, &amp;quot;y&amp;quot;: 2.2968, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 73.0, &amp;quot;y&amp;quot;: 2.2234, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 74.0, &amp;quot;y&amp;quot;: 2.2697, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 75.0, &amp;quot;y&amp;quot;: 2.1731, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 76.0, &amp;quot;y&amp;quot;: 2.1449, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 77.0, &amp;quot;y&amp;quot;: 2.1887, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 78.0, &amp;quot;y&amp;quot;: 1.9883, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 79.0, &amp;quot;y&amp;quot;: 2.1488, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 80.0, &amp;quot;y&amp;quot;: 2.1537, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 81.0, &amp;quot;y&amp;quot;: 2.0631, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 82.0, &amp;quot;y&amp;quot;: 2.1584, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 83.0, &amp;quot;y&amp;quot;: 2.0905, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 84.0, &amp;quot;y&amp;quot;: 1.9702, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 85.0, &amp;quot;y&amp;quot;: 2.0988, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 86.0, &amp;quot;y&amp;quot;: 2.0469, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 87.0, &amp;quot;y&amp;quot;: 2.0686, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 88.0, &amp;quot;y&amp;quot;: 2.0851, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 89.0, &amp;quot;y&amp;quot;: 2.1638, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 90.0, &amp;quot;y&amp;quot;: 2.0896, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 91.0, &amp;quot;y&amp;quot;: 2.0765, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 92.0, &amp;quot;y&amp;quot;: 2.0966, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 93.0, &amp;quot;y&amp;quot;: 1.9596, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 94.0, &amp;quot;y&amp;quot;: 2.138, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 95.0, &amp;quot;y&amp;quot;: 1.9944, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 96.0, &amp;quot;y&amp;quot;: 2.0809, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 97.0, &amp;quot;y&amp;quot;: 1.9826, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 98.0, &amp;quot;y&amp;quot;: 1.9874, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 99.0, &amp;quot;y&amp;quot;: 2.0181, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 100.0, &amp;quot;y&amp;quot;: 2.1516, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 101.0, &amp;quot;y&amp;quot;: 2.0758, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 102.0, &amp;quot;y&amp;quot;: 1.9939, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 103.0, &amp;quot;y&amp;quot;: 2.0095, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 104.0, &amp;quot;y&amp;quot;: 1.9539, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 105.0, &amp;quot;y&amp;quot;: 2.0174, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 106.0, &amp;quot;y&amp;quot;: 1.9817, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 107.0, &amp;quot;y&amp;quot;: 2.0562, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 108.0, &amp;quot;y&amp;quot;: 1.9282, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 109.0, &amp;quot;y&amp;quot;: 1.9865, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 110.0, &amp;quot;y&amp;quot;: 1.9531, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 111.0, &amp;quot;y&amp;quot;: 1.9575, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 112.0, &amp;quot;y&amp;quot;: 2.0405, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 113.0, &amp;quot;y&amp;quot;: 2.0027, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 114.0, &amp;quot;y&amp;quot;: 2.0275, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 115.0, &amp;quot;y&amp;quot;: 2.0611, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 116.0, &amp;quot;y&amp;quot;: 2.0562, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 117.0, &amp;quot;y&amp;quot;: 1.9025, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 118.0, &amp;quot;y&amp;quot;: 2.0146, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 119.0, &amp;quot;y&amp;quot;: 1.8744, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}], [{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 4.2403, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 3.9536, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 3.9151, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 3.8029, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 3.7511, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 3.528, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 3.5022, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 3.4008, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 3.3039, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 9.0, &amp;quot;y&amp;quot;: 3.2436, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 10.0, &amp;quot;y&amp;quot;: 3.1926, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 11.0, &amp;quot;y&amp;quot;: 3.1385, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 12.0, &amp;quot;y&amp;quot;: 3.0366, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 13.0, &amp;quot;y&amp;quot;: 3.0545, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 14.0, &amp;quot;y&amp;quot;: 2.9373, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 15.0, &amp;quot;y&amp;quot;: 2.7218, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 16.0, &amp;quot;y&amp;quot;: 2.9312, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 17.0, &amp;quot;y&amp;quot;: 2.7847, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 18.0, &amp;quot;y&amp;quot;: 2.7144, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 19.0, &amp;quot;y&amp;quot;: 2.728, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 20.0, &amp;quot;y&amp;quot;: 2.6807, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 21.0, &amp;quot;y&amp;quot;: 2.6271, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 22.0, &amp;quot;y&amp;quot;: 2.5316, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 23.0, &amp;quot;y&amp;quot;: 2.5552, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 24.0, &amp;quot;y&amp;quot;: 2.4139, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 25.0, &amp;quot;y&amp;quot;: 2.557, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 26.0, &amp;quot;y&amp;quot;: 2.3602, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 27.0, &amp;quot;y&amp;quot;: 2.391, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 28.0, &amp;quot;y&amp;quot;: 2.3733, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 29.0, &amp;quot;y&amp;quot;: 2.3554, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 30.0, &amp;quot;y&amp;quot;: 2.299, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 31.0, &amp;quot;y&amp;quot;: 2.3154, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 32.0, &amp;quot;y&amp;quot;: 2.0423, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 33.0, &amp;quot;y&amp;quot;: 2.2215, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 34.0, &amp;quot;y&amp;quot;: 2.1943, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 35.0, &amp;quot;y&amp;quot;: 2.1552, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 36.0, &amp;quot;y&amp;quot;: 2.2513, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 37.0, &amp;quot;y&amp;quot;: 2.0801, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 38.0, &amp;quot;y&amp;quot;: 2.1139, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 39.0, &amp;quot;y&amp;quot;: 1.9777, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 40.0, &amp;quot;y&amp;quot;: 2.0981, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 41.0, &amp;quot;y&amp;quot;: 1.9666, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 42.0, &amp;quot;y&amp;quot;: 1.9532, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 43.0, &amp;quot;y&amp;quot;: 2.1742, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 44.0, &amp;quot;y&amp;quot;: 2.0594, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 45.0, &amp;quot;y&amp;quot;: 2.0019, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 46.0, &amp;quot;y&amp;quot;: 1.999, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 47.0, &amp;quot;y&amp;quot;: 1.8883, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 48.0, &amp;quot;y&amp;quot;: 1.8992, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 49.0, &amp;quot;y&amp;quot;: 1.9765, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 50.0, &amp;quot;y&amp;quot;: 1.811, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 51.0, &amp;quot;y&amp;quot;: 1.9448, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 52.0, &amp;quot;y&amp;quot;: 1.8125, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 53.0, &amp;quot;y&amp;quot;: 1.9152, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 54.0, &amp;quot;y&amp;quot;: 1.8307, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 55.0, &amp;quot;y&amp;quot;: 1.9957, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 56.0, &amp;quot;y&amp;quot;: 1.9421, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 57.0, &amp;quot;y&amp;quot;: 1.8406, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 58.0, &amp;quot;y&amp;quot;: 1.749, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 59.0, &amp;quot;y&amp;quot;: 1.8086, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 60.0, &amp;quot;y&amp;quot;: 1.8456, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 61.0, &amp;quot;y&amp;quot;: 1.7816, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 62.0, &amp;quot;y&amp;quot;: 1.8527, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 63.0, &amp;quot;y&amp;quot;: 1.8893, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 64.0, &amp;quot;y&amp;quot;: 1.8196, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 65.0, &amp;quot;y&amp;quot;: 1.7907, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 66.0, &amp;quot;y&amp;quot;: 1.8592, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 67.0, &amp;quot;y&amp;quot;: 1.7883, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 68.0, &amp;quot;y&amp;quot;: 1.8529, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 69.0, &amp;quot;y&amp;quot;: 1.777, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 70.0, &amp;quot;y&amp;quot;: 1.8902, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 71.0, &amp;quot;y&amp;quot;: 1.7703, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 72.0, &amp;quot;y&amp;quot;: 1.7185, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 73.0, &amp;quot;y&amp;quot;: 1.785, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 74.0, &amp;quot;y&amp;quot;: 1.7367, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 75.0, &amp;quot;y&amp;quot;: 1.7143, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 76.0, &amp;quot;y&amp;quot;: 1.7603, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 77.0, &amp;quot;y&amp;quot;: 1.8104, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 78.0, &amp;quot;y&amp;quot;: 1.6297, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 79.0, &amp;quot;y&amp;quot;: 1.7557, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 80.0, &amp;quot;y&amp;quot;: 1.7463, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 81.0, &amp;quot;y&amp;quot;: 1.7438, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 82.0, &amp;quot;y&amp;quot;: 1.7991, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 83.0, &amp;quot;y&amp;quot;: 1.6679, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 84.0, &amp;quot;y&amp;quot;: 1.7854, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 85.0, &amp;quot;y&amp;quot;: 1.7289, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 86.0, &amp;quot;y&amp;quot;: 1.7475, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 87.0, &amp;quot;y&amp;quot;: 1.7251, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 88.0, &amp;quot;y&amp;quot;: 1.7165, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 89.0, &amp;quot;y&amp;quot;: 1.7027, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 90.0, &amp;quot;y&amp;quot;: 1.7581, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 91.0, &amp;quot;y&amp;quot;: 1.8595, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 92.0, &amp;quot;y&amp;quot;: 1.7939, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 93.0, &amp;quot;y&amp;quot;: 1.7802, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 94.0, &amp;quot;y&amp;quot;: 1.7608, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 95.0, &amp;quot;y&amp;quot;: 1.6963, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 96.0, &amp;quot;y&amp;quot;: 1.761, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 97.0, &amp;quot;y&amp;quot;: 1.8491, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 98.0, &amp;quot;y&amp;quot;: 1.6435, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 99.0, &amp;quot;y&amp;quot;: 1.771, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 100.0, &amp;quot;y&amp;quot;: 1.7813, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 101.0, &amp;quot;y&amp;quot;: 1.7357, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 102.0, &amp;quot;y&amp;quot;: 1.7655, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 103.0, &amp;quot;y&amp;quot;: 1.8013, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 104.0, &amp;quot;y&amp;quot;: 1.8506, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 105.0, &amp;quot;y&amp;quot;: 1.7945, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 106.0, &amp;quot;y&amp;quot;: 1.8152, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 107.0, &amp;quot;y&amp;quot;: 1.7339, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 108.0, &amp;quot;y&amp;quot;: 1.7634, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 109.0, &amp;quot;y&amp;quot;: 1.723, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 110.0, &amp;quot;y&amp;quot;: 1.7298, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 111.0, &amp;quot;y&amp;quot;: 1.6831, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 112.0, &amp;quot;y&amp;quot;: 1.752, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 113.0, &amp;quot;y&amp;quot;: 1.7983, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 114.0, &amp;quot;y&amp;quot;: 1.7001, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 115.0, &amp;quot;y&amp;quot;: 1.7246, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 116.0, &amp;quot;y&amp;quot;: 1.7466, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 117.0, &amp;quot;y&amp;quot;: 1.7096, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 118.0, &amp;quot;y&amp;quot;: 1.7649, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 119.0, &amp;quot;y&amp;quot;: 1.7232, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-723e3d8e-ede2-49b2-bd3f-8591100490ae'] path&amp;quot;, &amp;quot;g[id='maidr-5948d0a9-29f7-46da-a259-728584b3596d'] path&amp;quot;]}]}]]}&quot;>
+ <metadata>
+  <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
+   <cc:Work>
+    <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
+    <dc:date>2026-10-04T16:15:56.361284</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id=&quot;figure_1&quot;>
+  <g id=&quot;maidr-72df779e-fbf9-43b5-970d-7120461e90bd&quot;>
+   <path d=&quot;M 0 324  L 504 324  L 504 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
+  </g>
+  <g id=&quot;axes_1&quot;>
+   <g id=&quot;maidr-c03c7427-b04b-4b67-a027-66d43a8141f3&quot;>
+    <path d=&quot;M 47.452344 282.2  L 403.138 282.2  L 403.138 25.917188  L 47.452344 25.917188  z &quot; style=&quot;fill: #ffffff&quot;/>
+   </g>
+   <g id=&quot;matplotlib.axis_1&quot;>
+    <g id=&quot;xtick_1&quot;>
+     <g id=&quot;maidr-f37565d1-1afb-497f-abe1-cc7feef9f7e3&quot;>
+      <path d=&quot;M 63.619874 282.2  L 63.619874 25.917188  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-2e83590d-79de-464e-9814-c9e84c904e60&quot;>
+      <defs>
+       <path id=&quot;m348dc3a67a&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </defs>
+      <g>
+       <use xlink:href=&quot;#m348dc3a67a&quot; x=&quot;63.619874&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_1&quot;>
+      <!-- 0 -->
+      <g transform=&quot;translate(60.438624 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-13&quot; d=&quot;M 2034 4250  Q 1547 4250 1301 3770  Q 1056 3291 1056 2328  Q 1056 1369 1301 889  Q 1547 409 2034 409  Q 2525 409 2770 889  Q 3016 1369 3016 2328  Q 3016 3291 2770 3770  Q 2525 4250 2034 4250  z M 2034 4750  Q 2819 4750 3233 4129  Q 3647 3509 3647 2328  Q 3647 1150 3233 529  Q 2819 -91 2034 -91  Q 1250 -91 836 529  Q 422 1150 422 2328  Q 422 3509 836 4129  Q 1250 4750 2034 4750  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-13&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_2&quot;>
+     <g id=&quot;maidr-18adf978-3812-4d02-9775-c393e563c46c&quot;>
+      <path d=&quot;M 117.964512 282.2  L 117.964512 25.917188  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-e5a82986-23f7-44d4-9423-11ac7e82b903&quot;>
+      <g>
+       <use xlink:href=&quot;#m348dc3a67a&quot; x=&quot;117.964512&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_2&quot;>
+      <!-- 20 -->
+      <g transform=&quot;translate(111.602012 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-15&quot; d=&quot;M 1228 531  L 3431 531  L 3431 0  L 469 0  L 469 531  Q 828 903 1448 1529  Q 2069 2156 2228 2338  Q 2531 2678 2651 2914  Q 2772 3150 2772 3378  Q 2772 3750 2511 3984  Q 2250 4219 1831 4219  Q 1534 4219 1204 4116  Q 875 4013 500 3803  L 500 4441  Q 881 4594 1212 4672  Q 1544 4750 1819 4750  Q 2544 4750 2975 4387  Q 3406 4025 3406 3419  Q 3406 3131 3298 2873  Q 3191 2616 2906 2266  Q 2828 2175 2409 1742  Q 1991 1309 1228 531  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-15&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_3&quot;>
+     <g id=&quot;maidr-702a04a0-f4fc-403b-9783-1f83534e4340&quot;>
+      <path d=&quot;M 172.30915 282.2  L 172.30915 25.917188  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-74865f55-c0a2-404d-9f9d-414328757931&quot;>
+      <g>
+       <use xlink:href=&quot;#m348dc3a67a&quot; x=&quot;172.30915&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_3&quot;>
+      <!-- 40 -->
+      <g transform=&quot;translate(165.94665 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-17&quot; d=&quot;M 2419 4116  L 825 1625  L 2419 1625  L 2419 4116  z M 2253 4666  L 3047 4666  L 3047 1625  L 3713 1625  L 3713 1100  L 3047 1100  L 3047 0  L 2419 0  L 2419 1100  L 313 1100  L 313 1709  L 2253 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-17&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_4&quot;>
+     <g id=&quot;maidr-a4a9407f-47bc-4703-82f1-fc348c4ec676&quot;>
+      <path d=&quot;M 226.653788 282.2  L 226.653788 25.917188  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-1517fe37-baab-4b32-9166-52aec40440e7&quot;>
+      <g>
+       <use xlink:href=&quot;#m348dc3a67a&quot; x=&quot;226.653788&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_4&quot;>
+      <!-- 60 -->
+      <g transform=&quot;translate(220.291288 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-19&quot; d=&quot;M 2113 2584  Q 1688 2584 1439 2293  Q 1191 2003 1191 1497  Q 1191 994 1439 701  Q 1688 409 2113 409  Q 2538 409 2786 701  Q 3034 994 3034 1497  Q 3034 2003 2786 2293  Q 2538 2584 2113 2584  z M 3366 4563  L 3366 3988  Q 3128 4100 2886 4159  Q 2644 4219 2406 4219  Q 1781 4219 1451 3797  Q 1122 3375 1075 2522  Q 1259 2794 1537 2939  Q 1816 3084 2150 3084  Q 2853 3084 3261 2657  Q 3669 2231 3669 1497  Q 3669 778 3244 343  Q 2819 -91 2113 -91  Q 1303 -91 875 529  Q 447 1150 447 2328  Q 447 3434 972 4092  Q 1497 4750 2381 4750  Q 2619 4750 2861 4703  Q 3103 4656 3366 4563  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-19&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_5&quot;>
+     <g id=&quot;maidr-efb81e18-86da-44f9-ab2d-b5a7d62947e3&quot;>
+      <path d=&quot;M 280.998426 282.2  L 280.998426 25.917188  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-61e23865-0f96-40c9-8f2a-b61fea31056a&quot;>
+      <g>
+       <use xlink:href=&quot;#m348dc3a67a&quot; x=&quot;280.998426&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_5&quot;>
+      <!-- 80 -->
+      <g transform=&quot;translate(274.635926 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-1b&quot; d=&quot;M 2034 2216  Q 1584 2216 1326 1975  Q 1069 1734 1069 1313  Q 1069 891 1326 650  Q 1584 409 2034 409  Q 2484 409 2743 651  Q 3003 894 3003 1313  Q 3003 1734 2745 1975  Q 2488 2216 2034 2216  z M 1403 2484  Q 997 2584 770 2862  Q 544 3141 544 3541  Q 544 4100 942 4425  Q 1341 4750 2034 4750  Q 2731 4750 3128 4425  Q 3525 4100 3525 3541  Q 3525 3141 3298 2862  Q 3072 2584 2669 2484  Q 3125 2378 3379 2068  Q 3634 1759 3634 1313  Q 3634 634 3220 271  Q 2806 -91 2034 -91  Q 1263 -91 848 271  Q 434 634 434 1313  Q 434 1759 690 2068  Q 947 2378 1403 2484  z M 1172 3481  Q 1172 3119 1398 2916  Q 1625 2713 2034 2713  Q 2441 2713 2670 2916  Q 2900 3119 2900 3481  Q 2900 3844 2670 4047  Q 2441 4250 2034 4250  Q 1625 4250 1398 4047  Q 1172 3844 1172 3481  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-1b&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_6&quot;>
+     <g id=&quot;maidr-df328787-3522-437c-a3ae-585c7c356b9e&quot;>
+      <path d=&quot;M 335.343064 282.2  L 335.343064 25.917188  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-7bde7bd1-217e-4f16-ac03-10da47282ad7&quot;>
+      <g>
+       <use xlink:href=&quot;#m348dc3a67a&quot; x=&quot;335.343064&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_6&quot;>
+      <!-- 100 -->
+      <g transform=&quot;translate(325.799314 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-14&quot; d=&quot;M 794 531  L 1825 531  L 1825 4091  L 703 3866  L 703 4441  L 1819 4666  L 2450 4666  L 2450 531  L 3481 531  L 3481 0  L 794 0  L 794 531  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-14&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(127.25 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_7&quot;>
+     <g id=&quot;maidr-cab085d4-1410-44aa-a233-c1165963cfe3&quot;>
+      <path d=&quot;M 389.687702 282.2  L 389.687702 25.917188  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-1f678dbc-c51a-408b-b74a-e611cf0e53c3&quot;>
+      <g>
+       <use xlink:href=&quot;#m348dc3a67a&quot; x=&quot;389.687702&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_7&quot;>
+      <!-- 120 -->
+      <g transform=&quot;translate(380.143952 296.797656) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-14&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-15&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(127.25 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_8&quot;>
+     <!-- Step -->
+     <g transform=&quot;translate(213.910016 310.797656) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-36&quot; d=&quot;M 3425 4513  L 3425 3897  Q 3066 4069 2747 4153  Q 2428 4238 2131 4238  Q 1616 4238 1336 4038  Q 1056 3838 1056 3469  Q 1056 3159 1242 3001  Q 1428 2844 1947 2747  L 2328 2669  Q 3034 2534 3370 2195  Q 3706 1856 3706 1288  Q 3706 609 3251 259  Q 2797 -91 1919 -91  Q 1588 -91 1214 -16  Q 841 59 441 206  L 441 856  Q 825 641 1194 531  Q 1563 422 1919 422  Q 2459 422 2753 634  Q 3047 847 3047 1241  Q 3047 1584 2836 1778  Q 2625 1972 2144 2069  L 1759 2144  Q 1053 2284 737 2584  Q 422 2884 422 3419  Q 422 4038 858 4394  Q 1294 4750 2059 4750  Q 2388 4750 2728 4690  Q 3069 4631 3425 4513  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-57&quot; d=&quot;M 1172 4494  L 1172 3500  L 2356 3500  L 2356 3053  L 1172 3053  L 1172 1153  Q 1172 725 1289 603  Q 1406 481 1766 481  L 2356 481  L 2356 0  L 1766 0  Q 1100 0 847 248  Q 594 497 594 1153  L 594 3053  L 172 3053  L 172 3500  L 594 3500  L 594 4494  L 1172 4494  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-48&quot; d=&quot;M 3597 1894  L 3597 1613  L 953 1613  Q 991 1019 1311 708  Q 1631 397 2203 397  Q 2534 397 2845 478  Q 3156 559 3463 722  L 3463 178  Q 3153 47 2828 -22  Q 2503 -91 2169 -91  Q 1331 -91 842 396  Q 353 884 353 1716  Q 353 2575 817 3079  Q 1281 3584 2069 3584  Q 2775 3584 3186 3129  Q 3597 2675 3597 1894  z M 3022 2063  Q 3016 2534 2758 2815  Q 2500 3097 2075 3097  Q 1594 3097 1305 2825  Q 1016 2553 972 2059  L 3022 2063  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-53&quot; d=&quot;M 1159 525  L 1159 -1331  L 581 -1331  L 581 3500  L 1159 3500  L 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  z M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-36&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-57&quot; transform=&quot;translate(63.484375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(102.6875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-53&quot; transform=&quot;translate(164.21875 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;matplotlib.axis_2&quot;>
+    <g id=&quot;ytick_1&quot;>
+     <g id=&quot;maidr-31745047-349c-4ec1-8222-a60c38b1a044&quot;>
+      <path d=&quot;M 47.452344 281.54877  L 403.138 281.54877  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-4b88ce51-436b-4060-9a18-2daa8ff3f22d&quot;>
+      <defs>
+       <path id=&quot;mf31af36e4d&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </defs>
+      <g>
+       <use xlink:href=&quot;#mf31af36e4d&quot; x=&quot;47.452344&quot; y=&quot;281.54877&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_9&quot;>
+      <!-- 1.5 -->
+      <g transform=&quot;translate(24.549219 285.347598) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-11&quot; d=&quot;M 684 794  L 1344 794  L 1344 0  L 684 0  L 684 794  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;DejaVuSans-18&quot; d=&quot;M 691 4666  L 3169 4666  L 3169 4134  L 1269 4134  L 1269 2991  Q 1406 3038 1543 3061  Q 1681 3084 1819 3084  Q 2600 3084 3056 2656  Q 3513 2228 3513 1497  Q 3513 744 3044 326  Q 2575 -91 1722 -91  Q 1428 -91 1123 -41  Q 819 9 494 109  L 494 744  Q 775 591 1075 516  Q 1375 441 1709 441  Q 2250 441 2565 725  Q 2881 1009 2881 1497  Q 2881 1984 2565 2268  Q 2250 2553 1709 2553  Q 1456 2553 1204 2497  Q 953 2441 691 2322  L 691 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-14&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-18&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_2&quot;>
+     <g id=&quot;maidr-85b74098-c9c7-4ae7-896b-e239a24d8d93&quot;>
+      <path d=&quot;M 47.452344 239.150973  L 403.138 239.150973  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-128baa59-bb34-422f-ba46-510564044b3a&quot;>
+      <g>
+       <use xlink:href=&quot;#mf31af36e4d&quot; x=&quot;47.452344&quot; y=&quot;239.150973&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_10&quot;>
+      <!-- 2.0 -->
+      <g transform=&quot;translate(24.549219 242.949801) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-15&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_3&quot;>
+     <g id=&quot;maidr-f2e8cc49-665d-4230-aa3b-3d7dd8903ef8&quot;>
+      <path d=&quot;M 47.452344 196.753175  L 403.138 196.753175  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-cd075b7d-878c-4f02-b346-4ab81c4611f7&quot;>
+      <g>
+       <use xlink:href=&quot;#mf31af36e4d&quot; x=&quot;47.452344&quot; y=&quot;196.753175&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_11&quot;>
+      <!-- 2.5 -->
+      <g transform=&quot;translate(24.549219 200.552004) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-15&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-18&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_4&quot;>
+     <g id=&quot;maidr-792d2a31-dab2-4b58-a8c1-610d8177d01c&quot;>
+      <path d=&quot;M 47.452344 154.355378  L 403.138 154.355378  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-1b953e7a-c0dc-459f-b00b-03c2939d4ac8&quot;>
+      <g>
+       <use xlink:href=&quot;#mf31af36e4d&quot; x=&quot;47.452344&quot; y=&quot;154.355378&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_12&quot;>
+      <!-- 3.0 -->
+      <g transform=&quot;translate(24.549219 158.154206) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-16&quot; d=&quot;M 2597 2516  Q 3050 2419 3304 2112  Q 3559 1806 3559 1356  Q 3559 666 3084 287  Q 2609 -91 1734 -91  Q 1441 -91 1130 -33  Q 819 25 488 141  L 488 750  Q 750 597 1062 519  Q 1375 441 1716 441  Q 2309 441 2620 675  Q 2931 909 2931 1356  Q 2931 1769 2642 2001  Q 2353 2234 1838 2234  L 1294 2234  L 1294 2753  L 1863 2753  Q 2328 2753 2575 2939  Q 2822 3125 2822 3475  Q 2822 3834 2567 4026  Q 2313 4219 1838 4219  Q 1578 4219 1281 4162  Q 984 4106 628 3988  L 628 4550  Q 988 4650 1302 4700  Q 1616 4750 1894 4750  Q 2613 4750 3031 4423  Q 3450 4097 3450 3541  Q 3450 3153 3228 2886  Q 3006 2619 2597 2516  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-16&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_5&quot;>
+     <g id=&quot;maidr-2884d41c-43b5-4bea-8e7f-ba1745a1a78e&quot;>
+      <path d=&quot;M 47.452344 111.957581  L 403.138 111.957581  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-1a225f2f-7378-4b53-852f-45db48686a42&quot;>
+      <g>
+       <use xlink:href=&quot;#mf31af36e4d&quot; x=&quot;47.452344&quot; y=&quot;111.957581&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_13&quot;>
+      <!-- 3.5 -->
+      <g transform=&quot;translate(24.549219 115.756409) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-16&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-18&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_6&quot;>
+     <g id=&quot;maidr-a60c6e04-bac5-48bf-a2b6-26068f24b5fb&quot;>
+      <path d=&quot;M 47.452344 69.559784  L 403.138 69.559784  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-ba911efc-1d20-4006-999c-9d5583deea7c&quot;>
+      <g>
+       <use xlink:href=&quot;#mf31af36e4d&quot; x=&quot;47.452344&quot; y=&quot;69.559784&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_14&quot;>
+      <!-- 4.0 -->
+      <g transform=&quot;translate(24.549219 73.358612) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-17&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_7&quot;>
+     <g id=&quot;maidr-06b1f56f-7918-4711-bc2a-db36128dd415&quot;>
+      <path d=&quot;M 47.452344 27.161987  L 403.138 27.161987  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-907a0bc0-2da2-4bce-8c09-6ef3dc6d4c3d&quot;>
+      <g>
+       <use xlink:href=&quot;#mf31af36e4d&quot; x=&quot;47.452344&quot; y=&quot;27.161987&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_15&quot;>
+      <!-- 4.5 -->
+      <g transform=&quot;translate(24.549219 30.960815) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-17&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-18&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_16&quot;>
+     <!-- train/loss -->
+     <g transform=&quot;translate(18.146875 177.038281) rotate(-90) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-55&quot; d=&quot;M 2631 2963  Q 2534 3019 2420 3045  Q 2306 3072 2169 3072  Q 1681 3072 1420 2755  Q 1159 2438 1159 1844  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1341 3275 1631 3429  Q 1922 3584 2338 3584  Q 2397 3584 2469 3576  Q 2541 3569 2628 3553  L 2631 2963  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-44&quot; d=&quot;M 2194 1759  Q 1497 1759 1228 1600  Q 959 1441 959 1056  Q 959 750 1161 570  Q 1363 391 1709 391  Q 2188 391 2477 730  Q 2766 1069 2766 1631  L 2766 1759  L 2194 1759  z M 3341 1997  L 3341 0  L 2766 0  L 2766 531  Q 2569 213 2275 61  Q 1981 -91 1556 -91  Q 1019 -91 701 211  Q 384 513 384 1019  Q 384 1609 779 1909  Q 1175 2209 1959 2209  L 2766 2209  L 2766 2266  Q 2766 2663 2505 2880  Q 2244 3097 1772 3097  Q 1472 3097 1187 3025  Q 903 2953 641 2809  L 641 3341  Q 956 3463 1253 3523  Q 1550 3584 1831 3584  Q 2591 3584 2966 3190  Q 3341 2797 3341 1997  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-4c&quot; d=&quot;M 603 3500  L 1178 3500  L 1178 0  L 603 0  L 603 3500  z M 603 4863  L 1178 4863  L 1178 4134  L 603 4134  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-51&quot; d=&quot;M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-12&quot; d=&quot;M 1625 4666  L 2156 4666  L 531 -594  L 0 -594  L 1625 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-4f&quot; d=&quot;M 603 4863  L 1178 4863  L 1178 0  L 603 0  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-52&quot; d=&quot;M 1959 3097  Q 1497 3097 1228 2736  Q 959 2375 959 1747  Q 959 1119 1226 758  Q 1494 397 1959 397  Q 2419 397 2687 759  Q 2956 1122 2956 1747  Q 2956 2369 2687 2733  Q 2419 3097 1959 3097  z M 1959 3584  Q 2709 3584 3137 3096  Q 3566 2609 3566 1747  Q 3566 888 3137 398  Q 2709 -91 1959 -91  Q 1206 -91 779 398  Q 353 888 353 1747  Q 353 2609 779 3096  Q 1206 3584 1959 3584  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-56&quot; d=&quot;M 2834 3397  L 2834 2853  Q 2591 2978 2328 3040  Q 2066 3103 1784 3103  Q 1356 3103 1142 2972  Q 928 2841 928 2578  Q 928 2378 1081 2264  Q 1234 2150 1697 2047  L 1894 2003  Q 2506 1872 2764 1633  Q 3022 1394 3022 966  Q 3022 478 2636 193  Q 2250 -91 1575 -91  Q 1294 -91 989 -36  Q 684 19 347 128  L 347 722  Q 666 556 975 473  Q 1284 391 1588 391  Q 1994 391 2212 530  Q 2431 669 2431 922  Q 2431 1156 2273 1281  Q 2116 1406 1581 1522  L 1381 1569  Q 847 1681 609 1914  Q 372 2147 372 2553  Q 372 3047 722 3315  Q 1072 3584 1716 3584  Q 2034 3584 2315 3537  Q 2597 3491 2834 3397  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-57&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(39.203125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(80.3125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(141.59375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(169.375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-12&quot; transform=&quot;translate(232.75 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(266.4375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(294.21875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(355.40625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(407.5 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;maidr-723e3d8e-ede2-49b2-bd3f-8591100490ae&quot; maidr=&quot;6928e1ac-0059-4619-8d15-9079c7f621b9&quot;>
+    <path d=&quot;M 63.619874 37.566406  L 66.337105 42.476071  L 69.054337 55.085176  L 71.771569 64.726435  L 74.488801 71.654235  L 77.206033 71.052186  L 79.923265 81.38029  L 82.640497 88.325049  L 85.357729 84.687318  L 88.074961 89.588503  L 90.792193 91.920382  L 93.509425 103.656092  L 96.226656 103.164278  L 98.943888 107.590608  L 101.66112 118.876902  L 104.378352 112.322202  L 107.095584 117.155551  L 109.812816 110.261669  L 112.530048 124.914348  L 115.24728 130.112318  L 117.964512 126.432189  L 120.681744 134.928708  L 123.398975 134.462332  L 126.116207 144.001836  L 128.833439 144.010316  L 131.550671 142.789259  L 134.267903 147.266467  L 136.985135 152.879935  L 139.702367 161.690197  L 142.419599 156.500707  L 145.136831 160.87616  L 147.854063 160.036683  L 150.571295 164.963307  L 153.288526 162.826458  L 156.005758 170.856601  L 158.72299 171.738475  L 161.440222 171.484088  L 164.157454 182.448159  L 166.874686 180.955756  L 169.591918 183.38939  L 172.30915 172.654268  L 175.026382 185.034424  L 177.743614 183.016289  L 180.460845 184.907231  L 183.178077 191.165146  L 185.895309 199.263125  L 188.612541 188.044668  L 191.329773 196.566625  L 194.047005 192.335325  L 196.764237 204.087994  L 199.481469 201.08623  L 202.198701 193.836207  L 204.915933 194.285624  L 207.633164 209.489474  L 210.350396 210.90556  L 213.067628 205.580397  L 215.78486 202.841499  L 218.502092 206.886249  L 221.219324 207.276309  L 223.936556 214.95031  L 226.653788 207.997071  L 229.37102 206.326598  L 232.088252 215.230136  L 234.805484 221.284541  L 237.522715 218.80003  L 240.239947 211.982464  L 242.957179 225.575198  L 245.674411 218.087747  L 248.391643 223.514665  L 251.108875 219.95325  L 253.826107 221.335418  L 256.543339 220.784247  L 259.260571 213.98364  L 261.977803 220.207637  L 264.695034 216.281601  L 267.412266 224.472855  L 270.129498 226.864091  L 272.84673 223.150044  L 275.563962 240.143081  L 278.281194 226.533388  L 280.998426 226.11789  L 283.715658 233.800371  L 286.43289 225.719351  L 289.150122 231.476971  L 291.867354 241.677881  L 294.584585 230.773168  L 297.301817 235.174059  L 300.019049 233.333995  L 302.736281 231.934868  L 305.453513 225.261454  L 308.170745 231.553287  L 310.887977 232.66411  L 313.605209 230.959718  L 316.322441 242.576715  L 319.039673 227.449181  L 321.756904 239.625828  L 324.474136 232.291009  L 327.191368 240.626416  L 329.9086 240.219397  L 332.625832 237.616172  L 335.343064 226.295961  L 338.060296 232.723467  L 340.777528 239.668226  L 343.49476 238.345415  L 346.211992 243.06005  L 348.929224 237.675529  L 351.646455 240.702732  L 354.363687 234.38546  L 357.080919 245.239296  L 359.798151 240.295713  L 362.515383 243.127886  L 365.232615 242.754785  L 367.949847 235.716751  L 370.667079 238.922025  L 373.384311 236.819094  L 376.101543 233.969962  L 378.818774 234.38546  L 381.536006 247.418543  L 384.253238 237.912957  L 386.97047 249.801299  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-5948d0a9-29f7-46da-a259-728584b3596d&quot; maidr=&quot;6928e1ac-0059-4619-8d15-9079c7f621b9&quot;>
+    <path d=&quot;M 63.619874 49.183403  L 66.337105 73.4943  L 69.054337 76.75893  L 71.771569 86.272996  L 74.488801 90.665407  L 77.206033 109.583305  L 79.923265 111.771031  L 82.640497 120.369304  L 85.357729 128.585997  L 88.074961 133.699172  L 90.792193 138.023747  L 93.509425 142.611189  L 96.226656 151.25186  L 98.943888 149.734018  L 101.66112 159.672062  L 104.378352 177.945513  L 107.095584 160.189315  L 109.812816 172.61187  L 112.530048 178.573  L 115.24728 177.41978  L 117.964512 181.430612  L 120.681744 185.975655  L 123.398975 194.073635  L 126.116207 192.072459  L 128.833439 204.054076  L 131.550671 191.919827  L 134.267903 208.6076  L 136.985135 205.995895  L 139.702367 207.496777  L 142.419599 209.014618  L 145.136831 213.79709  L 147.854063 212.406442  L 150.571295 235.564119  L 153.288526 220.368749  L 156.005758 222.675189  L 158.72299 225.990696  L 161.440222 217.84184  L 164.157454 232.358846  L 166.874686 229.492754  L 169.591918 241.041914  L 172.30915 230.832525  L 175.026382 241.983146  L 177.743614 243.119406  L 180.460845 224.37958  L 183.178077 234.114114  L 185.895309 238.989861  L 188.612541 239.235768  L 191.329773 248.622641  L 194.047005 247.698369  L 196.764237 241.143669  L 199.481469 255.17734  L 202.198701 243.831689  L 204.915933 255.050147  L 207.633164 246.341639  L 210.350396 253.506867  L 213.067628 239.515594  L 215.78486 244.060638  L 218.502092 252.66739  L 221.219324 260.434667  L 223.936556 255.380849  L 226.653788 252.243412  L 229.37102 257.67033  L 232.088252 251.641364  L 234.805484 248.537845  L 237.522715 254.448098  L 240.239947 256.898691  L 242.957179 251.090192  L 245.674411 257.1022  L 248.391643 251.624405  L 251.108875 258.06039  L 253.826107 248.461529  L 256.543339 258.628521  L 259.260571 263.020932  L 261.977803 257.382025  L 264.695034 261.477653  L 267.412266 263.377074  L 270.129498 259.476477  L 272.84673 255.228217  L 275.563962 270.550781  L 278.281194 259.866536  L 280.998426 260.663615  L 283.715658 260.875604  L 286.43289 256.186408  L 289.150122 267.31159  L 291.867354 257.348107  L 294.584585 262.139058  L 297.301817 260.56186  L 300.019049 262.461282  L 302.736281 263.190524  L 305.453513 264.360703  L 308.170745 259.663027  L 310.887977 251.064754  L 313.605209 256.627345  L 316.322441 257.789044  L 319.039673 259.434079  L 321.756904 264.903395  L 324.474136 259.41712  L 327.191368 251.946628  L 329.9086 269.380602  L 332.625832 258.569164  L 335.343064 257.695769  L 338.060296 261.562448  L 340.777528 259.03554  L 343.49476 255.999857  L 346.211992 251.819434  L 348.929224 256.576467  L 351.646455 254.821199  L 354.363687 261.71508  L 357.080919 259.21361  L 359.798151 262.639352  L 362.515383 262.062742  L 365.232615 266.022697  L 367.949847 260.18028  L 370.667079 256.254244  L 373.384311 264.581171  L 376.101543 262.503679  L 378.818774 260.638176  L 381.536006 263.775613  L 384.253238 259.086417  L 386.97047 262.622393  &quot; clip-path=&quot;url(#p480de1c025)&quot; style=&quot;fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-4f2312be-9483-4064-b5a1-cc4ce8572d17&quot;>
+    <path d=&quot;M 47.452344 282.2  L 47.452344 25.917188  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-b858d3a4-fa49-45f1-be14-1f8c102a40da&quot;>
+    <path d=&quot;M 47.452344 282.2  L 403.138 282.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;text_17&quot;>
+    <!-- train/loss -->
+    <g transform=&quot;translate(197.719547 19.917188) scale(0.12 -0.12)&quot;>
+     <use xlink:href=&quot;#DejaVuSans-57&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(39.203125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(80.3125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(141.59375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(169.375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-12&quot; transform=&quot;translate(232.75 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(266.4375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(294.21875 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(355.40625 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(407.5 0)&quot;/>
+    </g>
+   </g>
+   <g id=&quot;legend_1&quot;>
+    <g id=&quot;maidr-1ffca054-db02-4b03-94bf-c6cc6b90a216&quot;>
+     <path d=&quot;M 419.251713 145.65625  L 429.251713 145.65625  L 439.251713 145.65625  &quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
+    </g>
+    <g id=&quot;text_18&quot;>
+     <!-- baseline -->
+     <g transform=&quot;translate(447.251713 149.15625) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-45&quot; d=&quot;M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z M 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  L 1159 0  L 581 0  L 581 4863  L 1159 4863  L 1159 2969  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-45&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(63.484375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(124.765625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(176.859375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(238.390625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(266.171875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(293.953125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(357.328125 0)&quot;/>
+     </g>
+    </g>
+    <g id=&quot;maidr-4c2778b9-2a45-4434-b5e9-dad27bf819b1&quot;>
+     <path d=&quot;M 419.251713 160.657031  L 429.251713 160.657031  L 439.251713 160.657031  &quot; style=&quot;fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square&quot;/>
+    </g>
+    <g id=&quot;text_19&quot;>
+     <!-- lora-r16 -->
+     <g transform=&quot;translate(447.251713 164.157031) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-10&quot; d=&quot;M 313 2009  L 1997 2009  L 1997 1497  L 313 1497  L 313 2009  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(27.78125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(88.96875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(130.078125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-10&quot; transform=&quot;translate(191.359375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(227.4375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-14&quot; transform=&quot;translate(268.546875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-19&quot; transform=&quot;translate(332.171875 0)&quot;/>
+     </g>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id=&quot;p480de1c025&quot;>
+   <rect x=&quot;47.452344&quot; y=&quot;25.917188&quot; width=&quot;355.685656&quot; height=&quot;256.282812&quot;/>
+  </clipPath>
+ </defs>
+</svg>
+</div>
+</div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
+        function resizeIframe() {
+            let iframe = document.getElementById('iframe_03af7ad0-1aa5-4d12-9b5b-c8e577d96e6d');
+            if (
+                iframe &amp;&amp; iframe.contentWindow &amp;&amp;
+                iframe.contentWindow.document
+            ) {
+                let iframeDocument = iframe.contentWindow.document;
+                let body = iframeDocument.body;
+                let de = iframeDocument.documentElement;
+
+                iframe.style.height = 'auto';
+
+                // Use Math.max() across multiple DOM measurements (industry standard)
+                let height = Math.max(
+                    body.scrollHeight || 0,
+                    body.offsetHeight || 0,
+                    de.scrollHeight || 0,
+                    de.offsetHeight || 0,
+                    de.clientHeight || 0
+                );
+
+                // Scan specific MAIDR elements with getBoundingClientRect()
+                // This ensures elements with overflow:visible parents are included
+                let selectors = [
+                    '#maidr-rotor-area',
+                    '#maidr-text-container',
+                    '[id^=&quot;maidr-braille-textarea&quot;]',
+                    '.maidr-review-input'
+                ];
+                for (let i = 0; i < selectors.length; i++) {
+                    let el = iframeDocument.querySelector(selectors[i]);
+                    if (el) {
+                        let rect = el.getBoundingClientRect();
+                        let bottom = rect.bottom + (iframe.contentWindow.scrollY || 0);
+                        if (bottom > height) {
+                            height = bottom;
+                        }
+                    }
+                }
+
+                // Detect braille textarea by dynamic id prefix
+                let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                // Detect review input container by class name
+                let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
+                // Consider braille active if it or any descendant has focus
+                let isBrailleActive = brailleContainer &amp;&amp; (
+                    brailleContainer === iframeDocument.activeElement ||
+                    (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                );
+                // Consider review input active if it or any descendant has focus
+                let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                    reviewInputContainer === iframeDocument.activeElement ||
+                    (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                );
+
+                // Add buffer for active states (rotor-area height is measured directly above)
+                if (isBrailleActive) {
+                    height += 100;
+                } else if (isReviewInputActive) {
+                    height += 50;
+                }
+                iframe.style.height = (height) + 'px';
+                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+            }
+        }
+        let iframe = document.getElementById('iframe_03af7ad0-1aa5-4d12-9b5b-c8e577d96e6d');
+        resizeIframe();
+        iframe.onload = function() {
+            resizeIframe();
+            iframe.contentWindow.addEventListener('resize', resizeIframe);
+        };
+        // Delegate focus events for braille textarea (by id prefix)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Delegate focus events for review input container (by class name)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Modern resize detection: ResizeObserver with MutationObserver fallback
+        try {
+            let rafId = 0;
+            let scheduleResize = function() {
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(function() {
+                    resizeIframe();
+                });
+            };
+
+            // Try ResizeObserver first (modern, more efficient)
+            if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {
+                new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body
+                );
+            } else {
+                // Fallback to MutationObserver (observe entire document for all changes)
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body,
+                    { childList: true, subtree: true, characterData: true, attributes: true }
+                );
+            }
+        } catch (_) {}
+    "></iframe>
+</div>
+</div>
+<p>The <em>lora-r16</em> run’s loss falls faster and further than the baseline’s.</p>
+</section>
+<section id="evaluation-loss" class="level3">
+<h3 class="anchored" data-anchor-id="evaluation-loss">Evaluation Loss</h3>
+<p>A metric logged only every few steps is one unbroken line through the steps it was logged at; here the evaluation loss, every 20 steps.</p>
+<div id="5d5865bf" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" data-source-line-numbers="nil" data-code-line-numbers="nil"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>(eval_loss,) <span class="op">=</span> maidr.read_wandb_history(<span class="st">"wandb-runs"</span>, keys<span class="op">=</span>[<span class="st">"eval/loss"</span>])</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>maidr.show(eval_loss)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<iframe id="iframe_ae022d9e-8351-4e06-b7e4-e01e75a26a74" title="eval/loss, accessible chart" data-maidr-chart="" allow="bluetooth; serial" srcdoc="<div>
+  <script type=&quot;text/javascript&quot;>
+                (function() {
+                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js&quot;]');
+                    if (!existing) {
+                        var s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js';
+                        s.onload = function() { if (window.main) window.main(); };
+                        document.head.appendChild(s);
+                    } else {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function() { if (window.main) window.main(); });
+                        } else {
+                            if (window.main) window.main();
+                        }
+                    }
+                })();
+            </script>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;324pt&quot; viewBox=&quot;0 0 504 324&quot; version=&quot;1.1&quot; id=&quot;e0fe01f2-ac0f-45ac-b47f-47778390fd38&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;e0fe01f2-ac0f-45ac-b47f-47778390fd38&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;719e887d-8f92-4807-b9c5-b8fbfac965c7&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;b856ddb4-91d2-4d91-892b-1ab195906790&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;line&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;eval/loss&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Step&amp;quot;}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;eval/loss&amp;quot;}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 19.0, &amp;quot;y&amp;quot;: 3.4146, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 39.0, &amp;quot;y&amp;quot;: 2.8076, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 59.0, &amp;quot;y&amp;quot;: 2.4647, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 79.0, &amp;quot;y&amp;quot;: 2.2712, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 99.0, &amp;quot;y&amp;quot;: 2.1618, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}, {&amp;quot;x&amp;quot;: 119.0, &amp;quot;y&amp;quot;: 2.1001, &amp;quot;z&amp;quot;: &amp;quot;baseline&amp;quot;}], [{&amp;quot;x&amp;quot;: 19.0, &amp;quot;y&amp;quot;: 2.8319, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 39.0, &amp;quot;y&amp;quot;: 2.2277, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 59.0, &amp;quot;y&amp;quot;: 1.9843, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 79.0, &amp;quot;y&amp;quot;: 1.8862, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 99.0, &amp;quot;y&amp;quot;: 1.8467, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}, {&amp;quot;x&amp;quot;: 119.0, &amp;quot;y&amp;quot;: 1.8307, &amp;quot;z&amp;quot;: &amp;quot;lora-r16&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-70f75c6e-f8ec-4dc4-881f-87d4b6260f00'] path&amp;quot;, &amp;quot;g[id='maidr-7d669b55-c6ba-4fec-8e46-1c3a1c500989'] path&amp;quot;]}]}]]}&quot;>
+ <metadata>
+  <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
+   <cc:Work>
+    <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
+    <dc:date>2026-10-04T16:15:56.476394</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id=&quot;figure_1&quot;>
+  <g id=&quot;maidr-6d52655e-939a-4912-a358-026e7fdb7eb7&quot;>
+   <path d=&quot;M 0 324  L 504 324  L 504 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
+  </g>
+  <g id=&quot;axes_1&quot;>
+   <g id=&quot;maidr-f658c329-38df-4d21-8669-afdad6749d80&quot;>
+    <path d=&quot;M 47.452344 282.2  L 403.138 282.2  L 403.138 25.917188  L 47.452344 25.917188  z &quot; style=&quot;fill: #ffffff&quot;/>
+   </g>
+   <g id=&quot;matplotlib.axis_1&quot;>
+    <g id=&quot;xtick_1&quot;>
+     <g id=&quot;maidr-2eca384e-ea87-404f-9fd1-1c8cda3d62cd&quot;>
+      <path d=&quot;M 66.85338 282.2  L 66.85338 25.917188  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-71a86940-830e-4026-86e3-fc20d34519bc&quot;>
+      <defs>
+       <path id=&quot;m0572b9d42b&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </defs>
+      <g>
+       <use xlink:href=&quot;#m0572b9d42b&quot; x=&quot;66.85338&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_1&quot;>
+      <!-- 20 -->
+      <g transform=&quot;translate(60.49088 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-15&quot; d=&quot;M 1228 531  L 3431 531  L 3431 0  L 469 0  L 469 531  Q 828 903 1448 1529  Q 2069 2156 2228 2338  Q 2531 2678 2651 2914  Q 2772 3150 2772 3378  Q 2772 3750 2511 3984  Q 2250 4219 1831 4219  Q 1534 4219 1204 4116  Q 875 4013 500 3803  L 500 4441  Q 881 4594 1212 4672  Q 1544 4750 1819 4750  Q 2544 4750 2975 4387  Q 3406 4025 3406 3419  Q 3406 3131 3298 2873  Q 3191 2616 2906 2266  Q 2828 2175 2409 1742  Q 1991 1309 1228 531  z &quot; transform=&quot;scale(0.015625)&quot;/>
+        <path id=&quot;DejaVuSans-13&quot; d=&quot;M 2034 4250  Q 1547 4250 1301 3770  Q 1056 3291 1056 2328  Q 1056 1369 1301 889  Q 1547 409 2034 409  Q 2525 409 2770 889  Q 3016 1369 3016 2328  Q 3016 3291 2770 3770  Q 2525 4250 2034 4250  z M 2034 4750  Q 2819 4750 3233 4129  Q 3647 3509 3647 2328  Q 3647 1150 3233 529  Q 2819 -91 2034 -91  Q 1250 -91 836 529  Q 422 1150 422 2328  Q 422 3509 836 4129  Q 1250 4750 2034 4750  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-15&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_2&quot;>
+     <g id=&quot;maidr-091c92e1-40f2-463c-9535-3b2da9741d25&quot;>
+      <path d=&quot;M 131.523499 282.2  L 131.523499 25.917188  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-e2de9407-818f-4e26-9a39-eaab6d248db5&quot;>
+      <g>
+       <use xlink:href=&quot;#m0572b9d42b&quot; x=&quot;131.523499&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_2&quot;>
+      <!-- 40 -->
+      <g transform=&quot;translate(125.160999 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-17&quot; d=&quot;M 2419 4116  L 825 1625  L 2419 1625  L 2419 4116  z M 2253 4666  L 3047 4666  L 3047 1625  L 3713 1625  L 3713 1100  L 3047 1100  L 3047 0  L 2419 0  L 2419 1100  L 313 1100  L 313 1709  L 2253 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-17&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_3&quot;>
+     <g id=&quot;maidr-9f5fb65a-4493-41f1-846c-a8eda803fe98&quot;>
+      <path d=&quot;M 196.193618 282.2  L 196.193618 25.917188  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-a9fc64fe-9747-4e99-b4e3-adae0269b0c0&quot;>
+      <g>
+       <use xlink:href=&quot;#m0572b9d42b&quot; x=&quot;196.193618&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_3&quot;>
+      <!-- 60 -->
+      <g transform=&quot;translate(189.831118 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-19&quot; d=&quot;M 2113 2584  Q 1688 2584 1439 2293  Q 1191 2003 1191 1497  Q 1191 994 1439 701  Q 1688 409 2113 409  Q 2538 409 2786 701  Q 3034 994 3034 1497  Q 3034 2003 2786 2293  Q 2538 2584 2113 2584  z M 3366 4563  L 3366 3988  Q 3128 4100 2886 4159  Q 2644 4219 2406 4219  Q 1781 4219 1451 3797  Q 1122 3375 1075 2522  Q 1259 2794 1537 2939  Q 1816 3084 2150 3084  Q 2853 3084 3261 2657  Q 3669 2231 3669 1497  Q 3669 778 3244 343  Q 2819 -91 2113 -91  Q 1303 -91 875 529  Q 447 1150 447 2328  Q 447 3434 972 4092  Q 1497 4750 2381 4750  Q 2619 4750 2861 4703  Q 3103 4656 3366 4563  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-19&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_4&quot;>
+     <g id=&quot;maidr-c476fe47-8fd5-4dab-808f-648903602b90&quot;>
+      <path d=&quot;M 260.863738 282.2  L 260.863738 25.917188  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-47cf8fc1-20ea-4a42-baba-d068e8915e53&quot;>
+      <g>
+       <use xlink:href=&quot;#m0572b9d42b&quot; x=&quot;260.863738&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_4&quot;>
+      <!-- 80 -->
+      <g transform=&quot;translate(254.501238 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-1b&quot; d=&quot;M 2034 2216  Q 1584 2216 1326 1975  Q 1069 1734 1069 1313  Q 1069 891 1326 650  Q 1584 409 2034 409  Q 2484 409 2743 651  Q 3003 894 3003 1313  Q 3003 1734 2745 1975  Q 2488 2216 2034 2216  z M 1403 2484  Q 997 2584 770 2862  Q 544 3141 544 3541  Q 544 4100 942 4425  Q 1341 4750 2034 4750  Q 2731 4750 3128 4425  Q 3525 4100 3525 3541  Q 3525 3141 3298 2862  Q 3072 2584 2669 2484  Q 3125 2378 3379 2068  Q 3634 1759 3634 1313  Q 3634 634 3220 271  Q 2806 -91 2034 -91  Q 1263 -91 848 271  Q 434 634 434 1313  Q 434 1759 690 2068  Q 947 2378 1403 2484  z M 1172 3481  Q 1172 3119 1398 2916  Q 1625 2713 2034 2713  Q 2441 2713 2670 2916  Q 2900 3119 2900 3481  Q 2900 3844 2670 4047  Q 2441 4250 2034 4250  Q 1625 4250 1398 4047  Q 1172 3844 1172 3481  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-1b&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_5&quot;>
+     <g id=&quot;maidr-5027a0b7-ec93-49c9-a389-0c1ae178a374&quot;>
+      <path d=&quot;M 325.533857 282.2  L 325.533857 25.917188  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-e093a0fb-e597-4124-a6fd-3fd52980edf6&quot;>
+      <g>
+       <use xlink:href=&quot;#m0572b9d42b&quot; x=&quot;325.533857&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_5&quot;>
+      <!-- 100 -->
+      <g transform=&quot;translate(315.990107 296.797656) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-14&quot; d=&quot;M 794 531  L 1825 531  L 1825 4091  L 703 3866  L 703 4441  L 1819 4666  L 2450 4666  L 2450 531  L 3481 531  L 3481 0  L 794 0  L 794 531  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-14&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(127.25 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;xtick_6&quot;>
+     <g id=&quot;maidr-38a4527b-884d-4837-841a-5857b5fbb4c7&quot;>
+      <path d=&quot;M 390.203976 282.2  L 390.203976 25.917188  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-4e4b0c0c-bce6-49d4-8493-ecb94fdb945e&quot;>
+      <g>
+       <use xlink:href=&quot;#m0572b9d42b&quot; x=&quot;390.203976&quot; y=&quot;282.2&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_6&quot;>
+      <!-- 120 -->
+      <g transform=&quot;translate(380.660226 296.797656) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-14&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-15&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(127.25 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_7&quot;>
+     <!-- Step -->
+     <g transform=&quot;translate(213.910016 310.797656) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-36&quot; d=&quot;M 3425 4513  L 3425 3897  Q 3066 4069 2747 4153  Q 2428 4238 2131 4238  Q 1616 4238 1336 4038  Q 1056 3838 1056 3469  Q 1056 3159 1242 3001  Q 1428 2844 1947 2747  L 2328 2669  Q 3034 2534 3370 2195  Q 3706 1856 3706 1288  Q 3706 609 3251 259  Q 2797 -91 1919 -91  Q 1588 -91 1214 -16  Q 841 59 441 206  L 441 856  Q 825 641 1194 531  Q 1563 422 1919 422  Q 2459 422 2753 634  Q 3047 847 3047 1241  Q 3047 1584 2836 1778  Q 2625 1972 2144 2069  L 1759 2144  Q 1053 2284 737 2584  Q 422 2884 422 3419  Q 422 4038 858 4394  Q 1294 4750 2059 4750  Q 2388 4750 2728 4690  Q 3069 4631 3425 4513  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-57&quot; d=&quot;M 1172 4494  L 1172 3500  L 2356 3500  L 2356 3053  L 1172 3053  L 1172 1153  Q 1172 725 1289 603  Q 1406 481 1766 481  L 2356 481  L 2356 0  L 1766 0  Q 1100 0 847 248  Q 594 497 594 1153  L 594 3053  L 172 3053  L 172 3500  L 594 3500  L 594 4494  L 1172 4494  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-48&quot; d=&quot;M 3597 1894  L 3597 1613  L 953 1613  Q 991 1019 1311 708  Q 1631 397 2203 397  Q 2534 397 2845 478  Q 3156 559 3463 722  L 3463 178  Q 3153 47 2828 -22  Q 2503 -91 2169 -91  Q 1331 -91 842 396  Q 353 884 353 1716  Q 353 2575 817 3079  Q 1281 3584 2069 3584  Q 2775 3584 3186 3129  Q 3597 2675 3597 1894  z M 3022 2063  Q 3016 2534 2758 2815  Q 2500 3097 2075 3097  Q 1594 3097 1305 2825  Q 1016 2553 972 2059  L 3022 2063  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-53&quot; d=&quot;M 1159 525  L 1159 -1331  L 581 -1331  L 581 3500  L 1159 3500  L 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  z M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-36&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-57&quot; transform=&quot;translate(63.484375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(102.6875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-53&quot; transform=&quot;translate(164.21875 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;matplotlib.axis_2&quot;>
+    <g id=&quot;ytick_1&quot;>
+     <g id=&quot;maidr-3105f8c2-e469-4cbf-8d12-e7cf804b4658&quot;>
+      <path d=&quot;M 47.452344 275.066609  L 403.138 275.066609  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-a062d196-cfe0-4cb2-93d8-efb7705df73e&quot;>
+      <defs>
+       <path id=&quot;meec513a705&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </defs>
+      <g>
+       <use xlink:href=&quot;#meec513a705&quot; x=&quot;47.452344&quot; y=&quot;275.066609&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_8&quot;>
+      <!-- 1.8 -->
+      <g transform=&quot;translate(24.549219 278.865438) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-11&quot; d=&quot;M 684 794  L 1344 794  L 1344 0  L 684 0  L 684 794  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-14&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-1b&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_2&quot;>
+     <g id=&quot;maidr-97ea8dc1-fced-4a84-9942-e95d2213143c&quot;>
+      <path d=&quot;M 47.452344 245.647533  L 403.138 245.647533  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-41afc462-85bd-42cb-9d0f-823def1d0579&quot;>
+      <g>
+       <use xlink:href=&quot;#meec513a705&quot; x=&quot;47.452344&quot; y=&quot;245.647533&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_9&quot;>
+      <!-- 2.0 -->
+      <g transform=&quot;translate(24.549219 249.446361) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-15&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_3&quot;>
+     <g id=&quot;maidr-6e631e2c-62c8-4b33-98bb-f8b0076c243c&quot;>
+      <path d=&quot;M 47.452344 216.228457  L 403.138 216.228457  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-515afa13-3409-4c2f-977a-6772de514d92&quot;>
+      <g>
+       <use xlink:href=&quot;#meec513a705&quot; x=&quot;47.452344&quot; y=&quot;216.228457&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_10&quot;>
+      <!-- 2.2 -->
+      <g transform=&quot;translate(24.549219 220.027285) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-15&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-15&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_4&quot;>
+     <g id=&quot;maidr-2b79af39-842e-4d7c-bfed-bc496bbf16bb&quot;>
+      <path d=&quot;M 47.452344 186.80938  L 403.138 186.80938  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-3b130ac1-5149-4901-a141-e3bfaf8549ec&quot;>
+      <g>
+       <use xlink:href=&quot;#meec513a705&quot; x=&quot;47.452344&quot; y=&quot;186.80938&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_11&quot;>
+      <!-- 2.4 -->
+      <g transform=&quot;translate(24.549219 190.608209) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-15&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-17&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_5&quot;>
+     <g id=&quot;maidr-8cb2c688-0b35-4f1d-a248-b8cdb78d73a7&quot;>
+      <path d=&quot;M 47.452344 157.390304  L 403.138 157.390304  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-1ce36ce4-81d4-4e21-949b-270d774631b2&quot;>
+      <g>
+       <use xlink:href=&quot;#meec513a705&quot; x=&quot;47.452344&quot; y=&quot;157.390304&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_12&quot;>
+      <!-- 2.6 -->
+      <g transform=&quot;translate(24.549219 161.189132) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-15&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-19&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_6&quot;>
+     <g id=&quot;maidr-62c22eb8-ef77-4e49-bdb9-eeb0b53360ab&quot;>
+      <path d=&quot;M 47.452344 127.971228  L 403.138 127.971228  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-8948bb29-1695-4a6b-915b-fdff302bb47d&quot;>
+      <g>
+       <use xlink:href=&quot;#meec513a705&quot; x=&quot;47.452344&quot; y=&quot;127.971228&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_13&quot;>
+      <!-- 2.8 -->
+      <g transform=&quot;translate(24.549219 131.770056) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-15&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-1b&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_7&quot;>
+     <g id=&quot;maidr-baea22e0-8943-4550-a2d0-02d1c2417c13&quot;>
+      <path d=&quot;M 47.452344 98.552151  L 403.138 98.552151  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-d4ba4d92-7f75-4526-ae0f-45e4664fcae3&quot;>
+      <g>
+       <use xlink:href=&quot;#meec513a705&quot; x=&quot;47.452344&quot; y=&quot;98.552151&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_14&quot;>
+      <!-- 3.0 -->
+      <g transform=&quot;translate(24.549219 102.35098) scale(0.1 -0.1)&quot;>
+       <defs>
+        <path id=&quot;DejaVuSans-16&quot; d=&quot;M 2597 2516  Q 3050 2419 3304 2112  Q 3559 1806 3559 1356  Q 3559 666 3084 287  Q 2609 -91 1734 -91  Q 1441 -91 1130 -33  Q 819 25 488 141  L 488 750  Q 750 597 1062 519  Q 1375 441 1716 441  Q 2309 441 2620 675  Q 2931 909 2931 1356  Q 2931 1769 2642 2001  Q 2353 2234 1838 2234  L 1294 2234  L 1294 2753  L 1863 2753  Q 2328 2753 2575 2939  Q 2822 3125 2822 3475  Q 2822 3834 2567 4026  Q 2313 4219 1838 4219  Q 1578 4219 1281 4162  Q 984 4106 628 3988  L 628 4550  Q 988 4650 1302 4700  Q 1616 4750 1894 4750  Q 2613 4750 3031 4423  Q 3450 4097 3450 3541  Q 3450 3153 3228 2886  Q 3006 2619 2597 2516  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       </defs>
+       <use xlink:href=&quot;#DejaVuSans-16&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-13&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_8&quot;>
+     <g id=&quot;maidr-845574ca-8e1f-4ef7-af2b-b67ee8ab2717&quot;>
+      <path d=&quot;M 47.452344 69.133075  L 403.138 69.133075  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-81657d2c-320e-4822-92c4-fdae1df7e6cf&quot;>
+      <g>
+       <use xlink:href=&quot;#meec513a705&quot; x=&quot;47.452344&quot; y=&quot;69.133075&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_15&quot;>
+      <!-- 3.2 -->
+      <g transform=&quot;translate(24.549219 72.931903) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-16&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-15&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;ytick_9&quot;>
+     <g id=&quot;maidr-f6fbb3a4-de5c-40ca-a0c1-88714b37475a&quot;>
+      <path d=&quot;M 47.452344 39.713999  L 403.138 39.713999  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #e0e0e0; stroke-width: 0.8; stroke-linecap: square&quot;/>
+     </g>
+     <g id=&quot;maidr-4da1c609-3210-4545-99b7-f7c29ef82382&quot;>
+      <g>
+       <use xlink:href=&quot;#meec513a705&quot; x=&quot;47.452344&quot; y=&quot;39.713999&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+      </g>
+     </g>
+     <g id=&quot;text_16&quot;>
+      <!-- 3.4 -->
+      <g transform=&quot;translate(24.549219 43.512827) scale(0.1 -0.1)&quot;>
+       <use xlink:href=&quot;#DejaVuSans-16&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-11&quot; transform=&quot;translate(63.625 0)&quot;/>
+       <use xlink:href=&quot;#DejaVuSans-17&quot; transform=&quot;translate(95.40625 0)&quot;/>
+      </g>
+     </g>
+    </g>
+    <g id=&quot;text_17&quot;>
+     <!-- eval/loss -->
+     <g transform=&quot;translate(18.146875 175.889844) rotate(-90) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-59&quot; d=&quot;M 191 3500  L 800 3500  L 1894 563  L 2988 3500  L 3597 3500  L 2284 0  L 1503 0  L 191 3500  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-44&quot; d=&quot;M 2194 1759  Q 1497 1759 1228 1600  Q 959 1441 959 1056  Q 959 750 1161 570  Q 1363 391 1709 391  Q 2188 391 2477 730  Q 2766 1069 2766 1631  L 2766 1759  L 2194 1759  z M 3341 1997  L 3341 0  L 2766 0  L 2766 531  Q 2569 213 2275 61  Q 1981 -91 1556 -91  Q 1019 -91 701 211  Q 384 513 384 1019  Q 384 1609 779 1909  Q 1175 2209 1959 2209  L 2766 2209  L 2766 2266  Q 2766 2663 2505 2880  Q 2244 3097 1772 3097  Q 1472 3097 1187 3025  Q 903 2953 641 2809  L 641 3341  Q 956 3463 1253 3523  Q 1550 3584 1831 3584  Q 2591 3584 2966 3190  Q 3341 2797 3341 1997  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-4f&quot; d=&quot;M 603 4863  L 1178 4863  L 1178 0  L 603 0  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-12&quot; d=&quot;M 1625 4666  L 2156 4666  L 531 -594  L 0 -594  L 1625 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-52&quot; d=&quot;M 1959 3097  Q 1497 3097 1228 2736  Q 959 2375 959 1747  Q 959 1119 1226 758  Q 1494 397 1959 397  Q 2419 397 2687 759  Q 2956 1122 2956 1747  Q 2956 2369 2687 2733  Q 2419 3097 1959 3097  z M 1959 3584  Q 2709 3584 3137 3096  Q 3566 2609 3566 1747  Q 3566 888 3137 398  Q 2709 -91 1959 -91  Q 1206 -91 779 398  Q 353 888 353 1747  Q 353 2609 779 3096  Q 1206 3584 1959 3584  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-56&quot; d=&quot;M 2834 3397  L 2834 2853  Q 2591 2978 2328 3040  Q 2066 3103 1784 3103  Q 1356 3103 1142 2972  Q 928 2841 928 2578  Q 928 2378 1081 2264  Q 1234 2150 1697 2047  L 1894 2003  Q 2506 1872 2764 1633  Q 3022 1394 3022 966  Q 3022 478 2636 193  Q 2250 -91 1575 -91  Q 1294 -91 989 -36  Q 684 19 347 128  L 347 722  Q 666 556 975 473  Q 1284 391 1588 391  Q 1994 391 2212 530  Q 2431 669 2431 922  Q 2431 1156 2273 1281  Q 2116 1406 1581 1522  L 1381 1569  Q 847 1681 609 1914  Q 372 2147 372 2553  Q 372 3047 722 3315  Q 1072 3584 1716 3584  Q 2034 3584 2315 3537  Q 2597 3491 2834 3397  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-48&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-59&quot; transform=&quot;translate(61.53125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(120.71875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(182 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-12&quot; transform=&quot;translate(209.78125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(243.46875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(271.25 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(332.4375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(384.53125 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;maidr-70f75c6e-f8ec-4dc4-881f-87d4b6260f00&quot; maidr=&quot;0e4e0cc3-ac23-4c62-b289-b3fc8138c5ef&quot;>
+    <path d=&quot;M 63.619874 37.566406  L 128.289993 126.853303  L 192.960112 177.292309  L 257.630232 205.755266  L 322.300351 221.8475  L 386.97047 230.923285  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-7d669b55-c6ba-4fec-8e46-1c3a1c500989&quot; maidr=&quot;0e4e0cc3-ac23-4c62-b289-b3fc8138c5ef&quot;>
+    <path d=&quot;M 63.619874 123.278885  L 128.289993 212.153915  L 192.960112 247.956931  L 257.630232 262.386988  L 322.300351 268.197255  L 386.97047 270.550781  &quot; clip-path=&quot;url(#p23d851ef5b)&quot; style=&quot;fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-f9e63247-e8d0-4d66-a89d-e71645ecb72a&quot;>
+    <path d=&quot;M 47.452344 282.2  L 47.452344 25.917187  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-98743cc3-8096-453e-887d-b66f806ce529&quot;>
+    <path d=&quot;M 47.452344 282.2  L 403.138 282.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;text_18&quot;>
+    <!-- eval/loss -->
+    <g transform=&quot;translate(199.097672 19.917188) scale(0.12 -0.12)&quot;>
+     <use xlink:href=&quot;#DejaVuSans-48&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-59&quot; transform=&quot;translate(61.53125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(120.71875 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(182 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-12&quot; transform=&quot;translate(209.78125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(243.46875 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(271.25 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(332.4375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(384.53125 0)&quot;/>
+    </g>
+   </g>
+   <g id=&quot;legend_1&quot;>
+    <g id=&quot;maidr-e16a0e6f-073e-42bb-a037-30afed35e52f&quot;>
+     <path d=&quot;M 419.251713 145.65625  L 429.251713 145.65625  L 439.251713 145.65625  &quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
+    </g>
+    <g id=&quot;text_19&quot;>
+     <!-- baseline -->
+     <g transform=&quot;translate(447.251713 149.15625) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-45&quot; d=&quot;M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z M 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  L 1159 0  L 581 0  L 581 4863  L 1159 4863  L 1159 2969  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-4c&quot; d=&quot;M 603 3500  L 1178 3500  L 1178 0  L 603 0  L 603 3500  z M 603 4863  L 1178 4863  L 1178 4134  L 603 4134  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-51&quot; d=&quot;M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-45&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(63.484375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(124.765625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(176.859375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(238.390625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(266.171875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(293.953125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(357.328125 0)&quot;/>
+     </g>
+    </g>
+    <g id=&quot;maidr-ea9fba7d-c7d6-4959-8a0f-8bc76250aced&quot;>
+     <path d=&quot;M 419.251713 160.657031  L 429.251713 160.657031  L 439.251713 160.657031  &quot; style=&quot;fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square&quot;/>
+    </g>
+    <g id=&quot;text_20&quot;>
+     <!-- lora-r16 -->
+     <g transform=&quot;translate(447.251713 164.157031) scale(0.1 -0.1)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-55&quot; d=&quot;M 2631 2963  Q 2534 3019 2420 3045  Q 2306 3072 2169 3072  Q 1681 3072 1420 2755  Q 1159 2438 1159 1844  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1341 3275 1631 3429  Q 1922 3584 2338 3584  Q 2397 3584 2469 3576  Q 2541 3569 2628 3553  L 2631 2963  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-10&quot; d=&quot;M 313 2009  L 1997 2009  L 1997 1497  L 313 1497  L 313 2009  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(27.78125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(88.96875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(130.078125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-10&quot; transform=&quot;translate(191.359375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(227.4375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-14&quot; transform=&quot;translate(268.546875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-19&quot; transform=&quot;translate(332.171875 0)&quot;/>
+     </g>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id=&quot;p23d851ef5b&quot;>
+   <rect x=&quot;47.452344&quot; y=&quot;25.917188&quot; width=&quot;355.685656&quot; height=&quot;256.282812&quot;/>
+  </clipPath>
+ </defs>
+</svg>
+</div>
+</div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
+        function resizeIframe() {
+            let iframe = document.getElementById('iframe_ae022d9e-8351-4e06-b7e4-e01e75a26a74');
+            if (
+                iframe &amp;&amp; iframe.contentWindow &amp;&amp;
+                iframe.contentWindow.document
+            ) {
+                let iframeDocument = iframe.contentWindow.document;
+                let body = iframeDocument.body;
+                let de = iframeDocument.documentElement;
+
+                iframe.style.height = 'auto';
+
+                // Use Math.max() across multiple DOM measurements (industry standard)
+                let height = Math.max(
+                    body.scrollHeight || 0,
+                    body.offsetHeight || 0,
+                    de.scrollHeight || 0,
+                    de.offsetHeight || 0,
+                    de.clientHeight || 0
+                );
+
+                // Scan specific MAIDR elements with getBoundingClientRect()
+                // This ensures elements with overflow:visible parents are included
+                let selectors = [
+                    '#maidr-rotor-area',
+                    '#maidr-text-container',
+                    '[id^=&quot;maidr-braille-textarea&quot;]',
+                    '.maidr-review-input'
+                ];
+                for (let i = 0; i < selectors.length; i++) {
+                    let el = iframeDocument.querySelector(selectors[i]);
+                    if (el) {
+                        let rect = el.getBoundingClientRect();
+                        let bottom = rect.bottom + (iframe.contentWindow.scrollY || 0);
+                        if (bottom > height) {
+                            height = bottom;
+                        }
+                    }
+                }
+
+                // Detect braille textarea by dynamic id prefix
+                let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                // Detect review input container by class name
+                let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
+                // Consider braille active if it or any descendant has focus
+                let isBrailleActive = brailleContainer &amp;&amp; (
+                    brailleContainer === iframeDocument.activeElement ||
+                    (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                );
+                // Consider review input active if it or any descendant has focus
+                let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                    reviewInputContainer === iframeDocument.activeElement ||
+                    (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                );
+
+                // Add buffer for active states (rotor-area height is measured directly above)
+                if (isBrailleActive) {
+                    height += 100;
+                } else if (isReviewInputActive) {
+                    height += 50;
+                }
+                iframe.style.height = (height) + 'px';
+                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+            }
+        }
+        let iframe = document.getElementById('iframe_ae022d9e-8351-4e06-b7e4-e01e75a26a74');
+        resizeIframe();
+        iframe.onload = function() {
+            resizeIframe();
+            iframe.contentWindow.addEventListener('resize', resizeIframe);
+        };
+        // Delegate focus events for braille textarea (by id prefix)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Delegate focus events for review input container (by class name)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Modern resize detection: ResizeObserver with MutationObserver fallback
+        try {
+            let rafId = 0;
+            let scheduleResize = function() {
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(function() {
+                    resizeIframe();
+                });
+            };
+
+            // Try ResizeObserver first (modern, more efficient)
+            if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {
+                new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body
+                );
+            } else {
+                // Fallback to MutationObserver (observe entire document for all changes)
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body,
+                    { childList: true, subtree: true, characterData: true, attributes: true }
+                );
+            }
+        } catch (_) {}
+    "></iframe>
+</div>
+</div>
+<p><code>x=</code> puts another logged value along the x axis, such as <code>x="epoch"</code> or <code>x="_runtime"</code>, the seconds since the run started.</p>
+</section>
+<section id="fetching-runs-from-the-wb-server" class="level3">
+<h3 class="anchored" data-anchor-id="fetching-runs-from-the-wb-server">Fetching Runs from the W&amp;B Server</h3>
+<p>A run on the W&amp;B server is read by its path, the end of its page’s URL, or from the runs <code>wandb.Api()</code> returns. Every row the run logged is read with <code>run.scan_history()</code>, not the 500 rows <code>run.history()</code> samples; a long line is then thinned to 1,000 evenly spaced points, which <code>max_points=</code> changes.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> wandb</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># One run by its path ...</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>charts <span class="op">=</span> maidr.read_wandb_history(<span class="st">"my-team/tiny-lm/lorar16x1"</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># ... or every run of a project, compared on one chart per metric.</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>runs <span class="op">=</span> wandb.Api().runs(<span class="st">"my-team/tiny-lm"</span>, filters<span class="op">=</span>{<span class="st">"state"</span>: <span class="st">"finished"</span>})</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>(loss,) <span class="op">=</span> maidr.read_wandb_history(runs, keys<span class="op">=</span>[<span class="st">"train/loss"</span>])</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>maidr.save_html(loss, <span class="st">"loss.html"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>History saved earlier is read too, as a mapping of run name to its rows: the <code>DataFrame</code> <code>run.history()</code> returns, or a list of dictionaries.</p>
+<p>A value that is not a number, such as an image, a table or a histogram, is not read. A dictionary logged as a value is read as its own metrics with dotted names, so <code>wandb.log({"val": {"loss": 0.3}})</code> is read as <code>val.loss</code>.</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("^(?:http:|https:)");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+            // default icon
+            link.classList.add("external");
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./examples-keras.html" class="pagination-link" aria-label="Keras [experimental]">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Keras [experimental]</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./examples-mlflow.html" class="pagination-link" aria-label="MLflow [experimental]">
+        <span class="nav-page-text">MLflow [experimental]</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© (x)Ability Design Lab, University of Illinois Urbana-Champaign</p>
+</div>   
+    <div class="nav-footer-center">
+<p><a href="https://maidr.ai/">maidr.ai</a> | <a href="https://r.maidr.ai/">r.maidr.ai</a> | <a href="https://pypi.org/project/maidr/">PyPI</a></p>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="cookie-consent-footer"><a href="#" id="open_preferences_center">Cookie Preferences</a></div></div>
+    <div class="nav-footer-right">
+<p><a href="https://github.com/xability/py-maidr">GitHub</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.js" defer="true"></script>
+</body></html>

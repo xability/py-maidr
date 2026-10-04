@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Add accessible, sonified charts to Shiny for Python and Streamlit dashboards with py-maidr, including caching and air-gapped deployments.">
+<meta name="description" content="Add accessible, sonified charts to Shiny for Python, Streamlit and Gradio dashboards with py-maidr, including caching and air-gapped deployments.">
 
-<title>Accessible Shiny and Streamlit Dashboards – py-maidr</title>
+<title>Accessible Shiny, Streamlit and Gradio Dashboards – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -221,29 +221,29 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="Accessible Shiny and Streamlit Dashboards">
-<meta property="og:description" content="Add accessible, sonified charts to Shiny for Python and Streamlit dashboards with py-maidr, including caching and air-gapped deployments.">
+<meta property="og:title" content="Accessible Shiny, Streamlit and Gradio Dashboards">
+<meta property="og:description" content="Add accessible, sonified charts to Shiny for Python, Streamlit and Gradio dashboards with py-maidr, including caching and air-gapped deployments.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="Accessible Shiny and Streamlit Dashboards">
-<meta name="twitter:description" content="Add accessible, sonified charts to Shiny for Python and Streamlit dashboards with py-maidr, including caching and air-gapped deployments.">
+<meta name="twitter:title" content="Accessible Shiny, Streamlit and Gradio Dashboards">
+<meta name="twitter:description" content="Add accessible, sonified charts to Shiny for Python, Streamlit and Gradio dashboards with py-maidr, including caching and air-gapped deployments.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
 <link rel="canonical" href="https://py.maidr.ai/examples/dashboards.html">
-<meta name="DC.title" content="Accessible Shiny and Streamlit Dashboards">
+<meta name="DC.title" content="Accessible Shiny, Streamlit and Gradio Dashboards">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Add accessible, sonified charts to Shiny for Python and Streamlit dashboards with py-maidr, including caching and air-gapped deployments.">
+<meta name="DC.description" content="Add accessible, sonified charts to Shiny for Python, Streamlit and Gradio dashboards with py-maidr, including caching and air-gapped deployments.">
 <meta name="DC.identifier" content="https://py.maidr.ai/examples/dashboards.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-09-30">
+<meta name="DC.date" content="2026-10-04">
 </head>
 
 <body class="nav-sidebar docked nav-fixed quarto-light">
@@ -314,7 +314,7 @@ cookieconsent.run({
   </li>  
         <li>
     <a class="dropdown-item" href="../examples/dashboards.html">
- <span class="dropdown-text">Shiny and Streamlit Dashboards</span></a>
+ <span class="dropdown-text">Shiny, Streamlit and Gradio Dashboards</span></a>
   </li>  
         <li><hr class="dropdown-divider"></li>
         <li class="dropdown-header">Experimental</li>
@@ -360,6 +360,14 @@ cookieconsent.run({
     <a class="dropdown-item" href="../examples-keras.html">
  <span class="dropdown-text">Keras [experimental]</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-wandb.html">
+ <span class="dropdown-text">Weights &amp; Biases [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-mlflow.html">
+ <span class="dropdown-text">MLflow [experimental]</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -388,7 +396,7 @@ cookieconsent.run({
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/dashboards.html">Accessible Shiny and Streamlit Dashboards with py-maidr</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/dashboards.html">Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -497,7 +505,7 @@ cookieconsent.run({
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../examples/dashboards.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">Accessible Shiny and Streamlit Dashboards with py-maidr</span></a>
+ <span class="menu-text">Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
@@ -557,6 +565,18 @@ cookieconsent.run({
  <span class="menu-text">Keras [experimental]</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-wandb.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Weights &amp; Biases [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-mlflow.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MLflow [experimental]</span></a>
+  </div>
+</li>
       </ul>
   </li>
     </ul>
@@ -571,6 +591,7 @@ cookieconsent.run({
   <ul>
   <li><a href="#shiny" id="toc-shiny" class="nav-link active" data-scroll-target="#shiny">Shiny</a></li>
   <li><a href="#streamlit" id="toc-streamlit" class="nav-link" data-scroll-target="#streamlit">Streamlit</a></li>
+  <li><a href="#gradio" id="toc-gradio" class="nav-link" data-scroll-target="#gradio">Gradio</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -579,12 +600,12 @@ cookieconsent.run({
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Accessible Shiny and Streamlit Dashboards with py-maidr</h1>
+<h1 class="title">Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr</h1>
 </div>
 
 <div>
   <div class="description">
-    Add accessible, sonified charts to Shiny for Python and Streamlit dashboards with py-maidr, including caching and air-gapped deployments.
+    Add accessible, sonified charts to Shiny for Python, Streamlit and Gradio dashboards with py-maidr, including caching and air-gapped deployments.
   </div>
 </div>
 
@@ -601,7 +622,7 @@ cookieconsent.run({
 </header>
 
 
-<p>A dashboard is where accessibility is most often lost, because the chart is rebuilt on every interaction and a screen reader user is dropped back to the top of the page. py-maidr ships an output for Shiny for Python (<code>output_maidr()</code> with <code>@render_maidr</code>) and a renderer for Streamlit (<code>render_maidr()</code>); both wrap the chart in an iframe that loads <code>maidr.js</code>, and the Shiny output puts focus back on the chart after a reactive flush when the chart was what held focus. The sections below show the minimal app for each framework, then the two details that matter in production: caching the rendered HTML in Streamlit and serving the bundle offline.</p>
+<p>A dashboard is where accessibility is most often lost, because the chart is rebuilt on every interaction and a screen reader user is dropped back to the top of the page. py-maidr ships an output for Shiny for Python (<code>output_maidr()</code> with <code>@render_maidr</code>), a renderer for Streamlit (<code>render_maidr()</code>) and a component for Gradio (<code>output_maidr()</code> with <code>render_maidr()</code>); all three wrap the chart in an iframe that loads <code>maidr.js</code>, and the Shiny output puts focus back on the chart after a reactive flush when the chart was what held focus. The sections below show the minimal app for each framework, then the two details that matter in production: caching the rendered HTML in Streamlit and serving the bundle offline.</p>
 <p>Every plot type py-maidr supports works here, with the same keyboard model as in a notebook: see the <a href="../examples.html">examples overview</a> for the plot families and the <a href="../examples.html#keyboard-shortcuts-and-controls">keyboard shortcuts</a>.</p>
 <section id="shiny" class="level2">
 <h2 class="anchored" data-anchor-id="shiny">Shiny</h2>
@@ -712,6 +733,37 @@ cookieconsent.run({
 </div>
 <p>Check out <a href="https://0193dbe9-1a63-183e-ba7f-b62075dd1d71.share.connect.posit.cloud/">this Streamlit dashboard</a> with maidr, and its source code is available on <a href="https://github.com/xability/maidr_streamlit">GitHub</a>.</p>
 <p>Note: the <code>Streamlit</code> framework has some “Unlabeled 0 Button” which does not have to do with our maidr package. This issue needs to be addressed by the <code>Streamlit</code> team.</p>
+</section>
+<section id="gradio" class="level2">
+<h2 class="anchored" data-anchor-id="gradio">Gradio</h2>
+<p>Gradio support ships as an optional extra:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" data-code-line-numbers=""><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="st">"maidr[gradio]"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Place a chart with <code>output_maidr()</code> when the app is built, and return <code>render_maidr()</code> from an event handler whose output is that component, the way you would return a figure for a <code>gr.Plot</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> gradio <span class="im">as</span> gr</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> maidr.widget.gradio <span class="im">import</span> output_maidr, render_maidr</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> bars(n):</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    fig, ax <span class="op">=</span> plt.subplots()</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    ax.bar([<span class="ss">f"bar </span><span class="sc">{</span>i <span class="op">+</span> <span class="dv">1</span><span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">int</span>(n))], <span class="bu">range</span>(<span class="dv">1</span>, <span class="bu">int</span>(n) <span class="op">+</span> <span class="dv">1</span>))</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f"</span><span class="sc">{</span><span class="bu">int</span>(n)<span class="sc">}</span><span class="ss"> bars"</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    markup <span class="op">=</span> render_maidr(ax)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    plt.close(fig)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> markup</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> gr.Blocks() <span class="im">as</span> demo:</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> gr.Slider(<span class="dv">2</span>, <span class="dv">10</span>, value<span class="op">=</span><span class="dv">4</span>, step<span class="op">=</span><span class="dv">1</span>, label<span class="op">=</span><span class="st">"Bars"</span>)</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    chart <span class="op">=</span> output_maidr()</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    demo.load(bars, n, chart)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    n.change(bars, n, chart)</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>demo.launch()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>output_maidr(chart)</code> takes a chart to show from the start, and passes any other argument, such as <code>label=</code> or <code>elem_id=</code>, on to the <code>gr.HTML</code> it makes. Both take a matplotlib or seaborn artist, a Plotly <code>Figure</code>, a Bokeh figure, an Altair chart, or a chart a py-maidr reader returned, such as <code>maidr.read_wandb_history()</code>’s, and <code>use_cdn</code>.</p>
+<p><code>gr.HTML</code> does not run the scripts of its value, so the chart is placed in an iframe, the one maidr uses in a notebook: named after the chart, <code>"5 bars, accessible chart"</code> here, sized to it as maidr’s braille and text panels open, and allowed to reach a refreshable braille display. A reader tabs straight onto the chart inside it. The chart is always passed in rather than read from matplotlib’s current figure, which every user of a Gradio app shares. <code>use_cdn=False</code> embeds the ~1.9 MB <code>maidr.js</code> bundle in each chart, for an app without network access.</p>
+<p>Gradio 5 or newer is what the extra installs, on Python 3.10 or newer.</p>
 
 
 </section>
