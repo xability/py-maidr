@@ -195,6 +195,11 @@ which reads as "Topic: braille, Share of mentions: 0.607". Keep the y name
 honest about being a ratio — "Occurrences" would be wrong for the same reason
 the default avoids it.
 
-**No highlighting.** `imshow` rasterises the whole cloud into a single image
-element, so there is no per-term element to outline. The reading ships without a
-visual highlight rather than pairing the terms with some other layer's marks.
+**The highlight is an outline round the word.** `imshow` rasterises the whole
+cloud into a single image, so there is no element per word to light up. maidr
+measures where `WordCloud` drew each word and puts a box over it that the page
+never shows; as you move with the arrow keys, the word being read is outlined in
+your highlight color and stays legible inside the outline. Nothing is added to
+a cloud saved as a picture. If a word did not fit into the cloud at all, there
+is nothing to outline for it, and the cloud is read without a highlight rather
+than with outlines on the wrong words.

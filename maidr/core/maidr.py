@@ -1120,6 +1120,7 @@ class Maidr:
         for plot, selector_id in zip(self._plots, self.selector_ids):
             if plot.orders_svg_by_elements:
                 _order_tagged_groups(tree_svg, selector_id, plot.elements)
+            plot.finish_svg(tree_svg)
 
         root_svg = None
         # Find the `svg` tag and optionally embed MAIDR data.
