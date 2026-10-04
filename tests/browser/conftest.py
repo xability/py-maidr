@@ -97,6 +97,12 @@ def _serve(app: str, *, runner: str = "shiny"):
             "--server.headless", "true",
             "--browser.gatherUsageStats", "false",
         ]
+    elif runner == "gradio":
+        # A Gradio app is a script that calls ``launch()``; the port is the
+        # one ``GRADIO_SERVER_PORT`` names, which ``launch()`` reads.
+        command = [sys.executable, str(APPS / app)]
+        env["GRADIO_SERVER_PORT"] = str(port)
+        env["GRADIO_ANALYTICS_ENABLED"] = "False"
     else:
         command = [
             sys.executable, "-m", "shiny", "run", "--port", str(port), str(APPS / app)
@@ -189,6 +195,12 @@ def streamlit_keys_app_url():
 def streamlit_rerun_app_url():
     """An uncached Streamlit chart beside two checkboxes, for the rerun test."""
     yield from _serve("streamlit_rerun_app.py", runner="streamlit")
+
+
+@pytest.fixture(scope="session")
+def gradio_app_url():
+    """A Gradio app with a chart built with it and one a slider replaces."""
+    yield from _serve("gradio_app.py", runner="gradio")
 
 
 @pytest.fixture
