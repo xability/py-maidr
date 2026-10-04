@@ -191,6 +191,36 @@ def hparams_view(logdir: str) -> dict:
     return view
 
 
+def torch_embedding(logdir: str) -> None:
+    """PyTorch's ``add_embedding``: vectors and labels as TSV, three clusters."""
+    import torch
+    from torch.utils.tensorboard import SummaryWriter
+
+    rng = np.random.default_rng(4)
+    centers = rng.normal(scale=4.0, size=(3, 8))
+    vectors = np.concatenate([center + rng.normal(size=(20, 8)) for center in centers])
+    labels = [name for name in ("cat", "dog", "bird") for _ in range(20)]
+    writer = SummaryWriter(logdir)
+    writer.add_embedding(
+        torch.tensor(vectors, dtype=torch.float32),
+        metadata=[[label, str(i)] for i, label in enumerate(labels)],
+        metadata_header=["label", "index"],
+        tag="animals",
+    )
+    writer.close()
+
+
+def embedding_view(logdir: str) -> dict:
+    """What was written: each embedding's vectors and labels."""
+    rng = np.random.default_rng(4)
+    centers = rng.normal(scale=4.0, size=(3, 8))
+    vectors = np.concatenate([center + rng.normal(size=(20, 8)) for center in centers])
+    labels = [name for name in ("cat", "dog", "bird") for _ in range(20)]
+    return {
+        "animals": {"vectors": vectors.astype(np.float32).tolist(), "labels": labels}
+    }
+
+
 def tensorboard_view(logdir: str, plugin: str = "scalars") -> dict:
     """
     What TensorBoard reads: run -> tag -> [[step, wall_time, value], ...].
@@ -242,6 +272,7 @@ WRITERS = {
     "tf_histograms": (tf_histograms, "histograms"),
     "torch_histograms": (torch_histograms, "histograms"),
     "hparams_sweep": (hparams_sweep, "hparams"),
+    "torch_embedding": (torch_embedding, "projector"),
 }
 
 
@@ -254,12 +285,14 @@ def main(names: list[str]) -> None:
         write(logdir)
         if plugin == "hparams":
             expected = hparams_view(logdir)
+        elif plugin == "projector":
+            expected = embedding_view(logdir)
         else:
             expected = tensorboard_view(logdir, plugin)
         with open(os.path.join(HERE, f"{name}.expected.json"), "w") as out:
             # A histogram holds a few hundred numbers a step: one line each
             # would make a reviewable diff of every regeneration impossible.
-            indent = 1 if plugin == "scalars" else None
+            indent = 1 if plugin in ("scalars", "hparams") else None
             json.dump(_finite(expected), out, indent=indent, allow_nan=False)
             out.write("\n")
         if plugin == "histograms":

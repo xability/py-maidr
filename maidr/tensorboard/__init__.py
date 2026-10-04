@@ -24,6 +24,11 @@ from matplotlib.figure import Figure
 from maidr.core.figure_manager import FigureManager
 from maidr.tensorboard.events import SCALARS_PLUGIN
 from maidr.tensorboard.distributions import read_tensorboard_distributions
+from maidr.tensorboard.projector import (
+    Embedding,
+    load_embeddings,
+    read_tensorboard_projector,
+)
 from maidr.tensorboard.hparams import Session, load_hparams, read_tensorboard_hparams
 from maidr.tensorboard.histograms import (
     HistogramSeries,
@@ -34,16 +39,19 @@ from maidr.tensorboard.logdir import TensorBoardChart, load, thin
 from maidr.util.caller_warning import warn_at_caller
 
 __all__ = [
+    "Embedding",
     "HistogramSeries",
     "ScalarSeries",
     "Session",
     "TensorBoardChart",
+    "load_embeddings",
     "load_histograms",
     "load_hparams",
     "load_scalars",
     "read_tensorboard_distributions",
     "read_tensorboard_histograms",
     "read_tensorboard_hparams",
+    "read_tensorboard_projector",
     "read_tensorboard_scalars",
     "smooth",
 ]
