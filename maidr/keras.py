@@ -164,8 +164,11 @@ def plot_confusion_matrix(
     ------
     ValueError
         If ``y_true`` and ``y_pred`` hold a different number of samples, are
-        empty, or ``normalize`` is not one of the above, or ``labels`` names
-        fewer classes than the data holds.
+        empty, hold a negative class index or a value that is neither an
+        index nor a probability, or ``normalize`` is not one of the above, or
+        ``labels`` names fewer classes than the data holds. More labels than
+        the data holds are allowed: the classes that never occur are shown
+        as empty rows and columns.
 
     Notes
     -----
@@ -186,8 +189,8 @@ def plot_confusion_matrix(
         raise ValueError(
             f"normalize is None, 'true', 'pred' or 'all', not {normalize!r}"
         )
-    true = _classes(y_true)
-    predicted = _classes(y_pred)
+    true = _classes(y_true, "y_true")
+    predicted = _classes(y_pred, "y_pred")
     if true.size == 0:
         raise ValueError("There are no samples to count.")
     if true.shape != predicted.shape:
@@ -230,22 +233,30 @@ def plot_confusion_matrix(
     if count <= 12:
         brightest = matrix.max() or 1
         for (row, column), value in np.ndenumerate(matrix):
-            text = f"{value:.0f}" if normalize is None else f"{value:.2f}"
+            text = f"{value:.0f}" if normalize is None else f"{value:.4g}"
             color = "white" if value > brightest / 2 else "black"
             ax.text(column, row, text, ha="center", va="center", color=color)
     fig.tight_layout()
     return fig
 
 
-def _classes(values: Any) -> np.ndarray:
+def _classes(values: Any, name: str) -> np.ndarray:
     """Class indices from indices, one-hot rows, or predicted probabilities."""
     array = np.asarray(values)
     if array.ndim == 2 and array.shape[1] > 1:
         return array.argmax(axis=1)
     array = array.reshape(-1)
     if array.dtype.kind == "f" and not np.all(np.mod(array, 1) == 0):
-        return (array >= 0.5).astype(int)
-    return array.astype(int)
+        if np.all((array >= 0) & (array <= 1)):
+            return (array >= 0.5).astype(int)
+        raise ValueError(
+            f"{name} holds values that are neither class indices nor "
+            "probabilities between 0 and 1."
+        )
+    indices = array.astype(int)
+    if indices.size and indices.min() < 0:
+        raise ValueError(f"{name} holds a negative class index, {indices.min()}.")
+    return indices
 
 
 def _share(matrix: np.ndarray, totals: Any) -> np.ndarray:

@@ -391,6 +391,8 @@ def test_a_class_that_never_occurs_reads_zero_not_nan():
         (([], []), {}, "no samples"),
         (([0, 2], [0, 1]), {"labels": ["a", "b"]}, "names 2 classes"),
         (([0], [0]), {"normalize": "rows"}, "normalize"),
+        (([0, 1, -1], [0, 1, 1]), {}, "negative class index"),
+        (([0, 1], [0.3, 2.5]), {}, "neither class indices nor probabilities"),
     ],
 )
 def test_a_confusion_matrix_that_cannot_be_counted_raises(args, kwargs, match):
