@@ -1,14 +1,15 @@
 """Read the training curves of Weights & Biases runs into maidr.
 
 >>> import maidr
->>> for chart in maidr.read_wandb_history("my-team/my-project/abc123"):
+>>> for chart in maidr.read_wandb_history("wandb"):
 ...     maidr.show(chart)
 
 Each metric a run logged with ``wandb.log`` becomes one chart, with one line
 per run, drawn with matplotlib, and py-maidr reads the drawing like any other
-matplotlib figure. A run named by its path is fetched through ``wandb.Api``,
-so that needs the ``wandb`` package and an API key; a run already fetched, or
-history rows saved earlier, need neither.
+matplotlib figure. A run's own file under ``wandb/`` is decoded here, so
+reading it needs neither the ``wandb`` package nor a network. A run named by
+its server path is fetched through ``wandb.Api``, which needs both and an API
+key.
 """
 
 from __future__ import annotations
@@ -55,12 +56,15 @@ def load_wandb_history(
 
     Parameters
     ----------
-    runs : str, wandb.apis.public.Run, mapping, or iterable of these
-        The runs: a run's path (``"entity/project/run_id"``, as its page's
-        URL ends), a run ``wandb.Api().run()`` or ``.runs()`` returned, or an
-        iterable of either. A mapping instead reads history saved earlier:
-        run name to its rows, as a list of dicts or as the
-        ``pandas.DataFrame`` that ``run.history()`` returns.
+    runs : str, os.PathLike, wandb.apis.public.Run, mapping, or iterable of these
+        The runs: a run's file, ``run-<id>.wandb``, or a folder holding run
+        files, such as ``wandb/``, every run under it read; a run's path on
+        the W&B server (``"entity/project/run_id"``, as its page's URL ends);
+        a run ``wandb.Api().run()`` or ``.runs()`` returned; or an iterable of
+        these. A string that names a file or folder on disk is read from
+        disk. A mapping instead reads history saved earlier: run name to its
+        rows, as a list of dicts or as the ``pandas.DataFrame`` that
+        ``run.history()`` returns.
     keys : iterable of str, optional
         Only these metrics, in this order. By default every metric a run
         logged a number under, sorted, leaving out W&B's own ``_``-prefixed
@@ -81,8 +85,10 @@ def load_wandb_history(
 
     Raises
     ------
+    FileNotFoundError
+        If a run file named does not exist.
     ImportError
-        If a run is named by its path and ``wandb`` is not installed.
+        If a run is named by its server path and ``wandb`` is not installed.
     TypeError
         If ``runs`` is none of the above.
     """
@@ -141,17 +147,18 @@ def read_wandb_history(
 
     Parameters
     ----------
-    runs : str, wandb.apis.public.Run, mapping, or iterable of these
-        The runs, as for :func:`load_wandb_history`: a run's path such as
-        ``"my-team/my-project/abc123"``, a fetched run, a list of either, or
-        a mapping of run name to saved history rows.
+    runs : str, os.PathLike, wandb.apis.public.Run, mapping, or iterable of these
+        The runs, as for :func:`load_wandb_history`: a ``wandb/`` folder or a
+        run file in it, read with no W&B package or network; a run's server
+        path such as ``"my-team/my-project/abc123"``; a fetched run; a list
+        of these; or a mapping of run name to saved history rows.
     keys : iterable of str, optional
         Only these metrics, in this order, such as ``["train/loss"]``.
     x : str, default "_step"
         What the x axis counts, such as ``"epoch"`` or ``"_runtime"``.
     smoothing : float, default 0
         A smoothing weight, from 0 up to but not including 1, applied as
-        TensorBoard applies it (W&B's "Exponential moving average"). Above
+        TensorBoard applies it. Above
         0, each run is drawn twice: as logged, and smoothed, under the run's
         name followed by ``(smoothed)``. 0 draws the values as logged only.
     max_points : int or None, default 1000
@@ -169,8 +176,10 @@ def read_wandb_history(
 
     Raises
     ------
+    FileNotFoundError
+        If a run file named does not exist.
     ImportError
-        If a run is named by its path and ``wandb`` is not installed.
+        If a run is named by its server path and ``wandb`` is not installed.
     TypeError
         If ``runs`` is not a run, a path, a mapping or an iterable of these.
     ValueError
@@ -178,7 +187,10 @@ def read_wandb_history(
 
     Notes
     -----
-    A fetched run is read with ``run.scan_history()``, every row it logged,
+    A run file is the log every run, online or offline, writes to its folder
+    as it trains, the one ``wandb sync`` uploads; it is decoded here, so it
+    can be read where the run trained, and read again to follow a run still
+    training. A fetched run is read with ``run.scan_history()``, every row it logged,
     not the 500 evenly sampled rows ``run.history()`` returns; ``max_points``
     then thins the line. Rows are placed in order of ``x``.
 
