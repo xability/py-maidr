@@ -67,7 +67,7 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 |---|---|
 | **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Bokeh [experimental], plotnine [experimental], Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
 | **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the training curves and histograms of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
-| **Model training** | the training curves of a Keras model, from `model.fit` or live while it trains [experimental] |
+| **Model training** | the training curves of a Keras model, from `model.fit` or live while it trains, and a classifier's confusion matrix [experimental] |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit |
 | **Plot types** | 41 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-six are experimental; the docs mark each experimental type **[experimental]** after its name |
 

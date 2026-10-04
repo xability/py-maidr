@@ -31,7 +31,7 @@ try:
 except ImportError:  # pragma: no cover - depends on the environment
     _Callback = None
 
-__all__ = ["MaidrCallback", "plot_history"]
+__all__ = ["MaidrCallback", "plot_confusion_matrix", "plot_history"]
 
 #: What a metric's two curves are called, in the legend and when read.
 TRAINING = "training"
@@ -110,6 +110,166 @@ def plot_history(
     """
     logs, epochs = _logs(history)
     return _draw(_curves_from_logs(logs, epochs), metrics)
+
+
+#: What each normalization divides a cell by, and what its value is then called.
+_NORMALIZED = {
+    None: "Count",
+    "true": "Share of the true class",
+    "pred": "Share of the predicted class",
+    "all": "Share of all samples",
+}
+
+
+def plot_confusion_matrix(
+    y_true: Any,
+    y_pred: Any,
+    *,
+    labels: Iterable[str] | None = None,
+    normalize: str | None = None,
+    title: str = "Confusion matrix",
+) -> Figure:
+    """
+    Draw a classifier's confusion matrix as a heatmap.
+
+    The true class runs down the rows and the predicted class across the
+    columns, so the diagonal is what the model got right. A reader moves
+    across a row to hear where one class's samples went.
+
+    Parameters
+    ----------
+    y_true : array_like
+        The true classes: class indices, or one-hot rows.
+    y_pred : array_like
+        The predicted classes: class indices, or what ``model.predict``
+        returns. Rows of class probabilities are read by their largest; a
+        single probability per sample, as a sigmoid gives, is the positive
+        class from 0.5 up.
+    labels : iterable of str, optional
+        Each class's name, in index order. By default the class indices.
+    normalize : {None, "true", "pred", "all"}, default None
+        ``None`` keeps the counts. ``"true"`` divides each row by its total,
+        so a cell is the share of that true class predicted as the column's;
+        ``"pred"`` divides each column; ``"all"`` divides by every sample.
+    title : str, default "Confusion matrix"
+        The chart's title.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The heatmap, ready for :func:`maidr.show`, :func:`maidr.render` or
+        :func:`maidr.save_html`. Not managed by pyplot.
+
+    Raises
+    ------
+    ValueError
+        If ``y_true`` and ``y_pred`` hold a different number of samples, are
+        empty, hold a negative class index or a value that is neither an
+        index nor a probability, or ``normalize`` is not one of the above, or
+        ``labels`` names fewer classes than the data holds. More labels than
+        the data holds are allowed: the classes that never occur are shown
+        as empty rows and columns.
+
+    Notes
+    -----
+    The tutorial way to put a confusion matrix in TensorBoard is to log it as
+    an image, which carries no numbers for a screen reader to read. Drawing
+    it from the predictions keeps them. NumPy alone computes it.
+
+    Examples
+    --------
+    >>> import maidr
+    >>> from maidr.keras import plot_confusion_matrix
+    >>> figure = plot_confusion_matrix(
+    ...     y_test, model.predict(x_test), labels=["cat", "dog"], normalize="true"
+    ... )
+    >>> maidr.show(figure)
+    """
+    if normalize not in _NORMALIZED:
+        raise ValueError(
+            f"normalize is None, 'true', 'pred' or 'all', not {normalize!r}"
+        )
+    true, true_width = _classes(y_true, "y_true")
+    predicted, predicted_width = _classes(y_pred, "y_pred")
+    if true.size == 0:
+        raise ValueError("There are no samples to count.")
+    if true.shape != predicted.shape:
+        raise ValueError(
+            f"y_true holds {true.size} samples and y_pred {predicted.size}; "
+            "they are counted in pairs."
+        )
+    names = None if labels is None else [str(label) for label in labels]
+    # A class the rows declare counts even when no sample of it is seen.
+    count = max(int(max(true.max(), predicted.max())) + 1, true_width, predicted_width)
+    if names is not None:
+        if len(names) < count:
+            raise ValueError(
+                f"labels names {len(names)} classes and the data holds {count}."
+            )
+        count = len(names)
+    matrix = np.zeros((count, count))
+    np.add.at(matrix, (true, predicted), 1)
+    if normalize == "true":
+        matrix = _share(matrix, matrix.sum(axis=1, keepdims=True))
+    elif normalize == "pred":
+        matrix = _share(matrix, matrix.sum(axis=0, keepdims=True))
+    elif normalize == "all":
+        matrix = _share(matrix, matrix.sum())
+    names = names or [str(index) for index in range(count)]
+    side = min(9.0, 3.0 + 0.45 * count)
+    fig = Figure(figsize=(side + 1.2, side))
+    ax = fig.add_subplot()
+    image = ax.imshow(
+        matrix,
+        cmap="Blues",
+        vmin=0,
+        z_label=_NORMALIZED[normalize],
+    )
+    fig.colorbar(image, ax=ax, label=_NORMALIZED[normalize])
+    ax.set_xticks(range(count), names, rotation=45 if count > 6 else 0)
+    ax.set_yticks(range(count), names)
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("True")
+    ax.set_title(title)
+    if count <= 12:
+        brightest = matrix.max() or 1
+        for (row, column), value in np.ndenumerate(matrix):
+            text = f"{value:.0f}" if normalize is None else f"{value:.4g}"
+            color = "white" if value > brightest / 2 else "black"
+            ax.text(column, row, text, ha="center", va="center", color=color)
+    fig.tight_layout()
+    return fig
+
+
+def _classes(values: Any, name: str) -> tuple[np.ndarray, int]:
+    """
+    Class indices from indices, one-hot rows, or predicted probabilities.
+
+    Returns the indices and the number of classes the input's shape declares:
+    the width of one-hot or probability rows, else 0.
+    """
+    array = np.asarray(values)
+    if array.ndim == 2 and array.shape[1] > 1:
+        return array.argmax(axis=1), array.shape[1]
+    array = array.reshape(-1)
+    if array.dtype.kind == "f" and not np.all(np.mod(array, 1) == 0):
+        if np.all((array >= 0) & (array <= 1)):
+            return (array >= 0.5).astype(int), 2
+        raise ValueError(
+            f"{name} holds values that are neither class indices nor "
+            "probabilities between 0 and 1."
+        )
+    indices = array.astype(int)
+    if indices.size and indices.min() < 0:
+        raise ValueError(f"{name} holds a negative class index, {indices.min()}.")
+    return indices, 0
+
+
+def _share(matrix: np.ndarray, totals: Any) -> np.ndarray:
+    """``matrix`` over ``totals``, a cell over an empty total being 0."""
+    with np.errstate(invalid="ignore", divide="ignore"):
+        shares = np.where(totals > 0, matrix / totals, 0.0)
+    return np.round(shares, 4)
 
 
 class MaidrCallback(_Callback if _Callback is not None else object):
