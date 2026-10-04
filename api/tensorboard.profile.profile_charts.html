@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Reference for the public py-maidr API: show, render, save_html, read_excel_charts, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta name="description" content="Draw the charts from the profile plugin’s converted tables. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>API Reference – py-maidr</title>
+<title>maidr.tensorboard.profile.profile_charts API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -27,6 +27,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -184,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="API Reference">
-<meta property="og:description" content="Reference for the public py-maidr API: show, render, save_html, read_excel_charts, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta property="og:title" content="maidr.tensorboard.profile.profile_charts API reference">
+<meta property="og:description" content="Draw the charts from the profile plugin’s converted tables. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="API Reference">
-<meta name="twitter:description" content="Reference for the public py-maidr API: show, render, save_html, read_excel_charts, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
+<meta name="twitter:title" content="maidr.tensorboard.profile.profile_charts API reference">
+<meta name="twitter:description" content="Draw the charts from the profile plugin’s converted tables. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/">
-<meta name="DC.title" content="API Reference">
+<link rel="canonical" href="https://py.maidr.ai/api/tensorboard.profile.profile_charts.html">
+<meta name="DC.title" content="maidr.tensorboard.profile.profile_charts API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Reference for the public py-maidr API: show, render, save_html, read_excel_charts, stacked, close, set_backend, set_use_cdn, init_notebook and the Shiny and Streamlit widgets.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/">
+<meta name="DC.description" content="Draw the charts from the profile plugin’s converted tables. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/tensorboard.profile.profile_charts.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -352,18 +387,10 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#api-reference" id="toc-api-reference" class="nav-link active" data-scroll-target="#api-reference">API Reference</a>
+  <li><a href="#maidr.tensorboard.profile.profile_charts" id="toc-maidr.tensorboard.profile.profile_charts" class="nav-link active" data-scroll-target="#maidr.tensorboard.profile.profile_charts">tensorboard.profile.profile_charts</a>
   <ul class="collapse">
-  <li><a href="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats" id="toc-displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="nav-link" data-scroll-target="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</a></li>
-  <li><a href="#saving-a-maidr-plot-as-an-html-file" id="toc-saving-a-maidr-plot-as-an-html-file" class="nav-link" data-scroll-target="#saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</a></li>
-  <li><a href="#reading-the-charts-of-an-excel-workbook" id="toc-reading-the-charts-of-an-excel-workbook" class="nav-link" data-scroll-target="#reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</a></li>
-  <li><a href="#reading-the-charts-of-a-tensorboard-log-directory" id="toc-reading-the-charts-of-a-tensorboard-log-directory" class="nav-link" data-scroll-target="#reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</a></li>
-  <li><a href="#drawing-the-training-curves-of-a-keras-model" id="toc-drawing-the-training-curves-of-a-keras-model" class="nav-link" data-scroll-target="#drawing-the-training-curves-of-a-keras-model">Drawing the training curves of a Keras model</a></li>
-  <li><a href="#registering-and-releasing-figures" id="toc-registering-and-releasing-figures" class="nav-link" data-scroll-target="#registering-and-releasing-figures">Registering and releasing figures</a></li>
-  <li><a href="#switching-the-matplotlib-backend" id="toc-switching-the-matplotlib-backend" class="nav-link" data-scroll-target="#switching-the-matplotlib-backend">Switching the matplotlib backend</a></li>
-  <li><a href="#where-the-maidr.js-runtime-comes-from" id="toc-where-the-maidr.js-runtime-comes-from" class="nav-link" data-scroll-target="#where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</a></li>
-  <li><a href="#shiny-for-python" id="toc-shiny-for-python" class="nav-link" data-scroll-target="#shiny-for-python">Shiny for Python</a></li>
-  <li><a href="#streamlit" id="toc-streamlit" class="nav-link" data-scroll-target="#streamlit">Streamlit</a></li>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -374,256 +401,82 @@ cookieconsent.run({
 
 
 
-<section id="api-reference" class="level1 doc doc-index">
-<h1 class="doc doc-index">API Reference</h1>
-<section id="displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="level2">
-<h2 class="anchored" data-anchor-id="displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</h2>
-<p>Plots generated by <strong>matplotlib</strong>, <strong>seaborn</strong>, <strong>Plotly</strong>, <strong>Bokeh</strong>, <strong>plotnine</strong> or <strong>Altair</strong> can be displayed in MAIDR format. Pass the plot object to <code>maidr.show()</code>, or call <code>plt.show()</code> after <code>import maidr</code> and let the custom backend do it.</p>
+<section id="maidr.tensorboard.profile.profile_charts" class="level1">
+<h1>tensorboard.profile.profile_charts</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tensorboard.profile.profile_charts(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    input_pipeline</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    op_stats</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    session<span class="op">=</span><span class="st">''</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    top<span class="op">=</span>DEFAULT_TOP</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    charts<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Draw the charts from the profile plugin’s converted tables.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
 <tbody>
 <tr class="odd">
-<td><a href="../api/show.html#maidr.show">show</a></td>
-<td>Display a MAIDR plot.</td>
+<td>input_pipeline</td>
+<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a> or <a href="https://docs.python.org/3/builtins/stdtypes.html#list">list</a></td>
+<td>The <code>input_pipeline_analyzer</code> tool’s JSON, as text or parsed.</td>
+<td><em>required</em></td>
 </tr>
 <tr class="even">
-<td><a href="../api/render.html#maidr.render">render</a></td>
-<td>Render a MAIDR plot to HTML.</td>
+<td>op_stats</td>
+<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a> or <a href="https://docs.python.org/3/builtins/stdtypes.html#list">list</a></td>
+<td>The <code>framework_op_stats</code> tool’s JSON, as text or parsed.</td>
+<td><em>required</em></td>
 </tr>
 <tr class="odd">
-<td><a href="../api/Maidr.show.html#maidr.Maidr.show">Maidr.show</a></td>
-<td>Preview the HTML content using the specified renderer.</td>
+<td>session</td>
+<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
+<td>The session’s name, for the charts’ titles.</td>
+<td><code>''</code></td>
+</tr>
+<tr class="even">
+<td>top</td>
+<td><a href="https://docs.python.org/3/builtins/functions.html#int">int</a></td>
+<td>How many operation types to show.</td>
+<td><code>10</code></td>
+</tr>
+<tr class="odd">
+<td>charts</td>
+<td>iterable of str</td>
+<td>Only these of <code>"step_time"</code> and <code>"top_operations"</code>; the table of one left out is not read. By default both.</td>
+<td><code>None</code></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="saving-a-maidr-plot-as-an-html-file" class="level2">
-<h2 class="anchored" data-anchor-id="saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</h2>
-<p>Save a plot as a standalone HTML file with <code>maidr.save_html()</code>.</p>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 32%">
+<col style="width: 57%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
 <tbody>
 <tr class="odd">
-<td><a href="../api/save_html.html#maidr.save_html">save_html</a></td>
-<td>Save a MAIDR plot as HTML file.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/Maidr.save_html.html#maidr.Maidr.save_html">Maidr.save_html</a></td>
-<td>Save the HTML representation of the figure with MAIDR to a file.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="reading-the-charts-of-an-excel-workbook" class="level2">
-<h2 class="anchored" data-anchor-id="reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</h2>
-<p>Read every chart of an <code>.xlsx</code> workbook with <code>maidr.read_excel_charts()</code>, and pass a chart it returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>. Experimental.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/read_excel_charts.html#maidr.read_excel_charts">read_excel_charts</a></td>
-<td>Read every chart in an Excel workbook.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/excel.ExcelChart.html#maidr.excel.ExcelChart">excel.ExcelChart</a></td>
-<td>One chart of an Excel workbook, drawn and ready for maidr.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="reading-the-charts-of-a-tensorboard-log-directory" class="level2">
-<h2 class="anchored" data-anchor-id="reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</h2>
-<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and their histograms with <code>maidr.read_tensorboard_distributions()</code> and <code>maidr.read_tensorboard_histograms()</code>, one chart per tag and run, a hyperparameter sweep with <code>maidr.read_tensorboard_hparams()</code>, and the Embedding Projector with <code>maidr.read_tensorboard_projector()</code>, PR curves with <code>maidr.read_tensorboard_pr_curves()</code>, a profile’s step-time graph and top operations with <code>maidr.read_tensorboard_profile()</code>, and pass a chart either returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code> and <code>maidr.tensorboard.load_histograms()</code>. Experimental.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/read_tensorboard_scalars.html#maidr.read_tensorboard_scalars">read_tensorboard_scalars</a></td>
-<td>Read the scalar charts of a TensorBoard log directory.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/tensorboard.TensorBoardChart.html#maidr.tensorboard.TensorBoardChart">tensorboard.TensorBoardChart</a></td>
-<td>One tag of a TensorBoard log directory, drawn and ready for maidr.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/tensorboard.load_scalars.html#maidr.tensorboard.load_scalars">tensorboard.load_scalars</a></td>
-<td>Read the scalars of a TensorBoard log directory.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/tensorboard.ScalarSeries.html#maidr.tensorboard.ScalarSeries">tensorboard.ScalarSeries</a></td>
-<td>The values one run logged under one tag, in the order TensorBoard keeps.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/tensorboard.smooth.html#maidr.tensorboard.smooth">tensorboard.smooth</a></td>
-<td>Smooth values the way TensorBoard’s Scalars dashboard does.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/read_tensorboard_distributions.html#maidr.read_tensorboard_distributions">read_tensorboard_distributions</a></td>
-<td>Read the distribution charts of a TensorBoard log directory.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/read_tensorboard_histograms.html#maidr.read_tensorboard_histograms">read_tensorboard_histograms</a></td>
-<td>Read the histogram charts of a TensorBoard log directory, as ridgelines.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/tensorboard.load_histograms.html#maidr.tensorboard.load_histograms">tensorboard.load_histograms</a></td>
-<td>Read the histograms of a TensorBoard log directory.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/tensorboard.HistogramSeries.html#maidr.tensorboard.HistogramSeries">tensorboard.HistogramSeries</a></td>
-<td>The histograms one run logged under one tag, in the order TensorBoard keeps.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/read_tensorboard_hparams.html#maidr.read_tensorboard_hparams">read_tensorboard_hparams</a></td>
-<td>Read a hyperparameter sweep as its parallel coordinates and scatter matrix.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/tensorboard.load_hparams.html#maidr.tensorboard.load_hparams">tensorboard.load_hparams</a></td>
-<td>Read the sessions of a hyperparameter sweep.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/tensorboard.Session.html#maidr.tensorboard.Session">tensorboard.Session</a></td>
-<td>One training session of a sweep.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/read_tensorboard_projector.html#maidr.read_tensorboard_projector">read_tensorboard_projector</a></td>
-<td>Read the embeddings of a Projector log directory as 2D scatter plots.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/read_tensorboard_pr_curves.html#maidr.read_tensorboard_pr_curves">read_tensorboard_pr_curves</a></td>
-<td>Read the PR curve charts of a TensorBoard log directory.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/tensorboard.load_pr_curves.html#maidr.tensorboard.load_pr_curves">tensorboard.load_pr_curves</a></td>
-<td>Read the PR curve summaries of a TensorBoard log directory.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/tensorboard.PRCurveSeries.html#maidr.tensorboard.PRCurveSeries">tensorboard.PRCurveSeries</a></td>
-<td>The PR curves one run logged under one tag, step by step.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/read_tensorboard_profile.html#maidr.read_tensorboard_profile">read_tensorboard_profile</a></td>
-<td>Read a profiling session as its step-time graph and top operations.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/tensorboard.profile.find_profiles.html#maidr.tensorboard.profile.find_profiles">tensorboard.profile.find_profiles</a></td>
-<td>The profiling sessions of a log directory and their XPlane files.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/tensorboard.profile.profile_charts.html#maidr.tensorboard.profile.profile_charts">tensorboard.profile.profile_charts</a></td>
-<td>Draw the charts from the profile plugin’s converted tables.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/tensorboard.load_embeddings.html#maidr.tensorboard.load_embeddings">tensorboard.load_embeddings</a></td>
-<td>Read the embeddings a Projector log directory configures.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/tensorboard.Embedding.html#maidr.tensorboard.Embedding">tensorboard.Embedding</a></td>
-<td>One embedding of a Projector log directory.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="drawing-the-training-curves-of-a-keras-model" class="level2">
-<h2 class="anchored" data-anchor-id="drawing-the-training-curves-of-a-keras-model">Drawing the training curves of a Keras model</h2>
-<p>Draw what <code>model.fit</code> returns with <code>maidr.keras.plot_history()</code> and a classifier’s confusion matrix with <code>maidr.keras.plot_confusion_matrix()</code>, or keep an accessible page up to date while the model trains with <code>maidr.keras.MaidrCallback</code>. Import <code>maidr.keras</code> to use them. Experimental.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/plot_history.html#maidr.keras.plot_history">plot_history</a></td>
-<td>Draw the training curves of a Keras model.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/plot_confusion_matrix.html#maidr.keras.plot_confusion_matrix">plot_confusion_matrix</a></td>
-<td>Draw a classifier’s confusion matrix as a heatmap.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/MaidrCallback.html#maidr.keras.MaidrCallback">MaidrCallback</a></td>
-<td>Keep an accessible page of a model’s training curves while it trains.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="registering-and-releasing-figures" class="level2">
-<h2 class="anchored" data-anchor-id="registering-and-releasing-figures">Registering and releasing figures</h2>
-<p>Mark a bar container as a stacked bar plot with <code>maidr.stacked()</code>, and release the figures maidr tracks with <code>maidr.close()</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/stacked.html#maidr.stacked">stacked</a></td>
 <td></td>
-</tr>
-<tr class="even">
-<td><a href="../api/close.html#maidr.close">close</a></td>
-<td>Close a MAIDR plot and clean up resources.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="switching-the-matplotlib-backend" class="level2">
-<h2 class="anchored" data-anchor-id="switching-the-matplotlib-backend">Switching the matplotlib backend</h2>
-<p>Control whether <code>plt.show()</code> uses the maidr accessible backend or the platform default with <code>maidr.set_backend()</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/set_backend.html#maidr.set_backend">set_backend</a></td>
-<td>Switch the matplotlib backend between maidr and the platform default.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="where-the-maidr.js-runtime-comes-from" class="level2">
-<h2 class="anchored" data-anchor-id="where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</h2>
-<p>Choose between the jsDelivr CDN and the copy bundled in the wheel with <code>maidr.set_use_cdn()</code>, name where the bundled copy finds its non-English locale packs with <code>maidr.set_locale_base_url()</code>, and emit the notebook loader by hand with <code>maidr.init_notebook()</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/set_use_cdn.html#maidr.set_use_cdn">set_use_cdn</a></td>
-<td>Set the process-wide default for <code>use_cdn</code>.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/get_use_cdn.html#maidr.get_use_cdn">get_use_cdn</a></td>
-<td>Return the current default for <code>use_cdn</code>.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/set_locale_base_url.html#maidr.set_locale_base_url">set_locale_base_url</a></td>
-<td>Set where documents running the bundled <code>maidr.js</code> find locale packs.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/get_locale_base_url.html#maidr.get_locale_base_url">get_locale_base_url</a></td>
-<td>Return where a document running the bundled <code>maidr.js</code> finds packs.</td>
-</tr>
-<tr class="odd">
-<td><a href="../api/init_notebook.html#maidr.init_notebook">init_notebook</a></td>
-<td>Inject the bundled <code>maidr.js</code> / <code>maidr-math.css</code> into the notebook DOM.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="shiny-for-python" class="level2">
-<h2 class="anchored" data-anchor-id="shiny-for-python">Shiny for Python</h2>
-<p>Pair <code>output_maidr()</code> in the UI with <code>@render_maidr</code> in the server. Requires the <code>shiny</code> extra: <code>pip install "maidr[shiny]"</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/shiny.output_maidr.html#maidr.widget.shiny.output_maidr">shiny.output_maidr</a></td>
-<td>Create a container for a :class:<code>render_maidr</code> output.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/shiny.render_maidr.html#maidr.widget.shiny.render_maidr">shiny.render_maidr</a></td>
-<td>Render a plot as an accessible MAIDR chart in a Shiny app.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="streamlit" class="level2">
-<h2 class="anchored" data-anchor-id="streamlit">Streamlit</h2>
-<p>Place an accessible chart in a Streamlit app with <code>render_maidr()</code>, or get the HTML string to cache with <code>maidr_html()</code>. Requires the <code>streamlit</code> extra: <code>pip install "maidr[streamlit]"</code>.</p>
-<table class="caption-top table">
-<tbody>
-<tr class="odd">
-<td><a href="../api/streamlit.render_maidr.html#maidr.widget.streamlit.render_maidr">streamlit.render_maidr</a></td>
-<td>Draw an accessible MAIDR chart in a Streamlit app.</td>
-</tr>
-<tr class="even">
-<td><a href="../api/streamlit.maidr_html.html#maidr.widget.streamlit.maidr_html">streamlit.maidr_html</a></td>
-<td>Return an accessible chart as a self-contained HTML string.</td>
+<td>list of TensorBoardChart</td>
+<td>As :func:<code>read_tensorboard_profile</code> returns.</td>
 </tr>
 </tbody>
 </table>
