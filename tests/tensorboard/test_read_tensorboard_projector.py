@@ -143,3 +143,36 @@ def test_project_returns_the_variance_each_component_explains():
     coordinates, explained = project(vectors)
     assert coordinates.shape == (4, 2)
     assert explained[0] > 0.99 and explained.sum() == pytest.approx(1.0)
+
+
+def test_metadata_shorter_than_the_vectors_is_padded_with_a_warning(tmp_path):
+    (tmp_path / "v.tsv").write_text("0\t0\n1\t1\n5\t5\n")
+    (tmp_path / "m.tsv").write_text("a\nb\n")
+    (tmp_path / "projector_config.pbtxt").write_text(
+        'embeddings {\n  tensor_name: "e"\n  tensor_path: "v.tsv"\n'
+        '  metadata_path: "m.tsv"\n}\n'
+    )
+    with pytest.warns(UserWarning, match="metadata labels fewer"):
+        (chart,) = read_tensorboard_projector(tmp_path)
+    assert chart.runs == ("a", "b", "")
+
+
+def test_escaped_and_non_ascii_names_are_read_as_utf8(tmp_path):
+    (tmp_path / "café.tsv").write_text("0\t0\n1\t1\n")
+    (tmp_path / "projector_config.pbtxt").write_text(
+        'embeddings {\n  tensor_name: "caf\\303\\251 \\"x\\""\n'
+        '  tensor_path: "café.tsv"\n}\n',
+        encoding="utf-8",
+    )
+    (embedding,) = load_embeddings(tmp_path)
+    assert embedding.name == 'café "x"'
+    assert embedding.vectors.shape == (2, 2)
+
+
+def test_a_malformed_tsv_is_warned_about_and_left_out(tmp_path):
+    (tmp_path / "v.tsv").write_text("x\ty\n0\t0\n")
+    (tmp_path / "projector_config.pbtxt").write_text(
+        'embeddings {\n  tensor_name: "e"\n  tensor_path: "v.tsv"\n}\n'
+    )
+    with pytest.warns(UserWarning, match="could not read 'e'"):
+        assert load_embeddings(tmp_path) == []

@@ -19,7 +19,6 @@ import csv
 import os
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 import numpy as np
 from matplotlib.figure import Figure
@@ -105,6 +104,14 @@ def load_embeddings(logdir: str | os.PathLike) -> list[Embedding]:
             metadata = _metadata(
                 os.path.join(path, block["metadata_path"]), len(vectors)
             )
+            short = [k for k, column in metadata.items() if len(column) < len(vectors)]
+            if short:
+                warn_at_caller(
+                    f"'{name}' has {len(vectors)} points and its metadata labels "
+                    f"fewer; the points without one are labelled ''."
+                )
+                for key in short:
+                    metadata[key] += [""] * (len(vectors) - len(metadata[key]))
         embeddings.append(Embedding(name, vectors, metadata))
     return embeddings
 
@@ -289,11 +296,45 @@ def _top_level(text: str, key: str) -> str | None:
     return None
 
 
+_ESCAPES = {"n": 10, "t": 9, "r": 13, "\\": 92, '"': 34, "'": 39, "a": 7, "b": 8}
+
+
 def _unescape(value: str) -> str:
-    return value.encode("utf-8").decode("unicode_escape")
+    """
+    A protobuf text-format string's value.
+
+    Escapes stand for bytes -- ``\\303\\251`` is the UTF-8 of an e with an
+    acute -- and the bytes are UTF-8, so they are gathered before decoding.
+    """
+    out = bytearray()
+    i = 0
+    while i < len(value):
+        char = value[i]
+        if char != "\\" or i + 1 == len(value):
+            out += char.encode("utf-8")
+            i += 1
+            continue
+        nxt = value[i + 1]
+        if nxt in "01234567":
+            digits = re.match(r"[0-7]{1,3}", value[i + 1 :]).group()
+            out.append(int(digits, 8) & 0xFF)
+            i += 1 + len(digits)
+        elif nxt in "xX" and re.match(r"[0-9a-fA-F]{1,2}", value[i + 2 :]):
+            digits = re.match(r"[0-9a-fA-F]{1,2}", value[i + 2 :]).group()
+            out.append(int(digits, 16))
+            i += 2 + len(digits)
+        elif nxt in _ESCAPES:
+            out.append(_ESCAPES[nxt])
+            i += 2
+        else:
+            out += nxt.encode("utf-8")
+            i += 2
+    return out.decode("utf-8", errors="replace")
 
 
-def _vectors(path: str, block: dict[str, str], checkpoint: str | None) -> Any:
+def _vectors(
+    path: str, block: dict[str, str], checkpoint: str | None
+) -> np.ndarray | None:
     """An embedding's vectors, or ``None`` with a warning when they cannot be read."""
     name = block.get("tensor_name", "embedding")
     if "tensor_path" in block:
@@ -301,8 +342,13 @@ def _vectors(path: str, block: dict[str, str], checkpoint: str | None) -> Any:
         if not os.path.isfile(file):
             warn_at_caller(f"'{name}' names {file}, which does not exist; left out.")
             return None
-        vectors = np.loadtxt(file, delimiter="\t", ndmin=2, dtype=float)
-        return vectors
+        try:
+            return np.loadtxt(file, delimiter="\t", ndmin=2, dtype=float)
+        except ValueError as error:
+            warn_at_caller(
+                f"maidr could not read '{name}' from {file} ({error}); left out."
+            )
+            return None
     try:
         import tensorflow as tf
     except ImportError:
