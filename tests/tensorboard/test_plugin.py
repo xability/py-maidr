@@ -202,3 +202,30 @@ def test_importing_maidr_does_not_import_tensorboard():
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
     )
     assert out.stdout.strip() == "False"
+
+
+def test_a_profile_chart_is_chosen_by_name_not_position(logdir, monkeypatch):
+    import maidr.tensorboard.plugin as plugin
+    from maidr.tensorboard import profile as profile_module
+
+    fixtures = Path(__file__).parent / "fixtures"
+    shutil.copytree(fixtures / "tf_profile", logdir / "tf_profile")
+    op_stats = (fixtures / "tf_profile.framework_op_stats.json").read_text()
+    no_steps = json.dumps([{"cols": [], "rows": []}])
+    monkeypatch.setattr(plugin, "_can_convert_profiles", lambda: True)
+    monkeypatch.setattr(
+        profile_module,
+        "_convert",
+        lambda paths, tool: no_steps if tool == "input_pipeline_analyzer" else op_stats,
+    )
+    titles = [chart["title"] for chart in list_charts(str(logdir))]
+    assert any(title.endswith(": top operations") for title in titles)
+    client = _client(logdir, "/chart")
+    session = "tf_profile/2026_10_04_12_28_21"
+    step_time = client.get("/", query_string={"kind": "profile", "tag": session})
+    assert step_time.status_code == 404
+    top = client.get(
+        "/", query_string={"kind": "profile", "tag": session, "index": "1"}
+    )
+    assert top.status_code == 200
+    assert "<title>profile/top_operations</title>" in top.get_data(as_text=True)
