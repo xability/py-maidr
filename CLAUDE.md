@@ -39,6 +39,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 - **`maidr/util/mixin/`** — Reusable extraction logic: `ContainerExtractorMixin`, `LevelExtractorMixin`, `LineExtractorMixin`, `CollectionExtractorMixin`, `FormatExtractorMixin`
 - **`maidr/widget/shiny.py`** — Shiny framework integration (`output_maidr`, `@render_maidr`)
 - **`maidr/widget/streamlit.py`** — Streamlit integration (`render_maidr`, `maidr_html`)
+- **`maidr/widget/gradio.py`** — Gradio integration (`output_maidr`, `render_maidr`): the chart in a `srcdoc` iframe, since `gr.HTML` runs no scripts
 
 ### Supported Plot Types
 
@@ -151,6 +152,22 @@ through the patched `imshow`, and `MaidrCallback`, a
 `import maidr` does not import it. Keras is not a dev dependency: the callback
 tests stand in a bare `Callback`, and the one real `model.fit` test runs only
 where Keras is installed.
+`maidr/wandb/` (experimental, `docs/stability.qmd#weights-biases-support`)
+reads the history of Weights & Biases runs for `maidr.read_wandb_history`:
+`runfile.py` decodes the `run-<id>.wandb` file every run writes (W&B's
+LevelDB-style log of `Record` protobufs) by hand, as the TensorBoard reader
+decodes event files, so a run trained offline is read with no W&B package or
+network; a run's path or a fetched `wandb.apis.public.Run` is read through
+`scan_history()`, and saved history as a mapping of run name to rows.
+`maidr/mlflow.py` (experimental, `docs/stability.qmd#mlflow-support`) reads
+MLflow runs' metrics through `MlflowClient` for `maidr.read_mlflow_metrics`,
+and `maidr.log_mlflow_chart` stores a chart as an HTML artifact the MLflow UI
+shows in a frame sandboxed with `allow-scripts` alone, so the page carries
+maidr.js inside it by default. `import maidr` imports neither `wandb` nor
+`mlflow`. Both readers, and the TensorBoard scalar reader, draw through
+`maidr/util/metric_chart.py`: one chart per metric, one line per run,
+TensorBoard's smoothing and thinning. Protobuf fields are read by
+`maidr/util/protobuf.py`, shared with `maidr/tensorboard/events.py`.
 
 ### Canonical `axes` Payload
 
@@ -185,6 +202,7 @@ Tests live in `tests/` using pytest + pytest-mock. Test fixtures in `tests/fixtu
 gallery pages (`docs/examples/*.qmd`, `docs/examples-plotly.qmd`,
 `docs/examples-bokeh.qmd`, `docs/examples-plotnine.qmd`,
 `docs/examples-altair.qmd`, `docs/examples-excel.qmd`,
-`docs/examples-tensorboard.qmd`, `docs/examples-keras.qmd`) and pins the layer types
+`docs/examples-tensorboard.qmd`, `docs/examples-keras.qmd`,
+`docs/examples-wandb.qmd`, `docs/examples-mlflow.qmd`) and pins the layer types
 each section emits, plus the measured claims the prose makes. Adding or changing a gallery example means
 updating its `EXPECTED_LAYERS` entry there.

@@ -1,7 +1,7 @@
 ---
-title: "Accessible Shiny and Streamlit Dashboards with py-maidr"
-pagetitle: "Accessible Shiny and Streamlit Dashboards"
-description: "Add accessible, sonified charts to Shiny for Python and Streamlit dashboards with py-maidr, including caching and air-gapped deployments."
+title: "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr"
+pagetitle: "Accessible Shiny, Streamlit and Gradio Dashboards"
+description: "Add accessible, sonified charts to Shiny for Python, Streamlit and Gradio dashboards with py-maidr, including caching and air-gapped deployments."
 html-table-processing: none
 filters:
   - line-highlight
@@ -10,8 +10,9 @@ filters:
 A dashboard is where accessibility is most often lost, because the chart is
 rebuilt on every interaction and a screen reader user is dropped back to the
 top of the page. py-maidr ships an output for Shiny for Python
-(`output_maidr()` with `@render_maidr`) and a renderer for Streamlit
-(`render_maidr()`); both wrap the chart in an iframe that loads `maidr.js`,
+(`output_maidr()` with `@render_maidr`), a renderer for Streamlit
+(`render_maidr()`) and a component for Gradio (`output_maidr()` with
+`render_maidr()`); all three wrap the chart in an iframe that loads `maidr.js`,
 and the Shiny output puts focus back on the chart after a reactive flush when
 the chart was what held focus. The sections below show the minimal app for
 each framework, then the two details that matter in production: caching the
@@ -206,3 +207,57 @@ default loads from the CDN and stays around 15 KB.
 Check out [this Streamlit dashboard](https://0193dbe9-1a63-183e-ba7f-b62075dd1d71.share.connect.posit.cloud/) with maidr, and its source code is available on [GitHub](https://github.com/xability/maidr_streamlit).
 
 Note: the `Streamlit` framework has some "Unlabeled 0 Button" which does not have to do with our maidr package. This issue needs to be addressed by the `Streamlit` team.
+
+## Gradio
+
+Gradio support ships as an optional extra:
+
+```bash
+pip install "maidr[gradio]"
+```
+
+Place a chart with `output_maidr()` when the app is built, and return
+`render_maidr()` from an event handler whose output is that component, the
+way you would return a figure for a `gr.Plot`:
+
+```python
+import gradio as gr
+import matplotlib.pyplot as plt
+
+from maidr.widget.gradio import output_maidr, render_maidr
+
+
+def bars(n):
+    fig, ax = plt.subplots()
+    ax.bar([f"bar {i + 1}" for i in range(int(n))], range(1, int(n) + 1))
+    ax.set_title(f"{int(n)} bars")
+    markup = render_maidr(ax)
+    plt.close(fig)
+    return markup
+
+
+with gr.Blocks() as demo:
+    n = gr.Slider(2, 10, value=4, step=1, label="Bars")
+    chart = output_maidr()
+    demo.load(bars, n, chart)
+    n.change(bars, n, chart)
+
+demo.launch()
+```
+
+`output_maidr(chart)` takes a chart to show from the start, and passes any
+other argument, such as `label=` or `elem_id=`, on to the `gr.HTML` it makes.
+Both take a matplotlib or seaborn artist, a Plotly `Figure`, a Bokeh figure,
+an Altair chart, or a chart a py-maidr reader returned, such as
+`maidr.read_wandb_history()`'s, and `use_cdn`.
+
+`gr.HTML` does not run the scripts of its value, so the chart is placed in an
+iframe, the one maidr uses in a notebook: named after the chart, `"5 bars,
+accessible chart"` here, sized to it as maidr's braille and text panels open,
+and allowed to reach a refreshable braille display. A reader tabs straight
+onto the chart inside it. The chart is always passed in rather than read from
+matplotlib's current figure, which every user of a Gradio app shares.
+`use_cdn=False` embeds the ~1.9 MB `maidr.js` bundle in each chart, for an app
+without network access.
+
+Gradio 5 or newer is what the extra installs, on Python 3.10 or newer.

@@ -1,0 +1,128 @@
+---
+title: "Weights & Biases Accessible Chart Examples"
+description: "Code examples showing how to make the training curves of Weights & Biases runs accessible with py-maidr: read from a run's own file, offline, or fetched from the W&B server."
+jupyter: python3
+html-table-processing: none
+resources:
+  - wandb-runs/**
+filters:
+  - line-highlight
+---
+
+## Weights & Biases Examples {#sec-wandb-examples}
+
+**maidr** reads the training curves of Weights & Biases runs. Pass a run to
+`maidr.read_wandb_history()` and hand any chart it returns to `maidr.show()`,
+`maidr.render()` or `maidr.save_html()`: each metric can then be read from the
+keyboard, as sound, as text and in braille. For the curves TensorBoard logs,
+see the [TensorBoard](examples-tensorboard.qmd) page, and for MLflow's, the
+[MLflow](examples-mlflow.qmd) page.
+
+::: {.callout-warning title="Experimental"}
+Weights & Biases support is **experimental**. What it reads, and how, may
+change without a deprecation period: see
+[Plot Type Stability](stability.qmd#weights-biases-support).
+:::
+
+Each metric logged with `wandb.log`, such as `train/loss`, becomes one line
+chart, with the step along the x axis and one line per run, as in a W&B
+workspace. A run can be read three ways:
+
+| The run | read with | needs |
+|---|---|---|
+| Its folder under `wandb/`, or the whole `wandb/` folder | `read_wandb_history("wandb")` | nothing: the run file is read directly |
+| Its path on the W&B server | `read_wandb_history("team/project/run_id")` | `pip install "maidr[wandb]"` and an API key |
+| A run `wandb.Api()` returned | `read_wandb_history(api.runs("team/project"))` | the same |
+
+Every run, online or offline, writes its history as it goes to a file in its
+folder, `wandb/run-<date>-<id>/run-<id>.wandb`, the file `wandb sync` uploads.
+maidr reads that file itself, so a run trained offline on a cluster with no
+network can be read where it ran, without the W&B package and without an
+account.
+
+The examples read `wandb-runs/`, two short fine-tunes of a small language
+model, logged with the real W&B SDK in offline mode.
+
+### Reading Runs
+
+`maidr.read_wandb_history()` returns one chart per metric, each with its name
+and the runs drawn on it.
+
+```{python}
+#| warning: false
+import maidr
+
+charts = maidr.read_wandb_history("wandb-runs")
+for chart in charts:
+    print(chart.metric, chart.runs, sep=" | ")
+```
+
+Save every metric as its own page with a loop, or only the ones you name with
+`keys=`:
+
+```python
+for chart in maidr.read_wandb_history("wandb", keys=["train/loss"]):
+    maidr.save_html(chart, chart.metric.replace("/", "_") + ".html")
+```
+
+To follow a run while it trains, read it again: each call reads the run file
+as it is at that moment.
+
+### Training Loss
+
+One line per run. The left and right arrow keys move along the steps; up and
+down move to the other run at the same step. `smoothing=` smooths the lines
+as W&B's *Exponential moving average* does, and draws each run twice: as
+logged, and smoothed under its name followed by *(smoothed)*.
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of the training loss at each step for two runs, baseline and lora-r16
+(loss,) = maidr.read_wandb_history("wandb-runs", keys=["train/loss"])
+maidr.show(loss)
+```
+
+The *lora-r16* run's loss falls faster and further than the baseline's.
+
+### Evaluation Loss
+
+A metric logged only every few steps is one unbroken line through the steps
+it was logged at; here the evaluation loss, every 20 steps.
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of the evaluation loss every 20 steps for two runs
+(eval_loss,) = maidr.read_wandb_history("wandb-runs", keys=["eval/loss"])
+maidr.show(eval_loss)
+```
+
+`x=` puts another logged value along the x axis, such as `x="epoch"` or
+`x="_runtime"`, the seconds since the run started.
+
+### Fetching Runs from the W&B Server
+
+A run on the W&B server is read by its path, the end of its page's URL, or
+from the runs `wandb.Api()` returns. Every row the run logged is read with
+`run.scan_history()`, not the 500 rows `run.history()` samples; a long line
+is then thinned to 1,000 evenly spaced points, which `max_points=` changes.
+
+```python
+import wandb
+
+import maidr
+
+# One run by its path ...
+charts = maidr.read_wandb_history("my-team/tiny-lm/lorar16x1")
+
+# ... or every run of a project, compared on one chart per metric.
+runs = wandb.Api().runs("my-team/tiny-lm", filters={"state": "finished"})
+(loss,) = maidr.read_wandb_history(runs, keys=["train/loss"])
+maidr.save_html(loss, "loss.html")
+```
+
+History saved earlier is read too, as a mapping of run name to its rows: the
+`DataFrame` `run.history()` returns, or a list of dictionaries.
+
+A value that is not a number, such as an image, a table or a histogram, is not
+read. A dictionary logged as a value is read as its own metrics with dotted
+names, so `wandb.log({"val": {"loss": 0.3}})` is read as `val.loss`.
