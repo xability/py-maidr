@@ -314,7 +314,13 @@ def _chart_page(
         elif kind == "hparams":
             charts = maidr.read_tensorboard_hparams(logdir)
         elif kind == "profile":
-            charts = maidr.read_tensorboard_profile(logdir, session=tag)
+            # The chart is named, not counted: a profile with no steps has no
+            # step-time graph, and position 0 would then be another chart.
+            from maidr.tensorboard.profile import CHARTS
+
+            charts = maidr.read_tensorboard_profile(
+                logdir, session=tag, charts=[CHARTS[int(index or 0)]]
+            )
         else:
             charts = [
                 chart
@@ -323,7 +329,7 @@ def _chart_page(
             ]
     # Every chart drawn is closed, the one shown or not, so a long-running
     # TensorBoard does not keep a figure per request.
-    position = int(index or 0) if kind in ("hparams", "profile") else 0
+    position = int(index or 0) if kind == "hparams" else 0
     if not 0 <= position < len(charts):
         for every in charts:
             maidr.close(every)

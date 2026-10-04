@@ -20,7 +20,7 @@ from __future__ import annotations
 import glob
 import json
 import os
-from typing import Any
+from typing import Any, Iterable
 
 import numpy as np
 from matplotlib.figure import Figure
@@ -28,7 +28,7 @@ from matplotlib.figure import Figure
 from maidr.tensorboard.logdir import TensorBoardChart
 from maidr.util.caller_warning import warn_at_caller
 
-__all__ = ["find_profiles", "profile_charts", "read_tensorboard_profile"]
+__all__ = ["CHARTS", "find_profiles", "profile_charts", "read_tensorboard_profile"]
 
 #: What each step-time component is called, in the order the bars stack.
 _COMPONENTS = {
@@ -45,6 +45,9 @@ _COMPONENTS = {
 
 #: Operation types shown, by self time.
 DEFAULT_TOP = 10
+
+#: The charts a profile is read as, in the order they are returned.
+CHARTS = ("step_time", "top_operations")
 
 
 def find_profiles(logdir: str | os.PathLike) -> dict[str, list[str]]:
@@ -82,6 +85,7 @@ def read_tensorboard_profile(
     *,
     session: str | None = None,
     top: int = DEFAULT_TOP,
+    charts: Iterable[str] | None = None,
 ) -> list[TensorBoardChart]:
     """
     Read a profiling session as its step-time graph and top operations.
@@ -95,6 +99,9 @@ def read_tensorboard_profile(
         latest.
     top : int, default 10
         How many operation types the second chart shows.
+    charts : iterable of str, optional
+        Only these of ``"step_time"`` and ``"top_operations"``; the profile
+        is converted only for the tables they need. By default both.
 
     Returns
     -------
@@ -108,6 +115,8 @@ def read_tensorboard_profile(
     ------
     FileNotFoundError
         If ``logdir`` holds no profile, or no session of that name.
+    ValueError
+        If ``charts`` names a chart other than those above.
     ImportError
         If ``xprof`` is not installed.
 
@@ -120,17 +129,21 @@ def read_tensorboard_profile(
     sessions = find_profiles(logdir)
     if not sessions:
         raise FileNotFoundError(f"{os.fspath(logdir)} holds no TensorBoard profile.")
+    wanted = _wanted(charts)
     if session is None:
-        session = max(sessions, key=lambda name: name.rsplit("/", 1)[-1])
+        # The latest timestamp; two runs profiled in the same second are told
+        # apart by their whole names, so the choice does not depend on order.
+        session = max(sessions, key=lambda name: (name.rsplit("/", 1)[-1], name))
     if session not in sessions:
         known = ", ".join(f"'{name}'" for name in sessions)
         raise FileNotFoundError(f"No profile session '{session}'; there are {known}.")
     paths = sessions[session]
     return profile_charts(
-        _convert(paths, "input_pipeline_analyzer"),
-        _convert(paths, "framework_op_stats"),
+        _convert(paths, "input_pipeline_analyzer") if "step_time" in wanted else [],
+        _convert(paths, "framework_op_stats") if "top_operations" in wanted else [],
         session=session,
         top=top,
+        charts=wanted,
     )
 
 
@@ -140,6 +153,7 @@ def profile_charts(
     *,
     session: str = "",
     top: int = DEFAULT_TOP,
+    charts: Iterable[str] | None = None,
 ) -> list[TensorBoardChart]:
     """
     Draw the charts from the profile plugin's converted tables.
@@ -154,33 +168,48 @@ def profile_charts(
         The session's name, for the charts' titles.
     top : int, default 10
         How many operation types to show.
+    charts : iterable of str, optional
+        Only these of ``"step_time"`` and ``"top_operations"``; the table
+        of one left out is not read. By default both.
 
     Returns
     -------
     list of TensorBoardChart
         As :func:`read_tensorboard_profile` returns.
     """
-    charts = []
-    steps = _step_table(_tables(input_pipeline))
-    if steps is not None:
-        names, components = steps
-        charts.append(
-            TensorBoardChart(
-                "profile/step_time", (session,), _draw_steps(names, components, session)
+    wanted = _wanted(charts)
+    drawn = []
+    if "step_time" in wanted:
+        steps = _step_table(_tables(input_pipeline))
+        if steps is None:
+            warn_at_caller(
+                "The profile records no steps; the step-time graph is left out."
             )
+        else:
+            names, components = steps
+            figure = _draw_steps(names, components, session)
+            drawn.append(TensorBoardChart("profile/step_time", (session,), figure))
+    if "top_operations" in wanted:
+        ops = _op_types(_tables(op_stats), top)
+        if not ops:
+            warn_at_caller("The profile records no operations; they are left out.")
+        else:
+            figure = _draw_ops(ops, session)
+            drawn.append(TensorBoardChart("profile/top_operations", (session,), figure))
+    return drawn
+
+
+def _wanted(charts: Iterable[str] | None) -> tuple[str, ...]:
+    """The charts asked for, checked, in :data:`CHARTS` order."""
+    if charts is None:
+        return CHARTS
+    asked = set(charts)
+    unknown = asked - set(CHARTS)
+    if unknown:
+        raise ValueError(
+            f"A profile is read as {' and '.join(CHARTS)}, not {sorted(unknown)}."
         )
-    else:
-        warn_at_caller("The profile records no steps; the step-time graph is left out.")
-    ops = _op_types(_tables(op_stats), top)
-    if ops:
-        charts.append(
-            TensorBoardChart(
-                "profile/top_operations", (session,), _draw_ops(ops, session)
-            )
-        )
-    else:
-        warn_at_caller("The profile records no operations; they are left out.")
-    return charts
+    return tuple(name for name in CHARTS if name in asked)
 
 
 def _convert(paths: list[str], tool: str) -> str:

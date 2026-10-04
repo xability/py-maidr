@@ -131,3 +131,28 @@ def test_the_converter_makes_these_tables_of_the_xplane_file():
     (paths,) = find_profiles(PROFILE).values()
     converted = profile_module._convert(paths, "input_pipeline_analyzer")
     assert json.loads(converted)[1]["rows"] == json.loads(INPUT_PIPELINE)[1]["rows"]
+
+
+def test_only_the_tables_the_charts_asked_for_need_are_converted(monkeypatch):
+    tools = []
+
+    def convert(paths, tool):
+        tools.append(tool)
+        return OP_STATS
+
+    monkeypatch.setattr(profile_module, "_convert", convert)
+    (chart,) = read_tensorboard_profile(PROFILE, charts=["top_operations"])
+    assert chart.tag == "profile/top_operations"
+    assert tools == ["framework_op_stats"]
+    with pytest.raises(ValueError, match="not \\['memory'\\]"):
+        read_tensorboard_profile(PROFILE, charts=["memory"])
+
+
+def test_the_latest_session_is_chosen_the_same_whatever_the_order(tmp_path):
+    for run in ("b", "a"):
+        session = tmp_path / run / "plugins" / "profile" / "2026_10_04_12_00_00"
+        session.mkdir(parents=True)
+        (session / "host.xplane.pb").write_bytes(b"")
+    sessions = find_profiles(tmp_path)
+    latest = max(sessions, key=lambda name: (name.rsplit("/", 1)[-1], name))
+    assert latest == "b/2026_10_04_12_00_00"
