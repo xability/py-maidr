@@ -236,6 +236,8 @@ def torch_pr_curves(logdir: str) -> None:
             )
             writer.add_pr_curve("positive", labels, scores, global_step=step)
         writer.close()
+
+
 def _residual_model(keras):
     """A functional model with a nested ``Sequential`` block and a skip over it."""
     keras.utils.set_random_seed(0)
@@ -290,6 +292,26 @@ def tf_keras_graph(logdir: str) -> None:
     import tf_keras
 
     _fit_with_graph(tf_keras, logdir)
+
+
+def keras_tied_block() -> None:
+    """
+    ``keras_tied_block.model.json``: one Sequential block called twice, the
+    second time on a layer drawn after it -- a tied, or shared, block.
+
+    Run by hand (``python make_fixtures.py --tied``); it writes no events.
+    """
+    import keras
+
+    inputs = keras.Input((4,), name="x")
+    block = keras.Sequential([keras.layers.Dense(4, name="d")], name="shared")
+    first = block(inputs)
+    second = block(keras.layers.Dense(4, name="pre")(first))
+    outputs = keras.layers.Add(name="add")([first, second])
+    model = keras.Model(inputs, outputs, name="m")
+    with open(os.path.join(HERE, "keras_tied_block.model.json"), "w") as out:
+        json.dump(json.loads(model.to_json()), out, indent=4)
+        out.write("\n")
 
 
 def tensorboard_view(logdir: str, plugin: str = "scalars") -> dict:
@@ -403,4 +425,7 @@ def _finite(value):
 if __name__ == "__main__":
     import sys
 
-    main(sys.argv[1:])
+    if sys.argv[1:] == ["--tied"]:
+        keras_tied_block()
+    else:
+        main(sys.argv[1:])

@@ -1,0 +1,322 @@
+{
+    "module": "keras.src.models.functional",
+    "class_name": "Functional",
+    "config": {
+        "name": "m",
+        "trainable": true,
+        "layers": [
+            {
+                "module": "keras.layers",
+                "class_name": "InputLayer",
+                "config": {
+                    "batch_shape": [
+                        null,
+                        4
+                    ],
+                    "dtype": "float32",
+                    "sparse": false,
+                    "ragged": false,
+                    "name": "x",
+                    "optional": false
+                },
+                "registered_name": null,
+                "name": "x",
+                "inbound_nodes": []
+            },
+            {
+                "module": "keras",
+                "class_name": "Sequential",
+                "config": {
+                    "name": "shared",
+                    "trainable": true,
+                    "dtype": {
+                        "module": "keras",
+                        "class_name": "DTypePolicy",
+                        "config": {
+                            "name": "float32"
+                        },
+                        "registered_name": null
+                    },
+                    "layers": [
+                        {
+                            "module": "keras.layers",
+                            "class_name": "InputLayer",
+                            "config": {
+                                "batch_shape": [
+                                    null,
+                                    4
+                                ],
+                                "dtype": "float32",
+                                "sparse": false,
+                                "ragged": false,
+                                "name": "input_layer",
+                                "optional": false
+                            },
+                            "registered_name": null
+                        },
+                        {
+                            "module": "keras.layers",
+                            "class_name": "Dense",
+                            "config": {
+                                "name": "d",
+                                "trainable": true,
+                                "dtype": {
+                                    "module": "keras",
+                                    "class_name": "DTypePolicy",
+                                    "config": {
+                                        "name": "float32"
+                                    },
+                                    "registered_name": null
+                                },
+                                "units": 4,
+                                "activation": "linear",
+                                "use_bias": true,
+                                "kernel_initializer": {
+                                    "module": "keras.initializers",
+                                    "class_name": "GlorotUniform",
+                                    "config": {
+                                        "seed": null,
+                                        "input_axes": null,
+                                        "output_axes": null
+                                    },
+                                    "registered_name": null
+                                },
+                                "bias_initializer": {
+                                    "module": "keras.initializers",
+                                    "class_name": "Zeros",
+                                    "config": {},
+                                    "registered_name": null
+                                },
+                                "kernel_regularizer": null,
+                                "bias_regularizer": null,
+                                "kernel_constraint": null,
+                                "bias_constraint": null,
+                                "quantization_config": null
+                            },
+                            "registered_name": null,
+                            "build_config": {
+                                "input_shape": [
+                                    null,
+                                    4
+                                ]
+                            }
+                        }
+                    ],
+                    "build_input_shape": [
+                        null,
+                        4
+                    ]
+                },
+                "registered_name": null,
+                "build_config": {
+                    "input_shape": [
+                        null,
+                        4
+                    ]
+                },
+                "compile_config": {},
+                "name": "shared",
+                "inbound_nodes": [
+                    {
+                        "args": [
+                            {
+                                "class_name": "__keras_tensor__",
+                                "config": {
+                                    "shape": [
+                                        null,
+                                        4
+                                    ],
+                                    "dtype": "float32",
+                                    "keras_history": [
+                                        "x",
+                                        0,
+                                        0
+                                    ]
+                                }
+                            }
+                        ],
+                        "kwargs": {
+                            "mask": null
+                        }
+                    },
+                    {
+                        "args": [
+                            {
+                                "class_name": "__keras_tensor__",
+                                "config": {
+                                    "shape": [
+                                        null,
+                                        4
+                                    ],
+                                    "dtype": "float32",
+                                    "keras_history": [
+                                        "pre",
+                                        0,
+                                        0
+                                    ]
+                                }
+                            }
+                        ],
+                        "kwargs": {
+                            "mask": null
+                        }
+                    }
+                ]
+            },
+            {
+                "module": "keras.layers",
+                "class_name": "Dense",
+                "config": {
+                    "name": "pre",
+                    "trainable": true,
+                    "dtype": {
+                        "module": "keras",
+                        "class_name": "DTypePolicy",
+                        "config": {
+                            "name": "float32"
+                        },
+                        "registered_name": null
+                    },
+                    "units": 4,
+                    "activation": "linear",
+                    "use_bias": true,
+                    "kernel_initializer": {
+                        "module": "keras.initializers",
+                        "class_name": "GlorotUniform",
+                        "config": {
+                            "seed": null,
+                            "input_axes": null,
+                            "output_axes": null
+                        },
+                        "registered_name": null
+                    },
+                    "bias_initializer": {
+                        "module": "keras.initializers",
+                        "class_name": "Zeros",
+                        "config": {},
+                        "registered_name": null
+                    },
+                    "kernel_regularizer": null,
+                    "bias_regularizer": null,
+                    "kernel_constraint": null,
+                    "bias_constraint": null,
+                    "quantization_config": null
+                },
+                "registered_name": null,
+                "build_config": {
+                    "input_shape": [
+                        null,
+                        4
+                    ]
+                },
+                "name": "pre",
+                "inbound_nodes": [
+                    {
+                        "args": [
+                            {
+                                "class_name": "__keras_tensor__",
+                                "config": {
+                                    "shape": [
+                                        null,
+                                        4
+                                    ],
+                                    "dtype": "float32",
+                                    "keras_history": [
+                                        "shared",
+                                        0,
+                                        0
+                                    ]
+                                }
+                            }
+                        ],
+                        "kwargs": {}
+                    }
+                ]
+            },
+            {
+                "module": "keras.layers",
+                "class_name": "Add",
+                "config": {
+                    "name": "add",
+                    "trainable": true,
+                    "dtype": {
+                        "module": "keras",
+                        "class_name": "DTypePolicy",
+                        "config": {
+                            "name": "float32"
+                        },
+                        "registered_name": null
+                    }
+                },
+                "registered_name": null,
+                "build_config": {
+                    "input_shape": [
+                        [
+                            null,
+                            4
+                        ],
+                        [
+                            null,
+                            4
+                        ]
+                    ]
+                },
+                "name": "add",
+                "inbound_nodes": [
+                    {
+                        "args": [
+                            [
+                                {
+                                    "class_name": "__keras_tensor__",
+                                    "config": {
+                                        "shape": [
+                                            null,
+                                            4
+                                        ],
+                                        "dtype": "float32",
+                                        "keras_history": [
+                                            "shared",
+                                            0,
+                                            0
+                                        ]
+                                    }
+                                },
+                                {
+                                    "class_name": "__keras_tensor__",
+                                    "config": {
+                                        "shape": [
+                                            null,
+                                            4
+                                        ],
+                                        "dtype": "float32",
+                                        "keras_history": [
+                                            "shared",
+                                            1,
+                                            0
+                                        ]
+                                    }
+                                }
+                            ]
+                        ],
+                        "kwargs": {}
+                    }
+                ]
+            }
+        ],
+        "input_layers": [
+            "x",
+            0,
+            0
+        ],
+        "output_layers": [
+            "add",
+            0,
+            0
+        ]
+    },
+    "registered_name": "Functional",
+    "build_config": {
+        "input_shape": null
+    },
+    "compile_config": {}
+}

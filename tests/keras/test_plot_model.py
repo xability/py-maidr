@@ -25,6 +25,7 @@ from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.directed_graph import DirectedGraphPlot
 from maidr.keras import plot_model
 from maidr.util.graph_drawing import layout
+from maidr.util.keras_config import keras_graph
 
 FIXTURES = Path(__file__).parents[1] / "tensorboard" / "fixtures"
 #: The same functional model -- a skip over a nested ``Sequential`` block --
@@ -459,3 +460,38 @@ def test_a_built_model_adds_shapes_and_parameters():
         "Output shape": "(None, 4)",
         "Parameters": 36,
     }
+
+
+TIED = FIXTURES / "keras_tied_block.model.json"
+
+
+@pytest.mark.parametrize(
+    "expand, edges",
+    [
+        (
+            False,
+            [
+                ("x", []),
+                ("shared", ["x", "pre"]),
+                ("pre", ["shared"]),
+                ("add", ["shared"]),
+            ],
+        ),
+        (
+            True,
+            [
+                ("x", []),
+                ("shared/d", ["x", "pre"]),
+                ("pre", ["shared/d"]),
+                ("add", ["shared/d"]),
+            ],
+        ),
+    ],
+    ids=["folded", "expanded"],
+)
+def test_a_block_called_again_on_a_later_layer_keeps_both_inputs(expand, edges):
+    _, nodes = keras_graph(TIED.read_text(), expand_nested=expand)
+    assert [(node["id"], node["inputs"]) for node in nodes] == edges
+    assert len({node["id"] for node in nodes}) == len(nodes)
+    # The loop the second call makes is drawn, not followed for ever.
+    assert graph_layer(plot_model(TIED.read_text(), expand_nested=expand))["data"]

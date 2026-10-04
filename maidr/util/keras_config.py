@@ -180,6 +180,7 @@ class _Reader:
                 return []
             return outputs[tensor] if tensor < len(outputs) else outputs[0]
 
+        calls = []
         for layer in layers:
             name = _name(layer)
             refs = list(_refs(layer.get("inbound_nodes", [])))
@@ -189,7 +190,26 @@ class _Reader:
                 continue
             sources = [resolve(source, tensor) for source, tensor in refs]
             flat = list(dict.fromkeys(i for ids in sources for i in ids))
+            start = len(self.nodes)
             produced[name] = self._layer(layer, path, flat, sources)
+            calls.append((refs, flat, start, len(self.nodes)))
+        # A layer called again on a later layer's output -- a shared or tied
+        # layer -- names a source that was not read yet on the first pass;
+        # now that every output is known, its nodes that take input from
+        # outside the call gain the sources they missed.
+        for refs, flat, start, end in calls:
+            late = [
+                i
+                for source, tensor in refs
+                for i in resolve(source, tensor)
+                if i not in flat
+            ]
+            if not late:
+                continue
+            inside = {node["id"] for node in self.nodes[start:end]}
+            for node in self.nodes[start:end]:
+                if not inside.intersection(node["inputs"]):
+                    node["inputs"] = list(dict.fromkeys([*node["inputs"], *late]))
         return [
             resolve(name, tensor)
             for name, tensor in _refs(body.get("output_layers", []))
