@@ -165,7 +165,8 @@ against what TensorBoard itself read from logs real writers wrote
 `maidr/keras.py` (experimental, `docs/stability.qmd#keras-support`) draws a
 Keras model's training curves, confusion matrix and graph: `plot_history` from a
 `History` or its dictionary, `plot_confusion_matrix` from the predictions
-through the patched `imshow`, `plot_model` from a model, its `get_config()` or
+through the patched `imshow`, `plot_pr_curve` from labels and scores through
+`maidr/tensorboard/pr_curves.py`'s `plot_pr_curves`, `plot_model` from a model, its `get_config()` or
 its `to_json()`, and `MaidrCallback`, a
 `keras.callbacks.Callback` that rewrites an HTML page as the model trains. It imports Keras only for that base class, and
 `import maidr` does not import it. `plot_model` reads the layer graph from the
