@@ -245,10 +245,16 @@ def plot_pr_curves(
                 f"'{name}' has {int((~np.isfinite(values)).sum())} scores that are "
                 "NaN or infinite; a PR curve ranks samples by a finite score."
             )
-        thresholds = np.unique(values)[::-1]
-        predicted = values[None, :] >= thresholds[:, None]
-        tp = (predicted & truth).sum(axis=1).astype(float)
-        fp = (predicted & ~truth).sum(axis=1).astype(float)
+        # Ranked from the highest score, the samples predicted positive at a
+        # threshold are a prefix, so running counts at the last sample of each
+        # distinct score are the counts at that threshold: O(n log n) time and
+        # O(n) memory, where a thresholds-by-samples matrix would be O(n^2).
+        order = np.argsort(-values, kind="stable")
+        ranked, hits = values[order], truth[order]
+        last = np.r_[np.nonzero(np.diff(ranked))[0], ranked.size - 1]
+        thresholds = ranked[last]
+        tp = np.cumsum(hits)[last].astype(float)
+        fp = np.cumsum(~hits)[last].astype(float)
         fn = truth.sum() - tp
         tn = (~truth).sum() - fp
         precision = np.divide(tp, tp + fp, out=np.zeros_like(tp), where=tp + fp > 0)
@@ -270,6 +276,28 @@ def _at(steps: np.ndarray, step: int | None) -> int | None:
 
 
 def _curve(name: str, data: np.ndarray, thresholds: np.ndarray | None = None) -> _Curve:
+    """
+    One curve from a ``(6, thresholds)`` tensor, as it is drawn and read.
+
+    Parameters
+    ----------
+    name : str
+        The run or classifier, to which the average precision and chance
+        level are added.
+    data : numpy.ndarray
+        True and false positives, true and false negatives, precision and
+        recall at each threshold.
+    thresholds : numpy.ndarray, optional
+        Each column's threshold; by default evenly spaced from 0 to 1, as
+        TensorBoard's writers space them.
+
+    Returns
+    -------
+    _Curve
+        Its points from low recall up, thresholds with no positive prediction
+        left out. From TensorBoard's fixed thresholds the average precision
+        approximates the one computed from the raw scores.
+    """
     tp, fp, tn, fn, precision, recall = np.asarray(data, dtype=float)
     if thresholds is None:
         thresholds = np.linspace(0, 1, data.shape[1])

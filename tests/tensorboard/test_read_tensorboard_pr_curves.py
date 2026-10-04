@@ -117,3 +117,34 @@ def test_a_run_that_never_predicted_positive_is_left_out(monkeypatch):
     with pytest.warns(UserWarning, match="predicted nothing positive"):
         (chart,) = read_tensorboard_pr_curves(TORCH)
     assert [run.split(" (")[0] for run in chart.runs] == ["good"]
+
+
+def test_scores_are_counted_as_a_threshold_matrix_would_count_them(monkeypatch):
+    from maidr.tensorboard import pr_curves as module
+
+    rng = np.random.default_rng(1)
+    truth = rng.random(500) < 0.4
+    scores = np.round(rng.random(500), 2)  # ties, as rounded sigmoids have
+    seen = []
+    original = module._curve
+
+    def recording(name, data, thresholds=None):
+        seen.append((data, thresholds))
+        return original(name, data, thresholds)
+
+    monkeypatch.setattr(module, "_curve", recording)
+    plot_pr_curves(truth, scores)
+    ((data, thresholds),) = seen
+    expected = np.unique(scores)[::-1]
+    predicted = scores[None, :] >= expected[:, None]
+    np.testing.assert_array_equal(thresholds, expected)
+    np.testing.assert_array_equal(data[0], (predicted & truth).sum(axis=1))
+    np.testing.assert_array_equal(data[1], (predicted & ~truth).sum(axis=1))
+
+
+def test_a_large_set_of_scores_is_drawn_without_a_quadratic_matrix():
+    rng = np.random.default_rng(2)
+    truth = rng.random(200_000) < 0.3
+    scores = np.clip(truth * 0.5 + rng.normal(0.3, 0.2, size=truth.size), 0, 1)
+    figure = plot_pr_curves(truth, scores)  # 200k x 200k booleans would be 40 GB
+    assert _layer(figure)["type"] == "line"
