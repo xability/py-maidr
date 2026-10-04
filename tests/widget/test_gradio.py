@@ -100,6 +100,11 @@ def test_an_empty_component_waits_for_a_handler():
 
 def test_without_gradio_the_extra_is_named(monkeypatch, bar_axes):
     import builtins
+    import sys
+
+    # Where the extra installs Gradio; below it the advice is to install
+    # Gradio itself (tests/widget/test_extras.py).
+    monkeypatch.setattr(sys, "version_info", (3, 12, 0, "final", 0))
 
     real_import = builtins.__import__
 
