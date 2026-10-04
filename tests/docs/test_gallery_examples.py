@@ -42,6 +42,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import pytest
 from matplotlib._pylab_helpers import Gcf
+from matplotlib.figure import Figure as MplFigure
 
 import maidr
 from maidr import api
@@ -204,6 +205,9 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Radar Chart [experimental]": [["radar"]],
         "Waterfall Chart [experimental]": [["waterfall"]],
         "Treemap [experimental]": [["treemap"]],
+    },
+    "examples-keras.qmd": {
+        "Training Curves from model.fit": [["line", "line"]],
     },
     "examples-tensorboard.qmd": {
         "Training and Validation Loss": [["line"]],
@@ -371,11 +375,13 @@ class _Capture:
 
     def maidr_show(self, plot: Any = None, *args: Any, **kwargs: Any) -> None:
         """``maidr.show(plot)``: Altair, Plotly, Bokeh, plotnine, an Excel
-        or TensorBoard chart, or pyplot."""
+        or TensorBoard chart, a figure drawn outside pyplot, or pyplot."""
         if isinstance(plot, (ExcelChart, TensorBoardChart)):
+            plot = plot.figure
+        if isinstance(plot, MplFigure) and plot.canvas.manager is None:
             # Drawn outside pyplot, so not among the figures `plt.show()` sees.
-            self._record(_from_schema(FigureManager.get_maidr(plot.figure)._flatten_maidr()))
-            FigureManager.destroy(plot.figure)
+            self._record(_from_schema(FigureManager.get_maidr(plot)._flatten_maidr()))
+            FigureManager.destroy(plot)
         elif api._is_altair_chart(plot):
             self._record(_from_altair(plot))
         elif plot is not None and api._is_plotly_figure(plot):

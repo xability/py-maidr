@@ -102,6 +102,8 @@ website:
             href: examples-excel.qmd
           - text: "TensorBoard [experimental]"
             href: examples-tensorboard.qmd
+          - text: "Keras [experimental]"
+            href: examples-keras.qmd
       - file: stability.qmd
         text: "Plot Type Stability"
       - text: "API Reference"
@@ -158,6 +160,8 @@ website:
               href: examples-excel.qmd
             - text: "TensorBoard [experimental]"
               href: examples-tensorboard.qmd
+            - text: "Keras [experimental]"
+              href: examples-keras.qmd
 
   page-footer:
     left: "© (x)Ability Design Lab, University of Illinois Urbana-Champaign"
@@ -320,6 +324,18 @@ quartodoc:
         - tensorboard.load_scalars
         - tensorboard.ScalarSeries
         - tensorboard.smooth
+    - title: Drawing the training curves of a Keras model
+      desc: >
+        Draw what `model.fit` returns with `maidr.keras.plot_history()`, or
+        keep an accessible page up to date while the model trains with
+        `maidr.keras.MaidrCallback`. Import `maidr.keras` to use them.
+        Experimental.
+      # `import maidr` does not import `maidr.keras`, so the module is named
+      # as the package rather than reached as an attribute of `maidr`.
+      package: maidr.keras
+      contents:
+        - plot_history
+        - MaidrCallback
     - title: Registering and releasing figures
       desc: >
         Mark a bar container as a stacked bar plot with `maidr.stacked()`, and
