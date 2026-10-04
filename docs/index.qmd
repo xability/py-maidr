@@ -141,7 +141,7 @@ The following summarizes the key features and design principles of py-maidr:
 
 5. Synchronization: maidr treats visualization as one of the multimodal data representations and ensures that all representations (e.g., visual, tactile, textual, audible) cursor and braille routing key positions are synchronized across different modalities.
 
-6. Reactivity: maidr supports widely adopted reactive and interactive computing including Jupyter Notebook, JupyterLab, Google Colab, Streamlit dashboard, and Shiny dashboard. maidr also supports interactive computing inside code editors, such as Visual Studio Code.
+6. Reactivity: maidr supports widely adopted reactive and interactive computing including Jupyter Notebook, JupyterLab, Google Colab, Streamlit dashboard, Shiny dashboard, and Gradio app. maidr also supports interactive computing inside code editors, such as Visual Studio Code.
 
 7. Reproducibility: maidr supports the generation of accessible data visualizations as part of the reproducible data science workflow with [Quarto scientific publishing system](https://quarto.org/). You can easily create accessible data representations within your reproducible reports, website blogs, slides, e-books, dashboards, and more.
 
@@ -566,6 +566,37 @@ These may change without a deprecation period; see [Plot Type Stability](stabili
 
 See the [Keras gallery](examples-keras.qmd#sec-keras-examples) for runnable
 examples.
+
+### Weights & Biases [experimental]
+
+py-maidr reads the training curves of Weights & Biases runs:
+`maidr.read_wandb_history("wandb")` reads the runs in a `wandb/` folder from
+their own files, with no account, no network and no W&B package, and a run's
+path or a run `wandb.Api()` returns is fetched from the server. Each metric is
+one chart, which `maidr.show()`, `maidr.render()` and `maidr.save_html()` take
+as they take a figure. Weights & Biases support as a whole is
+**experimental**, though every chart it draws is a stable line plot: see
+[Plot Type Stability](stability.qmd#weights-biases-support).
+
+* Each metric logged with `wandb.log`, such as the training loss or the learning rate, as a line plot with the step along the x axis and one line per run; with smoothing, each run is drawn again smoothed.
+
+See the [Weights & Biases gallery](examples-wandb.qmd#sec-wandb-examples) for
+runnable examples.
+
+### MLflow [experimental]
+
+py-maidr reads the training curves of MLflow runs:
+`maidr.read_mlflow_metrics(runs)` takes a run id, a run, or what
+`mlflow.search_runs()` returns, from any tracking server MLflow reaches, and
+`maidr.log_mlflow_chart(chart, "charts/loss.html")` stores an accessible
+chart in a run, where the MLflow UI shows it on the Artifacts tab. MLflow
+support as a whole is **experimental**, though every chart it draws is a
+stable line plot: see [Plot Type Stability](stability.qmd#mlflow-support).
+
+* Each metric logged with `mlflow.log_metric`, such as the training loss, as a line plot with the step or the time since the run started along the x axis and one line per run.
+
+See the [MLflow gallery](examples-mlflow.qmd#sec-mlflow-examples) for
+runnable examples.
 
 ### Additional Libraries
 

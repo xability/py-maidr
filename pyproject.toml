@@ -39,6 +39,13 @@ keywords = [
     "quarto",
     "shiny",
     "streamlit",
+    "gradio",
+    "tensorboard",
+    "keras",
+    "wandb",
+    "weights and biases",
+    "mlflow",
+    "machine learning",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -124,6 +131,26 @@ tensorboard = [
     # the plugin's tests need in order not to skip.
     "tensorboard>=2.12",
 ]
+# Optional for reading a run file: `maidr/wandb/runfile.py` decodes the
+# `run-<id>.wandb` file every run writes by hand. Needed only to fetch a run
+# from the W&B server by its path, through `wandb.Api`, which
+# `maidr/wandb/__init__.py` imports only then. Listed so
+# `pip install maidr[wandb]` gets a working pair, and so CI installs what the
+# run-file tests write their fixtures with.
+wandb = [
+    "wandb>=0.16",
+]
+# Imported by `maidr/mlflow.py` only when a run is read or a chart logged,
+# so `import maidr` does not load it. The full package rather than
+# `mlflow-skinny`: the local `sqlite:///` store MLflow now recommends, and
+# the UI that shows a logged chart, both come only with it. Not offered on
+# Python 3.9, where the newest MLflow is 3.1 and resolving it there holds
+# pyarrow and OpenTelemetry back on 3.9 for every extra. The module uses only
+# the client calls MLflow 2 already had, so a 3.9 user who installs MLflow
+# still has it.
+mlflow = [
+    "mlflow>=2.0; python_version >= '3.10'",
+]
 jupyter = [
     "jupyter>=1.0.0,<2",
     "ipykernel>=6.0.0",
@@ -168,6 +195,14 @@ shiny = [
 # 3.9 is 1.50, and it caps altair there. Python 3.10+ is unaffected.
 streamlit = [
     "streamlit>=1.30",
+]
+# Imported by `maidr/widget/gradio.py` only to make a component; the markup
+# `render_maidr` returns needs no Gradio. Not offered on Python 3.9: the
+# newest Gradio there is 4.44, whose pins would hold Shiny on 3.9 back to
+# 1.2 for everyone running `uv sync --all-extras`. The module itself does
+# not depend on the version, so a 3.9 user who installs Gradio still has it.
+gradio = [
+    "gradio>=5.0; python_version >= '3.10'",
 ]
 # Drives a real browser for the accessibility tests. Kept out of `test`
 # because it needs a browser binary as well as the wheel, so a plain

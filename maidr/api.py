@@ -16,6 +16,7 @@ from maidr.core.figure_manager import FigureManager
 from maidr.excel import ExcelChart
 from maidr.office import PowerPointChart, WordChart
 from maidr.tensorboard import TensorBoardChart
+from maidr.util.metric_chart import MetricChart
 from maidr.exception.unsupported_plot_error import UnsupportedPlotError
 from maidr.util.environment import Environment
 from maidr.util.fallback import fallback_tag, warn_unsupported
@@ -587,7 +588,9 @@ def _resolve_figure(plot: Any) -> Figure | None:
     """
     if isinstance(plot, Figure):
         return plot
-    if isinstance(plot, (ExcelChart, PowerPointChart, WordChart, TensorBoardChart)):
+    if isinstance(
+        plot, (ExcelChart, MetricChart, PowerPointChart, WordChart, TensorBoardChart)
+    ):
         return plot.figure
     # A raw list of artists resolves to its first entry's figure: every
     # documented input maps to one figure, so first and last agree.
