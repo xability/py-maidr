@@ -109,7 +109,10 @@ hear how the count at that value changes over training. Every step is counted
 in the same 30 bins, and at most 51 steps are drawn, as TensorBoard draws at
 most 51; `bins=` and `max_steps=` change both.
 
-These ridgelines are an experimental plot type. The example reads
+A ridge's height is its count against the tallest count of any step, as in
+TensorBoard, so one step much taller than the rest flattens the others; its
+count is still read out exactly. These ridgelines are an experimental plot
+type. The example reads
 `tensorboard-histograms/`, a distribution logged with `tf.summary.histogram`
 every four steps, whose center drifts right and whose spread widens.
 

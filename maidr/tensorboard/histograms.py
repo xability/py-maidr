@@ -220,14 +220,19 @@ def rebin(buckets: list[np.ndarray], bins: int) -> tuple[np.ndarray, np.ndarray]
     Returns
     -------
     edges : numpy.ndarray
-        The ``bins + 1`` bin edges, spanning every non-empty bucket. When
+        The ``bins + 1`` bin edges, spanning every non-empty bucket; a
+        bucket with an edge or count that is not finite is left out. When
         every value is one number, the bins span a unit around it.
     counts : numpy.ndarray
         Shape ``(len(buckets), bins)``: each histogram's count in each bin. A
         bucket's count is shared among the bins it overlaps in proportion to
         the overlap; a bucket of no width counts in the bin it falls in.
     """
-    filled = [step[step[:, 2] > 0] for step in buckets]
+    # A bucket with an edge or count that is not finite has no place on the
+    # value axis, and one would turn every bin edge into NaN.
+    filled = [
+        step[(step[:, 2] > 0) & np.isfinite(step).all(axis=1)] for step in buckets
+    ]
     edges_seen = np.concatenate([step[:, :2].ravel() for step in filled])
     low, high = (edges_seen.min(), edges_seen.max()) if edges_seen.size else (0, 0)
     if high <= low:
@@ -269,6 +274,9 @@ def _draw(
     centers = (edges[:-1] + edges[1:]) / 2
     groups = len(steps)
     peak = counts.max() or 1.0
+    # Heights are scaled by the tallest count anywhere, as TensorBoard scales
+    # them, so steps compare; a ridge may rise into the ones above it. A lone
+    # step has none above, so it fills most of one spacing instead.
     rise = (_OVERLAP if groups > 1 else 0.9) / peak
     fig = Figure(figsize=(_WIDTH, min(9.0, 2.6 + 0.13 * groups)))
     ax = fig.add_subplot()

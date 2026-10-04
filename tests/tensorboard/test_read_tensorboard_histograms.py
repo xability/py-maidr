@@ -175,6 +175,14 @@ def test_one_repeated_value_is_counted_in_a_unit_around_it():
     assert counts.tolist() == [[0, 50, 0]]
 
 
+def test_a_bucket_that_is_not_finite_is_left_out():
+    edges, counts = rebin(
+        [np.array([[0.0, 1.0, 2.0], [1.0, np.inf, 5.0], [np.nan, 2.0, 1.0]])], 2
+    )
+    assert edges.tolist() == [0.0, 0.5, 1.0]
+    assert counts.tolist() == [[1.0, 1.0]]
+
+
 def test_empty_buckets_do_not_stretch_the_bins():
     edges, _ = rebin([np.array([[-100.0, 0.0, 0.0], [0.0, 1.0, 3.0]])], 2)
     assert edges.tolist() == [0.0, 0.5, 1.0]
