@@ -38,6 +38,9 @@ from maidr.util.caller_warning import warn_at_caller
 SCALARS_PLUGIN = "scalars"
 #: The plugin a TensorFlow 2 histogram summary names in its metadata.
 HISTOGRAMS_PLUGIN = "histograms"
+#: The plugin the HParams dashboard's summaries name; its value is the
+#: summary's ``plugin_data.content``, an ``HParamsPluginData`` message.
+HPARAMS_PLUGIN = "hparams"
 
 #: ``SessionLog.status`` of a run that started, or started again.
 _SESSION_START = 1
@@ -249,6 +252,7 @@ def _read_value(record: bytes, step: int, wall_time: float, run: Run) -> None:
     simple = None
     histo = None
     tensor = None
+    content = None
     for number, wire, value in _fields(record):
         if number == 1 and wire == 2:
             tag = value.decode("utf-8", "replace")
@@ -259,7 +263,7 @@ def _read_value(record: bytes, step: int, wall_time: float, run: Run) -> None:
         elif number == 8 and wire == 2:
             tensor = value
         elif number == 9 and wire == 2:
-            plugin = _plugin_name(value)
+            plugin, content = _plugin(value)
             if tag is not None and plugin is not None:
                 run.plugins.setdefault(tag, plugin)
     if tag is None:
@@ -281,17 +285,23 @@ def _read_value(record: bytes, step: int, wall_time: float, run: Run) -> None:
             value = _legacy_histogram(histo)
         elif tensor is not None:
             value = _histogram(tensor)
+    elif run.plugin == HPARAMS_PLUGIN:
+        value = content
     if value is not None:
         run.add(tag, step, wall_time, value)
 
 
-def _plugin_name(metadata: bytes) -> str | None:
+def _plugin(metadata: bytes) -> tuple[str | None, bytes | None]:
+    """A ``SummaryMetadata``'s plugin name and its ``plugin_data.content``."""
+    name = content = None
     for number, wire, value in _fields(metadata):
         if number == 1 and wire == 2:
-            for inner, inner_wire, name in _fields(value):
+            for inner, inner_wire, field_value in _fields(value):
                 if inner == 1 and inner_wire == 2:
-                    return name.decode("utf-8", "replace")
-    return None
+                    name = field_value.decode("utf-8", "replace")
+                elif inner == 2 and inner_wire == 2:
+                    content = field_value
+    return name, content
 
 
 def _scalar(tensor: bytes) -> float | None:

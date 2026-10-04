@@ -214,7 +214,11 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Training and Validation Loss": [["line"]],
         "Accuracy Without Smoothing": [["line"]],
         "Distributions": [["line"]],
+        "Hyperparameter Sweep as a Scatter Matrix": [["point"] * 8],
         "Histograms as Ridgelines [experimental]": [["ridgeline"]],
+        "Hyperparameter Sweep as Parallel Coordinates [experimental]": [
+            ["parallel_coordinates"]
+        ],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
