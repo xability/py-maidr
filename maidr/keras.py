@@ -125,7 +125,8 @@ class MaidrCallback(_Callback if _Callback is not None else object):
     path : str or os.PathLike, optional
         The HTML file to keep up to date. The page is replaced in one step,
         so a reload never meets a half-written file. A page that cannot be
-        written is warned about, and training goes on.
+        written is warned about, and training goes on. In multi-worker
+        training, give each worker its own path, or the callback to one.
     every : int, default 1
         Write the page every this many epochs.
     metrics : iterable of str, optional
@@ -352,7 +353,9 @@ def _number(value: Any) -> float | None:
     """A value logged at one epoch, as a float, or ``None`` if it is not one."""
     try:
         array = np.asarray(value, dtype=float)
-    except (TypeError, ValueError):
+    except Exception:
+        # Whatever a backend's tensor raises, such as a GPU tensor NumPy
+        # cannot read, costs that value, never the training run.
         return None
     if array.size != 1:
         return None

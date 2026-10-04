@@ -208,6 +208,17 @@ def test_a_page_that_cannot_be_written_warns_and_training_goes_on(callback, tmp_
     assert [x for x, _ in cb.history["loss"]] == [1, 2]
 
 
+def test_a_value_numpy_cannot_read_is_skipped_and_training_goes_on(callback):
+    class GpuTensor:
+        def __array__(self, *args, **kwargs):
+            raise RuntimeError("can't convert cuda tensor to numpy")
+
+    cb = callback()
+    cb.on_train_begin()
+    cb.on_epoch_end(0, {"loss": 1.0, "odd": GpuTensor()})
+    assert list(cb.history) == ["loss"]
+
+
 def test_validation_on_some_epochs_is_placed_on_those_epochs(callback):
     cb = callback()
     _train(cb, 6, validate_every=3)
