@@ -318,7 +318,8 @@ quartodoc:
         histograms with `maidr.read_tensorboard_distributions()` and
         `maidr.read_tensorboard_histograms()`, one chart per tag and run,
         a hyperparameter sweep with `maidr.read_tensorboard_hparams()`, and
-        the Embedding Projector with `maidr.read_tensorboard_projector()`, and pass a chart either returns to `maidr.show()`,
+        the Embedding Projector with `maidr.read_tensorboard_projector()`,
+        PR curves with `maidr.read_tensorboard_pr_curves()`, and pass a chart either returns to `maidr.show()`,
         `maidr.render()` or `maidr.save_html()`; or read the values
         themselves with `maidr.tensorboard.load_scalars()` and
         `maidr.tensorboard.load_histograms()`. Experimental.
@@ -336,6 +337,9 @@ quartodoc:
         - tensorboard.load_hparams
         - tensorboard.Session
         - read_tensorboard_projector
+        - read_tensorboard_pr_curves
+        - tensorboard.load_pr_curves
+        - tensorboard.PRCurveSeries
         - tensorboard.load_embeddings
         - tensorboard.Embedding
     - title: Drawing the training curves of a Keras model

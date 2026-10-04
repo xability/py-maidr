@@ -214,6 +214,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Training and Validation Loss": [["line"]],
         "Accuracy Without Smoothing": [["line"]],
         "Distributions": [["line"]],
+        "PR Curves": [["line"]],
         "Hyperparameter Sweep as a Scatter Matrix": [["point"] * 8],
         "Embedding Projector": [["point + point + point"]],
         "Histograms as Ridgelines [experimental]": [["ridgeline"]],
