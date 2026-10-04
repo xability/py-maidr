@@ -33,9 +33,24 @@ def _frame(page, title: str):
     raise AssertionError(f"no working chart frame named {title!r}; found {titles}")
 
 
+#: How long a key press may take to reach the chart's text.
+_SAY_TIMEOUT_MS = 5_000
+
+
 def _say(page, frame, key: str) -> str:
+    """Press ``key`` and return what the chart says once it has answered.
+
+    Waits for the text to change rather than for a fixed time: on a slow
+    runner half a second was not always enough, and the line read back was
+    still the instructions the chart gives on focus.
+    """
+    before = frame.evaluate("document.body.innerText")
     page.keyboard.press(key)
-    page.wait_for_timeout(500)
+    frame.wait_for_function(
+        "(before) => document.body.innerText !== before",
+        arg=before,
+        timeout=_SAY_TIMEOUT_MS,
+    )
     return frame.evaluate("document.body.innerText").strip().split("\n")[-1]
 
 
