@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Which py-maidr plot types are settled and which are experimental prototypes that may change without a deprecation period.">
+<meta name="description" content="Draw a classifier’s confusion matrix as a heatmap. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>Plot Type Stability – py-maidr</title>
+<title>maidr.keras.plot_confusion_matrix API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -66,26 +66,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="site_libs/quarto-nav/headroom.min.js"></script>
-<script src="site_libs/clipboard/clipboard.min.js"></script>
-<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="site_libs/quarto-search/fuse.min.js"></script>
-<script src="site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="./">
-<script src="site_libs/cookie-consent/cookie-consent.js"></script>
-<link href="site_libs/cookie-consent/cookie-consent.css" rel="stylesheet">
-<script src="site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/popper.min.js"></script>
-<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
-<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-d1b407a2afbd6680ea33db73888feb24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/cookie-consent/cookie-consent.js"></script>
+<link href="../site_libs/cookie-consent/cookie-consent.css" rel="stylesheet">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-d1b407a2afbd6680ea33db73888feb24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -218,25 +218,25 @@ cookieconsent.run({
 </script>
 
 
-<link rel="stylesheet" href="styles.css">
-<meta property="og:title" content="Plot Type Stability – py-maidr">
-<meta property="og:description" content="Which py-maidr plot types are settled and which are experimental prototypes that may change without a deprecation period.">
+<link rel="stylesheet" href="../styles.css">
+<meta property="og:title" content="maidr.keras.plot_confusion_matrix API reference">
+<meta property="og:description" content="Draw a classifier’s confusion matrix as a heatmap. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="Plot Type Stability – py-maidr">
-<meta name="twitter:description" content="Which py-maidr plot types are settled and which are experimental prototypes that may change without a deprecation period.">
+<meta name="twitter:title" content="maidr.keras.plot_confusion_matrix API reference">
+<meta name="twitter:description" content="Draw a classifier’s confusion matrix as a heatmap. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/stability.html">
-<meta name="DC.title" content="Plot Type Stability">
+<link rel="canonical" href="https://py.maidr.ai/api/plot_confusion_matrix.html">
+<meta name="DC.title" content="maidr.keras.plot_confusion_matrix API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Which py-maidr plot types are settled and which are experimental prototypes that may change without a deprecation period.">
-<meta name="DC.identifier" content="https://py.maidr.ai/stability.html">
+<meta name="DC.description" content="Draw a classifier’s confusion matrix as a heatmap. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/plot_confusion_matrix.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -262,7 +262,7 @@ cookieconsent.run({
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="./index.html"> 
+    <a class="nav-link" href="../index.html"> 
 <span class="menu-text">Welcome</span></a>
   </li>  
   <li class="nav-item dropdown ">
@@ -271,97 +271,97 @@ cookieconsent.run({
     </a>
     <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
         <li>
-    <a class="dropdown-item" href="./examples.html">
+    <a class="dropdown-item" href="../examples.html">
  <span class="dropdown-text">Matplotlib / Seaborn (overview)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/bar.html">
+    <a class="dropdown-item" href="../examples/bar.html">
  <span class="dropdown-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/pie-wordcloud.html">
- <span class="dropdown-text">Pie Charts and Word Clouds <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples/pie-wordcloud.html">
+ <span class="dropdown-text">Pie Charts and Word Clouds [experimental]</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/histogram-kde.html">
+    <a class="dropdown-item" href="../examples/histogram-kde.html">
  <span class="dropdown-text">Histograms and KDE Plots</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/line-step.html">
+    <a class="dropdown-item" href="../examples/line-step.html">
  <span class="dropdown-text">Line and Step Plots</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/heatmap-hexbin-contour.html">
- <span class="dropdown-text">Heatmaps, Hexbin <a href="#experimental">experimental</a> and Contour Plots <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples/heatmap-hexbin-contour.html">
+ <span class="dropdown-text">Heatmaps, Hexbin [experimental] and Contour Plots [experimental]</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/box-boxen-violin.html">
- <span class="dropdown-text">Box, Boxen <a href="#experimental">experimental</a> and Violin Plots</span></a>
+    <a class="dropdown-item" href="../examples/box-boxen-violin.html">
+ <span class="dropdown-text">Box, Boxen [experimental] and Violin Plots</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/scatter-regression.html">
+    <a class="dropdown-item" href="../examples/scatter-regression.html">
  <span class="dropdown-text">Scatter and Regression Plots</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/multi-layer-panel-facet.html">
+    <a class="dropdown-item" href="../examples/multi-layer-panel-facet.html">
  <span class="dropdown-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/candlestick-gantt.html">
- <span class="dropdown-text">Candlestick and Gantt Charts <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples/candlestick-gantt.html">
+ <span class="dropdown-text">Candlestick and Gantt Charts [experimental]</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/dashboards.html">
+    <a class="dropdown-item" href="../examples/dashboards.html">
  <span class="dropdown-text">Shiny and Streamlit Dashboards</span></a>
   </li>  
         <li><hr class="dropdown-divider"></li>
         <li class="dropdown-header">Experimental</li>
         <li>
-    <a class="dropdown-item" href="./examples/area-errorbar-point-lollipop.html">
- <span class="dropdown-text">Area <a href="#experimental">experimental</a>, Error Bar <a href="#experimental">experimental</a>, Point <a href="#experimental">experimental</a> and Lollipop Plots <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples/area-errorbar-point-lollipop.html">
+ <span class="dropdown-text">Area [experimental], Error Bar [experimental], Point [experimental] and Lollipop Plots [experimental]</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/roc.html">
- <span class="dropdown-text">ROC Curves <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples/roc.html">
+ <span class="dropdown-text">ROC Curves [experimental]</span></a>
   </li>  
         <li><hr class="dropdown-divider"></li>
         <li class="dropdown-header">Other libraries</li>
         <li>
-    <a class="dropdown-item" href="./examples-plotly.html">
+    <a class="dropdown-item" href="../examples-plotly.html">
  <span class="dropdown-text">Plotly</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples-bokeh.html">
- <span class="dropdown-text">Bokeh <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples-bokeh.html">
+ <span class="dropdown-text">Bokeh [experimental]</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples-plotnine.html">
- <span class="dropdown-text">plotnine <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples-plotnine.html">
+ <span class="dropdown-text">plotnine [experimental]</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples-altair.html">
+    <a class="dropdown-item" href="../examples-altair.html">
  <span class="dropdown-text">Altair</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples-excel.html">
- <span class="dropdown-text">Excel <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples-excel.html">
+ <span class="dropdown-text">Excel [experimental]</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples-tensorboard.html">
- <span class="dropdown-text">TensorBoard <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples-tensorboard.html">
+ <span class="dropdown-text">TensorBoard [experimental]</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples-keras.html">
- <span class="dropdown-text">Keras <a href="#experimental">experimental</a></span></a>
+    <a class="dropdown-item" href="../examples-keras.html">
+ <span class="dropdown-text">Keras [experimental]</span></a>
   </li>  
     </ul>
   </li>
   <li class="nav-item">
-    <a class="nav-link active" href="./stability.html" aria-current="page"> 
+    <a class="nav-link" href="../stability.html"> 
 <span class="menu-text">Plot Type Stability</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./api/"> 
+    <a class="nav-link" href="../api/"> 
 <span class="menu-text">API Reference</span></a>
   </li>  
 </ul>
@@ -387,352 +387,138 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#two-sets-two-different-promises" id="toc-two-sets-two-different-promises" class="nav-link active" data-scroll-target="#two-sets-two-different-promises">Two sets, two different promises</a></li>
-  <li><a href="#stable" id="toc-stable" class="nav-link" data-scroll-target="#stable">Stable</a></li>
-  <li><a href="#experimental" id="toc-experimental" class="nav-link" data-scroll-target="#experimental">Experimental</a></li>
-  <li><a href="#bokeh-support" id="toc-bokeh-support" class="nav-link" data-scroll-target="#bokeh-support">Bokeh support</a></li>
-  <li><a href="#plotnine-support" id="toc-plotnine-support" class="nav-link" data-scroll-target="#plotnine-support">plotnine support</a></li>
-  <li><a href="#excel-support" id="toc-excel-support" class="nav-link" data-scroll-target="#excel-support">Excel support</a></li>
-  <li><a href="#tensorboard-support" id="toc-tensorboard-support" class="nav-link" data-scroll-target="#tensorboard-support">TensorBoard support</a></li>
-  <li><a href="#keras-support" id="toc-keras-support" class="nav-link" data-scroll-target="#keras-support">Keras support</a></li>
-  <li><a href="#drawn-but-not-read" id="toc-drawn-but-not-read" class="nav-link" data-scroll-target="#drawn-but-not-read">Drawn but not read</a></li>
-  <li><a href="#how-the-split-is-derived" id="toc-how-the-split-is-derived" class="nav-link" data-scroll-target="#how-the-split-is-derived">How the split is derived</a></li>
-  <li><a href="#the-same-split-upstream" id="toc-the-same-split-upstream" class="nav-link" data-scroll-target="#the-same-split-upstream">The same split upstream</a></li>
+  <li><a href="#maidr.keras.plot_confusion_matrix" id="toc-maidr.keras.plot_confusion_matrix" class="nav-link active" data-scroll-target="#maidr.keras.plot_confusion_matrix">plot_confusion_matrix</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
-<h1 class="title">Plot Type Stability</h1>
-</div>
-
-<div>
-  <div class="description">
-    Which py-maidr plot types are settled and which are experimental prototypes that may change without a deprecation period.
-  </div>
-</div>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
 
-<div class="quarto-title-meta">
-
-    
-  
-    
-  </div>
-  
 
 
-</header>
-
-
-<section id="two-sets-two-different-promises" class="level2">
-<h2 class="anchored" data-anchor-id="two-sets-two-different-promises">Two sets, two different promises</h2>
-<p><code>PlotType</code> in <code>maidr/core/enum/plot_type.py</code> names <strong>41</strong> plot types. They do not all carry the same promise, and nothing in the enum says so — which is what this page is for.</p>
-<p>Fifteen of them predate the plot coverage roadmap (<a href="https://github.com/xability/py-maidr/issues/345">#345</a>). Twenty-three were added by it, most inside about two weeks, and <code>ROC</code>, <code>RUG</code> and <code>RIDGELINE</code> after it. <strong>None of the twenty-six has been through a user study</strong>.</p>
-<p>Elsewhere in these docs — the example gallery, the navigation and the supported-plots lists on the home page — an experimental type is marked <strong><a href="#experimental">experimental</a></strong> after its name; a type with no mark is stable. A list of plot types is also split in two, a Stable part followed by an Experimental part; the navigation puts the example pages about experimental types only in a group of their own after the stable ones; and a gallery page shows its stable charts before its experimental ones. The JavaScript core (<a href="https://maidr.ai/docs/SCHEMA.html#trace-type-stability">Trace type stability</a>) and maidr for R (<a href="https://r.maidr.ai/#supported-plot-types">Supported plot types</a>) mark their own docs the same way.</p>
-</section>
-<section id="stable" class="level2">
-<h2 class="anchored" data-anchor-id="stable">Stable</h2>
+<section id="maidr.keras.plot_confusion_matrix" class="level1">
+<h1>plot_confusion_matrix</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>keras.plot_confusion_matrix(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    y_true</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    y_pred</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    normalize<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">'Confusion matrix'</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Draw a classifier’s confusion matrix as a heatmap.</p>
+<p>The true class runs down the rows and the predicted class across the columns, so the diagonal is what the model got right. A reader moves across a row to hear where one class’s samples went.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
-<th><code>PlotType</code></th>
-<th>emitted as</th>
-<th>drawn by</th>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>BAR</code></td>
-<td><code>bar</code></td>
-<td><code>ax.bar</code>, <code>sns.barplot</code></td>
+<td>y_true</td>
+<td><code>array_like</code></td>
+<td>The true classes: class indices, or one-hot rows.</td>
+<td><em>required</em></td>
 </tr>
 <tr class="even">
-<td><code>BOX</code></td>
-<td><code>box</code></td>
-<td><code>ax.boxplot</code>, <code>sns.boxplot</code></td>
+<td>y_pred</td>
+<td><code>array_like</code></td>
+<td>The predicted classes: class indices, or what <code>model.predict</code> returns. Rows of class probabilities are read by their largest; a single probability per sample, as a sigmoid gives, is the positive class from 0.5 up.</td>
+<td><em>required</em></td>
 </tr>
 <tr class="odd">
-<td><code>CANDLESTICK</code></td>
-<td><code>candlestick</code></td>
-<td><code>mplfinance</code></td>
+<td>labels</td>
+<td>iterable of str</td>
+<td>Each class’s name, in index order. By default the class indices.</td>
+<td><code>None</code></td>
 </tr>
 <tr class="even">
-<td><code>COUNT</code></td>
-<td><code>count</code></td>
-<td><code>sns.countplot</code></td>
+<td>normalize</td>
+<td>(None, 'true', 'pred', 'all')</td>
+<td><code>None</code> keeps the counts. <code>"true"</code> divides each row by its total, so a cell is the share of that true class predicted as the column’s; <code>"pred"</code> divides each column; <code>"all"</code> divides by every sample.</td>
+<td><code>None</code></td>
 </tr>
 <tr class="odd">
-<td><code>DODGED</code></td>
-<td><code>dodged_bar</code></td>
-<td>grouped bars</td>
-</tr>
-<tr class="even">
-<td><code>HEAT</code></td>
-<td><code>heat</code></td>
-<td><code>ax.imshow</code>, <code>sns.heatmap</code></td>
-</tr>
-<tr class="odd">
-<td><code>HIST</code></td>
-<td><code>hist</code></td>
-<td><code>ax.hist</code>, <code>sns.histplot</code></td>
-</tr>
-<tr class="even">
-<td><code>LINE</code></td>
-<td><code>line</code></td>
-<td><code>ax.plot</code>, <code>sns.lineplot</code></td>
-</tr>
-<tr class="odd">
-<td><code>PIE</code></td>
-<td><code>pie</code></td>
-<td><code>ax.pie</code></td>
-</tr>
-<tr class="even">
-<td><code>SCATTER</code></td>
-<td><code>point</code></td>
-<td><code>ax.scatter</code>, <code>sns.scatterplot</code></td>
-</tr>
-<tr class="odd">
-<td><code>SMOOTH</code></td>
-<td><code>smooth</code></td>
-<td><code>sns.regplot</code>, <code>sns.lmplot</code></td>
-</tr>
-<tr class="even">
-<td><code>STACKED</code></td>
-<td><code>stacked_bar</code></td>
-<td>stacked bars</td>
-</tr>
-<tr class="odd">
-<td><code>STEP</code></td>
-<td><code>step</code></td>
-<td><code>ax.step</code></td>
-</tr>
-<tr class="even">
-<td><code>VIOLIN_BOX</code></td>
-<td><code>violin_box</code></td>
-<td><code>sns.violinplot</code></td>
-</tr>
-<tr class="odd">
-<td><code>VIOLIN_KDE</code></td>
-<td><code>violin_kde</code></td>
-<td><code>sns.violinplot</code></td>
+<td>title</td>
+<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
+<td>The chart’s title.</td>
+<td><code>"Confusion matrix"</code></td>
 </tr>
 </tbody>
 </table>
-<p>These are what py-maidr was built around. Their extraction, their announcements and their keyboard model have been exercised by real users over real charts, and changing any of them changes behavior people already depend on.</p>
 </section>
-<section id="experimental" class="level2">
-<h2 class="anchored" data-anchor-id="experimental">Experimental</h2>
-<div class="callout callout-style-default callout-warning callout-titled" title="Prototypes">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>Prototypes
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><strong>These are prototypes. Treat them as prototypes.</strong> They are under active development, they are unstable, and they have not been validated with the readers they are for.</p>
-</div>
-</div>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th><code>PlotType</code></th>
-<th>emitted as</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>ALLUVIAL</code></td>
-<td><code>alluvial</code></td>
-</tr>
-<tr class="even">
-<td><code>AREA</code></td>
-<td><code>area</code></td>
-</tr>
-<tr class="odd">
-<td><code>BOXEN</code></td>
-<td><code>boxen</code></td>
-</tr>
-<tr class="even">
-<td><code>CHOROPLETH</code></td>
-<td><code>choropleth</code></td>
-</tr>
-<tr class="odd">
-<td><code>CONTOUR</code></td>
-<td><code>contour</code></td>
-</tr>
-<tr class="even">
-<td><code>ERRORBAR</code></td>
-<td><code>error_bar</code></td>
-</tr>
-<tr class="odd">
-<td><code>FUNNEL</code></td>
-<td><code>funnel</code></td>
-</tr>
-<tr class="even">
-<td><code>GANTT</code></td>
-<td><code>gantt</code></td>
-</tr>
-<tr class="odd">
-<td><code>GAUGE</code></td>
-<td><code>gauge</code></td>
-</tr>
-<tr class="even">
-<td><code>HEXBIN</code></td>
-<td><code>hexbin</code></td>
-</tr>
-<tr class="odd">
-<td><code>ICICLE</code></td>
-<td><code>icicle</code></td>
-</tr>
-<tr class="even">
-<td><code>LOLLIPOP</code></td>
-<td><code>lollipop</code></td>
-</tr>
-<tr class="odd">
-<td><code>NORMALIZED</code></td>
-<td><code>stacked_normalized_bar</code></td>
-</tr>
-<tr class="even">
-<td><code>NORMALIZED_AREA</code></td>
-<td><code>stacked_normalized_area</code></td>
-</tr>
-<tr class="odd">
-<td><code>PARALLEL</code></td>
-<td><code>parallel_coordinates</code></td>
-</tr>
-<tr class="even">
-<td><code>POLAR_AREA</code></td>
-<td><code>polar_area</code></td>
-</tr>
-<tr class="odd">
-<td><code>RADAR</code></td>
-<td><code>radar</code></td>
-</tr>
-<tr class="even">
-<td><code>RIDGELINE</code></td>
-<td><code>ridgeline</code></td>
-</tr>
-<tr class="odd">
-<td><code>ROC</code></td>
-<td><code>roc</code></td>
-</tr>
-<tr class="even">
-<td><code>RUG</code></td>
-<td><code>rug</code></td>
-</tr>
-<tr class="odd">
-<td><code>SANKEY</code></td>
-<td><code>sankey</code></td>
-</tr>
-<tr class="even">
-<td><code>STACKED_AREA</code></td>
-<td><code>stacked_area</code></td>
-</tr>
-<tr class="odd">
-<td><code>SUNBURST</code></td>
-<td><code>sunburst</code></td>
-</tr>
-<tr class="even">
-<td><code>TREEMAP</code></td>
-<td><code>treemap</code></td>
-</tr>
-<tr class="odd">
-<td><code>WATERFALL</code></td>
-<td><code>waterfall</code></td>
-</tr>
-<tr class="even">
-<td><code>WORD_CLOUD</code></td>
-<td><code>word_cloud</code></td>
-</tr>
-</tbody>
-</table>
-<p>What that means, concretely:</p>
-<ul>
-<li><strong>Under active development.</strong> These are being changed as they are used, not maintained against a settled specification.</li>
-<li><strong>Unstable.</strong> Field names, announcement wording and navigation semantics may change without a deprecation period, including in a patch release. Code that depends on the exact shape one of these emits is pinned to the py-maidr version it was written against.</li>
-<li><strong>Not validated.</strong> Each was measured against the chart it reads — that is what the issues and the tests record. But measuring that a reading is <em>faithful to the drawing</em> is a different claim from establishing that it is <em>useful to a reader</em>. Nobody has asked a blind or low-vision reader whether navigating a sunburst by depth, or hearing each parallel-coordinates axis on its own scale, is the right way to read one. Until that happens these are proposals about how a chart could be read — implemented, and measured against the drawing — rather than answers.</li>
-<li><strong>Not a support commitment.</strong> A bug in one of these is worth reporting, and reporting it is not a promise that the current behavior will be kept.</li>
-</ul>
-<p>If you are building something that has to keep working, build it on the stable set. If you are exploring what a chart could sound like, the experimental set is exactly what it is for — and feedback on it is the thing that would move a type out of this list.</p>
-</section>
-<section id="bokeh-support" class="level2">
-<h2 class="anchored" data-anchor-id="bokeh-support">Bokeh support</h2>
-<p>Bokeh figures (<code>maidr.show(p)</code> on a <code>figure</code>, <code>gridplot</code>, <code>row</code> or <code>column</code>) are read by an adapter that is itself <strong>experimental</strong>, whatever plot type it emits: a Bokeh bar chart emits the stable <code>bar</code> type, but which glyphs are read as what, the highlight drawn inside the Bokeh plot, and what is skipped may change without a deprecation period, including in a patch release. The tables above describe the <em>types</em>; this is about the <em>reader of Bokeh documents</em>, which has not been through a user study either. See the <a href="./examples-bokeh.html">Bokeh gallery</a> for what it reads today (<a href="https://github.com/xability/py-maidr/issues/813">#813</a>). That includes how the page gets BokehJS: from Bokeh’s CDN, or inlined from the installed package with <code>use_cdn=False</code> so a saved page works offline.</p>
-</section>
-<section id="plotnine-support" class="level2">
-<h2 class="anchored" data-anchor-id="plotnine-support">plotnine support</h2>
-<p>plotnine charts (<code>maidr.show(p)</code> on a <code>ggplot</code>) are read by an adapter that is itself <strong>experimental</strong>, whatever plot type it emits: a plotnine bar chart emits the stable <code>bar</code> type, but which geoms, stats and positions are read as what, how a facet panel is titled, and what is skipped may change without a deprecation period, including in a patch release. It reads each layer’s data as plotnine computed it rather than the shapes it drew, and each facet panel becomes a subplot; a geom, a position such as a jitter, or a coordinate system it does not read is left out with a warning naming it. See the <a href="./examples-plotnine.html">plotnine gallery</a> for what it reads today (<a href="https://github.com/xability/py-maidr/issues/814">#814</a>). Install it with <code>pip install "maidr[plotnine]"</code>.</p>
-</section>
-<section id="excel-support" class="level2">
-<h2 class="anchored" data-anchor-id="excel-support">Excel support</h2>
-<p>Charts read out of an Excel workbook (<code>maidr.read_excel_charts("book.xlsx")</code>) come through a reader that is itself <strong>experimental</strong>, whatever plot type it emits: a column chart emits the stable <code>bar</code> type, but which Excel chart types are read as what, how an axis with no title is named, how a date or a number format is written, and what is skipped may change without a deprecation period, including in a patch release. Each chart is read from the copy of its values Excel keeps in the file and drawn again with matplotlib, and the reader follows that drawing, which keeps the workbook’s colors and titles but is not Excel’s own picture. Every chart type Excel draws is read; a histogram’s bins and a box’s quartiles are worked out as Excel works them out, and a map is read as the list of its regions, without their shapes. A chart part it cannot read is left out with a warning naming it. See the <a href="./examples-excel.html">Excel gallery</a> for what it reads today.</p>
-</section>
-<section id="tensorboard-support" class="level2">
-<h2 class="anchored" data-anchor-id="tensorboard-support">TensorBoard support</h2>
-<p>The charts read out of a TensorBoard log directory (<code>maidr.read_tensorboard_scalars("logs")</code> and <code>maidr.read_tensorboard_histograms("logs")</code>) come through a reader that is itself <strong>experimental</strong>, whatever type it emits: a scalar chart emits the stable <code>line</code> type and a histogram the experimental <code>ridgeline</code>, but how runs and tags become charts, how smoothing is drawn, how a long run is thinned, how a histogram is binned, and what is skipped may change without a deprecation period, including in a patch release. Each tag’s values are read from the event files, the values TensorBoard reads, and drawn again with matplotlib; the reader follows that drawing, not TensorBoard’s own. Scalars and histograms are read today: distributions, PR curves, hyperparameters and graphs are tracked in <a href="https://github.com/xability/py-maidr/issues/846">#846</a>. See the <a href="./examples-tensorboard.html">TensorBoard gallery</a> for what it reads today.</p>
-</section>
-<section id="keras-support" class="level2">
-<h2 class="anchored" data-anchor-id="keras-support">Keras support</h2>
-<p>The training curves drawn from a Keras model (<code>maidr.keras.plot_history()</code> and <code>maidr.keras.MaidrCallback</code>) and the confusion matrix (<code>maidr.keras.plot_confusion_matrix()</code>) are <strong>experimental</strong>, although every chart they draw is a stable type, <code>line</code> or <code>heat</code>: how metrics become charts and lines, what the lines are called, how predictions become classes, and when the callback writes its page may change without a deprecation period, including in a patch release. See the <a href="./examples-keras.html">Keras gallery</a> for what they draw today.</p>
-</section>
-<section id="drawn-but-not-read" class="level2">
-<h2 class="anchored" data-anchor-id="drawn-but-not-read">Drawn but not read</h2>
-<p>A few matplotlib calls draw marks that no <code>PlotType</code> reads, and that is deliberate rather than a gap. Each registers nothing, so a figure holding only that call falls back to a static picture, and a figure holding it beside a chart that does read keeps that chart’s reading untouched.</p>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
+<col style="width: 3%">
+<col style="width: 43%">
+<col style="width: 52%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>call</th>
-<th>why it is declined</th>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>ax.quiver</code>, <code>ax.barbs</code>, <code>ax.streamplot</code></td>
-<td>a vector at a place carries a speed <em>and</em> a direction, and no trace holds both</td>
-</tr>
-<tr class="even">
-<td><code>ax.triplot</code></td>
-<td>a mesh states which points were joined, not an order to walk</td>
-</tr>
-<tr class="odd">
-<td><code>ax.contourf</code>, <code>ax.tricontourf</code>, <code>ax.tripcolor</code></td>
-<td>a filled band spans two levels, so calling it one level’s curve is right for half its vertices</td>
-</tr>
-<tr class="even">
-<td><code>ax.fill</code></td>
-<td>a closed polygon states no series; it is asked for as a shape, not a sequence</td>
-</tr>
-<tr class="odd">
-<td><code>ax.axhline</code>, <code>ax.axvline</code>, <code>ax.axline</code>, <code>ax.axhspan</code>, <code>ax.axvspan</code></td>
-<td>a reference mark at a fixed position annotates a chart rather than being one</td>
+<td></td>
+<td><code>matplotlib</code>.<code>figure</code>.<code>Figure</code></td>
+<td>The heatmap, ready for :func:<code>maidr.show</code>, :func:<code>maidr.render</code> or :func:<code>maidr.save_html</code>. Not managed by pyplot.</td>
 </tr>
 </tbody>
 </table>
-<p><code>ax.table</code> draws no marks at all, so a figure holding only a table is reported as empty, which is accurate.</p>
-<p>Every other <code>Axes</code> method that draws marks is read as one of the types above: <code>imshow</code>, <code>matshow</code>, <code>spy</code>, <code>specgram</code> and <code>hist2d</code> as <code>heat</code>; <code>stem</code>, <code>acorr</code> and <code>xcorr</code> as <code>lollipop</code>; the spectra (<code>psd</code>, <code>csd</code>, <code>cohere</code>, <code>magnitude_spectrum</code>, <code>angle_spectrum</code>, <code>phase_spectrum</code>) as <code>line</code>; <code>tricontour</code> as <code>contour</code>. <code>tests/core/plot/test_unread_families.py</code> pins the whole sweep, so a call that starts registering nothing, or a decline that starts registering something, fails by name. The reasoning behind the <code>ax.fill</code> decline, the one that could be overturned, is recorded there and in <a href="https://github.com/xability/py-maidr/issues/685">#685</a>.</p>
 </section>
-<section id="how-the-split-is-derived" class="level2">
-<h2 class="anchored" data-anchor-id="how-the-split-is-derived">How the split is derived</h2>
-<p>It is the diff of <code>PlotType</code> against <code>d9f7aee</code>, the last commit on <code>main</code> before <a href="https://github.com/xability/py-maidr/issues/345">#345</a> was filed:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> show d9f7aee:maidr/core/enum/plot_type.py <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-oE</span> <span class="st">'^\s+[A-Z_0-9]+ = "[a-z_0-9]+"'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>tests/core/test_plot_type_stability.py</code> fails if a member of <code>PlotType</code> appears in neither table or in both, so a new plot type has to be placed deliberately rather than inherit either promise by being forgotten.</p>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#ValueError">ValueError</a></td>
+<td>If <code>y_true</code> and <code>y_pred</code> hold a different number of samples, are empty, hold a negative class index or a value that is neither an index nor a probability, or <code>normalize</code> is not one of the above, or <code>labels</code> names fewer classes than the data holds. More labels than the data holds are allowed: the classes that never occur are shown as empty rows and columns.</td>
+</tr>
+</tbody>
+</table>
 </section>
-<section id="the-same-split-upstream" class="level2">
-<h2 class="anchored" data-anchor-id="the-same-split-upstream">The same split upstream</h2>
-<p>The JavaScript core makes the same distinction over its own <code>TraceType</code>, with the same boundary and for the same reason. See <a href="https://maidr.ai/docs/SCHEMA.html#trace-type-stability">Trace type stability</a> in the core schema documentation.</p>
+<section id="notes" class="level2 doc-section doc-section-notes">
+<h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
+<p>The tutorial way to put a confusion matrix in TensorBoard is to log it as an image, which carries no numbers for a screen reader to read. Drawing it from the predictions keeps them. NumPy alone computes it.</p>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> maidr</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> maidr.keras <span class="im">import</span> plot_confusion_matrix</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> figure <span class="op">=</span> plot_confusion_matrix(</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     y_test, model.predict(x_test), labels<span class="op">=</span>[<span class="st">"cat"</span>, <span class="st">"dog"</span>], normalize<span class="op">=</span><span class="st">"true"</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> maidr.show(figure)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
@@ -1161,5 +947,5 @@ cookieconsent.run({
 
 
 
-<script src="site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.js" defer="true"></script>
+<script src="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.js" defer="true"></script>
 </body></html>
