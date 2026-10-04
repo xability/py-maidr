@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-03">
+<meta name="DC.date" content="2026-10-04">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -346,6 +346,10 @@ cookieconsent.run({
     <a class="dropdown-item" href="./examples-excel.html">
  <span class="dropdown-text">Excel <a href="#experimental">experimental</a></span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-tensorboard.html">
+ <span class="dropdown-text">TensorBoard <a href="#experimental">experimental</a></span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -385,6 +389,7 @@ cookieconsent.run({
   <li><a href="#bokeh-support" id="toc-bokeh-support" class="nav-link" data-scroll-target="#bokeh-support">Bokeh support</a></li>
   <li><a href="#plotnine-support" id="toc-plotnine-support" class="nav-link" data-scroll-target="#plotnine-support">plotnine support</a></li>
   <li><a href="#excel-support" id="toc-excel-support" class="nav-link" data-scroll-target="#excel-support">Excel support</a></li>
+  <li><a href="#tensorboard-support" id="toc-tensorboard-support" class="nav-link" data-scroll-target="#tensorboard-support">TensorBoard support</a></li>
   <li><a href="#drawn-but-not-read" id="toc-drawn-but-not-read" class="nav-link" data-scroll-target="#drawn-but-not-read">Drawn but not read</a></li>
   <li><a href="#how-the-split-is-derived" id="toc-how-the-split-is-derived" class="nav-link" data-scroll-target="#how-the-split-is-derived">How the split is derived</a></li>
   <li><a href="#the-same-split-upstream" id="toc-the-same-split-upstream" class="nav-link" data-scroll-target="#the-same-split-upstream">The same split upstream</a></li>
@@ -659,6 +664,10 @@ cookieconsent.run({
 <section id="excel-support" class="level2">
 <h2 class="anchored" data-anchor-id="excel-support">Excel support</h2>
 <p>Charts read out of an Excel workbook (<code>maidr.read_excel_charts("book.xlsx")</code>) come through a reader that is itself <strong>experimental</strong>, whatever plot type it emits: a column chart emits the stable <code>bar</code> type, but which Excel chart types are read as what, how an axis with no title is named, how a date or a number format is written, and what is skipped may change without a deprecation period, including in a patch release. Each chart is read from the copy of its values Excel keeps in the file and drawn again with matplotlib, and the reader follows that drawing, which keeps the workbook’s colors and titles but is not Excel’s own picture. Every chart type Excel draws is read; a histogram’s bins and a box’s quartiles are worked out as Excel works them out, and a map is read as the list of its regions, without their shapes. A chart part it cannot read is left out with a warning naming it. See the <a href="./examples-excel.html">Excel gallery</a> for what it reads today.</p>
+</section>
+<section id="tensorboard-support" class="level2">
+<h2 class="anchored" data-anchor-id="tensorboard-support">TensorBoard support</h2>
+<p>The training curves read out of a TensorBoard log directory (<code>maidr.read_tensorboard_scalars("logs")</code>) come through a reader that is itself <strong>experimental</strong>, although every chart it emits is the stable <code>line</code> type: how runs and tags become charts and lines, how smoothing is drawn, how a long run is thinned, and what is skipped may change without a deprecation period, including in a patch release. Each tag’s values are read from the event files, the values TensorBoard reads, and drawn again with matplotlib; the reader follows that drawing, not TensorBoard’s own. Only scalars are read today: histograms, distributions, PR curves, hyperparameters and graphs are tracked in <a href="https://github.com/xability/py-maidr/issues/846">#846</a>. See the <a href="./examples-tensorboard.html">TensorBoard gallery</a> for what it reads today.</p>
 </section>
 <section id="drawn-but-not-read" class="level2">
 <h2 class="anchored" data-anchor-id="drawn-but-not-read">Drawn but not read</h2>

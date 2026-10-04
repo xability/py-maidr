@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Switch the matplotlib backend between maidr and the platform default.">
+<meta name="description" content="Read the scalars of a TensorBoard log directory. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>maidr.set_backend API reference – py-maidr</title>
+<title>maidr.tensorboard.load_scalars API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.set_backend API reference">
-<meta property="og:description" content="Switch the matplotlib backend between maidr and the platform default.">
+<meta property="og:title" content="maidr.tensorboard.load_scalars API reference">
+<meta property="og:description" content="Read the scalars of a TensorBoard log directory. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.set_backend API reference">
-<meta name="twitter:description" content="Switch the matplotlib backend between maidr and the platform default.">
+<meta name="twitter:title" content="maidr.tensorboard.load_scalars API reference">
+<meta name="twitter:description" content="Read the scalars of a TensorBoard log directory. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/set_backend.html">
-<meta name="DC.title" content="maidr.set_backend API reference">
+<link rel="canonical" href="https://py.maidr.ai/api/tensorboard.load_scalars.html">
+<meta name="DC.title" content="maidr.tensorboard.load_scalars API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Switch the matplotlib backend between maidr and the platform default.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/set_backend.html">
+<meta name="DC.description" content="Read the scalars of a TensorBoard log directory. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/tensorboard.load_scalars.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -383,11 +383,11 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.set_backend" id="toc-maidr.set_backend" class="nav-link active" data-scroll-target="#maidr.set_backend">set_backend</a>
+  <li><a href="#maidr.tensorboard.load_scalars" id="toc-maidr.tensorboard.load_scalars" class="nav-link active" data-scroll-target="#maidr.tensorboard.load_scalars">tensorboard.load_scalars</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
-  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
-  <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -398,12 +398,10 @@ cookieconsent.run({
 
 
 
-<section id="maidr.set_backend" class="level1">
-<h1>set_backend</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>set_backend(use_maidr<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Switch the matplotlib backend between maidr and the platform default.</p>
-<p>When <code>use_maidr=True</code>, the maidr backend is activated so that <code>plt.show()</code> renders accessible HTML output. When <code>use_maidr=False</code>, the original platform backend is restored (e.g.&nbsp;<code>macosx</code>, <code>TkAgg</code>, or <code>inline</code> in Jupyter).</p>
-<p>In Jupyter notebooks, restoring the inline backend requires special handling to re-register the <code>post_execute</code> hooks that auto-display figures. This is handled automatically.</p>
+<section id="maidr.tensorboard.load_scalars" class="level1">
+<h1>tensorboard.load_scalars</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tensorboard.load_scalars(logdir, <span class="op">*</span>, tags<span class="op">=</span><span class="va">None</span>, runs<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Read the scalars of a TensorBoard log directory.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
@@ -417,23 +415,68 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>use_maidr</td>
-<td><a href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></td>
-<td>If <code>True</code> (default), activate the maidr accessible backend. If <code>False</code>, restore the original matplotlib backend that was active before maidr was imported.</td>
-<td><code>True</code></td>
+<td>logdir</td>
+<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a> or <a href="https://docs.python.org/3/library/os.html#module-os">os</a>.<a href="https://docs.python.org/3/library/os.html#os.PathLike">PathLike</a></td>
+<td>The directory TensorBoard would be started with (<code>--logdir</code>). Every directory under it holding an event file is a run, named by its path from <code>logdir</code>, and <code>"."</code> for <code>logdir</code> itself.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>tags</td>
+<td>iterable of str</td>
+<td>Only these tags, in this order. A tag that no run logged is warned about.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>runs</td>
+<td>iterable of str</td>
+<td>Only these runs. A run that is not in <code>logdir</code> is warned about.</td>
+<td><code>None</code></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="examples" class="level2 doc-section doc-section-examples">
-<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> maidr</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> maidr.set_backend(use_maidr<span class="op">=</span><span class="va">False</span>)   <span class="co"># use platform default backend</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> maidr.set_backend(use_maidr<span class="op">=</span><span class="va">True</span>)    <span class="co"># back to maidr</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 30%">
+<col style="width: 63%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>dict of str to dict of str to ScalarSeries</td>
+<td>Tag by tag, sorted unless <code>tags</code> gives the order, and within a tag run by run, sorted.</td>
+</tr>
+</tbody>
+</table>
 </section>
-<section id="notes" class="level2 doc-section doc-section-notes">
-<h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p><code>maidr.show()</code> always renders accessible output regardless of the active backend. <code>set_backend</code> only controls the behavior of <code>plt.show()</code>.</p>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError">FileNotFoundError</a></td>
+<td>If <code>logdir</code> is not a directory.</td>
+</tr>
+</tbody>
+</table>
 
 
 </section>

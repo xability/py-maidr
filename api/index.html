@@ -206,7 +206,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-03">
+<meta name="DC.date" content="2026-10-04">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -311,6 +311,10 @@ cookieconsent.run({
     <a class="dropdown-item" href="../examples-excel.html">
  <span class="dropdown-text">Excel [experimental]</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-tensorboard.html">
+ <span class="dropdown-text">TensorBoard [experimental]</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -349,6 +353,7 @@ cookieconsent.run({
   <li><a href="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats" id="toc-displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="nav-link" data-scroll-target="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</a></li>
   <li><a href="#saving-a-maidr-plot-as-an-html-file" id="toc-saving-a-maidr-plot-as-an-html-file" class="nav-link" data-scroll-target="#saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</a></li>
   <li><a href="#reading-the-charts-of-an-excel-workbook" id="toc-reading-the-charts-of-an-excel-workbook" class="nav-link" data-scroll-target="#reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</a></li>
+  <li><a href="#reading-the-training-curves-of-a-tensorboard-log-directory" id="toc-reading-the-training-curves-of-a-tensorboard-log-directory" class="nav-link" data-scroll-target="#reading-the-training-curves-of-a-tensorboard-log-directory">Reading the training curves of a TensorBoard log directory</a></li>
   <li><a href="#registering-and-releasing-figures" id="toc-registering-and-releasing-figures" class="nav-link" data-scroll-target="#registering-and-releasing-figures">Registering and releasing figures</a></li>
   <li><a href="#switching-the-matplotlib-backend" id="toc-switching-the-matplotlib-backend" class="nav-link" data-scroll-target="#switching-the-matplotlib-backend">Switching the matplotlib backend</a></li>
   <li><a href="#where-the-maidr.js-runtime-comes-from" id="toc-where-the-maidr.js-runtime-comes-from" class="nav-link" data-scroll-target="#where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</a></li>
@@ -414,6 +419,34 @@ cookieconsent.run({
 <tr class="even">
 <td><a href="../api/excel.ExcelChart.html#maidr.excel.ExcelChart">excel.ExcelChart</a></td>
 <td>One chart of an Excel workbook, drawn and ready for maidr.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="reading-the-training-curves-of-a-tensorboard-log-directory" class="level2">
+<h2 class="anchored" data-anchor-id="reading-the-training-curves-of-a-tensorboard-log-directory">Reading the training curves of a TensorBoard log directory</h2>
+<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and pass a chart it returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code>. Experimental.</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../api/read_tensorboard_scalars.html#maidr.read_tensorboard_scalars">read_tensorboard_scalars</a></td>
+<td>Read the scalar charts of a TensorBoard log directory.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/tensorboard.TensorBoardChart.html#maidr.tensorboard.TensorBoardChart">tensorboard.TensorBoardChart</a></td>
+<td>One tag of a TensorBoard log directory, drawn and ready for maidr.</td>
+</tr>
+<tr class="odd">
+<td><a href="../api/tensorboard.load_scalars.html#maidr.tensorboard.load_scalars">tensorboard.load_scalars</a></td>
+<td>Read the scalars of a TensorBoard log directory.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/tensorboard.ScalarSeries.html#maidr.tensorboard.ScalarSeries">tensorboard.ScalarSeries</a></td>
+<td>The values one run logged under one tag, in the order TensorBoard keeps.</td>
+</tr>
+<tr class="odd">
+<td><a href="../api/tensorboard.smooth.html#maidr.tensorboard.smooth">tensorboard.smooth</a></td>
+<td>Smooth values the way TensorBoard’s Scalars dashboard does.</td>
 </tr>
 </tbody>
 </table>
