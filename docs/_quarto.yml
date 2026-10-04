@@ -330,9 +330,12 @@ quartodoc:
         keep an accessible page up to date while the model trains with
         `maidr.keras.MaidrCallback`. Import `maidr.keras` to use them.
         Experimental.
+      # `import maidr` does not import `maidr.keras`, so the module is named
+      # as the package rather than reached as an attribute of `maidr`.
+      package: maidr.keras
       contents:
-        - keras.plot_history
-        - keras.MaidrCallback
+        - plot_history
+        - MaidrCallback
     - title: Registering and releasing figures
       desc: >
         Mark a bar container as a stacked bar plot with `maidr.stacked()`, and
