@@ -86,6 +86,10 @@ def test_every_chart_the_directory_holds_is_listed(logdir):
     [
         ({"kind": "scalars", "tag": "Loss/train"}, '"type": "line"'),
         (
+            {"kind": "distributions", "tag": "activations", "run": "tf_histograms/run"},
+            '"type": "percentile_band"',
+        ),
+        (
             {"kind": "histograms", "tag": "activations", "run": "tf_histograms/run"},
             '"type": "ridgeline"',
         ),

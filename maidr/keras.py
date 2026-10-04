@@ -269,15 +269,16 @@ def plot_pr_curve(
         What ``model.predict`` returns: one sigmoid output per sample, as a
         column or flat, or two-class softmax rows, whose second column is the
         positive class's score. Several models' predictions by name draw a
-        line each.
+        curve each.
     title : str, default "Precision-recall curve"
         The chart's title.
 
     Returns
     -------
     matplotlib.figure.Figure
-        The chart, ready for :func:`maidr.show`, :func:`maidr.render` or
-        :func:`maidr.save_html`. Not managed by pyplot.
+        The chart, one ``pr_curve`` layer, ready for :func:`maidr.show`,
+        :func:`maidr.render` or :func:`maidr.save_html`. Not managed by
+        pyplot.
 
     Raises
     ------
@@ -288,10 +289,12 @@ def plot_pr_curve(
 
     Notes
     -----
-    Each line is named with its average precision and the precision a
-    classifier guessing at random reaches -- the share of positives -- which
-    is drawn as a dashed line, as :func:`maidr.read_tensorboard_pr_curves`
-    draws TensorBoard's PR curves.
+    Each point carries its threshold, and each curve its average precision
+    and the precision a classifier guessing at random keeps -- the share of
+    positives -- which maidr.js announces against each point and which is
+    drawn as a dashed line, as :func:`maidr.read_tensorboard_pr_curves` draws
+    TensorBoard's PR curves. ``pr_curve`` is an experimental type, and
+    reading one needs a maidr.js release that carries its trace.
 
     Examples
     --------

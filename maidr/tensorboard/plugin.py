@@ -7,7 +7,9 @@ the log directory TensorBoard was started with -- scalars, distributions,
 histograms, PR curves, a hyperparameter sweep, the Embedding Projector's
 embeddings, a profile and the Keras model graph -- and shows the one picked,
 read by maidr: from the keyboard, as sound, as text and in braille. A model
-graph needs a maidr.js release that carries the ``directed_graph`` trace.
+graph needs a maidr.js release that carries the ``directed_graph`` trace, and
+distributions and PR curves one that carries the ``percentile_band`` and
+``pr_curve`` traces.
 
 TensorBoard imports this module, not ``import maidr``; it is the one module
 of py-maidr that imports TensorBoard.

@@ -513,10 +513,6 @@ take as they take a figure. TensorBoard support as a whole is
 
 * Scalars, such as a loss or an accuracy, as a line plot with the step along the x axis and one line per run, such as Keras's `train` and `validation`; with smoothing, each run is drawn again smoothed, as TensorBoard draws it.
 
-* Distributions, from the same histograms, as a line plot of nine lines over the steps: the minimum, six percentiles, the median and the maximum.
-
-* PR curves as a line plot of precision against recall, one line per run named with its average precision and its chance level.
-
 * A profile's step-time graph as a stacked bar plot, one bar per step split into where its time went, and its top operations as a bar plot of self time (with `xprof` installed).
 
 * A hyperparameter sweep logged with the HParams plugin as a scatter plot matrix, a row per metric and a column per hyperparameter.
@@ -526,6 +522,10 @@ take as they take a figure. TensorBoard support as a whole is
 #### Experimental {#tensorboard-experimental}
 
 These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
+
+* Distributions, from the same histograms, as a percentile band [experimental] over the steps: the minimum, six percentiles, the median and the maximum, nested around the median.
+
+* PR curves [experimental] of precision against recall, one curve per run, each point read with its threshold against the run's chance level.
 
 * Histograms, such as a layer's weights, as a ridgeline [experimental] with one ridge per step, the earliest at the bottom.
 
@@ -556,11 +556,11 @@ Keras support as a whole is **experimental**: see
 
 * A classifier's confusion matrix, from its predictions, as a heatmap of the true class against the predicted class.
 
-* A binary classifier's PR curve, from its labels and predictions, as a line plot of precision against recall named with its average precision and chance level.
-
 #### Experimental {#keras-experimental}
 
 These may change without a deprecation period; see [Plot Type Stability](stability.qmd).
+
+* A binary classifier's PR curve [experimental], from its labels and predictions, precision against recall, each point read with its threshold against the chance level.
 
 * The model's layers, from the model or its config, as a directed graph [experimental] with an arrow from each layer to the layers called on its output.
 

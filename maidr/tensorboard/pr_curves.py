@@ -1,17 +1,18 @@
 """Read the precision-recall curves of a TensorBoard log directory.
 
 TensorBoard's PR Curves dashboard draws, per tag, each run's precision against
-its recall at one step, one point per decision threshold. maidr has no
-precision-recall layer yet (xability/maidr#1349), so each curve is read as a
-line of a line layer, recall along x, and what a PR layer would announce is
-put where a reader hears it: each line is named with the curve's average
-precision and the precision a classifier guessing at random would reach, the
-share of positives. That chance level is drawn as a dashed line, for the eye.
+its recall at one step, one point per decision threshold. Each chart is read
+as one ``pr_curve`` layer, a curve per run, recall along x: each point carries
+its threshold, and each curve the share of positives -- the precision a
+classifier guessing at random keeps, its chance baseline -- and its average
+precision, so maidr.js says how far a point and a curve stand above chance.
+That baseline is drawn as a dashed line, for the eye.
 """
 
 from __future__ import annotations
 
 import os
+import uuid
 from dataclasses import dataclass, field
 from typing import Iterable
 
@@ -19,6 +20,9 @@ import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
+from maidr.core.enum import PlotType
+from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.prebuilt import PrebuiltPlot
 from maidr.tensorboard.events import PR_CURVES_PLUGIN
 from maidr.tensorboard.logdir import TensorBoardChart, load
 from maidr.util.caller_warning import warn_at_caller
@@ -67,6 +71,33 @@ class _Curve:
     thresholds: np.ndarray
     prevalence: float
     average_precision: float
+
+    @property
+    def label(self) -> str:
+        """The legend's name for the curve, with its average precision and chance."""
+        return (
+            f"{self.name} (AP {self.average_precision:.2f}, "
+            f"chance {self.prevalence:.2f})"
+        )
+
+    def points(self) -> list[dict]:
+        """
+        The curve as a ``pr_curve`` layer carries it.
+
+        Returns
+        -------
+        list of dict
+            One ``{x: recall, y: precision, threshold, z: name}`` per point,
+            from low recall up; the first also carries the curve's
+            ``prevalence`` and its average precision, ``ap``.
+        """
+        points = [
+            {"x": float(r), "y": float(p), "threshold": float(t), "z": self.name}
+            for r, p, t in zip(self.recall, self.precision, self.thresholds)
+        ]
+        points[0]["prevalence"] = self.prevalence
+        points[0]["ap"] = self.average_precision
+        return points
 
 
 def load_pr_curves(
@@ -136,7 +167,8 @@ def read_tensorboard_pr_curves(
     Read the PR curve charts of a TensorBoard log directory.
 
     One chart per tag, as TensorBoard's PR Curves dashboard draws it: recall
-    along the x axis, precision along the y axis, one line per run.
+    along the x axis, precision along the y axis, one curve per run, read as
+    one ``pr_curve`` layer.
 
     Parameters
     ----------
@@ -157,11 +189,14 @@ def read_tensorboard_pr_curves(
 
     Notes
     -----
-    Each line is named with its run, its average precision and the share of
-    positives -- the precision a random guess reaches, which a useful
-    classifier stays above -- such as ``good (AP 0.91, chance 0.30)``. A
-    threshold at which nothing was predicted positive has no precision, and
-    is left out of the line rather than read as a precision of 0.
+    Each curve is named with its run, and carries its average precision and
+    the share of positives -- the precision a random guess keeps, which a
+    useful classifier stays above -- which maidr.js announces against each
+    point; the legend shows them, such as ``good (AP 0.91, chance 0.30)``.
+    Each point carries its threshold. A threshold at which nothing was
+    predicted positive has no precision, and is left out of the curve rather
+    than read as a precision of 0. ``pr_curve`` is an experimental type, and
+    reading one needs a maidr.js release that carries its trace.
 
     Examples
     --------
@@ -214,14 +249,15 @@ def plot_pr_curves(
         Whether each sample is positive: 1 or ``True`` for the positive class.
     scores : array_like or dict of str to array_like
         The score of each sample for the positive class, such as a sigmoid
-        output, or several classifiers' scores by name, a line each.
+        output, or several classifiers' scores by name, a curve each.
     title : str, optional
         The chart's title.
 
     Returns
     -------
     matplotlib.figure.Figure
-        The chart, ready for :func:`maidr.show`. Not managed by pyplot.
+        The chart, one ``pr_curve`` layer, ready for :func:`maidr.show`. Not
+        managed by pyplot.
 
     Raises
     ------
@@ -282,8 +318,7 @@ def _curve(name: str, data: np.ndarray, thresholds: np.ndarray | None = None) ->
     Parameters
     ----------
     name : str
-        The run or classifier, to which the average precision and chance
-        level are added.
+        The run or classifier.
     data : numpy.ndarray
         True and false positives, true and false negatives, precision and
         recall at each threshold.
@@ -308,26 +343,39 @@ def _curve(name: str, data: np.ndarray, thresholds: np.ndarray | None = None) ->
     # No positive prediction at a threshold leaves its precision undefined;
     # writers put 0 there, which would read as a cliff the classifier never had.
     defined = (tp + fp) > 0
+    # The rates again from the counts, in double precision: TensorBoard keeps
+    # them as float32, which puts a curve that ends at the share of positives
+    # a few billionths below its own baseline, and maidr.js says so.
+    positives = tp + fn
+    recall = np.divide(tp, positives, out=recall.copy(), where=positives > 0)
     recall, precision, thresholds = (
         recall[defined],
-        precision[defined],
+        tp[defined] / (tp + fp)[defined],
         thresholds[defined],
     )
-    order = np.lexsort((-precision, recall))
+    order = np.lexsort((-thresholds, -precision, recall))
     recall, precision, thresholds = recall[order], precision[order], thresholds[order]
     ap = average_precision(recall, precision)
-    label = f"{name} (AP {ap:.2f}, chance {prevalence:.2f})"
-    return _Curve(label, recall, precision, thresholds, prevalence, ap)
+    return _Curve(name, recall, precision, thresholds, prevalence, ap)
 
 
 def _draw(title: str, curves: list[_Curve]) -> Figure:
+    """
+    Draw the curves and their chance lines, and register one ``pr_curve`` layer.
+
+    Each curve is a plain line, one vertex per point, so nothing reads it as
+    a ``line`` layer; its gid names it in the layer's selectors. The dashed
+    chance lines are for the eye: each curve's ``prevalence`` carries them.
+    """
     fig = Figure(figsize=(6.5, 5.0))
     ax = fig.add_subplot()
+    lines = []
     for index, curve in enumerate(curves):
         color = f"C{index % 10}"
-        ax.plot(curve.recall, curve.precision, color=color, label=curve.name)
-        # The chance level, for the eye; drawn as a plain line so it is no
-        # series of the layer.
+        line = Line2D(curve.recall, curve.precision, color=color, label=curve.label)
+        line.set_gid(f"maidr-{uuid.uuid4()}")
+        ax.add_line(line)
+        lines.append(line)
         ax.add_line(
             Line2D(
                 [0, 1],
@@ -343,8 +391,17 @@ def _draw(title: str, curves: list[_Curve]) -> Figure:
     ax.set_xlabel("Recall")
     ax.set_ylabel("Precision")
     ax.set_title(title)
-    ax.legend(loc="lower left", frameon=False)
+    ax.legend(handles=lines, loc="lower left", frameon=False)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
     fig.tight_layout()
+    FigureManager.add_plot(
+        PrebuiltPlot(
+            ax,
+            PlotType.PR_CURVE,
+            labels={"x": "Recall", "y": "Precision"},
+            data=[curve.points() for curve in curves],
+            selectors=[f"g[id='{line.get_gid()}'] > path" for line in lines],
+        )
+    )
     return fig

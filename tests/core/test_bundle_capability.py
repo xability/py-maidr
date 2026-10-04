@@ -129,8 +129,14 @@ def test_the_bundle_names_the_types_it_can_build():
 #: Types emitted ahead of the maidr.js release that draws them: rendered
 #: through the CDN, which serves the newest release, while the bundled copy
 #: warns that it cannot. `directed_graph` (xability/py-maidr#854) waits on
-#: xability/maidr's directed graph trace.
-AWAITING_BUNDLE = {PlotType.DIRECTED_GRAPH}
+#: xability/maidr's directed graph trace, and `pr_curve` and
+#: `percentile_band` (xability/py-maidr#872) on its PR curve and percentile
+#: band traces.
+AWAITING_BUNDLE = {
+    PlotType.DIRECTED_GRAPH,
+    PlotType.PERCENTILE_BAND,
+    PlotType.PR_CURVE,
+}
 
 
 def test_a_type_awaiting_the_bundle_is_really_missing_from_it():
