@@ -197,6 +197,7 @@ from .core import Maidr  # noqa: E402, F401
 from .core.enum import PlotType  # noqa: E402, F401
 from .excel import read_excel_charts  # noqa: E402
 from .tensorboard import (  # noqa: E402
+    read_tensorboard_distributions,
     read_tensorboard_histograms,
     read_tensorboard_scalars,
 )
@@ -310,6 +311,7 @@ __all__ = [
     "read_bundled_js",
     "read_bundled_math_css",
     "read_excel_charts",
+    "read_tensorboard_distributions",
     "read_tensorboard_histograms",
     "read_tensorboard_scalars",
     "render",

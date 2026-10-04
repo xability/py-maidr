@@ -159,14 +159,16 @@ is left out with a warning naming it. See the
 The charts read out of a TensorBoard log directory
 (`maidr.read_tensorboard_scalars("logs")` and
 `maidr.read_tensorboard_histograms("logs")`) come through a reader that is
-itself **experimental**, whatever type it emits: a scalar chart emits the
-stable `line` type and a histogram the experimental `ridgeline`, but how runs
+itself **experimental**, whatever type it emits: a scalar or distribution
+chart emits the stable `line` type and a histogram the experimental
+`ridgeline`, but how runs
 and tags become charts, how smoothing is drawn, how a long run is thinned, how
 a histogram is binned, and what is skipped may change without a deprecation
 period, including in a patch release. Each tag's values are read from the
 event files, the values TensorBoard reads, and drawn again with matplotlib; the
 reader follows that drawing, not TensorBoard's own. Scalars and histograms are
-read today: distributions, PR curves, hyperparameters and graphs are tracked
+read today, and distributions from the histograms: PR curves,
+hyperparameters and graphs are tracked
 in [#846](https://github.com/xability/py-maidr/issues/846). See the
 [TensorBoard gallery](examples-tensorboard.qmd) for what it reads today.
 

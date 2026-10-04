@@ -213,6 +213,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
     "examples-tensorboard.qmd": {
         "Training and Validation Loss": [["line"]],
         "Accuracy Without Smoothing": [["line"]],
+        "Distributions": [["line"]],
         "Histograms as Ridgelines [experimental]": [["ridgeline"]],
     },
     "examples-altair.qmd": {

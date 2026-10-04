@@ -23,6 +23,7 @@ from matplotlib.figure import Figure
 
 from maidr.core.figure_manager import FigureManager
 from maidr.tensorboard.events import SCALARS_PLUGIN
+from maidr.tensorboard.distributions import read_tensorboard_distributions
 from maidr.tensorboard.histograms import (
     HistogramSeries,
     load_histograms,
@@ -37,6 +38,7 @@ __all__ = [
     "TensorBoardChart",
     "load_histograms",
     "load_scalars",
+    "read_tensorboard_distributions",
     "read_tensorboard_histograms",
     "read_tensorboard_scalars",
     "smooth",

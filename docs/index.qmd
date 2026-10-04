@@ -489,14 +489,16 @@ examples.
 
 py-maidr reads the charts of a TensorBoard log directory, without TensorFlow
 or TensorBoard: `maidr.read_tensorboard_scalars("logs")` returns one chart per
-scalar tag, and `maidr.read_tensorboard_histograms("logs")` one per histogram
-tag and run, which `maidr.show()`, `maidr.render()` and `maidr.save_html()`
+scalar tag, and `maidr.read_tensorboard_distributions("logs")` and
+`maidr.read_tensorboard_histograms("logs")` one per histogram tag and run, which `maidr.show()`, `maidr.render()` and `maidr.save_html()`
 take as they take a figure. TensorBoard support as a whole is
 **experimental**: see [Plot Type Stability](stability.qmd#tensorboard-support).
 
 #### Stable {#tensorboard-stable}
 
 * Scalars, such as a loss or an accuracy, as a line plot with the step along the x axis and one line per run, such as Keras's `train` and `validation`; with smoothing, each run is drawn again smoothed, as TensorBoard draws it.
+
+* Distributions, from the same histograms, as a line plot of nine lines over the steps: the minimum, six percentiles, the median and the maximum.
 
 #### Experimental {#tensorboard-experimental}
 

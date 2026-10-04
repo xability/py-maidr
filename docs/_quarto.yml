@@ -315,8 +315,8 @@ quartodoc:
       desc: >
         Read the scalars Keras, TensorFlow and PyTorch log with
         `maidr.read_tensorboard_scalars()`, one chart per tag, and their
-        histograms with `maidr.read_tensorboard_histograms()`, one ridgeline
-        per tag and run, and pass a chart either returns to `maidr.show()`,
+        histograms with `maidr.read_tensorboard_distributions()` and
+        `maidr.read_tensorboard_histograms()`, one chart per tag and run, and pass a chart either returns to `maidr.show()`,
         `maidr.render()` or `maidr.save_html()`; or read the values
         themselves with `maidr.tensorboard.load_scalars()` and
         `maidr.tensorboard.load_histograms()`. Experimental.
@@ -326,6 +326,7 @@ quartodoc:
         - tensorboard.load_scalars
         - tensorboard.ScalarSeries
         - tensorboard.smooth
+        - read_tensorboard_distributions
         - read_tensorboard_histograms
         - tensorboard.load_histograms
         - tensorboard.HistogramSeries

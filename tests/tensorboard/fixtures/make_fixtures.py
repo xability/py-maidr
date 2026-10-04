@@ -162,6 +162,25 @@ def tensorboard_view(logdir: str, plugin: str = "scalars") -> dict:
     return view
 
 
+def distributions_view(expected: dict) -> dict:
+    """
+    What TensorBoard's Distributions dashboard draws from the histograms read:
+    run -> tag -> [[step, [value at each of its nine basis points]], ...].
+    """
+    from tensorboard.plugins.distribution import compressor
+
+    return {
+        run: {
+            tag: [
+                [step, [value for _, value in compressor.compress_histogram(buckets)]]
+                for step, _, buckets in events
+            ]
+            for tag, events in tags.items()
+        }
+        for run, tags in expected.items()
+    }
+
+
 #: Each log directory: what writes it, and the plugin it is read for.
 WRITERS = {
     "keras": (keras_fit, "scalars"),
@@ -187,6 +206,11 @@ def main(names: list[str]) -> None:
             indent = 1 if plugin == "scalars" else None
             json.dump(_finite(expected), out, indent=indent, allow_nan=False)
             out.write("\n")
+        if plugin == "histograms":
+            path = os.path.join(HERE, f"{name}.distributions.json")
+            with open(path, "w") as out:
+                json.dump(_finite(distributions_view(expected)), out, allow_nan=False)
+                out.write("\n")
 
 
 def _finite(value):
