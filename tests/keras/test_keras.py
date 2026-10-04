@@ -375,6 +375,19 @@ def test_a_normalized_matrix_says_what_each_cell_is_a_share_of(normalize, z, poi
     assert layer["data"]["points"] == points
 
 
+def test_a_class_the_softmax_declares_is_kept_when_no_sample_has_it():
+    softmax = np.array([[0.8, 0.1, 0.1], [0.2, 0.7, 0.1], [0.1, 0.6, 0.3]])
+    layer = _heat(maidr.keras.plot_confusion_matrix([0, 1, 1], softmax))
+    assert layer["data"]["points"] == [[1, 0, 0], [0, 2, 0], [0, 0, 0]]
+
+
+def test_true_classes_as_a_column_are_read_as_indices():
+    layer = _heat(
+        maidr.keras.plot_confusion_matrix(np.array([[0], [1], [1]]), [0, 1, 0])
+    )
+    assert layer["data"]["points"] == [[1, 0], [1, 1]]
+
+
 def test_a_class_that_never_occurs_reads_zero_not_nan():
     layer = _heat(
         maidr.keras.plot_confusion_matrix(

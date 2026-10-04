@@ -189,8 +189,8 @@ def plot_confusion_matrix(
         raise ValueError(
             f"normalize is None, 'true', 'pred' or 'all', not {normalize!r}"
         )
-    true = _classes(y_true, "y_true")
-    predicted = _classes(y_pred, "y_pred")
+    true, true_width = _classes(y_true, "y_true")
+    predicted, predicted_width = _classes(y_pred, "y_pred")
     if true.size == 0:
         raise ValueError("There are no samples to count.")
     if true.shape != predicted.shape:
@@ -199,7 +199,8 @@ def plot_confusion_matrix(
             "they are counted in pairs."
         )
     names = None if labels is None else [str(label) for label in labels]
-    count = int(max(true.max(), predicted.max())) + 1
+    # A class the rows declare counts even when no sample of it is seen.
+    count = max(int(max(true.max(), predicted.max())) + 1, true_width, predicted_width)
     if names is not None:
         if len(names) < count:
             raise ValueError(
@@ -240,15 +241,20 @@ def plot_confusion_matrix(
     return fig
 
 
-def _classes(values: Any, name: str) -> np.ndarray:
-    """Class indices from indices, one-hot rows, or predicted probabilities."""
+def _classes(values: Any, name: str) -> tuple[np.ndarray, int]:
+    """
+    Class indices from indices, one-hot rows, or predicted probabilities.
+
+    Returns the indices and the number of classes the input's shape declares:
+    the width of one-hot or probability rows, else 0.
+    """
     array = np.asarray(values)
     if array.ndim == 2 and array.shape[1] > 1:
-        return array.argmax(axis=1)
+        return array.argmax(axis=1), array.shape[1]
     array = array.reshape(-1)
     if array.dtype.kind == "f" and not np.all(np.mod(array, 1) == 0):
         if np.all((array >= 0) & (array <= 1)):
-            return (array >= 0.5).astype(int)
+            return (array >= 0.5).astype(int), 2
         raise ValueError(
             f"{name} holds values that are neither class indices nor "
             "probabilities between 0 and 1."
@@ -256,7 +262,7 @@ def _classes(values: Any, name: str) -> np.ndarray:
     indices = array.astype(int)
     if indices.size and indices.min() < 0:
         raise ValueError(f"{name} holds a negative class index, {indices.min()}.")
-    return indices
+    return indices, 0
 
 
 def _share(matrix: np.ndarray, totals: Any) -> np.ndarray:

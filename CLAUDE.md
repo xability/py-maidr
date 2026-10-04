@@ -127,8 +127,8 @@ against what TensorBoard itself read from logs real writers wrote
 `maidr/keras.py` (experimental, `docs/stability.qmd#keras-support`) draws a
 Keras model's training curves and confusion matrix: `plot_history` from a
 `History` or its dictionary, `plot_confusion_matrix` from the predictions
-through the patched `imshow`, and `MaidrCallback`, a `keras.callbacks.Callback` that rewrites an
-HTML page as the model trains. It imports Keras only for that base class, and
+through the patched `imshow`, and `MaidrCallback`, a
+`keras.callbacks.Callback` that rewrites an HTML page as the model trains. It imports Keras only for that base class, and
 `import maidr` does not import it. Keras is not a dev dependency: the callback
 tests stand in a bare `Callback`, and the one real `model.fit` test runs only
 where Keras is installed.
