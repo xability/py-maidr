@@ -95,7 +95,8 @@ element by the gid it is given (`g[id='maidr-...']`). `import maidr` alone reads
 only a plotnine chart's points, through the `Axes.scatter` patch.
 `maidr/excel/` (experimental, `docs/stability.qmd#excel-support`) reads the
 charts of an `.xlsx` file for `maidr.read_excel_charts`: `package.py` walks the
-zip from sheet to drawing to chart part and streams the few cells it needs,
+zip from sheet to drawing to chart part and streams the few cells it needs
+(its `OpcPackage` reads the parts and relationships of any Office file),
 `chartxml.py` reads a DrawingML chart part from the values Excel cached in it
 and `chartex.py` an Excel 2016 one (histogram to map), both into the
 `ChartSpec` of `spec.py`. They share `cells.py` (range formulas), `formats.py`
@@ -111,6 +112,20 @@ artists and `layers.py` registers an `ExcelLayer` built from the chart's own
 values through `FigureManager.add_plot`, its selectors naming each mark's gid.
 It reads with lxml, not openpyxl, which loads every cell of the workbook
 before it shows a chart.
+`figure.py` reads one chart part and draws it, warning when it cannot, for
+every file type. `maidr/office/` (experimental,
+`docs/stability.qmd#powerpoint-and-word-support`) reads the charts of a
+`.pptx` or `.docx` for `maidr.read_powerpoint_charts` and
+`maidr.read_word_charts`: a chart there is the same chart part, so only the
+way to it is new. `package.py` walks a presentation slide by slide, in slide
+show order, through each slide's graphic frames, groups included, and a
+document's body in reading order through its drawings, skipping what
+markup compatibility offers as a fallback, so a chart is read once; it finds
+each chart's embedded workbook, which `__init__.py` opens with the Excel
+`Package` for the cells and defined names the part needs, and the theme of
+the slide's master or of the document. Its tests move charts XlsxWriter
+wrote into a presentation and a document laid out as PowerPoint and Word
+save them, and hold the reading to `read_excel_charts`' of the same workbook.
 `maidr/tensorboard/` (experimental, `docs/stability.qmd#tensorboard-support`)
 reads the scalars and histograms of a TensorBoard log directory for
 `maidr.read_tensorboard_scalars` and `maidr.read_tensorboard_histograms`:
@@ -172,6 +187,7 @@ Tests live in `tests/` using pytest + pytest-mock. Test fixtures in `tests/fixtu
 gallery pages (`docs/examples/*.qmd`, `docs/examples-plotly.qmd`,
 `docs/examples-bokeh.qmd`, `docs/examples-plotnine.qmd`,
 `docs/examples-altair.qmd`, `docs/examples-excel.qmd`,
-`docs/examples-tensorboard.qmd`, `docs/examples-keras.qmd`) and pins the layer types
+`docs/examples-office.qmd`, `docs/examples-tensorboard.qmd`,
+`docs/examples-keras.qmd`) and pins the layer types
 each section emits, plus the measured claims the prose makes. Adding or changing a gallery example means
 updating its `EXPECTED_LAYERS` entry there.

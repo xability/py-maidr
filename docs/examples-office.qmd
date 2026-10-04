@@ -1,0 +1,129 @@
+---
+title: "PowerPoint and Word Accessible Chart Examples"
+description: "Code examples showing how to make the charts in a PowerPoint presentation (.pptx) or a Word document (.docx) accessible with py-maidr: every chart type Excel draws, read from the file without PowerPoint, Word or Excel."
+jupyter: python3
+html-table-processing: none
+resources:
+  - slides.pptx
+  - report.docx
+filters:
+  - line-highlight
+---
+
+## PowerPoint and Word Examples {#sec-office-examples}
+
+**maidr** reads the charts of a PowerPoint presentation and of a Word document.
+Pass a `.pptx` file to `maidr.read_powerpoint_charts()`, or a `.docx` file to
+`maidr.read_word_charts()`, and hand any chart either returns to
+`maidr.show()`, `maidr.render()` or `maidr.save_html()`: the chart can then be
+read from the keyboard, as sound, as text and in braille. None of PowerPoint,
+Word or Excel needs to be installed. For the charts of a workbook, see the
+[Excel](examples-excel.qmd) page.
+
+::: {.callout-warning title="Experimental"}
+PowerPoint and Word support is **experimental**. What it reads, and how, may
+change without a deprecation period, whichever chart type is read: see
+[Plot Type Stability](stability.qmd#powerpoint-and-word-support).
+:::
+
+A chart on a slide or in a document is the chart Excel draws: the same chart
+part, with the same copy of the values it shows, and its data in a workbook
+embedded in the file beside it. So it is read just as the
+[Excel page](examples-excel.qmd) describes, every chart type Excel draws
+included, from column charts to waterfalls and treemaps. The embedded workbook
+is read only for what the copy leaves out: an axis with no title is named after
+the header cell above its categories in the chart's data sheet. Each chart is
+drawn again with matplotlib, in the colors of its slide's or its document's
+theme.
+
+The examples read [slides.pptx](slides.pptx), a presentation of quarterly
+sales with a chart on each of three slides, the last of them hidden, and
+[report.docx](report.docx), a short report with two charts.
+
+### Reading a Presentation
+
+`maidr.read_powerpoint_charts()` returns the charts slide by slide, in slide
+show order, each with the number of its slide, whether that slide is hidden,
+its name and its title. The charts of hidden slides are read too.
+
+```{python}
+#| warning: false
+import maidr
+
+slides = maidr.read_powerpoint_charts("slides.pptx")
+for chart in slides:
+    print(chart.slide, chart.hidden, chart.name, chart.title, sep=" | ")
+```
+
+Save every chart of a presentation as its own page with a loop:
+
+```python
+for chart in maidr.read_powerpoint_charts("slides.pptx"):
+    maidr.save_html(chart, f"slide-{chart.slide}-{chart.name}.html")
+```
+
+Both functions also take an open binary file, such as the one a Streamlit or
+Shiny upload control hands you.
+
+### Column Chart on a Slide
+
+Each region is a series and each quarter a category: the left and right arrow
+keys move between quarters, and up and down between the regions. The category
+axis has no title on the slide, so it is named after the header above the
+quarters in the chart's data sheet, *Quarter*.
+
+```{python}
+#| warning: false
+#| fig-alt: Clustered column chart of revenue by quarter for the North and South regions
+maidr.show(slides[0])
+```
+
+### Line Chart on a Slide
+
+The margin is read as a percentage, because its data sheet formats it as one.
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of the margin by quarter
+maidr.show(slides[1])
+```
+
+### Pie Chart on a Hidden Slide
+
+```{python}
+#| warning: false
+#| fig-alt: Pie chart of the share of revenue by region
+maidr.show(slides[2])
+```
+
+### Reading a Document
+
+`maidr.read_word_charts()` returns the charts of the document's body in
+reading order, inline and floating ones and those in tables and text boxes,
+each with its place among the document's charts, its name and its title.
+
+```{python}
+#| warning: false
+report = maidr.read_word_charts("report.docx")
+for chart in report:
+    print(chart.number, chart.name, chart.title, sep=" | ")
+```
+
+### Line Chart in a Document
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of visitors by month, January to June
+maidr.show(report[0])
+```
+
+### Bar Chart in a Document
+
+The teams are named after the header above them in the chart's data sheet,
+*Team*.
+
+```{python}
+#| warning: false
+#| fig-alt: Horizontal bar chart of tickets closed by team
+maidr.show(report[1])
+```
