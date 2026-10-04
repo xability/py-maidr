@@ -315,6 +315,10 @@ cookieconsent.run({
     <a class="dropdown-item" href="../examples-tensorboard.html">
  <span class="dropdown-text">TensorBoard [experimental]</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-keras.html">
+ <span class="dropdown-text">Keras [experimental]</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -354,6 +358,7 @@ cookieconsent.run({
   <li><a href="#saving-a-maidr-plot-as-an-html-file" id="toc-saving-a-maidr-plot-as-an-html-file" class="nav-link" data-scroll-target="#saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</a></li>
   <li><a href="#reading-the-charts-of-an-excel-workbook" id="toc-reading-the-charts-of-an-excel-workbook" class="nav-link" data-scroll-target="#reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</a></li>
   <li><a href="#reading-the-training-curves-of-a-tensorboard-log-directory" id="toc-reading-the-training-curves-of-a-tensorboard-log-directory" class="nav-link" data-scroll-target="#reading-the-training-curves-of-a-tensorboard-log-directory">Reading the training curves of a TensorBoard log directory</a></li>
+  <li><a href="#drawing-the-training-curves-of-a-keras-model" id="toc-drawing-the-training-curves-of-a-keras-model" class="nav-link" data-scroll-target="#drawing-the-training-curves-of-a-keras-model">Drawing the training curves of a Keras model</a></li>
   <li><a href="#registering-and-releasing-figures" id="toc-registering-and-releasing-figures" class="nav-link" data-scroll-target="#registering-and-releasing-figures">Registering and releasing figures</a></li>
   <li><a href="#switching-the-matplotlib-backend" id="toc-switching-the-matplotlib-backend" class="nav-link" data-scroll-target="#switching-the-matplotlib-backend">Switching the matplotlib backend</a></li>
   <li><a href="#where-the-maidr.js-runtime-comes-from" id="toc-where-the-maidr.js-runtime-comes-from" class="nav-link" data-scroll-target="#where-the-maidr.js-runtime-comes-from">Where the maidr.js runtime comes from</a></li>
@@ -447,6 +452,22 @@ cookieconsent.run({
 <tr class="odd">
 <td><a href="../api/tensorboard.smooth.html#maidr.tensorboard.smooth">tensorboard.smooth</a></td>
 <td>Smooth values the way TensorBoard’s Scalars dashboard does.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="drawing-the-training-curves-of-a-keras-model" class="level2">
+<h2 class="anchored" data-anchor-id="drawing-the-training-curves-of-a-keras-model">Drawing the training curves of a Keras model</h2>
+<p>Draw what <code>model.fit</code> returns with <code>maidr.keras.plot_history()</code>, or keep an accessible page up to date while the model trains with <code>maidr.keras.MaidrCallback</code>. Import <code>maidr.keras</code> to use them. Experimental.</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../api/plot_history.html#maidr.keras.plot_history">plot_history</a></td>
+<td>Draw the training curves of a Keras model.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/MaidrCallback.html#maidr.keras.MaidrCallback">MaidrCallback</a></td>
+<td>Keep an accessible page of a model’s training curves while it trains.</td>
 </tr>
 </tbody>
 </table>

@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Display a MAIDR plot. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="description" content="Draw the training curves of a Keras model. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>maidr.show API reference – py-maidr</title>
+<title>maidr.keras.plot_history API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.show API reference">
-<meta property="og:description" content="Display a MAIDR plot. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta property="og:title" content="maidr.keras.plot_history API reference">
+<meta property="og:description" content="Draw the training curves of a Keras model. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.show API reference">
-<meta name="twitter:description" content="Display a MAIDR plot. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="twitter:title" content="maidr.keras.plot_history API reference">
+<meta name="twitter:description" content="Draw the training curves of a Keras model. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/show.html">
-<meta name="DC.title" content="maidr.show API reference">
+<link rel="canonical" href="https://py.maidr.ai/api/plot_history.html">
+<meta name="DC.title" content="maidr.keras.plot_history API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Display a MAIDR plot. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/show.html">
+<meta name="DC.description" content="Draw the training curves of a Keras model. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/plot_history.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -387,11 +387,13 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.show" id="toc-maidr.show" class="nav-link active" data-scroll-target="#maidr.show">show</a>
+  <li><a href="#maidr.keras.plot_history" id="toc-maidr.keras.plot_history" class="nav-link active" data-scroll-target="#maidr.keras.plot_history">plot_history</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
   <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
   <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -402,10 +404,12 @@ cookieconsent.run({
 
 
 
-<section id="maidr.show" class="level1">
-<h1>show</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>show(plot<span class="op">=</span><span class="va">None</span>, renderer<span class="op">=</span><span class="st">'auto'</span>, clear_fig<span class="op">=</span><span class="va">True</span>, use_cdn<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Display a MAIDR plot.</p>
+<section id="maidr.keras.plot_history" class="level1">
+<h1>plot_history</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>keras.plot_history(history, <span class="op">*</span>, metrics<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Draw the training curves of a Keras model.</p>
+<p>One chart per metric, stacked top to bottom, with the epoch along the x axis and two lines, named <code>training</code> and <code>validation</code>: the metric on the training data, and on the validation data when <code>model.fit</code> was given some. A metric with no validation values, such as the learning rate, is one line named for the metric. The loss comes first.</p>
+<p>As in Keras, a metric whose name starts with <code>val_</code> is read as the validation curve of the metric named without it.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
@@ -419,27 +423,15 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>plot</td>
-<td><a href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a> or None</td>
-<td>The plot object to display. Supports matplotlib/seaborn artists, Plotly figures, Bokeh figures and layouts, plotnine <code>ggplot</code> objects, and Altair chart objects. If None, uses the current matplotlib figure.</td>
-<td><code>None</code></td>
+<td>history</td>
+<td><code>keras</code>.<code>callbacks</code>.<code>History</code> or <a href="https://docs.python.org/3/builtins/stdtypes.html#dict">dict</a></td>
+<td>What <code>model.fit</code> returns, or its <code>.history</code> dictionary, which maps each metric, such as <code>"loss"</code> or <code>"val_accuracy"</code>, to its value at each epoch.</td>
+<td><em>required</em></td>
 </tr>
 <tr class="even">
-<td>renderer</td>
-<td>('auto', 'ipython', 'browser')</td>
-<td>The renderer to use for display.</td>
-<td><code>"auto"</code></td>
-</tr>
-<tr class="odd">
-<td>clear_fig</td>
-<td><a href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></td>
-<td>Whether to clear the figure after displaying.</td>
-<td><code>True</code></td>
-</tr>
-<tr class="even">
-<td>use_cdn</td>
-<td>bool, {"auto"}, or None</td>
-<td>See :func:<code>render</code> for the three possible modes. <code>None</code> defers to :func:<code>get_use_cdn</code> (the process-wide default). The two CDN modes (<code>True</code> and <code>"auto"</code>) resolve the published version over the network once per process when building the URL, bounded by <code>MAIDR_CDN_TIMEOUT</code>; <code>MAIDR_CDN_VERSION</code> skips it. <code>False</code> makes no request. Altair charts always use the CDN — this argument is not plumbed through that adapter.</td>
+<td>metrics</td>
+<td>iterable of str</td>
+<td>Only these metrics, in this order, named without the <code>val_</code> prefix, such as <code>["loss", "accuracy"]</code>. A metric not in <code>history</code> is warned about.</td>
 <td><code>None</code></td>
 </tr>
 </tbody>
@@ -447,6 +439,30 @@ cookieconsent.run({
 </section>
 <section id="returns" class="level2 doc-section doc-section-returns">
 <h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 2%">
+<col style="width: 35%">
+<col style="width: 61%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>matplotlib</code>.<code>figure</code>.<code>Figure</code></td>
+<td>The charts, ready for :func:<code>maidr.show</code>, :func:<code>maidr.render</code> or :func:<code>maidr.save_html</code>. The figure is not managed by pyplot, so <code>plt.show()</code> does not show it.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -458,15 +474,28 @@ cookieconsent.run({
 <tbody>
 <tr class="odd">
 <td></td>
-<td><a href="https://docs.python.org/3/builtins/functions.html#object">object</a></td>
-<td>The display result.</td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#TypeError">TypeError</a></td>
+<td>If <code>history</code> is neither a <code>History</code> nor a dictionary.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#ValueError">ValueError</a></td>
+<td>If <code>history</code> holds no metric that can be drawn.</td>
 </tr>
 </tbody>
 </table>
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>In Pyodide with no page – a web worker, or Node.js – there is nowhere to show the chart, whatever <code>renderer</code> says. This warns instead and leaves the figure open, so :func:<code>render</code> can still give its HTML to the page.</p>
+<p>Epochs are counted from 1, as Keras counts them when it trains. A value that is not finite, such as a loss that became <code>NaN</code>, is a gap in the line. A metric whose value is not a single number at each epoch, such as a per-class score, is left out with a warning.</p>
+<p>With <code>validation_freq</code> above 1, Keras records the validation values on fewer epochs than the training ones without saying which, so <code>plot_history</code> leaves them out with a warning. :class:<code>MaidrCallback</code> records the epoch of every value and draws them.</p>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> maidr</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> maidr.keras <span class="im">import</span> plot_history</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> history <span class="op">=</span> {<span class="st">"loss"</span>: [<span class="fl">0.9</span>, <span class="fl">0.6</span>, <span class="fl">0.5</span>], <span class="st">"val_loss"</span>: [<span class="fl">1.0</span>, <span class="fl">0.7</span>, <span class="fl">0.65</span>]}</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> maidr.save_html(plot_history(history), <span class="st">"training.html"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

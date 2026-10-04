@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Display a MAIDR plot. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="description" content="Keep an accessible page of a model’s training curves while it trains.">
 
-<title>maidr.show API reference – py-maidr</title>
+<title>maidr.keras.MaidrCallback API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.show API reference">
-<meta property="og:description" content="Display a MAIDR plot. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta property="og:title" content="maidr.keras.MaidrCallback API reference">
+<meta property="og:description" content="Keep an accessible page of a model’s training curves while it trains.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.show API reference">
-<meta name="twitter:description" content="Display a MAIDR plot. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="twitter:title" content="maidr.keras.MaidrCallback API reference">
+<meta name="twitter:description" content="Keep an accessible page of a model’s training curves while it trains.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/show.html">
-<meta name="DC.title" content="maidr.show API reference">
+<link rel="canonical" href="https://py.maidr.ai/api/MaidrCallback.html">
+<meta name="DC.title" content="maidr.keras.MaidrCallback API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Display a MAIDR plot. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/show.html">
+<meta name="DC.description" content="Keep an accessible page of a model’s training curves while it trains.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/MaidrCallback.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -387,11 +387,19 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.show" id="toc-maidr.show" class="nav-link active" data-scroll-target="#maidr.show">show</a>
+  <li><a href="#maidr.keras.MaidrCallback" id="toc-maidr.keras.MaidrCallback" class="nav-link active" data-scroll-target="#maidr.keras.MaidrCallback">MaidrCallback</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
-  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
-  <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
+  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
+  <ul class="collapse">
+  <li><a href="#maidr.keras.MaidrCallback.figure" id="toc-maidr.keras.MaidrCallback.figure" class="nav-link" data-scroll-target="#maidr.keras.MaidrCallback.figure">figure</a></li>
+  <li><a href="#maidr.keras.MaidrCallback.on_epoch_end" id="toc-maidr.keras.MaidrCallback.on_epoch_end" class="nav-link" data-scroll-target="#maidr.keras.MaidrCallback.on_epoch_end">on_epoch_end</a></li>
+  <li><a href="#maidr.keras.MaidrCallback.on_train_begin" id="toc-maidr.keras.MaidrCallback.on_train_begin" class="nav-link" data-scroll-target="#maidr.keras.MaidrCallback.on_train_begin">on_train_begin</a></li>
+  <li><a href="#maidr.keras.MaidrCallback.on_train_end" id="toc-maidr.keras.MaidrCallback.on_train_end" class="nav-link" data-scroll-target="#maidr.keras.MaidrCallback.on_train_end">on_train_end</a></li>
+  </ul></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -402,10 +410,11 @@ cookieconsent.run({
 
 
 
-<section id="maidr.show" class="level1">
-<h1>show</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>show(plot<span class="op">=</span><span class="va">None</span>, renderer<span class="op">=</span><span class="st">'auto'</span>, clear_fig<span class="op">=</span><span class="va">True</span>, use_cdn<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Display a MAIDR plot.</p>
+<section id="maidr.keras.MaidrCallback" class="level1">
+<h1>MaidrCallback</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>keras.MaidrCallback(<span class="va">self</span>, path<span class="op">=</span><span class="va">None</span>, <span class="op">*</span>, every<span class="op">=</span><span class="dv">1</span>, metrics<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Keep an accessible page of a model’s training curves while it trains.</p>
+<p>Pass it to <code>model.fit(callbacks=[...])</code>. At the end of every <code>every</code> epochs it writes <code>path</code> again with the charts :func:<code>plot_history</code> draws, so a reader can open the page during a long run and reload it to hear how far the model has come. When training ends, the page is written a last time; with no <code>path</code>, the charts are shown in the notebook instead, if there is one.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
@@ -419,34 +428,52 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>plot</td>
-<td><a href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a> or None</td>
-<td>The plot object to display. Supports matplotlib/seaborn artists, Plotly figures, Bokeh figures and layouts, plotnine <code>ggplot</code> objects, and Altair chart objects. If None, uses the current matplotlib figure.</td>
+<td>path</td>
+<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a> or <a href="https://docs.python.org/3/library/os.html#module-os">os</a>.<a href="https://docs.python.org/3/library/os.html#os.PathLike">PathLike</a></td>
+<td>The HTML file to keep up to date. The page is replaced in one step, so a reload never meets a half-written file. A page that cannot be written, or drawn, is warned about, and training goes on. In multi-worker training, give each worker its own path, or the callback to one.</td>
 <td><code>None</code></td>
 </tr>
 <tr class="even">
-<td>renderer</td>
-<td>('auto', 'ipython', 'browser')</td>
-<td>The renderer to use for display.</td>
-<td><code>"auto"</code></td>
+<td>every</td>
+<td><a href="https://docs.python.org/3/builtins/functions.html#int">int</a></td>
+<td>Write the page every this many epochs.</td>
+<td><code>1</code></td>
 </tr>
 <tr class="odd">
-<td>clear_fig</td>
-<td><a href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></td>
-<td>Whether to clear the figure after displaying.</td>
-<td><code>True</code></td>
-</tr>
-<tr class="even">
-<td>use_cdn</td>
-<td>bool, {"auto"}, or None</td>
-<td>See :func:<code>render</code> for the three possible modes. <code>None</code> defers to :func:<code>get_use_cdn</code> (the process-wide default). The two CDN modes (<code>True</code> and <code>"auto"</code>) resolve the published version over the network once per process when building the URL, bounded by <code>MAIDR_CDN_TIMEOUT</code>; <code>MAIDR_CDN_VERSION</code> skips it. <code>False</code> makes no request. Altair charts always use the CDN — this argument is not plumbed through that adapter.</td>
+<td>metrics</td>
+<td>iterable of str</td>
+<td>Only these metrics, in this order, as for :func:<code>plot_history</code>.</td>
 <td><code>None</code></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="returns" class="level2 doc-section doc-section-returns">
-<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 18%">
+<col style="width: 75%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>history</td>
+<td>dict of str to list of tuple</td>
+<td>Each metric’s values so far, as <code>(epoch, value)</code> pairs, epochs counted from 1. Reset when a new <code>model.fit</code> begins.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -458,17 +485,178 @@ cookieconsent.run({
 <tbody>
 <tr class="odd">
 <td></td>
-<td><a href="https://docs.python.org/3/builtins/functions.html#object">object</a></td>
-<td>The display result.</td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#ImportError">ImportError</a></td>
+<td>If Keras is not installed.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#ValueError">ValueError</a></td>
+<td>If <code>every</code> is below 1.</td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="notes" class="level2 doc-section doc-section-notes">
-<h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>In Pyodide with no page – a web worker, or Node.js – there is nowhere to show the chart, whatever <code>renderer</code> says. This warns instead and leaves the figure open, so :func:<code>render</code> can still give its HTML to the page.</p>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> maidr.keras <span class="im">import</span> MaidrCallback</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> model.fit(x, y, validation_split<span class="op">=</span><span class="fl">0.2</span>, epochs<span class="op">=</span><span class="dv">50</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...           callbacks<span class="op">=</span>[MaidrCallback(<span class="st">"training.html"</span>, every<span class="op">=</span><span class="dv">5</span>)])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="methods" class="level2">
+<h2 class="anchored" data-anchor-id="methods">Methods</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="#maidr.keras.MaidrCallback.figure">figure</a></td>
+<td>Draw the curves recorded so far.</td>
+</tr>
+<tr class="even">
+<td><a href="#maidr.keras.MaidrCallback.on_epoch_end">on_epoch_end</a></td>
+<td>Record the epoch’s metrics, and write the page every <code>every</code> epochs.</td>
+</tr>
+<tr class="odd">
+<td><a href="#maidr.keras.MaidrCallback.on_train_begin">on_train_begin</a></td>
+<td>Start a new history, as each <code>model.fit</code> does.</td>
+</tr>
+<tr class="even">
+<td><a href="#maidr.keras.MaidrCallback.on_train_end">on_train_end</a></td>
+<td>Write the page a last time, or show the charts in a notebook.</td>
+</tr>
+</tbody>
+</table>
+<section id="maidr.keras.MaidrCallback.figure" class="level3">
+<h3 class="anchored" data-anchor-id="maidr.keras.MaidrCallback.figure">figure</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>keras.MaidrCallback.figure()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Draw the curves recorded so far.</p>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 60%">
+<col style="width: 34%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>matplotlib</code>.<code>figure</code>.<code>Figure</code></td>
+<td>The charts :func:<code>plot_history</code> would draw for them.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="maidr.keras.MaidrCallback.on_epoch_end" class="level3">
+<h3 class="anchored" data-anchor-id="maidr.keras.MaidrCallback.on_epoch_end">on_epoch_end</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>keras.MaidrCallback.on_epoch_end(epoch, logs<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Record the epoch’s metrics, and write the page every <code>every</code> epochs.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>epoch</td>
+<td><a href="https://docs.python.org/3/builtins/functions.html#int">int</a></td>
+<td>The epoch that ended, counted from 0 as Keras passes it.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>logs</td>
+<td><code>mapping</code></td>
+<td>Each metric’s value at this epoch. A value that is not a single number is not recorded, with a warning the first time.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="maidr.keras.MaidrCallback.on_train_begin" class="level3">
+<h3 class="anchored" data-anchor-id="maidr.keras.MaidrCallback.on_train_begin">on_train_begin</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>keras.MaidrCallback.on_train_begin(logs<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Start a new history, as each <code>model.fit</code> does.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 31%">
+<col style="width: 40%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>logs</td>
+<td><code>mapping</code></td>
+<td>Passed by Keras; not read.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="maidr.keras.MaidrCallback.on_train_end" class="level3">
+<h3 class="anchored" data-anchor-id="maidr.keras.MaidrCallback.on_train_end">on_train_end</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>keras.MaidrCallback.on_train_end(logs<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Write the page a last time, or show the charts in a notebook.</p>
+<section id="parameters-3" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 31%">
+<col style="width: 40%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>logs</td>
+<td><code>mapping</code></td>
+<td>Passed by Keras; not read.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
+</section>
 </section>
 </section>
 

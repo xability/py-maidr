@@ -350,6 +350,10 @@ cookieconsent.run({
     <a class="dropdown-item" href="./examples-tensorboard.html">
  <span class="dropdown-text">TensorBoard <a href="#experimental">experimental</a></span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples-keras.html">
+ <span class="dropdown-text">Keras <a href="#experimental">experimental</a></span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -390,6 +394,7 @@ cookieconsent.run({
   <li><a href="#plotnine-support" id="toc-plotnine-support" class="nav-link" data-scroll-target="#plotnine-support">plotnine support</a></li>
   <li><a href="#excel-support" id="toc-excel-support" class="nav-link" data-scroll-target="#excel-support">Excel support</a></li>
   <li><a href="#tensorboard-support" id="toc-tensorboard-support" class="nav-link" data-scroll-target="#tensorboard-support">TensorBoard support</a></li>
+  <li><a href="#keras-support" id="toc-keras-support" class="nav-link" data-scroll-target="#keras-support">Keras support</a></li>
   <li><a href="#drawn-but-not-read" id="toc-drawn-but-not-read" class="nav-link" data-scroll-target="#drawn-but-not-read">Drawn but not read</a></li>
   <li><a href="#how-the-split-is-derived" id="toc-how-the-split-is-derived" class="nav-link" data-scroll-target="#how-the-split-is-derived">How the split is derived</a></li>
   <li><a href="#the-same-split-upstream" id="toc-the-same-split-upstream" class="nav-link" data-scroll-target="#the-same-split-upstream">The same split upstream</a></li>
@@ -668,6 +673,10 @@ cookieconsent.run({
 <section id="tensorboard-support" class="level2">
 <h2 class="anchored" data-anchor-id="tensorboard-support">TensorBoard support</h2>
 <p>The training curves read out of a TensorBoard log directory (<code>maidr.read_tensorboard_scalars("logs")</code>) come through a reader that is itself <strong>experimental</strong>, although every chart it emits is the stable <code>line</code> type: how runs and tags become charts and lines, how smoothing is drawn, how a long run is thinned, and what is skipped may change without a deprecation period, including in a patch release. Each tag’s values are read from the event files, the values TensorBoard reads, and drawn again with matplotlib; the reader follows that drawing, not TensorBoard’s own. Only scalars are read today: histograms, distributions, PR curves, hyperparameters and graphs are tracked in <a href="https://github.com/xability/py-maidr/issues/846">#846</a>. See the <a href="./examples-tensorboard.html">TensorBoard gallery</a> for what it reads today.</p>
+</section>
+<section id="keras-support" class="level2">
+<h2 class="anchored" data-anchor-id="keras-support">Keras support</h2>
+<p>The training curves drawn from a Keras model (<code>maidr.keras.plot_history()</code> and <code>maidr.keras.MaidrCallback</code>) are <strong>experimental</strong>, although every chart they draw is the stable <code>line</code> type: how metrics become charts and lines, what the lines are called, and when the callback writes its page may change without a deprecation period, including in a patch release. See the <a href="./examples-keras.html">Keras gallery</a> for what they draw today.</p>
 </section>
 <section id="drawn-but-not-read" class="level2">
 <h2 class="anchored" data-anchor-id="drawn-but-not-read">Drawn but not read</h2>
