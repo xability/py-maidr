@@ -96,8 +96,13 @@ only a plotnine chart's points, through the `Axes.scatter` patch.
 charts of an `.xlsx` file for `maidr.read_excel_charts`: `package.py` walks the
 zip from sheet to drawing to chart part and streams the few cells it needs,
 `chartxml.py` reads a DrawingML chart part from the values Excel cached in it
-and `chartex.py` an Excel 2016 one (histogram to map), and `draw.py` and
-`drawex.py` redraw them. Where matplotlib has a call for the chart, it is drawn
+and `chartex.py` an Excel 2016 one (histogram to map), both into the
+`ChartSpec` of `spec.py`. They share `cells.py` (range formulas), `formats.py`
+(numbers, dates and number formats) and `colors.py`. The `draw/` package
+redraws them: `draw_chart` picks a module per chart family (`cartesian.py`,
+`pie.py`, `radar.py`, `stock.py`, `surface.py`, `histogram.py`, `box.py`,
+`waterfall.py`, `funnel.py`, `hierarchy.py`, `region.py`), and the modules
+share `common.py`. Where matplotlib has a call for the chart, it is drawn
 through the patched `Axes` call, so the layers come from the ordinary
 matplotlib readers; where it has none (radar, bubble sizes, candles,
 waterfall, funnel, treemap, sunburst, map) the marks are drawn from plain

@@ -7,14 +7,13 @@ from datetime import datetime
 import pytest
 from matplotlib.ticker import PercentFormatter, StrMethodFormatter
 
-from maidr.excel.chartxml import (
-    Range,
+from maidr.excel.cells import Range, parse_range
+from maidr.excel.formats import (
     format_date,
     is_date_format,
-    parse_range,
+    number_formatter,
     serial_to_datetime,
 )
-from maidr.excel.draw import number_formatter
 
 
 @pytest.mark.parametrize(
