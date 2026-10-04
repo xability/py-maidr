@@ -112,7 +112,7 @@ def read_chart(
         ``cells(sheet, row, column)`` returns the :class:`Cell` there, for the
         cells :func:`wanted_cells` named, or ``None``.
     theme : dict
-        The workbook's theme colors, from :meth:`Package.theme_colors`.
+        The theme colors, from :meth:`OpcPackage.theme_colors`.
     date1904 : bool
         Whether the workbook counts dates from 1904 rather than 1900.
 

@@ -33,7 +33,10 @@ Plotly, Bokeh, plotnine and Altair figures go through the same `maidr.show()`
 entry point (Bokeh and plotnine support are experimental; install them with
 `pip install "maidr[bokeh]"` and `pip install "maidr[plotnine]"`), and so do the
 charts of an Excel workbook, read without Excel by
-`maidr.read_excel_charts("book.xlsx")` (experimental), and the training
+`maidr.read_excel_charts("book.xlsx")` (experimental), the charts of a
+PowerPoint presentation or a Word document, read by
+`maidr.read_powerpoint_charts("deck.pptx")` and
+`maidr.read_word_charts("report.docx")` (experimental), and the training
 curves and histograms of a TensorBoard log directory, read without TensorFlow
 by `maidr.read_tensorboard_scalars("logs")`,
 `maidr.read_tensorboard_distributions("logs")`,
@@ -72,7 +75,7 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 | | |
 |---|---|
 | **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Bokeh [experimental], plotnine [experimental], Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
-| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the training curves, histograms, PR curves, hyperparameter sweeps, embeddings and profiles of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
+| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the charts of a PowerPoint presentation (`.pptx`) or a Word document (`.docx`) [experimental]; the training curves, histograms, PR curves, hyperparameter sweeps, embeddings and profiles of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
 | **Model training** | the training curves of a Keras model, from `model.fit` or live while it trains, and a classifier's confusion matrix [experimental] |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit |
 | **Plot types** | 41 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-six are experimental; the docs mark each experimental type **[experimental]** after its name |

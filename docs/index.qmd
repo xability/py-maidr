@@ -485,6 +485,20 @@ These may change without a deprecation period; see [Plot Type Stability](stabili
 See the [Excel gallery](examples-excel.qmd#sec-excel-examples) for runnable
 examples.
 
+### PowerPoint and Word [experimental]
+
+py-maidr reads the charts of a PowerPoint presentation and of a Word document,
+without PowerPoint, Word or Excel: `maidr.read_powerpoint_charts("deck.pptx")`
+returns one chart per chart on the slides, in slide show order, and
+`maidr.read_word_charts("report.docx")` one per chart in the document, in
+reading order. A chart there is the chart Excel draws, kept with a workbook of
+its data, so every chart type listed under [Excel](#excel-stable) above
+is read, and read the same way. PowerPoint and Word support as a whole is
+**experimental**: see
+[Plot Type Stability](stability.qmd#powerpoint-and-word-support), and the
+[PowerPoint and Word gallery](examples-office.qmd#sec-office-examples) for
+runnable examples.
+
 ### TensorBoard [experimental]
 
 py-maidr reads the charts of a TensorBoard log directory, without TensorFlow

@@ -154,6 +154,21 @@ as the list of its regions, without their shapes. A chart part it cannot read
 is left out with a warning naming it. See the
 [Excel gallery](examples-excel.qmd) for what it reads today.
 
+## PowerPoint and Word support
+
+Charts read out of a PowerPoint presentation
+(`maidr.read_powerpoint_charts("deck.pptx")`) or a Word document
+(`maidr.read_word_charts("report.docx")`) come through the same
+**experimental** reader as Excel's, whatever plot type it emits: a chart on a
+slide or in a document is the chart part Excel draws, and it is read as the
+[Excel support](#excel-support) section describes, from the copy of its values
+the file keeps, with the workbook embedded beside it read only for the cells
+that copy leaves out. How a presentation's slides and a document's charts are
+ordered and named, and which parts of a document are read -- its body, not its
+headers, footers, footnotes or comments -- may change without a deprecation
+period too. See the [PowerPoint and Word gallery](examples-office.qmd) for what
+it reads today.
+
 ## TensorBoard support
 
 The charts read out of a TensorBoard log directory
