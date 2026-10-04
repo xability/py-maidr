@@ -24,14 +24,10 @@ from lxml.cssselect import CSSSelector  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.excel import read_excel_charts  # noqa: E402
-from maidr.excel.chartxml import Binning  # noqa: E402
-from maidr.excel.drawex import (  # noqa: E402
-    bin_labels,
-    box_stats,
-    excel_bins,
-    quartile,
-    squarify,
-)
+from maidr.excel.draw.box import box_stats, quartile  # noqa: E402
+from maidr.excel.draw.hierarchy import squarify  # noqa: E402
+from maidr.excel.draw.histogram import bin_labels, excel_bins  # noqa: E402
+from maidr.excel.spec import Binning  # noqa: E402
 from tests.excel.test_read_excel_charts import (  # noqa: E402
     SALES,
     _add_series,
@@ -747,12 +743,12 @@ def test_a_radar_whose_every_value_is_blank_reads_as_nothing(tmp_path):
 
 
 def test_a_chart_maidr_cannot_draw_costs_that_chart_alone(tmp_path, monkeypatch):
-    import maidr.excel.drawex as drawex
+    import maidr.excel.draw as draw
 
     def broken(*args: Any) -> None:
         raise ValueError("no room for it")
 
-    monkeypatch.setitem(drawex._DRAW, "funnel", broken)
+    monkeypatch.setitem(draw._EXCEL_2016, "funnel", broken)
     path = _excel_2016(tmp_path, _sales_part("funnel", [120, 150, 90, 175]))
 
     with pytest.warns(UserWarning, match="cannot draw 'Chart 1'.*no room for it"):

@@ -23,8 +23,7 @@ from matplotlib.figure import Figure
 from maidr.core.figure_manager import FigureManager
 from maidr.excel import chartex
 from maidr.excel.chartxml import read_chart, wanted_cells
-from maidr.excel.draw import draw
-from maidr.excel.drawex import draw_ex
+from maidr.excel.draw import draw_chart
 from maidr.excel.package import Cell, DamagedPartError, NotAWorkbookError, Package
 from maidr.util.caller_warning import warn_at_caller
 
@@ -211,9 +210,8 @@ def read_excel_charts(
             if not spec.unread:
                 warn_at_caller(f"{where} has no data maidr can read; it is left out.")
             continue
-        render = draw_ex if placement.is_chartex else draw
         try:
-            figure = render(spec, aspect=placement.aspect, where=where)
+            figure = draw_chart(spec, aspect=placement.aspect, where=where)
         except _DAMAGED_CHART as reason:
             # Values a chart part should never hold cost that chart alone.
             warn_at_caller(f"maidr cannot draw {where} ({reason}); it is left out.")

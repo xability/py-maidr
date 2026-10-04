@@ -14,28 +14,15 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Iterator
 
-from maidr.excel.chartxml import (
-    _MAX_POINTS,
-    _MAX_UNCACHED,
-    A,
-    Axis,
-    Binning,
-    Cells,
-    ChartSpec,
-    Group,
-    Range,
-    Series,
-    _category_label,
-    _color,
-    _default_color,
-    _number,
-    _text_value,
-    parse_range,
-    sums_categories,
-)
+from maidr.excel.cells import MAX_POINTS, MAX_UNCACHED, Cells, Range, parse_range
+from maidr.excel.colors import default_color, fill_color
+from maidr.excel.formats import as_number, as_text, category_label
+from maidr.excel.package import NS_A
+from maidr.excel.spec import Axis, Binning, ChartSpec, Group, Series, sums_categories
 
 NS_CX = "http://schemas.microsoft.com/office/drawing/2014/chartex"
 CX = f"{{{NS_CX}}}"
+A = f"{{{NS_A}}}"
 
 #: The chart type each series layout is, by ``layoutId``.
 _LAYOUTS = {
@@ -55,7 +42,7 @@ _VALUES = ("val", "size", "colorVal")
 #: The most levels of a hierarchy read; a part claiming more is damaged.
 _MAX_LEVELS = 32
 #: The most points read across all the levels of one dimension.
-_MAX_CELLS = 4 * _MAX_POINTS
+_MAX_CELLS = 4 * MAX_POINTS
 
 
 def layout_name(root: Any) -> str | None:
@@ -106,7 +93,7 @@ def wanted_cells(root: Any, names: dict[str, str]) -> Iterator[tuple[str, int, i
             header = area.header()
             if header is not None:
                 yield (area.sheet, *header)
-        if dimension.find(f"{CX}lvl") is None and area.size() <= _MAX_UNCACHED:
+        if dimension.find(f"{CX}lvl") is None and area.size() <= MAX_UNCACHED:
             yield from ((area.sheet, r, c) for r, c in area.positions())
 
 
@@ -169,7 +156,7 @@ def read_chartex(
         categories = _find_dimension(block, ("cat",))
         values = _find_dimension(block, _VALUES)
         paths = _paths(categories, cells, names, date1904)
-        numbers = [_number(v) for v in _numbers(values, cells, names)]
+        numbers = [as_number(v) for v in _numbers(values, cells, names)]
         count = max(len(paths), len(numbers))
         if categories is None and kind in ("waterfall", "funnel"):
             # Excel numbers the steps of a chart that names none.
@@ -185,7 +172,7 @@ def read_chartex(
             )
             spot = area.header() if flat else None
             cell = cells(area.sheet, *spot) if spot is not None else None
-            header = _text_value(cell.value) if cell is not None else None
+            header = as_text(cell.value) if cell is not None else None
         if layout is None:
             layout = element.find(f"{CX}layoutPr")
         if value_format is None and values is not None:
@@ -197,8 +184,8 @@ def read_chartex(
                 name=_series_name(element),
                 categories=tuple(" / ".join(path) or None for path in paths),
                 values=tuple(numbers),
-                color=_color(element.find(f"{CX}spPr/{A}solidFill"), theme)
-                or _default_color(index, theme),
+                color=fill_color(element.find(f"{CX}spPr/{A}solidFill"), theme)
+                or default_color(index, theme),
                 point_colors=tuple(sorted(colors.items())),
                 line=False,
                 marker=False,
@@ -220,7 +207,7 @@ def read_chartex(
                 name=None,
                 categories=(),
                 values=(),
-                color=_color(fill, theme) or _default_color(1, theme),
+                color=fill_color(fill, theme) or default_color(1, theme),
                 point_colors=(),
                 line=True,
                 marker=False,
@@ -310,7 +297,7 @@ def _levels(dimension: Any, cells: Cells, names: dict[str, str]) -> list[list[An
                 for pt in level.findall(f"{CX}pt")
                 if pt.get("idx", "").isdigit()
             ]
-            count = min(max((i for i, _ in pairs), default=-1) + 1, _MAX_POINTS, budget)
+            count = min(max((i for i, _ in pairs), default=-1) + 1, MAX_POINTS, budget)
             values: list[Any] = [None] * count
             for index, text in pairs:
                 if index < count:
@@ -318,7 +305,7 @@ def _levels(dimension: Any, cells: Cells, names: dict[str, str]) -> list[list[An
             out.append(values)
         return out
     area = _area(dimension, names)
-    if area is None or area.size() > _MAX_UNCACHED:
+    if area is None or area.size() > MAX_UNCACHED:
         return []
     # Laid out down the sheet, each column is a level, the rightmost the
     # innermost; across it, each row is.
@@ -360,8 +347,8 @@ def _paths(
         for level in reversed(levels):
             value = level[index] if index < len(level) else None
             if numeric and isinstance(value, str):
-                value = _number(value)
-            label = _category_label(value, code, False, date1904)
+                value = as_number(value)
+            label = category_label(value, code, False, date1904)
             if label is not None and label.strip():
                 parts.append(label)
         paths.append(tuple(parts))
@@ -399,7 +386,7 @@ def _default_point_colors(
             if value is None:
                 continue
             accent = 2 if index in totals else (1 if value < 0 else 0)
-            color = _default_color(accent, theme)
+            color = default_color(accent, theme)
             if color is not None:
                 yield index, color
     elif kind in ("treemap", "sunburst"):
@@ -408,7 +395,7 @@ def _default_point_colors(
             if not path:
                 continue
             branch = branches.setdefault(path[0], len(branches))
-            color = _default_color(branch, theme)
+            color = default_color(branch, theme)
             if color is not None:
                 yield index, color
 
@@ -420,7 +407,7 @@ def _series_name(element: Any) -> str | None:
 
 def _point_colors(element: Any, theme: dict[str, str]) -> Iterator[tuple[int, str]]:
     for point in element.iterfind(f"{CX}dataPt"):
-        color = _color(point.find(f"{CX}spPr/{A}solidFill"), theme)
+        color = fill_color(point.find(f"{CX}spPr/{A}solidFill"), theme)
         index = point.get("idx", "")
         if color is not None and index.isdigit():
             yield int(index), color
@@ -459,7 +446,7 @@ def _limit(scaling: Any, name: str) -> float | None:
     if scaling is None:
         return None
     value = scaling.get(name, "auto")
-    return None if value == "auto" else _number(value)
+    return None if value == "auto" else as_number(value)
 
 
 def _binning(layout: Any) -> Binning | None:
@@ -471,12 +458,12 @@ def _binning(layout: Any) -> Binning | None:
     if binning is None:
         # The part says nothing of its bins: Excel decides by the categories.
         return None
-    count = _number(_child_val(binning, "binCount"))
+    count = as_number(_child_val(binning, "binCount"))
     return Binning(
-        size=_positive(_number(_child_val(binning, "binSize"))),
+        size=_positive(as_number(_child_val(binning, "binSize"))),
         count=int(count) if count is not None and count >= 1 else None,
-        underflow=_number(binning.get("underflow", "auto")),
-        overflow=_number(binning.get("overflow", "auto")),
+        underflow=as_number(binning.get("underflow", "auto")),
+        overflow=as_number(binning.get("overflow", "auto")),
         closed=binning.get("intervalClosed", "r"),
     )
 

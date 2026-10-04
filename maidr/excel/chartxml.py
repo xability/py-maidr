@@ -13,16 +13,14 @@ header cell that names a category range when the axis has no title.
 
 from __future__ import annotations
 
-import colorsys
-import math
-import re
-from dataclasses import dataclass, replace
-from datetime import datetime, timedelta
-from typing import Any, Callable, Iterator
+from dataclasses import replace
+from typing import Any, Iterator
 
-from lxml import etree
-
-from maidr.excel.package import NS_A, Cell, column_index
+from maidr.excel.cells import MAX_POINTS, MAX_UNCACHED, Cells, parse_range
+from maidr.excel.colors import default_color, fill_color
+from maidr.excel.formats import as_number, as_text, category_label
+from maidr.excel.package import NS_A
+from maidr.excel.spec import Axis, ChartSpec, Group, Series
 
 NS_C = "http://schemas.openxmlformats.org/drawingml/2006/chart"
 C = f"{{{NS_C}}}"
@@ -56,99 +54,6 @@ _XY_KINDS = ("scatter", "bubble")
 #: not say: Excel's default, the last three.
 _SECOND_PLOT_POINTS = 3
 
-_REFERENCE = re.compile(
-    r"^(?:'(?P<quoted>(?:[^']|'')+)'|(?P<plain>[^'!\[\]]+))!"
-    r"\$?(?P<c1>[A-Za-z]{1,3})\$?(?P<r1>\d+)"
-    r"(?::\$?(?P<c2>[A-Za-z]{1,3})\$?(?P<r2>\d+))?$"
-)
-
-_MONTHS = (
-    "January", "February", "March", "April", "May", "June", "July",
-    "August", "September", "October", "November", "December",
-)  # fmt: skip
-_DAYS = (
-    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-)  # fmt: skip
-_DATE_TOKEN = re.compile(
-    r'"[^"]*"|\\.|\[[^\]]*\]|yyyy|yy|e|mmmmm|mmmm|mmm|mm|m|dddd|ddd|dd|d'
-    r"|hh|h|ss|s|am/pm|a/p|.",
-    re.IGNORECASE,
-)
-_NOT_A_TOKEN = re.compile(r'"[^"]*"|\\.|\[[^\]]*\]')
-
-#: The most points a series is read with: a sheet's row count. A part that
-#: claims more is damaged, and is not allowed to ask for that much memory.
-_MAX_POINTS = 1_048_576
-#: The most cells read for a series range the part has no copy of. Excel always
-#: writes the copy; a larger uncached range reads as empty rather than scanning
-#: the sheet for it.
-_MAX_UNCACHED = 100_000
-
-#: ``(sheet, row, column)`` to the cell there, or ``None`` for an empty one.
-Cells = Callable[[str, int, int], "Cell | None"]
-
-
-@dataclass(frozen=True)
-class Range:
-    """A rectangular cell range on one sheet, zero-based and inclusive."""
-
-    sheet: str
-    first_row: int
-    first_column: int
-    last_row: int
-    last_column: int
-
-    def size(self) -> int:
-        """How many cells the range holds."""
-        rows = self.last_row - self.first_row + 1
-        return rows * (self.last_column - self.first_column + 1)
-
-    def positions(self) -> Iterator[tuple[int, int]]:
-        """Each cell, row by row."""
-        for row in range(self.first_row, self.last_row + 1):
-            for column in range(self.first_column, self.last_column + 1):
-                yield row, column
-
-    def header(self) -> tuple[int, int] | None:
-        """
-        The cell that names this range: above a column of values, left of a
-        row of them.
-        """
-        if self.first_row == self.last_row and self.last_column > self.first_column:
-            if self.first_column == 0:
-                return None
-            return self.first_row, self.first_column - 1
-        if self.first_row == 0:
-            return None
-        return self.first_row - 1, self.last_column
-
-
-def parse_range(formula: str | None) -> Range | None:
-    """
-    The range a series formula names.
-
-    Parameters
-    ----------
-    formula : str or None
-        A formula such as ``Sales!$B$2:$B$5`` or ``'Q1 data'!$A$1``.
-
-    Returns
-    -------
-    Range or None
-        ``None`` for anything else: a defined name, a reference to another
-        workbook, or several areas joined in parentheses.
-    """
-    if not formula:
-        return None
-    match = _REFERENCE.match(formula.strip())
-    if match is None:
-        return None
-    sheet = match.group("plain") or match.group("quoted").replace("''", "'")
-    r1, c1 = int(match.group("r1")) - 1, column_index(match.group("c1"))
-    r2 = int(match.group("r2")) - 1 if match.group("r2") else r1
-    c2 = column_index(match.group("c2")) if match.group("c2") else c1
-    return Range(sheet, min(r1, r2), min(c1, c2), max(r1, r2), max(c1, c2))
-
 
 def wanted_cells(root: Any) -> Iterator[tuple[str, int, int]]:
     """
@@ -181,151 +86,12 @@ def wanted_cells(root: Any) -> Iterator[tuple[str, int, int]]:
                 if header is not None:
                     yield (area.sheet, *header)
             if _cache(source) is None:
-                if area.size() <= _MAX_UNCACHED:
+                if area.size() <= MAX_UNCACHED:
                     yield from ((area.sheet, r, c) for r, c in area.positions())
             elif (
                 _cached_format(source) is None and source.find(f"{C}numRef") is not None
             ):
                 yield area.sheet, area.first_row, area.first_column
-
-
-@dataclass(frozen=True)
-class Axis:
-    """One axis of a chart group, as drawn and as announced."""
-
-    #: The title Excel draws on the axis, or ``None`` when it draws none.
-    title: str | None
-    #: What the reader hears the axis called: the title, or a name found for
-    #: an untitled axis.
-    label: str | None
-    hidden: bool
-    position: str
-    minimum: float | None
-    maximum: float | None
-    reversed: bool
-    #: The number format of the axis labels, as an Excel format code.
-    number_format: str | None
-
-
-@dataclass(frozen=True)
-class Series:
-    """One series: its name, its points and how it is drawn."""
-
-    name: str | None
-    #: Category labels, or the x values of a scatter or bubble series.
-    categories: tuple[Any, ...]
-    values: tuple[float | None, ...]
-    color: str | None
-    #: Per-point colors -- a pie's slices -- as ``(index, "#RRGGBB")`` pairs.
-    point_colors: tuple[tuple[int, str], ...]
-    line: bool
-    marker: bool
-    #: The size of each bubble of a bubble series.
-    sizes: tuple[float | None, ...] = ()
-    #: Each point's category as the levels of a hierarchy, outermost first:
-    #: a treemap's or a sunburst's branches.
-    paths: tuple[tuple[str, ...], ...] = ()
-
-
-@dataclass(frozen=True)
-class Binning:
-    """How a histogram groups its values into bins, as Excel was told to."""
-
-    #: The width of a bin, or ``None`` to work it out.
-    size: float | None = None
-    #: How many bins, or ``None`` to work it out.
-    count: int | None = None
-    #: Values at or below this go to one bin of their own.
-    underflow: float | None = None
-    #: Values above this go to one bin of their own.
-    overflow: float | None = None
-    #: Which end of a bin it includes: ``"r"``, as ``(a, b]``, or ``"l"``.
-    closed: str = "r"
-    #: Whether each category is a bin of its own, its values summed.
-    by_category: bool = False
-
-
-def sums_categories(binning: Binning | None, series: Series) -> bool:
-    """
-    Whether a histogram or a Pareto chart makes each category a bin of its
-    own, its values summed.
-
-    Parameters
-    ----------
-    binning : Binning or None
-        What the chart says of its bins, or ``None`` when it says nothing.
-    series : Series
-        The series binned.
-
-    Returns
-    -------
-    bool
-        What the chart says, or, when it says nothing, whether it has
-        categories, as Excel decides for text ones.
-    """
-    if binning is not None:
-        return binning.by_category
-    return any(c is not None for c in series.categories)
-
-
-@dataclass(frozen=True)
-class Group:
-    """One chart group: series of one chart type that share axes."""
-
-    #: ``"bar"``, ``"line"``, ``"pie"``, ``"doughnut"``, ``"ofpie"``,
-    #: ``"scatter"``, ``"bubble"``, ``"area"``, ``"radar"``, ``"stock"`` or
-    #: ``"surface"``; or one of the Excel 2016 types, ``"histogram"``,
-    #: ``"pareto"``, ``"box"``, ``"waterfall"``, ``"funnel"``, ``"treemap"``,
-    #: ``"sunburst"`` or ``"region"``.
-    kind: str
-    horizontal: bool
-    #: ``"standard"``, ``"clustered"``, ``"stacked"`` or ``"percentStacked"``.
-    grouping: str
-    series: tuple[Series, ...]
-    #: The category axis, or the x axis of a scatter group.
-    x_axis: Axis | None
-    #: The value axis, or the y axis of a scatter group.
-    y_axis: Axis | None
-    #: What the categories are called: the category axis' title, or the
-    #: header above their range, which also names a pie's slices.
-    category_name: str | None
-    secondary: bool
-    first_slice_angle: float
-    hole_size: float | None
-    #: How a radar is drawn (``"standard"``, ``"marker"`` or ``"filled"``),
-    #: what a pie-of-pie's second plot is (``"pie"`` or ``"bar"``), and
-    #: whether a stock chart draws its open-to-close bodies (``"updown"``).
-    style: str | None = None
-    #: The points a pie-of-pie draws in its second plot, by index.
-    second_plot: tuple[int, ...] = ()
-    #: How large a bubble chart draws its bubbles, in percent of the default.
-    bubble_scale: float = 100.0
-    #: What the series of a surface are called: the title of its depth axis.
-    series_name: str | None = None
-    #: What a bubble chart's sizes are: the header above their range.
-    size_name: str | None = None
-    #: How a histogram or a Pareto chart bins its values.
-    binning: Binning | None = None
-    #: How a box and whisker chart finds its quartiles: ``"exclusive"`` or
-    #: ``"inclusive"`` of the median.
-    quartiles: str = "exclusive"
-    #: Whether a box and whisker chart marks each box's mean.
-    mean_marker: bool = True
-    #: The points of a waterfall that are totals rather than steps, by index.
-    totals: tuple[int, ...] = ()
-
-
-@dataclass(frozen=True)
-class ChartSpec:
-    """Everything maidr needs from one chart part to draw it."""
-
-    title: str | None
-    groups: tuple[Group, ...]
-    #: Where the legend sits (``"r"``, ``"b"``, ``"t"``, ``"l"``, ``"tr"``),
-    #: or ``None`` when the chart has no legend.
-    legend: str | None
-    #: The chart types in the part that maidr does not read, by name.
-    unread: tuple[str, ...]
 
 
 def read_chart(
@@ -441,7 +207,7 @@ def _read_group(
             x_source, y_source = ser.find(f"{C}xVal"), ser.find(f"{C}yVal")
         else:
             x_source, y_source = ser.find(f"{C}cat"), ser.find(f"{C}val")
-        values = [_number(v) for v in _points(y_source, cells)]
+        values = [as_number(v) for v in _points(y_source, cells)]
         if blanks == "zero" and kind in ("line", "scatter", "area", "radar"):
             values = [0.0 if v is None else v for v in values]
         x_points = _points(x_source, cells)
@@ -449,7 +215,7 @@ def _read_group(
         if kind in _XY_KINDS:
             # Excel plots a scatter series against 1, 2, 3, ... when its x
             # values are missing or are text.
-            numbers = [_number(v) for v in x_points]
+            numbers = [as_number(v) for v in x_points]
             if not x_points or any(
                 isinstance(v, str) and n is None for v, n in zip(x_points, numbers)
             ):
@@ -457,10 +223,10 @@ def _read_group(
             categories = numbers
         else:
             categories = [
-                _category_label(v, x_format, dates, date1904) for v in x_points
+                category_label(v, x_format, dates, date1904) for v in x_points
             ] or [str(i + 1) for i in range(len(values))]
         sizes = (
-            [_number(v) for v in _points(ser.find(f"{C}bubbleSize"), cells)]
+            [as_number(v) for v in _points(ser.find(f"{C}bubbleSize"), cells)]
             if kind == "bubble"
             else []
         )
@@ -482,7 +248,7 @@ def _read_group(
         if kind in ("pie", "doughnut", "ofpie") and vary_colors:
             # A pie's slices take the theme accents in turn, as series do.
             for point in range(count):
-                color = _default_color(point, theme)
+                color = default_color(point, theme)
                 if color is not None:
                     point_colors.setdefault(point, color)
         series.append(
@@ -490,7 +256,7 @@ def _read_group(
                 name=name,
                 categories=tuple(categories),
                 values=tuple(values),
-                color=_series_color(ser, kind, theme) or _default_color(index, theme),
+                color=_series_color(ser, kind, theme) or default_color(index, theme),
                 point_colors=tuple(sorted(point_colors.items())),
                 line=line,
                 marker=marker,
@@ -530,7 +296,7 @@ def _read_group(
         second_plot=_second_plot(element, series[0].values)
         if kind == "ofpie" and series
         else (),
-        bubble_scale=_float(_val(element, "bubbleScale")) or 100.0,
+        bubble_scale=as_number(_val(element, "bubbleScale")) or 100.0,
         series_name=_title_text(depth_element.find(f"{C}title"))
         if depth_element is not None
         else None,
@@ -547,7 +313,7 @@ def _second_plot(element: Any, values: tuple[float | None, ...]) -> tuple[int, .
     the first pie empty keeps its first point there.
     """
     split = _val(element, "splitType", "auto")
-    threshold = _float(_val(element, "splitPos"))
+    threshold = as_number(_val(element, "splitPos"))
     sized = [(i, v) for i, v in enumerate(values) if v is not None and v > 0]
     if split == "cust":
         custom = element.find(f"{C}custSplit")
@@ -596,8 +362,8 @@ def _axis(
         label=title or fallback,
         hidden=_val(element, "delete", "0") in ("1", "true"),
         position=_val(element, "axPos", "b"),
-        minimum=_float(_val(scaling, "min")) if scaling is not None else None,
-        maximum=_float(_val(scaling, "max")) if scaling is not None else None,
+        minimum=as_number(_val(scaling, "min")) if scaling is not None else None,
+        maximum=as_number(_val(scaling, "max")) if scaling is not None else None,
         reversed=scaling is not None and _val(scaling, "orientation") == "maxMin",
         number_format=number_format,
     )
@@ -615,7 +381,7 @@ def _header_text(series: list[Any], tag: str, cells: Cells) -> str | None:
     if header is None:
         return None
     cell = cells(area.sheet, *header)
-    return _text_value(cell.value) if cell is not None else None
+    return as_text(cell.value) if cell is not None else None
 
 
 def _chart_title(chart: Any, series: list[Series]) -> str | None:
@@ -659,7 +425,7 @@ def _title_text(title: Any) -> str | None:
         text = " ".join(line.strip() for line in lines if line.strip())
         return text or None
     cached = _points(tx.find(f"{C}strRef"), None)
-    return _text_value(cached[0]) if cached else None
+    return as_text(cached[0]) if cached else None
 
 
 def _series_name(ser: Any, cells: Cells) -> str | None:
@@ -670,7 +436,7 @@ def _series_name(ser: Any, cells: Cells) -> str | None:
     if literal:
         return literal
     points = _points(tx, cells)
-    return _text_value(points[0]) if points else None
+    return as_text(points[0]) if points else None
 
 
 def _cache(source: Any) -> Any:
@@ -699,7 +465,7 @@ def _points(source: Any, cells: Cells | None) -> list[Any]:
     cache = _cache(source)
     if cache is None:
         area = parse_range(source.findtext(f".//{C}f"))
-        if area is None or cells is None or area.size() > _MAX_UNCACHED:
+        if area is None or cells is None or area.size() > MAX_UNCACHED:
             return []
         return [
             cell.value if cell is not None else None
@@ -713,7 +479,7 @@ def _points(source: Any, cells: Cells | None) -> list[Any]:
         for pt in cache.iter(f"{C}pt")
         if pt.get("idx", "0").isdigit()
     ]
-    count = min(max(indices, default=-1) + 1, _MAX_POINTS)
+    count = min(max(indices, default=-1) + 1, MAX_POINTS)
     if cache.tag == f"{C}multiLvlStrCache":
         levels = [_level(level, count) for level in cache.findall(f"{C}lvl")]
         labels = []
@@ -727,7 +493,7 @@ def _points(source: Any, cells: Cells | None) -> list[Any]:
         index = pt.get("idx", "0")
         if index.isdigit() and int(index) < count:
             text = pt.findtext(f"{C}v")
-            out[int(index)] = _number(text) if numeric else text
+            out[int(index)] = as_number(text) if numeric else text
     return out
 
 
@@ -782,181 +548,6 @@ def _explicit_format(axis: Any) -> str | None:
     return None if not code or code.lower() == "general" else code
 
 
-def _number(value: Any) -> float | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, float):
-        return value if math.isfinite(value) else None
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    return number if math.isfinite(number) else None
-
-
-def _float(value: str | None) -> float | None:
-    return _number(value)
-
-
-def _text_value(value: Any) -> str | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, float):
-        return _number_label(value)
-    return str(value)
-
-
-def _number_label(value: float) -> str:
-    return str(int(value)) if value.is_integer() else f"{value:.10g}"
-
-
-def _category_label(
-    value: Any, code: str | None, dates: bool, date1904: bool
-) -> str | None:
-    """A category as Excel labels it: text as it is, a date as the axis shows it."""
-    if value is None or value == "":
-        return None
-    if isinstance(value, str):
-        return value
-    number = _number(value)
-    if number is None:
-        return None
-    if is_date_format(code):
-        return format_date(serial_to_datetime(number, date1904), code)
-    if dates:
-        return format_date(serial_to_datetime(number, date1904), None)
-    return _number_label(number)
-
-
-def is_date_format(code: str | None) -> bool:
-    """
-    Whether an Excel number format shows a date or a time.
-
-    Parameters
-    ----------
-    code : str or None
-        The format code, such as ``"mmm-yy"`` or ``"0.0%"``.
-
-    Returns
-    -------
-    bool
-        ``True`` for a code with date or time parts and no digit placeholders.
-    """
-    if not code or code.lower() == "general":
-        return False
-    bare = _NOT_A_TOKEN.sub("", code.split(";")[0]).lower()
-    return any(c in bare for c in "ymdhs") and not re.search(r"[0#?]", bare)
-
-
-def serial_to_datetime(serial: float, date1904: bool = False) -> datetime:
-    """
-    The date an Excel serial number stands for.
-
-    Parameters
-    ----------
-    serial : float
-        Days since the workbook's epoch, with the time of day as a fraction.
-    date1904 : bool, default False
-        Whether the workbook counts from 1904-01-01 rather than 1900.
-
-    Returns
-    -------
-    datetime
-        The date and time, to the nearest second. In the 1900 system serial
-        60 is Excel's 1900-02-29, which never was; it reads as 1900-02-28.
-    """
-    if date1904:
-        base = datetime(1904, 1, 1)
-    elif serial >= 61:
-        base = datetime(1899, 12, 30)
-    else:
-        base = datetime(1899, 12, 31)
-        if serial >= 60:
-            serial -= 1
-    return base + timedelta(seconds=round(serial * 86400))
-
-
-def format_date(moment: datetime, code: str | None) -> str:
-    """
-    A date written the way an Excel format code writes it.
-
-    Parameters
-    ----------
-    moment : datetime
-        The date.
-    code : str or None
-        An Excel date format code such as ``"mmm-yy"``. Without one, the date
-        is written ISO 8601 style, with the time only when there is one.
-
-    Returns
-    -------
-    str
-        ``"Jan-24"`` for ``mmm-yy``. Names are in English.
-    """
-    if not code or not is_date_format(code):
-        if moment.hour or moment.minute or moment.second:
-            return moment.strftime("%Y-%m-%d %H:%M:%S").removesuffix(":00")
-        return moment.strftime("%Y-%m-%d")
-    tokens = _DATE_TOKEN.findall(code.split(";")[0])
-    twelve_hour = any(t.lower() in ("am/pm", "a/p") for t in tokens)
-    out = []
-    for i, token in enumerate(tokens):
-        lower = token.lower()
-        if lower in ("m", "mm") and _is_minute(tokens, i):
-            out.append(f"{moment.minute:02d}" if lower == "mm" else str(moment.minute))
-        else:
-            out.append(_date_part(token, lower, moment, twelve_hour))
-    return "".join(out).strip()
-
-
-def _is_minute(tokens: list[str], index: int) -> bool:
-    """Whether an ``m`` token means minutes: after hours, or before seconds."""
-
-    def letters(seq: Iterator[str]) -> str | None:
-        for token in seq:
-            lower = token.lower()
-            if lower[:1] in "ymdhs" and not lower.startswith(("[", '"', "\\")):
-                return lower
-        return None
-
-    before = letters(reversed(tokens[:index]))
-    after = letters(iter(tokens[index + 1 :]))
-    return (before or "").startswith("h") or (after or "").startswith("s")
-
-
-def _date_part(token: str, lower: str, moment: datetime, twelve_hour: bool) -> str:
-    hour = moment.hour % 12 or 12 if twelve_hour else moment.hour
-    parts = {
-        "yyyy": f"{moment.year:04d}",
-        "e": f"{moment.year:04d}",
-        "yy": f"{moment.year % 100:02d}",
-        "mmmmm": _MONTHS[moment.month - 1][0],
-        "mmmm": _MONTHS[moment.month - 1],
-        "mmm": _MONTHS[moment.month - 1][:3],
-        "mm": f"{moment.month:02d}",
-        "m": str(moment.month),
-        "dddd": _DAYS[moment.weekday()],
-        "ddd": _DAYS[moment.weekday()][:3],
-        "dd": f"{moment.day:02d}",
-        "d": str(moment.day),
-        "hh": f"{hour:02d}",
-        "h": str(hour),
-        "ss": f"{moment.second:02d}",
-        "s": str(moment.second),
-        "am/pm": "AM" if moment.hour < 12 else "PM",
-        "a/p": "A" if moment.hour < 12 else "P",
-    }
-    if lower in parts:
-        return parts[lower]
-    if token.startswith('"') and token.endswith('"'):
-        return token[1:-1]
-    if token.startswith("\\"):
-        return token[1:]
-    if token.startswith("["):
-        return ""
-    return token
-
-
 def _no_line(ser: Any) -> bool:
     line = ser.find(f"{C}spPr/{A}ln")
     return line is not None and line.find(f"{A}noFill") is not None
@@ -975,69 +566,14 @@ def _series_color(ser: Any, kind: str, theme: dict[str, str]) -> str | None:
             fill = shape.find(f"{A}solidFill")
     else:
         fill = shape.find(f"{A}solidFill")
-    return _color(fill, theme)
+    return fill_color(fill, theme)
 
 
 def _point_colors(ser: Any, theme: dict[str, str]) -> Iterator[tuple[int, str]]:
     for point in ser.findall(f"{C}dPt"):
-        color = _color(point.find(f"{C}spPr/{A}solidFill"), theme)
+        color = fill_color(point.find(f"{C}spPr/{A}solidFill"), theme)
         if color is not None:
             yield int(_val(point, "idx", "0")), color
-
-
-def _color(fill: Any, theme: dict[str, str]) -> str | None:
-    """A solid fill's color, with its luminance modifiers applied."""
-    if fill is None:
-        return None
-    for color in fill:
-        if not isinstance(color.tag, str):
-            continue
-        name = etree.QName(color).localname
-        if name == "srgbClr":
-            base = "#" + (color.get("val") or "").upper()
-        elif name == "schemeClr":
-            base = theme.get(color.get("val", ""))
-        elif name == "sysClr":
-            base = "#" + (color.get("lastClr") or "").upper()
-        else:
-            base = None
-        if base is None or len(base) != 7:
-            return None
-        mod = _float(_child_val(color, "lumMod"))
-        off = _float(_child_val(color, "lumOff"))
-        return _luminance(base, (mod or 100000) / 100000, (off or 0) / 100000)
-    return None
-
-
-def _child_val(element: Any, name: str) -> str | None:
-    child = element.find(f"{A}{name}")
-    return child.get("val") if child is not None else None
-
-
-def _luminance(color: str, mod: float, off: float) -> str:
-    if mod == 1 and off == 0:
-        return color
-    r, g, b = (int(color[i : i + 2], 16) / 255 for i in (1, 3, 5))
-    h, lum, s = colorsys.rgb_to_hls(r, g, b)
-    lum = min(1.0, max(0.0, lum * mod + off))
-    r, g, b = colorsys.hls_to_rgb(h, lum, s)
-    return "#{:02X}{:02X}{:02X}".format(*(round(v * 255) for v in (r, g, b)))
-
-
-def _default_color(index: int, theme: dict[str, str]) -> str | None:
-    """
-    The color Excel's default style gives series ``index``: the six theme
-    accents in turn, then the six again darker, then lighter.
-    """
-    base = theme.get(f"accent{index % 6 + 1}")
-    if base is None:
-        return None
-    cycle = (index // 6) % 3
-    if cycle == 1:
-        return _luminance(base, 0.6, 0)
-    if cycle == 2:
-        return _luminance(base, 0.6, 0.4)
-    return base
 
 
 def _val(element: Any, tag: str, default: str | None = None) -> Any:
