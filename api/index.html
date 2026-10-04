@@ -430,7 +430,7 @@ cookieconsent.run({
 </section>
 <section id="reading-the-charts-of-a-tensorboard-log-directory" class="level2">
 <h2 class="anchored" data-anchor-id="reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</h2>
-<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and their histograms with <code>maidr.read_tensorboard_histograms()</code>, one ridgeline per tag and run, and pass a chart either returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code> and <code>maidr.tensorboard.load_histograms()</code>. Experimental.</p>
+<p>Read the scalars Keras, TensorFlow and PyTorch log with <code>maidr.read_tensorboard_scalars()</code>, one chart per tag, and their histograms with <code>maidr.read_tensorboard_distributions()</code> and <code>maidr.read_tensorboard_histograms()</code>, one chart per tag and run, and pass a chart either returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>; or read the values themselves with <code>maidr.tensorboard.load_scalars()</code> and <code>maidr.tensorboard.load_histograms()</code>. Experimental.</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
@@ -454,14 +454,18 @@ cookieconsent.run({
 <td>Smooth values the way TensorBoard’s Scalars dashboard does.</td>
 </tr>
 <tr class="even">
+<td><a href="../api/read_tensorboard_distributions.html#maidr.read_tensorboard_distributions">read_tensorboard_distributions</a></td>
+<td>Read the distribution charts of a TensorBoard log directory.</td>
+</tr>
+<tr class="odd">
 <td><a href="../api/read_tensorboard_histograms.html#maidr.read_tensorboard_histograms">read_tensorboard_histograms</a></td>
 <td>Read the histogram charts of a TensorBoard log directory, as ridgelines.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../api/tensorboard.load_histograms.html#maidr.tensorboard.load_histograms">tensorboard.load_histograms</a></td>
 <td>Read the histograms of a TensorBoard log directory.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../api/tensorboard.HistogramSeries.html#maidr.tensorboard.HistogramSeries">tensorboard.HistogramSeries</a></td>
 <td>The histograms one run logged under one tag, in the order TensorBoard keeps.</td>
 </tr>
