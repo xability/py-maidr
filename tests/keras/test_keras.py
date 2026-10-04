@@ -69,6 +69,12 @@ def test_a_metric_with_no_validation_is_one_line_named_for_itself():
     assert list(_lines(learning_rate)) == ["learning_rate"]
 
 
+def test_a_metric_with_only_validation_values_is_named_validation():
+    (layer,) = _layers(plot_history({"val_acc": [0.5, 0.6]}))
+    assert layer["title"] == "acc"
+    assert list(_lines(layer)) == ["validation"]
+
+
 def test_a_history_object_is_read_with_its_epochs():
     history = types.SimpleNamespace(history={"loss": [1.0, 0.5]}, epoch=[5, 6])
     (layer,) = _layers(plot_history(history))

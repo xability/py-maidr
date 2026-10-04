@@ -58,6 +58,9 @@ def plot_history(
     given some. A metric with no validation values, such as the learning
     rate, is one line named for the metric. The loss comes first.
 
+    As in Keras, a metric whose name starts with ``val_`` is read as the
+    validation curve of the metric named without it.
+
     Parameters
     ----------
     history : keras.callbacks.History or dict
@@ -191,10 +194,29 @@ class MaidrCallback(_Callback if _Callback is not None else object):
         return _draw(_ordered(curves), self.metrics)
 
     def on_train_begin(self, logs: Mapping[str, Any] | None = None) -> None:
+        """
+        Start a new history, as each ``model.fit`` does.
+
+        Parameters
+        ----------
+        logs : mapping, optional
+            Passed by Keras; not read.
+        """
         self.history = {}
         self._written_at = None
 
     def on_epoch_end(self, epoch: int, logs: Mapping[str, Any] | None = None) -> None:
+        """
+        Record the epoch's metrics, and write the page every ``every`` epochs.
+
+        Parameters
+        ----------
+        epoch : int
+            The epoch that ended, counted from 0 as Keras passes it.
+        logs : mapping, optional
+            Each metric's value at this epoch. A value that is not a single
+            number is not recorded.
+        """
         for key, value in (logs or {}).items():
             number = _number(value)
             if number is not None:
@@ -203,6 +225,14 @@ class MaidrCallback(_Callback if _Callback is not None else object):
             self._write(epoch + 1)
 
     def on_train_end(self, logs: Mapping[str, Any] | None = None) -> None:
+        """
+        Write the page a last time, or show the charts in a notebook.
+
+        Parameters
+        ----------
+        logs : mapping, optional
+            Passed by Keras; not read.
+        """
         if not any(self.history.values()):
             return
         last = max(epoch for points in self.history.values() for epoch, _ in points)
@@ -218,6 +248,7 @@ class MaidrCallback(_Callback if _Callback is not None else object):
             maidr.show(self.figure())
 
     def _write(self, epoch: int) -> None:
+        """Replace the page with the charts so far, warning if it cannot."""
         import maidr
 
         figure = self.figure()
@@ -258,6 +289,22 @@ def _logs(history: Any) -> tuple[Mapping[str, Any], list[int] | None]:
 def _curves_from_logs(
     logs: Mapping[str, Any], epochs: list[int] | None
 ) -> dict[str, _Curves]:
+    """
+    Each metric's curves, from a ``History.history`` dictionary.
+
+    Parameters
+    ----------
+    logs : mapping
+        Each key's values, one per epoch.
+    epochs : list of int or None
+        ``History.epoch``, counted from 0, or ``None`` to count from 1.
+
+    Returns
+    -------
+    dict
+        Metric by metric, loss first, each its training and validation curve
+        as epochs and values. A key that cannot be drawn is warned about.
+    """
     lengths = [len(values) for values in logs.values() if _is_sequence(values)]
     count = len(epochs) if epochs else max(lengths, default=0)
     numbers = np.asarray(epochs, dtype=int) + 1 if epochs else np.arange(1, count + 1)
@@ -313,10 +360,32 @@ def _number(value: Any) -> float | None:
 
 
 def _is_sequence(values: Any) -> bool:
+    """Whether ``values`` is a list of values, one per epoch."""
     return not isinstance(values, (str, bytes, Mapping)) and hasattr(values, "__len__")
 
 
 def _draw(curves: dict[str, _Curves], metrics: Iterable[str] | None) -> Figure:
+    """
+    Draw one chart per metric, top to bottom, through the patched ``plot``.
+
+    Parameters
+    ----------
+    curves : dict
+        Metric by metric, each its curves as epochs and values.
+    metrics : iterable of str or None
+        Only these metrics, in this order; one not in ``curves`` is warned
+        about.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        A figure not managed by pyplot, with its layers registered with maidr.
+
+    Raises
+    ------
+    ValueError
+        If no metric is left to draw.
+    """
     if metrics is not None:
         wanted = list(dict.fromkeys(metrics))
         for name in wanted:
@@ -331,10 +400,12 @@ def _draw(curves: dict[str, _Curves], metrics: Iterable[str] | None) -> Figure:
     fig = Figure(figsize=(_WIDTH, _PANEL_HEIGHT * len(curves) + 0.4))
     axes = fig.subplots(len(curves), 1, squeeze=False)[:, 0]
     for ax, (name, lines) in zip(axes, curves.items()):
-        # A metric with one curve, such as the learning rate, is named for
-        # itself: "training" would say it was measured on the training data.
+        # A metric with only its training curve, such as the learning rate,
+        # is named for itself: "training" would say it was measured on the
+        # training data. One with only its validation curve stays
+        # "validation", which is what it was measured on.
         for color, (curve, (epochs, values)) in zip(("C0", "C1"), lines.items()):
-            label = curve if len(lines) > 1 else name
+            label = name if lines.keys() == {TRAINING} else curve
             ax.plot(epochs, values, color=color, marker="o", markersize=3, label=label)
         ax.set_title(name)
         ax.set_xlabel("Epoch")
