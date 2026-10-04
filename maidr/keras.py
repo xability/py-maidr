@@ -121,7 +121,8 @@ class MaidrCallback(_Callback if _Callback is not None else object):
     ----------
     path : str or os.PathLike, optional
         The HTML file to keep up to date. The page is replaced in one step,
-        so a reload never meets a half-written file.
+        so a reload never meets a half-written file. A page that cannot be
+        written is warned about, and training goes on.
     every : int, default 1
         Write the page every this many epochs.
     metrics : iterable of str, optional
@@ -225,6 +226,14 @@ class MaidrCallback(_Callback if _Callback is not None else object):
         try:
             maidr.save_html(figure, partial)
             os.replace(partial, self.path)
+        except OSError as error:
+            # The page is an aid to watching the run; a full disk or a
+            # directory that went away must not cost the training itself.
+            warn_at_caller(
+                f"maidr could not write {self.path} after epoch {epoch} ({error}); "
+                "training goes on."
+            )
+            return
         finally:
             maidr.close(figure)
             if os.path.exists(partial):

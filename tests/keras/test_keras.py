@@ -189,6 +189,19 @@ def test_the_page_is_written_every_n_epochs_and_at_the_end(callback, tmp_path):
     assert not list(tmp_path.glob(".*partial"))
 
 
+def test_a_page_that_cannot_be_written_warns_and_training_goes_on(callback, tmp_path):
+    # A file where its directory should be: nothing can be written there.
+    blocked = tmp_path / "blocked"
+    blocked.write_text("")
+    cb = callback(blocked / "training.html")
+    cb.on_train_begin()
+    with pytest.warns(UserWarning, match="could not write.*after epoch 1"):
+        cb.on_epoch_end(0, {"loss": 1.0})
+    with pytest.warns(UserWarning, match="after epoch 2"):
+        cb.on_epoch_end(1, {"loss": 0.5})
+    assert [x for x, _ in cb.history["loss"]] == [1, 2]
+
+
 def test_validation_on_some_epochs_is_placed_on_those_epochs(callback):
     cb = callback()
     _train(cb, 6, validate_every=3)
