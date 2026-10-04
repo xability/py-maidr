@@ -56,6 +56,29 @@ while the training loss keeps falling: the model has begun to overfit.
 `metrics=` keeps only the metrics you name, in that order, such as
 `plot_history(history, metrics=["loss"])`.
 
+### Confusion Matrix
+
+`maidr.keras.plot_confusion_matrix()` draws what a classifier got right and
+wrong as a heatmap: the true class down the rows, the predicted class across
+the columns, so the diagonal is the correct answers. Move across a row to hear
+where one class's samples went. It takes class indices or what
+`model.predict` returns, and `normalize="true"` reads each cell as a share of
+its true class.
+
+```{python}
+#| warning: false
+#| fig-alt: Heatmap of a three-class confusion matrix, true class down the rows and predicted class across the columns
+import numpy as np
+from maidr.keras import plot_confusion_matrix
+
+y_true = np.array([0] * 20 + [1] * 20 + [2] * 20)
+y_pred = np.array([0] * 17 + [1] * 3 + [1] * 15 + [2] * 5 + [2] * 18 + [0] * 2)
+maidr.show(plot_confusion_matrix(y_true, y_pred, labels=["cat", "dog", "bird"]))
+```
+
+A confusion matrix logged to TensorBoard as an image carries no numbers a
+screen reader can read; drawn from the predictions, it keeps them.
+
 ### Following a Model While It Trains
 
 `MaidrCallback` writes an accessible page of the same charts every `every`

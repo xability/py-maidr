@@ -331,7 +331,9 @@ quartodoc:
         - tensorboard.HistogramSeries
     - title: Drawing the training curves of a Keras model
       desc: >
-        Draw what `model.fit` returns with `maidr.keras.plot_history()`, or
+        Draw what `model.fit` returns with `maidr.keras.plot_history()` and a
+        classifier's confusion matrix with
+        `maidr.keras.plot_confusion_matrix()`, or
         keep an accessible page up to date while the model trains with
         `maidr.keras.MaidrCallback`. Import `maidr.keras` to use them.
         Experimental.
@@ -340,6 +342,7 @@ quartodoc:
       package: maidr.keras
       contents:
         - plot_history
+        - plot_confusion_matrix
         - MaidrCallback
     - title: Registering and releasing figures
       desc: >

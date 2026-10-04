@@ -315,3 +315,84 @@ def test_a_real_fit_keeps_the_page_up_to_date(tmp_path):
     ]
     assert _lines(from_callback[0]) == _lines(from_history[0])
     assert list(_lines(from_history[0])) == ["training", "validation"]
+
+
+# -- plot_confusion_matrix ----------------------------------------------------
+
+
+def _heat(figure) -> dict:
+    (layer,) = _layers(figure)
+    assert layer["type"] == "heat"
+    return layer
+
+
+def test_a_confusion_matrix_is_a_heatmap_of_true_against_predicted():
+    figure = maidr.keras.plot_confusion_matrix(
+        [0, 0, 1, 1, 2], [0, 1, 1, 1, 2], labels=["cat", "dog", "bird"]
+    )
+    layer = _heat(figure)
+    assert layer["axes"]["x"]["label"] == "Predicted"
+    assert layer["axes"]["y"]["label"] == "True"
+    assert layer["axes"]["z"]["label"] == "Count"
+    assert layer["data"]["x"] == layer["data"]["y"] == ["cat", "dog", "bird"]
+    assert layer["data"]["points"] == [[1, 1, 0], [0, 2, 0], [0, 0, 1]]
+
+
+@pytest.mark.parametrize(
+    "y_pred",
+    [
+        np.array([[0.9, 0.1], [0.2, 0.8], [0.6, 0.4]]),  # softmax rows
+        np.array([[0.1], [0.7], [0.4]]),  # one sigmoid output
+        np.array([0.1, 0.7, 0.4]),
+    ],
+    ids=["softmax", "sigmoid-column", "sigmoid"],
+)
+def test_predicted_probabilities_are_read_as_classes(y_pred):
+    layer = _heat(maidr.keras.plot_confusion_matrix([0, 1, 1], y_pred))
+    assert layer["data"]["points"] == [[1, 0], [1, 1]]
+
+
+def test_one_hot_true_classes_are_read_as_classes():
+    layer = _heat(maidr.keras.plot_confusion_matrix(np.eye(2)[[0, 1]], [0, 0]))
+    assert layer["data"]["points"] == [[1, 0], [1, 0]]
+
+
+@pytest.mark.parametrize(
+    "normalize, z, points",
+    [
+        ("true", "Share of the true class", [[0.5, 0.5], [0.0, 1.0]]),
+        ("pred", "Share of the predicted class", [[1.0, 0.3333], [0.0, 0.6667]]),
+        ("all", "Share of all samples", [[0.25, 0.25], [0.0, 0.5]]),
+    ],
+)
+def test_a_normalized_matrix_says_what_each_cell_is_a_share_of(normalize, z, points):
+    layer = _heat(
+        maidr.keras.plot_confusion_matrix(
+            [0, 0, 1, 1], [0, 1, 1, 1], normalize=normalize
+        )
+    )
+    assert layer["axes"]["z"]["label"] == z
+    assert layer["data"]["points"] == points
+
+
+def test_a_class_that_never_occurs_reads_zero_not_nan():
+    layer = _heat(
+        maidr.keras.plot_confusion_matrix(
+            [0, 0], [0, 0], labels=["a", "b"], normalize="true"
+        )
+    )
+    assert layer["data"]["points"] == [[1.0, 0.0], [0.0, 0.0]]
+
+
+@pytest.mark.parametrize(
+    "args, kwargs, match",
+    [
+        (([0, 1], [0]), {}, "counted in pairs"),
+        (([], []), {}, "no samples"),
+        (([0, 2], [0, 1]), {"labels": ["a", "b"]}, "names 2 classes"),
+        (([0], [0]), {"normalize": "rows"}, "normalize"),
+    ],
+)
+def test_a_confusion_matrix_that_cannot_be_counted_raises(args, kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        maidr.keras.plot_confusion_matrix(*args, **kwargs)

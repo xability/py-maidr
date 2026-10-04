@@ -208,6 +208,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
     },
     "examples-keras.qmd": {
         "Training Curves from model.fit": [["line", "line"]],
+        "Confusion Matrix": [["heat"]],
     },
     "examples-tensorboard.qmd": {
         "Training and Validation Loss": [["line"]],
