@@ -555,7 +555,7 @@ cookieconsent.run({
 </section>
 <section id="drawing-the-training-curves-and-graph-of-a-keras-model" class="level2">
 <h2 class="anchored" data-anchor-id="drawing-the-training-curves-and-graph-of-a-keras-model">Drawing the training curves and graph of a Keras model</h2>
-<p>Draw what <code>model.fit</code> returns with <code>maidr.keras.plot_history()</code> and a classifier’s confusion matrix with <code>maidr.keras.plot_confusion_matrix()</code>, its layers with <code>maidr.keras.plot_model()</code>, or keep an accessible page up to date while the model trains with <code>maidr.keras.MaidrCallback</code>. Import <code>maidr.keras</code> to use them. Experimental.</p>
+<p>Draw what <code>model.fit</code> returns with <code>maidr.keras.plot_history()</code> and a classifier’s confusion matrix with <code>maidr.keras.plot_confusion_matrix()</code>, a binary classifier’s precision-recall curve with <code>maidr.keras.plot_pr_curve()</code>, its layers with <code>maidr.keras.plot_model()</code>, or keep an accessible page up to date while the model trains with <code>maidr.keras.MaidrCallback</code>. Import <code>maidr.keras</code> to use them. Experimental.</p>
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
@@ -567,10 +567,14 @@ cookieconsent.run({
 <td>Draw a classifier’s confusion matrix as a heatmap.</td>
 </tr>
 <tr class="odd">
+<td><a href="../api/plot_pr_curve.html#maidr.keras.plot_pr_curve">plot_pr_curve</a></td>
+<td>Draw a binary classifier’s precision-recall curve from its predictions.</td>
+</tr>
+<tr class="even">
 <td><a href="../api/plot_model.html#maidr.keras.plot_model">plot_model</a></td>
 <td>Draw a Keras model’s layers as a directed graph.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../api/MaidrCallback.html#maidr.keras.MaidrCallback">MaidrCallback</a></td>
 <td>Keep an accessible page of a model’s training curves while it trains.</td>
 </tr>
