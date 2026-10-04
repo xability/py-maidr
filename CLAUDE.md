@@ -105,6 +105,14 @@ artists and `layers.py` registers an `ExcelLayer` built from the chart's own
 values through `FigureManager.add_plot`, its selectors naming each mark's gid.
 It reads with lxml, not openpyxl, which loads every cell of the workbook
 before it shows a chart.
+`maidr/tensorboard/` (experimental, `docs/stability.qmd#tensorboard-support`)
+reads the scalars of a TensorBoard log directory for
+`maidr.read_tensorboard_scalars`: `events.py` decodes the TFRecord event files
+and the few protobuf fields a scalar needs by hand, so neither TensorFlow,
+TensorBoard nor protobuf is a dependency, and follows TensorBoard's own rules
+for restarted runs; `__init__.py` draws one chart per tag through the patched
+`Axes.plot`. Its tests compare against what TensorBoard itself read from logs
+real writers wrote (`tests/tensorboard/fixtures/make_fixtures.py`).
 
 ### Canonical `axes` Payload
 
@@ -138,6 +146,7 @@ Tests live in `tests/` using pytest + pytest-mock. Test fixtures in `tests/fixtu
 `tests/docs/test_gallery_examples.py` executes every `{python}` chunk of the
 gallery pages (`docs/examples/*.qmd`, `docs/examples-plotly.qmd`,
 `docs/examples-bokeh.qmd`, `docs/examples-plotnine.qmd`,
-`docs/examples-altair.qmd`, `docs/examples-excel.qmd`) and pins the layer types
+`docs/examples-altair.qmd`, `docs/examples-excel.qmd`,
+`docs/examples-tensorboard.qmd`) and pins the layer types
 each section emits, plus the measured claims the prose makes. Adding or changing a gallery example means
 updating its `EXPECTED_LAYERS` entry there.

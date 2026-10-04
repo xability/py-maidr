@@ -153,6 +153,20 @@ as the list of its regions, without their shapes. A chart part it cannot read
 is left out with a warning naming it. See the
 [Excel gallery](examples-excel.qmd) for what it reads today.
 
+## TensorBoard support
+
+The training curves read out of a TensorBoard log directory
+(`maidr.read_tensorboard_scalars("logs")`) come through a reader that is itself
+**experimental**, although every chart it emits is the stable `line` type: how
+runs and tags become charts and lines, how smoothing is drawn, how a long run is
+thinned, and what is skipped may change without a deprecation period, including
+in a patch release. Each tag's values are read from the event files, the values
+TensorBoard reads, and drawn again with matplotlib; the reader follows that
+drawing, not TensorBoard's own. Only scalars are read today: histograms,
+distributions, PR curves, hyperparameters and graphs are tracked in
+[#846](https://github.com/xability/py-maidr/issues/846). See the
+[TensorBoard gallery](examples-tensorboard.qmd) for what it reads today.
+
 ## Drawn but not read
 
 A few matplotlib calls draw marks that no `PlotType` reads, and that is

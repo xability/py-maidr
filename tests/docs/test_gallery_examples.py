@@ -49,11 +49,12 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.excel import ExcelChart
+from maidr.tensorboard import TensorBoardChart
 
 DOCS = Path(__file__).parents[2] / "docs"
 
 #: The gallery: the matplotlib/seaborn family pages plus the one-page Plotly,
-#: Bokeh, plotnine, Altair and Excel galleries. Discovered rather than listed, so a new
+#: Bokeh, plotnine, Altair, Excel and TensorBoard galleries. Discovered rather than listed, so a new
 #: page is run as soon as it exists -- and fails below until its sections are
 #: listed.
 PAGES = sorted(DOCS.glob("examples*.qmd")) + sorted((DOCS / "examples").glob("*.qmd"))
@@ -203,6 +204,10 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Radar Chart [experimental]": [["radar"]],
         "Waterfall Chart [experimental]": [["waterfall"]],
         "Treemap [experimental]": [["treemap"]],
+    },
+    "examples-tensorboard.qmd": {
+        "Training and Validation Loss": [["line"]],
+        "Accuracy Without Smoothing": [["line"]],
     },
     "examples-altair.qmd": {
         "Bar Plot": [["bar"]],
@@ -366,8 +371,8 @@ class _Capture:
 
     def maidr_show(self, plot: Any = None, *args: Any, **kwargs: Any) -> None:
         """``maidr.show(plot)``: Altair, Plotly, Bokeh, plotnine, an Excel
-        chart, or pyplot."""
-        if isinstance(plot, ExcelChart):
+        or TensorBoard chart, or pyplot."""
+        if isinstance(plot, (ExcelChart, TensorBoardChart)):
             # Drawn outside pyplot, so not among the figures `plt.show()` sees.
             self._record(_from_schema(FigureManager.get_maidr(plot.figure)._flatten_maidr()))
             FigureManager.destroy(plot.figure)
