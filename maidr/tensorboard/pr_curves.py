@@ -179,9 +179,20 @@ def read_tensorboard_pr_curves(
         for run, series in by_run.items():
             index = _at(series.steps, step)
             if index is None:
+                warn_at_caller(
+                    f"'{tag}' ({run}) logged no PR curve at or before step {step}; "
+                    "left out."
+                )
+                continue
+            curve = _curve(run, series.curves[index])
+            if not curve.recall.size:
+                warn_at_caller(
+                    f"'{tag}' ({run}) predicted nothing positive at any threshold, "
+                    "so its precision is undefined throughout; left out."
+                )
                 continue
             steps.append(int(series.steps[index]))
-            drawn.append(_curve(run, series.curves[index]))
+            drawn.append(curve)
         if not drawn:
             continue
         at = steps[0] if len(set(steps)) == 1 else None
@@ -215,7 +226,8 @@ def plot_pr_curves(
     Raises
     ------
     ValueError
-        If the labels hold no positive, or a score array differs in length.
+        If the labels hold no positive, or a score array differs in length or
+        holds a NaN or infinite score.
     """
     truth = np.asarray(y_true).reshape(-1).astype(bool)
     if not truth.any():
@@ -227,6 +239,11 @@ def plot_pr_curves(
         if values.shape != truth.shape:
             raise ValueError(
                 f"'{name}' scores {values.size} samples and there are {truth.size}."
+            )
+        if not np.isfinite(values).all():
+            raise ValueError(
+                f"'{name}' has {int((~np.isfinite(values)).sum())} scores that are "
+                "NaN or infinite; a PR curve ranks samples by a finite score."
             )
         thresholds = np.unique(values)[::-1]
         predicted = values[None, :] >= thresholds[:, None]
@@ -256,6 +273,8 @@ def _curve(name: str, data: np.ndarray, thresholds: np.ndarray | None = None) ->
     tp, fp, tn, fn, precision, recall = np.asarray(data, dtype=float)
     if thresholds is None:
         thresholds = np.linspace(0, 1, data.shape[1])
+    # tp + fn and the total are the same at every threshold, so any column
+    # gives the share of positives, whichever way the thresholds run.
     total = tp[0] + fp[0] + tn[0] + fn[0]
     prevalence = float((tp[0] + fn[0]) / total) if total else 0.0
     # No positive prediction at a threshold leaves its precision undefined;

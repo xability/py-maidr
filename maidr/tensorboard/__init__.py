@@ -27,6 +27,7 @@ from maidr.tensorboard.distributions import read_tensorboard_distributions
 from maidr.tensorboard.pr_curves import (
     PRCurveSeries,
     load_pr_curves,
+    plot_pr_curves,
     read_tensorboard_pr_curves,
 )
 from maidr.tensorboard.projector import (
@@ -55,6 +56,7 @@ __all__ = [
     "load_hparams",
     "load_pr_curves",
     "load_scalars",
+    "plot_pr_curves",
     "read_tensorboard_distributions",
     "read_tensorboard_histograms",
     "read_tensorboard_hparams",

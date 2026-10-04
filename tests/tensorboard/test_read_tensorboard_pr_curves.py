@@ -63,7 +63,8 @@ def test_recall_rises_along_each_line_and_undefined_precision_is_left_out():
 def test_an_earlier_step_is_read_at_or_before_it():
     (chart,) = read_tensorboard_pr_curves(TORCH, step=5)
     assert _layer(chart.figure)["title"] == "positive (step 0)"
-    assert read_tensorboard_pr_curves(TORCH, step=-1) == []
+    with pytest.warns(UserWarning, match="no PR curve at or before step -1"):
+        assert read_tensorboard_pr_curves(TORCH, step=-1) == []
 
 
 def test_average_precision_is_the_stepwise_area():
@@ -85,3 +86,34 @@ def test_a_curve_from_labels_and_scores():
 def test_no_pr_curves_warns_and_reads_nothing(tmp_path):
     with pytest.warns(UserWarning, match="no PR curves"):
         assert read_tensorboard_pr_curves(tmp_path) == []
+
+
+def test_plot_pr_curves_is_exported_from_the_package():
+    from maidr.tensorboard import plot_pr_curves as exported
+
+    assert exported is plot_pr_curves
+
+
+def test_a_nan_score_is_refused():
+    with pytest.raises(ValueError, match="NaN or infinite"):
+        plot_pr_curves([1, 0, 1], [0.9, float("nan"), 0.4])
+
+
+def test_a_run_that_never_predicted_positive_is_left_out(monkeypatch):
+    import maidr.tensorboard.pr_curves as module
+
+    thresholds = 5
+    empty = np.zeros((6, thresholds))
+    empty[3] = 4  # every positive missed: tp + fp is 0 at every threshold
+    empty[2] = 6
+    good = module.load_pr_curves(TORCH)["positive"]["good"]
+    series = {
+        "positive": {
+            "empty": module.PRCurveSeries(np.array([0]), np.array([0.0]), [empty]),
+            "good": good,
+        }
+    }
+    monkeypatch.setattr(module, "load_pr_curves", lambda *a, **k: series)
+    with pytest.warns(UserWarning, match="predicted nothing positive"):
+        (chart,) = read_tensorboard_pr_curves(TORCH)
+    assert [run.split(" (")[0] for run in chart.runs] == ["good"]
