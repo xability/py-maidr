@@ -221,6 +221,22 @@ def embedding_view(logdir: str) -> dict:
     }
 
 
+def torch_pr_curves(logdir: str) -> None:
+    """PyTorch's ``add_pr_curve``: two classifiers, one far better, at two steps."""
+    from torch.utils.tensorboard import SummaryWriter
+
+    rng = np.random.default_rng(5)
+    labels = rng.random(400) < 0.3
+    for run, noise in (("good", 0.15), ("poor", 0.45)):
+        writer = SummaryWriter(os.path.join(logdir, run))
+        for step in (0, 10):
+            scores = np.clip(
+                labels * 0.6 + 0.2 + rng.normal(scale=noise, size=400), 0, 1
+            )
+            writer.add_pr_curve("positive", labels, scores, global_step=step)
+        writer.close()
+
+
 def tensorboard_view(logdir: str, plugin: str = "scalars") -> dict:
     """
     What TensorBoard reads: run -> tag -> [[step, wall_time, value], ...].
@@ -273,6 +289,7 @@ WRITERS = {
     "torch_histograms": (torch_histograms, "histograms"),
     "hparams_sweep": (hparams_sweep, "hparams"),
     "torch_embedding": (torch_embedding, "projector"),
+    "torch_pr_curves": (torch_pr_curves, "pr_curves"),
 }
 
 

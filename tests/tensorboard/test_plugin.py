@@ -185,7 +185,11 @@ def test_chart_page_closes_the_figures_it_drew(logdir):
     from maidr.core.figure_manager import FigureManager
 
     before = len(FigureManager.figs)
-    chart_page(str(logdir), "hparams", index="1")
+    for index in ("0", "1"):
+        chart_page(str(logdir), "hparams", index=index)
+    assert len(FigureManager.figs) == before
+    with pytest.raises(KeyError):
+        chart_page(str(logdir), "hparams", index="2")
     assert len(FigureManager.figs) == before
 
 

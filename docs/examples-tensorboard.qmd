@@ -8,6 +8,7 @@ resources:
   - tensorboard-histograms/**
   - tensorboard-hparams/**
   - tensorboard-projector/**
+  - tensorboard-pr-curves/**
 filters:
   - line-highlight
 ---
@@ -43,7 +44,8 @@ curves of a model can be compared point by point.
 | Histograms, as ridgelines [experimental] | yes |
 | Hyperparameter sweeps (HParams), as a scatter matrix and as parallel coordinates [experimental] | yes |
 | Embedding Projector, as a 2D scatter of the principal components | yes |
-| Images, PR curves, graphs | not yet |
+| PR curves | yes |
+| Images, graphs | not yet |
 
 The examples read `tensorboard-logs/`, the log directory of a small model trained for twelve epochs with the `TensorBoard` callback.
 
@@ -138,6 +140,25 @@ follow one of them through training.
 #| fig-alt: Distribution chart of the activations, nested bands around a median line rising and widening over the steps
 (activations, constant) = maidr.read_tensorboard_distributions("tensorboard-histograms")
 maidr.show(activations)
+```
+
+### PR Curves
+
+`maidr.read_tensorboard_pr_curves()` reads what TensorBoard's PR Curves
+dashboard shows: per tag, each run's precision against its recall, one point
+per decision threshold, at the run's last step (or `step=`). Each line is
+named with its average precision and the precision a classifier guessing at
+random reaches, the share of positives, so you hear at once whether a run is
+any better than chance: *good (AP 0.99, chance 0.32)*. The chance level is
+drawn as a dashed line. A threshold at which nothing was predicted positive
+has no precision and is left out. The example reads `tensorboard-pr-curves/`,
+written by PyTorch's `add_pr_curve` for a good and a poor classifier.
+
+```{python}
+#| warning: false
+#| fig-alt: Precision-recall curves of a good and a poor classifier, with their chance level dashed
+(positive,) = maidr.read_tensorboard_pr_curves("tensorboard-pr-curves")
+maidr.show(positive)
 ```
 
 ### Hyperparameter Sweep as a Scatter Matrix
