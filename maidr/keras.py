@@ -126,7 +126,7 @@ class MaidrCallback(_Callback if _Callback is not None else object):
     path : str or os.PathLike, optional
         The HTML file to keep up to date. The page is replaced in one step,
         so a reload never meets a half-written file. A page that cannot be
-        written is warned about, and training goes on. In multi-worker
+        written, or drawn, is warned about, and training goes on. In multi-worker
         training, give each worker its own path, or the callback to one.
     every : int, default 1
         Write the page every this many epochs.
@@ -261,25 +261,28 @@ class MaidrCallback(_Callback if _Callback is not None else object):
         """Replace the page with the charts so far, warning if it cannot."""
         import maidr
 
-        figure = self.figure()
         directory, name = os.path.split(os.path.abspath(self.path))
         partial = os.path.join(directory, f".{name}.partial")
+        figure = None
         try:
+            figure = self.figure()
             maidr.save_html(figure, partial)
             os.replace(partial, self.path)
-        except OSError as error:
-            # The page is an aid to watching the run; a full disk or a
-            # directory that went away must not cost the training itself.
+        except Exception as error:
+            # The page is an aid to watching the run: a full disk, a
+            # directory that went away or a metric that was never logged
+            # must not cost the training itself.
             warn_at_caller(
                 f"maidr could not write {self.path} after epoch {epoch} ({error}); "
                 "training goes on."
             )
-            return
-        finally:
-            maidr.close(figure)
             # A failed clean-up must not hide why the write failed.
             with contextlib.suppress(OSError):
                 os.remove(partial)
+            return
+        finally:
+            if figure is not None:
+                maidr.close(figure)
         self._written_at = epoch
 
 

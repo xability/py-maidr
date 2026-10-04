@@ -255,6 +255,21 @@ def test_without_a_path_in_a_notebook_the_charts_are_shown(callback, mocker):
     assert [layer["title"] for layer in _layers(figure)] == ["loss"]
 
 
+def test_metrics_that_were_never_logged_warn_and_training_goes_on(callback, tmp_path):
+    cb = callback(tmp_path / "training.html", metrics=["auc"])
+    cb.on_train_begin()
+    with pytest.warns(UserWarning, match="could not write.*no metric"):
+        cb.on_epoch_end(0, {"loss": 1.0})
+    assert cb.history == {"loss": [(1, 1.0)]}
+    assert not list(tmp_path.iterdir())
+
+
+def test_without_keras_the_callback_says_to_install_it(callback, monkeypatch):
+    monkeypatch.setattr(maidr.keras, "_Callback", None)
+    with pytest.raises(ImportError, match="pip install keras"):
+        maidr.keras.MaidrCallback()
+
+
 def test_every_below_one_raises(callback):
     with pytest.raises(ValueError, match="every"):
         callback(every=0)
