@@ -40,8 +40,10 @@ PowerPoint presentation or a Word document, read by
 curves and histograms of a TensorBoard log directory, read without TensorFlow
 by `maidr.read_tensorboard_scalars("logs")`,
 `maidr.read_tensorboard_distributions("logs")`,
-`maidr.read_tensorboard_histograms("logs")` and
-`maidr.read_tensorboard_hparams("logs")` (experimental). A Keras model's
+`maidr.read_tensorboard_histograms("logs")`,
+`maidr.read_tensorboard_hparams("logs")` and
+`maidr.read_tensorboard_projector("logs")`, or in a **maidr** tab of
+TensorBoard itself with `pip install "maidr[tensorboard]"` (experimental). A Keras model's
 training curves are drawn by `maidr.keras.plot_history(history)`, or kept up
 to date while it trains by `maidr.keras.MaidrCallback` (experimental). It works in a plain
 script, a Jupyter notebook, Quarto, Shiny, and Streamlit.
@@ -71,7 +73,7 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 | | |
 |---|---|
 | **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Bokeh [experimental], plotnine [experimental], Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
-| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the charts of a PowerPoint presentation (`.pptx`) or a Word document (`.docx`) [experimental]; the training curves, histograms and hyperparameter sweeps of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
+| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the charts of a PowerPoint presentation (`.pptx`) or a Word document (`.docx`) [experimental]; the training curves, histograms, hyperparameter sweeps and embeddings of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
 | **Model training** | the training curves of a Keras model, from `model.fit` or live while it trains, and a classifier's confusion matrix [experimental] |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit |
 | **Plot types** | 41 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-six are experimental; the docs mark each experimental type **[experimental]** after its name |

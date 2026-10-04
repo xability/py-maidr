@@ -183,7 +183,9 @@ period, including in a patch release. Each tag's values are read from the
 event files, the values TensorBoard reads, and drawn again with matplotlib; the
 reader follows that drawing, not TensorBoard's own. Scalars and histograms are
 read today, and distributions from the histograms and hyperparameter sweeps
-from the HParams plugin's summaries: PR curves and graphs are tracked
+from the HParams plugin's summaries, and the Embedding Projector's
+embeddings, and a **maidr** tab in TensorBoard shows them all
+(`pip install "maidr[tensorboard]"`): PR curves and graphs are tracked
 in [#846](https://github.com/xability/py-maidr/issues/846). See the
 [TensorBoard gallery](examples-tensorboard.qmd) for what it reads today.
 
