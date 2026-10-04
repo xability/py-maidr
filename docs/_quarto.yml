@@ -376,7 +376,8 @@ quartodoc:
       desc: >
         Draw what `model.fit` returns with `maidr.keras.plot_history()` and a
         classifier's confusion matrix with
-        `maidr.keras.plot_confusion_matrix()`, its layers with
+        `maidr.keras.plot_confusion_matrix()`, a binary classifier's
+        precision-recall curve with `maidr.keras.plot_pr_curve()`, its layers with
         `maidr.keras.plot_model()`, or
         keep an accessible page up to date while the model trains with
         `maidr.keras.MaidrCallback`. Import `maidr.keras` to use them.
@@ -387,6 +388,7 @@ quartodoc:
       contents:
         - plot_history
         - plot_confusion_matrix
+        - plot_pr_curve
         - plot_model
         - MaidrCallback
     - title: Reading the training curves of Weights & Biases runs

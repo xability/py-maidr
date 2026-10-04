@@ -164,19 +164,21 @@ and one `import maidr` never loads. Its tests compare
 against what TensorBoard itself read from logs real writers wrote
 (`tests/tensorboard/fixtures/make_fixtures.py`).
 `maidr/keras.py` (experimental, `docs/stability.qmd#keras-support`) draws a
-Keras model's training curves, confusion matrix and graph: `plot_history` from a
-`History` or its dictionary, `plot_confusion_matrix` from the predictions
-through the patched `imshow`, `plot_model` from a model, its `get_config()` or
-its `to_json()`, and `MaidrCallback`, a
-`keras.callbacks.Callback` that rewrites an HTML page as the model trains. It imports Keras only for that base class, and
-`import maidr` does not import it. `plot_model` reads the layer graph from the
-config alone (`maidr/util/keras_config.py`, Keras 3's and Keras 2's formats; a
-nested model is a scope with `expand_nested=True`), and
-`maidr/util/graph_drawing.py` lays it out in rows by longest path from the
-inputs, draws a box per layer and an unregistered arrow per edge, and registers
-a `DirectedGraphPlot` (`maidr/core/plot/directed_graph.py`) whose selectors name
-each box's gid. Keras is not a dev dependency: the callback
-tests stand in a bare `Callback`, the graph tests read configs Keras wrote
+Keras model's training curves, confusion matrix and graph: `plot_history` from
+a `History` or its dictionary, `plot_confusion_matrix` from the predictions
+through the patched `imshow`, `plot_pr_curve` from labels and scores through
+`maidr/tensorboard/pr_curves.py`'s `plot_pr_curves`, `plot_model` from a model,
+its `get_config()` or its `to_json()`, and `MaidrCallback`, a
+`keras.callbacks.Callback` that rewrites an HTML page as the model trains. It
+imports Keras only for that base class, and `import maidr` does not import it.
+`plot_model` reads the layer graph from the config alone
+(`maidr/util/keras_config.py`, Keras 3's and Keras 2's formats; a nested model
+is a scope with `expand_nested=True`), and `maidr/util/graph_drawing.py` lays
+it out in rows by longest path from the inputs, draws a box per layer and an
+unregistered arrow per edge, and registers a `DirectedGraphPlot`
+(`maidr/core/plot/directed_graph.py`) whose selectors name each box's gid.
+Keras is not a dev dependency: the callback tests stand in a bare `Callback`,
+the graph tests read configs Keras wrote
 (`tests/tensorboard/fixtures/*.model.json`), and the real `model.fit` and
 built-model tests run only where Keras is installed.
 `maidr/wandb/` (experimental, `docs/stability.qmd#weights-biases-support`)
