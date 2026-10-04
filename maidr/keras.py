@@ -282,8 +282,9 @@ def plot_pr_curve(
     Raises
     ------
     ValueError
-        If the labels hold no positive sample or more than two classes, or
-        the predictions are not a score per sample or two-class rows.
+        If the labels are not 0 and 1 (or two-class one-hot rows) or hold
+        no positive sample, if there are no predictions, or if the
+        predictions are not a score per sample or two-class rows.
 
     Notes
     -----
@@ -309,6 +310,17 @@ def plot_pr_curve(
             f"not {truth.shape[1]} classes; for more classes, pass one class's "
             "column as 0 and 1."
         )
+    # Class indices of a multi-class model would read as "nonzero is
+    # positive" and draw a plausible, wrong curve; refuse them instead.
+    labels = set(np.unique(np.asarray(truth, dtype=float)).tolist())
+    if not labels <= {0.0, 1.0}:
+        raise ValueError(
+            "A PR curve reads binary labels, 0 and 1, and these hold "
+            f"{sorted(labels)}; for more classes, pass one class's column as "
+            "0 and 1."
+        )
+    if isinstance(y_pred, Mapping) and not y_pred:
+        raise ValueError("No predictions to draw: the dictionary is empty.")
     if isinstance(y_pred, Mapping):
         scores: Any = {str(name): _positive(v) for name, v in y_pred.items()}
     else:

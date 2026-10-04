@@ -455,3 +455,31 @@ def test_a_pr_curve_of_more_than_two_classes_raises():
 def test_one_hot_labels_of_more_than_two_classes_raise_a_clear_error():
     with pytest.raises(ValueError, match="not 3 classes"):
         maidr.keras.plot_pr_curve(np.eye(3)[[0, 1, 2, 1]], [0.9, 0.2, 0.4, 0.7])
+
+
+@pytest.mark.parametrize(
+    "y_true, match",
+    [
+        ([1, 0, 2], "these hold \\[0.0, 1.0, 2.0\\]"),
+        (np.array([[1], [0], [2]]), "these hold"),
+    ],
+    ids=["class-indices", "class-index-column"],
+)
+def test_class_indices_of_more_than_two_classes_are_refused(y_true, match):
+    with pytest.raises(ValueError, match=match):
+        maidr.keras.plot_pr_curve(y_true, [0.1, 0.2, 0.3])
+
+
+@pytest.mark.parametrize(
+    "y_true",
+    [[True, False, True], np.array([[1], [0], [1]])],
+    ids=["booleans", "label-column"],
+)
+def test_boolean_labels_and_a_label_column_are_read(y_true):
+    (name,) = _pr_names(maidr.keras.plot_pr_curve(y_true, [0.9, 0.2, 0.6]))
+    assert name.startswith("classifier (AP 1.00")
+
+
+def test_no_predictions_to_draw_raises():
+    with pytest.raises(ValueError, match="dictionary is empty"):
+        maidr.keras.plot_pr_curve([1, 0, 1], {})
