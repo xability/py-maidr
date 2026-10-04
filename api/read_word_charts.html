@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Draw a classifier’s confusion matrix as a heatmap. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="description" content="Read every chart in a Word document. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 
-<title>maidr.keras.plot_confusion_matrix API reference – py-maidr</title>
+<title>maidr.read_word_charts API reference – py-maidr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -219,24 +219,24 @@ cookieconsent.run({
 
 
 <link rel="stylesheet" href="../styles.css">
-<meta property="og:title" content="maidr.keras.plot_confusion_matrix API reference">
-<meta property="og:description" content="Draw a classifier’s confusion matrix as a heatmap. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta property="og:title" content="maidr.read_word_charts API reference">
+<meta property="og:description" content="Read every chart in a Word document. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
-<meta name="twitter:title" content="maidr.keras.plot_confusion_matrix API reference">
-<meta name="twitter:description" content="Draw a classifier’s confusion matrix as a heatmap. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="twitter:title" content="maidr.read_word_charts API reference">
+<meta name="twitter:description" content="Read every chart in a Word document. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
-<link rel="canonical" href="https://py.maidr.ai/api/plot_confusion_matrix.html">
-<meta name="DC.title" content="maidr.keras.plot_confusion_matrix API reference">
+<link rel="canonical" href="https://py.maidr.ai/api/read_word_charts.html">
+<meta name="DC.title" content="maidr.read_word_charts API reference">
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Draw a classifier’s confusion matrix as a heatmap. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
-<meta name="DC.identifier" content="https://py.maidr.ai/api/plot_confusion_matrix.html">
+<meta name="DC.description" content="Read every chart in a Word document. Part of the py-maidr Python API for accessible matplotlib, seaborn, Plotly and Altair charts.">
+<meta name="DC.identifier" content="https://py.maidr.ai/api/read_word_charts.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
@@ -391,7 +391,7 @@ cookieconsent.run({
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#maidr.keras.plot_confusion_matrix" id="toc-maidr.keras.plot_confusion_matrix" class="nav-link active" data-scroll-target="#maidr.keras.plot_confusion_matrix">plot_confusion_matrix</a>
+  <li><a href="#maidr.read_word_charts" id="toc-maidr.read_word_charts" class="nav-link active" data-scroll-target="#maidr.read_word_charts">read_word_charts</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
   <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
@@ -408,21 +408,19 @@ cookieconsent.run({
 
 
 
-<section id="maidr.keras.plot_confusion_matrix" class="level1">
-<h1>plot_confusion_matrix</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>keras.plot_confusion_matrix(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    y_true</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    y_pred</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    normalize<span class="op">=</span><span class="va">None</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">'Confusion matrix'</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Draw a classifier’s confusion matrix as a heatmap.</p>
-<p>The true class runs down the rows and the predicted class across the columns, so the diagonal is what the model got right. A reader moves across a row to hear where one class’s samples went.</p>
+<section id="maidr.read_word_charts" class="level1">
+<h1>read_word_charts</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>read_word_charts(path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Read every chart in a Word document.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 22%">
+<col style="width: 66%">
+<col style="width: 6%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -433,34 +431,10 @@ cookieconsent.run({
 </thead>
 <tbody>
 <tr class="odd">
-<td>y_true</td>
-<td><code>array_like</code></td>
-<td>The true classes: class indices, or one-hot rows.</td>
+<td>path</td>
+<td>str, os.PathLike or binary file object</td>
+<td>A <code>.docx</code> or <code>.docm</code> document, or a <code>.dotx</code> template, or an open binary stream of one, such as an uploaded file.</td>
 <td><em>required</em></td>
-</tr>
-<tr class="even">
-<td>y_pred</td>
-<td><code>array_like</code></td>
-<td>The predicted classes: class indices, or what <code>model.predict</code> returns. Rows of class probabilities are read by their largest; a single probability per sample, as a sigmoid gives, is the positive class from 0.5 up.</td>
-<td><em>required</em></td>
-</tr>
-<tr class="odd">
-<td>labels</td>
-<td>iterable of str</td>
-<td>Each class’s name, in index order. By default the class indices.</td>
-<td><code>None</code></td>
-</tr>
-<tr class="even">
-<td>normalize</td>
-<td>(None, 'true', 'pred', 'all')</td>
-<td><code>None</code> keeps the counts. <code>"true"</code> divides each row by its total, so a cell is the share of that true class predicted as the column’s; <code>"pred"</code> divides each column; <code>"all"</code> divides by every sample.</td>
-<td><code>None</code></td>
-</tr>
-<tr class="odd">
-<td>title</td>
-<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
-<td>The chart’s title.</td>
-<td><code>"Confusion matrix"</code></td>
 </tr>
 </tbody>
 </table>
@@ -470,8 +444,8 @@ cookieconsent.run({
 <table class="caption-top table">
 <colgroup>
 <col style="width: 3%">
-<col style="width: 43%">
-<col style="width: 52%">
+<col style="width: 7%">
+<col style="width: 88%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -483,8 +457,8 @@ cookieconsent.run({
 <tbody>
 <tr class="odd">
 <td></td>
-<td><code>matplotlib</code>.<code>figure</code>.<code>Figure</code></td>
-<td>The heatmap, ready for :func:<code>maidr.show</code>, :func:<code>maidr.render</code> or :func:<code>maidr.save_html</code>. Not managed by pyplot.</td>
+<td>list of WordChart</td>
+<td>One per chart maidr can read in the document’s body, in reading order: inline and floating charts, and charts in tables and text boxes. Pass one to :func:<code>maidr.show</code>, :func:<code>maidr.render</code> or :func:<code>maidr.save_html</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -492,6 +466,11 @@ cookieconsent.run({
 <section id="raises" class="level2 doc-section doc-section-raises">
 <h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 3%">
+<col style="width: 26%">
+<col style="width: 69%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -502,24 +481,21 @@ cookieconsent.run({
 <tbody>
 <tr class="odd">
 <td></td>
-<td><a href="https://docs.python.org/3/builtins/exceptions.html#ValueError">ValueError</a></td>
-<td>If <code>y_true</code> and <code>y_pred</code> hold a different number of samples, are empty, hold a negative class index or a value that is neither an index nor a probability, or <code>normalize</code> is not one of the above, or <code>labels</code> names fewer classes than the data holds. More labels than the data holds are allowed: the classes that never occur are shown as empty rows and columns.</td>
+<td><code>NotADocumentError</code></td>
+<td>If the file is not a <code>.docx</code> document: an older <code>.doc</code> file, an Excel workbook or a PowerPoint presentation, or a Strict Open XML document. A <code>ValueError</code>.</td>
 </tr>
 </tbody>
 </table>
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>The tutorial way to put a confusion matrix in TensorBoard is to log it as an image, which carries no numbers for a screen reader to read. Drawing it from the predictions keeps them. NumPy alone computes it.</p>
+<p>Every chart type :func:<code>maidr.read_excel_charts</code> reads is read, and read the same way: a chart in a document is the same chart part, with the copy of its values Word drew and its data in a workbook embedded in the document. That workbook is read only for what the copy leaves out, such as the header cell that names a category axis with no title. Each chart is drawn in the colors of the document’s theme. Charts in headers, footers, footnotes and comments are not read.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> maidr</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> maidr.keras <span class="im">import</span> plot_confusion_matrix</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> figure <span class="op">=</span> plot_confusion_matrix(</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     y_test, model.predict(x_test), labels<span class="op">=</span>[<span class="st">"cat"</span>, <span class="st">"dog"</span>], normalize<span class="op">=</span><span class="st">"true"</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>... )</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> maidr.show(figure)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> chart <span class="kw">in</span> maidr.read_word_charts(<span class="st">"report.docx"</span>):</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     maidr.save_html(chart, <span class="ss">f"chart-</span><span class="sc">{</span>chart<span class="sc">.</span>number<span class="sc">}</span><span class="ss">.html"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

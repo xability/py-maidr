@@ -312,6 +312,10 @@ cookieconsent.run({
  <span class="dropdown-text">Excel [experimental]</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples-office.html">
+ <span class="dropdown-text">PowerPoint and Word [experimental]</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples-tensorboard.html">
  <span class="dropdown-text">TensorBoard [experimental]</span></a>
   </li>  
@@ -357,6 +361,7 @@ cookieconsent.run({
   <li><a href="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats" id="toc-displaying-an-accessible-and-interactive-plot-with-multimodal-formats" class="nav-link" data-scroll-target="#displaying-an-accessible-and-interactive-plot-with-multimodal-formats">Displaying an accessible and interactive plot with multimodal formats</a></li>
   <li><a href="#saving-a-maidr-plot-as-an-html-file" id="toc-saving-a-maidr-plot-as-an-html-file" class="nav-link" data-scroll-target="#saving-a-maidr-plot-as-an-html-file">Saving a maidr plot as an HTML file</a></li>
   <li><a href="#reading-the-charts-of-an-excel-workbook" id="toc-reading-the-charts-of-an-excel-workbook" class="nav-link" data-scroll-target="#reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</a></li>
+  <li><a href="#reading-the-charts-of-a-powerpoint-presentation-or-a-word-document" id="toc-reading-the-charts-of-a-powerpoint-presentation-or-a-word-document" class="nav-link" data-scroll-target="#reading-the-charts-of-a-powerpoint-presentation-or-a-word-document">Reading the charts of a PowerPoint presentation or a Word document</a></li>
   <li><a href="#reading-the-charts-of-a-tensorboard-log-directory" id="toc-reading-the-charts-of-a-tensorboard-log-directory" class="nav-link" data-scroll-target="#reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</a></li>
   <li><a href="#drawing-the-training-curves-of-a-keras-model" id="toc-drawing-the-training-curves-of-a-keras-model" class="nav-link" data-scroll-target="#drawing-the-training-curves-of-a-keras-model">Drawing the training curves of a Keras model</a></li>
   <li><a href="#registering-and-releasing-figures" id="toc-registering-and-releasing-figures" class="nav-link" data-scroll-target="#registering-and-releasing-figures">Registering and releasing figures</a></li>
@@ -424,6 +429,30 @@ cookieconsent.run({
 <tr class="even">
 <td><a href="../api/excel.ExcelChart.html#maidr.excel.ExcelChart">excel.ExcelChart</a></td>
 <td>One chart of an Excel workbook, drawn and ready for maidr.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="reading-the-charts-of-a-powerpoint-presentation-or-a-word-document" class="level2">
+<h2 class="anchored" data-anchor-id="reading-the-charts-of-a-powerpoint-presentation-or-a-word-document">Reading the charts of a PowerPoint presentation or a Word document</h2>
+<p>Read every chart of a <code>.pptx</code> presentation with <code>maidr.read_powerpoint_charts()</code>, or of a <code>.docx</code> document with <code>maidr.read_word_charts()</code>, and pass a chart either returns to <code>maidr.show()</code>, <code>maidr.render()</code> or <code>maidr.save_html()</code>. Experimental.</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../api/read_powerpoint_charts.html#maidr.read_powerpoint_charts">read_powerpoint_charts</a></td>
+<td>Read every chart in a PowerPoint presentation.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/office.PowerPointChart.html#maidr.office.PowerPointChart">office.PowerPointChart</a></td>
+<td>One chart of a PowerPoint presentation, drawn and ready for maidr.</td>
+</tr>
+<tr class="odd">
+<td><a href="../api/read_word_charts.html#maidr.read_word_charts">read_word_charts</a></td>
+<td>Read every chart in a Word document.</td>
+</tr>
+<tr class="even">
+<td><a href="../api/office.WordChart.html#maidr.office.WordChart">office.WordChart</a></td>
+<td>One chart of a Word document, drawn and ready for maidr.</td>
 </tr>
 </tbody>
 </table>
