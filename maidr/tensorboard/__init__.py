@@ -22,13 +22,22 @@ from matplotlib import colormaps
 from matplotlib.figure import Figure
 
 from maidr.core.figure_manager import FigureManager
-from maidr.tensorboard.events import SCALARS_PLUGIN, find_runs, read_run
+from maidr.tensorboard.events import SCALARS_PLUGIN
+from maidr.tensorboard.histograms import (
+    HistogramSeries,
+    load_histograms,
+    read_tensorboard_histograms,
+)
+from maidr.tensorboard.logdir import TensorBoardChart, load, thin
 from maidr.util.caller_warning import warn_at_caller
 
 __all__ = [
+    "HistogramSeries",
     "ScalarSeries",
     "TensorBoardChart",
+    "load_histograms",
     "load_scalars",
+    "read_tensorboard_histograms",
     "read_tensorboard_scalars",
     "smooth",
 ]
@@ -66,31 +75,6 @@ class ScalarSeries:
         return len(self.steps)
 
 
-@dataclass(frozen=True, eq=False)
-class TensorBoardChart:
-    """
-    One tag of a TensorBoard log directory, drawn and ready for maidr.
-
-    Pass it to :func:`maidr.show`, :func:`maidr.render`,
-    :func:`maidr.save_html` or :func:`maidr.close` as you would a matplotlib
-    figure.
-
-    Attributes
-    ----------
-    tag : str
-        The tag the values were logged under, such as ``"epoch_loss"``.
-    runs : tuple of str
-        The runs drawn, one line each (two with smoothing), in legend order.
-    figure : matplotlib.figure.Figure
-        The chart drawn with matplotlib. It is not managed by pyplot, so
-        ``plt.show()`` does not show it.
-    """
-
-    tag: str
-    runs: tuple[str, ...]
-    figure: Figure = field(repr=False)
-
-
 def load_scalars(
     logdir: str | os.PathLike,
     *,
@@ -123,38 +107,18 @@ def load_scalars(
     FileNotFoundError
         If ``logdir`` is not a directory.
     """
-    found = _runs(logdir)
-    wanted_runs = None if runs is None else list(runs)
-    if wanted_runs is not None:
-        for run in wanted_runs:
-            if run not in found:
-                warn_at_caller(
-                    f"maidr found no run '{run}' in {os.fspath(logdir)}; "
-                    f"its runs are {_names(found)}."
-                )
-        found = {run: found[run] for run in wanted_runs if run in found}
-    scalars: dict[str, dict[str, ScalarSeries]] = {}
-    for run, paths in found.items():
-        read = read_run(paths)
-        for tag, steps in read.steps.items():
-            if read.plugins.get(tag) != SCALARS_PLUGIN or not steps:
-                continue
-            scalars.setdefault(tag, {})[run] = ScalarSeries(
+    logged = load(logdir, SCALARS_PLUGIN, tags=tags, runs=runs)
+    return {
+        tag: {
+            run: ScalarSeries(
                 np.asarray(steps, dtype=np.int64),
-                np.asarray(read.wall_times[tag], dtype=float),
-                np.asarray(read.values[tag], dtype=float),
+                np.asarray(wall_times, dtype=float),
+                np.asarray(values, dtype=float),
             )
-    order = sorted(scalars)
-    if tags is not None:
-        order = list(dict.fromkeys(tags))
-        known = _names(dict.fromkeys(sorted(scalars)))
-        for tag in order:
-            if tag not in scalars:
-                warn_at_caller(
-                    f"maidr found no scalars tagged '{tag}' in "
-                    f"{os.fspath(logdir)}; its tags are {known}."
-                )
-    return {tag: dict(sorted(scalars[tag].items())) for tag in order if tag in scalars}
+            for run, (steps, wall_times, values) in by_run.items()
+        }
+        for tag, by_run in logged.items()
+    }
 
 
 def read_tensorboard_scalars(
@@ -287,26 +251,6 @@ def smooth(values: np.ndarray, weight: float) -> np.ndarray:
     return smoothed
 
 
-def _runs(logdir: str | os.PathLike) -> dict[str, list[str]]:
-    path = os.fspath(logdir)
-    if not os.path.isdir(path):
-        raise FileNotFoundError(
-            f"maidr reads a TensorBoard log directory, and {path} is not a directory."
-        )
-    return find_runs(path)
-
-
-def _names(found: dict) -> str:
-    return ", ".join(f"'{name}'" for name in found) or "none"
-
-
-def _thin(count: int, max_points: int | None) -> np.ndarray:
-    """Which of ``count`` points to keep: evenly spaced, first and last kept."""
-    if max_points is None or count <= max_points:
-        return np.arange(count)
-    return np.unique(np.round(np.linspace(0, count - 1, max_points)).astype(int))
-
-
 def _draw(
     tag: str,
     series: dict[str, ScalarSeries],
@@ -317,7 +261,7 @@ def _draw(
     ax = fig.add_subplot()
     colors = _colors(len(series))
     for color, (run, data) in zip(colors, series.items()):
-        keep = _thin(len(data), max_points)
+        keep = thin(len(data), max_points)
         steps = data.steps[keep]
         if smoothing > 0:
             ax.plot(steps, data.values[keep], color=color, alpha=0.35, label=run)

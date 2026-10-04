@@ -64,6 +64,14 @@ class PlotType(str, Enum):
     #: alike, and the area the chart is quoted by is in the legend text and
     #: nowhere a reader is told. See `docs/stability.qmd` -- experimental.
     ROC = "roc"
+    #: One distribution per group along a shared value axis, each drawn as a
+    #: curve offset down the page so their shapes can be compared -- a
+    #: ridgeline. The offset is presentation, so a layer carries each group's
+    #: curve on its own terms, and the core pitches every group against the
+    #: whole chart rather than its own peak. Registered by the readers that
+    #: draw one, such as the TensorBoard histograms reader. See
+    #: `docs/stability.qmd` -- experimental.
+    RIDGELINE = "ridgeline"
     #: One tick per observation along one axis: where the raw data fell.
     #: Emitted as a scatter until maidr.js gained a trace of its own for it
     #: (xability/maidr#1264), and a distinct type for the reason

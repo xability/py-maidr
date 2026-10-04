@@ -311,19 +311,24 @@ quartodoc:
       contents:
         - read_excel_charts
         - excel.ExcelChart
-    - title: Reading the training curves of a TensorBoard log directory
+    - title: Reading the charts of a TensorBoard log directory
       desc: >
         Read the scalars Keras, TensorFlow and PyTorch log with
-        `maidr.read_tensorboard_scalars()`, one chart per tag, and pass a
-        chart it returns to `maidr.show()`, `maidr.render()` or
-        `maidr.save_html()`; or read the values themselves with
-        `maidr.tensorboard.load_scalars()`. Experimental.
+        `maidr.read_tensorboard_scalars()`, one chart per tag, and their
+        histograms with `maidr.read_tensorboard_histograms()`, one ridgeline
+        per tag and run, and pass a chart either returns to `maidr.show()`,
+        `maidr.render()` or `maidr.save_html()`; or read the values
+        themselves with `maidr.tensorboard.load_scalars()` and
+        `maidr.tensorboard.load_histograms()`. Experimental.
       contents:
         - read_tensorboard_scalars
         - tensorboard.TensorBoardChart
         - tensorboard.load_scalars
         - tensorboard.ScalarSeries
         - tensorboard.smooth
+        - read_tensorboard_histograms
+        - tensorboard.load_histograms
+        - tensorboard.HistogramSeries
     - title: Drawing the training curves of a Keras model
       desc: >
         Draw what `model.fit` returns with `maidr.keras.plot_history()`, or

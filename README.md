@@ -34,8 +34,9 @@ entry point (Bokeh and plotnine support are experimental; install them with
 `pip install "maidr[bokeh]"` and `pip install "maidr[plotnine]"`), and so do the
 charts of an Excel workbook, read without Excel by
 `maidr.read_excel_charts("book.xlsx")` (experimental), and the training
-curves of a TensorBoard log directory, read without TensorFlow by
-`maidr.read_tensorboard_scalars("logs")` (experimental). A Keras model's
+curves and histograms of a TensorBoard log directory, read without TensorFlow
+by `maidr.read_tensorboard_scalars("logs")` and
+`maidr.read_tensorboard_histograms("logs")` (experimental). A Keras model's
 training curves are drawn by `maidr.keras.plot_history(history)`, or kept up
 to date while it trains by `maidr.keras.MaidrCallback` (experimental). It works in a plain
 script, a Jupyter notebook, Quarto, Shiny, and Streamlit.
@@ -65,10 +66,10 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 | | |
 |---|---|
 | **Plotting libraries** | matplotlib, seaborn (including `seaborn.objects`), Plotly, Bokeh [experimental], plotnine [experimental], Altair — plus mplfinance for financial charts (candlestick, volume, moving averages) |
-| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the training curves of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
+| **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the training curves and histograms of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
 | **Model training** | the training curves of a Keras model, from `model.fit` or live while it trains [experimental] |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit |
-| **Plot types** | 40 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-five are experimental; the docs mark each experimental type **[experimental]** after its name |
+| **Plot types** | 41 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-six are experimental; the docs mark each experimental type **[experimental]** after its name |
 
 Plot types not yet supported fall back to a static image with a warning, so a
 plot is never lost.

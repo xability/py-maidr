@@ -1,21 +1,26 @@
-"""Read the scalar summaries out of TensorBoard event files.
+"""Read the scalar and histogram summaries out of TensorBoard event files.
 
 An event file is a sequence of TFRecords, each holding one ``Event`` protocol
-buffer. Only the few fields a scalar needs are decoded here, by hand, so that
-reading a log directory needs neither TensorFlow nor TensorBoard nor protobuf:
+buffer. Only the few fields a scalar or a histogram needs are decoded here, by
+hand, so that reading a log directory needs neither TensorFlow nor TensorBoard
+nor protobuf:
 
 * ``Event``: ``wall_time`` (1), ``step`` (2), ``file_version`` (3),
   ``summary`` (5) and ``session_log`` (7);
 * ``Summary``: its repeated ``value`` (1);
-* ``Summary.Value``: ``tag`` (1), ``simple_value`` (2), ``tensor`` (8) and
-  ``metadata`` (9), whose ``plugin_data.plugin_name`` says what a tensor holds;
-* ``TensorProto``: ``dtype`` (1), ``tensor_content`` (4) and the typed value
-  lists.
+* ``Summary.Value``: ``tag`` (1), ``simple_value`` (2), ``histo`` (5),
+  ``tensor`` (8) and ``metadata`` (9), whose ``plugin_data.plugin_name`` says
+  what a tensor holds;
+* ``TensorProto``: ``dtype`` (1), ``tensor_shape`` (2), ``tensor_content``
+  (4) and the typed value lists;
+* ``HistogramProto``: ``min`` (1), ``max`` (2), ``bucket_limit`` (6) and
+  ``bucket`` (7).
 
-A scalar is written two ways. TensorFlow 1 and PyTorch write the legacy
-``simple_value``; TensorFlow 2 and Keras write a rank-0 ``tensor`` whose
-metadata names the ``scalars`` plugin, on the first value of a tag only. Both
-are read, as TensorBoard reads them.
+Each is written two ways. TensorFlow 1 and PyTorch write a scalar as the
+legacy ``simple_value`` and a histogram as the legacy ``histo``; TensorFlow 2
+and Keras write a ``tensor`` whose metadata names the ``scalars`` or
+``histograms`` plugin, on the first value of a tag only. Both are read, as
+TensorBoard reads them.
 """
 
 from __future__ import annotations
@@ -23,7 +28,7 @@ from __future__ import annotations
 import os
 import struct
 from dataclasses import dataclass, field
-from typing import Iterator
+from typing import Any, Iterator
 
 import numpy as np
 
@@ -31,6 +36,8 @@ from maidr.util.caller_warning import warn_at_caller
 
 #: The plugin a TensorFlow 2 scalar summary names in its metadata.
 SCALARS_PLUGIN = "scalars"
+#: The plugin a TensorFlow 2 histogram summary names in its metadata.
+HISTOGRAMS_PLUGIN = "histograms"
 
 #: ``SessionLog.status`` of a run that started, or started again.
 _SESSION_START = 1
@@ -54,12 +61,19 @@ _BFLOAT16 = 14
 
 
 @dataclass
-class _Scalars:
-    """One run's scalars, tag by tag, in the order TensorBoard keeps them."""
+class Run:
+    """
+    One run's summaries of one plugin, tag by tag, in TensorBoard's order.
 
+    A scalar is a ``float``; a histogram is an array of shape ``(k, 3)``, each
+    row a bucket's left edge, right edge and count.
+    """
+
+    #: The plugin whose summaries are kept, such as ``"scalars"``.
+    plugin: str = SCALARS_PLUGIN
     steps: dict[str, list[int]] = field(default_factory=dict)
     wall_times: dict[str, list[float]] = field(default_factory=dict)
-    values: dict[str, list[float]] = field(default_factory=dict)
+    values: dict[str, list[Any]] = field(default_factory=dict)
     #: The plugin each tag's metadata named, from the first value carrying it.
     plugins: dict[str, str] = field(default_factory=dict)
     #: The step of the last summary read, for spotting a restarted run.
@@ -69,7 +83,7 @@ class _Scalars:
     #: Whether a ``SessionLog.START`` has been read: the next one is a restart.
     started: bool = False
 
-    def add(self, tag: str, step: int, wall_time: float, value: float) -> None:
+    def add(self, tag: str, step: int, wall_time: float, value: Any) -> None:
         self.steps.setdefault(tag, []).append(step)
         self.wall_times.setdefault(tag, []).append(wall_time)
         self.values.setdefault(tag, []).append(value)
@@ -113,9 +127,9 @@ def find_runs(logdir: str) -> dict[str, list[str]]:
     return runs
 
 
-def read_run(paths: list[str]) -> _Scalars:
+def read_run(paths: list[str], plugin: str = SCALARS_PLUGIN) -> Run:
     """
-    Read the scalars of one run from its event files.
+    Read the summaries of one plugin of one run from its event files.
 
     A run restarted from a checkpoint logs some steps again. What it wrote
     over is dropped as TensorBoard drops it: from files of the current event
@@ -123,12 +137,24 @@ def read_run(paths: list[str]) -> _Scalars:
     older files, when a tag's steps go backwards. TensorFlow 2 writes no
     ``SessionLog``, so TensorBoard keeps both passes of such a run, and so does
     this.
+
+    Parameters
+    ----------
+    paths : list of str
+        The run's event files, in the order they are read.
+    plugin : str, default "scalars"
+        ``"scalars"`` or ``"histograms"``.
+
+    Returns
+    -------
+    Run
+        The run's values of that plugin, tag by tag.
     """
-    scalars = _Scalars()
+    run = Run(plugin=plugin)
     for path in paths:
         for record in _records(path):
-            _read_event(record, scalars)
-    return scalars
+            _read_event(record, run)
+    return run
 
 
 def _records(path: str) -> Iterator[bytes]:
@@ -167,7 +193,7 @@ def _records(path: str) -> Iterator[bytes]:
             yield data
 
 
-def _read_event(record: bytes, scalars: _Scalars) -> None:
+def _read_event(record: bytes, run: Run) -> None:
     wall_time = 0.0
     step = 0
     summary = None
@@ -178,7 +204,7 @@ def _read_event(record: bytes, scalars: _Scalars) -> None:
         elif number == 2 and wire == 0:
             step = _signed(value)
         elif number == 3 and wire == 2:
-            scalars.file_version = _file_version(value)
+            run.file_version = _file_version(value)
         elif number == 5 and wire == 2:
             summary = value
         elif number == 7 and wire == 2:
@@ -188,22 +214,18 @@ def _read_event(record: bytes, scalars: _Scalars) -> None:
     values = []
     if summary is not None:
         values = [v for n, w, v in _fields(summary) if n == 1 and w == 2]
-    if scalars.file_version is not None and scalars.file_version >= 2:
+    if run.file_version is not None and run.file_version >= 2:
         if started:
-            if scalars.started:
-                scalars.purge(step)
-            scalars.started = True
-    elif (
-        summary is not None
-        and scalars.last_step is not None
-        and step < scalars.last_step
-    ):
-        scalars.purge(step, [t for t in map(_tag, values) if t is not None])
+            if run.started:
+                run.purge(step)
+            run.started = True
+    elif summary is not None and run.last_step is not None and step < run.last_step:
+        run.purge(step, [t for t in map(_tag, values) if t is not None])
     if summary is None:
         return
-    scalars.last_step = step
+    run.last_step = step
     for value in values:
-        _read_value(value, step, wall_time, scalars)
+        _read_value(value, step, wall_time, run)
 
 
 def _file_version(value: bytes) -> float | None:
@@ -222,30 +244,45 @@ def _tag(record: bytes) -> str | None:
     return None
 
 
-def _read_value(record: bytes, step: int, wall_time: float, scalars: _Scalars) -> None:
+def _read_value(record: bytes, step: int, wall_time: float, run: Run) -> None:
     tag = None
     simple = None
+    histo = None
     tensor = None
     for number, wire, value in _fields(record):
         if number == 1 and wire == 2:
             tag = value.decode("utf-8", "replace")
         elif number == 2 and wire == 5:
             (simple,) = struct.unpack("<f", value)
+        elif number == 5 and wire == 2:
+            histo = value
         elif number == 8 and wire == 2:
             tensor = value
         elif number == 9 and wire == 2:
             plugin = _plugin_name(value)
             if tag is not None and plugin is not None:
-                scalars.plugins.setdefault(tag, plugin)
+                run.plugins.setdefault(tag, plugin)
     if tag is None:
         return
     if simple is not None:
-        scalars.plugins.setdefault(tag, SCALARS_PLUGIN)
-        scalars.add(tag, step, wall_time, float(simple))
-    elif tensor is not None and scalars.plugins.get(tag) == SCALARS_PLUGIN:
-        number = _scalar(tensor)
-        if number is not None:
-            scalars.add(tag, step, wall_time, number)
+        run.plugins.setdefault(tag, SCALARS_PLUGIN)
+    elif histo is not None:
+        run.plugins.setdefault(tag, HISTOGRAMS_PLUGIN)
+    if run.plugins.get(tag) != run.plugin:
+        return
+    value: Any = None
+    if run.plugin == SCALARS_PLUGIN:
+        if simple is not None:
+            value = float(simple)
+        elif tensor is not None:
+            value = _scalar(tensor)
+    elif run.plugin == HISTOGRAMS_PLUGIN:
+        if histo is not None:
+            value = _legacy_histogram(histo)
+        elif tensor is not None:
+            value = _histogram(tensor)
+    if value is not None:
+        run.add(tag, step, wall_time, value)
 
 
 def _plugin_name(metadata: bytes) -> str | None:
@@ -259,12 +296,69 @@ def _plugin_name(metadata: bytes) -> str | None:
 
 def _scalar(tensor: bytes) -> float | None:
     """The one number a scalar summary's tensor holds, or ``None``."""
+    array = _tensor(tensor)
+    if array is None or array.size != 1:
+        return None
+    return float(array.reshape(()))
+
+
+def _histogram(tensor: bytes) -> np.ndarray | None:
+    """A histogram summary's buckets, shape ``(k, 3)``, or ``None``."""
+    array = _tensor(tensor)
+    if array is None or array.ndim != 2 or array.shape[1] != 3:
+        return None
+    return array
+
+
+def _legacy_histogram(histo: bytes) -> np.ndarray:
+    """
+    A legacy ``HistogramProto``'s buckets, as TensorBoard converts them.
+
+    Its outermost limits can be the largest doubles, so TensorBoard drops the
+    empty buckets at either end and puts the smallest and largest values seen
+    in their place, keeping each bucket's left edge below its right. The
+    result is rounded to 32-bit floats, as TensorBoard's is.
+    """
+    low = high = 0.0
+    limits: list[float] = []
+    counts: list[float] = []
+    for number, wire, value in _fields(histo):
+        if number == 1 and wire == 1:
+            (low,) = struct.unpack("<d", value)
+        elif number == 2 and wire == 1:
+            (high,) = struct.unpack("<d", value)
+        elif number == 6:
+            limits.extend(_fixed(value, wire, "<d"))
+        elif number == 7:
+            counts.extend(_fixed(value, wire, "<d"))
+    filled = [i for i, count in enumerate(counts) if count > 0]
+    if not filled:
+        return np.zeros((0, 3), dtype=float)
+    start, end = filled[0], filled[-1]
+    inner = limits[start:end]
+    lefts = [low, *inner]
+    rights = [*inner, high]
+    buckets = np.array([lefts, rights, counts[start : end + 1]], dtype=np.float32)
+    return buckets.T.astype(float)
+
+
+def _tensor(tensor: bytes) -> np.ndarray | None:
+    """
+    A ``TensorProto`` as a float array of its shape, or ``None``.
+
+    Its values are its ``tensor_content`` when it has one, else its typed
+    value list, whose last value TensorFlow leaves out when it repeats to the
+    end. A type that is not a number, such as a string, is ``None``.
+    """
     dtype = None
+    shape: list[int] = []
     content = b""
     listed: list[float] = []
     for number, wire, value in _fields(tensor):
         if number == 1 and wire == 0:
             dtype = value
+        elif number == 2 and wire == 2:
+            shape = _shape(value)
         elif number == 4 and wire == 2:
             content = value
         elif number == 5:  # float_val
@@ -275,26 +369,47 @@ def _scalar(tensor: bytes) -> float | None:
             # int_val, int64_val, bool_val, half_val, uint32_val, uint64_val
             listed.extend(_varints(value, wire))
     if dtype == _BFLOAT16:
-        bits = content[:2] if content else None
-        if bits is None and listed:
-            bits = struct.pack("<H", int(listed[0]) & 0xFFFF)
-        if bits is None or len(bits) < 2:
+        raw = (
+            np.frombuffer(content[: len(content) // 2 * 2], "<u2")
+            if content
+            else np.array([int(v) & 0xFFFF for v in listed], "<u2")
+        )
+        values = (raw.astype("<u4") << 16).view("<f4").astype(float)
+    else:
+        numpy_type = _DTYPES.get(dtype) if dtype is not None else None
+        if numpy_type is None:
             return None
-        return float(np.frombuffer(b"\x00\x00" + bits, "<f4")[0])
-    numpy_type = _DTYPES.get(dtype) if dtype is not None else None
-    if numpy_type is None:
+        if content:
+            count = len(content) // numpy_type.itemsize
+            values = np.frombuffer(
+                content[: count * numpy_type.itemsize], numpy_type
+            ).astype(float)
+        elif dtype == 19:  # DT_HALF arrives as its bits in half_val
+            bits = np.array([int(v) & 0xFFFF for v in listed], "<u2")
+            values = bits.view("<f2").astype(float)
+        elif numpy_type.kind == "i":
+            values = np.array([_signed(int(v)) for v in listed], dtype=float)
+        else:
+            values = np.array(listed, dtype=float)
+    size = int(np.prod(shape)) if shape else 1
+    if 0 < values.size < size:
+        values = np.concatenate([values, np.full(size - values.size, values[-1])])
+    if values.size != size:
         return None
-    if content:
-        if len(content) < numpy_type.itemsize:
-            return None
-        return float(np.frombuffer(content[: numpy_type.itemsize], numpy_type)[0])
-    if not listed:
-        return None
-    if dtype == 19:  # DT_HALF arrives as its bits in half_val
-        return float(np.array([int(listed[0])], "<u2").view("<f2")[0])
-    if numpy_type.kind == "i":
-        return float(_signed(int(listed[0])))
-    return float(listed[0])
+    return values.reshape(shape)
+
+
+def _shape(shape: bytes) -> list[int]:
+    """The sizes of a ``TensorShapeProto``'s dimensions."""
+    sizes = []
+    for number, wire, value in _fields(shape):
+        if number == 2 and wire == 2:
+            size = 0
+            for inner, inner_wire, length in _fields(value):
+                if inner == 1 and inner_wire == 0:
+                    size = _signed(length)
+            sizes.append(max(size, 0))
+    return sizes
 
 
 def _fields(data: bytes) -> Iterator[tuple[int, int, object]]:
