@@ -72,9 +72,9 @@ def test_a_chart_a_reader_returned_renders(tmp_path):
 def test_a_warning_points_at_the_callers_line(monkeypatch, bar_axes):
     # Any warning the render raises -- here, the one for a chart that loads
     # maidr.js from nowhere -- should name this file, not maidr's.
-    import maidr.widget.streamlit as streamlit_module
+    import maidr.widget._document as document
 
-    monkeypatch.setattr(streamlit_module, "inline_bundle_tags", lambda: None)
+    monkeypatch.setattr(document, "inline_bundle_tags", lambda: None)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         render_maidr(bar_axes, use_cdn=False)
@@ -100,6 +100,11 @@ def test_an_empty_component_waits_for_a_handler():
 
 def test_without_gradio_the_extra_is_named(monkeypatch, bar_axes):
     import builtins
+    import sys
+
+    # Where the extra installs Gradio; below it the advice is to install
+    # Gradio itself (tests/widget/test_extras.py).
+    monkeypatch.setattr(sys, "version_info", (3, 12, 0, "final", 0))
 
     real_import = builtins.__import__
 

@@ -40,6 +40,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 - **`maidr/widget/shiny.py`** — Shiny framework integration (`output_maidr`, `@render_maidr`)
 - **`maidr/widget/streamlit.py`** — Streamlit integration (`render_maidr`, `maidr_html`)
 - **`maidr/widget/gradio.py`** — Gradio integration (`output_maidr`, `render_maidr`): the chart in a `srcdoc` iframe, since `gr.HTML` runs no scripts
+- **`maidr/widget/_document.py`** — the render Streamlit, Gradio and `maidr.log_mlflow_chart` share: a chart as the HTML of a frame of its own, the bundle inlined under `use_cdn=False`, ids made stable, a warning when nothing loads `maidr.js`
 
 ### Supported Plot Types
 

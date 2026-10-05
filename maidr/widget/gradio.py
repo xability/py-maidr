@@ -30,6 +30,7 @@ from typing import Any, Literal, Optional, Union
 from htmltools import HTML, tags
 
 from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
+from maidr.widget._document import render as render_document
 
 #: Accepted by ``use_cdn``; ``None`` defers to :func:`maidr.get_use_cdn`.
 UseCdn = Optional[Union[bool, Literal["auto"]]]
@@ -132,7 +133,7 @@ def output_maidr(plot: Any = None, *, use_cdn: UseCdn = None, **kwargs: Any) -> 
     except ImportError as error:
         from maidr.widget._extras import missing_extra_error
 
-        raise missing_extra_error(error, "gradio", "gradio") from error
+        raise missing_extra_error(error, "gradio", "gradio", python=(3, 10)) from error
 
     value = None if plot is None else _markup(plot, use_cdn, stacklevel=5)
     return gr.HTML(value, **kwargs)
@@ -140,14 +141,7 @@ def output_maidr(plot: Any = None, *, use_cdn: UseCdn = None, **kwargs: Any) -> 
 
 def _markup(plot: Any, use_cdn: UseCdn, stacklevel: int) -> str:
     """The chart's frame, a warning pointing ``stacklevel`` frames out."""
-    # The Streamlit integration's render, which inlines the bundle when
-    # ``use_cdn`` is False and warns when a chart cannot honor that. Both
-    # embed one chart in one frame, and both need the chart's title to name
-    # it. The Streamlit-specific warning it raises is for ``plot is None``,
-    # which neither caller here passes.
-    from maidr.widget.streamlit import _render
-
-    html, title = _render(plot, use_cdn, stacklevel=stacklevel)
+    html, title = render_document(plot, use_cdn, stacklevel=stacklevel)
     return str(wrap_in_iframe_matplotlib(tags.div(HTML(html)), title))
 
 
