@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-04">
+<meta name="DC.date" content="2026-10-05">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -426,7 +426,7 @@ cookieconsent.run({
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    max_points<span class="op">=</span>DEFAULT_MAX_POINTS</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Read the distribution charts of a TensorBoard log directory.</p>
-<p>One chart per tag and run, as TensorBoard’s Distributions dashboard draws them: the step along the x axis, and nine lines – the minimum, six percentiles, the median and the maximum of the logged values at each step – drawn over the nested bands between them.</p>
+<p>One chart per tag and run, as TensorBoard’s Distributions dashboard draws them: the step along the x axis, and nine values – the minimum, six percentiles, the median and the maximum of the logged values at each step – drawn as the nested bands between them around the median line, and read as one <code>percentile_band</code> layer.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
@@ -511,7 +511,7 @@ cookieconsent.run({
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>The distributions are the histograms the Histograms dashboard reads, so whatever :func:<code>maidr.read_tensorboard_histograms</code> reads is read here. Each line is named for the share of values below it, such as <code>84.1%</code>; a reader at one step moves Up and Down through them in value order, which is the spread of the distribution at that step, and Left and Right along one of them over training.</p>
+<p>The distributions are the histograms the Histograms dashboard reads, so whatever :func:<code>maidr.read_tensorboard_histograms</code> reads is read here. Each value is a quantile, its level the share of values below it, such as 0.8413; a reader enters on the median, moves Up and Down through the quantiles in value order, which is the spread of the distribution at that step, and Left and Right along one of them over training. maidr.js names the band around the median, such as the middle 68%. <code>percentile_band</code> is an experimental type.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>

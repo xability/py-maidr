@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-04">
+<meta name="DC.date" content="2026-10-05">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -419,7 +419,7 @@ cookieconsent.run({
 <h1>read_tensorboard_pr_curves</h1>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>read_tensorboard_pr_curves(logdir, <span class="op">*</span>, tags<span class="op">=</span><span class="va">None</span>, runs<span class="op">=</span><span class="va">None</span>, step<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Read the PR curve charts of a TensorBoard log directory.</p>
-<p>One chart per tag, as TensorBoard’s PR Curves dashboard draws it: recall along the x axis, precision along the y axis, one line per run.</p>
+<p>One chart per tag, as TensorBoard’s PR Curves dashboard draws it: recall along the x axis, precision along the y axis, one curve per run, read as one <code>pr_curve</code> layer.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
@@ -480,7 +480,7 @@ cookieconsent.run({
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>Each line is named with its run, its average precision and the share of positives – the precision a random guess reaches, which a useful classifier stays above – such as <code>good (AP 0.91, chance 0.30)</code>. A threshold at which nothing was predicted positive has no precision, and is left out of the line rather than read as a precision of 0.</p>
+<p>Each curve is named with its run, and carries its average precision and the share of positives – the precision a random guess keeps, which a useful classifier stays above – which maidr.js announces against each point; the legend shows them, such as <code>good (AP 0.91, chance 0.30)</code>. Each point carries its threshold. A threshold at which nothing was predicted positive has no precision, and is left out of the curve rather than read as a precision of 0. <code>pr_curve</code> is an experimental type.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>

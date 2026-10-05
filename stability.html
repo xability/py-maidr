@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-04">
+<meta name="DC.date" content="2026-10-05">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -445,8 +445,8 @@ cookieconsent.run({
 
 <section id="two-sets-two-different-promises" class="level2">
 <h2 class="anchored" data-anchor-id="two-sets-two-different-promises">Two sets, two different promises</h2>
-<p><code>PlotType</code> in <code>maidr/core/enum/plot_type.py</code> names <strong>42</strong> plot types. They do not all carry the same promise, and nothing in the enum says so — which is what this page is for.</p>
-<p>Fifteen of them predate the plot coverage roadmap (<a href="https://github.com/xability/py-maidr/issues/345">#345</a>). Twenty-three were added by it, most inside about two weeks, and <code>ROC</code>, <code>RUG</code>, <code>RIDGELINE</code> and <code>DIRECTED_GRAPH</code> after it. <strong>None of the twenty-seven has been through a user study</strong>.</p>
+<p><code>PlotType</code> in <code>maidr/core/enum/plot_type.py</code> names <strong>44</strong> plot types. They do not all carry the same promise, and nothing in the enum says so — which is what this page is for.</p>
+<p>Fifteen of them predate the plot coverage roadmap (<a href="https://github.com/xability/py-maidr/issues/345">#345</a>). Twenty-three were added by it, most inside about two weeks, and <code>ROC</code>, <code>RUG</code>, <code>RIDGELINE</code>, <code>DIRECTED_GRAPH</code>, <code>PERCENTILE_BAND</code> and <code>PR_CURVE</code> after it. <strong>None of the twenty-nine has been through a user study</strong>.</p>
 <p>Elsewhere in these docs — the example gallery, the navigation and the supported-plots lists on the home page — an experimental type is marked <strong><a href="#experimental">experimental</a></strong> after its name; a type with no mark is stable. A list of plot types is also split in two, a Stable part followed by an Experimental part; the navigation puts the example pages about experimental types only in a group of their own after the stable ones; and a gallery page shows its stable charts before its experimental ones. The JavaScript core (<a href="https://maidr.ai/docs/SCHEMA.html#trace-type-stability">Trace type stability</a>) and maidr for R (<a href="https://r.maidr.ai/#supported-plot-types">Supported plot types</a>) mark their own docs the same way.</p>
 </section>
 <section id="stable" class="level2">
@@ -627,8 +627,16 @@ cookieconsent.run({
 <td><code>parallel_coordinates</code></td>
 </tr>
 <tr class="odd">
+<td><code>PERCENTILE_BAND</code></td>
+<td><code>percentile_band</code></td>
+</tr>
+<tr class="even">
 <td><code>POLAR_AREA</code></td>
 <td><code>polar_area</code></td>
+</tr>
+<tr class="odd">
+<td><code>PR_CURVE</code></td>
+<td><code>pr_curve</code></td>
 </tr>
 <tr class="even">
 <td><code>RADAR</code></td>
@@ -699,11 +707,11 @@ cookieconsent.run({
 </section>
 <section id="tensorboard-support" class="level2">
 <h2 class="anchored" data-anchor-id="tensorboard-support">TensorBoard support</h2>
-<p>The charts read out of a TensorBoard log directory (<code>maidr.read_tensorboard_scalars("logs")</code>, <code>maidr.read_tensorboard_histograms("logs")</code> and <code>maidr.read_tensorboard_graph("logs")</code>) come through a reader that is itself <strong>experimental</strong>, whatever type it emits: a scalar or distribution chart emits the stable <code>line</code> type, a histogram the experimental <code>ridgeline</code> and a Keras model’s graph the experimental <code>directed_graph</code>, but how runs and tags become charts, how smoothing is drawn, how a long run is thinned, how a histogram is binned, and what is skipped may change without a deprecation period, including in a patch release. Each tag’s values are read from the event files, the values TensorBoard reads, and drawn again with matplotlib; the reader follows that drawing, not TensorBoard’s own. Scalars and histograms are read today, the Keras model graph (not TensorFlow’s op-level graph), PR curves, a profile’s step-time graph and top operations (with <code>xprof</code> installed), and distributions from the histograms and hyperparameter sweeps from the HParams plugin’s summaries, and the Embedding Projector’s embeddings, and a <strong>maidr</strong> tab in TensorBoard shows them all (<code>pip install "maidr[tensorboard]"</code>): images are tracked in <a href="https://github.com/xability/py-maidr/issues/846">#846</a>. See the <a href="./examples-tensorboard.html">TensorBoard gallery</a> for what it reads today.</p>
+<p>The charts read out of a TensorBoard log directory (<code>maidr.read_tensorboard_scalars("logs")</code>, <code>maidr.read_tensorboard_distributions("logs")</code>, <code>maidr.read_tensorboard_histograms("logs")</code>, <code>maidr.read_tensorboard_pr_curves("logs")</code> and <code>maidr.read_tensorboard_graph("logs")</code>) come through a reader that is itself <strong>experimental</strong>, whatever type it emits: a scalar chart emits the stable <code>line</code> type, a distribution chart the experimental <code>percentile_band</code>, a histogram the experimental <code>ridgeline</code>, PR curves the experimental <code>pr_curve</code> and a Keras model’s graph the experimental <code>directed_graph</code>, but how runs and tags become charts, how smoothing is drawn, how a long run is thinned, how a histogram is binned, and what is skipped may change without a deprecation period, including in a patch release. Distributions and PR curves were read as the stable <code>line</code> type, nine lines and a line per run, until maidr.js gained the <code>percentile_band</code> and <code>pr_curve</code> traces; they changed type then. Each tag’s values are read from the event files, the values TensorBoard reads, and drawn again with matplotlib; the reader follows that drawing, not TensorBoard’s own. Scalars and histograms are read today, the Keras model graph (not TensorFlow’s op-level graph), PR curves, a profile’s step-time graph and top operations (with <code>xprof</code> installed), and distributions from the histograms and hyperparameter sweeps from the HParams plugin’s summaries, and the Embedding Projector’s embeddings, and a <strong>maidr</strong> tab in TensorBoard shows them all (<code>pip install "maidr[tensorboard]"</code>): images are tracked in <a href="https://github.com/xability/py-maidr/issues/846">#846</a>. See the <a href="./examples-tensorboard.html">TensorBoard gallery</a> for what it reads today.</p>
 </section>
 <section id="keras-support" class="level2">
 <h2 class="anchored" data-anchor-id="keras-support">Keras support</h2>
-<p>The training curves drawn from a Keras model (<code>maidr.keras.plot_history()</code> and <code>maidr.keras.MaidrCallback</code>), the confusion matrix (<code>maidr.keras.plot_confusion_matrix()</code>) and the PR curve (<code>maidr.keras.plot_pr_curve()</code>) are <strong>experimental</strong>, although every chart they draw is a stable type, <code>line</code> or <code>heat</code>: how metrics become charts and lines, what the lines are called, how predictions become classes, and when the callback writes its page may change without a deprecation period, including in a patch release. The model graph (<code>maidr.keras.plot_model()</code>) is experimental twice over: it emits the experimental <code>directed_graph</code> type, and which attributes a layer is announced with, how a nested model becomes a scope and how the graph is laid out may change the same way. It needs a maidr.js release that carries the <code>directed_graph</code> trace. See the <a href="./examples-keras.html">Keras gallery</a> for what they draw today.</p>
+<p>The training curves drawn from a Keras model (<code>maidr.keras.plot_history()</code> and <code>maidr.keras.MaidrCallback</code>) and the confusion matrix (<code>maidr.keras.plot_confusion_matrix()</code>) are <strong>experimental</strong>, although every chart they draw is a stable type, <code>line</code> or <code>heat</code>: how metrics become charts and lines, what the lines are called, how predictions become classes, and when the callback writes its page may change without a deprecation period, including in a patch release. The PR curve (<code>maidr.keras.plot_pr_curve()</code>) and the model graph (<code>maidr.keras.plot_model()</code>) are experimental twice over: they emit the experimental <code>pr_curve</code> and <code>directed_graph</code> types – the PR curve was a stable <code>line</code> until maidr.js gained the <code>pr_curve</code> trace – and what a point or a layer is announced with, how a nested model becomes a scope and how the graph is laid out may change the same way. See the <a href="./examples-keras.html">Keras gallery</a> for what they draw today.</p>
 </section>
 <section id="weights-biases-support" class="level2">
 <h2 class="anchored" data-anchor-id="weights-biases-support">Weights &amp; Biases support</h2>

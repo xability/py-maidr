@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-04">
+<meta name="DC.date" content="2026-10-05">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -441,7 +441,7 @@ cookieconsent.run({
 <tr class="even">
 <td>y_pred</td>
 <td>array_like or dict of str to array_like</td>
-<td>What <code>model.predict</code> returns: one sigmoid output per sample, as a column or flat, or two-class softmax rows, whose second column is the positive class’s score. Several models’ predictions by name draw a line each.</td>
+<td>What <code>model.predict</code> returns: one sigmoid output per sample, as a column or flat, or two-class softmax rows, whose second column is the positive class’s score. Several models’ predictions by name draw a curve each.</td>
 <td><em>required</em></td>
 </tr>
 <tr class="odd">
@@ -458,8 +458,8 @@ cookieconsent.run({
 <table class="caption-top table">
 <colgroup>
 <col style="width: 3%">
-<col style="width: 43%">
-<col style="width: 52%">
+<col style="width: 39%">
+<col style="width: 57%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -472,7 +472,7 @@ cookieconsent.run({
 <tr class="odd">
 <td></td>
 <td><code>matplotlib</code>.<code>figure</code>.<code>Figure</code></td>
-<td>The chart, ready for :func:<code>maidr.show</code>, :func:<code>maidr.render</code> or :func:<code>maidr.save_html</code>. Not managed by pyplot.</td>
+<td>The chart, one <code>pr_curve</code> layer, ready for :func:<code>maidr.show</code>, :func:<code>maidr.render</code> or :func:<code>maidr.save_html</code>. Not managed by pyplot.</td>
 </tr>
 </tbody>
 </table>
@@ -498,7 +498,7 @@ cookieconsent.run({
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
-<p>Each line is named with its average precision and the precision a classifier guessing at random reaches – the share of positives – which is drawn as a dashed line, as :func:<code>maidr.read_tensorboard_pr_curves</code> draws TensorBoard’s PR curves.</p>
+<p>Each point carries its threshold, and each curve its average precision and the precision a classifier guessing at random keeps – the share of positives – which maidr.js announces against each point and which is drawn as a dashed line, as :func:<code>maidr.read_tensorboard_pr_curves</code> draws TensorBoard’s PR curves. <code>pr_curve</code> is an experimental type.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
