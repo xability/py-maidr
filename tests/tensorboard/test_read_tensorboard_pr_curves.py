@@ -38,26 +38,60 @@ def test_the_curves_are_the_ones_tensorboard_reads():
                 np.testing.assert_allclose(curve, want)
 
 
-def test_one_chart_per_tag_a_line_per_run_named_with_ap_and_chance():
+def test_one_pr_curve_layer_per_tag_a_curve_per_run_with_ap_and_chance():
     (chart,) = read_tensorboard_pr_curves(TORCH)
     layer = _layer(chart.figure)
-    assert layer["type"] == "line"
+    assert layer["type"] == "pr_curve"
     assert layer["title"] == "positive (step 10)"
     assert layer["axes"]["x"]["label"] == "Recall"
     assert layer["axes"]["y"]["label"] == "Precision"
-    good, poor = (line[0]["z"] for line in layer["data"])
-    assert good.startswith("good (AP 0.") and "chance 0.32" in good
-    assert poor.startswith("poor (AP 0.") and "chance 0.32" in poor
-    ap = {name.split()[0]: float(name.split("AP ")[1][:4]) for name in (good, poor)}
-    assert ap["good"] > ap["poor"] > 0.32
+    assert chart.runs == ("good", "poor")
+    good, poor = layer["data"]
+    assert {point["z"] for point in good} == {"good"}
+    assert {point["z"] for point in poor} == {"poor"}
+    assert good[0]["prevalence"] == poor[0]["prevalence"] == 127 / 400
+    assert good[0]["ap"] > poor[0]["ap"] > good[0]["prevalence"]
+    # The per-curve numbers are on the first point only, as maidr.js reads them.
+    assert not any("ap" in p or "prevalence" in p for p in good[1:] + poor[1:])
 
 
-def test_recall_rises_along_each_line_and_undefined_precision_is_left_out():
+def test_each_point_carries_its_threshold_and_the_legend_the_numbers():
     (chart,) = read_tensorboard_pr_curves(TORCH)
-    for line in _layer(chart.figure)["data"]:
-        recall = [point["x"] for point in line]
+    (curve, _) = _layer(chart.figure)["data"]
+    thresholds = [point["threshold"] for point in curve]
+    assert all(0 <= t <= 1 for t in thresholds)
+    assert thresholds == sorted(thresholds, reverse=True)
+    legend = [t.get_text() for t in chart.figure.axes[0].get_legend().get_texts()]
+    assert legend[0].startswith("good (AP 0.99") and legend[0].endswith("chance 0.32)")
+
+
+def test_recall_rises_along_each_curve_and_undefined_precision_is_left_out():
+    (chart,) = read_tensorboard_pr_curves(TORCH)
+    for curve in _layer(chart.figure)["data"]:
+        recall = [point["x"] for point in curve]
         assert recall == sorted(recall)
-        assert all(point["y"] > 0 for point in line)
+        assert all(point["y"] > 0 for point in curve)
+
+
+def test_a_curve_that_ends_at_the_share_of_positives_ends_on_its_baseline():
+    # TensorBoard stores the rates as float32; read back as they are, the
+    # last point sat a few billionths below the baseline and was said so.
+    (chart,) = read_tensorboard_pr_curves(TORCH)
+    for curve in _layer(chart.figure)["data"]:
+        assert curve[-1]["x"] == 1.0
+        assert curve[-1]["y"] == curve[0]["prevalence"]
+
+
+def test_one_selector_per_curve_names_its_drawn_line():
+    (chart,) = read_tensorboard_pr_curves(TORCH)
+    layer = _layer(chart.figure)
+    lines = [line for line in chart.figure.axes[0].lines if line.get_gid()]
+    assert len(lines) == len(layer["data"]) == 2
+    assert layer["selectors"] == [f"g[id='{line.get_gid()}'] > path" for line in lines]
+    # One vertex per point: drawn without steps, as the selector reads it.
+    for line, curve in zip(lines, layer["data"]):
+        assert line.get_drawstyle() == "default"
+        assert len(line.get_xdata()) == len(curve)
 
 
 def test_an_earlier_step_is_read_at_or_before_it():
@@ -74,9 +108,11 @@ def test_average_precision_is_the_stepwise_area():
 def test_a_curve_from_labels_and_scores():
     truth = np.array([1, 1, 0, 0, 1, 0])
     figure = plot_pr_curves(truth, {"model": [0.9, 0.8, 0.7, 0.2, 0.6, 0.1]})
-    (line,) = _layer(figure)["data"]
-    assert line[0]["z"].startswith("model (AP ") and "chance 0.50" in line[0]["z"]
-    assert line[-1]["x"] == 1.0
+    (curve,) = _layer(figure)["data"]
+    assert curve[0]["z"] == "model"
+    assert curve[0]["prevalence"] == 0.5
+    assert [point["threshold"] for point in curve] == [0.9, 0.8, 0.7, 0.6, 0.2, 0.1]
+    assert curve[-1]["x"] == 1.0
     with pytest.raises(ValueError, match="positive"):
         plot_pr_curves([0, 0], [0.1, 0.2])
     with pytest.raises(ValueError, match="scores 1 samples"):
@@ -116,7 +152,7 @@ def test_a_run_that_never_predicted_positive_is_left_out(monkeypatch):
     monkeypatch.setattr(module, "load_pr_curves", lambda *a, **k: series)
     with pytest.warns(UserWarning, match="predicted nothing positive"):
         (chart,) = read_tensorboard_pr_curves(TORCH)
-    assert [run.split(" (")[0] for run in chart.runs] == ["good"]
+    assert chart.runs == ("good",)
 
 
 def test_scores_are_counted_as_a_threshold_matrix_would_count_them(monkeypatch):
@@ -147,4 +183,4 @@ def test_a_large_set_of_scores_is_drawn_without_a_quadratic_matrix():
     truth = rng.random(200_000) < 0.3
     scores = np.clip(truth * 0.5 + rng.normal(0.3, 0.2, size=truth.size), 0, 1)
     figure = plot_pr_curves(truth, scores)  # 200k x 200k booleans would be 40 GB
-    assert _layer(figure)["type"] == "line"
+    assert _layer(figure)["type"] == "pr_curve"

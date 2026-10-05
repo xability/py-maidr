@@ -85,7 +85,7 @@ matplotlib backend, a plain `plt.show()` renders accessible output too.
 | **Files** | the charts of an Excel workbook (`.xlsx`, `.xlsm`) [experimental]; the charts of a PowerPoint presentation (`.pptx`) or a Word document (`.docx`) [experimental]; the training curves, histograms, PR curves, hyperparameter sweeps, embeddings, profiles and the Keras model graph of a TensorBoard log directory (Keras, TensorFlow, PyTorch) [experimental] |
 | **Model training** | the training curves of a Keras model, from `model.fit` or live while it trains, a classifier's confusion matrix and PR curve, and the model's layer graph [experimental]; the training curves of Weights & Biases runs, online or offline, and of MLflow runs, and an accessible chart stored in an MLflow run [experimental] |
 | **Environments** | Python scripts, Jupyter, Quarto, Shiny for Python, Streamlit, Gradio |
-| **Plot types** | 42 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-seven are experimental; the docs mark each experimental type **[experimental]** after its name |
+| **Plot types** | 44 — see [Plot Type Stability](https://py.maidr.ai/stability.html) for which fifteen are settled and which twenty-nine are experimental; the docs mark each experimental type **[experimental]** after its name |
 
 Plot types not yet supported fall back to a static image with a warning, so a
 plot is never lost.

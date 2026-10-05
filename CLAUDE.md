@@ -44,7 +44,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 ### Supported Plot Types
 
-Defined in `maidr/core/enum/plot_type.py`, which has **42** members. They do
+Defined in `maidr/core/enum/plot_type.py`, which has **44** members. They do
 not all carry the same promise -- see `docs/stability.qmd`, and keep that page
 in step when adding one (`tests/core/test_plot_type_stability.py` enforces it).
 
@@ -54,13 +54,13 @@ exercised by real readers:
 BAR, BOX, CANDLESTICK, COUNT, DODGED, HEAT, HIST, LINE, PIE, SCATTER,
 SMOOTH, STACKED, STEP, VIOLIN_BOX, VIOLIN_KDE
 
-**Experimental** (27) -- added by that roadmap or after it, none validated
+**Experimental** (29) -- added by that roadmap or after it, none validated
 with a reader, and subject to change without a deprecation period:
 
 ALLUVIAL, AREA, BOXEN, CHOROPLETH, CONTOUR, DIRECTED_GRAPH, ERRORBAR, FUNNEL,
 GANTT, GAUGE, HEXBIN, ICICLE, LOLLIPOP, NORMALIZED, NORMALIZED_AREA, PARALLEL,
-POLAR_AREA, RADAR, RIDGELINE, ROC, RUG, SANKEY, STACKED_AREA, SUNBURST, TREEMAP,
-WATERFALL, WORD_CLOUD
+PERCENTILE_BAND, POLAR_AREA, PR_CURVE, RADAR, RIDGELINE, ROC, RUG, SANKEY,
+STACKED_AREA, SUNBURST, TREEMAP, WATERFALL, WORD_CLOUD
 
 Docs convention: wherever user docs name a plot type as a heading, nav/sidebar
 label, list item or table row (outside the `docs/stability.qmd` tables), an
@@ -138,8 +138,10 @@ TensorBoard nor protobuf is a dependency, converts a legacy histogram as TensorB
 `data_compat` does, and follows TensorBoard's own rules for restarted runs;
 `logdir.py` finds runs and tags; `__init__.py` draws one chart per scalar tag
 through the patched `Axes.plot`; `distributions.py` reads each histogram at
-TensorBoard's nine basis points as one line layer of nine lines over
-unregistered band polygons; `histograms.py` draws one ridge polygon per
+TensorBoard's nine basis points, draws the four band polygons and nine plain
+`Line2D`s, and registers a `percentile_band` `PrebuiltPlot` of the quantiles
+at each step, its selectors naming each band's gid, outermost first, and the
+median line's; `histograms.py` draws one ridge polygon per
 step and registers a `RidgelinePlot` (`maidr/core/plot/ridgeline.py`) built
 from the binned counts through `FigureManager.add_plot`; `hparams.py` reads
 the HParams plugin's `HParamsPluginData` and draws the parallel coordinates
@@ -150,8 +152,10 @@ Embedding Projector's `projector_config.pbtxt` and its TSV vectors (or, with
 TensorFlow installed, a checkpoint variable) and draws the first two principal
 components through the patched `scatter`, a layer per label; `pr_curves.py`
 reads the `pr_curves` plugin's `(6, thresholds)` tensors and draws precision
-against recall through the patched `plot`, each line named with its average
-precision and chance level, until maidr.js's PR trace is bundled;
+against recall as plain `Line2D`s, one vertex per threshold, beside a dashed
+chance line each, and registers a `pr_curve` `PrebuiltPlot` whose points
+carry their thresholds and whose curves carry their average precision and
+share of positives, its selectors naming each curve's gid;
 `profile.py` reads a profile's XPlane files through the profile plugin's
 converter (`xprof`, the one reader with a dependency, imported only when
 called) and draws its step-time graph as stacked bars and its top operation
@@ -168,7 +172,7 @@ against what TensorBoard itself read from logs real writers wrote
 Keras model's training curves, confusion matrix and graph: `plot_history` from
 a `History` or its dictionary, `plot_confusion_matrix` from the predictions
 through the patched `imshow`, `plot_pr_curve` from labels and scores through
-`maidr/tensorboard/pr_curves.py`'s `plot_pr_curves`, `plot_model` from a model,
+`maidr/tensorboard/pr_curves.py`'s `plot_pr_curves` (a `pr_curve` layer), `plot_model` from a model,
 its `get_config()` or its `to_json()`, and `MaidrCallback`, a
 `keras.callbacks.Callback` that rewrites an HTML page as the model trains. It
 imports Keras only for that base class, and `import maidr` does not import it.

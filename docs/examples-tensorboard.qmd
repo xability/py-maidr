@@ -42,12 +42,12 @@ curves of a model can be compared point by point.
 | Keras `keras.callbacks.TensorBoard` | yes |
 | `tf.summary.scalar`, TensorFlow 1 and 2 | yes |
 | PyTorch `torch.utils.tensorboard.SummaryWriter`, tensorboardX | yes |
-| Distributions | yes |
+| Embedding Projector, as a 2D scatter of the principal components | yes |
+| Profile: step-time graph and top operations (needs `xprof`) | yes |
+| Distributions, as percentile bands [experimental] | yes |
+| PR curves [experimental] | yes |
 | Histograms, as ridgelines [experimental] | yes |
 | Hyperparameter sweeps (HParams), as a scatter matrix and as parallel coordinates [experimental] | yes |
-| Embedding Projector, as a 2D scatter of the principal components | yes |
-| PR curves | yes |
-| Profile: step-time graph and top operations (needs `xprof`) | yes |
 | The Keras model graph, as a directed graph [experimental] | yes |
 | Images, op-level graphs | not yet |
 
@@ -129,43 +129,6 @@ A long run is thinned to 1,000 points per line, evenly spaced and keeping the
 first and last step, so it stays quick to walk; `max_points=None` keeps every
 point. A loss that became `NaN` is a gap in the line, never a zero.
 
-### Distributions
-
-`maidr.read_tensorboard_distributions()` reads what TensorBoard's
-Distributions dashboard shows: for each step, the minimum, the median, the
-maximum and the six points a normal distribution puts at one, two and three
-standard deviations from the middle. They are drawn as TensorBoard draws them,
-nested bands around the median, and read as nine lines named for the share of
-values below each, such as *84.1%*. At a step, up and down move through them
-in value order, which is how wide the distribution is there; left and right
-follow one of them through training.
-
-```{python}
-#| warning: false
-#| fig-alt: Distribution chart of the activations, nested bands around a median line rising and widening over the steps
-(activations, constant) = maidr.read_tensorboard_distributions("tensorboard-histograms")
-maidr.show(activations)
-```
-
-### PR Curves
-
-`maidr.read_tensorboard_pr_curves()` reads what TensorBoard's PR Curves
-dashboard shows: per tag, each run's precision against its recall, one point
-per decision threshold, at the run's last step (or `step=`). Each line is
-named with its average precision and the precision a classifier guessing at
-random reaches, the share of positives, so you hear at once whether a run is
-any better than chance: *good (AP 0.99, chance 0.32)*. The chance level is
-drawn as a dashed line. A threshold at which nothing was predicted positive
-has no precision and is left out. The example reads `tensorboard-pr-curves/`,
-written by PyTorch's `add_pr_curve` for a good and a poor classifier.
-
-```{python}
-#| warning: false
-#| fig-alt: Precision-recall curves of a good and a poor classifier, with their chance level dashed
-(positive,) = maidr.read_tensorboard_pr_curves("tensorboard-pr-curves")
-maidr.show(positive)
-```
-
 ### Profile
 
 `maidr.read_tensorboard_profile()` reads the two charts TensorBoard's Profile
@@ -241,6 +204,49 @@ maidr.show(animals)
 A checkpoint written by Keras or TensorFlow is read only with TensorFlow
 installed; PyTorch writes its vectors as text, which needs nothing.
 
+### Distributions as Percentile Bands [experimental] {#distributions}
+
+`maidr.read_tensorboard_distributions()` reads what TensorBoard's
+Distributions dashboard shows: for each step, the minimum, the median, the
+maximum and the six points a normal distribution puts at one, two and three
+standard deviations from the middle. They are drawn as TensorBoard draws them,
+nested bands around the median, and read as one percentile band: you start on
+the median, and each step says the band around it, such as *Middle 68% is
+-1.06 to 0.94*. At a step, up and down move through the nine values in value
+order, which is how wide the distribution is there, outlining the band each
+one bounds; left and right follow one of them through training. Percentile
+bands are an experimental plot type.
+
+```{python}
+#| warning: false
+#| fig-alt: Distribution chart of the activations, nested bands around a median line rising and widening over the steps
+(activations, constant) = maidr.read_tensorboard_distributions("tensorboard-histograms")
+maidr.show(activations)
+```
+
+### PR Curves [experimental] {#pr-curves}
+
+`maidr.read_tensorboard_pr_curves()` reads what TensorBoard's PR Curves
+dashboard shows: per tag, each run's precision against its recall, one point
+per decision threshold, at the run's last step (or `step=`). Right and left
+walk one run's curve, each point read with its threshold and how far its
+precision is above the precision a classifier guessing at random keeps, the
+share of positives; up and down move to the other run's curve at the same
+recall. The chart's description gives each run's average precision against
+that chance level and the threshold with the best F1. The chance level is
+drawn as a dashed line, and the legend names each run with both numbers:
+*good (AP 0.99, chance 0.32)*. A threshold at which nothing was predicted
+positive has no precision and is left out. PR curves are an experimental plot
+type. The example reads `tensorboard-pr-curves/`, written by PyTorch's
+`add_pr_curve` for a good and a poor classifier.
+
+```{python}
+#| warning: false
+#| fig-alt: Precision-recall curves of a good and a poor classifier, with their chance level dashed
+(positive,) = maidr.read_tensorboard_pr_curves("tensorboard-pr-curves")
+maidr.show(positive)
+```
+
 ### Histograms as Ridgelines [experimental]
 
 `maidr.read_tensorboard_histograms()` reads what TensorBoard's Histograms
@@ -306,5 +312,4 @@ maidr.show(graph)
 Only Keras's own record of the model is read, not the op-level graph
 TensorFlow can log beside it, which lists every operation and runs to
 hundreds of nodes for a few layers. A directed graph is an experimental plot
-type, and reading one needs a maidr.js release that carries the
-`directed_graph` trace.
+type.

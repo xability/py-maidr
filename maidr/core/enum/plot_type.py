@@ -64,6 +64,25 @@ class PlotType(str, Enum):
     #: rather than of the chart.
     NORMALIZED_AREA = "stacked_normalized_area"
     PIE = "pie"
+    #: A distribution at each position drawn as nested bands around its
+    #: median -- TensorBoard's distributions, a fan chart. Stated as the
+    #: quantiles at each position rather than as one line per quantile,
+    #: because the bands pair them from the outside in: read as lines, a
+    #: reader heard nine series and was told nothing of the spread between
+    #: them. Registered by the readers that draw one, such as
+    #: `maidr.read_tensorboard_distributions`. See `docs/stability.qmd` --
+    #: experimental.
+    PERCENTILE_BAND = "percentile_band"
+    #: A classifier's precision against its recall, one point per decision
+    #: threshold, one curve per classifier or run. A distinct type from
+    #: :attr:`ROC` because it is read against a different baseline: a
+    #: classifier that guesses keeps the share of positives at every recall,
+    #: a level line whose height depends on the data. Read as a line, that
+    #: baseline and the average precision were only in the series name.
+    #: Registered by the readers that draw one, such as
+    #: `maidr.read_tensorboard_pr_curves`. See `docs/stability.qmd` --
+    #: experimental.
+    PR_CURVE = "pr_curve"
     #: A classifier's true positive rate against its false positive rate, one
     #: point per decision threshold, one curve per classifier. Drawn by
     #: `ax.plot` inside `RocCurveDisplay.plot`, and read as a line it answers
@@ -189,7 +208,9 @@ _DISPLAY_NAMES = {
     PlotType.STACKED_AREA: "stacked area",
     PlotType.NORMALIZED_AREA: "100% stacked area",
     PlotType.PARALLEL: "parallel coordinates",
+    PlotType.PERCENTILE_BAND: "percentile band",
     PlotType.POLAR_AREA: "polar area",
+    PlotType.PR_CURVE: "PR curve",
     PlotType.ROC: "ROC curve",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",

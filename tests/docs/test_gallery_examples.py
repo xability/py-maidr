@@ -219,7 +219,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
     "examples-keras.qmd": {
         "Training Curves from model.fit": [["line", "line"]],
         "Confusion Matrix": [["heat"]],
-        "PR Curve": [["line"]],
+        "PR Curve [experimental]": [["pr_curve"]],
         "Model Graph [experimental]": [["directed_graph"]],
     },
     "examples-wandb.qmd": {
@@ -233,11 +233,11 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
     "examples-tensorboard.qmd": {
         "Training and Validation Loss": [["line"]],
         "Accuracy Without Smoothing": [["line"]],
-        "Distributions": [["line"]],
-        "PR Curves": [["line"]],
         "Profile": [["stacked_bar"], ["bar"]],
         "Hyperparameter Sweep as a Scatter Matrix": [["point"] * 8],
         "Embedding Projector": [["point + point + point"]],
+        "Distributions as Percentile Bands [experimental]": [["percentile_band"]],
+        "PR Curves [experimental]": [["pr_curve"]],
         "Histograms as Ridgelines [experimental]": [["ridgeline"]],
         "Hyperparameter Sweep as Parallel Coordinates [experimental]": [
             ["parallel_coordinates"]

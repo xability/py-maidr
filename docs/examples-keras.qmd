@@ -83,28 +83,6 @@ maidr.show(plot_confusion_matrix(y_true, y_pred, labels=["cat", "dog", "bird"]))
 A confusion matrix logged to TensorBoard as an image carries no numbers a
 screen reader can read; drawn from the predictions, it keeps them.
 
-### PR Curve
-
-`maidr.keras.plot_pr_curve()` draws a binary classifier's precision against
-its recall, one point per decision threshold, from the labels and what
-`model.predict` returns: a sigmoid output, or two-class softmax rows. The line
-is named with its average precision and the precision a classifier guessing at
-random would reach, the share of positives, drawn as a dashed line, so you hear
-at once how far above chance the model is. Pass several models' predictions by
-name to compare them, a line each.
-
-```{python}
-#| warning: false
-#| fig-alt: Precision-recall curves of two classifiers, with their chance level dashed
-from maidr.keras import plot_pr_curve
-
-rng = np.random.default_rng(0)
-y_true = rng.random(300) < 0.3
-good = np.clip(y_true * 0.6 + 0.2 + rng.normal(scale=0.15, size=300), 0, 1)
-poor = np.clip(y_true * 0.6 + 0.2 + rng.normal(scale=0.45, size=300), 0, 1)
-maidr.show(plot_pr_curve(y_true, {"good": good, "poor": poor}))
-```
-
 ### Following a Model While It Trains
 
 `MaidrCallback` writes an accessible page of the same charts every `every`
@@ -127,6 +105,30 @@ model.fit(
 The callback records the epoch of every value, so validation run only every
 few epochs (`validation_freq=`) is placed on the epochs it was run on, which
 `plot_history()` cannot tell from a `History`.
+
+### PR Curve [experimental] {#pr-curve}
+
+`maidr.keras.plot_pr_curve()` draws a binary classifier's precision against
+its recall, one point per decision threshold, from the labels and what
+`model.predict` returns: a sigmoid output, or two-class softmax rows. Each
+point is read with its threshold and how far its precision is above the
+precision a classifier guessing at random would keep, the share of positives,
+drawn as a dashed line, so you hear at once how far above chance the model is;
+the description gives the average precision and the threshold with the best
+F1. Pass several models' predictions by name to compare them, a curve each.
+PR curves are an experimental plot type.
+
+```{python}
+#| warning: false
+#| fig-alt: Precision-recall curves of two classifiers, with their chance level dashed
+from maidr.keras import plot_pr_curve
+
+rng = np.random.default_rng(0)
+y_true = rng.random(300) < 0.3
+good = np.clip(y_true * 0.6 + 0.2 + rng.normal(scale=0.15, size=300), 0, 1)
+poor = np.clip(y_true * 0.6 + 0.2 + rng.normal(scale=0.45, size=300), 0, 1)
+maidr.show(plot_pr_curve(y_true, {"good": good, "poor": poor}))
+```
 
 ### Model Graph [experimental]
 
@@ -156,7 +158,6 @@ with open("keras-model.json") as f:
 
 The graph is read from the model's config alone, in Keras 3's format or Keras
 2's (`tf.keras`), so a model saved with `model.to_json()` is drawn with no
-Keras installed. A directed graph is an experimental plot type, and reading
-one needs a maidr.js release that carries the `directed_graph` trace. For the
+Keras installed. A directed graph is an experimental plot type. For the
 graph Keras's `TensorBoard` callback logs, see
 [`maidr.read_tensorboard_graph()`](examples-tensorboard.qmd#model-graph-experimental).

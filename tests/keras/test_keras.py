@@ -413,10 +413,11 @@ def test_a_confusion_matrix_that_cannot_be_counted_raises(args, kwargs, match):
         maidr.keras.plot_confusion_matrix(*args, **kwargs)
 
 
-def _pr_names(figure) -> list[str]:
+def _pr_curves(figure) -> list[dict]:
+    """The first point of each curve, which carries its name, AP and chance."""
     (layer,) = _layers(figure)
-    assert layer["type"] == "line"
-    return [series[0]["z"] for series in layer["data"]]
+    assert layer["type"] == "pr_curve"
+    return [curve[0] for curve in layer["data"]]
 
 
 @pytest.mark.parametrize(
@@ -432,19 +433,20 @@ def _pr_names(figure) -> list[str]:
 )
 def test_a_pr_curve_reads_what_model_predict_returns(y_pred):
     y_true = [1, 1, 1, 0, 0, 0]
-    (name,) = _pr_names(maidr.keras.plot_pr_curve(y_true, y_pred))
-    assert name.startswith("classifier (AP ")
-    assert name.endswith("chance 0.50)")
+    (curve,) = _pr_curves(maidr.keras.plot_pr_curve(y_true, y_pred))
+    assert curve["z"] == "classifier"
+    assert curve["prevalence"] == 0.5
+    assert 0.5 < curve["ap"] <= 1
 
 
-def test_several_models_are_a_pr_line_each_and_one_hot_labels_are_read():
+def test_several_models_are_a_pr_curve_each_and_one_hot_labels_are_read():
     y_true = np.eye(2)[[1, 1, 0, 0]]
     figure = maidr.keras.plot_pr_curve(
         y_true, {"a": [0.9, 0.7, 0.2, 0.1], "b": [0.4, 0.6, 0.5, 0.3]}
     )
-    names = _pr_names(figure)
-    assert [name.split(" (")[0] for name in names] == ["a", "b"]
-    assert names[0].startswith("a (AP 1")
+    curves = _pr_curves(figure)
+    assert [curve["z"] for curve in curves] == ["a", "b"]
+    assert curves[0]["ap"] == 1.0
 
 
 def test_a_pr_curve_of_more_than_two_classes_raises():
@@ -476,8 +478,8 @@ def test_class_indices_of_more_than_two_classes_are_refused(y_true, match):
     ids=["booleans", "label-column"],
 )
 def test_boolean_labels_and_a_label_column_are_read(y_true):
-    (name,) = _pr_names(maidr.keras.plot_pr_curve(y_true, [0.9, 0.2, 0.6]))
-    assert name.startswith("classifier (AP 1.00")
+    (curve,) = _pr_curves(maidr.keras.plot_pr_curve(y_true, [0.9, 0.2, 0.6]))
+    assert curve["ap"] == 1.0
 
 
 def test_no_predictions_to_draw_raises():

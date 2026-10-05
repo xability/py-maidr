@@ -6,22 +6,26 @@ the distribution -- its minimum, the points a normal distribution puts at one,
 two and three standard deviations either side of the middle, its median and
 its maximum -- drawn as nested bands around the median line.
 
-maidr has no band layer yet (xability/maidr#1348), so each of the nine is read
-as a line of one line layer, named for the share of values below it: Up and
-Down at a step move between them in value order, through the spread. The bands
-are drawn for the eye, and the lines carry the reading.
+Each chart is read as one ``percentile_band`` layer: at each step, the nine
+values as quantiles from 0 to 1. A reader enters on the median, Up and Down at
+a step move through the quantiles in value order, through the spread, and
+Left and Right move along the steps; each band is outlined as it is reached.
 """
 
 from __future__ import annotations
 
 import os
+import uuid
 from typing import Iterable
 
 import numpy as np
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from matplotlib.patches import Polygon
 
+from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.prebuilt import PrebuiltPlot
 from maidr.tensorboard.histograms import load_histograms
 from maidr.tensorboard.logdir import TensorBoardChart
 from maidr.util.metric_chart import thin
@@ -103,9 +107,10 @@ def read_tensorboard_distributions(
     Read the distribution charts of a TensorBoard log directory.
 
     One chart per tag and run, as TensorBoard's Distributions dashboard draws
-    them: the step along the x axis, and nine lines -- the minimum, six
+    them: the step along the x axis, and nine values -- the minimum, six
     percentiles, the median and the maximum of the logged values at each step
-    -- drawn over the nested bands between them.
+    -- drawn as the nested bands between them around the median line, and
+    read as one ``percentile_band`` layer.
 
     Parameters
     ----------
@@ -135,10 +140,12 @@ def read_tensorboard_distributions(
     -----
     The distributions are the histograms the Histograms dashboard reads, so
     whatever :func:`maidr.read_tensorboard_histograms` reads is read here.
-    Each line is named for the share of values below it, such as ``84.1%``;
-    a reader at one step moves Up and Down through them in value order, which
-    is the spread of the distribution at that step, and Left and Right along
-    one of them over training.
+    Each value is a quantile, its level the share of values below it, such
+    as 0.8413; a reader enters on the median, moves Up and Down through the
+    quantiles in value order, which is the spread of the distribution at that
+    step, and Left and Right along one of them over training. maidr.js names
+    the band around the median, such as the middle 68%. ``percentile_band``
+    is an experimental type.
 
     Examples
     --------
@@ -166,14 +173,17 @@ def read_tensorboard_distributions(
 
 def _draw(title: str, tag: str, steps: np.ndarray, values: np.ndarray) -> Figure:
     """
-    Draw the bands for the eye and the nine lines that are read.
+    Draw the bands and the nine lines, and register one ``percentile_band`` layer.
 
-    The bands are plain polygons, which nothing registers, so the chart is
-    one line layer of nine lines.
+    The bands, outermost first, and the median line are named by their gids
+    in the layer's selectors, so the band a reader is in is outlined; the
+    other eight lines are for the eye. Nothing here is drawn through a
+    patched call, so the chart is that one layer.
     """
     fig = Figure(figsize=(_WIDTH, _HEIGHT))
     ax = fig.add_subplot()
     middle = len(BASIS_POINTS) // 2
+    marks = []
     for depth in range(middle):
         lower, upper = values[:, depth], values[:, -1 - depth]
         outline = np.column_stack(
@@ -182,12 +192,12 @@ def _draw(title: str, tag: str, steps: np.ndarray, values: np.ndarray) -> Figure
                 np.concatenate([lower, upper[::-1]]),
             ]
         )
-        ax.add_patch(
-            Polygon(outline, closed=True, facecolor=_BAND, alpha=0.18, linewidth=0)
-        )
+        band = Polygon(outline, closed=True, facecolor=_BAND, alpha=0.18, linewidth=0)
+        ax.add_patch(band)
+        marks.append(band)
     for index, name in enumerate(_NAMES):
         is_median = index == middle
-        ax.plot(
+        line = Line2D(
             steps,
             values[:, index],
             color=_BAND,
@@ -195,6 +205,10 @@ def _draw(title: str, tag: str, steps: np.ndarray, values: np.ndarray) -> Figure
             alpha=1.0 if is_median else 0.6,
             label=name,
         )
+        ax.add_line(line)
+        if is_median:
+            marks.append(line)
+    ax.autoscale_view()
     ax.set_title(title)
     ax.set_xlabel("Step")
     ax.set_ylabel(tag)
@@ -207,5 +221,25 @@ def _draw(title: str, tag: str, steps: np.ndarray, values: np.ndarray) -> Figure
         title="Share below",
     )
     fig.tight_layout()
-    FigureManager.get_maidr(fig)
+    for mark in marks:
+        mark.set_gid(f"maidr-{uuid.uuid4()}")
+    levels = [point / BASIS_POINTS[-1] for point in BASIS_POINTS]
+    FigureManager.add_plot(
+        PrebuiltPlot(
+            ax,
+            PlotType.PERCENTILE_BAND,
+            labels={"x": "Step", "y": tag},
+            data=[
+                {
+                    "x": int(step),
+                    "quantiles": [
+                        {"level": level, "value": float(value)}
+                        for level, value in zip(levels, row)
+                    ],
+                }
+                for step, row in zip(steps, values)
+            ],
+            selectors=[f"g[id='{mark.get_gid()}'] > path" for mark in marks],
+        )
+    )
     return fig

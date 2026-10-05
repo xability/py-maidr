@@ -63,10 +63,10 @@ def read_tensorboard_graph(
 
     Notes
     -----
-    The chart is a ``directed_graph``, an experimental type that needs a
-    maidr.js release carrying it. A run that logged its model more than once
-    is drawn from the last. A model logged as something other than a Keras
-    config, such as a TensorFlow op graph, is not read.
+    The chart is a ``directed_graph``, an experimental type. A run that
+    logged its model more than once is drawn from the last. A model logged as
+    something other than a Keras config, such as a TensorFlow op graph, is not
+    read.
 
     Examples
     --------
