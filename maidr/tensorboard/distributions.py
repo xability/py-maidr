@@ -27,7 +27,8 @@ from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.prebuilt import PrebuiltPlot
 from maidr.tensorboard.histograms import load_histograms
-from maidr.tensorboard.logdir import TensorBoardChart, thin
+from maidr.tensorboard.logdir import TensorBoardChart
+from maidr.util.metric_chart import thin
 from maidr.util.caller_warning import warn_at_caller
 
 __all__ = ["BASIS_POINTS", "percentiles", "read_tensorboard_distributions"]

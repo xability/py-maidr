@@ -126,16 +126,209 @@ def test_a_repeated_term_is_announced_once():
     assert terms == ["alpha", "beta"]
 
 
-def test_a_cloud_carries_no_selectors():
-    # `imshow` rasterises the whole cloud into one element, so there is no
-    # per-term element to point at. Left on, the base class emits its generic
-    # `g[maidr='true'] > path`, which the core would resolve and pair
-    # positionally with the terms -- lighting up whatever else drew that many
-    # paths while this layer is read.
+def selectors(fig):
+    """The word cloud layer's selectors, or None when it carries none."""
+    return layers(fig)[0].get(MaidrKey.SELECTOR)
+
+
+def box_of(ax, selector):
+    """The rectangle a selector names, by the gid inside its quotes."""
+    gid = selector.split("'")[1]
+    (box,) = [patch for patch in ax.patches if patch.get_gid() == gid]
+    return box
+
+
+def ink_in(image, box):
+    """How many of the cloud's non-white pixels fall inside a box."""
+    pixels = np.asarray(image.get_array())[..., :3]
+    ink = (pixels != 255).any(axis=-1)
+    rows, cols = np.indices(ink.shape)
+    left, right, bottom, top = image.get_extent()
+    first, last = (top, bottom) if image.origin == "upper" else (bottom, top)
+    x = left + (cols + 0.5) * (right - left) / ink.shape[1]
+    y = first + (rows + 0.5) * (last - first) / ink.shape[0]
+    inside = (
+        (x >= box.get_x())
+        & (x <= box.get_x() + box.get_width())
+        & (y >= box.get_y())
+        & (y <= box.get_y() + box.get_height())
+    )
+    return int(ink[inside].sum()), ink, inside
+
+
+def test_each_term_names_its_own_box():
+    # One selector per term, in the order the terms are emitted -- the core
+    # pairs the two by position. A shared or generic selector would resolve
+    # to some other count of elements, and the core would drop the highlight.
     fig, ax = plt.subplots()
     ax.imshow(cloud())
 
-    assert MaidrKey.SELECTOR not in layers(fig)[0]
+    named = selectors(fig)
+
+    assert len(named) == len(BY_WEIGHT)
+    assert len({box_of(ax, one).get_gid() for one in named}) == len(BY_WEIGHT)
+
+
+@pytest.mark.parametrize(
+    "settings, shown",
+    [
+        ({}, {}),
+        ({"scale": 2}, {}),
+        ({"prefer_horizontal": 0.0}, {"origin": "lower"}),
+        ({}, {"extent": (0, 10, 0, 5)}),
+    ],
+    ids=["default", "scaled", "rotated-origin-lower", "extent"],
+)
+def test_each_box_is_over_the_word_it_names(settings, shown):
+    # The boxes are measured with PIL's own font, size, rotation and
+    # position, then carried through the image's extent and origin into data
+    # coordinates. Between them they must hold the drawing: every term's box
+    # has ink in it, and only antialiasing fringe falls outside all of them.
+    fig, ax = plt.subplots()
+    image = ax.imshow(
+        cloud(background_color="white", width=300, height=150, **settings),
+        **shown,
+    )
+
+    covered = None
+    for one in selectors(fig):
+        count, ink, inside = ink_in(image, box_of(ax, one))
+        assert count > 0
+        covered = inside if covered is None else covered | inside
+
+    assert (ink & ~covered).sum() / ink.sum() < 0.01
+
+
+def test_each_box_holds_its_own_term():
+    # The pairing, not only the coverage: every term is drawn in a color of
+    # its own, and all of that color lies in the box named for the term at
+    # that position. Boxes handed out in any other order would fail here.
+    palette = {
+        "machine": "rgb(255, 0, 0)",
+        "learning": "rgb(0, 160, 0)",
+        "data": "rgb(0, 0, 255)",
+        "model": "rgb(160, 0, 160)",
+    }
+    rgb = {term: [int(c) for c in v[4:-1].split(",")] for term, v in palette.items()}
+    fig, ax = plt.subplots()
+    image = ax.imshow(
+        cloud(
+            background_color="white",
+            color_func=lambda word, **_: palette[word],
+            prefer_horizontal=0.5,
+        )
+    )
+    pixels = np.asarray(image.get_array())[..., :3]
+
+    for term, one in zip(BY_WEIGHT, selectors(fig)):
+        _, _, inside = ink_in(image, box_of(ax, one))
+        own = (pixels == rgb[term]).all(axis=-1)
+        assert own.sum() > 0
+        assert own[inside].sum() == own.sum(), term
+
+
+def test_a_repeated_term_names_one_box():
+    # `repeat=True` places a term more than once; the term is read once, so
+    # it is given one box, or the core would find more elements than terms.
+    fig, ax = plt.subplots()
+    ax.imshow(
+        wordcloud.WordCloud(
+            max_words=6, repeat=True, random_state=1, width=200, height=200
+        ).generate_from_frequencies({"alpha": 3, "beta": 2})
+    )
+
+    assert len(selectors(fig)) == 2
+
+
+def test_a_term_that_did_not_fit_leaves_the_cloud_without_selectors():
+    # A term the packer could not place has nothing to point at, and the core
+    # pairs selectors with terms by position: a gap would put every later
+    # highlight on the wrong word, so there is no highlight at all instead.
+    fig, ax = plt.subplots()
+    shown = cloud(width=40, height=20, min_font_size=8)
+    assert set(shown.words_) - {entry[0][0] for entry in shown.layout_}
+    ax.imshow(shown)
+
+    assert selectors(fig) is None
+
+
+def test_a_cloud_that_cannot_be_measured_is_read_without_selectors(monkeypatch):
+    # A `wordcloud` that lays out differently, or a font that has gone, must
+    # not cost the reading -- only the highlight, and not silently.
+    from PIL import ImageDraw
+
+    shown = cloud()
+
+    def unmeasurable(*_, **__):
+        raise OSError("cannot open resource")
+
+    # Only the measuring calls it once the cloud is laid out: drawing the
+    # cloud into the image does not, so `imshow` itself still succeeds.
+    monkeypatch.setattr(ImageDraw.ImageDraw, "textbbox", unmeasurable)
+    fig, ax = plt.subplots()
+
+    with pytest.warns(UserWarning, match="without a highlight"):
+        ax.imshow(shown)
+
+    assert selectors(fig) is None
+    terms = [point[MaidrKey.X] for point in layers(fig)[0][MaidrKey.DATA]]
+    assert terms == BY_WEIGHT
+    assert len(ax.patches) == 0
+
+
+def test_the_boxes_draw_nothing_outside_the_svg():
+    # Undrawn in every backend: a cloud saved as a picture is the cloud alone.
+    import io
+
+    def saved(fig):
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png")
+        return buffer.getvalue()
+
+    shown = cloud()
+    fig, ax = plt.subplots()
+    ax.imshow(shown)
+    layers(fig)
+    bare, plain = plt.subplots()
+    plain.imshow(shown.to_array())
+
+    assert saved(fig) == saved(bare)
+
+
+def test_the_boxes_are_hidden_in_the_svg_until_highlighted():
+    # maidr.js highlights a copy of each box and leaves the box itself as it
+    # was drawn, so the box is hidden and the copy is turned visible. The
+    # style is the copy's: an opaque outline, and a fill faint enough that
+    # the word reads through it but above the 0.01 maidr.js would raise to
+    # opaque.
+    from lxml import etree
+
+    fig, ax = plt.subplots()
+    ax.imshow(cloud())
+    svg = etree.fromstring(
+        str(FigureManager.get_maidr(fig)._get_svg(embed_data=False)).encode()
+    )
+
+    for one in selectors(fig):
+        (path,) = svg.xpath(
+            "//*[local-name()='g'][@id=$gid]/*[local-name()='path']",
+            gid=box_of(ax, one).get_gid(),
+        )
+        assert path.get("visibility") == "hidden"
+        assert "fill-opacity: 0.02" in path.get("style")
+        assert "stroke-width: 2" in path.get("style")
+
+
+def test_rendering_again_adds_no_boxes():
+    # The boxes are made with the layer, not with each render; a figure that
+    # is shown twice must not stack a second set on the axes.
+    fig, ax = plt.subplots()
+    ax.imshow(cloud())
+    first = selectors(fig)
+    FigureManager.get_maidr(fig).render()
+
+    assert len(ax.patches) == len(BY_WEIGHT)
+    assert selectors(fig) == first
 
 
 def test_a_chart_drawn_beside_a_cloud_keeps_its_reading():

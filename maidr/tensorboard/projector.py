@@ -23,7 +23,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from matplotlib.figure import Figure
 
-from maidr.tensorboard.logdir import TensorBoardChart, thin
+from maidr.tensorboard.logdir import TensorBoardChart
+from maidr.util.metric_chart import thin
 from maidr.util.caller_warning import warn_at_caller
 
 __all__ = [

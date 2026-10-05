@@ -52,6 +52,7 @@ from maidr.core.figure_manager import FigureManager
 from maidr.excel import ExcelChart
 from maidr.office import PowerPointChart, WordChart, read_powerpoint_charts
 from maidr.tensorboard import TensorBoardChart
+from maidr.util.metric_chart import MetricChart
 
 DOCS = Path(__file__).parents[2] / "docs"
 
@@ -65,7 +66,7 @@ PAGES = sorted(DOCS.glob("examples*.qmd")) + sorted((DOCS / "examples").glob("*.
 #: Pages whose library is an optional extra that nothing else in the suite
 #: requires, so an environment without it -- ``uv sync --dev`` with no extras --
 #: skips the page rather than failing it.
-REQUIRES = {"examples-plotnine.qmd": "plotnine"}
+REQUIRES = {"examples-plotnine.qmd": "plotnine", "examples-mlflow.qmd": "mlflow"}
 
 #: A figure as a reader receives it: one entry per subplot cell, each the
 #: emitted layer types joined with `` + ``. A section lists one such figure
@@ -220,6 +221,14 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Confusion Matrix": [["heat"]],
         "PR Curve [experimental]": [["pr_curve"]],
         "Model Graph [experimental]": [["directed_graph"]],
+    },
+    "examples-wandb.qmd": {
+        "Training Loss": [["line"]],
+        "Evaluation Loss": [["line"]],
+    },
+    "examples-mlflow.qmd": {
+        "Training Loss": [["line"]],
+        "Evaluation Loss": [["line"]],
     },
     "examples-tensorboard.qmd": {
         "Training and Validation Loss": [["line"]],
@@ -397,9 +406,9 @@ class _Capture:
 
     def maidr_show(self, plot: Any = None, *args: Any, **kwargs: Any) -> None:
         """``maidr.show(plot)``: Altair, Plotly, Bokeh, plotnine, an Excel,
-        PowerPoint, Word or TensorBoard chart, a figure drawn outside pyplot,
-        or pyplot."""
-        charts = (ExcelChart, PowerPointChart, WordChart, TensorBoardChart)
+        PowerPoint, Word, TensorBoard, W&B or MLflow chart, a figure drawn
+        outside pyplot, or pyplot."""
+        charts = (ExcelChart, MetricChart, PowerPointChart, WordChart, TensorBoardChart)
         if isinstance(plot, charts):
             plot = plot.figure
         if isinstance(plot, MplFigure) and plot.canvas.manager is None:
@@ -732,9 +741,9 @@ def test_bokeh_gantt_is_a_lane_per_task_in_days(gallery: _Gallery) -> None:
     between lanes as they are drawn, and every bar is announced with ... its
     length in days."
     """
-    layer = gallery.shown(
-        "examples-bokeh.qmd", "Gantt Chart [experimental]"
-    ).layer(PlotType.GANTT)
+    layer = gallery.shown("examples-bokeh.qmd", "Gantt Chart [experimental]").layer(
+        PlotType.GANTT
+    )
 
     data = layer[MaidrKey.DATA]
     # Bottom to top, as the reversed range draws them.
@@ -748,9 +757,9 @@ def test_bokeh_hexbin_counts_every_penguin(gallery: _Gallery) -> None:
     """examples-bokeh.qmd: "Each hexagon is a bin announced by its centre and
     how many penguins fell in it."
     """
-    layer = gallery.shown(
-        "examples-bokeh.qmd", "Hexbin Plot [experimental]"
-    ).layer(PlotType.HEXBIN)
+    layer = gallery.shown("examples-bokeh.qmd", "Hexbin Plot [experimental]").layer(
+        PlotType.HEXBIN
+    )
 
     bins = [cell for row in layer[MaidrKey.DATA] for cell in row]
     assert sum(cell[MaidrKey.COUNT] for cell in bins) == 333
@@ -762,9 +771,9 @@ def test_bokeh_image_is_the_arrays_cells(gallery: _Gallery) -> None:
     the array's, bottom row first as Bokeh draws it, each row and column named
     by the centre of its cells."
     """
-    heat = gallery.shown("examples-bokeh.qmd", "Image Heatmap").layer(
-        PlotType.HEAT
-    )[MaidrKey.DATA]
+    heat = gallery.shown("examples-bokeh.qmd", "Image Heatmap").layer(PlotType.HEAT)[
+        MaidrKey.DATA
+    ]
 
     assert len(heat[MaidrKey.POINTS]) == 12
     assert all(len(row) == 12 for row in heat[MaidrKey.POINTS])
@@ -855,7 +864,9 @@ def test_plotnine_normalized_segments_add_up_to_one(gallery: _Gallery) -> None:
     layer = gallery.shown(
         "examples-plotnine.qmd", "Normalized Stacked Bar Plot [experimental]"
     ).layer(PlotType.NORMALIZED)
-    columns = zip(*[[c[MaidrKey.Y] or 0.0 for c in row] for row in layer[MaidrKey.DATA]])
+    columns = zip(
+        *[[c[MaidrKey.Y] or 0.0 for c in row] for row in layer[MaidrKey.DATA]]
+    )
 
     assert [pytest.approx(sum(column)) for column in columns] == [1.0, 1.0, 1.0]
 
@@ -942,3 +953,44 @@ def test_office_charts_of_a_hidden_slide_are_read_and_say_so() -> None:
     assert slides == [(2, False), (3, False), (4, True)]
     for chart in charts:
         maidr.close(chart)
+
+
+def _final_losses(shown: Shown) -> dict[str, float]:
+    """Each line's last value, by the name it is announced under."""
+    (lines,) = [cell[0][MaidrKey.DATA] for cell in shown.layers]
+    return {line[0][MaidrKey.Z]: line[-1][MaidrKey.Y] for line in lines}
+
+
+def _halfway(shown: Shown) -> dict[str, float]:
+    """Each line's value at its middle point."""
+    (lines,) = [cell[0][MaidrKey.DATA] for cell in shown.layers]
+    return {line[0][MaidrKey.Z]: line[len(line) // 2][MaidrKey.Y] for line in lines}
+
+
+def test_wandb_lora_loss_falls_faster_and_further(gallery: _Gallery) -> None:
+    """examples-wandb.qmd: "The *lora-r16* run's loss falls faster and further
+    than the baseline's."
+    """
+    shown = gallery.shown("examples-wandb.qmd", "Training Loss")
+    assert _halfway(shown)["lora-r16"] < _halfway(shown)["baseline"]
+    assert _final_losses(shown)["lora-r16"] < _final_losses(shown)["baseline"]
+
+
+def test_wandb_eval_loss_is_every_twenty_steps(gallery: _Gallery) -> None:
+    """examples-wandb.qmd: "here the evaluation loss, every 20 steps." """
+    (lines,) = [
+        cell[0][MaidrKey.DATA]
+        for cell in gallery.shown("examples-wandb.qmd", "Evaluation Loss").layers
+    ]
+    for line in lines:
+        assert [point[MaidrKey.X] for point in line] == [19, 39, 59, 79, 99, 119]
+
+
+def test_mlflow_lists_the_newest_run_first(gallery: _Gallery) -> None:
+    """examples-mlflow.qmd: "*lora-r16* is the first line. Its loss falls
+    faster and further than the baseline's."
+    """
+    shown = gallery.shown("examples-mlflow.qmd", "Training Loss")
+    assert list(_final_losses(shown)) == ["lora-r16", "baseline"]
+    assert _halfway(shown)["lora-r16"] < _halfway(shown)["baseline"]
+    assert _final_losses(shown)["lora-r16"] < _final_losses(shown)["baseline"]

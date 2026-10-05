@@ -219,6 +219,30 @@ scope and how the graph is laid out may change the same way. They need a
 maidr.js release that carries the `pr_curve` and `directed_graph` traces. See the
 [Keras gallery](examples-keras.qmd) for what they draw today.
 
+## Weights & Biases support {#weights-biases-support}
+
+The training curves read from Weights & Biases runs
+(`maidr.read_wandb_history()`) come through a reader that is **experimental**,
+although every chart it draws is the stable `line` type: how runs and metrics
+become charts and lines, what a line is called, how a run file is read, which
+values count as numbers, and how a long run is thinned may change without a
+deprecation period, including in a patch release. A run's file,
+`run-<id>.wandb`, is read by maidr itself, by the format the W&B SDK writes
+today, which is W&B's to change; a run fetched from the server is read through
+`wandb.Api`. Numbers are read today: images, tables, histograms and W&B's
+custom charts are not. See the [W&B gallery](examples-wandb.qmd) for what it
+reads today.
+
+## MLflow support
+
+The training curves read from MLflow runs (`maidr.read_mlflow_metrics()`), and
+the charts stored in a run (`maidr.log_mlflow_chart()`), are **experimental**,
+although every chart drawn is the stable `line` type: how runs and metrics
+become charts and lines, what a line is called, which metrics are left out,
+and what the stored page holds may change without a deprecation period,
+including in a patch release. See the [MLflow gallery](examples-mlflow.qmd)
+for what it reads today.
+
 ## Drawn but not read
 
 A few matplotlib calls draw marks that no `PlotType` reads, and that is

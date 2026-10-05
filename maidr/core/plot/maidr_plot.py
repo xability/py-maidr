@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from matplotlib.axes import Axes
 
@@ -455,6 +456,20 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         if not self._schema:
             self._schema = self.render()
         return self._elements
+
+    def finish_svg(self, tree: Any) -> None:
+        """
+        Change what matplotlib wrote for this layer, before the page gets it.
+
+        For what matplotlib has no way to write. Nothing, for every layer
+        but one: :class:`~maidr.core.plot.wordcloudplot.WordCloudPlot` has
+        to draw elements the page shows only when maidr.js highlights them.
+
+        Parameters
+        ----------
+        tree : lxml.etree._Element
+            The rendered SVG, modified in place.
+        """
 
     @property
     def orders_svg_by_elements(self) -> bool:

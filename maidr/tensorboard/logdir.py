@@ -6,7 +6,6 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
-import numpy as np
 from matplotlib.figure import Figure
 
 from maidr.tensorboard.events import find_runs, read_run
@@ -117,24 +116,3 @@ def load(
 def names(found: dict) -> str:
     """The keys of ``found``, quoted, for a warning; ``none`` if there are none."""
     return ", ".join(f"'{name}'" for name in found) or "none"
-
-
-def thin(count: int, keep: int | None) -> np.ndarray:
-    """
-    Which of ``count`` points to keep: evenly spaced, the first and last kept.
-
-    Parameters
-    ----------
-    count : int
-        How many points there are.
-    keep : int or None
-        At most this many; ``None`` keeps every one.
-
-    Returns
-    -------
-    numpy.ndarray
-        The indices kept, in order.
-    """
-    if keep is None or count <= keep:
-        return np.arange(count)
-    return np.unique(np.round(np.linspace(0, count - 1, keep)).astype(int))

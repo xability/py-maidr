@@ -196,6 +196,7 @@ from .api import (  # noqa: E402
 from .core import Maidr  # noqa: E402, F401
 from .core.enum import PlotType  # noqa: E402, F401
 from .excel import read_excel_charts  # noqa: E402
+from .mlflow import log_mlflow_chart, read_mlflow_metrics  # noqa: E402
 from .office import read_powerpoint_charts, read_word_charts  # noqa: E402
 from .patch import (  # noqa: E402, F401
     barplot,
@@ -222,6 +223,7 @@ from .tensorboard import (  # noqa: E402
     read_tensorboard_projector,
     read_tensorboard_scalars,
 )
+from .wandb import read_wandb_history  # noqa: E402
 from .util.bundle_capability import MaidrBundleTraceWarning  # noqa: E402
 from .util.bundle_freshness import (  # noqa: E402
     STALE_MINOR_GAP,
@@ -313,10 +315,12 @@ __all__ = [
     "get_locale_base_url",
     "get_use_cdn",
     "init_notebook",
+    "log_mlflow_chart",
     "maidr_js_version",
     "read_bundled_js",
     "read_bundled_math_css",
     "read_excel_charts",
+    "read_mlflow_metrics",
     "read_powerpoint_charts",
     "read_tensorboard_distributions",
     "read_tensorboard_graph",
@@ -326,6 +330,7 @@ __all__ = [
     "read_tensorboard_profile",
     "read_tensorboard_projector",
     "read_tensorboard_scalars",
+    "read_wandb_history",
     "read_word_charts",
     "render",
     "reset_cdn_version_cache",

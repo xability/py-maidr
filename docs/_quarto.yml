@@ -80,7 +80,7 @@ website:
             href: examples/multi-layer-panel-facet.qmd
           - text: "Candlestick and Gantt Charts [experimental]"
             href: examples/candlestick-gantt.qmd
-          - text: "Shiny and Streamlit Dashboards"
+          - text: "Shiny, Streamlit and Gradio Dashboards"
             href: examples/dashboards.qmd
           - text: "---"
           - text: "Experimental"
@@ -106,6 +106,10 @@ website:
             href: examples-tensorboard.qmd
           - text: "Keras [experimental]"
             href: examples-keras.qmd
+          - text: "Weights & Biases [experimental]"
+            href: examples-wandb.qmd
+          - text: "MLflow [experimental]"
+            href: examples-mlflow.qmd
       - file: stability.qmd
         text: "Plot Type Stability"
       - text: "API Reference"
@@ -166,6 +170,10 @@ website:
               href: examples-tensorboard.qmd
             - text: "Keras [experimental]"
               href: examples-keras.qmd
+            - text: "Weights & Biases [experimental]"
+              href: examples-wandb.qmd
+            - text: "MLflow [experimental]"
+              href: examples-mlflow.qmd
 
   page-footer:
     left: "© (x)Ability Design Lab, University of Illinois Urbana-Champaign"
@@ -383,6 +391,30 @@ quartodoc:
         - plot_pr_curve
         - plot_model
         - MaidrCallback
+    - title: Reading the training curves of Weights & Biases runs
+      desc: >
+        Read the metrics W&B runs logged with `maidr.read_wandb_history()`,
+        one chart per metric with a line per run, from the runs' own files or
+        from the W&B server, and pass a chart it returns to `maidr.show()`,
+        `maidr.render()` or `maidr.save_html()`; or read the values
+        themselves with `maidr.wandb.load_wandb_history()`. Experimental.
+      contents:
+        - read_wandb_history
+        - wandb.load_wandb_history
+        - wandb.MetricChart
+        - wandb.MetricSeries
+    - title: Reading the training curves of MLflow runs
+      desc: >
+        Read the metrics MLflow runs logged with `maidr.read_mlflow_metrics()`,
+        one chart per metric with a line per run, and store an accessible
+        chart in a run, where the MLflow UI shows it, with
+        `maidr.log_mlflow_chart()`; or read the values themselves with
+        `maidr.mlflow.load_mlflow_metrics()`. Requires MLflow:
+        `pip install "maidr[mlflow]"`. Experimental.
+      contents:
+        - read_mlflow_metrics
+        - log_mlflow_chart
+        - mlflow.load_mlflow_metrics
     - title: Registering and releasing figures
       desc: >
         Mark a bar container as a stacked bar plot with `maidr.stacked()`, and
@@ -428,4 +460,15 @@ quartodoc:
         - name: streamlit.render_maidr
           dynamic: false
         - name: streamlit.maidr_html
+          dynamic: false
+    - title: Gradio
+      desc: >
+        Place an accessible chart in a Gradio app with `output_maidr()`, and
+        return `render_maidr()` from an event handler to replace it.
+        Requires the `gradio` extra: `pip install "maidr[gradio]"`.
+      package: maidr.widget
+      contents:
+        - name: gradio.output_maidr
+          dynamic: false
+        - name: gradio.render_maidr
           dynamic: false

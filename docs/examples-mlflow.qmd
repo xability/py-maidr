@@ -1,0 +1,120 @@
+---
+title: "MLflow Accessible Chart Examples"
+description: "Code examples showing how to make the training curves of MLflow runs accessible with py-maidr, and how to store an accessible chart in a run where the MLflow UI shows it."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+## MLflow Examples {#sec-mlflow-examples}
+
+**maidr** reads the training curves of MLflow runs. Pass a run, or what
+`mlflow.search_runs()` returns, to `maidr.read_mlflow_metrics()`, and hand any
+chart it returns to `maidr.show()`, `maidr.render()` or `maidr.save_html()`:
+each metric can then be read from the keyboard, as sound, as text and in
+braille. `maidr.log_mlflow_chart()` stores a chart in a run, where the MLflow
+UI shows it. For the curves Weights & Biases logs, see the
+[Weights & Biases](examples-wandb.qmd) page.
+
+::: {.callout-warning title="Experimental"}
+MLflow support is **experimental**. What it reads, and how, may change without
+a deprecation period: see [Plot Type Stability](stability.qmd#mlflow-support).
+:::
+
+MLflow itself is needed, which `import maidr` does not load:
+
+```bash
+pip install "maidr[mlflow]"
+```
+
+The extra installs MLflow on Python 3.10 or newer. On Python 3.9 it installs
+nothing, so install MLflow itself with `pip install mlflow`: maidr uses only
+the client calls MLflow 2 already had.
+
+The values are read through MLflow's own `MlflowClient`, so any tracking
+server MLflow can reach is read: a local database, a file store, or a remote
+server named by `tracking_uri=` or `MLFLOW_TRACKING_URI`.
+
+### Logging Two Runs
+
+The examples log two short fine-tunes to a throwaway local store, the way a
+training script would.
+
+```{python}
+#| warning: false
+#| output: false
+import math
+import tempfile
+
+import mlflow
+
+import maidr
+
+mlflow.set_tracking_uri(f"sqlite:///{tempfile.mkdtemp()}/mlflow.db")
+mlflow.set_experiment("tiny-lm")
+
+for name, floor, pace in [("baseline", 1.9, 35), ("lora-r16", 1.7, 22)]:
+    with mlflow.start_run(run_name=name):
+        for step in range(120):
+            loss = floor + 2.4 * math.exp(-step / pace)
+            mlflow.log_metric("train_loss", round(loss, 4), step=step)
+            if step % 20 == 19:
+                mlflow.log_metric("eval_loss", round(loss + 0.12, 4), step=step)
+```
+
+### Training Loss
+
+`maidr.read_mlflow_metrics()` returns one chart per metric, with the step along
+the x axis and one line per run, as the MLflow UI's *Model metrics* draw it.
+The left and right arrow keys move along the steps; up and down move to the
+other run at the same step.
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of the training loss at each step for two runs, baseline and lora-r16
+runs = mlflow.search_runs(experiment_names=["tiny-lm"])
+(loss,) = maidr.read_mlflow_metrics(runs, keys=["train_loss"])
+maidr.show(loss)
+```
+
+`mlflow.search_runs()` lists the newest run first, so *lora-r16* is the first
+line. Its loss falls faster and further than the baseline's.
+
+### Evaluation Loss
+
+A metric logged only every few steps is one unbroken line through the steps it
+was logged at; here the evaluation loss, every 20 steps. `x="relative_time"`
+puts the seconds since each run started along the x axis instead of the step.
+
+```{python}
+#| warning: false
+#| fig-alt: Line chart of the evaluation loss every 20 steps for two runs
+(eval_loss,) = maidr.read_mlflow_metrics(runs, keys=["eval_loss"])
+maidr.show(eval_loss)
+```
+
+MLflow's own `system/` metrics, such as the CPU use it records with
+`log_system_metrics=True`, are left out unless named in `keys=`.
+
+### Storing a Chart in a Run
+
+`maidr.log_mlflow_chart()` stores a chart as an HTML artifact of a run. Open
+the run in the MLflow UI, go to its **Artifacts** tab and pick the file: the
+chart is shown there, and read there from the keyboard, as sound, as text and
+in braille.
+
+```python
+with mlflow.start_run(run_name="lora-r16") as run:
+    ...  # train, logging metrics
+    (loss,) = maidr.read_mlflow_metrics(run.info.run_id, keys=["train_loss"])
+    maidr.log_mlflow_chart(loss, "charts/train_loss.html")
+```
+
+The page carries maidr.js inside it, about 2 MB, so the chart works wherever
+the tracking server can be reached, with no other network access;
+`use_cdn=True` loads maidr.js from the CDN instead and keeps the artifact
+small. Any chart `maidr.render()` takes can be stored, such as a confusion
+matrix drawn with matplotlib. The MLflow UI shows the page in a sandboxed
+frame, so maidr cannot keep its settings there between visits, and a
+refreshable braille display cannot be reached from it.

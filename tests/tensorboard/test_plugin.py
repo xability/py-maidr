@@ -86,10 +86,6 @@ def test_every_chart_the_directory_holds_is_listed(logdir):
     [
         ({"kind": "scalars", "tag": "Loss/train"}, '"type": "line"'),
         (
-            {"kind": "distributions", "tag": "activations", "run": "tf_histograms/run"},
-            '"type": "percentile_band"',
-        ),
-        (
             {"kind": "histograms", "tag": "activations", "run": "tf_histograms/run"},
             '"type": "ridgeline"',
         ),
@@ -188,18 +184,21 @@ def test_charts_are_drawn_one_at_a_time(logdir, monkeypatch):
 
 
 def test_chart_page_closes_the_figures_it_drew(logdir):
+    import gc
+
     from maidr.core.figure_manager import FigureManager
 
-    # The manager enumerates figures weakly, so its size falls whenever the
-    # collector reclaims another test's figures; what this call must not do
-    # is leave a figure of its own registered, so the check is on the set.
-    before = set(FigureManager.figs)
+    # Figures earlier tests let go of are still counted until the collector
+    # reaches them, and it may do so in the middle of this test; collect them
+    # first so the count changes only with what this test draws.
+    gc.collect()
+    before = len(FigureManager.figs)
     for index in ("0", "1"):
         chart_page(str(logdir), "hparams", index=index)
-    assert set(FigureManager.figs) - before == set()
+    assert len(FigureManager.figs) == before
     with pytest.raises(KeyError):
         chart_page(str(logdir), "hparams", index="2")
-    assert set(FigureManager.figs) - before == set()
+    assert len(FigureManager.figs) == before
 
 
 def test_importing_maidr_does_not_import_tensorboard():

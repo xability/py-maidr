@@ -22,6 +22,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from maidr.util.dependencies import read_bundled_js  # noqa: E402
+import maidr.widget._document as document  # noqa: E402
 from maidr.widget.streamlit import maidr_html, render_maidr  # noqa: E402
 
 #: A slice of the real bundle, so "is the bundle inlined?" is answered by
@@ -123,7 +124,6 @@ def test_offline_bundle_precedes_the_bootstrap(bar_axes):
 
 def test_a_chart_with_no_runtime_warns(bar_axes, monkeypatch):
     """The silent failure this library can least afford gets a loud check."""
-    import maidr.widget.streamlit as widget
 
     class _Bare:
         """A rendered tag that carries no source for maidr.js."""
@@ -133,8 +133,8 @@ def test_a_chart_with_no_runtime_warns(bar_axes, monkeypatch):
 
     # Both halves are needed: the render supplies nothing, and the inline
     # fallback that would otherwise rescue it is unavailable too.
-    monkeypatch.setattr(widget, "inline_bundle_tags", lambda: None)
-    monkeypatch.setattr(widget.maidr, "render", lambda *a, **k: _Bare())
+    monkeypatch.setattr(document, "inline_bundle_tags", lambda: None)
+    monkeypatch.setattr(document.maidr, "render", lambda *a, **k: _Bare())
 
     with pytest.warns(UserWarning, match="no source for maidr.js"):
         maidr_html(bar_axes, use_cdn=False)
@@ -365,7 +365,6 @@ def test_a_chart_that_only_loads_maidr_remotely_is_not_inlined(bar_axes, monkeyp
     Inlining on top of that adds ~1.9 MB the page never loads while still
     requiring the network.
     """
-    import maidr.widget.streamlit as widget
 
     class _Remote:
         def get_html_string(self):
@@ -374,7 +373,7 @@ def test_a_chart_that_only_loads_maidr_remotely_is_not_inlined(bar_axes, monkeyp
                 "</script></div>"
             )
 
-    monkeypatch.setattr(widget.maidr, "render", lambda *a, **k: _Remote())
+    monkeypatch.setattr(document.maidr, "render", lambda *a, **k: _Remote())
 
     _stub_streamlit(monkeypatch, with_iframe=True)
 
@@ -400,21 +399,20 @@ def test_an_empty_bundle_does_not_vouch_for_a_missing_runtime(bar_axes, monkeypa
     every string -- so a naive check would report a runtime present for a
     chart that has none, which is the one thing the check exists to catch.
     """
-    import maidr.widget.streamlit as widget
 
     class _Bare:
         def get_html_string(self):
             return "<div>no runtime here</div>"
 
-    monkeypatch.setattr(widget, "read_bundled_js", lambda: "")
-    monkeypatch.setattr(widget, "inline_bundle_tags", lambda: None)
-    monkeypatch.setattr(widget.maidr, "render", lambda *a, **k: _Bare())
-    widget._bundle_marker.cache_clear()
+    monkeypatch.setattr(document, "read_bundled_js", lambda: "")
+    monkeypatch.setattr(document, "inline_bundle_tags", lambda: None)
+    monkeypatch.setattr(document.maidr, "render", lambda *a, **k: _Bare())
+    document._bundle_marker.cache_clear()
     try:
         with pytest.warns(UserWarning, match="no source for maidr.js"):
             maidr_html(bar_axes, use_cdn=False)
     finally:
-        widget._bundle_marker.cache_clear()
+        document._bundle_marker.cache_clear()
 
 
 def test_the_no_runtime_warning_blames_the_caller_not_the_library(
@@ -426,17 +424,16 @@ def test_the_no_runtime_warning_blames_the_caller_not_the_library(
     a fixed ``stacklevel`` is right for one entry point and wrong for the
     other -- and the one it was wrong for is the documented one.
     """
-    import maidr.widget.streamlit as widget
 
     class _Bare:
         def get_html_string(self):
             return "<div>no runtime here</div>"
 
     _stub_streamlit(monkeypatch, with_iframe=True)
-    monkeypatch.setattr(widget, "inline_bundle_tags", lambda: None)
-    monkeypatch.setattr(widget.maidr, "render", lambda *a, **k: _Bare())
+    monkeypatch.setattr(document, "inline_bundle_tags", lambda: None)
+    monkeypatch.setattr(document.maidr, "render", lambda *a, **k: _Bare())
 
-    library = widget.__file__
+    library = document.__file__
 
     for call in (
         lambda: maidr_html(bar_axes, use_cdn=False),
@@ -458,7 +455,6 @@ def test_an_unrelated_cdn_script_does_not_vouch_for_maidr(bar_axes, monkeypatch)
     could not be read would have had its no-runtime warning suppressed by a
     script tag belonging to a different library.
     """
-    import maidr.widget.streamlit as widget
 
     class _PlotlyOnly:
         def get_html_string(self):
@@ -467,8 +463,8 @@ def test_an_unrelated_cdn_script_does_not_vouch_for_maidr(bar_axes, monkeypatch)
                 "</script><div>chart</div></div>"
             )
 
-    monkeypatch.setattr(widget, "inline_bundle_tags", lambda: None)
-    monkeypatch.setattr(widget.maidr, "render", lambda *a, **k: _PlotlyOnly())
+    monkeypatch.setattr(document, "inline_bundle_tags", lambda: None)
+    monkeypatch.setattr(document.maidr, "render", lambda *a, **k: _PlotlyOnly())
 
     with pytest.warns(UserWarning, match="no source for maidr.js"):
         maidr_html(bar_axes, use_cdn=False)
@@ -591,7 +587,7 @@ def test_tab_index_support_is_detected_on_the_real_streamlit():
 )
 def test_only_a_maidr_package_url_counts_as_a_runtime(url, is_maidr):
     """The runtime check names the package, not just the letters in it."""
-    from maidr.widget.streamlit import _references_maidr_runtime
+    from maidr.widget._document import _references_maidr_runtime
 
     assert _references_maidr_runtime(f'<script src="{url}"></script>') is is_maidr
 
@@ -606,14 +602,14 @@ def test_the_resolved_mode_is_the_one_the_chart_was_built_with(bar_axes, monkeyp
     import maidr.widget.streamlit as widget
 
     seen = []
-    real_render = widget.maidr.render
+    real_render = document.maidr.render
 
     def spy(plot, use_cdn=None):
         seen.append(use_cdn)
         return real_render(plot, use_cdn=use_cdn)
 
-    monkeypatch.setattr(widget.maidr, "render", spy)
-    monkeypatch.setattr(widget.maidr, "get_use_cdn", lambda: "auto")
+    monkeypatch.setattr(document.maidr, "render", spy)
+    monkeypatch.setattr(document.maidr, "get_use_cdn", lambda: "auto")
 
     widget.maidr_html(bar_axes)
 
@@ -961,7 +957,7 @@ def _shape(html: str) -> str:
 def _raw_and_stable(plot) -> tuple[str, str]:
     """One render as ``maidr.render`` gives it, and as this module passes it on."""
     import maidr
-    from maidr.widget.streamlit import _stable_ids
+    from maidr.widget._document import _stable_ids
 
     raw = str(maidr.render(plot, use_cdn=True).get_html_string())
     return raw, _stable_ids(raw)
