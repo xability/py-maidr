@@ -293,8 +293,7 @@ def plot_pr_curve(
     and the precision a classifier guessing at random keeps -- the share of
     positives -- which maidr.js announces against each point and which is
     drawn as a dashed line, as :func:`maidr.read_tensorboard_pr_curves` draws
-    TensorBoard's PR curves. ``pr_curve`` is an experimental type, and
-    reading one needs a maidr.js release that carries its trace.
+    TensorBoard's PR curves. ``pr_curve`` is an experimental type.
 
     Examples
     --------
@@ -422,12 +421,7 @@ def plot_model(
 
     Notes
     -----
-    The chart is a ``directed_graph``, an experimental type that needs a
-    maidr.js release carrying it; an older one shows the drawing without
-    reading it. The copy of maidr.js py-maidr bundles does not carry it yet,
-    so until it does, the chart is read only from the CDN: online under the
-    default ``use_cdn="auto"``, or with ``use_cdn=True``. With
-    ``use_cdn=False``, or offline, maidr warns and the chart is not read.
+    The chart is a ``directed_graph``, an experimental type.
 
     Both config formats are read: Keras 3's, and Keras 2's (``tf.keras``).
     A layer called more than once is one box fed by everything it was called

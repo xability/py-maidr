@@ -116,8 +116,7 @@ precision a classifier guessing at random would keep, the share of positives,
 drawn as a dashed line, so you hear at once how far above chance the model is;
 the description gives the average precision and the threshold with the best
 F1. Pass several models' predictions by name to compare them, a curve each.
-PR curves are an experimental plot type, and reading one needs a maidr.js
-release that carries the `pr_curve` trace.
+PR curves are an experimental plot type.
 
 ```{python}
 #| warning: false
@@ -159,7 +158,6 @@ with open("keras-model.json") as f:
 
 The graph is read from the model's config alone, in Keras 3's format or Keras
 2's (`tf.keras`), so a model saved with `model.to_json()` is drawn with no
-Keras installed. A directed graph is an experimental plot type, and reading
-one needs a maidr.js release that carries the `directed_graph` trace. For the
+Keras installed. A directed graph is an experimental plot type. For the
 graph Keras's `TensorBoard` callback logs, see
 [`maidr.read_tensorboard_graph()`](examples-tensorboard.qmd#model-graph-experimental).

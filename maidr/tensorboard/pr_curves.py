@@ -195,8 +195,7 @@ def read_tensorboard_pr_curves(
     point; the legend shows them, such as ``good (AP 0.91, chance 0.30)``.
     Each point carries its threshold. A threshold at which nothing was
     predicted positive has no precision, and is left out of the curve rather
-    than read as a precision of 0. ``pr_curve`` is an experimental type, and
-    reading one needs a maidr.js release that carries its trace.
+    than read as a precision of 0. ``pr_curve`` is an experimental type.
 
     Examples
     --------

@@ -145,8 +145,7 @@ def read_tensorboard_distributions(
     quantiles in value order, which is the spread of the distribution at that
     step, and Left and Right along one of them over training. maidr.js names
     the band around the median, such as the middle 68%. ``percentile_band``
-    is an experimental type, and reading one needs a maidr.js release that
-    carries its trace.
+    is an experimental type.
 
     Examples
     --------

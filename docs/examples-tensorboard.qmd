@@ -215,8 +215,7 @@ the median, and each step says the band around it, such as *Middle 68% is
 -1.06 to 0.94*. At a step, up and down move through the nine values in value
 order, which is how wide the distribution is there, outlining the band each
 one bounds; left and right follow one of them through training. Percentile
-bands are an experimental plot type, and reading one needs a maidr.js release
-that carries the `percentile_band` trace.
+bands are an experimental plot type.
 
 ```{python}
 #| warning: false
@@ -238,8 +237,7 @@ that chance level and the threshold with the best F1. The chance level is
 drawn as a dashed line, and the legend names each run with both numbers:
 *good (AP 0.99, chance 0.32)*. A threshold at which nothing was predicted
 positive has no precision and is left out. PR curves are an experimental plot
-type, and reading one needs a maidr.js release that carries the `pr_curve`
-trace. The example reads `tensorboard-pr-curves/`, written by PyTorch's
+type. The example reads `tensorboard-pr-curves/`, written by PyTorch's
 `add_pr_curve` for a good and a poor classifier.
 
 ```{python}
@@ -314,5 +312,4 @@ maidr.show(graph)
 Only Keras's own record of the model is read, not the op-level graph
 TensorFlow can log beside it, which lists every operation and runs to
 hundreds of nodes for a few layers. A directed graph is an experimental plot
-type, and reading one needs a maidr.js release that carries the
-`directed_graph` trace.
+type.

@@ -189,8 +189,7 @@ and tags become charts, how smoothing is drawn, how a long run is thinned, how
 a histogram is binned, and what is skipped may change without a deprecation
 period, including in a patch release. Distributions and PR curves were read
 as the stable `line` type, nine lines and a line per run, until maidr.js
-gained the `percentile_band` and `pr_curve` traces; they changed type then,
-and reading them needs a maidr.js release that carries those traces. Each
+gained the `percentile_band` and `pr_curve` traces; they changed type then. Each
 tag's values are read from the event files, the values TensorBoard reads, and
 drawn again with matplotlib; the reader follows that drawing, not
 TensorBoard's own. Scalars and histograms are
@@ -215,8 +214,7 @@ and the model graph (`maidr.keras.plot_model()`) are experimental twice over:
 they emit the experimental `pr_curve` and `directed_graph` types -- the PR
 curve was a stable `line` until maidr.js gained the `pr_curve` trace -- and
 what a point or a layer is announced with, how a nested model becomes a
-scope and how the graph is laid out may change the same way. They need a
-maidr.js release that carries the `pr_curve` and `directed_graph` traces. See the
+scope and how the graph is laid out may change the same way. See the
 [Keras gallery](examples-keras.qmd) for what they draw today.
 
 ## Weights & Biases support {#weights-biases-support}
