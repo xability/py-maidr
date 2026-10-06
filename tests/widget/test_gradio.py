@@ -47,7 +47,7 @@ def test_the_chart_is_an_iframe_named_after_it(bar_axes):
     assert markup.startswith("<iframe")
     assert 'title="Sales, accessible chart"' in markup
     assert "data-maidr-chart" in markup
-    assert 'allow="bluetooth; serial"' in markup
+    assert 'allow="bluetooth; serial; hid"' in markup
     assert "maidr" in _srcdoc(markup)
 
 

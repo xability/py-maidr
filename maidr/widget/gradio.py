@@ -14,8 +14,8 @@ Notes
 not run, so the chart cannot be placed on the page directly. It is placed in
 an iframe whose ``srcdoc`` carries the chart and ``maidr.js``, the frame a
 notebook gets: named after the chart, sized to it as maidr's braille and text
-panels open, and allowed the Bluetooth and serial access a refreshable
-tactile display needs. A ``srcdoc`` frame shares the app's origin, so maidr
+panels open, and allowed the Bluetooth, serial and HID access a tactile
+graphics display needs. A ``srcdoc`` frame shares the app's origin, so maidr
 keeps its settings there as it does on any page.
 
 Measured on Gradio 6.29 in Chromium: the frame's chart is reached with Tab,
