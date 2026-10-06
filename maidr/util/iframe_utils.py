@@ -21,10 +21,11 @@ _UNTITLED_NAME = "Accessible chart"
 
 # Permissions-Policy features the chart frame is allowed to use.
 #
-# These let maidr.js reach a refreshable tactile display -- a Dot Pad -- and
-# draw the chart on its pins, over Bluetooth or over USB.  Both are listed
-# because maidr offers both and they are gated independently; granting one
-# would leave the other path dead with nothing on the page to explain it.
+# These let maidr.js reach a tactile graphics display and draw the chart on
+# its pins: a Dot Pad over Bluetooth or over USB, and a Monarch, in its Braille
+# Terminal, over WebHID.  All three are listed because maidr offers all three
+# and they are gated independently; granting one would leave the others dead
+# with nothing on the page to explain it.
 #
 # Two different default allowlists meet here.  A feature the container policy
 # does not name falls back to the *feature's* default, ``self`` -- which a
@@ -48,7 +49,7 @@ _UNTITLED_NAME = "Accessible chart"
 # land in it as text and never as markup.  ``htmltools`` escapes them today --
 # a title of ``</iframe><script>`` stays inside its attribute -- and
 # ``test_a_hostile_title_arrives_as_text`` fails if that stops being true.
-_ALLOWED_FEATURES = "bluetooth; serial"
+_ALLOWED_FEATURES = "bluetooth; serial; hid"
 
 
 def _generate_unique_id() -> str:
