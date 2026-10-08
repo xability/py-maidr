@@ -29,6 +29,7 @@ from maidr.core.plot.outlined_histogram import OUTLINE_LINE, OutlinedHistPlot
 from maidr.core.plot.pieplot import PiePlot
 from maidr.core.plot.pointplot import PointPlot
 from maidr.core.plot.scatterplot import ScatterPlot
+from maidr.core.plot.pr_curve import PrCurvePlot
 from maidr.core.plot.regplot import SmoothPlot
 from maidr.core.plot.roc import RocPlot
 from maidr.core.plot.rugplot import RugPlot
@@ -207,6 +208,8 @@ class MaidrPlotFactory:
             return ViolinBoxPlot(single_ax, **kwargs)
         elif PlotType.ROC == plot_type:
             return RocPlot(single_ax, **kwargs)
+        elif PlotType.PR_CURVE == plot_type:
+            return PrCurvePlot(single_ax, **kwargs)
         elif PlotType.WORD_CLOUD == plot_type:
             return WordCloudPlot(single_ax, **kwargs)
         else:

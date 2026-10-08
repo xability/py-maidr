@@ -54,5 +54,6 @@ from . import (  # noqa: E402, F401
     seaborn_objects,
     seaborn_probe,
     roc,
+    pr_curve,
     wordcloud,
 )

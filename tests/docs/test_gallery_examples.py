@@ -129,6 +129,12 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Pie Chart": [["pie"]],
         "Word Cloud [experimental]": [["word_cloud"]],
     },
+    "examples/pr-curve.qmd": {
+        # Two classifiers on one axes are two curves of one layer, and the
+        # chance level `plot_chance_level=True` draws is not a curve.
+        "One classifier": [["pr_curve"]],
+        "Comparing classifiers": [["pr_curve"]],
+    },
     "examples/roc.qmd": {
         # Two classifiers on one axes are two curves of one layer, and the
         # chance diagonal `plot_chance_level=True` draws is not a curve.
