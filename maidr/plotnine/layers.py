@@ -35,6 +35,7 @@ from matplotlib.lines import Line2D
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
+from maidr.util.named_pr_curve import named_pr_curve
 
 #: Prefix of the columns that carry an aesthetic's value from before its scale
 #: mapped it: ``fill`` is a colour by the time it is drawn, and a heatmap cell
@@ -308,6 +309,7 @@ class _Context:
     panels: dict[int, Panel]
     labels: Any
     single_panel_title: str | None
+    mapping: dict[str, str]
 
     def title(self, panel: Panel) -> str:
         if self.single_panel_title is not None:
@@ -317,6 +319,10 @@ class _Context:
     def label(self, name: str, fallback: str = "") -> str:
         value = self.labels.get(name, None)
         return fallback if value is None or str(value) == "" else str(value)
+
+    def mapped(self, aesthetic: str) -> str:
+        """The column an aesthetic maps by name, or ``""`` for an expression."""
+        return self.mapping.get(aesthetic, "")
 
     def axes(self, z: str | None = None) -> dict:
         axes = {
@@ -369,20 +375,36 @@ def read_layer(
     if reader is None:
         raise Unreadable(f"{geom} is not one of the geoms maidr reads")
 
+    context = _context(layer, panels, labels)
+    by_panel = _by_panel(drawn)
+    return [
+        reader(by_panel[number], context.panels[number], context, position)
+        for number in sorted(by_panel)
+    ]
+
+
+def _context(layer: Any, panels: dict[int, Panel], labels: Any) -> _Context:
+    """What a reader of ``layer`` needs besides its drawn groups."""
     single = len(panels) == 1
     title = labels.get("title", None) if single else None
-    context = _Context(panels, labels, (title or "") if single else None)
+    # The inherited aesthetics are part of a built layer's own mapping; an
+    # expression or an `after_stat` is no column name, and is left out.
+    mapping = {
+        str(ae): value.strip()
+        for ae, value in dict(layer.mapping or {}).items()
+        if isinstance(value, str)
+    }
+    return _Context(panels, labels, (title or "") if single else None, mapping)
 
+
+def _by_panel(drawn: list[DrawnGroup]) -> dict[int, list[DrawnGroup]]:
+    """The drawn groups that drew something, keyed by plotnine's panel number."""
     by_panel: dict[int, list[DrawnGroup]] = {}
     for group in drawn:
         if len(group.data) == 0:
             continue
         by_panel.setdefault(int(group.data["PANEL"].iloc[0]), []).append(group)
-
-    return [
-        reader(by_panel[number], context.panels[number], context, position)
-        for number in sorted(by_panel)
-    ]
+    return by_panel
 
 
 # --------------------------------------------------------------------------
@@ -608,10 +630,37 @@ def _points(
 def _lines(
     groups: list[DrawnGroup], panel: Panel, context: _Context, position: str
 ) -> PlotnineLayer:
-    """``geom_line``: one series per group, in the order of ``x``."""
+    """``geom_line``: one series per group, in the order of ``x``.
+
+    A line of recall against precision is a precision-recall curve; see
+    :func:`_names_pr_curve`.
+    """
     if position != "position_identity":
         raise Unreadable(f"lines placed with {position} are not read")
     return _series_layer(groups, panel, context, PlotType.LINE, band=False)
+
+
+def _paths(
+    groups: list[DrawnGroup], panel: Panel, context: _Context, position: str
+) -> PlotnineLayer:
+    """``geom_path``: read only as a precision-recall curve.
+
+    A path joins its rows in the order of the data, so it can double back
+    and is no function of ``x``: read as a line, it would be announced in an
+    order no reader can follow. A precision-recall curve is the exception --
+    ``precision_recall_curve`` answers its points from high recall down, and
+    ``geom_path`` is how they are drawn as computed -- and is read from low
+    recall up, as every precision-recall curve is.
+    """
+    if position != "position_identity":
+        raise Unreadable(f"paths placed with {position} are not read")
+    layer = _series_layer(groups, panel, context, PlotType.LINE, band=False)
+    if layer.type != PlotType.PR_CURVE:
+        raise Unreadable(
+            "a geom_path is read only as a precision-recall curve, of a "
+            "recall x against a precision y"
+        )
+    return layer
 
 
 def _smooth(
@@ -670,6 +719,15 @@ def _series_layer(
             points.append(point)
         rows.append(points)
 
+    if plot_type == PlotType.LINE and _names_pr_curve(context, rows):
+        plot_type = PlotType.PR_CURVE
+        # From low recall up, the higher precision first where a recall
+        # repeats: the order `PrCurvePlot` and the TensorBoard reader give.
+        rows = [
+            sorted(points, key=lambda p: (p[MaidrKey.X], -p[MaidrKey.Y]))
+            for points in rows
+        ]
+
     z = _series_label(context, groups) if named else None
     return PlotnineLayer(
         panel.ax,
@@ -680,6 +738,33 @@ def _series_layer(
         data=rows,
         selectors=selectors if highlight else None,
     )
+
+
+def _names_pr_curve(context: _Context, rows: list[list[dict]]) -> bool:
+    """
+    Whether a line layer is a precision-recall curve by its own names.
+
+    The claim the matplotlib and Plotly paths read off the axis titles
+    (:func:`~maidr.util.named_pr_curve.named_pr_curve`), and r-maidr off the
+    column names: ``x`` titled -- or mapping a column named -- ``recall`` and
+    ``y`` ``precision``, any case, with every point a pair of fractions of
+    one. plotnine titles an axis by the column it maps unless ``labs`` says
+    otherwise, so the two names usually agree; either is enough.
+    """
+    for x, y in (
+        (context.label("x"), context.label("y")),
+        (context.mapped("x"), context.mapped("y")),
+    ):
+        schema = {
+            MaidrKey.AXES: {
+                MaidrKey.X: {MaidrKey.LABEL: x},
+                MaidrKey.Y: {MaidrKey.LABEL: y},
+            },
+            MaidrKey.DATA: rows,
+        }
+        if named_pr_curve(schema):
+            return True
+    return False
 
 
 def _boxes(
@@ -829,6 +914,7 @@ def _tiles(
 _READERS: dict[str, Callable[..., PlotnineLayer]] = {
     "geom_point": _points,
     "geom_line": _lines,
+    "geom_path": _paths,
     "geom_boxplot": _boxes,
     "geom_tile": _tiles,
     "geom_smooth": _smooth,

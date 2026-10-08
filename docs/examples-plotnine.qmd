@@ -1,6 +1,6 @@
 ---
 title: "plotnine Accessible Plot Examples"
-description: "Code examples showing how to make plotnine (ggplot2 grammar) bar charts, stacked and dodged bars, histograms, scatter, line, smooth and box plots, heatmaps and faceted plots accessible with py-maidr."
+description: "Code examples showing how to make plotnine (ggplot2 grammar) bar charts, stacked and dodged bars, histograms, scatter, line, smooth and box plots, heatmaps, faceted plots and precision-recall curves accessible with py-maidr."
 jupyter: python3
 html-table-processing: none
 filters:
@@ -45,6 +45,7 @@ outlined on the plotnine drawing itself.
 | `geom_tile` with a numeric `fill` | heatmap |
 | `facet_wrap`, `facet_grid` | one subplot per panel |
 | `geom_bar`, `geom_col` with `position="fill"` | normalized stacked bar [experimental] |
+| `geom_line`, `geom_path` of recall against precision | precision-recall curve [experimental] |
 
 Any other geom, a jittered point, or a chart on a coordinate system other than
 `coord_cartesian` is left out with a warning naming it, and a chart with
@@ -332,6 +333,47 @@ maidr.show(p)  #<<
 
 Each segment is announced as its share of the bar, so the segments of one bar
 add up to 1.
+
+### PR Curve [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Precision-recall curves of a logistic regression and a naive Bayes classifier
+
+import pandas as pd
+from plotnine import aes, geom_path, ggplot, labs
+from sklearn.datasets import make_classification
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import precision_recall_curve
+from sklearn.naive_bayes import GaussianNB
+
+import maidr  #<<
+
+X, y = make_classification(n_samples=600, weights=[0.8], random_state=0)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+curves = []
+for name, model in [("Logistic regression", LogisticRegression()),
+                    ("Naive Bayes", GaussianNB())]:
+    scores = model.fit(X_train, y_train).predict_proba(X_test)[:, 1]
+    precision, recall, _ = precision_recall_curve(y_test, scores)
+    curves.append(pd.DataFrame({"recall": recall, "precision": precision,
+                                "model": name}))
+
+p = (
+    ggplot(pd.concat(curves), aes("recall", "precision", color="model"))
+    + geom_path()
+    + labs(title="Precision-Recall Curves", x="Recall", y="Precision")
+)
+
+maidr.show(p)  #<<
+```
+
+A `geom_line` or `geom_path` whose x is recall and whose y is precision --
+by the columns it maps or by its axis titles, with every value from 0 to 1 --
+is read as a precision-recall curve, one curve per group named as the lines
+of a multi-line plot are, each read from low recall up. Any other
+`geom_path` is left out, since a path need not move left to right.
 
 ## Saving and embedding
 

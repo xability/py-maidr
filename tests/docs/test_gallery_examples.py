@@ -212,6 +212,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Scatter Plot with a Smooth": [["point + smooth"]],
         "Faceted Plot": [["point", "point", "point"]],
         "Normalized Stacked Bar Plot [experimental]": [["stacked_normalized_bar"]],
+        "PR Curve [experimental]": [["pr_curve"]],
     },
     "examples-excel.qmd": {
         "Clustered Column Chart": [["dodged_bar"]],
@@ -886,6 +887,25 @@ def test_plotnine_normalized_segments_add_up_to_one(gallery: _Gallery) -> None:
     )
 
     assert [pytest.approx(sum(column)) for column in columns] == [1.0, 1.0, 1.0]
+
+
+def test_plotnine_pr_curves_are_named_and_read_from_low_recall_up(
+    gallery: _Gallery,
+) -> None:
+    """examples-plotnine.qmd: "one curve per group named as the lines of a
+    multi-line plot are, each read from low recall up"."""
+    layer = gallery.shown("examples-plotnine.qmd", "PR Curve [experimental]").layer(
+        PlotType.PR_CURVE
+    )
+    curves = layer[MaidrKey.DATA]
+
+    assert [{p[MaidrKey.Z] for p in curve} for curve in curves] == [
+        {"Logistic regression"},
+        {"Naive Bayes"},
+    ]
+    for curve in curves:
+        recall = [p[MaidrKey.X] for p in curve]
+        assert recall == sorted(recall)
 
 
 def test_excel_untitled_axis_is_named_after_its_header(gallery: _Gallery) -> None:

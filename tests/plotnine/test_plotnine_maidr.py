@@ -30,6 +30,7 @@ from plotnine import (  # noqa: E402
     geom_histogram,
     geom_jitter,
     geom_line,
+    geom_path,
     geom_point,
     geom_smooth,
     geom_tile,
@@ -430,6 +431,86 @@ def test_a_smooth_carries_its_band_and_leaves_a_line_beside_it_alone():
     assert first["yMin"] < first["y"] < first["yMax"]
     (selector,) = smooth["selectors"]
     assert len(_points_of(_one(root, selector))) == len(smooth["data"][0])
+
+
+# --------------------------------------------------------------------------
+# Precision-recall curves
+# --------------------------------------------------------------------------
+
+#: A precision-recall curve as `precision_recall_curve` answers it: from high
+#: recall down, with a recall that repeats.
+PR = pd.DataFrame(
+    {
+        "recall": [1.0, 0.8, 0.5, 0.5, 0.0],
+        "precision": [0.4, 0.6, 0.7, 0.9, 1.0],
+    }
+)
+
+
+def test_a_path_of_recall_against_precision_is_a_pr_curve_from_low_recall_up():
+    schema, root = _read(ggplot(PR, aes("recall", "precision")) + geom_path())
+    layer = _only(schema)
+
+    assert layer["type"] == "pr_curve"
+    assert layer["axes"]["x"] == {"label": "recall"}
+    assert layer["data"] == [
+        [
+            {"x": 0.0, "y": 1.0},
+            {"x": 0.5, "y": 0.9},
+            {"x": 0.5, "y": 0.7},
+            {"x": 0.8, "y": 0.6},
+            {"x": 1.0, "y": 0.4},
+        ]
+    ]
+    (selector,) = layer["selectors"]
+    assert len(_points_of(_one(root, selector))) == len(PR)
+
+
+def test_a_line_per_classifier_is_a_named_curve_each():
+    frame = pd.concat(
+        [PR.assign(model="a"), PR.assign(model="b", precision=PR["precision"] / 2)]
+    )
+    schema, root = _read(
+        ggplot(frame, aes("recall", "precision", color="model")) + geom_line()
+    )
+    layer = _only(schema)
+
+    assert layer["type"] == "pr_curve"
+    assert layer["axes"]["z"] == {"label": "model"}
+    assert [{p["z"] for p in curve} for curve in layer["data"]] == [{"a"}, {"b"}]
+    assert layer["data"][1][0] == {"x": 0.0, "y": 0.5, "z": "b"}
+    assert [len(_points_of(_one(root, s))) for s in layer["selectors"]] == [5, 5]
+
+
+@pytest.mark.parametrize(
+    "columns, titles",
+    [
+        # The axis titles say it, whatever the columns are called...
+        ({"recall": "r", "precision": "p"}, labs(x=" Recall ", y="PRECISION")),
+        # ...and so do the columns, whatever the titles say.
+        ({}, labs(x="Sensitivity", y="Positive predictive value")),
+    ],
+)
+def test_either_the_titles_or_the_columns_name_a_pr_curve(columns, titles):
+    frame = PR.rename(columns=columns)
+    x, y = frame.columns
+    layer = _only(_read(ggplot(frame, aes(x, y)) + geom_line() + titles)[0])
+
+    assert layer["type"] == "pr_curve"
+
+
+def test_a_line_named_recall_and_precision_beyond_one_stays_a_line():
+    frame = PR.assign(precision=PR["precision"] * 2)
+    layer = _only(_read(ggplot(frame, aes("recall", "precision")) + geom_line())[0])
+
+    assert layer["type"] == "line"
+
+
+def test_any_other_path_is_still_declined():
+    plot = ggplot(XY, aes("x", "y")) + geom_path() + geom_point()
+
+    assert any("geom_path" in m for m in _warnings_of(plot))
+    assert [layer["type"] for layer in _layers(_read(plot)[0])] == ["point"]
 
 
 # --------------------------------------------------------------------------

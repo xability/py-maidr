@@ -98,6 +98,15 @@ def frames():
         "boxes": pd.DataFrame(
             {"g": ["p"] * 7, "y": [1, 2, 3, 4, 5, 20, -10]}
         ),
+        # Two curves as `precision_recall_curve` answers them: high recall
+        # first, so the path is drawn right to left.
+        "pr": pd.DataFrame(
+            {
+                "recall": [1.0, 0.5, 0.0] * 2,
+                "precision": [0.4, 0.8, 1.0, 0.3, 0.6, 0.9],
+                "model": ["a"] * 3 + ["b"] * 3,
+            }
+        ),
     }
 
 
@@ -209,6 +218,36 @@ def test_a_box_outlines_the_whisker_it_announces(browser, frames, tmp_path):
             spoken = _step(page, "ArrowUp")
         assert "Maximum" in spoken and "5" in spoken, spoken
         assert page.evaluate(_HIGHLIGHTED) == [upper["d"]]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+#: How many outlines the core is showing.
+_OUTLINED = "() => document.querySelectorAll('[id^=maidr-highlight]').length"
+
+
+def test_a_pr_curve_is_walked_from_low_recall_up(browser, frames, tmp_path):
+    from plotnine import aes, geom_path, ggplot
+
+    chart = _save(
+        ggplot(frames["pr"], aes("recall", "precision", color="model"))
+        + geom_path(),
+        tmp_path,
+        "pr",
+    )
+    page, errors = _open(browser, chart)
+    try:
+        spoken = _step(page, "ArrowRight")
+        assert "recall is 0," in spoken and "precision is 1" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
+
+        spoken = _step(page, "ArrowRight")
+        assert "recall is 0.5" in spoken and "precision is 0.8" in spoken, spoken
+
+        spoken = _step(page, "ArrowDown")
+        assert "is b" in spoken and "precision is 0.6" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
         assert not errors, errors
     finally:
         page.close()

@@ -24,8 +24,9 @@ Limitations
 * Experimental as a whole: see ``docs/stability.qmd#plotnine-support``.
 * The geoms read are ``geom_bar``, ``geom_col``, ``geom_histogram``,
   ``geom_point``, ``geom_line``, ``geom_smooth``, ``geom_boxplot`` and
-  ``geom_tile``, on ``coord_cartesian``. Anything else is left out with a
-  warning naming it, and a chart with nothing read is drawn as a static image.
+  ``geom_tile``, on ``coord_cartesian``, and ``geom_path`` only as a
+  precision-recall curve. Anything else is left out with a warning naming it,
+  and a chart with nothing read is drawn as a static image.
 * A ``ggplot`` shown through plotnine itself -- ``p.show()``, or a notebook's
   own display of ``p`` -- is not read; ``maidr.show(p)`` is the entry point.
 """
