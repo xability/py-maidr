@@ -220,3 +220,30 @@ ax.set_title("Median weekly sales, 10th to 90th percentile")
 
 plt.show()  #<<
 ```
+
+The same chart written with `seaborn.objects` -- a `so.Band()` of
+`so.Est("median", errorbar=("pi", 80))` and a `so.Line()` of
+`so.Agg("median")` -- is read the same way, as one percentile band.
+
+```{python}
+#| warning: false
+#| fig-alt: Median weekly sales with the band between their 10th and 90th percentiles, drawn with seaborn.objects
+
+import numpy as np
+import pandas as pd
+import seaborn.objects as so
+
+import maidr  #<<
+
+rng = np.random.default_rng(0)
+sales = pd.DataFrame({"week": np.repeat(np.arange(1, 9), 200)})
+sales["units"] = rng.normal(10 + 2 * sales["week"], sales["week"])
+
+(
+    so.Plot(sales, x="week", y="units")
+    .add(so.Band(), so.Est("median", errorbar=("pi", 80)))  #<<
+    .add(so.Line(), so.Agg("median"))  #<<
+    .label(title="Median weekly sales, 10th to 90th percentile")
+    .show()  #<<
+)
+```

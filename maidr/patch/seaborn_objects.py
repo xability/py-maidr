@@ -726,9 +726,120 @@ def _layer(wrapped, instance, args, kwargs) -> Any:
         # `FacetGrid.add_legend()`, and a name can be deferred to render as a
         # callable -- but a *split* cannot, because it decides how many
         # layers there are. So the reading waits for `_register`.
-        pending.append((ax, reading, own, layer.get("move"), layer.get("orient")))
+        pending.append(
+            (
+                ax,
+                reading,
+                own,
+                layer.get("move"),
+                layer.get("orient"),
+                layer.get("stat"),
+                layer.get("vars"),
+            )
+        )
 
     return drawn
+
+
+def _median_percentile(stat: Any) -> float | None:
+    """
+    The width of the percentile interval a ``so.Est`` of the median names.
+
+    ``so.Est("median", errorbar=("pi", 80))`` takes the same two arguments as
+    ``seaborn.lineplot`` and draws, through ``so.Band()``, the band between the
+    10th and 90th percentiles at each x, so it is read by the same rule:
+    :func:`maidr.patch.lineplot._median_percentile_width`.
+
+    Parameters
+    ----------
+    stat : Any
+        The layer's stat.
+
+    Returns
+    -------
+    float or None
+        The width in percent, or None when the stat is not such an estimate.
+    """
+    from maidr.patch.lineplot import _median_percentile_width
+
+    if type(stat).__name__ != "Est":
+        return None
+    return _median_percentile_width(
+        {
+            "estimator": getattr(stat, "func", None),
+            "errorbar": getattr(stat, "errorbar", None),
+        }
+    )
+
+
+def _is_median(stat: Any) -> bool:
+    """Whether a line's stat is the median at each x: ``so.Agg("median")``."""
+    return (
+        type(stat).__name__ in ("Agg", "Est")
+        and getattr(stat, "func", None) in ("median", np.median)
+    )
+
+
+def _without_percentile_bands(pending: list) -> list:
+    """
+    Register each median-and-percentile pair as one band; return the rest.
+
+    ``so.Plot(...).add(so.Band(), so.Est("median", errorbar=("pi", 80)))``
+    with ``.add(so.Line(), so.Agg("median"))`` is the ``seaborn.objects``
+    spelling of ``seaborn.lineplot(estimator="median", errorbar=("pi", 80))``:
+    a median line and the band between two percentiles the arguments name.
+    On a panel where each drew exactly one artist, along x, with no variable
+    of its own, the two are one ``percentile_band``, built as the
+    ``lineplot`` reading builds it; anything else is read as it was, a line
+    and an interval.
+
+    Parameters
+    ----------
+    pending : list
+        The recorded layers, as ``_layer`` appended them.
+
+    Returns
+    -------
+    list
+        The layers not taken into a band, in their order.
+    """
+    from maidr.patch.lineplot import _percentile_band
+
+    taken: set[int] = set()
+    for i, (ax, reading, own, _, orient, stat, variables) in enumerate(pending):
+        width = _median_percentile(stat)
+        if (
+            reading.plot_type is not PlotType.ERRORBAR
+            or not isinstance(own[0], Polygon)
+            or width is None
+            or len(own) != 1
+            or orient not in (None, "x")
+            or variables
+        ):
+            continue
+        median = next(
+            (
+                j
+                for j, (ax2, reading2, own2, _, orient2, stat2, vars2) in enumerate(
+                    pending
+                )
+                if j not in taken
+                and ax2 is ax
+                and reading2.binding == "lines"
+                and len(own2) == 1
+                and orient2 in (None, "x")
+                and not vars2
+                and _is_median(stat2)
+            ),
+            None,
+        )
+        if median is None:
+            continue
+        band = _percentile_band(ax, pending[median][2], own, width)
+        if band is not None:
+            FigureManager.add_plot(band)
+            taken.update((i, median))
+    return [entry for k, entry in enumerate(pending) if k not in taken]
 
 
 def _register(wrapped, instance, args, kwargs) -> Any:
@@ -768,7 +879,8 @@ def _register(wrapped, instance, args, kwargs) -> Any:
 
     plotter = wrapped(*args, **kwargs)
 
-    for ax, reading, own, move, orient in getattr(plotter, _PENDING, ()):
+    pending = list(getattr(plotter, _PENDING, ()))
+    for ax, reading, own, move, orient, *_ in _without_percentile_bands(pending):
         for plot_type, handover in _handovers(reading, ax, own, move, orient):
             FigureManager.create_maidr(ax, plot_type, **handover)
 

@@ -149,3 +149,54 @@ def test_a_band_beside_a_line_on_one_axes_is_each_its_own_layer(draws):
     line, band = layers(ax)
     assert (line.type, band.type) == (PlotType.LINE, PlotType.PERCENTILE_BAND)
     assert len(line.schema[MaidrKey.DATA]) == 1
+
+
+so = pytest.importorskip("seaborn.objects")
+
+
+def _objects(frame, band_stat, line_stat, **plot):
+    p = (
+        so.Plot(frame, x="week", y="sales", **plot)
+        .add(so.Band(), band_stat)
+        .add(so.Line(), line_stat)
+    )
+    return p.plot()._figure
+
+
+def test_objects_band_of_a_median_estimate_and_a_median_line_are_one_band(draws):
+    figure = _objects(draws, so.Est("median", errorbar=("pi", 80)), so.Agg("median"))
+
+    (layer,) = FigureManager.get_maidr(figure).plots
+    assert layer.type == PlotType.PERCENTILE_BAND
+    first = layer.schema[MaidrKey.DATA][0]
+    at_one = draws.loc[draws["week"] == 1, "sales"]
+    assert [q["level"] for q in first["quantiles"]] == [0.1, 0.5, 0.9]
+    assert [q["value"] for q in first["quantiles"]] == pytest.approx(
+        np.percentile(at_one, [10, 50, 90])
+    )
+    assert len(layer.schema[MaidrKey.DATA]) == 4
+
+
+@pytest.mark.parametrize(
+    "band_stat, line_stat, plot",
+    [
+        # A mean is not the 50th percentile the band is read around.
+        (lambda: so.Est("mean", errorbar=("pi", 80)), lambda: so.Agg("mean"), {}),
+        # A confidence interval states no percentiles.
+        (lambda: so.Est("median", errorbar="ci"), lambda: so.Agg("median"), {}),
+        # Two series, a band and a line each.
+        (
+            lambda: so.Est("median", errorbar=("pi", 80)),
+            lambda: so.Agg("median"),
+            {"color": "store"},
+        ),
+    ],
+)
+def test_objects_anything_else_keeps_its_line_and_interval(
+    draws, band_stat, line_stat, plot
+):
+    figure = _objects(draws, band_stat(), line_stat(), **plot)
+
+    types = {layer.type for layer in FigureManager.get_maidr(figure).plots}
+    assert PlotType.PERCENTILE_BAND not in types
+    assert PlotType.LINE in types
