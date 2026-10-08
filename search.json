@@ -1518,6 +1518,17 @@
     ]
   },
   {
+    "objectID": "examples/line-step.html#percentile-band",
+    "href": "examples/line-step.html#percentile-band",
+    "title": "Accessible Line and Step Plots in matplotlib and seaborn with py-maidr",
+    "section": "Percentile Band [experimental]",
+    "text": "Percentile Band [experimental]\nA median drawn with a percentile interval – sns.lineplot(estimator=\"median\", errorbar=(\"pi\", 80)) – shows, at each x, the middle of the observations there and the band between their 10th and 90th percentiles. The arguments name those quantiles exactly, so maidr reads the chart as a percentile band rather than a line: Left and Right move along x, each x is entered on the median, and Up and Down move to the band’s bounds, each announced with the band it bounds (“Middle 80% is 0.36 to 1.66”).\nOnly one series is read this way: a mean, a confidence interval, or a hue, style, size or units split keeps the line reading above. PERCENTILE_BAND is experimental and may change without a deprecation period: see Plot Type Stability.\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport pandas as pd\nimport seaborn as sns\n\nimport maidr  \n\nrng = np.random.default_rng(0)\nsales = pd.DataFrame({\"week\": np.repeat(np.arange(1, 9), 200)})\nsales[\"units\"] = rng.normal(10 + 2 * sales[\"week\"], sales[\"week\"])\n\nax = sns.lineplot(  \n    data=sales, x=\"week\", y=\"units\", estimator=\"median\", errorbar=(\"pi\", 80)  \n)  \nax.set_title(\"Median weekly sales, 10th to 90th percentile\")\n\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Line and Step Plots"
+    ]
+  },
+  {
     "objectID": "examples/dashboards.html",
     "href": "examples/dashboards.html",
     "title": "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr",
