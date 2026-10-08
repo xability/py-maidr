@@ -268,6 +268,40 @@ def test_scatter_with_lines_reads_as_a_line(tmp_path):
     assert _values(series) == [2, 4, 9]
 
 
+def test_scatter_with_lines_titled_recall_and_precision_is_a_pr_curve(tmp_path):
+    """Drawn through the patched ``Axes.plot``, so the matplotlib line path's
+    ``named_pr_curve`` reads it; a line chart, whose x is categories spaced
+    evenly, is not one whatever its titles say."""
+    rows = [["Recall", "Precision"], [0, 1], [0.25, 0.9], [0.5, 0.7], [1, 0.4]]
+
+    def build(kind, subtype=None):
+        def add(workbook, worksheet):
+            chart = workbook.add_chart(
+                {"type": kind, **({"subtype": subtype} if subtype else {})}
+            )
+            chart.add_series(
+                {
+                    "name": "Model",
+                    "categories": ["Sales", 1, 0, 4, 0],
+                    "values": ["Sales", 1, 1, 4, 1],
+                }
+            )
+            chart.set_x_axis({"name": "Recall"})
+            chart.set_y_axis({"name": "Precision"})
+            worksheet.insert_chart("E2", chart)
+
+        return add
+
+    layer = _only_layer(_book(tmp_path, build("scatter", "straight"), rows=rows))
+    assert layer["type"] == "pr_curve"
+    (curve,) = layer["data"]
+    assert _values(curve, "x") == [0, 0.25, 0.5, 1]
+    assert _values(curve) == [1, 0.9, 0.7, 0.4]
+
+    line = _only_layer(_book(tmp_path, build("line"), rows=rows))
+    assert line["type"] == "line"
+
+
 def test_stacked_area_reads_as_a_stacked_area(tmp_path):
     layer = _only_layer(_book(tmp_path, _chart("area", subtype="stacked")))
 
