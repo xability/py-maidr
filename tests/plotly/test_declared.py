@@ -223,3 +223,40 @@ def test_a_meta_that_is_not_a_declaration_changes_nothing():
     )
 
     assert [layer["type"] for layer in layers(fig)] == ["line"]
+
+
+def test_an_edge_at_float_x_meets_a_median_at_int_x_and_a_missing_x_is_a_gap():
+    floats = [float(x) for x in X]
+    fig = go.Figure(
+        [
+            go.Scatter(x=floats, y=[m - 2 for m in MEDIAN], mode="lines"),
+            go.Scatter(
+                x=floats[:3],
+                y=[m + 2 for m in MEDIAN[:3]],
+                name="band",
+                mode="lines",
+                fill="tonexty",
+            ),
+            go.Scatter(
+                x=X,
+                y=MEDIAN,
+                mode="lines",
+                meta={
+                    "maidr": {
+                        "type": "percentile_band",
+                        "bands": [{"series": "band", "lower": 0.05, "upper": 0.95}],
+                    }
+                },
+            ),
+        ]
+    )
+
+    (layer,) = layers(fig)
+
+    assert layer["data"][1]["quantiles"] == [
+        {"level": 0.05, "value": 4.0},
+        {"level": 0.5, "value": 6.0},
+        {"level": 0.95, "value": 8.0},
+    ]
+    # The upper edge has no point at x=3: a gap, as the grammar spells one.
+    assert layer["data"][3]["quantiles"][2] == {"level": 0.95, "value": None}

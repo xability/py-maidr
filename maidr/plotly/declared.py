@@ -162,6 +162,19 @@ def _bands_ok(trace: dict, bands: Any) -> bool:
     return True
 
 
+def _x_key(x: Any) -> str:
+    """
+    The key an x is matched by across a fan's traces.
+
+    A number is keyed by its float value, so ``1`` on the median and ``1.0``
+    on a band edge are the same position.
+    """
+    x = PlotlyPlot._to_native(x)
+    if isinstance(x, (int, float)) and not isinstance(x, bool):
+        return repr(float(x))
+    return str(x)
+
+
 def _values_by_x(trace: dict) -> dict[str, float]:
     """A trace's finite y values, keyed by the x each is drawn at."""
     xs, ys = paired_axes(trace)
@@ -169,7 +182,7 @@ def _values_by_x(trace: dict) -> dict[str, float]:
     for x, y in zip(xs, ys):
         value = _number(y)
         if x is not None and value is not None:
-            at[str(PlotlyPlot._to_native(x))] = value
+            at[_x_key(x)] = value
     return at
 
 
@@ -336,8 +349,10 @@ class PlotlyPercentileBandPlot(PlotlyPlot):
             x = self._to_native(x)
             quantiles: list[dict] = [{"level": 0.5, "value": value}]
             for lower, upper, low, high in edges:
-                quantiles.append({"level": lower, "value": low.get(str(x))})
-                quantiles.append({"level": upper, "value": high.get(str(x))})
+                # An edge with no point at this x is a gap (``None``), as the
+                # grammar spells one.
+                quantiles.append({"level": lower, "value": low.get(_x_key(x))})
+                quantiles.append({"level": upper, "value": high.get(_x_key(x))})
             quantiles.sort(key=lambda quantile: quantile["level"])
             data.append({"x": x, "quantiles": quantiles})
         return data
