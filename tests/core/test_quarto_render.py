@@ -25,7 +25,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pytest  # noqa: E402
 
-import maidr  # noqa: F401,E402  # activates patches
+import maidr  # noqa: E402  # activates patches
 from maidr import api as maidr_api  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.environment import Environment  # noqa: E402
@@ -89,6 +89,27 @@ def _show_a_chart(**kwargs) -> None:
         plt.close(fig)
 
 
+def _show_a_plotly_chart(**kwargs) -> None:
+    go = pytest.importorskip("plotly.graph_objects")
+    fig = go.Figure(go.Bar(x=["A", "B", "C"], y=[1.0, 2.0, 3.0]))
+    maidr.show(fig, renderer="ipython", **kwargs)
+
+
+def _show_a_bokeh_chart(**kwargs) -> None:
+    plotting = pytest.importorskip("bokeh.plotting")
+    fig = plotting.figure(x_range=["A", "B", "C"])
+    fig.vbar(x=["A", "B", "C"], top=[1.0, 2.0, 3.0], width=0.5)
+    maidr.show(fig, renderer="ipython", **kwargs)
+
+
+#: Each library's ``show()`` stashes the bundle through the same helper.
+SHOW_A_CHART = {
+    "matplotlib": _show_a_chart,
+    "plotly": _show_a_plotly_chart,
+    "bokeh": _show_a_bokeh_chart,
+}
+
+
 def test_is_quarto_reads_the_variable_quarto_sets_in_its_kernel(monkeypatch):
     monkeypatch.setenv(QUARTO_VARIABLE, "png")
     assert Environment.is_quarto() is True
@@ -100,21 +121,23 @@ def test_is_quarto_reads_the_variable_quarto_sets_in_its_kernel(monkeypatch):
     assert Environment.is_quarto() is False
 
 
-def test_a_notebook_gives_every_chart_its_own_copy(page):
+@pytest.mark.parametrize("library", SHOW_A_CHART)
+def test_a_notebook_gives_every_chart_its_own_copy(page, library):
     """Unchanged: a cell-isolated frontend needs the copy in each output."""
-    _show_a_chart()
-    _show_a_chart()
+    SHOW_A_CHART[library]()
+    SHOW_A_CHART[library]()
 
     assert page.copies() == 2
 
 
-def test_a_quarto_render_stashes_the_bundle_once(page, monkeypatch):
+@pytest.mark.parametrize("library", SHOW_A_CHART)
+def test_a_quarto_render_stashes_the_bundle_once(page, monkeypatch, library):
     """The reported bug: every chart's frame reaches the first copy."""
     monkeypatch.setenv(QUARTO_VARIABLE, "png")
 
-    _show_a_chart()
-    _show_a_chart()
-    _show_a_chart()
+    SHOW_A_CHART[library]()
+    SHOW_A_CHART[library]()
+    SHOW_A_CHART[library]()
 
     assert page.copies() == 1
 
