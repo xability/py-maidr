@@ -98,6 +98,28 @@ class Environment:
             return False
 
     @staticmethod
+    def is_quarto() -> bool:
+        """
+        Return True in the kernel Quarto renders a document with.
+
+        Quarto runs a document's Python cells in an ordinary Jupyter kernel,
+        so :meth:`is_notebook` answers True there as well. What sets a render
+        apart is that it is a batch run building one document: no reader waits
+        on the kernel, and every cell's output ends up in the same page.
+
+        Quarto's Jupyter engine sets ``QUARTO_FIG_FORMAT``, with
+        ``QUARTO_FIG_WIDTH``, ``QUARTO_FIG_HEIGHT`` and ``QUARTO_FIG_DPI``, in
+        the environment of the kernel it renders with, and has since at least
+        Quarto 1.3. A kernel started by a notebook frontend has none of them.
+
+        Returns
+        -------
+        bool
+            True if ``QUARTO_FIG_FORMAT`` is set and not empty.
+        """
+        return bool(os.environ.get("QUARTO_FIG_FORMAT"))
+
+    @staticmethod
     def is_pyodide_page() -> bool:
         """
         Return True when running in Pyodide on a page's main thread, with no shell.

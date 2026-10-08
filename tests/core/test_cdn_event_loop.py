@@ -245,6 +245,28 @@ def test_a_notebook_render_makes_no_request(requests, mocker, bar_plot) -> None:
     assert f"maidr@{cdn.LATEST_TAG}/" not in html
 
 
+def test_a_quarto_render_resolves_on_its_loop(
+    requests, monkeypatch, mocker, bar_plot
+) -> None:
+    """A Quarto render is the exception the rule does not need (#888).
+
+    Quarto runs the cells in a kernel, so they are on a loop as well, but a
+    render is a batch run: no reader and no other session waits on it. Its
+    document gets the published release, as a script's does.
+    """
+    monkeypatch.setenv("QUARTO_FIG_FORMAT", "png")
+    mocker.patch(
+        "maidr.util.environment.Environment.is_notebook", return_value=True
+    )
+
+    html = in_loop(
+        lambda: str(maidr.render(bar_plot, use_cdn="auto").get_html_string())
+    )
+
+    assert len(requests) == 1
+    assert "maidr@9.9.9/dist/maidr.js" in html
+
+
 def test_bundle_status_resolves_from_a_running_loop(requests) -> None:
     """The way off the bundled version when there is no start-up code.
 

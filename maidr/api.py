@@ -495,6 +495,59 @@ def init_notebook(
     _NOTEBOOK_LOADED = True
 
 
+def _init_notebook_on_import() -> None:
+    """Stash the bundle when ``import maidr`` runs in a notebook.
+
+    Not in a Quarto render. The cell that imports maidr there is often a
+    setup cell whose output Quarto drops (``include: false``), and the copy
+    would go with it, so the first chart stashes it instead; see
+    :func:`_init_notebook_for_show`.
+    """
+    from maidr.util.environment import Environment
+
+    if Environment.is_quarto():
+        return
+    init_notebook()
+
+
+def _init_notebook_for_show(use_cdn: bool | Literal["auto"] | None) -> None:
+    """Stash the bundle ahead of the iframe a ``show()`` is about to display.
+
+    ``Tag.get_html_string()`` drops ``HTMLDependency`` children when the
+    chart is serialized into the iframe's ``srcdoc``, so in a notebook the
+    frame's copy of ``maidr.js`` -- its only source under ``use_cdn=False``,
+    its offline fallback under ``"auto"`` -- is the one stashed on the page.
+
+    In a notebook every chart stashes its own copy (``force=True``) so that
+    its cell stands on its own: cell-isolated frontends (Google Colab,
+    Databricks) give each output its own ``window``, a cleared output takes
+    the import-time copy with it, and a reopened notebook has run nothing.
+
+    A Quarto render builds one document in one pass, so none of that
+    applies: every chart's frame reaches the same ``window``, and each
+    further copy is the same 2 MB again (#888). Under ``"auto"`` there the
+    first chart stashes it and the rest reuse it. ``use_cdn=False`` keeps a
+    copy per chart: it is each chart's only source, and ``quarto preview``
+    renders again in the kernel it already used, where the copy an earlier
+    render stashed is not in the page being built. Under ``"auto"`` that
+    costs a preview only its offline fallback.
+
+    Parameters
+    ----------
+    use_cdn : bool, {"auto"}, or None
+        The mode the chart is rendered with. ``True`` loads ``maidr.js``
+        from the CDN alone and needs no copy.
+    """
+    from maidr.util.environment import Environment
+
+    if use_cdn is True or not Environment.is_notebook():
+        return
+    once_per_document = (
+        Environment.is_quarto() and _resolve_use_cdn(use_cdn) == "auto"
+    )
+    init_notebook(use_cdn=use_cdn, force=not once_per_document)
+
+
 def _is_plotly_figure(obj: Any) -> bool:
     """
     Check if an object is a Plotly figure without importing plotly at top level.

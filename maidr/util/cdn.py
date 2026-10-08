@@ -47,6 +47,7 @@ from maidr.util.dependencies import (
     _warn_placeholder_css,
     _version_key,
 )
+from maidr.util.environment import Environment
 from maidr.util.warn import _MAX_WARNED_KEY_LEN, warn_once
 
 _logger = logging.getLogger(__name__)
@@ -394,6 +395,9 @@ def get_cdn_version() -> str:
     :func:`maidr.bundle_status` call, which resolves regardless of the
     loop and caches the answer.
 
+    A Quarto render runs its cells in a kernel as well, but nobody waits
+    on that loop, so it resolves as a script does (#888).
+
     Synchronous callers are unaffected, including threads: they still
     resolve once per process and queue on ``_fetch_lock`` while the first
     of them does.  That queueing is not fixed here; it is the event loop
@@ -660,14 +664,22 @@ def _resolution_would_block() -> bool:
     :func:`maidr.bundle_status` call, which resolves regardless of the
     loop and caches the answer.
 
+    A Quarto render is the exception. It runs the cells in a kernel too,
+    but it is a batch run, like a script: no reader and no other session
+    waits on that loop, so the lookup costs only the render's own time,
+    and the document gets the published release a script would (#888).
+
     Returns
     -------
     bool
         ``True`` only when a lookup would have to be performed *and* this
-        thread is running an event loop.
+        thread is running an event loop that something else is waiting on.
     """
     attempted, _ = _resolution_state()
     if attempted:
+        return False
+
+    if Environment.is_quarto():
         return False
 
     try:
